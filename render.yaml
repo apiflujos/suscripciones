@@ -13,6 +13,49 @@ services:
     startCommand: npm run start:migrate
     healthCheckPath: /health
     envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: wompi-subs-db
+          property: connectionString
+      - key: ADMIN_API_TOKEN
+        sync: false
+      - key: WOMPI_EVENTS_SECRET
+        sync: false
+      - key: WOMPI_PRIVATE_KEY
+        sync: false
+      - key: WOMPI_API_BASE_URL
+        sync: false
+      - key: WOMPI_CHECKOUT_LINK_BASE_URL
+        sync: false
+      - key: WOMPI_REDIRECT_URL
+        sync: false
+      - key: SHOPIFY_FORWARD_URL
+        sync: false
+      - key: SHOPIFY_FORWARD_SECRET
+        sync: false
+      - key: CHATWOOT_BASE_URL
+        sync: false
+      - key: CHATWOOT_ACCOUNT_ID
+        sync: false
+      - key: CHATWOOT_API_ACCESS_TOKEN
+        sync: false
+      - key: CHATWOOT_INBOX_ID
+        sync: false
+      - key: CREDENTIALS_ENCRYPTION_KEY_B64
+        sync: false
+
+  - type: worker
+    name: wompi-subs-jobs
+    env: node
+    plan: starter
+    rootDir: apps/api
+    buildCommand: npm ci && npm run build
+    startCommand: npm run jobs
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
       - key: DATABASE_URL
         fromDatabase:
           name: wompi-subs-db
@@ -52,6 +95,8 @@ services:
     buildCommand: npm ci && npm run build
     startCommand: npm run start
     envVars:
+      - key: NODE_VERSION
+        value: "20"
       - key: NEXT_PUBLIC_API_BASE_URL
         sync: false
       - key: API_ADMIN_TOKEN
