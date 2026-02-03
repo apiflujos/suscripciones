@@ -1,0 +1,262 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  EXPIRED
+  CANCELED
+  SUSPENDED
+}
+
+enum PlanIntervalUnit {
+  DAY
+  WEEK
+  MONTH
+  CUSTOM
+}
+
+enum PaymentStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  ERROR
+  VOIDED
+}
+
+enum WebhookProvider {
+  WOMPI
+}
+
+enum WebhookProcessStatus {
+  RECEIVED
+  PROCESSED
+  FAILED
+  SKIPPED
+}
+
+enum ChatwootMessageType {
+  PAYMENT_LINK
+  PAYMENT_CONFIRMED
+  EXPIRY_WARNING
+  PAYMENT_FAILED
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum LogLevel {
+  DEBUG
+  INFO
+  WARN
+  ERROR
+}
+
+enum CredentialProvider {
+  WOMPI
+  CHATWOOT
+  SHOPIFY
+}
+
+enum RetryJobType {
+  PROCESS_WOMPI_EVENT
+  FORWARD_WOMPI_TO_SHOPIFY
+  SEND_CHATWOOT_MESSAGE
+  SUBSCRIPTION_REMINDER
+  PAYMENT_RETRY
+}
+
+enum RetryJobStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELED
+}
+
+model Customer {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String?
+  email     String?  @unique
+  phone     String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subscriptions Subscription[]
+  payments      Payment[]
+  chatwootMsgs  ChatwootMessage[]
+}
+
+model SubscriptionPlan {
+  id           String           @id @default(uuid()) @db.Uuid
+  name         String           @unique
+  priceInCents Int
+  currency     String           @default("COP")
+  intervalUnit PlanIntervalUnit
+  intervalCount Int             @default(1)
+  active       Boolean          @default(true)
+  metadata     Json?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id                   String             @id @default(uuid()) @db.Uuid
+  customerId           String             @db.Uuid
+  planId               String             @db.Uuid
+  status               SubscriptionStatus @default(ACTIVE)
+  startAt              DateTime           @default(now())
+  currentPeriodStartAt DateTime           @default(now())
+  currentPeriodEndAt   DateTime
+  currentCycle         Int                @default(1)
+  retryCount           Int                @default(0)
+  maxRetries           Int                @default(3)
+  canceledAt           DateTime?
+  suspendedAt          DateTime?
+  metadata             Json?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  customer Customer         @relation(fields: [customerId], references: [id])
+  plan     SubscriptionPlan @relation(fields: [planId], references: [id])
+  payments Payment[]
+  chatwootMsgs ChatwootMessage[]
+
+  @@index([status, currentPeriodEndAt])
+  @@index([customerId])
+  @@index([planId])
+}
+
+model Payment {
+  id                 String        @id @default(uuid()) @db.Uuid
+  customerId         String        @db.Uuid
+  subscriptionId     String?       @db.Uuid
+  amountInCents      Int
+  currency           String        @default("COP")
+  cycleNumber        Int?
+  reference          String
+  wompiTransactionId String?
+  status             PaymentStatus @default(PENDING)
+  paidAt             DateTime?
+  providerResponse   Json?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  customer     Customer      @relation(fields: [customerId], references: [id])
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id])
+  attempts     PaymentAttempt[]
+  chatwootMsgs ChatwootMessage[]
+
+  @@unique([wompiTransactionId])
+  @@index([reference])
+  @@index([subscriptionId, status])
+}
+
+model PaymentAttempt {
+  id          String   @id @default(uuid()) @db.Uuid
+  paymentId   String   @db.Uuid
+  attemptNo   Int
+  status      String
+  errorCode   String?
+  errorMessage String?
+  provider    String?
+  response    Json?
+  createdAt   DateTime @default(now())
+
+  payment Payment @relation(fields: [paymentId], references: [id])
+
+  @@index([paymentId])
+}
+
+model WebhookEvent {
+  id            String               @id @default(uuid()) @db.Uuid
+  provider      WebhookProvider
+  checksum      String               @unique
+  eventName     String
+  providerTs    BigInt?
+  headers       Json?
+  payload       Json
+  receivedAt    DateTime             @default(now())
+  processedAt   DateTime?
+  processStatus WebhookProcessStatus @default(RECEIVED)
+  errorMessage  String?
+
+  @@index([provider, receivedAt])
+  @@index([processStatus, receivedAt])
+}
+
+model ChatwootMessage {
+  id             String            @id @default(uuid()) @db.Uuid
+  customerId     String            @db.Uuid
+  subscriptionId String?           @db.Uuid
+  paymentId      String?           @db.Uuid
+  type           ChatwootMessageType
+  status         MessageStatus     @default(PENDING)
+  to             String?
+  content        String
+  providerResp   Json?
+  errorMessage   String?
+  sentAt         DateTime?
+  createdAt      DateTime          @default(now())
+
+  customer     Customer      @relation(fields: [customerId], references: [id])
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id])
+  payment      Payment?      @relation(fields: [paymentId], references: [id])
+
+  @@index([status, createdAt])
+  @@index([customerId])
+}
+
+model SystemLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  level     LogLevel
+  source    String
+  message   String
+  context   Json?
+  createdAt DateTime @default(now())
+
+  @@index([level, createdAt])
+}
+
+model Credential {
+  id            String             @id @default(uuid()) @db.Uuid
+  provider      CredentialProvider
+  key           String
+  valueEncrypted String
+  version       Int                @default(1)
+  active        Boolean            @default(true)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@unique([provider, key])
+}
+
+model RetryJob {
+  id          String        @id @default(uuid()) @db.Uuid
+  type        RetryJobType
+  status      RetryJobStatus @default(PENDING)
+  runAt       DateTime      @default(now())
+  attempts    Int           @default(0)
+  maxAttempts Int           @default(10)
+  lastError   String?
+  payload     Json
+  lockedAt    DateTime?
+  lockedBy    String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([status, runAt])
+  @@index([type, status])
+}

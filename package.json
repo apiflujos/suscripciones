@@ -1,0 +1,17 @@
+{
+  "name": "suscripciones-wompi-chatwoot",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "npm -w apps/api run dev",
+    "dev:admin": "npm -w apps/admin run dev",
+    "build": "npm -w apps/api run build && npm -w apps/admin run build",
+    "lint": "npm -w apps/api run lint && npm -w apps/admin run lint"
+  }
+}
+
