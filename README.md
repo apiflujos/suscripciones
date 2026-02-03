@@ -95,6 +95,12 @@ Obligatorias:
 - `WOMPI_EVENTS_SECRET` (secreto de eventos/webhooks)
 - `ADMIN_API_TOKEN` (para endpoints admin del API)
 
+Para links de pago (Checkout):
+
+- `WOMPI_PUBLIC_KEY`
+- `WOMPI_CHECKOUT_BASE_URL` (default: `https://checkout.wompi.co/p/`)
+- `WOMPI_REDIRECT_URL` (opcional)
+
 Opcionales:
 
 - `SHOPIFY_FORWARD_URL` (URL para forward de eventos Wompi cuando aplique)
@@ -106,6 +112,7 @@ Opcionales:
 Ver `apps/admin/.env.example`.
 
 - `NEXT_PUBLIC_API_BASE_URL` (ej. `http://localhost:3001`)
+- `API_ADMIN_TOKEN` (debe ser el mismo que `ADMIN_API_TOKEN` del API)
 - `ADMIN_BASIC_USER`, `ADMIN_BASIC_PASS` (si están seteadas, el panel pide Basic Auth)
 
 ## Endpoints
@@ -113,6 +120,26 @@ Ver `apps/admin/.env.example`.
 - `POST /webhooks/wompi` webhook central (firma + idempotencia + enqueue)
 - `GET /health` health check
 - `GET /admin/webhook-events` (requiere `Authorization: Bearer $ADMIN_API_TOKEN`)
+- `GET/POST /admin/plans` CRUD base
+- `GET/POST /admin/customers` CRUD base
+- `GET/POST /admin/subscriptions` CRUD base
+- `POST /admin/subscriptions/:id/payment-link` crea `payment` + retorna checkout URL
+
+## Quickstart (API)
+
+Headers:
+
+```bash
+export API_BASE=http://localhost:3001
+export API_TOKEN=change-me-change-me
+```
+
+Crear plan:
+
+```bash
+curl -sS "$API_BASE/admin/plans" -H "authorization: Bearer $API_TOKEN" -H "content-type: application/json" -d '{"name":"Plan Mensual","priceInCents":49000,"currency":"COP","intervalUnit":"MONTH","intervalCount":1}' | jq
+```
+
 
 ## Deploy en Render
 

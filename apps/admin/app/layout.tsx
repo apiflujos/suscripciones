@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
@@ -7,6 +8,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <div style={{ padding: 16, borderBottom: "1px solid #eee" }}>
           <strong>Wompi Subs – Admin</strong>
           <span style={{ marginLeft: 12, color: "#666" }}>Base</span>
+          <nav style={{ marginTop: 8, display: "flex", gap: 12 }}>
+            <Link href="/">Home</Link>
+            <Link href="/subscriptions">Suscripciones</Link>
+            <Link href="/webhooks">Webhooks</Link>
+          </nav>
         </div>
         <div style={{ padding: 16 }}>{children}</div>
       </body>

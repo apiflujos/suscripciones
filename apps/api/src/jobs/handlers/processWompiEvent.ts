@@ -2,7 +2,8 @@ import { prisma } from "../../db/prisma";
 import { logger } from "../../lib/logger";
 import { classifyReference } from "../../webhooks/wompi/classifyReference";
 import { postJson } from "../../lib/http";
-import { PaymentStatus, RetryJobType, WebhookProcessStatus } from "@prisma/client";
+import { PaymentStatus, RetryJobType, SubscriptionStatus, WebhookProcessStatus } from "@prisma/client";
+import { addIntervalUtc } from "../../lib/dates";
 
 function getTransactionFromPayload(payload: any): any | null {
   const tx = payload?.data?.transaction;
@@ -59,6 +60,16 @@ export async function processWompiEvent(webhookEventId: string, env: { shopifyFo
   const paymentStatus =
     status === "APPROVED" ? PaymentStatus.APPROVED : status === "DECLINED" ? PaymentStatus.DECLINED : PaymentStatus.ERROR;
 
+  const cycleFromRef = classification.cycle ?? null;
+  const subscriptionCycleKey = cycleFromRef != null ? `${subscription.id}:${cycleFromRef}` : null;
+  const wasApproved =
+    transactionId != null
+      ? (await prisma.payment.findUnique({ where: { wompiTransactionId: transactionId } }))?.status === PaymentStatus.APPROVED
+      : false;
+
+  const now = new Date();
+  const paidAt = paymentStatus === PaymentStatus.APPROVED ? now : null;
+
   if (transactionId) {
     await prisma.payment.upsert({
       where: {
@@ -69,16 +80,18 @@ export async function processWompiEvent(webhookEventId: string, env: { shopifyFo
         subscriptionId: subscription.id,
         amountInCents: amountInCents ?? 0,
         currency: currency ?? "COP",
-        cycleNumber: classification.cycle,
+        cycleNumber: cycleFromRef,
         reference: reference ?? `SUB_${subscription.id}`,
         wompiTransactionId: transactionId,
+        ...(subscriptionCycleKey ? { subscriptionCycleKey } : {}),
         status: paymentStatus,
-        paidAt: paymentStatus === PaymentStatus.APPROVED ? new Date() : null,
+        paidAt,
         providerResponse: payload
       },
       update: {
         status: paymentStatus,
-        paidAt: paymentStatus === PaymentStatus.APPROVED ? new Date() : null,
+        paidAt,
+        ...(subscriptionCycleKey ? { subscriptionCycleKey } : {}),
         providerResponse: payload
       }
     });
@@ -89,10 +102,11 @@ export async function processWompiEvent(webhookEventId: string, env: { shopifyFo
         subscriptionId: subscription.id,
         amountInCents: amountInCents ?? 0,
         currency: currency ?? "COP",
-        cycleNumber: classification.cycle,
+        cycleNumber: cycleFromRef,
         reference: reference ?? `SUB_${subscription.id}`,
+        ...(subscriptionCycleKey ? { subscriptionCycleKey } : {}),
         status: paymentStatus,
-        paidAt: paymentStatus === PaymentStatus.APPROVED ? new Date() : null,
+        paidAt,
         providerResponse: payload
       }
     });
@@ -103,8 +117,40 @@ export async function processWompiEvent(webhookEventId: string, env: { shopifyFo
     data: { processStatus: WebhookProcessStatus.PROCESSED, processedAt: new Date() }
   });
 
-  if (paymentStatus === PaymentStatus.APPROVED) {
-    logger.info({ subscriptionId: subscription.id }, "Payment approved (base)");
+  if (!wasApproved && paymentStatus === PaymentStatus.APPROVED) {
+    await prisma.$transaction(async (tx) => {
+      const sub = await tx.subscription.findUnique({
+        where: { id: subscription.id },
+        include: { plan: true }
+      });
+      if (!sub) return;
+
+      const cycle = cycleFromRef ?? sub.currentCycle;
+      if (sub.currentCycle !== cycle) {
+        logger.warn({ subscriptionId: sub.id, currentCycle: sub.currentCycle, paymentCycle: cycle }, "Cycle mismatch; not advancing");
+        return;
+      }
+
+      const nextStart = sub.currentPeriodEndAt;
+      const nextEnd = addIntervalUtc(nextStart, sub.plan.intervalUnit, sub.plan.intervalCount);
+
+      const updated = await tx.subscription.updateMany({
+        where: { id: sub.id, currentCycle: sub.currentCycle },
+        data: {
+          status: SubscriptionStatus.ACTIVE,
+          retryCount: 0,
+          currentCycle: { increment: 1 },
+          currentPeriodStartAt: nextStart,
+          currentPeriodEndAt: nextEnd
+        }
+      });
+
+      if (updated.count === 0) {
+        logger.warn({ subscriptionId: sub.id }, "Subscription already advanced (idempotent)");
+      } else {
+        logger.info({ subscriptionId: sub.id, nextEnd }, "Subscription advanced after payment approval");
+      }
+    });
   }
 }
 
