@@ -10,8 +10,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <span style={{ marginLeft: 12, color: "#666" }}>Base</span>
           <nav style={{ marginTop: 8, display: "flex", gap: 12 }}>
             <Link href="/">Home</Link>
+            <Link href="/plans">Planes</Link>
+            <Link href="/customers">Clientes</Link>
             <Link href="/subscriptions">Suscripciones</Link>
             <Link href="/webhooks">Webhooks</Link>
+            <Link href="/logs">Logs</Link>
+            <Link href="/settings">Credenciales</Link>
           </nav>
         </div>
         <div style={{ padding: 16 }}>{children}</div>
@@ -19,4 +23,3 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     </html>
   );
 }
-

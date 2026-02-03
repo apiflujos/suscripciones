@@ -4,13 +4,14 @@ import { classifyReference } from "../../webhooks/wompi/classifyReference";
 import { postJson } from "../../lib/http";
 import { ChatwootMessageType, PaymentStatus, RetryJobType, SubscriptionStatus, WebhookProcessStatus } from "@prisma/client";
 import { addIntervalUtc } from "../../lib/dates";
+import { getShopifyForward } from "../../services/runtimeConfig";
 
 function getTransactionFromPayload(payload: any): any | null {
   const tx = payload?.data?.transaction;
   return tx && typeof tx === "object" ? tx : null;
 }
 
-export async function processWompiEvent(webhookEventId: string, env: { shopifyForwardUrl?: string; shopifyForwardSecret?: string }) {
+export async function processWompiEvent(webhookEventId: string) {
   const event = await prisma.webhookEvent.findUnique({ where: { id: webhookEventId } });
   if (!event) return;
   if (event.processStatus === WebhookProcessStatus.PROCESSED) return;
@@ -29,22 +30,6 @@ export async function processWompiEvent(webhookEventId: string, env: { shopifyFo
     ? await prisma.payment.findUnique({ where: { wompiPaymentLinkId: paymentLinkId } })
     : null;
   const referenceClassification = classifyReference(reference);
-
-  if (paymentByLink?.subscriptionId) {
-    // Subscription payment; process below using subscriptionId from Payment.
-  } else if (referenceClassification.kind === "shopify" && env.shopifyForwardUrl) {
-    await prisma.retryJob.create({
-      data: {
-        type: RetryJobType.FORWARD_WOMPI_TO_SHOPIFY,
-        payload: { webhookEventId }
-      }
-    });
-    await prisma.webhookEvent.update({
-      where: { id: webhookEventId },
-      data: { processStatus: WebhookProcessStatus.SKIPPED, processedAt: new Date() }
-    });
-    return;
-  }
 
   if (!paymentByLink?.subscriptionId && referenceClassification.kind !== "subscription") {
     await prisma.webhookEvent.update({
@@ -186,15 +171,16 @@ export async function processWompiEvent(webhookEventId: string, env: { shopifyFo
   }
 }
 
-export async function forwardWompiToShopify(webhookEventId: string, env: { shopifyForwardUrl?: string; shopifyForwardSecret?: string }) {
-  if (!env.shopifyForwardUrl) return;
+export async function forwardWompiToShopify(webhookEventId: string) {
+  const cfg = await getShopifyForward();
+  if (!cfg.url) return;
 
   const event = await prisma.webhookEvent.findUnique({ where: { id: webhookEventId } });
   if (!event) return;
 
-  const res = await postJson(env.shopifyForwardUrl, event.payload, {
+  const res = await postJson(cfg.url, event.payload, {
     "x-forwarded-by": "wompi-subs-api",
-    ...(env.shopifyForwardSecret ? { "x-forwarded-secret": env.shopifyForwardSecret } : {})
+    ...(cfg.secret ? { "x-forwarded-secret": cfg.secret } : {})
   });
 
   if (!res.ok) {

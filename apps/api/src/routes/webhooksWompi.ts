@@ -3,6 +3,8 @@ import { wompiEventSchema } from "../webhooks/wompi/types";
 import { verifyWompiSignature } from "../webhooks/wompi/verifySignature";
 import { prisma } from "../db/prisma";
 import { RetryJobType, WebhookProvider } from "@prisma/client";
+import { getWompiEventsSecret } from "../services/runtimeConfig";
+import { getShopifyForward } from "../services/runtimeConfig";
 
 function getChecksumHeader(req: Request): string | undefined {
   const h = req.header("x-event-checksum") || req.header("x-wompi-checksum");
@@ -16,9 +18,15 @@ export async function wompiWebhook(req: Request, res: Response) {
     return;
   }
 
+  const eventsSecret = await getWompiEventsSecret();
+  if (!eventsSecret) {
+    res.status(503).json({ error: "wompi_events_secret_not_configured" });
+    return;
+  }
+
   const signature = verifyWompiSignature({
     event: parsed.data,
-    eventsSecret: process.env.WOMPI_EVENTS_SECRET!,
+    eventsSecret,
     checksumHeader: getChecksumHeader(req)
   });
   if (!signature.ok) {
@@ -46,6 +54,16 @@ export async function wompiWebhook(req: Request, res: Response) {
         payload: { webhookEventId: webhookEvent.id }
       }
     });
+
+    const shopify = await getShopifyForward();
+    if (shopify.url) {
+      await prisma.retryJob.create({
+        data: {
+          type: RetryJobType.FORWARD_WOMPI_TO_SHOPIFY,
+          payload: { webhookEventId: webhookEvent.id }
+        }
+      });
+    }
   } catch (err: any) {
     // Idempotencia: checksum unique.
     if (String(err?.code) === "P2002") {
@@ -57,4 +75,3 @@ export async function wompiWebhook(req: Request, res: Response) {
 
   res.json({ ok: true });
 }
-

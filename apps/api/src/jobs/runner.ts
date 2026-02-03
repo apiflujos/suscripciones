@@ -1,9 +1,10 @@
 import { prisma } from "../db/prisma";
 import { logger } from "../lib/logger";
 import { loadEnv } from "../config/env";
-import { RetryJobStatus, RetryJobType } from "@prisma/client";
+import { LogLevel, RetryJobStatus, RetryJobType } from "@prisma/client";
 import { forwardWompiToShopify, processWompiEvent } from "./handlers/processWompiEvent";
 import { sendChatwootMessage } from "./handlers/sendChatwootMessage";
+import { systemLog } from "../services/systemLog";
 
 const env = loadEnv(process.env);
 const workerId = `jobs:${process.pid}`;
@@ -42,15 +43,9 @@ async function runOnce() {
       const payload = job.payload as any;
 
       if (job.type === RetryJobType.PROCESS_WOMPI_EVENT) {
-        await processWompiEvent(payload.webhookEventId, {
-          shopifyForwardUrl: env.SHOPIFY_FORWARD_URL || undefined,
-          shopifyForwardSecret: env.SHOPIFY_FORWARD_SECRET || undefined
-        });
+        await processWompiEvent(payload.webhookEventId);
       } else if (job.type === RetryJobType.FORWARD_WOMPI_TO_SHOPIFY) {
-        await forwardWompiToShopify(payload.webhookEventId, {
-          shopifyForwardUrl: env.SHOPIFY_FORWARD_URL || undefined,
-          shopifyForwardSecret: env.SHOPIFY_FORWARD_SECRET || undefined
-        });
+        await forwardWompiToShopify(payload.webhookEventId);
       } else if (job.type === RetryJobType.SEND_CHATWOOT_MESSAGE) {
         await sendChatwootMessage(payload.chatwootMessageId);
       } else {
@@ -76,6 +71,14 @@ async function runOnce() {
         }
       });
       logger.error({ jobId: job.id, err }, "Job failed");
+      await systemLog(LogLevel.ERROR, "jobs.runner", "Job failed", {
+        jobId: job.id,
+        type: job.type,
+        attempts,
+        err: err?.message || String(err)
+      }).catch(
+        () => {}
+      );
     }
   }
 }

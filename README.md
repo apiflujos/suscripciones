@@ -89,24 +89,30 @@ npm -w apps/admin run dev
 
 Ver `apps/api/.env.example`.
 
-Obligatorias:
+Obligatorias (para arrancar):
 
 - `DATABASE_URL`
-- `WOMPI_EVENTS_SECRET` (secreto de eventos/webhooks)
-- `WOMPI_PRIVATE_KEY` (para crear payment links)
 - `ADMIN_API_TOKEN` (para endpoints admin del API)
 
-Para links de pago (Checkout):
+Credenciales (pueden ir por **ENV** o guardarse desde el Admin en `/settings`):
+
+- `WOMPI_EVENTS_SECRET` (secreto de eventos/webhooks)
+- `WOMPI_PRIVATE_KEY` (para crear payment links)
+
+Para guardar credenciales en DB (recomendado):
+
+- `CREDENTIALS_ENCRYPTION_KEY_B64` (Base64 de 32 bytes; cifra secretos en `credentials`)
+
+Wompi API (defaults OK):
 
 - `WOMPI_API_BASE_URL` (ej. `https://sandbox.wompi.co/v1`)
 - `WOMPI_CHECKOUT_LINK_BASE_URL` (default: `https://checkout.wompi.co/l/`)
 - `WOMPI_REDIRECT_URL` (opcional)
 
-Opcionales:
+Opcionales (ENV o `/settings`):
 
 - `SHOPIFY_FORWARD_URL` (URL para forward de eventos Wompi cuando aplique)
 - `SHOPIFY_FORWARD_SECRET` (secreto compartido opcional para forward)
-- `CREDENTIALS_ENCRYPTION_KEY_B64` (para cifrar secretos guardados en DB)
 - `CHATWOOT_*` (si quieres notificaciones en Chatwoot)
 
 ## Variables de entorno (Admin)

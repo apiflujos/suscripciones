@@ -9,6 +9,8 @@ import { wompiWebhook } from "./routes/webhooksWompi";
 import { plansRouter } from "./routes/plans";
 import { customersRouter } from "./routes/customers";
 import { subscriptionsRouter } from "./routes/subscriptions";
+import { settingsRouter } from "./routes/settings";
+import { logsRouter } from "./routes/logs";
 
 export function createApp() {
   const app = express();
@@ -25,6 +27,8 @@ export function createApp() {
   app.use("/admin/plans", requireAdminToken, plansRouter);
   app.use("/admin/customers", requireAdminToken, customersRouter);
   app.use("/admin/subscriptions", requireAdminToken, subscriptionsRouter);
+  app.use("/admin/settings", requireAdminToken, settingsRouter);
+  app.use("/admin/logs", requireAdminToken, logsRouter);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

@@ -1,11 +1,9 @@
 import { MessageStatus } from "@prisma/client";
-import { loadEnv } from "../../config/env";
 import { prisma } from "../../db/prisma";
 import { ChatwootClient } from "../../providers/chatwoot/client";
+import { getChatwootConfig } from "../../services/runtimeConfig";
 
 export async function sendChatwootMessage(chatwootMessageId: string) {
-  const env = loadEnv(process.env);
-
   const msg = await prisma.chatwootMessage.findUnique({
     where: { id: chatwootMessageId },
     include: { customer: true, subscription: true }
@@ -13,7 +11,8 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
   if (!msg) return;
   if (msg.status === MessageStatus.SENT) return;
 
-  if (!env.CHATWOOT_BASE_URL || !env.CHATWOOT_API_ACCESS_TOKEN || !env.CHATWOOT_ACCOUNT_ID || !env.CHATWOOT_INBOX_ID) {
+  const cfg = await getChatwootConfig();
+  if (!cfg.configured) {
     await prisma.chatwootMessage.update({
       where: { id: chatwootMessageId },
       data: { status: MessageStatus.FAILED, errorMessage: "chatwoot not configured" }
@@ -22,10 +21,10 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
   }
 
   const client = new ChatwootClient({
-    baseUrl: env.CHATWOOT_BASE_URL,
-    accountId: env.CHATWOOT_ACCOUNT_ID,
-    apiAccessToken: env.CHATWOOT_API_ACCESS_TOKEN,
-    inboxId: env.CHATWOOT_INBOX_ID
+    baseUrl: cfg.baseUrl,
+    accountId: cfg.accountId,
+    apiAccessToken: cfg.apiAccessToken,
+    inboxId: cfg.inboxId
   });
 
   // Ensure contact + conversation
@@ -85,4 +84,3 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
     }
   });
 }
-

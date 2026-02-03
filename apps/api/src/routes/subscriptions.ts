@@ -2,17 +2,161 @@ import express from "express";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
 import { addIntervalUtc } from "../lib/dates";
-import { ChatwootMessageType, PaymentStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
-import { loadEnv } from "../config/env";
+import { ChatwootMessageType, LogLevel, PaymentStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
 import { WompiClient } from "../providers/wompi/client";
+import { getChatwootConfig, getWompiApiBaseUrl, getWompiCheckoutLinkBaseUrl, getWompiPrivateKey, getWompiRedirectUrl } from "../services/runtimeConfig";
+import { systemLog } from "../services/systemLog";
 
 const createSubscriptionSchema = z.object({
   customerId: z.string().uuid(),
   planId: z.string().uuid(),
-  startAt: z.string().datetime().optional()
+  startAt: z.string().datetime().optional(),
+  createPaymentLink: z.boolean().optional().default(false)
 });
 
 export const subscriptionsRouter = express.Router();
+
+async function createPaymentLinkForSubscription(args: {
+  subscriptionId: string;
+  amountInCentsOverride?: number;
+}): Promise<{ paymentId: string; wompiPaymentLinkId: string; checkoutUrl: string }> {
+  const sub = await prisma.subscription.findUnique({
+    where: { id: args.subscriptionId },
+    include: { plan: true, customer: true }
+  });
+  if (!sub) throw new Error("subscription_not_found");
+  if (sub.status === SubscriptionStatus.CANCELED) throw new Error("subscription_canceled");
+
+  const cycle = sub.currentCycle;
+  const reference = `SUB_${sub.id}_${cycle}`;
+  const amountInCents = args.amountInCentsOverride ?? sub.plan.priceInCents;
+
+  const subscriptionCycleKey = `${sub.id}:${cycle}`;
+  const payment = await prisma.payment.upsert({
+    where: { subscriptionCycleKey },
+    create: {
+      customerId: sub.customerId,
+      subscriptionId: sub.id,
+      amountInCents,
+      currency: sub.plan.currency,
+      cycleNumber: cycle,
+      reference,
+      status: PaymentStatus.PENDING,
+      subscriptionCycleKey
+    },
+    update: {
+      amountInCents,
+      currency: sub.plan.currency,
+      reference,
+      status: PaymentStatus.PENDING
+    }
+  });
+
+  if (payment.checkoutUrl && payment.wompiPaymentLinkId) {
+    return {
+      paymentId: payment.id,
+      wompiPaymentLinkId: payment.wompiPaymentLinkId,
+      checkoutUrl: payment.checkoutUrl
+    };
+  }
+
+  const privateKey = await getWompiPrivateKey();
+  if (!privateKey) throw new Error("wompi_private_key_not_configured");
+
+  const wompi = new WompiClient({
+    apiBaseUrl: await getWompiApiBaseUrl(),
+    privateKey,
+    checkoutLinkBaseUrl: await getWompiCheckoutLinkBaseUrl()
+  });
+
+  let created: Awaited<ReturnType<WompiClient["createPaymentLink"]>>;
+  try {
+    const redirectUrl = await getWompiRedirectUrl();
+    created = await wompi.createPaymentLink({
+      name: `Suscripción ${sub.plan.name}`,
+      description: `Suscripción ${sub.id} (ciclo ${cycle})`,
+      single_use: true,
+      collect_shipping: false,
+      currency: sub.plan.currency,
+      amount_in_cents: amountInCents,
+      redirect_url: redirectUrl,
+      sku: payment.id
+    });
+  } catch (err: any) {
+    await prisma.paymentAttempt.create({
+      data: {
+        paymentId: payment.id,
+        attemptNo: 0,
+        status: "PAYMENT_LINK_CREATE_FAILED",
+        provider: "wompi",
+        errorMessage: err?.message ? String(err.message) : "unknown error"
+      }
+    });
+    await systemLog(LogLevel.ERROR, "subscriptions.payment_link", "Payment link create failed", {
+      subscriptionId: sub.id,
+      paymentId: payment.id,
+      err: err?.message ? String(err.message) : "unknown error"
+    }).catch(() => {});
+    throw err;
+  }
+
+  await prisma.paymentAttempt.create({
+    data: {
+      paymentId: payment.id,
+      attemptNo: 0,
+      status: "PAYMENT_LINK_CREATED",
+      provider: "wompi",
+      response: created.raw as any
+    }
+  });
+
+  const updated = await prisma.payment.update({
+    where: { id: payment.id },
+    data: {
+      wompiPaymentLinkId: created.id,
+      checkoutUrl: created.checkoutUrl
+    }
+  });
+
+  await systemLog(LogLevel.INFO, "subscriptions.payment_link", "Payment link created", {
+    subscriptionId: sub.id,
+    paymentId: updated.id,
+    wompiPaymentLinkId: created.id
+  }).catch(() => {});
+
+  const chatwoot = await getChatwootConfig();
+  if (chatwoot.configured) {
+    const recentlySent = await prisma.chatwootMessage.findFirst({
+      where: {
+        paymentId: updated.id,
+        type: ChatwootMessageType.PAYMENT_LINK,
+        status: "SENT",
+        createdAt: { gt: new Date(Date.now() - 10 * 60_000) }
+      }
+    });
+
+    if (!recentlySent) {
+      const msg = await prisma.chatwootMessage.create({
+        data: {
+          customerId: sub.customerId,
+          subscriptionId: sub.id,
+          paymentId: updated.id,
+          type: ChatwootMessageType.PAYMENT_LINK,
+          content: `Link de pago (ciclo ${cycle}): ${updated.checkoutUrl}`
+        }
+      });
+      await prisma.retryJob.create({
+        data: {
+          type: RetryJobType.SEND_CHATWOOT_MESSAGE,
+          payload: { chatwootMessageId: msg.id }
+        }
+      });
+    }
+  }
+
+  if (!updated.checkoutUrl) throw new Error("checkout_url_missing");
+  return { paymentId: updated.id, wompiPaymentLinkId: created.id, checkoutUrl: updated.checkoutUrl };
+}
 
 subscriptionsRouter.get("/", async (_req, res) => {
   const items = await prisma.subscription.findMany({
@@ -47,7 +191,18 @@ subscriptionsRouter.post("/", async (req, res) => {
       currentCycle: 1
     }
   });
-  res.status(201).json({ subscription });
+  if (!parsed.data.createPaymentLink) return res.status(201).json({ subscription });
+
+  try {
+    const link = await createPaymentLinkForSubscription({ subscriptionId: subscription.id });
+    return res.status(201).json({ subscription, ...link });
+  } catch (err: any) {
+    await systemLog(LogLevel.ERROR, "subscriptions.create", "Subscription created but payment link failed", {
+      subscriptionId: subscription.id,
+      err: err?.message ? String(err.message) : "unknown error"
+    }).catch(() => {});
+    return res.status(201).json({ subscription, paymentLinkError: "wompi_payment_link_failed" });
+  }
 });
 
 const createPaymentLinkSchema = z.object({
@@ -56,123 +211,21 @@ const createPaymentLinkSchema = z.object({
 });
 
 subscriptionsRouter.post("/:id/payment-link", async (req, res) => {
-  const env = loadEnv(process.env);
   const subscriptionId = req.params.id;
 
   const parsed = createPaymentLinkSchema.safeParse(req.body ?? {});
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
-
-  const sub = await prisma.subscription.findUnique({
-    where: { id: subscriptionId },
-    include: { plan: true, customer: true }
-  });
-  if (!sub) return res.status(404).json({ error: "subscription_not_found" });
-  if (sub.status === SubscriptionStatus.CANCELED) return res.status(409).json({ error: "subscription_canceled" });
-
-  const cycle = sub.currentCycle;
-  const reference = `SUB_${sub.id}_${cycle}`;
-  const amountInCents = parsed.data.amountInCents ?? sub.plan.priceInCents;
-
-  const subscriptionCycleKey = `${sub.id}:${cycle}`;
-  const payment = await prisma.payment.upsert({
-    where: { subscriptionCycleKey },
-    create: {
-      customerId: sub.customerId,
-      subscriptionId: sub.id,
-      amountInCents,
-      currency: sub.plan.currency,
-      cycleNumber: cycle,
-      reference,
-      status: PaymentStatus.PENDING,
-      subscriptionCycleKey
-    },
-    update: {
-      amountInCents,
-      currency: sub.plan.currency,
-      reference,
-      status: PaymentStatus.PENDING
-    }
-  });
-
-  const wompi = new WompiClient({
-    apiBaseUrl: env.WOMPI_API_BASE_URL,
-    privateKey: env.WOMPI_PRIVATE_KEY,
-    checkoutLinkBaseUrl: env.WOMPI_CHECKOUT_LINK_BASE_URL
-  });
-
   try {
-    const created = await wompi.createPaymentLink({
-      name: `Suscripción ${sub.plan.name}`,
-      description: `Suscripción ${sub.id} (ciclo ${cycle})`,
-      single_use: true,
-      collect_shipping: false,
-      currency: sub.plan.currency,
-      amount_in_cents: amountInCents,
-      redirect_url: env.WOMPI_REDIRECT_URL || undefined,
-      sku: payment.id
+    const link = await createPaymentLinkForSubscription({
+      subscriptionId,
+      amountInCentsOverride: parsed.data.amountInCents
     });
-
-    await prisma.paymentAttempt.create({
-      data: {
-        paymentId: payment.id,
-        attemptNo: 0,
-        status: "PAYMENT_LINK_CREATED",
-        provider: "wompi",
-        response: created.raw as any
-      }
-    });
-
-    const updated = await prisma.payment.update({
-      where: { id: payment.id },
-      data: {
-        wompiPaymentLinkId: created.id,
-        checkoutUrl: created.checkoutUrl
-      }
-    });
-
-    const chatwootConfigured =
-      !!env.CHATWOOT_BASE_URL && !!env.CHATWOOT_API_ACCESS_TOKEN && !!env.CHATWOOT_ACCOUNT_ID && !!env.CHATWOOT_INBOX_ID;
-
-    if (chatwootConfigured) {
-      const recentlySent = await prisma.chatwootMessage.findFirst({
-        where: {
-          paymentId: updated.id,
-          type: ChatwootMessageType.PAYMENT_LINK,
-          status: "SENT",
-          createdAt: { gt: new Date(Date.now() - 10 * 60_000) }
-        }
-      });
-
-      if (!recentlySent) {
-        const msg = await prisma.chatwootMessage.create({
-          data: {
-            customerId: sub.customerId,
-            subscriptionId: sub.id,
-            paymentId: updated.id,
-            type: ChatwootMessageType.PAYMENT_LINK,
-            content: `Link de pago (ciclo ${cycle}): ${updated.checkoutUrl}`
-          }
-        });
-        await prisma.retryJob.create({
-          data: {
-            type: RetryJobType.SEND_CHATWOOT_MESSAGE,
-            payload: { chatwootMessageId: msg.id }
-          }
-        });
-      }
-    }
-
-    res.status(201).json({ paymentId: updated.id, wompiPaymentLinkId: created.id, checkoutUrl: updated.checkoutUrl });
+    res.status(201).json(link);
   } catch (err: any) {
-    await prisma.paymentAttempt.create({
-      data: {
-        paymentId: payment.id,
-        attemptNo: 0,
-        status: "PAYMENT_LINK_CREATE_FAILED",
-        provider: "wompi",
-        errorMessage: err?.message ? String(err.message) : "unknown error"
-      }
-    });
+    await systemLog(LogLevel.ERROR, "subscriptions.payment_link", "Payment link create failed", {
+      subscriptionId,
+      err: err?.message ? String(err.message) : "unknown error"
+    }).catch(() => {});
     res.status(502).json({ error: "wompi_payment_link_failed" });
   }
 });

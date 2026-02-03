@@ -41,6 +41,8 @@ services:
         sync: false
       - key: CHATWOOT_INBOX_ID
         sync: false
+      - key: CREDENTIALS_ENCRYPTION_KEY_B64
+        sync: false
 
   - type: web
     name: wompi-subs-admin
