@@ -151,6 +151,7 @@ curl -sS "$API_BASE/admin/plans" -H "authorization: Bearer $API_TOKEN" -H "conte
 
 ## Deploy en Render
 
-- Blueprint: `render.yaml` crea Postgres + 2 servicios (API + Admin).
+- Blueprint: `render.yaml` crea Postgres + servicios (API + Jobs + Admin).
 - También crea un **Worker** `wompi-subs-jobs` (necesario) para procesar colas: forward a Shopify, mensajes Chatwoot, y procesamiento asíncrono del webhook.
 - La API arranca con `prisma migrate deploy` (migraciones automáticas en deploy).
+- El Worker arranca con `prisma migrate deploy` antes de procesar jobs (evita fallas si el worker inicia primero).

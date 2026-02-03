@@ -87,8 +87,16 @@ async function main() {
   logger.info({ workerId }, "Jobs runner started");
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    await runOnce();
-    await new Promise((r) => setTimeout(r, 1000));
+    try {
+      await runOnce();
+      await new Promise((r) => setTimeout(r, 1000));
+    } catch (err: any) {
+      const msg = err?.meta?.message || err?.message || String(err);
+      // Common during first boot if migrations haven't been applied yet.
+      logger.warn({ err: msg }, "Jobs runner transient failure; retrying soon");
+      await systemLog(LogLevel.WARN, "jobs.runner", "Transient failure (will retry)", { err: msg }).catch(() => {});
+      await new Promise((r) => setTimeout(r, 5000));
+    }
   }
 }
 

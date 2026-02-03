@@ -8,6 +8,7 @@
     "start": "node dist/index.js",
     "start:migrate": "prisma migrate deploy && node dist/index.js",
     "jobs": "tsx src/jobs/runner.ts",
+    "jobs:start": "prisma migrate deploy && node dist/jobs/runner.js",
     "lint": "eslint .",
     "prisma:generate": "prisma generate",
     "prisma:migrate:dev": "prisma migrate dev --name init"

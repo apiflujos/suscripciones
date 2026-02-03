@@ -8,9 +8,8 @@ services:
     name: wompi-subs-api
     env: node
     plan: starter
-    rootDir: apps/api
-    buildCommand: npm ci && npm run build
-    startCommand: npm run start:migrate
+    buildCommand: npm ci && npm -w apps/api run build
+    startCommand: npm -w apps/api run start:migrate
     healthCheckPath: /health
     envVars:
       - key: NODE_VERSION
@@ -50,9 +49,8 @@ services:
     name: wompi-subs-jobs
     env: node
     plan: starter
-    rootDir: apps/api
-    buildCommand: npm ci && npm run build
-    startCommand: npm run jobs
+    buildCommand: npm ci && npm -w apps/api run build
+    startCommand: npm -w apps/api run jobs:start
     envVars:
       - key: NODE_VERSION
         value: "20"
@@ -91,9 +89,8 @@ services:
     name: wompi-subs-admin
     env: node
     plan: starter
-    rootDir: apps/admin
-    buildCommand: npm ci && npm run build
-    startCommand: npm run start
+    buildCommand: npm ci && npm -w apps/admin run build
+    startCommand: npm -w apps/admin run start
     envVars:
       - key: NODE_VERSION
         value: "20"
