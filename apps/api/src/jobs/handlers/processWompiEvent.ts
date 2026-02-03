@@ -2,7 +2,7 @@ import { prisma } from "../../db/prisma";
 import { logger } from "../../lib/logger";
 import { classifyReference } from "../../webhooks/wompi/classifyReference";
 import { postJson } from "../../lib/http";
-import { PaymentStatus, RetryJobType, SubscriptionStatus, WebhookProcessStatus } from "@prisma/client";
+import { ChatwootMessageType, PaymentStatus, RetryJobType, SubscriptionStatus, WebhookProcessStatus } from "@prisma/client";
 import { addIntervalUtc } from "../../lib/dates";
 
 function getTransactionFromPayload(payload: any): any | null {
@@ -19,13 +19,20 @@ export async function processWompiEvent(webhookEventId: string, env: { shopifyFo
   const tx = getTransactionFromPayload(payload);
   const reference: string | undefined = tx?.reference;
   const transactionId: string | undefined = tx?.id;
+  const paymentLinkId: string | undefined = tx?.payment_link_id ?? tx?.paymentLinkId;
   const status: string | undefined = tx?.status;
   const amountInCents: number | undefined = tx?.amount_in_cents ?? tx?.amountInCents;
   const currency: string | undefined = tx?.currency;
 
-  const classification = classifyReference(reference);
+  // Prefer mapping by payment_link_id (subscriptions created via API payment links)
+  const paymentByLink = paymentLinkId
+    ? await prisma.payment.findUnique({ where: { wompiPaymentLinkId: paymentLinkId } })
+    : null;
+  const referenceClassification = classifyReference(reference);
 
-  if (classification.kind === "shopify" && env.shopifyForwardUrl) {
+  if (paymentByLink?.subscriptionId) {
+    // Subscription payment; process below using subscriptionId from Payment.
+  } else if (referenceClassification.kind === "shopify" && env.shopifyForwardUrl) {
     await prisma.retryJob.create({
       data: {
         type: RetryJobType.FORWARD_WOMPI_TO_SHOPIFY,
@@ -39,7 +46,7 @@ export async function processWompiEvent(webhookEventId: string, env: { shopifyFo
     return;
   }
 
-  if (classification.kind !== "subscription") {
+  if (!paymentByLink?.subscriptionId && referenceClassification.kind !== "subscription") {
     await prisma.webhookEvent.update({
       where: { id: webhookEventId },
       data: { processStatus: WebhookProcessStatus.SKIPPED, processedAt: new Date() }
@@ -47,8 +54,12 @@ export async function processWompiEvent(webhookEventId: string, env: { shopifyFo
     return;
   }
 
-  // Base: registrar pago y, si está aprobado, marcar como pagado.
-  const subscription = await prisma.subscription.findUnique({ where: { id: classification.subscriptionId } });
+  const subscriptionId =
+    paymentByLink?.subscriptionId ??
+    (referenceClassification.kind === "subscription" ? referenceClassification.subscriptionId : "");
+
+  // Registrar pago y, si está aprobado, renovar ciclo.
+  const subscription = await prisma.subscription.findUnique({ where: { id: subscriptionId } });
   if (!subscription) {
     await prisma.webhookEvent.update({
       where: { id: webhookEventId },
@@ -60,8 +71,9 @@ export async function processWompiEvent(webhookEventId: string, env: { shopifyFo
   const paymentStatus =
     status === "APPROVED" ? PaymentStatus.APPROVED : status === "DECLINED" ? PaymentStatus.DECLINED : PaymentStatus.ERROR;
 
-  const cycleFromRef = classification.cycle ?? null;
-  const subscriptionCycleKey = cycleFromRef != null ? `${subscription.id}:${cycleFromRef}` : null;
+  const cycleFromRef = referenceClassification.kind === "subscription" ? referenceClassification.cycle ?? null : null;
+  const cycle = paymentByLink?.cycleNumber ?? cycleFromRef ?? subscription.currentCycle;
+  const subscriptionCycleKey = `${subscription.id}:${cycle}`;
   const wasApproved =
     transactionId != null
       ? (await prisma.payment.findUnique({ where: { wompiTransactionId: transactionId } }))?.status === PaymentStatus.APPROVED
@@ -70,47 +82,46 @@ export async function processWompiEvent(webhookEventId: string, env: { shopifyFo
   const now = new Date();
   const paidAt = paymentStatus === PaymentStatus.APPROVED ? now : null;
 
-  if (transactionId) {
-    await prisma.payment.upsert({
-      where: {
-        wompiTransactionId: transactionId
-      },
-      create: {
-        customerId: subscription.customerId,
-        subscriptionId: subscription.id,
-        amountInCents: amountInCents ?? 0,
-        currency: currency ?? "COP",
-        cycleNumber: cycleFromRef,
-        reference: reference ?? `SUB_${subscription.id}`,
-        wompiTransactionId: transactionId,
-        ...(subscriptionCycleKey ? { subscriptionCycleKey } : {}),
-        status: paymentStatus,
-        paidAt,
-        providerResponse: payload
-      },
-      update: {
-        status: paymentStatus,
-        paidAt,
-        ...(subscriptionCycleKey ? { subscriptionCycleKey } : {}),
-        providerResponse: payload
-      }
-    });
-  } else {
-    await prisma.payment.create({
-      data: {
-        customerId: subscription.customerId,
-        subscriptionId: subscription.id,
-        amountInCents: amountInCents ?? 0,
-        currency: currency ?? "COP",
-        cycleNumber: cycleFromRef,
-        reference: reference ?? `SUB_${subscription.id}`,
-        ...(subscriptionCycleKey ? { subscriptionCycleKey } : {}),
-        status: paymentStatus,
-        paidAt,
-        providerResponse: payload
-      }
-    });
-  }
+  const paymentRecord = paymentByLink
+    ? await prisma.payment.update({
+        where: { id: paymentByLink.id },
+        data: {
+          wompiTransactionId: transactionId,
+          status: paymentStatus,
+          paidAt,
+          providerResponse: payload as any,
+          amountInCents: amountInCents ?? paymentByLink.amountInCents,
+          currency: currency ?? paymentByLink.currency,
+          reference: reference ?? paymentByLink.reference,
+          cycleNumber: paymentByLink.cycleNumber ?? cycle,
+          subscriptionCycleKey
+        }
+      })
+    : await prisma.payment.upsert({
+        where: { subscriptionCycleKey },
+        create: {
+          customerId: subscription.customerId,
+          subscriptionId: subscription.id,
+          amountInCents: amountInCents ?? 0,
+          currency: currency ?? "COP",
+          cycleNumber: cycle,
+          reference: reference ?? `SUB_${subscription.id}_${cycle}`,
+          wompiTransactionId: transactionId,
+          wompiPaymentLinkId: paymentLinkId,
+          status: paymentStatus,
+          paidAt,
+          providerResponse: payload as any,
+          subscriptionCycleKey
+        },
+        update: {
+          wompiTransactionId: transactionId,
+          status: paymentStatus,
+          paidAt,
+          providerResponse: payload as any,
+          reference: reference ?? undefined,
+          wompiPaymentLinkId: paymentLinkId ?? undefined
+        }
+      });
 
   await prisma.webhookEvent.update({
     where: { id: webhookEventId },
@@ -118,17 +129,16 @@ export async function processWompiEvent(webhookEventId: string, env: { shopifyFo
   });
 
   if (!wasApproved && paymentStatus === PaymentStatus.APPROVED) {
-    await prisma.$transaction(async (tx) => {
+    const advancedTo = await prisma.$transaction(async (tx) => {
       const sub = await tx.subscription.findUnique({
         where: { id: subscription.id },
         include: { plan: true }
       });
-      if (!sub) return;
+      if (!sub) return null;
 
-      const cycle = cycleFromRef ?? sub.currentCycle;
       if (sub.currentCycle !== cycle) {
         logger.warn({ subscriptionId: sub.id, currentCycle: sub.currentCycle, paymentCycle: cycle }, "Cycle mismatch; not advancing");
-        return;
+        return null;
       }
 
       const nextStart = sub.currentPeriodEndAt;
@@ -147,10 +157,32 @@ export async function processWompiEvent(webhookEventId: string, env: { shopifyFo
 
       if (updated.count === 0) {
         logger.warn({ subscriptionId: sub.id }, "Subscription already advanced (idempotent)");
+        return null;
       } else {
         logger.info({ subscriptionId: sub.id, nextEnd }, "Subscription advanced after payment approval");
+        return nextEnd;
       }
     });
+
+    // Chatwoot: confirmación (best-effort async)
+    if (advancedTo) {
+      await prisma.chatwootMessage
+        .create({
+          data: {
+            customerId: subscription.customerId,
+            subscriptionId: subscription.id,
+            paymentId: paymentRecord.id,
+            type: ChatwootMessageType.PAYMENT_CONFIRMED,
+            content: `Pago aprobado. Suscripción renovada hasta ${advancedTo.toISOString()}.`
+          }
+        })
+        .then((msg) =>
+          prisma.retryJob.create({
+            data: { type: RetryJobType.SEND_CHATWOOT_MESSAGE, payload: { chatwootMessageId: msg.id } }
+          })
+        )
+        .catch(() => {});
+    }
   }
 }
 

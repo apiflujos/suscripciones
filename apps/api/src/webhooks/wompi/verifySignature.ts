@@ -18,13 +18,12 @@ export function computeWompiChecksum(event: WompiEvent, eventsSecret: string): s
   const dataRoot = (event as any).data;
   const concatenated = (event.signature?.properties ?? [])
     .map((p) => {
-      const normalized = p.startsWith("data.") ? p.slice("data.".length) : p;
-      return getByPath(dataRoot, normalized);
+      // Wompi properties are paths relative to the `data` object (e.g. `transaction.id`)
+      return getByPath(dataRoot, p);
     })
     .join("");
 
-  const timestamp = event.timestamp != null ? String(event.timestamp) : "";
-  return sha256Hex(`${concatenated}${timestamp}${eventsSecret}`);
+  return sha256Hex(`${concatenated}${event.timestamp}${eventsSecret}`);
 }
 
 export function verifyWompiSignature(args: {
@@ -38,4 +37,3 @@ export function verifyWompiSignature(args: {
   if (!timingSafeEqualHex(expected, provided)) return { ok: false, reason: "checksum mismatch" };
   return { ok: true };
 }
-

@@ -2,8 +2,9 @@ import express from "express";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
 import { addIntervalUtc } from "../lib/dates";
-import { PaymentStatus, SubscriptionStatus } from "@prisma/client";
+import { ChatwootMessageType, PaymentStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
 import { loadEnv } from "../config/env";
+import { WompiClient } from "../providers/wompi/client";
 
 const createSubscriptionSchema = z.object({
   customerId: z.string().uuid(),
@@ -68,20 +69,9 @@ subscriptionsRouter.post("/:id/payment-link", async (req, res) => {
   if (!sub) return res.status(404).json({ error: "subscription_not_found" });
   if (sub.status === SubscriptionStatus.CANCELED) return res.status(409).json({ error: "subscription_canceled" });
 
-  const publicKey = (env.WOMPI_PUBLIC_KEY || "").trim();
-  const checkoutBase = (env.WOMPI_CHECKOUT_BASE_URL || "https://checkout.wompi.co/p/").trim();
-  if (!publicKey) return res.status(400).json({ error: "missing_wompi_public_key" });
-
   const cycle = sub.currentCycle;
   const reference = `SUB_${sub.id}_${cycle}`;
   const amountInCents = parsed.data.amountInCents ?? sub.plan.priceInCents;
-
-  const checkoutUrl = new URL(checkoutBase);
-  checkoutUrl.searchParams.set("public-key", publicKey);
-  checkoutUrl.searchParams.set("currency", sub.plan.currency);
-  checkoutUrl.searchParams.set("amount-in-cents", String(amountInCents));
-  checkoutUrl.searchParams.set("reference", reference);
-  if (env.WOMPI_REDIRECT_URL) checkoutUrl.searchParams.set("redirect-url", env.WOMPI_REDIRECT_URL);
 
   const subscriptionCycleKey = `${sub.id}:${cycle}`;
   const payment = await prisma.payment.upsert({
@@ -94,17 +84,95 @@ subscriptionsRouter.post("/:id/payment-link", async (req, res) => {
       cycleNumber: cycle,
       reference,
       status: PaymentStatus.PENDING,
-      checkoutUrl: checkoutUrl.toString(),
       subscriptionCycleKey
     },
     update: {
       amountInCents,
       currency: sub.plan.currency,
       reference,
-      status: PaymentStatus.PENDING,
-      checkoutUrl: checkoutUrl.toString()
+      status: PaymentStatus.PENDING
     }
   });
 
-  res.status(201).json({ paymentId: payment.id, reference, checkoutUrl: payment.checkoutUrl });
+  const wompi = new WompiClient({
+    apiBaseUrl: env.WOMPI_API_BASE_URL,
+    privateKey: env.WOMPI_PRIVATE_KEY,
+    checkoutLinkBaseUrl: env.WOMPI_CHECKOUT_LINK_BASE_URL
+  });
+
+  try {
+    const created = await wompi.createPaymentLink({
+      name: `Suscripción ${sub.plan.name}`,
+      description: `Suscripción ${sub.id} (ciclo ${cycle})`,
+      single_use: true,
+      collect_shipping: false,
+      currency: sub.plan.currency,
+      amount_in_cents: amountInCents,
+      redirect_url: env.WOMPI_REDIRECT_URL || undefined,
+      sku: payment.id
+    });
+
+    await prisma.paymentAttempt.create({
+      data: {
+        paymentId: payment.id,
+        attemptNo: 0,
+        status: "PAYMENT_LINK_CREATED",
+        provider: "wompi",
+        response: created.raw as any
+      }
+    });
+
+    const updated = await prisma.payment.update({
+      where: { id: payment.id },
+      data: {
+        wompiPaymentLinkId: created.id,
+        checkoutUrl: created.checkoutUrl
+      }
+    });
+
+    const chatwootConfigured =
+      !!env.CHATWOOT_BASE_URL && !!env.CHATWOOT_API_ACCESS_TOKEN && !!env.CHATWOOT_ACCOUNT_ID && !!env.CHATWOOT_INBOX_ID;
+
+    if (chatwootConfigured) {
+      const recentlySent = await prisma.chatwootMessage.findFirst({
+        where: {
+          paymentId: updated.id,
+          type: ChatwootMessageType.PAYMENT_LINK,
+          status: "SENT",
+          createdAt: { gt: new Date(Date.now() - 10 * 60_000) }
+        }
+      });
+
+      if (!recentlySent) {
+        const msg = await prisma.chatwootMessage.create({
+          data: {
+            customerId: sub.customerId,
+            subscriptionId: sub.id,
+            paymentId: updated.id,
+            type: ChatwootMessageType.PAYMENT_LINK,
+            content: `Link de pago (ciclo ${cycle}): ${updated.checkoutUrl}`
+          }
+        });
+        await prisma.retryJob.create({
+          data: {
+            type: RetryJobType.SEND_CHATWOOT_MESSAGE,
+            payload: { chatwootMessageId: msg.id }
+          }
+        });
+      }
+    }
+
+    res.status(201).json({ paymentId: updated.id, wompiPaymentLinkId: created.id, checkoutUrl: updated.checkoutUrl });
+  } catch (err: any) {
+    await prisma.paymentAttempt.create({
+      data: {
+        paymentId: payment.id,
+        attemptNo: 0,
+        status: "PAYMENT_LINK_CREATE_FAILED",
+        provider: "wompi",
+        errorMessage: err?.message ? String(err.message) : "unknown error"
+      }
+    });
+    res.status(502).json({ error: "wompi_payment_link_failed" });
+  }
 });

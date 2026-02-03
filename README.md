@@ -93,12 +93,13 @@ Obligatorias:
 
 - `DATABASE_URL`
 - `WOMPI_EVENTS_SECRET` (secreto de eventos/webhooks)
+- `WOMPI_PRIVATE_KEY` (para crear payment links)
 - `ADMIN_API_TOKEN` (para endpoints admin del API)
 
 Para links de pago (Checkout):
 
-- `WOMPI_PUBLIC_KEY`
-- `WOMPI_CHECKOUT_BASE_URL` (default: `https://checkout.wompi.co/p/`)
+- `WOMPI_API_BASE_URL` (ej. `https://sandbox.wompi.co/v1`)
+- `WOMPI_CHECKOUT_LINK_BASE_URL` (default: `https://checkout.wompi.co/l/`)
 - `WOMPI_REDIRECT_URL` (opcional)
 
 Opcionales:
@@ -106,6 +107,7 @@ Opcionales:
 - `SHOPIFY_FORWARD_URL` (URL para forward de eventos Wompi cuando aplique)
 - `SHOPIFY_FORWARD_SECRET` (secreto compartido opcional para forward)
 - `CREDENTIALS_ENCRYPTION_KEY_B64` (para cifrar secretos guardados en DB)
+- `CHATWOOT_*` (si quieres notificaciones en Chatwoot)
 
 ## Variables de entorno (Admin)
 
@@ -123,7 +125,7 @@ Ver `apps/admin/.env.example`.
 - `GET/POST /admin/plans` CRUD base
 - `GET/POST /admin/customers` CRUD base
 - `GET/POST /admin/subscriptions` CRUD base
-- `POST /admin/subscriptions/:id/payment-link` crea `payment` + retorna checkout URL
+- `POST /admin/subscriptions/:id/payment-link` crea `payment` + crea Wompi payment link + retorna `checkoutUrl`
 
 ## Quickstart (API)
 

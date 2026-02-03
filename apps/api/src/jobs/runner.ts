@@ -3,6 +3,7 @@ import { logger } from "../lib/logger";
 import { loadEnv } from "../config/env";
 import { RetryJobStatus, RetryJobType } from "@prisma/client";
 import { forwardWompiToShopify, processWompiEvent } from "./handlers/processWompiEvent";
+import { sendChatwootMessage } from "./handlers/sendChatwootMessage";
 
 const env = loadEnv(process.env);
 const workerId = `jobs:${process.pid}`;
@@ -50,6 +51,8 @@ async function runOnce() {
           shopifyForwardUrl: env.SHOPIFY_FORWARD_URL || undefined,
           shopifyForwardSecret: env.SHOPIFY_FORWARD_SECRET || undefined
         });
+      } else if (job.type === RetryJobType.SEND_CHATWOOT_MESSAGE) {
+        await sendChatwootMessage(payload.chatwootMessageId);
       } else {
         logger.warn({ jobId: job.id, type: job.type }, "Unhandled job type");
       }
@@ -90,4 +93,3 @@ main().catch((err) => {
   logger.fatal({ err }, "Jobs runner crashed");
   process.exit(1);
 });
-

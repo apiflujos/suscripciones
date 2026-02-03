@@ -7,8 +7,7 @@ export const wompiEventSchema = z.object({
     checksum: z.string().min(1),
     properties: z.array(z.string().min(1)).default([])
   }),
-  timestamp: z.coerce.number().int().optional()
+  timestamp: z.coerce.number().int()
 });
 
 export type WompiEvent = z.infer<typeof wompiEventSchema>;
-

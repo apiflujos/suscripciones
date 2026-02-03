@@ -148,6 +148,7 @@ model Payment {
   cycleNumber        Int?
   reference          String
   wompiTransactionId String?
+  wompiPaymentLinkId String?       @unique
   checkoutUrl        String?
   subscriptionCycleKey String?     @unique
   status             PaymentStatus @default(PENDING)
