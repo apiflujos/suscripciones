@@ -73,17 +73,8 @@ a {
   overflow: auto;
 }
 
-@media (max-width: 1100px) {
-  .app-shell {
-    grid-template-columns: 1fr;
-  }
-  .sidebar {
-    position: static;
-    height: auto;
-    border-right: none;
-    border-bottom: 1px solid var(--stroke);
-  }
-}
+/* Nota: mantenemos el menú SIEMPRE a la izquierda.
+   Si quieres un modo colapsado, usa `.app-shell.is-collapsed`. */
 
 /* Topbar */
 .topbar {
