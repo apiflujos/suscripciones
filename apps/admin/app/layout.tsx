@@ -1,8 +1,9 @@
-import type { ReactNode } from "react";
-import type { Metadata } from "next";
 import Link from "next/link";
+import type { Metadata } from "next";
+import type { ReactNode } from "react";
 
 import "./globals.css";
+import { SideNav } from "./SideNav";
 
 export const metadata: Metadata = {
   title: "Wompi Subs – Admin",
@@ -14,28 +15,36 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="es">
       <body>
         <div className="shell">
-          <header className="header">
-            <div className="headerInner">
-              <Link href="/" className="brand" aria-label="Ir al home">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img className="logo" src="/brand/logo-horizontal.png" alt="Suscripciones" />
+          <aside className="sidebar" aria-label="Sidebar">
+            <div className="brandBlock">
+              <div className="brandRow">
+                <Link href="/" aria-label="Ir al home">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img className="logo" src="/brand/logo-horizontal.png" alt="Suscripciones" />
+                </Link>
                 <span className="tag">Admin</span>
-              </Link>
-              <nav className="nav" aria-label="Navegación">
-                <Link href="/">Home</Link>
-                <Link href="/plans">Planes</Link>
-                <Link href="/customers">Clientes</Link>
-                <Link href="/subscriptions">Suscripciones</Link>
-                <Link href="/webhooks">Webhooks</Link>
-                <Link href="/logs">Logs</Link>
-                <Link href="/settings">Credenciales</Link>
-              </nav>
-              <div className="spacer" />
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img className="avatar" src="/brand/avatar.png" alt="" />
+              </div>
             </div>
-          </header>
-          <main className="main">{children}</main>
+            <SideNav />
+          </aside>
+
+          <div className="content">
+            <header className="topbar">
+              <div className="topbarInner">
+                <div style={{ fontWeight: 700 }}>ApiFlujos</div>
+                <div className="spacer" />
+                <div className="userChip" aria-label="Usuario">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img className="avatar" src="/brand/avatar.png" alt="" />
+                  <div className="userMeta">
+                    <div className="userName">Sebastian</div>
+                    <div className="userRole">Admin</div>
+                  </div>
+                </div>
+              </div>
+            </header>
+            <main className="main">{children}</main>
+          </div>
         </div>
       </body>
     </html>

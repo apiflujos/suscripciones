@@ -8,13 +8,38 @@ async function fetchJson(path: string) {
 export default async function Home() {
   const health = await fetchJson("/health");
   return (
-    <main>
-      <h1 style={{ marginTop: 0 }}>Panel</h1>
-      <p>API: {health.ok ? "OK" : `ERROR (${health.status})`}</p>
-      <p>
-        Próximo: conectar vistas de suscripciones/pagos y configuración de credenciales (Wompi/Chatwoot).
-      </p>
-    </main>
+    <div style={{ display: "grid", gap: 14 }}>
+      <div>
+        <h1 className="pageTitle">Métricas</h1>
+        <p className="pageSub">Visibilidad operativa en tiempo real.</p>
+      </div>
+
+      <div className="grid2">
+        <div className="card cardPad" style={{ display: "grid", gap: 10 }}>
+          <strong>Estado API</strong>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <span className={`pill ${health.ok ? "" : "pillDanger"}`}>{health.ok ? "OK" : `ERROR (${health.status})`}</span>
+            <span style={{ color: "var(--muted)", fontSize: 13 }}>
+              Salud: <a href="/logs" style={{ textDecoration: "underline" }}>ver logs</a>
+            </span>
+          </div>
+          <div style={{ color: "var(--muted)", fontSize: 13 }}>
+            Siguiente: configurar credenciales (Wompi/Chatwoot) y crear planes/clientes.
+          </div>
+        </div>
+
+        <div className="card cardPad" style={{ display: "grid", gap: 10 }}>
+          <strong>Acciones rápidas</strong>
+          <div className="toolbar">
+            <a className="btn btnPrimary" href="/settings">Configurar credenciales</a>
+            <a className="btn" href="/plans">Crear plan</a>
+            <a className="btn" href="/customers">Crear cliente</a>
+          </div>
+          <div style={{ color: "var(--muted)", fontSize: 13 }}>
+            Tip: en <a href="/bodegas" style={{ textDecoration: "underline" }}>Bodegas</a> puedes guardar selección para stock.
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
-
