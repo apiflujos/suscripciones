@@ -12,7 +12,7 @@ function NavIcon({
   name,
   className
 }: {
-  name: "metrics" | "contacts" | "subs" | "webhooks" | "logs" | "settings";
+  name: "metrics" | "contacts" | "subs" | "plans" | "webhooks" | "logs" | "settings";
   className?: string;
 }) {
   if (name === "metrics") {
@@ -39,6 +39,16 @@ function NavIcon({
       <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
         <path d="M21 12a9 9 0 1 1-3.2-6.9" />
         <path d="M21 3v6h-6" />
+      </svg>
+    );
+  }
+  if (name === "plans") {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+        <path d="M21 12a9 9 0 1 1-3.2-6.9" />
+        <path d="M21 3v6h-6" />
+        <path d="M8 13h8" />
+        <path d="M8 17h5" />
       </svg>
     );
   }
@@ -98,6 +108,14 @@ export function SideNav() {
       >
         <NavIcon name="subs" className="nav-icon" />
         <span className="nav-label">Suscripciones</span>
+      </Link>
+      <Link
+        className={`nav-item ${isActivePath(pathname, "/plans") ? "is-active" : ""}`}
+        href="/plans"
+        aria-current={isActivePath(pathname, "/plans") ? "page" : undefined}
+      >
+        <NavIcon name="plans" className="nav-icon" />
+        <span className="nav-label">Planes</span>
       </Link>
       <Link
         className={`nav-item ${isActivePath(pathname, "/webhooks") ? "is-active" : ""}`}

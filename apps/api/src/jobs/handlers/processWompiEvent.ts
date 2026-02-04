@@ -145,6 +145,17 @@ export async function processWompiEvent(webhookEventId: string) {
         return null;
       } else {
         logger.info({ subscriptionId: sub.id, nextEnd }, "Subscription advanced after payment approval");
+        const collectionMode = (sub.plan.metadata as any)?.collectionMode;
+        if (collectionMode === "AUTO_LINK") {
+          await tx.retryJob
+            .create({
+              data: {
+                type: RetryJobType.PAYMENT_RETRY,
+                payload: { subscriptionId: sub.id }
+              }
+            })
+            .catch(() => {});
+        }
         return nextEnd;
       }
     });

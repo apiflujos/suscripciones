@@ -1,4 +1,5 @@
-import { createPaymentLink, createPlan, createSubscription } from "./actions";
+import Link from "next/link";
+import { createPaymentLink } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ async function fetchAdmin(path: string) {
 export default async function SubscriptionsPage({
   searchParams
 }: {
-  searchParams: { created?: string; link?: string; checkoutUrl?: string; planCreated?: string; error?: string };
+  searchParams: { created?: string; link?: string; checkoutUrl?: string; error?: string };
 }) {
   const { token } = getConfig();
   if (!token) {
@@ -34,14 +35,24 @@ export default async function SubscriptionsPage({
     );
   }
 
-  const [subs, plans, customers] = await Promise.all([
-    fetchAdmin("/admin/subscriptions"),
-    fetchAdmin("/admin/plans"),
-    fetchAdmin("/admin/customers")
-  ]);
+  const [subs] = await Promise.all([fetchAdmin("/admin/subscriptions")]);
   const items = (subs.json?.items ?? []) as any[];
-  const planItems = (plans.json?.items ?? []) as any[];
-  const customerItems = (customers.json?.items ?? []) as any[];
+
+  function fmt(value: any) {
+    if (!value) return "—";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "—";
+    return `${d.toISOString().slice(0, 16).replace("T", " ")} UTC`;
+  }
+
+  const order = ["PAST_DUE", "ACTIVE", "SUSPENDED", "EXPIRED", "CANCELED"];
+  const grouped = items.reduce<Record<string, any[]>>((acc, s) => {
+    const key = String(s.status || "UNKNOWN");
+    acc[key] = acc[key] || [];
+    acc[key].push(s);
+    return acc;
+  }, {});
+  const groupKeys = [...order.filter((k) => grouped[k]?.length), ...Object.keys(grouped).filter((k) => !order.includes(k))];
 
   return (
     <main className="page" style={{ maxWidth: 980 }}>
@@ -51,7 +62,6 @@ export default async function SubscriptionsPage({
         </div>
       ) : null}
       {searchParams.created ? <div className="card cardPad">Suscripción creada.</div> : null}
-      {searchParams.planCreated ? <div className="card cardPad">Plan creado.</div> : null}
       {searchParams.link ? <div className="card cardPad">Link creado.</div> : null}
       {searchParams.checkoutUrl ? (
         <div className="card cardPad">
@@ -65,142 +75,59 @@ export default async function SubscriptionsPage({
       <section className="settings-group">
         <div className="settings-group-header">
           <h3>Suscripciones</h3>
-          <div className="field-hint">Aquí se crea el plan y la suscripción (todo en un solo módulo).</div>
+          <div className="field-hint">Listado y generación de links de pago.</div>
         </div>
 
         <div className="settings-group-body">
           <div className="panel module">
             <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-              <h3>Nueva suscripción</h3>
-              <span className="settings-group-title">Requiere cliente + plan</span>
+              <h3>Listado</h3>
+              <span className="settings-group-title" style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <Link className="btn btnPrimary" href="/subscriptions/new">
+                  Nueva suscripción
+                </Link>
+                <Link className="btn" href="/plans">
+                  Planes
+                </Link>
+              </span>
             </div>
-            <form action={createSubscription} style={{ display: "grid", gap: 10 }}>
-              <div className="field">
-                <label>Cliente</label>
-                <select className="select" name="customerId" required>
-                  {customerItems.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.email || c.name || c.id}
-                    </option>
+
+            <div style={{ display: "grid", gap: 14 }}>
+              {groupKeys.map((key) => (
+                <div key={key} style={{ display: "grid", gap: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                    <strong style={{ letterSpacing: "0.06em", textTransform: "uppercase", fontSize: 12, color: "var(--muted)" }}>
+                      {key}
+                    </strong>
+                    <span className="field-hint">{grouped[key].length}</span>
+                  </div>
+
+                  {grouped[key].map((s) => (
+                    <div key={s.id} className="panel" style={{ borderColor: "rgba(15, 23, 42, 0.12)" }}>
+                      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                        <strong>{s.plan?.name ?? "Suscripción"}</strong>
+                        <span className="field-hint">
+                          {s.plan?.priceInCents ?? "—"} {s.plan?.currency ?? ""} / {s.plan?.intervalCount ?? "—"}{" "}
+                          {s.plan?.intervalUnit ?? ""}
+                          {s.plan?.metadata?.collectionMode ? ` · ${s.plan.metadata.collectionMode}` : ""}
+                        </span>
+                        <span className="field-hint">ciclo: {s.currentCycle}</span>
+                        <form action={createPaymentLink} style={{ marginLeft: "auto" }}>
+                          <input type="hidden" name="subscriptionId" value={s.id} />
+                          <button className="ghost" type="submit">
+                            Generar link
+                          </button>
+                        </form>
+                      </div>
+                      <div style={{ marginTop: 8, color: "var(--text)" }}>
+                        cliente: {s.customer?.email || s.customer?.name || s.customerId}
+                      </div>
+                      <div className="field-hint" style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 12 }}>
+                        <span>activación: {fmt(s.startAt)}</span>
+                        <span>próximo cobro (corte): {fmt(s.currentPeriodEndAt)}</span>
+                      </div>
+                    </div>
                   ))}
-                </select>
-              </div>
-
-              <div className="field">
-                <label>Plan</label>
-                <select className="select" name="planId" required>
-                  {planItems.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} ({p.priceInCents} {p.currency})
-                    </option>
-                  ))}
-                </select>
-                <div className="field-hint">Los “productos” viven aquí como planes de suscripción.</div>
-              </div>
-
-              <label className="field" style={{ gridAutoFlow: "column", justifyContent: "start", alignItems: "center" }}>
-                <input name="createPaymentLink" type="checkbox" defaultChecked />
-                <span>Crear link de pago y enviar por Chatwoot (si está configurado)</span>
-              </label>
-
-              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-                <button className="primary" type="submit" disabled={customerItems.length === 0 || planItems.length === 0}>
-                  Crear suscripción
-                </button>
-              </div>
-
-              {customerItems.length === 0 || planItems.length === 0 ? (
-                <div className="field-hint" style={{ color: "#a94442" }}>
-                  Primero crea al menos 1 cliente y 1 plan.
-                </div>
-              ) : null}
-            </form>
-          </div>
-
-          <div className="panel module">
-            <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-              <h3>Planes</h3>
-              <span className="settings-group-title">Antes de suscribir</span>
-            </div>
-
-            <form action={createPlan} style={{ display: "grid", gap: 10 }}>
-              <div className="field">
-                <label>Nombre</label>
-                <input className="input" name="name" placeholder="Ej: Mensual – Olivia Shoes" required />
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <div className="field">
-                  <label>Precio (centavos)</label>
-                  <input className="input" name="priceInCents" defaultValue="49000" inputMode="numeric" />
-                </div>
-                <div className="field">
-                  <label>Moneda</label>
-                  <input className="input" name="currency" defaultValue="COP" />
-                </div>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <div className="field">
-                  <label>Unidad</label>
-                  <select className="select" name="intervalUnit" defaultValue="MONTH">
-                    <option value="DAY">DAY</option>
-                    <option value="WEEK">WEEK</option>
-                    <option value="MONTH">MONTH</option>
-                    <option value="CUSTOM">CUSTOM</option>
-                  </select>
-                </div>
-                <div className="field">
-                  <label>Cada</label>
-                  <input className="input" name="intervalCount" defaultValue="1" inputMode="numeric" />
-                </div>
-              </div>
-
-              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-                <button className="primary" type="submit">
-                  Crear plan
-                </button>
-              </div>
-            </form>
-
-            <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
-              {planItems.map((p) => (
-                <div key={p.id} className="panel" style={{ borderColor: "rgba(15, 23, 42, 0.12)" }}>
-                  <strong>{p.name}</strong>
-                  <div className="field-hint" style={{ marginTop: 6 }}>
-                    {p.priceInCents} {p.currency} / {p.intervalCount} {p.intervalUnit}
-                  </div>
-                </div>
-              ))}
-              {planItems.length === 0 ? <div className="field-hint">Sin planes.</div> : null}
-            </div>
-          </div>
-
-          <div className="panel module">
-            <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-              <h3>Suscripciones recientes</h3>
-              <span className="settings-group-title">{items.length} total</span>
-            </div>
-            <div style={{ display: "grid", gap: 8 }}>
-              {items.map((s) => (
-                <div key={s.id} className="panel" style={{ borderColor: "rgba(15, 23, 42, 0.12)" }}>
-                  <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-                    <strong>{s.plan?.name ?? "Plan"}</strong>
-                    <span className="field-hint">{s.status}</span>
-                    <span className="field-hint">ciclo: {s.currentCycle}</span>
-                    <form action={createPaymentLink} style={{ marginLeft: "auto" }}>
-                      <input type="hidden" name="subscriptionId" value={s.id} />
-                      <button className="ghost" type="submit">
-                        Generar link
-                      </button>
-                    </form>
-                  </div>
-                  <div style={{ marginTop: 8, color: "var(--text)" }}>
-                    cliente: {s.customer?.email || s.customer?.name || s.customerId}
-                  </div>
-                  <div className="field-hint" style={{ marginTop: 6 }}>
-                    vence: {new Date(s.currentPeriodEndAt).toLocaleString()}
-                  </div>
                 </div>
               ))}
               {items.length === 0 ? <div className="field-hint">Sin suscripciones.</div> : null}

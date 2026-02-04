@@ -23,12 +23,20 @@ async function adminFetch(path: string, init: RequestInit) {
 export async function createSubscription(formData: FormData) {
   const customerId = String(formData.get("customerId") || "").trim();
   const planId = String(formData.get("planId") || "").trim();
+  const startAt = String(formData.get("startAt") || "").trim();
+  const firstPeriodEndAt = String(formData.get("firstPeriodEndAt") || "").trim();
   const createPaymentLink = String(formData.get("createPaymentLink") || "") === "on";
 
   try {
     const json = await adminFetch("/admin/subscriptions", {
       method: "POST",
-      body: JSON.stringify({ customerId, planId, createPaymentLink })
+      body: JSON.stringify({
+        customerId,
+        planId,
+        ...(startAt ? { startAt } : {}),
+        ...(firstPeriodEndAt ? { firstPeriodEndAt } : {}),
+        createPaymentLink
+      })
     });
 
     const subId = json?.subscription?.id;
@@ -38,7 +46,7 @@ export async function createSubscription(formData: FormData) {
     }
     redirect(`/subscriptions?created=1`);
   } catch (err: any) {
-    redirect(`/subscriptions?error=${encodeURIComponent(err?.message || "create_subscription_failed")}`);
+    redirect(`/subscriptions/new?error=${encodeURIComponent(err?.message || "create_subscription_failed")}`);
   }
 }
 
@@ -61,14 +69,15 @@ export async function createPlan(formData: FormData) {
   const currency = String(formData.get("currency") || "COP").trim();
   const intervalUnit = String(formData.get("intervalUnit") || "MONTH").trim();
   const intervalCount = Number(String(formData.get("intervalCount") || "1"));
+  const collectionMode = String(formData.get("collectionMode") || "MANUAL_LINK").trim();
 
   try {
     await adminFetch("/admin/plans", {
       method: "POST",
-      body: JSON.stringify({ name, priceInCents, currency, intervalUnit, intervalCount })
+      body: JSON.stringify({ name, priceInCents, currency, intervalUnit, intervalCount, collectionMode })
     });
-    redirect("/subscriptions?planCreated=1");
+    redirect("/plans?planCreated=1");
   } catch (err: any) {
-    redirect(`/subscriptions?error=${encodeURIComponent(err?.message || "create_plan_failed")}`);
+    redirect(`/plans?error=${encodeURIComponent(err?.message || "create_plan_failed")}`);
   }
 }

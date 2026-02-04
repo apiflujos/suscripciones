@@ -4,6 +4,7 @@ import { loadEnv } from "../config/env";
 import { LogLevel, RetryJobStatus, RetryJobType } from "@prisma/client";
 import { forwardWompiToShopify, processWompiEvent } from "./handlers/processWompiEvent";
 import { sendChatwootMessage } from "./handlers/sendChatwootMessage";
+import { paymentRetry } from "./handlers/paymentRetry";
 import { systemLog } from "../services/systemLog";
 
 loadEnv(process.env);
@@ -48,6 +49,8 @@ async function runOnce() {
         await forwardWompiToShopify(payload.webhookEventId);
       } else if (job.type === RetryJobType.SEND_CHATWOOT_MESSAGE) {
         await sendChatwootMessage(payload.chatwootMessageId);
+      } else if (job.type === RetryJobType.PAYMENT_RETRY) {
+        await paymentRetry(payload);
       } else {
         logger.warn({ jobId: job.id, type: job.type }, "Unhandled job type");
       }
