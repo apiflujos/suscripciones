@@ -155,6 +155,16 @@ export async function processWompiEvent(webhookEventId: string) {
               }
             })
             .catch(() => {});
+        } else if (collectionMode === "AUTO_DEBIT") {
+          await tx.retryJob
+            .create({
+              data: {
+                type: RetryJobType.PAYMENT_RETRY,
+                runAt: nextEnd,
+                payload: { subscriptionId: sub.id }
+              }
+            })
+            .catch(() => {});
         }
         return nextEnd;
       }

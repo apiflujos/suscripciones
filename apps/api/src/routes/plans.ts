@@ -9,7 +9,7 @@ const createPlanSchema = z.object({
   currency: z.string().min(3).max(3).default("COP"),
   intervalUnit: z.nativeEnum(PlanIntervalUnit),
   intervalCount: z.number().int().positive().default(1),
-  collectionMode: z.enum(["MANUAL_LINK", "AUTO_LINK"]).optional().default("MANUAL_LINK"),
+  collectionMode: z.enum(["MANUAL_LINK", "AUTO_LINK", "AUTO_DEBIT"]).optional().default("MANUAL_LINK"),
   active: z.boolean().optional(),
   metadata: z.any().optional()
 });

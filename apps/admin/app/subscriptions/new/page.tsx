@@ -72,6 +72,7 @@ export default async function NewSubscriptionPage({
                   {customerItems.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.email || c.name || c.id}
+                      {c.metadata?.wompi?.paymentSourceId ? "" : " · sin método auto"}
                     </option>
                   ))}
                 </select>
@@ -83,10 +84,14 @@ export default async function NewSubscriptionPage({
                   {planItems.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name} ({p.priceInCents} {p.currency} / {p.intervalCount} {p.intervalUnit})
+                      {p.metadata?.collectionMode ? ` · ${p.metadata.collectionMode}` : ""}
                     </option>
                   ))}
                 </select>
                 <div className="field-hint">El precio y la periodicidad se toman del plan.</div>
+                <div className="field-hint">
+                  Si el plan es `AUTO_DEBIT`, el contacto debe tener método de pago guardado (columna “Cobro auto” en Contactos).
+                </div>
               </div>
 
               <SubscriptionDateFields />
@@ -117,4 +122,3 @@ export default async function NewSubscriptionPage({
     </main>
   );
 }
-

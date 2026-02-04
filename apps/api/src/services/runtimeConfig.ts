@@ -9,11 +9,25 @@ export async function getWompiEventsSecret(): Promise<string | undefined> {
   return (env.WOMPI_EVENTS_SECRET || "").trim() || undefined;
 }
 
+export async function getWompiPublicKey(): Promise<string | undefined> {
+  const fromDb = await getCredential(CredentialProvider.WOMPI, "PUBLIC_KEY");
+  if (fromDb) return fromDb;
+  const env = loadEnv(process.env);
+  return (env.WOMPI_PUBLIC_KEY || "").trim() || undefined;
+}
+
 export async function getWompiPrivateKey(): Promise<string | undefined> {
   const fromDb = await getCredential(CredentialProvider.WOMPI, "PRIVATE_KEY");
   if (fromDb) return fromDb;
   const env = loadEnv(process.env);
   return (env.WOMPI_PRIVATE_KEY || "").trim() || undefined;
+}
+
+export async function getWompiIntegritySecret(): Promise<string | undefined> {
+  const fromDb = await getCredential(CredentialProvider.WOMPI, "INTEGRITY_SECRET");
+  if (fromDb) return fromDb;
+  const env = loadEnv(process.env);
+  return (env.WOMPI_INTEGRITY_SECRET || "").trim() || undefined;
 }
 
 export async function getWompiApiBaseUrl(): Promise<string> {
@@ -61,4 +75,3 @@ export async function getChatwootConfig(): Promise<
   if (!baseUrl.trim() || !accessToken.trim() || !Number.isFinite(accountId) || !Number.isFinite(inboxId)) return { configured: false };
   return { configured: true, baseUrl: baseUrl.trim(), apiAccessToken: accessToken.trim(), accountId, inboxId };
 }
-

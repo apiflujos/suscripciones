@@ -102,9 +102,11 @@ export default async function PlansPage({
                 <select className="select" name="collectionMode" defaultValue="MANUAL_LINK">
                   <option value="MANUAL_LINK">MANUAL_LINK (link bajo demanda)</option>
                   <option value="AUTO_LINK">AUTO_LINK (auto-generar link por ciclo)</option>
+                  <option value="AUTO_DEBIT">AUTO_DEBIT (cobro automático tokenizado)</option>
                 </select>
                 <div className="field-hint">
-                  MANUAL: el admin genera el link cuando lo necesite. AUTO: el sistema genera el link del siguiente ciclo tras aprobarse el pago.
+                  MANUAL: el admin genera el link cuando lo necesite. AUTO_LINK: el sistema genera/envía link en la fecha de corte.
+                  AUTO_DEBIT: el sistema intenta cobrar sin link (requiere método de pago guardado en el contacto).
                 </div>
               </div>
 

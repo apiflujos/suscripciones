@@ -35,6 +35,13 @@ subscriptionsRouter.post("/", async (req, res) => {
   const customer = await prisma.customer.findUnique({ where: { id: parsed.data.customerId } });
   if (!customer) return res.status(404).json({ error: "customer_not_found" });
 
+  const collectionMode = String((plan.metadata as any)?.collectionMode || "MANUAL_LINK");
+  if (collectionMode === "AUTO_DEBIT") {
+    const paymentSourceId = Number((customer.metadata as any)?.wompi?.paymentSourceId);
+    if (!Number.isFinite(paymentSourceId)) return res.status(400).json({ error: "customer_payment_source_missing" });
+    if (!customer.email) return res.status(400).json({ error: "customer_email_required" });
+  }
+
   const startAt = parsed.data.startAt ? new Date(parsed.data.startAt) : new Date();
   const computedEnd = addIntervalUtc(startAt, plan.intervalUnit, plan.intervalCount);
   const periodEnd = parsed.data.firstPeriodEndAt ? new Date(parsed.data.firstPeriodEndAt) : computedEnd;
@@ -52,6 +59,22 @@ subscriptionsRouter.post("/", async (req, res) => {
       currentCycle: 1
     }
   });
+
+  // AUTO_* modes schedule work to happen at the cutoff/charge time.
+  if (collectionMode === "AUTO_LINK" || collectionMode === "AUTO_DEBIT") {
+    const runAt = periodEnd <= new Date(Date.now() + 5_000) ? new Date() : periodEnd;
+    await prisma.retryJob
+      .create({
+        data: {
+          type: RetryJobType.PAYMENT_RETRY,
+          runAt,
+          payload: { subscriptionId: subscription.id }
+        }
+      })
+      .catch(() => {});
+    return res.status(201).json({ subscription, scheduled: true });
+  }
+
   if (!parsed.data.createPaymentLink) return res.status(201).json({ subscription });
 
   try {

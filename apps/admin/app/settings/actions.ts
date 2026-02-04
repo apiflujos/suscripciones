@@ -21,7 +21,9 @@ async function adminFetch(path: string, init: RequestInit) {
 }
 
 export async function updateWompi(formData: FormData) {
+  const publicKey = String(formData.get("publicKey") || "").trim();
   const privateKey = String(formData.get("privateKey") || "").trim();
+  const integritySecret = String(formData.get("integritySecret") || "").trim();
   const eventsSecret = String(formData.get("eventsSecret") || "").trim();
   const apiBaseUrl = String(formData.get("apiBaseUrl") || "").trim();
   const checkoutLinkBaseUrl = String(formData.get("checkoutLinkBaseUrl") || "").trim();
@@ -30,7 +32,9 @@ export async function updateWompi(formData: FormData) {
   await adminFetch("/admin/settings/wompi", {
     method: "PUT",
     body: JSON.stringify({
+      ...(publicKey ? { publicKey } : {}),
       ...(privateKey ? { privateKey } : {}),
+      ...(integritySecret ? { integritySecret } : {}),
       ...(eventsSecret ? { eventsSecret } : {}),
       ...(apiBaseUrl ? { apiBaseUrl } : {}),
       ...(checkoutLinkBaseUrl ? { checkoutLinkBaseUrl } : {}),
@@ -68,4 +72,3 @@ export async function updateChatwoot(formData: FormData) {
   });
   redirect("/settings?saved=1");
 }
-

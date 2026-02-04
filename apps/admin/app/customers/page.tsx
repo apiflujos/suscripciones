@@ -1,4 +1,5 @@
 import { createCustomer } from "./actions";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,7 @@ async function fetchCustomers() {
   return json;
 }
 
-export default async function CustomersPage({ searchParams }: { searchParams: { created?: string; error?: string } }) {
+export default async function CustomersPage({ searchParams }: { searchParams: { created?: string; paymentSource?: string; error?: string } }) {
   const { token } = getConfig();
   if (!token) return <main><h1 style={{ marginTop: 0 }}>Contactos</h1><p>Configura `API_ADMIN_TOKEN`.</p></main>;
   const data = await fetchCustomers();
@@ -31,6 +32,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: { 
         </div>
       ) : null}
       {searchParams.created ? <div className="card cardPad">Contacto creado.</div> : null}
+      {searchParams.paymentSource ? <div className="card cardPad">Método de pago guardado.</div> : null}
 
       <section className="settings-group">
         <div className="settings-group-header">
@@ -72,6 +74,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: { 
                   <th>Nombre</th>
                   <th>Email</th>
                   <th>Teléfono</th>
+                  <th>Cobro auto</th>
                   <th>Creado</th>
                 </tr>
               </thead>
@@ -81,12 +84,21 @@ export default async function CustomersPage({ searchParams }: { searchParams: { 
                     <td>{c.name || "—"}</td>
                     <td>{c.email || "—"}</td>
                     <td>{c.phone || "—"}</td>
+                    <td>
+                      {c.metadata?.wompi?.paymentSourceId ? (
+                        <span className="pill">OK</span>
+                      ) : (
+                        <Link href={`/customers/${c.id}/payment-method`} style={{ textDecoration: "underline" }}>
+                          Agregar
+                        </Link>
+                      )}
+                    </td>
                     <td>{c.createdAt ? new Date(c.createdAt).toLocaleString() : "—"}</td>
                   </tr>
                 ))}
                 {items.length === 0 ? (
                   <tr>
-                    <td colSpan={4} style={{ color: "var(--muted)" }}>
+                    <td colSpan={5} style={{ color: "var(--muted)" }}>
                       Sin contactos.
                     </td>
                   </tr>

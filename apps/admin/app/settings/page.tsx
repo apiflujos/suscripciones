@@ -46,12 +46,21 @@ export default async function SettingsPage({ searchParams }: { searchParams: { s
       <section style={{ border: "1px solid #eee", borderRadius: 12, padding: 16 }}>
         <h2 style={{ marginTop: 0 }}>Wompi</h2>
         <div style={{ color: "#666", marginBottom: 12 }}>
-          PrivateKey: {settings?.wompi?.privateKey || "—"} | EventsSecret: {settings?.wompi?.eventsSecret || "—"}
+          PublicKey: {settings?.wompi?.publicKey || "—"} | PrivateKey: {settings?.wompi?.privateKey || "—"} | Integrity:{" "}
+          {settings?.wompi?.integritySecret || "—"} | EventsSecret: {settings?.wompi?.eventsSecret || "—"}
         </div>
         <form action={updateWompi} style={{ display: "grid", gap: 10 }}>
           <label>
+            Public key
+            <input name="publicKey" placeholder="pub_test_..." defaultValue={settings?.wompi?.publicKey || ""} style={{ width: "100%" }} />
+          </label>
+          <label>
             Private key
             <input name="privateKey" type="password" style={{ width: "100%" }} />
+          </label>
+          <label>
+            Integrity secret
+            <input name="integritySecret" type="password" style={{ width: "100%" }} />
           </label>
           <label>
             Events secret

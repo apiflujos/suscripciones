@@ -17,7 +17,9 @@ async function getOrEnv(provider: CredentialProvider, key: string, envVal: strin
 }
 
 const wompiUpdateSchema = z.object({
+  publicKey: z.string().min(1).optional(),
   privateKey: z.string().min(1).optional(),
+  integritySecret: z.string().min(1).optional(),
   eventsSecret: z.string().min(1).optional(),
   apiBaseUrl: z.string().url().optional(),
   checkoutLinkBaseUrl: z.string().url().optional(),
@@ -39,7 +41,13 @@ const chatwootUpdateSchema = z.object({
 export const settingsRouter = express.Router();
 
 settingsRouter.get("/", async (_req, res) => {
+  const wompiPublicKey = await getOrEnv(CredentialProvider.WOMPI, "PUBLIC_KEY", process.env.WOMPI_PUBLIC_KEY);
   const wompiPrivateKey = await getOrEnv(CredentialProvider.WOMPI, "PRIVATE_KEY", process.env.WOMPI_PRIVATE_KEY);
+  const wompiIntegritySecret = await getOrEnv(
+    CredentialProvider.WOMPI,
+    "INTEGRITY_SECRET",
+    process.env.WOMPI_INTEGRITY_SECRET
+  );
   const wompiEventsSecret = await getOrEnv(CredentialProvider.WOMPI, "EVENTS_SECRET", process.env.WOMPI_EVENTS_SECRET);
   const wompiApiBaseUrl = await getOrEnv(CredentialProvider.WOMPI, "API_BASE_URL", process.env.WOMPI_API_BASE_URL);
   const wompiCheckoutLinkBaseUrl = await getOrEnv(
@@ -66,7 +74,9 @@ settingsRouter.get("/", async (_req, res) => {
   res.json({
     encryptionKeyConfigured: !!(process.env.CREDENTIALS_ENCRYPTION_KEY_B64 || "").trim(),
     wompi: {
+      publicKey: wompiPublicKey ?? null,
       privateKey: maskSecret(wompiPrivateKey),
+      integritySecret: maskSecret(wompiIntegritySecret),
       eventsSecret: maskSecret(wompiEventsSecret),
       apiBaseUrl: wompiApiBaseUrl ?? null,
       checkoutLinkBaseUrl: wompiCheckoutLinkBaseUrl ?? null,
@@ -86,10 +96,12 @@ settingsRouter.get("/", async (_req, res) => {
 settingsRouter.put("/wompi", async (req, res) => {
   const parsed = wompiUpdateSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
-  const { privateKey, eventsSecret, apiBaseUrl, checkoutLinkBaseUrl, redirectUrl } = parsed.data;
+  const { publicKey, privateKey, integritySecret, eventsSecret, apiBaseUrl, checkoutLinkBaseUrl, redirectUrl } = parsed.data;
 
   try {
+    if (publicKey) await setCredential(CredentialProvider.WOMPI, "PUBLIC_KEY", publicKey);
     if (privateKey) await setCredential(CredentialProvider.WOMPI, "PRIVATE_KEY", privateKey);
+    if (integritySecret) await setCredential(CredentialProvider.WOMPI, "INTEGRITY_SECRET", integritySecret);
     if (eventsSecret) await setCredential(CredentialProvider.WOMPI, "EVENTS_SECRET", eventsSecret);
     if (apiBaseUrl) await setCredential(CredentialProvider.WOMPI, "API_BASE_URL", apiBaseUrl);
     if (checkoutLinkBaseUrl) await setCredential(CredentialProvider.WOMPI, "CHECKOUT_LINK_BASE_URL", checkoutLinkBaseUrl);
