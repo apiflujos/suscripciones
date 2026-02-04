@@ -1,20 +1,28 @@
 import { updateChatwoot, updateShopify, updateWompi } from "./actions";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
-const TOKEN = process.env.API_ADMIN_TOKEN || "";
+export const dynamic = "force-dynamic";
+
+function getConfig() {
+  return {
+    apiBase: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001",
+    token: process.env.API_ADMIN_TOKEN || ""
+  };
+}
 
 async function fetchSettings() {
-  if (!TOKEN) return null;
-  const res = await fetch(`${API_BASE}/admin/settings`, {
+  const { apiBase, token } = getConfig();
+  if (!token) return null;
+  const res = await fetch(`${apiBase}/admin/settings`, {
     cache: "no-store",
-    headers: { authorization: `Bearer ${TOKEN}` }
+    headers: { authorization: `Bearer ${token}` }
   });
   const json = await res.json().catch(() => null);
   return res.ok ? json : null;
 }
 
 export default async function SettingsPage({ searchParams }: { searchParams: { saved?: string } }) {
-  if (!TOKEN) {
+  const { token } = getConfig();
+  if (!token) {
     return (
       <main>
         <h1 style={{ marginTop: 0 }}>Credenciales</h1>
@@ -110,4 +118,3 @@ export default async function SettingsPage({ searchParams }: { searchParams: { s
     </main>
   );
 }
-
