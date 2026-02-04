@@ -6,7 +6,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Wompi Subs – Admin",
-  icons: [{ rel: "icon", url: "/brand/wompi.png" }]
+  icons: [{ rel: "icon", url: "/favicon.png" }]
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
