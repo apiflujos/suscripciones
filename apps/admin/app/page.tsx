@@ -35,9 +35,6 @@ export default async function Home() {
             <a className="btn" href="/plans">Crear plan</a>
             <a className="btn" href="/customers">Crear cliente</a>
           </div>
-          <div style={{ color: "var(--muted)", fontSize: 13 }}>
-            Tip: en <a href="/bodegas" style={{ textDecoration: "underline" }}>Bodegas</a> puedes guardar selección para stock.
-          </div>
         </div>
       </div>
     </div>

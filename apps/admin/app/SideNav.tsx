@@ -12,32 +12,28 @@ export function SideNav() {
   const pathname = usePathname() || "";
 
   return (
-    <nav className="sideNav" aria-label="Navegación">
-      <Link className={`sideLink ${isActivePath(pathname, "/") ? "sideLinkActive" : ""}`} href="/">
-        Métricas
+    <nav className="nav" aria-label="Navegación">
+      <Link className={`nav-item ${isActivePath(pathname, "/") ? "is-active" : ""}`} href="/">
+        <span className="nav-label">Métricas</span>
       </Link>
-      <Link className={`sideLink ${isActivePath(pathname, "/plans") ? "sideLinkActive" : ""}`} href="/plans">
-        Productos
+      <Link className={`nav-item ${isActivePath(pathname, "/plans") ? "is-active" : ""}`} href="/plans">
+        <span className="nav-label">Productos</span>
       </Link>
-      <Link className={`sideLink ${isActivePath(pathname, "/customers") ? "sideLinkActive" : ""}`} href="/customers">
-        Contactos
+      <Link className={`nav-item ${isActivePath(pathname, "/customers") ? "is-active" : ""}`} href="/customers">
+        <span className="nav-label">Contactos</span>
       </Link>
-      <Link className={`sideLink ${isActivePath(pathname, "/subscriptions") ? "sideLinkActive" : ""}`} href="/subscriptions">
-        Suscripciones
+      <Link className={`nav-item ${isActivePath(pathname, "/subscriptions") ? "is-active" : ""}`} href="/subscriptions">
+        <span className="nav-label">Suscripciones</span>
       </Link>
-      <Link className={`sideLink ${isActivePath(pathname, "/bodegas") ? "sideLinkActive" : ""}`} href="/bodegas">
-        Bodegas
+      <Link className={`nav-item ${isActivePath(pathname, "/webhooks") ? "is-active" : ""}`} href="/webhooks">
+        <span className="nav-label">Webhooks</span>
       </Link>
-      <Link className={`sideLink ${isActivePath(pathname, "/webhooks") ? "sideLinkActive" : ""}`} href="/webhooks">
-        Webhooks
+      <Link className={`nav-item ${isActivePath(pathname, "/logs") ? "is-active" : ""}`} href="/logs">
+        <span className="nav-label">Logs de API</span>
       </Link>
-      <Link className={`sideLink ${isActivePath(pathname, "/logs") ? "sideLinkActive" : ""}`} href="/logs">
-        Logs de API
-      </Link>
-      <Link className={`sideLink ${isActivePath(pathname, "/settings") ? "sideLinkActive" : ""}`} href="/settings">
-        Configuración
+      <Link className={`nav-item ${isActivePath(pathname, "/settings") ? "is-active" : ""}`} href="/settings">
+        <span className="nav-label">Configuración</span>
       </Link>
     </nav>
   );
 }
-
