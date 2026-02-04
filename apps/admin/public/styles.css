@@ -66,6 +66,11 @@ a {
   gap: 16px;
 }
 
+.page {
+  display: grid;
+  gap: 16px;
+}
+
 .sidebar {
   position: sticky;
   top: 0;
@@ -78,15 +83,63 @@ a {
 
 /* Topbar */
 .topbar {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   padding: 10px 14px;
   border: 1px solid var(--stroke);
   border-radius: 12px;
   background: var(--panel);
   box-shadow: var(--shadow);
+}
+
+.topbarLeft {
+  display: grid;
+}
+
+.topbarCenter {
+  display: flex;
+  justify-content: center;
+}
+
+.topbarRight {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+}
+
+.brandPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--stroke);
+  background: #fff;
+  padding: 8px 12px;
+  border-radius: 12px;
+}
+
+.brandMark {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: rgba(126, 34, 206, 0.12);
+  color: rgb(126, 34, 206);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 12px;
+}
+
+.userAvatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: #fff;
+  object-fit: cover;
 }
 
 .topbar h1 {
@@ -99,6 +152,34 @@ a {
   font-size: 11px;
   color: var(--muted);
   margin: 2px 0 0;
+}
+
+.panelHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.filtersRow {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.filtersLeft {
+  flex: 1 1 520px;
+}
+
+.filtersRight {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 0 0 auto;
 }
 
 /* Sidebar nav */
@@ -115,6 +196,19 @@ a {
   display: flex;
   align-items: center;
   gap: 10px;
+  font-weight: 600;
+}
+
+.nav-icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  color: var(--muted);
+}
+
+.nav-item.is-active .nav-icon,
+.nav-item:hover .nav-icon {
+  color: var(--primary);
 }
 
 .nav-item:hover {

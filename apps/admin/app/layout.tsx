@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 
 import "./globals.css";
 import { SideNav } from "./SideNav";
+import { TopBar } from "./TopBar";
 
 export const metadata: Metadata = {
   title: "Wompi Subs – Admin",
@@ -32,22 +33,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           </aside>
 
           <div className="content" style={{ alignContent: "start" }}>
-            <header className="topbar" aria-label="Topbar">
-              <div style={{ display: "grid" }}>
-                <h1>Productos e inventarios</h1>
-                <div className="subtitle">Visibilidad operativa en tiempo real.</div>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/brand/avatar.png" alt="" style={{ width: 34, height: 34, borderRadius: 999 }} />
-                <div style={{ display: "grid", lineHeight: 1.1 }}>
-                  <div style={{ fontWeight: 700 }}>Sebastian</div>
-                  <div className="subtitle" style={{ textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                    Admin
-                  </div>
-                </div>
-              </div>
-            </header>
+            <TopBar />
             {children}
           </div>
         </div>

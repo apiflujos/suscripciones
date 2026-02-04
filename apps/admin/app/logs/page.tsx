@@ -17,83 +17,151 @@ async function fetchAdmin(path: string) {
   return { ok: res.ok, status: res.status, json };
 }
 
-export default async function LogsPage() {
+async function retryFailedJobs() {
+  "use server";
+  const { apiBase, token } = getConfig();
+  if (!token) return;
+  await fetch(`${apiBase}/admin/logs/jobs/retry-failed`, {
+    method: "POST",
+    cache: "no-store",
+    headers: { authorization: `Bearer ${token}` }
+  }).catch(() => {});
+}
+
+function toStatusChip(level: string) {
+  const v = String(level || "").toUpperCase();
+  if (v === "ERROR") return { cls: "is-error", label: "Error" };
+  if (v === "WARN") return { cls: "is-warning", label: "Warn" };
+  return { cls: "is-success", label: "Exitoso" };
+}
+
+export default async function LogsPage({
+  searchParams
+}: {
+  searchParams?: Record<string, string | string[] | undefined>;
+}) {
   const { token } = getConfig();
   if (!token) {
     return (
       <main>
-        <h1 style={{ marginTop: 0 }}>Logs</h1>
+        <h1 style={{ marginTop: 0 }}>Logs de API</h1>
         <p>Configura `API_ADMIN_TOKEN`.</p>
       </main>
     );
   }
 
-  const [system, jobs, payments] = await Promise.all([
-    fetchAdmin("/admin/logs/system?take=50"),
-    fetchAdmin("/admin/logs/jobs?take=50"),
-    fetchAdmin("/admin/logs/payments?take=20")
-  ]);
+  const q = typeof searchParams?.q === "string" ? searchParams.q : "";
+  const viewId = typeof searchParams?.view === "string" ? searchParams.view : "";
+
+  const [system, jobs] = await Promise.all([fetchAdmin("/admin/logs/system?take=120"), fetchAdmin("/admin/logs/jobs?take=200")]);
 
   const sysItems = (system.json?.items ?? []) as any[];
   const jobItems = (jobs.json?.items ?? []) as any[];
-  const payItems = (payments.json?.items ?? []) as any[];
+  const failedJobsCount = jobItems.filter((j) => String(j.status) === "FAILED").length;
+
+  const filtered = q
+    ? sysItems.filter((l) => String(l.message || "").toLowerCase().includes(q.toLowerCase()) || String(l.source || "").toLowerCase().includes(q.toLowerCase()))
+    : sysItems;
+
+  const selected = viewId ? filtered.find((l) => String(l.id) === viewId) : null;
 
   return (
-    <main style={{ display: "grid", gap: 16 }}>
-      <h1 style={{ marginTop: 0 }}>Logs</h1>
+    <main className="page">
+      <section className="settings-group">
+        <div className="settings-group-header">
+          <div className="panelHeaderRow">
+            <h3>Logs de API</h3>
+            <a className="ghost" href="/webhooks">
+              Trazabilidad
+            </a>
+          </div>
 
-      <section style={{ border: "1px solid #eee", borderRadius: 12, padding: 16 }}>
-        <h2 style={{ marginTop: 0 }}>System logs</h2>
-        <div style={{ display: "grid", gap: 8 }}>
-          {sysItems.map((l) => (
-            <div key={l.id} style={{ border: "1px solid #f2f2f2", borderRadius: 8, padding: 12 }}>
-              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                <strong>{l.level}</strong>
-                <span style={{ color: "#666" }}>{l.source}</span>
-                <span style={{ color: "#666" }}>{new Date(l.createdAt).toLocaleString()}</span>
+          <div className="filtersRow">
+            <div className="filtersLeft">
+              <div className="filter-group">
+                <div className="filter-label">ID de pedido</div>
+                <form action="/logs" method="GET" style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                  <input className="input" name="q" defaultValue={q} placeholder="Buscar en logs..." />
+                  <select className="select" aria-label="Estado">
+                    <option>Todos</option>
+                  </select>
+                  <button className="ghost" type="submit">
+                    Filtrar
+                  </button>
+                </form>
               </div>
-              <div style={{ marginTop: 8 }}>{l.message}</div>
             </div>
-          ))}
-          {sysItems.length === 0 ? <div style={{ color: "#666" }}>Sin logs.</div> : null}
+
+            <div className="filtersRight">
+              <form action={retryFailedJobs}>
+                <button className="primary" type="submit">
+                  Reintentar fallidos
+                </button>
+              </form>
+              <span className={`pill ${failedJobsCount > 0 ? "pillDanger" : ""}`}>{failedJobsCount} fallos</span>
+            </div>
+          </div>
         </div>
-      </section>
 
-      <section style={{ border: "1px solid #eee", borderRadius: 12, padding: 16 }}>
-        <h2 style={{ marginTop: 0 }}>Retry jobs</h2>
-        <div style={{ display: "grid", gap: 8 }}>
-          {jobItems.map((j) => (
-            <div key={j.id} style={{ border: "1px solid #f2f2f2", borderRadius: 8, padding: 12 }}>
-              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                <strong>{j.type}</strong>
-                <span style={{ color: "#666" }}>{j.status}</span>
-                <span style={{ color: "#666" }}>attempts: {j.attempts}/{j.maxAttempts}</span>
-              </div>
-              {j.lastError ? <div style={{ marginTop: 8, color: "#b00" }}>{j.lastError}</div> : null}
-            </div>
-          ))}
-          {jobItems.length === 0 ? <div style={{ color: "#666" }}>Sin jobs.</div> : null}
-        </div>
-      </section>
+        <div className="settings-group-body">
+          <div className="panel module" style={{ padding: 0 }}>
+            <table className="table" aria-label="Tabla de logs">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Entidad</th>
+                  <th>Dirección</th>
+                  <th>Estado</th>
+                  <th>Detalle</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((l) => {
+                  const chip = toStatusChip(l.level);
+                  return (
+                    <tr key={l.id}>
+                      <td>{new Date(l.createdAt).toLocaleString()}</td>
+                      <td>{l.source}</td>
+                      <td>—</td>
+                      <td>
+                        <span className={`status-chip ${chip.cls}`}>
+                          <span className={`status-led ${chip.cls === "is-success" ? "is-ok" : ""}`} />
+                          {chip.label}
+                        </span>
+                      </td>
+                      <td>{l.message}</td>
+                      <td style={{ textAlign: "right" }}>
+                        <a className="ghost" href={`/logs?${new URLSearchParams({ ...(q ? { q } : {}), view: String(l.id) })}`}>
+                          Ver
+                        </a>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ color: "var(--muted)" }}>
+                      Sin logs.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
 
-      <section style={{ border: "1px solid #eee", borderRadius: 12, padding: 16 }}>
-        <h2 style={{ marginTop: 0 }}>Pagos</h2>
-        <div style={{ display: "grid", gap: 8 }}>
-          {payItems.map((p) => (
-            <div key={p.id} style={{ border: "1px solid #f2f2f2", borderRadius: 8, padding: 12 }}>
-              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                <strong>{p.status}</strong>
-                <span style={{ color: "#666" }}>{p.amountInCents} {p.currency}</span>
-                <span style={{ color: "#666" }}>ref: {p.reference}</span>
+          {selected ? (
+            <div className="panel" aria-label="Detalle del log">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                <strong>Detalle</strong>
+                <a className="btnLink" href={q ? `/logs?${new URLSearchParams({ q })}` : "/logs"}>
+                  Cerrar
+                </a>
               </div>
-              {p.checkoutUrl ? (
-                <div style={{ marginTop: 8 }}>
-                  <a href={p.checkoutUrl} target="_blank" rel="noreferrer">Abrir checkout</a>
-                </div>
-              ) : null}
+              <div style={{ marginTop: 8, color: "var(--muted)" }}>{selected.source}</div>
+              <pre style={{ marginTop: 10, whiteSpace: "pre-wrap" }}>{JSON.stringify(selected, null, 2)}</pre>
             </div>
-          ))}
-          {payItems.length === 0 ? <div style={{ color: "#666" }}>Sin pagos.</div> : null}
+          ) : null}
         </div>
       </section>
     </main>
