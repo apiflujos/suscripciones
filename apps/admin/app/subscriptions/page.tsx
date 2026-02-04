@@ -1,12 +1,19 @@
 import { createPaymentLink, createSubscription } from "./actions";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
-const TOKEN = process.env.API_ADMIN_TOKEN || "";
+export const dynamic = "force-dynamic";
+
+function getConfig() {
+  return {
+    apiBase: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001",
+    token: process.env.API_ADMIN_TOKEN || ""
+  };
+}
 
 async function fetchAdmin(path: string) {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const { apiBase, token } = getConfig();
+  const res = await fetch(`${apiBase}${path}`, {
     cache: "no-store",
-    headers: TOKEN ? { authorization: `Bearer ${TOKEN}` } : {}
+    headers: token ? { authorization: `Bearer ${token}` } : {}
   });
   const json = await res.json().catch(() => null);
   return { ok: res.ok, status: res.status, json };
@@ -17,7 +24,8 @@ export default async function SubscriptionsPage({
 }: {
   searchParams: { created?: string; link?: string; checkoutUrl?: string };
 }) {
-  if (!TOKEN) {
+  const { token } = getConfig();
+  if (!token) {
     return (
       <main>
         <h1 style={{ marginTop: 0 }}>Suscripciones</h1>

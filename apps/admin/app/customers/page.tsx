@@ -1,17 +1,25 @@
 import { createCustomer } from "./actions";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
-const TOKEN = process.env.API_ADMIN_TOKEN || "";
+export const dynamic = "force-dynamic";
+
+function getConfig() {
+  return {
+    apiBase: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001",
+    token: process.env.API_ADMIN_TOKEN || ""
+  };
+}
 
 async function fetchCustomers() {
-  if (!TOKEN) return { items: [] as any[] };
-  const res = await fetch(`${API_BASE}/admin/customers`, { cache: "no-store", headers: { authorization: `Bearer ${TOKEN}` } });
+  const { apiBase, token } = getConfig();
+  if (!token) return { items: [] as any[] };
+  const res = await fetch(`${apiBase}/admin/customers`, { cache: "no-store", headers: { authorization: `Bearer ${token}` } });
   const json = await res.json().catch(() => ({ items: [] }));
   return json;
 }
 
 export default async function CustomersPage({ searchParams }: { searchParams: { created?: string } }) {
-  if (!TOKEN) return <main><h1 style={{ marginTop: 0 }}>Clientes</h1><p>Configura `API_ADMIN_TOKEN`.</p></main>;
+  const { token } = getConfig();
+  if (!token) return <main><h1 style={{ marginTop: 0 }}>Clientes</h1><p>Configura `API_ADMIN_TOKEN`.</p></main>;
   const data = await fetchCustomers();
   const items = (data.items ?? []) as any[];
 
@@ -56,4 +64,3 @@ export default async function CustomersPage({ searchParams }: { searchParams: { 
     </main>
   );
 }
-
