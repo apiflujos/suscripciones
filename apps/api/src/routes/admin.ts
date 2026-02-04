@@ -4,7 +4,8 @@ import { prisma } from "../db/prisma";
 export function requireAdminToken(req: Request, res: Response, next: NextFunction) {
   const auth = req.header("authorization") || "";
   const token = auth.startsWith("Bearer ") ? auth.slice("Bearer ".length) : "";
-  if (!token || token !== process.env.ADMIN_API_TOKEN) {
+  const expected = process.env.ADMIN_API_TOKEN || process.env.API_ADMIN_TOKEN || "";
+  if (!token || !expected || token !== expected) {
     res.status(401).json({ error: "unauthorized" });
     return;
   }
@@ -18,4 +19,3 @@ export async function listWebhookEvents(_req: Request, res: Response) {
   });
   res.json({ items });
 }
-

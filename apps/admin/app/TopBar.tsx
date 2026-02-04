@@ -8,9 +8,8 @@ type Header = { title: string; subtitle: string };
 function getHeader(pathname: string): Header {
   if (pathname === "/") return { title: "Metricas Olivia Shoes", subtitle: "Visibilidad operativa en tiempo real." };
   if (pathname.startsWith("/logs")) return { title: "Logs de API", subtitle: "Seguimiento de procesos y sincronizaciones." };
-  if (pathname.startsWith("/plans")) return { title: "Productos", subtitle: "Planes, precios y periodicidad." };
   if (pathname.startsWith("/customers")) return { title: "Contactos", subtitle: "Clientes y datos de contacto." };
-  if (pathname.startsWith("/subscriptions")) return { title: "Suscripciones", subtitle: "Ciclos, pagos y links." };
+  if (pathname.startsWith("/subscriptions")) return { title: "Suscripciones", subtitle: "Planes, clientes, pagos y links." };
   if (pathname.startsWith("/webhooks")) return { title: "Webhooks", subtitle: "Eventos entrantes y su estado." };
   if (pathname.startsWith("/settings")) return { title: "Configuración", subtitle: "Credenciales y conexiones." };
   return { title: "Panel", subtitle: "—" };
@@ -49,4 +48,3 @@ export function TopBar() {
     </header>
   );
 }
-

@@ -25,7 +25,10 @@ export async function createCustomer(formData: FormData) {
   const email = String(formData.get("email") || "").trim();
   const phone = String(formData.get("phone") || "").trim();
 
-  await adminFetch("/admin/customers", { method: "POST", body: JSON.stringify({ name, email, phone }) });
-  redirect("/customers?created=1");
+  try {
+    await adminFetch("/admin/customers", { method: "POST", body: JSON.stringify({ name, email, phone }) });
+    redirect("/customers?created=1");
+  } catch (err: any) {
+    redirect(`/customers?error=${encodeURIComponent(err?.message || "create_customer_failed")}`);
+  }
 }
-

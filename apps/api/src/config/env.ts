@@ -22,7 +22,13 @@ const envSchema = z.object({
 export type Env = z.infer<typeof envSchema>;
 
 export function loadEnv(processEnv: NodeJS.ProcessEnv): Env {
-  const parsed = envSchema.safeParse(processEnv);
+  const normalized = {
+    ...processEnv,
+    // Back-compat: some deployments used `API_ADMIN_TOKEN` for the API service.
+    ADMIN_API_TOKEN: processEnv.ADMIN_API_TOKEN || processEnv.API_ADMIN_TOKEN
+  } as NodeJS.ProcessEnv;
+
+  const parsed = envSchema.safeParse(normalized);
   if (!parsed.success) {
     // eslint-disable-next-line no-console
     console.error(parsed.error.flatten().fieldErrors);

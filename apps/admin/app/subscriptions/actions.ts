@@ -25,22 +25,50 @@ export async function createSubscription(formData: FormData) {
   const planId = String(formData.get("planId") || "").trim();
   const createPaymentLink = String(formData.get("createPaymentLink") || "") === "on";
 
-  const json = await adminFetch("/admin/subscriptions", {
-    method: "POST",
-    body: JSON.stringify({ customerId, planId, createPaymentLink })
-  });
+  try {
+    const json = await adminFetch("/admin/subscriptions", {
+      method: "POST",
+      body: JSON.stringify({ customerId, planId, createPaymentLink })
+    });
 
-  const subId = json?.subscription?.id;
-  const checkoutUrl = json?.checkoutUrl;
-  if (subId && checkoutUrl) {
-    redirect(`/subscriptions?created=1&checkoutUrl=${encodeURIComponent(checkoutUrl)}`);
+    const subId = json?.subscription?.id;
+    const checkoutUrl = json?.checkoutUrl;
+    if (subId && checkoutUrl) {
+      redirect(`/subscriptions?created=1&checkoutUrl=${encodeURIComponent(checkoutUrl)}`);
+    }
+    redirect(`/subscriptions?created=1`);
+  } catch (err: any) {
+    redirect(`/subscriptions?error=${encodeURIComponent(err?.message || "create_subscription_failed")}`);
   }
-  redirect(`/subscriptions?created=1`);
 }
 
 export async function createPaymentLink(formData: FormData) {
   const subscriptionId = String(formData.get("subscriptionId") || "").trim();
-  const json = await adminFetch(`/admin/subscriptions/${subscriptionId}/payment-link`, { method: "POST", body: JSON.stringify({}) });
-  redirect(`/subscriptions?link=1&checkoutUrl=${encodeURIComponent(json.checkoutUrl || "")}`);
+  try {
+    const json = await adminFetch(`/admin/subscriptions/${subscriptionId}/payment-link`, {
+      method: "POST",
+      body: JSON.stringify({})
+    });
+    redirect(`/subscriptions?link=1&checkoutUrl=${encodeURIComponent(json.checkoutUrl || "")}`);
+  } catch (err: any) {
+    redirect(`/subscriptions?error=${encodeURIComponent(err?.message || "create_payment_link_failed")}`);
+  }
 }
 
+export async function createPlan(formData: FormData) {
+  const name = String(formData.get("name") || "").trim();
+  const priceInCents = Number(String(formData.get("priceInCents") || "0"));
+  const currency = String(formData.get("currency") || "COP").trim();
+  const intervalUnit = String(formData.get("intervalUnit") || "MONTH").trim();
+  const intervalCount = Number(String(formData.get("intervalCount") || "1"));
+
+  try {
+    await adminFetch("/admin/plans", {
+      method: "POST",
+      body: JSON.stringify({ name, priceInCents, currency, intervalUnit, intervalCount })
+    });
+    redirect("/subscriptions?planCreated=1");
+  } catch (err: any) {
+    redirect(`/subscriptions?error=${encodeURIComponent(err?.message || "create_plan_failed")}`);
+  }
+}

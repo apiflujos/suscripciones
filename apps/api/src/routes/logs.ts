@@ -1,5 +1,6 @@
 import express from "express";
 import { prisma } from "../db/prisma";
+import { RetryJobStatus } from "@prisma/client";
 
 export const logsRouter = express.Router();
 
@@ -25,3 +26,11 @@ logsRouter.get("/jobs", async (req, res) => {
   res.json({ items });
 });
 
+logsRouter.post("/jobs/retry-failed", async (_req, res) => {
+  const now = new Date();
+  const result = await prisma.retryJob.updateMany({
+    where: { status: RetryJobStatus.FAILED },
+    data: { status: RetryJobStatus.PENDING, runAt: now, lockedAt: null, lockedBy: null }
+  });
+  res.json({ ok: true, retried: result.count });
+});

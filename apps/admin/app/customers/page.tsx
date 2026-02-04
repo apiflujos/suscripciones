@@ -17,48 +17,83 @@ async function fetchCustomers() {
   return json;
 }
 
-export default async function CustomersPage({ searchParams }: { searchParams: { created?: string } }) {
+export default async function CustomersPage({ searchParams }: { searchParams: { created?: string; error?: string } }) {
   const { token } = getConfig();
-  if (!token) return <main><h1 style={{ marginTop: 0 }}>Clientes</h1><p>Configura `API_ADMIN_TOKEN`.</p></main>;
+  if (!token) return <main><h1 style={{ marginTop: 0 }}>Contactos</h1><p>Configura `API_ADMIN_TOKEN`.</p></main>;
   const data = await fetchCustomers();
   const items = (data.items ?? []) as any[];
 
   return (
-    <main style={{ display: "grid", gap: 16, maxWidth: 820 }}>
-      <h1 style={{ marginTop: 0 }}>Clientes</h1>
-      {searchParams.created ? <div style={{ padding: 12, background: "#eef", borderRadius: 8 }}>Cliente creado.</div> : null}
+    <main className="page" style={{ maxWidth: 980 }}>
+      {searchParams.error ? (
+        <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
+          Error: {searchParams.error}
+        </div>
+      ) : null}
+      {searchParams.created ? <div className="card cardPad">Contacto creado.</div> : null}
 
-      <section style={{ border: "1px solid #eee", borderRadius: 12, padding: 16 }}>
-        <h2 style={{ marginTop: 0 }}>Nuevo cliente</h2>
-        <form action={createCustomer} style={{ display: "grid", gap: 10 }}>
-          <label>
-            Nombre
-            <input name="name" style={{ width: "100%" }} />
-          </label>
-          <label>
-            Email
-            <input name="email" style={{ width: "100%" }} />
-          </label>
-          <label>
-            Teléfono
-            <input name="phone" style={{ width: "100%" }} />
-          </label>
-          <button type="submit">Crear cliente</button>
-        </form>
-      </section>
+      <section className="settings-group">
+        <div className="settings-group-header">
+          <h3>Contactos</h3>
+          <div className="field-hint">Clientes y datos de contacto (email / teléfono).</div>
+        </div>
 
-      <section style={{ border: "1px solid #eee", borderRadius: 12, padding: 16 }}>
-        <h2 style={{ marginTop: 0 }}>Clientes recientes</h2>
-        <div style={{ display: "grid", gap: 8 }}>
-          {items.map((c) => (
-            <div key={c.id} style={{ border: "1px solid #eee", borderRadius: 8, padding: 12 }}>
-              <strong>{c.email || c.name || c.id}</strong>
-              <div style={{ color: "#666", marginTop: 6 }}>
-                {c.name ? `Nombre: ${c.name} ` : ""}{c.phone ? `Tel: ${c.phone}` : ""}
-              </div>
+        <div className="settings-group-body">
+          <div className="panel module">
+            <div className="panel-header">
+              <h3>Nuevo contacto</h3>
             </div>
-          ))}
-          {items.length === 0 ? <div style={{ color: "#666" }}>Sin clientes.</div> : null}
+            <form action={createCustomer} style={{ display: "grid", gap: 10 }}>
+              <div className="field">
+                <label>Nombre</label>
+                <input className="input" name="name" placeholder="Nombre" />
+              </div>
+              <div className="field">
+                <label>Email</label>
+                <input className="input" name="email" placeholder="correo@empresa.com" />
+              </div>
+              <div className="field">
+                <label>Teléfono</label>
+                <input className="input" name="phone" placeholder="+57..." />
+              </div>
+              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+                <button className="primary" type="submit">
+                  Crear contacto
+                </button>
+              </div>
+              <div className="field-hint">Tip: con email puedes identificar más fácil al cliente en suscripciones.</div>
+            </form>
+          </div>
+
+          <div className="panel module" style={{ padding: 0 }}>
+            <table className="table" aria-label="Tabla de contactos">
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Email</th>
+                  <th>Teléfono</th>
+                  <th>Creado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((c) => (
+                  <tr key={c.id}>
+                    <td>{c.name || "—"}</td>
+                    <td>{c.email || "—"}</td>
+                    <td>{c.phone || "—"}</td>
+                    <td>{c.createdAt ? new Date(c.createdAt).toLocaleString() : "—"}</td>
+                  </tr>
+                ))}
+                {items.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} style={{ color: "var(--muted)" }}>
+                      Sin contactos.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
     </main>
