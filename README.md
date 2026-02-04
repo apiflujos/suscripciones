@@ -155,3 +155,9 @@ curl -sS "$API_BASE/admin/plans" -H "authorization: Bearer $API_TOKEN" -H "conte
 - También crea un **Worker** `wompi-subs-jobs` (necesario) para procesar colas: forward a Shopify, mensajes Chatwoot, y procesamiento asíncrono del webhook.
 - La API arranca con `prisma migrate deploy` (migraciones automáticas en deploy).
 - El Worker arranca con `prisma migrate deploy` antes de procesar jobs (evita fallas si el worker inicia primero).
+
+Si no usas Blueprint (servicios creados manualmente en Render), usa estos comandos:
+
+- **API**
+  - Build: `npm ci && npm -w apps/api run build`
+  - Start: `npm -w apps/api run start:migrate` (o `npm run start:migrate`)

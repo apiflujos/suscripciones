@@ -6,7 +6,7 @@ import { forwardWompiToShopify, processWompiEvent } from "./handlers/processWomp
 import { sendChatwootMessage } from "./handlers/sendChatwootMessage";
 import { systemLog } from "../services/systemLog";
 
-const env = loadEnv(process.env);
+loadEnv(process.env);
 const workerId = `jobs:${process.pid}`;
 
 async function claimJobs(limit: number) {

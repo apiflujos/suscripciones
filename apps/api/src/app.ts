@@ -3,7 +3,7 @@ import helmet from "helmet";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import { logger } from "./lib/logger";
-import { health } from "./routes/health";
+import { health, healthz } from "./routes/health";
 import { requireAdminToken, listWebhookEvents } from "./routes/admin";
 import { wompiWebhook } from "./routes/webhooksWompi";
 import { plansRouter } from "./routes/plans";
@@ -20,6 +20,7 @@ export function createApp() {
   app.use(cors());
   app.use(express.json({ limit: "2mb" }));
 
+  app.get("/healthz", healthz);
   app.get("/health", health);
   app.post("/webhooks/wompi", wompiWebhook);
 
