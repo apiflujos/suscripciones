@@ -414,6 +414,23 @@ textarea {
   box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
 }
 
+/* Details (para "Nueva conexión") */
+.detailsSummary {
+  list-style: none;
+}
+
+.detailsSummary::-webkit-details-marker {
+  display: none;
+}
+
+.detailsSummary::marker {
+  content: "";
+}
+
+.detailsBody {
+  padding-top: 10px;
+}
+
 /* Toggle */
 .toggle {
   width: 44px;

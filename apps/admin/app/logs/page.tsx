@@ -1,22 +1,14 @@
+import Link from "next/link";
+import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
+
 export const dynamic = "force-dynamic";
 
 function getConfig() {
-  const raw = String(process.env.ADMIN_API_TOKEN || process.env.API_ADMIN_TOKEN || "");
-  const token = raw.replace(/^Bearer\\s+/i, "").trim().replace(/^\"|\"$/g, "").replace(/^'|'$/g, "").trim();
-  return {
-    apiBase: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001",
-    token
-  };
+  return getAdminApiConfig();
 }
 
 async function fetchAdmin(path: string) {
-  const { apiBase, token } = getConfig();
-  const res = await fetch(`${apiBase}${path}`, {
-    cache: "no-store",
-    headers: token ? { authorization: `Bearer ${token}`, "x-admin-token": token } : {}
-  });
-  const json = await res.json().catch(() => null);
-  return { ok: res.ok, status: res.status, json };
+  return fetchAdminCached(path, { ttlMs: 1500 });
 }
 
 async function retryFailedJobs() {
@@ -102,18 +94,18 @@ export default async function LogsPage({
           <div className="panelHeaderRow">
             <h3>Logs de API</h3>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <a
+              <Link
                 className={`ghost ${tab === "system" ? "is-active" : ""}`}
                 href={`/logs?${new URLSearchParams({ tab: "system" })}`}
               >
                 Sistema
-              </a>
-              <a
+              </Link>
+              <Link
                 className={`ghost ${tab === "webhooks" ? "is-active" : ""}`}
                 href={`/logs?${new URLSearchParams({ tab: "webhooks" })}`}
               >
                 Webhooks
-              </a>
+              </Link>
             </div>
           </div>
 
@@ -177,12 +169,12 @@ export default async function LogsPage({
                         </td>
                         <td>{l.message}</td>
                         <td style={{ textAlign: "right" }}>
-                          <a
+                          <Link
                             className="ghost"
                             href={`/logs?${new URLSearchParams({ tab: "system", ...(q ? { q } : {}), view: String(l.id) })}`}
                           >
                             Ver
-                          </a>
+                          </Link>
                         </td>
                       </tr>
                     );
@@ -235,9 +227,9 @@ export default async function LogsPage({
             <div className="panel" aria-label="Detalle del log">
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
                 <strong>Detalle</strong>
-                <a className="btnLink" href={q ? `/logs?${new URLSearchParams({ tab: "system", q })}` : "/logs"}>
+                <Link className="btnLink" href={q ? `/logs?${new URLSearchParams({ tab: "system", q })}` : "/logs"} prefetch={false}>
                   Cerrar
-                </a>
+                </Link>
               </div>
               <div style={{ marginTop: 8, color: "var(--muted)" }}>{selected.source}</div>
               <pre style={{ marginTop: 10, whiteSpace: "pre-wrap" }}>{JSON.stringify(selected, null, 2)}</pre>

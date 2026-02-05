@@ -1,7 +1,7 @@
 import express from "express";
 import { z } from "zod";
 import { CredentialProvider, LogLevel } from "@prisma/client";
-import { getCredential, setCredential } from "../services/credentials";
+import { getCredential, getCredentialsBulk, setCredential } from "../services/credentials";
 import { systemLog } from "../services/systemLog";
 
 const envSchema = z.enum(["PRODUCTION", "SANDBOX"]);
@@ -69,123 +69,103 @@ settingsRouter.get("/", async (_req, res) => {
     encryptionKeyValid = buf.length === 32;
   }
 
-  const wompiActiveEnv = await getActiveEnv(CredentialProvider.WOMPI, "WOMPI_ACTIVE_ENV");
-  const chatwootActiveEnv = await getActiveEnv(CredentialProvider.CHATWOOT, "CHATWOOT_ACTIVE_ENV");
+  const [wompiCreds, shopifyCreds, commsCreds] = await Promise.all([
+    getCredentialsBulk(CredentialProvider.WOMPI, [
+      "ACTIVE_ENV",
+      "PUBLIC_KEY",
+      "PRIVATE_KEY",
+      "INTEGRITY_SECRET",
+      "EVENTS_SECRET",
+      "API_BASE_URL",
+      "CHECKOUT_LINK_BASE_URL",
+      "REDIRECT_URL",
+      "PUBLIC_KEY_PRODUCTION",
+      "PRIVATE_KEY_PRODUCTION",
+      "INTEGRITY_SECRET_PRODUCTION",
+      "EVENTS_SECRET_PRODUCTION",
+      "API_BASE_URL_PRODUCTION",
+      "CHECKOUT_LINK_BASE_URL_PRODUCTION",
+      "REDIRECT_URL_PRODUCTION",
+      "PUBLIC_KEY_SANDBOX",
+      "PRIVATE_KEY_SANDBOX",
+      "INTEGRITY_SECRET_SANDBOX",
+      "EVENTS_SECRET_SANDBOX",
+      "API_BASE_URL_SANDBOX",
+      "CHECKOUT_LINK_BASE_URL_SANDBOX",
+      "REDIRECT_URL_SANDBOX"
+    ]),
+    getCredentialsBulk(CredentialProvider.SHOPIFY, ["FORWARD_URL"]),
+    getCredentialsBulk(CredentialProvider.CHATWOOT, [
+      "ACTIVE_ENV",
+      "BASE_URL",
+      "ACCOUNT_ID",
+      "INBOX_ID",
+      "API_ACCESS_TOKEN",
+      "BASE_URL_PRODUCTION",
+      "ACCOUNT_ID_PRODUCTION",
+      "INBOX_ID_PRODUCTION",
+      "API_ACCESS_TOKEN_PRODUCTION",
+      "BASE_URL_SANDBOX",
+      "ACCOUNT_ID_SANDBOX",
+      "INBOX_ID_SANDBOX",
+      "API_ACCESS_TOKEN_SANDBOX"
+    ])
+  ]);
+
+  const wompiActiveEnv = (() => {
+    const fromDb = wompiCreds.get("ACTIVE_ENV");
+    const normalized = String(fromDb || process.env.WOMPI_ACTIVE_ENV || "PRODUCTION")
+      .trim()
+      .toUpperCase();
+    return normalized === "SANDBOX" ? "SANDBOX" : "PRODUCTION";
+  })() as ActiveEnv;
+
+  const chatwootActiveEnv = (() => {
+    const fromDb = commsCreds.get("ACTIVE_ENV");
+    const normalized = String(fromDb || process.env.CHATWOOT_ACTIVE_ENV || "PRODUCTION")
+      .trim()
+      .toUpperCase();
+    return normalized === "SANDBOX" ? "SANDBOX" : "PRODUCTION";
+  })() as ActiveEnv;
+
+  const getWompi = (key: string, env: ActiveEnv, envVal?: string) =>
+    (wompiCreds.get(`${key}_${env}`) || wompiCreds.get(key) || (envVal || "").trim()) || undefined;
+  const getComms = (key: string, env: ActiveEnv, envVal?: string) =>
+    (commsCreds.get(`${key}_${env}`) || commsCreds.get(key) || (envVal || "").trim()) || undefined;
 
   const wompiProd = {
-    publicKey:
-      (await getOrEnvEnv(CredentialProvider.WOMPI, "PUBLIC_KEY", "PRODUCTION", process.env.WOMPI_PUBLIC_KEY)) ??
-      (await getOrEnv(CredentialProvider.WOMPI, "PUBLIC_KEY", process.env.WOMPI_PUBLIC_KEY)) ??
-      null,
-    privateKey: maskSecret(
-      (await getOrEnvEnv(CredentialProvider.WOMPI, "PRIVATE_KEY", "PRODUCTION", process.env.WOMPI_PRIVATE_KEY)) ??
-        (await getOrEnv(CredentialProvider.WOMPI, "PRIVATE_KEY", process.env.WOMPI_PRIVATE_KEY))
-    ),
-    integritySecret: maskSecret(
-      (await getOrEnvEnv(CredentialProvider.WOMPI, "INTEGRITY_SECRET", "PRODUCTION", process.env.WOMPI_INTEGRITY_SECRET)) ??
-        (await getOrEnv(CredentialProvider.WOMPI, "INTEGRITY_SECRET", process.env.WOMPI_INTEGRITY_SECRET))
-    ),
-    eventsSecret: maskSecret(
-      (await getOrEnvEnv(CredentialProvider.WOMPI, "EVENTS_SECRET", "PRODUCTION", process.env.WOMPI_EVENTS_SECRET)) ??
-        (await getOrEnv(CredentialProvider.WOMPI, "EVENTS_SECRET", process.env.WOMPI_EVENTS_SECRET))
-    ),
-    apiBaseUrl:
-      (await getOrEnvEnv(CredentialProvider.WOMPI, "API_BASE_URL", "PRODUCTION", process.env.WOMPI_API_BASE_URL)) ??
-      (await getOrEnv(CredentialProvider.WOMPI, "API_BASE_URL", process.env.WOMPI_API_BASE_URL)) ??
-      null,
-    checkoutLinkBaseUrl:
-      (await getOrEnvEnv(
-        CredentialProvider.WOMPI,
-        "CHECKOUT_LINK_BASE_URL",
-        "PRODUCTION",
-        process.env.WOMPI_CHECKOUT_LINK_BASE_URL
-      )) ??
-      (await getOrEnv(CredentialProvider.WOMPI, "CHECKOUT_LINK_BASE_URL", process.env.WOMPI_CHECKOUT_LINK_BASE_URL)) ??
-      null,
-    redirectUrl:
-      (await getOrEnvEnv(CredentialProvider.WOMPI, "REDIRECT_URL", "PRODUCTION", process.env.WOMPI_REDIRECT_URL)) ??
-      (await getOrEnv(CredentialProvider.WOMPI, "REDIRECT_URL", process.env.WOMPI_REDIRECT_URL)) ??
-      null
+    publicKey: getWompi("PUBLIC_KEY", "PRODUCTION", process.env.WOMPI_PUBLIC_KEY) ?? null,
+    privateKey: maskSecret(getWompi("PRIVATE_KEY", "PRODUCTION", process.env.WOMPI_PRIVATE_KEY)),
+    integritySecret: maskSecret(getWompi("INTEGRITY_SECRET", "PRODUCTION", process.env.WOMPI_INTEGRITY_SECRET)),
+    eventsSecret: maskSecret(getWompi("EVENTS_SECRET", "PRODUCTION", process.env.WOMPI_EVENTS_SECRET)),
+    apiBaseUrl: getWompi("API_BASE_URL", "PRODUCTION", process.env.WOMPI_API_BASE_URL) ?? null,
+    checkoutLinkBaseUrl: getWompi("CHECKOUT_LINK_BASE_URL", "PRODUCTION", process.env.WOMPI_CHECKOUT_LINK_BASE_URL) ?? null,
+    redirectUrl: getWompi("REDIRECT_URL", "PRODUCTION", process.env.WOMPI_REDIRECT_URL) ?? null
   };
 
   const wompiSandbox = {
-    publicKey:
-      (await getOrEnvEnv(CredentialProvider.WOMPI, "PUBLIC_KEY", "SANDBOX", process.env.WOMPI_PUBLIC_KEY_SANDBOX)) ??
-      null,
-    privateKey: maskSecret(
-      (await getOrEnvEnv(CredentialProvider.WOMPI, "PRIVATE_KEY", "SANDBOX", process.env.WOMPI_PRIVATE_KEY_SANDBOX)) ??
-        undefined
-    ),
-    integritySecret: maskSecret(
-      (await getOrEnvEnv(
-        CredentialProvider.WOMPI,
-        "INTEGRITY_SECRET",
-        "SANDBOX",
-        process.env.WOMPI_INTEGRITY_SECRET_SANDBOX
-      )) ?? undefined
-    ),
-    eventsSecret: maskSecret(
-      (await getOrEnvEnv(CredentialProvider.WOMPI, "EVENTS_SECRET", "SANDBOX", process.env.WOMPI_EVENTS_SECRET_SANDBOX)) ??
-        undefined
-    ),
-    apiBaseUrl:
-      (await getOrEnvEnv(CredentialProvider.WOMPI, "API_BASE_URL", "SANDBOX", process.env.WOMPI_API_BASE_URL_SANDBOX)) ??
-      null,
-    checkoutLinkBaseUrl:
-      (await getOrEnvEnv(
-        CredentialProvider.WOMPI,
-        "CHECKOUT_LINK_BASE_URL",
-        "SANDBOX",
-        process.env.WOMPI_CHECKOUT_LINK_BASE_URL_SANDBOX
-      )) ?? null,
-    redirectUrl:
-      (await getOrEnvEnv(CredentialProvider.WOMPI, "REDIRECT_URL", "SANDBOX", process.env.WOMPI_REDIRECT_URL_SANDBOX)) ??
-      null
+    publicKey: getWompi("PUBLIC_KEY", "SANDBOX", process.env.WOMPI_PUBLIC_KEY_SANDBOX) ?? null,
+    privateKey: maskSecret(getWompi("PRIVATE_KEY", "SANDBOX", process.env.WOMPI_PRIVATE_KEY_SANDBOX)),
+    integritySecret: maskSecret(getWompi("INTEGRITY_SECRET", "SANDBOX", process.env.WOMPI_INTEGRITY_SECRET_SANDBOX)),
+    eventsSecret: maskSecret(getWompi("EVENTS_SECRET", "SANDBOX", process.env.WOMPI_EVENTS_SECRET_SANDBOX)),
+    apiBaseUrl: getWompi("API_BASE_URL", "SANDBOX", process.env.WOMPI_API_BASE_URL_SANDBOX) ?? null,
+    checkoutLinkBaseUrl: getWompi("CHECKOUT_LINK_BASE_URL", "SANDBOX", process.env.WOMPI_CHECKOUT_LINK_BASE_URL_SANDBOX) ?? null,
+    redirectUrl: getWompi("REDIRECT_URL", "SANDBOX", process.env.WOMPI_REDIRECT_URL_SANDBOX) ?? null
   };
 
-  const shopifyForwardUrl = await getOrEnv(CredentialProvider.SHOPIFY, "FORWARD_URL", process.env.SHOPIFY_FORWARD_URL);
+  const shopifyForwardUrl = (shopifyCreds.get("FORWARD_URL") || (process.env.SHOPIFY_FORWARD_URL || "").trim()) || undefined;
 
   const commsProd = {
-    baseUrl:
-      (await getOrEnvEnv(CredentialProvider.CHATWOOT, "BASE_URL", "PRODUCTION", process.env.CHATWOOT_BASE_URL)) ??
-      (await getOrEnv(CredentialProvider.CHATWOOT, "BASE_URL", process.env.CHATWOOT_BASE_URL)) ??
-      null,
+    baseUrl: getComms("BASE_URL", "PRODUCTION", process.env.CHATWOOT_BASE_URL) ?? null,
     accountId:
-      (await getOrEnvEnv(
-        CredentialProvider.CHATWOOT,
-        "ACCOUNT_ID",
-        "PRODUCTION",
-        process.env.CHATWOOT_ACCOUNT_ID ? String(process.env.CHATWOOT_ACCOUNT_ID) : undefined
-      )) ??
-      (await getOrEnv(
-        CredentialProvider.CHATWOOT,
-        "ACCOUNT_ID",
-        process.env.CHATWOOT_ACCOUNT_ID ? String(process.env.CHATWOOT_ACCOUNT_ID) : undefined
-      )) ??
-      null,
-    inboxId:
-      (await getOrEnvEnv(
-        CredentialProvider.CHATWOOT,
-        "INBOX_ID",
-        "PRODUCTION",
-        process.env.CHATWOOT_INBOX_ID ? String(process.env.CHATWOOT_INBOX_ID) : undefined
-      )) ??
-      (await getOrEnv(
-        CredentialProvider.CHATWOOT,
-        "INBOX_ID",
-        process.env.CHATWOOT_INBOX_ID ? String(process.env.CHATWOOT_INBOX_ID) : undefined
-      )) ??
-      null
+      getComms("ACCOUNT_ID", "PRODUCTION", process.env.CHATWOOT_ACCOUNT_ID ? String(process.env.CHATWOOT_ACCOUNT_ID) : undefined) ?? null,
+    inboxId: getComms("INBOX_ID", "PRODUCTION", process.env.CHATWOOT_INBOX_ID ? String(process.env.CHATWOOT_INBOX_ID) : undefined) ?? null
   };
 
   const commsSandbox = {
-    baseUrl: (await getOrEnvEnv(CredentialProvider.CHATWOOT, "BASE_URL", "SANDBOX", process.env.CHATWOOT_BASE_URL_SANDBOX)) ?? null,
-    accountId:
-      (await getOrEnvEnv(CredentialProvider.CHATWOOT, "ACCOUNT_ID", "SANDBOX", process.env.CHATWOOT_ACCOUNT_ID_SANDBOX)) ??
-      null,
-    inboxId:
-      (await getOrEnvEnv(CredentialProvider.CHATWOOT, "INBOX_ID", "SANDBOX", process.env.CHATWOOT_INBOX_ID_SANDBOX)) ??
-      null
+    baseUrl: getComms("BASE_URL", "SANDBOX", process.env.CHATWOOT_BASE_URL_SANDBOX) ?? null,
+    accountId: getComms("ACCOUNT_ID", "SANDBOX", process.env.CHATWOOT_ACCOUNT_ID_SANDBOX) ?? null,
+    inboxId: getComms("INBOX_ID", "SANDBOX", process.env.CHATWOOT_INBOX_ID_SANDBOX) ?? null
   };
 
   res.json({

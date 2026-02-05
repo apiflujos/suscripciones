@@ -39,6 +39,32 @@ export async function getCredential(provider: CredentialProvider, key: string): 
   return value;
 }
 
+export async function getCredentialsBulk(provider: CredentialProvider, keys: string[]): Promise<Map<string, string>> {
+  const uniqueKeys = Array.from(new Set(keys.map((k) => String(k || "").trim()).filter(Boolean)));
+  const out = new Map<string, string>();
+  if (uniqueKeys.length === 0) return out;
+
+  const encKey = keyFromEnv();
+  if (!encKey) return out;
+
+  const rows = await prisma.credential.findMany({
+    where: { provider, active: true, key: { in: uniqueKeys } },
+    select: { key: true, valueEncrypted: true }
+  });
+
+  for (const r of rows) {
+    try {
+      const value = decryptAes256Gcm(r.valueEncrypted, encKey);
+      out.set(r.key, value);
+      cache.set(cacheKey(provider, r.key), { value, cachedAtMs: Date.now() });
+    } catch {
+      // ignore decrypt errors for individual keys
+    }
+  }
+
+  return out;
+}
+
 export async function setCredential(provider: CredentialProvider, key: string, plaintext: string): Promise<void> {
   const encKey = keyFromEnv();
   if (!encKey) {

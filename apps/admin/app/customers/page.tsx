@@ -1,27 +1,17 @@
 import { createCustomer } from "./actions";
 import Link from "next/link";
 import { NewCustomerForm } from "./NewCustomerForm";
+import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 
 export const dynamic = "force-dynamic";
 
 function getConfig() {
-  const raw = String(process.env.ADMIN_API_TOKEN || process.env.API_ADMIN_TOKEN || "");
-  const token = raw.replace(/^Bearer\\s+/i, "").trim().replace(/^\"|\"$/g, "").replace(/^'|'$/g, "").trim();
-  return {
-    apiBase: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001",
-    token
-  };
+  return getAdminApiConfig();
 }
 
 async function fetchCustomers() {
-  const { apiBase, token } = getConfig();
-  if (!token) return { items: [] as any[] };
-  const res = await fetch(`${apiBase}/admin/customers`, {
-    cache: "no-store",
-    headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
-  });
-  const json = await res.json().catch(() => ({ items: [] }));
-  return json;
+  const res = await fetchAdminCached("/admin/customers", { ttlMs: 1500 });
+  return res.json || { items: [] as any[] };
 }
 
 export default async function CustomersPage({ searchParams }: { searchParams: { created?: string; paymentSource?: string; error?: string } }) {

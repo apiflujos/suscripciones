@@ -1,12 +1,8 @@
-async function fetchJson(path: string) {
-  const base = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
-  const res = await fetch(`${base}${path}`, { cache: "no-store" });
-  const json = await res.json().catch(() => null);
-  return { ok: res.ok, status: res.status, json };
-}
+import Link from "next/link";
+import { fetchPublicCached } from "./lib/adminApi";
 
 export default async function Home() {
-  const health = await fetchJson("/health");
+  const health = await fetchPublicCached("/health", { ttlMs: 3000 });
   return (
     <div style={{ display: "grid", gap: 14 }}>
       <div>
@@ -20,7 +16,10 @@ export default async function Home() {
             <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
               <span className={`pill ${health.ok ? "" : "pillDanger"}`}>{health.ok ? "OK" : `ERROR (${health.status})`}</span>
               <span style={{ color: "var(--muted)", fontSize: 13 }}>
-                Salud: <a href="/logs" style={{ textDecoration: "underline" }}>ver logs</a>
+                Salud:{" "}
+                <Link href="/logs" prefetch={false} style={{ textDecoration: "underline" }}>
+                  ver logs
+                </Link>
               </span>
             </div>
             <div style={{ color: "var(--muted)", fontSize: 13 }}>
@@ -31,10 +30,18 @@ export default async function Home() {
           <div className="card cardPad" style={{ display: "grid", gap: 10 }}>
             <strong>Acciones rápidas</strong>
             <div className="toolbar">
-              <a className="btn btnPrimary" href="/settings">Configurar credenciales</a>
-              <a className="btn" href="/billing">Planes / Suscripciones</a>
-              <a className="btn" href="/customers">Contactos</a>
-              <a className="btn" href="/products">Productos y servicios</a>
+              <Link className="btn btnPrimary" href="/settings" prefetch={false}>
+                Configurar credenciales
+              </Link>
+              <Link className="btn" href="/billing" prefetch={false}>
+                Planes / Suscripciones
+              </Link>
+              <Link className="btn" href="/customers" prefetch={false}>
+                Contactos
+              </Link>
+              <Link className="btn" href="/products" prefetch={false}>
+                Productos y servicios
+              </Link>
             </div>
           </div>
         </div>

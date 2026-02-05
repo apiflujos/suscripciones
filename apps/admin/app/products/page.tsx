@@ -1,25 +1,15 @@
 import { createPlanTemplate } from "./actions";
 import { NewPlanOrSubscriptionForm } from "./NewPlanOrSubscriptionForm";
+import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 
 export const dynamic = "force-dynamic";
 
 function getConfig() {
-  const raw = String(process.env.ADMIN_API_TOKEN || process.env.API_ADMIN_TOKEN || "");
-  const token = raw.replace(/^Bearer\\s+/i, "").trim().replace(/^\"|\"$/g, "").replace(/^'|'$/g, "").trim();
-  return {
-    apiBase: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001",
-    token
-  };
+  return getAdminApiConfig();
 }
 
 async function fetchAdmin(path: string) {
-  const { apiBase, token } = getConfig();
-  const res = await fetch(`${apiBase}${path}`, {
-    cache: "no-store",
-    headers: token ? { authorization: `Bearer ${token}`, "x-admin-token": token } : {}
-  });
-  const json = await res.json().catch(() => null);
-  return { ok: res.ok, status: res.status, json };
+  return fetchAdminCached(path, { ttlMs: 1500 });
 }
 
 function fmtMoney(p: any) {

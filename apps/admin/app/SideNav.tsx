@@ -81,6 +81,7 @@ export function SideNav() {
       <Link
         className={`nav-item ${isActivePath(pathname, "/") ? "is-active" : ""}`}
         href="/"
+        prefetch={false}
         aria-current={isActivePath(pathname, "/") ? "page" : undefined}
       >
         <NavIcon name="metrics" className="nav-icon" />
@@ -89,6 +90,7 @@ export function SideNav() {
       <Link
         className={`nav-item ${isActivePath(pathname, "/customers") ? "is-active" : ""}`}
         href="/customers"
+        prefetch={false}
         aria-current={isActivePath(pathname, "/customers") ? "page" : undefined}
       >
         <NavIcon name="contacts" className="nav-icon" />
@@ -97,6 +99,7 @@ export function SideNav() {
       <Link
         className={`nav-item ${isActivePath(pathname, "/products") ? "is-active" : ""}`}
         href="/products"
+        prefetch={false}
         aria-current={isActivePath(pathname, "/products") ? "page" : undefined}
       >
         <NavIcon name="products" className="nav-icon" />
@@ -105,6 +108,7 @@ export function SideNav() {
       <Link
         className={`nav-item ${isActivePath(pathname, "/billing") ? "is-active" : ""}`}
         href="/billing"
+        prefetch={false}
         aria-current={isActivePath(pathname, "/billing") ? "page" : undefined}
       >
         <NavIcon name="billing" className="nav-icon" />
@@ -113,6 +117,7 @@ export function SideNav() {
       <Link
         className={`nav-item ${isActivePath(pathname, "/logs") ? "is-active" : ""}`}
         href="/logs"
+        prefetch={false}
         aria-current={isActivePath(pathname, "/logs") ? "page" : undefined}
       >
         <NavIcon name="logs" className="nav-icon" />
@@ -121,6 +126,7 @@ export function SideNav() {
       <Link
         className={`nav-item ${isActivePath(pathname, "/settings") ? "is-active" : ""}`}
         href="/settings"
+        prefetch={false}
         aria-current={isActivePath(pathname, "/settings") ? "page" : undefined}
       >
         <NavIcon name="settings" className="nav-icon" />
