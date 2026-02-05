@@ -31,8 +31,8 @@ export function NewCatalogItemForm({
     <div className="panel module">
       <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
         <h3>Nuevo producto o servicio</h3>
-        <button type="button" className={show ? "ghost" : "primary"} onClick={() => setShow((v) => !v)}>
-          {show ? "Cerrar" : "Nuevo producto/servicio"}
+        <button type="button" className={show ? "btnLink" : "primary"} onClick={() => setShow((v) => !v)}>
+          {show ? "Cerrar" : "Crear producto o servicio"}
         </button>
       </div>
 
@@ -41,8 +41,8 @@ export function NewCatalogItemForm({
           <div className="field">
             <label>¿Es producto o servicio?</label>
             <select className="select" name="kind" value={kind} onChange={(e) => setKind(e.target.value as any)}>
-              <option value="PRODUCT">PRODUCTO</option>
-              <option value="SERVICE">SERVICIO</option>
+              <option value="PRODUCT">Producto</option>
+              <option value="SERVICE">Servicio</option>
             </select>
           </div>
 

@@ -29,6 +29,8 @@ export async function createCustomer(formData: FormData) {
   const city = String(formData.get("city") || "").trim();
   const code5 = String(formData.get("code5") || "").trim();
   const dane8 = String(formData.get("dane8") || "").trim();
+  const idType = String(formData.get("idType") || "").trim();
+  const idNumber = String(formData.get("idNumber") || "").trim();
 
   try {
     const address =
@@ -42,7 +44,10 @@ export async function createCustomer(formData: FormData) {
           }
         : undefined;
 
-    const metadata = address ? { address } : undefined;
+    const identificacion = idType && idNumber ? `${idType} ${idNumber}` : idNumber || "";
+    const idMeta = identificacion ? { identificacion, identificacionTipo: idType || null, identificacionNumero: idNumber || null } : undefined;
+
+    const metadata = address || idMeta ? { ...(address ? { address } : {}), ...(idMeta ? idMeta : {}) } : undefined;
 
     await adminFetch("/admin/customers", { method: "POST", body: JSON.stringify({ name, email, phone, metadata }) });
     redirect("/customers?created=1");

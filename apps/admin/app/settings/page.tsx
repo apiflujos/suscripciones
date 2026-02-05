@@ -106,7 +106,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: { s
         <form action={updateChatwoot} style={{ display: "grid", gap: 10 }}>
           <label>
             URL base
-            <input name="baseUrl" placeholder="https://chatwoot.tu-dominio.com" defaultValue={settings?.chatwoot?.baseUrl || ""} style={{ width: "100%" }} />
+            <input name="baseUrl" placeholder="https://central.tu-dominio.com" defaultValue={settings?.chatwoot?.baseUrl || ""} style={{ width: "100%" }} />
           </label>
           <label>
             ID de cuenta

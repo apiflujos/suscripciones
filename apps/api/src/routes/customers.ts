@@ -19,8 +19,27 @@ const wompiPaymentSourceSchema = z.object({
 export const customersRouter = express.Router();
 
 customersRouter.get("/", async (_req, res) => {
-  const items = await prisma.customer.findMany({ orderBy: { createdAt: "desc" }, take: 50 });
-  res.json({ items });
+  const req = _req as any;
+  const takeRaw = Number(req?.query?.take ?? 50);
+  const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 200) : 50;
+  const q = String(req?.query?.q ?? "").trim();
+
+  const items = await prisma.customer.findMany({ orderBy: { createdAt: "desc" }, take });
+  if (!q) return res.json({ items });
+
+  const t = q.toLowerCase();
+  const filtered = items.filter((c) => {
+    const meta = (c.metadata ?? {}) as any;
+    const hay =
+      String(c.name || "").toLowerCase().includes(t) ||
+      String(c.email || "").toLowerCase().includes(t) ||
+      String(c.phone || "").toLowerCase().includes(t) ||
+      String(meta.identificacion || "").toLowerCase().includes(t) ||
+      String(meta.identificacionNumero || "").toLowerCase().includes(t);
+    return hay;
+  });
+
+  res.json({ items: filtered });
 });
 
 customersRouter.post("/", async (req, res) => {

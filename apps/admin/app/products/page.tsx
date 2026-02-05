@@ -1,5 +1,5 @@
-import { createPlanOrSubscription } from "./actions";
-import { NewPlanOrSubscriptionForm } from "./NewPlanOrSubscriptionForm";
+import { createProduct } from "./actions";
+import { NewCatalogItemForm } from "./NewCatalogItemForm";
 
 export const dynamic = "force-dynamic";
 
@@ -45,13 +45,9 @@ export default async function ProductsPage({
   const created = typeof searchParams?.created === "string" ? searchParams.created : "";
   const error = typeof searchParams?.error === "string" ? searchParams.error : "";
 
-  const [products, customers] = await Promise.all([
-    fetchAdmin("/admin/products"),
-    fetchAdmin("/admin/customers")
-  ]);
+  const products = await fetchAdmin("/admin/products");
 
   const productItems = (products.json?.items ?? []) as any[];
-  const customerItems = (customers.json?.items ?? []) as any[];
 
   return (
     <main className="page" style={{ maxWidth: 1100 }}>
@@ -67,12 +63,12 @@ export default async function ProductsPage({
           <div className="panelHeaderRow">
             <h3>Productos y Servicios</h3>
           </div>
-          <div className="field-hint">Crea planes y suscripciones y asígnales un producto/servicio.</div>
+          <div className="field-hint">Crea productos/servicios para guardarlos en la base de datos.</div>
         </div>
 
         <div className="settings-group-body">
           <div style={{ display: "grid", gap: 14 }}>
-            <NewPlanOrSubscriptionForm action={createPlanOrSubscription} customers={customerItems} catalogItems={productItems} />
+            <NewCatalogItemForm action={createProduct} />
 
             <div className="panel module" style={{ padding: 0 }}>
               <table className="table" aria-label="Tabla de productos y servicios">

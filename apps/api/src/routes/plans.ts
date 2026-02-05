@@ -17,9 +17,22 @@ const createPlanSchema = z.object({
 export const plansRouter = express.Router();
 
 plansRouter.get("/", async (_req, res) => {
+  const req = _req as any;
+  const takeRaw = Number(req?.query?.take ?? 200);
+  const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 500) : 200;
+  const q = String(req?.query?.q ?? "").trim();
+  const mode = String(req?.query?.collectionMode ?? "").trim();
+
+  const where: any = { NOT: { metadata: { path: ["kind"], equals: "CATALOG_ITEM" } } } as any;
+  const and: any[] = [];
+  if (q) and.push({ name: { contains: q, mode: "insensitive" } });
+  if (mode) and.push({ metadata: { path: ["collectionMode"], equals: mode } } as any);
+  if (and.length) where.AND = and;
+
   const items = await prisma.subscriptionPlan.findMany({
-    where: { NOT: { metadata: { path: ["kind"], equals: "CATALOG_ITEM" } } } as any,
-    orderBy: { createdAt: "desc" }
+    where,
+    orderBy: { createdAt: "desc" },
+    take
   });
   res.json({ items });
 });

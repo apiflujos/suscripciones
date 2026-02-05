@@ -51,6 +51,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: { 
                   <th>Nombre</th>
                   <th>Email</th>
                   <th>Teléfono</th>
+                  <th>Identificación</th>
                   <th>Ciudad</th>
                   <th>Dirección</th>
                   <th>Cobro auto</th>
@@ -63,6 +64,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: { 
                     <td>{c.name || "—"}</td>
                     <td>{c.email || "—"}</td>
                     <td>{c.phone || "—"}</td>
+                    <td>{c.metadata?.identificacion || c.metadata?.identificationNumber || "—"}</td>
                     <td>{c.metadata?.address?.city || "—"}</td>
                     <td>{c.metadata?.address?.line1 || "—"}</td>
                     <td>
@@ -79,7 +81,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: { 
                 ))}
                 {items.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ color: "var(--muted)" }}>
+                    <td colSpan={8} style={{ color: "var(--muted)" }}>
                       Sin contactos.
                     </td>
                   </tr>

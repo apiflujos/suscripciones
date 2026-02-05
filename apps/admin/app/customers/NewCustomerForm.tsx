@@ -16,6 +16,8 @@ export function NewCustomerForm({ createCustomer }: Props) {
 
   const [dept, setDept] = useState("");
   const [city, setCity] = useState("");
+  const [idType, setIdType] = useState("CC");
+  const [idNumber, setIdNumber] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -76,7 +78,7 @@ export function NewCustomerForm({ createCustomer }: Props) {
     <div className="panel module">
       <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
         <h3 style={{ margin: 0 }}>Nuevo contacto</h3>
-        <button className={open ? "ghost" : "primary"} type="button" onClick={() => setOpen((v) => !v)}>
+        <button className={open ? "btnLink" : "primary"} type="button" onClick={() => setOpen((v) => !v)}>
           {open ? "Cerrar" : "Crear contacto"}
         </button>
       </div>
@@ -136,6 +138,28 @@ export function NewCustomerForm({ createCustomer }: Props) {
 
             <input type="hidden" name="code5" value={selected?.code5 ?? ""} />
             <input type="hidden" name="dane8" value={selected?.dane8 ?? ""} />
+          </div>
+
+          <div className="panel module" style={{ margin: 0 }}>
+            <div className="panel-header">
+              <h3 style={{ margin: 0 }}>Identificación</h3>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 10 }}>
+              <div className="field">
+                <label>Tipo</label>
+                <select className="select" name="idType" value={idType} onChange={(e) => setIdType(e.target.value)}>
+                  <option value="CC">CC</option>
+                  <option value="NIT">NIT</option>
+                  <option value="CE">CE</option>
+                  <option value="PP">PP</option>
+                </select>
+              </div>
+              <div className="field">
+                <label>Número</label>
+                <input className="input" name="idNumber" value={idNumber} onChange={(e) => setIdNumber(e.target.value)} placeholder="123456789" />
+              </div>
+            </div>
           </div>
 
           <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>

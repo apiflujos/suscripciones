@@ -54,11 +54,9 @@ subscriptionsRouter.post("/", async (req, res) => {
   if (!customer) return res.status(404).json({ error: "customer_not_found" });
 
   const collectionMode = String((plan.metadata as any)?.collectionMode || "MANUAL_LINK");
-  if (collectionMode === "AUTO_DEBIT") {
-    const paymentSourceId = Number((customer.metadata as any)?.wompi?.paymentSourceId);
-    if (!Number.isFinite(paymentSourceId)) return res.status(400).json({ error: "customer_payment_source_missing" });
-    if (!customer.email) return res.status(400).json({ error: "customer_email_required" });
-  }
+  const paymentSourceId = Number((customer.metadata as any)?.wompi?.paymentSourceId);
+  const hasPaymentSource = Number.isFinite(paymentSourceId);
+  const hasCustomerEmail = !!customer.email;
 
   const startAt = parsed.data.startAt ? new Date(parsed.data.startAt) : new Date();
   const computedEnd = addIntervalUtc(startAt, plan.intervalUnit, plan.intervalCount);
@@ -78,9 +76,10 @@ subscriptionsRouter.post("/", async (req, res) => {
     }
   });
 
+  const runAt = periodEnd <= new Date(Date.now() + 5_000) ? new Date() : periodEnd;
+
   // AUTO_* modes schedule work to happen at the cutoff/charge time.
   if (collectionMode === "AUTO_LINK" || collectionMode === "AUTO_DEBIT") {
-    const runAt = periodEnd <= new Date(Date.now() + 5_000) ? new Date() : periodEnd;
     await prisma.retryJob
       .create({
         data: {
@@ -90,7 +89,25 @@ subscriptionsRouter.post("/", async (req, res) => {
         }
       })
       .catch(() => {});
-    return res.status(201).json({ subscription, scheduled: true });
+
+    // If requested, generate a link right away (useful for first charge or missing token).
+    const isDueNow = runAt.getTime() <= Date.now() + 5_000;
+    const shouldCreateLinkNow =
+      (collectionMode === "AUTO_LINK" ? parsed.data.createPaymentLink && isDueNow : false) ||
+      (collectionMode === "AUTO_DEBIT" && (!hasPaymentSource || !hasCustomerEmail));
+
+    if (!shouldCreateLinkNow) return res.status(201).json({ subscription, scheduled: true });
+
+    try {
+      const link = await createPaymentLinkForSubscription({ subscriptionId: subscription.id });
+      return res.status(201).json({ subscription, scheduled: true, ...link, paymentSourceMissing: collectionMode === "AUTO_DEBIT" && !hasPaymentSource });
+    } catch (err: any) {
+      await systemLog(LogLevel.ERROR, "subscriptions.create", "Subscription created but payment link failed", {
+        subscriptionId: subscription.id,
+        err: err?.message ? String(err.message) : "unknown error"
+      }).catch(() => {});
+      return res.status(201).json({ subscription, scheduled: true, paymentLinkError: "wompi_payment_link_failed" });
+    }
   }
 
   if (!parsed.data.createPaymentLink) return res.status(201).json({ subscription });
