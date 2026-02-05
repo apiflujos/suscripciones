@@ -1,6 +1,6 @@
-import { createPaymentLink, createSubscription } from "../subscriptions/actions";
-import { createCustomerFromBilling } from "./actions";
-import { NewBillingAssignmentForm } from "./NewBillingAssignmentForm";
+import { createPaymentLink } from "../subscriptions/actions";
+import { createCustomerFromBilling, createPlanOrSubscription } from "./actions";
+import { NewPlanOrSubscriptionForm } from "./NewPlanOrSubscriptionForm";
 
 export const dynamic = "force-dynamic";
 
@@ -90,14 +90,14 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
   const q = typeof searchParams?.q === "string" ? searchParams.q : "";
   const ordenar = typeof searchParams?.ordenar === "string" ? searchParams.ordenar : "vencimiento";
 
-  const [subs, plans, customers] = await Promise.all([
+  const [subs, customers, products] = await Promise.all([
     fetchAdmin("/admin/subscriptions"),
-    fetchAdmin("/admin/plans?take=300"),
-    fetchAdmin("/admin/customers?take=200")
+    fetchAdmin("/admin/customers?take=200"),
+    fetchAdmin("/admin/products")
   ]);
   const subItems = (subs.json?.items ?? []) as any[];
-  const planItems = (plans.json?.items ?? []) as any[];
   const customerItems = (customers.json?.items ?? []) as any[];
+  const catalogItems = (products.json?.items ?? []) as any[];
 
   const rows = subItems
     .map((s) => {
@@ -224,10 +224,10 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
 
         <div className="settings-group-body">
           <div style={{ marginBottom: 14 }}>
-            <NewBillingAssignmentForm
-              plans={planItems}
+            <NewPlanOrSubscriptionForm
+              action={createPlanOrSubscription}
               customers={customerItems}
-              createSubscription={createSubscription}
+              catalogItems={catalogItems}
               createCustomer={createCustomerFromBilling}
               preselectCustomerId={selectCustomerId || undefined}
             />

@@ -1,6 +1,3 @@
-import { createProduct } from "./actions";
-import { NewCatalogItemForm } from "./NewCatalogItemForm";
-
 export const dynamic = "force-dynamic";
 
 function getConfig() {
@@ -65,13 +62,11 @@ export default async function ProductsPage({
           <div className="panelHeaderRow">
             <h3>Productos y Servicios</h3>
           </div>
-          <div className="field-hint">Crea productos/servicios para guardarlos en la base de datos.</div>
+          <div className="field-hint">Listado del catálogo. La creación se hace desde Planes y Suscripciones.</div>
         </div>
 
         <div className="settings-group-body">
           <div style={{ display: "grid", gap: 14 }}>
-            <NewCatalogItemForm action={createProduct} />
-
             <div className="panel module" style={{ padding: 0 }}>
               <table className="table" aria-label="Tabla de productos y servicios">
                 <thead>
