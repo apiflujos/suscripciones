@@ -3,7 +3,7 @@ import { updateChatwoot, updateShopify, updateWompi } from "./actions";
 export const dynamic = "force-dynamic";
 
 function getConfig() {
-  const raw = String(process.env.API_ADMIN_TOKEN || process.env.ADMIN_API_TOKEN || "");
+  const raw = String(process.env.ADMIN_API_TOKEN || process.env.API_ADMIN_TOKEN || "");
   const token = raw.replace(/^Bearer\\s+/i, "").trim();
   return {
     apiBase: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001",
@@ -13,13 +13,13 @@ function getConfig() {
 
 async function fetchSettings() {
   const { apiBase, token } = getConfig();
-  if (!token) return null;
+  if (!token) return { ok: false, status: 0 as number, json: null as any };
   const res = await fetch(`${apiBase}/admin/settings`, {
     cache: "no-store",
     headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
   });
   const json = await res.json().catch(() => null);
-  return res.ok ? json : null;
+  return { ok: res.ok, status: res.status, json };
 }
 
 export default async function SettingsPage({ searchParams }: { searchParams: { saved?: string } }) {
@@ -33,13 +33,22 @@ export default async function SettingsPage({ searchParams }: { searchParams: { s
     );
   }
 
-  const settings = await fetchSettings();
+  const settingsRes = await fetchSettings();
+  const settings = settingsRes.ok ? settingsRes.json : null;
 
   return (
     <main style={{ display: "grid", gap: 16, maxWidth: 820 }}>
       <h1 style={{ marginTop: 0 }}>Credenciales</h1>
       {searchParams.saved ? <div style={{ padding: 12, background: "#eef", borderRadius: 8 }}>Guardado.</div> : null}
-      {!settings?.encryptionKeyConfigured ? (
+
+      {!settingsRes.ok ? (
+        <div style={{ padding: 12, background: "#ffe", borderRadius: 8 }}>
+          No se pudo consultar el API (<span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{settingsRes.status || "sin respuesta"}</span>
+          ). Revisa `NEXT_PUBLIC_API_BASE_URL` y que el token del Admin coincida con `ADMIN_API_TOKEN` del API.
+        </div>
+      ) : null}
+
+      {settingsRes.ok && !settings?.encryptionKeyConfigured ? (
         <div style={{ padding: 12, background: "#ffe", borderRadius: 8 }}>
           Falta `CREDENTIALS_ENCRYPTION_KEY_B64` en el API (Base64 de 32 bytes). Sin esto no se guardan secretos.
         </div>

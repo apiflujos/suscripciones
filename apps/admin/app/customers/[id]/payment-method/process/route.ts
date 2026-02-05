@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 function getConfig() {
-  const raw = String(process.env.API_ADMIN_TOKEN || process.env.ADMIN_API_TOKEN || "");
+  const raw = String(process.env.ADMIN_API_TOKEN || process.env.API_ADMIN_TOKEN || "");
   const token = raw.replace(/^Bearer\\s+/i, "").trim();
   return {
     apiBase: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001",
