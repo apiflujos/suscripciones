@@ -3,8 +3,13 @@ import { prisma } from "../db/prisma";
 
 export function requireAdminToken(req: Request, res: Response, next: NextFunction) {
   const auth = req.header("authorization") || "";
-  const token = auth.startsWith("Bearer ") ? auth.slice("Bearer ".length) : "";
-  const expected = process.env.ADMIN_API_TOKEN || process.env.API_ADMIN_TOKEN || "";
+  const tokenFromAuth = auth.startsWith("Bearer ") ? auth.slice("Bearer ".length) : "";
+  const tokenFromHeader = req.header("x-admin-token") || "";
+  const token = (tokenFromAuth || tokenFromHeader || "").trim();
+
+  const expectedRaw = process.env.ADMIN_API_TOKEN || process.env.API_ADMIN_TOKEN || "";
+  const expected = (expectedRaw.startsWith("Bearer ") ? expectedRaw.slice("Bearer ".length) : expectedRaw).trim();
+
   if (!token || !expected || token !== expected) {
     res.status(401).json({ error: "unauthorized" });
     return;

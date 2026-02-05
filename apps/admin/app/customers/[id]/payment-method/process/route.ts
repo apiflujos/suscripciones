@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 
 function getConfig() {
+  const raw = String(process.env.API_ADMIN_TOKEN || process.env.ADMIN_API_TOKEN || "");
+  const token = raw.replace(/^Bearer\\s+/i, "").trim();
   return {
     apiBase: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001",
-    token: process.env.API_ADMIN_TOKEN || process.env.ADMIN_API_TOKEN || ""
+    token
   };
 }
 
@@ -46,6 +48,7 @@ export async function POST(req: Request, ctx: { params: { id: string } }) {
       method: "POST",
       headers: {
         authorization: `Bearer ${token}`,
+        "x-admin-token": token,
         "content-type": "application/json"
       },
       body: JSON.stringify({ type, token: wompiToken }),

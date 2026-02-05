@@ -5,16 +5,21 @@ import { NewCustomerForm } from "./NewCustomerForm";
 export const dynamic = "force-dynamic";
 
 function getConfig() {
+  const raw = String(process.env.API_ADMIN_TOKEN || process.env.ADMIN_API_TOKEN || "");
+  const token = raw.replace(/^Bearer\\s+/i, "").trim();
   return {
     apiBase: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001",
-    token: process.env.API_ADMIN_TOKEN || process.env.ADMIN_API_TOKEN || ""
+    token
   };
 }
 
 async function fetchCustomers() {
   const { apiBase, token } = getConfig();
   if (!token) return { items: [] as any[] };
-  const res = await fetch(`${apiBase}/admin/customers`, { cache: "no-store", headers: { authorization: `Bearer ${token}` } });
+  const res = await fetch(`${apiBase}/admin/customers`, {
+    cache: "no-store",
+    headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
+  });
   const json = await res.json().catch(() => ({ items: [] }));
   return json;
 }

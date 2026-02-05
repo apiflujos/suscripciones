@@ -5,9 +5,11 @@ import { NewBillingAssignmentForm } from "./NewBillingAssignmentForm";
 export const dynamic = "force-dynamic";
 
 function getConfig() {
+  const raw = String(process.env.API_ADMIN_TOKEN || process.env.ADMIN_API_TOKEN || "");
+  const token = raw.replace(/^Bearer\\s+/i, "").trim();
   return {
     apiBase: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001",
-    token: process.env.API_ADMIN_TOKEN || process.env.ADMIN_API_TOKEN || ""
+    token
   };
 }
 
@@ -15,7 +17,7 @@ async function fetchAdmin(path: string) {
   const { apiBase, token } = getConfig();
   const res = await fetch(`${apiBase}${path}`, {
     cache: "no-store",
-    headers: token ? { authorization: `Bearer ${token}` } : {}
+    headers: token ? { authorization: `Bearer ${token}`, "x-admin-token": token } : {}
   });
   const json = await res.json().catch(() => null);
   return { ok: res.ok, status: res.status, json };

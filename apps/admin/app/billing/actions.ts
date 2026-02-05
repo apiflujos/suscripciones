@@ -3,13 +3,13 @@
 import { redirect } from "next/navigation";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
-const TOKEN = process.env.API_ADMIN_TOKEN || process.env.ADMIN_API_TOKEN || "";
+const TOKEN = String(process.env.API_ADMIN_TOKEN || process.env.ADMIN_API_TOKEN || "").replace(/^Bearer\s+/i, "").trim();
 
 async function adminFetch(path: string, init: RequestInit) {
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {
-      ...(TOKEN ? { authorization: `Bearer ${TOKEN}` } : {}),
+      ...(TOKEN ? { authorization: `Bearer ${TOKEN}`, "x-admin-token": TOKEN } : {}),
       "content-type": "application/json",
       ...(init.headers ?? {})
     },
