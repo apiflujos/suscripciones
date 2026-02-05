@@ -22,9 +22,9 @@ async function fetchAdmin(path: string) {
 function fmtMoney(cents: any, currency = "COP") {
   const v = Number(cents);
   if (!Number.isFinite(v)) return "—";
-  const pesos = Math.trunc(v / 100);
-  if (currency !== "COP") return `${pesos} ${currency}`;
-  return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(pesos);
+  const major = Math.trunc(v / 100);
+  if (currency !== "COP") return `${major} ${currency}`;
+  return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(major);
 }
 
 function fmtEvery(intervalUnit: any, intervalCount: any) {
@@ -35,6 +35,32 @@ function fmtEvery(intervalUnit: any, intervalCount: any) {
   if (unit === "WEEK") return c === 1 ? "cada semana" : `cada ${c} semanas`;
   if (unit === "MONTH") return c === 1 ? "cada mes" : `cada ${c} meses`;
   return `cada ${c} (personalizado)`;
+}
+
+function getTipo(plan: any) {
+  const mode = String(plan?.metadata?.collectionMode || "MANUAL_LINK");
+  return mode === "AUTO_DEBIT" ? "Suscripción" : "Plan";
+}
+
+function getActivo(status: any) {
+  return String(status || "") !== "CANCELED";
+}
+
+function getSituacion(status: any) {
+  const s = String(status || "");
+  if (s === "ACTIVE") return { key: "al_dia", label: "Al día" };
+  if (s === "PAST_DUE") return { key: "mora", label: "En mora" };
+  if (s === "SUSPENDED") return { key: "mora", label: "Suspendida" };
+  if (s === "EXPIRED") return { key: "mora", label: "Expirada" };
+  if (s === "CANCELED") return { key: "mora", label: "Cancelada" };
+  return { key: "mora", label: s || "—" };
+}
+
+function toLocal(dt: any) {
+  if (!dt) return "—";
+  const d = new Date(dt);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString();
 }
 
 export default async function BillingPage({ searchParams }: { searchParams?: Record<string, string | string[] | undefined> }) {
@@ -52,12 +78,74 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
   const checkoutUrl = typeof searchParams?.checkoutUrl === "string" ? searchParams.checkoutUrl : "";
   const error = typeof searchParams?.error === "string" ? searchParams.error : "";
 
+  const tipo = typeof searchParams?.tipo === "string" ? searchParams.tipo : "todos";
+  const estado = typeof searchParams?.estado === "string" ? searchParams.estado : "activos";
+  const situacion = typeof searchParams?.situacion === "string" ? searchParams.situacion : "todos";
+  const q = typeof searchParams?.q === "string" ? searchParams.q : "";
+  const ordenar = typeof searchParams?.ordenar === "string" ? searchParams.ordenar : "vencimiento";
+
   const subs = await fetchAdmin("/admin/subscriptions");
   const subItems = (subs.json?.items ?? []) as any[];
 
-  const active = subItems.filter((s) => String(s.status || "") !== "CANCELED");
-  const planes = active.filter((s) => String(s.plan?.metadata?.collectionMode || "MANUAL_LINK") !== "AUTO_DEBIT");
-  const suscripciones = active.filter((s) => String(s.plan?.metadata?.collectionMode || "MANUAL_LINK") === "AUTO_DEBIT");
+  const rows = subItems
+    .map((s) => {
+      const plan = s.plan;
+      const customer = s.customer;
+      const tipoTx = getTipo(plan);
+      const activo = getActivo(s.status);
+      const sit = getSituacion(s.status);
+      const ident =
+        customer?.metadata?.identificacion ||
+        customer?.metadata?.identificationNumber ||
+        customer?.metadata?.documentNumber ||
+        customer?.metadata?.document ||
+        "";
+
+      return {
+        id: String(s.id),
+        customerName: String(customer?.name || customer?.email || s.customerId || "—"),
+        customerEmail: String(customer?.email || ""),
+        identificacion: String(ident || "—"),
+        tipoTx,
+        activo,
+        status: String(s.status || "—"),
+        situacion: sit,
+        montoInCents: Number(plan?.priceInCents || 0),
+        moneda: String(plan?.currency || "COP"),
+        cada: fmtEvery(plan?.intervalUnit, plan?.intervalCount),
+        pagoAt: s.lastPayment?.paidAt || null,
+        vencimientoAt: s.currentPeriodEndAt || null,
+        mode: String(plan?.metadata?.collectionMode || "MANUAL_LINK")
+      };
+    })
+    .filter((r) => {
+      if (tipo === "planes" && r.tipoTx !== "Plan") return false;
+      if (tipo === "suscripciones" && r.tipoTx !== "Suscripción") return false;
+      if (estado === "activos" && !r.activo) return false;
+      if (estado === "inactivos" && r.activo) return false;
+      if (situacion === "al_dia" && r.situacion.key !== "al_dia") return false;
+      if (situacion === "mora" && r.situacion.key !== "mora") return false;
+      if (q) {
+        const t = q.toLowerCase();
+        const hay =
+          r.customerName.toLowerCase().includes(t) ||
+          r.customerEmail.toLowerCase().includes(t) ||
+          String(r.identificacion || "").toLowerCase().includes(t);
+        if (!hay) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (ordenar === "pago") {
+        const ad = a.pagoAt ? new Date(a.pagoAt).getTime() : 0;
+        const bd = b.pagoAt ? new Date(b.pagoAt).getTime() : 0;
+        return bd - ad;
+      }
+      if (ordenar === "monto") return (b.montoInCents || 0) - (a.montoInCents || 0);
+      const ad = a.vencimientoAt ? new Date(a.vencimientoAt).getTime() : Number.POSITIVE_INFINITY;
+      const bd = b.vencimientoAt ? new Date(b.vencimientoAt).getTime() : Number.POSITIVE_INFINITY;
+      return ad - bd;
+    });
 
   return (
     <main className="page" style={{ maxWidth: 1100 }}>
@@ -84,66 +172,109 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
               Crear nuevo
             </a>
           </div>
-          <div className="field-hint">Aquí solo se muestran los planes/suscripciones activos.</div>
+          <div className="filtersRow">
+            <div className="filtersLeft">
+              <div className="filter-group">
+                <div className="filter-label">Filtros</div>
+                <form action="/billing" method="GET" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                  <select className="select" name="tipo" defaultValue={tipo} aria-label="Tipo">
+                    <option value="todos">Todos</option>
+                    <option value="planes">Planes</option>
+                    <option value="suscripciones">Suscripciones</option>
+                  </select>
+                  <select className="select" name="estado" defaultValue={estado} aria-label="Estado">
+                    <option value="activos">Activos</option>
+                    <option value="inactivos">Inactivos</option>
+                    <option value="todos">Todos</option>
+                  </select>
+                  <select className="select" name="situacion" defaultValue={situacion} aria-label="Situación">
+                    <option value="todos">Todas</option>
+                    <option value="al_dia">Al día</option>
+                    <option value="mora">En mora</option>
+                  </select>
+                  <select className="select" name="ordenar" defaultValue={ordenar} aria-label="Ordenar">
+                    <option value="vencimiento">Vencimiento</option>
+                    <option value="pago">Pago</option>
+                    <option value="monto">Monto</option>
+                  </select>
+                  <input className="input" name="q" defaultValue={q} placeholder="Buscar cliente o identificación..." />
+                  <button className="ghost" type="submit">
+                    Aplicar
+                  </button>
+                </form>
+              </div>
+            </div>
+            <div className="filtersRight">
+              <span className="pill">{rows.length} resultados</span>
+            </div>
+          </div>
         </div>
 
         <div className="settings-group-body">
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            <div className="panel module">
-              <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                <h3>Planes</h3>
-                <span className="settings-group-title">{planes.length} activos</span>
-              </div>
-
-              <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
-                {planes.slice(0, 50).map((s) => (
-                  <div key={s.id} className="panel" style={{ borderColor: "rgba(15, 23, 42, 0.12)" }}>
-                    <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                      <strong>{s.plan?.name ?? "Plan"}</strong>
-                      <span className="field-hint">{fmtMoney(s.plan?.priceInCents, s.plan?.currency)}</span>
-                      <span className="field-hint">{fmtEvery(s.plan?.intervalUnit, s.plan?.intervalCount)}</span>
-                      <span className="field-hint">{s.status}</span>
-                      <form action={createPaymentLink} style={{ marginLeft: "auto" }}>
-                        <input type="hidden" name="subscriptionId" value={s.id} />
-                        <button className="ghost" type="submit">
-                          Generar link
-                        </button>
-                      </form>
-                    </div>
-                    <div className="field-hint" style={{ marginTop: 6 }}>
-                      contacto: {s.customer?.email || s.customer?.name || s.customerId} · corte:{" "}
-                      {s.currentPeriodEndAt ? new Date(s.currentPeriodEndAt).toLocaleString() : "—"}
-                    </div>
-                  </div>
+          <div className="panel module" style={{ padding: 0 }}>
+            <table className="table" aria-label="Tabla de planes y suscripciones">
+              <thead>
+                <tr>
+                  <th>Fecha de pago</th>
+                  <th>Fecha de vencimiento</th>
+                  <th>Cliente</th>
+                  <th>Identificación</th>
+                  <th>Tipo</th>
+                  <th>Activo</th>
+                  <th>Estado</th>
+                  <th>Monto</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.id}>
+                    <td>{toLocal(r.pagoAt)}</td>
+                    <td>{toLocal(r.vencimientoAt)}</td>
+                    <td>
+                      <div style={{ display: "grid" }}>
+                        <span>{r.customerName}</span>
+                        {r.customerEmail ? <span className="field-hint">{r.customerEmail}</span> : null}
+                      </div>
+                    </td>
+                    <td style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>{r.identificacion}</td>
+                    <td>{r.tipoTx}</td>
+                    <td>{r.activo ? "Sí" : "No"}</td>
+                    <td>
+                      <div style={{ display: "grid" }}>
+                        <span>{r.situacion.label}</span>
+                        <span className="field-hint">{r.status}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ display: "grid" }}>
+                        <span>{fmtMoney(r.montoInCents, r.moneda)}</span>
+                        <span className="field-hint">{r.cada}</span>
+                      </div>
+                    </td>
+                    <td style={{ textAlign: "right" }}>
+                      {r.mode !== "AUTO_DEBIT" ? (
+                        <form action={createPaymentLink}>
+                          <input type="hidden" name="subscriptionId" value={r.id} />
+                          <button className="ghost" type="submit">
+                            Generar link
+                          </button>
+                        </form>
+                      ) : (
+                        <span className="field-hint">—</span>
+                      )}
+                    </td>
+                  </tr>
                 ))}
-                {planes.length === 0 ? <div className="field-hint">Sin planes activos.</div> : null}
-              </div>
-            </div>
-
-            <div className="panel module">
-              <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                <h3>Suscripciones</h3>
-                <span className="settings-group-title">{suscripciones.length} activas</span>
-              </div>
-
-              <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
-                {suscripciones.slice(0, 50).map((s) => (
-                  <div key={s.id} className="panel" style={{ borderColor: "rgba(15, 23, 42, 0.12)" }}>
-                    <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                      <strong>{s.plan?.name ?? "Suscripción"}</strong>
-                      <span className="field-hint">{fmtMoney(s.plan?.priceInCents, s.plan?.currency)}</span>
-                      <span className="field-hint">{fmtEvery(s.plan?.intervalUnit, s.plan?.intervalCount)}</span>
-                      <span className="field-hint">{s.status}</span>
-                    </div>
-                    <div className="field-hint" style={{ marginTop: 6 }}>
-                      contacto: {s.customer?.email || s.customer?.name || s.customerId} · cobro:{" "}
-                      {s.currentPeriodEndAt ? new Date(s.currentPeriodEndAt).toLocaleString() : "—"}
-                    </div>
-                  </div>
-                ))}
-                {suscripciones.length === 0 ? <div className="field-hint">Sin suscripciones activas.</div> : null}
-              </div>
-            </div>
+                {rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} style={{ color: "var(--muted)" }}>
+                      Sin resultados.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
           </div>
         </div>
       </section>

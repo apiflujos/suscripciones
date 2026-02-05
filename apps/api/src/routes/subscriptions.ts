@@ -2,7 +2,7 @@ import express from "express";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
 import { addIntervalUtc } from "../lib/dates";
-import { LogLevel, RetryJobType, SubscriptionStatus } from "@prisma/client";
+import { LogLevel, PaymentStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
 import { systemLog } from "../services/systemLog";
 import { createPaymentLinkForSubscription } from "../services/subscriptionBilling";
 
@@ -22,7 +22,25 @@ subscriptionsRouter.get("/", async (_req, res) => {
     take: 50,
     include: { customer: true, plan: true }
   });
-  res.json({ items });
+  const subscriptionIds = items.map((s) => s.id);
+  const approvedPayments = await prisma.payment.findMany({
+    where: { subscriptionId: { in: subscriptionIds }, status: PaymentStatus.APPROVED, paidAt: { not: null } },
+    orderBy: { paidAt: "desc" },
+    select: { subscriptionId: true, paidAt: true, amountInCents: true, currency: true }
+  });
+
+  const lastPaymentBySub = new Map<string, { paidAt: Date; amountInCents: number; currency: string }>();
+  for (const p of approvedPayments) {
+    if (!p.subscriptionId || !p.paidAt) continue;
+    if (!lastPaymentBySub.has(p.subscriptionId)) lastPaymentBySub.set(p.subscriptionId, { paidAt: p.paidAt, amountInCents: p.amountInCents, currency: p.currency });
+  }
+
+  res.json({
+    items: items.map((s) => ({
+      ...s,
+      lastPayment: lastPaymentBySub.get(s.id) ?? null
+    }))
+  });
 });
 
 subscriptionsRouter.post("/", async (req, res) => {
