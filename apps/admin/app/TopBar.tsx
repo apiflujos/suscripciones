@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 type Header = { title: string; subtitle: string };
@@ -30,12 +31,10 @@ export function TopBar() {
       </div>
 
       <div className="topbarCenter" aria-label="Marca">
-        <div className="brandPill">
-          <span className="brandMark" aria-hidden="true">
-            A
-          </span>
-          <span style={{ fontWeight: 800 }}>ApiFlujos</span>
-        </div>
+        <Link href="/" className="topbarLogoLink" prefetch={false} aria-label="Ir al home">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/logo-horizontal.png" alt="Suscripciones" className="topbarLogo" />
+        </Link>
       </div>
 
       <div className="topbarRight" aria-label="Usuario">

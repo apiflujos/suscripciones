@@ -103,6 +103,18 @@ a {
   justify-content: center;
 }
 
+.topbarLogoLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.topbarLogo {
+  height: 26px;
+  width: auto;
+  display: block;
+}
+
 .topbarRight {
   display: flex;
   justify-content: flex-end;
