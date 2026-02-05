@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { enterToNextField } from "../lib/enterToNext";
 
 type Municipality = { dept: string; city: string; code5: string; dane8: string };
 
@@ -21,6 +22,7 @@ export function NewCustomerForm({
 }: Props) {
   const alwaysOpen = mode === "always_open";
   const [open, setOpen] = useState(alwaysOpen ? true : Boolean(defaultOpen));
+  const nameRef = useRef<HTMLInputElement | null>(null);
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<Municipality[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -56,6 +58,14 @@ export function NewCustomerForm({
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => {
+      nameRef.current?.focus();
+    }, 0);
+    return () => clearTimeout(t);
+  }, [open]);
 
   const depts = useMemo(() => {
     const set = new Set<string>();
@@ -99,11 +109,11 @@ export function NewCustomerForm({
       ) : null}
 
       {open ? (
-        <form action={createCustomer} style={{ display: "grid", gap: 10 }}>
+        <form action={createCustomer} onKeyDownCapture={enterToNextField} style={{ display: "grid", gap: 10 }}>
           {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
           <div className="field">
             <label>Nombre</label>
-            <input className="input" name="name" placeholder="Nombre" required />
+            <input ref={nameRef} className="input" name="name" placeholder="Nombre" required />
           </div>
           <div className="field">
             <label>Teléfono</label>

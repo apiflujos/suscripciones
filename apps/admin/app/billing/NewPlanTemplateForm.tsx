@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { VariantsEditor } from "../products/VariantsEditor";
+import { enterToNextField } from "../lib/enterToNext";
 
 type CatalogItem = {
   id: string;
@@ -41,6 +42,7 @@ export function NewPlanTemplateForm({
   catalogItems: CatalogItem[];
   returnTo?: string;
 }) {
+  const nameRef = useRef<HTMLInputElement | null>(null);
   const [tipo, setTipo] = useState<"PLAN" | "SUBSCRIPCION">("SUBSCRIPCION");
   const [name, setName] = useState("");
   const [intervalUnit, setIntervalUnit] = useState<"DAY" | "WEEK" | "MONTH" | "CUSTOM">("MONTH");
@@ -153,8 +155,13 @@ export function NewPlanTemplateForm({
     option2Value
   ]);
 
+  useEffect(() => {
+    const t = setTimeout(() => nameRef.current?.focus(), 0);
+    return () => clearTimeout(t);
+  }, []);
+
   return (
-    <form action={action} className="panel" style={{ borderColor: "rgba(15, 23, 42, 0.12)" }}>
+    <form action={action} onKeyDownCapture={enterToNextField} className="panel" style={{ borderColor: "rgba(15, 23, 42, 0.12)" }}>
       {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
       <div style={{ display: "grid", gap: 10 }}>
         <strong>Crear nuevo plan / suscripción</strong>
@@ -169,7 +176,15 @@ export function NewPlanTemplateForm({
           </div>
           <div className="field">
             <label>Nombre</label>
-            <input className="input" name="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Suscripción mensual" required />
+            <input
+              ref={nameRef}
+              className="input"
+              name="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ej: Suscripción mensual"
+              required
+            />
           </div>
         </div>
 

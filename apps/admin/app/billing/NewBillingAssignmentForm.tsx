@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { NewCustomerForm } from "../customers/NewCustomerForm";
 import { NewPlanTemplateForm } from "./NewPlanTemplateForm";
+import { enterToNextField } from "../lib/enterToNext";
 
 type Plan = {
   id: string;
@@ -326,7 +327,7 @@ export function NewBillingAssignmentForm({
               <h3 style={{ margin: 0 }}>3) Fechas</h3>
             </div>
 
-            <form action={createSubscription} style={{ display: "grid", gap: 10 }}>
+            <form action={createSubscription} onKeyDownCapture={enterToNextField} style={{ display: "grid", gap: 10 }}>
               <input type="hidden" name="planId" value={planId} />
               <input type="hidden" name="customerId" value={customerId} />
               <input type="hidden" name="startAt" value={startAtIso} />

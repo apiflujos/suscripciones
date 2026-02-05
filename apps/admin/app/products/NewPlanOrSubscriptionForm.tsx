@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { VariantsEditor } from "./VariantsEditor";
+import { enterToNextField } from "../lib/enterToNext";
 
 type CatalogItem = {
   id: string;
@@ -40,6 +41,7 @@ export function NewPlanOrSubscriptionForm({
   catalogItems: CatalogItem[];
 }) {
   const [open, setOpen] = useState(false);
+  const tipoRef = useRef<HTMLSelectElement | null>(null);
 
   const [tipo, setTipo] = useState<"PLAN" | "SUBSCRIPCION">("SUBSCRIPCION");
   const [name, setName] = useState("");
@@ -95,6 +97,12 @@ export function NewPlanOrSubscriptionForm({
 
   const [option1Value, setOption1Value] = useState("");
   const [option2Value, setOption2Value] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => tipoRef.current?.focus(), 0);
+    return () => clearTimeout(t);
+  }, [open]);
 
   const showVariantSelectors = useMemo(() => {
     const kind = catalogMode === "NEW" ? itemKind : selectedItem?.kind;
@@ -163,11 +171,11 @@ export function NewPlanOrSubscriptionForm({
       </div>
 
       {open ? (
-        <form action={action} style={{ display: "grid", gap: 10 }}>
+        <form action={action} onKeyDownCapture={enterToNextField} style={{ display: "grid", gap: 10 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <div className="field">
               <label>Tipo</label>
-              <select className="select" name="billingType" value={tipo} onChange={(e) => setTipo(e.target.value as any)}>
+              <select ref={tipoRef} className="select" name="billingType" value={tipo} onChange={(e) => setTipo(e.target.value as any)}>
                 <option value="PLAN">Plan (link de pago)</option>
                 <option value="SUBSCRIPCION">Suscripción (cobro automático)</option>
               </select>
@@ -199,8 +207,13 @@ export function NewPlanOrSubscriptionForm({
               <strong>Producto / Servicio (amarrado al plan)</strong>
 
               <div className="field">
-                <label>Modo</label>
-                <select className="select" name="catalogMode" value={catalogMode} onChange={(e) => setCatalogMode(e.target.value as any)}>
+                <select
+                  className="select"
+                  name="catalogMode"
+                  aria-label="Elegir producto/servicio existente o crear uno nuevo"
+                  value={catalogMode}
+                  onChange={(e) => setCatalogMode(e.target.value as any)}
+                >
                   <option value="EXISTING">Elegir existente</option>
                   <option value="NEW">Crear nuevo</option>
                 </select>
@@ -388,4 +401,3 @@ export function NewPlanOrSubscriptionForm({
     </div>
   );
 }
-
