@@ -52,6 +52,7 @@ export async function createSubscription(formData: FormData) {
     }
     redirect(`/billing?created=1`);
   } catch (err: any) {
+    if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
     redirect(`/billing?error=${encodeURIComponent(err?.message || "create_subscription_failed")}`);
   }
 }
@@ -65,6 +66,7 @@ export async function createPaymentLink(formData: FormData) {
     });
     redirect(`/billing?created=1&checkoutUrl=${encodeURIComponent(json.checkoutUrl || "")}`);
   } catch (err: any) {
+    if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
     redirect(`/billing?error=${encodeURIComponent(err?.message || "create_payment_link_failed")}`);
   }
 }
@@ -84,6 +86,7 @@ export async function createPlan(formData: FormData) {
     });
     redirect("/billing?created=1");
   } catch (err: any) {
+    if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
     redirect(`/billing?error=${encodeURIComponent(err?.message || "create_plan_failed")}`);
   }
 }

@@ -58,6 +58,7 @@ export async function createCustomer(formData: FormData) {
     await adminFetch("/admin/customers", { method: "POST", body: JSON.stringify({ name, email, phone, metadata }) });
     redirect("/customers?created=1");
   } catch (err: any) {
+    if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
     redirect(`/customers?error=${encodeURIComponent(err?.message || "create_customer_failed")}`);
   }
 }

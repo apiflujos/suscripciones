@@ -46,6 +46,7 @@ export async function createCustomerFromBilling(formData: FormData) {
     const id = json?.customer?.id ? String(json.customer.id) : "";
     redirect(`/billing?contactCreated=1${id ? `&selectCustomerId=${encodeURIComponent(id)}` : ""}`);
   } catch (err: any) {
+    if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
     redirect(`/billing?error=${encodeURIComponent(err?.message || "create_customer_failed")}`);
   }
 }

@@ -90,6 +90,7 @@ export async function createProduct(formData: FormData) {
     });
     redirect("/products?created=1");
   } catch (err: any) {
+    if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
     redirect(`/products?error=${encodeURIComponent(err?.message || "create_product_failed")}`);
   }
 }
