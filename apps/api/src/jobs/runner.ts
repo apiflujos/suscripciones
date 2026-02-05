@@ -17,14 +17,14 @@ async function claimJobs(limit: number) {
     WITH picked AS (
       SELECT id
       FROM "RetryJob"
-      WHERE status = ${RetryJobStatus.PENDING}::"RetryJobStatus"
+      WHERE "status" = 'PENDING'::"RetryJobStatus"
         AND "runAt" <= now()
       ORDER BY "runAt" ASC
       FOR UPDATE SKIP LOCKED
       LIMIT ${limit}
     )
     UPDATE "RetryJob" r
-    SET status = ${RetryJobStatus.RUNNING}::"RetryJobStatus", "lockedAt" = now(), "lockedBy" = ${workerId}, "updatedAt" = now()
+    SET "status" = 'RUNNING'::"RetryJobStatus", "lockedAt" = now(), "lockedBy" = ${workerId}, "updatedAt" = now()
     FROM picked
     WHERE r.id = picked.id
     RETURNING r.id, r.type, r.payload, r.attempts, r."maxAttempts";
