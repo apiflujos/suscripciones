@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 function getConfig() {
   const raw = String(process.env.ADMIN_API_TOKEN || process.env.API_ADMIN_TOKEN || "");
-  const token = raw.replace(/^Bearer\\s+/i, "").trim();
+  const token = raw.replace(/^Bearer\\s+/i, "").trim().replace(/^\"|\"$/g, "").replace(/^'|'$/g, "").trim();
   return {
     apiBase: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001",
     token
@@ -35,6 +35,12 @@ export default async function SettingsPage({ searchParams }: { searchParams: { s
 
   const settingsRes = await fetchSettings();
   const settings = settingsRes.ok ? settingsRes.json : null;
+  const tokenInfo = (() => {
+    const raw = String(process.env.ADMIN_API_TOKEN || process.env.API_ADMIN_TOKEN || "");
+    const normalized = raw.replace(/^Bearer\\s+/i, "").trim().replace(/^\"|\"$/g, "").replace(/^'|'$/g, "").trim();
+    const last4 = normalized ? normalized.slice(-4) : "";
+    return normalized ? `longitud ${normalized.length} · termina en ${last4}` : "no detectado";
+  })();
 
   return (
     <main style={{ display: "grid", gap: 16, maxWidth: 820 }}>
@@ -45,6 +51,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: { s
         <div style={{ padding: 12, background: "#ffe", borderRadius: 8 }}>
           No se pudo consultar el API (<span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{settingsRes.status || "sin respuesta"}</span>
           ). Revisa `NEXT_PUBLIC_API_BASE_URL` y que el token del Admin coincida con `ADMIN_API_TOKEN` del API.
+          <div style={{ marginTop: 8, color: "#666" }}>Token (Admin): {tokenInfo}.</div>
         </div>
       ) : null}
 
