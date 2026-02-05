@@ -1,6 +1,7 @@
 import { createPlanTemplate } from "./actions";
 import { NewPlanOrSubscriptionForm } from "./NewPlanOrSubscriptionForm";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
+import { HelpTip } from "../ui/HelpTip";
 
 export const dynamic = "force-dynamic";
 
@@ -53,9 +54,11 @@ export default async function ProductsPage({
       <section className="settings-group">
         <div className="settings-group-header">
           <div className="panelHeaderRow">
-            <h3>Productos y Servicios</h3>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <h3>Productos y Servicios</h3>
+              <HelpTip text="Aquí se crean planes y suscripciones (sin contacto) y se amarra el producto/servicio." />
+            </div>
           </div>
-          <div className="field-hint">Aquí se crean planes y suscripciones (sin contacto) y se amarra el producto/servicio.</div>
         </div>
 
         <div className="settings-group-body">

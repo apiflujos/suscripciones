@@ -431,6 +431,72 @@ textarea {
   padding-top: 10px;
 }
 
+/* Tooltips (icono "?") */
+.helpTip {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid var(--stroke);
+  background: #fff;
+  color: var(--muted);
+  font-weight: 800;
+  font-size: 12px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: help;
+  position: relative;
+}
+
+.helpTip:focus {
+  outline: 2px solid rgba(14, 116, 144, 0.25);
+  outline-offset: 2px;
+}
+
+.helpTipBubble {
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 220px;
+  max-width: 360px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: #0f172a;
+  color: #fff;
+  font-weight: 600;
+  font-size: 12px;
+  white-space: pre-line;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.helpTipBubble::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  right: 10px;
+  width: 10px;
+  height: 10px;
+  transform: rotate(45deg);
+  background: #0f172a;
+  border-left: 1px solid rgba(15, 23, 42, 0.12);
+  border-top: 1px solid rgba(15, 23, 42, 0.12);
+}
+
+.helpTip:hover .helpTipBubble,
+.helpTip:focus .helpTipBubble,
+.helpTip:focus-visible .helpTipBubble {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 /* Toggle */
 .toggle {
   width: 44px;

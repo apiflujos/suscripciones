@@ -1,5 +1,6 @@
 import { setCentralActiveEnv, setWompiActiveEnv, updateChatwoot, updateShopify, updateWompi } from "./actions";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
+import { HelpTip } from "../ui/HelpTip";
 
 export const dynamic = "force-dynamic";
 
@@ -67,8 +68,12 @@ export default async function SettingsPage({ searchParams }: { searchParams: { s
 
       <section className="settings-group">
         <div className="settings-group-header">
-          <h3>Wompi</h3>
-          <div className="field-hint">Configura credenciales para Producción y Sandbox.</div>
+          <div className="panelHeaderRow">
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <h3>Wompi</h3>
+              <HelpTip text="Configura credenciales para Producción y Sandbox." />
+            </div>
+          </div>
         </div>
         <div className="settings-group-body">
           <form action={setWompiActiveEnv} className="panel module" style={{ gridTemplateColumns: "1fr auto", alignItems: "end" } as any}>
@@ -154,8 +159,12 @@ export default async function SettingsPage({ searchParams }: { searchParams: { s
 
       <section className="settings-group">
         <div className="settings-group-header">
-          <h3>Central de comunicaciones</h3>
-          <div className="field-hint">Configura la conexión para enviar mensajes y links de cobro.</div>
+          <div className="panelHeaderRow">
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <h3>Central de comunicaciones</h3>
+              <HelpTip text="Configura la conexión para enviar mensajes y links de cobro." />
+            </div>
+          </div>
         </div>
         <div className="settings-group-body">
           <form action={setCentralActiveEnv} className="panel module" style={{ gridTemplateColumns: "1fr auto", alignItems: "end" } as any}>
@@ -225,8 +234,12 @@ export default async function SettingsPage({ searchParams }: { searchParams: { s
 
       <section className="settings-group">
         <div className="settings-group-header">
-          <h3>Conector de tienda (opcional)</h3>
-          <div className="field-hint">Reenvío de eventos/órdenes (si lo necesitas).</div>
+          <div className="panelHeaderRow">
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <h3>Conector de tienda (opcional)</h3>
+              <HelpTip text="Reenvío de eventos/órdenes (si lo necesitas)." />
+            </div>
+          </div>
         </div>
         <div className="settings-group-body">
           <form action={updateShopify} className="panel module" style={{ display: "grid", gap: 10 }}>

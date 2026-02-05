@@ -2,6 +2,7 @@ import { createCustomer } from "./actions";
 import Link from "next/link";
 import { NewCustomerForm } from "./NewCustomerForm";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
+import { HelpTip } from "../ui/HelpTip";
 
 export const dynamic = "force-dynamic";
 
@@ -32,8 +33,12 @@ export default async function CustomersPage({ searchParams }: { searchParams: { 
 
       <section className="settings-group">
         <div className="settings-group-header">
-          <h3>Contactos</h3>
-          <div className="field-hint">Clientes y datos de contacto (email / teléfono).</div>
+          <div className="panelHeaderRow">
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <h3>Contactos</h3>
+              <HelpTip text="Clientes y datos de contacto (email / teléfono). También permite guardar método de pago para cobros automáticos." />
+            </div>
+          </div>
         </div>
 
         <div className="settings-group-body">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { HelpTip } from "../ui/HelpTip";
 
 function toIsoFromLocalInput(value: string): string {
   if (!value) return "";
@@ -33,7 +34,10 @@ export function SubscriptionDateFields() {
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         <div className="field">
-          <label>Fecha de activación</label>
+          <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            <span>Fecha de activación</span>
+            <HelpTip text="Si la dejas vacía, se usa la fecha/hora actual." />
+          </label>
           <input
             className="input"
             type="datetime-local"
@@ -42,11 +46,13 @@ export function SubscriptionDateFields() {
             step={60}
             placeholder="Ahora"
           />
-          <div className="field-hint">Si la dejas vacía, se usa la fecha/hora actual.</div>
         </div>
 
         <div className="field">
-          <label>Fecha de corte (primer cobro)</label>
+          <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            <span>Fecha de corte (primer cobro)</span>
+            <HelpTip text={"Opcional: distinta a la activación.\nSi está vacía, se calcula con el plan."} />
+          </label>
           <input
             className="input"
             type="datetime-local"
@@ -55,8 +61,12 @@ export function SubscriptionDateFields() {
             step={60}
             disabled={cutoffToday}
           />
-          <div className="field-hint">Opcional: distinta a la activación. Si está vacía, se calcula con el plan.</div>
-          <div className="field-hint">Tip: si eliges corte manual, define también la activación.</div>
+          <div className="field-hint">
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+              <span>Tip</span>
+              <HelpTip text="Si eliges corte manual, define también la activación." ariaLabel="Ayuda: tip de fecha de corte" />
+            </span>
+          </div>
           <label className="field" style={{ marginTop: 6, gridAutoFlow: "column", justifyContent: "start", alignItems: "center" }}>
             <input
               type="checkbox"

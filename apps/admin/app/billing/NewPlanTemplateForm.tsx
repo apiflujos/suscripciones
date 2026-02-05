@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { VariantsEditor } from "../products/VariantsEditor";
 import { enterToNextField } from "../lib/enterToNext";
+import { HelpTip } from "../ui/HelpTip";
 
 type CatalogItem = {
   id: string;
@@ -205,7 +206,10 @@ export function NewPlanTemplateForm({
         </div>
 
         <div className="field">
-          <label>Producto / Servicio (amarrado al plan)</label>
+          <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            <span>Producto / Servicio (amarrado al plan)</span>
+            <HelpTip text="Este ítem define el precio (con impuestos/descuentos/variantes) del plan o suscripción." />
+          </label>
           <select className="select" name="catalogMode" value={catalogMode} onChange={(e) => setCatalogMode(e.target.value as any)}>
             <option value="EXISTING">Elegir existente</option>
             <option value="NEW">Crear nuevo</option>
@@ -313,18 +317,20 @@ export function NewPlanTemplateForm({
                   </div>
                 </div>
 
-                <div className="field">
-                  <label>Variantes</label>
-                  <VariantsEditor
-                    option1Name={itemOption1Name}
-                    option2Name={itemOption2Name}
-                    showOption2={!!itemOption2Name.trim()}
-                    disabled={!itemOption1Name.trim()}
-                    fieldName="itemVariantsJson"
-                    onJsonChange={setItemVariantsJson}
-                  />
-                  <div className="field-hint">Si no usas variantes, déjalo vacío.</div>
-                </div>
+            <div className="field">
+              <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                <span>Variantes</span>
+                <HelpTip text="Si no usas variantes, puedes dejar esta sección vacía." />
+              </label>
+              <VariantsEditor
+                option1Name={itemOption1Name}
+                option2Name={itemOption2Name}
+                showOption2={!!itemOption2Name.trim()}
+                disabled={!itemOption1Name.trim()}
+                fieldName="itemVariantsJson"
+                onJsonChange={setItemVariantsJson}
+              />
+            </div>
               </div>
             ) : (
               <>

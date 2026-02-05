@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { WompiTokenizeWidget } from "./WompiTokenizeWidget";
 import { fetchAdminCached, getAdminApiConfig } from "../../../lib/adminApi";
+import { HelpTip } from "../../../ui/HelpTip";
 
 export const dynamic = "force-dynamic";
 
@@ -55,8 +56,12 @@ export default async function CustomerPaymentMethodPage({
 
       <section className="settings-group">
         <div className="settings-group-header">
-          <h3>Método de pago (tokenización)</h3>
-          <div className="field-hint">Guarda un método de pago en Wompi para poder cobrar suscripciones automáticamente.</div>
+          <div className="panelHeaderRow">
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <h3>Método de pago (tokenización)</h3>
+              <HelpTip text="Guarda un método de pago para poder cobrar suscripciones automáticamente." />
+            </div>
+          </div>
         </div>
 
         <div className="settings-group-body">

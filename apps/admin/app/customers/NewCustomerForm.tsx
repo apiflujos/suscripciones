@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { enterToNextField } from "../lib/enterToNext";
+import { HelpTip } from "../ui/HelpTip";
 
 type Municipality = { dept: string; city: string; code5: string; dane8: string };
 
@@ -99,7 +100,10 @@ export function NewCustomerForm({
     <div className="panel module">
       {!hidePanelHeader ? (
         <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-          <h3 style={{ margin: 0 }}>Nuevo contacto</h3>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <h3 style={{ margin: 0 }}>Nuevo contacto</h3>
+            <HelpTip text="Crea un contacto con datos básicos, dirección (DANE) e identificación." />
+          </div>
           {alwaysOpen ? null : (
             <button className={open ? "ghost" : "primary"} type="button" onClick={() => setOpen((v) => !v)}>
               {open ? "Cerrar" : "Crear contacto"}
@@ -125,8 +129,11 @@ export function NewCustomerForm({
           </div>
 
           <div className="panel module" style={{ margin: 0 }}>
-            <div className="panel-header">
-              <h3 style={{ margin: 0 }}>Dirección</h3>
+            <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <h3 style={{ margin: 0 }}>Dirección</h3>
+                <HelpTip text="Selecciona departamento y municipio para guardar los códigos DANE." />
+              </div>
             </div>
 
             {loadError ? (
@@ -167,8 +174,11 @@ export function NewCustomerForm({
           </div>
 
           <div className="panel module" style={{ margin: 0 }}>
-            <div className="panel-header">
-              <h3 style={{ margin: 0 }}>Identificación</h3>
+            <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <h3 style={{ margin: 0 }}>Identificación</h3>
+                <HelpTip text="Opcional. Útil para búsquedas y para trazabilidad del cliente." />
+              </div>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 10 }}>
@@ -195,7 +205,7 @@ export function NewCustomerForm({
           </div>
         </form>
       ) : (
-        <div className="field-hint">Crea un contacto con datos y dirección (DANE).</div>
+        null
       )}
     </div>
   );

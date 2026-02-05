@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { VariantsEditor } from "./VariantsEditor";
 import { enterToNextField } from "../lib/enterToNext";
+import { HelpTip } from "../ui/HelpTip";
 
 type CatalogItem = {
   id: string;
@@ -164,7 +165,10 @@ export function NewPlanOrSubscriptionForm({
   return (
     <div className="panel module">
       <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-        <h3>Crear plan o suscripción</h3>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <h3>Crear plan o suscripción</h3>
+          <HelpTip text="Aquí creas la plantilla (sin contacto) y la amarras a un producto/servicio." />
+        </div>
         <button type="button" className={open ? "btnLink" : "primary"} onClick={() => setOpen((v) => !v)}>
           {open ? "Cerrar" : "Crear nuevo"}
         </button>
@@ -204,7 +208,10 @@ export function NewPlanOrSubscriptionForm({
 
           <div className="panel" style={{ borderColor: "rgba(15, 23, 42, 0.12)" }}>
             <div style={{ display: "grid", gap: 10 }}>
-              <strong>Producto / Servicio (amarrado al plan)</strong>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                <strong>Producto / Servicio (amarrado al plan)</strong>
+                <HelpTip text="Este ítem define el precio (con impuestos/descuentos/variantes) que se cobrará o se enviará por link." />
+              </div>
 
               <div className="field">
                 <select
@@ -321,7 +328,10 @@ export function NewPlanOrSubscriptionForm({
                       </div>
 
                       <div className="field">
-                        <label>Variantes</label>
+                        <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                          <span>Variantes</span>
+                          <HelpTip text="Si no usas variantes, puedes dejar esta sección vacía." />
+                        </label>
                         <VariantsEditor
                           option1Name={itemOption1Name}
                           option2Name={itemOption2Name}
@@ -330,7 +340,6 @@ export function NewPlanOrSubscriptionForm({
                           fieldName="itemVariantsJson"
                           onJsonChange={setItemVariantsJson}
                         />
-                        <div className="field-hint">Si no usas variantes, déjalo vacío.</div>
                       </div>
                     </div>
                   ) : (
@@ -396,7 +405,7 @@ export function NewPlanOrSubscriptionForm({
           </div>
         </form>
       ) : (
-        <div className="field-hint">Crea el plan/suscripción y amárralo a un producto/servicio (sin contacto).</div>
+        null
       )}
     </div>
   );
