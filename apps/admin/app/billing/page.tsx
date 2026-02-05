@@ -1,5 +1,4 @@
-import { createPaymentLink, createPlan, createSubscription } from "../subscriptions/actions";
-import { SubscriptionDateFields } from "../subscriptions/SubscriptionDateFields";
+import { createPaymentLink } from "../subscriptions/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +19,24 @@ async function fetchAdmin(path: string) {
   return { ok: res.ok, status: res.status, json };
 }
 
+function fmtMoney(cents: any, currency = "COP") {
+  const v = Number(cents);
+  if (!Number.isFinite(v)) return "—";
+  const pesos = Math.trunc(v / 100);
+  if (currency !== "COP") return `${pesos} ${currency}`;
+  return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(pesos);
+}
+
+function fmtEvery(intervalUnit: any, intervalCount: any) {
+  const unit = String(intervalUnit || "").toUpperCase();
+  const count = Number(intervalCount || 1);
+  const c = Number.isFinite(count) && count > 0 ? count : 1;
+  if (unit === "DAY") return c === 1 ? "cada día" : `cada ${c} días`;
+  if (unit === "WEEK") return c === 1 ? "cada semana" : `cada ${c} semanas`;
+  if (unit === "MONTH") return c === 1 ? "cada mes" : `cada ${c} meses`;
+  return `cada ${c} (personalizado)`;
+}
+
 export default async function BillingPage({ searchParams }: { searchParams?: Record<string, string | string[] | undefined> }) {
   const { token } = getConfig();
   if (!token) {
@@ -35,15 +52,12 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
   const checkoutUrl = typeof searchParams?.checkoutUrl === "string" ? searchParams.checkoutUrl : "";
   const error = typeof searchParams?.error === "string" ? searchParams.error : "";
 
-  const [plans, subs, customers] = await Promise.all([
-    fetchAdmin("/admin/plans"),
-    fetchAdmin("/admin/subscriptions"),
-    fetchAdmin("/admin/customers")
-  ]);
-
-  const planItems = (plans.json?.items ?? []) as any[];
+  const subs = await fetchAdmin("/admin/subscriptions");
   const subItems = (subs.json?.items ?? []) as any[];
-  const customerItems = (customers.json?.items ?? []) as any[];
+
+  const active = subItems.filter((s) => String(s.status || "") !== "CANCELED");
+  const planes = active.filter((s) => String(s.plan?.metadata?.collectionMode || "MANUAL_LINK") !== "AUTO_DEBIT");
+  const suscripciones = active.filter((s) => String(s.plan?.metadata?.collectionMode || "MANUAL_LINK") === "AUTO_DEBIT");
 
   return (
     <main className="page" style={{ maxWidth: 1100 }}>
@@ -64,8 +78,13 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
 
       <section className="settings-group">
         <div className="settings-group-header">
-          <h3>Planes y Suscripciones</h3>
-          <div className="field-hint">Cobranza recurrente: link automático o débito tokenizado.</div>
+          <div className="panelHeaderRow" style={{ justifyContent: "space-between" }}>
+            <h3>Planes y Suscripciones</h3>
+            <a className="btn btnPrimary" href="/products">
+              Crear nuevo
+            </a>
+          </div>
+          <div className="field-hint">Aquí solo se muestran los planes/suscripciones activos.</div>
         </div>
 
         <div className="settings-group-body">
@@ -73,120 +92,16 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
             <div className="panel module">
               <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
                 <h3>Planes</h3>
-                <span className="settings-group-title">{planItems.length} total</span>
+                <span className="settings-group-title">{planes.length} activos</span>
               </div>
-
-              <form action={createPlan} style={{ display: "grid", gap: 10 }}>
-                <div className="field">
-                  <label>Nombre</label>
-                  <input className="input" name="name" placeholder="Ej: Mensual – Olivia Shoes" required />
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <div className="field">
-                    <label>Precio (centavos)</label>
-                    <input className="input" name="priceInCents" defaultValue="49000" inputMode="numeric" />
-                  </div>
-                  <div className="field">
-                    <label>Moneda</label>
-                    <input className="input" name="currency" defaultValue="COP" />
-                  </div>
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <div className="field">
-                    <label>Unidad</label>
-                    <select className="select" name="intervalUnit" defaultValue="MONTH">
-                      <option value="DAY">DAY</option>
-                      <option value="WEEK">WEEK</option>
-                      <option value="MONTH">MONTH</option>
-                      <option value="CUSTOM">CUSTOM</option>
-                    </select>
-                  </div>
-                  <div className="field">
-                    <label>Cada</label>
-                    <input className="input" name="intervalCount" defaultValue="1" inputMode="numeric" />
-                  </div>
-                </div>
-
-                <div className="field">
-                  <label>Método de cobro</label>
-                  <select className="select" name="collectionMode" defaultValue="AUTO_DEBIT">
-                    <option value="AUTO_DEBIT">AUTO_DEBIT (tokenización)</option>
-                    <option value="AUTO_LINK">AUTO_LINK (link por ciclo)</option>
-                    <option value="MANUAL_LINK">MANUAL_LINK (manual)</option>
-                  </select>
-                </div>
-
-                <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-                  <button className="primary" type="submit">
-                    Crear plan
-                  </button>
-                </div>
-              </form>
 
               <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
-                {planItems.map((p) => (
-                  <div key={p.id} className="panel" style={{ borderColor: "rgba(15, 23, 42, 0.12)" }}>
-                    <strong>{p.name}</strong>
-                    <div className="field-hint" style={{ marginTop: 6 }}>
-                      {p.priceInCents} {p.currency} / {p.intervalCount} {p.intervalUnit}
-                      {p.metadata?.collectionMode ? ` · ${p.metadata.collectionMode}` : ""}
-                    </div>
-                  </div>
-                ))}
-                {planItems.length === 0 ? <div className="field-hint">Sin planes.</div> : null}
-              </div>
-            </div>
-
-            <div className="panel module">
-              <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                <h3>Suscripciones</h3>
-                <span className="settings-group-title">{subItems.length} total</span>
-              </div>
-
-              <form action={createSubscription} style={{ display: "grid", gap: 10 }}>
-                <div className="field">
-                  <label>Cliente</label>
-                  <select className="select" name="customerId" required>
-                    {customerItems.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.email || c.name || c.id}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="field">
-                  <label>Plan</label>
-                  <select className="select" name="planId" required>
-                    {planItems.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} ({p.priceInCents} {p.currency})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <SubscriptionDateFields />
-
-                <label className="field" style={{ gridAutoFlow: "column", justifyContent: "start", alignItems: "center" }}>
-                  <input name="createPaymentLink" type="checkbox" defaultChecked />
-                  <span>Crear link (si aplica) y enviar por Chatwoot</span>
-                </label>
-
-                <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-                  <button className="primary" type="submit">
-                    Crear suscripción
-                  </button>
-                </div>
-              </form>
-
-              <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
-                {subItems.slice(0, 30).map((s) => (
+                {planes.slice(0, 50).map((s) => (
                   <div key={s.id} className="panel" style={{ borderColor: "rgba(15, 23, 42, 0.12)" }}>
                     <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                      <strong>{s.plan?.name ?? "Suscripción"}</strong>
+                      <strong>{s.plan?.name ?? "Plan"}</strong>
+                      <span className="field-hint">{fmtMoney(s.plan?.priceInCents, s.plan?.currency)}</span>
+                      <span className="field-hint">{fmtEvery(s.plan?.intervalUnit, s.plan?.intervalCount)}</span>
                       <span className="field-hint">{s.status}</span>
                       <form action={createPaymentLink} style={{ marginLeft: "auto" }}>
                         <input type="hidden" name="subscriptionId" value={s.id} />
@@ -196,11 +111,37 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
                       </form>
                     </div>
                     <div className="field-hint" style={{ marginTop: 6 }}>
-                      cliente: {s.customer?.email || s.customer?.name || s.customerId}
+                      contacto: {s.customer?.email || s.customer?.name || s.customerId} · corte:{" "}
+                      {s.currentPeriodEndAt ? new Date(s.currentPeriodEndAt).toLocaleString() : "—"}
                     </div>
                   </div>
                 ))}
-                {subItems.length === 0 ? <div className="field-hint">Sin suscripciones.</div> : null}
+                {planes.length === 0 ? <div className="field-hint">Sin planes activos.</div> : null}
+              </div>
+            </div>
+
+            <div className="panel module">
+              <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                <h3>Suscripciones</h3>
+                <span className="settings-group-title">{suscripciones.length} activas</span>
+              </div>
+
+              <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+                {suscripciones.slice(0, 50).map((s) => (
+                  <div key={s.id} className="panel" style={{ borderColor: "rgba(15, 23, 42, 0.12)" }}>
+                    <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                      <strong>{s.plan?.name ?? "Suscripción"}</strong>
+                      <span className="field-hint">{fmtMoney(s.plan?.priceInCents, s.plan?.currency)}</span>
+                      <span className="field-hint">{fmtEvery(s.plan?.intervalUnit, s.plan?.intervalCount)}</span>
+                      <span className="field-hint">{s.status}</span>
+                    </div>
+                    <div className="field-hint" style={{ marginTop: 6 }}>
+                      contacto: {s.customer?.email || s.customer?.name || s.customerId} · cobro:{" "}
+                      {s.currentPeriodEndAt ? new Date(s.currentPeriodEndAt).toLocaleString() : "—"}
+                    </div>
+                  </div>
+                ))}
+                {suscripciones.length === 0 ? <div className="field-hint">Sin suscripciones activas.</div> : null}
               </div>
             </div>
           </div>
@@ -209,4 +150,3 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
     </main>
   );
 }
-

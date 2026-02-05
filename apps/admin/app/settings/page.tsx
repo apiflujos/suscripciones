@@ -99,7 +99,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: { s
       </section>
 
       <section style={{ border: "1px solid #eee", borderRadius: 12, padding: 16 }}>
-        <h2 style={{ marginTop: 0 }}>Chatwoot</h2>
+        <h2 style={{ marginTop: 0 }}>Central de comunicaciones</h2>
         <div style={{ color: "#666", marginBottom: 12 }}>
           Base: {settings?.chatwoot?.baseUrl || "—"} | cuenta: {settings?.chatwoot?.accountId || "—"} | bandeja: {settings?.chatwoot?.inboxId || "—"}
         </div>
@@ -120,7 +120,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: { s
             Token de acceso API
             <input name="apiAccessToken" type="password" style={{ width: "100%" }} />
           </label>
-          <button type="submit">Guardar Chatwoot</button>
+          <button type="submit">Guardar central de comunicaciones</button>
         </form>
       </section>
     </main>

@@ -46,7 +46,7 @@ subscriptionsRouter.post("/", async (req, res) => {
   const computedEnd = addIntervalUtc(startAt, plan.intervalUnit, plan.intervalCount);
   const periodEnd = parsed.data.firstPeriodEndAt ? new Date(parsed.data.firstPeriodEndAt) : computedEnd;
   if (Number.isNaN(periodEnd.getTime())) return res.status(400).json({ error: "invalid_first_period_end_at" });
-  if (periodEnd <= startAt) return res.status(400).json({ error: "first_period_end_must_be_after_start" });
+  if (periodEnd < startAt) return res.status(400).json({ error: "first_period_end_must_be_after_start" });
 
   const subscription = await prisma.subscription.create({
     data: {

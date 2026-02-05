@@ -24,7 +24,7 @@ export default async function Home() {
               </span>
             </div>
             <div style={{ color: "var(--muted)", fontSize: 13 }}>
-              Siguiente: configurar credenciales (Wompi/Chatwoot) y crear clientes/suscripciones.
+              Siguiente: configurar credenciales (Wompi / central de comunicaciones) y crear contactos y cobros.
             </div>
           </div>
 
@@ -33,8 +33,8 @@ export default async function Home() {
             <div className="toolbar">
               <a className="btn btnPrimary" href="/settings">Configurar credenciales</a>
               <a className="btn" href="/billing">Planes / Suscripciones</a>
-              <a className="btn" href="/customers">Crear cliente</a>
-              <a className="btn" href="/products">Inventario</a>
+              <a className="btn" href="/customers">Contactos</a>
+              <a className="btn" href="/products">Productos y servicios</a>
             </div>
           </div>
         </div>
