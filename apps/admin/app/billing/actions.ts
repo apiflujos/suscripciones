@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
-const TOKEN = process.env.API_ADMIN_TOKEN || "";
+const TOKEN = process.env.API_ADMIN_TOKEN || process.env.ADMIN_API_TOKEN || "";
 
 async function adminFetch(path: string, init: RequestInit) {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -43,4 +43,3 @@ export async function createCustomerFromBilling(formData: FormData) {
     redirect(`/billing?error=${encodeURIComponent(err?.message || "create_customer_failed")}`);
   }
 }
-

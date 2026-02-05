@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 function getConfig() {
   return {
     apiBase: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001",
-    token: process.env.API_ADMIN_TOKEN || ""
+    token: process.env.API_ADMIN_TOKEN || process.env.ADMIN_API_TOKEN || ""
   };
 }
 
@@ -63,4 +63,3 @@ export async function POST(req: Request, ctx: { params: { id: string } }) {
     return NextResponse.redirect(new URL(`/customers/${ctx.params.id}/payment-method?error=${encodeURIComponent(msg)}`, req.url));
   }
 }
-

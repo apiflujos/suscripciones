@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 function getConfig() {
   return {
     apiBase: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001",
-    token: process.env.API_ADMIN_TOKEN || ""
+    token: process.env.API_ADMIN_TOKEN || process.env.ADMIN_API_TOKEN || ""
   };
 }
 
@@ -26,7 +26,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: { s
     return (
       <main>
         <h1 style={{ marginTop: 0 }}>Credenciales</h1>
-        <p>Configura `API_ADMIN_TOKEN` en el Admin para poder guardar credenciales.</p>
+        <p>Configura `API_ADMIN_TOKEN` (o `ADMIN_API_TOKEN`) en el Admin para poder guardar credenciales.</p>
       </main>
     );
   }

@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 function getConfig() {
   return {
     apiBase: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001",
-    token: process.env.API_ADMIN_TOKEN || ""
+    token: process.env.API_ADMIN_TOKEN || process.env.ADMIN_API_TOKEN || ""
   };
 }
 
@@ -21,7 +21,7 @@ async function fetchCustomers() {
 
 export default async function CustomersPage({ searchParams }: { searchParams: { created?: string; paymentSource?: string; error?: string } }) {
   const { token } = getConfig();
-  if (!token) return <main><h1 style={{ marginTop: 0 }}>Contactos</h1><p>Configura `API_ADMIN_TOKEN`.</p></main>;
+  if (!token) return <main><h1 style={{ marginTop: 0 }}>Contactos</h1><p>Configura `API_ADMIN_TOKEN` (o `ADMIN_API_TOKEN`).</p></main>;
   const data = await fetchCustomers();
   const items = (data.items ?? []) as any[];
 
