@@ -11,6 +11,5 @@ export default async function SubscriptionsPage({
   for (const [k, v] of Object.entries(searchParams || {})) {
     if (typeof v === "string") qp.set(k, v);
   }
-  qp.set("tab", "commercial");
-  redirect(`/products?${qp.toString()}`);
+  redirect(`/billing?${qp.toString()}`);
 }

@@ -32,7 +32,7 @@ export default async function Home() {
             <strong>Acciones rápidas</strong>
             <div className="toolbar">
               <a className="btn btnPrimary" href="/settings">Configurar credenciales</a>
-              <a className="btn" href="/products?tab=commercial">Planes / Suscripciones</a>
+              <a className="btn" href="/billing">Planes / Suscripciones</a>
               <a className="btn" href="/customers">Crear cliente</a>
               <a className="btn" href="/products">Inventario</a>
             </div>

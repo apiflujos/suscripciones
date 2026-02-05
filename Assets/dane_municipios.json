@@ -1,0 +1,6716 @@
+[
+  {
+    "dept": "AMAZONAS",
+    "city": "EL ENCANTO",
+    "code5": "91263",
+    "dane8": "91263000"
+  },
+  {
+    "dept": "AMAZONAS",
+    "city": "LA CHORRERA",
+    "code5": "91405",
+    "dane8": "91405000"
+  },
+  {
+    "dept": "AMAZONAS",
+    "city": "LA PEDRERA",
+    "code5": "91407",
+    "dane8": "91407000"
+  },
+  {
+    "dept": "AMAZONAS",
+    "city": "LA VICTORIA",
+    "code5": "91430",
+    "dane8": "91430000"
+  },
+  {
+    "dept": "AMAZONAS",
+    "city": "LETICIA",
+    "code5": "91001",
+    "dane8": "91001000"
+  },
+  {
+    "dept": "AMAZONAS",
+    "city": "MIRITI - PARANÁ",
+    "code5": "91460",
+    "dane8": "91460000"
+  },
+  {
+    "dept": "AMAZONAS",
+    "city": "PUERTO ALEGRIA",
+    "code5": "91530",
+    "dane8": "91530000"
+  },
+  {
+    "dept": "AMAZONAS",
+    "city": "PUERTO ARICA",
+    "code5": "91536",
+    "dane8": "91536000"
+  },
+  {
+    "dept": "AMAZONAS",
+    "city": "PUERTO NARIÑO",
+    "code5": "91540",
+    "dane8": "91540000"
+  },
+  {
+    "dept": "AMAZONAS",
+    "city": "PUERTO SANTANDER",
+    "code5": "91669",
+    "dane8": "91669000"
+  },
+  {
+    "dept": "AMAZONAS",
+    "city": "TARAPACÁ",
+    "code5": "91798",
+    "dane8": "91798000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "CÁCERES",
+    "code5": "05120",
+    "dane8": "05120000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "CAUCASIA",
+    "code5": "05154",
+    "dane8": "05154000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "EL BAGRE",
+    "code5": "05250",
+    "dane8": "05250000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "NECHÍ",
+    "code5": "05495",
+    "dane8": "05495000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "TARAZÁ",
+    "code5": "05790",
+    "dane8": "05790000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "ZARAGOZA",
+    "code5": "05895",
+    "dane8": "05895000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "CARACOLÍ",
+    "code5": "05142",
+    "dane8": "05142000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "MACEO",
+    "code5": "05425",
+    "dane8": "05425000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "PUERTO BERRiO",
+    "code5": "05579",
+    "dane8": "05579000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "PUERTO NARE",
+    "code5": "05585",
+    "dane8": "05585000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "PUERTO TRIUNFO",
+    "code5": "05591",
+    "dane8": "05591000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "YONDÓ",
+    "code5": "05893",
+    "dane8": "05893000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "AMALFI",
+    "code5": "05031",
+    "dane8": "05031000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "ANORÍ",
+    "code5": "05040",
+    "dane8": "05040000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "CISNEROS",
+    "code5": "05190",
+    "dane8": "05190000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "REMEDIOS",
+    "code5": "05604",
+    "dane8": "05604000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "SAN ROQUE",
+    "code5": "05670",
+    "dane8": "05670000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "SANTO DOMINGO",
+    "code5": "05690",
+    "dane8": "05690000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "SEGOVIA",
+    "code5": "05736",
+    "dane8": "05736000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "VEGACHÍ",
+    "code5": "05858",
+    "dane8": "05858000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "YALÍ",
+    "code5": "05885",
+    "dane8": "05885000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "YOLOMBÓ",
+    "code5": "05890",
+    "dane8": "05890000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "ANGOSTURA",
+    "code5": "05038",
+    "dane8": "05038000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "BELMIRA",
+    "code5": "05086",
+    "dane8": "05086000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "BRICEÑO",
+    "code5": "05107",
+    "dane8": "05107000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "CAMPAMENTO",
+    "code5": "05134",
+    "dane8": "05134000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "CAROLINA",
+    "code5": "05150",
+    "dane8": "05150000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "DON MATiAS",
+    "code5": "05237",
+    "dane8": "05237000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "ENTRERRIOS",
+    "code5": "05264",
+    "dane8": "05264000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "GÓMEZ PLATA",
+    "code5": "05310",
+    "dane8": "05310000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "GUADALUPE",
+    "code5": "05315",
+    "dane8": "05315000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "ITUANGO",
+    "code5": "05361",
+    "dane8": "05361000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "SAN ANDRÉS",
+    "code5": "05647",
+    "dane8": "05647000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "SAN JOSÉ DE LA MONTAÑA",
+    "code5": "05658",
+    "dane8": "05658000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "SAN PEDRO",
+    "code5": "05664",
+    "dane8": "05664000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "SANTA ROSA de osos",
+    "code5": "05686",
+    "dane8": "05686000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "TOLEDO",
+    "code5": "05819",
+    "dane8": "05819000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "VALDIVIA",
+    "code5": "05854",
+    "dane8": "05854000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "YARUMAL",
+    "code5": "05887",
+    "dane8": "05887000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "ABRIAQUÍ",
+    "code5": "05004",
+    "dane8": "05004000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "ANZA",
+    "code5": "05044",
+    "dane8": "05044000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "ARMENIA",
+    "code5": "05059",
+    "dane8": "05059000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "BURITICÁ",
+    "code5": "05113",
+    "dane8": "05113000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "CAÑASGORDAS",
+    "code5": "05138",
+    "dane8": "05138000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "DABEIBA",
+    "code5": "05234",
+    "dane8": "05234000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "EBÉJICO",
+    "code5": "05240",
+    "dane8": "05240000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "FRONTINO",
+    "code5": "05284",
+    "dane8": "05284000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "GIRALDO",
+    "code5": "05306",
+    "dane8": "05306000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "HELICONIA",
+    "code5": "05347",
+    "dane8": "05347000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "LIBORINA",
+    "code5": "05411",
+    "dane8": "05411000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "OLAYA",
+    "code5": "05501",
+    "dane8": "05501000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "PEQUE",
+    "code5": "05543",
+    "dane8": "05543000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "SABANALARGA",
+    "code5": "05628",
+    "dane8": "05628000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "SAN JERÓNIMO",
+    "code5": "05656",
+    "dane8": "05656000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "SANTAFÉ DE ANTIOQUIA",
+    "code5": "05042",
+    "dane8": "05042000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "SOPETRaN",
+    "code5": "05761",
+    "dane8": "05761000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "URAMITA",
+    "code5": "05842",
+    "dane8": "05842000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "ABEJORRAL",
+    "code5": "05002",
+    "dane8": "05002000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "ALEJANDRÍA",
+    "code5": "05021",
+    "dane8": "05021000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "ARGELIA",
+    "code5": "05055",
+    "dane8": "05055000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "CARMEN DE VIBORAL",
+    "code5": "05148",
+    "dane8": "05148000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "COCORNÁ",
+    "code5": "05197",
+    "dane8": "05197000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "CONCEPCIÓN",
+    "code5": "05206",
+    "dane8": "05206000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "GRANADA",
+    "code5": "05313",
+    "dane8": "05313000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "GUARNE",
+    "code5": "05318",
+    "dane8": "05318000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "GUATAPE",
+    "code5": "05321",
+    "dane8": "05321000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "LA CEJA",
+    "code5": "05376",
+    "dane8": "05376000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "LA UNIÓN",
+    "code5": "05400",
+    "dane8": "05400000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "MARINILLA",
+    "code5": "05440",
+    "dane8": "05440000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "NARIÑO",
+    "code5": "05483",
+    "dane8": "05483000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "PEÑOL",
+    "code5": "05541",
+    "dane8": "05541000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "RETIRO",
+    "code5": "05607",
+    "dane8": "05607000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "RIONEGRO",
+    "code5": "05615",
+    "dane8": "05615000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "SAN CARLOS",
+    "code5": "05649",
+    "dane8": "05649000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "SAN FRANCISCO",
+    "code5": "05652",
+    "dane8": "05652000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "SAN LUIS",
+    "code5": "05660",
+    "dane8": "05660000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "SAN RAFAEL",
+    "code5": "05667",
+    "dane8": "05667000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "SAN VICENTE",
+    "code5": "05674",
+    "dane8": "05674000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "SANTUARIO",
+    "code5": "05697",
+    "dane8": "05697000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "SONSON",
+    "code5": "05756",
+    "dane8": "05756000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "AMAGa",
+    "code5": "05030",
+    "dane8": "05030000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "ANDES",
+    "code5": "05034",
+    "dane8": "05034000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "ANGELOPOLIS",
+    "code5": "05036",
+    "dane8": "05036000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "BETANIA",
+    "code5": "05091",
+    "dane8": "05091000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "BETULIA",
+    "code5": "05093",
+    "dane8": "05093000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "CAICEDO",
+    "code5": "05125",
+    "dane8": "05125000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "CARAMANTA",
+    "code5": "05145",
+    "dane8": "05145000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "CIUDAD BOLÍVAR",
+    "code5": "05101",
+    "dane8": "05101000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "CONCORDIA",
+    "code5": "05209",
+    "dane8": "05209000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "FREDONIA",
+    "code5": "05282",
+    "dane8": "05282000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "HISPANIA",
+    "code5": "05353",
+    "dane8": "05353000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "JARDÍN",
+    "code5": "05364",
+    "dane8": "05364000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "JERICÓ",
+    "code5": "05368",
+    "dane8": "05368000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "LA PINTADA",
+    "code5": "05390",
+    "dane8": "05390000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "MONTEBELLO",
+    "code5": "05467",
+    "dane8": "05467000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "PUEBLORRICO",
+    "code5": "05576",
+    "dane8": "05576000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "SALGAR",
+    "code5": "05642",
+    "dane8": "05642000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "SANTA BaRBARA",
+    "code5": "05679",
+    "dane8": "05679000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "TÁMESIS",
+    "code5": "05789",
+    "dane8": "05789000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "TARSO",
+    "code5": "05792",
+    "dane8": "05792000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "TITIRIBÍ",
+    "code5": "05809",
+    "dane8": "05809000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "URRAO",
+    "code5": "05847",
+    "dane8": "05847000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "VALPARAISO",
+    "code5": "05856",
+    "dane8": "05856000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "VENECIA",
+    "code5": "05861",
+    "dane8": "05861000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "APARTADÓ",
+    "code5": "05045",
+    "dane8": "05045000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "ARBOLETES",
+    "code5": "05051",
+    "dane8": "05051000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "CAREPA",
+    "code5": "05147",
+    "dane8": "05147000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "CHIGORODÓ",
+    "code5": "05172",
+    "dane8": "05172000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "MURINDÓ",
+    "code5": "05475",
+    "dane8": "05475000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "MUTATA",
+    "code5": "05480",
+    "dane8": "05480000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "NECOCLÍ",
+    "code5": "05490",
+    "dane8": "05490000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "SAN JUAN DE URABA",
+    "code5": "05659",
+    "dane8": "05659000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "SAN PEDRO DE URABA",
+    "code5": "05665",
+    "dane8": "05665000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "TURBO",
+    "code5": "05837",
+    "dane8": "05837000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "VIGÍA DEL FUERTE",
+    "code5": "05873",
+    "dane8": "05873000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "BARBOSA",
+    "code5": "05079",
+    "dane8": "05079000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "BELLO",
+    "code5": "05088",
+    "dane8": "05088000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "CALDAS",
+    "code5": "05129",
+    "dane8": "05129000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "COPACABANA",
+    "code5": "05212",
+    "dane8": "05212000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "ENVIGADO",
+    "code5": "05266",
+    "dane8": "05266000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "GIRARDOTA",
+    "code5": "05308",
+    "dane8": "05308000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "ITAGUI",
+    "code5": "05360",
+    "dane8": "05360000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "LA ESTRELLA",
+    "code5": "05380",
+    "dane8": "05380000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "MEDELLÍN",
+    "code5": "05001",
+    "dane8": "05001000"
+  },
+  {
+    "dept": "ANTIOQUIA",
+    "city": "SABANETA",
+    "code5": "05631",
+    "dane8": "05631000"
+  },
+  {
+    "dept": "ARAUCA",
+    "city": "ARAUCA",
+    "code5": "81001",
+    "dane8": "81001000"
+  },
+  {
+    "dept": "ARAUCA",
+    "city": "ARAUQUITA",
+    "code5": "81065",
+    "dane8": "81065000"
+  },
+  {
+    "dept": "ARAUCA",
+    "city": "CRAVO NORTE",
+    "code5": "81220",
+    "dane8": "81220000"
+  },
+  {
+    "dept": "ARAUCA",
+    "city": "FORTUL",
+    "code5": "81300",
+    "dane8": "81300000"
+  },
+  {
+    "dept": "ARAUCA",
+    "city": "PUERTO RONDÓN",
+    "code5": "81591",
+    "dane8": "81591000"
+  },
+  {
+    "dept": "ARAUCA",
+    "city": "SARAVENA",
+    "code5": "81736",
+    "dane8": "81736000"
+  },
+  {
+    "dept": "ARAUCA",
+    "city": "TAME",
+    "code5": "81794",
+    "dane8": "81794000"
+  },
+  {
+    "dept": "ARCHIPIELAGO DE SAN ANDRES",
+    "city": "PROVIDENCIA Y SANTA CATALINA",
+    "code5": "88564",
+    "dane8": "88564000"
+  },
+  {
+    "dept": "ARCHIPIELAGO DE SAN ANDRES",
+    "city": "SAN ANDReS",
+    "code5": "88001",
+    "dane8": "88001000"
+  },
+  {
+    "dept": "ATLÁNTICO",
+    "city": "BARRANQUILLA",
+    "code5": "08001",
+    "dane8": "08001000"
+  },
+  {
+    "dept": "ATLÁNTICO",
+    "city": "GALAPA",
+    "code5": "08296",
+    "dane8": "08296000"
+  },
+  {
+    "dept": "ATLÁNTICO",
+    "city": "MALAMBO",
+    "code5": "08433",
+    "dane8": "08433000"
+  },
+  {
+    "dept": "ATLÁNTICO",
+    "city": "PUERTO COLOMBIA",
+    "code5": "08573",
+    "dane8": "08573000"
+  },
+  {
+    "dept": "ATLÁNTICO",
+    "city": "SOLEDAD",
+    "code5": "08758",
+    "dane8": "08758000"
+  },
+  {
+    "dept": "ATLÁNTICO",
+    "city": "CAMPO DE LA CRUZ",
+    "code5": "08137",
+    "dane8": "08137000"
+  },
+  {
+    "dept": "ATLÁNTICO",
+    "city": "CANDELARIA",
+    "code5": "08141",
+    "dane8": "08141000"
+  },
+  {
+    "dept": "ATLÁNTICO",
+    "city": "LURUACO",
+    "code5": "08421",
+    "dane8": "08421000"
+  },
+  {
+    "dept": "ATLÁNTICO",
+    "city": "MANATi",
+    "code5": "08436",
+    "dane8": "08436000"
+  },
+  {
+    "dept": "ATLÁNTICO",
+    "city": "REPELON",
+    "code5": "08606",
+    "dane8": "08606000"
+  },
+  {
+    "dept": "ATLÁNTICO",
+    "city": "SANTA LUCiA",
+    "code5": "08675",
+    "dane8": "08675000"
+  },
+  {
+    "dept": "ATLÁNTICO",
+    "city": "SUAN",
+    "code5": "08770",
+    "dane8": "08770000"
+  },
+  {
+    "dept": "ATLÁNTICO",
+    "city": "BARANOA",
+    "code5": "08078",
+    "dane8": "08078000"
+  },
+  {
+    "dept": "ATLÁNTICO",
+    "city": "PALMAR DE VARELA",
+    "code5": "08520",
+    "dane8": "08520000"
+  },
+  {
+    "dept": "ATLÁNTICO",
+    "city": "POLONUEVO",
+    "code5": "08558",
+    "dane8": "08558000"
+  },
+  {
+    "dept": "ATLÁNTICO",
+    "city": "PONEDERA",
+    "code5": "08560",
+    "dane8": "08560000"
+  },
+  {
+    "dept": "ATLÁNTICO",
+    "city": "Sabanagrande",
+    "code5": "08634",
+    "dane8": "08634000"
+  },
+  {
+    "dept": "ATLÁNTICO",
+    "city": "SABANALARGA",
+    "code5": "08638",
+    "dane8": "08638000"
+  },
+  {
+    "dept": "ATLÁNTICO",
+    "city": "Santo Tomas",
+    "code5": "08685",
+    "dane8": "08685000"
+  },
+  {
+    "dept": "ATLÁNTICO",
+    "city": "JUAN DE ACOSTA",
+    "code5": "08372",
+    "dane8": "08372000"
+  },
+  {
+    "dept": "ATLÁNTICO",
+    "city": "PIOJÓ",
+    "code5": "08549",
+    "dane8": "08549000"
+  },
+  {
+    "dept": "ATLÁNTICO",
+    "city": "TUBARA",
+    "code5": "08832",
+    "dane8": "08832000"
+  },
+  {
+    "dept": "ATLÁNTICO",
+    "city": "USIACURi",
+    "code5": "08849",
+    "dane8": "08849000"
+  },
+  {
+    "dept": "BOGOTÁ D.C.",
+    "city": "BOGOTA D.C.",
+    "code5": "11001",
+    "dane8": "11001000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "CICUCO",
+    "code5": "13188",
+    "dane8": "13188000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "HATILLO DE LOBA",
+    "code5": "13300",
+    "dane8": "13300000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "MARGARITA",
+    "code5": "13440",
+    "dane8": "13440000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "MOMPÓS",
+    "code5": "13468",
+    "dane8": "13468000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "SAN FERNANDO",
+    "code5": "13650",
+    "dane8": "13650000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "TALAIGUA NUEVO",
+    "code5": "13780",
+    "dane8": "13780000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "ARJONA",
+    "code5": "13052",
+    "dane8": "13052000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "ARROYOHONDO",
+    "code5": "13062",
+    "dane8": "13062000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "CALAMAR",
+    "code5": "13140",
+    "dane8": "13140000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "CARTAGENA",
+    "code5": "13001",
+    "dane8": "13001000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "CLEMENCIA",
+    "code5": "13222",
+    "dane8": "13222000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "MAHATES",
+    "code5": "13433",
+    "dane8": "13433000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "SAN CRISTOBAL",
+    "code5": "13620",
+    "dane8": "13620000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "SAN ESTANISLAO",
+    "code5": "13647",
+    "dane8": "13647000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "SANTA CATALINA",
+    "code5": "13673",
+    "dane8": "13673000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "SANTA ROSA DE LIMA",
+    "code5": "13683",
+    "dane8": "13683000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "SOPLAVIENTO",
+    "code5": "13760",
+    "dane8": "13760000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "TURBACO",
+    "code5": "13836",
+    "dane8": "13836000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "TURBANA",
+    "code5": "13838",
+    "dane8": "13838000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "VILLANUEVA",
+    "code5": "13873",
+    "dane8": "13873000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "ALTOS DEL ROSARIO",
+    "code5": "13030",
+    "dane8": "13030000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "BARRANCO DE LOBA",
+    "code5": "13074",
+    "dane8": "13074000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "EL PEÑON",
+    "code5": "13268",
+    "dane8": "13268000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "REGIDOR",
+    "code5": "13580",
+    "dane8": "13580000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "RÍO VIEJO",
+    "code5": "13600",
+    "dane8": "13600000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "SAN MARTIN DE LOBA",
+    "code5": "13667",
+    "dane8": "13667000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "ARENAL",
+    "code5": "13042",
+    "dane8": "13042000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "CANTAGALLO",
+    "code5": "13160",
+    "dane8": "13160000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "MORALES",
+    "code5": "13473",
+    "dane8": "13473000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "SAN PABLO",
+    "code5": "13670",
+    "dane8": "13670000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "SANTA ROSA DEL SUR",
+    "code5": "13688",
+    "dane8": "13688000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "SIMITÍ",
+    "code5": "13744",
+    "dane8": "13744000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "ACHÍ",
+    "code5": "13006",
+    "dane8": "13006000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "MAGANGUÉ",
+    "code5": "13430",
+    "dane8": "13430000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "MONTECRISTO",
+    "code5": "13458",
+    "dane8": "13458000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "PINILLOS",
+    "code5": "13549",
+    "dane8": "13549000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "SAN JACINTO DEL CAUCA",
+    "code5": "13655",
+    "dane8": "13655000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "TIQUISIO",
+    "code5": "13810",
+    "dane8": "13810000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "CARMEN DE BOLÍVAR",
+    "code5": "13244",
+    "dane8": "13244000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "CÓRDOBA",
+    "code5": "13212",
+    "dane8": "13212000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "EL GUAMO",
+    "code5": "13248",
+    "dane8": "13248000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "MARÍA LA BAJA",
+    "code5": "13442",
+    "dane8": "13442000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "SAN JACINTO",
+    "code5": "13654",
+    "dane8": "13654000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "SAN JUAN NEPOMUCENO",
+    "code5": "13657",
+    "dane8": "13657000"
+  },
+  {
+    "dept": "BOLIVAR",
+    "city": "ZAMBRANO",
+    "code5": "13894",
+    "dane8": "13894000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "CHÍQUIZA",
+    "code5": "15232",
+    "dane8": "15232000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "CHIVATÁ",
+    "code5": "15187",
+    "dane8": "15187000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "CÓMBITA",
+    "code5": "15204",
+    "dane8": "15204000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "CUCAITA",
+    "code5": "15224",
+    "dane8": "15224000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "MOTAVITA",
+    "code5": "15476",
+    "dane8": "15476000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "OICATÁ",
+    "code5": "15500",
+    "dane8": "15500000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "SAMACÁ",
+    "code5": "15646",
+    "dane8": "15646000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "SIACHOQUE",
+    "code5": "15740",
+    "dane8": "15740000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "SORA",
+    "code5": "15762",
+    "dane8": "15762000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "SORACÁ",
+    "code5": "15764",
+    "dane8": "15764000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "SOTAQUIRÁ",
+    "code5": "15763",
+    "dane8": "15763000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "TOCA",
+    "code5": "15814",
+    "dane8": "15814000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "TUNJA",
+    "code5": "15001",
+    "dane8": "15001000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "TUTA",
+    "code5": "15837",
+    "dane8": "15837000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "VENTAQUEMADA",
+    "code5": "15861",
+    "dane8": "15861000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "CHISCAS",
+    "code5": "15180",
+    "dane8": "15180000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "CUBARÁ",
+    "code5": "15223",
+    "dane8": "15223000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "EL COCUY",
+    "code5": "15244",
+    "dane8": "15244000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "EL ESPINO",
+    "code5": "15248",
+    "dane8": "15248000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "GUACAMAYAS",
+    "code5": "15317",
+    "dane8": "15317000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "GÜICÁN",
+    "code5": "15332",
+    "dane8": "15332000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "PANQUEBA",
+    "code5": "15522",
+    "dane8": "15522000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "LABRANZAGRANDE",
+    "code5": "15377",
+    "dane8": "15377000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "PAJARITO",
+    "code5": "15518",
+    "dane8": "15518000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "PAYA",
+    "code5": "15533",
+    "dane8": "15533000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "PISBA",
+    "code5": "15550",
+    "dane8": "15550000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "BERBEO",
+    "code5": "15090",
+    "dane8": "15090000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "CAMPOHERMOSO",
+    "code5": "15135",
+    "dane8": "15135000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "MIRAFLORES",
+    "code5": "15455",
+    "dane8": "15455000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "PÁEZ",
+    "code5": "15514",
+    "dane8": "15514000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "SAN EDUARDO",
+    "code5": "15660",
+    "dane8": "15660000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "ZETAQUIRA",
+    "code5": "15897",
+    "dane8": "15897000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "BOYACÁ",
+    "code5": "15104",
+    "dane8": "15104000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "CIÉNEGA",
+    "code5": "15189",
+    "dane8": "15189000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "JENESANO",
+    "code5": "15367",
+    "dane8": "15367000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "NUEVO COLÓN",
+    "code5": "15494",
+    "dane8": "15494000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "RAMIRIQUÍ",
+    "code5": "15599",
+    "dane8": "15599000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "RONDÓN",
+    "code5": "15621",
+    "dane8": "15621000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "TIBANÁ",
+    "code5": "15804",
+    "dane8": "15804000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "TURMEQUÉ",
+    "code5": "15835",
+    "dane8": "15835000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "UMBITA",
+    "code5": "15842",
+    "dane8": "15842000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "VIRACACHÁ",
+    "code5": "15879",
+    "dane8": "15879000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "CHINAVITA",
+    "code5": "15172",
+    "dane8": "15172000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "GARAGOA",
+    "code5": "15299",
+    "dane8": "15299000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "MACANAL",
+    "code5": "15425",
+    "dane8": "15425000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "PACHAVITA",
+    "code5": "15511",
+    "dane8": "15511000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "SAN LUIS DE GACENO",
+    "code5": "15667",
+    "dane8": "15667000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "SANTA MARÍA",
+    "code5": "15690",
+    "dane8": "15690000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "BOAVITA",
+    "code5": "15097",
+    "dane8": "15097000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "COVARACHÍA",
+    "code5": "15218",
+    "dane8": "15218000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "LA UVITA",
+    "code5": "15403",
+    "dane8": "15403000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "SAN MATEO",
+    "code5": "15673",
+    "dane8": "15673000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "SATIVANORTE",
+    "code5": "15720",
+    "dane8": "15720000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "SATIVASUR",
+    "code5": "15723",
+    "dane8": "15723000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "SOATÁ",
+    "code5": "15753",
+    "dane8": "15753000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "SUSACÓN",
+    "code5": "15774",
+    "dane8": "15774000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "TIPACOQUE",
+    "code5": "15810",
+    "dane8": "15810000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "BRICEÑO",
+    "code5": "15106",
+    "dane8": "15106000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "BUENAVISTA",
+    "code5": "15109",
+    "dane8": "15109000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "CALDAS",
+    "code5": "15131",
+    "dane8": "15131000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "CHIQUINQUIRÁ",
+    "code5": "15176",
+    "dane8": "15176000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "COPER",
+    "code5": "15212",
+    "dane8": "15212000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "LA VICTORIA",
+    "code5": "15401",
+    "dane8": "15401000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "MARIPÍ",
+    "code5": "15442",
+    "dane8": "15442000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "MUZO",
+    "code5": "15480",
+    "dane8": "15480000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "OTANCHE",
+    "code5": "15507",
+    "dane8": "15507000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "PAUNA",
+    "code5": "15531",
+    "dane8": "15531000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "PUERTO BOYACa",
+    "code5": "15572",
+    "dane8": "15572000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "QUÍPAMA",
+    "code5": "15580",
+    "dane8": "15580000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "SABOYÁ",
+    "code5": "15632",
+    "dane8": "15632000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "SAN MIGUEL DE SEMA",
+    "code5": "15676",
+    "dane8": "15676000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "SAN PABLO BORBUR",
+    "code5": "15681",
+    "dane8": "15681000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "TUNUNGUÁ",
+    "code5": "15832",
+    "dane8": "15832000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "ALMEIDA",
+    "code5": "15022",
+    "dane8": "15022000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "CHIVOR",
+    "code5": "15236",
+    "dane8": "15236000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "GUATEQUE",
+    "code5": "15322",
+    "dane8": "15322000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "GUAYATÁ",
+    "code5": "15325",
+    "dane8": "15325000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "LA CAPILLA",
+    "code5": "15380",
+    "dane8": "15380000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "SOMONDOCO",
+    "code5": "15761",
+    "dane8": "15761000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "SUTATENZA",
+    "code5": "15778",
+    "dane8": "15778000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "TENZA",
+    "code5": "15798",
+    "dane8": "15798000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "ARCABUCO",
+    "code5": "15051",
+    "dane8": "15051000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "CHITARAQUE",
+    "code5": "15185",
+    "dane8": "15185000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "GACHANTIVÁ",
+    "code5": "15293",
+    "dane8": "15293000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "MONIQUIRÁ",
+    "code5": "15469",
+    "dane8": "15469000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "RÁQUIRA",
+    "code5": "15600",
+    "dane8": "15600000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "SÁCHICA",
+    "code5": "15638",
+    "dane8": "15638000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "SAN JOSÉ DE PARE",
+    "code5": "15664",
+    "dane8": "15664000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "SANTA SOFÍA",
+    "code5": "15696",
+    "dane8": "15696000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "SANTANA",
+    "code5": "15686",
+    "dane8": "15686000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "SUTAMARCHÁN",
+    "code5": "15776",
+    "dane8": "15776000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "TINJACÁ",
+    "code5": "15808",
+    "dane8": "15808000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "TOGÜÍ",
+    "code5": "15816",
+    "dane8": "15816000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "VILLA DE LEYVA",
+    "code5": "15407",
+    "dane8": "15407000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "AQUITANIA",
+    "code5": "15047",
+    "dane8": "15047000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "CUÍTIVA",
+    "code5": "15226",
+    "dane8": "15226000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "FIRAVITOBA",
+    "code5": "15272",
+    "dane8": "15272000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "GAMEZA",
+    "code5": "15296",
+    "dane8": "15296000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "IZA",
+    "code5": "15362",
+    "dane8": "15362000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "MONGUA",
+    "code5": "15464",
+    "dane8": "15464000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "MONGUÍ",
+    "code5": "15466",
+    "dane8": "15466000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "NOBSA",
+    "code5": "15491",
+    "dane8": "15491000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "PESCA",
+    "code5": "15542",
+    "dane8": "15542000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "SOGAMOSO",
+    "code5": "15759",
+    "dane8": "15759000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "TIBASOSA",
+    "code5": "15806",
+    "dane8": "15806000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "TÓPAGA",
+    "code5": "15820",
+    "dane8": "15820000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "TOTA",
+    "code5": "15822",
+    "dane8": "15822000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "BELÉN",
+    "code5": "15087",
+    "dane8": "15087000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "BUSBANZÁ",
+    "code5": "15114",
+    "dane8": "15114000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "CERINZA",
+    "code5": "15162",
+    "dane8": "15162000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "CORRALES",
+    "code5": "15215",
+    "dane8": "15215000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "DUITAMA",
+    "code5": "15238",
+    "dane8": "15238000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "FLORESTA",
+    "code5": "15276",
+    "dane8": "15276000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "PAIPA",
+    "code5": "15516",
+    "dane8": "15516000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "SAN ROSA VITERBO",
+    "code5": "15693",
+    "dane8": "15693000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "TUTAZÁ",
+    "code5": "15839",
+    "dane8": "15839000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "BETÉITIVA",
+    "code5": "15092",
+    "dane8": "15092000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "CHITA",
+    "code5": "15183",
+    "dane8": "15183000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "JERICÓ",
+    "code5": "15368",
+    "dane8": "15368000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "PAZ DE RÍO",
+    "code5": "15537",
+    "dane8": "15537000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "SOCHA",
+    "code5": "15757",
+    "dane8": "15757000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "SOCOTÁ",
+    "code5": "15755",
+    "dane8": "15755000"
+  },
+  {
+    "dept": "BOYACÁ",
+    "city": "TASCO",
+    "code5": "15790",
+    "dane8": "15790000"
+  },
+  {
+    "dept": "CALDAS",
+    "city": "FILADELFIA",
+    "code5": "17272",
+    "dane8": "17272000"
+  },
+  {
+    "dept": "CALDAS",
+    "city": "LA MERCED",
+    "code5": "17388",
+    "dane8": "17388000"
+  },
+  {
+    "dept": "CALDAS",
+    "city": "MARMATO",
+    "code5": "17442",
+    "dane8": "17442000"
+  },
+  {
+    "dept": "CALDAS",
+    "city": "RIOSUCIO",
+    "code5": "17614",
+    "dane8": "17614000"
+  },
+  {
+    "dept": "CALDAS",
+    "city": "SUPÍA",
+    "code5": "17777",
+    "dane8": "17777000"
+  },
+  {
+    "dept": "CALDAS",
+    "city": "MANZANARES",
+    "code5": "17433",
+    "dane8": "17433000"
+  },
+  {
+    "dept": "CALDAS",
+    "city": "MARQUETALIA",
+    "code5": "17444",
+    "dane8": "17444000"
+  },
+  {
+    "dept": "CALDAS",
+    "city": "MARULANDA",
+    "code5": "17446",
+    "dane8": "17446000"
+  },
+  {
+    "dept": "CALDAS",
+    "city": "PENSILVANIA",
+    "code5": "17541",
+    "dane8": "17541000"
+  },
+  {
+    "dept": "CALDAS",
+    "city": "ANSERMA",
+    "code5": "17042",
+    "dane8": "17042000"
+  },
+  {
+    "dept": "CALDAS",
+    "city": "BELALCÁZAR",
+    "code5": "17088",
+    "dane8": "17088000"
+  },
+  {
+    "dept": "CALDAS",
+    "city": "RISARALDA",
+    "code5": "17616",
+    "dane8": "17616000"
+  },
+  {
+    "dept": "CALDAS",
+    "city": "SAN JOSÉ",
+    "code5": "17665",
+    "dane8": "17665000"
+  },
+  {
+    "dept": "CALDAS",
+    "city": "VITERBO",
+    "code5": "17877",
+    "dane8": "17877000"
+  },
+  {
+    "dept": "CALDAS",
+    "city": "CHINCHINa",
+    "code5": "17174",
+    "dane8": "17174000"
+  },
+  {
+    "dept": "CALDAS",
+    "city": "MANIZALES",
+    "code5": "17001",
+    "dane8": "17001000"
+  },
+  {
+    "dept": "CALDAS",
+    "city": "NEIRA",
+    "code5": "17486",
+    "dane8": "17486000"
+  },
+  {
+    "dept": "CALDAS",
+    "city": "PALESTINA",
+    "code5": "17524",
+    "dane8": "17524000"
+  },
+  {
+    "dept": "CALDAS",
+    "city": "VILLAMARiA",
+    "code5": "17873",
+    "dane8": "17873000"
+  },
+  {
+    "dept": "CALDAS",
+    "city": "AGUADAS",
+    "code5": "17013",
+    "dane8": "17013000"
+  },
+  {
+    "dept": "CALDAS",
+    "city": "ARANZAZU",
+    "code5": "17050",
+    "dane8": "17050000"
+  },
+  {
+    "dept": "CALDAS",
+    "city": "PÁCORA",
+    "code5": "17513",
+    "dane8": "17513000"
+  },
+  {
+    "dept": "CALDAS",
+    "city": "SALAMINA",
+    "code5": "17653",
+    "dane8": "17653000"
+  },
+  {
+    "dept": "CALDAS",
+    "city": "LA DORADA",
+    "code5": "17380",
+    "dane8": "17380000"
+  },
+  {
+    "dept": "CALDAS",
+    "city": "NORCASIA",
+    "code5": "17495",
+    "dane8": "17495000"
+  },
+  {
+    "dept": "CALDAS",
+    "city": "SAMANÁ",
+    "code5": "17662",
+    "dane8": "17662000"
+  },
+  {
+    "dept": "CALDAS",
+    "city": "VICTORIA",
+    "code5": "17867",
+    "dane8": "17867000"
+  },
+  {
+    "dept": "CAQUETA",
+    "city": "ALBANIA",
+    "code5": "18029",
+    "dane8": "18029000"
+  },
+  {
+    "dept": "CAQUETA",
+    "city": "BELÉN DE LOS ANDAQUIES",
+    "code5": "18094",
+    "dane8": "18094000"
+  },
+  {
+    "dept": "CAQUETA",
+    "city": "CARTAGENA DEL CHAIRÁ",
+    "code5": "18150",
+    "dane8": "18150000"
+  },
+  {
+    "dept": "CAQUETA",
+    "city": "CURRILLO",
+    "code5": "18205",
+    "dane8": "18205000"
+  },
+  {
+    "dept": "CAQUETA",
+    "city": "EL DONCELLO",
+    "code5": "18247",
+    "dane8": "18247000"
+  },
+  {
+    "dept": "CAQUETA",
+    "city": "EL PAUJIL",
+    "code5": "18256",
+    "dane8": "18256000"
+  },
+  {
+    "dept": "CAQUETA",
+    "city": "FLORENCIA",
+    "code5": "18001",
+    "dane8": "18001000"
+  },
+  {
+    "dept": "CAQUETA",
+    "city": "LA MONTAÑITA",
+    "code5": "18410",
+    "dane8": "18410000"
+  },
+  {
+    "dept": "CAQUETA",
+    "city": "MILaN",
+    "code5": "18460",
+    "dane8": "18460000"
+  },
+  {
+    "dept": "CAQUETA",
+    "city": "MORELIA",
+    "code5": "18479",
+    "dane8": "18479000"
+  },
+  {
+    "dept": "CAQUETA",
+    "city": "PUERTO RICO",
+    "code5": "18592",
+    "dane8": "18592000"
+  },
+  {
+    "dept": "CAQUETA",
+    "city": "SAN JOSE DEL FRAGUA",
+    "code5": "18610",
+    "dane8": "18610000"
+  },
+  {
+    "dept": "CAQUETA",
+    "city": "SAN VICENTE DEL CAGUÁN",
+    "code5": "18753",
+    "dane8": "18753000"
+  },
+  {
+    "dept": "CAQUETA",
+    "city": "SOLANO",
+    "code5": "18756",
+    "dane8": "18756000"
+  },
+  {
+    "dept": "CAQUETA",
+    "city": "SOLITA",
+    "code5": "18785",
+    "dane8": "18785000"
+  },
+  {
+    "dept": "CAQUETA",
+    "city": "VALPARAISO",
+    "code5": "18860",
+    "dane8": "18860000"
+  },
+  {
+    "dept": "CASANARE",
+    "city": "AGUAZUL",
+    "code5": "85010",
+    "dane8": "85010000"
+  },
+  {
+    "dept": "CASANARE",
+    "city": "CHAMEZA",
+    "code5": "85015",
+    "dane8": "85015000"
+  },
+  {
+    "dept": "CASANARE",
+    "city": "HATO COROZAL",
+    "code5": "85125",
+    "dane8": "85125000"
+  },
+  {
+    "dept": "CASANARE",
+    "city": "LA SALINA",
+    "code5": "85136",
+    "dane8": "85136000"
+  },
+  {
+    "dept": "CASANARE",
+    "city": "MANÍ",
+    "code5": "85139",
+    "dane8": "85139000"
+  },
+  {
+    "dept": "CASANARE",
+    "city": "MONTERREY",
+    "code5": "85162",
+    "dane8": "85162000"
+  },
+  {
+    "dept": "CASANARE",
+    "city": "NUNCHÍA",
+    "code5": "85225",
+    "dane8": "85225000"
+  },
+  {
+    "dept": "CASANARE",
+    "city": "OROCUÉ",
+    "code5": "85230",
+    "dane8": "85230000"
+  },
+  {
+    "dept": "CASANARE",
+    "city": "PAZ DE ARIPORO",
+    "code5": "85250",
+    "dane8": "85250000"
+  },
+  {
+    "dept": "CASANARE",
+    "city": "PORE",
+    "code5": "85263",
+    "dane8": "85263000"
+  },
+  {
+    "dept": "CASANARE",
+    "city": "RECETOR",
+    "code5": "85279",
+    "dane8": "85279000"
+  },
+  {
+    "dept": "CASANARE",
+    "city": "SABANALARGA",
+    "code5": "85300",
+    "dane8": "85300000"
+  },
+  {
+    "dept": "CASANARE",
+    "city": "SÁCAMA",
+    "code5": "85315",
+    "dane8": "85315000"
+  },
+  {
+    "dept": "CASANARE",
+    "city": "SAN LUIS DE PALENQUE",
+    "code5": "85325",
+    "dane8": "85325000"
+  },
+  {
+    "dept": "CASANARE",
+    "city": "TÁMARA",
+    "code5": "85400",
+    "dane8": "85400000"
+  },
+  {
+    "dept": "CASANARE",
+    "city": "TAURAMENA",
+    "code5": "85410",
+    "dane8": "85410000"
+  },
+  {
+    "dept": "CASANARE",
+    "city": "TRINIDAD",
+    "code5": "85430",
+    "dane8": "85430000"
+  },
+  {
+    "dept": "CASANARE",
+    "city": "VILLANUEVA",
+    "code5": "85440",
+    "dane8": "85440000"
+  },
+  {
+    "dept": "CASANARE",
+    "city": "YOPAL",
+    "code5": "85001",
+    "dane8": "85001000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "CAJIBÍO",
+    "code5": "19130",
+    "dane8": "19130000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "EL TAMBO",
+    "code5": "19256",
+    "dane8": "19256000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "LA SIERRA",
+    "code5": "19392",
+    "dane8": "19392000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "MORALES",
+    "code5": "19473",
+    "dane8": "19473000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "PIENDAMO",
+    "code5": "19548",
+    "dane8": "19548000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "POPAYÁN",
+    "code5": "19001",
+    "dane8": "19001000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "ROSAS",
+    "code5": "19622",
+    "dane8": "19622000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "SOTARA",
+    "code5": "19760",
+    "dane8": "19760000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "TIMBIO",
+    "code5": "19807",
+    "dane8": "19807000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "BUENOS AIRES",
+    "code5": "19110",
+    "dane8": "19110000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "CALOTO",
+    "code5": "19142",
+    "dane8": "19142000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "CORINTO",
+    "code5": "19212",
+    "dane8": "19212000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "MIRANDA",
+    "code5": "19455",
+    "dane8": "19455000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "PADILLA",
+    "code5": "19513",
+    "dane8": "19513000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "PUERTO TEJADA",
+    "code5": "19573",
+    "dane8": "19573000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "SANTANDER DE QUILICHAO",
+    "code5": "19698",
+    "dane8": "19698000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "SUAREZ",
+    "code5": "19780",
+    "dane8": "19780000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "VILLA RICA",
+    "code5": "19845",
+    "dane8": "19845000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "GUAPI",
+    "code5": "19318",
+    "dane8": "19318000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "LOPEZ",
+    "code5": "19418",
+    "dane8": "19418000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "TIMBIQUI",
+    "code5": "19809",
+    "dane8": "19809000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "CALDONO",
+    "code5": "19137",
+    "dane8": "19137000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "INZÁ",
+    "code5": "19355",
+    "dane8": "19355000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "JAMBALO",
+    "code5": "19364",
+    "dane8": "19364000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "PAEZ",
+    "code5": "19517",
+    "dane8": "19517000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "PURACE",
+    "code5": "19585",
+    "dane8": "19585000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "Silvia",
+    "code5": "19743",
+    "dane8": "19743000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "TORIBIO",
+    "code5": "19821",
+    "dane8": "19821000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "TOTORO",
+    "code5": "19824",
+    "dane8": "19824000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "ALMAGUER",
+    "code5": "19022",
+    "dane8": "19022000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "ARGELIA",
+    "code5": "19050",
+    "dane8": "19050000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "BALBOA",
+    "code5": "19075",
+    "dane8": "19075000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "BOLÍVAR",
+    "code5": "19100",
+    "dane8": "19100000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "FLORENCIA",
+    "code5": "19290",
+    "dane8": "19290000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "LA VEGA",
+    "code5": "19397",
+    "dane8": "19397000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "MERCADERES",
+    "code5": "19450",
+    "dane8": "19450000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "PATIA",
+    "code5": "19532",
+    "dane8": "19532000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "PIAMONTE",
+    "code5": "19533",
+    "dane8": "19533000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "SAN SEBASTIAN",
+    "code5": "19693",
+    "dane8": "19693000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "SANTA ROSA",
+    "code5": "19701",
+    "dane8": "19701000"
+  },
+  {
+    "dept": "CAUCA",
+    "city": "SUCRE",
+    "code5": "19785",
+    "dane8": "19785000"
+  },
+  {
+    "dept": "CESAR",
+    "city": "BECERRIL",
+    "code5": "20045",
+    "dane8": "20045000"
+  },
+  {
+    "dept": "CESAR",
+    "city": "CHIMICHAGUA",
+    "code5": "20175",
+    "dane8": "20175000"
+  },
+  {
+    "dept": "CESAR",
+    "city": "CHIRIGUANA",
+    "code5": "20178",
+    "dane8": "20178000"
+  },
+  {
+    "dept": "CESAR",
+    "city": "CURUMANÍ",
+    "code5": "20228",
+    "dane8": "20228000"
+  },
+  {
+    "dept": "CESAR",
+    "city": "LA JAGUA DE IBIRICO",
+    "code5": "20400",
+    "dane8": "20400000"
+  },
+  {
+    "dept": "CESAR",
+    "city": "PAILITAS",
+    "code5": "20517",
+    "dane8": "20517000"
+  },
+  {
+    "dept": "CESAR",
+    "city": "TAMALAMEQUE",
+    "code5": "20787",
+    "dane8": "20787000"
+  },
+  {
+    "dept": "CESAR",
+    "city": "ASTREA",
+    "code5": "20032",
+    "dane8": "20032000"
+  },
+  {
+    "dept": "CESAR",
+    "city": "BOSCONIA",
+    "code5": "20060",
+    "dane8": "20060000"
+  },
+  {
+    "dept": "CESAR",
+    "city": "EL COPEY",
+    "code5": "20238",
+    "dane8": "20238000"
+  },
+  {
+    "dept": "CESAR",
+    "city": "EL PASO",
+    "code5": "20250",
+    "dane8": "20250000"
+  },
+  {
+    "dept": "CESAR",
+    "city": "AGUSTÍN CODAZZI",
+    "code5": "20013",
+    "dane8": "20013000"
+  },
+  {
+    "dept": "CESAR",
+    "city": "LA PAZ",
+    "code5": "20621",
+    "dane8": "20621000"
+  },
+  {
+    "dept": "CESAR",
+    "city": "MANAURE",
+    "code5": "20443",
+    "dane8": "20443000"
+  },
+  {
+    "dept": "CESAR",
+    "city": "PUEBLO BELLO",
+    "code5": "20570",
+    "dane8": "20570000"
+  },
+  {
+    "dept": "CESAR",
+    "city": "SAN DIEGO",
+    "code5": "20750",
+    "dane8": "20750000"
+  },
+  {
+    "dept": "CESAR",
+    "city": "VALLEDUPAR",
+    "code5": "20001",
+    "dane8": "20001000"
+  },
+  {
+    "dept": "CESAR",
+    "city": "AGUACHICA",
+    "code5": "20011",
+    "dane8": "20011000"
+  },
+  {
+    "dept": "CESAR",
+    "city": "GAMARRA",
+    "code5": "20295",
+    "dane8": "20295000"
+  },
+  {
+    "dept": "CESAR",
+    "city": "GONZÁLEZ",
+    "code5": "20310",
+    "dane8": "20310000"
+  },
+  {
+    "dept": "CESAR",
+    "city": "LA GLORIA",
+    "code5": "20383",
+    "dane8": "20383000"
+  },
+  {
+    "dept": "CESAR",
+    "city": "PELAYA",
+    "code5": "20550",
+    "dane8": "20550000"
+  },
+  {
+    "dept": "CESAR",
+    "city": "RÍO DE ORO",
+    "code5": "20614",
+    "dane8": "20614000"
+  },
+  {
+    "dept": "CESAR",
+    "city": "SAN ALBERTO",
+    "code5": "20710",
+    "dane8": "20710000"
+  },
+  {
+    "dept": "CESAR",
+    "city": "SAN MARTÍN",
+    "code5": "20770",
+    "dane8": "20770000"
+  },
+  {
+    "dept": "CHOCO",
+    "city": "ATRATO",
+    "code5": "27050",
+    "dane8": "27050000"
+  },
+  {
+    "dept": "CHOCO",
+    "city": "BAGADÓ",
+    "code5": "27073",
+    "dane8": "27073000"
+  },
+  {
+    "dept": "CHOCO",
+    "city": "BOJAYA",
+    "code5": "27099",
+    "dane8": "27099000"
+  },
+  {
+    "dept": "CHOCO",
+    "city": "EL CARMEN DE ATRATO",
+    "code5": "27245",
+    "dane8": "27245000"
+  },
+  {
+    "dept": "CHOCO",
+    "city": "LLORÓ",
+    "code5": "27413",
+    "dane8": "27413000"
+  },
+  {
+    "dept": "CHOCO",
+    "city": "MEDIO ATRATO",
+    "code5": "27425",
+    "dane8": "27425000"
+  },
+  {
+    "dept": "CHOCO",
+    "city": "QUIBDÓ",
+    "code5": "27001",
+    "dane8": "27001000"
+  },
+  {
+    "dept": "CHOCO",
+    "city": "RIO QUITO",
+    "code5": "27600",
+    "dane8": "27600000"
+  },
+  {
+    "dept": "CHOCO",
+    "city": "ACANDÍ",
+    "code5": "27006",
+    "dane8": "27006000"
+  },
+  {
+    "dept": "CHOCO",
+    "city": "BELÉN DE BAJIRA",
+    "code5": "27086",
+    "dane8": "27086000"
+  },
+  {
+    "dept": "CHOCO",
+    "city": "CARMÉN DEL DARIÉN",
+    "code5": "27150",
+    "dane8": "27150000"
+  },
+  {
+    "dept": "CHOCO",
+    "city": "RIOSUCIO",
+    "code5": "27615",
+    "dane8": "27615000"
+  },
+  {
+    "dept": "CHOCO",
+    "city": "UNGUÍA",
+    "code5": "27800",
+    "dane8": "27800000"
+  },
+  {
+    "dept": "CHOCO",
+    "city": "BAHÍA SOLANO",
+    "code5": "27075",
+    "dane8": "27075000"
+  },
+  {
+    "dept": "CHOCO",
+    "city": "JURADÓ",
+    "code5": "27372",
+    "dane8": "27372000"
+  },
+  {
+    "dept": "CHOCO",
+    "city": "NUQUÍ",
+    "code5": "27495",
+    "dane8": "27495000"
+  },
+  {
+    "dept": "CHOCO",
+    "city": "ALTO BAUDÓ",
+    "code5": "27025",
+    "dane8": "27025000"
+  },
+  {
+    "dept": "CHOCO",
+    "city": "BAJO BAUDÓ",
+    "code5": "27077",
+    "dane8": "27077000"
+  },
+  {
+    "dept": "CHOCO",
+    "city": "El Litoral del San Juan",
+    "code5": "27250",
+    "dane8": "27250000"
+  },
+  {
+    "dept": "CHOCO",
+    "city": "MEDIO BAUDÓ",
+    "code5": "27430",
+    "dane8": "27430000"
+  },
+  {
+    "dept": "CHOCO",
+    "city": "CANTON DE SAN PABLO",
+    "code5": "27135",
+    "dane8": "27135000"
+  },
+  {
+    "dept": "CHOCO",
+    "city": "CERTEGUI",
+    "code5": "27160",
+    "dane8": "27160000"
+  },
+  {
+    "dept": "CHOCO",
+    "city": "CONDOTO",
+    "code5": "27205",
+    "dane8": "27205000"
+  },
+  {
+    "dept": "CHOCO",
+    "city": "ITSMINA",
+    "code5": "27361",
+    "dane8": "27361000"
+  },
+  {
+    "dept": "CHOCO",
+    "city": "MEDIO SAN JUAN",
+    "code5": "27450",
+    "dane8": "27450000"
+  },
+  {
+    "dept": "CHOCO",
+    "city": "NÓVITA",
+    "code5": "27491",
+    "dane8": "27491000"
+  },
+  {
+    "dept": "CHOCO",
+    "city": "RÍO FRÍO",
+    "code5": "27580",
+    "dane8": "27580000"
+  },
+  {
+    "dept": "CHOCO",
+    "city": "SAN JOSÉ DEL PALMAR",
+    "code5": "27660",
+    "dane8": "27660000"
+  },
+  {
+    "dept": "CHOCO",
+    "city": "SIPÍ",
+    "code5": "27745",
+    "dane8": "27745000"
+  },
+  {
+    "dept": "CHOCO",
+    "city": "TADÓ",
+    "code5": "27787",
+    "dane8": "27787000"
+  },
+  {
+    "dept": "CHOCO",
+    "city": "UNION PANAMERICANA",
+    "code5": "27810",
+    "dane8": "27810000"
+  },
+  {
+    "dept": "CORDOBA",
+    "city": "TIERRALTA",
+    "code5": "23807",
+    "dane8": "23807000"
+  },
+  {
+    "dept": "CORDOBA",
+    "city": "VALENCIA",
+    "code5": "23855",
+    "dane8": "23855000"
+  },
+  {
+    "dept": "CORDOBA",
+    "city": "CHIMÁ",
+    "code5": "23168",
+    "dane8": "23168000"
+  },
+  {
+    "dept": "CORDOBA",
+    "city": "COTORRA",
+    "code5": "23300",
+    "dane8": "23300000"
+  },
+  {
+    "dept": "CORDOBA",
+    "city": "LORICA",
+    "code5": "23417",
+    "dane8": "23417000"
+  },
+  {
+    "dept": "CORDOBA",
+    "city": "MOMIL",
+    "code5": "23464",
+    "dane8": "23464000"
+  },
+  {
+    "dept": "CORDOBA",
+    "city": "PURÍSIMA",
+    "code5": "23586",
+    "dane8": "23586000"
+  },
+  {
+    "dept": "CORDOBA",
+    "city": "MONTERÍA",
+    "code5": "23001",
+    "dane8": "23001000"
+  },
+  {
+    "dept": "CORDOBA",
+    "city": "CANALETE",
+    "code5": "23090",
+    "dane8": "23090000"
+  },
+  {
+    "dept": "CORDOBA",
+    "city": "LOS CÓRDOBAS",
+    "code5": "23419",
+    "dane8": "23419000"
+  },
+  {
+    "dept": "CORDOBA",
+    "city": "MOÑITOS",
+    "code5": "23500",
+    "dane8": "23500000"
+  },
+  {
+    "dept": "CORDOBA",
+    "city": "PUERTO ESCONDIDO",
+    "code5": "23574",
+    "dane8": "23574000"
+  },
+  {
+    "dept": "CORDOBA",
+    "city": "SAN ANTERO",
+    "code5": "23672",
+    "dane8": "23672000"
+  },
+  {
+    "dept": "CORDOBA",
+    "city": "SAN BERNARDO DEL VIENTO",
+    "code5": "23675",
+    "dane8": "23675000"
+  },
+  {
+    "dept": "CORDOBA",
+    "city": "CHINÚ",
+    "code5": "23182",
+    "dane8": "23182000"
+  },
+  {
+    "dept": "CORDOBA",
+    "city": "SAHAGÚN",
+    "code5": "23660",
+    "dane8": "23660000"
+  },
+  {
+    "dept": "CORDOBA",
+    "city": "SAN ANDRÉS SOTAVENTO",
+    "code5": "23670",
+    "dane8": "23670000"
+  },
+  {
+    "dept": "CORDOBA",
+    "city": "AYAPEL",
+    "code5": "23068",
+    "dane8": "23068000"
+  },
+  {
+    "dept": "CORDOBA",
+    "city": "BUENAVISTA",
+    "code5": "23079",
+    "dane8": "23079000"
+  },
+  {
+    "dept": "CORDOBA",
+    "city": "LA APARTADA",
+    "code5": "23350",
+    "dane8": "23350000"
+  },
+  {
+    "dept": "CORDOBA",
+    "city": "MONTELÍBANO",
+    "code5": "23466",
+    "dane8": "23466000"
+  },
+  {
+    "dept": "CORDOBA",
+    "city": "PLANETA RICA",
+    "code5": "23555",
+    "dane8": "23555000"
+  },
+  {
+    "dept": "CORDOBA",
+    "city": "PUEBLO NUEVO",
+    "code5": "23570",
+    "dane8": "23570000"
+  },
+  {
+    "dept": "CORDOBA",
+    "city": "PUERTO LIBERTADOR",
+    "code5": "23580",
+    "dane8": "23580000"
+  },
+  {
+    "dept": "CORDOBA",
+    "city": "CERETÉ",
+    "code5": "23162",
+    "dane8": "23162000"
+  },
+  {
+    "dept": "CORDOBA",
+    "city": "CIÉNAGA DE ORO",
+    "code5": "23189",
+    "dane8": "23189000"
+  },
+  {
+    "dept": "CORDOBA",
+    "city": "SAN CARLOS",
+    "code5": "23678",
+    "dane8": "23678000"
+  },
+  {
+    "dept": "CORDOBA",
+    "city": "SAN PELAYO",
+    "code5": "23686",
+    "dane8": "23686000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "CHOCONTÁ",
+    "code5": "25183",
+    "dane8": "25183000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "MACHETA",
+    "code5": "25426",
+    "dane8": "25426000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "MANTA",
+    "code5": "25436",
+    "dane8": "25436000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "SESQUILÉ",
+    "code5": "25736",
+    "dane8": "25736000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "SUESCA",
+    "code5": "25772",
+    "dane8": "25772000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "TIBIRITA",
+    "code5": "25807",
+    "dane8": "25807000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "VILLAPINZÓN",
+    "code5": "25873",
+    "dane8": "25873000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "AGUA DE DIOS",
+    "code5": "25001",
+    "dane8": "25001000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "GIRARDOT",
+    "code5": "25307",
+    "dane8": "25307000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "GUATAQUÍ",
+    "code5": "25324",
+    "dane8": "25324000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "JERUSALÉN",
+    "code5": "25368",
+    "dane8": "25368000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "NARIÑO",
+    "code5": "25483",
+    "dane8": "25483000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "NILO",
+    "code5": "25488",
+    "dane8": "25488000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "RICAURTE",
+    "code5": "25612",
+    "dane8": "25612000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "TOCAIMA",
+    "code5": "25815",
+    "dane8": "25815000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "CAPARRAPÍ",
+    "code5": "25148",
+    "dane8": "25148000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "GUADUAS",
+    "code5": "25320",
+    "dane8": "25320000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "PUERTO SALGAR",
+    "code5": "25572",
+    "dane8": "25572000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "ALBÁN",
+    "code5": "25019",
+    "dane8": "25019000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "LA PEÑA",
+    "code5": "25398",
+    "dane8": "25398000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "LA VEGA",
+    "code5": "25402",
+    "dane8": "25402000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "NIMAIMA",
+    "code5": "25489",
+    "dane8": "25489000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "NOCAIMA",
+    "code5": "25491",
+    "dane8": "25491000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "QUEBRADANEGRA",
+    "code5": "25592",
+    "dane8": "25592000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "SAN FRANCISCO",
+    "code5": "25658",
+    "dane8": "25658000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "SASAIMA",
+    "code5": "25718",
+    "dane8": "25718000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "SUPATÁ",
+    "code5": "25777",
+    "dane8": "25777000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "ÚTICA",
+    "code5": "25851",
+    "dane8": "25851000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "VERGARA",
+    "code5": "25862",
+    "dane8": "25862000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "VILLETA",
+    "code5": "25875",
+    "dane8": "25875000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "GACHALA",
+    "code5": "25293",
+    "dane8": "25293000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "GACHETA",
+    "code5": "25297",
+    "dane8": "25297000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "GAMA",
+    "code5": "25299",
+    "dane8": "25299000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "GUASCA",
+    "code5": "25322",
+    "dane8": "25322000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "GUATAVITA",
+    "code5": "25326",
+    "dane8": "25326000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "JUNÍN",
+    "code5": "25372",
+    "dane8": "25372000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "LA CALERA",
+    "code5": "25377",
+    "dane8": "25377000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "UBALÁ",
+    "code5": "25839",
+    "dane8": "25839000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "BELTRÁN",
+    "code5": "25086",
+    "dane8": "25086000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "BITUIMA",
+    "code5": "25095",
+    "dane8": "25095000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "CHAGUANÍ",
+    "code5": "25168",
+    "dane8": "25168000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "GUAYABAL DE SIQUIMA",
+    "code5": "25328",
+    "dane8": "25328000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "PULI",
+    "code5": "25580",
+    "dane8": "25580000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "SAN JUAN DE RÍO SECO",
+    "code5": "25662",
+    "dane8": "25662000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "VIANÍ",
+    "code5": "25867",
+    "dane8": "25867000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "MEDINA",
+    "code5": "25438",
+    "dane8": "25438000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "PARATEBUENO",
+    "code5": "25530",
+    "dane8": "25530000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "CAQUEZA",
+    "code5": "25151",
+    "dane8": "25151000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "CHIPAQUE",
+    "code5": "25178",
+    "dane8": "25178000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "CHOACHÍ",
+    "code5": "25181",
+    "dane8": "25181000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "FOMEQUE",
+    "code5": "25279",
+    "dane8": "25279000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "FOSCA",
+    "code5": "25281",
+    "dane8": "25281000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "GUAYABETAL",
+    "code5": "25335",
+    "dane8": "25335000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "GUTIÉRREZ",
+    "code5": "25339",
+    "dane8": "25339000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "QUETAME",
+    "code5": "25594",
+    "dane8": "25594000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "UBAQUE",
+    "code5": "25841",
+    "dane8": "25841000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "UNE",
+    "code5": "25845",
+    "dane8": "25845000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "EL PEÑÓN",
+    "code5": "25258",
+    "dane8": "25258000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "LA PALMA",
+    "code5": "25394",
+    "dane8": "25394000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "PACHO",
+    "code5": "25513",
+    "dane8": "25513000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "PAIME",
+    "code5": "25518",
+    "dane8": "25518000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "SAN CAYETANO",
+    "code5": "25653",
+    "dane8": "25653000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "TOPAIPI",
+    "code5": "25823",
+    "dane8": "25823000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "VILLAGOMEZ",
+    "code5": "25871",
+    "dane8": "25871000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "YACOPÍ",
+    "code5": "25885",
+    "dane8": "25885000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "CAJICÁ",
+    "code5": "25126",
+    "dane8": "25126000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "CHÍA",
+    "code5": "25175",
+    "dane8": "25175000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "COGUA",
+    "code5": "25200",
+    "dane8": "25200000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "GACHANCIPÁ",
+    "code5": "25295",
+    "dane8": "25295000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "NEMOCoN",
+    "code5": "25486",
+    "dane8": "25486000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "SOPÓ",
+    "code5": "25758",
+    "dane8": "25758000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "TABIO",
+    "code5": "25785",
+    "dane8": "25785000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "TOCANCIPÁ",
+    "code5": "25817",
+    "dane8": "25817000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "ZIPAQUIRÁ",
+    "code5": "25899",
+    "dane8": "25899000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "BOJACÁ",
+    "code5": "25099",
+    "dane8": "25099000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "COTA",
+    "code5": "25214",
+    "dane8": "25214000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "EL ROSAL",
+    "code5": "25260",
+    "dane8": "25260000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "FACATATIVÁ",
+    "code5": "25269",
+    "dane8": "25269000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "FUNZA",
+    "code5": "25286",
+    "dane8": "25286000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "MADRID",
+    "code5": "25430",
+    "dane8": "25430000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "MOSQUERA",
+    "code5": "25473",
+    "dane8": "25473000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "SUBACHOQUE",
+    "code5": "25769",
+    "dane8": "25769000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "TENJO",
+    "code5": "25799",
+    "dane8": "25799000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "ZIPACoN",
+    "code5": "25898",
+    "dane8": "25898000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "SIBATÉ",
+    "code5": "25740",
+    "dane8": "25740000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "SOACHA",
+    "code5": "25754",
+    "dane8": "25754000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "ARBELÁEZ",
+    "code5": "25053",
+    "dane8": "25053000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "CABRERA",
+    "code5": "25120",
+    "dane8": "25120000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "FUSAGASUGÁ",
+    "code5": "25290",
+    "dane8": "25290000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "GRANADA",
+    "code5": "25312",
+    "dane8": "25312000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "PANDI",
+    "code5": "25524",
+    "dane8": "25524000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "PASCA",
+    "code5": "25535",
+    "dane8": "25535000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "SAN BERNARDO",
+    "code5": "25649",
+    "dane8": "25649000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "SILVANIA",
+    "code5": "25743",
+    "dane8": "25743000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "TIBACUY",
+    "code5": "25805",
+    "dane8": "25805000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "VENECIA",
+    "code5": "25506",
+    "dane8": "25506000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "ANAPOIMA",
+    "code5": "25035",
+    "dane8": "25035000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "ANOLAIMA",
+    "code5": "25040",
+    "dane8": "25040000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "APULO",
+    "code5": "25599",
+    "dane8": "25599000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "CACHIPAY",
+    "code5": "25123",
+    "dane8": "25123000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "EL COLEGIO",
+    "code5": "25245",
+    "dane8": "25245000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "LA MESA",
+    "code5": "25386",
+    "dane8": "25386000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "QUIPILE",
+    "code5": "25596",
+    "dane8": "25596000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "SAN ANTONIO DE TEQUENDAMA",
+    "code5": "25645",
+    "dane8": "25645000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "TENA",
+    "code5": "25797",
+    "dane8": "25797000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "VIOTÁ",
+    "code5": "25878",
+    "dane8": "25878000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "CARMEN DE CARUPA",
+    "code5": "25154",
+    "dane8": "25154000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "CUCUNUBÁ",
+    "code5": "25224",
+    "dane8": "25224000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "FÚQUENE",
+    "code5": "25288",
+    "dane8": "25288000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "GUACHETÁ",
+    "code5": "25317",
+    "dane8": "25317000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "LENGUAZAQUE",
+    "code5": "25407",
+    "dane8": "25407000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "SIMIJACA",
+    "code5": "25745",
+    "dane8": "25745000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "SUSA",
+    "code5": "25779",
+    "dane8": "25779000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "SUTATAUSA",
+    "code5": "25781",
+    "dane8": "25781000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "TAUSA",
+    "code5": "25793",
+    "dane8": "25793000"
+  },
+  {
+    "dept": "CUNDINAMARCA",
+    "city": "UBATE",
+    "code5": "25843",
+    "dane8": "25843000"
+  },
+  {
+    "dept": "GUAINIA",
+    "city": "BARRANCO MINA",
+    "code5": "94343",
+    "dane8": "94343000"
+  },
+  {
+    "dept": "GUAINIA",
+    "city": "CACAHUAL",
+    "code5": "94886",
+    "dane8": "94886000"
+  },
+  {
+    "dept": "GUAINIA",
+    "city": "INÍRIDA",
+    "code5": "94001",
+    "dane8": "94001000"
+  },
+  {
+    "dept": "GUAINIA",
+    "city": "LA GUADALUPE",
+    "code5": "94885",
+    "dane8": "94885000"
+  },
+  {
+    "dept": "GUAINIA",
+    "city": "MAPIRIPaN",
+    "code5": "94663",
+    "dane8": "94663000"
+  },
+  {
+    "dept": "GUAINIA",
+    "city": "MORICHAL",
+    "code5": "94888",
+    "dane8": "94888000"
+  },
+  {
+    "dept": "GUAINIA",
+    "city": "PANA PANA",
+    "code5": "94887",
+    "dane8": "94887000"
+  },
+  {
+    "dept": "GUAINIA",
+    "city": "PUERTO COLOMBIA",
+    "code5": "94884",
+    "dane8": "94884000"
+  },
+  {
+    "dept": "GUAINIA",
+    "city": "SAN FELIPE",
+    "code5": "94883",
+    "dane8": "94883000"
+  },
+  {
+    "dept": "GUAVIARE",
+    "city": "CALAMAR",
+    "code5": "95015",
+    "dane8": "95015000"
+  },
+  {
+    "dept": "GUAVIARE",
+    "city": "EL RETORNO",
+    "code5": "95025",
+    "dane8": "95025000"
+  },
+  {
+    "dept": "GUAVIARE",
+    "city": "MIRAFLORES",
+    "code5": "95200",
+    "dane8": "95200000"
+  },
+  {
+    "dept": "GUAVIARE",
+    "city": "SAN JOSÉ DEL GUAVIARE",
+    "code5": "95001",
+    "dane8": "95001000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "AGRADO",
+    "code5": "41013",
+    "dane8": "41013000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "ALTAMIRA",
+    "code5": "41026",
+    "dane8": "41026000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "GARZÓN",
+    "code5": "41298",
+    "dane8": "41298000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "GIGANTE",
+    "code5": "41306",
+    "dane8": "41306000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "GUADALUPE",
+    "code5": "41319",
+    "dane8": "41319000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "PITAL",
+    "code5": "41548",
+    "dane8": "41548000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "SUAZA",
+    "code5": "41770",
+    "dane8": "41770000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "TARQUI",
+    "code5": "41791",
+    "dane8": "41791000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "AIPE",
+    "code5": "41016",
+    "dane8": "41016000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "ALGECIRAS",
+    "code5": "41020",
+    "dane8": "41020000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "BARAYA",
+    "code5": "41078",
+    "dane8": "41078000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "CAMPOALEGRE",
+    "code5": "41132",
+    "dane8": "41132000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "COLOMBIA",
+    "code5": "41206",
+    "dane8": "41206000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "HOBO",
+    "code5": "41349",
+    "dane8": "41349000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "IQUIRA",
+    "code5": "41357",
+    "dane8": "41357000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "NEIVA",
+    "code5": "41001",
+    "dane8": "41001000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "PALERMO",
+    "code5": "41524",
+    "dane8": "41524000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "RIVERA",
+    "code5": "41615",
+    "dane8": "41615000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "SANTA MARÍA",
+    "code5": "41676",
+    "dane8": "41676000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "TELLO",
+    "code5": "41799",
+    "dane8": "41799000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "TERUEL",
+    "code5": "41801",
+    "dane8": "41801000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "VILLAVIEJA",
+    "code5": "41872",
+    "dane8": "41872000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "YAGUARÁ",
+    "code5": "41885",
+    "dane8": "41885000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "LA ARGENTINA",
+    "code5": "41378",
+    "dane8": "41378000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "LA PLATA",
+    "code5": "41396",
+    "dane8": "41396000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "NÁTAGA",
+    "code5": "41483",
+    "dane8": "41483000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "PAICOL",
+    "code5": "41518",
+    "dane8": "41518000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "TESALIA",
+    "code5": "41797",
+    "dane8": "41797000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "ACEVEDO",
+    "code5": "41006",
+    "dane8": "41006000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "ELÍAS",
+    "code5": "41244",
+    "dane8": "41244000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "ISNOS",
+    "code5": "41359",
+    "dane8": "41359000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "OPORAPA",
+    "code5": "41503",
+    "dane8": "41503000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "PALESTINA",
+    "code5": "41530",
+    "dane8": "41530000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "PITALITO",
+    "code5": "41551",
+    "dane8": "41551000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "SALADOBLANCO",
+    "code5": "41660",
+    "dane8": "41660000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "SAN AGUSTÍN",
+    "code5": "41668",
+    "dane8": "41668000"
+  },
+  {
+    "dept": "HUILA",
+    "city": "TIMANÁ",
+    "code5": "41807",
+    "dane8": "41807000"
+  },
+  {
+    "dept": "LA GUAJIRA",
+    "city": "ALBANIA",
+    "code5": "44035",
+    "dane8": "44035000"
+  },
+  {
+    "dept": "LA GUAJIRA",
+    "city": "DIBULLA",
+    "code5": "44090",
+    "dane8": "44090000"
+  },
+  {
+    "dept": "LA GUAJIRA",
+    "city": "MAICAO",
+    "code5": "44430",
+    "dane8": "44430000"
+  },
+  {
+    "dept": "LA GUAJIRA",
+    "city": "MANAURE",
+    "code5": "44560",
+    "dane8": "44560000"
+  },
+  {
+    "dept": "LA GUAJIRA",
+    "city": "RIOHACHA",
+    "code5": "44001",
+    "dane8": "44001000"
+  },
+  {
+    "dept": "LA GUAJIRA",
+    "city": "URIBIA",
+    "code5": "44847",
+    "dane8": "44847000"
+  },
+  {
+    "dept": "LA GUAJIRA",
+    "city": "BARRANCAS",
+    "code5": "44078",
+    "dane8": "44078000"
+  },
+  {
+    "dept": "LA GUAJIRA",
+    "city": "DISTRACCION",
+    "code5": "44098",
+    "dane8": "44098000"
+  },
+  {
+    "dept": "LA GUAJIRA",
+    "city": "EL MOLINO",
+    "code5": "44110",
+    "dane8": "44110000"
+  },
+  {
+    "dept": "LA GUAJIRA",
+    "city": "FONSECA",
+    "code5": "44279",
+    "dane8": "44279000"
+  },
+  {
+    "dept": "LA GUAJIRA",
+    "city": "HATONUEVO",
+    "code5": "44378",
+    "dane8": "44378000"
+  },
+  {
+    "dept": "LA GUAJIRA",
+    "city": "LA JAGUA DEL PILAR",
+    "code5": "44420",
+    "dane8": "44420000"
+  },
+  {
+    "dept": "LA GUAJIRA",
+    "city": "SAN JUAN DEL CESAR",
+    "code5": "44650",
+    "dane8": "44650000"
+  },
+  {
+    "dept": "LA GUAJIRA",
+    "city": "URUMITA",
+    "code5": "44855",
+    "dane8": "44855000"
+  },
+  {
+    "dept": "LA GUAJIRA",
+    "city": "VILLANUEVA",
+    "code5": "44874",
+    "dane8": "44874000"
+  },
+  {
+    "dept": "MAGDALENA",
+    "city": "ARIGUANÍ",
+    "code5": "47058",
+    "dane8": "47058000"
+  },
+  {
+    "dept": "MAGDALENA",
+    "city": "CHIBOLO",
+    "code5": "47170",
+    "dane8": "47170000"
+  },
+  {
+    "dept": "MAGDALENA",
+    "city": "NUEVA GRANADA",
+    "code5": "47460",
+    "dane8": "47460000"
+  },
+  {
+    "dept": "MAGDALENA",
+    "city": "PLATO",
+    "code5": "47555",
+    "dane8": "47555000"
+  },
+  {
+    "dept": "MAGDALENA",
+    "city": "SABANAS DE SAN ANGEL",
+    "code5": "47660",
+    "dane8": "47660000"
+  },
+  {
+    "dept": "MAGDALENA",
+    "city": "TENERIFE",
+    "code5": "47798",
+    "dane8": "47798000"
+  },
+  {
+    "dept": "MAGDALENA",
+    "city": "ALGARROBO",
+    "code5": "47030",
+    "dane8": "47030000"
+  },
+  {
+    "dept": "MAGDALENA",
+    "city": "ARACATACA",
+    "code5": "47053",
+    "dane8": "47053000"
+  },
+  {
+    "dept": "MAGDALENA",
+    "city": "CIÉNAGA",
+    "code5": "47189",
+    "dane8": "47189000"
+  },
+  {
+    "dept": "MAGDALENA",
+    "city": "EL RETEN",
+    "code5": "47268",
+    "dane8": "47268000"
+  },
+  {
+    "dept": "MAGDALENA",
+    "city": "FUNDACION",
+    "code5": "47288",
+    "dane8": "47288000"
+  },
+  {
+    "dept": "MAGDALENA",
+    "city": "PUEBLO VIEJO",
+    "code5": "47570",
+    "dane8": "47570000"
+  },
+  {
+    "dept": "MAGDALENA",
+    "city": "ZONA BANANERA",
+    "code5": "47980",
+    "dane8": "47980000"
+  },
+  {
+    "dept": "MAGDALENA",
+    "city": "CERRO SAN ANTONIO",
+    "code5": "47161",
+    "dane8": "47161000"
+  },
+  {
+    "dept": "MAGDALENA",
+    "city": "CONCORDIA",
+    "code5": "47205",
+    "dane8": "47205000"
+  },
+  {
+    "dept": "MAGDALENA",
+    "city": "EL PIÑON",
+    "code5": "47258",
+    "dane8": "47258000"
+  },
+  {
+    "dept": "MAGDALENA",
+    "city": "PEDRAZA",
+    "code5": "47541",
+    "dane8": "47541000"
+  },
+  {
+    "dept": "MAGDALENA",
+    "city": "PIVIJAY",
+    "code5": "47551",
+    "dane8": "47551000"
+  },
+  {
+    "dept": "MAGDALENA",
+    "city": "REMOLINO",
+    "code5": "47605",
+    "dane8": "47605000"
+  },
+  {
+    "dept": "MAGDALENA",
+    "city": "SALAMINA",
+    "code5": "47675",
+    "dane8": "47675000"
+  },
+  {
+    "dept": "MAGDALENA",
+    "city": "SITIONUEVO",
+    "code5": "47745",
+    "dane8": "47745000"
+  },
+  {
+    "dept": "MAGDALENA",
+    "city": "ZAPAYAN",
+    "code5": "47960",
+    "dane8": "47960000"
+  },
+  {
+    "dept": "MAGDALENA",
+    "city": "SANTA MARTA",
+    "code5": "47001",
+    "dane8": "47001000"
+  },
+  {
+    "dept": "MAGDALENA",
+    "city": "EL BANCO",
+    "code5": "47245",
+    "dane8": "47245000"
+  },
+  {
+    "dept": "MAGDALENA",
+    "city": "GUAMAL",
+    "code5": "47318",
+    "dane8": "47318000"
+  },
+  {
+    "dept": "MAGDALENA",
+    "city": "PIJIÑO DEL CARMEN",
+    "code5": "47545",
+    "dane8": "47545000"
+  },
+  {
+    "dept": "MAGDALENA",
+    "city": "SAN SEBASTIAN DE BUENAVISTA",
+    "code5": "47692",
+    "dane8": "47692000"
+  },
+  {
+    "dept": "MAGDALENA",
+    "city": "SAN ZENON",
+    "code5": "47703",
+    "dane8": "47703000"
+  },
+  {
+    "dept": "MAGDALENA",
+    "city": "SANTA ANA",
+    "code5": "47707",
+    "dane8": "47707000"
+  },
+  {
+    "dept": "MAGDALENA",
+    "city": "SANTA BARBARA DE PINTO",
+    "code5": "47720",
+    "dane8": "47720000"
+  },
+  {
+    "dept": "META",
+    "city": "EL CASTILLO",
+    "code5": "50251",
+    "dane8": "50251000"
+  },
+  {
+    "dept": "META",
+    "city": "EL DORADO",
+    "code5": "50270",
+    "dane8": "50270000"
+  },
+  {
+    "dept": "META",
+    "city": "FUENTE DE ORO",
+    "code5": "50287",
+    "dane8": "50287000"
+  },
+  {
+    "dept": "META",
+    "city": "GRANADA",
+    "code5": "50313",
+    "dane8": "50313000"
+  },
+  {
+    "dept": "META",
+    "city": "LA MACARENA",
+    "code5": "50350",
+    "dane8": "50350000"
+  },
+  {
+    "dept": "META",
+    "city": "LA URIBE",
+    "code5": "50370",
+    "dane8": "50370000"
+  },
+  {
+    "dept": "META",
+    "city": "LEJANÍAS",
+    "code5": "50400",
+    "dane8": "50400000"
+  },
+  {
+    "dept": "META",
+    "city": "MAPIRIPaN",
+    "code5": "50325",
+    "dane8": "50325000"
+  },
+  {
+    "dept": "META",
+    "city": "MESETAS",
+    "code5": "50330",
+    "dane8": "50330000"
+  },
+  {
+    "dept": "META",
+    "city": "PUERTO CONCORDIA",
+    "code5": "50450",
+    "dane8": "50450000"
+  },
+  {
+    "dept": "META",
+    "city": "PUERTO LLERAS",
+    "code5": "50577",
+    "dane8": "50577000"
+  },
+  {
+    "dept": "META",
+    "city": "PUERTO RICO",
+    "code5": "50590",
+    "dane8": "50590000"
+  },
+  {
+    "dept": "META",
+    "city": "SAN JUAN DE ARAMA",
+    "code5": "50683",
+    "dane8": "50683000"
+  },
+  {
+    "dept": "META",
+    "city": "VISTA HERMOSA",
+    "code5": "50711",
+    "dane8": "50711000"
+  },
+  {
+    "dept": "META",
+    "city": "VILLAVICENCIO",
+    "code5": "50001",
+    "dane8": "50001000"
+  },
+  {
+    "dept": "META",
+    "city": "ACACiAS",
+    "code5": "50006",
+    "dane8": "50006000"
+  },
+  {
+    "dept": "META",
+    "city": "BARRANCA DE UPIA",
+    "code5": "50110",
+    "dane8": "50110000"
+  },
+  {
+    "dept": "META",
+    "city": "CASTILLA LA NUEVA",
+    "code5": "50150",
+    "dane8": "50150000"
+  },
+  {
+    "dept": "META",
+    "city": "CUMARAL",
+    "code5": "50226",
+    "dane8": "50226000"
+  },
+  {
+    "dept": "META",
+    "city": "EL CALVARIO",
+    "code5": "50245",
+    "dane8": "50245000"
+  },
+  {
+    "dept": "META",
+    "city": "GUAMAL",
+    "code5": "50318",
+    "dane8": "50318000"
+  },
+  {
+    "dept": "META",
+    "city": "RESTREPO",
+    "code5": "50606",
+    "dane8": "50606000"
+  },
+  {
+    "dept": "META",
+    "city": "SAN CARLOS GUAROA",
+    "code5": "50680",
+    "dane8": "50680000"
+  },
+  {
+    "dept": "META",
+    "city": "SAN JUANITO",
+    "code5": "50686",
+    "dane8": "50686000"
+  },
+  {
+    "dept": "META",
+    "city": "SAN LUIS DE CUBARRAL",
+    "code5": "50223",
+    "dane8": "50223000"
+  },
+  {
+    "dept": "META",
+    "city": "SAN MARTÍN",
+    "code5": "50689",
+    "dane8": "50689000"
+  },
+  {
+    "dept": "META",
+    "city": "CABUYARO",
+    "code5": "50124",
+    "dane8": "50124000"
+  },
+  {
+    "dept": "META",
+    "city": "PUERTO GAITÁN",
+    "code5": "50568",
+    "dane8": "50568000"
+  },
+  {
+    "dept": "META",
+    "city": "PUERTO LoPEZ",
+    "code5": "50573",
+    "dane8": "50573000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "CHACHAGUI",
+    "code5": "52240",
+    "dane8": "52240000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "CONSACA",
+    "code5": "52207",
+    "dane8": "52207000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "EL PEÑOL",
+    "code5": "52254",
+    "dane8": "52254000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "EL TAMBO",
+    "code5": "52260",
+    "dane8": "52260000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "LA FLORIDA",
+    "code5": "52381",
+    "dane8": "52381000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "NARIÑO",
+    "code5": "52480",
+    "dane8": "52480000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "PASTO",
+    "code5": "52001",
+    "dane8": "52001000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "SANDONÁ",
+    "code5": "52683",
+    "dane8": "52683000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "TANGUA",
+    "code5": "52788",
+    "dane8": "52788000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "YACUANQUER",
+    "code5": "52885",
+    "dane8": "52885000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "ANCUYA",
+    "code5": "52036",
+    "dane8": "52036000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "GUAITARILLA",
+    "code5": "52320",
+    "dane8": "52320000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "LA LLANADA",
+    "code5": "52385",
+    "dane8": "52385000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "LINARES",
+    "code5": "52411",
+    "dane8": "52411000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "LOS ANDES",
+    "code5": "52418",
+    "dane8": "52418000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "MALLAMA",
+    "code5": "52435",
+    "dane8": "52435000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "OSPINA",
+    "code5": "52506",
+    "dane8": "52506000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "PROVIDENCIA",
+    "code5": "52565",
+    "dane8": "52565000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "RICAURTE",
+    "code5": "52612",
+    "dane8": "52612000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "SAMANIEGO",
+    "code5": "52678",
+    "dane8": "52678000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "SANTA CRUZ",
+    "code5": "52699",
+    "dane8": "52699000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "SAPUYES",
+    "code5": "52720",
+    "dane8": "52720000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "TUQUERRES",
+    "code5": "52838",
+    "dane8": "52838000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "BARBACOAS",
+    "code5": "52079",
+    "dane8": "52079000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "EL CHARCO",
+    "code5": "52250",
+    "dane8": "52250000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "FRANCISCO PIZARRO",
+    "code5": "52520",
+    "dane8": "52520000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "LA TOLA",
+    "code5": "52390",
+    "dane8": "52390000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "Magui",
+    "code5": "52427",
+    "dane8": "52427000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "MOSQUERA",
+    "code5": "52473",
+    "dane8": "52473000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "OLAYA HERRERA",
+    "code5": "52490",
+    "dane8": "52490000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "ROBERTO PAYAN",
+    "code5": "52621",
+    "dane8": "52621000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "SANTA BaRBARA",
+    "code5": "52696",
+    "dane8": "52696000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "TUMACO",
+    "code5": "52835",
+    "dane8": "52835000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "ALBAN",
+    "code5": "52019",
+    "dane8": "52019000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "ARBOLEDA",
+    "code5": "52051",
+    "dane8": "52051000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "BELEN",
+    "code5": "52083",
+    "dane8": "52083000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "BUESACO",
+    "code5": "52110",
+    "dane8": "52110000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "COLON",
+    "code5": "52203",
+    "dane8": "52203000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "CUMBITARA",
+    "code5": "52233",
+    "dane8": "52233000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "EL ROSARIO",
+    "code5": "52256",
+    "dane8": "52256000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "El Tablon de Gomez",
+    "code5": "52258",
+    "dane8": "52258000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "LA CRUZ",
+    "code5": "52378",
+    "dane8": "52378000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "LA UNION",
+    "code5": "52399",
+    "dane8": "52399000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "LEIVA",
+    "code5": "52405",
+    "dane8": "52405000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "POLICARPA",
+    "code5": "52540",
+    "dane8": "52540000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "SAN BERNARDO",
+    "code5": "52685",
+    "dane8": "52685000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "SAN LORENZO",
+    "code5": "52687",
+    "dane8": "52687000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "SAN PABLO",
+    "code5": "52693",
+    "dane8": "52693000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "SAN PEDRO DE CARTAGO",
+    "code5": "52694",
+    "dane8": "52694000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "TAMINANGO",
+    "code5": "52786",
+    "dane8": "52786000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "ALDANA",
+    "code5": "52022",
+    "dane8": "52022000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "CONTADERO",
+    "code5": "52210",
+    "dane8": "52210000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "CÓRDOBA",
+    "code5": "52215",
+    "dane8": "52215000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "CUASPUD",
+    "code5": "52224",
+    "dane8": "52224000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "CUMBAL",
+    "code5": "52227",
+    "dane8": "52227000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "FUNES",
+    "code5": "52287",
+    "dane8": "52287000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "GUACHUCAL",
+    "code5": "52317",
+    "dane8": "52317000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "GUALMATAN",
+    "code5": "52323",
+    "dane8": "52323000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "ILES",
+    "code5": "52352",
+    "dane8": "52352000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "IMUES",
+    "code5": "52354",
+    "dane8": "52354000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "IPIALES",
+    "code5": "52356",
+    "dane8": "52356000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "POTOSÍ",
+    "code5": "52560",
+    "dane8": "52560000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "PUERRES",
+    "code5": "52573",
+    "dane8": "52573000"
+  },
+  {
+    "dept": "NARIÑO",
+    "city": "PUPIALES",
+    "code5": "52585",
+    "dane8": "52585000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "ARBOLEDAS",
+    "code5": "54051",
+    "dane8": "54051000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "CUCUTILLA",
+    "code5": "54223",
+    "dane8": "54223000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "GRAMALOTE",
+    "code5": "54313",
+    "dane8": "54313000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "LOURDES",
+    "code5": "54418",
+    "dane8": "54418000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "SALAZAR",
+    "code5": "54660",
+    "dane8": "54660000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "SANTIAGO",
+    "code5": "54680",
+    "dane8": "54680000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "VILLA CARO",
+    "code5": "54871",
+    "dane8": "54871000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "BUCARASICA",
+    "code5": "54109",
+    "dane8": "54109000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "EL TARRA",
+    "code5": "54250",
+    "dane8": "54250000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "SARDINATA",
+    "code5": "54720",
+    "dane8": "54720000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "TIBÚ",
+    "code5": "54810",
+    "dane8": "54810000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "ABREGO",
+    "code5": "54003",
+    "dane8": "54003000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "CACHIRÁ",
+    "code5": "54128",
+    "dane8": "54128000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "CONVENCIÓN",
+    "code5": "54206",
+    "dane8": "54206000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "EL CARMEN",
+    "code5": "54245",
+    "dane8": "54245000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "HACARÍ",
+    "code5": "54344",
+    "dane8": "54344000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "LA ESPERANZA",
+    "code5": "54385",
+    "dane8": "54385000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "LA PLAYA",
+    "code5": "54398",
+    "dane8": "54398000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "OCAÑA",
+    "code5": "54498",
+    "dane8": "54498000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "SAN CALIXTO",
+    "code5": "54670",
+    "dane8": "54670000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "TEORAMA",
+    "code5": "54800",
+    "dane8": "54800000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "CÚCUTA",
+    "code5": "54001",
+    "dane8": "54001000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "EL ZULIA",
+    "code5": "54261",
+    "dane8": "54261000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "LOS PATIOS",
+    "code5": "54405",
+    "dane8": "54405000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "PUERTO SANTANDER",
+    "code5": "54553",
+    "dane8": "54553000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "SAN CAYETANO",
+    "code5": "54673",
+    "dane8": "54673000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "VILLA DEL ROSARIO",
+    "code5": "54874",
+    "dane8": "54874000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "CÁCOTA",
+    "code5": "54125",
+    "dane8": "54125000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "CHITAGÁ",
+    "code5": "54174",
+    "dane8": "54174000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "MUTISCUA",
+    "code5": "54480",
+    "dane8": "54480000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "PAMPLONA",
+    "code5": "54518",
+    "dane8": "54518000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "PAMPLONITA",
+    "code5": "54520",
+    "dane8": "54520000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "SILOS",
+    "code5": "54743",
+    "dane8": "54743000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "BOCHALEMA",
+    "code5": "54099",
+    "dane8": "54099000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "CHINÁCOTA",
+    "code5": "54172",
+    "dane8": "54172000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "DURANIA",
+    "code5": "54239",
+    "dane8": "54239000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "HERRÁN",
+    "code5": "54347",
+    "dane8": "54347000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "LABATECA",
+    "code5": "54377",
+    "dane8": "54377000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "RAGONVALIA",
+    "code5": "54599",
+    "dane8": "54599000"
+  },
+  {
+    "dept": "NORTE DE SANTANDER",
+    "city": "TOLEDO",
+    "code5": "54820",
+    "dane8": "54820000"
+  },
+  {
+    "dept": "PUTUMAYO",
+    "city": "COLÓN",
+    "code5": "86219",
+    "dane8": "86219000"
+  },
+  {
+    "dept": "PUTUMAYO",
+    "city": "MOCOA",
+    "code5": "86001",
+    "dane8": "86001000"
+  },
+  {
+    "dept": "PUTUMAYO",
+    "city": "ORITO",
+    "code5": "86320",
+    "dane8": "86320000"
+  },
+  {
+    "dept": "PUTUMAYO",
+    "city": "PUERTO ASIS",
+    "code5": "86568",
+    "dane8": "86568000"
+  },
+  {
+    "dept": "PUTUMAYO",
+    "city": "PUERTO CAICEDO",
+    "code5": "86569",
+    "dane8": "86569000"
+  },
+  {
+    "dept": "PUTUMAYO",
+    "city": "PUERTO GUZMAN",
+    "code5": "86571",
+    "dane8": "86571000"
+  },
+  {
+    "dept": "PUTUMAYO",
+    "city": "PUERTO LEGUIZAMO",
+    "code5": "86573",
+    "dane8": "86573000"
+  },
+  {
+    "dept": "PUTUMAYO",
+    "city": "SAN FRANCISCO",
+    "code5": "86755",
+    "dane8": "86755000"
+  },
+  {
+    "dept": "PUTUMAYO",
+    "city": "SAN MIGUEL",
+    "code5": "86757",
+    "dane8": "86757000"
+  },
+  {
+    "dept": "PUTUMAYO",
+    "city": "SANTIAGO",
+    "code5": "86760",
+    "dane8": "86760000"
+  },
+  {
+    "dept": "PUTUMAYO",
+    "city": "SIBUNDOY",
+    "code5": "86749",
+    "dane8": "86749000"
+  },
+  {
+    "dept": "PUTUMAYO",
+    "city": "VALLE DEL GUAMUEZ",
+    "code5": "86865",
+    "dane8": "86865000"
+  },
+  {
+    "dept": "PUTUMAYO",
+    "city": "VILLA GARZON",
+    "code5": "86885",
+    "dane8": "86885000"
+  },
+  {
+    "dept": "QUINDIO",
+    "city": "ARMENIA",
+    "code5": "63001",
+    "dane8": "63001000"
+  },
+  {
+    "dept": "QUINDIO",
+    "city": "BUENAVISTA",
+    "code5": "63111",
+    "dane8": "63111000"
+  },
+  {
+    "dept": "QUINDIO",
+    "city": "CALARCA",
+    "code5": "63130",
+    "dane8": "63130000"
+  },
+  {
+    "dept": "QUINDIO",
+    "city": "CoRDOBA",
+    "code5": "63212",
+    "dane8": "63212000"
+  },
+  {
+    "dept": "QUINDIO",
+    "city": "GeNOVA",
+    "code5": "63302",
+    "dane8": "63302000"
+  },
+  {
+    "dept": "QUINDIO",
+    "city": "PIJAO",
+    "code5": "63548",
+    "dane8": "63548000"
+  },
+  {
+    "dept": "QUINDIO",
+    "city": "FILANDIA",
+    "code5": "63272",
+    "dane8": "63272000"
+  },
+  {
+    "dept": "QUINDIO",
+    "city": "SALENTO",
+    "code5": "63690",
+    "dane8": "63690000"
+  },
+  {
+    "dept": "QUINDIO",
+    "city": "CIRCASIA",
+    "code5": "63190",
+    "dane8": "63190000"
+  },
+  {
+    "dept": "QUINDIO",
+    "city": "LA TEBAIDA",
+    "code5": "63401",
+    "dane8": "63401000"
+  },
+  {
+    "dept": "QUINDIO",
+    "city": "Montengro",
+    "code5": "63470",
+    "dane8": "63470000"
+  },
+  {
+    "dept": "QUINDIO",
+    "city": "QUIMBAYA",
+    "code5": "63594",
+    "dane8": "63594000"
+  },
+  {
+    "dept": "RISARALDA",
+    "city": "DOSQUEBRADAS",
+    "code5": "66170",
+    "dane8": "66170000"
+  },
+  {
+    "dept": "RISARALDA",
+    "city": "LA VIRGINIA",
+    "code5": "66400",
+    "dane8": "66400000"
+  },
+  {
+    "dept": "RISARALDA",
+    "city": "MARSELLA",
+    "code5": "66440",
+    "dane8": "66440000"
+  },
+  {
+    "dept": "RISARALDA",
+    "city": "PEREIRA",
+    "code5": "66001",
+    "dane8": "66001000"
+  },
+  {
+    "dept": "RISARALDA",
+    "city": "SANTA ROSA DE CABAL",
+    "code5": "66682",
+    "dane8": "66682000"
+  },
+  {
+    "dept": "RISARALDA",
+    "city": "APÍA",
+    "code5": "66045",
+    "dane8": "66045000"
+  },
+  {
+    "dept": "RISARALDA",
+    "city": "BALBOA",
+    "code5": "66075",
+    "dane8": "66075000"
+  },
+  {
+    "dept": "RISARALDA",
+    "city": "BELÉN DE UMBRÍA",
+    "code5": "66088",
+    "dane8": "66088000"
+  },
+  {
+    "dept": "RISARALDA",
+    "city": "GUÁTICA",
+    "code5": "66318",
+    "dane8": "66318000"
+  },
+  {
+    "dept": "RISARALDA",
+    "city": "LA CELIA",
+    "code5": "66383",
+    "dane8": "66383000"
+  },
+  {
+    "dept": "RISARALDA",
+    "city": "QUINCHiA",
+    "code5": "66594",
+    "dane8": "66594000"
+  },
+  {
+    "dept": "RISARALDA",
+    "city": "SANTUARIO",
+    "code5": "66687",
+    "dane8": "66687000"
+  },
+  {
+    "dept": "RISARALDA",
+    "city": "MISTRATÓ",
+    "code5": "66456",
+    "dane8": "66456000"
+  },
+  {
+    "dept": "RISARALDA",
+    "city": "PUEBLO RICO",
+    "code5": "66572",
+    "dane8": "66572000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "CHIMA",
+    "code5": "68176",
+    "dane8": "68176000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "CONFINES",
+    "code5": "68209",
+    "dane8": "68209000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "CONTRATACIÓN",
+    "code5": "68211",
+    "dane8": "68211000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "EL GUACAMAYO",
+    "code5": "68245",
+    "dane8": "68245000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "GALÁN",
+    "code5": "68296",
+    "dane8": "68296000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "GAMBITA",
+    "code5": "68298",
+    "dane8": "68298000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "GUADALUPE",
+    "code5": "68320",
+    "dane8": "68320000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "GUAPOTÁ",
+    "code5": "68322",
+    "dane8": "68322000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "HATO",
+    "code5": "68344",
+    "dane8": "68344000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "OIBA",
+    "code5": "68500",
+    "dane8": "68500000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "PALMAR",
+    "code5": "68522",
+    "dane8": "68522000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "PALMAS DEL SOCORRO",
+    "code5": "68524",
+    "dane8": "68524000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "SANTA HELENA DEL OPÓN",
+    "code5": "68720",
+    "dane8": "68720000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "SIMACOTA",
+    "code5": "68745",
+    "dane8": "68745000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "SOCORRO",
+    "code5": "68755",
+    "dane8": "68755000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "SUAITA",
+    "code5": "68770",
+    "dane8": "68770000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "CAPITANEJO",
+    "code5": "68147",
+    "dane8": "68147000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "CARCASÍ",
+    "code5": "68152",
+    "dane8": "68152000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "CEPITÁ",
+    "code5": "68160",
+    "dane8": "68160000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "CERRITO",
+    "code5": "68162",
+    "dane8": "68162000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "CONCEPCIÓN",
+    "code5": "68207",
+    "dane8": "68207000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "ENCISO",
+    "code5": "68266",
+    "dane8": "68266000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "GUACA",
+    "code5": "68318",
+    "dane8": "68318000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "MACARAVITA",
+    "code5": "68425",
+    "dane8": "68425000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "MÁLAGA",
+    "code5": "68432",
+    "dane8": "68432000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "MOLAGAVITA",
+    "code5": "68468",
+    "dane8": "68468000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "SAN ANDRÉS",
+    "code5": "68669",
+    "dane8": "68669000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "SAN JOSÉ DE MIRANDA",
+    "code5": "68684",
+    "dane8": "68684000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "SAN MIGUEL",
+    "code5": "68686",
+    "dane8": "68686000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "ARATOCA",
+    "code5": "68051",
+    "dane8": "68051000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "BARICHARA",
+    "code5": "68079",
+    "dane8": "68079000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "CABRERA",
+    "code5": "68121",
+    "dane8": "68121000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "CHARALÁ",
+    "code5": "68167",
+    "dane8": "68167000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "COROMORO",
+    "code5": "68217",
+    "dane8": "68217000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "CURITÍ",
+    "code5": "68229",
+    "dane8": "68229000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "ENCINO",
+    "code5": "68264",
+    "dane8": "68264000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "JORDÁN",
+    "code5": "68370",
+    "dane8": "68370000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "MOGOTES",
+    "code5": "68464",
+    "dane8": "68464000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "OCAMONTE",
+    "code5": "68498",
+    "dane8": "68498000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "ONZAGA",
+    "code5": "68502",
+    "dane8": "68502000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "PÁRAMO",
+    "code5": "68533",
+    "dane8": "68533000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "PINCHOTE",
+    "code5": "68549",
+    "dane8": "68549000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "SAN GIL",
+    "code5": "68679",
+    "dane8": "68679000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "SAN JOAQUÍN",
+    "code5": "68682",
+    "dane8": "68682000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "VALLE DE SAN JOSÉ",
+    "code5": "68855",
+    "dane8": "68855000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "VILLANUEVA",
+    "code5": "68872",
+    "dane8": "68872000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "BARRANCABERMEJA",
+    "code5": "68081",
+    "dane8": "68081000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "BETULIA",
+    "code5": "68092",
+    "dane8": "68092000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "EL CARMEN DE CHUCURÍ",
+    "code5": "68235",
+    "dane8": "68235000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "PUERTO WILCHES",
+    "code5": "68575",
+    "dane8": "68575000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "SABANA DE TORRES",
+    "code5": "68655",
+    "dane8": "68655000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "SAN VICENTE DE CHUCURÍ",
+    "code5": "68689",
+    "dane8": "68689000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "ZAPATOCA",
+    "code5": "68895",
+    "dane8": "68895000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "BUCARAMANGA",
+    "code5": "68001",
+    "dane8": "68001000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "CALIFORNIA",
+    "code5": "68132",
+    "dane8": "68132000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "CHARTA",
+    "code5": "68169",
+    "dane8": "68169000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "EL PLAYÓN",
+    "code5": "68255",
+    "dane8": "68255000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "FLORIDABLANCA",
+    "code5": "68276",
+    "dane8": "68276000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "GIRÓN",
+    "code5": "68307",
+    "dane8": "68307000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "LEBRÍJA",
+    "code5": "68406",
+    "dane8": "68406000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "LOS SANTOS",
+    "code5": "68418",
+    "dane8": "68418000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "MATANZA",
+    "code5": "68444",
+    "dane8": "68444000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "PIEDECUESTA",
+    "code5": "68547",
+    "dane8": "68547000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "RIONEGRO",
+    "code5": "68615",
+    "dane8": "68615000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "SANTA BÁRBARA",
+    "code5": "68705",
+    "dane8": "68705000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "SURATA",
+    "code5": "68780",
+    "dane8": "68780000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "TONA",
+    "code5": "68820",
+    "dane8": "68820000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "VETAS",
+    "code5": "68867",
+    "dane8": "68867000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "AGUADA",
+    "code5": "68013",
+    "dane8": "68013000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "ALBANIA",
+    "code5": "68020",
+    "dane8": "68020000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "BARBOSA",
+    "code5": "68077",
+    "dane8": "68077000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "BOLÍVAR",
+    "code5": "68101",
+    "dane8": "68101000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "CHIPATÁ",
+    "code5": "68179",
+    "dane8": "68179000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "CIMITARRA",
+    "code5": "68190",
+    "dane8": "68190000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "EL PEÑÓN",
+    "code5": "68250",
+    "dane8": "68250000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "FLORIÁN",
+    "code5": "68271",
+    "dane8": "68271000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "GUAVATÁ",
+    "code5": "68324",
+    "dane8": "68324000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "GuEPSA",
+    "code5": "68327",
+    "dane8": "68327000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "JESÚS MARÍA",
+    "code5": "68368",
+    "dane8": "68368000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "LA BELLEZA",
+    "code5": "68377",
+    "dane8": "68377000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "LA PAZ",
+    "code5": "68397",
+    "dane8": "68397000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "LANDÁZURI",
+    "code5": "68385",
+    "dane8": "68385000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "PUENTE NACIONAL",
+    "code5": "68572",
+    "dane8": "68572000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "PUERTO PARRA",
+    "code5": "68573",
+    "dane8": "68573000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "SAN BENITO",
+    "code5": "68673",
+    "dane8": "68673000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "SUCRE",
+    "code5": "68773",
+    "dane8": "68773000"
+  },
+  {
+    "dept": "SANTANDER",
+    "city": "VÉLEZ",
+    "code5": "68861",
+    "dane8": "68861000"
+  },
+  {
+    "dept": "SUCRE",
+    "city": "GUARANDA",
+    "code5": "70265",
+    "dane8": "70265000"
+  },
+  {
+    "dept": "SUCRE",
+    "city": "MAJAGUAL",
+    "code5": "70429",
+    "dane8": "70429000"
+  },
+  {
+    "dept": "SUCRE",
+    "city": "SUCRE",
+    "code5": "70771",
+    "dane8": "70771000"
+  },
+  {
+    "dept": "SUCRE",
+    "city": "CHALÁN",
+    "code5": "70230",
+    "dane8": "70230000"
+  },
+  {
+    "dept": "SUCRE",
+    "city": "COLOSO",
+    "code5": "70204",
+    "dane8": "70204000"
+  },
+  {
+    "dept": "SUCRE",
+    "city": "MORROA",
+    "code5": "70473",
+    "dane8": "70473000"
+  },
+  {
+    "dept": "SUCRE",
+    "city": "OVEJAS",
+    "code5": "70508",
+    "dane8": "70508000"
+  },
+  {
+    "dept": "SUCRE",
+    "city": "SINCELEJO",
+    "code5": "70001",
+    "dane8": "70001000"
+  },
+  {
+    "dept": "SUCRE",
+    "city": "COVEÑAS",
+    "code5": "70221",
+    "dane8": "70221000"
+  },
+  {
+    "dept": "SUCRE",
+    "city": "PALMITO",
+    "code5": "70523",
+    "dane8": "70523000"
+  },
+  {
+    "dept": "SUCRE",
+    "city": "SAN ONOFRE",
+    "code5": "70713",
+    "dane8": "70713000"
+  },
+  {
+    "dept": "SUCRE",
+    "city": "SANTIAGO DE TOLÚ",
+    "code5": "70820",
+    "dane8": "70820000"
+  },
+  {
+    "dept": "SUCRE",
+    "city": "TOLÚ VIEJO",
+    "code5": "70823",
+    "dane8": "70823000"
+  },
+  {
+    "dept": "SUCRE",
+    "city": "BUENAVISTA",
+    "code5": "70110",
+    "dane8": "70110000"
+  },
+  {
+    "dept": "SUCRE",
+    "city": "COROZAL",
+    "code5": "70215",
+    "dane8": "70215000"
+  },
+  {
+    "dept": "SUCRE",
+    "city": "EL ROBLE",
+    "code5": "70233",
+    "dane8": "70233000"
+  },
+  {
+    "dept": "SUCRE",
+    "city": "GALERAS",
+    "code5": "70235",
+    "dane8": "70235000"
+  },
+  {
+    "dept": "SUCRE",
+    "city": "LOS PALMITOS",
+    "code5": "70418",
+    "dane8": "70418000"
+  },
+  {
+    "dept": "SUCRE",
+    "city": "SAMPUÉS",
+    "code5": "70670",
+    "dane8": "70670000"
+  },
+  {
+    "dept": "SUCRE",
+    "city": "SAN JUAN BETULIA",
+    "code5": "70702",
+    "dane8": "70702000"
+  },
+  {
+    "dept": "SUCRE",
+    "city": "SAN PEDRO",
+    "code5": "70717",
+    "dane8": "70717000"
+  },
+  {
+    "dept": "SUCRE",
+    "city": "SINCÉ",
+    "code5": "70742",
+    "dane8": "70742000"
+  },
+  {
+    "dept": "SUCRE",
+    "city": "CAIMITO",
+    "code5": "70124",
+    "dane8": "70124000"
+  },
+  {
+    "dept": "SUCRE",
+    "city": "LA UNIÓN",
+    "code5": "70400",
+    "dane8": "70400000"
+  },
+  {
+    "dept": "SUCRE",
+    "city": "SAN BENITO ABAD",
+    "code5": "70678",
+    "dane8": "70678000"
+  },
+  {
+    "dept": "SUCRE",
+    "city": "SAN MARCOS",
+    "code5": "70708",
+    "dane8": "70708000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "AMBALEMA",
+    "code5": "73030",
+    "dane8": "73030000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "ARMERO",
+    "code5": "73055",
+    "dane8": "73055000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "FALAN",
+    "code5": "73270",
+    "dane8": "73270000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "FRESNO",
+    "code5": "73283",
+    "dane8": "73283000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "HONDA",
+    "code5": "73349",
+    "dane8": "73349000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "MARIQUITA",
+    "code5": "73443",
+    "dane8": "73443000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "PALOCABILDO",
+    "code5": "73520",
+    "dane8": "73520000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "CARMEN DE APICALÁ",
+    "code5": "73148",
+    "dane8": "73148000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "CUNDAY",
+    "code5": "73226",
+    "dane8": "73226000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "ICONONZO",
+    "code5": "73352",
+    "dane8": "73352000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "MELGAR",
+    "code5": "73449",
+    "dane8": "73449000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "VILLARRICA",
+    "code5": "73873",
+    "dane8": "73873000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "ATACO",
+    "code5": "73067",
+    "dane8": "73067000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "CHAPARRAL",
+    "code5": "73168",
+    "dane8": "73168000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "COYAIMA",
+    "code5": "73217",
+    "dane8": "73217000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "NATAGAIMA",
+    "code5": "73483",
+    "dane8": "73483000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "ORTEGA",
+    "code5": "73504",
+    "dane8": "73504000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "PLANADAS",
+    "code5": "73555",
+    "dane8": "73555000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "RIOBLANCO",
+    "code5": "73616",
+    "dane8": "73616000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "RONCESVALLES",
+    "code5": "73622",
+    "dane8": "73622000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "SAN ANTONIO",
+    "code5": "73675",
+    "dane8": "73675000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "ALVARADO",
+    "code5": "73026",
+    "dane8": "73026000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "ANZOÁTEGUI",
+    "code5": "73043",
+    "dane8": "73043000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "CAJAMARCA",
+    "code5": "73124",
+    "dane8": "73124000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "COELLO",
+    "code5": "73200",
+    "dane8": "73200000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "ESPINAL",
+    "code5": "73268",
+    "dane8": "73268000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "FLANDES",
+    "code5": "73275",
+    "dane8": "73275000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "IBAGUe",
+    "code5": "73001",
+    "dane8": "73001000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "PIEDRAS",
+    "code5": "73547",
+    "dane8": "73547000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "ROVIRA",
+    "code5": "73624",
+    "dane8": "73624000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "SAN LUIS",
+    "code5": "73678",
+    "dane8": "73678000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "VALLE DE SAN JUAN",
+    "code5": "73854",
+    "dane8": "73854000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "ALPUJARRA",
+    "code5": "73024",
+    "dane8": "73024000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "DOLORES",
+    "code5": "73236",
+    "dane8": "73236000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "GUAMO",
+    "code5": "73319",
+    "dane8": "73319000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "PRADO",
+    "code5": "73563",
+    "dane8": "73563000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "PURIFICACIÓN",
+    "code5": "73585",
+    "dane8": "73585000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "SALDAÑA",
+    "code5": "73671",
+    "dane8": "73671000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "SUÁREZ",
+    "code5": "73770",
+    "dane8": "73770000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "CASABIANCA",
+    "code5": "73152",
+    "dane8": "73152000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "HERVEO",
+    "code5": "73347",
+    "dane8": "73347000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "LeRIDA",
+    "code5": "73408",
+    "dane8": "73408000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "LiBANO",
+    "code5": "73411",
+    "dane8": "73411000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "MURILLO",
+    "code5": "73461",
+    "dane8": "73461000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "SANTA ISABEL",
+    "code5": "73686",
+    "dane8": "73686000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "VENADILLO",
+    "code5": "73861",
+    "dane8": "73861000"
+  },
+  {
+    "dept": "TOLIMA",
+    "city": "VILLAHERMOSA",
+    "code5": "73870",
+    "dane8": "73870000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "ANDALUCÍA",
+    "code5": "76036",
+    "dane8": "76036000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "BUGA",
+    "code5": "76111",
+    "dane8": "76111000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "BUGALAGRANDE",
+    "code5": "76113",
+    "dane8": "76113000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "CALIMA",
+    "code5": "76126",
+    "dane8": "76126000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "EL CERRITO",
+    "code5": "76248",
+    "dane8": "76248000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "GINEBRA",
+    "code5": "76306",
+    "dane8": "76306000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "GUACARÍ",
+    "code5": "76318",
+    "dane8": "76318000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "RESTREPO",
+    "code5": "76606",
+    "dane8": "76606000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "RIOFRIO",
+    "code5": "76616",
+    "dane8": "76616000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "SAN PEDRO",
+    "code5": "76670",
+    "dane8": "76670000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "TRUJILLO",
+    "code5": "76828",
+    "dane8": "76828000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "TULUÁ",
+    "code5": "76834",
+    "dane8": "76834000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "YOTOCO",
+    "code5": "76890",
+    "dane8": "76890000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "ALCALa",
+    "code5": "76020",
+    "dane8": "76020000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "ANSERMANUEVO",
+    "code5": "76041",
+    "dane8": "76041000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "ARGELIA",
+    "code5": "76054",
+    "dane8": "76054000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "BOLÍVAR",
+    "code5": "76100",
+    "dane8": "76100000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "CARTAGO",
+    "code5": "76147",
+    "dane8": "76147000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "EL ÁGUILA",
+    "code5": "76243",
+    "dane8": "76243000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "EL CAIRO",
+    "code5": "76246",
+    "dane8": "76246000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "EL DOVIO",
+    "code5": "76250",
+    "dane8": "76250000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "LA UNIÓN",
+    "code5": "76400",
+    "dane8": "76400000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "LA VICTORIA",
+    "code5": "76403",
+    "dane8": "76403000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "OBANDO",
+    "code5": "76497",
+    "dane8": "76497000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "ROLDANILLO",
+    "code5": "76622",
+    "dane8": "76622000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "TORO",
+    "code5": "76823",
+    "dane8": "76823000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "ULLOA",
+    "code5": "76845",
+    "dane8": "76845000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "VERSALLES",
+    "code5": "76863",
+    "dane8": "76863000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "ZARZAL",
+    "code5": "76895",
+    "dane8": "76895000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "BUENAVENTURA",
+    "code5": "76109",
+    "dane8": "76109000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "CAICEDONIA",
+    "code5": "76122",
+    "dane8": "76122000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "SEVILLA",
+    "code5": "76736",
+    "dane8": "76736000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "CALI",
+    "code5": "76001",
+    "dane8": "76001000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "CANDELARIA",
+    "code5": "76130",
+    "dane8": "76130000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "DAGUA",
+    "code5": "76233",
+    "dane8": "76233000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "FLORIDA",
+    "code5": "76275",
+    "dane8": "76275000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "JAMUNDÍ",
+    "code5": "76364",
+    "dane8": "76364000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "LA CUMBRE",
+    "code5": "76377",
+    "dane8": "76377000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "PALMIRA",
+    "code5": "76520",
+    "dane8": "76520000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "PRADERA",
+    "code5": "76563",
+    "dane8": "76563000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "VIJES",
+    "code5": "76869",
+    "dane8": "76869000"
+  },
+  {
+    "dept": "VALLE DEL CAUCA",
+    "city": "YUMBO",
+    "code5": "76892",
+    "dane8": "76892000"
+  },
+  {
+    "dept": "VAUPES",
+    "city": "CARURU",
+    "code5": "97161",
+    "dane8": "97161000"
+  },
+  {
+    "dept": "VAUPES",
+    "city": "MITÚ",
+    "code5": "97001",
+    "dane8": "97001000"
+  },
+  {
+    "dept": "VAUPES",
+    "city": "PACOA",
+    "code5": "97511",
+    "dane8": "97511000"
+  },
+  {
+    "dept": "VAUPES",
+    "city": "PAPUNAHUA",
+    "code5": "97777",
+    "dane8": "97777000"
+  },
+  {
+    "dept": "VAUPES",
+    "city": "TARAIRA",
+    "code5": "97666",
+    "dane8": "97666000"
+  },
+  {
+    "dept": "VAUPES",
+    "city": "YAVARATÉ",
+    "code5": "97889",
+    "dane8": "97889000"
+  },
+  {
+    "dept": "VICHADA",
+    "city": "CUMARIBO",
+    "code5": "99773",
+    "dane8": "99773000"
+  },
+  {
+    "dept": "VICHADA",
+    "city": "LA PRIMAVERA",
+    "code5": "99524",
+    "dane8": "99524000"
+  },
+  {
+    "dept": "VICHADA",
+    "city": "PUERTO CARREÑO",
+    "code5": "99001",
+    "dane8": "99001000"
+  },
+  {
+    "dept": "VICHADA",
+    "city": "SANTA ROSALÍA",
+    "code5": "99624",
+    "dane8": "99624000"
+  }
+]

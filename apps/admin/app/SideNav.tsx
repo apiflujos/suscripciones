@@ -12,7 +12,7 @@ function NavIcon({
   name,
   className
 }: {
-  name: "metrics" | "contacts" | "products" | "logs" | "settings";
+  name: "metrics" | "contacts" | "products" | "billing" | "logs" | "settings";
   className?: string;
 }) {
   if (name === "metrics") {
@@ -42,6 +42,16 @@ function NavIcon({
         <path d="M16 4h4" />
         <path d="M4 20h4" />
         <path d="M16 20h4" />
+      </svg>
+    );
+  }
+  if (name === "billing") {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+        <path d="M7 4h10v16H7z" />
+        <path d="M9 8h6" />
+        <path d="M9 12h6" />
+        <path d="M9 16h4" />
       </svg>
     );
   }
@@ -91,6 +101,14 @@ export function SideNav() {
       >
         <NavIcon name="products" className="nav-icon" />
         <span className="nav-label">Productos y Servicios</span>
+      </Link>
+      <Link
+        className={`nav-item ${isActivePath(pathname, "/billing") ? "is-active" : ""}`}
+        href="/billing"
+        aria-current={isActivePath(pathname, "/billing") ? "page" : undefined}
+      >
+        <NavIcon name="billing" className="nav-icon" />
+        <span className="nav-label">Planes y Suscripciones</span>
       </Link>
       <Link
         className={`nav-item ${isActivePath(pathname, "/logs") ? "is-active" : ""}`}

@@ -76,7 +76,6 @@ export function VariantsEditor({
                 onChange={(e) => setRows((prev) => prev.map((x, i) => (i === idx ? { ...x, priceDeltaPesos: e.target.value } : x)))}
                 placeholder="+5000 o -2000"
               />
-              <div className="field-hint">Se guarda en centavos internamente.</div>
             </div>
             <button
               type="button"
