@@ -1,5 +1,5 @@
-import { createProduct } from "./actions";
-import { NewCatalogItemForm } from "./NewCatalogItemForm";
+import { createPlanTemplate } from "./actions";
+import { NewPlanOrSubscriptionForm } from "./NewPlanOrSubscriptionForm";
 
 export const dynamic = "force-dynamic";
 
@@ -65,12 +65,12 @@ export default async function ProductsPage({
           <div className="panelHeaderRow">
             <h3>Productos y Servicios</h3>
           </div>
-          <div className="field-hint">Administra el catálogo. Puedes crear aquí o al crear un plan/suscripción.</div>
+          <div className="field-hint">Aquí se crean planes y suscripciones (sin contacto) y se amarra el producto/servicio.</div>
         </div>
 
         <div className="settings-group-body">
           <div style={{ display: "grid", gap: 14 }}>
-            <NewCatalogItemForm action={createProduct} />
+            <NewPlanOrSubscriptionForm action={createPlanTemplate} catalogItems={productItems} />
 
             <div className="panel module" style={{ padding: 0 }}>
               <table className="table" aria-label="Tabla de productos y servicios">
