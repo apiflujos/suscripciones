@@ -82,16 +82,13 @@ export async function createCustomerFromBilling(formData: FormData) {
   }
 }
 
-export async function createPlanOrSubscription(formData: FormData) {
+export async function createPlanTemplate(formData: FormData) {
   const billingTypeRaw = String(formData.get("billingType") || "SUBSCRIPCION").trim().toUpperCase();
   const billingType = billingTypeRaw === "PLAN" ? "PLAN" : "SUBSCRIPCION";
-  const customerId = String(formData.get("customerId") || "").trim();
   const name = String(formData.get("name") || "").trim();
   const intervalUnit = String(formData.get("intervalUnit") || "MONTH").trim();
   const intervalCountRaw = Number(String(formData.get("intervalCount") || "1"));
   const intervalCount = Number.isFinite(intervalCountRaw) && intervalCountRaw > 0 ? Math.trunc(intervalCountRaw) : 1;
-  const startAt = String(formData.get("startAt") || "").trim();
-  const firstPeriodEndAt = String(formData.get("firstPeriodEndAt") || "").trim();
 
   const catalogMode = String(formData.get("catalogMode") || "EXISTING").trim();
   const catalogItemId = String(formData.get("catalogItemId") || "").trim();
@@ -223,31 +220,9 @@ export async function createPlanOrSubscription(formData: FormData) {
     const planId = createdPlan?.plan?.id ? String(createdPlan.plan.id) : "";
     if (!planId) throw new Error("plan_create_failed");
 
-    const dueNow = (() => {
-      if (!startAt || !firstPeriodEndAt) return false;
-      const a = new Date(startAt).getTime();
-      const b = new Date(firstPeriodEndAt).getTime();
-      if (!Number.isFinite(a) || !Number.isFinite(b)) return false;
-      return Math.abs(a - b) <= 90_000;
-    })();
-
-    const createdSub = await adminFetch("/admin/subscriptions", {
-      method: "POST",
-      body: JSON.stringify({
-        customerId,
-        planId,
-        ...(startAt ? { startAt } : {}),
-        ...(firstPeriodEndAt ? { firstPeriodEndAt } : {}),
-        ...(billingType === "PLAN" && dueNow ? { createPaymentLink: true } : {})
-      })
-    });
-
-    const checkoutUrl = createdSub?.checkoutUrl ? String(createdSub.checkoutUrl) : "";
-    if (checkoutUrl) redirect(`/billing?created=1&checkoutUrl=${encodeURIComponent(checkoutUrl)}`);
-
-    redirect("/billing?created=1");
+    redirect(`/billing?planCreated=1&selectPlanId=${encodeURIComponent(planId)}`);
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
-    redirect(`/billing?error=${encodeURIComponent(err?.message || "create_billing_failed")}`);
+    redirect(`/billing?error=${encodeURIComponent(err?.message || "create_plan_failed")}`);
   }
 }
