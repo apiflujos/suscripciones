@@ -1,4 +1,6 @@
-import { createPaymentLink } from "../subscriptions/actions";
+import { createPaymentLink, createSubscription } from "../subscriptions/actions";
+import { createCustomerFromBilling, createPlanTemplate } from "./actions";
+import { NewBillingAssignmentForm } from "./NewBillingAssignmentForm";
 
 export const dynamic = "force-dynamic";
 
@@ -77,8 +79,13 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
   }
 
   const created = typeof searchParams?.created === "string" ? searchParams.created : "";
+  const planCreated = typeof searchParams?.planCreated === "string" ? searchParams.planCreated : "";
+  const contactCreated = typeof searchParams?.contactCreated === "string" ? searchParams.contactCreated : "";
   const checkoutUrl = typeof searchParams?.checkoutUrl === "string" ? searchParams.checkoutUrl : "";
   const error = typeof searchParams?.error === "string" ? searchParams.error : "";
+  const crear = typeof searchParams?.crear === "string" ? searchParams.crear : "";
+  const selectPlanId = typeof searchParams?.selectPlanId === "string" ? searchParams.selectPlanId : "";
+  const selectCustomerId = typeof searchParams?.selectCustomerId === "string" ? searchParams.selectCustomerId : "";
 
   const tipo = typeof searchParams?.tipo === "string" ? searchParams.tipo : "todos";
   const estado = typeof searchParams?.estado === "string" ? searchParams.estado : "activos";
@@ -86,10 +93,16 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
   const q = typeof searchParams?.q === "string" ? searchParams.q : "";
   const ordenar = typeof searchParams?.ordenar === "string" ? searchParams.ordenar : "vencimiento";
 
-  const [subs] = await Promise.all([
+  const [subs, plans, customers, products] = await Promise.all([
     fetchAdmin("/admin/subscriptions"),
+    fetchAdmin("/admin/plans"),
+    fetchAdmin("/admin/customers"),
+    fetchAdmin("/admin/products")
   ]);
   const subItems = (subs.json?.items ?? []) as any[];
+  const planItems = (plans.json?.items ?? []) as any[];
+  const customerItems = (customers.json?.items ?? []) as any[];
+  const productItems = (products.json?.items ?? []) as any[];
 
   const rows = subItems
     .map((s) => {
@@ -161,6 +174,8 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
         </div>
       ) : null}
       {created ? <div className="card cardPad">Guardado.</div> : null}
+      {planCreated ? <div className="card cardPad">Plan/suscripción creada.</div> : null}
+      {contactCreated ? <div className="card cardPad">Contacto creado.</div> : null}
       {checkoutUrl ? (
         <div className="card cardPad">
           Checkout:{" "}
@@ -214,6 +229,18 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
         </div>
 
         <div className="settings-group-body">
+          <NewBillingAssignmentForm
+            plans={planItems}
+            customers={customerItems}
+            catalogItems={productItems}
+            defaultOpen={Boolean(crear) || Boolean(selectPlanId) || Boolean(selectCustomerId) || Boolean(planCreated) || Boolean(contactCreated)}
+            defaultSelectedPlanId={selectPlanId}
+            defaultSelectedCustomerId={selectCustomerId}
+            createPlanTemplate={createPlanTemplate}
+            createCustomer={createCustomerFromBilling}
+            createSubscription={createSubscription}
+          />
+
           <div className="panel module" style={{ padding: 0 }}>
             <table className="table" aria-label="Tabla de planes y suscripciones">
               <thead>

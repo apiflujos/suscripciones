@@ -6,10 +6,21 @@ type Municipality = { dept: string; city: string; code5: string; dane8: string }
 
 type Props = {
   createCustomer: (formData: FormData) => Promise<void>;
+  defaultOpen?: boolean;
+  mode?: "toggle" | "always_open";
+  hidePanelHeader?: boolean;
+  returnTo?: string;
 };
 
-export function NewCustomerForm({ createCustomer }: Props) {
-  const [open, setOpen] = useState(false);
+export function NewCustomerForm({
+  createCustomer,
+  defaultOpen = false,
+  mode = "toggle",
+  hidePanelHeader = false,
+  returnTo
+}: Props) {
+  const alwaysOpen = mode === "always_open";
+  const [open, setOpen] = useState(alwaysOpen ? true : Boolean(defaultOpen));
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<Municipality[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -76,15 +87,20 @@ export function NewCustomerForm({ createCustomer }: Props) {
 
   return (
     <div className="panel module">
-      <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-        <h3 style={{ margin: 0 }}>Nuevo contacto</h3>
-        <button className={open ? "btnLink" : "primary"} type="button" onClick={() => setOpen((v) => !v)}>
-          {open ? "Cerrar" : "Crear contacto"}
-        </button>
-      </div>
+      {!hidePanelHeader ? (
+        <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <h3 style={{ margin: 0 }}>Nuevo contacto</h3>
+          {alwaysOpen ? null : (
+            <button className={open ? "ghost" : "primary"} type="button" onClick={() => setOpen((v) => !v)}>
+              {open ? "Cerrar" : "Crear contacto"}
+            </button>
+          )}
+        </div>
+      ) : null}
 
       {open ? (
         <form action={createCustomer} style={{ display: "grid", gap: 10 }}>
+          {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
           <div className="field">
             <label>Nombre</label>
             <input className="input" name="name" placeholder="Nombre" required />
