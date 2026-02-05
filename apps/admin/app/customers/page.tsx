@@ -1,5 +1,6 @@
 import { createCustomer } from "./actions";
 import Link from "next/link";
+import { NewCustomerForm } from "./NewCustomerForm";
 
 export const dynamic = "force-dynamic";
 
@@ -41,31 +42,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: { 
         </div>
 
         <div className="settings-group-body">
-          <div className="panel module">
-            <div className="panel-header">
-              <h3>Nuevo contacto</h3>
-            </div>
-            <form action={createCustomer} style={{ display: "grid", gap: 10 }}>
-              <div className="field">
-                <label>Nombre</label>
-                <input className="input" name="name" placeholder="Nombre" />
-              </div>
-              <div className="field">
-                <label>Email</label>
-                <input className="input" name="email" placeholder="correo@empresa.com" />
-              </div>
-              <div className="field">
-                <label>Teléfono</label>
-                <input className="input" name="phone" placeholder="+57..." />
-              </div>
-              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-                <button className="primary" type="submit">
-                  Crear contacto
-                </button>
-              </div>
-              <div className="field-hint">Tip: con email puedes identificar más fácil al cliente en suscripciones.</div>
-            </form>
-          </div>
+          <NewCustomerForm createCustomer={createCustomer} />
 
           <div className="panel module" style={{ padding: 0 }}>
             <table className="table" aria-label="Tabla de contactos">
@@ -74,6 +51,8 @@ export default async function CustomersPage({ searchParams }: { searchParams: { 
                   <th>Nombre</th>
                   <th>Email</th>
                   <th>Teléfono</th>
+                  <th>Ciudad</th>
+                  <th>Dirección</th>
                   <th>Cobro auto</th>
                   <th>Creado</th>
                 </tr>
@@ -84,6 +63,8 @@ export default async function CustomersPage({ searchParams }: { searchParams: { 
                     <td>{c.name || "—"}</td>
                     <td>{c.email || "—"}</td>
                     <td>{c.phone || "—"}</td>
+                    <td>{c.metadata?.address?.city || "—"}</td>
+                    <td>{c.metadata?.address?.line1 || "—"}</td>
                     <td>
                       {c.metadata?.wompi?.paymentSourceId ? (
                         <span className="pill">OK</span>
@@ -98,7 +79,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: { 
                 ))}
                 {items.length === 0 ? (
                   <tr>
-                    <td colSpan={5} style={{ color: "var(--muted)" }}>
+                    <td colSpan={7} style={{ color: "var(--muted)" }}>
                       Sin contactos.
                     </td>
                   </tr>
