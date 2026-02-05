@@ -164,47 +164,56 @@ export function NewBillingAssignmentForm({
       <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
         <div style={{ display: "grid" }}>
           <h3 style={{ margin: 0 }}>Crear para un contacto</h3>
-          <div className="field-hint">Elige el plan/suscripción (plantilla), el contacto y las fechas.</div>
         </div>
         <button className={open ? "ghost" : "primary"} type="button" onClick={() => setOpen((v) => !v)}>
-          {open ? "Cerrar" : "Crear"}
+          {open ? "Cerrar" : "Crear nuevo"}
         </button>
       </div>
 
       {open ? (
         <div style={{ display: "grid", gap: 12 }}>
-          <form action={createSubscription} style={{ display: "grid", gap: 12 }}>
-            <input type="hidden" name="planId" value={planId} />
-            <input type="hidden" name="customerId" value={customerId} />
-            <input type="hidden" name="startAt" value={startAtIso} />
-            <input type="hidden" name="firstPeriodEndAt" value={cutoffAtIso} />
+          <div className="panel module" style={{ margin: 0 }}>
+            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+              <h3 style={{ margin: 0 }}>1) Plan o suscripción</h3>
+              <button className="ghost" type="button" onClick={() => setShowNewPlan((v) => !v)}>
+                {showNewPlan ? "Cerrar" : "Crear plantilla"}
+              </button>
+            </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div className="field">
-                <label>Plan o suscripción (plantilla)</label>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8, alignItems: "center" }}>
-                  <input
-                    className="input"
-                    value={planQ}
-                    onChange={(e) => {
-                      setPlanQ(e.target.value);
-                      if (planId) setPlanId("");
-                    }}
-                    placeholder="Buscar por nombre…"
-                  />
-                  <button className="ghost" type="button" onClick={() => setShowNewPlan(true)}>
-                    Crear
-                  </button>
+            {selectedPlan ? (
+              <div className="card cardPad" style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+                <div style={{ display: "grid" }}>
+                  <strong>{selectedPlan.name}</strong>
+                  <span className="field-hint">
+                    {planTipo(selectedPlan) === "SUSCRIPCION" ? "Suscripción" : "Plan"} ·{" "}
+                    {fmtMoneyFromCents(Number(selectedPlan.priceInCents || 0), String(selectedPlan.currency || "COP"))} ·{" "}
+                    {fmtEvery(selectedPlan.intervalUnit, selectedPlan.intervalCount)}
+                  </span>
                 </div>
-                <div className="panel module" style={{ margin: "8px 0 0", padding: 0, maxHeight: 180, overflow: "auto" }}>
-                  {(filteredPlans.length ? filteredPlans : plans.slice(0, 50)).map((p) => (
+                <button
+                  className="ghost"
+                  type="button"
+                  onClick={() => {
+                    setPlanId("");
+                    setPlanQ("");
+                    setCustomerId("");
+                    setCustomerQ("");
+                  }}
+                >
+                  Cambiar
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: 8 }}>
+                <input className="input" value={planQ} onChange={(e) => setPlanQ(e.target.value)} placeholder="Buscar por nombre…" />
+                <div className="panel module" style={{ margin: 0, padding: 0, maxHeight: 220, overflow: "auto" }}>
+                  {filteredPlans.map((p) => (
                     <button
                       key={p.id}
                       type="button"
                       className="ghost"
                       onClick={() => {
                         setPlanId(String(p.id));
-                        setPlanQ(String(p.name || ""));
                         setShowNewPlan(false);
                       }}
                       style={{
@@ -224,29 +233,59 @@ export function NewBillingAssignmentForm({
                       </div>
                     </button>
                   ))}
-                  {plans.length === 0 ? <div style={{ padding: 12, color: "var(--muted)" }}>No hay plantillas.</div> : null}
+                  {filteredPlans.length === 0 ? <div style={{ padding: 12, color: "var(--muted)" }}>No se encontraron plantillas.</div> : null}
                 </div>
               </div>
+            )}
 
-              <div className="field">
-                <label>Contacto</label>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8, alignItems: "center" }}>
-                  <input
-                    className="input"
-                    value={customerQ}
-                    onChange={(e) => {
-                      setCustomerQ(e.target.value);
-                      if (customerId) setCustomerId("");
-                    }}
-                    placeholder="Buscar por nombre, email o identificación…"
-                    disabled={!planId}
-                  />
-                  <button className="ghost" type="button" onClick={() => setShowNewCustomer(true)} disabled={!planId} aria-disabled={!planId}>
-                    Crear
-                  </button>
+            {showNewPlan ? (
+              <div style={{ marginTop: 10 }}>
+                <NewPlanTemplateForm action={createPlanTemplate} catalogItems={catalogItems} returnTo={returnTo} />
+              </div>
+            ) : null}
+          </div>
+
+          <div className="panel module" style={{ margin: 0, opacity: planId ? 1 : 0.6 }}>
+            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+              <h3 style={{ margin: 0 }}>2) Contacto</h3>
+              <button className="ghost" type="button" onClick={() => setShowNewCustomer((v) => !v)} disabled={!planId} aria-disabled={!planId}>
+                {showNewCustomer ? "Cerrar" : "Crear contacto"}
+              </button>
+            </div>
+
+            {selectedCustomer ? (
+              <div className="card cardPad" style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+                <div style={{ display: "grid" }}>
+                  <strong>{selectedCustomer.name || selectedCustomer.email || selectedCustomer.id}</strong>
+                  <span className="field-hint">
+                    {selectedCustomer.metadata?.identificacion || "—"}
+                    {selectedCustomer.email ? ` · ${selectedCustomer.email}` : ""}
+                    {selectedCustomer.phone ? ` · ${selectedCustomer.phone}` : ""}
+                  </span>
                 </div>
-                <div className="panel module" style={{ margin: "8px 0 0", padding: 0, maxHeight: 180, overflow: "auto", opacity: planId ? 1 : 0.6 }}>
-                  {(filteredCustomers.length ? filteredCustomers : customers.slice(0, 50)).map((c) => (
+                <button
+                  className="ghost"
+                  type="button"
+                  disabled={!planId}
+                  onClick={() => {
+                    setCustomerId("");
+                    setCustomerQ("");
+                  }}
+                >
+                  Cambiar
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: 8 }}>
+                <input
+                  className="input"
+                  value={customerQ}
+                  onChange={(e) => setCustomerQ(e.target.value)}
+                  placeholder="Buscar por nombre, email o identificación…"
+                  disabled={!planId}
+                />
+                <div className="panel module" style={{ margin: 0, padding: 0, maxHeight: 220, overflow: "auto" }}>
+                  {filteredCustomers.map((c) => (
                     <button
                       key={c.id}
                       type="button"
@@ -254,7 +293,6 @@ export function NewBillingAssignmentForm({
                       disabled={!planId}
                       onClick={() => {
                         setCustomerId(String(c.id));
-                        setCustomerQ(String(c.name || c.email || ""));
                         setShowNewCustomer(false);
                       }}
                       style={{
@@ -271,97 +309,77 @@ export function NewBillingAssignmentForm({
                       </div>
                     </button>
                   ))}
-                  {customers.length === 0 ? <div style={{ padding: 12, color: "var(--muted)" }}>No hay contactos.</div> : null}
+                  {filteredCustomers.length === 0 ? <div style={{ padding: 12, color: "var(--muted)" }}>No se encontraron contactos.</div> : null}
                 </div>
               </div>
-            </div>
+            )}
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div className="field">
-                <label>Inicio (activación)</label>
-                <input className="input" type="datetime-local" value={startLocal} onChange={(e) => setStartLocal(e.target.value)} disabled={!planId || !customerId} />
+            {showNewCustomer ? (
+              <div style={{ marginTop: 10 }}>
+                <NewCustomerForm createCustomer={createCustomer} defaultOpen mode="always_open" hidePanelHeader returnTo={returnTo} />
               </div>
-              <div className="field">
-                <label>Corte (cobro)</label>
-                <input
-                  className="input"
-                  type="datetime-local"
-                  value={cutoffLocal}
-                  onChange={(e) => setCutoffLocal(e.target.value)}
-                  disabled={!planId || !customerId || sameCutoff}
-                />
-                <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-                  <input type="checkbox" checked={sameCutoff} onChange={(e) => setSameCutoff(e.target.checked)} disabled={!planId || !customerId} />
-                  <span>Corte = inicio</span>
-                </label>
-              </div>
-            </div>
-
-            {selectedPlan ? (
-              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <input
-                  type="checkbox"
-                  name="createPaymentLink"
-                  checked={createLinkNow}
-                  onChange={(e) => setCreateLinkNow(e.target.checked)}
-                  disabled={!planId || !customerId}
-                />
-                <span>
-                  {planTipo(selectedPlan) === "PLAN"
-                    ? "Generar link de pago al guardar"
-                    : "Generar link de pago si no se puede cobrar automáticamente"}
-                </span>
-              </label>
             ) : null}
+          </div>
 
-            <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-              <div className="field-hint" style={{ margin: 0 }}>
-                {selectedPlan ? (
-                  <>
-                    <strong>{selectedPlan.name}</strong> · {planTipo(selectedPlan) === "SUSCRIPCION" ? "Suscripción" : "Plan"}
-                  </>
-                ) : (
-                  "Selecciona una plantilla."
-                )}
-                {selectedCustomer ? (
-                  <>
-                    {" "}
-                    · <strong>{selectedCustomer.name || selectedCustomer.email || selectedCustomer.id}</strong>
-                  </>
-                ) : null}
-              </div>
-              <button className="primary" type="submit" disabled={!planId || !customerId}>
-                Guardar
-              </button>
+          <div className="panel module" style={{ margin: 0, opacity: planId && customerId ? 1 : 0.6 }}>
+            <div className="panel-header">
+              <h3 style={{ margin: 0 }}>3) Fechas</h3>
             </div>
-          </form>
 
-          {showNewPlan ? (
-            <div className="panel module" style={{ margin: 0 }}>
-              <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-                <h3 style={{ margin: 0 }}>Nuevo plan / suscripción</h3>
-                <button className="ghost" type="button" onClick={() => setShowNewPlan(false)}>
-                  Cerrar
+            <form action={createSubscription} style={{ display: "grid", gap: 10 }}>
+              <input type="hidden" name="planId" value={planId} />
+              <input type="hidden" name="customerId" value={customerId} />
+              <input type="hidden" name="startAt" value={startAtIso} />
+              <input type="hidden" name="firstPeriodEndAt" value={cutoffAtIso} />
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div className="field">
+                  <label>Inicio (activación)</label>
+                  <input className="input" type="datetime-local" value={startLocal} onChange={(e) => setStartLocal(e.target.value)} disabled={!planId || !customerId} />
+                </div>
+                <div className="field">
+                  <label>Corte (cobro)</label>
+                  <input
+                    className="input"
+                    type="datetime-local"
+                    value={cutoffLocal}
+                    onChange={(e) => setCutoffLocal(e.target.value)}
+                    disabled={!planId || !customerId || sameCutoff}
+                  />
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+                    <input type="checkbox" checked={sameCutoff} onChange={(e) => setSameCutoff(e.target.checked)} disabled={!planId || !customerId} />
+                    <span>Corte = inicio</span>
+                  </label>
+                </div>
+              </div>
+
+              {selectedPlan ? (
+                <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <input
+                    type="checkbox"
+                    name="createPaymentLink"
+                    checked={createLinkNow}
+                    onChange={(e) => setCreateLinkNow(e.target.checked)}
+                    disabled={!planId || !customerId}
+                  />
+                  <span>
+                    {planTipo(selectedPlan) === "PLAN"
+                      ? "Generar link de pago al guardar"
+                      : "Generar link de pago si no se puede cobrar automáticamente"}
+                  </span>
+                </label>
+              ) : null}
+
+              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 10, alignItems: "center" }}>
+                <button className="primary" type="submit" disabled={!planId || !customerId}>
+                  Guardar
                 </button>
               </div>
-              <NewPlanTemplateForm action={createPlanTemplate} catalogItems={catalogItems} returnTo={returnTo} />
-            </div>
-          ) : null}
-
-          {showNewCustomer ? (
-            <div className="panel module" style={{ margin: 0 }}>
-              <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-                <h3 style={{ margin: 0 }}>Nuevo contacto</h3>
-                <button className="ghost" type="button" onClick={() => setShowNewCustomer(false)}>
-                  Cerrar
-                </button>
-              </div>
-              <NewCustomerForm createCustomer={createCustomer} defaultOpen mode="always_open" hidePanelHeader returnTo={returnTo} />
-            </div>
-          ) : null}
+            </form>
+          </div>
         </div>
       ) : (
-        <div className="field-hint">Usa este formulario para crear el cobro recurrente o enviar un link al contacto.</div>
+        null
       )}
     </div>
   );
