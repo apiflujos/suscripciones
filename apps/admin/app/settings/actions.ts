@@ -16,7 +16,7 @@ async function adminFetch(path: string, init: RequestInit) {
     cache: "no-store"
   });
   const json = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(json?.error || `request_failed_${res.status}`);
+  if (!res.ok) throw new Error(json?.reason ? `${json?.error || "request_failed"}:${json.reason}` : json?.message || json?.error || `request_failed_${res.status}`);
   return json;
 }
 

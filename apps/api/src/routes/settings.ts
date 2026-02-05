@@ -41,6 +41,14 @@ const chatwootUpdateSchema = z.object({
 export const settingsRouter = express.Router();
 
 settingsRouter.get("/", async (_req, res) => {
+  const encKeyB64 = (process.env.CREDENTIALS_ENCRYPTION_KEY_B64 || "").trim();
+  const encryptionKeyConfigured = !!encKeyB64;
+  let encryptionKeyValid = false;
+  if (encryptionKeyConfigured) {
+    const buf = Buffer.from(encKeyB64, "base64");
+    encryptionKeyValid = buf.length === 32;
+  }
+
   const wompiPublicKey = await getOrEnv(CredentialProvider.WOMPI, "PUBLIC_KEY", process.env.WOMPI_PUBLIC_KEY);
   const wompiPrivateKey = await getOrEnv(CredentialProvider.WOMPI, "PRIVATE_KEY", process.env.WOMPI_PRIVATE_KEY);
   const wompiIntegritySecret = await getOrEnv(
@@ -72,7 +80,8 @@ settingsRouter.get("/", async (_req, res) => {
   );
 
   res.json({
-    encryptionKeyConfigured: !!(process.env.CREDENTIALS_ENCRYPTION_KEY_B64 || "").trim(),
+    encryptionKeyConfigured,
+    encryptionKeyValid,
     wompi: {
       publicKey: wompiPublicKey ?? null,
       privateKey: maskSecret(wompiPrivateKey),

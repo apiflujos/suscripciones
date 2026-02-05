@@ -11,7 +11,13 @@ export function requireAdminToken(req: Request, res: Response, next: NextFunctio
   const expected = (expectedRaw.startsWith("Bearer ") ? expectedRaw.slice("Bearer ".length) : expectedRaw).trim();
 
   if (!token || !expected || token !== expected) {
-    res.status(401).json({ error: "unauthorized" });
+    const reason = !expected ? "expected_not_configured" : !token ? "missing_token" : "token_mismatch";
+    res.status(401).json({
+      error: "unauthorized",
+      reason,
+      hasAuthorization: !!auth,
+      hasXAdminToken: !!tokenFromHeader
+    });
     return;
   }
   next();

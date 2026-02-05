@@ -54,6 +54,12 @@ export default async function SettingsPage({ searchParams }: { searchParams: { s
         </div>
       ) : null}
 
+      {settingsRes.ok && settings?.encryptionKeyConfigured && settings?.encryptionKeyValid === false ? (
+        <div style={{ padding: 12, background: "#ffe", borderRadius: 8 }}>
+          `CREDENTIALS_ENCRYPTION_KEY_B64` está configurada pero es inválida. Debe ser Base64 de <strong>32 bytes</strong> (no 32 caracteres).
+        </div>
+      ) : null}
+
       <section style={{ border: "1px solid #eee", borderRadius: 12, padding: 16 }}>
         <h2 style={{ marginTop: 0 }}>Wompi</h2>
         <div style={{ color: "#666", marginBottom: 12 }}>
