@@ -121,14 +121,78 @@ export async function createPlanOrSubscription(formData: FormData) {
   const startAt = String(formData.get("startAt") || "").trim();
   const firstPeriodEndAt = String(formData.get("firstPeriodEndAt") || "").trim();
 
+  const catalogMode = String(formData.get("catalogMode") || "EXISTING").trim();
   const catalogItemId = String(formData.get("catalogItemId") || "").trim();
   const option1Value = String(formData.get("option1Value") || "").trim();
   const option2Value = String(formData.get("option2Value") || "").trim();
 
   try {
-    const products = await adminFetch("/admin/products", { method: "GET" });
-    const item = (products?.items ?? []).find((p: any) => String(p.id) === catalogItemId);
-    if (!item) throw new Error("producto_no_encontrado");
+    let item: any = null;
+    let createdItemId: string | null = null;
+
+    if (catalogMode === "NEW") {
+      const itemKind = String(formData.get("itemKind") || "PRODUCT").trim();
+      const itemName = String(formData.get("itemName") || "").trim();
+      const itemSku = String(formData.get("itemSku") || "").trim();
+      const basePriceInCents = pesosToCents(String(formData.get("itemBasePricePesos") || ""));
+      const taxPercent = Number(String(formData.get("itemTaxPercent") || "0"));
+      const discountType = String(formData.get("itemDiscountType") || "NONE").trim();
+      const discountValueInCents = pesosToCents(String(formData.get("itemDiscountValuePesos") || ""));
+      const discountPercent = Number(String(formData.get("itemDiscountPercent") || "0"));
+      const option1Name = String(formData.get("itemOption1Name") || "").trim();
+      const option2Name = String(formData.get("itemOption2Name") || "").trim();
+      const variantsJson = String(formData.get("itemVariantsJson") || "[]");
+
+      let variants: any[] | null = null;
+      try {
+        const parsed = JSON.parse(variantsJson);
+        if (Array.isArray(parsed)) variants = parsed;
+      } catch {}
+
+      if (!itemName || !itemSku) throw new Error("producto_incompleto");
+
+      const created = await adminFetch("/admin/products", {
+        method: "POST",
+        body: JSON.stringify({
+          name: itemName,
+          sku: itemSku,
+          kind: itemKind,
+          currency: "COP",
+          basePriceInCents,
+          taxPercent,
+          discountType,
+          discountValueInCents,
+          discountPercent,
+          taxable: true,
+          requiresShipping: itemKind === "PRODUCT",
+          option1Name: option1Name || null,
+          option2Name: option2Name || null,
+          variants: variants || null
+        })
+      });
+      createdItemId = created?.product?.id ? String(created.product.id) : null;
+      if (!createdItemId) throw new Error("crear_producto_failed");
+
+      item = {
+        id: createdItemId,
+        sku: itemSku,
+        name: itemName,
+        kind: itemKind,
+        currency: "COP",
+        basePriceInCents,
+        taxPercent,
+        discountType,
+        discountValueInCents,
+        discountPercent,
+        option1Name: option1Name || null,
+        option2Name: option2Name || null,
+        variants: variants || null
+      };
+    } else {
+      const products = await adminFetch("/admin/products", { method: "GET" });
+      item = (products?.items ?? []).find((p: any) => String(p.id) === catalogItemId);
+      if (!item) throw new Error("producto_no_encontrado");
+    }
 
     const variants = Array.isArray(item.variants) ? item.variants : [];
     const matched = variants.find(

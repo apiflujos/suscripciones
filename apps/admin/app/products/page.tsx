@@ -1,5 +1,4 @@
-import { createPlanOrSubscription, createProduct } from "./actions";
-import { NewCatalogItemForm } from "./NewCatalogItemForm";
+import { createPlanOrSubscription } from "./actions";
 import { NewPlanOrSubscriptionForm } from "./NewPlanOrSubscriptionForm";
 
 export const dynamic = "force-dynamic";
@@ -68,14 +67,12 @@ export default async function ProductsPage({
           <div className="panelHeaderRow">
             <h3>Productos y Servicios</h3>
           </div>
-          <div className="field-hint">Crea cobros recurrentes y administra tu catálogo.</div>
+          <div className="field-hint">Crea planes y suscripciones y asígnales un producto/servicio.</div>
         </div>
 
         <div className="settings-group-body">
           <div style={{ display: "grid", gap: 14 }}>
             <NewPlanOrSubscriptionForm action={createPlanOrSubscription} customers={customerItems} catalogItems={productItems} />
-
-            <NewCatalogItemForm action={createProduct} />
 
             <div className="panel module" style={{ padding: 0 }}>
               <table className="table" aria-label="Tabla de productos y servicios">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type VariantRow = { option1?: string; option2?: string; priceDeltaPesos?: string };
 
@@ -28,12 +28,16 @@ export function VariantsEditor({
   option1Name,
   option2Name,
   showOption2,
-  disabled
+  disabled,
+  fieldName,
+  onJsonChange
 }: {
   option1Name?: string;
   option2Name?: string;
   showOption2?: boolean;
   disabled?: boolean;
+  fieldName?: string;
+  onJsonChange?: (json: string) => void;
 }) {
   const [rows, setRows] = useState<VariantRow[]>([]);
 
@@ -47,6 +51,10 @@ export function VariantsEditor({
       .filter((r) => r.option1 || r.option2 || r.priceDeltaInCents !== 0);
     return JSON.stringify(normalized);
   }, [rows, option1Name, option2Name, showOption2]);
+
+  useEffect(() => {
+    onJsonChange?.(json);
+  }, [json, onJsonChange]);
 
   return (
     <div className="panel" style={{ borderColor: "rgba(15, 23, 42, 0.12)" }}>
@@ -62,7 +70,7 @@ export function VariantsEditor({
         </button>
       </div>
 
-      <input type="hidden" name="variantsJson" value={json} />
+      <input type="hidden" name={fieldName || "variantsJson"} value={json} />
 
       <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
         {disabled ? <div className="field-hint">Define el nombre de las opciones para poder agregar variantes.</div> : null}
