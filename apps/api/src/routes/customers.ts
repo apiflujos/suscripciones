@@ -21,25 +21,25 @@ export const customersRouter = express.Router();
 customersRouter.get("/", async (_req, res) => {
   const req = _req as any;
   const takeRaw = Number(req?.query?.take ?? 50);
-  const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 200) : 50;
+  const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 500) : 50;
   const q = String(req?.query?.q ?? "").trim();
 
-  const items = await prisma.customer.findMany({ orderBy: { createdAt: "desc" }, take });
-  if (!q) return res.json({ items });
+  const where: any = {};
+  if (q) {
+    where.OR = [
+      { name: { contains: q, mode: "insensitive" } },
+      { email: { contains: q, mode: "insensitive" } },
+      { phone: { contains: q, mode: "insensitive" } },
+      { metadata: { path: ["identificacion"], string_contains: q } } as any,
+      { metadata: { path: ["identificacionNumero"], string_contains: q } } as any,
+      { metadata: { path: ["identificationNumber"], string_contains: q } } as any,
+      { metadata: { path: ["documentNumber"], string_contains: q } } as any,
+      { metadata: { path: ["document"], string_contains: q } } as any
+    ];
+  }
 
-  const t = q.toLowerCase();
-  const filtered = items.filter((c) => {
-    const meta = (c.metadata ?? {}) as any;
-    const hay =
-      String(c.name || "").toLowerCase().includes(t) ||
-      String(c.email || "").toLowerCase().includes(t) ||
-      String(c.phone || "").toLowerCase().includes(t) ||
-      String(meta.identificacion || "").toLowerCase().includes(t) ||
-      String(meta.identificacionNumero || "").toLowerCase().includes(t);
-    return hay;
-  });
-
-  res.json({ items: filtered });
+  const items = await prisma.customer.findMany({ where, orderBy: { createdAt: "desc" }, take });
+  res.json({ items });
 });
 
 customersRouter.post("/", async (req, res) => {

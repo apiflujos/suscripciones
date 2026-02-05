@@ -64,10 +64,13 @@ export default async function LogsPage({
   const q = typeof searchParams?.q === "string" ? searchParams.q : "";
   const viewId = typeof searchParams?.view === "string" ? searchParams.view : "";
 
-  const [system, jobs, webhooks] = await Promise.all([
+  const [system, jobs, webhooks, selectedRes] = await Promise.all([
     fetchAdmin("/admin/logs/system?take=120"),
     fetchAdmin("/admin/logs/jobs?take=200"),
-    fetchAdmin("/admin/webhook-events")
+    fetchAdmin("/admin/webhook-events"),
+    viewId
+      ? fetchAdmin(`/admin/logs/system/${encodeURIComponent(viewId)}`)
+      : Promise.resolve({ ok: false, status: 0, json: null } as any)
   ]);
 
   const sysItems = (system.json?.items ?? []) as any[];
@@ -85,7 +88,7 @@ export default async function LogsPage({
     message: normalizeLogMessage(l.message)
   }));
 
-  const selected = viewId ? normalized.find((l) => String(l.id) === viewId) : null;
+  const selected = selectedRes?.ok ? (selectedRes.json?.item ?? null) : viewId ? normalized.find((l) => String(l.id) === viewId) : null;
 
   return (
     <main className="page">

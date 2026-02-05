@@ -52,6 +52,9 @@ export function NewPlanTemplateForm({
   const [catalogMode, setCatalogMode] = useState<"EXISTING" | "NEW">(catalogItems.length ? "EXISTING" : "NEW");
   const [catalogQ, setCatalogQ] = useState("");
   const [catalogItemId, setCatalogItemId] = useState(catalogItems[0]?.id || "");
+  const [catalogHits, setCatalogHits] = useState<CatalogItem[]>([]);
+  const [catalogSearching, setCatalogSearching] = useState(false);
+  const [selectedCatalogOverride, setSelectedCatalogOverride] = useState<CatalogItem | null>(null);
 
   const [itemKind, setItemKind] = useState<"PRODUCT" | "SERVICE">("PRODUCT");
   const [itemName, setItemName] = useState("");
@@ -65,13 +68,75 @@ export function NewPlanTemplateForm({
   const [itemOption2Name, setItemOption2Name] = useState("");
   const [itemVariantsJson, setItemVariantsJson] = useState("[]");
 
-  const selectedItem = useMemo(() => catalogItems.find((x) => x.id === catalogItemId) || null, [catalogItems, catalogItemId]);
+  const catalogPool = useMemo(() => {
+    const map = new Map<string, CatalogItem>();
+    for (const it of catalogItems) map.set(String(it.id), it);
+    for (const it of catalogHits) map.set(String(it.id), it);
+    if (selectedCatalogOverride) map.set(String(selectedCatalogOverride.id), selectedCatalogOverride);
+    return Array.from(map.values());
+  }, [catalogItems, catalogHits, selectedCatalogOverride]);
+
+  const selectedItem = useMemo(() => catalogPool.find((x) => String(x.id) === String(catalogItemId)) || null, [catalogPool, catalogItemId]);
 
   const filteredCatalogItems = useMemo(() => {
     const q = catalogQ.trim().toLowerCase();
-    if (!q) return catalogItems.slice(0, 200);
-    return catalogItems.filter((p) => `${p.name} ${p.sku}`.toLowerCase().includes(q)).slice(0, 200);
-  }, [catalogItems, catalogQ]);
+    let list: CatalogItem[];
+    if (q.length >= 2) {
+      list = catalogHits.slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "es")).slice(0, 200);
+      if (selectedItem && !list.some((x) => String(x.id) === String(selectedItem.id))) return [selectedItem, ...list];
+      return list;
+    }
+
+    if (!q) {
+      list = catalogPool.slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "es")).slice(0, 200);
+    } else {
+      list = catalogPool
+      .slice()
+      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "es"))
+      .filter((p) => `${p.name} ${p.sku}`.toLowerCase().includes(q))
+      .slice(0, 200);
+    }
+
+    if (selectedItem && !list.some((x) => String(x.id) === String(selectedItem.id))) return [selectedItem, ...list];
+    return list;
+  }, [catalogHits, catalogPool, catalogQ, selectedItem]);
+
+  useEffect(() => {
+    const q = catalogQ.trim();
+    if (catalogMode !== "EXISTING" || q.length < 2) {
+      setCatalogHits([]);
+      setCatalogSearching(false);
+      return;
+    }
+
+    const ac = new AbortController();
+    setCatalogSearching(true);
+    const t = setTimeout(() => {
+      fetch(`/api/search/products?${new URLSearchParams({ q, take: "120" }).toString()}`, { cache: "no-store", signal: ac.signal })
+        .then(async (r) => ({ ok: r.ok, json: await r.json().catch(() => null) }))
+        .then(({ ok, json }) => {
+          if (!ok) {
+            setCatalogHits([]);
+            return;
+          }
+          const items = Array.isArray(json?.items) ? (json.items as CatalogItem[]) : [];
+          setCatalogHits(items);
+        })
+        .catch(() => {
+          if (ac.signal.aborted) return;
+          setCatalogHits([]);
+        })
+        .finally(() => {
+          if (ac.signal.aborted) return;
+          setCatalogSearching(false);
+        });
+    }, 250);
+
+    return () => {
+      ac.abort();
+      clearTimeout(t);
+    };
+  }, [catalogMode, catalogQ]);
 
   const parsedNewVariants = useMemo(() => {
     try {
@@ -220,13 +285,28 @@ export function NewPlanTemplateForm({
           <div className="field">
             <label>Catálogo</label>
             <input className="input" placeholder="Buscar..." value={catalogQ} onChange={(e) => setCatalogQ(e.target.value)} />
-            <select className="select" name="catalogItemId" value={catalogItemId} onChange={(e) => setCatalogItemId(e.target.value)} required>
+            {catalogSearching ? <div className="field-hint">Buscando…</div> : null}
+            <select
+              className="select"
+              name="catalogItemId"
+              value={catalogItemId}
+              onChange={(e) => {
+                const id = e.target.value;
+                setCatalogItemId(id);
+                const item = catalogPool.find((x) => String(x.id) === String(id)) || null;
+                setSelectedCatalogOverride(item);
+              }}
+              required
+            >
               {filteredCatalogItems.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name} · {p.sku}
                 </option>
               ))}
             </select>
+            {!catalogSearching && catalogQ.trim().length >= 2 && filteredCatalogItems.length === 0 ? (
+              <div className="field-hint">Sin resultados. Prueba con otro término.</div>
+            ) : null}
           </div>
         ) : (
           <>

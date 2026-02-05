@@ -34,10 +34,24 @@ const createProductSchema = z.object({
 export const productsRouter = express.Router();
 
 productsRouter.get("/", async (_req, res) => {
+  const req = _req as any;
+  const takeRaw = Number(req?.query?.take ?? 200);
+  const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 1000) : 200;
+  const q = String(req?.query?.q ?? "").trim();
+
+  const where: any = { metadata: { path: ["kind"], equals: "CATALOG_ITEM" } } as any;
+  if (q) {
+    where.OR = [
+      { name: { contains: q, mode: "insensitive" } },
+      { metadata: { path: ["displayName"], string_contains: q } } as any,
+      { metadata: { path: ["sku"], string_contains: q } } as any
+    ];
+  }
+
   const items = await prisma.subscriptionPlan.findMany({
-    where: { metadata: { path: ["kind"], equals: "CATALOG_ITEM" } } as any,
+    where,
     orderBy: { createdAt: "desc" },
-    take: 200
+    take
   });
   res.json({
     items: items.map((p) => ({
@@ -64,6 +78,41 @@ productsRouter.get("/", async (_req, res) => {
       createdAt: p.createdAt,
       updatedAt: p.updatedAt
     }))
+  });
+});
+
+productsRouter.get("/:id", async (req, res) => {
+  const id = String(req.params.id || "").trim();
+  if (!id) return res.status(400).json({ error: "invalid_id" });
+  const plan = await prisma.subscriptionPlan.findUnique({ where: { id } });
+  if (!plan) return res.status(404).json({ error: "not_found" });
+  if ((plan.metadata as any)?.kind !== "CATALOG_ITEM") return res.status(404).json({ error: "not_found" });
+
+  res.json({
+    item: {
+      id: plan.id,
+      name: (plan.metadata as any)?.displayName || plan.name,
+      sku: (plan.metadata as any)?.sku || "",
+      kind: (plan.metadata as any)?.itemKind || "PRODUCT",
+      description: (plan.metadata as any)?.description || null,
+      vendor: (plan.metadata as any)?.vendor || null,
+      productType: (plan.metadata as any)?.productType || null,
+      tags: (plan.metadata as any)?.tags || null,
+      unit: (plan.metadata as any)?.unit || null,
+      taxable: (plan.metadata as any)?.taxable ?? true,
+      requiresShipping: (plan.metadata as any)?.requiresShipping ?? false,
+      currency: plan.currency,
+      basePriceInCents: plan.priceInCents,
+      taxPercent: (plan.metadata as any)?.taxPercent || 0,
+      discountType: (plan.metadata as any)?.discountType || "NONE",
+      discountValueInCents: (plan.metadata as any)?.discountValueInCents || 0,
+      discountPercent: (plan.metadata as any)?.discountPercent || 0,
+      option1Name: (plan.metadata as any)?.option1Name || null,
+      option2Name: (plan.metadata as any)?.option2Name || null,
+      variants: (plan.metadata as any)?.variants || null,
+      createdAt: plan.createdAt,
+      updatedAt: plan.updatedAt
+    }
   });
 });
 

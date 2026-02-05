@@ -10,6 +10,14 @@ logsRouter.get("/system", async (req, res) => {
   res.json({ items });
 });
 
+logsRouter.get("/system/:id", async (req, res) => {
+  const id = String(req.params.id || "").trim();
+  if (!id) return res.status(400).json({ error: "invalid_id" });
+  const item = await prisma.systemLog.findUnique({ where: { id } });
+  if (!item) return res.status(404).json({ error: "not_found" });
+  res.json({ item });
+});
+
 logsRouter.get("/payments", async (req, res) => {
   const take = Math.min(200, Math.max(1, Number(req.query.take ?? 50)));
   const items = await prisma.payment.findMany({

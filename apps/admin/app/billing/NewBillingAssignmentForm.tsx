@@ -103,6 +103,9 @@ export function NewBillingAssignmentForm({
 
   const [customerQ, setCustomerQ] = useState("");
   const [customerId, setCustomerId] = useState(defaultSelectedCustomerId || "");
+  const [customerHits, setCustomerHits] = useState<Customer[]>([]);
+  const [customerSearching, setCustomerSearching] = useState(false);
+  const [selectedCustomerOverride, setSelectedCustomerOverride] = useState<Customer | null>(null);
 
   const [startLocal, setStartLocal] = useState("");
   const [cutoffLocal, setCutoffLocal] = useState("");
@@ -121,10 +124,15 @@ export function NewBillingAssignmentForm({
   }, [sameCutoff, startLocal]);
 
   const selectedPlan = useMemo(() => plans.find((p) => String(p.id) === String(planId)) || null, [plans, planId]);
-  const selectedCustomer = useMemo(
-    () => customers.find((c) => String(c.id) === String(customerId)) || null,
-    [customers, customerId]
-  );
+  const selectedCustomer = useMemo(() => {
+    if (!customerId) return null;
+    if (selectedCustomerOverride && String(selectedCustomerOverride.id) === String(customerId)) return selectedCustomerOverride;
+    return (
+      customers.find((c) => String(c.id) === String(customerId)) ||
+      customerHits.find((c) => String(c.id) === String(customerId)) ||
+      null
+    );
+  }, [customers, customerHits, customerId, selectedCustomerOverride]);
 
   const filteredPlans = useMemo(() => {
     const q = planQ.trim().toLowerCase();
@@ -135,12 +143,54 @@ export function NewBillingAssignmentForm({
 
   const filteredCustomers = useMemo(() => {
     const q = customerQ.trim().toLowerCase();
+    if (q.length >= 2) {
+      const list = customerHits.slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "es"));
+      return list.slice(0, 300);
+    }
+
     const list = customers.slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "es"));
     if (!q) return list.slice(0, 300);
     return list
       .filter((c) => `${c.name || ""} ${c.email || ""} ${c.phone || ""} ${c.metadata?.identificacion || ""} ${c.id}`.toLowerCase().includes(q))
       .slice(0, 300);
-  }, [customers, customerQ]);
+  }, [customers, customerHits, customerQ]);
+
+  useEffect(() => {
+    const q = customerQ.trim();
+    if (!planId || q.length < 2) {
+      setCustomerHits([]);
+      setCustomerSearching(false);
+      return;
+    }
+
+    const ac = new AbortController();
+    setCustomerSearching(true);
+    const t = setTimeout(() => {
+      fetch(`/api/search/customers?${new URLSearchParams({ q, take: "80" }).toString()}`, { cache: "no-store", signal: ac.signal })
+        .then(async (r) => ({ ok: r.ok, json: await r.json().catch(() => null) }))
+        .then(({ ok, json }) => {
+          if (!ok) {
+            setCustomerHits([]);
+            return;
+          }
+          const items = Array.isArray(json?.items) ? (json.items as Customer[]) : [];
+          setCustomerHits(items);
+        })
+        .catch(() => {
+          if (ac.signal.aborted) return;
+          setCustomerHits([]);
+        })
+        .finally(() => {
+          if (ac.signal.aborted) return;
+          setCustomerSearching(false);
+        });
+    }, 250);
+
+    return () => {
+      ac.abort();
+      clearTimeout(t);
+    };
+  }, [customerQ, planId]);
 
   const returnTo = useMemo(() => {
     const sp = new URLSearchParams();
@@ -199,6 +249,8 @@ export function NewBillingAssignmentForm({
                     setPlanQ("");
                     setCustomerId("");
                     setCustomerQ("");
+                    setCustomerHits([]);
+                    setSelectedCustomerOverride(null);
                   }}
                 >
                   Cambiar
@@ -271,34 +323,38 @@ export function NewBillingAssignmentForm({
                   onClick={() => {
                     setCustomerId("");
                     setCustomerQ("");
+                    setCustomerHits([]);
+                    setSelectedCustomerOverride(null);
                   }}
                 >
                   Cambiar
                 </button>
               </div>
             ) : (
-              <div style={{ display: "grid", gap: 8 }}>
-                <input
-                  className="input"
-                  value={customerQ}
-                  onChange={(e) => setCustomerQ(e.target.value)}
-                  placeholder="Buscar por nombre, email o identificación…"
-                  disabled={!planId}
-                />
-                <div className="panel module" style={{ margin: 0, padding: 0, maxHeight: 220, overflow: "auto" }}>
-                  {filteredCustomers.map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      className="ghost"
+                  <div style={{ display: "grid", gap: 8 }}>
+                    <input
+                      className="input"
+                      value={customerQ}
+                      onChange={(e) => setCustomerQ(e.target.value)}
+                      placeholder="Buscar por nombre, email o identificación…"
                       disabled={!planId}
-                      onClick={() => {
-                        setCustomerId(String(c.id));
-                        setShowNewCustomer(false);
-                      }}
-                      style={{
-                        width: "100%",
-                        textAlign: "left",
+                    />
+                    <div className="panel module" style={{ margin: 0, padding: 0, maxHeight: 220, overflow: "auto" }}>
+                      {customerSearching ? <div style={{ padding: 12, color: "var(--muted)" }}>Buscando…</div> : null}
+                      {filteredCustomers.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          className="ghost"
+                          disabled={!planId}
+                          onClick={() => {
+                            setCustomerId(String(c.id));
+                            setSelectedCustomerOverride(c);
+                            setShowNewCustomer(false);
+                          }}
+                          style={{
+                            width: "100%",
+                            textAlign: "left",
                         padding: "10px 12px",
                         borderRadius: 0,
                         borderBottom: "1px solid rgba(15, 23, 42, 0.08)"
@@ -308,12 +364,16 @@ export function NewBillingAssignmentForm({
                         <span>{c.name || c.email || c.id}</span>
                         <span className="field-hint">{c.metadata?.identificacion || c.email || c.phone || "—"}</span>
                       </div>
-                    </button>
-                  ))}
-                  {filteredCustomers.length === 0 ? <div style={{ padding: 12, color: "var(--muted)" }}>No se encontraron contactos.</div> : null}
-                </div>
-              </div>
-            )}
+                        </button>
+                      ))}
+                      {!customerSearching && filteredCustomers.length === 0 ? (
+                        <div style={{ padding: 12, color: "var(--muted)" }}>
+                          {customerQ.trim().length >= 2 ? "Sin resultados. Prueba con otro término." : "No se encontraron contactos."}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                )}
 
             {showNewCustomer ? (
               <div style={{ marginTop: 10 }}>

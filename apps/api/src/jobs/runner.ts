@@ -97,7 +97,13 @@ async function main() {
       const msg = err?.meta?.message || err?.message || String(err);
       // Common during first boot if migrations haven't been applied yet.
       logger.warn({ err: msg }, "Jobs runner transient failure; retrying soon");
-      await systemLog(LogLevel.WARN, "jobs.runner", "Transient failure (will retry)", { err: msg }).catch(() => {});
+      const short = String(msg || "").replace(/\s+/g, " ").trim().slice(0, 240);
+      await systemLog(
+        LogLevel.WARN,
+        "jobs.runner",
+        short ? `Transient failure (will retry): ${short}` : "Transient failure (will retry)",
+        { err: msg }
+      ).catch(() => {});
       await new Promise((r) => setTimeout(r, 5000));
     }
   }

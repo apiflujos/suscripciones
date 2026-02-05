@@ -12,7 +12,7 @@ async function fetchSettings() {
   return fetchAdminCached("/admin/settings", { ttlMs: 1500 });
 }
 
-export default async function SettingsPage({ searchParams }: { searchParams: { saved?: string } }) {
+export default async function SettingsPage({ searchParams }: { searchParams: { saved?: string; error?: string } }) {
   const { token } = getConfig();
   if (!token) {
     return (
@@ -45,6 +45,11 @@ export default async function SettingsPage({ searchParams }: { searchParams: { s
     <main className="page" style={{ maxWidth: 980 }}>
       <h1 style={{ marginTop: 0 }}>Configuraciones</h1>
       {searchParams.saved ? <div className="card cardPad">Guardado.</div> : null}
+      {searchParams.error ? (
+        <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>
+          No se pudo guardar: {String(searchParams.error)}
+        </div>
+      ) : null}
 
       {!settingsRes.ok ? (
         <div className="card cardPad">
@@ -56,7 +61,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: { s
 
       {settingsRes.ok && !settings?.encryptionKeyConfigured ? (
         <div className="card cardPad">
-          Falta `CREDENTIALS_ENCRYPTION_KEY_B64` en el API (Base64 de 32 bytes). Sin esto no se guardan secretos.
+          Falta `CREDENTIALS_ENCRYPTION_KEY_B64` en el API (Base64 de 32 bytes). Sin esto no se guardan secretos. Usa el mismo valor también en el servicio de jobs (`wompi-subs-jobs`).
         </div>
       ) : null}
 

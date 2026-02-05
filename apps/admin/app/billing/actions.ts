@@ -193,8 +193,13 @@ export async function createPlanTemplate(formData: FormData) {
         variants: variants || null
       };
     } else {
-      const products = await adminFetch("/admin/products", { method: "GET" });
-      item = (products?.items ?? []).find((p: any) => String(p.id) === catalogItemId);
+      if (!catalogItemId) throw new Error("producto_no_encontrado");
+      try {
+        const product = await adminFetch(`/admin/products/${encodeURIComponent(catalogItemId)}`, { method: "GET" });
+        item = product?.item ?? null;
+      } catch {
+        item = null;
+      }
       if (!item) throw new Error("producto_no_encontrado");
     }
 

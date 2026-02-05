@@ -11,6 +11,11 @@ function normalizeToken(value: string) {
 }
 const TOKEN = normalizeToken(process.env.ADMIN_API_TOKEN || process.env.API_ADMIN_TOKEN || "");
 
+function toShortErrorMessage(err: unknown) {
+  const raw = err instanceof Error ? err.message : String(err);
+  return raw.replace(/\s+/g, " ").trim().slice(0, 220) || "unknown_error";
+}
+
 async function adminFetch(path: string, init: RequestInit) {
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
@@ -36,31 +41,39 @@ export async function updateWompi(formData: FormData) {
   const checkoutLinkBaseUrl = String(formData.get("checkoutLinkBaseUrl") || "").trim();
   const redirectUrl = String(formData.get("redirectUrl") || "").trim();
 
-  await adminFetch("/admin/settings/wompi", {
-    method: "PUT",
-    body: JSON.stringify({
-      ...(environment ? { environment } : {}),
-      ...(publicKey ? { publicKey } : {}),
-      ...(privateKey ? { privateKey } : {}),
-      ...(integritySecret ? { integritySecret } : {}),
-      ...(eventsSecret ? { eventsSecret } : {}),
-      ...(apiBaseUrl ? { apiBaseUrl } : {}),
-      ...(checkoutLinkBaseUrl ? { checkoutLinkBaseUrl } : {}),
-      ...(redirectUrl != null ? { redirectUrl } : {})
-    })
-  });
-  redirect("/settings?saved=1");
+  try {
+    await adminFetch("/admin/settings/wompi", {
+      method: "PUT",
+      body: JSON.stringify({
+        ...(environment ? { environment } : {}),
+        ...(publicKey ? { publicKey } : {}),
+        ...(privateKey ? { privateKey } : {}),
+        ...(integritySecret ? { integritySecret } : {}),
+        ...(eventsSecret ? { eventsSecret } : {}),
+        ...(apiBaseUrl ? { apiBaseUrl } : {}),
+        ...(checkoutLinkBaseUrl ? { checkoutLinkBaseUrl } : {}),
+        ...(redirectUrl != null ? { redirectUrl } : {})
+      })
+    });
+    redirect("/settings?saved=1");
+  } catch (err) {
+    redirect(`/settings?error=${encodeURIComponent(toShortErrorMessage(err))}`);
+  }
 }
 
 export async function updateShopify(formData: FormData) {
   const forwardUrl = String(formData.get("forwardUrl") || "").trim();
   const forwardSecret = String(formData.get("forwardSecret") || "").trim();
 
-  await adminFetch("/admin/settings/shopify", {
-    method: "PUT",
-    body: JSON.stringify({ forwardUrl, forwardSecret })
-  });
-  redirect("/settings?saved=1");
+  try {
+    await adminFetch("/admin/settings/shopify", {
+      method: "PUT",
+      body: JSON.stringify({ forwardUrl, forwardSecret })
+    });
+    redirect("/settings?saved=1");
+  } catch (err) {
+    redirect(`/settings?error=${encodeURIComponent(toShortErrorMessage(err))}`);
+  }
 }
 
 export async function updateChatwoot(formData: FormData) {
@@ -70,33 +83,45 @@ export async function updateChatwoot(formData: FormData) {
   const apiAccessToken = String(formData.get("apiAccessToken") || "").trim();
   const inboxId = String(formData.get("inboxId") || "").trim();
 
-  await adminFetch("/admin/settings/chatwoot", {
-    method: "PUT",
-    body: JSON.stringify({
-      ...(environment ? { environment } : {}),
-      baseUrl,
-      apiAccessToken,
-      ...(accountId ? { accountId: Number(accountId) } : {}),
-      ...(inboxId ? { inboxId: Number(inboxId) } : {})
-    })
-  });
-  redirect("/settings?saved=1");
+  try {
+    await adminFetch("/admin/settings/chatwoot", {
+      method: "PUT",
+      body: JSON.stringify({
+        ...(environment ? { environment } : {}),
+        baseUrl,
+        apiAccessToken,
+        ...(accountId ? { accountId: Number(accountId) } : {}),
+        ...(inboxId ? { inboxId: Number(inboxId) } : {})
+      })
+    });
+    redirect("/settings?saved=1");
+  } catch (err) {
+    redirect(`/settings?error=${encodeURIComponent(toShortErrorMessage(err))}`);
+  }
 }
 
 export async function setWompiActiveEnv(formData: FormData) {
   const activeEnv = String(formData.get("activeEnv") || "").trim().toUpperCase();
-  await adminFetch("/admin/settings/wompi", {
-    method: "PUT",
-    body: JSON.stringify({ activeEnv })
-  });
-  redirect("/settings?saved=1");
+  try {
+    await adminFetch("/admin/settings/wompi", {
+      method: "PUT",
+      body: JSON.stringify({ activeEnv })
+    });
+    redirect("/settings?saved=1");
+  } catch (err) {
+    redirect(`/settings?error=${encodeURIComponent(toShortErrorMessage(err))}`);
+  }
 }
 
 export async function setCentralActiveEnv(formData: FormData) {
   const activeEnv = String(formData.get("activeEnv") || "").trim().toUpperCase();
-  await adminFetch("/admin/settings/chatwoot", {
-    method: "PUT",
-    body: JSON.stringify({ activeEnv })
-  });
-  redirect("/settings?saved=1");
+  try {
+    await adminFetch("/admin/settings/chatwoot", {
+      method: "PUT",
+      body: JSON.stringify({ activeEnv })
+    });
+    redirect("/settings?saved=1");
+  } catch (err) {
+    redirect(`/settings?error=${encodeURIComponent(toShortErrorMessage(err))}`);
+  }
 }
