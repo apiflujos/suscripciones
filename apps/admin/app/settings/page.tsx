@@ -1,4 +1,4 @@
-import { updateChatwoot, updateShopify, updateWompi } from "./actions";
+import { setCentralActiveEnv, setWompiActiveEnv, updateChatwoot, updateShopify, updateWompi } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -69,41 +69,83 @@ export default async function SettingsPage({ searchParams }: { searchParams: { s
 
       <section style={{ border: "1px solid #eee", borderRadius: 12, padding: 16 }}>
         <h2 style={{ marginTop: 0 }}>Wompi</h2>
-        <div style={{ color: "#666", marginBottom: 12 }}>
-          Llave pública: {settings?.wompi?.publicKey || "—"} | Llave privada: {settings?.wompi?.privateKey || "—"} | Integridad:{" "}
-          {settings?.wompi?.integritySecret || "—"} | Eventos: {settings?.wompi?.eventsSecret || "—"}
-        </div>
-        <form action={updateWompi} style={{ display: "grid", gap: 10 }}>
-          <label>
-            Llave pública
-            <input name="publicKey" placeholder="pub_test_..." defaultValue={settings?.wompi?.publicKey || ""} style={{ width: "100%" }} />
+        <form action={setWompiActiveEnv} style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ color: "#666" }}>Entorno activo</span>
+            <select name="activeEnv" defaultValue={settings?.wompi?.activeEnv || "PRODUCTION"}>
+              <option value="PRODUCTION">Producción</option>
+              <option value="SANDBOX">Sandbox</option>
+            </select>
           </label>
-          <label>
-            Llave privada
-            <input name="privateKey" type="password" style={{ width: "100%" }} />
-          </label>
-          <label>
-            Secreto de integridad
-            <input name="integritySecret" type="password" style={{ width: "100%" }} />
-          </label>
-          <label>
-            Secreto de eventos
-            <input name="eventsSecret" type="password" style={{ width: "100%" }} />
-          </label>
-          <label>
-            URL base del API
-            <input name="apiBaseUrl" placeholder="https://sandbox.wompi.co/v1" defaultValue={settings?.wompi?.apiBaseUrl || ""} style={{ width: "100%" }} />
-          </label>
-          <label>
-            URL base de links de pago
-            <input name="checkoutLinkBaseUrl" placeholder="https://checkout.wompi.co/l/" defaultValue={settings?.wompi?.checkoutLinkBaseUrl || ""} style={{ width: "100%" }} />
-          </label>
-          <label>
-            URL de redirección (opcional)
-            <input name="redirectUrl" defaultValue={settings?.wompi?.redirectUrl || ""} style={{ width: "100%" }} />
-          </label>
-          <button type="submit">Guardar Wompi</button>
+          <button type="submit">Guardar</button>
         </form>
+
+        <div style={{ display: "grid", gap: 12 }}>
+          {([
+            ["PRODUCTION", "Producción"],
+            ["SANDBOX", "Sandbox"]
+          ] as const).map(([envKey, envLabel]) => {
+            const cfg = settings?.wompi?.[envKey === "PRODUCTION" ? "production" : "sandbox"] || {};
+            return (
+              <div key={envKey} style={{ border: "1px solid #eee", borderRadius: 12, padding: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                  <div style={{ display: "grid" }}>
+                    <strong>{envLabel}</strong>
+                    <div style={{ color: "#666", fontSize: 13 }}>
+                      Llave pública: {cfg.publicKey || "—"} | Llave privada: {cfg.privateKey || "—"} | Integridad: {cfg.integritySecret || "—"} | Eventos:{" "}
+                      {cfg.eventsSecret || "—"} | API: {cfg.apiBaseUrl || "—"} | Links: {cfg.checkoutLinkBaseUrl || "—"}
+                    </div>
+                  </div>
+                  <details>
+                    <summary style={{ cursor: "pointer", listStyle: "none" }}>
+                      <span style={{ display: "inline-block", padding: "8px 10px", borderRadius: 10, border: "1px solid #ddd" }}>
+                        Nueva conexión
+                      </span>
+                    </summary>
+                    <div style={{ marginTop: 10 }}>
+                      <form action={updateWompi} style={{ display: "grid", gap: 10 }}>
+                        <input type="hidden" name="environment" value={envKey} />
+                        <label>
+                          Llave pública
+                          <input name="publicKey" placeholder="pub_..." style={{ width: "100%" }} />
+                        </label>
+                        <label>
+                          Llave privada
+                          <input name="privateKey" type="password" style={{ width: "100%" }} />
+                        </label>
+                        <label>
+                          Secreto de integridad
+                          <input name="integritySecret" type="password" style={{ width: "100%" }} />
+                        </label>
+                        <label>
+                          Secreto de eventos
+                          <input name="eventsSecret" type="password" style={{ width: "100%" }} />
+                        </label>
+                        <label>
+                          URL base del API
+                          <input
+                            name="apiBaseUrl"
+                            placeholder={envKey === "SANDBOX" ? "https://sandbox.wompi.co/v1" : "https://production.wompi.co/v1"}
+                            style={{ width: "100%" }}
+                          />
+                        </label>
+                        <label>
+                          URL base de links de pago
+                          <input name="checkoutLinkBaseUrl" placeholder="https://checkout.wompi.co/l/" style={{ width: "100%" }} />
+                        </label>
+                        <label>
+                          URL de redirección (opcional)
+                          <input name="redirectUrl" style={{ width: "100%" }} />
+                        </label>
+                        <button type="submit">Guardar</button>
+                      </form>
+                    </div>
+                  </details>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </section>
 
       <section style={{ border: "1px solid #eee", borderRadius: 12, padding: 16 }}>
@@ -124,28 +166,66 @@ export default async function SettingsPage({ searchParams }: { searchParams: { s
 
       <section style={{ border: "1px solid #eee", borderRadius: 12, padding: 16 }}>
         <h2 style={{ marginTop: 0 }}>Central de comunicaciones</h2>
-        <div style={{ color: "#666", marginBottom: 12 }}>
-          Base: {settings?.chatwoot?.baseUrl || "—"} | cuenta: {settings?.chatwoot?.accountId || "—"} | bandeja: {settings?.chatwoot?.inboxId || "—"}
-        </div>
-        <form action={updateChatwoot} style={{ display: "grid", gap: 10 }}>
-          <label>
-            URL base
-            <input name="baseUrl" placeholder="https://central.tu-dominio.com" defaultValue={settings?.chatwoot?.baseUrl || ""} style={{ width: "100%" }} />
+        <form action={setCentralActiveEnv} style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ color: "#666" }}>Entorno activo</span>
+            <select name="activeEnv" defaultValue={settings?.communications?.activeEnv || "PRODUCTION"}>
+              <option value="PRODUCTION">Producción</option>
+              <option value="SANDBOX">Sandbox</option>
+            </select>
           </label>
-          <label>
-            ID de cuenta
-            <input name="accountId" defaultValue={settings?.chatwoot?.accountId || ""} style={{ width: "100%" }} />
-          </label>
-          <label>
-            ID de inbox
-            <input name="inboxId" defaultValue={settings?.chatwoot?.inboxId || ""} style={{ width: "100%" }} />
-          </label>
-          <label>
-            Token de acceso API
-            <input name="apiAccessToken" type="password" style={{ width: "100%" }} />
-          </label>
-          <button type="submit">Guardar central de comunicaciones</button>
+          <button type="submit">Guardar</button>
         </form>
+
+        <div style={{ display: "grid", gap: 12 }}>
+          {([
+            ["PRODUCTION", "Producción"],
+            ["SANDBOX", "Sandbox"]
+          ] as const).map(([envKey, envLabel]) => {
+            const cfg = settings?.communications?.[envKey === "PRODUCTION" ? "production" : "sandbox"] || {};
+            return (
+              <div key={envKey} style={{ border: "1px solid #eee", borderRadius: 12, padding: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                  <div style={{ display: "grid" }}>
+                    <strong>{envLabel}</strong>
+                    <div style={{ color: "#666", fontSize: 13 }}>
+                      Base: {cfg.baseUrl || "—"} | cuenta: {cfg.accountId || "—"} | bandeja: {cfg.inboxId || "—"}
+                    </div>
+                  </div>
+                  <details>
+                    <summary style={{ cursor: "pointer", listStyle: "none" }}>
+                      <span style={{ display: "inline-block", padding: "8px 10px", borderRadius: 10, border: "1px solid #ddd" }}>
+                        Nueva conexión
+                      </span>
+                    </summary>
+                    <div style={{ marginTop: 10 }}>
+                      <form action={updateChatwoot} style={{ display: "grid", gap: 10 }}>
+                        <input type="hidden" name="environment" value={envKey} />
+                        <label>
+                          URL base
+                          <input name="baseUrl" placeholder="https://central.tu-dominio.com" style={{ width: "100%" }} />
+                        </label>
+                        <label>
+                          ID de cuenta
+                          <input name="accountId" style={{ width: "100%" }} />
+                        </label>
+                        <label>
+                          ID de bandeja
+                          <input name="inboxId" style={{ width: "100%" }} />
+                        </label>
+                        <label>
+                          Token de acceso API
+                          <input name="apiAccessToken" type="password" style={{ width: "100%" }} />
+                        </label>
+                        <button type="submit">Guardar</button>
+                      </form>
+                    </div>
+                  </details>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </section>
     </main>
   );

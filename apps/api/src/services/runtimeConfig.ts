@@ -2,52 +2,91 @@ import { CredentialProvider } from "@prisma/client";
 import { loadEnv } from "../config/env";
 import { getCredential } from "./credentials";
 
+type ActiveEnv = "PRODUCTION" | "SANDBOX";
+
+function normalizeActiveEnv(value: string | undefined): ActiveEnv {
+  const v = String(value || "")
+    .trim()
+    .toUpperCase();
+  return v === "SANDBOX" ? "SANDBOX" : "PRODUCTION";
+}
+
+async function getActiveEnv(provider: CredentialProvider, envVarName: string): Promise<ActiveEnv> {
+  const fromDb = await getCredential(provider, "ACTIVE_ENV");
+  if (fromDb) return normalizeActiveEnv(fromDb);
+  return normalizeActiveEnv(process.env[envVarName]);
+}
+
+function keyForEnv(key: string, env: ActiveEnv) {
+  return `${key}_${env}`;
+}
+
+async function getCredentialForEnv(provider: CredentialProvider, key: string, env: ActiveEnv): Promise<string | undefined> {
+  const envKey = await getCredential(provider, keyForEnv(key, env));
+  if (envKey) return envKey;
+  return await getCredential(provider, key);
+}
+
 export async function getWompiEventsSecret(): Promise<string | undefined> {
-  const fromDb = await getCredential(CredentialProvider.WOMPI, "EVENTS_SECRET");
+  const activeEnv = await getActiveEnv(CredentialProvider.WOMPI, "WOMPI_ACTIVE_ENV");
+  const fromDb = await getCredentialForEnv(CredentialProvider.WOMPI, "EVENTS_SECRET", activeEnv);
   if (fromDb) return fromDb;
   const env = loadEnv(process.env);
+  if (activeEnv === "SANDBOX") return (process.env.WOMPI_EVENTS_SECRET_SANDBOX || "").trim() || undefined;
   return (env.WOMPI_EVENTS_SECRET || "").trim() || undefined;
 }
 
 export async function getWompiPublicKey(): Promise<string | undefined> {
-  const fromDb = await getCredential(CredentialProvider.WOMPI, "PUBLIC_KEY");
+  const activeEnv = await getActiveEnv(CredentialProvider.WOMPI, "WOMPI_ACTIVE_ENV");
+  const fromDb = await getCredentialForEnv(CredentialProvider.WOMPI, "PUBLIC_KEY", activeEnv);
   if (fromDb) return fromDb;
   const env = loadEnv(process.env);
+  if (activeEnv === "SANDBOX") return (process.env.WOMPI_PUBLIC_KEY_SANDBOX || "").trim() || undefined;
   return (env.WOMPI_PUBLIC_KEY || "").trim() || undefined;
 }
 
 export async function getWompiPrivateKey(): Promise<string | undefined> {
-  const fromDb = await getCredential(CredentialProvider.WOMPI, "PRIVATE_KEY");
+  const activeEnv = await getActiveEnv(CredentialProvider.WOMPI, "WOMPI_ACTIVE_ENV");
+  const fromDb = await getCredentialForEnv(CredentialProvider.WOMPI, "PRIVATE_KEY", activeEnv);
   if (fromDb) return fromDb;
   const env = loadEnv(process.env);
+  if (activeEnv === "SANDBOX") return (process.env.WOMPI_PRIVATE_KEY_SANDBOX || "").trim() || undefined;
   return (env.WOMPI_PRIVATE_KEY || "").trim() || undefined;
 }
 
 export async function getWompiIntegritySecret(): Promise<string | undefined> {
-  const fromDb = await getCredential(CredentialProvider.WOMPI, "INTEGRITY_SECRET");
+  const activeEnv = await getActiveEnv(CredentialProvider.WOMPI, "WOMPI_ACTIVE_ENV");
+  const fromDb = await getCredentialForEnv(CredentialProvider.WOMPI, "INTEGRITY_SECRET", activeEnv);
   if (fromDb) return fromDb;
   const env = loadEnv(process.env);
+  if (activeEnv === "SANDBOX") return (process.env.WOMPI_INTEGRITY_SECRET_SANDBOX || "").trim() || undefined;
   return (env.WOMPI_INTEGRITY_SECRET || "").trim() || undefined;
 }
 
 export async function getWompiApiBaseUrl(): Promise<string> {
-  const fromDb = await getCredential(CredentialProvider.WOMPI, "API_BASE_URL");
+  const activeEnv = await getActiveEnv(CredentialProvider.WOMPI, "WOMPI_ACTIVE_ENV");
+  const fromDb = await getCredentialForEnv(CredentialProvider.WOMPI, "API_BASE_URL", activeEnv);
   if (fromDb) return fromDb;
   const env = loadEnv(process.env);
+  if (activeEnv === "SANDBOX") return (process.env.WOMPI_API_BASE_URL_SANDBOX || "").trim() || "https://sandbox.wompi.co/v1";
   return env.WOMPI_API_BASE_URL;
 }
 
 export async function getWompiCheckoutLinkBaseUrl(): Promise<string> {
-  const fromDb = await getCredential(CredentialProvider.WOMPI, "CHECKOUT_LINK_BASE_URL");
+  const activeEnv = await getActiveEnv(CredentialProvider.WOMPI, "WOMPI_ACTIVE_ENV");
+  const fromDb = await getCredentialForEnv(CredentialProvider.WOMPI, "CHECKOUT_LINK_BASE_URL", activeEnv);
   if (fromDb) return fromDb;
   const env = loadEnv(process.env);
+  if (activeEnv === "SANDBOX") return (process.env.WOMPI_CHECKOUT_LINK_BASE_URL_SANDBOX || "").trim() || env.WOMPI_CHECKOUT_LINK_BASE_URL;
   return env.WOMPI_CHECKOUT_LINK_BASE_URL;
 }
 
 export async function getWompiRedirectUrl(): Promise<string | undefined> {
-  const fromDb = await getCredential(CredentialProvider.WOMPI, "REDIRECT_URL");
+  const activeEnv = await getActiveEnv(CredentialProvider.WOMPI, "WOMPI_ACTIVE_ENV");
+  const fromDb = await getCredentialForEnv(CredentialProvider.WOMPI, "REDIRECT_URL", activeEnv);
   if (fromDb) return fromDb;
   const env = loadEnv(process.env);
+  if (activeEnv === "SANDBOX") return (process.env.WOMPI_REDIRECT_URL_SANDBOX || "").trim() || undefined;
   return (env.WOMPI_REDIRECT_URL || "").trim() || undefined;
 }
 
@@ -62,12 +101,17 @@ export async function getChatwootConfig(): Promise<
   | { configured: false }
   | { configured: true; baseUrl: string; accountId: number; apiAccessToken: string; inboxId: number }
 > {
+  const activeEnv = await getActiveEnv(CredentialProvider.CHATWOOT, "CHATWOOT_ACTIVE_ENV");
   const env = loadEnv(process.env);
-  const baseUrl = (await getCredential(CredentialProvider.CHATWOOT, "BASE_URL")) || env.CHATWOOT_BASE_URL || "";
+  const baseUrl = (await getCredentialForEnv(CredentialProvider.CHATWOOT, "BASE_URL", activeEnv)) || env.CHATWOOT_BASE_URL || "";
   const accessToken =
-    (await getCredential(CredentialProvider.CHATWOOT, "API_ACCESS_TOKEN")) || env.CHATWOOT_API_ACCESS_TOKEN || "";
-  const accountIdStr = (await getCredential(CredentialProvider.CHATWOOT, "ACCOUNT_ID")) || (env.CHATWOOT_ACCOUNT_ID ? String(env.CHATWOOT_ACCOUNT_ID) : "");
-  const inboxIdStr = (await getCredential(CredentialProvider.CHATWOOT, "INBOX_ID")) || (env.CHATWOOT_INBOX_ID ? String(env.CHATWOOT_INBOX_ID) : "");
+    (await getCredentialForEnv(CredentialProvider.CHATWOOT, "API_ACCESS_TOKEN", activeEnv)) || env.CHATWOOT_API_ACCESS_TOKEN || "";
+  const accountIdStr =
+    (await getCredentialForEnv(CredentialProvider.CHATWOOT, "ACCOUNT_ID", activeEnv)) ||
+    (env.CHATWOOT_ACCOUNT_ID ? String(env.CHATWOOT_ACCOUNT_ID) : "");
+  const inboxIdStr =
+    (await getCredentialForEnv(CredentialProvider.CHATWOOT, "INBOX_ID", activeEnv)) ||
+    (env.CHATWOOT_INBOX_ID ? String(env.CHATWOOT_INBOX_ID) : "");
 
   const accountId = Number(accountIdStr);
   const inboxId = Number(inboxIdStr);

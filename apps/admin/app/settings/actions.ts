@@ -27,6 +27,7 @@ async function adminFetch(path: string, init: RequestInit) {
 }
 
 export async function updateWompi(formData: FormData) {
+  const environment = String(formData.get("environment") || "").trim();
   const publicKey = String(formData.get("publicKey") || "").trim();
   const privateKey = String(formData.get("privateKey") || "").trim();
   const integritySecret = String(formData.get("integritySecret") || "").trim();
@@ -38,13 +39,14 @@ export async function updateWompi(formData: FormData) {
   await adminFetch("/admin/settings/wompi", {
     method: "PUT",
     body: JSON.stringify({
+      ...(environment ? { environment } : {}),
       ...(publicKey ? { publicKey } : {}),
       ...(privateKey ? { privateKey } : {}),
       ...(integritySecret ? { integritySecret } : {}),
       ...(eventsSecret ? { eventsSecret } : {}),
       ...(apiBaseUrl ? { apiBaseUrl } : {}),
       ...(checkoutLinkBaseUrl ? { checkoutLinkBaseUrl } : {}),
-      redirectUrl
+      ...(redirectUrl != null ? { redirectUrl } : {})
     })
   });
   redirect("/settings?saved=1");
@@ -62,6 +64,7 @@ export async function updateShopify(formData: FormData) {
 }
 
 export async function updateChatwoot(formData: FormData) {
+  const environment = String(formData.get("environment") || "").trim();
   const baseUrl = String(formData.get("baseUrl") || "").trim();
   const accountId = String(formData.get("accountId") || "").trim();
   const apiAccessToken = String(formData.get("apiAccessToken") || "").trim();
@@ -70,11 +73,30 @@ export async function updateChatwoot(formData: FormData) {
   await adminFetch("/admin/settings/chatwoot", {
     method: "PUT",
     body: JSON.stringify({
+      ...(environment ? { environment } : {}),
       baseUrl,
       apiAccessToken,
       ...(accountId ? { accountId: Number(accountId) } : {}),
       ...(inboxId ? { inboxId: Number(inboxId) } : {})
     })
+  });
+  redirect("/settings?saved=1");
+}
+
+export async function setWompiActiveEnv(formData: FormData) {
+  const activeEnv = String(formData.get("activeEnv") || "").trim().toUpperCase();
+  await adminFetch("/admin/settings/wompi", {
+    method: "PUT",
+    body: JSON.stringify({ activeEnv })
+  });
+  redirect("/settings?saved=1");
+}
+
+export async function setCentralActiveEnv(formData: FormData) {
+  const activeEnv = String(formData.get("activeEnv") || "").trim().toUpperCase();
+  await adminFetch("/admin/settings/chatwoot", {
+    method: "PUT",
+    body: JSON.stringify({ activeEnv })
   });
   redirect("/settings?saved=1");
 }
