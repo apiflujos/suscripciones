@@ -7,5 +7,5 @@ dist
 !.env.example
 coverage
 *.log
+*.tsbuildinfo
 prisma/dev.db
-

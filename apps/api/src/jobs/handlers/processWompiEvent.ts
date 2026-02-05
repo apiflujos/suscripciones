@@ -31,7 +31,8 @@ export async function processWompiEvent(webhookEventId: string) {
     : null;
   const referenceClassification = classifyReference(reference);
 
-  if (!paymentByLink?.subscriptionId && referenceClassification.kind !== "subscription") {
+  // If we don't recognize the payment by link, and it's not a subscription reference, ignore.
+  if (!paymentByLink && referenceClassification.kind !== "subscription") {
     await prisma.webhookEvent.update({
       where: { id: webhookEventId },
       data: { processStatus: WebhookProcessStatus.SKIPPED, processedAt: new Date() }
@@ -43,9 +44,10 @@ export async function processWompiEvent(webhookEventId: string) {
     paymentByLink?.subscriptionId ??
     (referenceClassification.kind === "subscription" ? referenceClassification.subscriptionId : "");
 
-  // Registrar pago y, si está aprobado, renovar ciclo.
-  const subscription = await prisma.subscription.findUnique({ where: { id: subscriptionId } });
-  if (!subscription) {
+  const isSubscription = !!subscriptionId;
+  // Registrar pago y, si está aprobado, renovar ciclo (solo para suscripciones).
+  const subscription = isSubscription ? await prisma.subscription.findUnique({ where: { id: subscriptionId } }) : null;
+  if (isSubscription && !subscription) {
     await prisma.webhookEvent.update({
       where: { id: webhookEventId },
       data: { processStatus: WebhookProcessStatus.FAILED, errorMessage: "subscription not found", processedAt: new Date() }
@@ -57,8 +59,8 @@ export async function processWompiEvent(webhookEventId: string) {
     status === "APPROVED" ? PaymentStatus.APPROVED : status === "DECLINED" ? PaymentStatus.DECLINED : PaymentStatus.ERROR;
 
   const cycleFromRef = referenceClassification.kind === "subscription" ? referenceClassification.cycle ?? null : null;
-  const cycle = paymentByLink?.cycleNumber ?? cycleFromRef ?? subscription.currentCycle;
-  const subscriptionCycleKey = `${subscription.id}:${cycle}`;
+  const cycle = paymentByLink?.cycleNumber ?? cycleFromRef ?? (subscription?.currentCycle ?? 1);
+  const subscriptionCycleKey = subscription ? `${subscription.id}:${cycle}` : null;
   const wasApproved =
     transactionId != null
       ? (await prisma.payment.findUnique({ where: { wompiTransactionId: transactionId } }))?.status === PaymentStatus.APPROVED
@@ -67,6 +69,14 @@ export async function processWompiEvent(webhookEventId: string) {
   const now = new Date();
   const paidAt = paymentStatus === PaymentStatus.APPROVED ? now : null;
 
+  if (!paymentByLink && !subscription) {
+    await prisma.webhookEvent.update({
+      where: { id: webhookEventId },
+      data: { processStatus: WebhookProcessStatus.FAILED, errorMessage: "payment not linked to subscription", processedAt: new Date() }
+    });
+    return;
+  }
+
   const paymentRecord = paymentByLink
     ? await prisma.payment.update({
         where: { id: paymentByLink.id },
@@ -74,35 +84,38 @@ export async function processWompiEvent(webhookEventId: string) {
           wompiTransactionId: transactionId,
           status: paymentStatus,
           paidAt,
-          providerResponse: payload as any,
+          providerResponse:
+            paymentByLink.providerResponse && typeof paymentByLink.providerResponse === "object"
+              ? ({ ...(paymentByLink.providerResponse as any), webhook: payload } as any)
+              : ({ webhook: payload } as any),
           amountInCents: amountInCents ?? paymentByLink.amountInCents,
           currency: currency ?? paymentByLink.currency,
           reference: reference ?? paymentByLink.reference,
           cycleNumber: paymentByLink.cycleNumber ?? cycle,
-          subscriptionCycleKey
+          subscriptionCycleKey: paymentByLink.subscriptionId ? subscriptionCycleKey : paymentByLink.subscriptionCycleKey
         }
       })
     : await prisma.payment.upsert({
-        where: { subscriptionCycleKey },
+        where: { subscriptionCycleKey: subscriptionCycleKey as string },
         create: {
-          customerId: subscription.customerId,
-          subscriptionId: subscription.id,
+          customerId: subscription!.customerId,
+          subscriptionId: subscription!.id,
           amountInCents: amountInCents ?? 0,
           currency: currency ?? "COP",
           cycleNumber: cycle,
-          reference: reference ?? `SUB_${subscription.id}_${cycle}`,
+          reference: reference ?? `SUB_${subscription!.id}_${cycle}`,
           wompiTransactionId: transactionId,
           wompiPaymentLinkId: paymentLinkId,
           status: paymentStatus,
           paidAt,
-          providerResponse: payload as any,
-          subscriptionCycleKey
+          providerResponse: { webhook: payload } as any,
+          subscriptionCycleKey: subscriptionCycleKey as string
         },
         update: {
           wompiTransactionId: transactionId,
           status: paymentStatus,
           paidAt,
-          providerResponse: payload as any,
+          providerResponse: { webhook: payload } as any,
           reference: reference ?? undefined,
           wompiPaymentLinkId: paymentLinkId ?? undefined
         }
@@ -113,7 +126,7 @@ export async function processWompiEvent(webhookEventId: string) {
     data: { processStatus: WebhookProcessStatus.PROCESSED, processedAt: new Date() }
   });
 
-  if (!wasApproved && paymentStatus === PaymentStatus.APPROVED) {
+  if (!wasApproved && paymentStatus === PaymentStatus.APPROVED && subscription) {
     const advancedTo = await prisma.$transaction(async (tx) => {
       const sub = await tx.subscription.findUnique({
         where: { id: subscription.id },
@@ -189,6 +202,22 @@ export async function processWompiEvent(webhookEventId: string) {
         )
         .catch(() => {});
     }
+  }
+
+  // One-off order payments (no subscription): notify on approval (best-effort).
+  if (!wasApproved && paymentStatus === PaymentStatus.APPROVED && !subscription) {
+    await prisma.chatwootMessage
+      .create({
+        data: {
+          customerId: paymentRecord.customerId,
+          subscriptionId: null,
+          paymentId: paymentRecord.id,
+          type: ChatwootMessageType.PAYMENT_CONFIRMED,
+          content: `Pago aprobado. Referencia: ${paymentRecord.reference}.`
+        }
+      })
+      .then((msg) => prisma.retryJob.create({ data: { type: RetryJobType.SEND_CHATWOOT_MESSAGE, payload: { chatwootMessageId: msg.id } } }))
+      .catch(() => {});
   }
 }
 

@@ -50,13 +50,19 @@ export default async function LogsPage({
     );
   }
 
+  const tab = typeof searchParams?.tab === "string" ? searchParams.tab : "system";
   const q = typeof searchParams?.q === "string" ? searchParams.q : "";
   const viewId = typeof searchParams?.view === "string" ? searchParams.view : "";
 
-  const [system, jobs] = await Promise.all([fetchAdmin("/admin/logs/system?take=120"), fetchAdmin("/admin/logs/jobs?take=200")]);
+  const [system, jobs, webhooks] = await Promise.all([
+    fetchAdmin("/admin/logs/system?take=120"),
+    fetchAdmin("/admin/logs/jobs?take=200"),
+    fetchAdmin("/admin/webhook-events")
+  ]);
 
   const sysItems = (system.json?.items ?? []) as any[];
   const jobItems = (jobs.json?.items ?? []) as any[];
+  const webhookItems = (webhooks.json?.items ?? []) as any[];
   const failedJobsCount = jobItems.filter((j) => String(j.status) === "FAILED").length;
 
   const filtered = q
@@ -71,90 +77,141 @@ export default async function LogsPage({
         <div className="settings-group-header">
           <div className="panelHeaderRow">
             <h3>Logs de API</h3>
-            <a className="ghost" href="/webhooks">
-              Trazabilidad
-            </a>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <a
+                className={`ghost ${tab === "system" ? "is-active" : ""}`}
+                href={`/logs?${new URLSearchParams({ tab: "system" })}`}
+              >
+                Sistema
+              </a>
+              <a
+                className={`ghost ${tab === "webhooks" ? "is-active" : ""}`}
+                href={`/logs?${new URLSearchParams({ tab: "webhooks" })}`}
+              >
+                Webhooks
+              </a>
+            </div>
           </div>
 
-          <div className="filtersRow">
-            <div className="filtersLeft">
-              <div className="filter-group">
-                <div className="filter-label">ID de pedido</div>
-                <form action="/logs" method="GET" style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                  <input className="input" name="q" defaultValue={q} placeholder="Buscar en logs..." />
-                  <select className="select" aria-label="Estado">
-                    <option>Todos</option>
-                  </select>
-                  <button className="ghost" type="submit">
-                    Filtrar
+          {tab === "system" ? (
+            <div className="filtersRow">
+              <div className="filtersLeft">
+                <div className="filter-group">
+                  <div className="filter-label">ID de pedido</div>
+                  <form action="/logs" method="GET" style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                    <input type="hidden" name="tab" value="system" />
+                    <input className="input" name="q" defaultValue={q} placeholder="Buscar en logs..." />
+                    <select className="select" aria-label="Estado">
+                      <option>Todos</option>
+                    </select>
+                    <button className="ghost" type="submit">
+                      Filtrar
+                    </button>
+                  </form>
+                </div>
+              </div>
+
+              <div className="filtersRight">
+                <form action={retryFailedJobs}>
+                  <button className="primary" type="submit">
+                    Reintentar fallidos
                   </button>
                 </form>
+                <span className={`pill ${failedJobsCount > 0 ? "pillDanger" : ""}`}>{failedJobsCount} fallos</span>
               </div>
             </div>
-
-            <div className="filtersRight">
-              <form action={retryFailedJobs}>
-                <button className="primary" type="submit">
-                  Reintentar fallidos
-                </button>
-              </form>
-              <span className={`pill ${failedJobsCount > 0 ? "pillDanger" : ""}`}>{failedJobsCount} fallos</span>
-            </div>
-          </div>
+          ) : null}
         </div>
 
         <div className="settings-group-body">
-          <div className="panel module" style={{ padding: 0 }}>
-            <table className="table" aria-label="Tabla de logs">
-              <thead>
-                <tr>
-                  <th>Fecha</th>
-                  <th>Entidad</th>
-                  <th>Dirección</th>
-                  <th>Estado</th>
-                  <th>Detalle</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((l) => {
-                  const chip = toStatusChip(l.level);
-                  return (
-                    <tr key={l.id}>
-                      <td>{new Date(l.createdAt).toLocaleString()}</td>
-                      <td>{l.source}</td>
-                      <td>—</td>
-                      <td>
-                        <span className={`status-chip ${chip.cls}`}>
-                          <span className={`status-led ${chip.cls === "is-success" ? "is-ok" : ""}`} />
-                          {chip.label}
-                        </span>
-                      </td>
-                      <td>{l.message}</td>
-                      <td style={{ textAlign: "right" }}>
-                        <a className="ghost" href={`/logs?${new URLSearchParams({ ...(q ? { q } : {}), view: String(l.id) })}`}>
-                          Ver
-                        </a>
+          {tab === "system" ? (
+            <div className="panel module" style={{ padding: 0 }}>
+              <table className="table" aria-label="Tabla de logs">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Entidad</th>
+                    <th>Dirección</th>
+                    <th>Estado</th>
+                    <th>Detalle</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((l) => {
+                    const chip = toStatusChip(l.level);
+                    return (
+                      <tr key={l.id}>
+                        <td>{new Date(l.createdAt).toLocaleString()}</td>
+                        <td>{l.source}</td>
+                        <td>—</td>
+                        <td>
+                          <span className={`status-chip ${chip.cls}`}>
+                            <span className={`status-led ${chip.cls === "is-success" ? "is-ok" : ""}`} />
+                            {chip.label}
+                          </span>
+                        </td>
+                        <td>{l.message}</td>
+                        <td style={{ textAlign: "right" }}>
+                          <a
+                            className="ghost"
+                            href={`/logs?${new URLSearchParams({ tab: "system", ...(q ? { q } : {}), view: String(l.id) })}`}
+                          >
+                            Ver
+                          </a>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {filtered.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} style={{ color: "var(--muted)" }}>
+                        Sin logs.
                       </td>
                     </tr>
-                  );
-                })}
-                {filtered.length === 0 ? (
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="panel module" style={{ padding: 0 }}>
+              <table className="table" aria-label="Tabla de webhooks">
+                <thead>
                   <tr>
-                    <td colSpan={6} style={{ color: "var(--muted)" }}>
-                      Sin logs.
-                    </td>
+                    <th>Fecha</th>
+                    <th>Evento</th>
+                    <th>Estado</th>
+                    <th>Checksum</th>
                   </tr>
-                ) : null}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {webhookItems.map((e) => (
+                    <tr key={e.id}>
+                      <td>{e.receivedAt ? new Date(e.receivedAt).toLocaleString() : "—"}</td>
+                      <td>{e.eventName || "—"}</td>
+                      <td>{e.processStatus || "—"}</td>
+                      <td style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>
+                        {e.checksum || "—"}
+                      </td>
+                    </tr>
+                  ))}
+                  {webhookItems.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} style={{ color: "var(--muted)" }}>
+                        Sin eventos.
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {selected ? (
             <div className="panel" aria-label="Detalle del log">
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
                 <strong>Detalle</strong>
-                <a className="btnLink" href={q ? `/logs?${new URLSearchParams({ q })}` : "/logs"}>
+                <a className="btnLink" href={q ? `/logs?${new URLSearchParams({ tab: "system", q })}` : "/logs"}>
                   Cerrar
                 </a>
               </div>

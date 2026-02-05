@@ -42,11 +42,11 @@ export async function createSubscription(formData: FormData) {
     const subId = json?.subscription?.id;
     const checkoutUrl = json?.checkoutUrl;
     if (subId && checkoutUrl) {
-      redirect(`/subscriptions?created=1&checkoutUrl=${encodeURIComponent(checkoutUrl)}`);
+      redirect(`/products?tab=commercial&created=1&checkoutUrl=${encodeURIComponent(checkoutUrl)}`);
     }
-    redirect(`/subscriptions?created=1`);
+    redirect(`/products?tab=commercial&created=1`);
   } catch (err: any) {
-    redirect(`/subscriptions/new?error=${encodeURIComponent(err?.message || "create_subscription_failed")}`);
+    redirect(`/products?tab=commercial&error=${encodeURIComponent(err?.message || "create_subscription_failed")}`);
   }
 }
 
@@ -57,9 +57,9 @@ export async function createPaymentLink(formData: FormData) {
       method: "POST",
       body: JSON.stringify({})
     });
-    redirect(`/subscriptions?link=1&checkoutUrl=${encodeURIComponent(json.checkoutUrl || "")}`);
+    redirect(`/products?tab=commercial&created=1&checkoutUrl=${encodeURIComponent(json.checkoutUrl || "")}`);
   } catch (err: any) {
-    redirect(`/subscriptions?error=${encodeURIComponent(err?.message || "create_payment_link_failed")}`);
+    redirect(`/products?tab=commercial&error=${encodeURIComponent(err?.message || "create_payment_link_failed")}`);
   }
 }
 
@@ -76,8 +76,8 @@ export async function createPlan(formData: FormData) {
       method: "POST",
       body: JSON.stringify({ name, priceInCents, currency, intervalUnit, intervalCount, collectionMode })
     });
-    redirect("/plans?planCreated=1");
+    redirect("/products?tab=commercial&created=1");
   } catch (err: any) {
-    redirect(`/plans?error=${encodeURIComponent(err?.message || "create_plan_failed")}`);
+    redirect(`/products?tab=commercial&error=${encodeURIComponent(err?.message || "create_plan_failed")}`);
   }
 }

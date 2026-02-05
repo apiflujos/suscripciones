@@ -17,7 +17,10 @@ const createPlanSchema = z.object({
 export const plansRouter = express.Router();
 
 plansRouter.get("/", async (_req, res) => {
-  const items = await prisma.subscriptionPlan.findMany({ orderBy: { createdAt: "desc" } });
+  const items = await prisma.subscriptionPlan.findMany({
+    where: { NOT: { metadata: { path: ["kind"], equals: "CATALOG_ITEM" } } } as any,
+    orderBy: { createdAt: "desc" }
+  });
   res.json({ items });
 });
 

@@ -9,6 +9,8 @@ import { wompiWebhook } from "./routes/webhooksWompi";
 import { plansRouter } from "./routes/plans";
 import { customersRouter } from "./routes/customers";
 import { subscriptionsRouter } from "./routes/subscriptions";
+import { productsRouter } from "./routes/products";
+import { ordersRouter } from "./routes/orders";
 import { settingsRouter } from "./routes/settings";
 import { logsRouter } from "./routes/logs";
 
@@ -25,6 +27,8 @@ export function createApp() {
   app.post("/webhooks/wompi", wompiWebhook);
 
   app.get("/admin/webhook-events", requireAdminToken, listWebhookEvents);
+  app.use("/admin/products", requireAdminToken, productsRouter);
+  app.use("/admin/orders", requireAdminToken, ordersRouter);
   app.use("/admin/plans", requireAdminToken, plansRouter);
   app.use("/admin/customers", requireAdminToken, customersRouter);
   app.use("/admin/subscriptions", requireAdminToken, subscriptionsRouter);

@@ -12,7 +12,7 @@ function NavIcon({
   name,
   className
 }: {
-  name: "metrics" | "contacts" | "subs" | "plans" | "webhooks" | "logs" | "settings";
+  name: "metrics" | "contacts" | "products" | "logs" | "settings";
   className?: string;
 }) {
   if (name === "metrics") {
@@ -34,31 +34,14 @@ function NavIcon({
       </svg>
     );
   }
-  if (name === "subs") {
+  if (name === "products") {
     return (
       <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-        <path d="M21 12a9 9 0 1 1-3.2-6.9" />
-        <path d="M21 3v6h-6" />
-      </svg>
-    );
-  }
-  if (name === "plans") {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-        <path d="M21 12a9 9 0 1 1-3.2-6.9" />
-        <path d="M21 3v6h-6" />
-        <path d="M8 13h8" />
-        <path d="M8 17h5" />
-      </svg>
-    );
-  }
-  if (name === "webhooks") {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-        <path d="M16 12a4 4 0 0 1-7.2 2.4" />
-        <path d="M8 12a4 4 0 0 1 7.2-2.4" />
-        <path d="M12 2a3 3 0 0 1 3 3v2" />
-        <path d="M12 22a3 3 0 0 1-3-3v-2" />
+        <path d="M7 7h10v10H7z" />
+        <path d="M4 4h4" />
+        <path d="M16 4h4" />
+        <path d="M4 20h4" />
+        <path d="M16 20h4" />
       </svg>
     );
   }
@@ -102,28 +85,12 @@ export function SideNav() {
         <span className="nav-label">Contactos</span>
       </Link>
       <Link
-        className={`nav-item ${isActivePath(pathname, "/subscriptions") ? "is-active" : ""}`}
-        href="/subscriptions"
-        aria-current={isActivePath(pathname, "/subscriptions") ? "page" : undefined}
+        className={`nav-item ${isActivePath(pathname, "/products") ? "is-active" : ""}`}
+        href="/products"
+        aria-current={isActivePath(pathname, "/products") ? "page" : undefined}
       >
-        <NavIcon name="subs" className="nav-icon" />
-        <span className="nav-label">Suscripciones</span>
-      </Link>
-      <Link
-        className={`nav-item ${isActivePath(pathname, "/plans") ? "is-active" : ""}`}
-        href="/plans"
-        aria-current={isActivePath(pathname, "/plans") ? "page" : undefined}
-      >
-        <NavIcon name="plans" className="nav-icon" />
-        <span className="nav-label">Planes</span>
-      </Link>
-      <Link
-        className={`nav-item ${isActivePath(pathname, "/webhooks") ? "is-active" : ""}`}
-        href="/webhooks"
-        aria-current={isActivePath(pathname, "/webhooks") ? "page" : undefined}
-      >
-        <NavIcon name="webhooks" className="nav-icon" />
-        <span className="nav-label">Webhooks</span>
+        <NavIcon name="products" className="nav-icon" />
+        <span className="nav-label">Productos y Servicios</span>
       </Link>
       <Link
         className={`nav-item ${isActivePath(pathname, "/logs") ? "is-active" : ""}`}
