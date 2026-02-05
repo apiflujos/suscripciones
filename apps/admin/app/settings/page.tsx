@@ -46,8 +46,8 @@ export default async function SettingsPage({ searchParams }: { searchParams: { s
       <section style={{ border: "1px solid #eee", borderRadius: 12, padding: 16 }}>
         <h2 style={{ marginTop: 0 }}>Wompi</h2>
         <div style={{ color: "#666", marginBottom: 12 }}>
-          Pública: {settings?.wompi?.publicKey || "—"} | Privada: {settings?.wompi?.privateKey || "—"} | Integrity: {settings?.wompi?.integritySecret || "—"} | Events:{" "}
-          {settings?.wompi?.eventsSecret || "—"}
+          Llave pública: {settings?.wompi?.publicKey || "—"} | Llave privada: {settings?.wompi?.privateKey || "—"} | Integridad:{" "}
+          {settings?.wompi?.integritySecret || "—"} | Eventos: {settings?.wompi?.eventsSecret || "—"}
         </div>
         <form action={updateWompi} style={{ display: "grid", gap: 10 }}>
           <label>
@@ -101,8 +101,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: { s
       <section style={{ border: "1px solid #eee", borderRadius: 12, padding: 16 }}>
         <h2 style={{ marginTop: 0 }}>Chatwoot</h2>
         <div style={{ color: "#666", marginBottom: 12 }}>
-          Base: {settings?.chatwoot?.baseUrl || "—"} | cuenta: {settings?.chatwoot?.accountId || "—"} | inbox:{" "}
-          {settings?.chatwoot?.inboxId || "—"}
+          Base: {settings?.chatwoot?.baseUrl || "—"} | cuenta: {settings?.chatwoot?.accountId || "—"} | bandeja: {settings?.chatwoot?.inboxId || "—"}
         </div>
         <form action={updateChatwoot} style={{ display: "grid", gap: 10 }}>
           <label>

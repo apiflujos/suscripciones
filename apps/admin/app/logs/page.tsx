@@ -28,10 +28,26 @@ async function retryFailedJobs() {
   }).catch(() => {});
 }
 
+function normalizeLogSource(source: any) {
+  const s = String(source || "");
+  if (s === "settings.shopify") return "configuracion.reenvio";
+  if (s === "settings.wompi") return "configuracion.wompi";
+  if (s === "settings.chatwoot") return "configuracion.chatwoot";
+  return s;
+}
+
+function normalizeLogMessage(message: any) {
+  const m = String(message || "");
+  if (m === "Shopify settings updated") return "Configuración de reenvío actualizada";
+  if (m === "Wompi settings updated") return "Credenciales de Wompi actualizadas";
+  if (m === "Chatwoot settings updated") return "Credenciales de Chatwoot actualizadas";
+  return m;
+}
+
 function toStatusChip(level: string) {
   const v = String(level || "").toUpperCase();
   if (v === "ERROR") return { cls: "is-error", label: "Error" };
-  if (v === "WARN") return { cls: "is-warning", label: "Warn" };
+  if (v === "WARN") return { cls: "is-warning", label: "Advertencia" };
   return { cls: "is-success", label: "Exitoso" };
 }
 
@@ -69,7 +85,13 @@ export default async function LogsPage({
     ? sysItems.filter((l) => String(l.message || "").toLowerCase().includes(q.toLowerCase()) || String(l.source || "").toLowerCase().includes(q.toLowerCase()))
     : sysItems;
 
-  const selected = viewId ? filtered.find((l) => String(l.id) === viewId) : null;
+  const normalized = filtered.map((l) => ({
+    ...l,
+    source: normalizeLogSource(l.source),
+    message: normalizeLogMessage(l.message)
+  }));
+
+  const selected = viewId ? normalized.find((l) => String(l.id) === viewId) : null;
 
   return (
     <main className="page">
@@ -138,7 +160,7 @@ export default async function LogsPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((l) => {
+                  {normalized.map((l) => {
                     const chip = toStatusChip(l.level);
                     return (
                       <tr key={l.id}>
@@ -163,7 +185,7 @@ export default async function LogsPage({
                       </tr>
                     );
                   })}
-                  {filtered.length === 0 ? (
+                  {normalized.length === 0 ? (
                     <tr>
                       <td colSpan={6} style={{ color: "var(--muted)" }}>
                         Sin logs.

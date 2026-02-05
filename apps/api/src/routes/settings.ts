@@ -110,7 +110,7 @@ settingsRouter.put("/wompi", async (req, res) => {
     return res.status(400).json({ error: "credentials_error", message: String(err?.message || err) });
   }
 
-  await systemLog(LogLevel.INFO, "settings.wompi", "Wompi settings updated").catch(() => {});
+  await systemLog(LogLevel.INFO, "configuracion.wompi", "Credenciales de Wompi actualizadas").catch(() => {});
   res.json({ ok: true });
 });
 
@@ -126,7 +126,7 @@ settingsRouter.put("/shopify", async (req, res) => {
     return res.status(400).json({ error: "credentials_error", message: String(err?.message || err) });
   }
 
-  await systemLog(LogLevel.INFO, "settings.shopify", "Shopify settings updated").catch(() => {});
+  await systemLog(LogLevel.INFO, "configuracion.reenvio", "Configuración de reenvío actualizada").catch(() => {});
   res.json({ ok: true });
 });
 
@@ -144,6 +144,6 @@ settingsRouter.put("/chatwoot", async (req, res) => {
     return res.status(400).json({ error: "credentials_error", message: String(err?.message || err) });
   }
 
-  await systemLog(LogLevel.INFO, "settings.chatwoot", "Chatwoot settings updated").catch(() => {});
+  await systemLog(LogLevel.INFO, "configuracion.chatwoot", "Credenciales de Chatwoot actualizadas").catch(() => {});
   res.json({ ok: true });
 });

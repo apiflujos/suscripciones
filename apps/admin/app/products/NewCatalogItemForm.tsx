@@ -202,7 +202,12 @@ export function NewCatalogItemForm({
               )}
 
               {hasVariants ? (
-                <VariantsEditor option1Name={option1Name} option2Name={showOption2 ? option2Name : ""} disabled={!option1Name.trim() || (showOption2 && !option2Name.trim())} />
+                <VariantsEditor
+                  option1Name={option1Name}
+                  option2Name={option2Name}
+                  showOption2={showOption2}
+                  disabled={!option1Name.trim() || (showOption2 && !option2Name.trim())}
+                />
               ) : null}
             </>
           ) : (
