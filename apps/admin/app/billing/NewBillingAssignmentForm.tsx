@@ -105,6 +105,7 @@ export function NewBillingAssignmentForm({
   const [customerId, setCustomerId] = useState(defaultSelectedCustomerId || "");
   const [customerHits, setCustomerHits] = useState<Customer[]>([]);
   const [customerSearching, setCustomerSearching] = useState(false);
+  const [customerSearchError, setCustomerSearchError] = useState("");
   const [selectedCustomerOverride, setSelectedCustomerOverride] = useState<Customer | null>(null);
 
   const [startLocal, setStartLocal] = useState("");
@@ -157,20 +158,23 @@ export function NewBillingAssignmentForm({
 
   useEffect(() => {
     const q = customerQ.trim();
-    if (!planId || q.length < 2) {
+    if (q.length < 2) {
       setCustomerHits([]);
       setCustomerSearching(false);
+      setCustomerSearchError("");
       return;
     }
 
     const ac = new AbortController();
     setCustomerSearching(true);
+    setCustomerSearchError("");
     const t = setTimeout(() => {
       fetch(`/api/search/customers?${new URLSearchParams({ q, take: "80" }).toString()}`, { cache: "no-store", signal: ac.signal })
-        .then(async (r) => ({ ok: r.ok, json: await r.json().catch(() => null) }))
-        .then(({ ok, json }) => {
+        .then(async (r) => ({ ok: r.ok, status: r.status, json: await r.json().catch(() => null) }))
+        .then(({ ok, status, json }) => {
           if (!ok) {
             setCustomerHits([]);
+            setCustomerSearchError(status === 401 ? "No autorizado (revisa el token del Admin)." : `Error buscando contactos (${status}).`);
             return;
           }
           const items = Array.isArray(json?.items) ? (json.items as Customer[]) : [];
@@ -179,6 +183,7 @@ export function NewBillingAssignmentForm({
         .catch(() => {
           if (ac.signal.aborted) return;
           setCustomerHits([]);
+          setCustomerSearchError("Error de red buscando contactos.");
         })
         .finally(() => {
           if (ac.signal.aborted) return;
@@ -190,7 +195,7 @@ export function NewBillingAssignmentForm({
       ac.abort();
       clearTimeout(t);
     };
-  }, [customerQ, planId]);
+  }, [customerQ]);
 
   const returnTo = useMemo(() => {
     const sp = new URLSearchParams();
@@ -214,7 +219,7 @@ export function NewBillingAssignmentForm({
     <div className="panel module">
       <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
         <div style={{ display: "grid" }}>
-          <h3 style={{ margin: 0 }}>Crear para un contacto</h3>
+          <h3 style={{ margin: 0 }}>Crear plan o suscripción para un contacto</h3>
         </div>
         <button className={open ? "ghost" : "primary"} type="button" onClick={() => setOpen((v) => !v)}>
           {open ? "Cerrar" : "Crear nuevo"}
@@ -298,10 +303,10 @@ export function NewBillingAssignmentForm({
             ) : null}
           </div>
 
-          <div className="panel module" style={{ margin: 0, opacity: planId ? 1 : 0.6 }}>
+          <div className="panel module" style={{ margin: 0 }}>
             <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
               <h3 style={{ margin: 0 }}>2) Contacto</h3>
-              <button className="ghost" type="button" onClick={() => setShowNewCustomer((v) => !v)} disabled={!planId} aria-disabled={!planId}>
+              <button className="ghost" type="button" onClick={() => setShowNewCustomer((v) => !v)}>
                 {showNewCustomer ? "Cerrar" : "Crear contacto"}
               </button>
             </div>
@@ -319,7 +324,6 @@ export function NewBillingAssignmentForm({
                 <button
                   className="ghost"
                   type="button"
-                  disabled={!planId}
                   onClick={() => {
                     setCustomerId("");
                     setCustomerQ("");
@@ -331,30 +335,29 @@ export function NewBillingAssignmentForm({
                 </button>
               </div>
             ) : (
-                  <div style={{ display: "grid", gap: 8 }}>
-                    <input
-                      className="input"
-                      value={customerQ}
-                      onChange={(e) => setCustomerQ(e.target.value)}
-                      placeholder="Buscar por nombre, email o identificación…"
-                      disabled={!planId}
-                    />
-                    <div className="panel module" style={{ margin: 0, padding: 0, maxHeight: 220, overflow: "auto" }}>
-                      {customerSearching ? <div style={{ padding: 12, color: "var(--muted)" }}>Buscando…</div> : null}
-                      {filteredCustomers.map((c) => (
-                        <button
-                          key={c.id}
-                          type="button"
-                          className="ghost"
-                          disabled={!planId}
-                          onClick={() => {
-                            setCustomerId(String(c.id));
-                            setSelectedCustomerOverride(c);
-                            setShowNewCustomer(false);
-                          }}
-                          style={{
-                            width: "100%",
-                            textAlign: "left",
+              <div style={{ display: "grid", gap: 8 }}>
+                <input
+                  className="input"
+                  value={customerQ}
+                  onChange={(e) => setCustomerQ(e.target.value)}
+                  placeholder="Buscar por nombre, email o identificación…"
+                />
+                <div className="panel module" style={{ margin: 0, padding: 0, maxHeight: 220, overflow: "auto" }}>
+                  {customerSearching ? <div style={{ padding: 12, color: "var(--muted)" }}>Buscando…</div> : null}
+                  {customerSearchError ? <div style={{ padding: 12, color: "rgba(217, 83, 79, 0.92)" }}>{customerSearchError}</div> : null}
+                  {filteredCustomers.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      className="ghost"
+                      onClick={() => {
+                        setCustomerId(String(c.id));
+                        setSelectedCustomerOverride(c);
+                        setShowNewCustomer(false);
+                      }}
+                      style={{
+                        width: "100%",
+                        textAlign: "left",
                         padding: "10px 12px",
                         borderRadius: 0,
                         borderBottom: "1px solid rgba(15, 23, 42, 0.08)"
@@ -364,16 +367,16 @@ export function NewBillingAssignmentForm({
                         <span>{c.name || c.email || c.id}</span>
                         <span className="field-hint">{c.metadata?.identificacion || c.email || c.phone || "—"}</span>
                       </div>
-                        </button>
-                      ))}
-                      {!customerSearching && filteredCustomers.length === 0 ? (
-                        <div style={{ padding: 12, color: "var(--muted)" }}>
-                          {customerQ.trim().length >= 2 ? "Sin resultados. Prueba con otro término." : "No se encontraron contactos."}
-                        </div>
-                      ) : null}
+                    </button>
+                  ))}
+                  {!customerSearching && filteredCustomers.length === 0 ? (
+                    <div style={{ padding: 12, color: "var(--muted)" }}>
+                      {customerQ.trim().length >= 2 ? "Sin resultados. Prueba con otro término." : "No se encontraron contactos."}
                     </div>
-                  </div>
-                )}
+                  ) : null}
+                </div>
+              </div>
+            )}
 
             {showNewCustomer ? (
               <div style={{ marginTop: 10 }}>

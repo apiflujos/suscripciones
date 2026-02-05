@@ -37,8 +37,12 @@ export default async function ProductsPage({
 
   const created = typeof searchParams?.created === "string" ? searchParams.created : "";
   const error = typeof searchParams?.error === "string" ? searchParams.error : "";
+  const q = typeof searchParams?.q === "string" ? searchParams.q : "";
 
-  const products = await fetchAdmin("/admin/products");
+  const sp = new URLSearchParams();
+  if (q.trim()) sp.set("q", q.trim());
+  sp.set("take", "500");
+  const products = await fetchAdmin(`/admin/products?${sp.toString()}`);
 
   const productItems = (products.json?.items ?? []) as any[];
 
@@ -57,6 +61,15 @@ export default async function ProductsPage({
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <h3>Productos y Servicios</h3>
               <HelpTip text="Aquí se crean planes y suscripciones (sin contacto) y se amarra el producto/servicio." />
+            </div>
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <form action="/products" method="GET" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input className="input" name="q" defaultValue={q} placeholder="Buscar..." />
+                <button className="ghost" type="submit">
+                  Buscar
+                </button>
+              </form>
+              <span className="pill">{productItems.length} resultados</span>
             </div>
           </div>
         </div>
