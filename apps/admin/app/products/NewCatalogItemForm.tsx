@@ -3,12 +3,12 @@
 import { useMemo, useState } from "react";
 import { VariantsEditor } from "./VariantsEditor";
 
-function pesosToCents(pesosRaw: string): number {
-  const digits = String(pesosRaw || "").replace(/[^\d-]/g, "");
-  if (!digits) return 0;
-  const pesos = Number(digits);
-  if (!Number.isFinite(pesos)) return 0;
-  return Math.trunc(pesos) * 100;
+function formatCopCurrency(input: string): string {
+  const digits = String(input || "").replace(/[^\d]/g, "");
+  if (!digits) return "";
+  const value = Number(digits);
+  if (!Number.isFinite(value)) return "";
+  return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(value);
 }
 
 export function NewCatalogItemForm({
@@ -18,16 +18,14 @@ export function NewCatalogItemForm({
 }) {
   const [kind, setKind] = useState<"PRODUCT" | "SERVICE">("PRODUCT");
   const [show, setShow] = useState(false);
-  const [option1Name, setOption1Name] = useState("Talla");
-  const [option2Name, setOption2Name] = useState("Color");
-  const [basePricePesos, setBasePricePesos] = useState("");
+  const [variantOptionsCount, setVariantOptionsCount] = useState<0 | 1 | 2>(0);
+  const [option1Name, setOption1Name] = useState("");
+  const [option2Name, setOption2Name] = useState("");
+  const [priceCop, setPriceCop] = useState("");
+  const [discountCop, setDiscountCop] = useState("");
 
-  const preview = useMemo(() => {
-    const cents = pesosToCents(basePricePesos);
-    const pesos = Math.trunc(cents / 100);
-    if (!Number.isFinite(pesos)) return "—";
-    return `$${pesos.toLocaleString("es-CO")}`;
-  }, [basePricePesos]);
+  const hasVariants = useMemo(() => kind === "PRODUCT" && variantOptionsCount > 0, [kind, variantOptionsCount]);
+  const showOption2 = useMemo(() => hasVariants && variantOptionsCount === 2, [hasVariants, variantOptionsCount]);
 
   return (
     <div className="panel module">
@@ -48,58 +46,62 @@ export function NewCatalogItemForm({
             </select>
           </div>
 
+          <input type="hidden" name="currency" value="COP" />
+
           <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 10 }}>
             <div className="field">
               <label>Nombre</label>
               <input className="input" name="name" placeholder={kind === "SERVICE" ? "Ej: Membresía VIP" : "Ej: Zapato Olivia"} required />
             </div>
             <div className="field">
-              <label>SKU / Referencia</label>
+              <label>Referencia / SKU</label>
               <input className="input" name="sku" placeholder="OLIVIA-001" required />
             </div>
           </div>
 
           <div className="field">
             <label>Descripción</label>
-            <textarea className="input" name="description" rows={3} placeholder="(Base Shopify/Alegra)" />
+            <textarea className="input" name="description" rows={3} placeholder="Describe el producto o servicio (opcional)" />
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
             <div className="field">
-              <label>Vendor (Shopify)</label>
-              <input className="input" name="vendor" placeholder="Marca / proveedor" />
+              <label>Marca / Proveedor</label>
+              <input className="input" name="vendor" placeholder="Ej: Olivia Shoes" />
             </div>
             <div className="field">
-              <label>Product type (Shopify)</label>
-              <input className="input" name="productType" placeholder="Categoría" />
+              <label>Categoría</label>
+              <input className="input" name="productType" placeholder="Ej: Calzado" />
             </div>
             <div className="field">
-              <label>Tags (Shopify)</label>
-              <input className="input" name="tags" placeholder="tag1, tag2" />
+              <label>Etiquetas</label>
+              <input className="input" name="tags" placeholder="Ej: nueva, hombre, premium" />
             </div>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
             <div className="field">
-              <label>Moneda</label>
-              <input className="input" name="currency" defaultValue="COP" />
+              <label>Unidad</label>
+              <input className="input" name="unit" placeholder="Ej: UND" />
             </div>
             <div className="field">
-              <label>Precio base ($)</label>
+              <label>Precio</label>
               <input
                 className="input"
                 name="basePricePesos"
                 inputMode="numeric"
-                value={basePricePesos}
-                onChange={(e) => setBasePricePesos(e.target.value)}
-                placeholder="150500"
+                value={priceCop}
+                onChange={(e) => setPriceCop(formatCopCurrency(e.target.value))}
+                placeholder="$ 150.500"
                 required
               />
-              <div className="field-hint">Vista: {preview}</div>
             </div>
             <div className="field">
-              <label>Unidad (Alegra)</label>
-              <input className="input" name="unit" placeholder="UND" />
+              <label>{kind === "PRODUCT" ? "Requiere envío" : "Requiere envío (no aplica a servicios)"}</label>
+              <select className="select" name="requiresShipping" defaultValue={kind === "PRODUCT" ? "on" : ""} disabled={kind === "SERVICE"}>
+                <option value="">No</option>
+                <option value="on">Sí</option>
+              </select>
             </div>
           </div>
 
@@ -124,39 +126,84 @@ export function NewCatalogItemForm({
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <div className="field">
-              <label>Descuento fijo ($)</label>
-              <input className="input" name="discountValuePesos" placeholder="0" inputMode="numeric" />
+              <label>Descuento (valor)</label>
+              <input
+                className="input"
+                name="discountValuePesos"
+                placeholder="$ 0"
+                inputMode="numeric"
+                value={discountCop}
+                onChange={(e) => setDiscountCop(formatCopCurrency(e.target.value))}
+              />
             </div>
             <div className="field">
-              <label>Descuento %</label>
+              <label>Descuento (%)</label>
               <input className="input" name="discountPercent" placeholder="0" inputMode="numeric" />
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <label className="field" style={{ gridAutoFlow: "column", justifyContent: "start", alignItems: "center" }}>
-              <input name="taxable" type="checkbox" defaultChecked />
-              <span>Taxable (Shopify)</span>
-            </label>
-            <label className="field" style={{ gridAutoFlow: "column", justifyContent: "start", alignItems: "center" }}>
-              <input name="requiresShipping" type="checkbox" defaultChecked={kind === "PRODUCT"} />
-              <span>Requires shipping (Shopify)</span>
-            </label>
-          </div>
+          <input type="hidden" name="taxable" value="on" />
 
           {kind === "PRODUCT" ? (
             <>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <div className="field">
-                  <label>Opción 1 (ej: Talla)</label>
-                  <input className="input" name="option1Name" value={option1Name} onChange={(e) => setOption1Name(e.target.value)} />
-                </div>
-                <div className="field">
-                  <label>Opción 2 (ej: Color)</label>
-                  <input className="input" name="option2Name" value={option2Name} onChange={(e) => setOption2Name(e.target.value)} />
+              <div className="panel" style={{ borderColor: "rgba(15, 23, 42, 0.12)" }}>
+                <div style={{ display: "grid", gap: 10 }}>
+                  <div className="field">
+                    <label>Variantes</label>
+                    <select
+                      className="select"
+                      value={variantOptionsCount}
+                      onChange={(e) => setVariantOptionsCount(Number(e.target.value) as any)}
+                    >
+                      <option value={0}>Sin variantes</option>
+                      <option value={1}>1 opción</option>
+                      <option value={2}>2 opciones</option>
+                    </select>
+                    <div className="field-hint">Primero define las opciones; luego agrega las variantes.</div>
+                  </div>
                 </div>
               </div>
-              <VariantsEditor option1Name={option1Name} option2Name={option2Name} />
+
+              {hasVariants ? (
+                <div style={{ display: "grid", gridTemplateColumns: showOption2 ? "1fr 1fr" : "1fr", gap: 10 }}>
+                  <div className="field">
+                    <label>Opción 1</label>
+                    <input
+                      className="input"
+                      name="option1Name"
+                      value={option1Name}
+                      onChange={(e) => setOption1Name(e.target.value)}
+                      placeholder="Ej: Talla"
+                      required={hasVariants}
+                    />
+                  </div>
+                  {showOption2 ? (
+                    <div className="field">
+                      <label>Opción 2</label>
+                      <input
+                        className="input"
+                        name="option2Name"
+                        value={option2Name}
+                        onChange={(e) => setOption2Name(e.target.value)}
+                        placeholder="Ej: Color"
+                        required={showOption2}
+                      />
+                    </div>
+                  ) : (
+                    <input type="hidden" name="option2Name" value="" />
+                  )}
+                </div>
+              ) : (
+                <>
+                  <input type="hidden" name="option1Name" value="" />
+                  <input type="hidden" name="option2Name" value="" />
+                  <input type="hidden" name="variantsJson" value="[]" />
+                </>
+              )}
+
+              {hasVariants ? (
+                <VariantsEditor option1Name={option1Name} option2Name={showOption2 ? option2Name : ""} disabled={!option1Name.trim() || (showOption2 && !option2Name.trim())} />
+              ) : null}
             </>
           ) : (
             <>
@@ -173,9 +220,8 @@ export function NewCatalogItemForm({
           </div>
         </form>
       ) : (
-        <div className="field-hint">Crea productos (con variantes) o servicios (sin variantes).</div>
+        <div className="field-hint">Crea productos (con variantes opcionales) o servicios (sin variantes).</div>
       )}
     </div>
   );
 }
-

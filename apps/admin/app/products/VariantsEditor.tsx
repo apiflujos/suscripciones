@@ -4,6 +4,18 @@ import { useMemo, useState } from "react";
 
 type VariantRow = { option1?: string; option2?: string; priceDeltaPesos?: string };
 
+function formatCopSignedCurrency(input: string): string {
+  const raw = String(input || "");
+  const trimmed = raw.trimStart();
+  const sign = trimmed.startsWith("-") ? "-" : trimmed.startsWith("+") ? "+" : "";
+  const digits = raw.replace(/[^\d]/g, "");
+  if (!digits) return sign;
+  const value = Number(digits);
+  if (!Number.isFinite(value)) return sign;
+  const formatted = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(value);
+  return sign ? `${sign}${formatted}` : formatted;
+}
+
 function pesosToCents(pesosRaw: string): number {
   const digits = String(pesosRaw || "").replace(/[^\d-]/g, "");
   if (!digits) return 0;
@@ -14,10 +26,12 @@ function pesosToCents(pesosRaw: string): number {
 
 export function VariantsEditor({
   option1Name,
-  option2Name
+  option2Name,
+  disabled
 }: {
   option1Name?: string;
   option2Name?: string;
+  disabled?: boolean;
 }) {
   const [rows, setRows] = useState<VariantRow[]>([]);
 
@@ -39,6 +53,7 @@ export function VariantsEditor({
         <button
           type="button"
           className="ghost"
+          disabled={!!disabled}
           onClick={() => setRows((prev) => [...prev, { option1: "", option2: "", priceDeltaPesos: "" }])}
         >
           + Agregar
@@ -48,6 +63,7 @@ export function VariantsEditor({
       <input type="hidden" name="variantsJson" value={json} />
 
       <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+        {disabled ? <div className="field-hint">Define el nombre de las opciones para poder agregar variantes.</div> : null}
         {rows.map((r, idx) => (
           <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: 8, alignItems: "end" }}>
             <div className="field">
@@ -56,7 +72,7 @@ export function VariantsEditor({
                 className="input"
                 value={r.option1 || ""}
                 onChange={(e) => setRows((prev) => prev.map((x, i) => (i === idx ? { ...x, option1: e.target.value } : x)))}
-                placeholder="Ej: 40 / M / 1 mes"
+                placeholder="Ej: M / 40 / 1 mes"
               />
             </div>
             <div className="field">
@@ -69,12 +85,16 @@ export function VariantsEditor({
               />
             </div>
             <div className="field">
-              <label>Modificador ($)</label>
+              <label>Modificador de precio</label>
               <input
                 className="input"
                 value={r.priceDeltaPesos || ""}
-                onChange={(e) => setRows((prev) => prev.map((x, i) => (i === idx ? { ...x, priceDeltaPesos: e.target.value } : x)))}
-                placeholder="+5000 o -2000"
+                onChange={(e) =>
+                  setRows((prev) =>
+                    prev.map((x, i) => (i === idx ? { ...x, priceDeltaPesos: formatCopSignedCurrency(e.target.value) } : x))
+                  )
+                }
+                placeholder="+$ 5.000 o -$ 2.000"
               />
             </div>
             <button
@@ -88,7 +108,7 @@ export function VariantsEditor({
           </div>
         ))}
 
-        {rows.length === 0 ? <div className="field-hint">Sin variantes. Puedes usar hasta 2 opciones (ej: talla y color).</div> : null}
+        {rows.length === 0 && !disabled ? <div className="field-hint">Sin variantes.</div> : null}
       </div>
     </div>
   );

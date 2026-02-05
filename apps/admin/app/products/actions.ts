@@ -43,8 +43,8 @@ export async function createProduct(formData: FormData) {
   const productType = String(formData.get("productType") || "").trim();
   const tags = String(formData.get("tags") || "").trim();
   const unit = String(formData.get("unit") || "").trim();
-  const taxable = String(formData.get("taxable") || "") === "on";
-  const requiresShipping = String(formData.get("requiresShipping") || "") === "on";
+  const taxable = true;
+  const requiresShipping = kind === "PRODUCT" ? String(formData.get("requiresShipping") || "") === "on" : false;
   const option1Name = String(formData.get("option1Name") || "").trim();
   const option2Name = String(formData.get("option2Name") || "").trim();
   const variantsJson = String(formData.get("variantsJson") || "").trim();

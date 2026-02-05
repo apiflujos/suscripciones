@@ -46,36 +46,36 @@ export default async function SettingsPage({ searchParams }: { searchParams: { s
       <section style={{ border: "1px solid #eee", borderRadius: 12, padding: 16 }}>
         <h2 style={{ marginTop: 0 }}>Wompi</h2>
         <div style={{ color: "#666", marginBottom: 12 }}>
-          PublicKey: {settings?.wompi?.publicKey || "—"} | PrivateKey: {settings?.wompi?.privateKey || "—"} | Integrity:{" "}
-          {settings?.wompi?.integritySecret || "—"} | EventsSecret: {settings?.wompi?.eventsSecret || "—"}
+          Pública: {settings?.wompi?.publicKey || "—"} | Privada: {settings?.wompi?.privateKey || "—"} | Integrity: {settings?.wompi?.integritySecret || "—"} | Events:{" "}
+          {settings?.wompi?.eventsSecret || "—"}
         </div>
         <form action={updateWompi} style={{ display: "grid", gap: 10 }}>
           <label>
-            Public key
+            Llave pública
             <input name="publicKey" placeholder="pub_test_..." defaultValue={settings?.wompi?.publicKey || ""} style={{ width: "100%" }} />
           </label>
           <label>
-            Private key
+            Llave privada
             <input name="privateKey" type="password" style={{ width: "100%" }} />
           </label>
           <label>
-            Integrity secret
+            Secreto de integridad
             <input name="integritySecret" type="password" style={{ width: "100%" }} />
           </label>
           <label>
-            Events secret
+            Secreto de eventos
             <input name="eventsSecret" type="password" style={{ width: "100%" }} />
           </label>
           <label>
-            API base URL
+            URL base del API
             <input name="apiBaseUrl" placeholder="https://sandbox.wompi.co/v1" defaultValue={settings?.wompi?.apiBaseUrl || ""} style={{ width: "100%" }} />
           </label>
           <label>
-            Checkout link base URL
+            URL base de links de pago
             <input name="checkoutLinkBaseUrl" placeholder="https://checkout.wompi.co/l/" defaultValue={settings?.wompi?.checkoutLinkBaseUrl || ""} style={{ width: "100%" }} />
           </label>
           <label>
-            Redirect URL (opcional)
+            URL de redirección (opcional)
             <input name="redirectUrl" defaultValue={settings?.wompi?.redirectUrl || ""} style={{ width: "100%" }} />
           </label>
           <button type="submit">Guardar Wompi</button>
@@ -83,42 +83,42 @@ export default async function SettingsPage({ searchParams }: { searchParams: { s
       </section>
 
       <section style={{ border: "1px solid #eee", borderRadius: 12, padding: 16 }}>
-        <h2 style={{ marginTop: 0 }}>Shopify (Forward)</h2>
-        <div style={{ color: "#666", marginBottom: 12 }}>Forward URL: {settings?.shopify?.forwardUrl || "—"}</div>
+        <h2 style={{ marginTop: 0 }}>Conector de tienda (opcional)</h2>
+        <div style={{ color: "#666", marginBottom: 12 }}>URL de reenvío: {settings?.shopify?.forwardUrl || "—"}</div>
         <form action={updateShopify} style={{ display: "grid", gap: 10 }}>
           <label>
-            Forward URL
+            URL de reenvío
             <input name="forwardUrl" defaultValue={settings?.shopify?.forwardUrl || ""} style={{ width: "100%" }} />
           </label>
           <label>
-            Forward secret (opcional)
+            Secreto de reenvío (opcional)
             <input name="forwardSecret" type="password" style={{ width: "100%" }} />
           </label>
-          <button type="submit">Guardar Shopify</button>
+          <button type="submit">Guardar conector</button>
         </form>
       </section>
 
       <section style={{ border: "1px solid #eee", borderRadius: 12, padding: 16 }}>
         <h2 style={{ marginTop: 0 }}>Chatwoot</h2>
         <div style={{ color: "#666", marginBottom: 12 }}>
-          Base: {settings?.chatwoot?.baseUrl || "—"} | account: {settings?.chatwoot?.accountId || "—"} | inbox:{" "}
+          Base: {settings?.chatwoot?.baseUrl || "—"} | cuenta: {settings?.chatwoot?.accountId || "—"} | inbox:{" "}
           {settings?.chatwoot?.inboxId || "—"}
         </div>
         <form action={updateChatwoot} style={{ display: "grid", gap: 10 }}>
           <label>
-            Base URL
+            URL base
             <input name="baseUrl" placeholder="https://chatwoot.tu-dominio.com" defaultValue={settings?.chatwoot?.baseUrl || ""} style={{ width: "100%" }} />
           </label>
           <label>
-            Account ID
+            ID de cuenta
             <input name="accountId" defaultValue={settings?.chatwoot?.accountId || ""} style={{ width: "100%" }} />
           </label>
           <label>
-            Inbox ID
+            ID de inbox
             <input name="inboxId" defaultValue={settings?.chatwoot?.inboxId || ""} style={{ width: "100%" }} />
           </label>
           <label>
-            API Access Token
+            Token de acceso API
             <input name="apiAccessToken" type="password" style={{ width: "100%" }} />
           </label>
           <button type="submit">Guardar Chatwoot</button>

@@ -88,7 +88,7 @@ export default async function ProductsPage({
                     <tr key={p.id}>
                       <td style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>{p.sku}</td>
                       <td>{p.name}</td>
-                      <td>{p.kind}</td>
+                      <td>{p.kind === "SERVICE" ? "Servicio" : "Producto"}</td>
                       <td>{fmtMoney(p.basePriceInCents)}</td>
                       <td>{p.taxPercent ? `${p.taxPercent}%` : "—"}</td>
                     </tr>
