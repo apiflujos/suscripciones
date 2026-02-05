@@ -31,7 +31,7 @@ export function NewCatalogItemForm({
     <div className="panel module">
       <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
         <h3>Productos y Servicios</h3>
-        <button type="button" className="btn btnPrimary" onClick={() => setShow((v) => !v)}>
+        <button type="button" className={show ? "ghost" : "primary"} onClick={() => setShow((v) => !v)}>
           {show ? "Cerrar" : "Nuevo producto/servicio"}
         </button>
       </div>

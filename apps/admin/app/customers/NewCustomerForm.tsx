@@ -76,7 +76,7 @@ export function NewCustomerForm({ createCustomer }: Props) {
     <div className="panel module">
       <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
         <h3 style={{ margin: 0 }}>Nuevo contacto</h3>
-        <button className={open ? "secondary" : "primary"} type="button" onClick={() => setOpen((v) => !v)}>
+        <button className={open ? "ghost" : "primary"} type="button" onClick={() => setOpen((v) => !v)}>
           {open ? "Cerrar" : "Crear contacto"}
         </button>
       </div>
@@ -150,4 +150,3 @@ export function NewCustomerForm({ createCustomer }: Props) {
     </div>
   );
 }
-
