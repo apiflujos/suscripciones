@@ -36,6 +36,18 @@ function renderTemplate(content: string, ctx: any) {
   });
 }
 
+function renderAny(input: any, ctx: any): any {
+  if (input == null) return input;
+  if (typeof input === "string") return renderTemplate(input, ctx);
+  if (Array.isArray(input)) return input.map((v) => renderAny(v, ctx));
+  if (typeof input === "object") {
+    const out: any = {};
+    for (const [k, v] of Object.entries(input)) out[k] = renderAny(v, ctx);
+    return out;
+  }
+  return input;
+}
+
 function dedupeKey(args: { trigger: string; ruleId: string; subscriptionId?: string; paymentId?: string; cycleNumber?: number; offsetMinutes?: number }) {
   const sub = args.subscriptionId || "-";
   const pay = args.paymentId || "-";
@@ -104,7 +116,7 @@ export async function subscriptionReminder(payload: any) {
     return;
   }
 
-  if (!template.content || !template.chatwootType) return;
+  if (!template.chatwootType) return;
 
   let effectivePayment: any = payment;
   if (rule.ensurePaymentLink && subscription && parsed.data.trigger === "SUBSCRIPTION_DUE") {
@@ -133,7 +145,7 @@ export async function subscriptionReminder(payload: any) {
     payment: effectivePayment
   };
 
-  const content = renderTemplate(template.content, ctx);
+  const content = template.content ? renderTemplate(template.content, ctx) : "(template)";
   const dk = dedupeKey({
     trigger: parsed.data.trigger,
     ruleId: rule.id,
@@ -165,7 +177,10 @@ export async function subscriptionReminder(payload: any) {
       paymentId: effectivePayment?.id ?? null,
       type: template.chatwootType as ChatwootMessageType,
       status: MessageStatus.PENDING,
-      content
+      content,
+      providerResp: template.chatwootTemplate
+        ? ({ template_params: renderAny(template.chatwootTemplate, ctx) } as any)
+        : null
     }
   });
 

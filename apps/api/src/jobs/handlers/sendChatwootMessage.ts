@@ -72,14 +72,17 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
     });
   }
 
-  const sent = await client.sendMessage(conversationId, msg.content);
+  const templateParams = (msg.providerResp as any)?.template_params;
+  const sent = templateParams
+    ? await client.sendTemplate(conversationId, { content: msg.content, templateParams })
+    : await client.sendMessage(conversationId, msg.content);
 
   await prisma.chatwootMessage.update({
     where: { id: chatwootMessageId },
     data: {
       status: MessageStatus.SENT,
       sentAt: new Date(),
-      providerResp: sent.raw as any,
+      providerResp: templateParams ? ({ ...(msg.providerResp as any), response: sent.raw } as any) : (sent.raw as any),
       errorMessage: null
     }
   });

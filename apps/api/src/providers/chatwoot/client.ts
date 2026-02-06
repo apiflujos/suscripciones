@@ -86,7 +86,7 @@ export class ChatwootClient {
   }
 
   async sendMessage(conversationId: number, content: string) {
-    const body = { content, message_type: "outgoing" };
+    const body = { content, message_type: "outgoing", content_type: "text" };
     const res = await this.request(
       `/api/v1/accounts/${this.opts.accountId}/conversations/${conversationId}/messages`,
       { method: "POST", body: JSON.stringify(body) }
@@ -94,5 +94,19 @@ export class ChatwootClient {
     if (!res.ok) throw new Error(`Chatwoot send message failed: ${res.status} ${JSON.stringify(res.json)}`);
     return { raw: res.json };
   }
-}
 
+  async sendTemplate(conversationId: number, args: { content: string; templateParams: any }) {
+    const body = {
+      content: args.content,
+      message_type: "outgoing",
+      content_type: "text",
+      template_params: args.templateParams
+    };
+    const res = await this.request(
+      `/api/v1/accounts/${this.opts.accountId}/conversations/${conversationId}/messages`,
+      { method: "POST", body: JSON.stringify(body) }
+    );
+    if (!res.ok) throw new Error(`Chatwoot send template failed: ${res.status} ${JSON.stringify(res.json)}`);
+    return { raw: res.json };
+  }
+}
