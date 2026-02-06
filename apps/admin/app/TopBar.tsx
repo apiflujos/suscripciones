@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 type Header = { title: string; subtitle: string };
 
 function getHeader(pathname: string): Header {
-  if (pathname === "/") return { title: "Metricas Olivia Shoes", subtitle: "Visibilidad operativa en tiempo real." };
+  if (pathname === "/") return { title: "Métricas", subtitle: "Visibilidad operativa en tiempo real." };
   if (pathname.startsWith("/logs")) return { title: "Logs de API", subtitle: "Seguimiento de procesos y sincronizaciones." };
   if (pathname.startsWith("/customers")) return { title: "Contactos", subtitle: "Clientes y datos de contacto." };
   if (pathname.startsWith("/products")) return { title: "Productos y Servicios", subtitle: "Catálogo para cobranza recurrente." };

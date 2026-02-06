@@ -85,6 +85,10 @@ a {
   font-weight: 700;
 }
 
+.sidebarToggleBtn .nav-icon {
+  color: var(--text);
+}
+
 .sidebarToggleBtn:hover {
   background: var(--primary-soft);
   border-color: rgba(0, 43, 91, 0.2);

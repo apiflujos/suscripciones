@@ -51,11 +51,11 @@ export function NewCatalogItemForm({
           <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 10 }}>
             <div className="field">
               <label>Nombre</label>
-              <input className="input" name="name" placeholder={kind === "SERVICE" ? "Ej: Membresía VIP" : "Ej: Zapato Olivia"} required />
+              <input className="input" name="name" placeholder={kind === "SERVICE" ? "Ej: Membresía VIP" : "Ej: Zapato clásico"} required />
             </div>
             <div className="field">
               <label>Referencia / SKU</label>
-              <input className="input" name="sku" placeholder="OLIVIA-001" required />
+              <input className="input" name="sku" placeholder="SKU-001" required />
             </div>
           </div>
 
@@ -67,7 +67,7 @@ export function NewCatalogItemForm({
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
             <div className="field">
               <label>Marca / Proveedor</label>
-              <input className="input" name="vendor" placeholder="Ej: Olivia Shoes" />
+              <input className="input" name="vendor" placeholder="Ej: Tu marca" />
             </div>
             <div className="field">
               <label>Categoría</label>

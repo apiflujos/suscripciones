@@ -23,11 +23,6 @@ export default async function SaLayout({ children }: { children: React.ReactNode
             Super Admin
           </h1>
         </div>
-        <form action={saLogout}>
-          <button type="submit" className="ghost">
-            Cerrar sesión
-          </button>
-        </form>
       </div>
 
       <nav className="toolbar" aria-label="Super Admin tabs">
@@ -49,7 +44,14 @@ export default async function SaLayout({ children }: { children: React.ReactNode
       </nav>
 
       {children}
+
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <form action={saLogout}>
+          <button type="submit" className="ghost">
+            Salir
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
-

@@ -94,6 +94,23 @@ function MenuIcon({ className }: { className?: string }) {
   );
 }
 
+function CloseIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M18 6 6 18" />
+      <path d="M6 6l12 12" />
+    </svg>
+  );
+}
+
+function ChevronIcon({ className, direction }: { className?: string; direction: "left" | "right" }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      {direction === "left" ? <path d="M15 18l-6-6 6-6" /> : <path d="M9 18l6-6-6-6" />}
+    </svg>
+  );
+}
+
 function LogoutIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -187,7 +204,17 @@ export function SideNav() {
         aria-label={mobileOpen ? "Cerrar menú" : collapsed ? "Desplegar menú" : "Plegar menú"}
         title={mobileOpen ? "Cerrar menú" : collapsed ? "Desplegar menú" : "Plegar menú"}
       >
-        <MenuIcon className="nav-icon" />
+        {isMobile ? (
+          mobileOpen ? (
+            <CloseIcon className="nav-icon" />
+          ) : (
+            <MenuIcon className="nav-icon" />
+          )
+        ) : collapsed ? (
+          <ChevronIcon className="nav-icon" direction="right" />
+        ) : (
+          <ChevronIcon className="nav-icon" direction="left" />
+        )}
         <span className="nav-label">Menú</span>
       </button>
 
