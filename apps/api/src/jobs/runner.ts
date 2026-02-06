@@ -7,9 +7,36 @@ import { sendChatwootMessage } from "./handlers/sendChatwootMessage";
 import { paymentRetry } from "./handlers/paymentRetry";
 import { subscriptionReminder } from "./handlers/subscriptionReminder";
 import { systemLog } from "../services/systemLog";
+import { billingMonthlyReport } from "./handlers/billingMonthlyReport";
 
 loadEnv(process.env);
 const workerId = `jobs:${process.pid}`;
+
+const BOGOTA_UTC_OFFSET_MS = -5 * 60 * 60 * 1000;
+
+function monthKeyUtc(y: number, m0: number) {
+  return `${y}-${String(m0 + 1).padStart(2, "0")}`;
+}
+
+function computeNextMonthlyReportJob(nowMs: number) {
+  const bogotaNow = new Date(nowMs + BOGOTA_UTC_OFFSET_MS);
+  const y = bogotaNow.getUTCFullYear();
+  const m = bogotaNow.getUTCMonth();
+  const d = bogotaNow.getUTCDate();
+  const hh = bogotaNow.getUTCHours();
+  const mm = bogotaNow.getUTCMinutes();
+
+  const isDay1Before005 = d === 1 && hh === 0 && mm < 5;
+  const runY = isDay1Before005 ? y : m === 11 ? y + 1 : y;
+  const runM = isDay1Before005 ? m : (m + 1) % 12;
+  const runAt = new Date(Date.UTC(runY, runM, 1, 5, 5, 0, 0)); // 00:05 Bogotá = 05:05 UTC
+
+  const prevM = runM === 0 ? 11 : runM - 1;
+  const prevY = runM === 0 ? runY - 1 : runY;
+  const periodKey = monthKeyUtc(prevY, prevM);
+
+  return { runAt, periodKey };
+}
 
 async function claimJobs(limit: number) {
   return prisma.$queryRaw<
@@ -38,6 +65,34 @@ function nextRunAt(attempts: number) {
   return new Date(Date.now() + delayMs);
 }
 
+let lastEnsureAtMs = 0;
+async function ensureMonthlyBillingReportJob() {
+  const now = Date.now();
+  if (now - lastEnsureAtMs < 60_000) return;
+  lastEnsureAtMs = now;
+
+  const next = computeNextMonthlyReportJob(now);
+
+  const existing = await prisma.retryJob.findFirst({
+    where: {
+      type: RetryJobType.BILLING_MONTHLY_REPORT,
+      payload: { path: ["periodKey"], equals: next.periodKey } as any
+    } as any
+  });
+  if (existing) return;
+
+  await prisma.retryJob
+    .create({
+      data: {
+        type: RetryJobType.BILLING_MONTHLY_REPORT,
+        runAt: next.runAt,
+        maxAttempts: 10,
+        payload: { periodKey: next.periodKey }
+      } as any
+    })
+    .catch(() => {});
+}
+
 async function runOnce() {
   const jobs = await claimJobs(10);
   for (const job of jobs) {
@@ -54,6 +109,8 @@ async function runOnce() {
         await paymentRetry(payload);
       } else if (job.type === RetryJobType.SUBSCRIPTION_REMINDER) {
         await subscriptionReminder(payload);
+      } else if (job.type === RetryJobType.BILLING_MONTHLY_REPORT) {
+        await billingMonthlyReport(payload);
       } else {
         logger.warn({ jobId: job.id, type: job.type }, "Unhandled job type");
       }
@@ -94,6 +151,7 @@ async function main() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
     try {
+      await ensureMonthlyBillingReportJob();
       await runOnce();
       await new Promise((r) => setTimeout(r, 1000));
     } catch (err: any) {

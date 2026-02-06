@@ -1,0 +1,28 @@
+"use server";
+
+import { redirect } from "next/navigation";
+import { saAdminFetch } from "../../saApi";
+
+function toShortErrorMessage(err: unknown) {
+  const raw = err instanceof Error ? err.message : String(err);
+  return raw.replace(/\s+/g, " ").trim().slice(0, 220) || "unknown_error";
+}
+
+export async function upsertLimit(formData: FormData) {
+  const key = String(formData.get("key") || "").trim();
+  const name = String(formData.get("name") || "").trim();
+  const periodType = String(formData.get("periodType") || "").trim();
+  const active = String(formData.get("active") || "").trim() === "1";
+  try {
+    const res = await saAdminFetch("/admin/sa/limits", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ key, name, periodType, active })
+    });
+    if (!res.ok) throw new Error(res.json?.error || `request_failed_${res.status}`);
+    redirect("/__sa/limits?saved=1");
+  } catch (err) {
+    redirect(`/__sa/limits?error=${encodeURIComponent(toShortErrorMessage(err))}`);
+  }
+}
+

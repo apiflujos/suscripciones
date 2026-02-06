@@ -78,6 +78,7 @@ enum RetryJobType {
   SEND_CHATWOOT_MESSAGE
   SUBSCRIPTION_REMINDER
   PAYMENT_RETRY
+  BILLING_MONTHLY_REPORT
 }
 
 enum RetryJobStatus {
@@ -86,6 +87,23 @@ enum RetryJobStatus {
   SUCCEEDED
   FAILED
   CANCELED
+}
+
+enum SaUserRole {
+  SUPER_ADMIN
+  ADMIN
+  AGENT
+}
+
+enum SaPeriodType {
+  monthly
+  total
+}
+
+enum SaPlanKind {
+  MASTER
+  PRO
+  ON_DEMAND
 }
 
 model Customer {
@@ -294,4 +312,202 @@ model RetryJob {
 
   @@index([status, runAt])
   @@index([type, status])
+}
+
+model SaTenant {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  active    Boolean  @default(true)
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users      SaUser[]
+  planSnaps  SaTenantPlanSnapshot[]
+  modules    SaTenantModuleToggle[]
+  usageEvents SaUsageEvent[]
+  usageCounters SaUsageCounter[]
+  billingEvents SaBillingEvent[]
+  billingCounters SaBillingCounter[]
+}
+
+model SaUser {
+  id           String     @id @default(uuid()) @db.Uuid
+  tenantId     String?    @db.Uuid
+  email        String
+  passwordHash String
+  role         SaUserRole
+  active       Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  tenant SaTenant? @relation(fields: [tenantId], references: [id])
+
+  @@unique([email])
+  @@index([tenantId])
+  @@index([role])
+}
+
+model SaSession {
+  id         String   @id @default(uuid()) @db.Uuid
+  tokenHash  String   @unique
+  email      String
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  ip         String?
+  userAgent  String?
+
+  @@index([email, expiresAt])
+  @@index([expiresAt])
+}
+
+model SaModuleDefinition {
+  key       String  @id
+  name      String
+  active    Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  toggles SaTenantModuleToggle[]
+}
+
+model SaTenantModuleToggle {
+  id        String  @id @default(uuid()) @db.Uuid
+  tenantId  String  @db.Uuid
+  moduleKey String
+  enabled   Boolean @default(true)
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  tenant SaTenant @relation(fields: [tenantId], references: [id])
+  module SaModuleDefinition @relation(fields: [moduleKey], references: [key])
+
+  @@unique([tenantId, moduleKey])
+  @@index([tenantId])
+}
+
+model SaLimitDefinition {
+  key        String       @id
+  name       String
+  periodType SaPeriodType
+  active     Boolean      @default(true)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+}
+
+model SaPlanDefinition {
+  id                 String     @id @default(uuid()) @db.Uuid
+  key                String     @unique
+  name               String
+  kind               SaPlanKind
+  monthlyPriceInCents Int       @default(0)
+  active             Boolean    @default(true)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  services SaPlanServiceLimit[]
+  tenantSnaps SaTenantPlanSnapshot[]
+}
+
+model SaPlanServiceLimit {
+  id            String   @id @default(uuid()) @db.Uuid
+  planId        String   @db.Uuid
+  serviceKey    String
+  isUnlimited   Boolean  @default(false)
+  maxValue      Int?
+  unitPriceInCents Int   @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  plan SaPlanDefinition @relation(fields: [planId], references: [id])
+
+  @@unique([planId, serviceKey])
+  @@index([serviceKey])
+}
+
+model SaTenantPlanSnapshot {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid
+  planId    String   @db.Uuid
+  active    Boolean  @default(true)
+  snapshot  Json
+  startsAt  DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant SaTenant @relation(fields: [tenantId], references: [id])
+  plan   SaPlanDefinition @relation(fields: [planId], references: [id])
+
+  @@index([tenantId, active])
+  @@index([planId])
+}
+
+model SaUsageEvent {
+  id         String      @id @default(uuid()) @db.Uuid
+  tenantId   String      @db.Uuid
+  serviceKey String
+  amount     Int
+  periodType SaPeriodType
+  periodKey  String
+  source     String?
+  meta       Json?
+  createdAt  DateTime    @default(now())
+
+  tenant SaTenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, periodKey])
+  @@index([serviceKey, periodKey])
+  @@index([createdAt])
+}
+
+model SaUsageCounter {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @db.Uuid
+  serviceKey String
+  periodKey  String
+  total      Int      @default(0)
+  updatedAt  DateTime @updatedAt
+  createdAt  DateTime @default(now())
+
+  tenant SaTenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, serviceKey, periodKey])
+  @@index([tenantId, periodKey])
+}
+
+model SaBillingEvent {
+  id            String      @id @default(uuid()) @db.Uuid
+  tenantId      String      @db.Uuid
+  serviceKey    String
+  quantity      Int
+  unitPriceInCents Int
+  totalInCents  Int
+  periodType    SaPeriodType
+  periodKey     String
+  meta          Json?
+  createdAt     DateTime    @default(now())
+
+  tenant SaTenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, periodKey])
+  @@index([serviceKey, periodKey])
+  @@index([createdAt])
+}
+
+model SaBillingCounter {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @db.Uuid
+  serviceKey    String
+  periodKey     String
+  totalQuantity Int      @default(0)
+  totalInCents  Int      @default(0)
+  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now())
+
+  tenant SaTenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, serviceKey, periodKey])
+  @@index([tenantId, periodKey])
 }

@@ -1,0 +1,42 @@
+"use server";
+
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { SA_COOKIE, adminFetchNoSa } from "../../saApi";
+
+function toShortErrorMessage(err: unknown) {
+  const raw = err instanceof Error ? err.message : String(err);
+  return raw.replace(/\s+/g, " ").trim().slice(0, 220) || "unknown_error";
+}
+
+export async function saLogin(formData: FormData) {
+  const email = String(formData.get("email") || "").trim();
+  const password = String(formData.get("password") || "");
+
+  try {
+    const res = await adminFetchNoSa("/admin/sa/login", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, password })
+    });
+    if (!res.ok) throw new Error(res.json?.error || `login_failed_${res.status}`);
+
+    const token = String(res.json?.token || "").trim();
+    if (!token) throw new Error("missing_token");
+    cookies().set(SA_COOKIE, token, {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/__sa",
+      secure: process.env.NODE_ENV === "production"
+    });
+    redirect("/__sa");
+  } catch (err) {
+    redirect(`/__sa/login?error=${encodeURIComponent(toShortErrorMessage(err))}`);
+  }
+}
+
+export async function saLogout() {
+  cookies().delete(SA_COOKIE);
+  redirect("/__sa/login?loggedOut=1");
+}
+
