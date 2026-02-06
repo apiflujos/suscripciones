@@ -173,40 +173,22 @@ export default async function Home({ searchParams }: { searchParams?: { from?: s
         <p className="pageSub">Link de pago vs suscripción automática.</p>
       </div>
 
-      <div className="grid2">
-        <div className="card cardPad" style={{ display: "grid", gap: 10 }}>
-          <strong>Estado API</strong>
-          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            <span className={`pill ${health.ok ? "" : "pillDanger"}`}>{health.ok ? "OK" : `ERROR (${health.status})`}</span>
-            <span style={{ color: "var(--muted)", fontSize: 13 }}>
-              Salud:{" "}
-              <Link href="/logs" prefetch={false} style={{ textDecoration: "underline" }}>
-                ver logs
-              </Link>
-            </span>
-          </div>
+      <div className="card cardPad" style={{ display: "grid", gap: 10 }}>
+        <strong>Estado API</strong>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <span className={`pill ${health.ok ? "" : "pillDanger"}`}>{health.ok ? "OK" : `ERROR (${health.status})`}</span>
+          <span style={{ color: "var(--muted)", fontSize: 13 }}>
+            Salud:{" "}
+            <Link href="/logs" prefetch={false} style={{ textDecoration: "underline" }}>
+              ver logs
+            </Link>
+          </span>
+        </div>
+        {!hasToken ? (
           <div style={{ color: "var(--muted)", fontSize: 13 }}>
             Para ver métricas completas, configura <code>API_ADMIN_TOKEN</code> en el Admin.
           </div>
-        </div>
-
-        <div className="card cardPad" style={{ display: "grid", gap: 10 }}>
-          <strong>Acciones rápidas</strong>
-          <div className="toolbar">
-            <Link className="btn btnPrimary" href="/settings" prefetch={false}>
-              Configurar credenciales
-            </Link>
-            <Link className="btn" href="/billing" prefetch={false}>
-              Planes / Suscripciones
-            </Link>
-            <Link className="btn" href="/customers" prefetch={false}>
-              Contactos
-            </Link>
-            <Link className="btn" href="/products" prefetch={false}>
-              Productos y servicios
-            </Link>
-          </div>
-        </div>
+        ) : null}
       </div>
 
       <section className="settings-group">
@@ -365,4 +347,3 @@ export default async function Home({ searchParams }: { searchParams?: { from?: s
     </div>
   );
 }
-
