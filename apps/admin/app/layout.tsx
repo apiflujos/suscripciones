@@ -19,9 +19,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body>
         <div className="app-shell">
           <aside className="sidebar" aria-label="Sidebar">
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <span className="settings-group-title">ADMIN</span>
-            </div>
             <SideNav />
           </aside>
           <div className="sidebarOverlay" aria-hidden="true" />

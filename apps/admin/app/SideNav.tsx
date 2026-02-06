@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+
+const SIDEBAR_COLLAPSED_KEY = "admin.sidebarCollapsed";
 
 function isActivePath(currentPath: string, href: string) {
   if (href === "/") return currentPath === "/";
@@ -81,11 +84,114 @@ function NavIcon({
   );
 }
 
+function MenuIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M4 6h16" />
+      <path d="M4 12h16" />
+      <path d="M4 18h16" />
+    </svg>
+  );
+}
+
+function LogoutIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M10 17l1 1a2 2 0 0 0 2 0l6-5a2 2 0 0 0 0-2l-6-5a2 2 0 0 0-2 0l-1 1" />
+      <path d="M15 12H3" />
+    </svg>
+  );
+}
+
 export function SideNav() {
   const pathname = usePathname() || "";
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const shell = document.querySelector(".app-shell") as HTMLElement | null;
+    if (!shell) return;
+
+    const stored = window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1";
+    shell.classList.toggle("is-collapsed", stored);
+    setCollapsed(stored);
+
+    const computeIsMobile = () => window.innerWidth <= 920;
+    setIsMobile(computeIsMobile());
+
+    const onResize = () => {
+      const mobile = computeIsMobile();
+      setIsMobile(mobile);
+      if (!mobile) {
+        shell.classList.remove("is-mobile-open");
+        setMobileOpen(false);
+      }
+    };
+    window.addEventListener("resize", onResize);
+
+    const onDocClick = (e: MouseEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (!t) return;
+      if (t.classList.contains("sidebarOverlay")) {
+        shell.classList.remove("is-mobile-open");
+        setMobileOpen(false);
+      }
+    };
+    document.addEventListener("click", onDocClick);
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      shell.classList.remove("is-mobile-open");
+      setMobileOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+
+    return () => {
+      window.removeEventListener("resize", onResize);
+      document.removeEventListener("click", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, []);
+
+  useEffect(() => {
+    const shell = document.querySelector(".app-shell") as HTMLElement | null;
+    if (!shell) return;
+    shell.classList.remove("is-mobile-open");
+    setMobileOpen(false);
+  }, [pathname]);
+
+  function toggleSidebar() {
+    const shell = document.querySelector(".app-shell") as HTMLElement | null;
+    if (!shell) return;
+
+    if (isMobile) {
+      const next = !shell.classList.contains("is-mobile-open");
+      shell.classList.toggle("is-mobile-open", next);
+      setMobileOpen(next);
+      return;
+    }
+
+    const next = !shell.classList.contains("is-collapsed");
+    shell.classList.toggle("is-collapsed", next);
+    setCollapsed(next);
+    window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, next ? "1" : "0");
+  }
 
   return (
-    <nav className="nav" aria-label="Navegación">
+    <div className="sidebarShell">
+      <button
+        type="button"
+        className="sidebarToggleBtn"
+        onClick={toggleSidebar}
+        aria-label={mobileOpen ? "Cerrar menú" : collapsed ? "Desplegar menú" : "Plegar menú"}
+        title={mobileOpen ? "Cerrar menú" : collapsed ? "Desplegar menú" : "Plegar menú"}
+      >
+        <MenuIcon className="nav-icon" />
+        <span className="nav-label">Menú</span>
+      </button>
+
+      <nav className="nav" aria-label="Navegación">
       <Link
         className={`nav-item ${isActivePath(pathname, "/") ? "is-active" : ""}`}
         href="/"
@@ -149,6 +255,16 @@ export function SideNav() {
         <NavIcon name="settings" className="nav-icon" />
         <span className="nav-label">Configuración</span>
       </Link>
-    </nav>
+      </nav>
+
+      <div className="sidebarSpacer" />
+
+      {pathname.startsWith("/__sa") ? (
+        <a className="sidebarExit" href="/__sa/logout" aria-label="Salir" title="Salir">
+          <LogoutIcon className="nav-icon" />
+          <span className="nav-label">Salir</span>
+        </a>
+      ) : null}
+    </div>
   );
 }
