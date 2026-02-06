@@ -10,6 +10,16 @@ function clampRunAt(runAt: Date, now: Date) {
   return runAt.getTime() < now.getTime() ? now : runAt;
 }
 
+function applyAtTimeUtc(date: Date, hhmm: string) {
+  const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(hhmm || "").trim());
+  if (!m) return date;
+  const hours = Number(m[1]);
+  const minutes = Number(m[2]);
+  const d = new Date(date.getTime());
+  d.setUTCHours(hours, minutes, 0, 0);
+  return d;
+}
+
 export async function scheduleSubscriptionDueNotifications(args: { subscriptionId: string; forceNow?: boolean }) {
   const subscriptionId = String(args.subscriptionId || "").trim();
   if (!subscriptionId) return { scheduled: 0 };
@@ -39,7 +49,8 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
       ? (rule as any).offsetsSeconds
       : ((rule as any).offsetsMinutes?.length ? (rule as any).offsetsMinutes.map((m: number) => m * 60) : [0]);
     for (const offsetSeconds of offsetsSeconds) {
-      const runAtRaw = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
+      const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
+      const runAtRaw = (rule as any).atTimeUtc ? applyAtTimeUtc(runAtBase, String((rule as any).atTimeUtc)) : runAtBase;
       const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
       await prisma.retryJob.create({
         data: {
@@ -92,7 +103,8 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
       ? (rule as any).offsetsSeconds
       : ((rule as any).offsetsMinutes?.length ? (rule as any).offsetsMinutes.map((m: number) => m * 60) : [0]);
     for (const offsetSeconds of offsetsSeconds) {
-      const runAtRaw = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
+      const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
+      const runAtRaw = (rule as any).atTimeUtc ? applyAtTimeUtc(runAtBase, String((rule as any).atTimeUtc)) : runAtBase;
       const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
       await prisma.retryJob.create({
         data: {
