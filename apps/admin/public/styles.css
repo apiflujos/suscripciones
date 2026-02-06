@@ -54,6 +54,10 @@ a {
   grid-template-columns: 70px 1fr;
 }
 
+.sidebarOverlay {
+  display: none;
+}
+
 .sidebar {
   padding: 18px 16px;
   border-right: 1px solid var(--stroke);
@@ -120,6 +124,36 @@ a {
   justify-content: flex-end;
   align-items: center;
   gap: 10px;
+}
+
+.iconBtn {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.iconBtn:hover {
+  background: var(--primary-soft);
+  color: var(--primary);
+  border-color: rgba(0, 43, 91, 0.2);
+}
+
+.iconBtn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.topbarLeftRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
 
 .brandPill {
@@ -747,6 +781,57 @@ textarea {
 }
 
 /* Responsive */
+@media (max-width: 920px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: -260px;
+    width: 240px;
+    height: 100vh;
+    z-index: 2100;
+    transition: left 160ms ease;
+    border-right: 1px solid var(--stroke);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+    background: var(--panel);
+  }
+
+  .app-shell.is-mobile-open .sidebar {
+    left: 0;
+  }
+
+  .sidebarOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.35);
+    z-index: 2000;
+    display: none;
+  }
+
+  .app-shell.is-mobile-open .sidebarOverlay {
+    display: block;
+  }
+
+  .content {
+    padding: 12px 12px 24px;
+  }
+
+  .topbar {
+    grid-template-columns: 1fr auto;
+  }
+
+  .topbarCenter {
+    display: none;
+  }
+
+  .topbar .subtitle {
+    display: none;
+  }
+}
+
 @media (max-width: 720px) {
   .settings-tab {
     width: 100%;

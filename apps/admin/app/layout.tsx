@@ -24,6 +24,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             </div>
             <SideNav />
           </aside>
+          <div className="sidebarOverlay" aria-hidden="true" />
 
           <div className="content" style={{ alignContent: "start" }}>
             <TopBar />
