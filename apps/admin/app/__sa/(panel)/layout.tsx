@@ -2,7 +2,6 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { SA_COOKIE, saAdminFetch } from "../saApi";
-import { saLogout } from "../(auth)/login/actions";
 
 export default async function SaLayout({ children }: { children: React.ReactNode }) {
   const token = cookies().get(SA_COOKIE)?.value || "";
@@ -46,11 +45,9 @@ export default async function SaLayout({ children }: { children: React.ReactNode
       {children}
 
       <div style={{ display: "flex", justifyContent: "flex-end" }}>
-        <form action={saLogout}>
-          <button type="submit" className="ghost">
-            Salir
-          </button>
-        </form>
+        <Link href="/__sa/logout" prefetch={false} className="ghost">
+          Salir
+        </Link>
       </div>
     </div>
   );

@@ -111,6 +111,15 @@ function ChevronIcon({ className, direction }: { className?: string; direction: 
   );
 }
 
+function ShieldIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M12 2l8 4v6c0 5-3.4 9.4-8 10-4.6-.6-8-5-8-10V6l8-4z" />
+      <path d="M9.5 12l1.8 1.8L15 10" />
+    </svg>
+  );
+}
+
 function LogoutIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -281,6 +290,15 @@ export function SideNav() {
       >
         <NavIcon name="settings" className="nav-icon" />
         <span className="nav-label">Configuración</span>
+      </Link>
+      <Link
+        className={`nav-item ${pathname.startsWith("/__sa") ? "is-active" : ""}`}
+        href="/__sa"
+        prefetch={false}
+        aria-current={pathname.startsWith("/__sa") ? "page" : undefined}
+      >
+        <ShieldIcon className="nav-icon" />
+        <span className="nav-label">Super Admin</span>
       </Link>
       </nav>
 

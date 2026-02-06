@@ -109,6 +109,10 @@ a {
   font-weight: 700;
 }
 
+.sidebarExit .nav-icon {
+  color: inherit;
+}
+
 .sidebarExit:hover {
   background: rgba(217, 83, 79, 0.1);
   border-color: rgba(217, 83, 79, 0.18);

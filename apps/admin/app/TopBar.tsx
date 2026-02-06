@@ -23,6 +23,7 @@ function getHeader(pathname: string): Header {
 export function TopBar() {
   const pathname = usePathname() || "/";
   const header = useMemo(() => getHeader(pathname), [pathname]);
+  const isSuperAdmin = pathname.startsWith("/__sa");
 
   return (
     <header className="topbar" aria-label="Topbar">
@@ -40,6 +41,11 @@ export function TopBar() {
       </div>
 
       <div className="topbarRight" aria-label="Usuario">
+        {isSuperAdmin ? (
+          <Link href="/__sa/logout" prefetch={false} className="ghost" aria-label="Salir de Super Admin" title="Salir de Super Admin">
+            Salir
+          </Link>
+        ) : null}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/brand/avatar.png" alt="" className="userAvatar" />
         <div style={{ display: "grid", lineHeight: 1.1 }}>
