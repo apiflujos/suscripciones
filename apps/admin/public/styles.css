@@ -468,10 +468,10 @@ textarea {
 }
 
 .helpTipBubble {
-  position: absolute;
-  z-index: 60;
-  top: calc(100% + 8px);
-  right: 0;
+  position: fixed;
+  z-index: 9999;
+  top: 0;
+  left: 0;
   min-width: 220px;
   max-width: 360px;
   padding: 10px 12px;
@@ -484,7 +484,7 @@ textarea {
   white-space: pre-line;
   box-shadow: var(--shadow);
   opacity: 0;
-  transform: translateY(-4px);
+  transform: translate(-100%, -4px);
   pointer-events: none;
   transition: opacity 120ms ease, transform 120ms ease;
 }
@@ -502,11 +502,9 @@ textarea {
   border-top: 1px solid rgba(15, 23, 42, 0.12);
 }
 
-.helpTip:hover .helpTipBubble,
-.helpTip:focus .helpTipBubble,
-.helpTip:focus-visible .helpTipBubble {
+.helpTipBubble.is-open {
   opacity: 1;
-  transform: translateY(0);
+  transform: translate(-100%, 0);
 }
 
 /* Toggle */
