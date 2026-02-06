@@ -11,6 +11,9 @@ function unauthorized() {
 }
 
 export function middleware(req: NextRequest) {
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-app-pathname", req.nextUrl.pathname);
+
   const url = req.nextUrl.clone();
   const shouldRewriteSa = url.pathname === "/__sa" || url.pathname.startsWith("/__sa/");
   if (shouldRewriteSa) {
@@ -19,7 +22,11 @@ export function middleware(req: NextRequest) {
 
   const user = process.env.ADMIN_BASIC_USER || "";
   const pass = process.env.ADMIN_BASIC_PASS || "";
-  if (!user || !pass) return shouldRewriteSa ? NextResponse.rewrite(url) : NextResponse.next();
+  if (!user || !pass) {
+    return shouldRewriteSa
+      ? NextResponse.rewrite(url, { request: { headers: requestHeaders } })
+      : NextResponse.next({ request: { headers: requestHeaders } });
+  }
 
   const auth = req.headers.get("authorization") || "";
   if (!auth.startsWith("Basic ")) return unauthorized();
@@ -32,7 +39,9 @@ export function middleware(req: NextRequest) {
   }
   const [u, p] = decoded.split(":");
   if (u !== user || p !== pass) return unauthorized();
-  return shouldRewriteSa ? NextResponse.rewrite(url) : NextResponse.next();
+  return shouldRewriteSa
+    ? NextResponse.rewrite(url, { request: { headers: requestHeaders } })
+    : NextResponse.next({ request: { headers: requestHeaders } });
 }
 
 export const config = {

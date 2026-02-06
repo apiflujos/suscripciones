@@ -85,7 +85,7 @@ export default async function SaTenantsPage({ searchParams }: { searchParams?: {
                     </button>
                   </form>
 
-                  <Link className="btn" href={`/__sa/usage?tenantId=${encodeURIComponent(t.id)}`} prefetch={false}>
+                  <Link className="btn" href={`/sa/usage?tenantId=${encodeURIComponent(t.id)}`} prefetch={false}>
                     Ver consumos
                   </Link>
                 </div>
@@ -99,4 +99,3 @@ export default async function SaTenantsPage({ searchParams }: { searchParams?: {
     </div>
   );
 }
-

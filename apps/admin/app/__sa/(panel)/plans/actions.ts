@@ -21,9 +21,9 @@ export async function createPlan(formData: FormData) {
       body: JSON.stringify({ key, name, kind, monthlyPriceInCents })
     });
     if (!res.ok) throw new Error(res.json?.error || `request_failed_${res.status}`);
-    redirect("/__sa/plans?created=1");
+    redirect("/sa/plans?created=1");
   } catch (err) {
-    redirect(`/__sa/plans?error=${encodeURIComponent(toShortErrorMessage(err))}`);
+    redirect(`/sa/plans?error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
 
@@ -45,9 +45,8 @@ export async function setPlanServiceLimit(formData: FormData) {
       body: JSON.stringify({ isUnlimited, maxValue, unitPriceInCents })
     });
     if (!res.ok) throw new Error(res.json?.error || `request_failed_${res.status}`);
-    redirect("/__sa/plans?saved=1");
+    redirect("/sa/plans?saved=1");
   } catch (err) {
-    redirect(`/__sa/plans?error=${encodeURIComponent(toShortErrorMessage(err))}`);
+    redirect(`/sa/plans?error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
-

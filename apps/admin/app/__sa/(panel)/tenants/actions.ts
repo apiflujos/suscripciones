@@ -17,9 +17,9 @@ export async function createTenant(formData: FormData) {
       body: JSON.stringify({ name })
     });
     if (!res.ok) throw new Error(res.json?.error || `request_failed_${res.status}`);
-    redirect("/__sa/tenants?created=1");
+    redirect("/sa/tenants?created=1");
   } catch (err) {
-    redirect(`/__sa/tenants?error=${encodeURIComponent(toShortErrorMessage(err))}`);
+    redirect(`/sa/tenants?error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
 
@@ -33,9 +33,9 @@ export async function setTenantActive(formData: FormData) {
       body: JSON.stringify({ active })
     });
     if (!res.ok) throw new Error(res.json?.error || `request_failed_${res.status}`);
-    redirect("/__sa/tenants?saved=1");
+    redirect("/sa/tenants?saved=1");
   } catch (err) {
-    redirect(`/__sa/tenants?error=${encodeURIComponent(toShortErrorMessage(err))}`);
+    redirect(`/sa/tenants?error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
 
@@ -49,9 +49,8 @@ export async function assignPlan(formData: FormData) {
       body: JSON.stringify({ planId })
     });
     if (!res.ok) throw new Error(res.json?.error || `request_failed_${res.status}`);
-    redirect("/__sa/tenants?assigned=1");
+    redirect("/sa/tenants?assigned=1");
   } catch (err) {
-    redirect(`/__sa/tenants?error=${encodeURIComponent(toShortErrorMessage(err))}`);
+    redirect(`/sa/tenants?error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
-

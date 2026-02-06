@@ -22,8 +22,8 @@ export async function upsertLimit(formData: FormData) {
       body: JSON.stringify({ key, name, periodType, moduleKey, active })
     });
     if (!res.ok) throw new Error(res.json?.error || `request_failed_${res.status}`);
-    redirect("/__sa/limits?saved=1");
+    redirect("/sa/limits?saved=1");
   } catch (err) {
-    redirect(`/__sa/limits?error=${encodeURIComponent(toShortErrorMessage(err))}`);
+    redirect(`/sa/limits?error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }

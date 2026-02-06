@@ -19,9 +19,9 @@ export async function upsertModule(formData: FormData) {
       body: JSON.stringify({ key, name, active })
     });
     if (!res.ok) throw new Error(res.json?.error || `request_failed_${res.status}`);
-    redirect("/__sa/modules?saved=1");
+    redirect("/sa/modules?saved=1");
   } catch (err) {
-    redirect(`/__sa/modules?error=${encodeURIComponent(toShortErrorMessage(err))}`);
+    redirect(`/sa/modules?error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
 
@@ -36,9 +36,8 @@ export async function setTenantModule(formData: FormData) {
       body: JSON.stringify({ enabled })
     });
     if (!res.ok) throw new Error(res.json?.error || `request_failed_${res.status}`);
-    redirect(`/__sa/modules?tenantId=${encodeURIComponent(tenantId)}&saved=1`);
+    redirect(`/sa/modules?tenantId=${encodeURIComponent(tenantId)}&saved=1`);
   } catch (err) {
-    redirect(`/__sa/modules?tenantId=${encodeURIComponent(tenantId)}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
+    redirect(`/sa/modules?tenantId=${encodeURIComponent(tenantId)}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
-

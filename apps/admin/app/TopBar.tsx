@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Header = { title: string; subtitle: string };
 
@@ -20,10 +20,39 @@ function getHeader(pathname: string): Header {
   return { title: "Panel", subtitle: "—" };
 }
 
+function UserMenuIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M3 6h18" />
+      <path d="M3 12h18" />
+      <path d="M3 18h18" />
+    </svg>
+  );
+}
+
 export function TopBar() {
   const pathname = usePathname() || "/";
   const header = useMemo(() => getHeader(pathname), [pathname]);
-  const isSuperAdmin = pathname.startsWith("/__sa");
+  const isSuperAdmin = pathname.startsWith("/sa") || pathname.startsWith("/__sa");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      const t = e.target as Node | null;
+      if (!t) return;
+      if (menuRef.current && !menuRef.current.contains(t)) setMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("click", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("click", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, []);
 
   return (
     <header className="topbar" aria-label="Topbar">
@@ -41,18 +70,40 @@ export function TopBar() {
       </div>
 
       <div className="topbarRight" aria-label="Usuario">
-        {isSuperAdmin ? (
-          <Link href="/__sa/logout" prefetch={false} className="ghost" aria-label="Salir de Super Admin" title="Salir de Super Admin">
-            Salir
-          </Link>
-        ) : null}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/brand/avatar.png" alt="" className="userAvatar" />
-        <div style={{ display: "grid", lineHeight: 1.1 }}>
-          <div style={{ fontWeight: 700 }}>Sebastian</div>
-          <div className="subtitle" style={{ textTransform: "uppercase", letterSpacing: "0.08em" }}>
-            Admin
-          </div>
+        <div className="userMenu" ref={menuRef}>
+          <button
+            type="button"
+            className="userMenuBtn"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label="Abrir menú de usuario"
+            aria-expanded={menuOpen ? "true" : "false"}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/avatar.png" alt="" className="userAvatar" />
+            <div style={{ display: "grid", lineHeight: 1.1, textAlign: "left" }}>
+              <div style={{ fontWeight: 700 }}>Sebastian</div>
+              <div className="subtitle" style={{ textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                Admin
+              </div>
+            </div>
+            <UserMenuIcon className="userMenuIcon" />
+          </button>
+
+          {menuOpen ? (
+            <div className="userMenuPopover" role="menu" aria-label="Menú de usuario">
+              <Link className="userMenuItem" href="/settings" prefetch={false} role="menuitem">
+                Configuración
+              </Link>
+              <Link className="userMenuItem" href="/sa" prefetch={false} role="menuitem">
+                Super Admin
+              </Link>
+              {isSuperAdmin ? (
+                <Link className="userMenuItem isDanger" href="/sa/logout" prefetch={false} role="menuitem">
+                  Salir
+                </Link>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
     </header>

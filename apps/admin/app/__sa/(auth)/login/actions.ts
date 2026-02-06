@@ -26,17 +26,16 @@ export async function saLogin(formData: FormData) {
     cookies().set(SA_COOKIE, token, {
       httpOnly: true,
       sameSite: "lax",
-      path: "/__sa",
+      path: "/",
       secure: process.env.NODE_ENV === "production"
     });
-    redirect("/__sa");
+    redirect("/sa");
   } catch (err) {
-    redirect(`/__sa/login?error=${encodeURIComponent(toShortErrorMessage(err))}`);
+    redirect(`/sa/login?error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
 
 export async function saLogout() {
   cookies().delete(SA_COOKIE);
-  redirect("/__sa/login?loggedOut=1");
+  redirect("/sa/login?loggedOut=1");
 }
-

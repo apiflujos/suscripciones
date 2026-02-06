@@ -18,9 +18,9 @@ export async function resetCounters(formData: FormData) {
       body: JSON.stringify({ tenantId, periodKey })
     });
     if (!res.ok) throw new Error(res.json?.error || `request_failed_${res.status}`);
-    redirect(`/__sa/usage?tenantId=${encodeURIComponent(tenantId)}&periodKey=${encodeURIComponent(periodKey)}&reset=1`);
+    redirect(`/sa/usage?tenantId=${encodeURIComponent(tenantId)}&periodKey=${encodeURIComponent(periodKey)}&reset=1`);
   } catch (err) {
-    redirect(`/__sa/usage?tenantId=${encodeURIComponent(tenantId)}&periodKey=${encodeURIComponent(periodKey)}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
+    redirect(`/sa/usage?tenantId=${encodeURIComponent(tenantId)}&periodKey=${encodeURIComponent(periodKey)}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
 
@@ -37,10 +37,10 @@ export async function consumeTest(formData: FormData) {
       body: JSON.stringify({ tenantId, serviceKey, amount, source })
     });
     if (!res.ok) throw new Error(res.json?.error || `request_failed_${res.status}`);
-    redirect(`/__sa/usage?tenantId=${encodeURIComponent(tenantId)}&periodKey=${encodeURIComponent(periodKey)}&consumed=1`);
+    redirect(`/sa/usage?tenantId=${encodeURIComponent(tenantId)}&periodKey=${encodeURIComponent(periodKey)}&consumed=1`);
   } catch (err) {
     redirect(
-      `/__sa/usage?tenantId=${encodeURIComponent(tenantId)}&periodKey=${encodeURIComponent(periodKey)}&error=${encodeURIComponent(toShortErrorMessage(err))}`
+      `/sa/usage?tenantId=${encodeURIComponent(tenantId)}&periodKey=${encodeURIComponent(periodKey)}&error=${encodeURIComponent(toShortErrorMessage(err))}`
     );
   }
 }
