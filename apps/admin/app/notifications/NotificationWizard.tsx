@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { HelpTip } from "../ui/HelpTip";
+import { useRouter } from "next/navigation";
 
 type Env = "PRODUCTION" | "SANDBOX";
 type Trigger = "SUBSCRIPTION_DUE" | "PAYMENT_APPROVED" | "PAYMENT_DECLINED";
@@ -45,8 +46,12 @@ export function NotificationWizard({
   createNotification
 }: {
   envDefault?: Env;
-  createNotification: (formData: FormData) => void | Promise<void>;
+  createNotification: (formData: FormData) => Promise<{ ok: true } | { ok: false; error: string }>;
 }) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [submitError, setSubmitError] = useState<string>("");
+  const [submitOk, setSubmitOk] = useState<string>("");
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [env, setEnv] = useState<Env>(envDefault);
 
@@ -58,6 +63,8 @@ export function NotificationWizard({
 
   const [ensurePaymentLink, setEnsurePaymentLink] = useState(true);
   const [title, setTitle] = useState("");
+  const [atTimeEnabled, setAtTimeEnabled] = useState(false);
+  const [atTimeUtc, setAtTimeUtc] = useState("09:00");
 
   const [templateKind, setTemplateKind] = useState<TemplateKind>("TEXT");
   const [message, setMessage] = useState("");
@@ -100,6 +107,33 @@ export function NotificationWizard({
     return false;
   }
 
+  function onCreate() {
+    setSubmitError("");
+    setSubmitOk("");
+    const fd = new FormData();
+    fd.set("environment", env);
+    fd.set("trigger", trigger);
+    fd.set("title", title);
+    fd.set("templateKind", templateKind);
+    fd.set("message", message);
+    fd.set("waTemplateName", waTemplateName);
+    fd.set("waLanguage", waLanguage);
+    fd.set("ensurePaymentLink", ensurePaymentLink ? "1" : "0");
+    fd.set("atTimeUtc", atTimeEnabled ? atTimeUtc : "");
+    for (const s of computedOffsetsSeconds) fd.append("offsetSeconds", String(s));
+    for (const p of waParams) fd.append("waParam", p);
+
+    startTransition(async () => {
+      const res = await createNotification(fd);
+      if (!res.ok) {
+        setSubmitError(res.error || "unknown_error");
+        return;
+      }
+      setSubmitOk("Creado.");
+      router.refresh();
+    });
+  }
+
   return (
     <section className="settings-group">
       <div className="settings-group-header">
@@ -122,6 +156,13 @@ export function NotificationWizard({
 
       <div className="settings-group-body">
         <div className="panel module" style={{ display: "grid", gap: 12 }}>
+          {submitOk ? <div className="card cardPad">{submitOk}</div> : null}
+          {submitError ? (
+            <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>
+              Error: {submitError}
+            </div>
+          ) : null}
+
           {step === 1 ? (
             <>
               <div className="field">
@@ -223,6 +264,21 @@ export function NotificationWizard({
                     </label>
                   </div>
                 ) : null}
+
+                <div style={{ marginTop: 10 }}>
+                  <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <input type="checkbox" checked={atTimeEnabled} onChange={(e) => setAtTimeEnabled(e.target.checked)} />
+                    <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
+                      Enviar a hora exacta (UTC)
+                      <HelpTip text="Si activas esto, el envío se hace a la hora exacta (UTC) en la fecha calculada.\nEj: 1 día antes a las 09:00 UTC." />
+                    </span>
+                  </label>
+                  {atTimeEnabled ? (
+                    <div style={{ marginTop: 8, maxWidth: 220 }}>
+                      <input className="input" type="time" value={atTimeUtc} onChange={(e) => setAtTimeUtc(e.target.value)} />
+                    </div>
+                  ) : null}
+                </div>
               </div>
             </>
           ) : null}
@@ -249,6 +305,20 @@ export function NotificationWizard({
                   {VARIABLES.map((v) => (
                     <button key={v.value} type="button" className="ghost" onClick={() => onVarClick(v.value)} style={{ minHeight: 30 }}>
                       {v.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="panel module" style={{ display: "grid", gap: 10 }}>
+                <div className="field-hint" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <span>Emojis</span>
+                  <HelpTip text="Clic para insertar un emoji en el campo activo." />
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {["✅", "❌", "⏰", "💳", "⚠️", "📌", "📅", "🙏"].map((e) => (
+                    <button key={e} type="button" className="ghost" onClick={() => onVarClick(e)} style={{ minHeight: 30, minWidth: 42 }}>
+                      {e}
                     </button>
                   ))}
                 </div>
@@ -319,31 +389,15 @@ export function NotificationWizard({
               <button className="ghost" type="button" onClick={() => setStep((s) => (s === 1 ? 1 : ((s - 1) as any))) } disabled={step === 1}>
                 Atrás
               </button>
-              <button className="primary" type="button" onClick={() => setStep((s) => (s === 3 ? 3 : ((s + 1) as any)))} disabled={step === 3 || !canGoNext()}>
+              <button className="primary" type="button" onClick={() => setStep((s) => (s === 3 ? 3 : ((s + 1) as any)))} disabled={step === 3 || !canGoNext() || isPending}>
                 Siguiente
               </button>
             </div>
 
             {step === 3 ? (
-              <form action={createNotification}>
-                <input type="hidden" name="environment" value={env} />
-                <input type="hidden" name="trigger" value={trigger} />
-                <input type="hidden" name="title" value={title} />
-                <input type="hidden" name="templateKind" value={templateKind} />
-                <input type="hidden" name="message" value={message} />
-                <input type="hidden" name="waTemplateName" value={waTemplateName} />
-                <input type="hidden" name="waLanguage" value={waLanguage} />
-                <input type="hidden" name="ensurePaymentLink" value={ensurePaymentLink ? "1" : "0"} />
-                {computedOffsetsSeconds.map((s, idx) => (
-                  <input key={idx} type="hidden" name="offsetSeconds" value={String(s)} />
-                ))}
-                {waParams.map((p, idx) => (
-                  <input key={idx} type="hidden" name="waParam" value={p} />
-                ))}
-                <button className="primary" type="submit" disabled={!canGoNext()}>
-                  Crear
-                </button>
-              </form>
+              <button className="primary" type="button" onClick={onCreate} disabled={!canGoNext() || isPending}>
+                {isPending ? "Creando..." : "Crear"}
+              </button>
             ) : (
               <div style={{ opacity: 0.6 }}>Completa los pasos para crear.</div>
             )}

@@ -67,6 +67,7 @@ const ruleSchema = z.object({
   templateId: z.string().min(1),
   offsetsSeconds: z.array(z.number().int()).optional(),
   offsetsMinutes: z.array(z.number().int()).optional(),
+  atTimeUtc: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(),
   ensurePaymentLink: z.boolean().optional(),
   conditions: z
     .object({
