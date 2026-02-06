@@ -2,8 +2,8 @@ import { PaymentStatus, RetryJobType } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { getNotificationsConfig, NotificationTrigger } from "./notificationsConfig";
 
-function toMsMinutes(minutes: number) {
-  return minutes * 60_000;
+function toMsSeconds(seconds: number) {
+  return seconds * 1000;
 }
 
 function clampRunAt(runAt: Date, now: Date) {
@@ -35,8 +35,11 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
 
   let scheduled = 0;
   for (const rule of rules) {
-    for (const offset of rule.offsetsMinutes || []) {
-      const runAtRaw = new Date(anchorAt.getTime() + toMsMinutes(offset));
+    const offsetsSeconds = (rule as any).offsetsSeconds?.length
+      ? (rule as any).offsetsSeconds
+      : ((rule as any).offsetsMinutes?.length ? (rule as any).offsetsMinutes.map((m: number) => m * 60) : [0]);
+    for (const offsetSeconds of offsetsSeconds) {
+      const runAtRaw = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
       const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
       await prisma.retryJob.create({
         data: {
@@ -45,7 +48,7 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
           payload: {
             trigger: "SUBSCRIPTION_DUE" satisfies NotificationTrigger,
             ruleId: rule.id,
-            offsetMinutes: offset,
+            offsetSeconds,
             subscriptionId: sub.id,
             customerId: sub.customerId,
             cycleNumber: sub.currentCycle,
@@ -85,8 +88,11 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
 
   let scheduled = 0;
   for (const rule of rules) {
-    for (const offset of rule.offsetsMinutes || []) {
-      const runAtRaw = new Date(anchorAt.getTime() + toMsMinutes(offset));
+    const offsetsSeconds = (rule as any).offsetsSeconds?.length
+      ? (rule as any).offsetsSeconds
+      : ((rule as any).offsetsMinutes?.length ? (rule as any).offsetsMinutes.map((m: number) => m * 60) : [0]);
+    for (const offsetSeconds of offsetsSeconds) {
+      const runAtRaw = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
       const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
       await prisma.retryJob.create({
         data: {
@@ -95,7 +101,7 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
           payload: {
             trigger,
             ruleId: rule.id,
-            offsetMinutes: offset,
+            offsetSeconds,
             paymentId: payment.id,
             customerId: payment.customerId,
             subscriptionId: payment.subscriptionId,

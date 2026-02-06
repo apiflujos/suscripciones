@@ -8,7 +8,7 @@ import { systemLog } from "../../services/systemLog";
 const payloadSchema = z.object({
   trigger: notificationTriggerSchema,
   ruleId: z.string().min(1),
-  offsetMinutes: z.number().int().optional(),
+  offsetSeconds: z.number().int().optional(),
   anchorAt: z.string().datetime().optional(),
   customerId: z.string().uuid().optional(),
   subscriptionId: z.string().uuid().optional(),
@@ -48,11 +48,11 @@ function renderAny(input: any, ctx: any): any {
   return input;
 }
 
-function dedupeKey(args: { trigger: string; ruleId: string; subscriptionId?: string; paymentId?: string; cycleNumber?: number; offsetMinutes?: number }) {
+function dedupeKey(args: { trigger: string; ruleId: string; subscriptionId?: string; paymentId?: string; cycleNumber?: number; offsetSeconds?: number }) {
   const sub = args.subscriptionId || "-";
   const pay = args.paymentId || "-";
   const cycle = typeof args.cycleNumber === "number" ? String(args.cycleNumber) : "-";
-  const off = typeof args.offsetMinutes === "number" ? String(args.offsetMinutes) : "0";
+  const off = typeof args.offsetSeconds === "number" ? String(args.offsetSeconds) : "0";
   return `notif:${args.trigger}:${args.ruleId}:${sub}:${cycle}:${pay}:${off}`;
 }
 
@@ -152,7 +152,7 @@ export async function subscriptionReminder(payload: any) {
     subscriptionId: subscription?.id,
     paymentId: effectivePayment?.id,
     cycleNumber: parsed.data.cycleNumber,
-    offsetMinutes: parsed.data.offsetMinutes
+    offsetSeconds: parsed.data.offsetSeconds
   });
 
   // Best-effort dedupe (without a DB-level constraint): if the same message exists recently, skip.

@@ -32,6 +32,33 @@ async function adminFetch(path: string, init: RequestInit) {
   return json;
 }
 
+async function getNotificationsConfig(environment: "PRODUCTION" | "SANDBOX") {
+  const qs = `?environment=${encodeURIComponent(environment)}`;
+  const res = await adminFetch(`/admin/notifications/config${qs}`, { method: "GET" });
+  return res?.config as any;
+}
+
+async function putNotificationsConfig(environment: "PRODUCTION" | "SANDBOX", config: any) {
+  return adminFetch("/admin/notifications/config", {
+    method: "PUT",
+    body: JSON.stringify({ environment, config })
+  });
+}
+
+function normalizeEnv(value: unknown): "PRODUCTION" | "SANDBOX" {
+  const v = String(value || "").trim().toUpperCase();
+  return v === "SANDBOX" ? "SANDBOX" : "PRODUCTION";
+}
+
+function slugifyId(input: string) {
+  return String(input || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 48);
+}
+
 export async function saveNotificationsConfig(formData: FormData) {
   const environment = String(formData.get("environment") || "").trim().toUpperCase();
   const raw = String(formData.get("configJson") || "").trim();
@@ -45,23 +72,191 @@ export async function saveNotificationsConfig(formData: FormData) {
         config: parsed
       })
     });
-    redirect("/notifications?saved=1");
+    const env = environment === "SANDBOX" ? "SANDBOX" : "PRODUCTION";
+    redirect(`/notifications?env=${env}&saved=1`);
   } catch (err) {
-    redirect(`/notifications?error=${encodeURIComponent(toShortErrorMessage(err))}`);
+    const env = environment === "SANDBOX" ? "SANDBOX" : "PRODUCTION";
+    redirect(`/notifications?env=${env}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
+  }
+}
+
+export async function addTextTemplate(formData: FormData) {
+  const environment = normalizeEnv(formData.get("environment"));
+  const name = String(formData.get("name") || "").trim();
+  const chatwootType = String(formData.get("chatwootType") || "").trim();
+  const content = String(formData.get("content") || "").trim();
+  if (!name || !chatwootType || !content) return redirect(`/notifications?env=${environment}&error=missing_fields`);
+
+  try {
+    const config = await getNotificationsConfig(environment);
+    const templates = Array.isArray(config?.templates) ? config.templates.slice() : [];
+    const base = slugifyId(name) || "template";
+    let id = `tpl_${base}`;
+    let i = 2;
+    while (templates.some((t: any) => String(t.id) === id)) {
+      id = `tpl_${base}_${i++}`;
+    }
+    templates.push({
+      id,
+      name,
+      channel: "CHATWOOT",
+      chatwootType,
+      content
+    });
+    const next = { ...(config || {}), templates };
+    await putNotificationsConfig(environment, next);
+    redirect(`/notifications?env=${environment}&saved=1`);
+  } catch (err) {
+    redirect(`/notifications?env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
+  }
+}
+
+export async function addWhatsAppTemplate(formData: FormData) {
+  const environment = normalizeEnv(formData.get("environment"));
+  const name = String(formData.get("name") || "").trim();
+  const chatwootType = String(formData.get("chatwootType") || "").trim();
+  const templateName = String(formData.get("templateName") || "").trim();
+  const language = String(formData.get("language") || "").trim();
+  const bodyParams = Array.from({ length: 10 })
+    .map((_, idx) => String(formData.get(`bodyParam${idx + 1}`) || "").trim())
+    .filter(Boolean);
+
+  if (!name || !chatwootType || !templateName || !language) return redirect(`/notifications?env=${environment}&error=missing_fields`);
+
+  try {
+    const config = await getNotificationsConfig(environment);
+    const templates = Array.isArray(config?.templates) ? config.templates.slice() : [];
+    const base = slugifyId(name) || "template";
+    let id = `tpl_${base}`;
+    let i = 2;
+    while (templates.some((t: any) => String(t.id) === id)) {
+      id = `tpl_${base}_${i++}`;
+    }
+    templates.push({
+      id,
+      name,
+      channel: "CHATWOOT",
+      chatwootType,
+      chatwootTemplate: {
+        name: templateName,
+        language,
+        processed_params: bodyParams.length ? { body: bodyParams.map((v, idx) => ({ key: String(idx + 1), value: v })) } : undefined
+      }
+    });
+    const next = { ...(config || {}), templates };
+    await putNotificationsConfig(environment, next);
+    redirect(`/notifications?env=${environment}&saved=1`);
+  } catch (err) {
+    redirect(`/notifications?env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
+  }
+}
+
+export async function deleteTemplate(formData: FormData) {
+  const environment = normalizeEnv(formData.get("environment"));
+  const templateId = String(formData.get("templateId") || "").trim();
+  if (!templateId) return redirect(`/notifications?env=${environment}&error=missing_template_id`);
+  try {
+    const config = await getNotificationsConfig(environment);
+    const templates = Array.isArray(config?.templates) ? config.templates.filter((t: any) => String(t.id) !== templateId) : [];
+    const rules = Array.isArray(config?.rules) ? config.rules.filter((r: any) => String(r.templateId) !== templateId) : [];
+    const next = { ...(config || {}), templates, rules };
+    await putNotificationsConfig(environment, next);
+    redirect(`/notifications?env=${environment}&saved=1`);
+  } catch (err) {
+    redirect(`/notifications?env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
+  }
+}
+
+function offsetSecondsFromForm(formData: FormData) {
+  const dir = String(formData.get("direction") || "after").trim();
+  const amount = Number(String(formData.get("amount") || "0").trim());
+  const unit = String(formData.get("unit") || "minutes").trim();
+  const baseSeconds =
+    unit === "seconds" ? amount :
+    unit === "minutes" ? amount * 60 :
+    unit === "hours" ? amount * 60 * 60 :
+    unit === "days" ? amount * 24 * 60 * 60 :
+    amount * 60;
+  const signed = dir === "before" ? -baseSeconds : baseSeconds;
+  if (!Number.isFinite(signed)) return 0;
+  return Math.trunc(signed);
+}
+
+export async function addRule(formData: FormData) {
+  const environment = normalizeEnv(formData.get("environment"));
+  const name = String(formData.get("name") || "").trim();
+  const trigger = String(formData.get("trigger") || "").trim();
+  const templateId = String(formData.get("templateId") || "").trim();
+  const ensurePaymentLink = String(formData.get("ensurePaymentLink") || "").trim() === "1";
+  const enabled = String(formData.get("enabled") || "").trim() !== "0";
+  const offsetSeconds = offsetSecondsFromForm(formData);
+  if (!name || !trigger || !templateId) return redirect(`/notifications?env=${environment}&error=missing_fields`);
+
+  try {
+    const config = await getNotificationsConfig(environment);
+    const rules = Array.isArray(config?.rules) ? config.rules.slice() : [];
+    const id = `rule_${Date.now()}`;
+    rules.push({
+      id,
+      name,
+      enabled,
+      trigger,
+      templateId,
+      offsetsSeconds: [offsetSeconds],
+      ...(trigger === "SUBSCRIPTION_DUE" ? { ensurePaymentLink, conditions: { skipIfSubscriptionStatusIn: ["CANCELED"] } } : {})
+    });
+    const next = { ...(config || {}), rules };
+    await putNotificationsConfig(environment, next);
+    redirect(`/notifications?env=${environment}&saved=1`);
+  } catch (err) {
+    redirect(`/notifications?env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
+  }
+}
+
+export async function toggleRule(formData: FormData) {
+  const environment = normalizeEnv(formData.get("environment"));
+  const ruleId = String(formData.get("ruleId") || "").trim();
+  const enabled = String(formData.get("enabled") || "").trim() === "1";
+  if (!ruleId) return redirect(`/notifications?env=${environment}&error=missing_rule_id`);
+  try {
+    const config = await getNotificationsConfig(environment);
+    const rules = Array.isArray(config?.rules)
+      ? config.rules.map((r: any) => (String(r.id) === ruleId ? { ...r, enabled } : r))
+      : [];
+    const next = { ...(config || {}), rules };
+    await putNotificationsConfig(environment, next);
+    redirect(`/notifications?env=${environment}&saved=1`);
+  } catch (err) {
+    redirect(`/notifications?env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
+  }
+}
+
+export async function deleteRule(formData: FormData) {
+  const environment = normalizeEnv(formData.get("environment"));
+  const ruleId = String(formData.get("ruleId") || "").trim();
+  if (!ruleId) return redirect(`/notifications?env=${environment}&error=missing_rule_id`);
+  try {
+    const config = await getNotificationsConfig(environment);
+    const rules = Array.isArray(config?.rules) ? config.rules.filter((r: any) => String(r.id) !== ruleId) : [];
+    const next = { ...(config || {}), rules };
+    await putNotificationsConfig(environment, next);
+    redirect(`/notifications?env=${environment}&saved=1`);
+  } catch (err) {
+    redirect(`/notifications?env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
 
 export async function scheduleSubscription(formData: FormData) {
   const subscriptionId = String(formData.get("subscriptionId") || "").trim();
   const forceNow = String(formData.get("forceNow") || "").trim() === "1";
-  if (!subscriptionId) return redirect("/notifications?error=missing_subscription_id");
+  const environment = normalizeEnv(formData.get("environment"));
+  if (!subscriptionId) return redirect(`/notifications?env=${environment}&error=missing_subscription_id`);
 
   try {
     const qs = forceNow ? "?forceNow=1" : "";
     const result = await adminFetch(`/admin/notifications/schedule/subscription/${encodeURIComponent(subscriptionId)}${qs}`, { method: "POST" });
-    redirect(`/notifications?scheduled=${encodeURIComponent(String(result?.scheduled ?? 0))}`);
+    redirect(`/notifications?env=${environment}&scheduled=${encodeURIComponent(String(result?.scheduled ?? 0))}`);
   } catch (err) {
-    redirect(`/notifications?error=${encodeURIComponent(toShortErrorMessage(err))}`);
+    redirect(`/notifications?env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
-

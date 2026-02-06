@@ -1,12 +1,14 @@
 import express from "express";
 import { z } from "zod";
-import { getNotificationsConfig, notificationsConfigSchema, setNotificationsConfig } from "../services/notificationsConfig";
+import { getNotificationsConfig, getNotificationsConfigForEnv, notificationsConfigSchema, setNotificationsConfig } from "../services/notificationsConfig";
 import { schedulePaymentStatusNotifications, scheduleSubscriptionDueNotifications } from "../services/notificationsScheduler";
 
 export const notificationsRouter = express.Router();
 
 notificationsRouter.get("/config", async (_req, res) => {
-  const config = await getNotificationsConfig();
+  const envRaw = String((_req.query.environment ?? "") as any).trim().toUpperCase();
+  const env = envRaw === "SANDBOX" ? "SANDBOX" : envRaw === "PRODUCTION" ? "PRODUCTION" : null;
+  const config = env ? await getNotificationsConfigForEnv(env) : await getNotificationsConfig();
   res.json({ config });
 });
 
@@ -44,4 +46,3 @@ notificationsRouter.post("/schedule/payment/:id", async (req, res) => {
   const result = await schedulePaymentStatusNotifications({ paymentId, forceNow });
   res.json({ ok: true, ...result });
 });
-

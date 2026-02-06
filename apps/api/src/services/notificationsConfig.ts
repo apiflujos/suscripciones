@@ -2,7 +2,7 @@ import { CredentialProvider } from "@prisma/client";
 import { z } from "zod";
 import { getCredential, setCredential } from "./credentials";
 
-type ActiveEnv = "PRODUCTION" | "SANDBOX";
+export type ActiveEnv = "PRODUCTION" | "SANDBOX";
 
 function normalizeActiveEnv(value: string | undefined): ActiveEnv {
   const v = String(value || "")
@@ -65,7 +65,8 @@ const ruleSchema = z.object({
   enabled: z.boolean().default(true),
   trigger: notificationTriggerSchema,
   templateId: z.string().min(1),
-  offsetsMinutes: z.array(z.number().int()).default([0]),
+  offsetsSeconds: z.array(z.number().int()).optional(),
+  offsetsMinutes: z.array(z.number().int()).optional(),
   ensurePaymentLink: z.boolean().optional(),
   conditions: z
     .object({
@@ -119,7 +120,7 @@ function defaultConfig(): NotificationsConfig {
         enabled: true,
         trigger: "SUBSCRIPTION_DUE",
         templateId: "tpl_due_warning",
-        offsetsMinutes: [-24 * 60],
+        offsetsSeconds: [-24 * 60 * 60],
         ensurePaymentLink: true,
         conditions: { skipIfSubscriptionStatusIn: ["CANCELED"] }
       },
@@ -129,7 +130,7 @@ function defaultConfig(): NotificationsConfig {
         enabled: true,
         trigger: "SUBSCRIPTION_DUE",
         templateId: "tpl_due_warning",
-        offsetsMinutes: [0],
+        offsetsSeconds: [0],
         ensurePaymentLink: true,
         conditions: { skipIfSubscriptionStatusIn: ["CANCELED"] }
       },
@@ -139,7 +140,7 @@ function defaultConfig(): NotificationsConfig {
         enabled: true,
         trigger: "SUBSCRIPTION_DUE",
         templateId: "tpl_due_warning",
-        offsetsMinutes: [24 * 60],
+        offsetsSeconds: [24 * 60 * 60],
         ensurePaymentLink: true,
         conditions: { skipIfSubscriptionStatusIn: ["CANCELED"] }
       },
@@ -149,7 +150,7 @@ function defaultConfig(): NotificationsConfig {
         enabled: true,
         trigger: "PAYMENT_APPROVED",
         templateId: "tpl_payment_ok",
-        offsetsMinutes: [0]
+        offsetsSeconds: [0]
       },
       {
         id: "rule_payment_failed",
@@ -157,7 +158,7 @@ function defaultConfig(): NotificationsConfig {
         enabled: true,
         trigger: "PAYMENT_DECLINED",
         templateId: "tpl_payment_failed",
-        offsetsMinutes: [0]
+        offsetsSeconds: [0]
       }
     ]
   };
@@ -169,6 +170,10 @@ function keyForEnv(env: ActiveEnv) {
 
 export async function getNotificationsConfig(): Promise<NotificationsConfig> {
   const env = await getCommsActiveEnv();
+  return getNotificationsConfigForEnv(env);
+}
+
+export async function getNotificationsConfigForEnv(env: ActiveEnv): Promise<NotificationsConfig> {
   const raw =
     (await getCredential(CredentialProvider.CHATWOOT, keyForEnv(env))) ||
     (await getCredential(CredentialProvider.CHATWOOT, "NOTIFICATIONS_CONFIG")) ||
