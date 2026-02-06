@@ -50,6 +50,29 @@ export async function createPaymentLinkForSubscription(args: {
   });
 
   if (payment.checkoutUrl && payment.wompiPaymentLinkId) {
+    await prisma.paymentLink
+      .upsert({
+        where: { paymentId: payment.id },
+        create: {
+          planId: sub.planId,
+          subscriptionId: sub.id,
+          paymentId: payment.id,
+          wompiPaymentLinkId: payment.wompiPaymentLinkId,
+          checkoutUrl: payment.checkoutUrl,
+          status: payment.status === PaymentStatus.APPROVED ? "PAID" : "SENT",
+          sentAt: new Date(),
+          paidAt: payment.paidAt ?? null
+        },
+        update: {
+          planId: sub.planId,
+          subscriptionId: sub.id,
+          wompiPaymentLinkId: payment.wompiPaymentLinkId,
+          checkoutUrl: payment.checkoutUrl,
+          paidAt: payment.paidAt ?? null,
+          status: payment.status === PaymentStatus.APPROVED ? "PAID" : undefined
+        }
+      })
+      .catch(() => {});
     return {
       paymentId: payment.id,
       wompiPaymentLinkId: payment.wompiPaymentLinkId,
@@ -114,6 +137,27 @@ export async function createPaymentLinkForSubscription(args: {
       checkoutUrl: created.checkoutUrl
     }
   });
+
+  await prisma.paymentLink
+    .upsert({
+      where: { paymentId: updated.id },
+      create: {
+        planId: sub.planId,
+        subscriptionId: sub.id,
+        paymentId: updated.id,
+        wompiPaymentLinkId: created.id,
+        checkoutUrl: updated.checkoutUrl || created.checkoutUrl,
+        status: "SENT",
+        sentAt: new Date()
+      },
+      update: {
+        planId: sub.planId,
+        subscriptionId: sub.id,
+        wompiPaymentLinkId: created.id,
+        checkoutUrl: updated.checkoutUrl || created.checkoutUrl
+      }
+    })
+    .catch(() => {});
 
   await systemLog(LogLevel.INFO, "subscriptions.payment_link", "Payment link created", {
     subscriptionId: sub.id,

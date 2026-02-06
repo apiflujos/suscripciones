@@ -69,6 +69,7 @@ export async function processWompiEvent(webhookEventId: string) {
 
   const now = new Date();
   const paidAt = paymentStatus === PaymentStatus.APPROVED ? now : null;
+  const computedFailedAt = paymentStatus === PaymentStatus.APPROVED ? null : now;
 
   if (!paymentByLink && !subscription) {
     await prisma.webhookEvent.update({
@@ -85,6 +86,7 @@ export async function processWompiEvent(webhookEventId: string) {
           wompiTransactionId: transactionId,
           status: paymentStatus,
           paidAt,
+          failedAt: paymentStatus === PaymentStatus.APPROVED ? null : paymentByLink.failedAt ?? computedFailedAt,
           providerResponse:
             paymentByLink.providerResponse && typeof paymentByLink.providerResponse === "object"
               ? ({ ...(paymentByLink.providerResponse as any), webhook: payload } as any)
@@ -109,6 +111,7 @@ export async function processWompiEvent(webhookEventId: string) {
           wompiPaymentLinkId: paymentLinkId,
           status: paymentStatus,
           paidAt,
+          failedAt: computedFailedAt,
           providerResponse: { webhook: payload } as any,
           subscriptionCycleKey: subscriptionCycleKey as string
         },
@@ -116,11 +119,43 @@ export async function processWompiEvent(webhookEventId: string) {
           wompiTransactionId: transactionId,
           status: paymentStatus,
           paidAt,
+          failedAt: paymentStatus === PaymentStatus.APPROVED ? null : computedFailedAt,
           providerResponse: { webhook: payload } as any,
           reference: reference ?? undefined,
           wompiPaymentLinkId: paymentLinkId ?? undefined
         }
       });
+
+  if (paymentRecord.subscriptionId && paymentRecord.wompiPaymentLinkId && paymentRecord.checkoutUrl) {
+    const planId =
+      subscription?.planId ??
+      (await prisma.subscription.findUnique({ where: { id: paymentRecord.subscriptionId }, select: { planId: true } }))?.planId;
+    if (planId) {
+      await prisma.paymentLink
+        .upsert({
+          where: { paymentId: paymentRecord.id },
+          create: {
+            planId,
+            subscriptionId: paymentRecord.subscriptionId,
+            paymentId: paymentRecord.id,
+            wompiPaymentLinkId: paymentRecord.wompiPaymentLinkId,
+            checkoutUrl: paymentRecord.checkoutUrl,
+            status: paymentRecord.status === PaymentStatus.APPROVED ? "PAID" : "SENT",
+            sentAt: new Date(),
+            paidAt: paymentRecord.paidAt ?? null
+          },
+          update: {
+            planId,
+            subscriptionId: paymentRecord.subscriptionId,
+            wompiPaymentLinkId: paymentRecord.wompiPaymentLinkId,
+            checkoutUrl: paymentRecord.checkoutUrl,
+            status: paymentRecord.status === PaymentStatus.APPROVED ? "PAID" : undefined,
+            paidAt: paymentRecord.paidAt ?? null
+          }
+        })
+        .catch(() => {});
+    }
+  }
 
   await prisma.webhookEvent.update({
     where: { id: webhookEventId },

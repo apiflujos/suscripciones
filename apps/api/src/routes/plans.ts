@@ -1,7 +1,7 @@
 import express from "express";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
-import { PlanIntervalUnit } from "@prisma/client";
+import { PlanIntervalUnit, PlanType } from "@prisma/client";
 
 const createPlanSchema = z.object({
   name: z.string().min(1),
@@ -10,6 +10,7 @@ const createPlanSchema = z.object({
   intervalUnit: z.nativeEnum(PlanIntervalUnit),
   intervalCount: z.number().int().positive().default(1),
   collectionMode: z.enum(["MANUAL_LINK", "AUTO_LINK", "AUTO_DEBIT"]).optional().default("MANUAL_LINK"),
+  planType: z.nativeEnum(PlanType).optional(),
   active: z.boolean().optional(),
   metadata: z.any().optional()
 });
@@ -41,12 +42,13 @@ plansRouter.post("/", async (req, res) => {
   const parsed = createPlanSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
 
-  const { collectionMode, metadata, ...rest } = parsed.data;
+  const { collectionMode, planType, metadata, ...rest } = parsed.data;
   const mergedMetadata = {
     ...(metadata && typeof metadata === "object" ? (metadata as any) : {}),
     collectionMode
   };
 
-  const plan = await prisma.subscriptionPlan.create({ data: { ...(rest as any), metadata: mergedMetadata as any } });
+  const computedPlanType: PlanType = planType ?? (collectionMode === "MANUAL_LINK" ? PlanType.manual_link : PlanType.auto_subscription);
+  const plan = await prisma.subscriptionPlan.create({ data: { ...(rest as any), planType: computedPlanType as any, metadata: mergedMetadata as any } });
   res.status(201).json({ plan });
 });
