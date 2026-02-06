@@ -92,7 +92,8 @@ export async function consumeLimitOrBlock(
   const periodType = def.periodType;
   const periodKey = periodType === SaPeriodType.total ? "total" : monthKeyUtc(new Date());
 
-  const enabled = await isServiceEnabledForTenant({ tenantId: args.tenantId, moduleKey: serviceKey });
+  const moduleKey = def.moduleKey ? String(def.moduleKey).trim() : "";
+  const enabled = moduleKey ? await isServiceEnabledForTenant({ tenantId: args.tenantId, moduleKey }) : { enabled: true, reason: null };
   if (!enabled.enabled) {
     await prisma.saUsageEvent.create({
       data: {
@@ -102,7 +103,12 @@ export async function consumeLimitOrBlock(
         periodType,
         periodKey,
         source: args.source || null,
-        meta: { ...(args.meta && typeof args.meta === "object" ? (args.meta as any) : {}), blocked: true, blockReason: enabled.reason }
+        meta: {
+          ...(args.meta && typeof args.meta === "object" ? (args.meta as any) : {}),
+          blocked: true,
+          blockReason: enabled.reason,
+          moduleKey: moduleKey || null
+        }
       } as any
     });
     return {

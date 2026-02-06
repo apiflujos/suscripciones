@@ -5,7 +5,9 @@ export default async function SaLimitsPage({ searchParams }: { searchParams?: { 
   const error = String(searchParams?.error || "").trim();
 
   const limitsRes = await saAdminFetch("/admin/sa/limits", { method: "GET" });
+  const modulesRes = await saAdminFetch("/admin/sa/modules", { method: "GET" });
   const items: any[] = limitsRes.ok ? limitsRes.json?.items || [] : [];
+  const modules: any[] = modulesRes.ok ? (modulesRes.json?.items || []).filter((x: any) => x.active) : [];
 
   return (
     <div style={{ display: "grid", gap: 12 }}>
@@ -39,6 +41,18 @@ export default async function SaLimitsPage({ searchParams }: { searchParams?: { 
                 <option value="total">Total (acumulado)</option>
               </select>
             </div>
+            <div className="field">
+              <label>Módulo (toggle)</label>
+              <select name="moduleKey" className="select" defaultValue="">
+                <option value="">(sin módulo)</option>
+                {modules.map((m) => (
+                  <option key={m.key} value={m.key}>
+                    {m.name} ({m.key})
+                  </option>
+                ))}
+              </select>
+              <div className="field-hint">Si este módulo está OFF para el tenant, el consumo se bloquea para este servicio.</div>
+            </div>
             <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <input name="active" value="1" type="checkbox" defaultChecked />
               <span>Activo</span>
@@ -62,6 +76,12 @@ export default async function SaLimitsPage({ searchParams }: { searchParams?: { 
                   <div style={{ fontWeight: 900 }}>{d.name}</div>
                   <div style={{ color: "var(--muted)", fontSize: 12 }}>
                     <code>{d.key}</code> · {d.periodType}
+                    {d.moduleKey ? (
+                      <>
+                        {" "}
+                        · módulo <code>{d.moduleKey}</code>
+                      </>
+                    ) : null}
                   </div>
                 </div>
                 <span className={`pill ${d.active ? "" : "pillDanger"}`}>{d.active ? "Activo" : "Inactivo"}</span>
@@ -74,4 +94,3 @@ export default async function SaLimitsPage({ searchParams }: { searchParams?: { 
     </div>
   );
 }
-

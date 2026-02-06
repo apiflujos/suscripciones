@@ -1,7 +1,8 @@
-import { MessageStatus } from "@prisma/client";
+import { ChatwootMessageType, MessageStatus } from "@prisma/client";
 import { prisma } from "../../db/prisma";
 import { ChatwootClient } from "../../providers/chatwoot/client";
 import { getChatwootConfig } from "../../services/runtimeConfig";
+import { consumeApp } from "../../services/superAdminApp";
 
 export async function sendChatwootMessage(chatwootMessageId: string) {
   const msg = await prisma.chatwootMessage.findUnique({
@@ -116,4 +117,9 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
       errorMessage: null
     }
   });
+
+  await consumeApp("messages_sent", { amount: 1, source: "jobs:chatwoot.sent", meta: { type: msg.type, id: msg.id } });
+  if (msg.type === ChatwootMessageType.PAYMENT_LINK) {
+    await consumeApp("payment_links_sent", { amount: 1, source: "jobs:chatwoot.sent", meta: { chatwootMessageId: msg.id } });
+  }
 }

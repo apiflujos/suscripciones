@@ -6,6 +6,7 @@ import { LogLevel, PaymentStatus, RetryJobType, SubscriptionStatus } from "@pris
 import { systemLog } from "../services/systemLog";
 import { createPaymentLinkForSubscription } from "../services/subscriptionBilling";
 import { scheduleSubscriptionDueNotifications } from "../services/notificationsScheduler";
+import { consumeApp } from "../services/superAdminApp";
 
 const createSubscriptionSchema = z.object({
   customerId: z.string().uuid(),
@@ -77,6 +78,7 @@ subscriptionsRouter.post("/", async (req, res) => {
     }
   });
 
+  await consumeApp("subscriptions_created", { amount: 1, source: "api:subscriptions.create", meta: { subscriptionId: subscription.id, planId: plan.id } });
   await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});
 
   const runAt = periodEnd <= new Date(Date.now() + 5_000) ? new Date() : periodEnd;

@@ -117,6 +117,7 @@ const limitUpsertSchema = z.object({
   key: z.string().min(1),
   name: z.string().min(1),
   periodType: z.nativeEnum(SaPeriodType),
+  moduleKey: z.string().min(1).optional().nullable(),
   active: z.boolean().optional()
 });
 
@@ -130,8 +131,19 @@ superAdminRouter.post("/limits", requireSaSession, async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   const item = await prisma.saLimitDefinition.upsert({
     where: { key: parsed.data.key },
-    create: { key: parsed.data.key, name: parsed.data.name, periodType: parsed.data.periodType, active: parsed.data.active ?? true } as any,
-    update: { name: parsed.data.name, periodType: parsed.data.periodType, ...(parsed.data.active != null ? { active: parsed.data.active } : {}) } as any
+    create: {
+      key: parsed.data.key,
+      name: parsed.data.name,
+      periodType: parsed.data.periodType,
+      moduleKey: parsed.data.moduleKey ? String(parsed.data.moduleKey).trim() : null,
+      active: parsed.data.active ?? true
+    } as any,
+    update: {
+      name: parsed.data.name,
+      periodType: parsed.data.periodType,
+      ...(parsed.data.moduleKey !== undefined ? { moduleKey: parsed.data.moduleKey ? String(parsed.data.moduleKey).trim() : null } : {}),
+      ...(parsed.data.active != null ? { active: parsed.data.active } : {})
+    } as any
   });
   res.status(201).json({ item });
 });

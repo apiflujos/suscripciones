@@ -6,6 +6,7 @@ import { ChatwootMessageType, PaymentStatus, RetryJobType, SubscriptionStatus, W
 import { addIntervalUtc } from "../../lib/dates";
 import { getShopifyForward } from "../../services/runtimeConfig";
 import { schedulePaymentStatusNotifications, scheduleSubscriptionDueNotifications } from "../../services/notificationsScheduler";
+import { consumeApp } from "../../services/superAdminApp";
 
 function getTransactionFromPayload(payload: any): any | null {
   const tx = payload?.data?.transaction;
@@ -57,15 +58,22 @@ export async function processWompiEvent(webhookEventId: string) {
   }
 
   const paymentStatus =
-    status === "APPROVED" ? PaymentStatus.APPROVED : status === "DECLINED" ? PaymentStatus.DECLINED : PaymentStatus.ERROR;
+    status === "APPROVED"
+      ? PaymentStatus.APPROVED
+      : status === "DECLINED"
+        ? PaymentStatus.DECLINED
+        : status === "VOIDED"
+          ? PaymentStatus.VOIDED
+          : PaymentStatus.ERROR;
+
+  const prevByTx = transactionId != null ? await prisma.payment.findUnique({ where: { wompiTransactionId: transactionId } }) : null;
+  const prevStatus = prevByTx?.status ?? paymentByLink?.status ?? null;
 
   const cycleFromRef = referenceClassification.kind === "subscription" ? referenceClassification.cycle ?? null : null;
   const cycle = paymentByLink?.cycleNumber ?? cycleFromRef ?? (subscription?.currentCycle ?? 1);
   const subscriptionCycleKey = subscription ? `${subscription.id}:${cycle}` : null;
-  const wasApproved =
-    transactionId != null
-      ? (await prisma.payment.findUnique({ where: { wompiTransactionId: transactionId } }))?.status === PaymentStatus.APPROVED
-      : false;
+  const wasApproved = prevStatus === PaymentStatus.APPROVED;
+  const wasFailed = prevStatus === PaymentStatus.DECLINED || prevStatus === PaymentStatus.ERROR || prevStatus === PaymentStatus.VOIDED;
 
   const now = new Date();
   const paidAt = paymentStatus === PaymentStatus.APPROVED ? now : null;
@@ -163,6 +171,14 @@ export async function processWompiEvent(webhookEventId: string) {
   });
 
   await schedulePaymentStatusNotifications({ paymentId: paymentRecord.id }).catch(() => {});
+
+  const becameApproved = !wasApproved && paymentStatus === PaymentStatus.APPROVED;
+  const becameFailed = !wasFailed && (paymentStatus === PaymentStatus.DECLINED || paymentStatus === PaymentStatus.ERROR || paymentStatus === PaymentStatus.VOIDED);
+  if (becameApproved) {
+    await consumeApp("payments_success", { amount: 1, source: "wompi:webhook", meta: { paymentId: paymentRecord.id } });
+  } else if (becameFailed) {
+    await consumeApp("payments_failed", { amount: 1, source: "wompi:webhook", meta: { paymentId: paymentRecord.id } });
+  }
 
   if (!wasApproved && paymentStatus === PaymentStatus.APPROVED && subscription) {
     const advancedTo = await prisma.$transaction(async (tx) => {

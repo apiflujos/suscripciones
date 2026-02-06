@@ -2,6 +2,7 @@ import express from "express";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
 import { PlanIntervalUnit, PlanType } from "@prisma/client";
+import { consumeApp } from "../services/superAdminApp";
 
 const createPlanSchema = z.object({
   name: z.string().min(1),
@@ -50,5 +51,6 @@ plansRouter.post("/", async (req, res) => {
 
   const computedPlanType: PlanType = planType ?? (collectionMode === "MANUAL_LINK" ? PlanType.manual_link : PlanType.auto_subscription);
   const plan = await prisma.subscriptionPlan.create({ data: { ...(rest as any), planType: computedPlanType as any, metadata: mergedMetadata as any } });
+  await consumeApp("plans_created", { amount: 1, source: "api:plans.create", meta: { planId: plan.id, planType: plan.planType } });
   res.status(201).json({ plan });
 });
