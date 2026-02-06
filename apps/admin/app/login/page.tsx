@@ -5,38 +5,52 @@ export default async function LoginPage({ searchParams }: { searchParams?: { err
   const next = String(searchParams?.next || "").trim();
   const loggedOut = String(searchParams?.loggedOut || "").trim() === "1";
 
+  const errorMessage =
+    error === "missing_admin_token"
+      ? "Falta configurar el token del Admin (API_ADMIN_TOKEN) y el token del API (ADMIN_API_TOKEN)."
+      : error === "super_admin_not_configured"
+        ? "Super Admin no está configurado. Define SUPER_ADMIN_EMAIL y SUPER_ADMIN_PASSWORD en el API, o crea un usuario en la tabla sa_users."
+        : error;
+
   return (
-    <main style={{ width: "min(520px, 100%)" }}>
-      <div style={{ display: "grid", gap: 8, marginBottom: 12 }}>
-        <h1 style={{ margin: 0 }}>Iniciar sesión</h1>
-        <div style={{ color: "var(--muted)", fontSize: 13 }}>Inicia sesión para acceder al panel.</div>
+    <main className="authMain">
+      <div className="authCard card">
+        <div className="authCardInner">
+          <div className="authBrand" aria-label="Marca">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/logo-horizontal.png" alt="ApiFlujos" className="authLogo" />
+          </div>
+
+          <div className="authHeader">
+            <h1 className="authTitle">Iniciar sesión</h1>
+            <div className="authSubtitle">Inicia sesión para acceder al panel.</div>
+          </div>
+
+          {loggedOut ? <div className="authAlert">Sesión cerrada.</div> : null}
+          {error ? <div className="authAlert is-danger">Error: {errorMessage}</div> : null}
+
+          <form action={adminLogin} className="authForm">
+            <input type="hidden" name="next" value={next} />
+            <div className="field">
+              <label>Email</label>
+              <input name="email" className="input" placeholder="tu@email.com" autoComplete="username" />
+            </div>
+            <div className="field">
+              <label>Password</label>
+              <input name="password" className="input" type="password" autoComplete="current-password" />
+            </div>
+            <label className="authRemember">
+              <input type="checkbox" name="remember" value="1" />
+              <span>Recordarme</span>
+            </label>
+            <button className="primary" type="submit">
+              Entrar
+            </button>
+          </form>
+
+          <div className="authFootnote">Si no tienes acceso, valida el token del panel y las credenciales en el API.</div>
+        </div>
       </div>
-
-      {loggedOut ? <div className="card cardPad">Sesión cerrada.</div> : null}
-      {error ? (
-        <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>
-          Error: {error}
-        </div>
-      ) : null}
-
-      <form action={adminLogin} className="panel module" style={{ display: "grid", gap: 10, marginTop: 12 }}>
-        <input type="hidden" name="next" value={next} />
-        <div className="field">
-          <label>Email</label>
-          <input name="email" className="input" placeholder="tu@email.com" autoComplete="username" />
-        </div>
-        <div className="field">
-          <label>Password</label>
-          <input name="password" className="input" type="password" autoComplete="current-password" />
-        </div>
-        <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <input type="checkbox" name="remember" value="1" />
-          <span>Recordarme</span>
-        </label>
-        <button className="primary" type="submit">
-          Entrar
-        </button>
-      </form>
     </main>
   );
 }

@@ -39,7 +39,10 @@ body {
 }
 
 .authBody {
-  background: var(--bg);
+  background:
+    radial-gradient(900px 360px at 50% -120px, rgba(0, 43, 91, 0.12), rgba(0, 43, 91, 0) 60%),
+    radial-gradient(700px 320px at 20% 0, rgba(36, 161, 72, 0.06), rgba(36, 161, 72, 0) 55%),
+    var(--bg);
 }
 
 .authShell {
@@ -47,6 +50,89 @@ body {
   display: grid;
   place-items: center;
   padding: 18px 14px;
+}
+
+.authMain {
+  width: min(520px, 100%);
+}
+
+.authCard {
+  width: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.authCardInner {
+  padding: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.authBrand {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2px;
+}
+
+.authLogo {
+  height: 34px;
+  width: auto;
+  display: block;
+}
+
+.authHeader {
+  display: grid;
+  gap: 4px;
+  text-align: center;
+}
+
+.authTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.authSubtitle {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.authForm {
+  display: grid;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.authRemember {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.authAlert {
+  border: 1px solid var(--stroke);
+  background: rgba(15, 23, 42, 0.03);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.authAlert.is-danger {
+  border-color: rgba(217, 83, 79, 0.28);
+  background: rgba(217, 83, 79, 0.08);
+  color: #7f1d1d;
+}
+
+.authFootnote {
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.4;
 }
 
 a {
