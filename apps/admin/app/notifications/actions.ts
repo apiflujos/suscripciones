@@ -85,6 +85,10 @@ export async function createNotification(formData: FormData) {
 
   const waTemplateName = String(formData.get("waTemplateName") || "").trim();
   const waLanguage = String(formData.get("waLanguage") || "").trim();
+  const waParams = formData
+    .getAll("waParam")
+    .map((v) => String(v || "").trim())
+    .filter(Boolean);
 
   const allowedTriggers = new Set(["SUBSCRIPTION_DUE", "PAYMENT_APPROVED", "PAYMENT_DECLINED"]);
   if (!allowedTriggers.has(trigger)) return redirect(`/notifications?env=${environment}&error=invalid_trigger`);
@@ -131,7 +135,7 @@ export async function createNotification(formData: FormData) {
       template.chatwootTemplate = {
         name: waTemplateName,
         language: waLanguage,
-        processed_params: undefined
+        processed_params: waParams.length ? { body: waParams.map((v, idx) => ({ key: String(idx + 1), value: v })) } : undefined
       };
     }
 

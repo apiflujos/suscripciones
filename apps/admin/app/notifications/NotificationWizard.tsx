@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { HelpTip } from "../ui/HelpTip";
 
 type Env = "PRODUCTION" | "SANDBOX";
 type Trigger = "SUBSCRIPTION_DUE" | "PAYMENT_APPROVED" | "PAYMENT_DECLINED";
@@ -63,6 +64,7 @@ export function NotificationWizard({
 
   const [waTemplateName, setWaTemplateName] = useState("");
   const [waLanguage] = useState("es");
+  const [waParams, setWaParams] = useState<string[]>([]);
 
   const lastFocusableRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
 
@@ -128,7 +130,10 @@ export function NotificationWizard({
               </div>
 
               <div className="field">
-                <label>¿Qué quieres enviar?</label>
+                <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <span>¿Qué quieres enviar?</span>
+                  <HelpTip text="Recordatorio: se programa respecto a la fecha de corte.\nÉxito/fallo: se dispara cuando llega el webhook del pago." />
+                </label>
                 <select className="select" value={trigger} onChange={(e) => setTrigger(e.target.value as Trigger)}>
                   <option value="SUBSCRIPTION_DUE">Recordatorio de pago (fecha de corte)</option>
                   <option value="PAYMENT_APPROVED">Notificación de éxito (pago aprobado)</option>
@@ -144,7 +149,10 @@ export function NotificationWizard({
           {step === 2 ? (
             <>
               <div className="field">
-                <label>¿Cuándo se envía?</label>
+                <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <span>¿Cuándo se envía?</span>
+                  <HelpTip text="Puedes agregar varios tiempos (antes/después) en segundos, minutos, horas o días." />
+                </label>
                 <div style={{ display: "grid", gap: 10 }}>
                   {offsets.map((o, idx) => (
                     <div key={idx} style={{ display: "grid", gridTemplateColumns: "140px 1fr 180px auto", gap: 10, alignItems: "end" } as any}>
@@ -208,7 +216,10 @@ export function NotificationWizard({
                   <div style={{ marginTop: 10 }}>
                     <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
                       <input type="checkbox" checked={ensurePaymentLink} onChange={(e) => setEnsurePaymentLink(e.target.checked)} />
-                      <span>Si falta link de pago, generarlo automáticamente</span>
+                      <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
+                        Si falta link de pago, generarlo automáticamente
+                        <HelpTip text="Si no existe link, el sistema intenta crearlo antes de enviar el recordatorio." />
+                      </span>
                     </label>
                   </div>
                 ) : null}
@@ -219,7 +230,10 @@ export function NotificationWizard({
           {step === 3 ? (
             <>
               <div className="field">
-                <label>Plantilla / mensaje</label>
+                <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <span>Plantilla / mensaje</span>
+                  <HelpTip text="Mensaje normal: escribes el texto.\nTemplate WhatsApp: envías una plantilla aprobada por Meta (vía Chatwoot)." />
+                </label>
                 <select className="select" value={templateKind} onChange={(e) => setTemplateKind(e.target.value as TemplateKind)}>
                   <option value="TEXT">Mensaje normal</option>
                   <option value="WHATSAPP_TEMPLATE">Template WhatsApp (Meta) vía Chatwoot</option>
@@ -227,7 +241,10 @@ export function NotificationWizard({
               </div>
 
               <div className="panel module" style={{ display: "grid", gap: 10 }}>
-                <div className="field-hint">Variables (clic para insertar):</div>
+                <div className="field-hint" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <span>Variables (clic para insertar):</span>
+                  <HelpTip text="Estas variables se reemplazan con datos reales al enviar.\nSi algún dato no existe, se deja vacío." />
+                </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {VARIABLES.map((v) => (
                     <button key={v.value} type="button" className="ghost" onClick={() => onVarClick(v.value)} style={{ minHeight: 30 }}>
@@ -263,6 +280,35 @@ export function NotificationWizard({
                     />
                     <div className="field-hint">El idioma se envía como <code>es</code> (si necesitas otro, lo habilitamos).</div>
                   </div>
+
+                  <div className="field">
+                    <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <span>Variables de la plantilla (opcional)</span>
+                      <HelpTip text="Si tu plantilla tiene variables en el body ({{1}}, {{2}}, ...), agrégalas aquí en orden.\nSi no tiene variables, deja esto vacío." />
+                    </label>
+                    <div style={{ display: "grid", gap: 8 }}>
+                      {waParams.map((v, idx) => (
+                        <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "end" } as any}>
+                          <div className="field" style={{ margin: 0 }}>
+                            <label>Variable #{idx + 1}</label>
+                            <input
+                              className="input"
+                              value={v}
+                              onChange={(e) => setWaParams((prev) => prev.map((x, i) => (i === idx ? e.target.value : x)))}
+                              onFocus={(e) => (lastFocusableRef.current = e.target)}
+                              placeholder="Ej: {{customer.name}}"
+                            />
+                          </div>
+                          <button type="button" className="ghost" onClick={() => setWaParams((prev) => prev.filter((_, i) => i !== idx))}>
+                            Quitar
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <button type="button" className="ghost" onClick={() => setWaParams((prev) => [...prev, ""])} style={{ marginTop: 8 }}>
+                      + Agregar variable
+                    </button>
+                  </div>
                 </>
               )}
             </>
@@ -290,6 +336,9 @@ export function NotificationWizard({
                 <input type="hidden" name="ensurePaymentLink" value={ensurePaymentLink ? "1" : "0"} />
                 {computedOffsetsSeconds.map((s, idx) => (
                   <input key={idx} type="hidden" name="offsetSeconds" value={String(s)} />
+                ))}
+                {waParams.map((p, idx) => (
+                  <input key={idx} type="hidden" name="waParam" value={p} />
                 ))}
                 <button className="primary" type="submit" disabled={!canGoNext()}>
                   Crear
