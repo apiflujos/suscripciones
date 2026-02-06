@@ -22,6 +22,11 @@ enum PlanIntervalUnit {
   CUSTOM
 }
 
+enum PlanType {
+  manual_link
+  auto_subscription
+}
+
 enum PaymentStatus {
   PENDING
   APPROVED
@@ -104,12 +109,14 @@ model SubscriptionPlan {
   currency     String           @default("COP")
   intervalUnit PlanIntervalUnit
   intervalCount Int             @default(1)
+  planType     PlanType         @default(manual_link)
   active       Boolean          @default(true)
   metadata     Json?
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 
   subscriptions Subscription[]
+  paymentLinks  PaymentLink[]
 }
 
 model Subscription {
@@ -133,6 +140,7 @@ model Subscription {
   plan     SubscriptionPlan @relation(fields: [planId], references: [id])
   payments Payment[]
   chatwootMsgs ChatwootMessage[]
+  paymentLinks PaymentLink[]
 
   @@index([status, currentPeriodEndAt])
   @@index([customerId])
@@ -143,6 +151,7 @@ model Payment {
   id                 String        @id @default(uuid()) @db.Uuid
   customerId         String        @db.Uuid
   subscriptionId     String?       @db.Uuid
+  paymentLink        PaymentLink?
   amountInCents      Int
   currency           String        @default("COP")
   cycleNumber        Int?
@@ -153,6 +162,7 @@ model Payment {
   subscriptionCycleKey String?     @unique
   status             PaymentStatus @default(PENDING)
   paidAt             DateTime?
+  failedAt           DateTime?
   providerResponse   Json?
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
@@ -165,6 +175,28 @@ model Payment {
   @@unique([wompiTransactionId])
   @@index([reference])
   @@index([subscriptionId, status])
+}
+
+model PaymentLink {
+  id               String   @id @default(uuid()) @db.Uuid
+  planId           String   @db.Uuid
+  subscriptionId   String   @db.Uuid
+  paymentId        String   @unique @db.Uuid
+  wompiPaymentLinkId String @unique
+  checkoutUrl      String
+  status           String   @default("SENT")
+  sentAt           DateTime @default(now())
+  paidAt           DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  plan         SubscriptionPlan @relation(fields: [planId], references: [id])
+  subscription Subscription     @relation(fields: [subscriptionId], references: [id])
+  payment      Payment          @relation(fields: [paymentId], references: [id])
+
+  @@index([planId, sentAt])
+  @@index([subscriptionId, sentAt])
+  @@index([sentAt])
 }
 
 model PaymentAttempt {
