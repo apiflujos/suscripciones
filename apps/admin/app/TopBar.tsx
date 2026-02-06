@@ -16,7 +16,7 @@ function getHeader(pathname: string): Header {
   if (pathname.startsWith("/plans")) return { title: "Planes", subtitle: "Tipos de suscripción: precio y periodicidad." };
   if (pathname.startsWith("/webhooks")) return { title: "Webhooks", subtitle: "Eventos entrantes y su estado." };
   if (pathname.startsWith("/settings")) return { title: "Configuración", subtitle: "Credenciales y conexiones." };
-  if (pathname.startsWith("/__sa")) return { title: "Super Admin", subtitle: "Planes, módulos y consumos." };
+  if (pathname.startsWith("/sa") || pathname.startsWith("/__sa")) return { title: "Admin", subtitle: "Planes, módulos, usuarios y consumos." };
   return { title: "Panel", subtitle: "—" };
 }
 
@@ -30,7 +30,7 @@ function UserMenuIcon({ className }: { className?: string }) {
   );
 }
 
-export function TopBar() {
+export function TopBar({ hasSuperAdminSession }: { hasSuperAdminSession: boolean }) {
   const pathname = usePathname() || "/";
   const header = useMemo(() => getHeader(pathname), [pathname]);
   const isSuperAdmin = pathname.startsWith("/sa") || pathname.startsWith("/__sa");
@@ -95,13 +95,21 @@ export function TopBar() {
                 Configuración
               </Link>
               <Link className="userMenuItem" href="/sa" prefetch={false} role="menuitem">
-                Super Admin
+                Admin
               </Link>
-              {isSuperAdmin ? (
-                <Link className="userMenuItem isDanger" href="/sa/logout" prefetch={false} role="menuitem">
-                  Salir
+              {hasSuperAdminSession ? (
+                <Link className="userMenuItem" href="/sa/users" prefetch={false} role="menuitem">
+                  Usuarios
                 </Link>
               ) : null}
+              {isSuperAdmin ? (
+                <Link className="userMenuItem isDanger" href="/sa/logout" prefetch={false} role="menuitem">
+                  Salir (Admin)
+                </Link>
+              ) : null}
+              <Link className="userMenuItem isDanger" href="/logout" prefetch={false} role="menuitem">
+                Salir
+              </Link>
             </div>
           ) : null}
         </div>

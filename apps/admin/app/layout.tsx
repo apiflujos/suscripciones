@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { headers } from "next/headers";
+import { cookies } from "next/headers";
 
 import "./globals.css";
 import { SideNav } from "./SideNav";
@@ -13,7 +14,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   const pathname = headers().get("x-app-pathname") || "";
-  const isAuthScreen = pathname === "/sa/login" || pathname === "/__sa/login";
+  const isAuthScreen = pathname === "/login" || pathname === "/sa/login" || pathname === "/__sa/login";
+  const hasSaSession = Boolean(cookies().get("sa_session")?.value);
 
   return (
     <html lang="es">
@@ -26,12 +28,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         ) : (
           <div className="app-shell">
             <aside className="sidebar" aria-label="Sidebar">
-              <SideNav />
+              <SideNav hasSuperAdminSession={hasSaSession} />
             </aside>
             <div className="sidebarOverlay" aria-hidden="true" />
 
             <div className="content" style={{ alignContent: "start" }}>
-              <TopBar />
+              <TopBar hasSuperAdminSession={hasSaSession} />
               {children}
             </div>
           </div>

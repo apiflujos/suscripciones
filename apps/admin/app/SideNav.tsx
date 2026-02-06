@@ -129,7 +129,7 @@ function LogoutIcon({ className }: { className?: string }) {
   );
 }
 
-export function SideNav() {
+export function SideNav({ hasSuperAdminSession }: { hasSuperAdminSession: boolean }) {
   const pathname = usePathname() || "";
   const isSuperAdmin = pathname.startsWith("/sa") || pathname.startsWith("/__sa");
   const [collapsed, setCollapsed] = useState(false);
@@ -292,15 +292,12 @@ export function SideNav() {
         <NavIcon name="settings" className="nav-icon" />
         <span className="nav-label">Configuración</span>
       </Link>
-      <Link
-        className={`nav-item ${isSuperAdmin ? "is-active" : ""}`}
-        href="/sa"
-        prefetch={false}
-        aria-current={isSuperAdmin ? "page" : undefined}
-      >
-        <ShieldIcon className="nav-icon" />
-        <span className="nav-label">Super Admin</span>
-      </Link>
+      {hasSuperAdminSession ? (
+        <Link className={`nav-item ${isSuperAdmin ? "is-active" : ""}`} href="/sa" prefetch={false} aria-current={isSuperAdmin ? "page" : undefined}>
+          <ShieldIcon className="nav-icon" />
+          <span className="nav-label">Admin</span>
+        </Link>
+      ) : null}
       </nav>
 
       <div className="sidebarSpacer" />

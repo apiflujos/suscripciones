@@ -31,6 +31,9 @@ export default async function SaLayout({ children }: { children: React.ReactNode
         <Link className="btn" href="/sa/modules" prefetch={false}>
           Módulos
         </Link>
+        <Link className="btn" href="/sa/users" prefetch={false}>
+          Usuarios
+        </Link>
         <Link className="btn" href="/sa/limits" prefetch={false}>
           Servicios
         </Link>
