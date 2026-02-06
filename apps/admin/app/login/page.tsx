@@ -8,7 +8,7 @@ export default async function LoginPage({ searchParams }: { searchParams?: { err
   return (
     <main style={{ width: "min(520px, 100%)" }}>
       <div style={{ display: "grid", gap: 8, marginBottom: 12 }}>
-        <h1 style={{ margin: 0 }}>Admin</h1>
+        <h1 style={{ margin: 0 }}>Iniciar sesión</h1>
         <div style={{ color: "var(--muted)", fontSize: 13 }}>Inicia sesión para acceder al panel.</div>
       </div>
 
@@ -22,13 +22,17 @@ export default async function LoginPage({ searchParams }: { searchParams?: { err
       <form action={adminLogin} className="panel module" style={{ display: "grid", gap: 10, marginTop: 12 }}>
         <input type="hidden" name="next" value={next} />
         <div className="field">
-          <label>Usuario</label>
-          <input name="user" className="input" placeholder="admin" autoComplete="username" />
+          <label>Email</label>
+          <input name="email" className="input" placeholder="tu@email.com" autoComplete="username" />
         </div>
         <div className="field">
           <label>Password</label>
-          <input name="pass" className="input" type="password" autoComplete="current-password" />
+          <input name="password" className="input" type="password" autoComplete="current-password" />
         </div>
+        <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input type="checkbox" name="remember" value="1" />
+          <span>Recordarme</span>
+        </label>
         <button className="primary" type="submit">
           Entrar
         </button>
@@ -36,4 +40,3 @@ export default async function LoginPage({ searchParams }: { searchParams?: { err
     </main>
   );
 }
-

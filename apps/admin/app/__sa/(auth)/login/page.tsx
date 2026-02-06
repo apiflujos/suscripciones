@@ -22,7 +22,7 @@ export default async function SaLoginPage({ searchParams }: { searchParams?: { e
       <form action={saLogin} className="panel module" style={{ display: "grid", gap: 10, marginTop: 12 }}>
         <div className="field">
           <label>Email</label>
-          <input name="email" className="input" placeholder="comercial@apiflujos.com" autoComplete="username" />
+          <input name="email" className="input" placeholder="tu@email.com" autoComplete="username" />
         </div>
         <div className="field">
           <label>Password</label>
@@ -41,4 +41,3 @@ export default async function SaLoginPage({ searchParams }: { searchParams?: { e
     </main>
   );
 }
-

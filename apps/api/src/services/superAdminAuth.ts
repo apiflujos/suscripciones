@@ -3,16 +3,22 @@ import crypto from "node:crypto";
 import { prisma } from "../db/prisma";
 import { sha256Hex, timingSafeEqualHex } from "../lib/crypto";
 
-export const SUPER_ADMIN_EMAIL = "comercial@apiflujos.com";
-export const SUPER_ADMIN_PASSWORD = "apiflujos2026*";
+function normalize(v: unknown) {
+  return String(v || "").trim();
+}
 
-const SUPER_ADMIN_PASSWORD_HASH = sha256Hex(SUPER_ADMIN_PASSWORD);
+export const SUPER_ADMIN_EMAIL = normalize(process.env.SUPER_ADMIN_EMAIL);
+const SUPER_ADMIN_PASSWORD = String(process.env.SUPER_ADMIN_PASSWORD || "");
+
+const SUPER_ADMIN_PASSWORD_HASH = SUPER_ADMIN_PASSWORD ? sha256Hex(SUPER_ADMIN_PASSWORD) : "";
 
 export function isSuperAdminEmail(email: string) {
+  if (!SUPER_ADMIN_EMAIL) return false;
   return String(email || "").trim().toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
 }
 
 export function verifySuperAdminPassword(pw: string) {
+  if (!SUPER_ADMIN_EMAIL || !SUPER_ADMIN_PASSWORD_HASH) return false;
   const got = sha256Hex(String(pw || ""));
   return timingSafeEqualHex(got, SUPER_ADMIN_PASSWORD_HASH);
 }
@@ -53,6 +59,7 @@ export function normalizeSaToken(v: unknown) {
 }
 
 export async function createSaSession(args: { email: string; password: string; ip?: string | null; userAgent?: string | null }) {
+  if (!SUPER_ADMIN_EMAIL || !SUPER_ADMIN_PASSWORD_HASH) throw new Error("super_admin_not_configured");
   if (!isSuperAdminEmail(args.email)) throw new Error("invalid_super_admin");
   if (!verifySuperAdminPassword(args.password)) throw new Error("invalid_super_admin");
 

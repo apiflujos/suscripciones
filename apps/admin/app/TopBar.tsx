@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { AdminSession } from "../lib/session";
 
 type Header = { title: string; subtitle: string };
 
@@ -16,24 +17,29 @@ function getHeader(pathname: string): Header {
   if (pathname.startsWith("/plans")) return { title: "Planes", subtitle: "Tipos de suscripción: precio y periodicidad." };
   if (pathname.startsWith("/webhooks")) return { title: "Webhooks", subtitle: "Eventos entrantes y su estado." };
   if (pathname.startsWith("/settings")) return { title: "Configuración", subtitle: "Credenciales y conexiones." };
-  if (pathname.startsWith("/sa") || pathname.startsWith("/__sa")) return { title: "Admin", subtitle: "Planes, módulos, usuarios y consumos." };
+  if (pathname.startsWith("/sa") || pathname.startsWith("/__sa")) return { title: "Super Admin", subtitle: "Planes, módulos, usuarios y consumos." };
   return { title: "Panel", subtitle: "—" };
 }
 
 function UserMenuIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-      <path d="M3 6h18" />
-      <path d="M3 12h18" />
-      <path d="M3 18h18" />
+      <path d="M6 9l6 6 6-6" />
     </svg>
   );
 }
 
-export function TopBar({ hasSuperAdminSession }: { hasSuperAdminSession: boolean }) {
+function displayNameFromEmail(email: string) {
+  const e = String(email || "").trim();
+  if (!e) return "Usuario";
+  const local = e.split("@")[0] || e;
+  return local.slice(0, 1).toUpperCase() + local.slice(1);
+}
+
+export function TopBar({ session }: { session: AdminSession | null }) {
   const pathname = usePathname() || "/";
   const header = useMemo(() => getHeader(pathname), [pathname]);
-  const isSuperAdmin = pathname.startsWith("/sa") || pathname.startsWith("/__sa");
+  const isSuperAdmin = session?.role === "SUPER_ADMIN";
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -81,9 +87,9 @@ export function TopBar({ hasSuperAdminSession }: { hasSuperAdminSession: boolean
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/brand/avatar.png" alt="" className="userAvatar" />
             <div style={{ display: "grid", lineHeight: 1.1, textAlign: "left" }}>
-              <div style={{ fontWeight: 700 }}>Sebastian</div>
+              <div style={{ fontWeight: 700 }}>{displayNameFromEmail(session?.email || "")}</div>
               <div className="subtitle" style={{ textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                Admin
+                {session?.role || "—"}
               </div>
             </div>
             <UserMenuIcon className="userMenuIcon" />
@@ -94,17 +100,14 @@ export function TopBar({ hasSuperAdminSession }: { hasSuperAdminSession: boolean
               <Link className="userMenuItem" href="/settings" prefetch={false} role="menuitem">
                 Configuración
               </Link>
-              <Link className="userMenuItem" href="/sa" prefetch={false} role="menuitem">
-                Admin
-              </Link>
-              {hasSuperAdminSession ? (
-                <Link className="userMenuItem" href="/sa/users" prefetch={false} role="menuitem">
-                  Usuarios
+              {isSuperAdmin ? (
+                <Link className="userMenuItem" href="/sa" prefetch={false} role="menuitem">
+                  Super Admin
                 </Link>
               ) : null}
               {isSuperAdmin ? (
-                <Link className="userMenuItem isDanger" href="/sa/logout" prefetch={false} role="menuitem">
-                  Salir (Admin)
+                <Link className="userMenuItem" href="/sa/users" prefetch={false} role="menuitem">
+                  Usuarios
                 </Link>
               ) : null}
               <Link className="userMenuItem isDanger" href="/logout" prefetch={false} role="menuitem">

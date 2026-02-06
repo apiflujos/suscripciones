@@ -5,12 +5,11 @@ import { SA_COOKIE, saAdminFetch } from "../saApi";
 
 export default async function SaLayout({ children }: { children: React.ReactNode }) {
   const token = cookies().get(SA_COOKIE)?.value || "";
-  if (!token) redirect("/sa/login");
+  if (!token) redirect("/login?next=%2Fsa");
 
   const me = await saAdminFetch("/admin/sa/me", { method: "GET" });
   if (!me.ok) {
-    cookies().delete(SA_COOKIE);
-    redirect("/sa/login?error=session_expired");
+    redirect("/login?error=forbidden&next=%2Fsa");
   }
 
   return (
@@ -48,7 +47,7 @@ export default async function SaLayout({ children }: { children: React.ReactNode
       {children}
 
       <div style={{ display: "flex", justifyContent: "flex-end" }}>
-        <Link href="/sa/logout" prefetch={false} className="ghost">
+        <Link href="/logout" prefetch={false} className="ghost">
           Salir
         </Link>
       </div>

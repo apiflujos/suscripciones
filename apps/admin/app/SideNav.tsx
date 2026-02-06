@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import type { AdminSession } from "../lib/session";
 
 const SIDEBAR_COLLAPSED_KEY = "admin.sidebarCollapsed";
 
@@ -129,9 +130,10 @@ function LogoutIcon({ className }: { className?: string }) {
   );
 }
 
-export function SideNav({ hasSuperAdminSession }: { hasSuperAdminSession: boolean }) {
+export function SideNav({ session }: { session: AdminSession | null }) {
   const pathname = usePathname() || "";
-  const isSuperAdmin = pathname.startsWith("/sa") || pathname.startsWith("/__sa");
+  const isSuperAdminPath = pathname.startsWith("/sa") || pathname.startsWith("/__sa");
+  const isSuperAdmin = session?.role === "SUPER_ADMIN";
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -292,22 +294,20 @@ export function SideNav({ hasSuperAdminSession }: { hasSuperAdminSession: boolea
         <NavIcon name="settings" className="nav-icon" />
         <span className="nav-label">Configuración</span>
       </Link>
-      {hasSuperAdminSession ? (
-        <Link className={`nav-item ${isSuperAdmin ? "is-active" : ""}`} href="/sa" prefetch={false} aria-current={isSuperAdmin ? "page" : undefined}>
+      {isSuperAdmin ? (
+        <Link className={`nav-item ${isSuperAdminPath ? "is-active" : ""}`} href="/sa" prefetch={false} aria-current={isSuperAdminPath ? "page" : undefined}>
           <ShieldIcon className="nav-icon" />
-          <span className="nav-label">Admin</span>
+          <span className="nav-label">Super Admin</span>
         </Link>
       ) : null}
       </nav>
 
       <div className="sidebarSpacer" />
 
-      {isSuperAdmin ? (
-        <a className="sidebarExit" href="/sa/logout" aria-label="Salir" title="Salir">
-          <LogoutIcon className="nav-icon" />
-          <span className="nav-label">Salir</span>
-        </a>
-      ) : null}
+      <a className="sidebarExit" href="/logout" aria-label="Salir" title="Salir">
+        <LogoutIcon className="nav-icon" />
+        <span className="nav-label">Salir</span>
+      </a>
     </div>
   );
 }

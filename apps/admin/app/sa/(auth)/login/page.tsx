@@ -1,1 +1,5 @@
-export { default } from "../../../__sa/(auth)/login/page";
+import { redirect } from "next/navigation";
+
+export default function SaLoginAlias() {
+  redirect("/login?next=%2Fsa");
+}

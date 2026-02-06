@@ -45,6 +45,10 @@ services:
         sync: false
       - key: CREDENTIALS_ENCRYPTION_KEY_B64
         sync: false
+      - key: SUPER_ADMIN_EMAIL
+        sync: false
+      - key: SUPER_ADMIN_PASSWORD
+        sync: false
 
   - type: worker
     name: wompi-subs-jobs
@@ -86,6 +90,10 @@ services:
         sync: false
       - key: CREDENTIALS_ENCRYPTION_KEY_B64
         sync: false
+      - key: SUPER_ADMIN_EMAIL
+        sync: false
+      - key: SUPER_ADMIN_PASSWORD
+        sync: false
 
   - type: web
     name: wompi-subs-admin
@@ -104,4 +112,6 @@ services:
       - key: ADMIN_BASIC_USER
         sync: false
       - key: ADMIN_BASIC_PASS
+        sync: false
+      - key: ADMIN_SESSION_SECRET
         sync: false

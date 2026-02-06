@@ -21,7 +21,9 @@ superAdminRouter.post("/login", async (req, res) => {
     const ua = req.header("user-agent") || null;
     const session = await createSaSession({ email: parsed.data.email, password: parsed.data.password, ip, userAgent: ua });
     res.json({ token: session.token, expiresAt: session.expiresAt.toISOString(), email: SUPER_ADMIN_EMAIL });
-  } catch {
+  } catch (err: any) {
+    const msg = err?.message ? String(err.message) : "";
+    if (msg === "super_admin_not_configured") return res.status(500).json({ error: "super_admin_not_configured" });
     res.status(401).json({ error: "unauthorized_sa" });
   }
 });
@@ -298,7 +300,7 @@ superAdminRouter.post("/users", requireSaSession, async (req, res) => {
   const user = await prisma.saUser.create({
     data: {
       tenantId: parsed.data.tenantId,
-      email: parsed.data.email,
+      email: parsed.data.email.trim().toLowerCase(),
       passwordHash: hashPassword(parsed.data.password),
       role: parsed.data.role,
       active: parsed.data.active ?? true

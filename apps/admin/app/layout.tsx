@@ -6,16 +6,19 @@ import { cookies } from "next/headers";
 import "./globals.css";
 import { SideNav } from "./SideNav";
 import { TopBar } from "./TopBar";
+import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../lib/session";
 
 export const metadata: Metadata = {
   title: "Wompi Subs – Admin",
   icons: [{ rel: "icon", url: "/favicon.png" }]
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
   const pathname = headers().get("x-app-pathname") || "";
   const isAuthScreen = pathname === "/login" || pathname === "/sa/login" || pathname === "/__sa/login";
-  const hasSaSession = Boolean(cookies().get("sa_session")?.value);
+
+  const sessionToken = cookies().get(ADMIN_SESSION_COOKIE)?.value || "";
+  const session = await verifyAdminSessionToken(sessionToken);
 
   return (
     <html lang="es">
@@ -28,12 +31,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         ) : (
           <div className="app-shell">
             <aside className="sidebar" aria-label="Sidebar">
-              <SideNav hasSuperAdminSession={hasSaSession} />
+              <SideNav session={session} />
             </aside>
             <div className="sidebarOverlay" aria-hidden="true" />
 
             <div className="content" style={{ alignContent: "start" }}>
-              <TopBar hasSuperAdminSession={hasSaSession} />
+              <TopBar session={session} />
               {children}
             </div>
           </div>

@@ -1,2 +1,1 @@
-export { GET } from "../../__sa/logout/route";
-
+export { GET } from "../../logout/route";

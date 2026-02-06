@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { ADMIN_SESSION_COOKIE, computeAdminSessionToken } from "./lib/authSession";
+import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "./lib/session";
 
 export async function middleware(req: NextRequest) {
   const requestHeaders = new Headers(req.headers);
@@ -21,18 +21,22 @@ export async function middleware(req: NextRequest) {
     pathname === "/__sa/login" ||
     pathname === "/__sa/logout";
 
-  const isSuperAdminArea = pathname === "/__sa" || pathname.startsWith("/__sa/") || pathname === "/sa" || pathname.startsWith("/sa/");
-
-  const expected = await computeAdminSessionToken();
-  const requiresAdminSession = Boolean(expected) && !isPublic && !isSuperAdminArea;
-
-  if (requiresAdminSession) {
+  if (!isPublic) {
     const token = req.cookies.get(ADMIN_SESSION_COOKIE)?.value || "";
-    if (token !== expected) {
+    const session = await verifyAdminSessionToken(token);
+    if (!session) {
       const loginUrl = req.nextUrl.clone();
       loginUrl.pathname = "/login";
       loginUrl.searchParams.set("next", `${req.nextUrl.pathname}${req.nextUrl.search}`);
       return NextResponse.redirect(loginUrl);
+    }
+
+    const isSuperAdminArea = pathname === "/__sa" || pathname.startsWith("/__sa/") || pathname === "/sa" || pathname.startsWith("/sa/");
+    if (isSuperAdminArea && session.role !== "SUPER_ADMIN") {
+      const homeUrl = req.nextUrl.clone();
+      homeUrl.pathname = "/";
+      homeUrl.searchParams.delete("next");
+      return NextResponse.redirect(homeUrl);
     }
   }
 

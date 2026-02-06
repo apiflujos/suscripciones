@@ -16,6 +16,7 @@ import { logsRouter } from "./routes/logs";
 import { notificationsRouter } from "./routes/notifications";
 import { metricsRouter } from "./routes/metrics";
 import { superAdminRouter } from "./routes/superAdmin";
+import { authRouter } from "./routes/auth";
 
 export function createApp() {
   const app = express();
@@ -39,6 +40,7 @@ export function createApp() {
   app.use("/admin/logs", requireAdminToken, logsRouter);
   app.use("/admin/notifications", requireAdminToken, notificationsRouter);
   app.use("/admin/metrics", requireAdminToken, metricsRouter);
+  app.use("/admin/auth", requireAdminToken, authRouter);
   app.use("/admin/sa", requireAdminToken, superAdminRouter);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

@@ -2,7 +2,8 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { ADMIN_SESSION_COOKIE, computeAdminSessionToken, getAdminBasicCredentials } from "../../lib/authSession";
+import { getAdminApiConfig } from "../lib/adminApi";
+import { ADMIN_SESSION_COOKIE, signAdminSession } from "../../lib/session";
 
 function safeNextPath(value: unknown) {
   const v = String(value || "").trim();
@@ -12,27 +13,63 @@ function safeNextPath(value: unknown) {
   return v;
 }
 
-export async function adminLogin(formData: FormData) {
-  const { user: expectedUser, pass: expectedPass } = getAdminBasicCredentials();
-  if (!expectedUser || !expectedPass) redirect("/?error=admin_basic_not_configured");
-
-  const user = String(formData.get("user") || "").trim();
-  const pass = String(formData.get("pass") || "");
-
-  if (user !== expectedUser || pass !== expectedPass) {
-    redirect("/login?error=invalid_credentials");
-  }
-
-  const token = await computeAdminSessionToken();
-  cookies().set(ADMIN_SESSION_COOKIE, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 60 * 60 * 24 * 14
-  });
-
-  const nextPath = safeNextPath(formData.get("next"));
-  redirect(nextPath);
+function toShortErrorMessage(err: unknown) {
+  const raw = err instanceof Error ? err.message : String(err);
+  return raw.replace(/\s+/g, " ").trim().slice(0, 220) || "unknown_error";
 }
 
+export async function adminLogin(formData: FormData) {
+  const email = String(formData.get("email") || "").trim();
+  const password = String(formData.get("password") || "");
+  const remember = String(formData.get("remember") || "").trim() === "1";
+
+  const nextPath = safeNextPath(formData.get("next"));
+
+  try {
+    const { apiBase, token } = getAdminApiConfig();
+    if (!token) throw new Error("missing_admin_token");
+
+    const res = await fetch(`${apiBase}/admin/auth/login`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${token}`,
+        "x-admin-token": token
+      },
+      body: JSON.stringify({ email, password }),
+      cache: "no-store"
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(json?.error || `login_failed_${res.status}`);
+
+    const kind = String(json?.kind || "").trim();
+    const role = kind === "super_admin" ? "SUPER_ADMIN" : String(json?.role || "").trim();
+    const tenantId = json?.tenantId ?? null;
+    const sessionEmail = String(json?.email || email || "").trim();
+    if (!sessionEmail || !role) throw new Error("invalid_login_response");
+
+    const sessionToken = await signAdminSession({ email: sessionEmail, role: role as any, tenantId }, { ttlSeconds: remember ? 60 * 60 * 24 * 30 : 60 * 60 * 12 });
+    cookies().set(ADMIN_SESSION_COOKIE, sessionToken, {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      secure: process.env.NODE_ENV === "production",
+      ...(remember ? { maxAge: 60 * 60 * 24 * 30 } : {})
+    });
+
+    const saToken = kind === "super_admin" ? String(json?.saToken || "").trim() : "";
+    if (saToken) {
+      cookies().set("sa_session", saToken, {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+        ...(remember ? { maxAge: 60 * 60 * 24 * 30 } : {})
+      });
+    }
+
+    redirect(nextPath);
+  } catch (err) {
+    redirect(`/login?error=${encodeURIComponent(toShortErrorMessage(err))}&next=${encodeURIComponent(nextPath)}`);
+  }
+}
