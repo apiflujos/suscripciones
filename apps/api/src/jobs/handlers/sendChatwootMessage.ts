@@ -30,19 +30,49 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
   // Ensure contact + conversation
   let contactId: number | undefined;
   let sourceId: string | undefined;
+
+  const customerMeta: any = (msg.customer.metadata ?? {}) as any;
+  const knownContactId = customerMeta?.chatwoot?.contactId;
+  const knownSourceId = customerMeta?.chatwoot?.sourceId;
+  if (typeof knownContactId === "number" && Number.isFinite(knownContactId)) {
+    contactId = knownContactId;
+    if (typeof knownSourceId === "string" && knownSourceId.trim()) sourceId = knownSourceId.trim();
+  }
+
   try {
-    const created = await client.createContact({
-      name: msg.customer.name || undefined,
-      email: msg.customer.email || undefined,
-      phoneNumber: msg.customer.phone || undefined
-    });
-    contactId = created.contactId;
-    sourceId = created.sourceId;
+    if (!contactId) {
+      const created = await client.createContact({
+        name: msg.customer.name || undefined,
+        email: msg.customer.email || undefined,
+        phoneNumber: msg.customer.phone || undefined
+      });
+      contactId = created.contactId;
+      sourceId = created.sourceId;
+
+      const merged = {
+        ...(customerMeta && typeof customerMeta === "object" ? customerMeta : {}),
+        chatwoot: { ...(customerMeta?.chatwoot || {}), contactId, sourceId }
+      };
+      await prisma.customer.update({
+        where: { id: msg.customerId },
+        data: { metadata: merged as any }
+      }).catch(() => {});
+    }
   } catch {
     const q = msg.customer.email || msg.customer.phone || "";
     if (q) {
       const found = await client.searchContact(q);
       contactId = found?.contactId;
+      if (contactId) {
+        const merged = {
+          ...(customerMeta && typeof customerMeta === "object" ? customerMeta : {}),
+          chatwoot: { ...(customerMeta?.chatwoot || {}), contactId }
+        };
+        await prisma.customer.update({
+          where: { id: msg.customerId },
+          data: { metadata: merged as any }
+        }).catch(() => {});
+      }
     }
   }
 

@@ -7,9 +7,10 @@ type Trigger = "SUBSCRIPTION_DUE" | "PAYMENT_APPROVED" | "PAYMENT_DECLINED";
 type TemplateKind = "TEXT" | "WHATSAPP_TEMPLATE";
 
 const VARIABLES = [
-  { label: "Nombre", value: "{{customer.name}}" },
+  { label: "Nombre completo", value: "{{customer.name}}" },
   { label: "Email", value: "{{customer.email}}" },
   { label: "Teléfono", value: "{{customer.phone}}" },
+  { label: "Dirección", value: "{{customer.metadata.address}}" },
   { label: "Plan", value: "{{plan.name}}" },
   { label: "Fecha corte", value: "{{subscription.currentPeriodEndAt}}" },
   { label: "Fecha pago", value: "{{payment.paidAt}}" },
@@ -61,8 +62,7 @@ export function NotificationWizard({
   const [message, setMessage] = useState("");
 
   const [waTemplateName, setWaTemplateName] = useState("");
-  const [waLanguage, setWaLanguage] = useState("es");
-  const [waParams, setWaParams] = useState<string[]>(["", "", "", "", ""]);
+  const [waLanguage] = useState("es");
 
   const lastFocusableRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
 
@@ -252,45 +252,16 @@ export function NotificationWizard({
                 </div>
               ) : (
                 <>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 220px", gap: 10 }}>
-                    <div className="field">
-                      <label>Template name (Meta)</label>
-                      <input
-                        className="input"
-                        value={waTemplateName}
-                        onChange={(e) => setWaTemplateName(e.target.value)}
-                        onFocus={(e) => (lastFocusableRef.current = e.target)}
-                        placeholder="nombre_template"
-                      />
-                    </div>
-                    <div className="field">
-                      <label>Idioma</label>
-                      <input
-                        className="input"
-                        value={waLanguage}
-                        onChange={(e) => setWaLanguage(e.target.value)}
-                        onFocus={(e) => (lastFocusableRef.current = e.target)}
-                        placeholder="es"
-                      />
-                    </div>
-                  </div>
                   <div className="field">
-                    <label>Parámetros del body (1..N)</label>
-                    <div style={{ display: "grid", gap: 8 }}>
-                      {waParams.map((v, idx) => (
-                        <input
-                          key={idx}
-                          className="input"
-                          value={v}
-                          onChange={(e) => setWaParams((prev) => prev.map((x, i) => (i === idx ? e.target.value : x)))}
-                          onFocus={(e) => (lastFocusableRef.current = e.target)}
-                          placeholder={`Param ${idx + 1} (ej: {{customer.name}})`}
-                        />
-                      ))}
-                    </div>
-                    <button type="button" className="ghost" onClick={() => setWaParams((prev) => [...prev, ""])} style={{ marginTop: 8 }}>
-                      + Agregar parámetro
-                    </button>
+                    <label>ID de plantilla (Meta)</label>
+                    <input
+                      className="input"
+                      value={waTemplateName}
+                      onChange={(e) => setWaTemplateName(e.target.value)}
+                      onFocus={(e) => (lastFocusableRef.current = e.target)}
+                      placeholder="nombre_template"
+                    />
+                    <div className="field-hint">El idioma se envía como <code>es</code> (si necesitas otro, lo habilitamos).</div>
                   </div>
                 </>
               )}
@@ -319,9 +290,6 @@ export function NotificationWizard({
                 <input type="hidden" name="ensurePaymentLink" value={ensurePaymentLink ? "1" : "0"} />
                 {computedOffsetsSeconds.map((s, idx) => (
                   <input key={idx} type="hidden" name="offsetSeconds" value={String(s)} />
-                ))}
-                {waParams.map((p, idx) => (
-                  <input key={idx} type="hidden" name="waParam" value={p} />
                 ))}
                 <button className="primary" type="submit" disabled={!canGoNext()}>
                   Crear

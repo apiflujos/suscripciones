@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../db/prisma";
 import { WompiClient } from "../providers/wompi/client";
 import { getWompiApiBaseUrl, getWompiCheckoutLinkBaseUrl, getWompiPrivateKey, getWompiPublicKey } from "../services/runtimeConfig";
+import { ensureChatwootContactForCustomer } from "../services/chatwootSync";
 
 const createCustomerSchema = z.object({
   name: z.string().min(1).optional(),
@@ -47,6 +48,7 @@ customersRouter.post("/", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
 
   const customer = await prisma.customer.create({ data: parsed.data as any });
+  await ensureChatwootContactForCustomer(customer.id).catch(() => {});
   res.status(201).json({ customer });
 });
 
