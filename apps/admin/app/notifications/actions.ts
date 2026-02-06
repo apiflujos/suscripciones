@@ -59,6 +59,112 @@ function slugifyId(input: string) {
     .slice(0, 48);
 }
 
+function chatwootTypeForTrigger(trigger: string) {
+  if (trigger === "SUBSCRIPTION_DUE") return "EXPIRY_WARNING";
+  if (trigger === "PAYMENT_APPROVED") return "PAYMENT_CONFIRMED";
+  if (trigger === "PAYMENT_DECLINED") return "PAYMENT_FAILED";
+  return "EXPIRY_WARNING";
+}
+
+function toOffsetsSeconds(formData: FormData) {
+  const raw = formData.getAll("offsetSeconds");
+  const offsets = raw
+    .map((v) => Number(String(v)))
+    .filter((n) => Number.isFinite(n))
+    .map((n) => Math.trunc(n as number));
+  return offsets.length ? offsets : [0];
+}
+
+export async function createNotification(formData: FormData) {
+  const environment = normalizeEnv(formData.get("environment"));
+  const trigger = String(formData.get("trigger") || "").trim();
+  const title = String(formData.get("title") || "").trim();
+  const templateKind = String(formData.get("templateKind") || "").trim();
+  const message = String(formData.get("message") || "").trim();
+  const ensurePaymentLink = String(formData.get("ensurePaymentLink") || "").trim() === "1";
+
+  const waTemplateName = String(formData.get("waTemplateName") || "").trim();
+  const waLanguage = String(formData.get("waLanguage") || "").trim();
+  const waParams = formData
+    .getAll("waParam")
+    .map((v) => String(v || "").trim())
+    .filter(Boolean);
+
+  const allowedTriggers = new Set(["SUBSCRIPTION_DUE", "PAYMENT_APPROVED", "PAYMENT_DECLINED"]);
+  if (!allowedTriggers.has(trigger)) return redirect(`/notifications?env=${environment}&error=invalid_trigger`);
+
+  const offsetsSeconds = toOffsetsSeconds(formData);
+
+  const isText = templateKind === "TEXT";
+  const isWhatsAppTemplate = templateKind === "WHATSAPP_TEMPLATE";
+  if (!isText && !isWhatsAppTemplate) return redirect(`/notifications?env=${environment}&error=invalid_template_kind`);
+
+  if (isText && !message) return redirect(`/notifications?env=${environment}&error=missing_message`);
+  if (isWhatsAppTemplate && (!waTemplateName || !waLanguage)) return redirect(`/notifications?env=${environment}&error=missing_template_fields`);
+
+  try {
+    const config = await getNotificationsConfig(environment);
+    const templates = Array.isArray(config?.templates) ? config.templates.slice() : [];
+    const rules = Array.isArray(config?.rules) ? config.rules.slice() : [];
+
+    const chatwootType = chatwootTypeForTrigger(trigger);
+    const baseName =
+      title ||
+      (trigger === "SUBSCRIPTION_DUE"
+        ? "Recordatorio de pago"
+        : trigger === "PAYMENT_APPROVED"
+          ? "Pago aprobado"
+          : "Pago rechazado");
+
+    const base = slugifyId(baseName) || "notif";
+    let templateId = `tpl_${base}`;
+    let i = 2;
+    while (templates.some((t: any) => String(t.id) === templateId)) templateId = `tpl_${base}_${i++}`;
+
+    const template: any = {
+      id: templateId,
+      name: baseName,
+      channel: "CHATWOOT",
+      chatwootType
+    };
+
+    if (isText) {
+      template.content = message;
+    } else {
+      template.content = "(template)";
+      template.chatwootTemplate = {
+        name: waTemplateName,
+        language: waLanguage,
+        processed_params: waParams.length ? { body: waParams.map((v, idx) => ({ key: String(idx + 1), value: v })) } : undefined
+      };
+    }
+
+    templates.push(template);
+
+    const ruleId = `rule_${Date.now()}`;
+    const rule: any = {
+      id: ruleId,
+      name: baseName,
+      enabled: true,
+      trigger,
+      templateId,
+      offsetsSeconds
+    };
+    if (trigger === "SUBSCRIPTION_DUE") {
+      rule.ensurePaymentLink = ensurePaymentLink;
+      rule.conditions = { skipIfSubscriptionStatusIn: ["CANCELED"] };
+    }
+    rules.push(rule);
+
+    const next = { version: 1, ...(config || {}), templates, rules };
+    await putNotificationsConfig(environment, next);
+
+    redirect(`/notifications?env=${environment}&saved=1`);
+  } catch (err) {
+    redirect(`/notifications?env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
+  }
+}
+
 export async function saveNotificationsConfig(formData: FormData) {
   const environment = String(formData.get("environment") || "").trim().toUpperCase();
   const raw = String(formData.get("configJson") || "").trim();

@@ -88,79 +88,8 @@ export type NotificationsConfig = z.infer<typeof notificationsConfigSchema>;
 function defaultConfig(): NotificationsConfig {
   return {
     version: 1,
-    templates: [
-      {
-        id: "tpl_due_warning",
-        name: "Recordatorio de vencimiento",
-        channel: "CHATWOOT",
-        chatwootType: "EXPIRY_WARNING",
-        content:
-          "Recordatorio: tu suscripción {{plan.name}} vence el {{subscription.currentPeriodEndAt}}. " +
-          "Paga aquí: {{payment.checkoutUrl}}"
-      },
-      {
-        id: "tpl_payment_ok",
-        name: "Pago aprobado",
-        channel: "CHATWOOT",
-        chatwootType: "PAYMENT_CONFIRMED",
-        content: "Pago aprobado. Referencia: {{payment.reference}}. Suscripción vigente hasta {{subscription.currentPeriodEndAt}}."
-      },
-      {
-        id: "tpl_payment_failed",
-        name: "Pago rechazado",
-        channel: "CHATWOOT",
-        chatwootType: "PAYMENT_FAILED",
-        content: "Pago rechazado. Referencia: {{payment.reference}}. Si necesitas ayuda responde este mensaje."
-      }
-    ],
-    rules: [
-      {
-        id: "rule_due_24h",
-        name: "Recordatorio 24h antes",
-        enabled: true,
-        trigger: "SUBSCRIPTION_DUE",
-        templateId: "tpl_due_warning",
-        offsetsSeconds: [-24 * 60 * 60],
-        ensurePaymentLink: true,
-        conditions: { skipIfSubscriptionStatusIn: ["CANCELED"] }
-      },
-      {
-        id: "rule_due_0",
-        name: "Recordatorio el día del cobro",
-        enabled: true,
-        trigger: "SUBSCRIPTION_DUE",
-        templateId: "tpl_due_warning",
-        offsetsSeconds: [0],
-        ensurePaymentLink: true,
-        conditions: { skipIfSubscriptionStatusIn: ["CANCELED"] }
-      },
-      {
-        id: "rule_due_plus_1d",
-        name: "Mora +1 día",
-        enabled: true,
-        trigger: "SUBSCRIPTION_DUE",
-        templateId: "tpl_due_warning",
-        offsetsSeconds: [24 * 60 * 60],
-        ensurePaymentLink: true,
-        conditions: { skipIfSubscriptionStatusIn: ["CANCELED"] }
-      },
-      {
-        id: "rule_payment_ok",
-        name: "Confirmación pago aprobado",
-        enabled: true,
-        trigger: "PAYMENT_APPROVED",
-        templateId: "tpl_payment_ok",
-        offsetsSeconds: [0]
-      },
-      {
-        id: "rule_payment_failed",
-        name: "Pago rechazado",
-        enabled: true,
-        trigger: "PAYMENT_DECLINED",
-        templateId: "tpl_payment_failed",
-        offsetsSeconds: [0]
-      }
-    ]
+    templates: [],
+    rules: []
   };
 }
 
