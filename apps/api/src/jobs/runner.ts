@@ -5,6 +5,7 @@ import { LogLevel, RetryJobStatus, RetryJobType } from "@prisma/client";
 import { forwardWompiToShopify, processWompiEvent } from "./handlers/processWompiEvent";
 import { sendChatwootMessage } from "./handlers/sendChatwootMessage";
 import { paymentRetry } from "./handlers/paymentRetry";
+import { subscriptionReminder } from "./handlers/subscriptionReminder";
 import { systemLog } from "../services/systemLog";
 
 loadEnv(process.env);
@@ -51,6 +52,8 @@ async function runOnce() {
         await sendChatwootMessage(payload.chatwootMessageId);
       } else if (job.type === RetryJobType.PAYMENT_RETRY) {
         await paymentRetry(payload);
+      } else if (job.type === RetryJobType.SUBSCRIPTION_REMINDER) {
+        await subscriptionReminder(payload);
       } else {
         logger.warn({ jobId: job.id, type: job.type }, "Unhandled job type");
       }

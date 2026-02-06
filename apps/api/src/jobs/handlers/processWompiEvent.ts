@@ -5,6 +5,7 @@ import { postJson } from "../../lib/http";
 import { ChatwootMessageType, PaymentStatus, RetryJobType, SubscriptionStatus, WebhookProcessStatus } from "@prisma/client";
 import { addIntervalUtc } from "../../lib/dates";
 import { getShopifyForward } from "../../services/runtimeConfig";
+import { schedulePaymentStatusNotifications, scheduleSubscriptionDueNotifications } from "../../services/notificationsScheduler";
 
 function getTransactionFromPayload(payload: any): any | null {
   const tx = payload?.data?.transaction;
@@ -126,6 +127,8 @@ export async function processWompiEvent(webhookEventId: string) {
     data: { processStatus: WebhookProcessStatus.PROCESSED, processedAt: new Date() }
   });
 
+  await schedulePaymentStatusNotifications({ paymentId: paymentRecord.id }).catch(() => {});
+
   if (!wasApproved && paymentStatus === PaymentStatus.APPROVED && subscription) {
     const advancedTo = await prisma.$transaction(async (tx) => {
       const sub = await tx.subscription.findUnique({
@@ -183,24 +186,9 @@ export async function processWompiEvent(webhookEventId: string) {
       }
     });
 
-    // Chatwoot: confirmación (best-effort async)
+    // Notificaciones: la confirmación de pago se maneja por reglas (PAYMENT_APPROVED).
     if (advancedTo) {
-      await prisma.chatwootMessage
-        .create({
-          data: {
-            customerId: subscription.customerId,
-            subscriptionId: subscription.id,
-            paymentId: paymentRecord.id,
-            type: ChatwootMessageType.PAYMENT_CONFIRMED,
-            content: `Pago aprobado. Suscripción renovada hasta ${advancedTo.toISOString()}.`
-          }
-        })
-        .then((msg) =>
-          prisma.retryJob.create({
-            data: { type: RetryJobType.SEND_CHATWOOT_MESSAGE, payload: { chatwootMessageId: msg.id } }
-          })
-        )
-        .catch(() => {});
+      await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});
     }
   }
 

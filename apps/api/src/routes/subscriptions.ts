@@ -5,6 +5,7 @@ import { addIntervalUtc } from "../lib/dates";
 import { LogLevel, PaymentStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
 import { systemLog } from "../services/systemLog";
 import { createPaymentLinkForSubscription } from "../services/subscriptionBilling";
+import { scheduleSubscriptionDueNotifications } from "../services/notificationsScheduler";
 
 const createSubscriptionSchema = z.object({
   customerId: z.string().uuid(),
@@ -75,6 +76,8 @@ subscriptionsRouter.post("/", async (req, res) => {
       currentCycle: 1
     }
   });
+
+  await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});
 
   const runAt = periodEnd <= new Date(Date.now() + 5_000) ? new Date() : periodEnd;
 

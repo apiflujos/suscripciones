@@ -13,6 +13,7 @@ import { productsRouter } from "./routes/products";
 import { ordersRouter } from "./routes/orders";
 import { settingsRouter } from "./routes/settings";
 import { logsRouter } from "./routes/logs";
+import { notificationsRouter } from "./routes/notifications";
 
 export function createApp() {
   const app = express();
@@ -34,6 +35,7 @@ export function createApp() {
   app.use("/admin/subscriptions", requireAdminToken, subscriptionsRouter);
   app.use("/admin/settings", requireAdminToken, settingsRouter);
   app.use("/admin/logs", requireAdminToken, logsRouter);
+  app.use("/admin/notifications", requireAdminToken, notificationsRouter);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

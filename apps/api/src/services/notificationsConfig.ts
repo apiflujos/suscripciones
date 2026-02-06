@@ -1,0 +1,186 @@
+import { CredentialProvider } from "@prisma/client";
+import { z } from "zod";
+import { getCredential, setCredential } from "./credentials";
+
+type ActiveEnv = "PRODUCTION" | "SANDBOX";
+
+function normalizeActiveEnv(value: string | undefined): ActiveEnv {
+  const v = String(value || "")
+    .trim()
+    .toUpperCase();
+  return v === "SANDBOX" ? "SANDBOX" : "PRODUCTION";
+}
+
+async function getCommsActiveEnv(): Promise<ActiveEnv> {
+  const fromDb = await getCredential(CredentialProvider.CHATWOOT, "ACTIVE_ENV");
+  if (fromDb) return normalizeActiveEnv(fromDb);
+  return normalizeActiveEnv(process.env.CHATWOOT_ACTIVE_ENV);
+}
+
+export const notificationTriggerSchema = z.enum(["SUBSCRIPTION_DUE", "PAYMENT_APPROVED", "PAYMENT_DECLINED"]);
+export type NotificationTrigger = z.infer<typeof notificationTriggerSchema>;
+
+export const notificationChannelSchema = z.enum(["CHATWOOT", "META"]);
+export type NotificationChannel = z.infer<typeof notificationChannelSchema>;
+
+const paymentStatusSchema = z.enum(["PENDING", "APPROVED", "DECLINED", "ERROR", "VOIDED"]);
+const subscriptionStatusSchema = z.enum(["ACTIVE", "PAST_DUE", "EXPIRED", "CANCELED", "SUSPENDED"]);
+const chatwootMessageTypeSchema = z.enum(["PAYMENT_LINK", "PAYMENT_CONFIRMED", "EXPIRY_WARNING", "PAYMENT_FAILED"]);
+
+const templateSchema = z
+  .object({
+    id: z.string().min(1),
+    name: z.string().min(1),
+    channel: notificationChannelSchema,
+    chatwootType: chatwootMessageTypeSchema.optional(),
+    content: z.string().min(1).optional(),
+    meta: z
+      .object({
+        templateName: z.string().min(1),
+        language: z.string().min(1),
+        components: z.any().optional()
+      })
+      .optional()
+  })
+  .superRefine((val, ctx) => {
+    if (val.channel === "CHATWOOT") {
+      if (!val.chatwootType) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "chatwootType requerido", path: ["chatwootType"] });
+      if (!val.content) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "content requerido", path: ["content"] });
+      return;
+    }
+    if (!val.meta) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "meta requerido", path: ["meta"] });
+  });
+
+const ruleSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  enabled: z.boolean().default(true),
+  trigger: notificationTriggerSchema,
+  templateId: z.string().min(1),
+  offsetsMinutes: z.array(z.number().int()).default([0]),
+  ensurePaymentLink: z.boolean().optional(),
+  conditions: z
+    .object({
+      skipIfSubscriptionStatusIn: z.array(subscriptionStatusSchema).optional(),
+      skipIfPaymentStatusIn: z.array(paymentStatusSchema).optional(),
+      requirePaymentStatusIn: z.array(paymentStatusSchema).optional()
+    })
+    .optional()
+});
+
+export const notificationsConfigSchema = z.object({
+  version: z.number().int().default(1),
+  templates: z.array(templateSchema).default([]),
+  rules: z.array(ruleSchema).default([])
+});
+
+export type NotificationsConfig = z.infer<typeof notificationsConfigSchema>;
+
+function defaultConfig(): NotificationsConfig {
+  return {
+    version: 1,
+    templates: [
+      {
+        id: "tpl_due_warning",
+        name: "Recordatorio de vencimiento",
+        channel: "CHATWOOT",
+        chatwootType: "EXPIRY_WARNING",
+        content:
+          "Recordatorio: tu suscripción {{plan.name}} vence el {{subscription.currentPeriodEndAt}}. " +
+          "Paga aquí: {{payment.checkoutUrl}}"
+      },
+      {
+        id: "tpl_payment_ok",
+        name: "Pago aprobado",
+        channel: "CHATWOOT",
+        chatwootType: "PAYMENT_CONFIRMED",
+        content: "Pago aprobado. Referencia: {{payment.reference}}. Suscripción vigente hasta {{subscription.currentPeriodEndAt}}."
+      },
+      {
+        id: "tpl_payment_failed",
+        name: "Pago rechazado",
+        channel: "CHATWOOT",
+        chatwootType: "PAYMENT_FAILED",
+        content: "Pago rechazado. Referencia: {{payment.reference}}. Si necesitas ayuda responde este mensaje."
+      }
+    ],
+    rules: [
+      {
+        id: "rule_due_24h",
+        name: "Recordatorio 24h antes",
+        enabled: true,
+        trigger: "SUBSCRIPTION_DUE",
+        templateId: "tpl_due_warning",
+        offsetsMinutes: [-24 * 60],
+        ensurePaymentLink: true,
+        conditions: { skipIfSubscriptionStatusIn: ["CANCELED"] }
+      },
+      {
+        id: "rule_due_0",
+        name: "Recordatorio el día del cobro",
+        enabled: true,
+        trigger: "SUBSCRIPTION_DUE",
+        templateId: "tpl_due_warning",
+        offsetsMinutes: [0],
+        ensurePaymentLink: true,
+        conditions: { skipIfSubscriptionStatusIn: ["CANCELED"] }
+      },
+      {
+        id: "rule_due_plus_1d",
+        name: "Mora +1 día",
+        enabled: true,
+        trigger: "SUBSCRIPTION_DUE",
+        templateId: "tpl_due_warning",
+        offsetsMinutes: [24 * 60],
+        ensurePaymentLink: true,
+        conditions: { skipIfSubscriptionStatusIn: ["CANCELED"] }
+      },
+      {
+        id: "rule_payment_ok",
+        name: "Confirmación pago aprobado",
+        enabled: true,
+        trigger: "PAYMENT_APPROVED",
+        templateId: "tpl_payment_ok",
+        offsetsMinutes: [0]
+      },
+      {
+        id: "rule_payment_failed",
+        name: "Pago rechazado",
+        enabled: true,
+        trigger: "PAYMENT_DECLINED",
+        templateId: "tpl_payment_failed",
+        offsetsMinutes: [0]
+      }
+    ]
+  };
+}
+
+function keyForEnv(env: ActiveEnv) {
+  return `NOTIFICATIONS_CONFIG_${env}`;
+}
+
+export async function getNotificationsConfig(): Promise<NotificationsConfig> {
+  const env = await getCommsActiveEnv();
+  const raw =
+    (await getCredential(CredentialProvider.CHATWOOT, keyForEnv(env))) ||
+    (await getCredential(CredentialProvider.CHATWOOT, "NOTIFICATIONS_CONFIG")) ||
+    (process.env.NOTIFICATIONS_CONFIG_JSON || "").trim();
+
+  if (!raw) return defaultConfig();
+
+  try {
+    const parsed = JSON.parse(raw);
+    const cfg = notificationsConfigSchema.parse(parsed);
+    return cfg;
+  } catch {
+    return defaultConfig();
+  }
+}
+
+export async function setNotificationsConfig(cfg: unknown, opts?: { environment?: ActiveEnv }) {
+  const env = opts?.environment || (await getCommsActiveEnv());
+  const normalized = notificationsConfigSchema.parse(cfg);
+  await setCredential(CredentialProvider.CHATWOOT, keyForEnv(env), JSON.stringify(normalized));
+  return normalized;
+}
+
