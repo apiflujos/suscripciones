@@ -1,16 +1,27 @@
 import { adminLogin } from "./actions";
+import { getAdminApiConfig } from "../lib/adminApi";
 
 export default async function LoginPage({ searchParams }: { searchParams?: { error?: string; next?: string; loggedOut?: string } }) {
   const error = String(searchParams?.error || "").trim();
   const next = String(searchParams?.next || "").trim();
   const loggedOut = String(searchParams?.loggedOut || "").trim() === "1";
 
+  const { apiBase } = getAdminApiConfig();
+
   const errorMessage =
     error === "missing_admin_token"
       ? "Falta configurar el token del Admin (API_ADMIN_TOKEN) y el token del API (ADMIN_API_TOKEN)."
+      : error === "api_unreachable"
+        ? `No se pudo conectar al API (${apiBase}). Revisa NEXT_PUBLIC_API_BASE_URL, que el API esté arriba y que Render no apunte a localhost.`
+        : error === "admin_api_expected_not_configured"
+          ? "En el API falta configurar ADMIN_API_TOKEN (o API_ADMIN_TOKEN)."
+          : error === "admin_api_token_mismatch"
+            ? "El token del Admin (API_ADMIN_TOKEN) no coincide con el ADMIN_API_TOKEN del API."
+            : error === "unauthorized"
+              ? "Credenciales inválidas o usuario no existe."
       : error === "super_admin_not_configured"
         ? "Super Admin no está configurado. Define SUPER_ADMIN_EMAIL y SUPER_ADMIN_PASSWORD en el API, o crea un usuario en la tabla sa_users."
-        : error;
+      : error;
 
   return (
     <main className="authMain">

@@ -15,7 +15,22 @@ function safeNextPath(value: unknown) {
 
 function toShortErrorMessage(err: unknown) {
   const raw = err instanceof Error ? err.message : String(err);
-  return raw.replace(/\s+/g, " ").trim().slice(0, 220) || "unknown_error";
+  const msg = raw.replace(/\s+/g, " ").trim();
+  if (!msg) return "unknown_error";
+
+  const lower = msg.toLowerCase();
+  if (
+    lower.includes("fetch failed") ||
+    lower.includes("failed to fetch") ||
+    lower.includes("econnrefused") ||
+    lower.includes("enotfound") ||
+    lower.includes("socket") ||
+    lower.includes("network")
+  ) {
+    return "api_unreachable";
+  }
+
+  return msg.slice(0, 220);
 }
 
 export async function adminLogin(formData: FormData) {
@@ -40,7 +55,12 @@ export async function adminLogin(formData: FormData) {
       cache: "no-store"
     });
     const json = await res.json().catch(() => null);
-    if (!res.ok) throw new Error(json?.error || `login_failed_${res.status}`);
+    if (!res.ok) {
+      const apiErr = String(json?.error || "").trim();
+      const apiReason = String(json?.reason || "").trim();
+      if (res.status === 401 && apiErr === "unauthorized" && apiReason) throw new Error(`admin_api_${apiReason}`);
+      throw new Error(apiErr || `login_failed_${res.status}`);
+    }
 
     const kind = String(json?.kind || "").trim();
     const role = kind === "super_admin" ? "SUPER_ADMIN" : String(json?.role || "").trim();
