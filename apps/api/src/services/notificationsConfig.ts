@@ -27,6 +27,13 @@ const paymentStatusSchema = z.enum(["PENDING", "APPROVED", "DECLINED", "ERROR", 
 const subscriptionStatusSchema = z.enum(["ACTIVE", "PAST_DUE", "EXPIRED", "CANCELED", "SUSPENDED"]);
 const chatwootMessageTypeSchema = z.enum(["PAYMENT_LINK", "PAYMENT_CONFIRMED", "EXPIRY_WARNING", "PAYMENT_FAILED"]);
 
+const chatwootTemplateParamsSchema = z.object({
+  name: z.string().min(1),
+  category: z.string().min(1).optional(),
+  language: z.string().min(1),
+  processed_params: z.any().optional()
+});
+
 const templateSchema = z
   .object({
     id: z.string().min(1),
@@ -34,6 +41,7 @@ const templateSchema = z
     channel: notificationChannelSchema,
     chatwootType: chatwootMessageTypeSchema.optional(),
     content: z.string().min(1).optional(),
+    chatwootTemplate: chatwootTemplateParamsSchema.optional(),
     meta: z
       .object({
         templateName: z.string().min(1),
@@ -45,7 +53,7 @@ const templateSchema = z
   .superRefine((val, ctx) => {
     if (val.channel === "CHATWOOT") {
       if (!val.chatwootType) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "chatwootType requerido", path: ["chatwootType"] });
-      if (!val.content) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "content requerido", path: ["content"] });
+      if (!val.content && !val.chatwootTemplate) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "content o chatwootTemplate requerido", path: ["content"] });
       return;
     }
     if (!val.meta) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "meta requerido", path: ["meta"] });
@@ -183,4 +191,3 @@ export async function setNotificationsConfig(cfg: unknown, opts?: { environment?
   await setCredential(CredentialProvider.CHATWOOT, keyForEnv(env), JSON.stringify(normalized));
   return normalized;
 }
-
