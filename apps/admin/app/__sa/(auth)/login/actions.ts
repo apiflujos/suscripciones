@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { isRedirectError } from "next/dist/client/components/redirect";
 import { SA_COOKIE, adminFetchNoSa } from "../../saApi";
 
 function toShortErrorMessage(err: unknown) {
@@ -31,6 +32,7 @@ export async function saLogin(formData: FormData) {
     });
     redirect("/sa");
   } catch (err) {
+    if (isRedirectError(err)) throw err;
     redirect(`/sa/login?error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }

@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { isRedirectError } from "next/dist/client/components/redirect";
 import { getAdminApiConfig } from "../lib/adminApi";
 import { ADMIN_SESSION_COOKIE, signAdminSession } from "../../lib/session";
 
@@ -90,6 +91,53 @@ export async function adminLogin(formData: FormData) {
 
     redirect(nextPath);
   } catch (err) {
+    if (isRedirectError(err)) throw err;
     redirect(`/login?error=${encodeURIComponent(toShortErrorMessage(err))}&next=${encodeURIComponent(nextPath)}`);
+  }
+}
+
+export async function bootstrapSuperAdmin(formData: FormData) {
+  const email = String(formData.get("email") || "").trim();
+  const password = String(formData.get("password") || "");
+  const nextPath = safeNextPath(formData.get("next"));
+
+  try {
+    const { apiBase, token } = getAdminApiConfig();
+    if (!token) throw new Error("missing_admin_token");
+
+    const res = await fetch(`${apiBase}/admin/sa/bootstrap`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${token}`,
+        "x-admin-token": token
+      },
+      body: JSON.stringify({ email, password }),
+      cache: "no-store"
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(String(json?.error || `bootstrap_failed_${res.status}`).trim());
+
+    const saToken = String(json?.token || "").trim();
+    if (!saToken) throw new Error("missing_sa_token");
+
+    const sessionToken = await signAdminSession({ email, role: "SUPER_ADMIN", tenantId: null }, { ttlSeconds: 60 * 60 * 12 });
+    cookies().set(ADMIN_SESSION_COOKIE, sessionToken, {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      secure: process.env.NODE_ENV === "production"
+    });
+    cookies().set("sa_session", saToken, {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      secure: process.env.NODE_ENV === "production"
+    });
+
+    redirect(nextPath || "/sa");
+  } catch (err) {
+    if (isRedirectError(err)) throw err;
+    redirect(`/login?error=${encodeURIComponent(toShortErrorMessage(err))}&next=${encodeURIComponent(nextPath || "/sa")}`);
   }
 }
