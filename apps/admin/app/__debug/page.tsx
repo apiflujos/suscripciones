@@ -32,6 +32,7 @@ export default async function DebugPage() {
     <main style={{ padding: 24, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
       <h1 style={{ marginTop: 0 }}>Debug</h1>
       <div>apiBase (server config): {apiBase}</div>
+      <div>internal override: {process.env.ADMIN_INTERNAL_API_BASE_URL || process.env.INTERNAL_API_BASE_URL || "—"}</div>
       <div style={{ marginTop: 12 }}>Computed diag:</div>
       <pre style={{ whiteSpace: "pre-wrap" }}>{JSON.stringify(diag, null, 2)}</pre>
       <div style={{ marginTop: 12, color: "#666" }}>
