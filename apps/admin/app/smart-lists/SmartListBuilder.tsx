@@ -270,16 +270,6 @@ function GroupEditor({
 
   return (
     <div style={{ display: "grid", gap: 8, paddingLeft: depth ? 12 : 0, borderLeft: depth ? "2px solid var(--line)" : "none" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <strong>Grupo</strong>
-        <select className="select" value={node.op} onChange={(e) => onChange({ ...node, op: e.target.value as GroupOp })}>
-          <option value="and">AND (todas)</option>
-          <option value="or">OR (cualquiera)</option>
-        </select>
-        {onRemove ? (
-          <button type="button" className="ghost" onClick={onRemove} style={{ marginLeft: "auto" }}>Quitar grupo</button>
-        ) : null}
-      </div>
       {node.children.map((child, idx) =>
         child.type === "group" ? (
           <GroupEditor
@@ -298,6 +288,16 @@ function GroupEditor({
           />
         )
       )}
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <strong>Condición</strong>
+        <select className="select" value={node.op} onChange={(e) => onChange({ ...node, op: e.target.value as GroupOp })}>
+          <option value="and">AND (todas)</option>
+          <option value="or">OR (cualquiera)</option>
+        </select>
+        {onRemove ? (
+          <button type="button" className="ghost" onClick={onRemove} style={{ marginLeft: "auto" }}>Quitar grupo</button>
+        ) : null}
+      </div>
       <div style={{ display: "flex", gap: 8 }}>
         <button type="button" className="ghost" onClick={() => onChange({ ...node, children: node.children.concat([defaultRule()]) })}>
           Agregar regla
