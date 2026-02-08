@@ -70,7 +70,12 @@ commsRouter.post("/bootstrap-attributes", async (_req, res) => {
     return res.status(400).json({ error: err?.message || "chatwoot_not_configured" });
   }
 
-  const defs = [
+  const defs: Array<{
+    key: string;
+    displayName: string;
+    displayType: "text" | "number" | "currency" | "boolean" | "url" | "date" | "list" | "percent" | "checkbox";
+    values?: string[];
+  }> = [
     { key: "subscription_status", displayName: "Subscription Status", displayType: "list", values: ["ACTIVE", "PAST_DUE", "EXPIRED", "CANCELED", "SUSPENDED"] },
     { key: "plan_name", displayName: "Plan Name", displayType: "text" },
     { key: "plan_price", displayName: "Plan Price (cents)", displayType: "number" },
