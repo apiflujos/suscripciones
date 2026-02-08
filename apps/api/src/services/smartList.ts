@@ -15,6 +15,13 @@ export type SmartListRule =
         | "gte"
         | "lt"
         | "lte"
+        | "before"
+        | "after"
+        | "between"
+        | "within_last"
+        | "within_next"
+        | "older_than"
+        | "newer_than"
         | "exists"
         | "isEmpty";
       value?: any;
@@ -46,6 +53,27 @@ function toComparable(val: any) {
 function normalizeString(val: any) {
   if (val == null) return "";
   return String(val).toLowerCase();
+}
+
+function toDateMs(val: any): number | null {
+  if (val == null) return null;
+  if (val instanceof Date) return val.getTime();
+  if (typeof val === "number") return Number.isFinite(val) ? val : null;
+  if (typeof val === "string") {
+    const t = Date.parse(val);
+    return Number.isNaN(t) ? null : t;
+  }
+  return null;
+}
+
+function durationMs(amount: number, unit: string): number {
+  const n = Number(amount);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  const u = String(unit || "").toLowerCase();
+  if (u.startsWith("sec")) return n * 1000;
+  if (u.startsWith("min")) return n * 60 * 1000;
+  if (u.startsWith("hour") || u.startsWith("hr")) return n * 60 * 60 * 1000;
+  return n * 24 * 60 * 60 * 1000;
 }
 
 function evalRule(rule: SmartListRule, ctx: Record<string, any>): boolean {
@@ -81,6 +109,34 @@ function evalRule(rule: SmartListRule, ctx: Record<string, any>): boolean {
   if (op === "gte") return (cmpVal as any) >= (target as any);
   if (op === "lt") return (cmpVal as any) < (target as any);
   if (op === "lte") return (cmpVal as any) <= (target as any);
+  if (op === "before" || op === "after" || op === "between" || op === "within_last" || op === "within_next" || op === "older_than" || op === "newer_than") {
+    const valMs = toDateMs(val);
+    if (valMs == null) return false;
+    const now = Date.now();
+
+    if (op === "before") {
+      const t = toDateMs(rule.value);
+      return t != null ? valMs < t : false;
+    }
+    if (op === "after") {
+      const t = toDateMs(rule.value);
+      return t != null ? valMs > t : false;
+    }
+    if (op === "between") {
+      const from = toDateMs((rule.value as any)?.from ?? (Array.isArray(rule.value) ? rule.value[0] : null));
+      const to = toDateMs((rule.value as any)?.to ?? (Array.isArray(rule.value) ? rule.value[1] : null));
+      if (from == null || to == null) return false;
+      return valMs >= from && valMs <= to;
+    }
+    const amount = Number((rule.value as any)?.amount ?? (rule.value as any)?.value ?? 0);
+    const unit = String((rule.value as any)?.unit ?? "days");
+    const ms = durationMs(amount, unit);
+    if (ms <= 0) return false;
+    if (op === "within_last") return valMs >= now - ms && valMs <= now;
+    if (op === "within_next") return valMs >= now && valMs <= now + ms;
+    if (op === "older_than") return valMs <= now - ms;
+    if (op === "newer_than") return valMs >= now - ms;
+  }
   return false;
 }
 
@@ -117,6 +173,7 @@ export async function computeSmartListRecipients(rules: SmartListRule) {
       subscriptionStatus: sub?.status ?? null,
       planName: sub?.plan?.name ?? null,
       planPrice: sub?.plan?.priceInCents ?? null,
+      planActive: sub?.plan?.active ?? null,
       nextBillingDate: currentPeriodEndAt,
       lastPaymentStatus: latestPayment?.status ?? null,
       lastPaymentDate: latestPayment?.createdAt ?? null,
