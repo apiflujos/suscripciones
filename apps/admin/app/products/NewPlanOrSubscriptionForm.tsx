@@ -252,7 +252,10 @@ export function NewPlanOrSubscriptionForm({
         <form action={action} onKeyDownCapture={enterToNextField} style={{ display: "grid", gap: 10 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <div className="field">
-              <label>Tipo</label>
+              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span>Tipo</span>
+                <HelpTip text="Plan = link de pago. Suscripción = cobro automático." />
+              </label>
               <select ref={tipoRef} className="select" name="billingType" value={tipo} onChange={(e) => setTipo(e.target.value as any)}>
                 <option value="PLAN">Plan (link de pago)</option>
                 <option value="SUBSCRIPCION">Suscripción (cobro automático)</option>
@@ -266,7 +269,10 @@ export function NewPlanOrSubscriptionForm({
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <div className="field">
-              <label>Frecuencia</label>
+              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span>Frecuencia</span>
+                <HelpTip text="Unidad del cobro recurrente." />
+              </label>
               <select className="select" name="intervalUnit" value={intervalUnit} onChange={(e) => setIntervalUnit(e.target.value as any)}>
                 <option value="DAY">Día</option>
                 <option value="WEEK">Semana</option>
@@ -275,7 +281,10 @@ export function NewPlanOrSubscriptionForm({
               </select>
             </div>
             <div className="field">
-              <label>Cada</label>
+              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span>Cada</span>
+                <HelpTip text="Cantidad de unidades por ciclo. Ej: cada 2 semanas." />
+              </label>
               <input className="input" name="intervalCount" value={intervalCount} onChange={(e) => setIntervalCount(e.target.value)} inputMode="numeric" />
             </div>
           </div>
@@ -309,7 +318,10 @@ export function NewPlanOrSubscriptionForm({
 
               {catalogMode === "EXISTING" ? (
                 <div className="field">
-                  <label>Catálogo</label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span>Catálogo</span>
+                    <HelpTip text="Busca y selecciona un producto/servicio existente." />
+                  </label>
                   <input className="input" placeholder="Buscar..." value={catalogQ} onChange={(e) => setCatalogQ(e.target.value)} />
                   {catalogSearching ? <div className="field-hint">Buscando…</div> : null}
                   {catalogSearchError ? <div className="field-hint" style={{ color: "rgba(217, 83, 79, 0.92)" }}>{catalogSearchError}</div> : null}
@@ -340,14 +352,20 @@ export function NewPlanOrSubscriptionForm({
                   <input type="hidden" name="catalogItemId" value="" />
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                     <div className="field">
-                      <label>Tipo de ítem</label>
+                      <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span>Tipo de ítem</span>
+                        <HelpTip text="Producto tiene inventario/variantes; servicio no." />
+                      </label>
                       <select className="select" name="itemKind" value={itemKind} onChange={(e) => setItemKind(e.target.value as any)}>
                         <option value="PRODUCT">Producto</option>
                         <option value="SERVICE">Servicio</option>
                       </select>
                     </div>
                     <div className="field">
-                      <label>Precio</label>
+                      <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span>Precio</span>
+                        <HelpTip text="Precio base antes de impuestos/descuentos." />
+                      </label>
                       <input
                         className="input"
                         name="itemBasePricePesos"
@@ -366,14 +384,20 @@ export function NewPlanOrSubscriptionForm({
                       <input className="input" name="itemName" value={itemName} onChange={(e) => setItemName(e.target.value)} required />
                     </div>
                     <div className="field">
-                      <label>SKU</label>
+                      <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span>SKU</span>
+                        <HelpTip text="Identificador único del ítem." />
+                      </label>
                       <input className="input" name="itemSku" value={itemSku} onChange={(e) => setItemSku(e.target.value)} required />
                     </div>
                   </div>
 
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                     <div className="field">
-                      <label>Impuesto</label>
+                      <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span>Impuesto</span>
+                        <HelpTip text="Se aplica sobre el precio base." />
+                      </label>
                       <select className="select" name="itemTaxPercent" value={itemTaxPercent} onChange={(e) => setItemTaxPercent(e.target.value)}>
                         <option value="0">Sin impuesto</option>
                         <option value="19">IVA 19%</option>
@@ -381,7 +405,10 @@ export function NewPlanOrSubscriptionForm({
                       </select>
                     </div>
                     <div className="field">
-                      <label>Descuento</label>
+                      <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span>Descuento</span>
+                        <HelpTip text="Elige si el descuento es fijo o porcentual." />
+                      </label>
                       <select className="select" name="itemDiscountType" value={itemDiscountType} onChange={(e) => setItemDiscountType(e.target.value as any)}>
                         <option value="NONE">Sin descuento</option>
                         <option value="FIXED">Valor fijo</option>
@@ -389,7 +416,10 @@ export function NewPlanOrSubscriptionForm({
                       </select>
                     </div>
                     <div className="field">
-                      <label>{itemDiscountType === "PERCENT" ? "Descuento (%)" : "Descuento (valor)"}</label>
+                      <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span>{itemDiscountType === "PERCENT" ? "Descuento (%)" : "Descuento (valor)"}</span>
+                        <HelpTip text="Si es porcentaje, usa 0-100. Si es valor, en COP." />
+                      </label>
                       {itemDiscountType === "PERCENT" ? (
                         <input className="input" name="itemDiscountPercent" value={itemDiscountPercent} onChange={(e) => setItemDiscountPercent(e.target.value)} inputMode="numeric" />
                       ) : (
@@ -415,11 +445,17 @@ export function NewPlanOrSubscriptionForm({
                     <div style={{ display: "grid", gap: 10 }}>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                         <div className="field">
-                          <label>Opción 1 (opcional)</label>
+                          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span>Opción 1 (opcional)</span>
+                            <HelpTip text="Nombre de la primera variante. Ej: Talla." />
+                          </label>
                           <input className="input" name="itemOption1Name" value={itemOption1Name} onChange={(e) => setItemOption1Name(e.target.value)} placeholder="Ej: Talla" />
                         </div>
                         <div className="field">
-                          <label>Opción 2 (opcional)</label>
+                          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span>Opción 2 (opcional)</span>
+                            <HelpTip text="Nombre de la segunda variante. Ej: Color." />
+                          </label>
                           <input className="input" name="itemOption2Name" value={itemOption2Name} onChange={(e) => setItemOption2Name(e.target.value)} placeholder="Ej: Color" />
                         </div>
                       </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { HelpTip } from "../ui/HelpTip";
 
 type VariantRow = { option1?: string; option2?: string; priceDeltaPesos?: string };
 
@@ -105,7 +106,10 @@ export function VariantsEditor({
               </div>
             ) : null}
             <div className="field">
-              <label>Modificador de precio</label>
+              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span>Modificador de precio</span>
+                <HelpTip text="Suma o resta al precio base. Ej: +$5.000 o -$2.000." />
+              </label>
               <input
                 className="input"
                 value={r.priceDeltaPesos || ""}

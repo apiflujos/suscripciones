@@ -1,4 +1,5 @@
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
+import { HelpTip } from "../ui/HelpTip";
 import { NotificationWizard } from "./NotificationWizard";
 import { createNotification } from "./actions";
 
@@ -36,7 +37,10 @@ export default async function NotificationsPage({
         <h1 style={{ marginTop: 0 }}>Notificaciones</h1>
         <form action="/notifications" method="GET" style={{ display: "flex", gap: 10, alignItems: "end" }}>
           <div className="field" style={{ margin: 0, minWidth: 220 }}>
-            <label>Entorno</label>
+            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span>Entorno</span>
+              <HelpTip text="Selecciona Producción o Sandbox para ver y crear reglas." />
+            </label>
             <select className="select" name="env" defaultValue={env}>
               <option value="PRODUCTION">Producción</option>
               <option value="SANDBOX">Sandbox</option>

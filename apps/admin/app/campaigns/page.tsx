@@ -1,4 +1,5 @@
 import { fetchAdminCached } from "../lib/adminApi";
+import { HelpTip } from "../ui/HelpTip";
 import { createCampaign, runCampaign } from "./actions";
 
 export default async function CampaignsPage({ searchParams }: { searchParams?: { error?: string; created?: string; running?: string } }) {
@@ -24,11 +25,17 @@ export default async function CampaignsPage({ searchParams }: { searchParams?: {
         <h3 style={{ marginTop: 0 }}>Nueva campaña</h3>
         <form action={createCampaign} style={{ display: "grid", gap: 10 }}>
           <div className="field">
-            <label>Nombre</label>
+            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span>Nombre</span>
+              <HelpTip text="Identificador interno de la campaña." />
+            </label>
             <input className="input" name="name" required />
           </div>
           <div className="field">
-            <label>Lista inteligente</label>
+            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span>Lista inteligente</span>
+              <HelpTip text="Segmento de contactos que recibirá el envío." />
+            </label>
             <select className="select" name="smartListId" required>
               <option value="">Selecciona una lista</option>
               {lists.map((l: any) => (
@@ -37,11 +44,17 @@ export default async function CampaignsPage({ searchParams }: { searchParams?: {
             </select>
           </div>
           <div className="field">
-            <label>Mensaje</label>
+            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span>Mensaje</span>
+              <HelpTip text="Texto que se enviará a cada contacto." />
+            </label>
             <textarea className="input" name="content" rows={4} required />
           </div>
           <div className="field">
-            <label>Template params (JSON opcional)</label>
+            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span>Template params (JSON opcional)</span>
+              <HelpTip text="Solo si usas plantilla. Ej: {\"name\":\"Juan\",\"amount\":\"$49.000\"}." />
+            </label>
             <textarea className="input" name="templateParams" rows={3} placeholder='{"name":"Juan","amount":"$49.000"}' />
           </div>
           <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>

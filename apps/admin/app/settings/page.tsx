@@ -1,6 +1,8 @@
 import { bootstrapCentralAttributes, setWompiActiveEnv, syncCentralAttributes, testCentralConnection, testShopifyForward, updateChatwoot, updateShopify, updateWompi } from "./actions";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { HelpTip } from "../ui/HelpTip";
+import { PendingButton } from "../ui/PendingButton";
+import { DualActionButtons } from "../ui/DualActionButtons";
 
 export const dynamic = "force-dynamic";
 
@@ -50,7 +52,17 @@ export default async function SettingsPage({
       {searchParams.central_bootstrap ? <div className="card cardPad">Atributos de Central creados.</div> : null}
       {searchParams.central_sync ? <div className="card cardPad">Sincronización de Central iniciada.</div> : null}
       {searchParams.central_test === "ok" ? <div className="card cardPad">Conexión exitosa.</div> : null}
+      {searchParams.central_test === "fail" ? (
+        <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>
+          Error conectando con la Central: {String(searchParams.error || "no_details")}
+        </div>
+      ) : null}
       {searchParams.shopify_test === "ok" ? <div className="card cardPad">Forward Shopify OK.</div> : null}
+      {searchParams.shopify_test === "fail" ? (
+        <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>
+          Error probando forward: {String(searchParams.error || "no_details")}
+        </div>
+      ) : null}
       {searchParams.error ? (
         <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>
           No se pudo guardar: {String(searchParams.error)}
@@ -89,16 +101,19 @@ export default async function SettingsPage({
         <div className="settings-group-body">
           <form action={setWompiActiveEnv} className="panel module" style={{ gridTemplateColumns: "1fr auto", alignItems: "end" } as any}>
             <div className="field">
-              <label>Entorno activo</label>
+              <label>
+                Entorno activo
+                <HelpTip text="Define qué entorno usa el sistema para operaciones por defecto." />
+              </label>
               <select className="select" name="activeEnv" defaultValue={wompiActiveEnv}>
                 <option value="PRODUCTION">Producción</option>
                 <option value="SANDBOX">Sandbox</option>
               </select>
             </div>
             <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-              <button className="primary" type="submit">
+              <PendingButton className="primary" type="submit" pendingText="Guardando...">
                 Guardar
-              </button>
+              </PendingButton>
             </div>
           </form>
 
@@ -118,23 +133,38 @@ export default async function SettingsPage({
                     <form action={updateWompi} style={{ display: "grid", gap: 10 }}>
                       <input type="hidden" name="environment" value={envKey} />
                       <div className="field">
-                        <label>Llave pública</label>
+                        <label>
+                          Llave pública
+                          <HelpTip text="Clave pública de tu cuenta Wompi (empieza con pub_)." />
+                        </label>
                         <input className="input" name="publicKey" placeholder="pub_..." defaultValue={cfg?.publicKey || ""} />
                       </div>
                       <div className="field">
-                        <label>Llave privada</label>
+                        <label>
+                          Llave privada
+                          <HelpTip text="Clave privada de Wompi para autenticar llamadas." />
+                        </label>
                         <input className="input" name="privateKey" type="password" />
                       </div>
                       <div className="field">
-                        <label>Secreto de integridad</label>
+                        <label>
+                          Secreto de integridad
+                          <HelpTip text="Usado para firmar y validar la integridad de los eventos." />
+                        </label>
                         <input className="input" name="integritySecret" type="password" />
                       </div>
                       <div className="field">
-                        <label>Secreto de eventos</label>
+                        <label>
+                          Secreto de eventos
+                          <HelpTip text="Secreto para validar webhooks/eventos entrantes." />
+                        </label>
                         <input className="input" name="eventsSecret" type="password" />
                       </div>
                       <div className="field">
-                        <label>URL base del API</label>
+                        <label>
+                          URL base del API
+                          <HelpTip text="Base del API de Wompi según entorno." />
+                        </label>
                         <input
                           className="input"
                           name="apiBaseUrl"
@@ -143,17 +173,23 @@ export default async function SettingsPage({
                         />
                       </div>
                       <div className="field">
-                        <label>URL base de links de pago</label>
+                        <label>
+                          URL base de links de pago
+                          <HelpTip text="Base para generar links de pago." />
+                        </label>
                         <input className="input" name="checkoutLinkBaseUrl" placeholder="https://checkout.wompi.co/l/" defaultValue={cfg?.checkoutLinkBaseUrl || ""} />
                       </div>
                       <div className="field">
-                        <label>URL de redirección (opcional)</label>
+                        <label>
+                          URL de redirección (opcional)
+                          <HelpTip text="URL a la que Wompi redirige después del pago." />
+                        </label>
                         <input className="input" name="redirectUrl" defaultValue={cfg?.redirectUrl || ""} />
                       </div>
                       <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-                        <button className="primary" type="submit">
+                        <PendingButton className="primary" type="submit" pendingText="Guardando...">
                           Guardar
-                        </button>
+                        </PendingButton>
                       </div>
                     </form>
                   </div>
@@ -218,12 +254,15 @@ export default async function SettingsPage({
                         </div>
                       </div>
                       <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-                        <button className="ghost" type="submit" formAction={testCentralConnection}>
-                          Probar conexión
-                        </button>
-                        <button className="primary" type="submit">
-                          Guardar
-                        </button>
+                        <DualActionButtons
+                          primaryLabel="Guardar"
+                          primaryPendingLabel="Guardando..."
+                          primaryClassName="primary"
+                          secondaryLabel="Probar conexión"
+                          secondaryPendingLabel="Conectando..."
+                          secondaryClassName="ghost"
+                          secondaryFormAction={testCentralConnection}
+                        />
                       </div>
                     </form>
                   </div>
@@ -239,14 +278,21 @@ export default async function SettingsPage({
               <strong>Acciones rápidas</strong>
             </div>
             <form action={bootstrapCentralAttributes}>
-              <button className="ghost" type="submit">Crear atributos de contacto</button>
+              <PendingButton className="ghost" type="submit" pendingText="Creando...">
+                Crear atributos de contacto
+              </PendingButton>
             </form>
             <form action={syncCentralAttributes} style={{ display: "flex", gap: 8, alignItems: "end" }}>
               <div className="field" style={{ flex: 1 }}>
-                <label>Límite a sincronizar</label>
+                <label>
+                  Límite a sincronizar
+                  <HelpTip text="Cantidad máxima de contactos a sincronizar en esta ejecución." />
+                </label>
                 <input className="input" name="limit" placeholder="200" />
               </div>
-              <button className="ghost" type="submit">Sincronizar contactos</button>
+              <PendingButton className="ghost" type="submit" pendingText="Sincronizando...">
+                Sincronizar contactos
+              </PendingButton>
             </form>
             <div className="field-hint">Sincroniza atributos de pagos y suscripciones con la Central de Comunicaciones Apiflujos.</div>
           </div>
@@ -265,20 +311,29 @@ export default async function SettingsPage({
         <div className="settings-group-body">
           <form action={updateShopify} className="panel module" style={{ display: "grid", gap: 10 }}>
             <div className="field">
-              <label>URL de reenvío</label>
+              <label>
+                URL de reenvío
+                <HelpTip text="Endpoint del e-commerce para recibir eventos." />
+              </label>
               <input className="input" name="forwardUrl" defaultValue={settings?.shopify?.forwardUrl || ""} />
             </div>
             <div className="field">
-              <label>Secreto de reenvío (opcional)</label>
+              <label>
+                Secreto de reenvío (opcional)
+                <HelpTip text="Secreto compartido para validar los eventos reenviados." />
+              </label>
               <input className="input" name="forwardSecret" type="password" />
             </div>
             <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-              <button className="ghost" type="submit" formAction={testShopifyForward}>
-                Probar forward
-              </button>
-              <button className="primary" type="submit">
-                Guardar
-              </button>
+              <DualActionButtons
+                primaryLabel="Guardar"
+                primaryPendingLabel="Guardando..."
+                primaryClassName="primary"
+                secondaryLabel="Probar forward"
+                secondaryPendingLabel="Probando..."
+                secondaryClassName="ghost"
+                secondaryFormAction={testShopifyForward}
+              />
             </div>
           </form>
         </div>

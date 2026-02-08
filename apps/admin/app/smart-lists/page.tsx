@@ -1,4 +1,5 @@
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
+import { HelpTip } from "../ui/HelpTip";
 import { createSmartList, previewSmartList, syncSmartList } from "./actions";
 import { SmartListBuilder } from "./SmartListBuilder";
 
@@ -39,17 +40,26 @@ export default async function SmartListsPage({ searchParams }: { searchParams?: 
         <h3 style={{ marginTop: 0 }}>Nueva lista</h3>
         <form action={createSmartList} style={{ display: "grid", gap: 10 }}>
           <div className="field">
-            <label>Nombre</label>
+            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span>Nombre</span>
+              <HelpTip text="Nombre visible en la Central y en campañas." />
+            </label>
             <input className="input" name="name" required />
           </div>
           <div className="field">
-            <label>Descripción</label>
+            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span>Descripción</span>
+              <HelpTip text="Nota interna para saber qué segmento representa." />
+            </label>
             <input className="input" name="description" />
           </div>
           <SmartListBuilder />
-          <label className="checkbox">
+          <label className="checkbox" style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <input type="checkbox" name="enabled" value="1" defaultChecked />
-            <span>Habilitada</span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+              <span>Habilitada</span>
+              <HelpTip text="Si está desactivada no se usa para campañas." />
+            </span>
           </label>
           <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
             <button className="primary" type="submit">Crear</button>

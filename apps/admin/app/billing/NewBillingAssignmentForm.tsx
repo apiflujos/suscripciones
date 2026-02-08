@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { NewCustomerForm } from "../customers/NewCustomerForm";
 import { NewPlanTemplateForm } from "./NewPlanTemplateForm";
 import { enterToNextField } from "../lib/enterToNext";
+import { HelpTip } from "../ui/HelpTip";
 
 type Plan = {
   id: string;
@@ -398,11 +399,17 @@ export function NewBillingAssignmentForm({
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div className="field">
-                  <label>Inicio (activación)</label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span>Inicio (activación)</span>
+                    <HelpTip text="Fecha/hora en la que inicia la suscripción." />
+                  </label>
                   <input className="input" type="datetime-local" value={startLocal} onChange={(e) => setStartLocal(e.target.value)} disabled={!planId || !customerId} />
                 </div>
                 <div className="field">
-                  <label>Corte (cobro)</label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span>Corte (cobro)</span>
+                    <HelpTip text="Fecha/hora del primer cobro. Si se deja igual al inicio, se cobra de inmediato." />
+                  </label>
                   <input
                     className="input"
                     type="datetime-local"
@@ -412,7 +419,10 @@ export function NewBillingAssignmentForm({
                   />
                   <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
                     <input type="checkbox" checked={sameCutoff} onChange={(e) => setSameCutoff(e.target.checked)} disabled={!planId || !customerId} />
-                    <span>Corte = inicio</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                      <span>Corte = inicio</span>
+                      <HelpTip text="Usa la misma fecha/hora de activación." />
+                    </span>
                   </label>
                 </div>
               </div>
@@ -426,10 +436,11 @@ export function NewBillingAssignmentForm({
                     onChange={(e) => setCreateLinkNow(e.target.checked)}
                     disabled={!planId || !customerId}
                   />
-                  <span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
                     {planTipo(selectedPlan) === "PLAN"
                       ? "Generar link de pago al guardar"
                       : "Generar link de pago si no se puede cobrar automáticamente"}
+                    <HelpTip text="Si no hay método de pago, se crea un link para cobrar." />
                   </span>
                 </label>
               ) : null}

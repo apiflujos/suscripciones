@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { VariantsEditor } from "./VariantsEditor";
+import { HelpTip } from "../ui/HelpTip";
 
 function formatCopCurrency(input: string): string {
   const digits = String(input || "").replace(/[^\d]/g, "");
@@ -39,7 +40,10 @@ export function NewCatalogItemForm({
       {show ? (
         <form action={action} style={{ display: "grid", gap: 10 }}>
           <div className="field">
-            <label>¿Es producto o servicio?</label>
+            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span>¿Es producto o servicio?</span>
+              <HelpTip text="Producto permite variantes y envío. Servicio no requiere envío." />
+            </label>
             <select className="select" name="kind" value={kind} onChange={(e) => setKind(e.target.value as any)}>
               <option value="PRODUCT">Producto</option>
               <option value="SERVICE">Servicio</option>
@@ -54,7 +58,10 @@ export function NewCatalogItemForm({
               <input className="input" name="name" placeholder={kind === "SERVICE" ? "Ej: Membresía VIP" : "Ej: Zapato clásico"} required />
             </div>
             <div className="field">
-              <label>Referencia / SKU</label>
+              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span>Referencia / SKU</span>
+                <HelpTip text="Código único para identificar el ítem." />
+              </label>
               <input className="input" name="sku" placeholder="SKU-001" required />
             </div>
           </div>
@@ -81,11 +88,17 @@ export function NewCatalogItemForm({
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
             <div className="field">
-              <label>Unidad</label>
+              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span>Unidad</span>
+                <HelpTip text="Unidad de medida interna. Ej: UND, MES, HORA." />
+              </label>
               <input className="input" name="unit" placeholder="Ej: UND" />
             </div>
             <div className="field">
-              <label>Precio</label>
+              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span>Precio</span>
+                <HelpTip text="Precio base antes de impuestos/descuentos." />
+              </label>
               <input
                 className="input"
                 name="basePricePesos"
@@ -97,7 +110,10 @@ export function NewCatalogItemForm({
               />
             </div>
             <div className="field">
-              <label>{kind === "PRODUCT" ? "Requiere envío" : "Requiere envío (no aplica a servicios)"}</label>
+              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span>{kind === "PRODUCT" ? "Requiere envío" : "Requiere envío (no aplica a servicios)"}</span>
+                <HelpTip text="Actívalo solo si el producto necesita logística de envío." />
+              </label>
               <select className="select" name="requiresShipping" defaultValue={kind === "PRODUCT" ? "on" : ""} disabled={kind === "SERVICE"}>
                 <option value="">No</option>
                 <option value="on">Sí</option>
@@ -107,7 +123,10 @@ export function NewCatalogItemForm({
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <div className="field">
-              <label>Impuesto</label>
+              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span>Impuesto</span>
+                <HelpTip text="Se aplica sobre el precio base." />
+              </label>
               <select className="select" name="taxPercent" defaultValue="0">
                 <option value="0">Sin impuesto</option>
                 <option value="19">IVA 19%</option>
@@ -115,7 +134,10 @@ export function NewCatalogItemForm({
               </select>
             </div>
             <div className="field">
-              <label>Descuento</label>
+              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span>Descuento</span>
+                <HelpTip text="Elige si el descuento es fijo o porcentual." />
+              </label>
               <select className="select" name="discountType" defaultValue="NONE">
                 <option value="NONE">Sin descuento</option>
                 <option value="FIXED">Valor fijo</option>
@@ -126,7 +148,10 @@ export function NewCatalogItemForm({
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <div className="field">
-              <label>Descuento (valor)</label>
+              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span>Descuento (valor)</span>
+                <HelpTip text="Valor fijo en COP." />
+              </label>
               <input
                 className="input"
                 name="discountValuePesos"
@@ -137,7 +162,10 @@ export function NewCatalogItemForm({
               />
             </div>
             <div className="field">
-              <label>Descuento (%)</label>
+              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span>Descuento (%)</span>
+                <HelpTip text="Porcentaje entre 0 y 100." />
+              </label>
               <input className="input" name="discountPercent" placeholder="0" inputMode="numeric" />
             </div>
           </div>
@@ -149,7 +177,10 @@ export function NewCatalogItemForm({
               <div className="panel" style={{ borderColor: "rgba(15, 23, 42, 0.12)" }}>
                 <div style={{ display: "grid", gap: 10 }}>
                   <div className="field">
-                    <label>Variantes</label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span>Variantes</span>
+                      <HelpTip text="Define opciones (ej: talla/color) y luego las combinaciones." />
+                    </label>
                     <select
                       className="select"
                       value={variantOptionsCount}
@@ -167,7 +198,10 @@ export function NewCatalogItemForm({
               {hasVariants ? (
                 <div style={{ display: "grid", gridTemplateColumns: showOption2 ? "1fr 1fr" : "1fr", gap: 10 }}>
                   <div className="field">
-                    <label>Opción 1</label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span>Opción 1</span>
+                      <HelpTip text="Nombre de la primera variante. Ej: Talla." />
+                    </label>
                     <input
                       className="input"
                       name="option1Name"
@@ -179,7 +213,10 @@ export function NewCatalogItemForm({
                   </div>
                   {showOption2 ? (
                     <div className="field">
-                      <label>Opción 2</label>
+                      <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span>Opción 2</span>
+                        <HelpTip text="Nombre de la segunda variante. Ej: Color." />
+                      </label>
                       <input
                         className="input"
                         name="option2Name"

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { fetchAdminCached, fetchPublicCached, getAdminApiConfig } from "./lib/adminApi";
+import { HelpTip } from "./ui/HelpTip";
 
 function fmtMoneyCop(cents: number) {
   const v = (Number(cents || 0) / 100).toFixed(0);
@@ -200,15 +201,24 @@ export default async function Home({ searchParams }: { searchParams?: { from?: s
 
           <form method="get" style={{ display: "flex", gap: 10, alignItems: "end", flexWrap: "wrap" }}>
             <div className="field" style={{ margin: 0 }}>
-              <label>Desde (UTC)</label>
+              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span>Desde (UTC)</span>
+                <HelpTip text="Fecha de inicio del rango en UTC." />
+              </label>
               <input className="input" type="date" name="from" defaultValue={fromDate} />
             </div>
             <div className="field" style={{ margin: 0 }}>
-              <label>Hasta (UTC)</label>
+              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span>Hasta (UTC)</span>
+                <HelpTip text="Fecha de cierre del rango en UTC (incluye todo el día)." />
+              </label>
               <input className="input" type="date" name="to" defaultValue={toDate} />
             </div>
             <div className="field" style={{ margin: 0 }}>
-              <label>Periodo</label>
+              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span>Periodo</span>
+                <HelpTip text="Agrupación de datos: día, semana o mes." />
+              </label>
               <select className="select" name="g" defaultValue={g}>
                 <option value="day">Día</option>
                 <option value="week">Semana</option>
