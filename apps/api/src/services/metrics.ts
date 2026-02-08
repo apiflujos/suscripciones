@@ -28,8 +28,15 @@ function granularityConfig(g: Granularity) {
 function clampRange(from: Date, to: Date) {
   const f = new Date(from);
   const t = new Date(to);
-  if (Number.isNaN(f.getTime()) || Number.isNaN(t.getTime())) throw new Error("invalid_range");
-  if (t <= f) throw new Error("invalid_range");
+  if (Number.isNaN(f.getTime()) || Number.isNaN(t.getTime())) {
+    const toSafe = new Date();
+    const fromSafe = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    return { from: fromSafe, to: toSafe };
+  }
+  if (t <= f) {
+    const toSafe = new Date(f.getTime() + 24 * 60 * 60 * 1000);
+    return { from: f, to: toSafe };
+  }
   return { from: f, to: t };
 }
 
