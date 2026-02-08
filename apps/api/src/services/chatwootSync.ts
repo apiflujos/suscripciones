@@ -68,3 +68,61 @@ export async function ensureChatwootContactForCustomer(customerId: string) {
   return { ok: true as const, contactId: created.contactId, sourceId: created.sourceId };
 }
 
+export async function syncChatwootAttributesForCustomer(customerId: string) {
+  const id = String(customerId || "").trim();
+  if (!id) return { ok: false as const, reason: "missing_customer_id" as const };
+
+  const customer = await prisma.customer.findUnique({
+    where: { id },
+    include: {
+      subscriptions: {
+        include: { plan: true, payments: { orderBy: { createdAt: "desc" }, take: 1 } },
+        orderBy: { createdAt: "desc" }
+      },
+      payments: { orderBy: { createdAt: "desc" }, take: 1 }
+    }
+  });
+  if (!customer) return { ok: false as const, reason: "customer_not_found" as const };
+
+  const cfg = await getChatwootConfig();
+  if (!cfg.configured) return { ok: false as const, reason: "chatwoot_not_configured" as const };
+
+  const ensured = await ensureChatwootContactForCustomer(customer.id);
+  if (!ensured.ok) return ensured;
+
+  const sub = customer.subscriptions?.[0] || null;
+  const latestPayment = customer.payments?.[0] || sub?.payments?.[0] || null;
+  const currentPeriodEndAt = sub?.currentPeriodEndAt ? new Date(sub.currentPeriodEndAt) : null;
+  const now = Date.now();
+  const daysPastDue =
+    currentPeriodEndAt && currentPeriodEndAt.getTime() < now
+      ? Math.floor((now - currentPeriodEndAt.getTime()) / 86_400_000)
+      : 0;
+
+  const customAttributes = {
+    subscription_status: sub?.status ?? null,
+    plan_name: sub?.plan?.name ?? null,
+    plan_price: sub?.plan?.priceInCents ?? null,
+    next_billing_date: currentPeriodEndAt ? currentPeriodEndAt.toISOString() : null,
+    last_payment_status: latestPayment?.status ?? null,
+    last_payment_date: latestPayment?.createdAt ? new Date(latestPayment.createdAt).toISOString() : null,
+    days_past_due: daysPastDue,
+    in_mora: sub?.status === "PAST_DUE" || daysPastDue > 0
+  } as any;
+
+  const client = new ChatwootClient({
+    baseUrl: cfg.baseUrl,
+    accountId: cfg.accountId,
+    apiAccessToken: cfg.apiAccessToken,
+    inboxId: cfg.inboxId
+  });
+
+  await client.updateContact(ensured.contactId, {
+    name: customer.name || undefined,
+    email: customer.email || undefined,
+    phoneNumber: customer.phone || undefined,
+    customAttributes
+  });
+
+  return { ok: true as const };
+}

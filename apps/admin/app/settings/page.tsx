@@ -1,4 +1,4 @@
-import { setCentralActiveEnv, setWompiActiveEnv, updateChatwoot, updateShopify, updateWompi } from "./actions";
+import { bootstrapCentralAttributes, setCentralActiveEnv, setWompiActiveEnv, syncCentralAttributes, updateChatwoot, updateShopify, updateWompi } from "./actions";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { HelpTip } from "../ui/HelpTip";
 
@@ -12,7 +12,7 @@ async function fetchSettings() {
   return fetchAdminCached("/admin/settings", { ttlMs: 1500 });
 }
 
-export default async function SettingsPage({ searchParams }: { searchParams: { saved?: string; error?: string } }) {
+export default async function SettingsPage({ searchParams }: { searchParams: { saved?: string; error?: string; central_bootstrap?: string; central_sync?: string } }) {
   const { token } = getConfig();
   if (!token) {
     return (
@@ -45,6 +45,8 @@ export default async function SettingsPage({ searchParams }: { searchParams: { s
     <main className="page" style={{ maxWidth: 980 }}>
       <h1 style={{ marginTop: 0 }}>Configuraciones</h1>
       {searchParams.saved ? <div className="card cardPad">Guardado.</div> : null}
+      {searchParams.central_bootstrap ? <div className="card cardPad">Atributos de Central creados.</div> : null}
+      {searchParams.central_sync ? <div className="card cardPad">Sincronización de Central iniciada.</div> : null}
       {searchParams.error ? (
         <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>
           No se pudo guardar: {String(searchParams.error)}
@@ -166,8 +168,8 @@ export default async function SettingsPage({ searchParams }: { searchParams: { s
         <div className="settings-group-header">
           <div className="panelHeaderRow">
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <h3>Central de comunicaciones</h3>
-              <HelpTip text="Configura la conexión para enviar mensajes y links de cobro." />
+              <h3>Central de Comunicaciones Apiflujos</h3>
+              <HelpTip text="Configura la conexión para enviar mensajes y campañas masivas." />
             </div>
           </div>
         </div>
@@ -234,6 +236,23 @@ export default async function SettingsPage({ searchParams }: { searchParams: { s
               </div>
             </div>
           ))}
+
+          <div className="panel module" style={{ display: "grid", gap: 10 }}>
+            <div className="panelHeaderRow">
+              <strong>Acciones rápidas</strong>
+            </div>
+            <form action={bootstrapCentralAttributes}>
+              <button className="ghost" type="submit">Crear atributos de contacto</button>
+            </form>
+            <form action={syncCentralAttributes} style={{ display: "flex", gap: 8, alignItems: "end" }}>
+              <div className="field" style={{ flex: 1 }}>
+                <label>Límite a sincronizar</label>
+                <input className="input" name="limit" placeholder="200" />
+              </div>
+              <button className="ghost" type="submit">Sincronizar contactos</button>
+            </form>
+            <div className="field-hint">Sincroniza atributos de pagos y suscripciones con la Central de Comunicaciones Apiflujos.</div>
+          </div>
         </div>
       </section>
 

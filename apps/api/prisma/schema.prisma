@@ -35,6 +35,21 @@ enum PaymentStatus {
   VOIDED
 }
 
+enum CampaignStatus {
+  DRAFT
+  RUNNING
+  PAUSED
+  COMPLETED
+  FAILED
+}
+
+enum CampaignSendStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
 enum WebhookProvider {
   WOMPI
 }
@@ -79,6 +94,8 @@ enum RetryJobType {
   SUBSCRIPTION_REMINDER
   PAYMENT_RETRY
   BILLING_MONTHLY_REPORT
+  SEND_CAMPAIGN
+  SYNC_SMART_LISTS
 }
 
 enum RetryJobStatus {
@@ -268,6 +285,79 @@ model ChatwootMessage {
   subscription Subscription? @relation(fields: [subscriptionId], references: [id])
   payment      Payment?      @relation(fields: [paymentId], references: [id])
 
+  @@index([status, createdAt])
+  @@index([customerId])
+}
+
+model SmartList {
+  id            String   @id @default(uuid()) @db.Uuid
+  name          String   @unique
+  description   String?
+  enabled       Boolean  @default(true)
+  rules         Json
+  chatwootLabel String   @unique
+  lastRunAt     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  campaigns Campaign[]
+  members   SmartListMember[]
+
+  @@index([enabled, createdAt])
+}
+
+model SmartListMember {
+  id          String   @id @default(uuid()) @db.Uuid
+  smartListId String   @db.Uuid
+  customerId  String   @db.Uuid
+  active      Boolean  @default(true)
+  lastSeenAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  smartList SmartList @relation(fields: [smartListId], references: [id])
+  customer  Customer  @relation(fields: [customerId], references: [id])
+
+  @@unique([smartListId, customerId])
+  @@index([active, updatedAt])
+}
+
+model Campaign {
+  id            String           @id @default(uuid()) @db.Uuid
+  name          String
+  smartListId   String?          @db.Uuid
+  status        CampaignStatus   @default(DRAFT)
+  content       String
+  templateParams Json?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  lastError     String?
+  sentCount     Int              @default(0)
+  failedCount   Int              @default(0)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  smartList  SmartList?     @relation(fields: [smartListId], references: [id])
+  recipients CampaignSend[]
+
+  @@index([status, createdAt])
+  @@index([smartListId])
+}
+
+model CampaignSend {
+  id          String             @id @default(uuid()) @db.Uuid
+  campaignId  String             @db.Uuid
+  customerId  String             @db.Uuid
+  status      CampaignSendStatus @default(PENDING)
+  sentAt      DateTime?
+  errorMessage String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@unique([campaignId, customerId])
   @@index([status, createdAt])
   @@index([customerId])
 }

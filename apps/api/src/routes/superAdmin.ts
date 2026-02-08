@@ -1,7 +1,7 @@
 import express from "express";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
-import { requireSaSession, revokeSaSession, createSaSession, SUPER_ADMIN_EMAIL, hashPassword } from "../services/superAdminAuth";
+import { requireSaSession, revokeSaSession, createSaSession, hashPassword } from "../services/superAdminAuth";
 import { SaPeriodType, SaPlanKind, SaUserRole } from "@prisma/client";
 import { consumeLimitOrBlock } from "../services/superAdminConsume";
 
@@ -20,12 +20,46 @@ superAdminRouter.post("/login", async (req, res) => {
     const ip = req.ip ? String(req.ip) : null;
     const ua = req.header("user-agent") || null;
     const session = await createSaSession({ email: parsed.data.email, password: parsed.data.password, ip, userAgent: ua });
-    res.json({ token: session.token, expiresAt: session.expiresAt.toISOString(), email: SUPER_ADMIN_EMAIL });
+    res.json({ token: session.token, expiresAt: session.expiresAt.toISOString(), email: session.email });
   } catch (err: any) {
     const msg = err?.message ? String(err.message) : "";
-    if (msg === "super_admin_not_configured") return res.status(500).json({ error: "super_admin_not_configured" });
+    if (msg === "no_super_admin_user") return res.status(500).json({ error: "no_super_admin_user" });
     res.status(401).json({ error: "unauthorized_sa" });
   }
+});
+
+const bootstrapSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8)
+});
+
+// One-time bootstrap: create the first SUPER_ADMIN in DB (no manual inserts).
+// Protected by `requireAdminToken` at the router mount level (/admin/sa).
+superAdminRouter.post("/bootstrap", async (req, res) => {
+  const parsed = bootstrapSchema.safeParse(req.body ?? {});
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+
+  const existingSuperAdmins = await prisma.saUser.count({ where: { role: SaUserRole.SUPER_ADMIN, active: true } });
+  if (existingSuperAdmins > 0) return res.status(409).json({ error: "already_bootstrapped" });
+
+  const email = parsed.data.email.trim().toLowerCase();
+  const existingEmail = await prisma.saUser.findFirst({ where: { email: { equals: email, mode: "insensitive" } } });
+  if (existingEmail) return res.status(409).json({ error: "email_already_exists" });
+
+  await prisma.saUser.create({
+    data: {
+      tenantId: null,
+      email,
+      passwordHash: hashPassword(parsed.data.password),
+      role: SaUserRole.SUPER_ADMIN,
+      active: true
+    } as any
+  });
+
+  const ip = req.ip ? String(req.ip) : null;
+  const ua = req.header("user-agent") || null;
+  const session = await createSaSession({ email, password: parsed.data.password, ip, userAgent: ua });
+  res.status(201).json({ ok: true, token: session.token, expiresAt: session.expiresAt.toISOString(), email: session.email });
 });
 
 superAdminRouter.post("/logout", requireSaSession, async (req, res) => {
@@ -34,8 +68,8 @@ superAdminRouter.post("/logout", requireSaSession, async (req, res) => {
   res.json({ ok: true });
 });
 
-superAdminRouter.get("/me", requireSaSession, async (_req, res) => {
-  res.json({ ok: true, email: SUPER_ADMIN_EMAIL });
+superAdminRouter.get("/me", requireSaSession, async (req, res) => {
+  res.json({ ok: true, email: String((req as any).sa?.email || "").trim() || null });
 });
 
 const tenantCreateSchema = z.object({

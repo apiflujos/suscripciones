@@ -17,6 +17,9 @@ import { notificationsRouter } from "./routes/notifications";
 import { metricsRouter } from "./routes/metrics";
 import { superAdminRouter } from "./routes/superAdmin";
 import { authRouter } from "./routes/auth";
+import { chatwootRouter } from "./routes/chatwoot";
+import { chatwootWebhook } from "./routes/webhooksChatwoot";
+import { commsRouter } from "./routes/comms";
 
 export function createApp() {
   const app = express();
@@ -29,6 +32,7 @@ export function createApp() {
   app.get("/healthz", healthz);
   app.get("/health", health);
   app.post("/webhooks/wompi", wompiWebhook);
+  app.post("/webhooks/chatwoot", chatwootWebhook);
 
   app.get("/admin/webhook-events", requireAdminToken, listWebhookEvents);
   app.use("/admin/products", requireAdminToken, productsRouter);
@@ -42,6 +46,8 @@ export function createApp() {
   app.use("/admin/metrics", requireAdminToken, metricsRouter);
   app.use("/admin/auth", requireAdminToken, authRouter);
   app.use("/admin/sa", requireAdminToken, superAdminRouter);
+  app.use("/admin/chatwoot", requireAdminToken, chatwootRouter);
+  app.use("/admin/comms", requireAdminToken, commsRouter);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

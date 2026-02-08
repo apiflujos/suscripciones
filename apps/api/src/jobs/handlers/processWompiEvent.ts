@@ -7,6 +7,7 @@ import { addIntervalUtc } from "../../lib/dates";
 import { getShopifyForward } from "../../services/runtimeConfig";
 import { schedulePaymentStatusNotifications, scheduleSubscriptionDueNotifications } from "../../services/notificationsScheduler";
 import { consumeApp } from "../../services/superAdminApp";
+import { syncChatwootAttributesForCustomer } from "../../services/chatwootSync";
 
 function getTransactionFromPayload(payload: any): any | null {
   const tx = payload?.data?.transaction;
@@ -171,6 +172,7 @@ export async function processWompiEvent(webhookEventId: string) {
   });
 
   await schedulePaymentStatusNotifications({ paymentId: paymentRecord.id }).catch(() => {});
+  await syncChatwootAttributesForCustomer(paymentRecord.customerId).catch(() => {});
 
   const becameApproved = !wasApproved && paymentStatus === PaymentStatus.APPROVED;
   const becameFailed = !wasFailed && (paymentStatus === PaymentStatus.DECLINED || paymentStatus === PaymentStatus.ERROR || paymentStatus === PaymentStatus.VOIDED);

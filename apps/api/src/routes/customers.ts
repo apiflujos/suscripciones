@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "../db/prisma";
 import { WompiClient } from "../providers/wompi/client";
 import { getWompiApiBaseUrl, getWompiCheckoutLinkBaseUrl, getWompiPrivateKey, getWompiPublicKey } from "../services/runtimeConfig";
-import { ensureChatwootContactForCustomer } from "../services/chatwootSync";
+import { ensureChatwootContactForCustomer, syncChatwootAttributesForCustomer } from "../services/chatwootSync";
 import { consumeApp } from "../services/superAdminApp";
 
 const createCustomerSchema = z.object({
@@ -51,6 +51,7 @@ customersRouter.post("/", async (req, res) => {
   const customer = await prisma.customer.create({ data: parsed.data as any });
   await consumeApp("customers_created", { amount: 1, source: "api:customers.create", meta: { customerId: customer.id } });
   await ensureChatwootContactForCustomer(customer.id).catch(() => {});
+  await syncChatwootAttributesForCustomer(customer.id).catch(() => {});
   res.status(201).json({ customer });
 });
 

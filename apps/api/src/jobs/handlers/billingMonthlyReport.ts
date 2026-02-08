@@ -1,8 +1,8 @@
-import { LogLevel } from "@prisma/client";
+import { LogLevel, SaUserRole } from "@prisma/client";
 import { systemLog } from "../../services/systemLog";
 import { buildMonthlyBillingReport } from "../../services/billingReport";
 import { sendEmailViaSmtp } from "../../services/email";
-import { SUPER_ADMIN_EMAIL } from "../../services/superAdminAuth";
+import { prisma } from "../../db/prisma";
 
 function splitEmails(v: string) {
   return String(v || "")
@@ -17,7 +17,24 @@ export async function billingMonthlyReport(payload: any) {
 
   const report = await buildMonthlyBillingReport({ periodKey });
 
-  const to = splitEmails(process.env.BILLING_REPORT_TO || "").length ? splitEmails(process.env.BILLING_REPORT_TO || "") : [SUPER_ADMIN_EMAIL];
+  const configured = splitEmails(process.env.BILLING_REPORT_TO || "");
+  let to = configured;
+  if (!to.length) {
+    const admins = await prisma.saUser.findMany({
+      where: { role: SaUserRole.SUPER_ADMIN, active: true },
+      select: { email: true },
+      orderBy: { createdAt: "asc" },
+      take: 20
+    });
+    to = admins.map((x) => x.email).filter(Boolean);
+  }
+  if (!to.length) {
+    await systemLog(LogLevel.WARN, "billing.report", "Monthly report recipients not configured", {
+      periodKey,
+      hint: "Set BILLING_REPORT_TO or create an active SUPER_ADMIN user."
+    }).catch(() => {});
+    return { ok: true, skipped: true, reason: "no_recipients" };
+  }
   const subject = `Reporte mensual SaaS ${periodKey}`;
 
   const host = String(process.env.SMTP_HOST || "").trim();
@@ -52,4 +69,3 @@ export async function billingMonthlyReport(payload: any) {
 
   return { ok: true };
 }
-

@@ -125,3 +125,23 @@ export async function setCentralActiveEnv(formData: FormData) {
     redirect(`/settings?error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
+
+export async function bootstrapCentralAttributes() {
+  try {
+    await adminFetch("/admin/comms/bootstrap-attributes", { method: "POST" });
+    redirect("/settings?central_bootstrap=1");
+  } catch (err) {
+    redirect(`/settings?error=${encodeURIComponent(toShortErrorMessage(err))}`);
+  }
+}
+
+export async function syncCentralAttributes(formData: FormData) {
+  const limit = String(formData.get("limit") || "").trim();
+  const qp = limit ? `?limit=${encodeURIComponent(limit)}` : "";
+  try {
+    await adminFetch(`/admin/comms/sync-attributes${qp}`, { method: "POST" });
+    redirect("/settings?central_sync=1");
+  } catch (err) {
+    redirect(`/settings?error=${encodeURIComponent(toShortErrorMessage(err))}`);
+  }
+}

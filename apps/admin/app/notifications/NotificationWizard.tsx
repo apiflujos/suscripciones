@@ -288,11 +288,11 @@ export function NotificationWizard({
               <div className="field">
                 <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   <span>Plantilla / mensaje</span>
-                  <HelpTip text="Mensaje normal: escribes el texto.\nTemplate WhatsApp: envías una plantilla aprobada por Meta (vía Chatwoot)." />
+                  <HelpTip text="Mensaje normal: escribes el texto.\nTemplate WhatsApp: envías una plantilla aprobada por Meta (vía Central de Comunicaciones Apiflujos)." />
                 </label>
                 <select className="select" value={templateKind} onChange={(e) => setTemplateKind(e.target.value as TemplateKind)}>
                   <option value="TEXT">Mensaje normal</option>
-                  <option value="WHATSAPP_TEMPLATE">Template WhatsApp (Meta) vía Chatwoot</option>
+                  <option value="WHATSAPP_TEMPLATE">Template WhatsApp (Meta) vía Central de Comunicaciones Apiflujos</option>
                 </select>
               </div>
 

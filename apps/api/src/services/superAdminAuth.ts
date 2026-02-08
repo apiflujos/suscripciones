@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import crypto from "node:crypto";
+import { SaUserRole } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { sha256Hex, timingSafeEqualHex } from "../lib/crypto";
 
@@ -8,20 +9,6 @@ function normalize(v: unknown) {
 }
 
 export const SUPER_ADMIN_EMAIL = normalize(process.env.SUPER_ADMIN_EMAIL);
-const SUPER_ADMIN_PASSWORD = String(process.env.SUPER_ADMIN_PASSWORD || "");
-
-const SUPER_ADMIN_PASSWORD_HASH = SUPER_ADMIN_PASSWORD ? sha256Hex(SUPER_ADMIN_PASSWORD) : "";
-
-export function isSuperAdminEmail(email: string) {
-  if (!SUPER_ADMIN_EMAIL) return false;
-  return String(email || "").trim().toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
-}
-
-export function verifySuperAdminPassword(pw: string) {
-  if (!SUPER_ADMIN_EMAIL || !SUPER_ADMIN_PASSWORD_HASH) return false;
-  const got = sha256Hex(String(pw || ""));
-  return timingSafeEqualHex(got, SUPER_ADMIN_PASSWORD_HASH);
-}
 
 export function hashPassword(pw: string) {
   const password = String(pw || "");
@@ -59,9 +46,13 @@ export function normalizeSaToken(v: unknown) {
 }
 
 export async function createSaSession(args: { email: string; password: string; ip?: string | null; userAgent?: string | null }) {
-  if (!SUPER_ADMIN_EMAIL || !SUPER_ADMIN_PASSWORD_HASH) throw new Error("super_admin_not_configured");
-  if (!isSuperAdminEmail(args.email)) throw new Error("invalid_super_admin");
-  if (!verifySuperAdminPassword(args.password)) throw new Error("invalid_super_admin");
+  const hasAnySuperAdmin = await prisma.saUser.count({ where: { role: SaUserRole.SUPER_ADMIN, active: true } });
+  if (!hasAnySuperAdmin) throw new Error("no_super_admin_user");
+
+  const email = String(args.email || "").trim().toLowerCase();
+  const user = await prisma.saUser.findFirst({ where: { email: { equals: email, mode: "insensitive" } } });
+  if (!user || !user.active || user.role !== SaUserRole.SUPER_ADMIN) throw new Error("unauthorized_sa");
+  if (!verifyPassword(args.password, user.passwordHash)) throw new Error("unauthorized_sa");
 
   const token = crypto.randomBytes(32).toString("hex");
   const tokenHash = sha256Hex(token);
@@ -71,14 +62,14 @@ export async function createSaSession(args: { email: string; password: string; i
   await prisma.saSession.create({
     data: {
       tokenHash,
-      email: SUPER_ADMIN_EMAIL,
+      email: user.email,
       expiresAt,
       ip: args.ip || null,
       userAgent: args.userAgent || null
     }
   });
 
-  return { token, expiresAt };
+  return { token, expiresAt, email: user.email };
 }
 
 export async function getSaSessionByToken(token: string) {
@@ -89,8 +80,11 @@ export async function getSaSessionByToken(token: string) {
   if (!s) return null;
   if (s.revokedAt) return null;
   if (s.expiresAt.getTime() <= Date.now()) return null;
-  if (!isSuperAdminEmail(s.email)) return null;
-  return s;
+  const user = await prisma.saUser.findFirst({
+    where: { email: { equals: s.email, mode: "insensitive" }, role: SaUserRole.SUPER_ADMIN, active: true }
+  });
+  if (!user) return null;
+  return { session: s, user };
 }
 
 export async function revokeSaSession(token: string) {
@@ -119,9 +113,9 @@ export async function touchSaSession(token: string) {
 
 export async function requireSaSession(req: Request, res: Response, next: NextFunction) {
   const token = normalizeSaToken(req.header("x-sa-session") || req.header("authorization") || "");
-  const s = await getSaSessionByToken(token);
-  if (!s) return res.status(401).json({ error: "unauthorized_sa" });
+  const out = await getSaSessionByToken(token);
+  if (!out) return res.status(401).json({ error: "unauthorized_sa" });
   await touchSaSession(token).catch(() => {});
-  (req as any).sa = { email: s.email, sessionId: s.id };
+  (req as any).sa = { email: out.user.email, userId: out.user.id, role: out.user.role, sessionId: out.session.id };
   next();
 }

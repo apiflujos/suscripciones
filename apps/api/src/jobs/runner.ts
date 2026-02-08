@@ -8,6 +8,8 @@ import { paymentRetry } from "./handlers/paymentRetry";
 import { subscriptionReminder } from "./handlers/subscriptionReminder";
 import { systemLog } from "../services/systemLog";
 import { billingMonthlyReport } from "./handlers/billingMonthlyReport";
+import { sendCampaign } from "./handlers/sendCampaign";
+import { syncSmartLists } from "./handlers/syncSmartLists";
 
 loadEnv(process.env);
 const workerId = `jobs:${process.pid}`;
@@ -66,6 +68,7 @@ function nextRunAt(attempts: number) {
 }
 
 let lastEnsureAtMs = 0;
+let lastEnsureSmartListsAtMs = 0;
 async function ensureMonthlyBillingReportJob() {
   const now = Date.now();
   if (now - lastEnsureAtMs < 60_000) return;
@@ -93,6 +96,31 @@ async function ensureMonthlyBillingReportJob() {
     .catch(() => {});
 }
 
+async function ensureSmartListsSyncJob() {
+  const now = Date.now();
+  if (now - lastEnsureSmartListsAtMs < 5 * 60_000) return;
+  lastEnsureSmartListsAtMs = now;
+
+  const existing = await prisma.retryJob.findFirst({
+    where: {
+      type: RetryJobType.SYNC_SMART_LISTS,
+      status: { in: [RetryJobStatus.PENDING, RetryJobStatus.RUNNING] }
+    }
+  });
+  if (existing) return;
+
+  await prisma.retryJob
+    .create({
+      data: {
+        type: RetryJobType.SYNC_SMART_LISTS,
+        runAt: new Date(Date.now() + 60_000),
+        maxAttempts: 3,
+        payload: {}
+      } as any
+    })
+    .catch(() => {});
+}
+
 async function runOnce() {
   const jobs = await claimJobs(10);
   for (const job of jobs) {
@@ -111,6 +139,10 @@ async function runOnce() {
         await subscriptionReminder(payload);
       } else if (job.type === RetryJobType.BILLING_MONTHLY_REPORT) {
         await billingMonthlyReport(payload);
+      } else if (job.type === RetryJobType.SEND_CAMPAIGN) {
+        await sendCampaign(payload);
+      } else if (job.type === RetryJobType.SYNC_SMART_LISTS) {
+        await syncSmartLists();
       } else {
         logger.warn({ jobId: job.id, type: job.type }, "Unhandled job type");
       }
@@ -152,6 +184,7 @@ async function main() {
   while (true) {
     try {
       await ensureMonthlyBillingReportJob();
+      await ensureSmartListsSyncJob();
       await runOnce();
       await new Promise((r) => setTimeout(r, 1000));
     } catch (err: any) {
