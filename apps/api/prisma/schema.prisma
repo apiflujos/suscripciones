@@ -135,6 +135,8 @@ model Customer {
   subscriptions Subscription[]
   payments      Payment[]
   chatwootMsgs  ChatwootMessage[]
+  smartListMembers SmartListMember[]
+  campaignSends    CampaignSend[]
 }
 
 model SubscriptionPlan {
