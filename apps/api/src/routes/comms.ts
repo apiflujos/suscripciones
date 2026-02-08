@@ -44,9 +44,40 @@ const smartListCreateSchema = z.object({
   rules: z.any()
 });
 
+const testConnectionSchema = z.object({
+  baseUrl: z.string().url(),
+  accountId: z.number().int().positive(),
+  inboxId: z.number().int().positive(),
+  apiAccessToken: z.string().min(1)
+});
+
 commsRouter.get("/smart-lists", async (_req, res) => {
   const items = await prisma.smartList.findMany({ orderBy: { createdAt: "desc" } });
   res.json({ items });
+});
+
+commsRouter.post("/test-connection", async (req, res) => {
+  const parsed = testConnectionSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+
+  try {
+    const client = new ChatwootClient({
+      baseUrl: parsed.data.baseUrl,
+      accountId: parsed.data.accountId,
+      apiAccessToken: parsed.data.apiAccessToken,
+      inboxId: parsed.data.inboxId
+    });
+
+    const account = await client.getAccount();
+    const inbox = await client.getInbox(parsed.data.inboxId);
+    return res.json({
+      ok: true,
+      account: account.raw?.payload || account.raw || null,
+      inbox: inbox.raw?.payload || inbox.raw || null
+    });
+  } catch (err: any) {
+    return res.status(400).json({ error: "connection_failed", message: String(err?.message || err) });
+  }
 });
 
 commsRouter.post("/sync-attributes", async (req, res) => {

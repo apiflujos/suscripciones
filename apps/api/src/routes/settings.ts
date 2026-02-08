@@ -3,6 +3,7 @@ import { z } from "zod";
 import { CredentialProvider, LogLevel } from "@prisma/client";
 import { getCredential, getCredentialsBulk, setCredential } from "../services/credentials";
 import { systemLog } from "../services/systemLog";
+import { testShopifyForward } from "./shopifyForwardTest";
 
 const envSchema = z.enum(["PRODUCTION", "SANDBOX"]);
 type ActiveEnv = z.infer<typeof envSchema>;
@@ -232,6 +233,8 @@ settingsRouter.put("/shopify", async (req, res) => {
   await systemLog(LogLevel.INFO, "configuracion.reenvio", "Configuración de reenvío actualizada").catch(() => {});
   res.json({ ok: true });
 });
+
+settingsRouter.post("/shopify/test-forward", testShopifyForward);
 
 settingsRouter.put("/chatwoot", async (req, res) => {
   const parsed = chatwootUpdateSchema.safeParse(req.body);

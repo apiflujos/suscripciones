@@ -1,4 +1,4 @@
-import { bootstrapCentralAttributes, setWompiActiveEnv, syncCentralAttributes, testCentralConnection, updateChatwoot, updateShopify, updateWompi } from "./actions";
+import { bootstrapCentralAttributes, setWompiActiveEnv, syncCentralAttributes, testCentralConnection, testShopifyForward, updateChatwoot, updateShopify, updateWompi } from "./actions";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { HelpTip } from "../ui/HelpTip";
 
@@ -15,7 +15,7 @@ async function fetchSettings() {
 export default async function SettingsPage({
   searchParams
 }: {
-  searchParams: { saved?: string; error?: string; central_bootstrap?: string; central_sync?: string; central_test?: string };
+  searchParams: { saved?: string; error?: string; central_bootstrap?: string; central_sync?: string; central_test?: string; shopify_test?: string };
 }) {
   const { token } = getConfig();
   if (!token) {
@@ -50,6 +50,7 @@ export default async function SettingsPage({
       {searchParams.central_bootstrap ? <div className="card cardPad">Atributos de Central creados.</div> : null}
       {searchParams.central_sync ? <div className="card cardPad">Sincronización de Central iniciada.</div> : null}
       {searchParams.central_test === "ok" ? <div className="card cardPad">Conexión exitosa.</div> : null}
+      {searchParams.shopify_test === "ok" ? <div className="card cardPad">Forward Shopify OK.</div> : null}
       {searchParams.error ? (
         <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>
           No se pudo guardar: {String(searchParams.error)}
@@ -272,6 +273,9 @@ export default async function SettingsPage({
               <input className="input" name="forwardSecret" type="password" />
             </div>
             <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button className="ghost" type="submit" formAction={testShopifyForward}>
+                Probar forward
+              </button>
               <button className="primary" type="submit">
                 Guardar
               </button>

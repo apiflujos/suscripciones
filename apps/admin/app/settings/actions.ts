@@ -76,6 +76,20 @@ export async function updateShopify(formData: FormData) {
   }
 }
 
+export async function testShopifyForward(formData: FormData) {
+  const forwardUrl = String(formData.get("forwardUrl") || "").trim();
+  const forwardSecret = String(formData.get("forwardSecret") || "").trim();
+  try {
+    await adminFetch("/admin/settings/shopify/test-forward", {
+      method: "POST",
+      body: JSON.stringify({ forwardUrl, forwardSecret })
+    });
+    redirect("/settings?shopify_test=ok");
+  } catch (err) {
+    redirect(`/settings?shopify_test=fail&error=${encodeURIComponent(toShortErrorMessage(err))}`);
+  }
+}
+
 export async function updateChatwoot(formData: FormData) {
   const environment = String(formData.get("environment") || "").trim();
   const baseUrl = String(formData.get("baseUrl") || "").trim();
