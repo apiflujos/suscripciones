@@ -31,6 +31,7 @@ export default async function LoginPage({ searchParams }: { searchParams?: { err
             : error === "unauthorized"
               ? "Credenciales inválidas o usuario no existe."
       : error;
+  const showError = !!error && error !== "invalid_body";
 
   return (
     <main className="authMain">
@@ -53,7 +54,7 @@ export default async function LoginPage({ searchParams }: { searchParams?: { err
           </div>
 
           {loggedOut ? <div className="authAlert">Sesión cerrada.</div> : null}
-          {error ? <div className="authAlert is-danger">Error: {errorMessage}</div> : null}
+          {showError ? <div className="authAlert is-danger">Error: {errorMessage}</div> : null}
 
           <LoginForm action={adminLogin} next={next} />
         </div>
