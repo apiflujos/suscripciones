@@ -1,4 +1,4 @@
-import { bootstrapCentralAttributes, setCentralActiveEnv, setWompiActiveEnv, syncCentralAttributes, testCentralConnection, updateChatwoot, updateShopify, updateWompi } from "./actions";
+import { bootstrapCentralAttributes, setWompiActiveEnv, syncCentralAttributes, testCentralConnection, updateChatwoot, updateShopify, updateWompi } from "./actions";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { HelpTip } from "../ui/HelpTip";
 
@@ -41,9 +41,7 @@ export default async function SettingsPage({
   const wompiSandbox = (settings?.wompi?.sandbox || {}) as any;
 
   const comms = (settings?.communications || null) as any;
-  const commsActiveEnv = (comms?.activeEnv || "PRODUCTION") as "PRODUCTION" | "SANDBOX";
   const commsProduction = (comms?.production || settings?.chatwoot || {}) as any;
-  const commsSandbox = (comms?.sandbox || {}) as any;
 
   return (
     <main className="page" style={{ maxWidth: 980 }}>
@@ -179,42 +177,21 @@ export default async function SettingsPage({
           </div>
         </div>
         <div className="settings-group-body">
-          <form action={setCentralActiveEnv} className="panel module" style={{ gridTemplateColumns: "1fr auto", alignItems: "end" } as any}>
-            <div className="field">
-              <label>Entorno activo</label>
-              <select className="select" name="activeEnv" defaultValue={commsActiveEnv}>
-                <option value="PRODUCTION">Producción</option>
-                <option value="SANDBOX">Sandbox</option>
-              </select>
-            </div>
-            <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-              <button className="primary" type="submit">
-                Guardar
-              </button>
-            </div>
-          </form>
-
-          {([
-            ["PRODUCTION", "Producción", commsProduction],
-            ["SANDBOX", "Sandbox", commsSandbox]
-          ] as const).map(([envKey, envLabel, cfg]) => (
-            <div key={envKey} className="panel module">
+          <div className="panel module">
               <div className="panelHeaderRow">
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <strong>{envLabel}</strong>
-                  {commsActiveEnv === envKey ? <span className="pill">Activo</span> : <span className="pill" style={{ opacity: 0.65 }}>Inactivo</span>}
+                  <strong>Producción</strong>
                 </div>
                 <details>
                   <summary className="ghost detailsSummary">Nueva conexión</summary>
                   <div className="detailsBody">
                     <form action={updateChatwoot} style={{ display: "grid", gap: 10 }}>
-                      <input type="hidden" name="environment" value={envKey} />
                       <div className="field">
                         <label>
                           URL base
                           <HelpTip text="Ej: https://tu-central.com (sin / al final)" />
                         </label>
-                        <input className="input" name="baseUrl" placeholder="https://central.tu-dominio.com" defaultValue={cfg?.baseUrl || ""} />
+                        <input className="input" name="baseUrl" placeholder="https://central.tu-dominio.com" defaultValue={commsProduction?.baseUrl || ""} />
                       </div>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                         <div className="field">
@@ -222,14 +199,14 @@ export default async function SettingsPage({
                             ID de cuenta
                             <HelpTip text="ID numérico de la cuenta en tu central." />
                           </label>
-                          <input className="input" name="accountId" defaultValue={cfg?.accountId || ""} />
+                          <input className="input" name="accountId" defaultValue={commsProduction?.accountId || ""} />
                         </div>
                         <div className="field">
                           <label>
                             ID de bandeja
                             <HelpTip text="ID numérico del inbox/bandeja." />
                           </label>
-                          <input className="input" name="inboxId" defaultValue={cfg?.inboxId || ""} />
+                          <input className="input" name="inboxId" defaultValue={commsProduction?.inboxId || ""} />
                         </div>
                         <div className="field">
                           <label>
@@ -252,10 +229,9 @@ export default async function SettingsPage({
                 </details>
               </div>
               <div className="field-hint">
-                Base: {cfg?.baseUrl || "—"} · cuenta: {cfg?.accountId || "—"} · bandeja: {cfg?.inboxId || "—"}
+                Base: {commsProduction?.baseUrl || "—"} · cuenta: {commsProduction?.accountId || "—"} · bandeja: {commsProduction?.inboxId || "—"}
               </div>
             </div>
-          ))}
 
           <div className="panel module" style={{ display: "grid", gap: 10 }}>
             <div className="panelHeaderRow">
