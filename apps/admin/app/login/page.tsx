@@ -1,5 +1,6 @@
-import { adminLogin, bootstrapSuperAdmin } from "./actions";
+import { adminLogin } from "./actions";
 import { getAdminApiConfig } from "../lib/adminApi";
+import { LoginForm } from "./LoginForm";
 
 export default async function LoginPage({ searchParams }: { searchParams?: { error?: string; next?: string; loggedOut?: string } }) {
   const error = String(searchParams?.error || "").trim();
@@ -33,62 +34,28 @@ export default async function LoginPage({ searchParams }: { searchParams?: { err
 
   return (
     <main className="authMain">
-      <div className="authCard card">
-        <div className="authCardInner">
-          <div className="authBrand" aria-label="Marca">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/logo-horizontal.png" alt="ApiFlujos" className="authLogo" />
+      <div className="authCard loginCard">
+        <div className="authCardInner loginCardInner">
+          <div className="loginHeader">
+            <div className="authBrand" aria-label="Marca">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/brand/logo-horizontal.png" alt="ApiFlujos" className="authLogo" />
+            </div>
+            <div className="loginBot">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/brand/avatar.png" alt="" />
+            </div>
           </div>
 
-          <div className="authHeader">
-            <h1 className="authTitle">Iniciar sesión</h1>
-            <div className="authSubtitle">Inicia sesión para acceder al panel.</div>
+          <div className="authHeader loginHeaderText">
+            <h1 className="authTitle">Bienvenido</h1>
+            <div className="authSubtitle">Ingresa para ver los pedidos y la trazabilidad.</div>
           </div>
 
           {loggedOut ? <div className="authAlert">Sesión cerrada.</div> : null}
           {error ? <div className="authAlert is-danger">Error: {errorMessage}</div> : null}
 
-          <form action={adminLogin} className="authForm">
-            <input type="hidden" name="next" value={next} />
-            <div className="field">
-              <label>Email</label>
-              <input name="email" className="input" placeholder="tu@email.com" autoComplete="username" />
-            </div>
-            <div className="field">
-              <label>Password</label>
-              <input name="password" className="input" type="password" autoComplete="current-password" />
-            </div>
-            <label className="authRemember">
-              <input type="checkbox" name="remember" value="1" />
-              <span>Recordarme</span>
-            </label>
-            <button className="primary" type="submit">
-              Entrar
-            </button>
-          </form>
-
-          <details className="authAlert" open={error === "no_admin_users" || error === "no_super_admin_user"}>
-            <summary style={{ cursor: "pointer" }}>Inicializar Super Admin (solo primera vez)</summary>
-            <div style={{ marginTop: 8 }}>
-              <form action={bootstrapSuperAdmin} className="authForm">
-                <input type="hidden" name="next" value="/sa" />
-                <div className="field">
-                  <label>Email</label>
-                  <input name="email" className="input" placeholder="superadmin@empresa.com" autoComplete="username" required />
-                </div>
-                <div className="field">
-                  <label>Password</label>
-                  <input name="password" className="input" type="password" autoComplete="new-password" required />
-                  <div className="field-hint">Mínimo 8 caracteres.</div>
-                </div>
-                <button className="primary" type="submit">
-                  Crear Super Admin
-                </button>
-              </form>
-            </div>
-          </details>
-
-          <div className="authFootnote">Si no tienes acceso, valida NEXT_PUBLIC_API_BASE_URL y que el token del panel coincida con el del API.</div>
+          <LoginForm action={adminLogin} next={next} />
         </div>
       </div>
     </main>
