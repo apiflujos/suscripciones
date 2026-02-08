@@ -200,6 +200,18 @@ export class ChatwootClient {
     return { raw: res.json };
   }
 
+  async getAccount() {
+    const res = await this.request(`/api/v1/accounts/${this.opts.accountId}`, { method: "GET" });
+    if (!res.ok) throw new Error(`Chatwoot get account failed: ${res.status} ${JSON.stringify(res.json)}`);
+    return { raw: res.json };
+  }
+
+  async getInbox(inboxId: number) {
+    const res = await this.request(`/api/v1/accounts/${this.opts.accountId}/inboxes/${inboxId}`, { method: "GET" });
+    if (!res.ok) throw new Error(`Chatwoot get inbox failed: ${res.status} ${JSON.stringify(res.json)}`);
+    return { raw: res.json };
+  }
+
   async createCustomAttribute(input: {
     displayName: string;
     key: string;

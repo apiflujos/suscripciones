@@ -1,4 +1,4 @@
-import { bootstrapCentralAttributes, setCentralActiveEnv, setWompiActiveEnv, syncCentralAttributes, updateChatwoot, updateShopify, updateWompi } from "./actions";
+import { bootstrapCentralAttributes, setCentralActiveEnv, setWompiActiveEnv, syncCentralAttributes, testCentralConnection, updateChatwoot, updateShopify, updateWompi } from "./actions";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { HelpTip } from "../ui/HelpTip";
 
@@ -12,7 +12,11 @@ async function fetchSettings() {
   return fetchAdminCached("/admin/settings", { ttlMs: 1500 });
 }
 
-export default async function SettingsPage({ searchParams }: { searchParams: { saved?: string; error?: string; central_bootstrap?: string; central_sync?: string } }) {
+export default async function SettingsPage({
+  searchParams
+}: {
+  searchParams: { saved?: string; error?: string; central_bootstrap?: string; central_sync?: string; central_test?: string };
+}) {
   const { token } = getConfig();
   if (!token) {
     return (
@@ -47,6 +51,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: { s
       {searchParams.saved ? <div className="card cardPad">Guardado.</div> : null}
       {searchParams.central_bootstrap ? <div className="card cardPad">Atributos de Central creados.</div> : null}
       {searchParams.central_sync ? <div className="card cardPad">Sincronización de Central iniciada.</div> : null}
+      {searchParams.central_test === "ok" ? <div className="card cardPad">Conexión exitosa.</div> : null}
       {searchParams.error ? (
         <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>
           No se pudo guardar: {String(searchParams.error)}
@@ -205,24 +210,39 @@ export default async function SettingsPage({ searchParams }: { searchParams: { s
                     <form action={updateChatwoot} style={{ display: "grid", gap: 10 }}>
                       <input type="hidden" name="environment" value={envKey} />
                       <div className="field">
-                        <label>URL base</label>
+                        <label>
+                          URL base
+                          <HelpTip text="Ej: https://tu-central.com (sin / al final)" />
+                        </label>
                         <input className="input" name="baseUrl" placeholder="https://central.tu-dominio.com" defaultValue={cfg?.baseUrl || ""} />
                       </div>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                         <div className="field">
-                          <label>ID de cuenta</label>
+                          <label>
+                            ID de cuenta
+                            <HelpTip text="ID numérico de la cuenta en tu central." />
+                          </label>
                           <input className="input" name="accountId" defaultValue={cfg?.accountId || ""} />
                         </div>
                         <div className="field">
-                          <label>ID de bandeja</label>
+                          <label>
+                            ID de bandeja
+                            <HelpTip text="ID numérico del inbox/bandeja." />
+                          </label>
                           <input className="input" name="inboxId" defaultValue={cfg?.inboxId || ""} />
                         </div>
                         <div className="field">
-                          <label>Token API</label>
+                          <label>
+                            Token API
+                            <HelpTip text="Token privado de la central para API." />
+                          </label>
                           <input className="input" name="apiAccessToken" type="password" />
                         </div>
                       </div>
                       <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
+                        <button className="ghost" type="submit" formAction={testCentralConnection}>
+                          Probar conexión
+                        </button>
                         <button className="primary" type="submit">
                           Guardar
                         </button>

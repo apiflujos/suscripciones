@@ -145,3 +145,25 @@ export async function syncCentralAttributes(formData: FormData) {
     redirect(`/settings?error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
+
+export async function testCentralConnection(formData: FormData) {
+  const baseUrl = String(formData.get("baseUrl") || "").trim();
+  const accountId = String(formData.get("accountId") || "").trim();
+  const inboxId = String(formData.get("inboxId") || "").trim();
+  const apiAccessToken = String(formData.get("apiAccessToken") || "").trim();
+
+  try {
+    await adminFetch("/admin/comms/test-connection", {
+      method: "POST",
+      body: JSON.stringify({
+        baseUrl,
+        apiAccessToken,
+        accountId: Number(accountId),
+        inboxId: Number(inboxId)
+      })
+    });
+    redirect("/settings?central_test=ok");
+  } catch (err) {
+    redirect(`/settings?central_test=fail&error=${encodeURIComponent(toShortErrorMessage(err))}`);
+  }
+}

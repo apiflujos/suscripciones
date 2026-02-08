@@ -25,9 +25,13 @@ function cacheKey(url: string, token: string) {
 }
 
 async function fetchJson(url: string, init?: RequestInit): Promise<FetchResult> {
-  const res = await fetch(url, init);
-  const json = await res.json().catch(() => null);
-  return { ok: res.ok, status: res.status, json };
+  try {
+    const res = await fetch(url, init);
+    const json = await res.json().catch(() => null);
+    return { ok: res.ok, status: res.status, json };
+  } catch (err) {
+    return { ok: false, status: 0, json: { error: "fetch_failed", detail: String((err as any)?.message || err) } };
+  }
 }
 
 export async function fetchPublicCached(path: string, opts?: { ttlMs?: number }): Promise<FetchResult> {
