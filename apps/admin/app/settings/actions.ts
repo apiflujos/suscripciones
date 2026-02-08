@@ -16,6 +16,19 @@ function toShortErrorMessage(err: unknown) {
   return raw.replace(/\s+/g, " ").trim().slice(0, 220) || "unknown_error";
 }
 
+function redirectWith(action: string, status: "ok" | "fail", error?: string) {
+  const qp = new URLSearchParams({ a: action, status });
+  if (error) qp.set("error", error);
+  redirect(`/settings?${qp.toString()}`);
+}
+
+function normalizeUrl(input: string) {
+  const v = String(input || "").trim();
+  if (!v) return "";
+  if (/^https?:\/\//i.test(v)) return v;
+  return `https://${v}`;
+}
+
 async function adminFetch(path: string, init: RequestInit) {
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
@@ -55,9 +68,9 @@ export async function updateWompi(formData: FormData) {
         ...(redirectUrl != null ? { redirectUrl } : {})
       })
     });
-    redirect("/settings?saved=1");
+    redirectWith("wompi_creds", "ok");
   } catch (err) {
-    redirect(`/settings?error=${encodeURIComponent(toShortErrorMessage(err))}`);
+    redirectWith("wompi_creds", "fail", toShortErrorMessage(err));
   }
 }
 
@@ -70,9 +83,9 @@ export async function updateShopify(formData: FormData) {
       method: "PUT",
       body: JSON.stringify({ forwardUrl, forwardSecret })
     });
-    redirect("/settings?saved=1");
+    redirectWith("shopify_save", "ok");
   } catch (err) {
-    redirect(`/settings?error=${encodeURIComponent(toShortErrorMessage(err))}`);
+    redirectWith("shopify_save", "fail", toShortErrorMessage(err));
   }
 }
 
@@ -84,15 +97,15 @@ export async function testShopifyForward(formData: FormData) {
       method: "POST",
       body: JSON.stringify({ forwardUrl, forwardSecret })
     });
-    redirect("/settings?shopify_test=ok");
+    redirectWith("shopify_test", "ok");
   } catch (err) {
-    redirect(`/settings?shopify_test=fail&error=${encodeURIComponent(toShortErrorMessage(err))}`);
+    redirectWith("shopify_test", "fail", toShortErrorMessage(err));
   }
 }
 
 export async function updateChatwoot(formData: FormData) {
   const environment = String(formData.get("environment") || "").trim();
-  const baseUrl = String(formData.get("baseUrl") || "").trim();
+  const baseUrl = normalizeUrl(String(formData.get("baseUrl") || ""));
   const accountId = String(formData.get("accountId") || "").trim();
   const apiAccessToken = String(formData.get("apiAccessToken") || "").trim();
   const inboxId = String(formData.get("inboxId") || "").trim();
@@ -108,9 +121,9 @@ export async function updateChatwoot(formData: FormData) {
         ...(inboxId ? { inboxId: Number(inboxId) } : {})
       })
     });
-    redirect("/settings?saved=1");
+    redirectWith("central_save", "ok");
   } catch (err) {
-    redirect(`/settings?error=${encodeURIComponent(toShortErrorMessage(err))}`);
+    redirectWith("central_save", "fail", toShortErrorMessage(err));
   }
 }
 
@@ -121,9 +134,9 @@ export async function setWompiActiveEnv(formData: FormData) {
       method: "PUT",
       body: JSON.stringify({ activeEnv })
     });
-    redirect("/settings?saved=1");
+    redirectWith("wompi_env", "ok");
   } catch (err) {
-    redirect(`/settings?error=${encodeURIComponent(toShortErrorMessage(err))}`);
+    redirectWith("wompi_env", "fail", toShortErrorMessage(err));
   }
 }
 
@@ -134,18 +147,18 @@ export async function setCentralActiveEnv(formData: FormData) {
       method: "PUT",
       body: JSON.stringify({ activeEnv })
     });
-    redirect("/settings?saved=1");
+    redirectWith("central_env", "ok");
   } catch (err) {
-    redirect(`/settings?error=${encodeURIComponent(toShortErrorMessage(err))}`);
+    redirectWith("central_env", "fail", toShortErrorMessage(err));
   }
 }
 
 export async function bootstrapCentralAttributes() {
   try {
     await adminFetch("/admin/comms/bootstrap-attributes", { method: "POST" });
-    redirect("/settings?central_bootstrap=1");
+    redirectWith("central_bootstrap", "ok");
   } catch (err) {
-    redirect(`/settings?error=${encodeURIComponent(toShortErrorMessage(err))}`);
+    redirectWith("central_bootstrap", "fail", toShortErrorMessage(err));
   }
 }
 
@@ -154,14 +167,14 @@ export async function syncCentralAttributes(formData: FormData) {
   const qp = limit ? `?limit=${encodeURIComponent(limit)}` : "";
   try {
     await adminFetch(`/admin/comms/sync-attributes${qp}`, { method: "POST" });
-    redirect("/settings?central_sync=1");
+    redirectWith("central_sync", "ok");
   } catch (err) {
-    redirect(`/settings?error=${encodeURIComponent(toShortErrorMessage(err))}`);
+    redirectWith("central_sync", "fail", toShortErrorMessage(err));
   }
 }
 
 export async function testCentralConnection(formData: FormData) {
-  const baseUrl = String(formData.get("baseUrl") || "").trim();
+  const baseUrl = normalizeUrl(String(formData.get("baseUrl") || ""));
   const accountId = String(formData.get("accountId") || "").trim();
   const inboxId = String(formData.get("inboxId") || "").trim();
   const apiAccessToken = String(formData.get("apiAccessToken") || "").trim();
@@ -176,8 +189,8 @@ export async function testCentralConnection(formData: FormData) {
         inboxId: Number(inboxId)
       })
     });
-    redirect("/settings?central_test=ok");
+    redirectWith("central_test", "ok");
   } catch (err) {
-    redirect(`/settings?central_test=fail&error=${encodeURIComponent(toShortErrorMessage(err))}`);
+    redirectWith("central_test", "fail", toShortErrorMessage(err));
   }
 }

@@ -17,7 +17,7 @@ async function fetchSettings() {
 export default async function SettingsPage({
   searchParams
 }: {
-  searchParams: { saved?: string; error?: string; central_bootstrap?: string; central_sync?: string; central_test?: string; shopify_test?: string };
+  searchParams: { a?: string; status?: string; error?: string };
 }) {
   const { token } = getConfig();
   if (!token) {
@@ -45,29 +45,21 @@ export default async function SettingsPage({
   const comms = (settings?.communications || null) as any;
   const commsProduction = (comms?.production || settings?.chatwoot || {}) as any;
 
+  const action = String(searchParams.a || "");
+  const status = String(searchParams.status || "");
+  const errorText = searchParams.error ? String(searchParams.error) : "";
+  const isOk = status === "ok";
+  const isFail = status === "fail";
+  const inlineMsg = (key: string, okText: string, failPrefix: string) => {
+    if (action !== key) return null;
+    if (isOk) return <div className="field-hint">{okText}</div>;
+    if (isFail) return <div className="field-hint" style={{ color: "var(--danger)" }}>{failPrefix}: {errorText || "unknown_error"}</div>;
+    return null;
+  };
+
   return (
     <main className="page" style={{ maxWidth: 980 }}>
       <h1 style={{ marginTop: 0 }}>Configuraciones</h1>
-      {searchParams.saved ? <div className="card cardPad">Guardado.</div> : null}
-      {searchParams.central_bootstrap ? <div className="card cardPad">Atributos de Central creados.</div> : null}
-      {searchParams.central_sync ? <div className="card cardPad">Sincronización de Central iniciada.</div> : null}
-      {searchParams.central_test === "ok" ? <div className="card cardPad">Conexión exitosa.</div> : null}
-      {searchParams.central_test === "fail" ? (
-        <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>
-          Error conectando con la Central: {String(searchParams.error || "no_details")}
-        </div>
-      ) : null}
-      {searchParams.shopify_test === "ok" ? <div className="card cardPad">Forward Shopify OK.</div> : null}
-      {searchParams.shopify_test === "fail" ? (
-        <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>
-          Error probando forward: {String(searchParams.error || "no_details")}
-        </div>
-      ) : null}
-      {searchParams.error ? (
-        <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>
-          No se pudo guardar: {String(searchParams.error)}
-        </div>
-      ) : null}
 
       {!settingsRes.ok ? (
         <div className="card cardPad">
@@ -111,6 +103,7 @@ export default async function SettingsPage({
               </select>
             </div>
             <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
+              {inlineMsg("wompi_env", "Guardado.", "Error guardando")}
               <PendingButton className="primary" type="submit" pendingText="Guardando...">
                 Guardar
               </PendingButton>
@@ -187,6 +180,7 @@ export default async function SettingsPage({
                         <input className="input" name="redirectUrl" defaultValue={cfg?.redirectUrl || ""} />
                       </div>
                       <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
+                        {inlineMsg("wompi_creds", "Guardado.", "Error guardando")}
                         <PendingButton className="primary" type="submit" pendingText="Guardando...">
                           Guardar
                         </PendingButton>
@@ -254,6 +248,8 @@ export default async function SettingsPage({
                         </div>
                       </div>
                       <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
+                        {inlineMsg("central_save", "Guardado.", "Error guardando")}
+                        {inlineMsg("central_test", "Conexión exitosa.", "Error conectando")}
                         <DualActionButtons
                           primaryLabel="Guardar"
                           primaryPendingLabel="Guardando..."
@@ -278,6 +274,7 @@ export default async function SettingsPage({
               <strong>Acciones rápidas</strong>
             </div>
             <form action={bootstrapCentralAttributes}>
+              {inlineMsg("central_bootstrap", "Atributos creados.", "Error creando")}
               <PendingButton className="ghost" type="submit" pendingText="Creando...">
                 Crear atributos de contacto
               </PendingButton>
@@ -290,6 +287,7 @@ export default async function SettingsPage({
                 </label>
                 <input className="input" name="limit" placeholder="200" />
               </div>
+              {inlineMsg("central_sync", "Sincronización iniciada.", "Error sincronizando")}
               <PendingButton className="ghost" type="submit" pendingText="Sincronizando...">
                 Sincronizar contactos
               </PendingButton>
@@ -325,6 +323,8 @@ export default async function SettingsPage({
               <input className="input" name="forwardSecret" type="password" />
             </div>
             <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
+              {inlineMsg("shopify_save", "Guardado.", "Error guardando")}
+              {inlineMsg("shopify_test", "Forward OK.", "Error probando")}
               <DualActionButtons
                 primaryLabel="Guardar"
                 primaryPendingLabel="Guardando..."
