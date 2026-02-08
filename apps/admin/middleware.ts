@@ -16,6 +16,8 @@ export async function middleware(req: NextRequest) {
   const isPublic =
     pathname === "/login" ||
     pathname === "/logout" ||
+    pathname === "/debug" ||
+    pathname === "/__debug" ||
     pathname === "/sa/login" ||
     pathname === "/sa/logout" ||
     pathname === "/__sa/login" ||
