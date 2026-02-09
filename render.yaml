@@ -107,7 +107,7 @@ services:
         value: "20"
       - key: NEXT_PUBLIC_API_BASE_URL
         sync: false
-      - key: API_ADMIN_TOKEN
+      - key: ADMIN_API_TOKEN
         sync: false
       - key: ADMIN_BASIC_USER
         sync: false

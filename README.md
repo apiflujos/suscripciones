@@ -120,7 +120,7 @@ Opcionales (ENV o `/settings`):
 Ver `apps/admin/.env.example`.
 
 - `NEXT_PUBLIC_API_BASE_URL` (ej. `http://localhost:3001`)
-- `API_ADMIN_TOKEN` (debe ser el mismo que `ADMIN_API_TOKEN` del API)
+- `ADMIN_API_TOKEN` (el mismo valor que el `ADMIN_API_TOKEN` del API)
 - `ADMIN_BASIC_USER`, `ADMIN_BASIC_PASS` (si están seteadas, el panel pide Basic Auth)
 
 ## Endpoints
