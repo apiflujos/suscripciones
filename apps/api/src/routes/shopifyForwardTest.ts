@@ -14,7 +14,13 @@ export async function testShopifyForward(req: Request, res: Response) {
   const payload = {
     event: "wompi.forward.test",
     data: {
-      test: true
+      transaction: {
+        id: "test_txn",
+        status: "APPROVED",
+        amount_in_cents: 1000,
+        currency: "COP",
+        reference: "SHOPIFY_TEST"
+      }
     },
     timestamp: Date.now()
   };
