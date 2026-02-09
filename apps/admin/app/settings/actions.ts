@@ -40,7 +40,16 @@ async function adminFetch(path: string, init: RequestInit) {
     cache: "no-store"
   });
   const json = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(json?.reason ? `${json?.error || "request_failed"}:${json.reason}` : json?.message || json?.error || `request_failed_${res.status}`);
+  if (!res.ok) {
+    const status = res.status;
+    const details =
+      json?.error && json?.status && json?.text
+        ? `${json.error} (status ${json.status}): ${json.text}`
+        : json?.reason
+          ? `${json?.error || "request_failed"}:${json.reason}`
+          : json?.message || json?.error || `request_failed_${status}`;
+    throw new Error(details);
+  }
   return json;
 }
 
