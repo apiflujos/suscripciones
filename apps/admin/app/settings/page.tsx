@@ -130,7 +130,7 @@ export default async function SettingsPage({
                           Llave pública
                           <HelpTip text="Clave pública de tu cuenta Wompi (empieza con pub_)." />
                         </label>
-                        <input className="input" name="publicKey" placeholder="pub_..." defaultValue={cfg?.publicKey || ""} />
+                        <input className="input" name="publicKey" placeholder="pub_..." />
                       </div>
                       <div className="field">
                         <label>
@@ -162,7 +162,6 @@ export default async function SettingsPage({
                           className="input"
                           name="apiBaseUrl"
                           placeholder={envKey === "SANDBOX" ? "https://sandbox.wompi.co/v1" : "https://production.wompi.co/v1"}
-                          defaultValue={cfg?.apiBaseUrl || ""}
                         />
                       </div>
                       <div className="field">
@@ -170,14 +169,14 @@ export default async function SettingsPage({
                           URL base de links de pago
                           <HelpTip text="Base para generar links de pago." />
                         </label>
-                        <input className="input" name="checkoutLinkBaseUrl" placeholder="https://checkout.wompi.co/l/" defaultValue={cfg?.checkoutLinkBaseUrl || ""} />
+                        <input className="input" name="checkoutLinkBaseUrl" placeholder="https://checkout.wompi.co/l/" />
                       </div>
                       <div className="field">
                         <label>
                           URL de redirección (opcional)
                           <HelpTip text="URL a la que Wompi redirige después del pago." />
                         </label>
-                        <input className="input" name="redirectUrl" defaultValue={cfg?.redirectUrl || ""} />
+                        <input className="input" name="redirectUrl" />
                       </div>
                       <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
                         {inlineMsg("wompi_creds", "Guardado.", "Error guardando")}
@@ -189,9 +188,14 @@ export default async function SettingsPage({
                   </div>
                 </details>
               </div>
-              <div className="field-hint">
-                Llave pública: {cfg?.publicKey || "—"} · Llave privada: {cfg?.privateKey || "—"} · Integridad: {cfg?.integritySecret || "—"} · Eventos: {cfg?.eventsSecret || "—"}
-                {" · "}API: {cfg?.apiBaseUrl || "—"} · Links: {cfg?.checkoutLinkBaseUrl || "—"}
+              <div className="panel module" style={{ marginTop: 10 }}>
+                <div className="panelHeaderRow">
+                  <strong>Conexión guardada</strong>
+                </div>
+                <div className="field-hint">
+                  Llave pública: {cfg?.publicKey || "—"} · Llave privada: {cfg?.privateKey || "—"} · Integridad: {cfg?.integritySecret || "—"} · Eventos: {cfg?.eventsSecret || "—"}
+                  {" · "}API: {cfg?.apiBaseUrl || "—"} · Links: {cfg?.checkoutLinkBaseUrl || "—"}
+                </div>
               </div>
             </div>
           ))}
@@ -222,7 +226,7 @@ export default async function SettingsPage({
                           URL base
                           <HelpTip text="Ej: https://tu-central.com (sin / al final)" />
                         </label>
-                        <input className="input" name="baseUrl" placeholder="https://central.tu-dominio.com" defaultValue={commsProduction?.baseUrl || ""} />
+                        <input className="input" name="baseUrl" placeholder="https://central.tu-dominio.com" />
                       </div>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                         <div className="field">
@@ -230,14 +234,14 @@ export default async function SettingsPage({
                             ID de cuenta
                             <HelpTip text="ID numérico de la cuenta en tu central." />
                           </label>
-                          <input className="input" name="accountId" defaultValue={commsProduction?.accountId || ""} />
+                          <input className="input" name="accountId" />
                         </div>
                         <div className="field">
                           <label>
                             ID de bandeja
                             <HelpTip text="ID numérico del inbox/bandeja." />
                           </label>
-                          <input className="input" name="inboxId" defaultValue={commsProduction?.inboxId || ""} />
+                          <input className="input" name="inboxId" />
                         </div>
                         <div className="field">
                           <label>
@@ -264,8 +268,13 @@ export default async function SettingsPage({
                   </div>
                 </details>
               </div>
-              <div className="field-hint">
-                Base: {commsProduction?.baseUrl || "—"} · cuenta: {commsProduction?.accountId || "—"} · bandeja: {commsProduction?.inboxId || "—"}
+              <div className="panel module" style={{ marginTop: 10 }}>
+                <div className="panelHeaderRow">
+                  <strong>Conexión guardada</strong>
+                </div>
+                <div className="field-hint">
+                  Base: {commsProduction?.baseUrl || "—"} · cuenta: {commsProduction?.accountId || "—"} · bandeja: {commsProduction?.inboxId || "—"}
+                </div>
               </div>
             </div>
 
@@ -313,7 +322,7 @@ export default async function SettingsPage({
                 URL de reenvío
                 <HelpTip text="Endpoint del e-commerce para recibir eventos." />
               </label>
-              <input className="input" name="forwardUrl" defaultValue={settings?.shopify?.forwardUrl || ""} />
+              <input className="input" name="forwardUrl" />
             </div>
             <div className="field">
               <label>
@@ -336,6 +345,12 @@ export default async function SettingsPage({
               />
             </div>
           </form>
+          <div className="panel module" style={{ marginTop: 10 }}>
+            <div className="panelHeaderRow">
+              <strong>Conexión guardada</strong>
+            </div>
+            <div className="field-hint">URL: {settings?.shopify?.forwardUrl || "—"}</div>
+          </div>
         </div>
       </section>
     </main>
