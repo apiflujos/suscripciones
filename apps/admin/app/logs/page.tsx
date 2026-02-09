@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
+import { LocalDateTime } from "../ui/LocalDateTime";
 
 export const dynamic = "force-dynamic";
 
@@ -161,7 +162,7 @@ export default async function LogsPage({
                     const chip = toStatusChip(l.level);
                     return (
                       <tr key={l.id}>
-                        <td>{new Date(l.createdAt).toLocaleString()}</td>
+                        <td><LocalDateTime value={l.createdAt} /></td>
                         <td>{l.source}</td>
                         <td>—</td>
                         <td>
@@ -206,7 +207,7 @@ export default async function LogsPage({
                 <tbody>
                   {webhookItems.map((e) => (
                     <tr key={e.id}>
-                      <td>{e.receivedAt ? new Date(e.receivedAt).toLocaleString() : "—"}</td>
+                      <td><LocalDateTime value={e.receivedAt} /></td>
                       <td>{e.eventName || "—"}</td>
                       <td>{e.processStatus || "—"}</td>
                       <td style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>
