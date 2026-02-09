@@ -14,6 +14,32 @@ function getTransactionFromPayload(payload: any): any | null {
   return tx && typeof tx === "object" ? tx : null;
 }
 
+function getCustomerEmailFromPayload(payload: any): string | undefined {
+  const tx = getTransactionFromPayload(payload);
+  const email =
+    tx?.customer_email ||
+    tx?.customerEmail ||
+    payload?.data?.customer_email ||
+    payload?.data?.customerEmail ||
+    tx?.customer_data?.email;
+  const trimmed = String(email || "").trim().toLowerCase();
+  return trimmed || undefined;
+}
+
+function getCustomerNameFromPayload(payload: any): string | undefined {
+  const tx = getTransactionFromPayload(payload);
+  const name = tx?.customer_data?.full_name || tx?.customer_data?.name || tx?.customer_data?.fullName || tx?.customer?.name;
+  const trimmed = String(name || "").trim();
+  return trimmed || undefined;
+}
+
+function getCustomerPhoneFromPayload(payload: any): string | undefined {
+  const tx = getTransactionFromPayload(payload);
+  const phone = tx?.customer_data?.phone_number || tx?.customer_data?.phoneNumber || tx?.customer?.phone_number || tx?.customer?.phone;
+  const trimmed = String(phone || "").trim();
+  return trimmed || undefined;
+}
+
 export async function processWompiEvent(webhookEventId: string) {
   const event = await prisma.webhookEvent.findUnique({ where: { id: webhookEventId } });
   if (!event) return;
@@ -34,8 +60,8 @@ export async function processWompiEvent(webhookEventId: string) {
     : null;
   const referenceClassification = classifyReference(reference);
 
-  // If we don't recognize the payment by link, and it's not a subscription reference, ignore.
-  if (!paymentByLink && referenceClassification.kind !== "subscription") {
+  // Shopify references are forwarded but not processed as subscriptions.
+  if (!paymentByLink && referenceClassification.kind === "shopify") {
     await prisma.webhookEvent.update({
       where: { id: webhookEventId },
       data: { processStatus: WebhookProcessStatus.SKIPPED, processedAt: new Date() }
@@ -43,13 +69,81 @@ export async function processWompiEvent(webhookEventId: string) {
     return;
   }
 
-  const subscriptionId =
+  let inferredSubscriptionId =
     paymentByLink?.subscriptionId ??
     (referenceClassification.kind === "subscription" ? referenceClassification.subscriptionId : "");
 
+  let inferredSubscription: { id: string } | null = null;
+  if (!paymentByLink && !inferredSubscriptionId) {
+    if (!amountInCents) {
+      await prisma.webhookEvent.update({
+        where: { id: webhookEventId },
+        data: { processStatus: WebhookProcessStatus.FAILED, errorMessage: "missing_amount_in_cents", processedAt: new Date() }
+      });
+      return;
+    }
+
+    const plan = await prisma.subscriptionPlan.findFirst({
+      where: {
+        active: true,
+        priceInCents: amountInCents,
+        currency: (currency || "COP").toUpperCase()
+      },
+      orderBy: { updatedAt: "desc" }
+    });
+
+    if (!plan) {
+      await prisma.webhookEvent.update({
+        where: { id: webhookEventId },
+        data: { processStatus: WebhookProcessStatus.FAILED, errorMessage: "plan_not_found_for_amount", processedAt: new Date() }
+      });
+      return;
+    }
+
+    const email = getCustomerEmailFromPayload(payload);
+    if (!email) {
+      await prisma.webhookEvent.update({
+        where: { id: webhookEventId },
+        data: { processStatus: WebhookProcessStatus.FAILED, errorMessage: "customer_email_missing", processedAt: new Date() }
+      });
+      return;
+    }
+
+    let customer = await prisma.customer.findUnique({ where: { email } });
+    if (!customer) {
+      customer = await prisma.customer.create({
+        data: {
+          email,
+          name: getCustomerNameFromPayload(payload),
+          phone: getCustomerPhoneFromPayload(payload)
+        }
+      });
+    }
+
+    const startAt = new Date();
+    const periodEnd = addIntervalUtc(startAt, plan.intervalUnit, plan.intervalCount);
+
+    inferredSubscription = await prisma.subscription.create({
+      data: {
+        customerId: customer.id,
+        planId: plan.id,
+        status: SubscriptionStatus.PAST_DUE,
+        startAt,
+        currentPeriodStartAt: startAt,
+        currentPeriodEndAt: periodEnd,
+        currentCycle: 1
+      }
+    });
+    inferredSubscriptionId = inferredSubscription.id;
+  }
+
+  const subscriptionId = inferredSubscriptionId;
+
   const isSubscription = !!subscriptionId;
   // Registrar pago y, si está aprobado, renovar ciclo (solo para suscripciones).
-  const subscription = isSubscription ? await prisma.subscription.findUnique({ where: { id: subscriptionId } }) : null;
+  const subscription =
+    inferredSubscription ??
+    (isSubscription ? await prisma.subscription.findUnique({ where: { id: subscriptionId } }) : null);
   if (isSubscription && !subscription) {
     await prisma.webhookEvent.update({
       where: { id: webhookEventId },
