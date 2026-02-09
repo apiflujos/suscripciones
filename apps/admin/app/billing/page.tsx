@@ -63,7 +63,7 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
     return (
       <main>
         <h1 style={{ marginTop: 0 }}>Planes y Suscripciones</h1>
-        <p>Configura `API_ADMIN_TOKEN` (o `ADMIN_API_TOKEN`) en el Admin para poder consultar el API.</p>
+        <p>Configura `ADMIN_API_TOKEN` en el Admin para poder consultar el API.</p>
       </main>
     );
   }

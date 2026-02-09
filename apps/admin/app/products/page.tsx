@@ -30,7 +30,7 @@ export default async function ProductsPage({
     return (
       <main>
         <h1 style={{ marginTop: 0 }}>Productos y Servicios</h1>
-        <p>Configura `API_ADMIN_TOKEN` (o `ADMIN_API_TOKEN`) en el Admin para poder consultar el API.</p>
+        <p>Configura `ADMIN_API_TOKEN` en el Admin para poder consultar el API.</p>
       </main>
     );
   }

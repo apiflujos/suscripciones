@@ -25,7 +25,7 @@ export default async function CustomerPaymentMethodPage({
     return (
       <main>
         <h1 style={{ marginTop: 0 }}>Método de pago</h1>
-        <p>Configura `API_ADMIN_TOKEN` (o `ADMIN_API_TOKEN`) en el Admin para poder consultar el API.</p>
+        <p>Configura `ADMIN_API_TOKEN` en el Admin para poder consultar el API.</p>
       </main>
     );
   }

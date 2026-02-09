@@ -23,7 +23,7 @@ export default async function NotificationsPage({
     return (
       <main>
         <h1 style={{ marginTop: 0 }}>Notificaciones</h1>
-        <p>Configura `API_ADMIN_TOKEN` (o `ADMIN_API_TOKEN`) en el Admin.</p>
+        <p>Configura `ADMIN_API_TOKEN` en el Admin.</p>
       </main>
     );
   }

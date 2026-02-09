@@ -11,7 +11,7 @@ function normalizeToken(value: string) {
   return v.trim();
 }
 
-const TOKEN = normalizeToken(process.env.ADMIN_API_TOKEN || process.env.API_ADMIN_TOKEN || "");
+const TOKEN = normalizeToken(process.env.ADMIN_API_TOKEN || "");
 
 function safeReturnTo(formData: FormData) {
   const raw = String(formData.get("returnTo") || "").trim();

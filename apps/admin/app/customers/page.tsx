@@ -28,7 +28,7 @@ export default async function CustomersPage({
   searchParams: { created?: string; paymentSource?: string; error?: string; q?: string };
 }) {
   const { token } = getConfig();
-  if (!token) return <main><h1 style={{ marginTop: 0 }}>Contactos</h1><p>Configura `API_ADMIN_TOKEN` (o `ADMIN_API_TOKEN`).</p></main>;
+  if (!token) return <main><h1 style={{ marginTop: 0 }}>Contactos</h1><p>Configura `ADMIN_API_TOKEN`.</p></main>;
   const q = typeof searchParams?.q === "string" ? searchParams.q : "";
   const data = await fetchCustomers({ q, take: 200 });
   const items = (data.items ?? []) as any[];

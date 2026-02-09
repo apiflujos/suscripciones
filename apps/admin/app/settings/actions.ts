@@ -9,7 +9,7 @@ function normalizeToken(value: string) {
   if ((v.startsWith("\"") && v.endsWith("\"")) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
   return v.trim();
 }
-const TOKEN = normalizeToken(process.env.ADMIN_API_TOKEN || process.env.API_ADMIN_TOKEN || "");
+const TOKEN = normalizeToken(process.env.ADMIN_API_TOKEN || "");
 
 function toShortErrorMessage(err: unknown) {
   const raw = err instanceof Error ? err.message : String(err);

@@ -9,7 +9,7 @@ function normalizeToken(value: string) {
   if ((v.startsWith("\"") && v.endsWith("\"")) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
   return v.trim();
 }
-const TOKEN = normalizeToken(process.env.ADMIN_API_TOKEN || process.env.API_ADMIN_TOKEN || "");
+const TOKEN = normalizeToken(process.env.ADMIN_API_TOKEN || "");
 
 async function adminFetch(path: string, init: RequestInit) {
   const res = await fetch(`${API_BASE}${path}`, {

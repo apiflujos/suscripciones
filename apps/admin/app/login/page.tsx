@@ -11,13 +11,13 @@ export default async function LoginPage({ searchParams }: { searchParams?: { err
 
   const errorMessage =
     error === "missing_admin_token"
-      ? "Falta configurar el token del Admin (API_ADMIN_TOKEN) y el token del API (ADMIN_API_TOKEN)."
+      ? "Falta configurar el token del Admin (ADMIN_API_TOKEN)."
       : error === "api_unreachable"
         ? `No se pudo conectar al API (${apiBase}). Revisa NEXT_PUBLIC_API_BASE_URL, que el API esté arriba y que Render no apunte a localhost.`
         : error === "admin_api_expected_not_configured"
-          ? "En el API falta configurar ADMIN_API_TOKEN (o API_ADMIN_TOKEN)."
+          ? "En el API falta configurar ADMIN_API_TOKEN."
           : error === "admin_api_token_mismatch"
-            ? "El token del Admin (API_ADMIN_TOKEN) no coincide con el ADMIN_API_TOKEN del API."
+            ? "El token del Admin (ADMIN_API_TOKEN) no coincide con el ADMIN_API_TOKEN del API."
             : error === "no_admin_users"
               ? "No hay usuarios creados todavía. Inicializa el primer Super Admin (abajo) y luego crea más usuarios en /sa/users."
               : error === "no_super_admin_user"

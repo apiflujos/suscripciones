@@ -35,7 +35,7 @@ export function getSessionSecret() {
     normalizeSecret(process.env.ADMIN_SESSION_SECRET) ||
     normalizeSecret(process.env.ADMIN_SESSION_SALT) ||
     normalizeSecret(process.env.ADMIN_API_TOKEN) ||
-    normalizeSecret(process.env.API_ADMIN_TOKEN) ||
+    normalizeSecret(process.env.ADMIN_API_TOKEN) ||
     ""
   );
 }
@@ -108,4 +108,3 @@ export async function verifyAdminSessionToken(token: string): Promise<AdminSessi
 
   return { email, role: role as AdminRole, tenantId: tenantIdRaw || null, iat, exp };
 }
-

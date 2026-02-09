@@ -55,7 +55,7 @@ export default async function LogsPage({
     return (
       <main>
         <h1 style={{ marginTop: 0 }}>Logs de API</h1>
-        <p>Configura `API_ADMIN_TOKEN` (o `ADMIN_API_TOKEN`).</p>
+        <p>Configura `ADMIN_API_TOKEN`.</p>
       </main>
     );
   }

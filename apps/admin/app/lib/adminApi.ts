@@ -15,7 +15,7 @@ function normalizeToken(value: string) {
 export function getAdminApiConfig() {
   const internalBase = process.env.ADMIN_INTERNAL_API_BASE_URL || process.env.INTERNAL_API_BASE_URL || "";
   const apiBase = internalBase || process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
-  const token = normalizeToken(process.env.ADMIN_API_TOKEN || process.env.API_ADMIN_TOKEN || "");
+  const token = normalizeToken(process.env.ADMIN_API_TOKEN || "");
   return { apiBase, token };
 }
 

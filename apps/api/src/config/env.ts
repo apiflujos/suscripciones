@@ -26,8 +26,7 @@ export type Env = z.infer<typeof envSchema>;
 export function loadEnv(processEnv: NodeJS.ProcessEnv): Env {
   const normalized = {
     ...processEnv,
-    // Back-compat: some deployments used `API_ADMIN_TOKEN` for the API service.
-    ADMIN_API_TOKEN: processEnv.ADMIN_API_TOKEN || processEnv.API_ADMIN_TOKEN
+    ADMIN_API_TOKEN: processEnv.ADMIN_API_TOKEN
   } as NodeJS.ProcessEnv;
 
   const parsed = envSchema.safeParse(normalized);

@@ -24,7 +24,7 @@ export default async function SettingsPage({
     return (
       <main>
         <h1 style={{ marginTop: 0 }}>Credenciales</h1>
-        <p>Configura `API_ADMIN_TOKEN` (o `ADMIN_API_TOKEN`) en el Admin para poder guardar credenciales.</p>
+        <p>Configura `ADMIN_API_TOKEN` en el Admin para poder guardar credenciales.</p>
       </main>
     );
   }
@@ -32,7 +32,7 @@ export default async function SettingsPage({
   const settingsRes = await fetchSettings();
   const settings = settingsRes.ok ? settingsRes.json : null;
   const tokenInfo = (() => {
-    const raw = String(process.env.ADMIN_API_TOKEN || process.env.API_ADMIN_TOKEN || "");
+    const raw = String(process.env.ADMIN_API_TOKEN || "");
     const normalized = raw.replace(/^Bearer\\s+/i, "").trim().replace(/^\"|\"$/g, "").replace(/^'|'$/g, "").trim();
     const last4 = normalized ? normalized.slice(-4) : "";
     return normalized ? `longitud ${normalized.length} · termina en ${last4}` : "no detectado";

@@ -14,7 +14,7 @@ export function requireAdminToken(req: Request, res: Response, next: NextFunctio
   const tokenFromHeader = req.header("x-admin-token") || "";
   const token = normalizeToken(tokenFromAuth || tokenFromHeader || "");
 
-  const expectedRaw = process.env.ADMIN_API_TOKEN || process.env.API_ADMIN_TOKEN || "";
+  const expectedRaw = process.env.ADMIN_API_TOKEN || "";
   const expectedTokens = String(expectedRaw || "")
     .split(/[,\n]/)
     .map((t) => normalizeToken(t))

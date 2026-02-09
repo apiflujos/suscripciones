@@ -187,7 +187,7 @@ export default async function Home({ searchParams }: { searchParams?: { from?: s
         </div>
         {!hasToken ? (
           <div style={{ color: "var(--muted)", fontSize: 13 }}>
-            Para ver métricas completas, configura <code>API_ADMIN_TOKEN</code> en el Admin.
+            Para ver métricas completas, configura <code>ADMIN_API_TOKEN</code> en el Admin.
           </div>
         ) : null}
       </div>
@@ -234,7 +234,7 @@ export default async function Home({ searchParams }: { searchParams?: { from?: s
         <div className="settings-group-body">
           {!hasToken ? (
             <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>
-              Falta <code>API_ADMIN_TOKEN</code> en el Admin para consultar el API de métricas.
+              Falta <code>ADMIN_API_TOKEN</code> en el Admin para consultar el API de métricas.
             </div>
           ) : !metrics.ok ? (
             <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>
