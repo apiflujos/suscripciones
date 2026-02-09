@@ -12,9 +12,11 @@ export async function testShopifyForward(req: Request, res: Response) {
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
 
   const payload = {
-    test: true,
-    type: "wompi.forward.test",
-    ts: new Date().toISOString()
+    event: "wompi.forward.test",
+    data: {
+      test: true
+    },
+    timestamp: Date.now()
   };
 
   const headers = {
