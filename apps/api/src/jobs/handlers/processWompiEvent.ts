@@ -73,7 +73,7 @@ export async function processWompiEvent(webhookEventId: string) {
     paymentByLink?.subscriptionId ??
     (referenceClassification.kind === "subscription" ? referenceClassification.subscriptionId : "");
 
-  let inferredSubscription: { id: string } | null = null;
+  let inferredSubscription: Awaited<ReturnType<typeof prisma.subscription.create>> | null = null;
   if (!paymentByLink && !inferredSubscriptionId) {
     if (!amountInCents) {
       await prisma.webhookEvent.update({
