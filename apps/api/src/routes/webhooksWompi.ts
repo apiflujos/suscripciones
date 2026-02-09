@@ -5,6 +5,8 @@ import { prisma } from "../db/prisma";
 import { RetryJobType, WebhookProvider } from "@prisma/client";
 import { getWompiEventsSecret } from "../services/runtimeConfig";
 import { getShopifyForward } from "../services/runtimeConfig";
+import { systemLog } from "../services/systemLog";
+import { LogLevel } from "@prisma/client";
 
 function getChecksumHeader(req: Request): string | undefined {
   const h = req.header("x-event-checksum") || req.header("x-wompi-checksum");
@@ -47,6 +49,15 @@ export async function wompiWebhook(req: Request, res: Response) {
         payload: parsed.data as any
       }
     });
+
+    const tx = (parsed.data as any)?.data?.transaction;
+    await systemLog(LogLevel.INFO, "webhooks.wompi", "Webhook recibido", {
+      event: parsed.data.event,
+      checksum,
+      transactionId: tx?.id,
+      reference: tx?.reference,
+      status: tx?.status
+    }).catch(() => {});
 
     await prisma.retryJob.create({
       data: {
