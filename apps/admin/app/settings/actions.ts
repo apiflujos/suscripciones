@@ -16,6 +16,11 @@ function toShortErrorMessage(err: unknown) {
   return raw.replace(/\s+/g, " ").trim().slice(0, 220) || "unknown_error";
 }
 
+function isNextRedirect(err: unknown) {
+  const digest = (err as any)?.digest;
+  return typeof digest === "string" && digest.startsWith("NEXT_REDIRECT");
+}
+
 function redirectWith(action: string, status: "ok" | "fail", error?: string) {
   const qp = new URLSearchParams({ a: action, status });
   if (error) qp.set("error", error);
@@ -79,6 +84,7 @@ export async function updateWompi(formData: FormData) {
     });
     redirectWith("wompi_creds", "ok");
   } catch (err) {
+    if (isNextRedirect(err)) throw err;
     redirectWith("wompi_creds", "fail", toShortErrorMessage(err));
   }
 }
@@ -94,6 +100,7 @@ export async function updateShopify(formData: FormData) {
     });
     redirectWith("shopify_save", "ok");
   } catch (err) {
+    if (isNextRedirect(err)) throw err;
     redirectWith("shopify_save", "fail", toShortErrorMessage(err));
   }
 }
@@ -108,6 +115,7 @@ export async function testShopifyForward(formData: FormData) {
     });
     redirectWith("shopify_test", "ok");
   } catch (err) {
+    if (isNextRedirect(err)) throw err;
     redirectWith("shopify_test", "fail", toShortErrorMessage(err));
   }
 }
@@ -132,6 +140,7 @@ export async function updateChatwoot(formData: FormData) {
     });
     redirectWith("central_save", "ok");
   } catch (err) {
+    if (isNextRedirect(err)) throw err;
     redirectWith("central_save", "fail", toShortErrorMessage(err));
   }
 }
@@ -145,6 +154,7 @@ export async function setWompiActiveEnv(formData: FormData) {
     });
     redirectWith("wompi_env", "ok");
   } catch (err) {
+    if (isNextRedirect(err)) throw err;
     redirectWith("wompi_env", "fail", toShortErrorMessage(err));
   }
 }
@@ -158,6 +168,7 @@ export async function setCentralActiveEnv(formData: FormData) {
     });
     redirectWith("central_env", "ok");
   } catch (err) {
+    if (isNextRedirect(err)) throw err;
     redirectWith("central_env", "fail", toShortErrorMessage(err));
   }
 }
@@ -167,6 +178,7 @@ export async function bootstrapCentralAttributes() {
     await adminFetch("/admin/comms/bootstrap-attributes", { method: "POST" });
     redirectWith("central_bootstrap", "ok");
   } catch (err) {
+    if (isNextRedirect(err)) throw err;
     redirectWith("central_bootstrap", "fail", toShortErrorMessage(err));
   }
 }
@@ -178,6 +190,7 @@ export async function syncCentralAttributes(formData: FormData) {
     await adminFetch(`/admin/comms/sync-attributes${qp}`, { method: "POST" });
     redirectWith("central_sync", "ok");
   } catch (err) {
+    if (isNextRedirect(err)) throw err;
     redirectWith("central_sync", "fail", toShortErrorMessage(err));
   }
 }
@@ -200,6 +213,7 @@ export async function testCentralConnection(formData: FormData) {
     });
     redirectWith("central_test", "ok");
   } catch (err) {
+    if (isNextRedirect(err)) throw err;
     redirectWith("central_test", "fail", toShortErrorMessage(err));
   }
 }
