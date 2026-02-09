@@ -3,6 +3,7 @@ import Link from "next/link";
 import { NewCustomerForm } from "./NewCustomerForm";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { HelpTip } from "../ui/HelpTip";
+import { LocalDateTime } from "../ui/LocalDateTime";
 
 export const dynamic = "force-dynamic";
 
@@ -97,7 +98,7 @@ export default async function CustomersPage({
                         </Link>
                       )}
                     </td>
-                    <td>{c.createdAt ? new Date(c.createdAt).toLocaleString() : "—"}</td>
+                    <td><LocalDateTime value={c.createdAt} /></td>
                   </tr>
                 ))}
                 {items.length === 0 ? (

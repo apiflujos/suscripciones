@@ -2,6 +2,7 @@ import { createPaymentLink, createSubscription } from "../subscriptions/actions"
 import { createCustomerFromBilling, createPlanTemplate } from "./actions";
 import { NewBillingAssignmentForm } from "./NewBillingAssignmentForm";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
+import { LocalDateTime } from "../ui/LocalDateTime";
 
 export const dynamic = "force-dynamic";
 
@@ -48,13 +49,6 @@ function getSituacion(status: any) {
   if (s === "EXPIRED") return { key: "mora", label: "Expirada" };
   if (s === "CANCELED") return { key: "mora", label: "Cancelada" };
   return { key: "mora", label: s || "—" };
-}
-
-function toLocal(dt: any) {
-  if (!dt) return "—";
-  const d = new Date(dt);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleString();
 }
 
 export default async function BillingPage({ searchParams }: { searchParams?: Record<string, string | string[] | undefined> }) {
@@ -249,8 +243,8 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.id}>
-                    <td>{toLocal(r.pagoAt)}</td>
-                    <td>{toLocal(r.vencimientoAt)}</td>
+                    <td><LocalDateTime value={r.pagoAt} /></td>
+                    <td><LocalDateTime value={r.vencimientoAt} /></td>
                     <td>
                       <div style={{ display: "grid" }}>
                         <span>{r.customerName}</span>
