@@ -53,7 +53,7 @@ export default async function CampaignsPage({ searchParams }: { searchParams?: {
           <div className="field">
             <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span>Template params (JSON opcional)</span>
-              <HelpTip text="Solo si usas plantilla. Ej: {\"name\":\"Juan\",\"amount\":\"$49.000\"}." />
+              <HelpTip text='Solo si usas plantilla. Ej: {"name":"Juan","amount":"$49.000"}.' />
             </label>
             <textarea className="input" name="templateParams" rows={3} placeholder='{"name":"Juan","amount":"$49.000"}' />
           </div>
