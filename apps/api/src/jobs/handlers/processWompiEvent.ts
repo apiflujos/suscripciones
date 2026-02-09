@@ -363,7 +363,26 @@ export async function forwardWompiToShopify(webhookEventId: string) {
   const event = await prisma.webhookEvent.findUnique({ where: { id: webhookEventId } });
   if (!event) return;
 
-  const res = await postJson(cfg.url, event.payload, {
+  const raw = event.payload as any;
+  const data = raw && typeof raw === "object" ? raw.data : undefined;
+  const transaction = data && typeof data === "object" ? data.transaction : undefined;
+  const payload = {
+    ...(raw && typeof raw === "object" ? raw : {}),
+    origin: raw?.origin ?? "shopify",
+    data:
+      data && typeof data === "object"
+        ? {
+            ...data,
+            origin: (data as any).origin ?? "shopify",
+            transaction:
+              transaction && typeof transaction === "object"
+                ? { ...transaction, origin: (transaction as any).origin ?? "shopify" }
+                : transaction
+          }
+        : data
+  };
+
+  const res = await postJson(cfg.url, payload, {
     "x-forwarded-by": "wompi-subs-api",
     ...(cfg.secret ? { "x-forwarded-secret": cfg.secret } : {})
   });
