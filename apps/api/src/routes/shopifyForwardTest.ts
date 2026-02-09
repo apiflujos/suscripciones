@@ -17,6 +17,7 @@ export async function testShopifyForward(req: Request, res: Response) {
       origin: "wompi",
       transaction: {
         id: "test_txn",
+        origin: "wompi",
         status: "APPROVED",
         amount_in_cents: 1000,
         currency: "COP",
