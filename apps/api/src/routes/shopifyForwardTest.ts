@@ -22,7 +22,8 @@ export async function testShopifyForward(req: Request, res: Response) {
         reference: "SHOPIFY_TEST"
       }
     },
-    timestamp: Date.now()
+    timestamp: Date.now(),
+    origin: "wompi"
   };
 
   const headers = {
