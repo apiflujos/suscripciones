@@ -24,6 +24,7 @@ export async function testShopifyForward(req: Request, res: Response) {
         reference: "SHOPIFY_TEST"
       }
     },
+    sent_at: new Date().toISOString(),
     timestamp: Date.now(),
     origin: "shopify"
   };

@@ -369,6 +369,7 @@ export async function forwardWompiToShopify(webhookEventId: string) {
   const payload = {
     ...(raw && typeof raw === "object" ? raw : {}),
     origin: raw?.origin ?? "shopify",
+    sent_at: raw?.sent_at ?? new Date().toISOString(),
     data:
       data && typeof data === "object"
         ? {
