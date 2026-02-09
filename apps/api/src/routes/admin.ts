@@ -51,5 +51,9 @@ export async function listWebhookEvents(_req: Request, res: Response) {
     orderBy: { receivedAt: "desc" },
     take: 50
   });
-  res.json({ items });
+  const normalized = items.map((item) => ({
+    ...item,
+    providerTs: item.providerTs != null ? item.providerTs.toString() : null
+  }));
+  res.json({ items: normalized });
 }
