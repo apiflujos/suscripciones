@@ -45,10 +45,9 @@ export async function createSubscription(formData: FormData) {
       })
     });
 
-    const subId = json?.subscription?.id;
     const checkoutUrl = json?.checkoutUrl;
-    if (subId && checkoutUrl) {
-      redirect(`/billing?created=1&checkoutUrl=${encodeURIComponent(checkoutUrl)}`);
+    if (checkoutUrl) {
+      redirect(`/billing?created=1&checkoutUrl=${encodeURIComponent(checkoutUrl)}&customerId=${encodeURIComponent(customerId)}`);
     }
     redirect(`/billing?created=1`);
   } catch (err: any) {
@@ -59,12 +58,17 @@ export async function createSubscription(formData: FormData) {
 
 export async function createPaymentLink(formData: FormData) {
   const subscriptionId = String(formData.get("subscriptionId") || "").trim();
+  const customerId = String(formData.get("customerId") || "").trim();
   try {
     const json = await adminFetch(`/admin/subscriptions/${subscriptionId}/payment-link`, {
       method: "POST",
       body: JSON.stringify({})
     });
-    redirect(`/billing?created=1&checkoutUrl=${encodeURIComponent(json.checkoutUrl || "")}`);
+    const qp = new URLSearchParams();
+    qp.set("created", "1");
+    if (json.checkoutUrl) qp.set("checkoutUrl", json.checkoutUrl);
+    if (customerId) qp.set("customerId", customerId);
+    redirect(`/billing?${qp.toString()}`);
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
     redirect(`/billing?error=${encodeURIComponent(err?.message || "create_payment_link_failed")}`);

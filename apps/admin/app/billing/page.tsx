@@ -1,8 +1,9 @@
 import { createPaymentLink, createSubscription } from "../subscriptions/actions";
-import { createCustomerFromBilling, createPlanTemplate } from "./actions";
+import { createCustomerFromBilling, createPlanTemplate, sendChatwootPaymentLink } from "./actions";
 import { NewBillingAssignmentForm } from "./NewBillingAssignmentForm";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { LocalDateTime } from "../ui/LocalDateTime";
+import { CopyButton } from "../ui/CopyButton";
 
 export const dynamic = "force-dynamic";
 
@@ -103,7 +104,9 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
   const planCreated = typeof searchParams?.planCreated === "string" ? searchParams.planCreated : "";
   const contactCreated = typeof searchParams?.contactCreated === "string" ? searchParams.contactCreated : "";
   const checkoutUrl = typeof searchParams?.checkoutUrl === "string" ? searchParams.checkoutUrl : "";
+  const checkoutCustomerId = typeof searchParams?.customerId === "string" ? searchParams.customerId : "";
   const error = typeof searchParams?.error === "string" ? searchParams.error : "";
+  const chatwoot = typeof searchParams?.chatwoot === "string" ? searchParams.chatwoot : "";
   const crear = typeof searchParams?.crear === "string" ? searchParams.crear : "";
   const selectPlanId = typeof searchParams?.selectPlanId === "string" ? searchParams.selectPlanId : "";
   const selectCustomerId = typeof searchParams?.selectCustomerId === "string" ? searchParams.selectCustomerId : "";
@@ -195,14 +198,27 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
         </div>
       ) : null}
       {created ? <div className="card cardPad">Guardado.</div> : null}
+      {chatwoot === "sent" ? <div className="card cardPad">Mensaje enviado por Chatwoot.</div> : null}
       {planCreated ? <div className="card cardPad">Plan/suscripción creada.</div> : null}
       {contactCreated ? <div className="card cardPad">Contacto creado.</div> : null}
       {checkoutUrl ? (
-        <div className="card cardPad">
-          Checkout:{" "}
-          <a href={checkoutUrl} target="_blank" rel="noreferrer" style={{ textDecoration: "underline" }}>
-            abrir link
-          </a>
+        <div className="card cardPad" style={{ display: "grid", gap: 8 }}>
+          <div>
+            Checkout:{" "}
+            <a href={checkoutUrl} target="_blank" rel="noreferrer" style={{ textDecoration: "underline" }}>
+              abrir link
+            </a>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <CopyButton text={checkoutUrl} />
+            <form action={sendChatwootPaymentLink}>
+              <input type="hidden" name="checkoutUrl" value={checkoutUrl} />
+              <input type="hidden" name="customerId" value={checkoutCustomerId} />
+              <button className="ghost" type="submit" disabled={!checkoutCustomerId}>
+                Enviar por Chatwoot
+              </button>
+            </form>
+          </div>
         </div>
       ) : null}
 
@@ -267,7 +283,8 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
                 <tr>
                   <th>Fecha de pago</th>
                   <th>Fecha próximo pago</th>
-                  <th>Cliente</th>
+                  <th>Nombre</th>
+                  <th>Email</th>
                   <th>Identificación</th>
                   <th>Tipo</th>
                   <th>Activo</th>
@@ -281,13 +298,8 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
                   <tr key={r.id}>
                     <td><LocalDateTime value={r.pagoAt} /></td>
                     <td><LocalDateTime value={r.vencimientoAt} /></td>
-                    <td>
-                      <div style={{ display: "grid" }}>
-                        <span>{r.customerName}</span>
-                        {r.customerEmail ? <span className="field-hint">{r.customerEmail}</span> : null}
-                        {r.customerId ? <span className="field-hint">ID: {r.customerId}</span> : null}
-                      </div>
-                    </td>
+                    <td>{r.customerName}</td>
+                    <td>{r.customerEmail || "—"}</td>
                     <td style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>{r.identificacion}</td>
                     <td>
                       <div style={{ display: "grid" }}>
@@ -311,6 +323,7 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
                       {r.mode !== "AUTO_DEBIT" ? (
                         <form action={createPaymentLink}>
                           <input type="hidden" name="subscriptionId" value={r.id} />
+                          <input type="hidden" name="customerId" value={r.customerId} />
                           <button className="ghost" type="submit">
                             Generar link
                           </button>
@@ -323,7 +336,7 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
                 ))}
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={9} style={{ color: "var(--muted)" }}>
+                    <td colSpan={10} style={{ color: "var(--muted)" }}>
                       Sin resultados.
                     </td>
                   </tr>

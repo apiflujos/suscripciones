@@ -264,3 +264,21 @@ export async function createPlanTemplate(formData: FormData) {
     redirect(mergeQuery(returnTo, { error: String(err?.message || "create_plan_failed") }));
   }
 }
+
+export async function sendChatwootPaymentLink(formData: FormData) {
+  const checkoutUrl = String(formData.get("checkoutUrl") || "").trim();
+  const customerId = String(formData.get("customerId") || "").trim();
+  if (!checkoutUrl || !customerId) return redirect("/billing?error=missing_checkout_or_customer");
+
+  const content = `Link de pago: ${checkoutUrl}`;
+
+  try {
+    await adminFetch("/admin/chatwoot/messages", {
+      method: "POST",
+      body: JSON.stringify({ customerId, content })
+    });
+    redirect("/billing?created=1&chatwoot=sent");
+  } catch (err: any) {
+    redirect(`/billing?error=${encodeURIComponent(err?.message || "chatwoot_send_failed")}`);
+  }
+}

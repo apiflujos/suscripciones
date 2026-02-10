@@ -209,9 +209,16 @@ export function NewBillingAssignmentForm({
   useEffect(() => {
     if (!selectedPlan) return;
     const tipo = planTipo(selectedPlan);
-    if (tipo === "PLAN" && sameCutoff) setCreateLinkNow(true);
+    if (tipo === "PLAN") setCreateLinkNow(true);
     if (tipo === "SUSCRIPCION") setCreateLinkNow(false);
-  }, [selectedPlan, sameCutoff]);
+  }, [selectedPlan]);
+
+  const primaryLabel = useMemo(() => {
+    if (!selectedPlan) return "Guardar";
+    const tipo = planTipo(selectedPlan);
+    if (tipo === "PLAN" && createLinkNow) return "Generar link de pago";
+    return "Guardar";
+  }, [selectedPlan, createLinkNow]);
 
   const startAtIso = useMemo(() => localToIso(startLocal), [startLocal]);
   const cutoffAtIso = useMemo(() => localToIso(cutoffLocal), [cutoffLocal]);
@@ -428,26 +435,33 @@ export function NewBillingAssignmentForm({
               </div>
 
               {selectedPlan ? (
-                <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <input
-                    type="checkbox"
-                    name="createPaymentLink"
-                    checked={createLinkNow}
-                    onChange={(e) => setCreateLinkNow(e.target.checked)}
-                    disabled={!planId || !customerId}
-                  />
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                    {planTipo(selectedPlan) === "PLAN"
-                      ? "Generar link de pago al guardar"
-                      : "Generar link de pago si no se puede cobrar automáticamente"}
-                    <HelpTip text="Si no hay método de pago, se crea un link para cobrar." />
-                  </span>
-                </label>
+                planTipo(selectedPlan) === "PLAN" ? (
+                  <div style={{ display: "grid", gap: 6 }}>
+                    <input type="hidden" name="createPaymentLink" value="on" />
+                    <div className="field-hint">
+                      Se generará un link de pago para este contacto.
+                    </div>
+                  </div>
+                ) : (
+                  <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <input
+                      type="checkbox"
+                      name="createPaymentLink"
+                      checked={createLinkNow}
+                      onChange={(e) => setCreateLinkNow(e.target.checked)}
+                      disabled={!planId || !customerId}
+                    />
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                      Generar link de pago si no se puede cobrar automáticamente
+                      <HelpTip text="Si no hay método de pago, se crea un link para cobrar." />
+                    </span>
+                  </label>
+                )
               ) : null}
 
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 10, alignItems: "center" }}>
                 <button className="primary" type="submit" disabled={!planId || !customerId}>
-                  Guardar
+                  {primaryLabel}
                 </button>
               </div>
             </form>
