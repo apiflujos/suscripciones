@@ -17,11 +17,27 @@ async function fetchPreview(id: string): Promise<Preview> {
   return res.json().catch(() => null);
 }
 
-export default async function SmartListsPage({ searchParams }: { searchParams?: { preview?: string; error?: string; created?: string; synced?: string } }) {
+export default async function SmartListsPage({
+  searchParams
+}: {
+  searchParams?: { preview?: string; error?: string; created?: string; synced?: string; preset?: string; name?: string; description?: string; rules?: string };
+}) {
   const listsRes = await fetchAdminCached("/admin/comms/smart-lists", { ttlMs: 0 });
   const items = Array.isArray(listsRes?.json?.items) ? listsRes.json.items : [];
   const previewId = String(searchParams?.preview || "").trim();
   const preview = previewId ? await fetchPreview(previewId) : null;
+  const preset = String(searchParams?.preset || "").trim();
+  const prefillName = String(searchParams?.name || "").trim();
+  const prefillDescription = String(searchParams?.description || "").trim();
+  const rulesRaw = String(searchParams?.rules || "").trim();
+  let initialRules: any = null;
+  if (rulesRaw) {
+    try {
+      initialRules = JSON.parse(rulesRaw);
+    } catch {
+      initialRules = null;
+    }
+  }
 
   return (
     <div className="page">
@@ -44,16 +60,16 @@ export default async function SmartListsPage({ searchParams }: { searchParams?: 
               <span>Nombre</span>
               <HelpTip text="Nombre visible en la Central y en campañas." />
             </label>
-            <input className="input" name="name" required />
+            <input className="input" name="name" defaultValue={prefillName} required />
           </div>
           <div className="field">
             <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span>Descripción</span>
               <HelpTip text="Nota interna para saber qué segmento representa." />
             </label>
-            <input className="input" name="description" />
+            <input className="input" name="description" defaultValue={prefillDescription} />
           </div>
-          <SmartListBuilder />
+          <SmartListBuilder preset={preset || undefined} initialRules={initialRules || undefined} />
           <label className="checkbox" style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <input type="checkbox" name="enabled" value="1" defaultChecked />
             <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>

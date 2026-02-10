@@ -41,14 +41,51 @@ function getActivo(status: any) {
   return String(status || "") !== "CANCELED";
 }
 
-function getSituacion(status: any) {
+function getEstado(status: any) {
   const s = String(status || "");
-  if (s === "ACTIVE") return { key: "al_dia", label: "Al día" };
   if (s === "PAST_DUE") return { key: "mora", label: "En mora" };
-  if (s === "SUSPENDED") return { key: "mora", label: "Suspendida" };
-  if (s === "EXPIRED") return { key: "mora", label: "Expirada" };
-  if (s === "CANCELED") return { key: "mora", label: "Cancelada" };
-  return { key: "mora", label: s || "—" };
+  if (s === "ACTIVE") return { key: "si", label: "Sí" };
+  return { key: "no", label: "No" };
+}
+
+function buildSmartListRules({
+  tipo,
+  estado,
+  q
+}: {
+  tipo: string;
+  estado: string;
+  q: string;
+}) {
+  const rules: any[] = [];
+
+  if (tipo === "planes") {
+    rules.push({ field: "hasSubscription", op: "equals", value: false });
+  } else if (tipo === "suscripciones") {
+    rules.push({ field: "hasSubscription", op: "equals", value: true });
+  }
+
+  if (estado === "mora") {
+    rules.push({ field: "subscriptionStatus", op: "equals", value: "PAST_DUE" });
+  } else if (estado === "si") {
+    rules.push({ field: "subscriptionStatus", op: "equals", value: "ACTIVE" });
+  } else if (estado === "no") {
+    rules.push({ field: "subscriptionStatus", op: "notIn", value: ["ACTIVE", "PAST_DUE"] });
+  }
+
+  if (q.trim()) {
+    rules.push({
+      op: "or",
+      rules: [
+        { field: "name", op: "contains", value: q },
+        { field: "email", op: "contains", value: q },
+        { field: "metadata.identificacion", op: "contains", value: q },
+        { field: "metadata.documentNumber", op: "contains", value: q }
+      ]
+    });
+  }
+
+  return { op: "and", rules };
 }
 
 export default async function BillingPage({ searchParams }: { searchParams?: Record<string, string | string[] | undefined> }) {
@@ -72,10 +109,11 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
   const selectCustomerId = typeof searchParams?.selectCustomerId === "string" ? searchParams.selectCustomerId : "";
 
   const tipo = typeof searchParams?.tipo === "string" ? searchParams.tipo : "todos";
-  const estado = typeof searchParams?.estado === "string" ? searchParams.estado : "activos";
-  const situacion = typeof searchParams?.situacion === "string" ? searchParams.situacion : "todos";
+  const estado = typeof searchParams?.estado === "string" ? searchParams.estado : "todos";
   const q = typeof searchParams?.q === "string" ? searchParams.q : "";
   const ordenar = typeof searchParams?.ordenar === "string" ? searchParams.ordenar : "vencimiento";
+  const smartListRules = buildSmartListRules({ tipo, estado, q });
+  const smartListRulesParam = encodeURIComponent(JSON.stringify(smartListRules));
 
   const [subs, plans, customers, products] = await Promise.all([
     fetchAdmin("/admin/subscriptions"),
@@ -94,7 +132,7 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
       const customer = s.customer;
       const tipoTx = getTipo(plan);
       const activo = getActivo(s.status);
-      const sit = getSituacion(s.status);
+      const estadoInfo = getEstado(s.status);
       const ident =
         customer?.metadata?.identificacion ||
         customer?.metadata?.identificationNumber ||
@@ -111,7 +149,7 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
         tipoTx,
         activo,
         status: String(s.status || "—"),
-        situacion: sit,
+        estadoInfo,
         planName: String(plan?.name || "—"),
         montoInCents: Number(plan?.priceInCents || 0),
         moneda: String(plan?.currency || "COP"),
@@ -124,10 +162,9 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
     .filter((r) => {
       if (tipo === "planes" && r.tipoTx !== "Plan") return false;
       if (tipo === "suscripciones" && r.tipoTx !== "Suscripción") return false;
-      if (estado === "activos" && !r.activo) return false;
-      if (estado === "inactivos" && r.activo) return false;
-      if (situacion === "al_dia" && r.situacion.key !== "al_dia") return false;
-      if (situacion === "mora" && r.situacion.key !== "mora") return false;
+      if (estado === "si" && r.estadoInfo.key !== "si") return false;
+      if (estado === "no" && r.estadoInfo.key !== "no") return false;
+      if (estado === "mora" && r.estadoInfo.key !== "mora") return false;
       if (q) {
         const t = q.toLowerCase();
         const hay =
@@ -185,17 +222,13 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
                     <option value="suscripciones">Suscripciones</option>
                   </select>
                   <select className="select" name="estado" defaultValue={estado} aria-label="Estado">
-                    <option value="activos">Activos</option>
-                    <option value="inactivos">Inactivos</option>
                     <option value="todos">Todos</option>
-                  </select>
-                  <select className="select" name="situacion" defaultValue={situacion} aria-label="Situación">
-                    <option value="todos">Todas</option>
-                    <option value="al_dia">Al día</option>
+                    <option value="si">Sí</option>
+                    <option value="no">No</option>
                     <option value="mora">En mora</option>
                   </select>
                   <select className="select" name="ordenar" defaultValue={ordenar} aria-label="Ordenar">
-                    <option value="vencimiento">Vencimiento</option>
+                    <option value="vencimiento">Próximo pago</option>
                     <option value="pago">Pago</option>
                     <option value="monto">Monto</option>
                   </select>
@@ -206,7 +239,10 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
                 </form>
               </div>
             </div>
-            <div className="filtersRight">
+            <div className="filtersRight" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <a className="ghost" href={`/smart-lists?rules=${smartListRulesParam}`}>
+                Crear lista inteligente
+              </a>
               <span className="pill">{rows.length} resultados</span>
             </div>
           </div>
@@ -230,7 +266,7 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
               <thead>
                 <tr>
                   <th>Fecha de pago</th>
-                  <th>Fecha de vencimiento</th>
+                  <th>Fecha próximo pago</th>
                   <th>Cliente</th>
                   <th>Identificación</th>
                   <th>Tipo</th>
@@ -262,8 +298,7 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
                     <td>{r.activo ? "Sí" : "No"}</td>
                     <td>
                       <div style={{ display: "grid" }}>
-                        <span>{r.situacion.label}</span>
-                        <span className="field-hint">{r.status}</span>
+                        <span>{r.estadoInfo.label}</span>
                       </div>
                     </td>
                     <td>

@@ -113,6 +113,17 @@ function uid() {
   return Math.random().toString(36).slice(2);
 }
 
+function makeRule(field: string, op: RuleOp, value?: any): RuleNode {
+  return { id: uid(), type: "rule", field, op, value };
+}
+
+function presetToRoot(preset?: string): GroupNode | null {
+  if (preset === "past_due") {
+    return { id: uid(), type: "group", op: "and", children: [makeRule("subscriptionStatus", "equals", "PAST_DUE")] };
+  }
+  return null;
+}
+
 function fieldByValue(value: string) {
   return FIELDS.find((f) => f.value === value) || FIELDS[0];
 }
@@ -289,51 +300,72 @@ function GroupEditor({
         )
       )}
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <strong>Condición</strong>
+        <strong>Condicional</strong>
         <select className="select" value={node.op} onChange={(e) => onChange({ ...node, op: e.target.value as GroupOp })}>
-          <option value="and">AND (todas)</option>
-          <option value="or">OR (cualquiera)</option>
+          <option value="and">Todas</option>
+          <option value="or">Cualquiera</option>
         </select>
         {onRemove ? (
-          <button type="button" className="ghost" onClick={onRemove} style={{ marginLeft: "auto" }}>Quitar grupo</button>
+          <button type="button" className="ghost" onClick={onRemove} style={{ marginLeft: "auto" }}>Quitar condicional</button>
         ) : null}
       </div>
       <div style={{ display: "flex", gap: 8 }}>
         <button type="button" className="ghost" onClick={() => onChange({ ...node, children: node.children.concat([defaultRule()]) })}>
-          Agregar regla
-        </button>
-        <button type="button" className="ghost" onClick={() => onChange({ ...node, children: node.children.concat([defaultGroup()]) })}>
-          Agregar grupo
+          Agregar filtro
         </button>
       </div>
     </div>
   );
 }
 
-export function SmartListBuilder() {
-  const [root, setRoot] = useState<GroupNode>(defaultGroup());
-  const [advanced, setAdvanced] = useState(false);
+function coerceRoot(input?: any): GroupNode | null {
+  if (!input || typeof input !== "object") return null;
+  if (input.op !== "and" && input.op !== "or") return null;
+  if (!Array.isArray(input.rules)) return null;
+  return {
+    id: uid(),
+    type: "group",
+    op: input.op,
+    children: input.rules.map((r: any) => {
+      if (r?.op && Array.isArray(r?.rules)) {
+        return {
+          id: uid(),
+          type: "group",
+          op: r.op === "or" ? "or" : "and",
+          children: r.rules.map((child: any) => ({
+            id: uid(),
+            type: "rule",
+            field: String(child?.field || "name"),
+            op: (child?.op as RuleOp) || "equals",
+            value: child?.value
+          }))
+        };
+      }
+      return {
+        id: uid(),
+        type: "rule",
+        field: String(r?.field || "name"),
+        op: (r?.op as RuleOp) || "equals",
+        value: r?.value
+      };
+    })
+  };
+}
+
+export function SmartListBuilder({ preset, initialRules }: { preset?: string; initialRules?: any }) {
+  const [root, setRoot] = useState<GroupNode>(() => coerceRoot(initialRules) || presetToRoot(preset) || defaultGroup());
   const json = useMemo(() => JSON.stringify(serializeNode(root), null, 0), [root]);
 
   return (
     <div style={{ display: "grid", gap: 10 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <strong>Reglas</strong>
-        <label className="checkbox" style={{ marginLeft: "auto" }}>
-          <input type="checkbox" checked={advanced} onChange={(e) => setAdvanced(e.target.checked)} />
-          <span>Modo avanzado (JSON)</span>
-        </label>
+        <strong>Filtros</strong>
       </div>
 
-      {!advanced ? (
-        <GroupEditor node={root} depth={0} onChange={setRoot} />
-      ) : (
-        <textarea className="input" name="rules" rows={10} defaultValue={json} />
-      )}
-
-      {!advanced ? <input type="hidden" name="rules" value={json} /> : null}
+      <GroupEditor node={root} depth={0} onChange={setRoot} />
+      <input type="hidden" name="rules" value={json} />
       <div className="field-hint">
-        Fechas relativas soportan segundos, minutos, horas, días. Para listas usa coma. Puedes anidar grupos AND/OR.
+        Fechas relativas soportan segundos, minutos, horas, días. Para listas usa coma.
       </div>
     </div>
   );
