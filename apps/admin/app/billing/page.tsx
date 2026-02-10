@@ -3,6 +3,7 @@ import { createCustomerFromBilling, createPlanTemplate, sendChatwootPaymentLink 
 import { NewBillingAssignmentForm } from "./NewBillingAssignmentForm";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { LocalDateTime } from "../ui/LocalDateTime";
+import { HelpTip } from "../ui/HelpTip";
 import { CopyButton } from "../ui/CopyButton";
 
 export const dynamic = "force-dynamic";
@@ -117,6 +118,7 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
   const ordenar = typeof searchParams?.ordenar === "string" ? searchParams.ordenar : "vencimiento";
   const smartListRules = buildSmartListRules({ tipo, estado, q });
   const smartListRulesParam = encodeURIComponent(JSON.stringify(smartListRules));
+  const hasFiltersApplied = tipo !== "todos" || estado !== "todos" || Boolean(q.trim());
 
   const [subs, plans, customers, products] = await Promise.all([
     fetchAdmin("/admin/subscriptions"),
@@ -232,23 +234,41 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
               <div className="filter-group">
                 <div className="filter-label">Filtros</div>
                 <form action="/billing" method="GET" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                  <select className="select" name="tipo" defaultValue={tipo} aria-label="Tipo">
+                  <div style={{ display: "grid", gap: 4 }}>
+                    <span className="field-hint" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      Tipo
+                      <HelpTip text="Filtra por planes (links de pago) o suscripciones (cobro automático)." />
+                    </span>
+                    <select className="select" name="tipo" defaultValue={tipo} aria-label="Tipo">
                     <option value="todos">Todos</option>
                     <option value="planes">Planes</option>
                     <option value="suscripciones">Suscripciones</option>
-                  </select>
-                  <select className="select" name="estado" defaultValue={estado} aria-label="Estado">
+                    </select>
+                  </div>
+                  <div style={{ display: "grid", gap: 4 }}>
+                    <span className="field-hint" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      Estado de pago
+                      <HelpTip text="Sí = activo, No = inactivo, En mora = pago vencido." />
+                    </span>
+                    <select className="select" name="estado" defaultValue={estado} aria-label="Estado de pago">
                     <option value="todos">Todos</option>
                     <option value="si">Sí</option>
                     <option value="no">No</option>
                     <option value="mora">En mora</option>
-                  </select>
-                  <select className="select" name="ordenar" defaultValue={ordenar} aria-label="Ordenar">
+                    </select>
+                  </div>
+                  <div style={{ display: "grid", gap: 4 }}>
+                    <span className="field-hint">Ordenar</span>
+                    <select className="select" name="ordenar" defaultValue={ordenar} aria-label="Ordenar">
                     <option value="vencimiento">Próximo pago</option>
                     <option value="pago">Pago</option>
                     <option value="monto">Monto</option>
-                  </select>
-                  <input className="input" name="q" defaultValue={q} placeholder="Buscar cliente o identificación..." />
+                    </select>
+                  </div>
+                  <div style={{ display: "grid", gap: 4 }}>
+                    <span className="field-hint">Buscar</span>
+                    <input className="input" name="q" defaultValue={q} placeholder="Nombre, email o identificación..." />
+                  </div>
                   <button className="ghost" type="submit">
                     Aplicar
                   </button>
@@ -256,9 +276,11 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
               </div>
             </div>
             <div className="filtersRight" style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <a className="ghost" href={`/smart-lists?rules=${smartListRulesParam}`}>
-                Crear lista inteligente
-              </a>
+              {hasFiltersApplied ? (
+                <a className="ghost" href={`/smart-lists?rules=${smartListRulesParam}`}>
+                  Crear lista inteligente
+                </a>
+              ) : null}
               <span className="pill">{rows.length} resultados</span>
             </div>
           </div>
