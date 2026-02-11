@@ -108,9 +108,12 @@ export function NotificationWizard({
     insertAtCursor(target, v);
   }
 
+  const isRealtimeTrigger = trigger === "PAYMENT_LINK_CREATED" || trigger === "PAYMENT_APPROVED" || trigger === "PAYMENT_DECLINED";
+
   function canGoNext() {
     if (step === 1) return true;
     if (step === 2) {
+      if (isRealtimeTrigger) return true;
       if (!computedOffsetsSeconds.length) return false;
       if (trigger === "SUBSCRIPTION_DUE" && ensurePaymentLink == null) return false;
       return true;
@@ -136,7 +139,9 @@ export function NotificationWizard({
     fd.set("ensurePaymentLink", ensurePaymentLink ? "1" : "0");
     fd.set("atTimeUtc", atTimeEnabled ? atTimeUtc : "");
     fd.set("paymentType", paymentType);
-    for (const s of computedOffsetsSeconds) fd.append("offsetSeconds", String(s));
+    if (!isRealtimeTrigger) {
+      for (const s of computedOffsetsSeconds) fd.append("offsetSeconds", String(s));
+    }
     for (const p of waParams) fd.append("waParam", p);
 
     const createdKind = notificationKind;
@@ -321,97 +326,101 @@ export function NotificationWizard({
 
           {step === 2 ? (
             <>
-              <div className="field">
-                <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <span>¿Cuándo se envía?</span>
-                  <HelpTip text="Puedes agregar varios tiempos (antes/después) en segundos, minutos, horas o días." />
-                </label>
-                <div style={{ display: "grid", gap: 10 }}>
-                  {offsets.map((o, idx) => (
-                    <div key={idx} style={{ display: "grid", gridTemplateColumns: "140px 1fr 180px auto", gap: 10, alignItems: "end" } as any}>
-                      <div className="field" style={{ margin: 0 }}>
-                        <label>Antes/Después</label>
-                        <select
-                          className="select"
-                          value={o.direction}
-                          onChange={(e) => {
-                            const direction = e.target.value as any;
-                            setOffsets((prev) => prev.map((x, i) => (i === idx ? { ...x, direction } : x)));
-                          }}
+              {isRealtimeTrigger ? (
+                <div className="card cardPad">Se envía inmediatamente cuando ocurre el evento.</div>
+              ) : (
+                <div className="field">
+                  <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <span>¿Cuándo se envía?</span>
+                    <HelpTip text="Puedes agregar varios tiempos (antes/después) en segundos, minutos, horas o días." />
+                  </label>
+                  <div style={{ display: "grid", gap: 10 }}>
+                    {offsets.map((o, idx) => (
+                      <div key={idx} style={{ display: "grid", gridTemplateColumns: "140px 1fr 180px auto", gap: 10, alignItems: "end" } as any}>
+                        <div className="field" style={{ margin: 0 }}>
+                          <label>Antes/Después</label>
+                          <select
+                            className="select"
+                            value={o.direction}
+                            onChange={(e) => {
+                              const direction = e.target.value as any;
+                              setOffsets((prev) => prev.map((x, i) => (i === idx ? { ...x, direction } : x)));
+                            }}
+                          >
+                            <option value="before">Antes</option>
+                            <option value="after">Después</option>
+                          </select>
+                        </div>
+                        <div className="field" style={{ margin: 0 }}>
+                          <label>Cantidad</label>
+                          <input
+                            className="input"
+                            value={o.amount}
+                            onChange={(e) => setOffsets((prev) => prev.map((x, i) => (i === idx ? { ...x, amount: e.target.value } : x)))}
+                          />
+                        </div>
+                        <div className="field" style={{ margin: 0 }}>
+                          <label>Unidad</label>
+                          <select
+                            className="select"
+                            value={o.unit}
+                            onChange={(e) => setOffsets((prev) => prev.map((x, i) => (i === idx ? { ...x, unit: e.target.value as any } : x)))}
+                          >
+                            <option value="seconds">Segundos</option>
+                            <option value="minutes">Minutos</option>
+                            <option value="hours">Horas</option>
+                            <option value="days">Días</option>
+                          </select>
+                        </div>
+                        <button
+                          type="button"
+                          className="ghost"
+                          onClick={() => setOffsets((prev) => prev.filter((_, i) => i !== idx))}
+                          disabled={offsets.length <= 1}
                         >
-                          <option value="before">Antes</option>
-                          <option value="after">Después</option>
-                        </select>
+                          Quitar
+                        </button>
                       </div>
-                      <div className="field" style={{ margin: 0 }}>
-                        <label>Cantidad</label>
-                        <input
-                          className="input"
-                          value={o.amount}
-                          onChange={(e) => setOffsets((prev) => prev.map((x, i) => (i === idx ? { ...x, amount: e.target.value } : x)))}
-                        />
-                      </div>
-                      <div className="field" style={{ margin: 0 }}>
-                        <label>Unidad</label>
-                        <select
-                          className="select"
-                          value={o.unit}
-                          onChange={(e) => setOffsets((prev) => prev.map((x, i) => (i === idx ? { ...x, unit: e.target.value as any } : x)))}
-                        >
-                          <option value="seconds">Segundos</option>
-                          <option value="minutes">Minutos</option>
-                          <option value="hours">Horas</option>
-                          <option value="days">Días</option>
-                        </select>
-                      </div>
+                    ))}
+                    <div>
                       <button
                         type="button"
                         className="ghost"
-                        onClick={() => setOffsets((prev) => prev.filter((_, i) => i !== idx))}
-                        disabled={offsets.length <= 1}
+                        onClick={() => setOffsets((prev) => [...prev, { direction: "after", amount: "1", unit: "hours" }])}
                       >
-                        Quitar
+                        + Agregar otro recordatorio
                       </button>
                     </div>
-                  ))}
-                  <div>
-                    <button
-                      type="button"
-                      className="ghost"
-                      onClick={() => setOffsets((prev) => [...prev, { direction: "after", amount: "1", unit: "hours" }])}
-                    >
-                      + Agregar otro recordatorio
-                    </button>
                   </div>
-                </div>
 
-                {trigger === "SUBSCRIPTION_DUE" ? (
-                  <div style={{ marginTop: 10 }}>
-                    <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <input type="checkbox" checked={ensurePaymentLink} onChange={(e) => setEnsurePaymentLink(e.target.checked)} />
-                      <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
-                        Si falta link de pago, generarlo automáticamente
-                        <HelpTip text="Si no existe link, el sistema intenta crearlo antes de enviar el recordatorio." />
-                      </span>
-                    </label>
-                  </div>
-                ) : null}
-
-                <div style={{ marginTop: 10 }}>
-                  <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <input type="checkbox" checked={atTimeEnabled} onChange={(e) => setAtTimeEnabled(e.target.checked)} />
-                    <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
-                      Enviar a hora exacta (UTC)
-                      <HelpTip text="Si activas esto, el envío se hace a la hora exacta (UTC) en la fecha calculada.\nEj: 1 día antes a las 09:00 UTC." />
-                    </span>
-                  </label>
-                  {atTimeEnabled ? (
-                    <div style={{ marginTop: 8, maxWidth: 220 }}>
-                      <input className="input" type="time" value={atTimeUtc} onChange={(e) => setAtTimeUtc(e.target.value)} />
+                  {trigger === "SUBSCRIPTION_DUE" ? (
+                    <div style={{ marginTop: 10 }}>
+                      <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <input type="checkbox" checked={ensurePaymentLink} onChange={(e) => setEnsurePaymentLink(e.target.checked)} />
+                        <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
+                          Si falta link de pago, generarlo automáticamente
+                          <HelpTip text="Si no existe link, el sistema intenta crearlo antes de enviar el recordatorio." />
+                        </span>
+                      </label>
                     </div>
                   ) : null}
+
+                  <div style={{ marginTop: 10 }}>
+                    <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <input type="checkbox" checked={atTimeEnabled} onChange={(e) => setAtTimeEnabled(e.target.checked)} />
+                      <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
+                        Enviar a hora exacta (UTC)
+                        <HelpTip text="Si activas esto, el envío se hace a la hora exacta (UTC) en la fecha calculada.\nEj: 1 día antes a las 09:00 UTC." />
+                      </span>
+                    </label>
+                    {atTimeEnabled ? (
+                      <div style={{ marginTop: 8, maxWidth: 220 }}>
+                        <input className="input" type="time" value={atTimeUtc} onChange={(e) => setAtTimeUtc(e.target.value)} />
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
+              )}
             </>
           ) : null}
 
