@@ -39,6 +39,12 @@ function getTipo(plan: any) {
   return mode === "AUTO_DEBIT" ? "Suscripción" : "Plan";
 }
 
+function getTipoPago(plan: any) {
+  const mode = String(plan?.metadata?.collectionMode || "");
+  if (mode === "AUTO_DEBIT") return "Pago suscripción";
+  if (mode === "AUTO_LINK") return "Pago del plan";
+  return "Pago por link de pago";
+}
 function getActivo(status: any) {
   return String(status || "") !== "CANCELED";
 }
@@ -152,6 +158,7 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
         customerEmail: String(customer?.email || ""),
         identificacion: String(ident || "—"),
         tipoTx,
+        tipoPago: getTipoPago(plan),
         activo,
         status: String(s.status || "—"),
         estadoInfo,
@@ -309,6 +316,7 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
                   <th>Email</th>
                   <th>Identificación</th>
                   <th>Tipo</th>
+                  <th>Tipo de pago</th>
                   <th>Activo</th>
                   <th>Estado</th>
                   <th>Monto</th>
@@ -329,6 +337,7 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
                         <span className="field-hint">{r.planName}</span>
                       </div>
                     </td>
+                    <td>{r.tipoPago}</td>
                     <td>{r.activo ? "Sí" : "No"}</td>
                     <td>
                       <div style={{ display: "grid" }}>
@@ -358,7 +367,7 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
                 ))}
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={10} style={{ color: "var(--muted)" }}>
+                    <td colSpan={11} style={{ color: "var(--muted)" }}>
                       Sin resultados.
                     </td>
                   </tr>

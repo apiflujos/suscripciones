@@ -51,9 +51,55 @@ export async function listWebhookEvents(_req: Request, res: Response) {
     orderBy: { receivedAt: "desc" },
     take: 50
   });
+  const paymentLinkIds = new Set<string>();
+  const references = new Set<string>();
+  for (const item of items) {
+    const tx: any = (item.payload as any)?.data?.transaction;
+    if (tx?.payment_link_id) paymentLinkIds.add(String(tx.payment_link_id));
+    if (tx?.reference) references.add(String(tx.reference));
+  }
+
+  const payments = paymentLinkIds.size
+    ? await prisma.payment.findMany({
+        where: { wompiPaymentLinkId: { in: Array.from(paymentLinkIds) } },
+        include: { subscription: { include: { plan: true } } }
+      })
+    : [];
+
+  const paymentByLink = new Map<string, (typeof payments)[number]>();
+  for (const p of payments) if (p.wompiPaymentLinkId) paymentByLink.set(String(p.wompiPaymentLinkId), p);
+
+  function paymentTypeFor(item: any) {
+    const tx = (item.payload as any)?.data?.transaction || {};
+    const linkId = tx?.payment_link_id ? String(tx.payment_link_id) : "";
+    const reference = String(tx?.reference || "");
+    const payment = linkId ? paymentByLink.get(linkId) : null;
+
+    if (payment?.subscriptionId) {
+      const mode = String((payment.subscription as any)?.plan?.metadata?.collectionMode || "");
+      if (mode === "AUTO_LINK") return "Pago del plan";
+      if (mode === "AUTO_DEBIT") return "Pago suscripción";
+      return "Pago suscripción";
+    }
+
+    if (reference.startsWith("ORDER_")) return "Pago por link de pago";
+    if (reference.startsWith("SUB_")) return "Pago suscripción";
+    if (linkId) return "Pago por link de pago";
+    return "Pago por link de pago";
+  }
+
+  function planNameFor(item: any) {
+    const tx = (item.payload as any)?.data?.transaction || {};
+    const linkId = tx?.payment_link_id ? String(tx.payment_link_id) : "";
+    const payment = linkId ? paymentByLink.get(linkId) : null;
+    return payment?.subscription?.plan?.name || null;
+  }
+
   const normalized = items.map((item) => ({
     ...item,
-    providerTs: item.providerTs != null ? item.providerTs.toString() : null
+    providerTs: item.providerTs != null ? item.providerTs.toString() : null,
+    paymentType: paymentTypeFor(item),
+    planName: planNameFor(item)
   }));
   res.json({ items: normalized });
 }

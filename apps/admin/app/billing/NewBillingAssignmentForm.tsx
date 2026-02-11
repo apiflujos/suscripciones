@@ -272,35 +272,24 @@ export function NewBillingAssignmentForm({
             ) : (
               <div style={{ display: "grid", gap: 8 }}>
                 <input className="input" value={planQ} onChange={(e) => setPlanQ(e.target.value)} placeholder="Buscar por nombre…" />
-                <div className="panel module" style={{ margin: 0, padding: 0, maxHeight: 220, overflow: "auto" }}>
+                <select
+                  className="select"
+                  value={planId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setPlanId(id);
+                    setShowNewPlan(false);
+                  }}
+                >
+                  <option value="">Selecciona una plantilla…</option>
                   {filteredPlans.map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      className="ghost"
-                      onClick={() => {
-                        setPlanId(String(p.id));
-                        setShowNewPlan(false);
-                      }}
-                      style={{
-                        width: "100%",
-                        textAlign: "left",
-                        padding: "10px 12px",
-                        borderRadius: 0,
-                        borderBottom: "1px solid rgba(15, 23, 42, 0.08)"
-                      }}
-                    >
-                      <div style={{ display: "grid" }}>
-                        <span>{p.name}</span>
-                        <span className="field-hint">
-                          {planTipo(p as any) === "SUSCRIPCION" ? "Suscripción" : "Plan"} ·{" "}
-                          {fmtMoneyFromCents(Number(p.priceInCents || 0), String(p.currency || "COP"))} · {fmtEvery(p.intervalUnit, p.intervalCount)}
-                        </span>
-                      </div>
-                    </button>
+                    <option key={p.id} value={p.id}>
+                      {p.name} · {planTipo(p as any) === "SUSCRIPCION" ? "Suscripción" : "Plan"} ·{" "}
+                      {fmtMoneyFromCents(Number(p.priceInCents || 0), String(p.currency || "COP"))} · {fmtEvery(p.intervalUnit, p.intervalCount)}
+                    </option>
                   ))}
-                  {filteredPlans.length === 0 ? <div style={{ padding: 12, color: "var(--muted)" }}>No se encontraron plantillas.</div> : null}
-                </div>
+                </select>
+                {filteredPlans.length === 0 ? <div style={{ color: "var(--muted)" }}>No se encontraron plantillas.</div> : null}
               </div>
             )}
 
@@ -350,39 +339,31 @@ export function NewBillingAssignmentForm({
                   onChange={(e) => setCustomerQ(e.target.value)}
                   placeholder="Buscar por nombre, email o identificación…"
                 />
-                <div className="panel module" style={{ margin: 0, padding: 0, maxHeight: 220, overflow: "auto" }}>
-                  {customerSearching ? <div style={{ padding: 12, color: "var(--muted)" }}>Buscando…</div> : null}
-                  {customerSearchError ? <div style={{ padding: 12, color: "rgba(217, 83, 79, 0.92)" }}>{customerSearchError}</div> : null}
+                {customerSearching ? <div className="field-hint">Buscando…</div> : null}
+                {customerSearchError ? <div className="field-hint" style={{ color: "rgba(217, 83, 79, 0.92)" }}>{customerSearchError}</div> : null}
+                <select
+                  className="select"
+                  value={customerId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setCustomerId(id);
+                    const picked = filteredCustomers.find((c) => String(c.id) === String(id)) || null;
+                    setSelectedCustomerOverride(picked);
+                    setShowNewCustomer(false);
+                  }}
+                >
+                  <option value="">Selecciona un contacto…</option>
                   {filteredCustomers.map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      className="ghost"
-                      onClick={() => {
-                        setCustomerId(String(c.id));
-                        setSelectedCustomerOverride(c);
-                        setShowNewCustomer(false);
-                      }}
-                      style={{
-                        width: "100%",
-                        textAlign: "left",
-                        padding: "10px 12px",
-                        borderRadius: 0,
-                        borderBottom: "1px solid rgba(15, 23, 42, 0.08)"
-                      }}
-                    >
-                      <div style={{ display: "grid" }}>
-                        <span>{c.name || c.email || c.id}</span>
-                        <span className="field-hint">{c.metadata?.identificacion || c.email || c.phone || "—"}</span>
-                      </div>
-                    </button>
+                    <option key={c.id} value={c.id}>
+                      {c.name || c.email || c.id} · {c.metadata?.identificacion || c.email || c.phone || "—"}
+                    </option>
                   ))}
-                  {!customerSearching && filteredCustomers.length === 0 ? (
-                    <div style={{ padding: 12, color: "var(--muted)" }}>
-                      {customerQ.trim().length >= 2 ? "Sin resultados. Prueba con otro término." : "No se encontraron contactos."}
-                    </div>
-                  ) : null}
-                </div>
+                </select>
+                {!customerSearching && filteredCustomers.length === 0 ? (
+                  <div className="field-hint">
+                    {customerQ.trim().length >= 2 ? "Sin resultados. Prueba con otro término." : "No se encontraron contactos."}
+                  </div>
+                ) : null}
               </div>
             )}
 

@@ -200,6 +200,8 @@ export default async function LogsPage({
                   <tr>
                     <th>Fecha</th>
                     <th>Evento</th>
+                    <th>Tipo</th>
+                    <th>Plan</th>
                     <th>Estado</th>
                     <th>Checksum</th>
                   </tr>
@@ -209,6 +211,8 @@ export default async function LogsPage({
                     <tr key={e.id}>
                       <td><LocalDateTime value={e.receivedAt} /></td>
                       <td>{e.eventName || "—"}</td>
+                      <td>{e.paymentType || "—"}</td>
+                      <td>{e.planName || "—"}</td>
                       <td>{e.processStatus || "—"}</td>
                       <td style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>
                         {e.checksum || "—"}
@@ -217,7 +221,7 @@ export default async function LogsPage({
                   ))}
                   {webhookItems.length === 0 ? (
                     <tr>
-                      <td colSpan={4} style={{ color: "var(--muted)" }}>
+                      <td colSpan={6} style={{ color: "var(--muted)" }}>
                         Sin eventos.
                       </td>
                     </tr>
