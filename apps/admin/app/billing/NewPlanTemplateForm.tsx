@@ -54,6 +54,7 @@ export function NewPlanTemplateForm({
   const [catalogItemId, setCatalogItemId] = useState(catalogItems[0]?.id || "");
   const [catalogHits, setCatalogHits] = useState<CatalogItem[]>([]);
   const [catalogSearching, setCatalogSearching] = useState(false);
+  const [catalogSearchError, setCatalogSearchError] = useState("");
   const [selectedCatalogOverride, setSelectedCatalogOverride] = useState<CatalogItem | null>(null);
 
   const [itemKind, setItemKind] = useState<"PRODUCT" | "SERVICE">("PRODUCT");
@@ -81,7 +82,7 @@ export function NewPlanTemplateForm({
   const filteredCatalogItems = useMemo(() => {
     const q = catalogQ.trim().toLowerCase();
     let list: CatalogItem[];
-    if (q.length >= 2) {
+    if (q.length >= 1) {
       list = catalogHits.slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "es")).slice(0, 200);
       if (selectedItem && !list.some((x) => String(x.id) === String(selectedItem.id))) return [selectedItem, ...list];
       return list;
@@ -103,20 +104,23 @@ export function NewPlanTemplateForm({
 
   useEffect(() => {
     const q = catalogQ.trim();
-    if (catalogMode !== "EXISTING" || q.length < 2) {
+    if (catalogMode !== "EXISTING" || q.length < 1) {
       setCatalogHits([]);
       setCatalogSearching(false);
+      setCatalogSearchError("");
       return;
     }
 
     const ac = new AbortController();
     setCatalogSearching(true);
+    setCatalogSearchError("");
     const t = setTimeout(() => {
       fetch(`/api/search/products?${new URLSearchParams({ q, take: "120" }).toString()}`, { cache: "no-store", signal: ac.signal })
-        .then(async (r) => ({ ok: r.ok, json: await r.json().catch(() => null) }))
-        .then(({ ok, json }) => {
+        .then(async (r) => ({ ok: r.ok, status: r.status, json: await r.json().catch(() => null) }))
+        .then(({ ok, status, json }) => {
           if (!ok) {
             setCatalogHits([]);
+            setCatalogSearchError(status === 401 ? "No autorizado (revisa el token del Admin)." : `Error buscando productos (${status}).`);
             return;
           }
           const items = Array.isArray(json?.items) ? (json.items as CatalogItem[]) : [];
@@ -125,6 +129,7 @@ export function NewPlanTemplateForm({
         .catch(() => {
           if (ac.signal.aborted) return;
           setCatalogHits([]);
+          setCatalogSearchError("Error de red buscando productos.");
         })
         .finally(() => {
           if (ac.signal.aborted) return;
@@ -298,6 +303,7 @@ export function NewPlanTemplateForm({
             </label>
             <input className="input" placeholder="Buscar..." value={catalogQ} onChange={(e) => setCatalogQ(e.target.value)} />
             {catalogSearching ? <div className="field-hint">Buscando…</div> : null}
+            {catalogSearchError ? <div className="field-hint" style={{ color: "rgba(217, 83, 79, 0.92)" }}>{catalogSearchError}</div> : null}
             <select
               className="select"
               name="catalogItemId"
@@ -316,7 +322,7 @@ export function NewPlanTemplateForm({
                 </option>
               ))}
             </select>
-            {!catalogSearching && catalogQ.trim().length >= 2 && filteredCatalogItems.length === 0 ? (
+            {!catalogSearching && catalogQ.trim().length >= 1 && filteredCatalogItems.length === 0 ? (
               <div className="field-hint">Sin resultados. Prueba con otro término.</div>
             ) : null}
           </div>
