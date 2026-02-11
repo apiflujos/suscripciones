@@ -149,6 +149,62 @@ export function NotificationWizard({
     });
   }
 
+  function applyKind(next: NotificationKind) {
+    setNotificationKind(next);
+    if (next === "PAYMENT_LINK") {
+      setTrigger("PAYMENT_LINK_CREATED");
+      setPaymentType("ANY");
+      setOffsets([{ direction: "after", amount: "0", unit: "minutes" }]);
+      return;
+    }
+    if (next === "PAYMENT_APPROVED_SUBSCRIPTION") {
+      setTrigger("PAYMENT_APPROVED");
+      setPaymentType("SUBSCRIPTION");
+      setOffsets([{ direction: "after", amount: "0", unit: "minutes" }]);
+      return;
+    }
+    if (next === "PAYMENT_APPROVED_PLAN") {
+      setTrigger("PAYMENT_APPROVED");
+      setPaymentType("PLAN");
+      setOffsets([{ direction: "after", amount: "0", unit: "minutes" }]);
+      return;
+    }
+    if (next === "PAYMENT_APPROVED_LINK") {
+      setTrigger("PAYMENT_APPROVED");
+      setPaymentType("LINK");
+      setOffsets([{ direction: "after", amount: "0", unit: "minutes" }]);
+      return;
+    }
+    if (next === "PAYMENT_DECLINED_SUBSCRIPTION") {
+      setTrigger("PAYMENT_DECLINED");
+      setPaymentType("SUBSCRIPTION");
+      setOffsets([{ direction: "after", amount: "0", unit: "minutes" }]);
+      return;
+    }
+    if (next === "PAYMENT_DECLINED_PLAN") {
+      setTrigger("PAYMENT_DECLINED");
+      setPaymentType("PLAN");
+      setOffsets([{ direction: "after", amount: "0", unit: "minutes" }]);
+      return;
+    }
+    if (next === "PAYMENT_DECLINED_LINK") {
+      setTrigger("PAYMENT_DECLINED");
+      setPaymentType("LINK");
+      setOffsets([{ direction: "after", amount: "0", unit: "minutes" }]);
+      return;
+    }
+    if (next === "REMINDER_MORA") {
+      setTrigger("SUBSCRIPTION_DUE");
+      setPaymentType("ANY");
+      setOffsets([{ direction: "after", amount: "1", unit: "days" }]);
+      return;
+    }
+    // REMINDER_DUE (default)
+    setTrigger("SUBSCRIPTION_DUE");
+    setPaymentType("ANY");
+    setOffsets([{ direction: "before", amount: "1", unit: "days" }]);
+  }
+
   return (
     <section className="settings-group">
       <div className="settings-group-header">
@@ -185,24 +241,48 @@ export function NotificationWizard({
                 <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ej: Recordatorio 1 día antes" />
               </div>
 
-              <div className="field">
-                <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <span>Tipo de notificación</span>
-                  <HelpTip text="Estas opciones se configuran una por una.\nRecordatorios usan fecha de corte; pagos usan el evento en tiempo real." />
-                </label>
-                <select className="select" value={notificationKind} onChange={(e) => applyKind(e.target.value as NotificationKind)}>
-                  <option value="PAYMENT_LINK">Link de pago</option>
-                  <option value="PAYMENT_APPROVED_SUBSCRIPTION">Pago exitoso (suscripción)</option>
-                  <option value="PAYMENT_APPROVED_PLAN">Pago exitoso (plan)</option>
-                  <option value="PAYMENT_APPROVED_LINK">Pago recibido por link de pago</option>
-                  <option value="PAYMENT_DECLINED_SUBSCRIPTION">Pago fallido (suscripción)</option>
-                  <option value="PAYMENT_DECLINED_PLAN">Pago fallido (plan)</option>
-                  <option value="PAYMENT_DECLINED_LINK">Pago fallido (link de pago)</option>
-                  <option value="REMINDER_DUE">Recordatorio de fecha de pago</option>
-                  <option value="REMINDER_MORA">Recordatorio pago en mora</option>
-                </select>
-                <div className="field-hint">
-                  Para recordatorios se usa la <strong>fecha de corte</strong>. Para link, éxito y fallo se usa la <strong>fecha del evento</strong>.
+              <div className="panel module" style={{ display: "grid", gap: 10 }}>
+                <div style={{ display: "grid", gap: 4 }}>
+                  <strong>Notificaciones (tiempo real)</strong>
+                  <div className="field-hint">Se envían cuando ocurre el evento.</div>
+                </div>
+                <div style={{ display: "grid", gap: 6 }}>
+                  <button type="button" className={`ghost ${notificationKind === "PAYMENT_LINK" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_LINK")}>
+                    Link de pago
+                  </button>
+                  <button type="button" className={`ghost ${notificationKind === "PAYMENT_APPROVED_SUBSCRIPTION" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_APPROVED_SUBSCRIPTION")}>
+                    Pago exitoso (suscripción)
+                  </button>
+                  <button type="button" className={`ghost ${notificationKind === "PAYMENT_APPROVED_PLAN" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_APPROVED_PLAN")}>
+                    Pago exitoso (plan)
+                  </button>
+                  <button type="button" className={`ghost ${notificationKind === "PAYMENT_APPROVED_LINK" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_APPROVED_LINK")}>
+                    Pago recibido por link de pago
+                  </button>
+                  <button type="button" className={`ghost ${notificationKind === "PAYMENT_DECLINED_SUBSCRIPTION" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_DECLINED_SUBSCRIPTION")}>
+                    Pago fallido (suscripción)
+                  </button>
+                  <button type="button" className={`ghost ${notificationKind === "PAYMENT_DECLINED_PLAN" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_DECLINED_PLAN")}>
+                    Pago fallido (plan)
+                  </button>
+                  <button type="button" className={`ghost ${notificationKind === "PAYMENT_DECLINED_LINK" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_DECLINED_LINK")}>
+                    Pago fallido (link de pago)
+                  </button>
+                </div>
+              </div>
+
+              <div className="panel module" style={{ display: "grid", gap: 10 }}>
+                <div style={{ display: "grid", gap: 4 }}>
+                  <strong>Recordatorios (programados)</strong>
+                  <div className="field-hint">Se calculan con la fecha de corte.</div>
+                </div>
+                <div style={{ display: "grid", gap: 6 }}>
+                  <button type="button" className={`ghost ${notificationKind === "REMINDER_DUE" ? "is-active" : ""}`} onClick={() => applyKind("REMINDER_DUE")}>
+                    Recordatorio de fecha de pago
+                  </button>
+                  <button type="button" className={`ghost ${notificationKind === "REMINDER_MORA" ? "is-active" : ""}`} onClick={() => applyKind("REMINDER_MORA")}>
+                    Recordatorio pago en mora
+                  </button>
                 </div>
               </div>
 
@@ -436,58 +516,3 @@ export function NotificationWizard({
     </section>
   );
 }
-  function applyKind(next: NotificationKind) {
-    setNotificationKind(next);
-    if (next === "PAYMENT_LINK") {
-      setTrigger("PAYMENT_LINK_CREATED");
-      setPaymentType("ANY");
-      setOffsets([{ direction: "after", amount: "0", unit: "minutes" }]);
-      return;
-    }
-    if (next === "PAYMENT_APPROVED_SUBSCRIPTION") {
-      setTrigger("PAYMENT_APPROVED");
-      setPaymentType("SUBSCRIPTION");
-      setOffsets([{ direction: "after", amount: "0", unit: "minutes" }]);
-      return;
-    }
-    if (next === "PAYMENT_APPROVED_PLAN") {
-      setTrigger("PAYMENT_APPROVED");
-      setPaymentType("PLAN");
-      setOffsets([{ direction: "after", amount: "0", unit: "minutes" }]);
-      return;
-    }
-    if (next === "PAYMENT_APPROVED_LINK") {
-      setTrigger("PAYMENT_APPROVED");
-      setPaymentType("LINK");
-      setOffsets([{ direction: "after", amount: "0", unit: "minutes" }]);
-      return;
-    }
-    if (next === "PAYMENT_DECLINED_SUBSCRIPTION") {
-      setTrigger("PAYMENT_DECLINED");
-      setPaymentType("SUBSCRIPTION");
-      setOffsets([{ direction: "after", amount: "0", unit: "minutes" }]);
-      return;
-    }
-    if (next === "PAYMENT_DECLINED_PLAN") {
-      setTrigger("PAYMENT_DECLINED");
-      setPaymentType("PLAN");
-      setOffsets([{ direction: "after", amount: "0", unit: "minutes" }]);
-      return;
-    }
-    if (next === "PAYMENT_DECLINED_LINK") {
-      setTrigger("PAYMENT_DECLINED");
-      setPaymentType("LINK");
-      setOffsets([{ direction: "after", amount: "0", unit: "minutes" }]);
-      return;
-    }
-    if (next === "REMINDER_MORA") {
-      setTrigger("SUBSCRIPTION_DUE");
-      setPaymentType("ANY");
-      setOffsets([{ direction: "after", amount: "1", unit: "days" }]);
-      return;
-    }
-    // REMINDER_DUE (default)
-    setTrigger("SUBSCRIPTION_DUE");
-    setPaymentType("ANY");
-    setOffsets([{ direction: "before", amount: "1", unit: "days" }]);
-  }
