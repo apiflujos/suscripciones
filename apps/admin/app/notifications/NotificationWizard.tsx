@@ -8,6 +8,16 @@ type Env = "PRODUCTION" | "SANDBOX";
 type Trigger = "SUBSCRIPTION_DUE" | "PAYMENT_LINK_CREATED" | "PAYMENT_APPROVED" | "PAYMENT_DECLINED";
 type TemplateKind = "TEXT" | "WHATSAPP_TEMPLATE";
 type PaymentType = "ANY" | "PLAN" | "SUBSCRIPTION" | "LINK";
+type NotificationKind =
+  | "PAYMENT_LINK"
+  | "PAYMENT_APPROVED_SUBSCRIPTION"
+  | "PAYMENT_APPROVED_PLAN"
+  | "PAYMENT_APPROVED_LINK"
+  | "PAYMENT_DECLINED_SUBSCRIPTION"
+  | "PAYMENT_DECLINED_PLAN"
+  | "PAYMENT_DECLINED_LINK"
+  | "REMINDER_DUE"
+  | "REMINDER_MORA";
 
 const VARIABLES = [
   { label: "Nombre completo", value: "{{customer.name}}" },
@@ -59,6 +69,7 @@ export function NotificationWizard({
 
   const [trigger, setTrigger] = useState<Trigger>("SUBSCRIPTION_DUE");
   const [paymentType, setPaymentType] = useState<PaymentType>("ANY");
+  const [notificationKind, setNotificationKind] = useState<NotificationKind>("REMINDER_DUE");
 
   const [offsets, setOffsets] = useState<Array<{ direction: "before" | "after"; amount: string; unit: "seconds" | "minutes" | "hours" | "days" }>>([
     { direction: "before", amount: "1", unit: "days" }
@@ -176,14 +187,19 @@ export function NotificationWizard({
 
               <div className="field">
                 <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <span>¿Qué quieres enviar?</span>
-                  <HelpTip text="Recordatorio: se programa respecto a la fecha de corte.\nÉxito/fallo: se dispara cuando llega el webhook del pago." />
+                  <span>Tipo de notificación</span>
+                  <HelpTip text="Estas opciones se configuran una por una.\nRecordatorios usan fecha de corte; pagos usan el evento en tiempo real." />
                 </label>
-                <select className="select" value={trigger} onChange={(e) => setTrigger(e.target.value as Trigger)}>
-                  <option value="SUBSCRIPTION_DUE">Recordatorio de pago (fecha de corte)</option>
-                  <option value="PAYMENT_LINK_CREATED">Envío de link de pago</option>
-                  <option value="PAYMENT_APPROVED">Notificación de éxito (pago aprobado)</option>
-                  <option value="PAYMENT_DECLINED">Notificación fallida / cobro rechazado</option>
+                <select className="select" value={notificationKind} onChange={(e) => applyKind(e.target.value as NotificationKind)}>
+                  <option value="PAYMENT_LINK">Link de pago</option>
+                  <option value="PAYMENT_APPROVED_SUBSCRIPTION">Pago exitoso (suscripción)</option>
+                  <option value="PAYMENT_APPROVED_PLAN">Pago exitoso (plan)</option>
+                  <option value="PAYMENT_APPROVED_LINK">Pago recibido por link de pago</option>
+                  <option value="PAYMENT_DECLINED_SUBSCRIPTION">Pago fallido (suscripción)</option>
+                  <option value="PAYMENT_DECLINED_PLAN">Pago fallido (plan)</option>
+                  <option value="PAYMENT_DECLINED_LINK">Pago fallido (link de pago)</option>
+                  <option value="REMINDER_DUE">Recordatorio de fecha de pago</option>
+                  <option value="REMINDER_MORA">Recordatorio pago en mora</option>
                 </select>
                 <div className="field-hint">
                   Para recordatorios se usa la <strong>fecha de corte</strong>. Para link, éxito y fallo se usa la <strong>fecha del evento</strong>.
@@ -193,14 +209,9 @@ export function NotificationWizard({
               <div className="field">
                 <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   <span>Aplica a</span>
-                  <HelpTip text="Filtra por tipo de pago: plan, suscripción o link sin plan." />
+                  <HelpTip text="Se configura automáticamente según el tipo de notificación." />
                 </label>
-                <select className="select" value={paymentType} onChange={(e) => setPaymentType(e.target.value as PaymentType)}>
-                  <option value="ANY">Todos</option>
-                  <option value="PLAN">Pago del plan</option>
-                  <option value="SUBSCRIPTION">Pago suscripción</option>
-                  <option value="LINK">Pago por link de pago</option>
-                </select>
+                <input className="input" value={paymentType === "ANY" ? "Todos" : paymentType === "PLAN" ? "Pago del plan" : paymentType === "SUBSCRIPTION" ? "Pago suscripción" : "Pago por link de pago"} readOnly />
               </div>
             </>
           ) : null}
@@ -425,3 +436,58 @@ export function NotificationWizard({
     </section>
   );
 }
+  function applyKind(next: NotificationKind) {
+    setNotificationKind(next);
+    if (next === "PAYMENT_LINK") {
+      setTrigger("PAYMENT_LINK_CREATED");
+      setPaymentType("ANY");
+      setOffsets([{ direction: "after", amount: "0", unit: "minutes" }]);
+      return;
+    }
+    if (next === "PAYMENT_APPROVED_SUBSCRIPTION") {
+      setTrigger("PAYMENT_APPROVED");
+      setPaymentType("SUBSCRIPTION");
+      setOffsets([{ direction: "after", amount: "0", unit: "minutes" }]);
+      return;
+    }
+    if (next === "PAYMENT_APPROVED_PLAN") {
+      setTrigger("PAYMENT_APPROVED");
+      setPaymentType("PLAN");
+      setOffsets([{ direction: "after", amount: "0", unit: "minutes" }]);
+      return;
+    }
+    if (next === "PAYMENT_APPROVED_LINK") {
+      setTrigger("PAYMENT_APPROVED");
+      setPaymentType("LINK");
+      setOffsets([{ direction: "after", amount: "0", unit: "minutes" }]);
+      return;
+    }
+    if (next === "PAYMENT_DECLINED_SUBSCRIPTION") {
+      setTrigger("PAYMENT_DECLINED");
+      setPaymentType("SUBSCRIPTION");
+      setOffsets([{ direction: "after", amount: "0", unit: "minutes" }]);
+      return;
+    }
+    if (next === "PAYMENT_DECLINED_PLAN") {
+      setTrigger("PAYMENT_DECLINED");
+      setPaymentType("PLAN");
+      setOffsets([{ direction: "after", amount: "0", unit: "minutes" }]);
+      return;
+    }
+    if (next === "PAYMENT_DECLINED_LINK") {
+      setTrigger("PAYMENT_DECLINED");
+      setPaymentType("LINK");
+      setOffsets([{ direction: "after", amount: "0", unit: "minutes" }]);
+      return;
+    }
+    if (next === "REMINDER_MORA") {
+      setTrigger("SUBSCRIPTION_DUE");
+      setPaymentType("ANY");
+      setOffsets([{ direction: "after", amount: "1", unit: "days" }]);
+      return;
+    }
+    // REMINDER_DUE (default)
+    setTrigger("SUBSCRIPTION_DUE");
+    setPaymentType("ANY");
+    setOffsets([{ direction: "before", amount: "1", unit: "days" }]);
+  }
