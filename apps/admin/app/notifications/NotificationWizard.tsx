@@ -247,25 +247,25 @@ export function NotificationWizard({
                   <div className="field-hint">Se envían cuando ocurre el evento.</div>
                 </div>
                 <div style={{ display: "grid", gap: 6 }}>
-                  <button type="button" className={`ghost ${notificationKind === "PAYMENT_LINK" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_LINK")}>
+                  <button type="button" className={`ghost module-choice ${notificationKind === "PAYMENT_LINK" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_LINK")}>
                     Link de pago
                   </button>
-                  <button type="button" className={`ghost ${notificationKind === "PAYMENT_APPROVED_SUBSCRIPTION" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_APPROVED_SUBSCRIPTION")}>
+                  <button type="button" className={`ghost module-choice ${notificationKind === "PAYMENT_APPROVED_SUBSCRIPTION" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_APPROVED_SUBSCRIPTION")}>
                     Pago exitoso (suscripción)
                   </button>
-                  <button type="button" className={`ghost ${notificationKind === "PAYMENT_APPROVED_PLAN" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_APPROVED_PLAN")}>
+                  <button type="button" className={`ghost module-choice ${notificationKind === "PAYMENT_APPROVED_PLAN" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_APPROVED_PLAN")}>
                     Pago exitoso (plan)
                   </button>
-                  <button type="button" className={`ghost ${notificationKind === "PAYMENT_APPROVED_LINK" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_APPROVED_LINK")}>
+                  <button type="button" className={`ghost module-choice ${notificationKind === "PAYMENT_APPROVED_LINK" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_APPROVED_LINK")}>
                     Pago recibido por link de pago
                   </button>
-                  <button type="button" className={`ghost ${notificationKind === "PAYMENT_DECLINED_SUBSCRIPTION" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_DECLINED_SUBSCRIPTION")}>
+                  <button type="button" className={`ghost module-choice ${notificationKind === "PAYMENT_DECLINED_SUBSCRIPTION" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_DECLINED_SUBSCRIPTION")}>
                     Pago fallido (suscripción)
                   </button>
-                  <button type="button" className={`ghost ${notificationKind === "PAYMENT_DECLINED_PLAN" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_DECLINED_PLAN")}>
+                  <button type="button" className={`ghost module-choice ${notificationKind === "PAYMENT_DECLINED_PLAN" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_DECLINED_PLAN")}>
                     Pago fallido (plan)
                   </button>
-                  <button type="button" className={`ghost ${notificationKind === "PAYMENT_DECLINED_LINK" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_DECLINED_LINK")}>
+                  <button type="button" className={`ghost module-choice ${notificationKind === "PAYMENT_DECLINED_LINK" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_DECLINED_LINK")}>
                     Pago fallido (link de pago)
                   </button>
                 </div>
@@ -277,10 +277,10 @@ export function NotificationWizard({
                   <div className="field-hint">Se calculan con la fecha de corte.</div>
                 </div>
                 <div style={{ display: "grid", gap: 6 }}>
-                  <button type="button" className={`ghost ${notificationKind === "REMINDER_DUE" ? "is-active" : ""}`} onClick={() => applyKind("REMINDER_DUE")}>
+                  <button type="button" className={`ghost module-choice ${notificationKind === "REMINDER_DUE" ? "is-active" : ""}`} onClick={() => applyKind("REMINDER_DUE")}>
                     Recordatorio de fecha de pago
                   </button>
-                  <button type="button" className={`ghost ${notificationKind === "REMINDER_MORA" ? "is-active" : ""}`} onClick={() => applyKind("REMINDER_MORA")}>
+                  <button type="button" className={`ghost module-choice ${notificationKind === "REMINDER_MORA" ? "is-active" : ""}`} onClick={() => applyKind("REMINDER_MORA")}>
                     Recordatorio pago en mora
                   </button>
                 </div>
