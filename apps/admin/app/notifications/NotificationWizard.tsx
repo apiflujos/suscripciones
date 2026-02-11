@@ -277,7 +277,7 @@ export function NotificationWizard({
                       className="ghost"
                       onClick={() => setOffsets((prev) => [...prev, { direction: "after", amount: "1", unit: "hours" }])}
                     >
-                      + Agregar otro tiempo
+                      + Agregar otro recordatorio
                     </button>
                   </div>
                 </div>
