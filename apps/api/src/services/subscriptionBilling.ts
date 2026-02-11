@@ -12,6 +12,7 @@ import {
   getWompiPublicKey,
   getWompiRedirectUrl
 } from "./runtimeConfig";
+import { schedulePaymentLinkNotifications } from "./notificationsScheduler";
 
 export async function createPaymentLinkForSubscription(args: {
   subscriptionId: string;
@@ -164,6 +165,8 @@ export async function createPaymentLinkForSubscription(args: {
     paymentId: updated.id,
     wompiPaymentLinkId: created.id
   }).catch(() => {});
+
+  await schedulePaymentLinkNotifications({ paymentId: updated.id }).catch(() => {});
 
   const chatwoot = await getChatwootConfig();
   if (chatwoot.configured) {

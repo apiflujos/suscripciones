@@ -4,6 +4,7 @@ import { prisma } from "../db/prisma";
 import { PaymentStatus, RetryJobType } from "@prisma/client";
 import { WompiClient } from "../providers/wompi/client";
 import { getChatwootConfig, getWompiApiBaseUrl, getWompiCheckoutLinkBaseUrl, getWompiPrivateKey, getWompiRedirectUrl } from "../services/runtimeConfig";
+import { schedulePaymentLinkNotifications } from "../services/notificationsScheduler";
 
 const lineItemSchema = z.object({
   sku: z.string().optional().nullable(),
@@ -116,6 +117,8 @@ ordersRouter.post("/", async (req, res) => {
     }
   });
 
+  await schedulePaymentLinkNotifications({ paymentId: updated.id }).catch(() => {});
+
   if (parsed.data.sendChatwoot) {
     const chatwoot = await getChatwootConfig();
     if (chatwoot.configured) {
@@ -140,4 +143,3 @@ ordersRouter.post("/", async (req, res) => {
 
   res.status(201).json({ payment: updated, checkoutUrl: updated.checkoutUrl });
 });
-

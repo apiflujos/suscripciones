@@ -56,6 +56,18 @@ function dedupeKey(args: { trigger: string; ruleId: string; subscriptionId?: str
   return `notif:${args.trigger}:${args.ruleId}:${sub}:${cycle}:${pay}:${off}`;
 }
 
+function getPaymentType(args: { subscription?: any | null; payment?: any | null }) {
+  const sub = args.subscription;
+  if (sub?.plan) {
+    const mode = String(sub.plan?.metadata?.collectionMode || "");
+    if (mode === "AUTO_LINK") return "PLAN";
+    if (mode === "AUTO_DEBIT") return "SUBSCRIPTION";
+    return "SUBSCRIPTION";
+  }
+  if (args.payment?.subscriptionId) return "SUBSCRIPTION";
+  return "LINK";
+}
+
 export async function subscriptionReminder(payload: any) {
   const parsed = payloadSchema.safeParse(payload);
   if (!parsed.success) return;
@@ -138,11 +150,16 @@ export async function subscriptionReminder(payload: any) {
     }
   }
 
+  const paymentType = getPaymentType({ subscription, payment: effectivePayment || payment });
+
+  if (rule.conditions?.requirePaymentTypeIn && !rule.conditions.requirePaymentTypeIn.includes(paymentType as any)) return;
+
   const ctx = {
     customer,
     subscription,
     plan: subscription?.plan || null,
-    payment: effectivePayment
+    payment: effectivePayment,
+    paymentType
   };
 
   const content = template.content ? renderTemplate(template.content, ctx) : "(template)";

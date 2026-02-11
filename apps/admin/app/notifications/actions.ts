@@ -61,6 +61,7 @@ function slugifyId(input: string) {
 
 function chatwootTypeForTrigger(trigger: string) {
   if (trigger === "SUBSCRIPTION_DUE") return "EXPIRY_WARNING";
+  if (trigger === "PAYMENT_LINK_CREATED") return "PAYMENT_LINK";
   if (trigger === "PAYMENT_APPROVED") return "PAYMENT_CONFIRMED";
   if (trigger === "PAYMENT_DECLINED") return "PAYMENT_FAILED";
   return "EXPIRY_WARNING";
@@ -82,6 +83,7 @@ export async function createNotification(formData: FormData): Promise<{ ok: true
   const templateKind = String(formData.get("templateKind") || "").trim();
   const message = String(formData.get("message") || "").trim();
   const ensurePaymentLink = String(formData.get("ensurePaymentLink") || "").trim() === "1";
+  const paymentType = String(formData.get("paymentType") || "ANY").trim().toUpperCase();
   const atTimeUtc = String(formData.get("atTimeUtc") || "").trim();
 
   const waTemplateName = String(formData.get("waTemplateName") || "").trim();
@@ -91,7 +93,7 @@ export async function createNotification(formData: FormData): Promise<{ ok: true
     .map((v) => String(v || "").trim())
     .filter(Boolean);
 
-  const allowedTriggers = new Set(["SUBSCRIPTION_DUE", "PAYMENT_APPROVED", "PAYMENT_DECLINED"]);
+  const allowedTriggers = new Set(["SUBSCRIPTION_DUE", "PAYMENT_LINK_CREATED", "PAYMENT_APPROVED", "PAYMENT_DECLINED"]);
   if (!allowedTriggers.has(trigger)) return { ok: false, error: "invalid_trigger" };
 
   const offsetsSeconds = toOffsetsSeconds(formData);
@@ -117,9 +119,11 @@ export async function createNotification(formData: FormData): Promise<{ ok: true
       title ||
       (trigger === "SUBSCRIPTION_DUE"
         ? "Recordatorio de pago"
-        : trigger === "PAYMENT_APPROVED"
-          ? "Pago aprobado"
-          : "Pago rechazado");
+        : trigger === "PAYMENT_LINK_CREATED"
+          ? "Envío de link de pago"
+          : trigger === "PAYMENT_APPROVED"
+            ? "Pago aprobado"
+            : "Pago rechazado");
 
     const base = slugifyId(baseName) || "notif";
     let templateId = `tpl_${base}`;
@@ -159,6 +163,9 @@ export async function createNotification(formData: FormData): Promise<{ ok: true
     if (trigger === "SUBSCRIPTION_DUE") {
       rule.ensurePaymentLink = ensurePaymentLink;
       rule.conditions = { skipIfSubscriptionStatusIn: ["CANCELED"] };
+    }
+    if (paymentType && paymentType !== "ANY") {
+      rule.conditions = { ...(rule.conditions || {}), requirePaymentTypeIn: [paymentType] };
     }
     rules.push(rule);
 

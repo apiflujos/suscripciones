@@ -17,13 +17,14 @@ async function getCommsActiveEnv(): Promise<ActiveEnv> {
   return normalizeActiveEnv(process.env.CHATWOOT_ACTIVE_ENV);
 }
 
-export const notificationTriggerSchema = z.enum(["SUBSCRIPTION_DUE", "PAYMENT_APPROVED", "PAYMENT_DECLINED"]);
+export const notificationTriggerSchema = z.enum(["SUBSCRIPTION_DUE", "PAYMENT_LINK_CREATED", "PAYMENT_APPROVED", "PAYMENT_DECLINED"]);
 export type NotificationTrigger = z.infer<typeof notificationTriggerSchema>;
 
 export const notificationChannelSchema = z.enum(["CHATWOOT", "META"]);
 export type NotificationChannel = z.infer<typeof notificationChannelSchema>;
 
 const paymentStatusSchema = z.enum(["PENDING", "APPROVED", "DECLINED", "ERROR", "VOIDED"]);
+const paymentTypeSchema = z.enum(["PLAN", "SUBSCRIPTION", "LINK"]);
 const subscriptionStatusSchema = z.enum(["ACTIVE", "PAST_DUE", "EXPIRED", "CANCELED", "SUSPENDED"]);
 const chatwootMessageTypeSchema = z.enum(["PAYMENT_LINK", "PAYMENT_CONFIRMED", "EXPIRY_WARNING", "PAYMENT_FAILED"]);
 
@@ -73,7 +74,8 @@ const ruleSchema = z.object({
     .object({
       skipIfSubscriptionStatusIn: z.array(subscriptionStatusSchema).optional(),
       skipIfPaymentStatusIn: z.array(paymentStatusSchema).optional(),
-      requirePaymentStatusIn: z.array(paymentStatusSchema).optional()
+      requirePaymentStatusIn: z.array(paymentStatusSchema).optional(),
+      requirePaymentTypeIn: z.array(paymentTypeSchema).optional()
     })
     .optional()
 });

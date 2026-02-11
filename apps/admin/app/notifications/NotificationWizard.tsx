@@ -5,8 +5,9 @@ import { HelpTip } from "../ui/HelpTip";
 import { useRouter } from "next/navigation";
 
 type Env = "PRODUCTION" | "SANDBOX";
-type Trigger = "SUBSCRIPTION_DUE" | "PAYMENT_APPROVED" | "PAYMENT_DECLINED";
+type Trigger = "SUBSCRIPTION_DUE" | "PAYMENT_LINK_CREATED" | "PAYMENT_APPROVED" | "PAYMENT_DECLINED";
 type TemplateKind = "TEXT" | "WHATSAPP_TEMPLATE";
+type PaymentType = "ANY" | "PLAN" | "SUBSCRIPTION" | "LINK";
 
 const VARIABLES = [
   { label: "Nombre completo", value: "{{customer.name}}" },
@@ -17,7 +18,8 @@ const VARIABLES = [
   { label: "Fecha corte", value: "{{subscription.currentPeriodEndAt}}" },
   { label: "Fecha pago", value: "{{payment.paidAt}}" },
   { label: "Referencia", value: "{{payment.reference}}" },
-  { label: "Link pago", value: "{{payment.checkoutUrl}}" }
+  { label: "Link pago", value: "{{payment.checkoutUrl}}" },
+  { label: "Tipo de pago", value: "{{paymentType}}" }
 ];
 
 function unitToSeconds(unit: string, amount: number) {
@@ -56,6 +58,7 @@ export function NotificationWizard({
   const [env, setEnv] = useState<Env>(envDefault);
 
   const [trigger, setTrigger] = useState<Trigger>("SUBSCRIPTION_DUE");
+  const [paymentType, setPaymentType] = useState<PaymentType>("ANY");
 
   const [offsets, setOffsets] = useState<Array<{ direction: "before" | "after"; amount: string; unit: "seconds" | "minutes" | "hours" | "days" }>>([
     { direction: "before", amount: "1", unit: "days" }
@@ -120,6 +123,7 @@ export function NotificationWizard({
     fd.set("waLanguage", waLanguage);
     fd.set("ensurePaymentLink", ensurePaymentLink ? "1" : "0");
     fd.set("atTimeUtc", atTimeEnabled ? atTimeUtc : "");
+    fd.set("paymentType", paymentType);
     for (const s of computedOffsetsSeconds) fd.append("offsetSeconds", String(s));
     for (const p of waParams) fd.append("waParam", p);
 
@@ -177,12 +181,26 @@ export function NotificationWizard({
                 </label>
                 <select className="select" value={trigger} onChange={(e) => setTrigger(e.target.value as Trigger)}>
                   <option value="SUBSCRIPTION_DUE">Recordatorio de pago (fecha de corte)</option>
+                  <option value="PAYMENT_LINK_CREATED">Envío de link de pago</option>
                   <option value="PAYMENT_APPROVED">Notificación de éxito (pago aprobado)</option>
                   <option value="PAYMENT_DECLINED">Notificación fallida / cobro rechazado</option>
                 </select>
                 <div className="field-hint">
-                  Para recordatorios se usa la <strong>fecha de corte</strong>. Para éxito/fallo se usa la <strong>fecha del pago</strong> (cuando llega el webhook).
+                  Para recordatorios se usa la <strong>fecha de corte</strong>. Para link, éxito y fallo se usa la <strong>fecha del evento</strong>.
                 </div>
+              </div>
+
+              <div className="field">
+                <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <span>Aplica a</span>
+                  <HelpTip text="Filtra por tipo de pago: plan, suscripción o link sin plan." />
+                </label>
+                <select className="select" value={paymentType} onChange={(e) => setPaymentType(e.target.value as PaymentType)}>
+                  <option value="ANY">Todos</option>
+                  <option value="PLAN">Pago del plan</option>
+                  <option value="SUBSCRIPTION">Pago suscripción</option>
+                  <option value="LINK">Pago por link de pago</option>
+                </select>
               </div>
             </>
           ) : null}

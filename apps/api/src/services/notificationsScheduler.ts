@@ -83,7 +83,6 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
     select: { id: true, customerId: true, subscriptionId: true, status: true }
   });
   if (!payment) return { scheduled: 0 };
-  if (!payment.subscriptionId) return { scheduled: 0 };
 
   const trigger: NotificationTrigger | null =
     payment.status === PaymentStatus.APPROVED ? "PAYMENT_APPROVED" : payment.status === PaymentStatus.DECLINED ? "PAYMENT_DECLINED" : null;
@@ -118,6 +117,55 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
             customerId: payment.customerId,
             subscriptionId: payment.subscriptionId,
             paymentStatus: payment.status,
+            anchorAt: anchorIso
+          } as any
+        }
+      });
+      scheduled++;
+    }
+  }
+
+  return { scheduled };
+}
+
+export async function schedulePaymentLinkNotifications(args: { paymentId: string; forceNow?: boolean }) {
+  const paymentId = String(args.paymentId || "").trim();
+  if (!paymentId) return { scheduled: 0 };
+
+  const payment = await prisma.payment.findUnique({
+    where: { id: paymentId },
+    select: { id: true, customerId: true, subscriptionId: true }
+  });
+  if (!payment) return { scheduled: 0 };
+
+  const cfg = await getNotificationsConfig();
+  const rules = cfg.rules.filter((r) => r.enabled && r.trigger === "PAYMENT_LINK_CREATED");
+  if (!rules.length) return { scheduled: 0 };
+
+  const now = new Date();
+  const anchorAt = now;
+  const anchorIso = anchorAt.toISOString();
+
+  let scheduled = 0;
+  for (const rule of rules) {
+    const offsetsSeconds = (rule as any).offsetsSeconds?.length
+      ? (rule as any).offsetsSeconds
+      : ((rule as any).offsetsMinutes?.length ? (rule as any).offsetsMinutes.map((m: number) => m * 60) : [0]);
+    for (const offsetSeconds of offsetsSeconds) {
+      const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
+      const runAtRaw = (rule as any).atTimeUtc ? applyAtTimeUtc(runAtBase, String((rule as any).atTimeUtc)) : runAtBase;
+      const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
+      await prisma.retryJob.create({
+        data: {
+          type: RetryJobType.SUBSCRIPTION_REMINDER,
+          runAt,
+          payload: {
+            trigger: "PAYMENT_LINK_CREATED" satisfies NotificationTrigger,
+            ruleId: rule.id,
+            offsetSeconds,
+            paymentId: payment.id,
+            customerId: payment.customerId,
+            subscriptionId: payment.subscriptionId ?? null,
             anchorAt: anchorIso
           } as any
         }
