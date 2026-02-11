@@ -26,6 +26,14 @@ async function adminFetch(path: string, init: RequestInit) {
   return json;
 }
 
+function pesosToCents(input: string): number {
+  const digits = String(input || "").replace(/[^\d-]/g, "");
+  if (!digits) return 0;
+  const pesos = Number(digits);
+  if (!Number.isFinite(pesos)) return 0;
+  return Math.trunc(pesos) * 100;
+}
+
 export async function createCustomer(formData: FormData) {
   const name = String(formData.get("name") || "").trim();
   const email = String(formData.get("email") || "").trim();
@@ -60,5 +68,32 @@ export async function createCustomer(formData: FormData) {
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
     redirect(`/customers?error=${encodeURIComponent(err?.message || "create_customer_failed")}`);
+  }
+}
+
+export async function sendPaymentLinkForCustomer(formData: FormData) {
+  const customerId = String(formData.get("customerId") || "").trim();
+  const amountInCents = pesosToCents(String(formData.get("amount") || ""));
+  if (!customerId || amountInCents <= 0) {
+    return redirect(`/customers?error=${encodeURIComponent("monto_invalido")}`);
+  }
+
+  try {
+    const reference = `CONTACT_${customerId.slice(0, 6)}_${Date.now()}`;
+    await adminFetch("/admin/orders", {
+      method: "POST",
+      body: JSON.stringify({
+        customerId,
+        reference,
+        currency: "COP",
+        lineItems: [{ name: "Pago manual", quantity: 1, unitPriceInCents: amountInCents }],
+        sendChatwoot: true,
+        source: "MANUAL"
+      })
+    });
+    redirect("/customers?paymentLink=sent");
+  } catch (err: any) {
+    if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
+    redirect(`/customers?error=${encodeURIComponent(err?.message || "create_payment_link_failed")}`);
   }
 }

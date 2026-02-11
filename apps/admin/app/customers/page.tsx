@@ -1,4 +1,4 @@
-import { createCustomer } from "./actions";
+import { createCustomer, sendPaymentLinkForCustomer } from "./actions";
 import Link from "next/link";
 import { NewCustomerForm } from "./NewCustomerForm";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
@@ -26,7 +26,7 @@ async function fetchCustomers(opts?: { q?: string; take?: number }) {
 export default async function CustomersPage({
   searchParams
 }: {
-  searchParams: { created?: string; paymentSource?: string; error?: string; q?: string };
+  searchParams: { created?: string; paymentSource?: string; paymentLink?: string; error?: string; q?: string };
 }) {
   const { token } = getConfig();
   if (!token) return <main><h1 style={{ marginTop: 0 }}>Contactos</h1><p>Configura `ADMIN_API_TOKEN`.</p></main>;
@@ -43,6 +43,7 @@ export default async function CustomersPage({
       ) : null}
       {searchParams.created ? <div className="card cardPad">Contacto creado.</div> : null}
       {searchParams.paymentSource ? <div className="card cardPad">Método de pago guardado.</div> : null}
+      {searchParams.paymentLink ? <div className="card cardPad">Link de pago enviado.</div> : null}
 
       <section className="settings-group">
         <div className="settings-group-header">
@@ -78,6 +79,7 @@ export default async function CustomersPage({
                   <th>Dirección</th>
                   <th>Cobro auto</th>
                   <th>Creado</th>
+                  <th>Link de pago</th>
                 </tr>
               </thead>
               <tbody>
@@ -99,11 +101,18 @@ export default async function CustomersPage({
                       )}
                     </td>
                     <td><LocalDateTime value={c.createdAt} /></td>
+                    <td>
+                      <form action={sendPaymentLinkForCustomer} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <input type="hidden" name="customerId" value={c.id} />
+                        <input className="input" name="amount" placeholder="$ 10000" inputMode="numeric" style={{ maxWidth: 120 }} />
+                        <button className="ghost" type="submit">Enviar link</button>
+                      </form>
+                    </td>
                   </tr>
                 ))}
                 {items.length === 0 ? (
                   <tr>
-                    <td colSpan={8} style={{ color: "var(--muted)" }}>
+                    <td colSpan={9} style={{ color: "var(--muted)" }}>
                       Sin contactos.
                     </td>
                   </tr>
