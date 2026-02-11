@@ -2,6 +2,7 @@ import { createPlanTemplate } from "./actions";
 import { NewPlanOrSubscriptionForm } from "./NewPlanOrSubscriptionForm";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { HelpTip } from "../ui/HelpTip";
+import { ProductsTable } from "./ProductsTable";
 
 export const dynamic = "force-dynamic";
 
@@ -11,13 +12,6 @@ function getConfig() {
 
 async function fetchAdmin(path: string) {
   return fetchAdminCached(path, { ttlMs: 1500 });
-}
-
-function fmtMoney(p: any) {
-  const cents = Number(p);
-  if (!Number.isFinite(cents)) return "—";
-  const pesos = Math.trunc(cents / 100);
-  return `$${pesos.toLocaleString("es-CO")}`;
 }
 
 export default async function ProductsPage({
@@ -36,6 +30,7 @@ export default async function ProductsPage({
   }
 
   const created = typeof searchParams?.created === "string" ? searchParams.created : "";
+  const updated = typeof searchParams?.updated === "string" ? searchParams.updated : "";
   const error = typeof searchParams?.error === "string" ? searchParams.error : "";
   const q = typeof searchParams?.q === "string" ? searchParams.q : "";
 
@@ -54,6 +49,7 @@ export default async function ProductsPage({
         </div>
       ) : null}
       {created ? <div className="card cardPad">Guardado.</div> : null}
+      {updated ? <div className="card cardPad">Actualizado.</div> : null}
 
       <section className="settings-group">
         <div className="settings-group-header">
@@ -78,37 +74,7 @@ export default async function ProductsPage({
           <div style={{ display: "grid", gap: 14 }}>
             <NewPlanOrSubscriptionForm action={createPlanTemplate} catalogItems={productItems} />
 
-            <div className="panel module" style={{ padding: 0 }}>
-              <table className="table" aria-label="Tabla de productos y servicios">
-                <thead>
-                  <tr>
-                    <th>SKU</th>
-                    <th>Nombre</th>
-                    <th>Tipo</th>
-                    <th>Precio</th>
-                    <th>IVA</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {productItems.map((p) => (
-                    <tr key={p.id}>
-                      <td style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>{p.sku}</td>
-                      <td>{p.name}</td>
-                      <td>{p.kind === "SERVICE" ? "Servicio" : "Producto"}</td>
-                      <td>{fmtMoney(p.basePriceInCents)}</td>
-                      <td>{p.taxPercent ? `${p.taxPercent}%` : "—"}</td>
-                    </tr>
-                  ))}
-                  {productItems.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} style={{ color: "var(--muted)" }}>
-                        Sin productos/servicios.
-                      </td>
-                    </tr>
-                  ) : null}
-                </tbody>
-              </table>
-            </div>
+            <ProductsTable items={productItems} />
           </div>
         </div>
       </section>

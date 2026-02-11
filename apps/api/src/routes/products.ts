@@ -116,6 +116,65 @@ productsRouter.get("/:id", async (req, res) => {
   });
 });
 
+const updateProductSchema = createProductSchema.extend({});
+
+productsRouter.put("/:id", async (req, res) => {
+  const id = String(req.params.id || "").trim();
+  if (!id) return res.status(400).json({ error: "invalid_id" });
+
+  const parsed = updateProductSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+
+  const data = parsed.data;
+  const existing = await prisma.subscriptionPlan.findUnique({ where: { id } });
+  if (!existing) return res.status(404).json({ error: "not_found" });
+  if ((existing.metadata as any)?.kind !== "CATALOG_ITEM") return res.status(404).json({ error: "not_found" });
+
+  const sku = String(data.sku || "").trim();
+  if (sku) {
+    const clash = await prisma.subscriptionPlan.findFirst({
+      where: { id: { not: id }, metadata: { path: ["sku"], equals: sku } } as any
+    });
+    if (clash) return res.status(409).json({ error: "sku_exists" });
+  }
+
+  const mergedMetadata = {
+    ...(existing.metadata && typeof existing.metadata === "object" ? (existing.metadata as any) : {}),
+    kind: "CATALOG_ITEM",
+    sku: data.sku,
+    displayName: data.name,
+    itemKind: data.kind,
+    description: data.description || null,
+    vendor: data.vendor || null,
+    productType: data.productType || null,
+    tags: data.tags || null,
+    unit: data.unit || null,
+    taxable: data.taxable,
+    requiresShipping: data.requiresShipping,
+    taxPercent: data.taxPercent,
+    discountType: data.discountType,
+    discountValueInCents: data.discountValueInCents,
+    discountPercent: data.discountPercent,
+    option1Name: data.option1Name || null,
+    option2Name: data.option2Name || null,
+    variants: data.variants ? (data.variants as any) : null
+  };
+
+  const updated = await prisma.subscriptionPlan.update({
+    where: { id },
+    data: {
+      name: `[${data.sku}] ${data.name}`,
+      currency: data.currency,
+      priceInCents: data.basePriceInCents,
+      intervalUnit: "CUSTOM" as any,
+      intervalCount: 1,
+      metadata: mergedMetadata as any
+    }
+  });
+
+  res.json({ ok: true, id: updated.id });
+});
+
 productsRouter.post("/", async (req, res) => {
   const parsed = createProductSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });

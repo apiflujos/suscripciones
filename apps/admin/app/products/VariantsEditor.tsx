@@ -31,7 +31,9 @@ export function VariantsEditor({
   showOption2,
   disabled,
   fieldName,
-  onJsonChange
+  onJsonChange,
+  initialJson,
+  resetKey
 }: {
   option1Name?: string;
   option2Name?: string;
@@ -39,8 +41,19 @@ export function VariantsEditor({
   disabled?: boolean;
   fieldName?: string;
   onJsonChange?: (json: string) => void;
+  initialJson?: string;
+  resetKey?: string;
 }) {
   const [rows, setRows] = useState<VariantRow[]>([]);
+
+  function formatCopSignedFromCents(cents: number) {
+    if (!Number.isFinite(cents)) return "";
+    if (cents === 0) return "";
+    const sign = cents < 0 ? "-" : "+";
+    const abs = Math.abs(cents);
+    const formatted = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(abs / 100);
+    return `${sign}${formatted}`;
+  }
 
   const json = useMemo(() => {
     const normalized = rows
@@ -56,6 +69,28 @@ export function VariantsEditor({
   useEffect(() => {
     onJsonChange?.(json);
   }, [json, onJsonChange]);
+
+  useEffect(() => {
+    if (!initialJson) {
+      setRows([]);
+      return;
+    }
+    try {
+      const parsed = JSON.parse(initialJson);
+      if (!Array.isArray(parsed)) {
+        setRows([]);
+        return;
+      }
+      const next = parsed.map((r: any) => ({
+        option1: r?.option1 || "",
+        option2: r?.option2 || "",
+        priceDeltaPesos: formatCopSignedFromCents(Number(r?.priceDeltaInCents || 0))
+      }));
+      setRows(next);
+    } catch {
+      setRows([]);
+    }
+  }, [initialJson, resetKey]);
 
   return (
     <div className="panel" style={{ borderColor: "rgba(15, 23, 42, 0.12)" }}>
