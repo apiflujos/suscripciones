@@ -158,7 +158,6 @@ export function NotificationWizard({
       setTemplateKind("TEXT");
       setMessage("");
       setWaTemplateName("");
-      setWaLanguage("");
       setWaParams([""]);
       setEnsurePaymentLink(null);
       setAtTimeEnabled(false);
