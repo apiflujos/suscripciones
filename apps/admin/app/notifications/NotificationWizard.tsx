@@ -159,7 +159,7 @@ export function NotificationWizard({
       setMessage("");
       setWaTemplateName("");
       setWaParams([""]);
-      setEnsurePaymentLink(null);
+      setEnsurePaymentLink(true);
       setAtTimeEnabled(false);
       setAtTimeUtc("");
       applyKind(createdKind);
