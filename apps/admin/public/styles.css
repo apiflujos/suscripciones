@@ -766,6 +766,13 @@ textarea {
   color: var(--primary);
 }
 
+.module-choice .module-check {
+  margin-left: auto;
+  font-weight: 700;
+  color: #16a34a;
+  font-size: 12px;
+}
+
 .module-footer button {
   min-height: 30px;
   padding: 0 10px;

@@ -64,6 +64,7 @@ export function NotificationWizard({
   const [isPending, startTransition] = useTransition();
   const [submitError, setSubmitError] = useState<string>("");
   const [submitOk, setSubmitOk] = useState<string>("");
+  const [lastCreatedKind, setLastCreatedKind] = useState<NotificationKind | null>(null);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [env, setEnv] = useState<Env>(envDefault);
 
@@ -138,13 +139,26 @@ export function NotificationWizard({
     for (const s of computedOffsetsSeconds) fd.append("offsetSeconds", String(s));
     for (const p of waParams) fd.append("waParam", p);
 
+    const createdKind = notificationKind;
     startTransition(async () => {
       const res = await createNotification(fd);
       if (!res.ok) {
         setSubmitError(res.error || "unknown_error");
         return;
       }
-      setSubmitOk("Creado.");
+      setSubmitOk("Notificación creada.");
+      setLastCreatedKind(createdKind);
+      setStep(1);
+      setTitle("");
+      setTemplateKind("TEXT");
+      setMessage("");
+      setWaTemplateName("");
+      setWaLanguage("");
+      setWaParams([""]);
+      setEnsurePaymentLink(null);
+      setAtTimeEnabled(false);
+      setAtTimeUtc("");
+      applyKind(createdKind);
       router.refresh();
     });
   }
@@ -248,25 +262,32 @@ export function NotificationWizard({
                 </div>
                 <div style={{ display: "grid", gap: 6 }}>
                   <button type="button" className={`ghost module-choice ${notificationKind === "PAYMENT_LINK" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_LINK")}>
-                    Link de pago
+                    <span>Link de pago</span>
+                    {lastCreatedKind === "PAYMENT_LINK" ? <span className="module-check">✓ Lista</span> : null}
                   </button>
                   <button type="button" className={`ghost module-choice ${notificationKind === "PAYMENT_APPROVED_SUBSCRIPTION" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_APPROVED_SUBSCRIPTION")}>
-                    Pago exitoso (suscripción)
+                    <span>Pago exitoso (suscripción)</span>
+                    {lastCreatedKind === "PAYMENT_APPROVED_SUBSCRIPTION" ? <span className="module-check">✓ Lista</span> : null}
                   </button>
                   <button type="button" className={`ghost module-choice ${notificationKind === "PAYMENT_APPROVED_PLAN" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_APPROVED_PLAN")}>
-                    Pago exitoso (plan)
+                    <span>Pago exitoso (plan)</span>
+                    {lastCreatedKind === "PAYMENT_APPROVED_PLAN" ? <span className="module-check">✓ Lista</span> : null}
                   </button>
                   <button type="button" className={`ghost module-choice ${notificationKind === "PAYMENT_APPROVED_LINK" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_APPROVED_LINK")}>
-                    Pago recibido por link de pago
+                    <span>Pago recibido por link de pago</span>
+                    {lastCreatedKind === "PAYMENT_APPROVED_LINK" ? <span className="module-check">✓ Lista</span> : null}
                   </button>
                   <button type="button" className={`ghost module-choice ${notificationKind === "PAYMENT_DECLINED_SUBSCRIPTION" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_DECLINED_SUBSCRIPTION")}>
-                    Pago fallido (suscripción)
+                    <span>Pago fallido (suscripción)</span>
+                    {lastCreatedKind === "PAYMENT_DECLINED_SUBSCRIPTION" ? <span className="module-check">✓ Lista</span> : null}
                   </button>
                   <button type="button" className={`ghost module-choice ${notificationKind === "PAYMENT_DECLINED_PLAN" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_DECLINED_PLAN")}>
-                    Pago fallido (plan)
+                    <span>Pago fallido (plan)</span>
+                    {lastCreatedKind === "PAYMENT_DECLINED_PLAN" ? <span className="module-check">✓ Lista</span> : null}
                   </button>
                   <button type="button" className={`ghost module-choice ${notificationKind === "PAYMENT_DECLINED_LINK" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_DECLINED_LINK")}>
-                    Pago fallido (link de pago)
+                    <span>Pago fallido (link de pago)</span>
+                    {lastCreatedKind === "PAYMENT_DECLINED_LINK" ? <span className="module-check">✓ Lista</span> : null}
                   </button>
                 </div>
               </div>
@@ -278,10 +299,12 @@ export function NotificationWizard({
                 </div>
                 <div style={{ display: "grid", gap: 6 }}>
                   <button type="button" className={`ghost module-choice ${notificationKind === "REMINDER_DUE" ? "is-active" : ""}`} onClick={() => applyKind("REMINDER_DUE")}>
-                    Recordatorio de fecha de pago
+                    <span>Recordatorio de fecha de pago</span>
+                    {lastCreatedKind === "REMINDER_DUE" ? <span className="module-check">✓ Lista</span> : null}
                   </button>
                   <button type="button" className={`ghost module-choice ${notificationKind === "REMINDER_MORA" ? "is-active" : ""}`} onClick={() => applyKind("REMINDER_MORA")}>
-                    Recordatorio pago en mora
+                    <span>Recordatorio pago en mora</span>
+                    {lastCreatedKind === "REMINDER_MORA" ? <span className="module-check">✓ Lista</span> : null}
                   </button>
                 </div>
               </div>
@@ -495,12 +518,14 @@ export function NotificationWizard({
 
           <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
             <div style={{ display: "flex", gap: 10 }}>
-              <button className="ghost" type="button" onClick={() => setStep((s) => (s === 1 ? 1 : ((s - 1) as any))) } disabled={step === 1}>
+              <button className="ghost" type="button" onClick={() => setStep((s) => (s === 1 ? 1 : ((s - 1) as any)))} disabled={step === 1}>
                 Atrás
               </button>
-              <button className="primary" type="button" onClick={() => setStep((s) => (s === 3 ? 3 : ((s + 1) as any)))} disabled={step === 3 || !canGoNext() || isPending}>
-                Siguiente
-              </button>
+              {step < 3 ? (
+                <button className="primary" type="button" onClick={() => setStep((s) => (s === 3 ? 3 : ((s + 1) as any)))} disabled={!canGoNext() || isPending}>
+                  Siguiente
+                </button>
+              ) : null}
             </div>
 
             {step === 3 ? (
