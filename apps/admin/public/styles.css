@@ -793,16 +793,16 @@ textarea {
   border-radius: 14px;
   border: 1px solid rgba(15, 23, 42, 0.08);
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
-  padding: 10px 12px;
+  padding: 8px 10px;
   display: grid;
-  grid-template-columns: 1.4fr 1fr;
-  gap: 10px;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 8px;
   align-items: start;
 }
 
 .contact-left {
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
 .contact-title {
@@ -829,8 +829,8 @@ textarea {
 
 .contact-meta-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 8px;
   font-size: 11px;
   color: #0f172a;
 }
@@ -844,7 +844,7 @@ textarea {
 
 .contact-right {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .contact-actions {
@@ -856,9 +856,9 @@ textarea {
   background: #f8fafc;
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 12px;
-  padding: 8px;
+  padding: 6px;
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
 .paylink-title {
