@@ -14,10 +14,10 @@ export async function testShopifyForward(req: Request, res: Response) {
   const payload = {
     event: "wompi.forward.test",
     data: {
-      origin: "shopify",
+      origin: "wompi",
       transaction: {
         id: "test_txn",
-        origin: "shopify",
+        origin: "wompi",
         status: "APPROVED",
         amount_in_cents: 1000,
         currency: "COP",
@@ -26,7 +26,7 @@ export async function testShopifyForward(req: Request, res: Response) {
     },
     sent_at: new Date().toISOString(),
     timestamp: Date.now(),
-    origin: "shopify"
+    origin: "wompi"
   };
 
   const headers = {

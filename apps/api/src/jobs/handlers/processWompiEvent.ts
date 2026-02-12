@@ -368,16 +368,16 @@ export async function forwardWompiToShopify(webhookEventId: string) {
   const transaction = data && typeof data === "object" ? data.transaction : undefined;
   const payload = {
     ...(raw && typeof raw === "object" ? raw : {}),
-    origin: raw?.origin ?? "shopify",
+    origin: raw?.origin ?? "wompi",
     sent_at: raw?.sent_at ?? new Date().toISOString(),
     data:
       data && typeof data === "object"
         ? {
             ...data,
-            origin: (data as any).origin ?? "shopify",
+            origin: (data as any).origin ?? "wompi",
             transaction:
               transaction && typeof transaction === "object"
-                ? { ...transaction, origin: (transaction as any).origin ?? "shopify" }
+                ? { ...transaction, origin: (transaction as any).origin ?? "wompi" }
                 : transaction
           }
         : data
