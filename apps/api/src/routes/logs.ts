@@ -34,6 +34,16 @@ logsRouter.get("/jobs", async (req, res) => {
   res.json({ items });
 });
 
+logsRouter.get("/messages", async (req, res) => {
+  const take = Math.min(200, Math.max(1, Number(req.query.take ?? 100)));
+  const items = await prisma.chatwootMessage.findMany({
+    orderBy: { createdAt: "desc" },
+    take,
+    include: { customer: true, subscription: true, payment: true }
+  });
+  res.json({ items });
+});
+
 logsRouter.post("/jobs/retry-failed", async (_req, res) => {
   const now = new Date();
   const result = await prisma.retryJob.updateMany({

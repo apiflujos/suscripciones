@@ -65,10 +65,11 @@ export default async function LogsPage({
   const q = typeof searchParams?.q === "string" ? searchParams.q : "";
   const viewId = typeof searchParams?.view === "string" ? searchParams.view : "";
 
-  const [system, jobs, webhooks, selectedRes] = await Promise.all([
+  const [system, jobs, webhooks, messages, selectedRes] = await Promise.all([
     fetchAdmin("/admin/logs/system?take=120"),
     fetchAdmin("/admin/logs/jobs?take=200"),
     fetchAdmin("/admin/webhook-events"),
+    fetchAdmin("/admin/logs/messages?take=120"),
     viewId
       ? fetchAdmin(`/admin/logs/system/${encodeURIComponent(viewId)}`)
       : Promise.resolve({ ok: false, status: 0, json: null } as any)
@@ -77,6 +78,7 @@ export default async function LogsPage({
   const sysItems = (system.json?.items ?? []) as any[];
   const jobItems = (jobs.json?.items ?? []) as any[];
   const webhookItems = (webhooks.json?.items ?? []) as any[];
+  const messageItems = (messages.json?.items ?? []) as any[];
   const failedJobsCount = jobItems.filter((j) => String(j.status) === "FAILED").length;
 
   const filtered = q
@@ -109,6 +111,12 @@ export default async function LogsPage({
                 href={`/logs?${new URLSearchParams({ tab: "webhooks" })}`}
               >
                 Webhooks
+              </Link>
+              <Link
+                className={`ghost ${tab === "messages" ? "is-active" : ""}`}
+                href={`/logs?${new URLSearchParams({ tab: "messages" })}`}
+              >
+                Mensajes
               </Link>
             </div>
           </div>
@@ -187,6 +195,52 @@ export default async function LogsPage({
                     <tr>
                       <td colSpan={6} style={{ color: "var(--muted)" }}>
                         Sin logs.
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+          ) : tab === "messages" ? (
+            <div className="panel module" style={{ padding: 0 }}>
+              <table className="table" aria-label="Tabla de mensajes">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Contacto</th>
+                    <th>Tipo</th>
+                    <th>Estado</th>
+                    <th>Detalle</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {messageItems.map((m) => {
+                    const status = String(m.status || "");
+                    const chip =
+                      status === "SENT"
+                        ? { cls: "is-success", label: "Enviado" }
+                        : status === "FAILED"
+                          ? { cls: "is-error", label: "Fallido" }
+                          : { cls: "is-warning", label: "Pendiente" };
+                    return (
+                      <tr key={m.id}>
+                        <td><LocalDateTime value={m.createdAt} /></td>
+                        <td>{m.customer?.name || m.customer?.email || "—"}</td>
+                        <td>{m.type || "—"}</td>
+                        <td>
+                          <span className={`status-chip ${chip.cls}`}>
+                            <span className={`status-led ${chip.cls === "is-success" ? "is-ok" : ""}`} />
+                            {chip.label}
+                          </span>
+                        </td>
+                        <td>{m.errorMessage || m.content || "—"}</td>
+                      </tr>
+                    );
+                  })}
+                  {messageItems.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} style={{ color: "var(--muted)" }}>
+                        Sin mensajes.
                       </td>
                     </tr>
                   ) : null}
