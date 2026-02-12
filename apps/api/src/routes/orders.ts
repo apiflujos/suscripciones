@@ -124,7 +124,7 @@ ordersRouter.post("/", async (req, res) => {
     }
   });
 
-  await schedulePaymentLinkNotifications({ paymentId: updated.id }).catch(() => {});
+  const scheduledInfo = await schedulePaymentLinkNotifications({ paymentId: updated.id }).catch(() => ({ scheduled: 0 }));
 
   if (parsed.data.sendChatwoot) {
     const chatwoot = await getChatwootConfig();
@@ -139,5 +139,5 @@ ordersRouter.post("/", async (req, res) => {
     }
   }
 
-  res.status(201).json({ payment: updated, checkoutUrl: updated.checkoutUrl });
+  res.status(201).json({ payment: updated, checkoutUrl: updated.checkoutUrl, notificationsScheduled: scheduledInfo?.scheduled ?? 0 });
 });

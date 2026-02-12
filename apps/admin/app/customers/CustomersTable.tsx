@@ -43,6 +43,7 @@ export function CustomersTable({
   const [dane8, setDane8] = useState("");
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [sendError, setSendError] = useState<Record<string, string>>({});
+  const [sendOk, setSendOk] = useState<Record<string, string>>({});
 
   const modalTitle = useMemo(() => (editing ? `Editar: ${editing.name || editing.email || "Contacto"}` : "Editar contacto"), [editing]);
 
@@ -118,6 +119,7 @@ export function CustomersTable({
                       const amount = (form.elements.namedItem("amount") as HTMLInputElement | null)?.value || "";
                       setSendingId(c.id);
                       setSendError((prev) => ({ ...prev, [c.id]: "" }));
+                      setSendOk((prev) => ({ ...prev, [c.id]: "" }));
                       try {
                         const res = await fetch("/api/customers/send-payment-link", {
                           method: "POST",
@@ -138,7 +140,11 @@ export function CustomersTable({
                           setSendError((prev) => ({ ...prev, [c.id]: json?.error || "send_failed" }));
                           return;
                         }
-                        window.location.href = "/customers?paymentLink=sent";
+                        if (typeof json?.notificationsScheduled === "number" && json.notificationsScheduled === 0) {
+                          setSendError((prev) => ({ ...prev, [c.id]: "no_rules" }));
+                          return;
+                        }
+                        setSendOk((prev) => ({ ...prev, [c.id]: "sent" }));
                       } finally {
                         setSendingId(null);
                       }
@@ -164,7 +170,16 @@ export function CustomersTable({
                     </div>
                   ) : null}
                   {status === "FAILED" && errorMsg ? <div className="paylink-error">{errorMsg}</div> : null}
-                  {sendError[c.id] ? <div className="paylink-error">{sendError[c.id]}</div> : null}
+                  {sendError[c.id] === "auth_required" ? (
+                    <div className="paylink-error">Sesión vencida. Vuelve a iniciar sesión.</div>
+                  ) : null}
+                  {sendError[c.id] === "no_rules" ? (
+                    <div className="paylink-error">No hay notificaciones activas para enviar el link.</div>
+                  ) : null}
+                  {sendError[c.id] && sendError[c.id] !== "auth_required" && sendError[c.id] !== "no_rules" ? (
+                    <div className="paylink-error">{sendError[c.id]}</div>
+                  ) : null}
+                  {sendOk[c.id] ? <div className="paylink-success">Link enviado.</div> : null}
                   {status === "FAILED" ? (
                     <button
                       className="ghost paylink-retry"

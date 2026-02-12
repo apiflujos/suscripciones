@@ -1,7 +1,6 @@
 import { LogLevel, PaymentStatus, RetryJobType } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { getNotificationsActiveEnv, getNotificationsConfig, NotificationTrigger } from "./notificationsConfig";
-import { LogLevel } from "@prisma/client";
 import { systemLog } from "./systemLog";
 
 function toMsSeconds(seconds: number) {

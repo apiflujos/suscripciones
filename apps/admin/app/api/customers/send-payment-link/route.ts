@@ -59,5 +59,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: json?.error || "request_failed" }, { status: res.status });
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true,
+    checkoutUrl: json?.checkoutUrl || null,
+    notificationsScheduled: typeof json?.notificationsScheduled === "number" ? json.notificationsScheduled : null
+  });
 }
