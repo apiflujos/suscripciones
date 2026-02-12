@@ -80,6 +80,13 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
     }
   }
 
+  await systemLog(LogLevel.INFO, "notifications.schedule", "Notificaciones programadas", {
+    trigger: "SUBSCRIPTION_DUE",
+    environment: await getNotificationsActiveEnv(),
+    subscriptionId: sub.id,
+    scheduled
+  }).catch(() => {});
+
   return { scheduled };
 }
 
@@ -142,6 +149,13 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
     }
   }
 
+  await systemLog(LogLevel.INFO, "notifications.schedule", "Notificaciones programadas", {
+    trigger,
+    environment: await getNotificationsActiveEnv(),
+    paymentId: payment.id,
+    scheduled
+  }).catch(() => {});
+
   return { scheduled };
 }
 
@@ -199,6 +213,14 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
       scheduled++;
     }
   }
+
+  await systemLog(LogLevel.INFO, "notifications.schedule", "Notificaciones programadas", {
+    trigger: "PAYMENT_LINK_CREATED",
+    environment: await getNotificationsActiveEnv(),
+    paymentId: payment.id,
+    customerId: payment.customerId,
+    scheduled
+  }).catch(() => {});
 
   return { scheduled };
 }

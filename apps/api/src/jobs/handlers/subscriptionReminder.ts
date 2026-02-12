@@ -102,6 +102,15 @@ export async function subscriptionReminder(payload: any) {
   const template = cfg.templates.find((t) => t.id === rule.templateId);
   if (!template) return;
 
+  await systemLog(LogLevel.INFO, "notifications.dispatch", "Procesando notificacion", {
+    trigger: parsed.data.trigger,
+    ruleId: parsed.data.ruleId,
+    templateId: template.id,
+    customerId: parsed.data.customerId || null,
+    subscriptionId: parsed.data.subscriptionId || null,
+    paymentId: parsed.data.paymentId || null
+  }).catch(() => {});
+
   const subscriptionId = parsed.data.subscriptionId;
   const paymentId = parsed.data.paymentId;
 
@@ -250,6 +259,14 @@ export async function subscriptionReminder(payload: any) {
       payload: { chatwootMessageId: created.id }
     }
   });
+
+  await systemLog(LogLevel.INFO, "notifications.dispatch", "Mensaje en cola para envio", {
+    trigger: parsed.data.trigger,
+    ruleId: parsed.data.ruleId,
+    chatwootMessageId: created.id,
+    customerId: customer.id,
+    paymentId: effectivePayment?.id ?? null
+  }).catch(() => {});
 
   if (parsed.data.trigger === "PAYMENT_DECLINED" && subscription) {
     // Optional: mark past-due for visibility (best-effort).
