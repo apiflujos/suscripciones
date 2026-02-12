@@ -13,6 +13,13 @@ const createCustomerSchema = z.object({
   metadata: z.any().optional()
 });
 
+const updateCustomerSchema = z.object({
+  name: z.string().min(1).optional().or(z.literal("")),
+  email: z.string().email().optional().or(z.literal("")),
+  phone: z.string().min(6).optional().or(z.literal("")),
+  metadata: z.any().optional()
+});
+
 const wompiPaymentSourceSchema = z.object({
   type: z.enum(["CARD", "NEQUI", "PSE"]).default("CARD"),
   token: z.string().min(1)
@@ -53,6 +60,35 @@ customersRouter.post("/", async (req, res) => {
   await ensureChatwootContactForCustomer(customer.id).catch(() => {});
   await syncChatwootAttributesForCustomer(customer.id).catch(() => {});
   res.status(201).json({ customer });
+});
+
+customersRouter.put("/:id", async (req, res) => {
+  const customerId = String(req.params.id || "").trim();
+  if (!customerId) return res.status(400).json({ error: "invalid_id" });
+  const parsed = updateCustomerSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+
+  const data: any = { ...parsed.data };
+  if (data.name === "") data.name = null;
+  if (data.email === "") data.email = null;
+  if (data.phone === "") data.phone = null;
+
+  const updated = await prisma.customer.update({ where: { id: customerId }, data });
+  await ensureChatwootContactForCustomer(updated.id).catch(() => {});
+  await syncChatwootAttributesForCustomer(updated.id).catch(() => {});
+  res.json({ customer: updated });
+});
+
+customersRouter.delete("/:id", async (req, res) => {
+  const customerId = String(req.params.id || "").trim();
+  if (!customerId) return res.status(400).json({ error: "invalid_id" });
+  try {
+    await prisma.customer.delete({ where: { id: customerId } });
+    res.json({ ok: true });
+  } catch (err: any) {
+    if (String(err?.code) === "P2003") return res.status(409).json({ error: "customer_has_dependencies" });
+    throw err;
+  }
 });
 
 customersRouter.post("/:id/wompi/payment-source", async (req, res) => {
