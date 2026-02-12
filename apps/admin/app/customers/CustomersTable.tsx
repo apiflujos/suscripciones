@@ -60,11 +60,11 @@ export function CustomersTable({
 
   return (
     <>
-      <div className="panel module" style={{ padding: 0 }}>
-        <table className="table" aria-label="Tabla de contactos">
+      <div className="panel module table-scroll" style={{ padding: 0 }}>
+        <table className="table contacts-table" aria-label="Tabla de contactos">
           <thead>
             <tr>
-              <th>Nombre</th>
+              <th>Contacto</th>
               <th>Email</th>
               <th>Teléfono</th>
               <th>Identificación</th>
@@ -73,7 +73,7 @@ export function CustomersTable({
               <th>Cobro auto</th>
               <th>Creado</th>
               <th>Link de pago</th>
-              <th />
+              <th style={{ width: 60 }} />
             </tr>
           </thead>
           <tbody>
@@ -82,7 +82,11 @@ export function CustomersTable({
               const status = String(link?.chatwootStatus || "");
               return (
                 <tr key={c.id}>
-                  <td>{c.name || "—"}</td>
+                  <td>
+                    <div className="contact-main">{c.name || "—"}</div>
+                    <div className="contact-sub only-mobile">{c.email || "—"}</div>
+                    <div className="contact-sub only-mobile">{c.phone || "—"}</div>
+                  </td>
                   <td>{c.email || "—"}</td>
                   <td>{c.phone || "—"}</td>
                   <td>{c.metadata?.identificacion || c.metadata?.identificationNumber || "—"}</td>
@@ -119,18 +123,23 @@ export function CustomersTable({
                     ) : null}
                   </td>
                   <td style={{ textAlign: "right" }}>
-                    <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                      <button className="ghost" type="button" onClick={() => openEditor(c)}>Editar</button>
-                      <form
-                        action={deleteCustomer}
-                        onSubmit={(e) => {
-                          if (!confirm("¿Eliminar contacto?")) e.preventDefault();
-                        }}
-                      >
-                        <input type="hidden" name="id" value={c.id} />
-                        <button className="ghost" type="submit">Eliminar</button>
-                      </form>
-                    </div>
+                    <details className="action-menu">
+                      <summary className="ghost" aria-label="Acciones">⋯</summary>
+                      <div className="action-menu-panel">
+                        <button className="ghost" type="button" onClick={() => openEditor(c)}>
+                          Editar
+                        </button>
+                        <form
+                          action={deleteCustomer}
+                          onSubmit={(e) => {
+                            if (!confirm("¿Eliminar contacto?")) e.preventDefault();
+                          }}
+                        >
+                          <input type="hidden" name="id" value={c.id} />
+                          <button className="ghost" type="submit">Eliminar</button>
+                        </form>
+                      </div>
+                    </details>
                   </td>
                 </tr>
               );
