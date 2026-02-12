@@ -790,7 +790,7 @@ textarea {
 
 .contact-card {
   background: #fff;
-  border-radius: 16px;
+  border-radius: 12px;
   border: 1px solid rgba(15, 23, 42, 0.08);
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
   padding: 8px;
@@ -810,31 +810,31 @@ textarea {
 }
 
 .contact-avatar {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 999px;
   background: rgba(138, 79, 255, 0.12);
   color: #8a4fff;
   font-weight: 700;
   display: grid;
   place-items: center;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .contact-name {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   color: #001f3f;
 }
 
 .contact-email {
-  font-size: 10px;
+  font-size: 9px;
   color: var(--muted);
   margin-top: 0;
 }
 
 .contact-phone {
-  font-size: 10px;
+  font-size: 9px;
   color: #1f2937;
   margin-top: 0;
 }
@@ -842,20 +842,20 @@ textarea {
 .contact-body {
   display: grid;
   grid-template-columns: 1.1fr 1fr;
-  gap: 8px;
+  gap: 6px;
   align-items: start;
 }
 
 .contact-meta {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 4px 8px;
+  gap: 3px 6px;
 }
 
 .meta-row {
   display: flex;
   justify-content: space-between;
-  font-size: 10px;
+  font-size: 9px;
   gap: 6px;
 }
 
@@ -871,14 +871,14 @@ textarea {
 .contact-paylink {
   background: #f8fafc;
   border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 12px;
+  border-radius: 10px;
   padding: 8px;
   display: grid;
   gap: 6px;
 }
 
 .paylink-title {
-  font-size: 10px;
+  font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--muted);

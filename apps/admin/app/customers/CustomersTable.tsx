@@ -146,8 +146,13 @@ export function CustomersTable({
                             amount
                           })
                         });
-                        if (!res.ok) {
-                          const json = await res.json().catch(() => ({}));
+                        const contentType = res.headers.get("content-type") || "";
+                        if (!contentType.includes("application/json")) {
+                          setSendError((prev) => ({ ...prev, [c.id]: "auth_required" }));
+                          return;
+                        }
+                        const json = await res.json().catch(() => ({}));
+                        if (!res.ok || !json?.ok) {
                           setSendError((prev) => ({ ...prev, [c.id]: json?.error || "send_failed" }));
                           return;
                         }
