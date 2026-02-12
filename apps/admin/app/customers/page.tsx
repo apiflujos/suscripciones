@@ -23,6 +23,24 @@ async function fetchCustomers(opts?: { q?: string; take?: number }) {
   return res.json || { items: [] as any[] };
 }
 
+async function fetchPaymentLinks() {
+  const res = await fetchAdminCached("/admin/orders", { ttlMs: 1500 });
+  const data = res.json || { items: [] as any[] };
+  const items = Array.isArray(data.items) ? data.items : [];
+  const latestByCustomer = new Map<string, { checkoutUrl: string; createdAt: string }>();
+  for (const item of items) {
+    const customerId = String(item?.customer?.id || item?.customerId || "");
+    const checkoutUrl = String(item?.checkoutUrl || "");
+    const createdAt = String(item?.createdAt || "");
+    if (!customerId || !checkoutUrl) continue;
+    const prev = latestByCustomer.get(customerId);
+    if (!prev || (createdAt && createdAt > prev.createdAt)) {
+      latestByCustomer.set(customerId, { checkoutUrl, createdAt });
+    }
+  }
+  return latestByCustomer;
+}
+
 export default async function CustomersPage({
   searchParams
 }: {
@@ -33,6 +51,7 @@ export default async function CustomersPage({
   const q = typeof searchParams?.q === "string" ? searchParams.q : "";
   const data = await fetchCustomers({ q, take: 200 });
   const items = (data.items ?? []) as any[];
+  const latestLinks = await fetchPaymentLinks();
 
   return (
     <main className="page" style={{ maxWidth: 980 }}>
@@ -107,6 +126,11 @@ export default async function CustomersPage({
                         <input className="input" name="amount" placeholder="$ 10000" inputMode="numeric" style={{ maxWidth: 120 }} />
                         <button className="ghost" type="submit">Enviar link</button>
                       </form>
+                      {latestLinks.get(String(c.id))?.checkoutUrl ? (
+                        <a className="ghost" href={latestLinks.get(String(c.id))!.checkoutUrl} target="_blank" rel="noreferrer" style={{ marginTop: 6 }}>
+                          Link de pago
+                        </a>
+                      ) : null}
                     </td>
                   </tr>
                 ))}
