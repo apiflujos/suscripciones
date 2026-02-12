@@ -1,11 +1,12 @@
 import express from "express";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
-import { PaymentStatus, RetryJobType } from "@prisma/client";
+import { LogLevel, PaymentStatus, RetryJobType } from "@prisma/client";
 import { WompiClient } from "../providers/wompi/client";
 import { getChatwootConfig, getWompiApiBaseUrl, getWompiCheckoutLinkBaseUrl, getWompiPrivateKey, getWompiRedirectUrl } from "../services/runtimeConfig";
 import { ensureChatwootContactForCustomer, syncChatwootAttributesForCustomer } from "../services/chatwootSync";
 import { schedulePaymentLinkNotifications } from "../services/notificationsScheduler";
+import { systemLog } from "../services/systemLog";
 
 const lineItemSchema = z.object({
   sku: z.string().optional().nullable(),
@@ -130,6 +131,11 @@ ordersRouter.post("/", async (req, res) => {
     if (chatwoot.configured) {
       await ensureChatwootContactForCustomer(customer.id).catch(() => {});
       await syncChatwootAttributesForCustomer(customer.id).catch(() => {});
+    } else {
+      await systemLog(LogLevel.WARN, "chatwoot.sync", "Chatwoot no configurado para envio de link", {
+        customerId: customer.id,
+        paymentId: updated.id
+      }).catch(() => {});
     }
   }
 

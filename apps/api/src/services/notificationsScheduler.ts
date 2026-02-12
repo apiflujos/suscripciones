@@ -1,6 +1,8 @@
-import { PaymentStatus, RetryJobType } from "@prisma/client";
+import { LogLevel, PaymentStatus, RetryJobType } from "@prisma/client";
 import { prisma } from "../db/prisma";
-import { getNotificationsConfig, NotificationTrigger } from "./notificationsConfig";
+import { getNotificationsActiveEnv, getNotificationsConfig, NotificationTrigger } from "./notificationsConfig";
+import { LogLevel } from "@prisma/client";
+import { systemLog } from "./systemLog";
 
 function toMsSeconds(seconds: number) {
   return seconds * 1000;
@@ -37,7 +39,15 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
 
   const cfg = await getNotificationsConfig();
   const rules = cfg.rules.filter((r) => r.enabled && r.trigger === "SUBSCRIPTION_DUE");
-  if (!rules.length) return { scheduled: 0 };
+  if (!rules.length) {
+    const env = await getNotificationsActiveEnv();
+    await systemLog(LogLevel.WARN, "notifications.schedule", "No hay reglas activas para notificaciones", {
+      trigger: "SUBSCRIPTION_DUE",
+      environment: env,
+      subscriptionId: sub.id
+    }).catch(() => {});
+    return { scheduled: 0 };
+  }
 
   const now = new Date();
   const anchorAt = sub.currentPeriodEndAt;
@@ -90,7 +100,15 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
 
   const cfg = await getNotificationsConfig();
   const rules = cfg.rules.filter((r) => r.enabled && r.trigger === trigger);
-  if (!rules.length) return { scheduled: 0 };
+  if (!rules.length) {
+    const env = await getNotificationsActiveEnv();
+    await systemLog(LogLevel.WARN, "notifications.schedule", "No hay reglas activas para notificaciones", {
+      trigger,
+      environment: env,
+      paymentId: payment.id
+    }).catch(() => {});
+    return { scheduled: 0 };
+  }
 
   const now = new Date();
   const anchorAt = now;
@@ -140,7 +158,16 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
 
   const cfg = await getNotificationsConfig();
   const rules = cfg.rules.filter((r) => r.enabled && r.trigger === "PAYMENT_LINK_CREATED");
-  if (!rules.length) return { scheduled: 0 };
+  if (!rules.length) {
+    const env = await getNotificationsActiveEnv();
+    await systemLog(LogLevel.WARN, "notifications.schedule", "No hay reglas activas para notificaciones", {
+      trigger: "PAYMENT_LINK_CREATED",
+      environment: env,
+      paymentId: payment.id,
+      customerId: payment.customerId
+    }).catch(() => {});
+    return { scheduled: 0 };
+  }
 
   const now = new Date();
   const anchorAt = now;

@@ -105,6 +105,10 @@ export async function getNotificationsConfig(): Promise<NotificationsConfig> {
   return getNotificationsConfigForEnv(env);
 }
 
+export async function getNotificationsActiveEnv(): Promise<ActiveEnv> {
+  return getCommsActiveEnv();
+}
+
 export async function getNotificationsConfigForEnv(env: ActiveEnv): Promise<NotificationsConfig> {
   const raw =
     (await getCredential(CredentialProvider.CHATWOOT, keyForEnv(env))) ||
