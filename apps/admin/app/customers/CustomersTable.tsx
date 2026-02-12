@@ -83,15 +83,19 @@ export function CustomersTable({
           return (
             <div className="contact-card contact-card-horizontal" key={c.id}>
               <div className="contact-left">
-                <div className="contact-title">{c.name || "—"}</div>
-                <div className="contact-subline">{c.email || "—"}</div>
-                <div className="contact-subline">{c.phone || "—"}</div>
-                <div className="contact-meta-compact">
-                  <div><span>Identificación:</span> {c.metadata?.identificacion || c.metadata?.identificationNumber || "—"}</div>
-                  <div><span>Ciudad:</span> {c.metadata?.address?.city || "—"}</div>
-                  <div><span>Dirección:</span> {c.metadata?.address?.line1 || "—"}</div>
+                <div className="contact-header">
                   <div>
-                    <span>Cobro auto:</span>{" "}
+                    <div className="contact-title">{c.name || "—"}</div>
+                    <div className="contact-subline">{c.email || "—"}</div>
+                  </div>
+                  <div className="contact-subline">{c.phone || "—"}</div>
+                </div>
+                <div className="contact-meta-grid">
+                  <div><span>Identificación</span>{c.metadata?.identificacion || c.metadata?.identificationNumber || "—"}</div>
+                  <div><span>Ciudad</span>{c.metadata?.address?.city || "—"}</div>
+                  <div><span>Dirección</span>{c.metadata?.address?.line1 || "—"}</div>
+                  <div>
+                    <span>Cobro auto</span>
                     {c.metadata?.wompi?.paymentSourceId ? (
                       <span className="pill pill-ok">OK</span>
                     ) : (
@@ -100,12 +104,12 @@ export function CustomersTable({
                       </Link>
                     )}
                   </div>
-                  <div><span>Creado:</span> <LocalDateTime value={c.createdAt} /></div>
+                  <div><span>Creado</span><LocalDateTime value={c.createdAt} /></div>
                 </div>
               </div>
 
               <div className="contact-right">
-                <div className="contact-right-top">
+                <div className="contact-actions">
                   <button className="icon-btn" type="button" onClick={() => openEditor(c)} aria-label="Editar">✎</button>
                 </div>
                 <div className="contact-paylink">
