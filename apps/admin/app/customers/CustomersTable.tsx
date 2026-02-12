@@ -80,6 +80,7 @@ export function CustomersTable({
                 <div className="contact-main">
                   <div className="contact-name">{c.name || "—"}</div>
                   <div className="contact-email">{c.email || "—"}</div>
+                  <div className="contact-phone">{c.phone || "—"}</div>
                 </div>
                 <div className="contact-actions">
                   <details className="action-menu">
@@ -102,61 +103,59 @@ export function CustomersTable({
                 </div>
               </div>
 
-              <div className="contact-meta">
-                <div className="meta-row">
-                  <span>Teléfono</span>
-                  <strong>{c.phone || "—"}</strong>
-                </div>
-                <div className="meta-row">
-                  <span>Identificación</span>
-                  <strong>{c.metadata?.identificacion || c.metadata?.identificationNumber || "—"}</strong>
-                </div>
-                <div className="meta-row">
-                  <span>Ciudad</span>
-                  <strong>{c.metadata?.address?.city || "—"}</strong>
-                </div>
-                <div className="meta-row">
-                  <span>Dirección</span>
-                  <strong>{c.metadata?.address?.line1 || "—"}</strong>
-                </div>
-                <div className="meta-row">
-                  <span>Cobro auto</span>
-                  <strong>
-                    {c.metadata?.wompi?.paymentSourceId ? (
-                      <span className="pill pill-ok">OK</span>
-                    ) : (
-                      <Link href={`/customers/${c.id}/payment-method`} style={{ textDecoration: "underline" }}>
-                        Agregar
-                      </Link>
-                    )}
-                  </strong>
-                </div>
-                <div className="meta-row">
-                  <span>Creado</span>
-                  <strong><LocalDateTime value={c.createdAt} /></strong>
-                </div>
-              </div>
-
-              <div className="contact-paylink">
-                <div className="paylink-title">Link de pago</div>
-                <form action={sendPaymentLinkForCustomer} className="paylink-form">
-                  <input type="hidden" name="customerId" value={c.id} />
-                  <input type="hidden" name="customerName" value={c.name || ""} />
-                  <input className="input" name="amount" placeholder="$ 10000" inputMode="numeric" />
-                  <button className="primary" type="submit">Enviar link</button>
-                </form>
-                {link?.checkoutUrl ? (
-                  <div className="paylink-meta">
-                    <a className="ghost" href={link.checkoutUrl} target="_blank" rel="noreferrer">
-                      Link de pago
-                    </a>
-                    {status === "SENT" ? (
-                      <span className="pill pill-ok">Enviado</span>
-                    ) : (
-                      <span className="pill pill-bad">No enviado</span>
-                    )}
+              <div className="contact-body">
+                <div className="contact-meta">
+                  <div className="meta-row">
+                    <span>Identificación</span>
+                    <strong>{c.metadata?.identificacion || c.metadata?.identificationNumber || "—"}</strong>
                   </div>
-                ) : null}
+                  <div className="meta-row">
+                    <span>Ciudad</span>
+                    <strong>{c.metadata?.address?.city || "—"}</strong>
+                  </div>
+                  <div className="meta-row">
+                    <span>Dirección</span>
+                    <strong>{c.metadata?.address?.line1 || "—"}</strong>
+                  </div>
+                  <div className="meta-row">
+                    <span>Cobro auto</span>
+                    <strong>
+                      {c.metadata?.wompi?.paymentSourceId ? (
+                        <span className="pill pill-ok">OK</span>
+                      ) : (
+                        <Link href={`/customers/${c.id}/payment-method`} style={{ textDecoration: "underline" }}>
+                          Agregar
+                        </Link>
+                      )}
+                    </strong>
+                  </div>
+                  <div className="meta-row">
+                    <span>Creado</span>
+                    <strong><LocalDateTime value={c.createdAt} /></strong>
+                  </div>
+                </div>
+
+                <div className="contact-paylink">
+                  <div className="paylink-title">Link de pago</div>
+                  <form action={sendPaymentLinkForCustomer} className="paylink-form">
+                    <input type="hidden" name="customerId" value={c.id} />
+                    <input type="hidden" name="customerName" value={c.name || ""} />
+                    <input className="input" name="amount" placeholder="$ 10000" inputMode="numeric" />
+                    <button className="primary" type="submit">Enviar link</button>
+                  </form>
+                  {link?.checkoutUrl ? (
+                    <div className="paylink-meta">
+                      <a className="ghost" href={link.checkoutUrl} target="_blank" rel="noreferrer">
+                        Link de pago
+                      </a>
+                      {status === "SENT" ? (
+                        <span className="pill pill-ok">Enviado</span>
+                      ) : (
+                        <span className="pill pill-bad">No enviado</span>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
               </div>
             </div>
           );

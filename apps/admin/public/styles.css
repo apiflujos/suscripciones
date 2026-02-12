@@ -795,7 +795,7 @@ textarea {
   box-shadow: 0 10px 20px rgba(15, 23, 42, 0.06);
   padding: 16px;
   display: grid;
-  grid-template-columns: 240px 1fr 1.2fr;
+  grid-template-columns: 1fr;
   gap: 16px;
   align-items: start;
 }
@@ -805,6 +805,8 @@ textarea {
   grid-template-columns: auto 1fr auto;
   gap: 12px;
   align-items: center;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
 }
 
 .contact-avatar {
@@ -830,9 +832,22 @@ textarea {
   margin-top: 2px;
 }
 
+.contact-phone {
+  font-size: 12px;
+  color: #1f2937;
+  margin-top: 2px;
+}
+
+.contact-body {
+  display: grid;
+  grid-template-columns: 1fr 1.1fr;
+  gap: 16px;
+  align-items: start;
+}
+
 .contact-meta {
   display: grid;
-  gap: 6px;
+  gap: 8px;
 }
 
 .meta-row {
@@ -852,6 +867,10 @@ textarea {
 }
 
 .contact-paylink {
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 12px;
+  padding: 12px;
   display: grid;
   gap: 8px;
 }
@@ -921,23 +940,18 @@ textarea {
 }
 
 @media (max-width: 1200px) {
-  .contact-card {
-    grid-template-columns: 220px 1fr 1fr;
+  .contact-body {
+    grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 980px) {
-  .contact-card {
+  .contact-body {
     grid-template-columns: 1fr;
   }
 
   .paylink-form {
     grid-template-columns: 1fr;
-  }
-
-  .contact-paylink {
-    border-top: 1px solid rgba(15, 23, 42, 0.08);
-    padding-top: 12px;
   }
 }
 
