@@ -60,99 +60,92 @@ export function CustomersTable({
 
   return (
     <>
-      <div className="panel module table-scroll" style={{ padding: 0 }}>
-        <table className="table contacts-table" aria-label="Tabla de contactos">
-          <thead>
-            <tr>
-              <th>Contacto</th>
-              <th>Email</th>
-              <th>Teléfono</th>
-              <th>Identificación</th>
-              <th>Ciudad</th>
-              <th>Dirección</th>
-              <th>Cobro auto</th>
-              <th>Creado</th>
-              <th>Link de pago</th>
-              <th style={{ width: 60 }} />
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((c) => {
-              const link = latestLinks[String(c.id)];
-              const status = String(link?.chatwootStatus || "");
-              return (
-                <tr key={c.id}>
-                  <td>
-                    <div className="contact-main">{c.name || "—"}</div>
-                    <div className="contact-sub only-mobile">{c.email || "—"}</div>
-                    <div className="contact-sub only-mobile">{c.phone || "—"}</div>
-                  </td>
-                  <td>{c.email || "—"}</td>
-                  <td>{c.phone || "—"}</td>
-                  <td>{c.metadata?.identificacion || c.metadata?.identificationNumber || "—"}</td>
-                  <td>{c.metadata?.address?.city || "—"}</td>
-                  <td>{c.metadata?.address?.line1 || "—"}</td>
-                  <td>
-                    {c.metadata?.wompi?.paymentSourceId ? (
-                      <span className="pill">OK</span>
-                    ) : (
-                      <Link href={`/customers/${c.id}/payment-method`} style={{ textDecoration: "underline" }}>
-                        Agregar
-                      </Link>
-                    )}
-                  </td>
-                  <td><LocalDateTime value={c.createdAt} /></td>
-                  <td>
-                    <form action={sendPaymentLinkForCustomer} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <input type="hidden" name="customerId" value={c.id} />
-                      <input type="hidden" name="customerName" value={c.name || ""} />
-                      <input className="input" name="amount" placeholder="$ 10000" inputMode="numeric" style={{ maxWidth: 120 }} />
-                      <button className="ghost" type="submit">Enviar link</button>
-                    </form>
-                    {link?.checkoutUrl ? (
-                      <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6 }}>
-                        <a className="ghost" href={link.checkoutUrl} target="_blank" rel="noreferrer">
-                          Link de pago
-                        </a>
-                        {status === "SENT" ? (
-                          <span className="pill" style={{ background: "rgba(22, 163, 74, 0.14)", color: "#166534" }}>Enviado</span>
-                        ) : (
-                          <span className="pill" style={{ background: "rgba(220, 38, 38, 0.14)", color: "#991b1b" }}>No enviado</span>
-                        )}
-                      </div>
-                    ) : null}
-                  </td>
-                  <td style={{ textAlign: "right" }}>
-                    <details className="action-menu">
-                      <summary className="ghost" aria-label="Acciones">⋯</summary>
-                      <div className="action-menu-panel">
-                        <button className="ghost" type="button" onClick={() => openEditor(c)}>
-                          Editar
-                        </button>
-                        <form
-                          action={deleteCustomer}
-                          onSubmit={(e) => {
-                            if (!confirm("¿Eliminar contacto?")) e.preventDefault();
-                          }}
-                        >
-                          <input type="hidden" name="id" value={c.id} />
-                          <button className="ghost" type="submit">Eliminar</button>
-                        </form>
-                      </div>
-                    </details>
-                  </td>
-                </tr>
-              );
-            })}
-            {items.length === 0 ? (
-              <tr>
-                <td colSpan={10} style={{ color: "var(--muted)" }}>
-                  Sin contactos.
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
+      <div className="panel module contacts-shell">
+        <div className="contacts-head">
+          <div>Contacto</div>
+          <div>Email</div>
+          <div>Teléfono</div>
+          <div>Identificación</div>
+          <div>Ciudad</div>
+          <div>Dirección</div>
+          <div>Cobro auto</div>
+          <div>Creado</div>
+          <div>Link de pago</div>
+          <div />
+        </div>
+
+        <div className="contacts-list" aria-label="Lista de contactos">
+          {items.map((c) => {
+            const link = latestLinks[String(c.id)];
+            const status = String(link?.chatwootStatus || "");
+            return (
+              <div className="contact-row" key={c.id}>
+                <div className="cell contact-card">
+                  <div className="contact-main">{c.name || "—"}</div>
+                  <div className="contact-sub">{c.email || "—"}</div>
+                  <div className="contact-sub">{c.phone || "—"}</div>
+                </div>
+                <div className="cell only-desktop">{c.email || "—"}</div>
+                <div className="cell only-desktop">{c.phone || "—"}</div>
+                <div className="cell">{c.metadata?.identificacion || c.metadata?.identificationNumber || "—"}</div>
+                <div className="cell">{c.metadata?.address?.city || "—"}</div>
+                <div className="cell">{c.metadata?.address?.line1 || "—"}</div>
+                <div className="cell">
+                  {c.metadata?.wompi?.paymentSourceId ? (
+                    <span className="pill">OK</span>
+                  ) : (
+                    <Link href={`/customers/${c.id}/payment-method`} style={{ textDecoration: "underline" }}>
+                      Agregar
+                    </Link>
+                  )}
+                </div>
+                <div className="cell"><LocalDateTime value={c.createdAt} /></div>
+                <div className="cell">
+                  <form action={sendPaymentLinkForCustomer} className="paylink-form">
+                    <input type="hidden" name="customerId" value={c.id} />
+                    <input type="hidden" name="customerName" value={c.name || ""} />
+                    <input className="input" name="amount" placeholder="$ 10000" inputMode="numeric" />
+                    <button className="ghost" type="submit">Enviar link</button>
+                  </form>
+                  {link?.checkoutUrl ? (
+                    <div className="paylink-meta">
+                      <a className="ghost" href={link.checkoutUrl} target="_blank" rel="noreferrer">
+                        Link de pago
+                      </a>
+                      {status === "SENT" ? (
+                        <span className="pill pill-ok">Enviado</span>
+                      ) : (
+                        <span className="pill pill-bad">No enviado</span>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+                <div className="cell actions-cell">
+                  <details className="action-menu">
+                    <summary className="ghost" aria-label="Acciones">⋯</summary>
+                    <div className="action-menu-panel">
+                      <button className="ghost" type="button" onClick={() => openEditor(c)}>
+                        Editar
+                      </button>
+                      <form
+                        action={deleteCustomer}
+                        onSubmit={(e) => {
+                          if (!confirm("¿Eliminar contacto?")) e.preventDefault();
+                        }}
+                      >
+                        <input type="hidden" name="id" value={c.id} />
+                        <button className="ghost" type="submit">Eliminar</button>
+                      </form>
+                    </div>
+                  </details>
+                </div>
+              </div>
+            );
+          })}
+          {items.length === 0 ? (
+            <div className="contact-empty">Sin contactos.</div>
+          ) : null}
+        </div>
       </div>
 
       {open && editing ? (
