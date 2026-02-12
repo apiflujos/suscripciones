@@ -26,16 +26,17 @@ async function fetchPaymentLinks() {
   const res = await fetchAdminCached("/admin/orders", { ttlMs: 1500 });
   const data = res.json || { items: [] as any[] };
   const items = Array.isArray(data.items) ? data.items : [];
-  const latestByCustomer = new Map<string, { checkoutUrl: string; createdAt: string; chatwootStatus: string }>();
+  const latestByCustomer = new Map<string, { checkoutUrl: string; createdAt: string; chatwootStatus: string; chatwootError?: string }>();
   for (const item of items) {
     const customerId = String(item?.customer?.id || item?.customerId || "");
     const checkoutUrl = String(item?.checkoutUrl || "");
     const createdAt = String(item?.createdAt || "");
     const chatwootStatus = String(item?.chatwootMsgs?.[0]?.status || "");
+    const chatwootError = String(item?.chatwootMsgs?.[0]?.errorMessage || "");
     if (!customerId || !checkoutUrl) continue;
     const prev = latestByCustomer.get(customerId);
     if (!prev || (createdAt && createdAt > prev.createdAt)) {
-      latestByCustomer.set(customerId, { checkoutUrl, createdAt, chatwootStatus });
+      latestByCustomer.set(customerId, { checkoutUrl, createdAt, chatwootStatus, chatwootError: chatwootError || undefined });
     }
   }
   return latestByCustomer;

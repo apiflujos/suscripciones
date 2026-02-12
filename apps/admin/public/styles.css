@@ -784,19 +784,19 @@ textarea {
 
 .contacts-grid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 18px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
 }
 
 .contact-card {
   background: #fff;
   border-radius: 16px;
   border: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.06);
-  padding: 16px;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
+  padding: 12px;
   display: grid;
   grid-template-columns: 1fr;
-  gap: 16px;
+  gap: 12px;
   align-items: start;
 }
 
@@ -840,14 +840,15 @@ textarea {
 
 .contact-body {
   display: grid;
-  grid-template-columns: 1fr 1.1fr;
-  gap: 16px;
+  grid-template-columns: 1fr;
+  gap: 10px;
   align-items: start;
 }
 
 .contact-meta {
   display: grid;
-  gap: 8px;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 12px;
 }
 
 .meta-row {
@@ -870,7 +871,7 @@ textarea {
   background: #f8fafc;
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 12px;
-  padding: 12px;
+  padding: 10px;
   display: grid;
   gap: 8px;
 }
@@ -896,6 +897,11 @@ textarea {
   align-items: center;
 }
 
+.paylink-error {
+  font-size: 11px;
+  color: #b91c1c;
+}
+
 .pill.pill-ok {
   background: rgba(22, 163, 74, 0.14);
   color: #166534;
@@ -904,6 +910,11 @@ textarea {
 .pill.pill-bad {
   background: rgba(220, 38, 38, 0.14);
   color: #991b1b;
+}
+
+.pill.pill-warn {
+  background: rgba(245, 158, 11, 0.16);
+  color: #92400e;
 }
 
 .contact-empty {
