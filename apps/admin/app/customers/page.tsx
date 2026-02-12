@@ -27,15 +27,16 @@ async function fetchPaymentLinks() {
   const res = await fetchAdminCached("/admin/orders", { ttlMs: 1500 });
   const data = res.json || { items: [] as any[] };
   const items = Array.isArray(data.items) ? data.items : [];
-  const latestByCustomer = new Map<string, { checkoutUrl: string; createdAt: string }>();
+  const latestByCustomer = new Map<string, { checkoutUrl: string; createdAt: string; chatwootStatus: string }>();
   for (const item of items) {
     const customerId = String(item?.customer?.id || item?.customerId || "");
     const checkoutUrl = String(item?.checkoutUrl || "");
     const createdAt = String(item?.createdAt || "");
+    const chatwootStatus = String(item?.chatwootMsgs?.[0]?.status || "");
     if (!customerId || !checkoutUrl) continue;
     const prev = latestByCustomer.get(customerId);
     if (!prev || (createdAt && createdAt > prev.createdAt)) {
-      latestByCustomer.set(customerId, { checkoutUrl, createdAt });
+      latestByCustomer.set(customerId, { checkoutUrl, createdAt, chatwootStatus });
     }
   }
   return latestByCustomer;
@@ -123,13 +124,21 @@ export default async function CustomersPage({
                     <td>
                       <form action={sendPaymentLinkForCustomer} style={{ display: "flex", gap: 8, alignItems: "center" }}>
                         <input type="hidden" name="customerId" value={c.id} />
+                        <input type="hidden" name="customerName" value={c.name || ""} />
                         <input className="input" name="amount" placeholder="$ 10000" inputMode="numeric" style={{ maxWidth: 120 }} />
                         <button className="ghost" type="submit">Enviar link</button>
                       </form>
                       {latestLinks.get(String(c.id))?.checkoutUrl ? (
-                        <a className="ghost" href={latestLinks.get(String(c.id))!.checkoutUrl} target="_blank" rel="noreferrer" style={{ marginTop: 6 }}>
-                          Link de pago
-                        </a>
+                        <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6 }}>
+                          <a className="ghost" href={latestLinks.get(String(c.id))!.checkoutUrl} target="_blank" rel="noreferrer">
+                            Link de pago
+                          </a>
+                          {latestLinks.get(String(c.id))?.chatwootStatus === "SENT" ? (
+                            <span className="pill" style={{ background: "rgba(22, 163, 74, 0.14)", color: "#166534" }}>Enviado</span>
+                          ) : (
+                            <span className="pill" style={{ background: "rgba(220, 38, 38, 0.14)", color: "#991b1b" }}>No enviado</span>
+                          )}
+                        </div>
                       ) : null}
                     </td>
                   </tr>

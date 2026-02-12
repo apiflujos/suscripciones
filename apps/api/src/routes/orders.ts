@@ -49,7 +49,10 @@ ordersRouter.get("/", async (_req, res) => {
     where: { subscriptionId: null, wompiPaymentLinkId: { not: null } },
     orderBy: { createdAt: "desc" },
     take: 50,
-    include: { customer: true }
+    include: {
+      customer: true,
+      chatwootMsgs: { orderBy: { createdAt: "desc" }, take: 1 }
+    }
   });
   res.json({ items });
 });
@@ -97,9 +100,11 @@ ordersRouter.post("/", async (req, res) => {
   });
 
   const redirectUrl = await getWompiRedirectUrl();
+  const customerName = customer.name || "Cliente";
+  const itemName = parsed.data.lineItems?.[0]?.name ? String(parsed.data.lineItems[0].name) : "Producto";
   const created = await wompi.createPaymentLink({
-    name: `Pedido ${parsed.data.reference}`,
-    description: `Pago pedido ${parsed.data.reference}`,
+    name: `Pago a ${customerName}`,
+    description: itemName,
     single_use: true,
     collect_shipping: false,
     currency: parsed.data.currency,

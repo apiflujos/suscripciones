@@ -80,13 +80,14 @@ export async function sendPaymentLinkForCustomer(formData: FormData) {
 
   try {
     const reference = `CONTACT_${customerId.slice(0, 6)}_${Date.now()}`;
+    const customerName = String(formData.get("customerName") || "").trim() || "Cliente";
     await adminFetch("/admin/orders", {
       method: "POST",
       body: JSON.stringify({
         customerId,
         reference,
         currency: "COP",
-        lineItems: [{ name: "Pago manual", quantity: 1, unitPriceInCents: amountInCents }],
+        lineItems: [{ name: `Pago de ${customerName}`, quantity: 1, unitPriceInCents: amountInCents }],
         sendChatwoot: true,
         source: "MANUAL"
       })
