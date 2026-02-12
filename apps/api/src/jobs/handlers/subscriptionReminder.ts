@@ -36,6 +36,29 @@ function renderTemplate(content: string, ctx: any) {
   });
 }
 
+function extractTemplatePaths(input: any): string[] {
+  const out: string[] = [];
+  const walk = (value: any) => {
+    if (typeof value === "string") {
+      const matches = value.match(/\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}/g) || [];
+      for (const m of matches) {
+        const path = m.replace(/[{}]/g, "").trim();
+        if (path) out.push(path);
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      for (const v of value) walk(v);
+      return;
+    }
+    if (value && typeof value === "object") {
+      for (const v of Object.values(value)) walk(v);
+    }
+  };
+  walk(input);
+  return Array.from(new Set(out));
+}
+
 function renderAny(input: any, ctx: any): any {
   if (input == null) return input;
   if (typeof input === "string") return renderTemplate(input, ctx);
@@ -161,6 +184,22 @@ export async function subscriptionReminder(payload: any) {
     payment: effectivePayment,
     paymentType
   };
+
+  const missing = extractTemplatePaths([template.content || "", template.chatwootTemplate || null]).filter((p) => {
+    const v = getPath(ctx, p);
+    return v == null || v === "";
+  });
+  if (missing.length) {
+    await systemLog(LogLevel.WARN, "notifications.render", "Variables sin datos en plantilla", {
+      ruleId: rule.id,
+      templateId: template.id,
+      trigger: parsed.data.trigger,
+      customerId: customer.id,
+      subscriptionId: subscription?.id ?? null,
+      paymentId: effectivePayment?.id ?? null,
+      missing
+    }).catch(() => {});
+  }
 
   const content = template.content ? renderTemplate(template.content, ctx) : "(template)";
   const dk = dedupeKey({
