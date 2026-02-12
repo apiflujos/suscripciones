@@ -55,7 +55,7 @@ export default async function CustomersPage({
   const latestLinksObj = Object.fromEntries(latestLinks.entries());
 
   return (
-    <main className="page" style={{ maxWidth: 980 }}>
+    <main className="page" style={{ maxWidth: "100%" }}>
       {searchParams.error ? (
         <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
           Error: {searchParams.error}
