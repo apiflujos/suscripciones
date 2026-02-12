@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { deleteCustomer, sendPaymentLinkForCustomer, updateCustomer } from "./actions";
+import { deleteCustomer, updateCustomer } from "./actions";
 import { LocalDateTime } from "../ui/LocalDateTime";
 
 type CustomerRow = {
@@ -41,6 +41,8 @@ export function CustomersTable({
   const [city, setCity] = useState("");
   const [code5, setCode5] = useState("");
   const [dane8, setDane8] = useState("");
+  const [sendingId, setSendingId] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<Record<string, string>>({});
 
   const modalTitle = useMemo(() => (editing ? `Editar: ${editing.name || editing.email || "Contacto"}` : "Editar contacto"), [editing]);
 
@@ -126,11 +128,41 @@ export function CustomersTable({
 
                 <div className="contact-paylink">
                   <div className="paylink-title">Link de pago</div>
-                  <form action={sendPaymentLinkForCustomer} className="paylink-form">
+                  <form
+                    className="paylink-form"
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      const form = e.currentTarget;
+                      const amount = (form.elements.namedItem("amount") as HTMLInputElement | null)?.value || "";
+                      setSendingId(c.id);
+                      setSendError((prev) => ({ ...prev, [c.id]: "" }));
+                      try {
+                        const res = await fetch("/api/customers/send-payment-link", {
+                          method: "POST",
+                          headers: { "content-type": "application/json" },
+                          body: JSON.stringify({
+                            customerId: c.id,
+                            customerName: c.name || "",
+                            amount
+                          })
+                        });
+                        if (!res.ok) {
+                          const json = await res.json().catch(() => ({}));
+                          setSendError((prev) => ({ ...prev, [c.id]: json?.error || "send_failed" }));
+                          return;
+                        }
+                        window.location.href = "/customers?paymentLink=sent";
+                      } finally {
+                        setSendingId(null);
+                      }
+                    }}
+                  >
                     <input type="hidden" name="customerId" value={c.id} />
                     <input type="hidden" name="customerName" value={c.name || ""} />
                     <input className="input" name="amount" placeholder="$ 10000" inputMode="numeric" />
-                    <button className="primary" type="submit">Enviar link</button>
+                    <button className="primary" type="submit" disabled={sendingId === c.id}>
+                      {sendingId === c.id ? "Enviando..." : "Enviar link"}
+                    </button>
                   </form>
                   {link?.checkoutUrl ? (
                     <div className="paylink-meta">
@@ -147,6 +179,7 @@ export function CustomersTable({
                     </div>
                   ) : null}
                   {status === "FAILED" && errorMsg ? <div className="paylink-error">{errorMsg}</div> : null}
+                  {sendError[c.id] ? <div className="paylink-error">{sendError[c.id]}</div> : null}
                   <form
                     action={deleteCustomer}
                     className="delete-row"

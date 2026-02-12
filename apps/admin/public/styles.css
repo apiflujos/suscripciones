@@ -785,7 +785,7 @@ textarea {
 .contacts-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 12px;
+  gap: 8px;
 }
 
 .contact-card {
@@ -793,19 +793,19 @@ textarea {
   border-radius: 16px;
   border: 1px solid rgba(15, 23, 42, 0.08);
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
-  padding: 12px;
+  padding: 8px;
   display: grid;
   grid-template-columns: 1fr;
-  gap: 10px;
+  gap: 6px;
   align-items: start;
 }
 
 .contact-card-top {
   display: grid;
   grid-template-columns: auto 1fr auto;
-  gap: 10px;
+  gap: 6px;
   align-items: center;
-  padding-bottom: 8px;
+  padding-bottom: 4px;
   border-bottom: 1px solid rgba(15, 23, 42, 0.08);
 }
 
@@ -822,41 +822,41 @@ textarea {
 }
 
 .contact-name {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   color: #001f3f;
 }
 
 .contact-email {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--muted);
-  margin-top: 1px;
+  margin-top: 0;
 }
 
 .contact-phone {
-  font-size: 11px;
+  font-size: 10px;
   color: #1f2937;
-  margin-top: 1px;
+  margin-top: 0;
 }
 
 .contact-body {
   display: grid;
   grid-template-columns: 1.1fr 1fr;
-  gap: 16px;
+  gap: 8px;
   align-items: start;
 }
 
 .contact-meta {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px 14px;
+  gap: 4px 8px;
 }
 
 .meta-row {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
-  gap: 8px;
+  font-size: 10px;
+  gap: 6px;
 }
 
 .meta-row span {
@@ -888,13 +888,13 @@ textarea {
 .paylink-form {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
 }
 
 .paylink-meta {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
 }
 
