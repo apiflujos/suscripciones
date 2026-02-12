@@ -77,7 +77,7 @@ export function CustomersTable({
           const errorMsg = link?.chatwootError || "";
           const statusLabel = status === "SENT" ? "Enviado" : status === "FAILED" ? "Falló" : status === "PENDING" ? "Pendiente" : "Sin enviar";
           return (
-            <div className="contact-card" key={c.id}>
+            <div className="contact-card contact-card-horizontal" key={c.id}>
               <div className="contact-card-top">
                 <div className="contact-avatar">{initialsFor(c)}</div>
                 <div className="contact-main">
@@ -92,7 +92,7 @@ export function CustomersTable({
                 </div>
               </div>
 
-              <div className="contact-body">
+              <div className="contact-body contact-body-horizontal">
                 <div className="contact-meta">
                   <div className="meta-row">
                     <span>Identificación</span>
@@ -132,17 +132,21 @@ export function CustomersTable({
                     <input className="input" name="amount" placeholder="$ 10000" inputMode="numeric" />
                     <button className="primary" type="submit">Enviar link</button>
                   </form>
-                {link?.checkoutUrl ? (
-                  <div className="paylink-meta">
-                    <a className="ghost" href={link.checkoutUrl} target="_blank" rel="noreferrer">
-                      Link de pago
-                    </a>
-                    <span className={`pill ${status === "SENT" ? "pill-ok" : status === "FAILED" ? "pill-bad" : "pill-warn"}`}>
-                      {statusLabel}
-                    </span>
-                  </div>
-                ) : null}
-                {status === "FAILED" && errorMsg ? <div className="paylink-error">{errorMsg}</div> : null}
+                  {link?.checkoutUrl ? (
+                    <div className="paylink-meta">
+                      <a className="ghost" href={link.checkoutUrl} target="_blank" rel="noreferrer">
+                        Link de pago
+                      </a>
+                      {status ? (
+                        <span className={`pill ${status === "SENT" ? "pill-ok" : status === "FAILED" ? "pill-bad" : "pill-warn"}`}>
+                          {statusLabel}
+                        </span>
+                      ) : (
+                        <span className="pill pill-muted">Sin notificación</span>
+                      )}
+                    </div>
+                  ) : null}
+                  {status === "FAILED" && errorMsg ? <div className="paylink-error">{errorMsg}</div> : null}
                   <form
                     action={deleteCustomer}
                     className="delete-row"

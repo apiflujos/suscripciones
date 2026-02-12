@@ -784,8 +784,8 @@ textarea {
 
 .contacts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 10px;
+  grid-template-columns: 1fr;
+  gap: 12px;
 }
 
 .contact-card {
@@ -793,19 +793,19 @@ textarea {
   border-radius: 16px;
   border: 1px solid rgba(15, 23, 42, 0.08);
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
-  padding: 10px;
+  padding: 12px;
   display: grid;
   grid-template-columns: 1fr;
-  gap: 8px;
+  gap: 10px;
   align-items: start;
 }
 
 .contact-card-top {
   display: grid;
   grid-template-columns: auto 1fr auto;
-  gap: 8px;
+  gap: 10px;
   align-items: center;
-  padding-bottom: 6px;
+  padding-bottom: 8px;
   border-bottom: 1px solid rgba(15, 23, 42, 0.08);
 }
 
@@ -841,15 +841,15 @@ textarea {
 
 .contact-body {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 16px;
   align-items: start;
 }
 
 .contact-meta {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 4px 10px;
+  gap: 6px 14px;
 }
 
 .meta-row {
@@ -888,14 +888,19 @@ textarea {
 .paylink-form {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 6px;
+  gap: 8px;
   align-items: center;
 }
 
 .paylink-meta {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   align-items: center;
+}
+
+.pill.pill-muted {
+  background: rgba(148, 163, 184, 0.18);
+  color: #64748b;
 }
 
 .paylink-error {
