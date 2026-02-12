@@ -911,44 +911,35 @@ textarea {
   padding: 12px 6px;
 }
 
-.action-menu {
-  position: relative;
-  display: inline-block;
-}
-
-.action-menu summary {
-  list-style: none;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border-radius: 999px;
+.icon-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: #fff;
   display: grid;
   place-items: center;
-  font-weight: 700;
+  cursor: pointer;
+  font-size: 14px;
 }
 
-.action-menu summary::-webkit-details-marker {
-  display: none;
+.icon-btn:hover {
+  background: #f1f5f9;
 }
 
-.action-menu-panel {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 6px);
-  min-width: 160px;
-  background: #fff;
-  border: 1px solid var(--stroke);
-  border-radius: 10px;
-  padding: 6px;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
-  display: grid;
-  gap: 6px;
-  z-index: 20;
+.icon-btn.danger {
+  border-color: rgba(220, 38, 38, 0.25);
+  color: #b91c1c;
 }
 
-.action-menu-panel .ghost {
-  justify-content: flex-start;
-  width: 100%;
+.icon-btn.danger:hover {
+  background: rgba(220, 38, 38, 0.08);
+}
+
+.delete-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
 }
 
 @media (max-width: 1200px) {

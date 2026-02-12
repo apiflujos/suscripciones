@@ -83,23 +83,9 @@ export function CustomersTable({
                   <div className="contact-phone">{c.phone || "—"}</div>
                 </div>
                 <div className="contact-actions">
-                  <details className="action-menu">
-                    <summary className="ghost" aria-label="Acciones">⋯</summary>
-                    <div className="action-menu-panel">
-                      <button className="ghost" type="button" onClick={() => openEditor(c)}>
-                        Editar
-                      </button>
-                      <form
-                        action={deleteCustomer}
-                        onSubmit={(e) => {
-                          if (!confirm("¿Eliminar contacto?")) e.preventDefault();
-                        }}
-                      >
-                        <input type="hidden" name="id" value={c.id} />
-                        <button className="ghost" type="submit">Eliminar</button>
-                      </form>
-                    </div>
-                  </details>
+                  <button className="icon-btn" type="button" onClick={() => openEditor(c)} aria-label="Editar">
+                    ✎
+                  </button>
                 </div>
               </div>
 
@@ -155,6 +141,16 @@ export function CustomersTable({
                       )}
                     </div>
                   ) : null}
+                  <form
+                    action={deleteCustomer}
+                    className="delete-row"
+                    onSubmit={(e) => {
+                      if (!confirm("¿Eliminar contacto?")) e.preventDefault();
+                    }}
+                  >
+                    <input type="hidden" name="id" value={c.id} />
+                    <button className="icon-btn danger" type="submit" aria-label="Eliminar">🗑</button>
+                  </form>
                 </div>
               </div>
             </div>
