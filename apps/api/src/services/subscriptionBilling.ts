@@ -1,4 +1,4 @@
-import { ChatwootMessageType, LogLevel, PaymentStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
+import { LogLevel, PaymentStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { WompiClient } from "../providers/wompi/client";
 import { systemLog } from "./systemLog";
@@ -173,32 +173,6 @@ export async function createPaymentLinkForSubscription(args: {
   if (chatwoot.configured) {
     await ensureChatwootContactForCustomer(sub.customerId).catch(() => {});
     await syncChatwootAttributesForCustomer(sub.customerId).catch(() => {});
-    const recentlySent = await prisma.chatwootMessage.findFirst({
-      where: {
-        paymentId: updated.id,
-        type: ChatwootMessageType.PAYMENT_LINK,
-        status: "SENT",
-        createdAt: { gt: new Date(Date.now() - 10 * 60_000) }
-      }
-    });
-
-    if (!recentlySent) {
-      const msg = await prisma.chatwootMessage.create({
-        data: {
-          customerId: sub.customerId,
-          subscriptionId: sub.id,
-          paymentId: updated.id,
-          type: ChatwootMessageType.PAYMENT_LINK,
-          content: `Link de pago (ciclo ${cycle}): ${updated.checkoutUrl}`
-        }
-      });
-      await prisma.retryJob.create({
-        data: {
-          type: RetryJobType.SEND_CHATWOOT_MESSAGE,
-          payload: { chatwootMessageId: msg.id }
-        }
-      });
-    }
   }
 
   if (!updated.checkoutUrl) throw new Error("checkout_url_missing");

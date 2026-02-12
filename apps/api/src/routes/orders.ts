@@ -130,22 +130,6 @@ ordersRouter.post("/", async (req, res) => {
     if (chatwoot.configured) {
       await ensureChatwootContactForCustomer(customer.id).catch(() => {});
       await syncChatwootAttributesForCustomer(customer.id).catch(() => {});
-      await prisma.chatwootMessage
-        .create({
-          data: {
-            customerId: customer.id,
-            subscriptionId: null,
-            paymentId: updated.id,
-            type: "PAYMENT_LINK",
-            content: `Pedido ${parsed.data.reference}: ${updated.checkoutUrl}`
-          } as any
-        })
-        .then((msg) =>
-          prisma.retryJob.create({
-            data: { type: RetryJobType.SEND_CHATWOOT_MESSAGE, payload: { chatwootMessageId: msg.id } }
-          })
-        )
-        .catch(() => {});
     }
   }
 

@@ -4,7 +4,7 @@ import { systemLog } from "../../services/systemLog";
 import { LogLevel } from "@prisma/client";
 import { classifyReference } from "../../webhooks/wompi/classifyReference";
 import { postJson } from "../../lib/http";
-import { ChatwootMessageType, PaymentStatus, RetryJobType, SubscriptionStatus, WebhookProcessStatus } from "@prisma/client";
+import { PaymentStatus, RetryJobType, SubscriptionStatus, WebhookProcessStatus } from "@prisma/client";
 import { addIntervalUtc } from "../../lib/dates";
 import { getShopifyForward } from "../../services/runtimeConfig";
 import { schedulePaymentStatusNotifications, scheduleSubscriptionDueNotifications } from "../../services/notificationsScheduler";
@@ -341,21 +341,7 @@ export async function processWompiEvent(webhookEventId: string) {
     }
   }
 
-  // One-off order payments (no subscription): notify on approval (best-effort).
-  if (!wasApproved && paymentStatus === PaymentStatus.APPROVED && !subscription) {
-    await prisma.chatwootMessage
-      .create({
-        data: {
-          customerId: paymentRecord.customerId,
-          subscriptionId: null,
-          paymentId: paymentRecord.id,
-          type: ChatwootMessageType.PAYMENT_CONFIRMED,
-          content: `Pago aprobado. Referencia: ${paymentRecord.reference}.`
-        }
-      })
-      .then((msg) => prisma.retryJob.create({ data: { type: RetryJobType.SEND_CHATWOOT_MESSAGE, payload: { chatwootMessageId: msg.id } } }))
-      .catch(() => {});
-  }
+  // Notifications are handled via rules (PAYMENT_APPROVED / PAYMENT_DECLINED).
 }
 
 export async function forwardWompiToShopify(webhookEventId: string) {
