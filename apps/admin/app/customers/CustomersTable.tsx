@@ -43,6 +43,15 @@ export function CustomersTable({
 
   const modalTitle = useMemo(() => (editing ? `Editar: ${editing.name || editing.email || "Contacto"}` : "Editar contacto"), [editing]);
 
+  function initialsFor(customer: CustomerRow) {
+    const base = (customer.name || customer.email || "CN").trim();
+    if (!base) return "CN";
+    const parts = base.split(/\s+/).filter(Boolean);
+    const a = parts[0]?.[0] || "C";
+    const b = parts.length > 1 ? parts[1][0] : (parts[0]?.[1] || "N");
+    return `${a}${b}`.toUpperCase();
+  }
+
   function openEditor(item: CustomerRow) {
     setEditing(item);
     setOpen(true);
@@ -60,67 +69,19 @@ export function CustomersTable({
 
   return (
     <>
-      <div className="panel module contacts-shell">
-        <div className="contacts-head">
-          <div>Contacto</div>
-          <div>Email</div>
-          <div>Teléfono</div>
-          <div>Identificación</div>
-          <div>Ciudad</div>
-          <div>Dirección</div>
-          <div>Cobro auto</div>
-          <div>Creado</div>
-          <div>Link de pago</div>
-          <div />
-        </div>
-
-        <div className="contacts-list" aria-label="Lista de contactos">
-          {items.map((c) => {
-            const link = latestLinks[String(c.id)];
-            const status = String(link?.chatwootStatus || "");
-            return (
-              <div className="contact-row" key={c.id}>
-                <div className="cell contact-card">
-                  <div className="contact-main">{c.name || "—"}</div>
-                  <div className="contact-sub">{c.email || "—"}</div>
-                  <div className="contact-sub">{c.phone || "—"}</div>
+      <div className="contacts-grid" aria-label="Lista de contactos">
+        {items.map((c) => {
+          const link = latestLinks[String(c.id)];
+          const status = String(link?.chatwootStatus || "");
+          return (
+            <div className="contact-card" key={c.id}>
+              <div className="contact-card-top">
+                <div className="contact-avatar">{initialsFor(c)}</div>
+                <div className="contact-main">
+                  <div className="contact-name">{c.name || "—"}</div>
+                  <div className="contact-email">{c.email || "—"}</div>
                 </div>
-                <div className="cell only-desktop">{c.email || "—"}</div>
-                <div className="cell only-desktop">{c.phone || "—"}</div>
-                <div className="cell">{c.metadata?.identificacion || c.metadata?.identificationNumber || "—"}</div>
-                <div className="cell">{c.metadata?.address?.city || "—"}</div>
-                <div className="cell">{c.metadata?.address?.line1 || "—"}</div>
-                <div className="cell">
-                  {c.metadata?.wompi?.paymentSourceId ? (
-                    <span className="pill">OK</span>
-                  ) : (
-                    <Link href={`/customers/${c.id}/payment-method`} style={{ textDecoration: "underline" }}>
-                      Agregar
-                    </Link>
-                  )}
-                </div>
-                <div className="cell"><LocalDateTime value={c.createdAt} /></div>
-                <div className="cell">
-                  <form action={sendPaymentLinkForCustomer} className="paylink-form">
-                    <input type="hidden" name="customerId" value={c.id} />
-                    <input type="hidden" name="customerName" value={c.name || ""} />
-                    <input className="input" name="amount" placeholder="$ 10000" inputMode="numeric" />
-                    <button className="ghost" type="submit">Enviar link</button>
-                  </form>
-                  {link?.checkoutUrl ? (
-                    <div className="paylink-meta">
-                      <a className="ghost" href={link.checkoutUrl} target="_blank" rel="noreferrer">
-                        Link de pago
-                      </a>
-                      {status === "SENT" ? (
-                        <span className="pill pill-ok">Enviado</span>
-                      ) : (
-                        <span className="pill pill-bad">No enviado</span>
-                      )}
-                    </div>
-                  ) : null}
-                </div>
-                <div className="cell actions-cell">
+                <div className="contact-actions">
                   <details className="action-menu">
                     <summary className="ghost" aria-label="Acciones">⋯</summary>
                     <div className="action-menu-panel">
@@ -140,12 +101,67 @@ export function CustomersTable({
                   </details>
                 </div>
               </div>
-            );
-          })}
-          {items.length === 0 ? (
-            <div className="contact-empty">Sin contactos.</div>
-          ) : null}
-        </div>
+
+              <div className="contact-meta">
+                <div className="meta-row">
+                  <span>Teléfono</span>
+                  <strong>{c.phone || "—"}</strong>
+                </div>
+                <div className="meta-row">
+                  <span>Identificación</span>
+                  <strong>{c.metadata?.identificacion || c.metadata?.identificationNumber || "—"}</strong>
+                </div>
+                <div className="meta-row">
+                  <span>Ciudad</span>
+                  <strong>{c.metadata?.address?.city || "—"}</strong>
+                </div>
+                <div className="meta-row">
+                  <span>Dirección</span>
+                  <strong>{c.metadata?.address?.line1 || "—"}</strong>
+                </div>
+                <div className="meta-row">
+                  <span>Cobro auto</span>
+                  <strong>
+                    {c.metadata?.wompi?.paymentSourceId ? (
+                      <span className="pill pill-ok">OK</span>
+                    ) : (
+                      <Link href={`/customers/${c.id}/payment-method`} style={{ textDecoration: "underline" }}>
+                        Agregar
+                      </Link>
+                    )}
+                  </strong>
+                </div>
+                <div className="meta-row">
+                  <span>Creado</span>
+                  <strong><LocalDateTime value={c.createdAt} /></strong>
+                </div>
+              </div>
+
+              <div className="contact-paylink">
+                <div className="paylink-title">Link de pago</div>
+                <form action={sendPaymentLinkForCustomer} className="paylink-form">
+                  <input type="hidden" name="customerId" value={c.id} />
+                  <input type="hidden" name="customerName" value={c.name || ""} />
+                  <input className="input" name="amount" placeholder="$ 10000" inputMode="numeric" />
+                  <button className="primary" type="submit">Enviar link</button>
+                </form>
+                {link?.checkoutUrl ? (
+                  <div className="paylink-meta">
+                    <a className="ghost" href={link.checkoutUrl} target="_blank" rel="noreferrer">
+                      Link de pago
+                    </a>
+                    {status === "SENT" ? (
+                      <span className="pill pill-ok">Enviado</span>
+                    ) : (
+                      <span className="pill pill-bad">No enviado</span>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          );
+        })}
+        {items.length === 0 ? <div className="contact-empty">Sin contactos.</div> : null}
       </div>
 
       {open && editing ? (
