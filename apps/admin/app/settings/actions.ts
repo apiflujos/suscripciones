@@ -217,3 +217,17 @@ export async function testCentralConnection(formData: FormData) {
     redirectWith("central_test", "fail", toShortErrorMessage(err));
   }
 }
+
+export async function deleteCentralConnection(formData: FormData) {
+  const environment = String(formData.get("environment") || "").trim();
+  try {
+    await adminFetch("/admin/settings/chatwoot", {
+      method: "DELETE",
+      body: JSON.stringify({ environment: environment || "PRODUCTION" })
+    });
+    redirectWith("central_delete", "ok");
+  } catch (err) {
+    if (isNextRedirect(err)) throw err;
+    redirectWith("central_delete", "fail", toShortErrorMessage(err));
+  }
+}

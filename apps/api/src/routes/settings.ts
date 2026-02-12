@@ -255,3 +255,21 @@ settingsRouter.put("/chatwoot", async (req, res) => {
   await systemLog(LogLevel.INFO, "configuracion.comunicaciones", "Credenciales de la central de comunicaciones actualizadas").catch(() => {});
   res.json({ ok: true });
 });
+
+settingsRouter.delete("/chatwoot", async (req, res) => {
+  const parsed = chatwootUpdateSchema.pick({ environment: true }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+
+  try {
+    const env: ActiveEnv = parsed.data.environment || "PRODUCTION";
+    await setCredential(CredentialProvider.CHATWOOT, `BASE_URL_${env}`, "");
+    await setCredential(CredentialProvider.CHATWOOT, `ACCOUNT_ID_${env}`, "");
+    await setCredential(CredentialProvider.CHATWOOT, `INBOX_ID_${env}`, "");
+    await setCredential(CredentialProvider.CHATWOOT, `API_ACCESS_TOKEN_${env}`, "");
+  } catch (err: any) {
+    return res.status(400).json({ error: "credentials_error", message: String(err?.message || err) });
+  }
+
+  await systemLog(LogLevel.INFO, "configuracion.comunicaciones", "Credenciales de la central de comunicaciones eliminadas").catch(() => {});
+  res.json({ ok: true });
+});

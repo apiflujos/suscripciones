@@ -1,4 +1,14 @@
-import { bootstrapCentralAttributes, setWompiActiveEnv, syncCentralAttributes, testCentralConnection, testShopifyForward, updateChatwoot, updateShopify, updateWompi } from "./actions";
+import {
+  bootstrapCentralAttributes,
+  deleteCentralConnection,
+  setWompiActiveEnv,
+  syncCentralAttributes,
+  testCentralConnection,
+  testShopifyForward,
+  updateChatwoot,
+  updateShopify,
+  updateWompi
+} from "./actions";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { HelpTip } from "../ui/HelpTip";
 import { PendingButton } from "../ui/PendingButton";
@@ -44,6 +54,7 @@ export default async function SettingsPage({
 
   const comms = (settings?.communications || null) as any;
   const commsProduction = (comms?.production || settings?.chatwoot || {}) as any;
+  const commsSandbox = (comms?.sandbox || {}) as any;
 
   const action = String(searchParams.a || "");
   const status = String(searchParams.status || "");
@@ -203,43 +214,51 @@ export default async function SettingsPage({
         </div>
         <div className="settings-group-body">
           <div className="panel module">
-              <div className="panelHeaderRow">
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <strong>Central de Comunicaciones (Producción)</strong>
-                </div>
+            <div className="panelHeaderRow">
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <strong>Central de Comunicaciones (Producción)</strong>
               </div>
-              <form action={updateChatwoot} style={{ display: "grid", gap: 10 }}>
+            </div>
+            <form action={updateChatwoot} style={{ display: "grid", gap: 10 }}>
+              <input type="hidden" name="environment" value="PRODUCTION" />
+              <div className="field">
+                <label>
+                  URL base
+                  <HelpTip text="Ej: https://tu-central.com (sin / al final)" />
+                </label>
+                <input className="input" name="baseUrl" placeholder="https://central.tu-dominio.com" defaultValue={commsProduction?.baseUrl || ""} />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                 <div className="field">
                   <label>
-                    URL base
-                    <HelpTip text="Ej: https://tu-central.com (sin / al final)" />
+                    ID de cuenta
+                    <HelpTip text="ID numérico de la cuenta en tu central." />
                   </label>
-                  <input className="input" name="baseUrl" placeholder="https://central.tu-dominio.com" />
+                  <input className="input" name="accountId" defaultValue={commsProduction?.accountId || ""} />
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-                  <div className="field">
-                    <label>
-                      ID de cuenta
-                      <HelpTip text="ID numérico de la cuenta en tu central." />
-                    </label>
-                    <input className="input" name="accountId" />
-                  </div>
-                  <div className="field">
-                    <label>
-                      ID de bandeja
-                      <HelpTip text="ID numérico del inbox/bandeja." />
-                    </label>
-                    <input className="input" name="inboxId" />
-                  </div>
-                  <div className="field">
-                    <label>
-                      Token API
-                      <HelpTip text="Token privado de la central para API." />
-                    </label>
-                    <input className="input" name="apiAccessToken" type="password" />
-                  </div>
+                <div className="field">
+                  <label>
+                    ID de bandeja
+                    <HelpTip text="ID numérico del inbox/bandeja." />
+                  </label>
+                  <input className="input" name="inboxId" defaultValue={commsProduction?.inboxId || ""} />
                 </div>
-                <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
+                <div className="field">
+                  <label>
+                    Token API
+                    <HelpTip text="Token privado de la central para API." />
+                  </label>
+                  <input className="input" name="apiAccessToken" type="password" defaultValue={commsProduction?.apiAccessToken || ""} />
+                </div>
+              </div>
+              <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  {inlineMsg("central_delete", "Eliminado.", "Error eliminando")}
+                  <button className="ghost" type="submit" formAction={deleteCentralConnection}>
+                    Eliminar conexión
+                  </button>
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   {inlineMsg("central_save", "Guardado.", "Error guardando")}
                   {inlineMsg("central_test", "Conexión exitosa.", "Error conectando")}
                   <DualActionButtons
@@ -252,8 +271,68 @@ export default async function SettingsPage({
                     secondaryFormAction={testCentralConnection}
                   />
                 </div>
-              </form>
               </div>
+            </form>
+          </div>
+
+          <div className="panel module">
+            <div className="panelHeaderRow">
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <strong>Central de Comunicaciones (Sandbox)</strong>
+              </div>
+            </div>
+            <form action={updateChatwoot} style={{ display: "grid", gap: 10 }}>
+              <input type="hidden" name="environment" value="SANDBOX" />
+              <div className="field">
+                <label>
+                  URL base
+                  <HelpTip text="Ej: https://tu-central.com (sin / al final)" />
+                </label>
+                <input className="input" name="baseUrl" placeholder="https://central.tu-dominio.com" defaultValue={commsSandbox?.baseUrl || ""} />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                <div className="field">
+                  <label>
+                    ID de cuenta
+                    <HelpTip text="ID numérico de la cuenta en tu central." />
+                  </label>
+                  <input className="input" name="accountId" defaultValue={commsSandbox?.accountId || ""} />
+                </div>
+                <div className="field">
+                  <label>
+                    ID de bandeja
+                    <HelpTip text="ID numérico del inbox/bandeja." />
+                  </label>
+                  <input className="input" name="inboxId" defaultValue={commsSandbox?.inboxId || ""} />
+                </div>
+                <div className="field">
+                  <label>
+                    Token API
+                    <HelpTip text="Token privado de la central para API." />
+                  </label>
+                  <input className="input" name="apiAccessToken" type="password" defaultValue={commsSandbox?.apiAccessToken || ""} />
+                </div>
+              </div>
+              <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+                <div>
+                  <button className="ghost" type="submit" formAction={deleteCentralConnection}>
+                    Eliminar conexión
+                  </button>
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <DualActionButtons
+                    primaryLabel="Guardar"
+                    primaryPendingLabel="Guardando..."
+                    primaryClassName="primary"
+                    secondaryLabel="Probar conexión"
+                    secondaryPendingLabel="Conectando..."
+                    secondaryClassName="ghost"
+                    secondaryFormAction={testCentralConnection}
+                  />
+                </div>
+              </div>
+            </form>
+          </div>
 
           <div className="panel module" style={{ display: "grid", gap: 10 }}>
             <div className="panelHeaderRow">
