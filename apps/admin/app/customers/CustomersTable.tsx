@@ -77,56 +77,36 @@ export function CustomersTable({
           const link = latestLinks[String(c.id)];
           const status = String(link?.chatwootStatus || "");
           const errorMsg = link?.chatwootError || "";
-          const statusLabel = status === "SENT" ? "Enviado" : status === "FAILED" ? "Falló" : status === "PENDING" ? "Pendiente" : "Sin enviar";
+          const statusLabel = status === "SENT" ? "Enviado" : status === "FAILED" ? "Falló" : status === "PENDING" ? "Pendiente" : "";
           const formId = `send-link-${c.id}`;
           return (
             <div className="contact-card contact-card-horizontal" key={c.id}>
-              <div className="contact-card-top">
-                <div className="contact-avatar">{initialsFor(c)}</div>
-                <div className="contact-main">
-                  <div className="contact-name">{c.name || "—"}</div>
-                  <div className="contact-email">{c.email || "—"}</div>
-                  <div className="contact-phone">{c.phone || "—"}</div>
-                </div>
-                <div className="contact-actions">
-                  <button className="icon-btn" type="button" onClick={() => openEditor(c)} aria-label="Editar">
-                    ✎
-                  </button>
+              <div className="contact-left">
+                <div className="contact-title">{c.name || "—"}</div>
+                <div className="contact-subline">{c.email || "—"}</div>
+                <div className="contact-subline">{c.phone || "—"}</div>
+                <div className="contact-meta-compact">
+                  <div><span>Identificación:</span> {c.metadata?.identificacion || c.metadata?.identificationNumber || "—"}</div>
+                  <div><span>Ciudad:</span> {c.metadata?.address?.city || "—"}</div>
+                  <div><span>Dirección:</span> {c.metadata?.address?.line1 || "—"}</div>
+                  <div>
+                    <span>Cobro auto:</span>{" "}
+                    {c.metadata?.wompi?.paymentSourceId ? (
+                      <span className="pill pill-ok">OK</span>
+                    ) : (
+                      <Link href={`/customers/${c.id}/payment-method`} style={{ textDecoration: "underline" }}>
+                        Agregar
+                      </Link>
+                    )}
+                  </div>
+                  <div><span>Creado:</span> <LocalDateTime value={c.createdAt} /></div>
                 </div>
               </div>
 
-              <div className="contact-body contact-body-horizontal">
-                <div className="contact-meta">
-                  <div className="meta-row">
-                    <span>Identificación</span>
-                    <strong>{c.metadata?.identificacion || c.metadata?.identificationNumber || "—"}</strong>
-                  </div>
-                  <div className="meta-row">
-                    <span>Ciudad</span>
-                    <strong>{c.metadata?.address?.city || "—"}</strong>
-                  </div>
-                  <div className="meta-row">
-                    <span>Dirección</span>
-                    <strong>{c.metadata?.address?.line1 || "—"}</strong>
-                  </div>
-                  <div className="meta-row">
-                    <span>Cobro auto</span>
-                    <strong>
-                      {c.metadata?.wompi?.paymentSourceId ? (
-                        <span className="pill pill-ok">OK</span>
-                      ) : (
-                        <Link href={`/customers/${c.id}/payment-method`} style={{ textDecoration: "underline" }}>
-                          Agregar
-                        </Link>
-                      )}
-                    </strong>
-                  </div>
-                  <div className="meta-row">
-                    <span>Creado</span>
-                    <strong><LocalDateTime value={c.createdAt} /></strong>
-                  </div>
+              <div className="contact-right">
+                <div className="contact-right-top">
+                  <button className="icon-btn" type="button" onClick={() => openEditor(c)} aria-label="Editar">✎</button>
                 </div>
-
                 <div className="contact-paylink">
                   <div className="paylink-title">Link de pago</div>
                   <form
@@ -176,13 +156,11 @@ export function CustomersTable({
                       <a className="ghost" href={link.checkoutUrl} target="_blank" rel="noreferrer">
                         Link de pago
                       </a>
-                      {status ? (
+                      {statusLabel ? (
                         <span className={`pill ${status === "SENT" ? "pill-ok" : status === "FAILED" ? "pill-bad" : "pill-warn"}`}>
                           {statusLabel}
                         </span>
-                      ) : (
-                        <span className="pill pill-muted">Sin notificación</span>
-                      )}
+                      ) : null}
                     </div>
                   ) : null}
                   {status === "FAILED" && errorMsg ? <div className="paylink-error">{errorMsg}</div> : null}
@@ -199,17 +177,17 @@ export function CustomersTable({
                       Reintentar
                     </button>
                   ) : null}
-                  <form
-                    action={deleteCustomer}
-                    className="delete-row"
-                    onSubmit={(e) => {
-                      if (!confirm("¿Eliminar contacto?")) e.preventDefault();
-                    }}
-                  >
-                    <input type="hidden" name="id" value={c.id} />
-                    <button className="icon-btn danger" type="submit" aria-label="Eliminar">🗑</button>
-                  </form>
                 </div>
+                <form
+                  action={deleteCustomer}
+                  className="delete-row"
+                  onSubmit={(e) => {
+                    if (!confirm("¿Eliminar contacto?")) e.preventDefault();
+                  }}
+                >
+                  <input type="hidden" name="id" value={c.id} />
+                  <button className="icon-btn danger" type="submit" aria-label="Eliminar">🗑</button>
+                </form>
               </div>
             </div>
           );
