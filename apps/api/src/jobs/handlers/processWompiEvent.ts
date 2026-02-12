@@ -1,5 +1,7 @@
 import { prisma } from "../../db/prisma";
 import { logger } from "../../lib/logger";
+import { systemLog } from "../../services/systemLog";
+import { LogLevel } from "@prisma/client";
 import { classifyReference } from "../../webhooks/wompi/classifyReference";
 import { postJson } from "../../lib/http";
 import { ChatwootMessageType, PaymentStatus, RetryJobType, SubscriptionStatus, WebhookProcessStatus } from "@prisma/client";
@@ -389,6 +391,12 @@ export async function forwardWompiToShopify(webhookEventId: string) {
   });
 
   if (!res.ok) {
+    await systemLog(LogLevel.ERROR, "shopify.forward", "Forward failed", {
+      webhookEventId,
+      status: res.status,
+      body: res.text?.slice(0, 2000),
+      url: cfg.url
+    }).catch(() => {});
     throw new Error(`forward failed: ${res.status} ${res.text}`);
   }
 }
