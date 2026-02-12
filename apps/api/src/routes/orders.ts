@@ -4,6 +4,7 @@ import { prisma } from "../db/prisma";
 import { PaymentStatus, RetryJobType } from "@prisma/client";
 import { WompiClient } from "../providers/wompi/client";
 import { getChatwootConfig, getWompiApiBaseUrl, getWompiCheckoutLinkBaseUrl, getWompiPrivateKey, getWompiRedirectUrl } from "../services/runtimeConfig";
+import { ensureChatwootContactForCustomer, syncChatwootAttributesForCustomer } from "../services/chatwootSync";
 import { schedulePaymentLinkNotifications } from "../services/notificationsScheduler";
 
 const lineItemSchema = z.object({
@@ -127,6 +128,8 @@ ordersRouter.post("/", async (req, res) => {
   if (parsed.data.sendChatwoot) {
     const chatwoot = await getChatwootConfig();
     if (chatwoot.configured) {
+      await ensureChatwootContactForCustomer(customer.id).catch(() => {});
+      await syncChatwootAttributesForCustomer(customer.id).catch(() => {});
       await prisma.chatwootMessage
         .create({
           data: {
