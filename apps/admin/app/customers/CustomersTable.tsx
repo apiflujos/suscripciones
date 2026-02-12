@@ -78,6 +78,7 @@ export function CustomersTable({
           const status = String(link?.chatwootStatus || "");
           const errorMsg = link?.chatwootError || "";
           const statusLabel = status === "SENT" ? "Enviado" : status === "FAILED" ? "Falló" : status === "PENDING" ? "Pendiente" : "Sin enviar";
+          const formId = `send-link-${c.id}`;
           return (
             <div className="contact-card contact-card-horizontal" key={c.id}>
               <div className="contact-card-top">
@@ -129,6 +130,7 @@ export function CustomersTable({
                 <div className="contact-paylink">
                   <div className="paylink-title">Link de pago</div>
                   <form
+                    id={formId}
                     className="paylink-form"
                     onSubmit={async (e) => {
                       e.preventDefault();
@@ -185,6 +187,18 @@ export function CustomersTable({
                   ) : null}
                   {status === "FAILED" && errorMsg ? <div className="paylink-error">{errorMsg}</div> : null}
                   {sendError[c.id] ? <div className="paylink-error">{sendError[c.id]}</div> : null}
+                  {status === "FAILED" ? (
+                    <button
+                      className="ghost paylink-retry"
+                      type="button"
+                      onClick={() => {
+                        const form = document.getElementById(formId) as HTMLFormElement | null;
+                        form?.requestSubmit();
+                      }}
+                    >
+                      Reintentar
+                    </button>
+                  ) : null}
                   <form
                     action={deleteCustomer}
                     className="delete-row"
