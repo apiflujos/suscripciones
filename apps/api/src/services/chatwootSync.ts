@@ -12,7 +12,10 @@ export async function ensureChatwootContactForCustomer(customerId: string) {
   if (!customer) return { ok: false as const, reason: "customer_not_found" as const };
 
   const cfg = await getChatwootConfig();
-  if (!cfg.configured) return { ok: false as const, reason: "chatwoot_not_configured" as const };
+  if (!cfg.configured) {
+    await systemLog(LogLevel.WARN, "chatwoot.sync", "Chatwoot no configurado", { customerId: customer.id }).catch(() => {});
+    return { ok: false as const, reason: "chatwoot_not_configured" as const };
+  }
 
   const meta: any = (customer.metadata ?? {}) as any;
   const existingContactId = meta?.chatwoot?.contactId;

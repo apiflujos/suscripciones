@@ -1,8 +1,9 @@
-import { ChatwootMessageType, MessageStatus } from "@prisma/client";
+import { ChatwootMessageType, LogLevel, MessageStatus } from "@prisma/client";
 import { prisma } from "../../db/prisma";
 import { ChatwootClient } from "../../providers/chatwoot/client";
 import { getChatwootConfig } from "../../services/runtimeConfig";
 import { consumeApp } from "../../services/superAdminApp";
+import { systemLog } from "../../services/systemLog";
 
 export async function sendChatwootMessage(chatwootMessageId: string) {
   const msg = await prisma.chatwootMessage.findUnique({
@@ -18,6 +19,10 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
       where: { id: chatwootMessageId },
       data: { status: MessageStatus.FAILED, errorMessage: "chatwoot not configured" }
     });
+    await systemLog(LogLevel.WARN, "chatwoot.send", "Chatwoot no configurado", {
+      chatwootMessageId,
+      customerId: msg.customerId
+    }).catch(() => {});
     return;
   }
 
@@ -82,6 +87,10 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
       where: { id: chatwootMessageId },
       data: { status: MessageStatus.FAILED, errorMessage: "contact not found/created" }
     });
+    await systemLog(LogLevel.WARN, "chatwoot.send", "Contacto no encontrado/creado", {
+      chatwootMessageId,
+      customerId: msg.customerId
+    }).catch(() => {});
     return;
   }
 
@@ -104,9 +113,24 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
   }
 
   const templateParams = (msg.providerResp as any)?.template_params;
-  const sent = templateParams
-    ? await client.sendTemplate(conversationId, { content: msg.content, templateParams })
-    : await client.sendMessage(conversationId, msg.content);
+  let sent: any;
+  try {
+    sent = templateParams
+      ? await client.sendTemplate(conversationId, { content: msg.content, templateParams })
+      : await client.sendMessage(conversationId, msg.content);
+  } catch (err: any) {
+    const message = err?.message ? String(err.message) : "chatwoot_send_failed";
+    await prisma.chatwootMessage.update({
+      where: { id: chatwootMessageId },
+      data: { status: MessageStatus.FAILED, errorMessage: message }
+    }).catch(() => {});
+    await systemLog(LogLevel.ERROR, "chatwoot.send", "Error enviando mensaje", {
+      chatwootMessageId,
+      customerId: msg.customerId,
+      err: message
+    }).catch(() => {});
+    throw err;
+  }
 
   await prisma.chatwootMessage.update({
     where: { id: chatwootMessageId },
