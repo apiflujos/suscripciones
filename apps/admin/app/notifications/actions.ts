@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { normalizeToken } from "../lib/normalizeToken";
-import { assertSameOrigin } from "../lib/csrf";
+import { assertCsrfToken } from "../lib/csrf";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
 const TOKEN = normalizeToken(process.env.ADMIN_API_TOKEN || "");
@@ -13,7 +13,6 @@ function toShortErrorMessage(err: unknown) {
 }
 
 async function adminFetch(path: string, init: RequestInit) {
-  await assertSameOrigin();
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {
@@ -73,6 +72,7 @@ function toOffsetsSeconds(formData: FormData) {
 }
 
 export async function createNotification(formData: FormData): Promise<{ ok: true } | { ok: false; error: string }> {
+  await assertCsrfToken(formData);
   const environment = normalizeEnv(formData.get("environment"));
   const trigger = String(formData.get("trigger") || "").trim();
   const title = String(formData.get("title") || "").trim();
@@ -175,6 +175,7 @@ export async function createNotification(formData: FormData): Promise<{ ok: true
 }
 
 export async function saveNotificationsConfig(formData: FormData) {
+  await assertCsrfToken(formData);
   const environment = String(formData.get("environment") || "").trim().toUpperCase();
   const raw = String(formData.get("configJson") || "").trim();
 
@@ -196,6 +197,7 @@ export async function saveNotificationsConfig(formData: FormData) {
 }
 
 export async function addTextTemplate(formData: FormData) {
+  await assertCsrfToken(formData);
   const environment = normalizeEnv(formData.get("environment"));
   const name = String(formData.get("name") || "").trim();
   const chatwootType = String(formData.get("chatwootType") || "").trim();
@@ -227,6 +229,7 @@ export async function addTextTemplate(formData: FormData) {
 }
 
 export async function addWhatsAppTemplate(formData: FormData) {
+  await assertCsrfToken(formData);
   const environment = normalizeEnv(formData.get("environment"));
   const name = String(formData.get("name") || "").trim();
   const chatwootType = String(formData.get("chatwootType") || "").trim();
@@ -267,6 +270,7 @@ export async function addWhatsAppTemplate(formData: FormData) {
 }
 
 export async function deleteTemplate(formData: FormData) {
+  await assertCsrfToken(formData);
   const environment = normalizeEnv(formData.get("environment"));
   const templateId = String(formData.get("templateId") || "").trim();
   if (!templateId) return redirect(`/notifications?env=${environment}&error=missing_template_id`);
@@ -298,6 +302,7 @@ function offsetSecondsFromForm(formData: FormData) {
 }
 
 export async function addRule(formData: FormData) {
+  await assertCsrfToken(formData);
   const environment = normalizeEnv(formData.get("environment"));
   const name = String(formData.get("name") || "").trim();
   const trigger = String(formData.get("trigger") || "").trim();
@@ -329,6 +334,7 @@ export async function addRule(formData: FormData) {
 }
 
 export async function toggleRule(formData: FormData) {
+  await assertCsrfToken(formData);
   const environment = normalizeEnv(formData.get("environment"));
   const ruleId = String(formData.get("ruleId") || "").trim();
   const enabled = String(formData.get("enabled") || "").trim() === "1";
@@ -347,6 +353,7 @@ export async function toggleRule(formData: FormData) {
 }
 
 export async function deleteRule(formData: FormData) {
+  await assertCsrfToken(formData);
   const environment = normalizeEnv(formData.get("environment"));
   const ruleId = String(formData.get("ruleId") || "").trim();
   if (!ruleId) return redirect(`/notifications?env=${environment}&error=missing_rule_id`);
@@ -362,6 +369,7 @@ export async function deleteRule(formData: FormData) {
 }
 
 export async function scheduleSubscription(formData: FormData) {
+  await assertCsrfToken(formData);
   const subscriptionId = String(formData.get("subscriptionId") || "").trim();
   const forceNow = String(formData.get("forceNow") || "").trim() === "1";
   const environment = normalizeEnv(formData.get("environment"));

@@ -37,11 +37,13 @@ function formatCopCurrencyInput(input: string): string {
 export function NewPlanTemplateForm({
   action,
   catalogItems,
-  returnTo
+  returnTo,
+  csrfToken
 }: {
   action: (formData: FormData) => void | Promise<void>;
   catalogItems: CatalogItem[];
   returnTo?: string;
+  csrfToken: string;
 }) {
   const nameRef = useRef<HTMLInputElement | null>(null);
   const [tipo, setTipo] = useState<"PLAN" | "SUBSCRIPCION">("SUBSCRIPCION");
@@ -233,6 +235,7 @@ export function NewPlanTemplateForm({
 
   return (
     <form action={action} onKeyDownCapture={enterToNextField} className="panel" style={{ borderColor: "rgba(15, 23, 42, 0.12)" }}>
+      <input type="hidden" name="csrf" value={csrfToken} />
       {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
       <div style={{ display: "grid", gap: 10 }}>
         <strong>Crear nuevo plan / suscripción</strong>

@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { saAdminFetch } from "../../saApi";
+import { assertCsrfToken } from "../../../lib/csrf";
 
 function toShortErrorMessage(err: unknown) {
   const raw = err instanceof Error ? err.message : String(err);
@@ -9,6 +10,7 @@ function toShortErrorMessage(err: unknown) {
 }
 
 export async function upsertModule(formData: FormData) {
+  await assertCsrfToken(formData);
   const key = String(formData.get("key") || "").trim();
   const name = String(formData.get("name") || "").trim();
   const active = String(formData.get("active") || "").trim() === "1";
@@ -26,6 +28,7 @@ export async function upsertModule(formData: FormData) {
 }
 
 export async function setTenantModule(formData: FormData) {
+  await assertCsrfToken(formData);
   const tenantId = String(formData.get("tenantId") || "").trim();
   const moduleKey = String(formData.get("moduleKey") || "").trim();
   const enabled = String(formData.get("enabled") || "").trim() === "1";

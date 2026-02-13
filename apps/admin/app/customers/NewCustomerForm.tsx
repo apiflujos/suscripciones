@@ -12,6 +12,7 @@ type Props = {
   mode?: "toggle" | "always_open";
   hidePanelHeader?: boolean;
   returnTo?: string;
+  csrfToken: string;
 };
 
 export function NewCustomerForm({
@@ -19,7 +20,8 @@ export function NewCustomerForm({
   defaultOpen = false,
   mode = "toggle",
   hidePanelHeader = false,
-  returnTo
+  returnTo,
+  csrfToken
 }: Props) {
   const alwaysOpen = mode === "always_open";
   const [open, setOpen] = useState(alwaysOpen ? true : Boolean(defaultOpen));
@@ -114,6 +116,7 @@ export function NewCustomerForm({
 
       {open ? (
         <form action={createCustomer} onKeyDownCapture={enterToNextField} style={{ display: "grid", gap: 10 }}>
+          <input type="hidden" name="csrf" value={csrfToken} />
           {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
           <div className="field">
             <label>Nombre</label>

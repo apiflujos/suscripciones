@@ -3,6 +3,7 @@ import { NewCustomerForm } from "./NewCustomerForm";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { HelpTip } from "../ui/HelpTip";
 import { CustomersTable } from "./CustomersTable";
+import { getCsrfToken } from "../lib/csrf";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +53,7 @@ export default async function CustomersPage({
 }: {
   searchParams: { created?: string; updated?: string; deleted?: string; paymentSource?: string; paymentLink?: string; error?: string; q?: string };
 }) {
+  const csrfToken = await getCsrfToken();
   const { token } = getConfig();
   if (!token) return <main><h1 style={{ marginTop: 0 }}>Contactos</h1><p>Configura `ADMIN_API_TOKEN`.</p></main>;
   const q = typeof searchParams?.q === "string" ? searchParams.q : "";
@@ -95,9 +97,9 @@ export default async function CustomersPage({
         </div>
 
         <div className="settings-group-body">
-          <NewCustomerForm createCustomer={createCustomer} />
+          <NewCustomerForm createCustomer={createCustomer} csrfToken={csrfToken} />
 
-          <CustomersTable items={items} latestLinks={latestLinksObj} />
+          <CustomersTable items={items} latestLinks={latestLinksObj} csrfToken={csrfToken} />
 
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>
             <a

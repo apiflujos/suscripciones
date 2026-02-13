@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { LocalDateTime } from "../ui/LocalDateTime";
+import { getCsrfToken, assertCsrfToken } from "../lib/csrf";
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +13,9 @@ async function fetchAdmin(path: string) {
   return fetchAdminCached(path, { ttlMs: 1500 });
 }
 
-async function retryFailedJobs() {
+async function retryFailedJobs(formData: FormData) {
   "use server";
+  await assertCsrfToken(formData);
   const { apiBase, token } = getConfig();
   if (!token) return;
   await fetch(`${apiBase}/admin/logs/jobs/retry-failed`, {
@@ -51,6 +53,7 @@ export default async function LogsPage({
 }: {
   searchParams?: Record<string, string | string[] | undefined>;
 }) {
+  const csrfToken = await getCsrfToken();
   const { token } = getConfig();
   if (!token) {
     return (
@@ -141,6 +144,7 @@ export default async function LogsPage({
 
               <div className="filtersRight">
                 <form action={retryFailedJobs}>
+                  <input type="hidden" name="csrf" value={csrfToken} />
                   <button className="primary" type="submit">
                     Reintentar fallidos
                   </button>

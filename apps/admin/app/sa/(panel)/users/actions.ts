@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { saAdminFetch } from "../../saApi";
+import { assertCsrfToken } from "../../../lib/csrf";
 
 function toShortErrorMessage(err: unknown) {
   const raw = err instanceof Error ? err.message : String(err);
@@ -9,6 +10,7 @@ function toShortErrorMessage(err: unknown) {
 }
 
 export async function createUser(formData: FormData) {
+  await assertCsrfToken(formData);
   const tenantId = String(formData.get("tenantId") || "").trim();
   const email = String(formData.get("email") || "").trim();
   const password = String(formData.get("password") || "");
@@ -27,4 +29,3 @@ export async function createUser(formData: FormData) {
     redirect(`/sa/users?tenantId=${encodeURIComponent(tenantId)}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
-

@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { saLogin } from "./actions";
+import { getCsrfToken } from "../../../lib/csrf";
 
 export default async function SaLoginPage({ searchParams }: { searchParams?: { error?: string; loggedOut?: string } }) {
+  const csrfToken = await getCsrfToken();
   const error = String(searchParams?.error || "").trim();
   const loggedOut = String(searchParams?.loggedOut || "").trim() === "1";
 
@@ -20,6 +22,7 @@ export default async function SaLoginPage({ searchParams }: { searchParams?: { e
       ) : null}
 
       <form action={saLogin} className="panel module" style={{ display: "grid", gap: 10, marginTop: 12 }}>
+        <input type="hidden" name="csrf" value={csrfToken} />
         <div className="field">
           <label>Email</label>
           <input name="email" className="input" placeholder="tu@email.com" autoComplete="username" />

@@ -1,6 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { assertCsrfToken } from "../../../lib/csrf";
 import { redirect } from "next/navigation";
 import { isRedirectError } from "next/dist/client/components/redirect";
 import { SA_COOKIE, adminFetchNoSa } from "../../saApi";
@@ -11,6 +12,7 @@ function toShortErrorMessage(err: unknown) {
 }
 
 export async function saLogin(formData: FormData) {
+  await assertCsrfToken(formData);
   const email = String(formData.get("email") || "").trim();
   const password = String(formData.get("password") || "");
 

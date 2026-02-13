@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { normalizeToken } from "../lib/normalizeToken";
-import { assertSameOrigin } from "../lib/csrf";
+import { assertCsrfToken } from "../lib/csrf";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
 const TOKEN = normalizeToken(process.env.ADMIN_API_TOKEN || "");
@@ -23,7 +23,6 @@ function mergeQuery(path: string, extra: Record<string, string | undefined>) {
 }
 
 async function adminFetch(path: string, init: RequestInit) {
-  await assertSameOrigin();
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {
@@ -70,6 +69,7 @@ function computeTotalInCents(args: {
 }
 
 export async function createCustomerFromBilling(formData: FormData) {
+  await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);
   const name = String(formData.get("name") || "").trim();
   const email = String(formData.get("email") || "").trim();
@@ -112,6 +112,7 @@ export async function createCustomerFromBilling(formData: FormData) {
 }
 
 export async function createPlanTemplate(formData: FormData) {
+  await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);
   const billingTypeRaw = String(formData.get("billingType") || "SUBSCRIPCION").trim().toUpperCase();
   const billingType = billingTypeRaw === "PLAN" ? "PLAN" : "SUBSCRIPCION";
@@ -261,6 +262,7 @@ export async function createPlanTemplate(formData: FormData) {
 }
 
 export async function sendChatwootPaymentLink(formData: FormData) {
+  await assertCsrfToken(formData);
   const checkoutUrl = String(formData.get("checkoutUrl") || "").trim();
   const customerId = String(formData.get("customerId") || "").trim();
   if (!checkoutUrl || !customerId) return redirect("/billing?error=missing_checkout_or_customer");

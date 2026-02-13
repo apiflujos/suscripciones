@@ -55,10 +55,12 @@ function insertAtCursor(el: HTMLInputElement | HTMLTextAreaElement, text: string
 
 export function NotificationWizard({
   envDefault = "PRODUCTION",
-  createNotification
+  createNotification,
+  csrfToken
 }: {
   envDefault?: Env;
   createNotification: (formData: FormData) => Promise<{ ok: true } | { ok: false; error: string }>;
+  csrfToken: string;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -129,6 +131,7 @@ export function NotificationWizard({
     setSubmitError("");
     setSubmitOk("");
     const fd = new FormData();
+    fd.set("csrf", csrfToken);
     fd.set("environment", env);
     fd.set("trigger", trigger);
     fd.set("title", title);

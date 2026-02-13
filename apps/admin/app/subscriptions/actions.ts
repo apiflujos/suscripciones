@@ -2,13 +2,12 @@
 
 import { redirect } from "next/navigation";
 import { normalizeToken } from "../lib/normalizeToken";
-import { assertSameOrigin } from "../lib/csrf";
+import { assertCsrfToken } from "../lib/csrf";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
 const TOKEN = normalizeToken(process.env.ADMIN_API_TOKEN || "");
 
 async function adminFetch(path: string, init: RequestInit) {
-  await assertSameOrigin();
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {
@@ -24,6 +23,7 @@ async function adminFetch(path: string, init: RequestInit) {
 }
 
 export async function createSubscription(formData: FormData) {
+  await assertCsrfToken(formData);
   const customerId = String(formData.get("customerId") || "").trim();
   const planId = String(formData.get("planId") || "").trim();
   const startAt = String(formData.get("startAt") || "").trim();
@@ -54,6 +54,7 @@ export async function createSubscription(formData: FormData) {
 }
 
 export async function createPaymentLink(formData: FormData) {
+  await assertCsrfToken(formData);
   const subscriptionId = String(formData.get("subscriptionId") || "").trim();
   const customerId = String(formData.get("customerId") || "").trim();
   try {
@@ -73,6 +74,7 @@ export async function createPaymentLink(formData: FormData) {
 }
 
 export async function createPlan(formData: FormData) {
+  await assertCsrfToken(formData);
   const name = String(formData.get("name") || "").trim();
   const priceInCents = Number(String(formData.get("priceInCents") || "0"));
   const currency = String(formData.get("currency") || "COP").trim();

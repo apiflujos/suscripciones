@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { saAdminFetch } from "../../saApi";
+import { assertCsrfToken } from "../../../lib/csrf";
 
 function toShortErrorMessage(err: unknown) {
   const raw = err instanceof Error ? err.message : String(err);
@@ -9,6 +10,7 @@ function toShortErrorMessage(err: unknown) {
 }
 
 export async function createTenant(formData: FormData) {
+  await assertCsrfToken(formData);
   const name = String(formData.get("name") || "").trim();
   try {
     const res = await saAdminFetch("/admin/sa/tenants", {
@@ -24,6 +26,7 @@ export async function createTenant(formData: FormData) {
 }
 
 export async function setTenantActive(formData: FormData) {
+  await assertCsrfToken(formData);
   const tenantId = String(formData.get("tenantId") || "").trim();
   const active = String(formData.get("active") || "").trim() === "1";
   try {
@@ -40,6 +43,7 @@ export async function setTenantActive(formData: FormData) {
 }
 
 export async function assignPlan(formData: FormData) {
+  await assertCsrfToken(formData);
   const tenantId = String(formData.get("tenantId") || "").trim();
   const planId = String(formData.get("planId") || "").trim();
   try {

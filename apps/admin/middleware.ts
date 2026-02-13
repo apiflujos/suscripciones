@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "./lib/session";
+import { CSRF_COOKIE } from "./app/lib/csrf";
 
 export async function middleware(req: NextRequest) {
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set("x-app-pathname", req.nextUrl.pathname);
+  const existingCsrf = req.cookies.get(CSRF_COOKIE)?.value || "";
+  const csrfToken = existingCsrf || crypto.randomUUID();
+  requestHeaders.set("x-csrf-token", csrfToken);
 
   const url = req.nextUrl.clone();
   const shouldRewriteSa = url.pathname === "/__sa" || url.pathname.startsWith("/__sa/");
@@ -43,9 +47,20 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  return shouldRewriteSa
+  const response = shouldRewriteSa
     ? NextResponse.rewrite(url, { request: { headers: requestHeaders } })
     : NextResponse.next({ request: { headers: requestHeaders } });
+
+  if (!existingCsrf) {
+    response.cookies.set(CSRF_COOKIE, csrfToken, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/"
+    });
+  }
+
+  return response;
 }
 
 export const config = {

@@ -1,5 +1,6 @@
 import { saAdminFetch } from "../../saApi";
 import { consumeTest, resetCounters } from "./actions";
+import { getCsrfToken } from "../../../lib/csrf";
 
 function monthKeyUtc(d: Date) {
   const y = d.getUTCFullYear();
@@ -17,6 +18,7 @@ export default async function SaUsagePage({
 }: {
   searchParams?: { tenantId?: string; periodKey?: string; error?: string; reset?: string };
 }) {
+  const csrfToken = await getCsrfToken();
   const error = String(searchParams?.error || "").trim();
   const tenantId = String(searchParams?.tenantId || "").trim();
   const periodKey = String(searchParams?.periodKey || "").trim() || monthKeyUtc(new Date());
@@ -85,6 +87,7 @@ export default async function SaUsagePage({
               </div>
 
               <form action={resetCounters} className="panel module" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                <input type="hidden" name="csrf" value={csrfToken} />
                 <input type="hidden" name="tenantId" value={tenantId} />
                 <input type="hidden" name="periodKey" value={periodKey} />
                 <button className="ghost" type="submit">
@@ -124,6 +127,7 @@ export default async function SaUsagePage({
                 <summary className="detailsSummary">Consumir (prueba)</summary>
                 <div className="detailsBody">
                   <form action={consumeTest} style={{ display: "flex", gap: 10, alignItems: "end", flexWrap: "wrap" }}>
+                    <input type="hidden" name="csrf" value={csrfToken} />
                     <input type="hidden" name="tenantId" value={tenantId} />
                     <input type="hidden" name="periodKey" value={periodKey} />
                     <div className="field" style={{ margin: 0, minWidth: 260 }}>

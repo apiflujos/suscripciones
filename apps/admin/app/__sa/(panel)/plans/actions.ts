@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { saAdminFetch } from "../../saApi";
+import { assertCsrfToken } from "../../../lib/csrf";
 
 function toShortErrorMessage(err: unknown) {
   const raw = err instanceof Error ? err.message : String(err);
@@ -9,6 +10,7 @@ function toShortErrorMessage(err: unknown) {
 }
 
 export async function createPlan(formData: FormData) {
+  await assertCsrfToken(formData);
   const key = String(formData.get("key") || "").trim();
   const name = String(formData.get("name") || "").trim();
   const kind = String(formData.get("kind") || "").trim();
@@ -28,6 +30,7 @@ export async function createPlan(formData: FormData) {
 }
 
 export async function setPlanServiceLimit(formData: FormData) {
+  await assertCsrfToken(formData);
   const planId = String(formData.get("planId") || "").trim();
   const serviceKey = String(formData.get("serviceKey") || "").trim();
 

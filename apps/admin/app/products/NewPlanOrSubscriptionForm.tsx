@@ -36,10 +36,12 @@ function formatCopCurrencyInput(input: string): string {
 
 export function NewPlanOrSubscriptionForm({
   action,
-  catalogItems
+  catalogItems,
+  csrfToken
 }: {
   action: (formData: FormData) => void | Promise<void>;
   catalogItems: CatalogItem[];
+  csrfToken: string;
 }) {
   const [open, setOpen] = useState(false);
   const tipoRef = useRef<HTMLSelectElement | null>(null);
@@ -250,6 +252,7 @@ export function NewPlanOrSubscriptionForm({
 
       {open ? (
         <form action={action} onKeyDownCapture={enterToNextField} style={{ display: "grid", gap: 10 }}>
+          <input type="hidden" name="csrf" value={csrfToken} />
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <div className="field">
               <label style={{ display: "flex", alignItems: "center", gap: 8 }}>

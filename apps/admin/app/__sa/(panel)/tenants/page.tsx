@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { saAdminFetch } from "../../saApi";
 import { assignPlan, createTenant, setTenantActive } from "./actions";
+import { getCsrfToken } from "../../../lib/csrf";
 
 export default async function SaTenantsPage({ searchParams }: { searchParams?: { error?: string; saved?: string } }) {
+  const csrfToken = await getCsrfToken();
   const error = String(searchParams?.error || "").trim();
 
   const tenantsRes = await saAdminFetch("/admin/sa/tenants", { method: "GET" });
@@ -28,6 +30,7 @@ export default async function SaTenantsPage({ searchParams }: { searchParams?: {
         </div>
         <div className="settings-group-body">
           <form action={createTenant} className="panel module" style={{ display: "flex", gap: 10, alignItems: "end", flexWrap: "wrap" }}>
+            <input type="hidden" name="csrf" value={csrfToken} />
             <div className="field" style={{ margin: 0, minWidth: 260 }}>
               <label>Nuevo tenant</label>
               <input name="name" className="input" placeholder="Nombre del tenant" />
@@ -58,6 +61,7 @@ export default async function SaTenantsPage({ searchParams }: { searchParams?: {
 
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "end" }}>
                   <form action={setTenantActive} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <input type="hidden" name="csrf" value={csrfToken} />
                     <input type="hidden" name="tenantId" value={t.id} />
                     <input type="hidden" name="active" value={t.active ? "0" : "1"} />
                     <button type="submit" className="ghost">
@@ -66,6 +70,7 @@ export default async function SaTenantsPage({ searchParams }: { searchParams?: {
                   </form>
 
                   <form action={assignPlan} style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <input type="hidden" name="csrf" value={csrfToken} />
                     <input type="hidden" name="tenantId" value={t.id} />
                     <div className="field" style={{ margin: 0, minWidth: 260 }}>
                       <label>Asignar plan</label>

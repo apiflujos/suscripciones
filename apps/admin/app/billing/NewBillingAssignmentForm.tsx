@@ -78,6 +78,7 @@ export function NewBillingAssignmentForm({
   plans,
   customers,
   catalogItems,
+  csrfToken,
   defaultOpen = false,
   defaultSelectedPlanId = "",
   defaultSelectedCustomerId = "",
@@ -88,6 +89,7 @@ export function NewBillingAssignmentForm({
   plans: Plan[];
   customers: Customer[];
   catalogItems: CatalogItem[];
+  csrfToken: string;
   defaultOpen?: boolean;
   defaultSelectedPlanId?: string;
   defaultSelectedCustomerId?: string;
@@ -295,7 +297,7 @@ export function NewBillingAssignmentForm({
 
             {showNewPlan ? (
               <div style={{ marginTop: 10 }}>
-                <NewPlanTemplateForm action={createPlanTemplate} catalogItems={catalogItems} returnTo={returnTo} />
+                <NewPlanTemplateForm action={createPlanTemplate} catalogItems={catalogItems} returnTo={returnTo} csrfToken={csrfToken} />
               </div>
             ) : null}
           </div>
@@ -372,7 +374,7 @@ export function NewBillingAssignmentForm({
 
             {showNewCustomer ? (
               <div style={{ marginTop: 10 }}>
-                <NewCustomerForm createCustomer={createCustomer} defaultOpen mode="always_open" hidePanelHeader returnTo={returnTo} />
+                <NewCustomerForm createCustomer={createCustomer} defaultOpen mode="always_open" hidePanelHeader returnTo={returnTo} csrfToken={csrfToken} />
               </div>
             ) : null}
           </div>
@@ -383,6 +385,7 @@ export function NewBillingAssignmentForm({
             </div>
 
             <form action={createSubscription} onKeyDownCapture={enterToNextField} style={{ display: "grid", gap: 10 }}>
+              <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="planId" value={planId} />
               <input type="hidden" name="customerId" value={customerId} />
               <input type="hidden" name="startAt" value={startAtIso} />

@@ -5,6 +5,7 @@ import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { LocalDateTime } from "../ui/LocalDateTime";
 import { HelpTip } from "../ui/HelpTip";
 import { CopyButton } from "../ui/CopyButton";
+import { getCsrfToken } from "../lib/csrf";
 
 export const dynamic = "force-dynamic";
 
@@ -97,6 +98,7 @@ function buildSmartListRules({
 }
 
 export default async function BillingPage({ searchParams }: { searchParams?: Record<string, string | string[] | undefined> }) {
+  const csrfToken = await getCsrfToken();
   const { token } = getConfig();
   if (!token) {
     return (
@@ -228,6 +230,7 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <CopyButton text={checkoutUrl} />
             <form action={sendChatwootPaymentLink}>
+              <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="checkoutUrl" value={checkoutUrl} />
               <input type="hidden" name="customerId" value={checkoutCustomerId} />
               <button className="ghost" type="submit" disabled={!checkoutCustomerId}>
@@ -305,6 +308,7 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
             plans={planItems}
             customers={customerItems}
             catalogItems={productItems}
+            csrfToken={csrfToken}
             defaultOpen={Boolean(crear) || Boolean(selectPlanId) || Boolean(selectCustomerId) || Boolean(planCreated) || Boolean(contactCreated)}
             defaultSelectedPlanId={selectPlanId}
             defaultSelectedCustomerId={selectCustomerId}
@@ -360,6 +364,7 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
                     <td style={{ textAlign: "right" }}>
                       {r.mode !== "AUTO_DEBIT" ? (
                         <form action={createPaymentLink}>
+                          <input type="hidden" name="csrf" value={csrfToken} />
                           <input type="hidden" name="subscriptionId" value={r.id} />
                           <input type="hidden" name="customerId" value={r.customerId} />
                           <button className="ghost" type="submit">

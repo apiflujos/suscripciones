@@ -1,11 +1,13 @@
 import { saAdminFetch } from "../../saApi";
 import { createUser } from "./actions";
+import { getCsrfToken } from "../../../lib/csrf";
 
 export default async function SaUsersPage({
   searchParams
 }: {
   searchParams?: { tenantId?: string; error?: string; created?: string };
 }) {
+  const csrfToken = await getCsrfToken();
   const error = String(searchParams?.error || "").trim();
   const tenantId = String(searchParams?.tenantId || "").trim();
   const created = String(searchParams?.created || "").trim() === "1";
@@ -61,6 +63,7 @@ export default async function SaUsersPage({
           </div>
 
           <form action={createUser} className="panel module" style={{ display: "grid", gap: 10 }}>
+            <input type="hidden" name="csrf" value={csrfToken} />
             <div className="field">
               <label>Tenant</label>
               <select className="select" name="tenantId" defaultValue={tenantId || ""} required>
@@ -126,4 +129,3 @@ export default async function SaUsersPage({
     </div>
   );
 }
-

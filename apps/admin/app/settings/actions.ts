@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { normalizeToken } from "../lib/normalizeToken";
-import { assertSameOrigin } from "../lib/csrf";
+import { assertCsrfToken } from "../lib/csrf";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
 const TOKEN = normalizeToken(process.env.ADMIN_API_TOKEN || "");
@@ -31,7 +31,6 @@ function normalizeUrl(input: string) {
 }
 
 async function adminFetch(path: string, init: RequestInit) {
-  await assertSameOrigin();
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {
@@ -56,6 +55,7 @@ async function adminFetch(path: string, init: RequestInit) {
 }
 
 export async function updateWompi(formData: FormData) {
+  await assertCsrfToken(formData);
   const environment = String(formData.get("environment") || "").trim();
   const publicKey = String(formData.get("publicKey") || "").trim();
   const privateKey = String(formData.get("privateKey") || "").trim();
@@ -87,6 +87,7 @@ export async function updateWompi(formData: FormData) {
 }
 
 export async function updateShopify(formData: FormData) {
+  await assertCsrfToken(formData);
   const forwardUrl = String(formData.get("forwardUrl") || "").trim();
   const forwardSecret = String(formData.get("forwardSecret") || "").trim();
 
@@ -103,6 +104,7 @@ export async function updateShopify(formData: FormData) {
 }
 
 export async function testShopifyForward(formData: FormData) {
+  await assertCsrfToken(formData);
   const forwardUrl = String(formData.get("forwardUrl") || "").trim();
   const forwardSecret = String(formData.get("forwardSecret") || "").trim();
   try {
@@ -118,6 +120,7 @@ export async function testShopifyForward(formData: FormData) {
 }
 
 export async function updateChatwoot(formData: FormData) {
+  await assertCsrfToken(formData);
   const environment = String(formData.get("environment") || "").trim();
   const baseUrl = normalizeUrl(String(formData.get("baseUrl") || ""));
   const accountId = String(formData.get("accountId") || "").trim();
@@ -143,6 +146,7 @@ export async function updateChatwoot(formData: FormData) {
 }
 
 export async function setWompiActiveEnv(formData: FormData) {
+  await assertCsrfToken(formData);
   const activeEnv = String(formData.get("activeEnv") || "").trim().toUpperCase();
   try {
     await adminFetch("/admin/settings/wompi", {
@@ -157,6 +161,7 @@ export async function setWompiActiveEnv(formData: FormData) {
 }
 
 export async function setCentralActiveEnv(formData: FormData) {
+  await assertCsrfToken(formData);
   const activeEnv = String(formData.get("activeEnv") || "").trim().toUpperCase();
   try {
     await adminFetch("/admin/settings/chatwoot", {
@@ -170,7 +175,8 @@ export async function setCentralActiveEnv(formData: FormData) {
   }
 }
 
-export async function bootstrapCentralAttributes() {
+export async function bootstrapCentralAttributes(formData: FormData) {
+  await assertCsrfToken(formData);
   try {
     await adminFetch("/admin/comms/bootstrap-attributes", { method: "POST" });
     redirectWith("central_bootstrap", "ok");
@@ -181,6 +187,7 @@ export async function bootstrapCentralAttributes() {
 }
 
 export async function syncCentralAttributes(formData: FormData) {
+  await assertCsrfToken(formData);
   const limit = String(formData.get("limit") || "").trim();
   const qp = limit ? `?limit=${encodeURIComponent(limit)}` : "";
   try {
@@ -193,6 +200,7 @@ export async function syncCentralAttributes(formData: FormData) {
 }
 
 export async function testCentralConnection(formData: FormData) {
+  await assertCsrfToken(formData);
   const baseUrl = normalizeUrl(String(formData.get("baseUrl") || ""));
   const accountId = String(formData.get("accountId") || "").trim();
   const inboxId = String(formData.get("inboxId") || "").trim();
@@ -216,6 +224,7 @@ export async function testCentralConnection(formData: FormData) {
 }
 
 export async function deleteCentralConnection(formData: FormData) {
+  await assertCsrfToken(formData);
   const environment = String(formData.get("environment") || "").trim();
   try {
     await adminFetch("/admin/settings/chatwoot", {

@@ -1,5 +1,6 @@
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { HelpTip } from "../ui/HelpTip";
+import { getCsrfToken } from "../lib/csrf";
 import { NotificationWizard } from "./NotificationWizard";
 import { createNotification } from "./actions";
 
@@ -18,6 +19,7 @@ export default async function NotificationsPage({
 }: {
   searchParams?: { env?: string; saved?: string; error?: string; scheduled?: string };
 }) {
+  const csrfToken = await getCsrfToken();
   const { token } = getConfig();
   if (!token) {
     return (
@@ -67,7 +69,7 @@ export default async function NotificationsPage({
         </div>
       ) : null}
 
-      <NotificationWizard envDefault={env} createNotification={createNotification} />
+      <NotificationWizard envDefault={env} createNotification={createNotification} csrfToken={csrfToken} />
     </main>
   );
 }

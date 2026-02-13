@@ -4,16 +4,19 @@ import { useState } from "react";
 
 export function LoginForm({
   action,
-  next
+  next,
+  csrfToken
 }: {
   action: (formData: FormData) => void;
   next: string;
+  csrfToken: string;
 }) {
   const [show, setShow] = useState(false);
 
   return (
     <form action={action} className="loginForm">
       <input type="hidden" name="next" value={next} />
+      <input type="hidden" name="csrf" value={csrfToken} />
       <div className="field">
         <label>Usuario</label>
         <input name="email" className="input loginInput" placeholder="comercial@apiflujos.com" autoComplete="username" required />

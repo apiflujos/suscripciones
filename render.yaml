@@ -66,6 +66,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: "production"
+      - key: SYSTEM_LOG_RETENTION_DAYS
+        value: "30"
       - key: NODE_VERSION
         value: "20"
       - key: DATABASE_URL

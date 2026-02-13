@@ -1,7 +1,9 @@
 import { saAdminFetch } from "../../saApi";
 import { setTenantModule, upsertModule } from "./actions";
+import { getCsrfToken } from "../../../lib/csrf";
 
 export default async function SaModulesPage({ searchParams }: { searchParams?: { tenantId?: string; error?: string } }) {
+  const csrfToken = await getCsrfToken();
   const error = String(searchParams?.error || "").trim();
   const tenantId = String(searchParams?.tenantId || "").trim();
 
@@ -25,6 +27,7 @@ export default async function SaModulesPage({ searchParams }: { searchParams?: {
         </div>
         <div className="settings-group-body">
           <form action={upsertModule} className="panel module" style={{ display: "grid", gap: 10 }}>
+            <input type="hidden" name="csrf" value={csrfToken} />
             <div className="field">
               <label>Key</label>
               <input name="key" className="input" placeholder="ej: billing" />
@@ -77,6 +80,7 @@ export default async function SaModulesPage({ searchParams }: { searchParams?: {
 
                 {tenantId ? (
                   <form action={setTenantModule} style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                    <input type="hidden" name="csrf" value={csrfToken} />
                     <input type="hidden" name="tenantId" value={tenantId} />
                     <input type="hidden" name="moduleKey" value={m.key} />
                     <button className="ghost" name="enabled" value="1" type="submit">

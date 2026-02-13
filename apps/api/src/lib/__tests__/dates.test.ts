@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { addIntervalUtc } from "../dates.ts";
+import { addIntervalUtc } from "../dates";
 import { PlanIntervalUnit } from "@prisma/client";
 
 test("addIntervalUtc: adds days and weeks", () => {

@@ -1,8 +1,10 @@
 import { adminLogin } from "./actions";
 import { getAdminApiConfig } from "../lib/adminApi";
 import { LoginForm } from "./LoginForm";
+import { getCsrfToken } from "../lib/csrf";
 
 export default async function LoginPage({ searchParams }: { searchParams?: { error?: string; next?: string; loggedOut?: string } }) {
+  const csrfToken = await getCsrfToken();
   const error = String(searchParams?.error || "").trim();
   const next = String(searchParams?.next || "").trim();
   const loggedOut = String(searchParams?.loggedOut || "").trim() === "1";
@@ -56,7 +58,7 @@ export default async function LoginPage({ searchParams }: { searchParams?: { err
           {loggedOut ? <div className="authAlert">Sesión cerrada.</div> : null}
           {showError ? <div className="authAlert is-danger">Error: {errorMessage}</div> : null}
 
-          <LoginForm action={adminLogin} next={next} />
+          <LoginForm action={adminLogin} next={next} csrfToken={csrfToken} />
         </div>
       </div>
     </main>

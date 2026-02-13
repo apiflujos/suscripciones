@@ -1,8 +1,10 @@
 import { fetchAdminCached } from "../lib/adminApi";
 import { HelpTip } from "../ui/HelpTip";
+import { getCsrfToken } from "../lib/csrf";
 import { createCampaign, runCampaign } from "./actions";
 
 export default async function CampaignsPage({ searchParams }: { searchParams?: { error?: string; created?: string; running?: string; page?: string } }) {
+  const csrfToken = await getCsrfToken();
   const listsRes = await fetchAdminCached("/admin/comms/smart-lists?take=200", { ttlMs: 0 });
   const lists = Array.isArray(listsRes?.json?.items) ? listsRes.json.items : [];
   const page = typeof searchParams?.page === "string" ? Number(searchParams.page) : 1;
@@ -27,6 +29,7 @@ export default async function CampaignsPage({ searchParams }: { searchParams?: {
       <div className="panel module" style={{ marginBottom: 16 }}>
         <h3 style={{ marginTop: 0 }}>Nueva campaña</h3>
         <form action={createCampaign} style={{ display: "grid", gap: 10 }}>
+          <input type="hidden" name="csrf" value={csrfToken} />
           <div className="field">
             <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span>Nombre</span>
@@ -80,6 +83,7 @@ export default async function CampaignsPage({ searchParams }: { searchParams?: {
                   </div>
                 </div>
                 <form action={runCampaign}>
+                  <input type="hidden" name="csrf" value={csrfToken} />
                   <input type="hidden" name="id" value={c.id} />
                   <button className="ghost" type="submit">Enviar</button>
                 </form>

@@ -1,5 +1,6 @@
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { HelpTip } from "../ui/HelpTip";
+import { getCsrfToken } from "../lib/csrf";
 import { createSmartList, previewSmartList, syncSmartList } from "./actions";
 import { SmartListBuilder } from "./SmartListBuilder";
 
@@ -22,6 +23,7 @@ export default async function SmartListsPage({
 }: {
   searchParams?: { preview?: string; error?: string; created?: string; synced?: string; preset?: string; name?: string; description?: string; rules?: string };
 }) {
+  const csrfToken = await getCsrfToken();
   const page = typeof searchParams?.page === "string" ? Number(searchParams.page) : 1;
   const take = 100;
   const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
@@ -58,6 +60,7 @@ export default async function SmartListsPage({
       <div className="panel module" style={{ marginBottom: 16 }}>
         <h3 style={{ marginTop: 0 }}>Nueva lista</h3>
         <form action={createSmartList} style={{ display: "grid", gap: 10 }}>
+          <input type="hidden" name="csrf" value={csrfToken} />
           <div className="field">
             <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span>Nombre</span>
@@ -102,10 +105,12 @@ export default async function SmartListsPage({
                 <div style={{ display: "flex", gap: 8 }}>
                   <a className="ghost" href={`/smart-lists/${item.id}`}>Ver contactos</a>
                   <form action={previewSmartList}>
+                    <input type="hidden" name="csrf" value={csrfToken} />
                     <input type="hidden" name="id" value={item.id} />
                     <button className="ghost" type="submit">Preview</button>
                   </form>
                   <form action={syncSmartList}>
+                    <input type="hidden" name="csrf" value={csrfToken} />
                     <input type="hidden" name="id" value={item.id} />
                     <button className="ghost" type="submit">Sincronizar</button>
                   </form>

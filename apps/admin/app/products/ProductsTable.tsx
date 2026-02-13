@@ -40,7 +40,7 @@ type ProductRow = {
   variants?: Array<{ option1?: string | null; option2?: string | null; priceDeltaInCents: number }> | null;
 };
 
-export function ProductsTable({ items }: { items: ProductRow[] }) {
+export function ProductsTable({ items, csrfToken }: { items: ProductRow[]; csrfToken: string }) {
   const [editing, setEditing] = useState<ProductRow | null>(null);
   const [open, setOpen] = useState(false);
 
@@ -203,6 +203,7 @@ export function ProductsTable({ items }: { items: ProductRow[] }) {
             </div>
 
             <form action={updateProduct} style={{ display: "grid", gap: 10 }}>
+              <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="id" value={editing.id} />
               <input type="hidden" name="currency" value="COP" />
 

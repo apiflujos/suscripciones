@@ -13,9 +13,11 @@ function formatCopCurrency(input: string): string {
 }
 
 export function NewCatalogItemForm({
-  action
+  action,
+  csrfToken
 }: {
   action: (formData: FormData) => void | Promise<void>;
+  csrfToken: string;
 }) {
   const [kind, setKind] = useState<"PRODUCT" | "SERVICE">("PRODUCT");
   const [show, setShow] = useState(false);
@@ -39,6 +41,7 @@ export function NewCatalogItemForm({
 
       {show ? (
         <form action={action} style={{ display: "grid", gap: 10 }}>
+          <input type="hidden" name="csrf" value={csrfToken} />
           <div className="field">
             <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span>¿Es producto o servicio?</span>

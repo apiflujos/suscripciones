@@ -1,7 +1,9 @@
 import { saAdminFetch } from "../../saApi";
 import { upsertLimit } from "./actions";
+import { getCsrfToken } from "../../../lib/csrf";
 
 export default async function SaLimitsPage({ searchParams }: { searchParams?: { error?: string } }) {
+  const csrfToken = await getCsrfToken();
   const error = String(searchParams?.error || "").trim();
 
   const limitsRes = await saAdminFetch("/admin/sa/limits", { method: "GET" });
@@ -26,6 +28,7 @@ export default async function SaLimitsPage({ searchParams }: { searchParams?: { 
         </div>
         <div className="settings-group-body">
           <form action={upsertLimit} className="panel module" style={{ display: "grid", gap: 10 }}>
+            <input type="hidden" name="csrf" value={csrfToken} />
             <div className="field">
               <label>Key</label>
               <input name="key" className="input" placeholder="ej: api_calls" />

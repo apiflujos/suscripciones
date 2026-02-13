@@ -1,5 +1,6 @@
 import { saAdminFetch } from "../../saApi";
 import { createPlan, setPlanServiceLimit } from "./actions";
+import { getCsrfToken } from "../../../lib/csrf";
 
 function fmtMoneyCop(cents: number) {
   const v = (Number(cents || 0) / 100).toFixed(0);
@@ -7,6 +8,7 @@ function fmtMoneyCop(cents: number) {
 }
 
 export default async function SaPlansPage({ searchParams }: { searchParams?: { error?: string } }) {
+  const csrfToken = await getCsrfToken();
   const error = String(searchParams?.error || "").trim();
 
   const plansRes = await saAdminFetch("/admin/sa/plans", { method: "GET" });
@@ -32,6 +34,7 @@ export default async function SaPlansPage({ searchParams }: { searchParams?: { e
         </div>
         <div className="settings-group-body">
           <form action={createPlan} className="panel module" style={{ display: "grid", gap: 10 }}>
+            <input type="hidden" name="csrf" value={csrfToken} />
             <div className="grid2" style={{ gap: 10 }}>
               <div className="field" style={{ margin: 0 }}>
                 <label>Key</label>
@@ -103,6 +106,7 @@ export default async function SaPlansPage({ searchParams }: { searchParams?: { e
 
                         return (
                           <form key={s.key} action={setPlanServiceLimit} className="panel module" style={{ display: "grid", gap: 8 }}>
+                            <input type="hidden" name="csrf" value={csrfToken} />
                             <input type="hidden" name="planId" value={p.id} />
                             <input type="hidden" name="serviceKey" value={s.key} />
                             <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>

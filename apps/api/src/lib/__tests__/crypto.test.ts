@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
-import { sha256Hex, timingSafeEqualHex, encryptAes256Gcm, decryptAes256Gcm } from "../crypto.ts";
+import { sha256Hex, timingSafeEqualHex, encryptAes256Gcm, decryptAes256Gcm } from "../crypto";
 
 test("sha256Hex: deterministic", () => {
   const a = sha256Hex("hello");

@@ -15,6 +15,7 @@ import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session
 import { HelpTip } from "../ui/HelpTip";
 import { PendingButton } from "../ui/PendingButton";
 import { DualActionButtons } from "../ui/DualActionButtons";
+import { getCsrfToken } from "../lib/csrf";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,7 @@ export default async function SettingsPage({
 }: {
   searchParams: { a?: string; status?: string; error?: string };
 }) {
+  const csrfToken = await getCsrfToken();
   const { token } = getConfig();
   if (!token) {
     return (
@@ -114,6 +116,7 @@ export default async function SettingsPage({
               <strong>Wompi</strong>
             </div>
             <form action={setWompiActiveEnv} style={{ display: "grid", gridTemplateColumns: "1fr auto", alignItems: "end", gap: 10 }}>
+              <input type="hidden" name="csrf" value={csrfToken} />
               <div className="field">
                 <label>
                   Entorno activo
@@ -142,6 +145,7 @@ export default async function SettingsPage({
                     <strong>Nueva conexión ({envLabel})</strong>
                   </div>
                   <form action={updateWompi} style={{ display: "grid", gap: 10 }}>
+                    <input type="hidden" name="csrf" value={csrfToken} />
                     <input type="hidden" name="environment" value={envKey} />
                     <div className="field">
                       <label>
@@ -227,6 +231,7 @@ export default async function SettingsPage({
               </div>
             </div>
             <form action={updateChatwoot} style={{ display: "grid", gap: 10 }}>
+              <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="environment" value="PRODUCTION" />
               <div className="field">
                 <label>
@@ -289,6 +294,7 @@ export default async function SettingsPage({
               </div>
             </div>
             <form action={updateChatwoot} style={{ display: "grid", gap: 10 }}>
+              <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="environment" value="SANDBOX" />
               <div className="field">
                 <label>
@@ -346,12 +352,14 @@ export default async function SettingsPage({
               <strong>Acciones rápidas</strong>
             </div>
             <form action={bootstrapCentralAttributes}>
+              <input type="hidden" name="csrf" value={csrfToken} />
               {inlineMsg("central_bootstrap", "Atributos creados.", "Error creando")}
               <PendingButton className="ghost" type="submit" pendingText="Creando...">
                 Crear atributos de contacto
               </PendingButton>
             </form>
             <form action={syncCentralAttributes} style={{ display: "flex", gap: 8, alignItems: "end" }}>
+              <input type="hidden" name="csrf" value={csrfToken} />
               <div className="field" style={{ flex: 1 }}>
                 <label>
                   Límite a sincronizar
@@ -380,6 +388,7 @@ export default async function SettingsPage({
         </div>
         <div className="settings-group-body">
           <form action={updateShopify} className="panel module" style={{ display: "grid", gap: 10 }}>
+            <input type="hidden" name="csrf" value={csrfToken} />
             <div className="field">
               <label>
                 URL de reenvío

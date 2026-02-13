@@ -69,6 +69,7 @@ function nextRunAt(attempts: number) {
 
 let lastEnsureAtMs = 0;
 let lastEnsureSmartListsAtMs = 0;
+let lastLogCleanupAtMs = 0;
 async function ensureMonthlyBillingReportJob() {
   const now = Date.now();
   if (now - lastEnsureAtMs < 60_000) return;
@@ -119,6 +120,16 @@ async function ensureSmartListsSyncJob() {
       } as any
     })
     .catch(() => {});
+}
+
+async function ensureLogCleanup() {
+  const now = Date.now();
+  if (now - lastLogCleanupAtMs < 6 * 60 * 60 * 1000) return;
+  lastLogCleanupAtMs = now;
+  const daysRaw = Number(process.env.SYSTEM_LOG_RETENTION_DAYS || 30);
+  const days = Number.isFinite(daysRaw) ? Math.max(7, Math.trunc(daysRaw)) : 30;
+  const cutoff = new Date(now - days * 24 * 60 * 60 * 1000);
+  await prisma.systemLog.deleteMany({ where: { createdAt: { lt: cutoff } } });
 }
 
 async function runOnce() {
@@ -185,6 +196,7 @@ async function main() {
     try {
       await ensureMonthlyBillingReportJob();
       await ensureSmartListsSyncJob();
+      await ensureLogCleanup();
       await runOnce();
       await new Promise((r) => setTimeout(r, 1000));
     } catch (err: any) {

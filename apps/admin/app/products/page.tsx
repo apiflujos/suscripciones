@@ -3,6 +3,7 @@ import { NewPlanOrSubscriptionForm } from "./NewPlanOrSubscriptionForm";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { HelpTip } from "../ui/HelpTip";
 import { ProductsTable } from "./ProductsTable";
+import { getCsrfToken } from "../lib/csrf";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,7 @@ export default async function ProductsPage({
 }: {
   searchParams?: Record<string, string | string[] | undefined>;
 }) {
+  const csrfToken = await getCsrfToken();
   const { token } = getConfig();
   if (!token) {
     return (
@@ -75,9 +77,9 @@ export default async function ProductsPage({
 
         <div className="settings-group-body">
           <div style={{ display: "grid", gap: 14 }}>
-            <NewPlanOrSubscriptionForm action={createPlanTemplate} catalogItems={productItems} />
+            <NewPlanOrSubscriptionForm action={createPlanTemplate} catalogItems={productItems} csrfToken={csrfToken} />
 
-            <ProductsTable items={productItems} />
+            <ProductsTable items={productItems} csrfToken={csrfToken} />
 
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>
               <a

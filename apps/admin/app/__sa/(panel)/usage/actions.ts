@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { saAdminFetch } from "../../saApi";
+import { assertCsrfToken } from "../../../lib/csrf";
 
 function toShortErrorMessage(err: unknown) {
   const raw = err instanceof Error ? err.message : String(err);
@@ -9,6 +10,7 @@ function toShortErrorMessage(err: unknown) {
 }
 
 export async function resetCounters(formData: FormData) {
+  await assertCsrfToken(formData);
   const tenantId = String(formData.get("tenantId") || "").trim();
   const periodKey = String(formData.get("periodKey") || "").trim();
   try {
@@ -25,6 +27,7 @@ export async function resetCounters(formData: FormData) {
 }
 
 export async function consumeTest(formData: FormData) {
+  await assertCsrfToken(formData);
   const tenantId = String(formData.get("tenantId") || "").trim();
   const periodKey = String(formData.get("periodKey") || "").trim();
   const serviceKey = String(formData.get("serviceKey") || "").trim();

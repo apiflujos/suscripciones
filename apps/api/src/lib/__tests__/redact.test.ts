@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { redactHeaders } from "../redact.ts";
+import { redactHeaders } from "../redact";
 
 test("redactHeaders: redacts sensitive header names", () => {
   const out = redactHeaders({

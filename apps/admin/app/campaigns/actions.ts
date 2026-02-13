@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { getAdminApiConfig } from "../lib/adminApi";
-import { assertSameOrigin } from "../lib/csrf";
+import { assertCsrfToken } from "../lib/csrf";
 
 function toShortErrorMessage(err: unknown) {
   const raw = err instanceof Error ? err.message : String(err);
@@ -11,7 +11,6 @@ function toShortErrorMessage(err: unknown) {
 }
 
 async function adminFetch(path: string, init: RequestInit) {
-  await assertSameOrigin();
   const { apiBase, token } = getAdminApiConfig();
   if (!token) throw new Error("missing_admin_token");
   const res = await fetch(`${apiBase}${path}`, {
@@ -33,6 +32,7 @@ async function adminFetch(path: string, init: RequestInit) {
 }
 
 export async function createCampaign(formData: FormData) {
+  await assertCsrfToken(formData);
   const name = String(formData.get("name") || "").trim();
   const smartListId = String(formData.get("smartListId") || "").trim();
   const content = String(formData.get("content") || "").trim();
@@ -58,6 +58,7 @@ export async function createCampaign(formData: FormData) {
 }
 
 export async function runCampaign(formData: FormData) {
+  await assertCsrfToken(formData);
   const id = String(formData.get("id") || "").trim();
   if (!id) return redirect("/campaigns?error=missing_id");
   try {

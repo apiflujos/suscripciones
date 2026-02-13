@@ -291,7 +291,7 @@ commsRouter.post("/campaigns", async (req, res) => {
       name: parsed.data.name,
       smartListId: parsed.data.smartListId,
       content: parsed.data.content,
-      templateParams: parsed.data.templateParams ?? null
+      templateParams: parsed.data.templateParams ?? undefined
     }
   });
   res.status(201).json({ campaign: created });

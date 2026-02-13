@@ -23,10 +23,12 @@ type LatestLink = {
 
 export function CustomersTable({
   items,
-  latestLinks
+  latestLinks,
+  csrfToken
 }: {
   items: CustomerRow[];
   latestLinks: Record<string, LatestLink>;
+  csrfToken: string;
 }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<CustomerRow | null>(null);
@@ -168,6 +170,7 @@ export function CustomersTable({
                         if (!confirm("¿Eliminar contacto?")) e.preventDefault();
                       }}
                     >
+                      <input type="hidden" name="csrf" value={csrfToken} />
                       <input type="hidden" name="id" value={c.id} />
                       <button className="icon-btn danger" type="submit" aria-label="Eliminar">🗑</button>
                     </form>
@@ -316,6 +319,7 @@ export function CustomersTable({
             </div>
 
             <form action={updateCustomer} style={{ display: "grid", gap: 10 }}>
+              <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="id" value={editing.id} />
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
