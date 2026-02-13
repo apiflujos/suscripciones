@@ -60,7 +60,7 @@ export default async function ProductsPage({
             </div>
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
               <form action="/products" method="GET" style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <input className="input" name="q" defaultValue={q} placeholder="Buscar..." />
+                <input className="input" name="q" defaultValue={q} placeholder="Buscar..." aria-label="Buscar productos" />
                 <button className="ghost" type="submit">
                   Buscar
                 </button>

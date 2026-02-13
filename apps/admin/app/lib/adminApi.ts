@@ -1,15 +1,17 @@
 import "server-only";
+import { normalizeToken } from "./normalizeToken";
 
 type FetchResult = { ok: boolean; status: number; json: any };
 
 type CacheEntry = { atMs: number; result: FetchResult };
 const cache = new Map<string, CacheEntry>();
+const CACHE_MAX = 200;
 
-function normalizeToken(value: string) {
-  let v = String(value || "").trim();
-  v = v.replace(/^Bearer\s+/i, "").trim();
-  if ((v.startsWith("\"") && v.endsWith("\"")) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
-  return v.trim();
+function pruneCache() {
+  if (cache.size <= CACHE_MAX) return;
+  const entries = Array.from(cache.entries()).sort((a, b) => a[1].atMs - b[1].atMs);
+  const removeCount = entries.length - CACHE_MAX;
+  for (let i = 0; i < removeCount; i++) cache.delete(entries[i][0]);
 }
 
 export function getAdminApiConfig() {
@@ -45,7 +47,10 @@ export async function fetchPublicCached(path: string, opts?: { ttlMs?: number })
   if (hit && Date.now() - hit.atMs < ttlMs) return hit.result;
 
   const result = await fetchJson(url, { cache: "no-store" });
-  if (result.ok) cache.set(key, { atMs: Date.now(), result });
+  if (result.ok) {
+    cache.set(key, { atMs: Date.now(), result });
+    pruneCache();
+  }
   return result;
 }
 
@@ -71,6 +76,9 @@ export async function fetchAdminCached(path: string, opts?: { ttlMs?: number }):
     headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
   });
 
-  if (result.ok) cache.set(key, { atMs: Date.now(), result });
+  if (result.ok) {
+    cache.set(key, { atMs: Date.now(), result });
+    pruneCache();
+  }
   return result;
 }

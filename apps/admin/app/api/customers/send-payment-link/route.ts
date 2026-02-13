@@ -1,13 +1,7 @@
 import { NextResponse } from "next/server";
+import { normalizeToken } from "../../../lib/normalizeToken";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
-
-function normalizeToken(value: string) {
-  let v = String(value || "").trim();
-  v = v.replace(/^Bearer\s+/i, "").trim();
-  if ((v.startsWith("\"") && v.endsWith("\"")) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
-  return v.trim();
-}
 
 function pesosToCents(input: string): number {
   const digits = String(input || "").replace(/[^\d-]/g, "");

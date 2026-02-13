@@ -128,7 +128,7 @@ export default async function LogsPage({
                   <div className="filter-label">ID de pedido</div>
                   <form action="/logs" method="GET" style={{ display: "flex", gap: 10, alignItems: "center" }}>
                     <input type="hidden" name="tab" value="system" />
-                    <input className="input" name="q" defaultValue={q} placeholder="Buscar en logs..." />
+                    <input className="input" name="q" defaultValue={q} placeholder="Buscar en logs..." aria-label="Buscar en logs" />
                     <select className="select" aria-label="Estado">
                       <option>Todos</option>
                     </select>

@@ -73,10 +73,15 @@ customersRouter.put("/:id", async (req, res) => {
   if (data.email === "") data.email = null;
   if (data.phone === "") data.phone = null;
 
-  const updated = await prisma.customer.update({ where: { id: customerId }, data });
-  await ensureChatwootContactForCustomer(updated.id).catch(() => {});
-  await syncChatwootAttributesForCustomer(updated.id).catch(() => {});
-  res.json({ customer: updated });
+  try {
+    const updated = await prisma.customer.update({ where: { id: customerId }, data });
+    await ensureChatwootContactForCustomer(updated.id).catch(() => {});
+    await syncChatwootAttributesForCustomer(updated.id).catch(() => {});
+    res.json({ customer: updated });
+  } catch (err: any) {
+    if (String(err?.code) === "P2025") return res.status(404).json({ error: "customer_not_found" });
+    throw err;
+  }
 });
 
 customersRouter.delete("/:id", async (req, res) => {
@@ -86,6 +91,7 @@ customersRouter.delete("/:id", async (req, res) => {
     await prisma.customer.delete({ where: { id: customerId } });
     res.json({ ok: true });
   } catch (err: any) {
+    if (String(err?.code) === "P2025") return res.status(404).json({ error: "customer_not_found" });
     if (String(err?.code) === "P2003") return res.status(409).json({ error: "customer_has_dependencies" });
     throw err;
   }

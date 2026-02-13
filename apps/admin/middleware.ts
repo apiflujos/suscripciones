@@ -16,14 +16,15 @@ export async function middleware(req: NextRequest) {
   const isPublic =
     pathname === "/login" ||
     pathname === "/logout" ||
-    pathname === "/debug" ||
-    pathname === "/__debug" ||
     pathname === "/sa/login" ||
     pathname === "/sa/logout" ||
     pathname === "/__sa/login" ||
     pathname === "/__sa/logout";
 
-  if (!isPublic) {
+  const isDebugPath = pathname === "/debug" || pathname === "/__debug";
+  const debugPublic = process.env.NODE_ENV !== "production";
+
+  if (!isPublic && !(isDebugPath && debugPublic)) {
     const token = req.cookies.get(ADMIN_SESSION_COOKIE)?.value || "";
     const session = await verifyAdminSessionToken(token);
     if (!session) {

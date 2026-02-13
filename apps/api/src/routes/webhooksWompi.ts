@@ -7,6 +7,7 @@ import { getWompiEventsSecret } from "../services/runtimeConfig";
 import { getShopifyForward } from "../services/runtimeConfig";
 import { systemLog } from "../services/systemLog";
 import { LogLevel } from "@prisma/client";
+import { redactHeaders } from "../lib/redact";
 
 function getChecksumHeader(req: Request): string | undefined {
   const h = req.header("x-event-checksum") || req.header("x-wompi-checksum");
@@ -45,7 +46,7 @@ export async function wompiWebhook(req: Request, res: Response) {
         checksum,
         eventName: parsed.data.event,
         providerTs: parsed.data.timestamp != null ? BigInt(parsed.data.timestamp) : null,
-        headers: req.headers as any,
+        headers: redactHeaders(req.headers as any) as any,
         payload: parsed.data as any
       }
     });

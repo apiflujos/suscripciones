@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { LogLevel } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { systemLog } from "../services/systemLog";
+import { redactHeaders } from "../lib/redact";
 
 function getContactFromPayload(payload: any) {
   if (payload?.contact && typeof payload.contact === "object") return payload.contact;
@@ -18,6 +19,19 @@ function getConversationIdFromPayload(payload: any) {
 }
 
 export async function chatwootWebhook(req: Request, res: Response) {
+  const requiredToken = String(process.env.CHATWOOT_WEBHOOK_TOKEN || "").trim();
+  if (requiredToken) {
+    const headerToken = String(req.header("x-chatwoot-token") || "").trim();
+    const auth = String(req.header("authorization") || "");
+    const bearer = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
+    const queryToken = String((req.query as any)?.token || "").trim();
+    const provided = headerToken || bearer || queryToken;
+    if (!provided || provided !== requiredToken) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+  }
+
   const payload = req.body ?? {};
   const event = String(payload?.event || payload?.event_type || "").trim() || "unknown";
 
@@ -100,7 +114,7 @@ export async function chatwootWebhook(req: Request, res: Response) {
     contactId,
     conversationId,
     hasContact: !!contact,
-    headers: req.headers
+    headers: redactHeaders(req.headers as any)
   }).catch(() => {});
 
   res.json({ ok: true });

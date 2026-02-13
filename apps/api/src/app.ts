@@ -26,7 +26,18 @@ export function createApp() {
 
   app.use(pinoHttp({ logger }));
   app.use(helmet());
-  app.use(cors());
+  const corsOriginsRaw = process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || "";
+  const corsOrigins = corsOriginsRaw
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+  app.use(
+    cors(
+      corsOrigins.length
+        ? { origin: corsOrigins, credentials: true }
+        : { origin: true }
+    )
+  );
   app.use(express.json({ limit: "2mb" }));
 
   app.get("/healthz", healthz);

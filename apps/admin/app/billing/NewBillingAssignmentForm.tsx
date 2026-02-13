@@ -271,7 +271,7 @@ export function NewBillingAssignmentForm({
               </div>
             ) : (
               <div style={{ display: "grid", gap: 8 }}>
-                <input className="input" value={planQ} onChange={(e) => setPlanQ(e.target.value)} placeholder="Buscar por nombre…" />
+                <input className="input" value={planQ} onChange={(e) => setPlanQ(e.target.value)} placeholder="Buscar por nombre…" aria-label="Buscar plan o suscripción" />
                 <select
                   className="select"
                   value={planId}
@@ -338,6 +338,7 @@ export function NewBillingAssignmentForm({
                   value={customerQ}
                   onChange={(e) => setCustomerQ(e.target.value)}
                   placeholder="Buscar por nombre, email o identificación…"
+                  aria-label="Buscar contacto"
                 />
                 {customerSearching ? <div className="field-hint">Buscando…</div> : null}
                 {customerSearchError ? <div className="field-hint" style={{ color: "rgba(217, 83, 79, 0.92)" }}>{customerSearchError}</div> : null}

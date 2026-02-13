@@ -2,15 +2,9 @@ import "server-only";
 
 import { cookies } from "next/headers";
 import { getAdminApiConfig } from "../lib/adminApi";
+import { normalizeToken } from "../lib/normalizeToken";
 
 export const SA_COOKIE = "sa_session";
-
-function normalizeToken(value: string) {
-  let v = String(value || "").trim();
-  v = v.replace(/^Bearer\s+/i, "").trim();
-  if ((v.startsWith("\"") && v.endsWith("\"")) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
-  return v.trim();
-}
 
 export function getSaSessionToken() {
   const v = cookies().get(SA_COOKIE)?.value || "";
@@ -52,4 +46,3 @@ export async function adminFetchNoSa(path: string, init: RequestInit) {
     }
   });
 }
-

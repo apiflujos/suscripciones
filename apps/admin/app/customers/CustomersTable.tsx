@@ -203,7 +203,7 @@ export function CustomersTable({
                   >
                     <input type="hidden" name="customerId" value={c.id} />
                     <input type="hidden" name="customerName" value={c.name || ""} />
-                    <input className="input" name="amount" placeholder="$ 10000" inputMode="numeric" />
+                    <input className="input" name="amount" placeholder="$ 10000" inputMode="numeric" aria-label="Monto" />
                     <button className="primary" type="submit" disabled={sendingId === c.id}>
                       {sendingId === c.id ? "Enviando..." : "Enviar link"}
                     </button>

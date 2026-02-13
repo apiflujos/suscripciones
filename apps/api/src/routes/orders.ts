@@ -104,17 +104,35 @@ ordersRouter.post("/", async (req, res) => {
   const redirectUrl = await getWompiRedirectUrl();
   const customerName = customer.name || "Cliente";
   const itemName = parsed.data.lineItems?.[0]?.name ? String(parsed.data.lineItems[0].name) : "Producto";
-  const created = await wompi.createPaymentLink({
-    name: `Pago a ${customerName}`,
-    description: itemName,
-    single_use: true,
-    collect_shipping: false,
-    currency: parsed.data.currency,
-    amount_in_cents: totals.total,
-    expires_at: parsed.data.expiresAt,
-    redirect_url: redirectUrl,
-    sku: payment.id
-  });
+  let created: Awaited<ReturnType<WompiClient["createPaymentLink"]>> | null = null;
+  try {
+    created = await wompi.createPaymentLink({
+      name: `Pago a ${customerName}`,
+      description: itemName,
+      single_use: true,
+      collect_shipping: false,
+      currency: parsed.data.currency,
+      amount_in_cents: totals.total,
+      expires_at: parsed.data.expiresAt,
+      redirect_url: redirectUrl,
+      sku: payment.id
+    });
+  } catch (err: any) {
+    await prisma.payment
+      .update({
+        where: { id: payment.id },
+        data: {
+          status: PaymentStatus.ERROR,
+          providerResponse: { ...(payment.providerResponse as any), wompiError: String(err?.message || err) } as any
+        }
+      })
+      .catch(() => {});
+    await systemLog(LogLevel.ERROR, "orders.create", "Wompi link creation failed", {
+      paymentId: payment.id,
+      err: String(err?.message || err)
+    }).catch(() => {});
+    return res.status(502).json({ error: "wompi_payment_link_failed" });
+  }
 
   const updated = await prisma.payment.update({
     where: { id: payment.id },

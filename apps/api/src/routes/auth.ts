@@ -11,7 +11,37 @@ const loginSchema = z.object({
   password: z.string().min(1)
 });
 
+const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+const LOGIN_WINDOW_MS = 10 * 60 * 1000;
+const LOGIN_MAX_ATTEMPTS = 8;
+
+function getClientKey(req: express.Request) {
+  const forwarded = String(req.header("x-forwarded-for") || "").split(",")[0]?.trim();
+  return forwarded || req.ip || "unknown";
+}
+
+function checkRateLimit(req: express.Request) {
+  const key = getClientKey(req);
+  const now = Date.now();
+  const existing = loginAttempts.get(key);
+  if (!existing || now >= existing.resetAt) {
+    loginAttempts.set(key, { count: 1, resetAt: now + LOGIN_WINDOW_MS });
+    return { ok: true };
+  }
+  if (existing.count >= LOGIN_MAX_ATTEMPTS) {
+    return { ok: false, retryAfterMs: existing.resetAt - now };
+  }
+  existing.count += 1;
+  return { ok: true };
+}
+
 authRouter.post("/login", async (req, res) => {
+  const rate = checkRateLimit(req);
+  if (!rate.ok) {
+    res.status(429).json({ error: "rate_limited", retryAfterMs: rate.retryAfterMs });
+    return;
+  }
+
   const parsed = loginSchema.safeParse(req.body ?? {});
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
 

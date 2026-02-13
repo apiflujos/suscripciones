@@ -77,7 +77,7 @@ export default async function CustomersPage({
             </div>
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
               <form action="/customers" method="GET" style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <input className="input" name="q" defaultValue={q} placeholder="Buscar..." />
+                <input className="input" name="q" defaultValue={q} placeholder="Buscar..." aria-label="Buscar contactos" />
                 <button className="ghost" type="submit">
                   Buscar
                 </button>
