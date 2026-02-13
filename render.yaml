@@ -13,12 +13,16 @@ services:
     startCommand: npm -w apps/api run start:migrate
     healthCheckPath: /healthz
     envVars:
+      - key: NODE_ENV
+        value: "production"
       - key: NODE_VERSION
         value: "20"
       - key: DATABASE_URL
         fromDatabase:
           name: wompi-subs-db
           property: connectionString
+      - key: CORS_ORIGINS
+        sync: false
       - key: ADMIN_API_TOKEN
         sync: false
       - key: WOMPI_EVENTS_SECRET
@@ -43,6 +47,8 @@ services:
         sync: false
       - key: CHATWOOT_INBOX_ID
         sync: false
+      - key: CHATWOOT_WEBHOOK_TOKEN
+        sync: false
       - key: CREDENTIALS_ENCRYPTION_KEY_B64
         sync: false
       - key: SUPER_ADMIN_EMAIL
@@ -58,6 +64,8 @@ services:
     buildCommand: npm ci && npm -w apps/api run build
     startCommand: npm -w apps/api run jobs:start
     envVars:
+      - key: NODE_ENV
+        value: "production"
       - key: NODE_VERSION
         value: "20"
       - key: DATABASE_URL
@@ -103,6 +111,8 @@ services:
     buildCommand: npm ci && npm -w apps/admin run build
     startCommand: npm -w apps/admin run start
     envVars:
+      - key: NODE_ENV
+        value: "production"
       - key: NODE_VERSION
         value: "20"
       - key: NEXT_PUBLIC_API_BASE_URL
