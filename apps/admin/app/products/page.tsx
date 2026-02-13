@@ -33,10 +33,13 @@ export default async function ProductsPage({
   const updated = typeof searchParams?.updated === "string" ? searchParams.updated : "";
   const error = typeof searchParams?.error === "string" ? searchParams.error : "";
   const q = typeof searchParams?.q === "string" ? searchParams.q : "";
+  const page = typeof searchParams?.page === "string" ? Number(searchParams.page) : 1;
 
   const sp = new URLSearchParams();
   if (q.trim()) sp.set("q", q.trim());
-  sp.set("take", "200");
+  const take = 200;
+  sp.set("take", String(take));
+  if (Number.isFinite(page) && page > 1) sp.set("skip", String((Math.trunc(page) - 1) * take));
   const products = await fetchAdmin(`/admin/products?${sp.toString()}`);
 
   const productItems = (products.json?.items ?? []) as any[];
@@ -75,6 +78,23 @@ export default async function ProductsPage({
             <NewPlanOrSubscriptionForm action={createPlanTemplate} catalogItems={productItems} />
 
             <ProductsTable items={productItems} />
+
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>
+              <a
+                className="ghost"
+                href={`/products?${new URLSearchParams({ ...(q ? { q } : {}), page: String(Math.max(1, (Number(page) || 1) - 1)) })}`}
+                aria-disabled={Number(page) <= 1}
+              >
+                Anterior
+              </a>
+              <a
+                className="ghost"
+                href={`/products?${new URLSearchParams({ ...(q ? { q } : {}), page: String((Number(page) || 1) + 1) })}`}
+                aria-disabled={productItems.length < take}
+              >
+                Siguiente
+              </a>
+            </div>
           </div>
         </div>
       </section>

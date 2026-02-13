@@ -37,6 +37,8 @@ productsRouter.get("/", async (_req, res) => {
   const req = _req as any;
   const takeRaw = Number(req?.query?.take ?? 200);
   const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 1000) : 200;
+  const skipRaw = Number(req?.query?.skip ?? 0);
+  const skip = Number.isFinite(skipRaw) ? Math.max(Math.trunc(skipRaw), 0) : 0;
   const q = String(req?.query?.q ?? "").trim();
 
   const where: any = { metadata: { path: ["kind"], equals: "CATALOG_ITEM" } } as any;
@@ -51,7 +53,8 @@ productsRouter.get("/", async (_req, res) => {
   const items = await prisma.subscriptionPlan.findMany({
     where,
     orderBy: { createdAt: "desc" },
-    take
+    take,
+    skip
   });
   res.json({
     items: items.map((p) => ({

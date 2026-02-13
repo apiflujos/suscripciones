@@ -31,6 +31,8 @@ customersRouter.get("/", async (_req, res) => {
   const req = _req as any;
   const takeRaw = Number(req?.query?.take ?? 50);
   const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 500) : 50;
+  const skipRaw = Number(req?.query?.skip ?? 0);
+  const skip = Number.isFinite(skipRaw) ? Math.max(Math.trunc(skipRaw), 0) : 0;
   const q = String(req?.query?.q ?? "").trim();
 
   const where: any = {};
@@ -47,7 +49,7 @@ customersRouter.get("/", async (_req, res) => {
     ];
   }
 
-  const items = await prisma.customer.findMany({ where, orderBy: { createdAt: "desc" }, take });
+  const items = await prisma.customer.findMany({ where, orderBy: { createdAt: "desc" }, take, skip });
   res.json({ items });
 });
 

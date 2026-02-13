@@ -10,12 +10,14 @@ function getConfig() {
   return getAdminApiConfig();
 }
 
-async function fetchCustomers(opts?: { q?: string; take?: number }) {
+async function fetchCustomers(opts?: { q?: string; take?: number; page?: number }) {
   const sp = new URLSearchParams();
   const q = String(opts?.q || "").trim();
   const take = Number(opts?.take ?? 200);
+  const page = Number(opts?.page ?? 1);
   if (q) sp.set("q", q);
   if (Number.isFinite(take) && take > 0) sp.set("take", String(Math.min(Math.trunc(take), 500)));
+  if (Number.isFinite(page) && page > 1) sp.set("skip", String((Math.trunc(page) - 1) * Math.min(Math.trunc(take), 500)));
 
   const path = sp.size ? `/admin/customers?${sp.toString()}` : "/admin/customers";
   const res = await fetchAdminCached(path, { ttlMs: 1500 });
@@ -53,7 +55,9 @@ export default async function CustomersPage({
   const { token } = getConfig();
   if (!token) return <main><h1 style={{ marginTop: 0 }}>Contactos</h1><p>Configura `ADMIN_API_TOKEN`.</p></main>;
   const q = typeof searchParams?.q === "string" ? searchParams.q : "";
-  const data = await fetchCustomers({ q, take: 200 });
+  const page = typeof searchParams?.page === "string" ? Number(searchParams.page) : 1;
+  const take = 200;
+  const data = await fetchCustomers({ q, take, page });
   const items = (data.items ?? []) as any[];
   const latestLinks = await fetchPaymentLinks(q);
   const latestLinksObj = Object.fromEntries(latestLinks.entries());
@@ -94,6 +98,23 @@ export default async function CustomersPage({
           <NewCustomerForm createCustomer={createCustomer} />
 
           <CustomersTable items={items} latestLinks={latestLinksObj} />
+
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>
+            <a
+              className="ghost"
+              href={`/customers?${new URLSearchParams({ ...(q ? { q } : {}), page: String(Math.max(1, (Number(page) || 1) - 1)) })}`}
+              aria-disabled={Number(page) <= 1}
+            >
+              Anterior
+            </a>
+            <a
+              className="ghost"
+              href={`/customers?${new URLSearchParams({ ...(q ? { q } : {}), page: String((Number(page) || 1) + 1) })}`}
+              aria-disabled={items.length < take}
+            >
+              Siguiente
+            </a>
+          </div>
         </div>
       </section>
     </main>
