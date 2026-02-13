@@ -14,7 +14,7 @@ Admin endpoints require:
 
 ## Webhooks
 - `POST /webhooks/wompi`
-- `POST /webhooks/chatwoot` (opcional `CHATWOOT_WEBHOOK_TOKEN`)
+- `POST /webhooks/chatwoot` (`CHATWOOT_WEBHOOK_TOKEN` requerido en producción)
 
 ## Admin: Customers
 - `GET /admin/customers?take=50&skip=0&q=...`
