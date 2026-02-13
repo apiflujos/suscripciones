@@ -25,7 +25,22 @@ export function createApp() {
   const app = express();
 
   app.use(pinoHttp({ logger }));
-  app.use(helmet());
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        useDefaults: true,
+        directives: {
+          "default-src": ["'self'"],
+          "base-uri": ["'self'"],
+          "object-src": ["'none'"],
+          "frame-ancestors": ["'none'"],
+          "img-src": ["'self'", "data:", "https:"],
+          "script-src": ["'self'"],
+          "style-src": ["'self'", "'unsafe-inline'"]
+        }
+      }
+    })
+  );
   const corsOriginsRaw = process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || "";
   const corsOrigins = corsOriginsRaw
     .split(",")
