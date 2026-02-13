@@ -12,6 +12,7 @@ const loginSchema = z.object({
 });
 
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+let loginRequests = 0;
 const LOGIN_WINDOW_MS = 10 * 60 * 1000;
 const LOGIN_MAX_ATTEMPTS = 8;
 
@@ -23,6 +24,12 @@ function getClientKey(req: express.Request) {
 function checkRateLimit(req: express.Request) {
   const key = getClientKey(req);
   const now = Date.now();
+  loginRequests += 1;
+  if (loginRequests % 200 === 0 && loginAttempts.size) {
+    for (const [k, v] of loginAttempts.entries()) {
+      if (now >= v.resetAt) loginAttempts.delete(k);
+    }
+  }
   const existing = loginAttempts.get(key);
   if (!existing || now >= existing.resetAt) {
     loginAttempts.set(key, { count: 1, resetAt: now + LOGIN_WINDOW_MS });

@@ -31,11 +31,14 @@ export function createApp() {
     .split(",")
     .map((o) => o.trim())
     .filter(Boolean);
+  const isProd = process.env.NODE_ENV === "production";
   app.use(
     cors(
       corsOrigins.length
         ? { origin: corsOrigins, credentials: true }
-        : { origin: true }
+        : isProd
+          ? { origin: false }
+          : { origin: true }
     )
   );
   app.use(express.json({ limit: "2mb" }));
@@ -43,11 +46,18 @@ export function createApp() {
   const rateLimitWindowMs = Math.max(10_000, Number(process.env.RATE_LIMIT_WINDOW_MS || 600_000));
   const rateLimitMax = Math.max(10, Number(process.env.RATE_LIMIT_MAX || 600));
   const rateBuckets = new Map<string, { count: number; resetAt: number }>();
+  let rateRequests = 0;
   app.use((req, res, next) => {
     if (req.path === "/health" || req.path === "/healthz") return next();
     const forwarded = String(req.header("x-forwarded-for") || "").split(",")[0]?.trim();
     const key = forwarded || req.ip || "unknown";
     const now = Date.now();
+    rateRequests += 1;
+    if (rateRequests % 200 === 0 && rateBuckets.size) {
+      for (const [k, v] of rateBuckets.entries()) {
+        if (now >= v.resetAt) rateBuckets.delete(k);
+      }
+    }
     const bucket = rateBuckets.get(key);
     if (!bucket || now >= bucket.resetAt) {
       rateBuckets.set(key, { count: 1, resetAt: now + rateLimitWindowMs });

@@ -20,6 +20,10 @@ function getConversationIdFromPayload(payload: any) {
 
 export async function chatwootWebhook(req: Request, res: Response) {
   const requiredToken = String(process.env.CHATWOOT_WEBHOOK_TOKEN || "").trim();
+  if (!requiredToken && process.env.NODE_ENV === "production") {
+    res.status(503).json({ error: "chatwoot_webhook_token_not_configured" });
+    return;
+  }
   if (requiredToken) {
     const headerToken = String(req.header("x-chatwoot-token") || "").trim();
     const auth = String(req.header("authorization") || "");
