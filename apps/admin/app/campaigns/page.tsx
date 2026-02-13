@@ -2,10 +2,13 @@ import { fetchAdminCached } from "../lib/adminApi";
 import { HelpTip } from "../ui/HelpTip";
 import { createCampaign, runCampaign } from "./actions";
 
-export default async function CampaignsPage({ searchParams }: { searchParams?: { error?: string; created?: string; running?: string } }) {
-  const listsRes = await fetchAdminCached("/admin/comms/smart-lists", { ttlMs: 0 });
+export default async function CampaignsPage({ searchParams }: { searchParams?: { error?: string; created?: string; running?: string; page?: string } }) {
+  const listsRes = await fetchAdminCached("/admin/comms/smart-lists?take=200", { ttlMs: 0 });
   const lists = Array.isArray(listsRes?.json?.items) ? listsRes.json.items : [];
-  const campaignsRes = await fetchAdminCached("/admin/comms/campaigns", { ttlMs: 0 });
+  const page = typeof searchParams?.page === "string" ? Number(searchParams.page) : 1;
+  const take = 100;
+  const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
+  const campaignsRes = await fetchAdminCached(`/admin/comms/campaigns?take=${take}&skip=${skip}`, { ttlMs: 0 });
   const items = Array.isArray(campaignsRes?.json?.items) ? campaignsRes.json.items : [];
 
   return (
@@ -83,6 +86,14 @@ export default async function CampaignsPage({ searchParams }: { searchParams?: {
               </div>
             </div>
           ))}
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>
+          <a className="ghost" href={`/campaigns?page=${Math.max(1, (Number(page) || 1) - 1)}`} aria-disabled={Number(page) <= 1}>
+            Anterior
+          </a>
+          <a className="ghost" href={`/campaigns?page=${(Number(page) || 1) + 1}`} aria-disabled={items.length < take}>
+            Siguiente
+          </a>
         </div>
       </div>
     </div>

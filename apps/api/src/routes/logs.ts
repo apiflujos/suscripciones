@@ -6,7 +6,8 @@ export const logsRouter = express.Router();
 
 logsRouter.get("/system", async (req, res) => {
   const take = Math.min(200, Math.max(1, Number(req.query.take ?? 100)));
-  const items = await prisma.systemLog.findMany({ orderBy: { createdAt: "desc" }, take });
+  const skip = Math.max(0, Number(req.query.skip ?? 0));
+  const items = await prisma.systemLog.findMany({ orderBy: { createdAt: "desc" }, take, skip });
   res.json({ items });
 });
 
@@ -20,9 +21,11 @@ logsRouter.get("/system/:id", async (req, res) => {
 
 logsRouter.get("/payments", async (req, res) => {
   const take = Math.min(200, Math.max(1, Number(req.query.take ?? 50)));
+  const skip = Math.max(0, Number(req.query.skip ?? 0));
   const items = await prisma.payment.findMany({
     orderBy: { createdAt: "desc" },
     take,
+    skip,
     include: { subscription: true, customer: true, attempts: { orderBy: { createdAt: "desc" }, take: 5 } }
   });
   res.json({ items });
@@ -30,15 +33,18 @@ logsRouter.get("/payments", async (req, res) => {
 
 logsRouter.get("/jobs", async (req, res) => {
   const take = Math.min(200, Math.max(1, Number(req.query.take ?? 50)));
-  const items = await prisma.retryJob.findMany({ orderBy: { updatedAt: "desc" }, take });
+  const skip = Math.max(0, Number(req.query.skip ?? 0));
+  const items = await prisma.retryJob.findMany({ orderBy: { updatedAt: "desc" }, take, skip });
   res.json({ items });
 });
 
 logsRouter.get("/messages", async (req, res) => {
   const take = Math.min(200, Math.max(1, Number(req.query.take ?? 100)));
+  const skip = Math.max(0, Number(req.query.skip ?? 0));
   const items = await prisma.chatwootMessage.findMany({
     orderBy: { createdAt: "desc" },
     take,
+    skip,
     include: { customer: true, subscription: true, payment: true }
   });
   res.json({ items });

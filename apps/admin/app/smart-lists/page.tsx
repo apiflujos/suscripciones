@@ -22,7 +22,10 @@ export default async function SmartListsPage({
 }: {
   searchParams?: { preview?: string; error?: string; created?: string; synced?: string; preset?: string; name?: string; description?: string; rules?: string };
 }) {
-  const listsRes = await fetchAdminCached("/admin/comms/smart-lists", { ttlMs: 0 });
+  const page = typeof searchParams?.page === "string" ? Number(searchParams.page) : 1;
+  const take = 100;
+  const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
+  const listsRes = await fetchAdminCached(`/admin/comms/smart-lists?take=${take}&skip=${skip}`, { ttlMs: 0 });
   const items = Array.isArray(listsRes?.json?.items) ? listsRes.json.items : [];
   const previewId = String(searchParams?.preview || "").trim();
   const preview = previewId ? await fetchPreview(previewId) : null;
@@ -120,6 +123,22 @@ export default async function SmartListsPage({
               ) : null}
             </div>
           ))}
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>
+          <a
+            className="ghost"
+            href={`/smart-lists?${new URLSearchParams({ ...(searchParams?.preview ? { preview: String(searchParams.preview) } : {}), page: String(Math.max(1, (Number(page) || 1) - 1)) })}`}
+            aria-disabled={Number(page) <= 1}
+          >
+            Anterior
+          </a>
+          <a
+            className="ghost"
+            href={`/smart-lists?${new URLSearchParams({ ...(searchParams?.preview ? { preview: String(searchParams.preview) } : {}), page: String((Number(page) || 1) + 1) })}`}
+            aria-disabled={items.length < take}
+          >
+            Siguiente
+          </a>
         </div>
       </div>
     </div>

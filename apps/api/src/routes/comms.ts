@@ -52,7 +52,12 @@ const testConnectionSchema = z.object({
 });
 
 commsRouter.get("/smart-lists", async (_req, res) => {
-  const items = await prisma.smartList.findMany({ orderBy: { createdAt: "desc" } });
+  const req = _req as any;
+  const takeRaw = Number(req?.query?.take ?? 100);
+  const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 500) : 100;
+  const skipRaw = Number(req?.query?.skip ?? 0);
+  const skip = Number.isFinite(skipRaw) ? Math.max(Math.trunc(skipRaw), 0) : 0;
+  const items = await prisma.smartList.findMany({ orderBy: { createdAt: "desc" }, take, skip });
   res.json({ items });
 });
 
@@ -213,6 +218,8 @@ commsRouter.get("/smart-lists/:id/members", async (req, res) => {
   const id = String(req.params.id || "").trim();
   const takeRaw = Number((req as any)?.query?.take ?? 50);
   const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 200) : 50;
+  const skipRaw = Number((req as any)?.query?.skip ?? 0);
+  const skip = Number.isFinite(skipRaw) ? Math.max(Math.trunc(skipRaw), 0) : 0;
   const activeParam = String((req as any)?.query?.active ?? "").trim();
   const active = activeParam ? activeParam === "1" || activeParam.toLowerCase() === "true" : undefined;
 
@@ -226,6 +233,7 @@ commsRouter.get("/smart-lists/:id/members", async (req, res) => {
     where,
     orderBy: { updatedAt: "desc" },
     take,
+    skip,
     include: { customer: true }
   });
 
@@ -261,11 +269,16 @@ const campaignCreateSchema = z.object({
   name: z.string().min(1),
   smartListId: z.string().min(1).optional(),
   content: z.string().min(1),
-  templateParams: z.any().optional()
+  templateParams: z.record(z.any()).optional()
 });
 
 commsRouter.get("/campaigns", async (_req, res) => {
-  const items = await prisma.campaign.findMany({ orderBy: { createdAt: "desc" } });
+  const req = _req as any;
+  const takeRaw = Number(req?.query?.take ?? 100);
+  const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 500) : 100;
+  const skipRaw = Number(req?.query?.skip ?? 0);
+  const skip = Number.isFinite(skipRaw) ? Math.max(Math.trunc(skipRaw), 0) : 0;
+  const items = await prisma.campaign.findMany({ orderBy: { createdAt: "desc" }, take, skip });
   res.json({ items });
 });
 
@@ -294,7 +307,7 @@ commsRouter.get("/campaigns/:id", async (req, res) => {
 const campaignUpdateSchema = z.object({
   name: z.string().min(1).optional(),
   content: z.string().min(1).optional(),
-  templateParams: z.any().optional(),
+  templateParams: z.record(z.any()).optional(),
   smartListId: z.string().min(1).nullable().optional(),
   status: z.enum(["DRAFT", "RUNNING", "PAUSED", "COMPLETED", "FAILED"]).optional()
 });
@@ -339,10 +352,15 @@ commsRouter.post("/campaigns/:id/run", async (req, res) => {
 
 commsRouter.get("/campaigns/:id/sends", async (req, res) => {
   const id = String(req.params.id || "").trim();
+  const takeRaw = Number((req as any)?.query?.take ?? 200);
+  const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 500) : 200;
+  const skipRaw = Number((req as any)?.query?.skip ?? 0);
+  const skip = Number.isFinite(skipRaw) ? Math.max(Math.trunc(skipRaw), 0) : 0;
   const items = await prisma.campaignSend.findMany({
     where: { campaignId: id },
     orderBy: { createdAt: "desc" },
-    take: 200
+    take,
+    skip
   });
   res.json({ items });
 });

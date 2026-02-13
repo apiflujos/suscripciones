@@ -1,16 +1,19 @@
 import { fetchAdminCached } from "../../lib/adminApi";
 import Link from "next/link";
 
-async function fetchMembers(id: string) {
-  return fetchAdminCached(`/admin/comms/smart-lists/${encodeURIComponent(id)}/members?active=1&take=200`, { ttlMs: 0 });
+async function fetchMembers(id: string, page = 1) {
+  const take = 200;
+  const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
+  return fetchAdminCached(`/admin/comms/smart-lists/${encodeURIComponent(id)}/members?active=1&take=${take}&skip=${skip}`, { ttlMs: 0 });
 }
 
-export default async function SmartListDetail({ params }: { params: { id: string } }) {
+export default async function SmartListDetail({ params, searchParams }: { params: { id: string }; searchParams?: { page?: string } }) {
   const id = params.id;
+  const page = typeof searchParams?.page === "string" ? Number(searchParams.page) : 1;
   const listRes = await fetchAdminCached(`/admin/comms/smart-lists/${encodeURIComponent(id)}`, { ttlMs: 0 });
   const list = listRes.ok ? listRes.json?.smartList : null;
 
-  const membersRes = await fetchMembers(id);
+  const membersRes = await fetchMembers(id, page);
   const items = Array.isArray(membersRes?.json?.items) ? membersRes.json.items : [];
 
   if (!list) {
@@ -44,6 +47,14 @@ export default async function SmartListDetail({ params }: { params: { id: string
               </div>
             </div>
           ))}
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>
+          <a className="ghost" href={`/smart-lists/${id}?page=${Math.max(1, (Number(page) || 1) - 1)}`} aria-disabled={Number(page) <= 1}>
+            Anterior
+          </a>
+          <a className="ghost" href={`/smart-lists/${id}?page=${(Number(page) || 1) + 1}`} aria-disabled={items.length < 200}>
+            Siguiente
+          </a>
         </div>
       </div>
     </div>

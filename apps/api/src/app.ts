@@ -40,6 +40,37 @@ export function createApp() {
   );
   app.use(express.json({ limit: "2mb" }));
 
+  const rateLimitWindowMs = Math.max(10_000, Number(process.env.RATE_LIMIT_WINDOW_MS || 600_000));
+  const rateLimitMax = Math.max(10, Number(process.env.RATE_LIMIT_MAX || 600));
+  const rateBuckets = new Map<string, { count: number; resetAt: number }>();
+  app.use((req, res, next) => {
+    if (req.path === "/health" || req.path === "/healthz") return next();
+    const forwarded = String(req.header("x-forwarded-for") || "").split(",")[0]?.trim();
+    const key = forwarded || req.ip || "unknown";
+    const now = Date.now();
+    const bucket = rateBuckets.get(key);
+    if (!bucket || now >= bucket.resetAt) {
+      rateBuckets.set(key, { count: 1, resetAt: now + rateLimitWindowMs });
+    } else {
+      bucket.count += 1;
+      if (bucket.count > rateLimitMax) {
+        const retryAfter = Math.ceil((bucket.resetAt - now) / 1000);
+        res.setHeader("Retry-After", String(retryAfter));
+        res.setHeader("X-RateLimit-Limit", String(rateLimitMax));
+        res.setHeader("X-RateLimit-Remaining", "0");
+        res.setHeader("X-RateLimit-Reset", String(Math.ceil(bucket.resetAt / 1000)));
+        return res.status(429).json({ error: "rate_limited" });
+      }
+    }
+    const active = rateBuckets.get(key);
+    if (active) {
+      res.setHeader("X-RateLimit-Limit", String(rateLimitMax));
+      res.setHeader("X-RateLimit-Remaining", String(Math.max(0, rateLimitMax - active.count)));
+      res.setHeader("X-RateLimit-Reset", String(Math.ceil(active.resetAt / 1000)));
+    }
+    next();
+  });
+
   app.get("/healthz", healthz);
   app.get("/health", health);
   app.post("/webhooks/wompi", wompiWebhook);
