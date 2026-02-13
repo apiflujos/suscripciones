@@ -81,19 +81,59 @@ export function CustomersTable({
           const statusLabel = status === "SENT" ? "Enviado" : status === "FAILED" ? "Falló" : status === "PENDING" ? "Pendiente" : "";
           const formId = `send-link-${c.id}`;
           return (
-            <div className="contact-card contact-card-horizontal" key={c.id}>
+            <div className="contact-card" key={c.id}>
               <div className="contact-left">
-                <div className="contact-header">
+                <div className="contact-section-title">Información personal</div>
+                <div className="contact-person-grid">
                   <div>
-                    <div className="contact-title">{c.name || "—"}</div>
-                    <div className="contact-subline">{c.email || "—"}</div>
+                    <span>Nombre</span>
+                    <strong>{c.name || "—"}</strong>
                   </div>
-                  <div className="contact-subline">{c.phone || "—"}</div>
+                  <div>
+                    <span>Email</span>
+                    {c.email || "—"}
+                  </div>
+                  <div>
+                    <span>Teléfono</span>
+                    {c.phone || "—"}
+                  </div>
+                  <div>
+                    <span>Identificación</span>
+                    {c.metadata?.identificacion || c.metadata?.identificationNumber || "—"}
+                  </div>
+                  <div>
+                    <span>Ciudad</span>
+                    {c.metadata?.address?.city || "—"}
+                  </div>
+                  <div>
+                    <span>Dirección</span>
+                    {c.metadata?.address?.line1 || "—"}
+                  </div>
+                  <div>
+                    <span>Creado</span>
+                    <LocalDateTime value={c.createdAt} />
+                  </div>
                 </div>
-                <div className="contact-meta-grid">
-                  <div><span>Identificación</span>{c.metadata?.identificacion || c.metadata?.identificationNumber || "—"}</div>
-                  <div><span>Ciudad</span>{c.metadata?.address?.city || "—"}</div>
-                  <div><span>Dirección</span>{c.metadata?.address?.line1 || "—"}</div>
+              </div>
+
+              <div className="contact-right">
+                <div className="contact-right-top">
+                  <div className="contact-section-title">Plan / Suscripción</div>
+                  <div className="contact-actions">
+                    <button className="icon-btn" type="button" onClick={() => openEditor(c)} aria-label="Editar">✎</button>
+                    <form
+                      action={deleteCustomer}
+                      className="delete-row"
+                      onSubmit={(e) => {
+                        if (!confirm("¿Eliminar contacto?")) e.preventDefault();
+                      }}
+                    >
+                      <input type="hidden" name="id" value={c.id} />
+                      <button className="icon-btn danger" type="submit" aria-label="Eliminar">🗑</button>
+                    </form>
+                  </div>
+                </div>
+                <div className="contact-plan-grid">
                   <div>
                     <span>Cobro auto</span>
                     {c.metadata?.wompi?.paymentSourceId ? (
@@ -104,13 +144,20 @@ export function CustomersTable({
                       </Link>
                     )}
                   </div>
-                  <div><span>Creado</span><LocalDateTime value={c.createdAt} /></div>
-                </div>
-              </div>
-
-              <div className="contact-right">
-                <div className="contact-actions">
-                  <button className="icon-btn" type="button" onClick={() => openEditor(c)} aria-label="Editar">✎</button>
+                  <div>
+                    <span>Estado link</span>
+                    {statusLabel ? (
+                      <span className={`pill ${status === "SENT" ? "pill-ok" : status === "FAILED" ? "pill-bad" : "pill-warn"}`}>
+                        {statusLabel}
+                      </span>
+                    ) : (
+                      "—"
+                    )}
+                  </div>
+                  <div>
+                    <span>Último link</span>
+                    {link?.createdAt ? <LocalDateTime value={link.createdAt} /> : "—"}
+                  </div>
                 </div>
                 <div className="contact-paylink">
                   <div className="paylink-title">Link de pago</div>
@@ -166,11 +213,6 @@ export function CustomersTable({
                       <a className="ghost" href={link.checkoutUrl} target="_blank" rel="noreferrer">
                         Link de pago
                       </a>
-                      {statusLabel ? (
-                        <span className={`pill ${status === "SENT" ? "pill-ok" : status === "FAILED" ? "pill-bad" : "pill-warn"}`}>
-                          {statusLabel}
-                        </span>
-                      ) : null}
                     </div>
                   ) : null}
                   {status === "FAILED" && errorMsg ? <div className="paylink-error">{errorMsg}</div> : null}
@@ -197,16 +239,6 @@ export function CustomersTable({
                     </button>
                   ) : null}
                 </div>
-                <form
-                  action={deleteCustomer}
-                  className="delete-row"
-                  onSubmit={(e) => {
-                    if (!confirm("¿Eliminar contacto?")) e.preventDefault();
-                  }}
-                >
-                  <input type="hidden" name="id" value={c.id} />
-                  <button className="icon-btn danger" type="submit" aria-label="Eliminar">🗑</button>
-                </form>
               </div>
             </div>
           );
