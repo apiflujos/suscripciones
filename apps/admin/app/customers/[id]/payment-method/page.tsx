@@ -30,10 +30,12 @@ export default async function CustomerPaymentMethodPage({
     );
   }
 
-  const [settings, customers] = await Promise.all([fetchAdmin("/admin/settings"), fetchAdmin("/admin/customers")]);
+  const [settings, customerRes] = await Promise.all([
+    fetchAdmin("/admin/settings"),
+    fetchAdmin(`/admin/customers/${encodeURIComponent(params.id)}`)
+  ]);
   const publicKey = String(settings.json?.wompi?.publicKey || "").trim();
-  const items = (customers.json?.items ?? []) as any[];
-  const customer = items.find((c) => c.id === params.id);
+  const customer = customerRes.ok ? (customerRes.json?.customer ?? null) : null;
 
   if (!customer) {
     return (

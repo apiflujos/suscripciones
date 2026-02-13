@@ -16,7 +16,7 @@ export function LoginForm({
       <input type="hidden" name="next" value={next} />
       <div className="field">
         <label>Usuario</label>
-        <input name="email" className="input loginInput" placeholder="comercial@apiflujos.com" autoComplete="username" />
+        <input name="email" className="input loginInput" placeholder="comercial@apiflujos.com" autoComplete="username" required />
       </div>
       <div className="field">
         <label>Contraseña</label>
@@ -26,6 +26,7 @@ export function LoginForm({
             className="input loginInput"
             type={show ? "text" : "password"}
             autoComplete="current-password"
+            required
           />
           <button type="button" className="loginToggle" onClick={() => setShow((v) => !v)}>
             {show ? "Ocultar" : "Ver"}

@@ -35,7 +35,14 @@ export async function createCampaign(formData: FormData) {
   const smartListId = String(formData.get("smartListId") || "").trim();
   const content = String(formData.get("content") || "").trim();
   const templateParamsRaw = String(formData.get("templateParams") || "").trim();
-  const templateParams = templateParamsRaw ? JSON.parse(templateParamsRaw) : undefined;
+  let templateParams: any = undefined;
+  if (templateParamsRaw) {
+    try {
+      templateParams = JSON.parse(templateParamsRaw);
+    } catch {
+      return redirect("/campaigns?error=invalid_template_params");
+    }
+  }
 
   try {
     await adminFetch("/admin/comms/campaigns", {

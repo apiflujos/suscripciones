@@ -10,6 +10,8 @@ import {
   updateWompi
 } from "./actions";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
+import { cookies } from "next/headers";
+import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
 import { HelpTip } from "../ui/HelpTip";
 import { PendingButton } from "../ui/PendingButton";
 import { DualActionButtons } from "../ui/DualActionButtons";
@@ -41,6 +43,10 @@ export default async function SettingsPage({
 
   const settingsRes = await fetchSettings();
   const settings = settingsRes.ok ? settingsRes.json : null;
+  const sessionToken = cookies().get(ADMIN_SESSION_COOKIE)?.value || "";
+  const session = await verifyAdminSessionToken(sessionToken);
+  const showTokenInfo = process.env.NODE_ENV !== "production" || session?.role === "SUPER_ADMIN";
+
   const tokenInfo = (() => {
     const raw = String(process.env.ADMIN_API_TOKEN || "");
     const normalized = raw.replace(/^Bearer\\s+/i, "").trim().replace(/^\"|\"$/g, "").replace(/^'|'$/g, "").trim();
@@ -76,7 +82,7 @@ export default async function SettingsPage({
         <div className="card cardPad">
           No se pudo consultar el API (<span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{settingsRes.status || "sin respuesta"}</span>
           ). Revisa `NEXT_PUBLIC_API_BASE_URL` y que el token del Admin coincida con `ADMIN_API_TOKEN` del API.
-          <div style={{ marginTop: 8, color: "#666" }}>Token (Admin): {tokenInfo}.</div>
+          {showTokenInfo ? <div style={{ marginTop: 8, color: "#666" }}>Token (Admin): {tokenInfo}.</div> : null}
         </div>
       ) : null}
 

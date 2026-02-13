@@ -139,22 +139,22 @@ export function NewBillingAssignmentForm({
   const filteredPlans = useMemo(() => {
     const q = planQ.trim().toLowerCase();
     const list = plans.slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "es"));
-    if (!q) return list.slice(0, 300);
-    return list.filter((p) => `${p.name || ""} ${p.id}`.toLowerCase().includes(q)).slice(0, 300);
+    if (!q) return list.slice(0, 200);
+    return list.filter((p) => `${p.name || ""} ${p.id}`.toLowerCase().includes(q)).slice(0, 200);
   }, [plans, planQ]);
 
   const filteredCustomers = useMemo(() => {
     const q = customerQ.trim().toLowerCase();
     if (q.length >= 2) {
       const list = customerHits.slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "es"));
-      return list.slice(0, 300);
+      return list.slice(0, 200);
     }
 
     const list = customers.slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "es"));
-    if (!q) return list.slice(0, 300);
+    if (!q) return list.slice(0, 200);
     return list
       .filter((c) => `${c.name || ""} ${c.email || ""} ${c.phone || ""} ${c.metadata?.identificacion || ""} ${c.id}`.toLowerCase().includes(q))
-      .slice(0, 300);
+      .slice(0, 200);
   }, [customers, customerHits, customerQ]);
 
   useEffect(() => {

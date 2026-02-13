@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import { deleteCustomer, updateCustomer } from "./actions";
 import { LocalDateTime } from "../ui/LocalDateTime";
@@ -44,6 +44,8 @@ export function CustomersTable({
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [sendError, setSendError] = useState<Record<string, string>>({});
   const [sendOk, setSendOk] = useState<Record<string, string>>({});
+  const modalRef = useRef<HTMLDivElement | null>(null);
+  const lastActiveRef = useRef<HTMLElement | null>(null);
 
   const modalTitle = useMemo(() => (editing ? `Editar: ${editing.name || editing.email || "Contacto"}` : "Editar contacto"), [editing]);
 
@@ -57,6 +59,7 @@ export function CustomersTable({
   }
 
   function openEditor(item: CustomerRow) {
+    lastActiveRef.current = document.activeElement as HTMLElement | null;
     setEditing(item);
     setOpen(true);
     setName(item.name || "");
@@ -69,6 +72,43 @@ export function CustomersTable({
     setCity(String(item.metadata?.address?.city || ""));
     setCode5(String(item.metadata?.address?.code5 || ""));
     setDane8(String(item.metadata?.address?.dane8 || ""));
+  }
+
+  function closeEditor() {
+    setOpen(false);
+    setEditing(null);
+    setTimeout(() => lastActiveRef.current?.focus(), 0);
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    const el = modalRef.current;
+    if (!el) return;
+    const first = el.querySelector<HTMLElement>("input, select, textarea, button");
+    first?.focus();
+  }, [open]);
+
+  function onModalKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      closeEditor();
+      return;
+    }
+    if (e.key !== "Tab") return;
+    const root = modalRef.current;
+    if (!root) return;
+    const focusables = Array.from(root.querySelectorAll<HTMLElement>("input, select, textarea, button, [tabindex]"))
+      .filter((el) => !el.hasAttribute("disabled") && el.tabIndex >= 0);
+    if (!focusables.length) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
   }
 
   return (
@@ -259,10 +299,18 @@ export function CustomersTable({
             padding: 16
           }}
         >
-          <div className="panel module" style={{ width: "min(860px, 96vw)", maxHeight: "90vh", overflow: "auto" }}>
+          <div
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="customer-edit-title"
+            className="panel module"
+            style={{ width: "min(860px, 96vw)", maxHeight: "90vh", overflow: "auto" }}
+            onKeyDown={onModalKeyDown}
+          >
             <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 style={{ margin: 0 }}>{modalTitle}</h3>
-              <button type="button" className="ghost" onClick={() => setOpen(false)}>
+              <h3 id="customer-edit-title" style={{ margin: 0 }}>{modalTitle}</h3>
+              <button type="button" className="ghost" onClick={closeEditor}>
                 Cerrar
               </button>
             </div>
@@ -320,7 +368,7 @@ export function CustomersTable({
               </div>
 
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-                <button className="ghost" type="button" onClick={() => setOpen(false)}>
+                <button className="ghost" type="button" onClick={closeEditor}>
                   Cancelar
                 </button>
                 <button className="primary" type="submit">

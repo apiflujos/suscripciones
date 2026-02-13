@@ -36,7 +36,7 @@ export default async function ProductsPage({
 
   const sp = new URLSearchParams();
   if (q.trim()) sp.set("q", q.trim());
-  sp.set("take", "500");
+  sp.set("take", "200");
   const products = await fetchAdmin(`/admin/products?${sp.toString()}`);
 
   const productItems = (products.json?.items ?? []) as any[];

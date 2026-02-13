@@ -126,11 +126,18 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
   const smartListRulesParam = encodeURIComponent(JSON.stringify(smartListRules));
   const hasFiltersApplied = tipo !== "todos" || estado !== "todos" || Boolean(q.trim());
 
+  const subParams = new URLSearchParams();
+  subParams.set("take", "300");
+  if (q.trim()) subParams.set("q", q.trim());
+  if (estado !== "todos") subParams.set("estado", estado);
+  if (tipo === "suscripciones") subParams.set("collectionMode", "AUTO_DEBIT");
+  if (tipo === "planes") subParams.set("collectionMode", "MANUAL_LINK");
+
   const [subs, plans, customers, products] = await Promise.all([
-    fetchAdmin("/admin/subscriptions"),
-    fetchAdmin("/admin/plans"),
-    fetchAdmin("/admin/customers"),
-    fetchAdmin("/admin/products")
+    fetchAdmin(`/admin/subscriptions?${subParams.toString()}`),
+    fetchAdmin("/admin/plans?take=200"),
+    fetchAdmin("/admin/customers?take=200"),
+    fetchAdmin("/admin/products?take=200")
   ]);
   const subItems = (subs.json?.items ?? []) as any[];
   const planItems = (plans.json?.items ?? []) as any[];

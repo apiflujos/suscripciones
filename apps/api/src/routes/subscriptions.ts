@@ -19,9 +19,40 @@ const createSubscriptionSchema = z.object({
 export const subscriptionsRouter = express.Router();
 
 subscriptionsRouter.get("/", async (_req, res) => {
+  const req = _req as any;
+  const takeRaw = Number(req?.query?.take ?? 50);
+  const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 500) : 50;
+  const q = String(req?.query?.q ?? "").trim();
+  const estado = String(req?.query?.estado ?? "").trim();
+  const collectionMode = String(req?.query?.collectionMode ?? "").trim();
+
+  const where: any = {};
+  if (estado === "mora") where.status = SubscriptionStatus.PAST_DUE;
+  else if (estado === "si") where.status = SubscriptionStatus.ACTIVE;
+  else if (estado === "no") where.status = { notIn: [SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE] };
+
+  if (collectionMode) {
+    where.plan = { metadata: { path: ["collectionMode"], equals: collectionMode } } as any;
+  }
+
+  if (q) {
+    where.customer = {
+      OR: [
+        { name: { contains: q, mode: "insensitive" } },
+        { email: { contains: q, mode: "insensitive" } },
+        { phone: { contains: q, mode: "insensitive" } },
+        { metadata: { path: ["identificacion"], string_contains: q } } as any,
+        { metadata: { path: ["identificacionNumero"], string_contains: q } } as any,
+        { metadata: { path: ["documentNumber"], string_contains: q } } as any,
+        { metadata: { path: ["document"], string_contains: q } } as any
+      ]
+    };
+  }
+
   const items = await prisma.subscription.findMany({
+    where,
     orderBy: { createdAt: "desc" },
-    take: 50,
+    take,
     include: { customer: true, plan: true }
   });
   const subscriptionIds = items.map((s) => s.id);

@@ -51,6 +51,14 @@ customersRouter.get("/", async (_req, res) => {
   res.json({ items });
 });
 
+customersRouter.get("/:id", async (req, res) => {
+  const customerId = String(req.params.id || "").trim();
+  if (!customerId) return res.status(400).json({ error: "invalid_id" });
+  const customer = await prisma.customer.findUnique({ where: { id: customerId } });
+  if (!customer) return res.status(404).json({ error: "customer_not_found" });
+  res.json({ customer });
+});
+
 customersRouter.post("/", async (req, res) => {
   const parsed = createCustomerSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });

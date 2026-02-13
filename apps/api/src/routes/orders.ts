@@ -47,10 +47,24 @@ function computeTotals(input: z.infer<typeof createOrderSchema>) {
 export const ordersRouter = express.Router();
 
 ordersRouter.get("/", async (_req, res) => {
+  const req = _req as any;
+  const takeRaw = Number(req?.query?.take ?? 50);
+  const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 500) : 50;
+  const q = String(req?.query?.q ?? "").trim();
+
+  const where: any = { subscriptionId: null, wompiPaymentLinkId: { not: null } };
+  if (q) {
+    where.OR = [
+      { reference: { contains: q, mode: "insensitive" } },
+      { customer: { name: { contains: q, mode: "insensitive" } } },
+      { customer: { email: { contains: q, mode: "insensitive" } } }
+    ];
+  }
+
   const items = await prisma.payment.findMany({
-    where: { subscriptionId: null, wompiPaymentLinkId: { not: null } },
+    where,
     orderBy: { createdAt: "desc" },
-    take: 50,
+    take,
     include: {
       customer: true,
       chatwootMsgs: { orderBy: { createdAt: "desc" }, take: 1 }

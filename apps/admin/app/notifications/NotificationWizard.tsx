@@ -245,9 +245,11 @@ export function NotificationWizard({
 
       <div className="settings-group-body">
         <div className="panel module" style={{ display: "grid", gap: 12 }}>
-          {submitOk ? <div className="card cardPad">{submitOk}</div> : null}
+          <div aria-live="polite" role="status">
+            {submitOk ? <div className="card cardPad">{submitOk}</div> : null}
+          </div>
           {submitError ? (
-            <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>
+            <div className="card cardPad" style={{ borderColor: "var(--danger)" }} role="alert">
               Error: {submitError}
             </div>
           ) : null}

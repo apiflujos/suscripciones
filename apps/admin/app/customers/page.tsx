@@ -22,8 +22,11 @@ async function fetchCustomers(opts?: { q?: string; take?: number }) {
   return res.json || { items: [] as any[] };
 }
 
-async function fetchPaymentLinks() {
-  const res = await fetchAdminCached("/admin/orders", { ttlMs: 1500 });
+async function fetchPaymentLinks(q: string) {
+  const sp = new URLSearchParams();
+  sp.set("take", "200");
+  if (q.trim()) sp.set("q", q.trim());
+  const res = await fetchAdminCached(`/admin/orders?${sp.toString()}`, { ttlMs: 1500 });
   const data = res.json || { items: [] as any[] };
   const items = Array.isArray(data.items) ? data.items : [];
   const latestByCustomer = new Map<string, { checkoutUrl: string; createdAt: string; chatwootStatus: string; chatwootError?: string }>();
@@ -52,7 +55,7 @@ export default async function CustomersPage({
   const q = typeof searchParams?.q === "string" ? searchParams.q : "";
   const data = await fetchCustomers({ q, take: 200 });
   const items = (data.items ?? []) as any[];
-  const latestLinks = await fetchPaymentLinks();
+  const latestLinks = await fetchPaymentLinks(q);
   const latestLinksObj = Object.fromEntries(latestLinks.entries());
 
   return (
