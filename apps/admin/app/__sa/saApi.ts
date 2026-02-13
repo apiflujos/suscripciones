@@ -7,8 +7,9 @@ import { assertSameOrigin } from "../lib/csrf";
 
 export const SA_COOKIE = "sa_session";
 
-export function getSaSessionToken() {
-  const v = cookies().get(SA_COOKIE)?.value || "";
+export async function getSaSessionToken() {
+  const c = await cookies();
+  const v = c.get(SA_COOKIE)?.value || "";
   return normalizeToken(v);
 }
 
@@ -19,9 +20,9 @@ async function fetchJson(url: string, init: RequestInit) {
 }
 
 export async function saAdminFetch(path: string, init: RequestInit) {
-  assertSameOrigin();
+  await assertSameOrigin();
   const { apiBase, token } = getAdminApiConfig();
-  const saToken = getSaSessionToken();
+  const saToken = await getSaSessionToken();
   if (!token) return { ok: false, status: 401, json: { error: "missing_admin_token" } };
   if (!saToken) return { ok: false, status: 401, json: { error: "missing_sa_session" } };
 
@@ -37,7 +38,7 @@ export async function saAdminFetch(path: string, init: RequestInit) {
 }
 
 export async function adminFetchNoSa(path: string, init: RequestInit) {
-  assertSameOrigin();
+  await assertSameOrigin();
   const { apiBase, token } = getAdminApiConfig();
   if (!token) return { ok: false, status: 401, json: { error: "missing_admin_token" } };
   return fetchJson(`${apiBase}${path}`, {

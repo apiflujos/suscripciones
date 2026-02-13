@@ -1,8 +1,9 @@
 import { headers } from "next/headers";
 
-export function assertSameOrigin() {
-  const origin = headers().get("origin");
-  const host = headers().get("host");
+export async function assertSameOrigin() {
+  const h = await headers();
+  const origin = h.get("origin");
+  const host = h.get("host");
   if (!origin || !host) return;
   try {
     const originHost = new URL(origin).host;

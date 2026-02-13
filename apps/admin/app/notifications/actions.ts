@@ -13,7 +13,7 @@ function toShortErrorMessage(err: unknown) {
 }
 
 async function adminFetch(path: string, init: RequestInit) {
-  assertSameOrigin();
+  await assertSameOrigin();
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {

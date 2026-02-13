@@ -4,7 +4,8 @@ import { redirect } from "next/navigation";
 import { SA_COOKIE, saAdminFetch } from "../saApi";
 
 export default async function SaLayout({ children }: { children: React.ReactNode }) {
-  const token = cookies().get(SA_COOKIE)?.value || "";
+  const c = await cookies();
+  const token = c.get(SA_COOKIE)?.value || "";
   if (!token) redirect("/login?next=%2Fsa");
 
   const me = await saAdminFetch("/admin/sa/me", { method: "GET" });

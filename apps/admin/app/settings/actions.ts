@@ -31,7 +31,7 @@ function normalizeUrl(input: string) {
 }
 
 async function adminFetch(path: string, init: RequestInit) {
-  assertSameOrigin();
+  await assertSameOrigin();
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {

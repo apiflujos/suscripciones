@@ -36,7 +36,7 @@ function toShortErrorMessage(err: unknown) {
 }
 
 export async function adminLogin(formData: FormData) {
-  assertSameOrigin();
+  await assertSameOrigin();
   const email = String(formData.get("email") || "").trim();
   const password = String(formData.get("password") || "");
   const remember = String(formData.get("remember") || "").trim() === "1";
@@ -72,7 +72,8 @@ export async function adminLogin(formData: FormData) {
     if (!sessionEmail || !role) throw new Error("invalid_login_response");
 
     const sessionToken = await signAdminSession({ email: sessionEmail, role: role as any, tenantId }, { ttlSeconds: remember ? 60 * 60 * 24 * 30 : 60 * 60 * 12 });
-    cookies().set(ADMIN_SESSION_COOKIE, sessionToken, {
+    const cookieStore = await cookies();
+    cookieStore.set(ADMIN_SESSION_COOKIE, sessionToken, {
       httpOnly: true,
       sameSite: "lax",
       path: "/",
@@ -82,7 +83,7 @@ export async function adminLogin(formData: FormData) {
 
     const saToken = kind === "super_admin" ? String(json?.saToken || "").trim() : "";
     if (saToken) {
-      cookies().set("sa_session", saToken, {
+      cookieStore.set("sa_session", saToken, {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
@@ -99,7 +100,7 @@ export async function adminLogin(formData: FormData) {
 }
 
 export async function bootstrapSuperAdmin(formData: FormData) {
-  assertSameOrigin();
+  await assertSameOrigin();
   const email = String(formData.get("email") || "").trim();
   const password = String(formData.get("password") || "");
   const nextPath = safeNextPath(formData.get("next"));
@@ -125,13 +126,14 @@ export async function bootstrapSuperAdmin(formData: FormData) {
     if (!saToken) throw new Error("missing_sa_token");
 
     const sessionToken = await signAdminSession({ email, role: "SUPER_ADMIN", tenantId: null }, { ttlSeconds: 60 * 60 * 12 });
-    cookies().set(ADMIN_SESSION_COOKIE, sessionToken, {
+    const cookieStore = await cookies();
+    cookieStore.set(ADMIN_SESSION_COOKIE, sessionToken, {
       httpOnly: true,
       sameSite: "lax",
       path: "/",
       secure: process.env.NODE_ENV === "production"
     });
-    cookies().set("sa_session", saToken, {
+    cookieStore.set("sa_session", saToken, {
       httpOnly: true,
       sameSite: "lax",
       path: "/",

@@ -14,10 +14,12 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const pathname = headers().get("x-app-pathname") || "";
+  const h = await headers();
+  const pathname = h.get("x-app-pathname") || "";
   const isAuthScreen = pathname === "/login" || pathname === "/sa/login" || pathname === "/__sa/login";
 
-  const sessionToken = cookies().get(ADMIN_SESSION_COOKIE)?.value || "";
+  const c = await cookies();
+  const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
   const session = await verifyAdminSessionToken(sessionToken);
 
   return (

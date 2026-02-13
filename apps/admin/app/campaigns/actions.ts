@@ -11,7 +11,7 @@ function toShortErrorMessage(err: unknown) {
 }
 
 async function adminFetch(path: string, init: RequestInit) {
-  assertSameOrigin();
+  await assertSameOrigin();
   const { apiBase, token } = getAdminApiConfig();
   if (!token) throw new Error("missing_admin_token");
   const res = await fetch(`${apiBase}${path}`, {

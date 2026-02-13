@@ -23,7 +23,7 @@ function mergeQuery(path: string, extra: Record<string, string | undefined>) {
 }
 
 async function adminFetch(path: string, init: RequestInit) {
-  assertSameOrigin();
+  await assertSameOrigin();
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {

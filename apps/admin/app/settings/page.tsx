@@ -43,7 +43,8 @@ export default async function SettingsPage({
 
   const settingsRes = await fetchSettings();
   const settings = settingsRes.ok ? settingsRes.json : null;
-  const sessionToken = cookies().get(ADMIN_SESSION_COOKIE)?.value || "";
+  const c = await cookies();
+  const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
   const session = await verifyAdminSessionToken(sessionToken);
   const showTokenInfo = process.env.NODE_ENV !== "production" || session?.role === "SUPER_ADMIN";
 

@@ -24,7 +24,8 @@ export async function saLogin(formData: FormData) {
 
     const token = String(res.json?.token || "").trim();
     if (!token) throw new Error("missing_token");
-    cookies().set(SA_COOKIE, token, {
+    const cookieStore = await cookies();
+    cookieStore.set(SA_COOKIE, token, {
       httpOnly: true,
       sameSite: "lax",
       path: "/",
@@ -38,6 +39,7 @@ export async function saLogin(formData: FormData) {
 }
 
 export async function saLogout() {
-  cookies().delete(SA_COOKIE);
+  const cookieStore = await cookies();
+  cookieStore.delete(SA_COOKIE);
   redirect("/sa/login?loggedOut=1");
 }
