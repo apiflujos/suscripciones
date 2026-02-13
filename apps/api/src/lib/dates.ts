@@ -25,6 +25,8 @@ export function addIntervalUtc(date: Date, unit: PlanIntervalUnit, count: number
     const month0 = ((targetMonth % 12) + 12) % 12;
     const last = daysInMonth(targetYear, month0);
     d.setUTCFullYear(targetYear);
+    // Avoid JS date overflow when current day doesn't exist in target month.
+    d.setUTCDate(1);
     d.setUTCMonth(month0);
     d.setUTCDate(Math.min(day, last));
     return d;
@@ -34,4 +36,3 @@ export function addIntervalUtc(date: Date, unit: PlanIntervalUnit, count: number
   d.setUTCDate(d.getUTCDate() + c);
   return d;
 }
-

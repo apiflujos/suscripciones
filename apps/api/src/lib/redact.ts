@@ -1,6 +1,6 @@
 type HeaderValue = string | string[] | number | boolean | null | undefined;
 
-const SENSITIVE_HEADER_PARTS = ["authorization", "token", "api_key", "apikey", "secret", "signature"];
+const SENSITIVE_HEADER_PARTS = ["authorization", "token", "api_key", "api-key", "apikey", "secret", "signature"];
 
 export function redactHeaders(headers: Record<string, HeaderValue>) {
   const out: Record<string, HeaderValue> = {};
