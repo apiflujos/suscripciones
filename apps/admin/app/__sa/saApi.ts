@@ -3,6 +3,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { getAdminApiConfig } from "../lib/adminApi";
 import { normalizeToken } from "../lib/normalizeToken";
+import { assertSameOrigin } from "../lib/csrf";
 
 export const SA_COOKIE = "sa_session";
 
@@ -18,6 +19,7 @@ async function fetchJson(url: string, init: RequestInit) {
 }
 
 export async function saAdminFetch(path: string, init: RequestInit) {
+  assertSameOrigin();
   const { apiBase, token } = getAdminApiConfig();
   const saToken = getSaSessionToken();
   if (!token) return { ok: false, status: 401, json: { error: "missing_admin_token" } };
@@ -35,6 +37,7 @@ export async function saAdminFetch(path: string, init: RequestInit) {
 }
 
 export async function adminFetchNoSa(path: string, init: RequestInit) {
+  assertSameOrigin();
   const { apiBase, token } = getAdminApiConfig();
   if (!token) return { ok: false, status: 401, json: { error: "missing_admin_token" } };
   return fetchJson(`${apiBase}${path}`, {

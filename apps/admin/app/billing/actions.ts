@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { normalizeToken } from "../lib/normalizeToken";
+import { assertSameOrigin } from "../lib/csrf";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
 const TOKEN = normalizeToken(process.env.ADMIN_API_TOKEN || "");
@@ -22,6 +23,7 @@ function mergeQuery(path: string, extra: Record<string, string | undefined>) {
 }
 
 async function adminFetch(path: string, init: RequestInit) {
+  assertSameOrigin();
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {

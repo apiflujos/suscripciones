@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { isRedirectError } from "next/dist/client/components/redirect";
 import { getAdminApiConfig } from "../lib/adminApi";
+import { assertSameOrigin } from "../lib/csrf";
 import { ADMIN_SESSION_COOKIE, signAdminSession } from "../../lib/session";
 
 function safeNextPath(value: unknown) {
@@ -35,6 +36,7 @@ function toShortErrorMessage(err: unknown) {
 }
 
 export async function adminLogin(formData: FormData) {
+  assertSameOrigin();
   const email = String(formData.get("email") || "").trim();
   const password = String(formData.get("password") || "");
   const remember = String(formData.get("remember") || "").trim() === "1";
@@ -97,6 +99,7 @@ export async function adminLogin(formData: FormData) {
 }
 
 export async function bootstrapSuperAdmin(formData: FormData) {
+  assertSameOrigin();
   const email = String(formData.get("email") || "").trim();
   const password = String(formData.get("password") || "");
   const nextPath = safeNextPath(formData.get("next"));

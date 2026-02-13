@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { getAdminApiConfig } from "../lib/adminApi";
+import { assertSameOrigin } from "../lib/csrf";
 
 function toShortErrorMessage(err: unknown) {
   const raw = err instanceof Error ? err.message : String(err);
@@ -10,6 +11,7 @@ function toShortErrorMessage(err: unknown) {
 }
 
 async function adminFetch(path: string, init: RequestInit) {
+  assertSameOrigin();
   const { apiBase, token } = getAdminApiConfig();
   if (!token) throw new Error("missing_admin_token");
   const res = await fetch(`${apiBase}${path}`, {
