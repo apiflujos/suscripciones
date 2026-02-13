@@ -53,3 +53,18 @@ test("admin auth login: rate limit triggers after max attempts", async () =>
     assert.equal(blocked.status, 429);
     assert.equal(blocked.body?.error, "rate_limited");
   }));
+
+test("admin auth login: missing admin token is rejected", async () =>
+  withEnv({ ADMIN_API_TOKEN: "testtoken" }, async () => {
+    const app = createApp();
+    const res = await request(app).post("/admin/auth/login").send({});
+    assert.equal(res.status, 401);
+    assert.equal(res.body?.error, "unauthorized");
+  }));
+
+test("wompi webhook: invalid payload is rejected", async () => {
+  const app = createApp();
+  const res = await request(app).post("/webhooks/wompi").send({ hello: "world" });
+  assert.equal(res.status, 400);
+  assert.equal(res.body?.error, "invalid payload");
+});
