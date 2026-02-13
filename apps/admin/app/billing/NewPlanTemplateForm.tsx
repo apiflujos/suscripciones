@@ -302,8 +302,10 @@ export function NewPlanTemplateForm({
               <HelpTip text="Busca y selecciona un producto/servicio existente." />
             </label>
             <input className="input" placeholder="Buscar..." value={catalogQ} onChange={(e) => setCatalogQ(e.target.value)} aria-label="Buscar catálogo" />
-            {catalogSearching ? <div className="field-hint">Buscando…</div> : null}
-            {catalogSearchError ? <div className="field-hint" style={{ color: "rgba(217, 83, 79, 0.92)" }}>{catalogSearchError}</div> : null}
+                <div aria-live="polite">
+                  {catalogSearching ? <div className="field-hint">Buscando…</div> : null}
+                  {catalogSearchError ? <div className="field-hint" style={{ color: "rgba(217, 83, 79, 0.92)" }}>{catalogSearchError}</div> : null}
+                </div>
             <select
               className="select"
               name="catalogItemId"

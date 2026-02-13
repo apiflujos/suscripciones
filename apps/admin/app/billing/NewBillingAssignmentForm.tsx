@@ -340,8 +340,10 @@ export function NewBillingAssignmentForm({
                   placeholder="Buscar por nombre, email o identificación…"
                   aria-label="Buscar contacto"
                 />
-                {customerSearching ? <div className="field-hint">Buscando…</div> : null}
-                {customerSearchError ? <div className="field-hint" style={{ color: "rgba(217, 83, 79, 0.92)" }}>{customerSearchError}</div> : null}
+                <div aria-live="polite">
+                  {customerSearching ? <div className="field-hint">Buscando…</div> : null}
+                  {customerSearchError ? <div className="field-hint" style={{ color: "rgba(217, 83, 79, 0.92)" }}>{customerSearchError}</div> : null}
+                </div>
                 <select
                   className="select"
                   value={customerId}

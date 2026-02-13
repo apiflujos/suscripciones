@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { updateProduct } from "./actions";
 import { HelpTip } from "../ui/HelpTip";
 import { VariantsEditor } from "./VariantsEditor";
@@ -62,11 +62,14 @@ export function ProductsTable({ items }: { items: ProductRow[] }) {
   const [option2Name, setOption2Name] = useState("");
   const [variantOptionsCount, setVariantOptionsCount] = useState<0 | 1 | 2>(0);
   const [variantsJson, setVariantsJson] = useState("[]");
+  const modalRef = useRef<HTMLDivElement | null>(null);
+  const lastActiveRef = useRef<HTMLElement | null>(null);
 
   const showVariants = variantOptionsCount > 0 && kind === "PRODUCT";
   const showOption2 = showVariants && variantOptionsCount === 2;
 
   function openEditor(item: ProductRow) {
+    lastActiveRef.current = document.activeElement as HTMLElement | null;
     setEditing(item);
     setOpen(true);
     setKind(item.kind || "PRODUCT");
@@ -89,6 +92,43 @@ export function ProductsTable({ items }: { items: ProductRow[] }) {
     const hasOpt1 = Boolean(item.option1Name) || (item.variants || []).some((v) => v?.option1);
     setVariantOptionsCount(hasOpt2 ? 2 : hasOpt1 ? 1 : 0);
     setVariantsJson(JSON.stringify(item.variants || []));
+  }
+
+  function closeEditor() {
+    setOpen(false);
+    setEditing(null);
+    setTimeout(() => lastActiveRef.current?.focus(), 0);
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    const el = modalRef.current;
+    if (!el) return;
+    const first = el.querySelector<HTMLElement>("input, select, textarea, button");
+    first?.focus();
+  }, [open]);
+
+  function onModalKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      closeEditor();
+      return;
+    }
+    if (e.key !== "Tab") return;
+    const root = modalRef.current;
+    if (!root) return;
+    const focusables = Array.from(root.querySelectorAll<HTMLElement>("input, select, textarea, button, [tabindex]"))
+      .filter((el) => !el.hasAttribute("disabled") && el.tabIndex >= 0);
+    if (!focusables.length) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
   }
 
   const modalTitle = useMemo(() => (editing ? `Editar: ${editing.name}` : "Editar producto"), [editing]);
@@ -146,10 +186,18 @@ export function ProductsTable({ items }: { items: ProductRow[] }) {
             padding: 16
           }}
         >
-          <div className="panel module" style={{ width: "min(980px, 96vw)", maxHeight: "90vh", overflow: "auto" }}>
+          <div
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="product-edit-title"
+            className="panel module"
+            style={{ width: "min(980px, 96vw)", maxHeight: "90vh", overflow: "auto" }}
+            onKeyDown={onModalKeyDown}
+          >
             <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 style={{ margin: 0 }}>{modalTitle}</h3>
-              <button type="button" className="ghost" onClick={() => setOpen(false)}>
+              <h3 id="product-edit-title" style={{ margin: 0 }}>{modalTitle}</h3>
+              <button type="button" className="ghost" onClick={closeEditor}>
                 Cerrar
               </button>
             </div>
