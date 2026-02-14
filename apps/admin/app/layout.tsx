@@ -19,7 +19,14 @@ export const dynamic = "force-dynamic";
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const h = await headers();
   const pathname = h.get("x-app-pathname") || "";
-  const isAuthScreen = pathname === "/login" || pathname === "/sa/login" || pathname === "/__sa/login";
+  const isAuthScreen =
+    !pathname ||
+    pathname === "/login" ||
+    pathname === "/sa/login" ||
+    pathname === "/__sa/login" ||
+    pathname === "/404" ||
+    pathname === "/500" ||
+    pathname === "/_error";
 
   const c = await cookies();
   const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
