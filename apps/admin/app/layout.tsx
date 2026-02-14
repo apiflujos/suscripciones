@@ -14,6 +14,8 @@ export const metadata: Metadata = {
   icons: [{ rel: "icon", url: "/favicon.png" }]
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const h = await headers();
   const pathname = h.get("x-app-pathname") || "";
