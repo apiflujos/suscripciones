@@ -17,9 +17,10 @@ export default async function CustomerPaymentMethodPage({
   params,
   searchParams
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
   searchParams?: Promise<{ error?: string }>;
 }) {
+  const p = await params;
   const { token } = getConfig();
   if (!token) {
     return (
@@ -33,7 +34,7 @@ export default async function CustomerPaymentMethodPage({
   const sp = (await searchParams) ?? {};
   const [settings, customerRes] = await Promise.all([
     fetchAdmin("/admin/settings"),
-    fetchAdmin(`/admin/customers/${encodeURIComponent(params.id)}`)
+    fetchAdmin(`/admin/customers/${encodeURIComponent(p.id)}`)
   ]);
   const publicKey = String(settings.json?.wompi?.publicKey || "").trim();
   const customer = customerRes.ok ? (customerRes.json?.customer ?? null) : null;
