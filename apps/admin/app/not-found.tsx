@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 export const dynamic = "force-dynamic";
 
 export default function NotFound() {
@@ -10,9 +8,10 @@ export default function NotFound() {
         El recurso que buscas no existe o fue movido.
       </p>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-        <Link className="button" href="/">
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+        <a className="button" href="/">
           Ir al inicio
-        </Link>
+        </a>
       </div>
     </main>
   );
