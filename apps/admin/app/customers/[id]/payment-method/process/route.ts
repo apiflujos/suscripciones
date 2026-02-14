@@ -31,20 +31,21 @@ function tokenToType(token: string): "CARD" | "NEQUI" | "PSE" {
   return "CARD";
 }
 
-export async function POST(req: Request, ctx: { params: { id: string } }) {
+export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const { id } = await ctx.params;
   const { apiBase, token } = getConfig();
-  if (!token) return NextResponse.redirect(new URL(`/customers/${ctx.params.id}/payment-method?error=missing_admin_token`, req.url));
+  if (!token) return NextResponse.redirect(new URL(`/customers/${id}/payment-method?error=missing_admin_token`, req.url));
 
   const formData = await req.formData().catch(() => null);
-  if (!formData) return NextResponse.redirect(new URL(`/customers/${ctx.params.id}/payment-method?error=invalid_form`, req.url));
+  if (!formData) return NextResponse.redirect(new URL(`/customers/${id}/payment-method?error=invalid_form`, req.url));
 
   const wompiToken = detectToken(formData);
-  if (!wompiToken) return NextResponse.redirect(new URL(`/customers/${ctx.params.id}/payment-method?error=missing_token`, req.url));
+  if (!wompiToken) return NextResponse.redirect(new URL(`/customers/${id}/payment-method?error=missing_token`, req.url));
 
   const type = tokenToType(wompiToken);
 
   try {
-    const res = await fetch(`${apiBase}/admin/customers/${ctx.params.id}/wompi/payment-source`, {
+    const res = await fetch(`${apiBase}/admin/customers/${id}/wompi/payment-source`, {
       method: "POST",
       headers: {
         authorization: `Bearer ${token}`,
@@ -57,12 +58,12 @@ export async function POST(req: Request, ctx: { params: { id: string } }) {
     const json = await res.json().catch(() => null);
     if (!res.ok) {
       const msg = json?.error || `request_failed_${res.status}`;
-      return NextResponse.redirect(new URL(`/customers/${ctx.params.id}/payment-method?error=${encodeURIComponent(msg)}`, req.url));
+      return NextResponse.redirect(new URL(`/customers/${id}/payment-method?error=${encodeURIComponent(msg)}`, req.url));
     }
 
     return NextResponse.redirect(new URL(`/customers?paymentSource=1`, req.url));
   } catch (err: any) {
     const msg = err?.message ? String(err.message) : "request_failed";
-    return NextResponse.redirect(new URL(`/customers/${ctx.params.id}/payment-method?error=${encodeURIComponent(msg)}`, req.url));
+    return NextResponse.redirect(new URL(`/customers/${id}/payment-method?error=${encodeURIComponent(msg)}`, req.url));
   }
 }
