@@ -2,7 +2,6 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { isRedirectError } from "next/dist/client/components/redirect";
 import { getAdminApiConfig } from "../lib/adminApi";
 import { assertCsrfToken } from "../lib/csrf";
 import { ADMIN_SESSION_COOKIE, signAdminSession } from "../../lib/session";
@@ -33,6 +32,13 @@ function toShortErrorMessage(err: unknown) {
   }
 
   return msg.slice(0, 220);
+}
+
+function isRedirectErrorLike(error: unknown) {
+  if (typeof error !== "object" || error === null) return false;
+  if (!("digest" in error)) return false;
+  const digest = (error as { digest?: unknown }).digest;
+  return typeof digest === "string" && digest.startsWith("NEXT_REDIRECT;");
 }
 
 export async function adminLogin(formData: FormData) {
@@ -94,7 +100,7 @@ export async function adminLogin(formData: FormData) {
 
     redirect(nextPath);
   } catch (err) {
-    if (isRedirectError(err)) throw err;
+    if (isRedirectErrorLike(err)) throw err;
     redirect(`/login?error=${encodeURIComponent(toShortErrorMessage(err))}&next=${encodeURIComponent(nextPath)}`);
   }
 }
@@ -142,7 +148,7 @@ export async function bootstrapSuperAdmin(formData: FormData) {
 
     redirect(nextPath || "/sa");
   } catch (err) {
-    if (isRedirectError(err)) throw err;
+    if (isRedirectErrorLike(err)) throw err;
     redirect(`/login?error=${encodeURIComponent(toShortErrorMessage(err))}&next=${encodeURIComponent(nextPath || "/sa")}`);
   }
 }
