@@ -3,8 +3,13 @@
 import { cookies } from "next/headers";
 import { assertCsrfToken } from "../../../lib/csrf";
 import { redirect } from "next/navigation";
-import { isRedirectError } from "next/dist/client/components/redirect";
 import { SA_COOKIE, adminFetchNoSa } from "../../saApi";
+
+function isRedirectError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const digest = (err as { digest?: unknown }).digest;
+  return typeof digest === "string" && digest.startsWith("NEXT_REDIRECT");
+}
 
 function toShortErrorMessage(err: unknown) {
   const raw = err instanceof Error ? err.message : String(err);
