@@ -2,10 +2,15 @@ import { saAdminFetch } from "../../saApi";
 import { setTenantModule, upsertModule } from "./actions";
 import { getCsrfToken } from "../../../lib/csrf";
 
-export default async function SaModulesPage({ searchParams }: { searchParams?: { tenantId?: string; error?: string } }) {
+export default async function SaModulesPage({
+  searchParams
+}: {
+  searchParams?: Promise<{ tenantId?: string; error?: string }>;
+}) {
   const csrfToken = await getCsrfToken();
-  const error = String(searchParams?.error || "").trim();
-  const tenantId = String(searchParams?.tenantId || "").trim();
+  const sp = (await searchParams) ?? {};
+  const error = String(sp.error || "").trim();
+  const tenantId = String(sp.tenantId || "").trim();
 
   const tenantsRes = await saAdminFetch("/admin/sa/tenants", { method: "GET" });
   const modulesRes = await saAdminFetch("/admin/sa/modules", { method: "GET" });

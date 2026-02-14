@@ -18,7 +18,7 @@ async function fetchAdmin(path: string) {
 export default async function ProductsPage({
   searchParams
 }: {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const csrfToken = await getCsrfToken();
   const { token } = getConfig();
@@ -31,11 +31,12 @@ export default async function ProductsPage({
     );
   }
 
-  const created = typeof searchParams?.created === "string" ? searchParams.created : "";
-  const updated = typeof searchParams?.updated === "string" ? searchParams.updated : "";
-  const error = typeof searchParams?.error === "string" ? searchParams.error : "";
-  const q = typeof searchParams?.q === "string" ? searchParams.q : "";
-  const page = typeof searchParams?.page === "string" ? Number(searchParams.page) : 1;
+  const spParams = (await searchParams) ?? {};
+  const created = typeof spParams.created === "string" ? spParams.created : "";
+  const updated = typeof spParams.updated === "string" ? spParams.updated : "";
+  const error = typeof spParams.error === "string" ? spParams.error : "";
+  const q = typeof spParams.q === "string" ? spParams.q : "";
+  const page = typeof spParams.page === "string" ? Number(spParams.page) : 1;
 
   const sp = new URLSearchParams();
   if (q.trim()) sp.set("q", q.trim());

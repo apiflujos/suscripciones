@@ -5,10 +5,11 @@ export const dynamic = "force-dynamic";
 export default async function SubscriptionsPage({
   searchParams
 }: {
-  searchParams: Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const sp = (await searchParams) ?? {};
   const qp = new URLSearchParams();
-  for (const [k, v] of Object.entries(searchParams || {})) {
+  for (const [k, v] of Object.entries(sp || {})) {
     if (typeof v === "string") qp.set(k, v);
   }
   redirect(`/billing?${qp.toString()}`);

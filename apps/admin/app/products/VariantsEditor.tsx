@@ -64,7 +64,7 @@ export function VariantsEditor({
       }))
       .filter((r) => r.option1 || r.option2 || r.priceDeltaInCents !== 0);
     return JSON.stringify(normalized);
-  }, [rows, option1Name, option2Name, showOption2]);
+  }, [rows, showOption2]);
 
   useEffect(() => {
     onJsonChange?.(json);

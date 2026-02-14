@@ -3,11 +3,16 @@ import { getAdminApiConfig } from "../lib/adminApi";
 import { LoginForm } from "./LoginForm";
 import { getCsrfToken } from "../lib/csrf";
 
-export default async function LoginPage({ searchParams }: { searchParams?: { error?: string; next?: string; loggedOut?: string } }) {
+export default async function LoginPage({
+  searchParams
+}: {
+  searchParams?: Promise<{ error?: string; next?: string; loggedOut?: string }>;
+}) {
   const csrfToken = await getCsrfToken();
-  const error = String(searchParams?.error || "").trim();
-  const next = String(searchParams?.next || "").trim();
-  const loggedOut = String(searchParams?.loggedOut || "").trim() === "1";
+  const sp = (await searchParams) ?? {};
+  const error = String(sp.error || "").trim();
+  const next = String(sp.next || "").trim();
+  const loggedOut = String(sp.loggedOut || "").trim() === "1";
 
   const { apiBase } = getAdminApiConfig();
 

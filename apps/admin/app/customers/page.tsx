@@ -51,13 +51,23 @@ async function fetchPaymentLinks(q: string) {
 export default async function CustomersPage({
   searchParams
 }: {
-  searchParams: { created?: string; updated?: string; deleted?: string; paymentSource?: string; paymentLink?: string; error?: string; q?: string };
+  searchParams?: Promise<{
+    created?: string;
+    updated?: string;
+    deleted?: string;
+    paymentSource?: string;
+    paymentLink?: string;
+    error?: string;
+    q?: string;
+    page?: string;
+  }>;
 }) {
   const csrfToken = await getCsrfToken();
   const { token } = getConfig();
   if (!token) return <main><h1 style={{ marginTop: 0 }}>Contactos</h1><p>Configura `ADMIN_API_TOKEN`.</p></main>;
-  const q = typeof searchParams?.q === "string" ? searchParams.q : "";
-  const page = typeof searchParams?.page === "string" ? Number(searchParams.page) : 1;
+  const sp = (await searchParams) ?? {};
+  const q = typeof sp.q === "string" ? sp.q : "";
+  const page = typeof sp.page === "string" ? Number(sp.page) : 1;
   const take = 200;
   const data = await fetchCustomers({ q, take, page });
   const items = (data.items ?? []) as any[];
@@ -66,16 +76,16 @@ export default async function CustomersPage({
 
   return (
     <main className="page" style={{ maxWidth: "100%" }}>
-      {searchParams.error ? (
+      {sp.error ? (
         <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
-          Error: {searchParams.error}
+          Error: {sp.error}
         </div>
       ) : null}
-      {searchParams.created ? <div className="card cardPad">Contacto creado.</div> : null}
-      {searchParams.updated ? <div className="card cardPad">Contacto actualizado.</div> : null}
-      {searchParams.deleted ? <div className="card cardPad">Contacto eliminado.</div> : null}
-      {searchParams.paymentSource ? <div className="card cardPad">Método de pago guardado.</div> : null}
-      {searchParams.paymentLink ? <div className="card cardPad">Link de pago enviado.</div> : null}
+      {sp.created ? <div className="card cardPad">Contacto creado.</div> : null}
+      {sp.updated ? <div className="card cardPad">Contacto actualizado.</div> : null}
+      {sp.deleted ? <div className="card cardPad">Contacto eliminado.</div> : null}
+      {sp.paymentSource ? <div className="card cardPad">Método de pago guardado.</div> : null}
+      {sp.paymentLink ? <div className="card cardPad">Link de pago enviado.</div> : null}
 
       <section className="settings-group">
         <div className="settings-group-header">

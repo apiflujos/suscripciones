@@ -51,7 +51,7 @@ function toStatusChip(level: string) {
 export default async function LogsPage({
   searchParams
 }: {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const csrfToken = await getCsrfToken();
   const { token } = getConfig();
@@ -64,9 +64,10 @@ export default async function LogsPage({
     );
   }
 
-  const tab = typeof searchParams?.tab === "string" ? searchParams.tab : "system";
-  const q = typeof searchParams?.q === "string" ? searchParams.q : "";
-  const viewId = typeof searchParams?.view === "string" ? searchParams.view : "";
+  const sp = (await searchParams) ?? {};
+  const tab = typeof sp.tab === "string" ? sp.tab : "system";
+  const q = typeof sp.q === "string" ? sp.q : "";
+  const viewId = typeof sp.view === "string" ? sp.view : "";
 
   const [system, jobs, webhooks, messages, selectedRes] = await Promise.all([
     fetchAdmin("/admin/logs/system?take=120"),

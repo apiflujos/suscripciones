@@ -30,7 +30,7 @@ async function fetchSettings() {
 export default async function SettingsPage({
   searchParams
 }: {
-  searchParams: { a?: string; status?: string; error?: string };
+  searchParams?: Promise<{ a?: string; status?: string; error?: string }>;
 }) {
   const csrfToken = await getCsrfToken();
   const { token } = getConfig();
@@ -65,9 +65,10 @@ export default async function SettingsPage({
   const commsProduction = (comms?.production || settings?.chatwoot || {}) as any;
   const commsSandbox = (comms?.sandbox || {}) as any;
 
-  const action = String(searchParams.a || "");
-  const status = String(searchParams.status || "");
-  const errorText = searchParams.error ? String(searchParams.error) : "";
+  const sp = (await searchParams) ?? {};
+  const action = String(sp.a || "");
+  const status = String(sp.status || "");
+  const errorText = sp.error ? String(sp.error) : "";
   const isOk = status === "ok";
   const isFail = status === "fail";
   const inlineMsg = (key: string, okText: string, failPrefix: string) => {

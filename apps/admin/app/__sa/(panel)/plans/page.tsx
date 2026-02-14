@@ -7,9 +7,14 @@ function fmtMoneyCop(cents: number) {
   return new Intl.NumberFormat("es-CO").format(Number(v));
 }
 
-export default async function SaPlansPage({ searchParams }: { searchParams?: { error?: string } }) {
+export default async function SaPlansPage({
+  searchParams
+}: {
+  searchParams?: Promise<{ error?: string }>;
+}) {
   const csrfToken = await getCsrfToken();
-  const error = String(searchParams?.error || "").trim();
+  const sp = (await searchParams) ?? {};
+  const error = String(sp.error || "").trim();
 
   const plansRes = await saAdminFetch("/admin/sa/plans", { method: "GET" });
   const limitsRes = await saAdminFetch("/admin/sa/limits", { method: "GET" });

@@ -64,6 +64,6 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Exclude Next internals and any public static files (e.g. /styles.css, /brand/logo.png).
+  // Exclude Next internals and any public static files (e.g. /brand/logo.png).
   matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)"]
 };

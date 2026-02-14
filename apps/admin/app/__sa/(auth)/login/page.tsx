@@ -2,10 +2,15 @@ import Link from "next/link";
 import { saLogin } from "./actions";
 import { getCsrfToken } from "../../../lib/csrf";
 
-export default async function SaLoginPage({ searchParams }: { searchParams?: { error?: string; loggedOut?: string } }) {
+export default async function SaLoginPage({
+  searchParams
+}: {
+  searchParams?: Promise<{ error?: string; loggedOut?: string }>;
+}) {
   const csrfToken = await getCsrfToken();
-  const error = String(searchParams?.error || "").trim();
-  const loggedOut = String(searchParams?.loggedOut || "").trim() === "1";
+  const sp = (await searchParams) ?? {};
+  const error = String(sp.error || "").trim();
+  const loggedOut = String(sp.loggedOut || "").trim() === "1";
 
   return (
     <main style={{ maxWidth: 520 }}>

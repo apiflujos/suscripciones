@@ -7,9 +7,16 @@ async function fetchMembers(id: string, page = 1) {
   return fetchAdminCached(`/admin/comms/smart-lists/${encodeURIComponent(id)}/members?active=1&take=${take}&skip=${skip}`, { ttlMs: 0 });
 }
 
-export default async function SmartListDetail({ params, searchParams }: { params: { id: string }; searchParams?: { page?: string } }) {
+export default async function SmartListDetail({
+  params,
+  searchParams
+}: {
+  params: { id: string };
+  searchParams?: Promise<{ page?: string }>;
+}) {
   const id = params.id;
-  const page = typeof searchParams?.page === "string" ? Number(searchParams.page) : 1;
+  const sp = (await searchParams) ?? {};
+  const page = typeof sp.page === "string" ? Number(sp.page) : 1;
   const listRes = await fetchAdminCached(`/admin/comms/smart-lists/${encodeURIComponent(id)}`, { ttlMs: 0 });
   const list = listRes.ok ? listRes.json?.smartList : null;
 

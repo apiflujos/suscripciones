@@ -97,7 +97,11 @@ function buildSmartListRules({
   return { op: "and", rules };
 }
 
-export default async function BillingPage({ searchParams }: { searchParams?: Record<string, string | string[] | undefined> }) {
+export default async function BillingPage({
+  searchParams
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const csrfToken = await getCsrfToken();
   const { token } = getConfig();
   if (!token) {
@@ -109,21 +113,23 @@ export default async function BillingPage({ searchParams }: { searchParams?: Rec
     );
   }
 
-  const created = typeof searchParams?.created === "string" ? searchParams.created : "";
-  const planCreated = typeof searchParams?.planCreated === "string" ? searchParams.planCreated : "";
-  const contactCreated = typeof searchParams?.contactCreated === "string" ? searchParams.contactCreated : "";
-  const checkoutUrl = typeof searchParams?.checkoutUrl === "string" ? searchParams.checkoutUrl : "";
-  const checkoutCustomerId = typeof searchParams?.customerId === "string" ? searchParams.customerId : "";
-  const error = typeof searchParams?.error === "string" ? searchParams.error : "";
-  const chatwoot = typeof searchParams?.chatwoot === "string" ? searchParams.chatwoot : "";
-  const crear = typeof searchParams?.crear === "string" ? searchParams.crear : "";
-  const selectPlanId = typeof searchParams?.selectPlanId === "string" ? searchParams.selectPlanId : "";
-  const selectCustomerId = typeof searchParams?.selectCustomerId === "string" ? searchParams.selectCustomerId : "";
+  const sp = (await searchParams) ?? {};
 
-  const tipo = typeof searchParams?.tipo === "string" ? searchParams.tipo : "todos";
-  const estado = typeof searchParams?.estado === "string" ? searchParams.estado : "todos";
-  const q = typeof searchParams?.q === "string" ? searchParams.q : "";
-  const ordenar = typeof searchParams?.ordenar === "string" ? searchParams.ordenar : "vencimiento";
+  const created = typeof sp.created === "string" ? sp.created : "";
+  const planCreated = typeof sp.planCreated === "string" ? sp.planCreated : "";
+  const contactCreated = typeof sp.contactCreated === "string" ? sp.contactCreated : "";
+  const checkoutUrl = typeof sp.checkoutUrl === "string" ? sp.checkoutUrl : "";
+  const checkoutCustomerId = typeof sp.customerId === "string" ? sp.customerId : "";
+  const error = typeof sp.error === "string" ? sp.error : "";
+  const chatwoot = typeof sp.chatwoot === "string" ? sp.chatwoot : "";
+  const crear = typeof sp.crear === "string" ? sp.crear : "";
+  const selectPlanId = typeof sp.selectPlanId === "string" ? sp.selectPlanId : "";
+  const selectCustomerId = typeof sp.selectCustomerId === "string" ? sp.selectCustomerId : "";
+
+  const tipo = typeof sp.tipo === "string" ? sp.tipo : "todos";
+  const estado = typeof sp.estado === "string" ? sp.estado : "todos";
+  const q = typeof sp.q === "string" ? sp.q : "";
+  const ordenar = typeof sp.ordenar === "string" ? sp.ordenar : "vencimiento";
   const smartListRules = buildSmartListRules({ tipo, estado, q });
   const smartListRulesParam = encodeURIComponent(JSON.stringify(smartListRules));
   const hasFiltersApplied = tipo !== "todos" || estado !== "todos" || Boolean(q.trim());

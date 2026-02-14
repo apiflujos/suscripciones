@@ -16,12 +16,13 @@ function fmtMoneyCop(cents: number) {
 export default async function SaUsagePage({
   searchParams
 }: {
-  searchParams?: { tenantId?: string; periodKey?: string; error?: string; reset?: string };
+  searchParams?: Promise<{ tenantId?: string; periodKey?: string; error?: string; reset?: string }>;
 }) {
   const csrfToken = await getCsrfToken();
-  const error = String(searchParams?.error || "").trim();
-  const tenantId = String(searchParams?.tenantId || "").trim();
-  const periodKey = String(searchParams?.periodKey || "").trim() || monthKeyUtc(new Date());
+  const sp = (await searchParams) ?? {};
+  const error = String(sp.error || "").trim();
+  const tenantId = String(sp.tenantId || "").trim();
+  const periodKey = String(sp.periodKey || "").trim() || monthKeyUtc(new Date());
 
   const tenantsRes = await saAdminFetch("/admin/sa/tenants", { method: "GET" });
   const tenants: any[] = tenantsRes.ok ? tenantsRes.json?.items || [] : [];

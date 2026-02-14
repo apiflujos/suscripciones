@@ -3,9 +3,14 @@ import { saAdminFetch } from "../../saApi";
 import { assignPlan, createTenant, setTenantActive } from "./actions";
 import { getCsrfToken } from "../../../lib/csrf";
 
-export default async function SaTenantsPage({ searchParams }: { searchParams?: { error?: string; saved?: string } }) {
+export default async function SaTenantsPage({
+  searchParams
+}: {
+  searchParams?: Promise<{ error?: string; saved?: string }>;
+}) {
   const csrfToken = await getCsrfToken();
-  const error = String(searchParams?.error || "").trim();
+  const sp = (await searchParams) ?? {};
+  const error = String(sp.error || "").trim();
 
   const tenantsRes = await saAdminFetch("/admin/sa/tenants", { method: "GET" });
   const plansRes = await saAdminFetch("/admin/sa/plans", { method: "GET" });

@@ -18,7 +18,7 @@ export default async function CustomerPaymentMethodPage({
   searchParams
 }: {
   params: { id: string };
-  searchParams: { error?: string };
+  searchParams?: Promise<{ error?: string }>;
 }) {
   const { token } = getConfig();
   if (!token) {
@@ -30,6 +30,7 @@ export default async function CustomerPaymentMethodPage({
     );
   }
 
+  const sp = (await searchParams) ?? {};
   const [settings, customerRes] = await Promise.all([
     fetchAdmin("/admin/settings"),
     fetchAdmin(`/admin/customers/${encodeURIComponent(params.id)}`)
@@ -50,9 +51,9 @@ export default async function CustomerPaymentMethodPage({
 
   return (
     <main className="page" style={{ maxWidth: 980 }}>
-      {searchParams.error ? (
+      {sp.error ? (
         <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
-          Error: {searchParams.error}
+          Error: {sp.error}
         </div>
       ) : null}
 

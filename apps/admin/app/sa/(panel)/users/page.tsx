@@ -5,12 +5,13 @@ import { getCsrfToken } from "../../../lib/csrf";
 export default async function SaUsersPage({
   searchParams
 }: {
-  searchParams?: { tenantId?: string; error?: string; created?: string };
+  searchParams?: Promise<{ tenantId?: string; error?: string; created?: string }>;
 }) {
   const csrfToken = await getCsrfToken();
-  const error = String(searchParams?.error || "").trim();
-  const tenantId = String(searchParams?.tenantId || "").trim();
-  const created = String(searchParams?.created || "").trim() === "1";
+  const sp = (await searchParams) ?? {};
+  const error = String(sp.error || "").trim();
+  const tenantId = String(sp.tenantId || "").trim();
+  const created = String(sp.created || "").trim() === "1";
 
   const tenantsRes = await saAdminFetch("/admin/sa/tenants", { method: "GET" });
   const qp = new URLSearchParams();

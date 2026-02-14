@@ -17,7 +17,7 @@ async function fetchConfig(environment: "PRODUCTION" | "SANDBOX") {
 export default async function NotificationsPage({
   searchParams
 }: {
-  searchParams?: { env?: string; saved?: string; error?: string; scheduled?: string };
+  searchParams?: Promise<{ env?: string; saved?: string; error?: string; scheduled?: string }>;
 }) {
   const csrfToken = await getCsrfToken();
   const { token } = getConfig();
@@ -30,7 +30,8 @@ export default async function NotificationsPage({
     );
   }
 
-  const env = (String(searchParams?.env || "").trim().toUpperCase() === "SANDBOX" ? "SANDBOX" : "PRODUCTION") as "PRODUCTION" | "SANDBOX";
+  const sp = (await searchParams) ?? {};
+  const env = (String(sp.env || "").trim().toUpperCase() === "SANDBOX" ? "SANDBOX" : "PRODUCTION") as "PRODUCTION" | "SANDBOX";
   const res = await fetchConfig(env);
 
   return (
@@ -54,11 +55,11 @@ export default async function NotificationsPage({
         </form>
       </div>
 
-      {searchParams?.saved ? <div className="card cardPad">Guardado.</div> : null}
-      {typeof searchParams?.scheduled === "string" ? <div className="card cardPad">Jobs programados: {searchParams.scheduled}.</div> : null}
-      {searchParams?.error ? (
+      {sp.saved ? <div className="card cardPad">Guardado.</div> : null}
+      {typeof sp.scheduled === "string" ? <div className="card cardPad">Jobs programados: {sp.scheduled}.</div> : null}
+      {sp.error ? (
         <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>
-          Error: {String(searchParams.error)}
+          Error: {String(sp.error)}
         </div>
       ) : null}
 

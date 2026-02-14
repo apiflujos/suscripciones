@@ -135,7 +135,11 @@ function Pie({ a, b, aLabel, bLabel }: { a: number; b: number; aLabel: string; b
   );
 }
 
-export default async function Home({ searchParams }: { searchParams?: { from?: string; to?: string; g?: string } }) {
+export default async function Home({
+  searchParams
+}: {
+  searchParams?: Promise<{ from?: string; to?: string; g?: string }>;
+}) {
   const health = await fetchPublicCached("/health", { ttlMs: 3000 });
 
   const { token } = getAdminApiConfig();
@@ -145,9 +149,10 @@ export default async function Home({ searchParams }: { searchParams?: { from?: s
   const defaultTo = isoDateUtc(now);
   const defaultFrom = isoDateUtc(new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000));
 
-  const g = (searchParams?.g === "week" || searchParams?.g === "month" ? searchParams?.g : "day") as "day" | "week" | "month";
-  const fromDate = searchParams?.from || defaultFrom;
-  const toDate = searchParams?.to || defaultTo;
+  const sp = (await searchParams) ?? {};
+  const g = (sp.g === "week" || sp.g === "month" ? sp.g : "day") as "day" | "week" | "month";
+  const fromDate = sp.from || defaultFrom;
+  const toDate = sp.to || defaultTo;
   const fromIso = toUtcIsoStart(fromDate) || toUtcIsoStart(defaultFrom)!;
   const toIso = toUtcIsoEndExclusive(toDate) || toUtcIsoEndExclusive(defaultTo)!;
 

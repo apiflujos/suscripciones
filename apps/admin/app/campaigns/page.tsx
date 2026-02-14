@@ -3,11 +3,16 @@ import { HelpTip } from "../ui/HelpTip";
 import { getCsrfToken } from "../lib/csrf";
 import { createCampaign, runCampaign } from "./actions";
 
-export default async function CampaignsPage({ searchParams }: { searchParams?: { error?: string; created?: string; running?: string; page?: string } }) {
+export default async function CampaignsPage({
+  searchParams
+}: {
+  searchParams?: Promise<{ error?: string; created?: string; running?: string; page?: string }>;
+}) {
   const csrfToken = await getCsrfToken();
   const listsRes = await fetchAdminCached("/admin/comms/smart-lists?take=200", { ttlMs: 0 });
   const lists = Array.isArray(listsRes?.json?.items) ? listsRes.json.items : [];
-  const page = typeof searchParams?.page === "string" ? Number(searchParams.page) : 1;
+  const sp = (await searchParams) ?? {};
+  const page = typeof sp.page === "string" ? Number(sp.page) : 1;
   const take = 100;
   const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
   const campaignsRes = await fetchAdminCached(`/admin/comms/campaigns?take=${take}&skip=${skip}`, { ttlMs: 0 });
@@ -22,9 +27,9 @@ export default async function CampaignsPage({ searchParams }: { searchParams?: {
         </div>
       </div>
 
-      {searchParams?.error ? <div className="panel module">Error: {searchParams.error}</div> : null}
-      {searchParams?.created ? <div className="panel module">Campaña creada.</div> : null}
-      {searchParams?.running ? <div className="panel module">Campaña en cola.</div> : null}
+      {sp.error ? <div className="panel module">Error: {sp.error}</div> : null}
+      {sp.created ? <div className="panel module">Campaña creada.</div> : null}
+      {sp.running ? <div className="panel module">Campaña en cola.</div> : null}
 
       <div className="panel module" style={{ marginBottom: 16 }}>
         <h3 style={{ marginTop: 0 }}>Nueva campaña</h3>

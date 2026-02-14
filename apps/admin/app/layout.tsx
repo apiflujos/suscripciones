@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { cookies } from "next/headers";
 
 import "./globals.css";
+import "./styles.css";
 import { SideNav } from "./SideNav";
 import { TopBar } from "./TopBar";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../lib/session";
@@ -24,9 +25,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
 
   return (
     <html lang="es">
-      <head>
-        <link rel="stylesheet" href="/styles.css" />
-      </head>
+      <head />
       <body className={isAuthScreen ? "authBody" : undefined}>
         {isAuthScreen ? (
           <div className="authShell">{children}</div>
