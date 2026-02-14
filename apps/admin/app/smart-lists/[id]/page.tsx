@@ -11,10 +11,10 @@ export default async function SmartListDetail({
   params,
   searchParams
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
   searchParams?: Promise<{ page?: string }>;
 }) {
-  const id = params.id;
+  const { id } = await params;
   const sp = (await searchParams) ?? {};
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
   const listRes = await fetchAdminCached(`/admin/comms/smart-lists/${encodeURIComponent(id)}`, { ttlMs: 0 });
