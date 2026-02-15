@@ -173,7 +173,12 @@ export default async function BillingPage({
         customerId: String(s.customerId || ""),
         customerName: String(customer?.name || customer?.email || s.customerId || "—"),
         customerEmail: String(customer?.email || ""),
-        customerTokenized: Boolean(customer?.metadata?.wompi?.paymentSourceId),
+        customerTokenized:
+          (typeof customer?.metadata?.wompi?.paymentSourceId === "number" && Number.isFinite(customer?.metadata?.wompi?.paymentSourceId)) ||
+          (typeof customer?.metadata?.wompi?.paymentSourceId === "string" && /^\d+$/.test(customer?.metadata?.wompi?.paymentSourceId)) ||
+          (typeof customer?.metadata?.wompi?.payment_source_id === "string" && /^\d+$/.test(customer?.metadata?.wompi?.payment_source_id)) ||
+          (typeof customer?.metadata?.paymentSourceId === "string" && /^\d+$/.test(customer?.metadata?.paymentSourceId)) ||
+          (typeof customer?.metadata?.payment_source_id === "string" && /^\d+$/.test(customer?.metadata?.payment_source_id)),
         identificacion: String(ident || "—"),
         tipoTx,
         tipoPago: getTipoPago(plan),
