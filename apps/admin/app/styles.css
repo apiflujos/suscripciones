@@ -1071,6 +1071,13 @@ textarea {
   justify-content: flex-end;
 }
 
+.billing-legend {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
  .product-grid {
   display: grid;
   grid-template-columns: 1fr;

@@ -294,6 +294,11 @@ export default async function BillingPage({
           <div className="panelHeaderRow" style={{ justifyContent: "space-between" }}>
             <h3>Planes y Suscripciones</h3>
           </div>
+          <div className="billing-legend">
+            <span className="pill pill-muted">Suscripción = estado del plan</span>
+            <span className="pill pill-muted">Pago = estado del último cobro del periodo</span>
+            <span className="pill pill-muted">En mora = periodo vencido sin pago</span>
+          </div>
           <div className="filtersRow">
             <div className="filtersLeft">
               <div className="filter-group">
