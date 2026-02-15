@@ -48,6 +48,22 @@ async function fetchPaymentLinks(q: string) {
   return latestByCustomer;
 }
 
+async function fetchCustomerSubscriptions() {
+  const res = await fetchAdminCached(`/admin/subscriptions?take=300`, { ttlMs: 1500 });
+  const data = res.json || { items: [] as any[] };
+  const items = Array.isArray(data.items) ? data.items : [];
+  const map: Record<string, { hasPlan: boolean }> = {};
+  for (const item of items) {
+    const customerId = String(item?.customerId || item?.customer?.id || "");
+    if (!customerId) continue;
+    const status = String(item?.status || "");
+    if (status && status !== "CANCELED") {
+      map[customerId] = { hasPlan: true };
+    }
+  }
+  return map;
+}
+
 export default async function CustomersPage({
   searchParams
 }: {
@@ -71,7 +87,10 @@ export default async function CustomersPage({
   const take = 200;
   const data = await fetchCustomers({ q, take, page });
   const items = (data.items ?? []) as any[];
-  const latestLinks = await fetchPaymentLinks(q);
+  const [latestLinks, subscriptionsByCustomer] = await Promise.all([
+    fetchPaymentLinks(q),
+    fetchCustomerSubscriptions()
+  ]);
   const latestLinksObj = Object.fromEntries(latestLinks.entries());
 
   return (
@@ -109,7 +128,7 @@ export default async function CustomersPage({
         <div className="settings-group-body">
           <NewCustomerForm createCustomer={createCustomer} csrfToken={csrfToken} />
 
-          <CustomersTable items={items} latestLinks={latestLinksObj} csrfToken={csrfToken} />
+          <CustomersTable items={items} latestLinks={latestLinksObj} subscriptionsByCustomer={subscriptionsByCustomer} csrfToken={csrfToken} />
 
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>
             <a

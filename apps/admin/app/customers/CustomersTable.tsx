@@ -24,10 +24,12 @@ type LatestLink = {
 export function CustomersTable({
   items,
   latestLinks,
+  subscriptionsByCustomer,
   csrfToken
 }: {
   items: CustomerRow[];
   latestLinks: Record<string, LatestLink>;
+  subscriptionsByCustomer: Record<string, { hasPlan: boolean }>;
   csrfToken: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -153,9 +155,8 @@ export function CustomersTable({
       <div className="contacts-grid" aria-label="Lista de contactos">
         {items.map((c) => {
           const link = latestLinks[String(c.id)];
-          const status = String(link?.chatwootStatus || "");
-          const statusLabel = status === "SENT" ? "Enviado" : status === "FAILED" ? "Falló" : status === "PENDING" ? "Pendiente" : "";
           const formId = `send-link-${c.id}`;
+          const hasPlan = subscriptionsByCustomer[String(c.id)]?.hasPlan ?? false;
           return (
             <div className="contact-card" key={c.id}>
               <div className="contact-left">
@@ -163,7 +164,10 @@ export function CustomersTable({
                 <div className="contact-person-grid" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
                   <div>
                     <span>Nombre</span>
-                    <strong>{c.name || "—"}</strong>
+                    <strong style={{ display: "inline-flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                      <span>{c.name || "—"}</span>
+                      {hasToken(c) ? <span className="pill pill-ok">Tokenizada</span> : <span className="pill pill-bad">Sin token</span>}
+                    </strong>
                   </div>
                   <div>
                     <span>Email</span>
@@ -178,14 +182,7 @@ export function CustomersTable({
 
               <div className="contact-right">
                 <div className="contact-right-top">
-                  <div className="contact-section-title">Acciones</div>
                   <div className="contact-actions">
-                    <Link className="ghost btn-compact btn-green" href={`/billing?crear=1&selectCustomerId=${encodeURIComponent(String(c.id))}`}>
-                      Crear plan / suscripción
-                    </Link>
-                    <button className="ghost btn-compact btn-blue" type="button" onClick={() => openDetails(c)}>
-                      Ver detalles
-                    </button>
                     <button className="icon-btn" type="button" onClick={() => openEditor(c)} aria-label="Editar">✎</button>
                     <form
                       action={deleteCustomer}
@@ -200,21 +197,79 @@ export function CustomersTable({
                     </form>
                   </div>
                 </div>
+                <div className="contact-secondary-actions">
+                  <button className="ghost btn-compact btn-blue" type="button" onClick={() => openDetails(c)}>
+                    Ver detalles
+                  </button>
+                  <Link className="ghost btn-compact btn-green" href={`/billing?crear=1&selectCustomerId=${encodeURIComponent(String(c.id))}`}>
+                    Crear plan / suscripción
+                  </Link>
+                </div>
                 <div className="contact-plan-grid" style={{ gridTemplateColumns: "1fr" }}>
                   <div>
-                    <span>Link de pago</span>
-                    <div style={{ display: "inline-flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-                      {link?.checkoutUrl ? (
-                        <a className="ghost btn-compact btn-blue" href={link.checkoutUrl} target="_blank" rel="noreferrer">
-                          Abrir link
-                        </a>
-                      ) : (
-                        <span>—</span>
-                      )}
-                      <span className="field-hint">Estado: {statusLabel || "—"}</span>
-                      <span className="field-hint">Último: {link?.createdAt ? <LocalDateTime value={link.createdAt} /> : "—"}</span>
-                    </div>
+                    <span>Plan / Suscripción</span>
+                    {hasPlan ? <span className="pill pill-ok">Sí</span> : <span className="pill pill-muted">No</span>}
                   </div>
+                </div>
+                <div className="contact-paylink">
+                  <div className="paylink-title">Crear link de pago</div>
+                  <form
+                    id={formId}
+                    className="paylink-form"
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      const form = e.currentTarget;
+                      const amount = (form.elements.namedItem("amount") as HTMLInputElement | null)?.value || "";
+                      setSendingId(c.id);
+                      setSendError((prev) => ({ ...prev, [c.id]: "" }));
+                      setSendOk((prev) => ({ ...prev, [c.id]: "" }));
+                      try {
+                        const res = await fetch("/api/customers/send-payment-link", {
+                          method: "POST",
+                          headers: { "content-type": "application/json" },
+                          body: JSON.stringify({
+                            customerId: c.id,
+                            customerName: c.name || "",
+                            amount
+                          })
+                        });
+                        const contentType = res.headers.get("content-type") || "";
+                        if (!contentType.includes("application/json")) {
+                          setSendError((prev) => ({ ...prev, [c.id]: "auth_required" }));
+                          return;
+                        }
+                        const json = await res.json().catch(() => ({}));
+                        if (!res.ok || !json?.ok) {
+                          setSendError((prev) => ({ ...prev, [c.id]: json?.error || "send_failed" }));
+                          return;
+                        }
+                        if (typeof json?.notificationsScheduled === "number" && json.notificationsScheduled === 0) {
+                          setSendError((prev) => ({ ...prev, [c.id]: "no_rules" }));
+                          return;
+                        }
+                        setSendOk((prev) => ({ ...prev, [c.id]: "sent" }));
+                      } finally {
+                        setSendingId(null);
+                      }
+                    }}
+                  >
+                    <input type="hidden" name="customerId" value={c.id} />
+                    <input type="hidden" name="customerName" value={c.name || ""} />
+                    <input className="input" name="amount" placeholder="$ 10000" inputMode="numeric" aria-label="Monto" />
+                    <button className="primary btn-compact" type="submit" disabled={sendingId === c.id}>
+                      {sendingId === c.id ? "Enviando..." : "Enviar link"}
+                    </button>
+                  </form>
+                  {sendError[c.id] === "auth_required" ? (
+                    <div className="paylink-error">Sesión vencida. Vuelve a iniciar sesión.</div>
+                  ) : null}
+                  {sendError[c.id] === "no_rules" ? (
+                    <div className="paylink-error">No hay notificaciones activas para enviar el link.</div>
+                  ) : null}
+                  {sendError[c.id] && sendError[c.id] !== "auth_required" && sendError[c.id] !== "no_rules" ? (
+                    <div className="paylink-error">{sendError[c.id]}</div>
+                  ) : null}
+                  {sendOk[c.id] ? <div className="paylink-success">Link enviado.</div> : null}
                 </div>
               </div>
             </div>
