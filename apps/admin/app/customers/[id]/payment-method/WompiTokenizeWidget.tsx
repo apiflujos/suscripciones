@@ -10,11 +10,18 @@ export function WompiTokenizeWidget({ publicKey }: { publicKey: string }) {
     if (!host) return;
     host.innerHTML = "";
 
+    const baseUrl =
+      (process.env.NEXT_PUBLIC_ADMIN_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || "").trim();
+
     // Wompi widget expects the script to be a direct child of a POST form.
     const form = host.closest("form");
     if (!form) return;
     form.setAttribute("method", "POST");
-    if (!form.getAttribute("action")) form.setAttribute("action", window.location.pathname);
+    if (!form.getAttribute("action")) {
+      const path = window.location.pathname;
+      const actionUrl = baseUrl ? `${baseUrl.replace(/\\/$/, "")}${path}` : path;
+      form.setAttribute("action", actionUrl);
+    }
 
     const prevScript = form.querySelector('script[data-wompi-widget="tokenize"]');
     if (prevScript) prevScript.remove();
