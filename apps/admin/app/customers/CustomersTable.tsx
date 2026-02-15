@@ -34,6 +34,9 @@ export function CustomersTable({
   const [editing, setEditing] = useState<CustomerRow | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [detailsCustomer, setDetailsCustomer] = useState<CustomerRow | null>(null);
+  const [sendingId, setSendingId] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<Record<string, string>>({});
+  const [sendOk, setSendOk] = useState<Record<string, string>>({});
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -150,6 +153,9 @@ export function CustomersTable({
       <div className="contacts-grid" aria-label="Lista de contactos">
         {items.map((c) => {
           const link = latestLinks[String(c.id)];
+          const status = String(link?.chatwootStatus || "");
+          const statusLabel = status === "SENT" ? "Enviado" : status === "FAILED" ? "Falló" : status === "PENDING" ? "Pendiente" : "";
+          const formId = `send-link-${c.id}`;
           return (
             <div className="contact-card" key={c.id}>
               <div className="contact-left">
@@ -157,14 +163,7 @@ export function CustomersTable({
                 <div className="contact-person-grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
                   <div>
                     <span>Nombre</span>
-                    <strong style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                      <span>{c.name || "—"}</span>
-                      {hasToken(c) ? (
-                        <span className="pill pill-ok">Tokenizada</span>
-                      ) : (
-                        <span className="pill pill-bad">Sin token</span>
-                      )}
-                    </strong>
+                    <strong>{c.name || "—"}</strong>
                   </div>
                   <div>
                     <span>Email</span>
@@ -185,6 +184,9 @@ export function CustomersTable({
                 <div className="contact-right-top">
                   <div className="contact-section-title">Acciones</div>
                   <div className="contact-actions">
+                    <Link className="ghost" href={`/billing?crear=1&selectCustomerId=${encodeURIComponent(String(c.id))}`}>
+                      Crear plan / suscripción
+                    </Link>
                     <button className="ghost" type="button" onClick={() => openDetails(c)}>
                       Ver detalles
                     </button>
@@ -204,9 +206,85 @@ export function CustomersTable({
                 </div>
                 <div className="contact-plan-grid" style={{ gridTemplateColumns: "1fr" }}>
                   <div>
-                    <span>Método de pago</span>
-                    {hasToken(c) ? <span className="pill pill-ok">Tokenizada</span> : <span className="pill pill-bad">Sin token</span>}
+                    <span>Link de pago</span>
+                    {link?.checkoutUrl ? (
+                      <a className="ghost" href={link.checkoutUrl} target="_blank" rel="noreferrer">
+                        Ver último link
+                      </a>
+                    ) : (
+                      "—"
+                    )}
                   </div>
+                  <div>
+                    <span>Estado link</span>
+                    {statusLabel ? (
+                      <span className={`pill ${status === "SENT" ? "pill-ok" : status === "FAILED" ? "pill-bad" : "pill-warn"}`}>
+                        {statusLabel}
+                      </span>
+                    ) : (
+                      "—"
+                    )}
+                  </div>
+                </div>
+                <div className="contact-paylink">
+                  <div className="paylink-title">Crear link de pago</div>
+                  <form
+                    id={formId}
+                    className="paylink-form"
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      const form = e.currentTarget;
+                      const amount = (form.elements.namedItem("amount") as HTMLInputElement | null)?.value || "";
+                      setSendingId(c.id);
+                      setSendError((prev) => ({ ...prev, [c.id]: "" }));
+                      setSendOk((prev) => ({ ...prev, [c.id]: "" }));
+                      try {
+                        const res = await fetch("/api/customers/send-payment-link", {
+                          method: "POST",
+                          headers: { "content-type": "application/json" },
+                          body: JSON.stringify({
+                            customerId: c.id,
+                            customerName: c.name || "",
+                            amount
+                          })
+                        });
+                        const contentType = res.headers.get("content-type") || "";
+                        if (!contentType.includes("application/json")) {
+                          setSendError((prev) => ({ ...prev, [c.id]: "auth_required" }));
+                          return;
+                        }
+                        const json = await res.json().catch(() => ({}));
+                        if (!res.ok || !json?.ok) {
+                          setSendError((prev) => ({ ...prev, [c.id]: json?.error || "send_failed" }));
+                          return;
+                        }
+                        if (typeof json?.notificationsScheduled === "number" && json.notificationsScheduled === 0) {
+                          setSendError((prev) => ({ ...prev, [c.id]: "no_rules" }));
+                          return;
+                        }
+                        setSendOk((prev) => ({ ...prev, [c.id]: "sent" }));
+                      } finally {
+                        setSendingId(null);
+                      }
+                    }}
+                  >
+                    <input type="hidden" name="customerId" value={c.id} />
+                    <input type="hidden" name="customerName" value={c.name || ""} />
+                    <input className="input" name="amount" placeholder="$ 10000" inputMode="numeric" aria-label="Monto" />
+                    <button className="primary" type="submit" disabled={sendingId === c.id}>
+                      {sendingId === c.id ? "Enviando..." : "Enviar link"}
+                    </button>
+                  </form>
+                  {sendError[c.id] === "auth_required" ? (
+                    <div className="paylink-error">Sesión vencida. Vuelve a iniciar sesión.</div>
+                  ) : null}
+                  {sendError[c.id] === "no_rules" ? (
+                    <div className="paylink-error">No hay notificaciones activas para enviar el link.</div>
+                  ) : null}
+                  {sendError[c.id] && sendError[c.id] !== "auth_required" && sendError[c.id] !== "no_rules" ? (
+                    <div className="paylink-error">{sendError[c.id]}</div>
+                  ) : null}
+                  {sendOk[c.id] ? <div className="paylink-success">Link enviado.</div> : null}
                 </div>
               </div>
             </div>
