@@ -58,6 +58,34 @@ function getEstado(status: any) {
   return { key: "no", label: "No" };
 }
 
+function getSubscriptionStatusLabel(status: any) {
+  const s = String(status || "");
+  if (s === "ACTIVE") return "Activa";
+  if (s === "PAST_DUE") return "En mora";
+  if (s === "SUSPENDED") return "Suspendida";
+  if (s === "CANCELED") return "Cancelada";
+  return s || "—";
+}
+
+function getPaymentStatusLabel(args: {
+  status: string;
+  paidAt: any;
+  periodStartAt: any;
+  periodEndAt: any;
+}) {
+  const status = String(args.status || "");
+  if (status === "PAST_DUE") return "En mora";
+  if (args.paidAt && args.periodStartAt && args.periodEndAt) {
+    const paid = new Date(args.paidAt).getTime();
+    const start = new Date(args.periodStartAt).getTime();
+    const end = new Date(args.periodEndAt).getTime();
+    if (Number.isFinite(paid) && Number.isFinite(start) && Number.isFinite(end) && paid >= start && paid <= end) {
+      return "Pagado";
+    }
+  }
+  return "Pendiente";
+}
+
 function buildSmartListRules({
   tipo,
   estado,
@@ -191,6 +219,8 @@ export default async function BillingPage({
         cada: fmtEvery(plan?.intervalUnit, plan?.intervalCount),
         pagoAt: s.lastPayment?.paidAt || null,
         vencimientoAt: s.currentPeriodEndAt || null,
+        periodoInicioAt: s.currentPeriodStartAt || null,
+        periodoFinAt: s.currentPeriodEndAt || null,
         mode: String(plan?.metadata?.collectionMode || "MANUAL_LINK")
       };
     })
@@ -332,122 +362,122 @@ export default async function BillingPage({
             createPlanAndSubscription={createPlanAndSubscription}
           />
 
-          <div className="panel module" style={{ padding: 0 }}>
-            <table className="table" aria-label="Tabla de planes y suscripciones">
-              <thead>
-                <tr>
-                  <th>Fecha de pago</th>
-                  <th>Fecha próximo pago</th>
-                  <th>Nombre</th>
-                  <th>Email</th>
-                  <th>Identificación</th>
-                  <th>Tipo</th>
-                  <th>Tipo de pago</th>
-                  <th>Activo</th>
-                  <th>Estado</th>
-                  <th>Monto</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.id}>
-                    <td><LocalDateTime value={r.pagoAt} /></td>
-                    <td><LocalDateTime value={r.vencimientoAt} /></td>
-                    <td>
-                      <div style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                        <span>{r.customerName}</span>
-                        {r.customerTokenized ? (
-                          <span className="pill pill-ok">Tokenizada</span>
-                        ) : (
-                          <span className="pill pill-bad">Sin token</span>
-                        )}
+          <div className="billing-grid">
+            {rows.map((r) => {
+              const paymentStatus = getPaymentStatusLabel({
+                status: r.status,
+                paidAt: r.pagoAt,
+                periodStartAt: r.periodoInicioAt,
+                periodEndAt: r.periodoFinAt
+              });
+              const subscriptionStatus = getSubscriptionStatusLabel(r.status);
+              return (
+                <div className="billing-card" key={r.id}>
+                  <div className="billing-header">
+                    <div className="billing-title">
+                      <div className="billing-name">{r.customerName}</div>
+                      <div className="billing-sub">
+                        {r.customerEmail || "—"} · {r.identificacion || "—"}
                       </div>
-                    </td>
-                    <td>{r.customerEmail || "—"}</td>
-                    <td style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>{r.identificacion}</td>
-                    <td>
-                      <div style={{ display: "grid" }}>
-                        <span>{r.tipoTx}</span>
-                        <span className="field-hint">{r.planName}</span>
-                      </div>
-                    </td>
-                    <td>{r.tipoPago}</td>
-                    <td>{r.activo ? "Sí" : "No"}</td>
-                    <td>
-                      <div style={{ display: "grid" }}>
-                        <span>{r.estadoInfo.label}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <div style={{ display: "grid" }}>
-                        <span>{fmtMoney(r.montoInCents, r.moneda)}</span>
-                        <span className="field-hint">{r.cada}</span>
-                      </div>
-                    </td>
-                    <td style={{ textAlign: "right" }}>
-                      <div style={{ display: "grid", gap: 6, justifyItems: "end" }}>
-                        {r.mode !== "AUTO_DEBIT" ? (
-                          <form action={createPaymentLink}>
+                    </div>
+                    <div className="billing-badges">
+                      <span className={`pill ${r.customerTokenized ? "pill-ok" : "pill-bad"}`}>
+                        {r.customerTokenized ? "Tokenizada" : "Sin token"}
+                      </span>
+                      <span className="pill pill-muted">{r.tipoTx}</span>
+                    </div>
+                  </div>
+
+                  <div className="billing-grid-info">
+                    <div>
+                      <span>Plan / Producto</span>
+                      <strong>{r.planName}</strong>
+                    </div>
+                    <div>
+                      <span>Tipo de pago</span>
+                      <strong>{r.tipoPago}</strong>
+                    </div>
+                    <div>
+                      <span>Estado suscripción</span>
+                      <span className={`pill ${subscriptionStatus === "Activa" ? "pill-ok" : subscriptionStatus === "En mora" ? "pill-warn" : subscriptionStatus === "Suspendida" ? "pill-warn" : subscriptionStatus === "Cancelada" ? "pill-bad" : "pill-muted"}`}>
+                        {subscriptionStatus}
+                      </span>
+                    </div>
+                    <div>
+                      <span>Estado pago</span>
+                      <span className={`pill ${paymentStatus === "Pagado" ? "pill-ok" : paymentStatus === "En mora" ? "pill-warn" : "pill-muted"}`}>
+                        {paymentStatus}
+                      </span>
+                    </div>
+                    <div>
+                      <span>Último pago</span>
+                      {r.pagoAt ? <LocalDateTime value={r.pagoAt} /> : "—"}
+                    </div>
+                    <div>
+                      <span>Próximo pago</span>
+                      {r.vencimientoAt ? <LocalDateTime value={r.vencimientoAt} /> : "—"}
+                    </div>
+                    <div>
+                      <span>Monto</span>
+                      <strong>{fmtMoney(r.montoInCents, r.moneda)}</strong>
+                      <div className="field-hint">{r.cada}</div>
+                    </div>
+                  </div>
+
+                  <div className="billing-actions">
+                    {r.mode !== "AUTO_DEBIT" ? (
+                      <form action={createPaymentLink}>
+                        <input type="hidden" name="csrf" value={csrfToken} />
+                        <input type="hidden" name="subscriptionId" value={r.id} />
+                        <input type="hidden" name="customerId" value={r.customerId} />
+                        <button className="ghost btn-compact btn-blue" type="submit">
+                          Generar link
+                        </button>
+                      </form>
+                    ) : (
+                      <>
+                        {r.status === "SUSPENDED" ? (
+                          <form action={resumeSubscription}>
                             <input type="hidden" name="csrf" value={csrfToken} />
                             <input type="hidden" name="subscriptionId" value={r.id} />
-                            <input type="hidden" name="customerId" value={r.customerId} />
-                            <button className="ghost" type="submit" style={{ borderColor: "#60a5fa", color: "#1d4ed8" }}>
-                              Generar link
+                            <button className="ghost btn-compact btn-green" type="submit">
+                              Reanudar
+                            </button>
+                          </form>
+                        ) : r.status === "CANCELED" ? (
+                          <form action={activateSubscription}>
+                            <input type="hidden" name="csrf" value={csrfToken} />
+                            <input type="hidden" name="subscriptionId" value={r.id} />
+                            <button className="ghost btn-compact btn-green" type="submit">
+                              Activar
                             </button>
                           </form>
                         ) : (
                           <>
-                            {r.status === "SUSPENDED" ? (
-                              <form action={resumeSubscription}>
-                                <input type="hidden" name="csrf" value={csrfToken} />
-                                <input type="hidden" name="subscriptionId" value={r.id} />
-                                <button className="ghost" type="submit" style={{ borderColor: "#16a34a", color: "#15803d" }}>
-                                  Reanudar
-                                </button>
-                              </form>
-                            ) : r.status === "CANCELED" ? (
-                              <form action={activateSubscription}>
-                                <input type="hidden" name="csrf" value={csrfToken} />
-                                <input type="hidden" name="subscriptionId" value={r.id} />
-                                <button className="ghost" type="submit" style={{ borderColor: "#16a34a", color: "#15803d" }}>
-                                  Activar
-                                </button>
-                              </form>
-                            ) : (
-                              <>
-                                <form action={suspendSubscription}>
-                                  <input type="hidden" name="csrf" value={csrfToken} />
-                                  <input type="hidden" name="subscriptionId" value={r.id} />
-                                  <button className="ghost" type="submit" style={{ borderColor: "#f59e0b", color: "#b45309" }}>
-                                    Suspender
-                                  </button>
-                                </form>
-                                <form action={cancelSubscription}>
-                                  <input type="hidden" name="csrf" value={csrfToken} />
-                                  <input type="hidden" name="subscriptionId" value={r.id} />
-                                  <button className="ghost" type="submit" style={{ borderColor: "#ef4444", color: "#b91c1c" }}>
-                                    Cancelar
-                                  </button>
-                                </form>
-                              </>
-                            )}
+                            <form action={suspendSubscription}>
+                              <input type="hidden" name="csrf" value={csrfToken} />
+                              <input type="hidden" name="subscriptionId" value={r.id} />
+                              <button className="ghost btn-compact btn-amber" type="submit">
+                                Suspender
+                              </button>
+                            </form>
+                            <form action={cancelSubscription}>
+                              <input type="hidden" name="csrf" value={csrfToken} />
+                              <input type="hidden" name="subscriptionId" value={r.id} />
+                              <button className="ghost btn-compact btn-red" type="submit">
+                                Cancelar
+                              </button>
+                            </form>
                           </>
                         )}
-                        <DeleteSubscriptionButton action={deleteSubscription} csrfToken={csrfToken} subscriptionId={r.id} />
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {rows.length === 0 ? (
-                  <tr>
-                    <td colSpan={11} style={{ color: "var(--muted)" }}>
-                      Sin resultados.
-                    </td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
+                      </>
+                    )}
+                    <DeleteSubscriptionButton action={deleteSubscription} csrfToken={csrfToken} subscriptionId={r.id} />
+                  </div>
+                </div>
+              );
+            })}
+            {rows.length === 0 ? <div className="contact-empty">Sin resultados.</div> : null}
           </div>
         </div>
       </section>
