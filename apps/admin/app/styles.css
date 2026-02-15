@@ -859,6 +859,12 @@ textarea {
   gap: 2px;
 }
 
+.pill-sm {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 999px;
+}
+
 .contact-right-top {
   display: flex;
   justify-content: space-between;
@@ -882,6 +888,13 @@ textarea {
   justify-content: flex-end;
   align-items: center;
   margin-top: 2px;
+}
+
+.contact-plan-row {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .btn-compact {

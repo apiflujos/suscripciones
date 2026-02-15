@@ -200,11 +200,13 @@ export function CustomersTable({
                 <div className="contact-plan-grid" style={{ gridTemplateColumns: "1fr" }}>
                   <div>
                     <span>Plan / Suscripción</span>
-                    {hasPlan ? <span className="pill pill-ok">Sí</span> : <span className="pill pill-muted">No</span>}
+                    <div className="contact-plan-row">
+                      {hasPlan ? <span className="pill pill-ok pill-sm">Sí</span> : <span className="pill pill-muted pill-sm">No</span>}
+                    </div>
                   </div>
                 </div>
                 <div className="contact-paylink">
-                  <div className="paylink-title">Crear link de pago</div>
+                  <div className="paylink-title">Link de pago</div>
                   <form
                     id={formId}
                     className="paylink-form"
@@ -249,7 +251,7 @@ export function CustomersTable({
                     <input type="hidden" name="customerName" value={c.name || ""} />
                     <input className="input" name="amount" placeholder="$ 10000" inputMode="numeric" aria-label="Monto" />
                     <button className="primary btn-compact" type="submit" disabled={sendingId === c.id}>
-                      {sendingId === c.id ? "Enviando..." : "Enviar link"}
+                      {sendingId === c.id ? "Enviando..." : "Enviar"}
                     </button>
                   </form>
                   {sendError[c.id] === "auth_required" ? (
