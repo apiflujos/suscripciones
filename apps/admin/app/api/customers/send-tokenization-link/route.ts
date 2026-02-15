@@ -19,8 +19,9 @@ export async function POST(req: Request) {
   const customerId = String(body?.customerId || "").trim();
   const customerName = String(body?.customerName || "").trim() || "Cliente";
   if (!customerId) return NextResponse.json({ ok: false, error: "missing_customer_id" }, { status: 400 });
+  if (!ADMIN_BASE) return NextResponse.json({ ok: false, error: "missing_admin_base_url" }, { status: 400 });
 
-  const base = ADMIN_BASE ? ADMIN_BASE.replace(/\/$/, "") : "";
+  const base = ADMIN_BASE.replace(/\/$/, "");
   const link = `${base}/customers/${customerId}/payment-method`;
   const content = `Hola ${customerName}, para activar tu suscripción guarda tu método de pago aquí: ${link}`;
 
@@ -37,6 +38,32 @@ export async function POST(req: Request) {
   const json = await res.json().catch(() => null);
   if (!res.ok) {
     return NextResponse.json({ ok: false, error: json?.error || "request_failed" }, { status: res.status });
+  }
+
+  const existing = await fetch(`${API_BASE}/admin/customers/${customerId}`, {
+    headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
+  })
+    .then((r) => r.json())
+    .catch(() => null);
+  const prevMeta = existing?.customer?.metadata ?? {};
+  const nextMeta = {
+    ...prevMeta,
+    tokenizationLink: {
+      url: link,
+      createdAt: new Date().toISOString()
+    }
+  };
+  const stored = await fetch(`${API_BASE}/admin/customers/${customerId}`, {
+    method: "PUT",
+    headers: {
+      authorization: `Bearer ${token}`,
+      "x-admin-token": token,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({ metadata: nextMeta })
+  });
+  if (!stored.ok) {
+    return NextResponse.json({ ok: false, error: "store_failed" }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true, link });

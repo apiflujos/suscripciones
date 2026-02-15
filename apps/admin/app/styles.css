@@ -948,6 +948,22 @@ textarea {
   align-items: center;
 }
 
+.paylink-links {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.btn-link {
+  width: 240px;
+  justify-content: center;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .paylink-meta {
   display: flex;
   gap: 6px;

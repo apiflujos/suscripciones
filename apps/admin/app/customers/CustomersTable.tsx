@@ -39,6 +39,7 @@ export function CustomersTable({
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [sendError, setSendError] = useState<Record<string, string>>({});
   const [sendOk, setSendOk] = useState<Record<string, string>>({});
+  const [linkOverrides, setLinkOverrides] = useState<Record<string, { payment?: string; token?: string }>>({});
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -75,6 +76,27 @@ export function CustomersTable({
     const a = parts[0]?.[0] || "C";
     const b = parts.length > 1 ? parts[1][0] : (parts[0]?.[1] || "N");
     return `${a}${b}`.toUpperCase();
+  }
+
+  function getTokenLink(customer: CustomerRow) {
+    return (
+      customer.metadata?.tokenizationLink?.url ||
+      customer.metadata?.wompi?.tokenizationLink?.url ||
+      ""
+    );
+  }
+
+  function maskUrl(raw: string) {
+    if (!raw) return "";
+    try {
+      const url = new URL(raw);
+      const path = url.pathname;
+      const head = path.slice(0, 12);
+      const tail = path.slice(-8);
+      return `${url.origin}${head}${path.length > 20 ? "…" : ""}${tail}`;
+    } catch {
+      return raw.length > 28 ? `${raw.slice(0, 16)}…${raw.slice(-8)}` : raw;
+    }
   }
 
   function openEditor(item: CustomerRow) {
@@ -228,25 +250,28 @@ export function CustomersTable({
                           setSendError((prev) => ({ ...prev, [c.id]: "" }));
                           setSendOk((prev) => ({ ...prev, [c.id]: "" }));
                           try {
-                            const res = await fetch("/api/customers/send-tokenization-link", {
-                              method: "POST",
-                              headers: { "content-type": "application/json" },
-                              body: JSON.stringify({
-                                customerId: c.id,
-                                customerName: c.name || ""
-                              })
-                            });
+                        const res = await fetch("/api/customers/send-tokenization-link", {
+                          method: "POST",
+                          headers: { "content-type": "application/json" },
+                          body: JSON.stringify({
+                            customerId: c.id,
+                            customerName: c.name || ""
+                          })
+                        });
                             const contentType = res.headers.get("content-type") || "";
                             if (!contentType.includes("application/json")) {
                               setSendError((prev) => ({ ...prev, [c.id]: "auth_required" }));
                               return;
                             }
                             const json = await res.json().catch(() => ({}));
-                            if (!res.ok || !json?.ok) {
-                              setSendError((prev) => ({ ...prev, [c.id]: json?.error || "send_failed" }));
-                              return;
-                            }
-                            setSendOk((prev) => ({ ...prev, [c.id]: "sent" }));
+                        if (!res.ok || !json?.ok) {
+                          setSendError((prev) => ({ ...prev, [c.id]: json?.error || "send_failed" }));
+                          return;
+                        }
+                        if (json?.link) {
+                          setLinkOverrides((prev) => ({ ...prev, [c.id]: { ...(prev[c.id] || {}), token: json.link } }));
+                        }
+                        setSendOk((prev) => ({ ...prev, [c.id]: "sent" }));
                           } finally {
                             setSendingId(null);
                           }
@@ -273,30 +298,33 @@ export function CustomersTable({
                           setSendError((prev) => ({ ...prev, [c.id]: "" }));
                           setSendOk((prev) => ({ ...prev, [c.id]: "" }));
                           try {
-                            const res = await fetch("/api/customers/send-payment-link", {
-                              method: "POST",
-                              headers: { "content-type": "application/json" },
-                              body: JSON.stringify({
-                                customerId: c.id,
-                                customerName: c.name || "",
-                                amount
-                              })
-                            });
+                        const res = await fetch("/api/customers/send-payment-link", {
+                          method: "POST",
+                          headers: { "content-type": "application/json" },
+                          body: JSON.stringify({
+                            customerId: c.id,
+                            customerName: c.name || "",
+                            amount
+                          })
+                        });
                             const contentType = res.headers.get("content-type") || "";
                             if (!contentType.includes("application/json")) {
                               setSendError((prev) => ({ ...prev, [c.id]: "auth_required" }));
                               return;
                             }
                             const json = await res.json().catch(() => ({}));
-                            if (!res.ok || !json?.ok) {
-                              setSendError((prev) => ({ ...prev, [c.id]: json?.error || "send_failed" }));
-                              return;
-                            }
-                            if (typeof json?.notificationsScheduled === "number" && json.notificationsScheduled === 0) {
-                              setSendError((prev) => ({ ...prev, [c.id]: "no_rules" }));
-                              return;
-                            }
-                            setSendOk((prev) => ({ ...prev, [c.id]: "sent" }));
+                        if (!res.ok || !json?.ok) {
+                          setSendError((prev) => ({ ...prev, [c.id]: json?.error || "send_failed" }));
+                          return;
+                        }
+                        if (typeof json?.notificationsScheduled === "number" && json.notificationsScheduled === 0) {
+                          setSendError((prev) => ({ ...prev, [c.id]: "no_rules" }));
+                          return;
+                        }
+                        if (json?.checkoutUrl) {
+                          setLinkOverrides((prev) => ({ ...prev, [c.id]: { ...(prev[c.id] || {}), payment: json.checkoutUrl } }));
+                        }
+                        setSendOk((prev) => ({ ...prev, [c.id]: "sent" }));
                           } finally {
                             setSendingId(null);
                           }
@@ -320,6 +348,25 @@ export function CustomersTable({
                   {sendError[c.id] && sendError[c.id] !== "auth_required" && sendError[c.id] !== "no_rules" ? (
                     <div className="paylink-error">{sendError[c.id]}</div>
                   ) : null}
+                  {(() => {
+                    const override = linkOverrides[c.id] || {};
+                    const paymentLink = override.payment || latestLinks[String(c.id)]?.checkoutUrl || "";
+                    const tokenLink = override.token || getTokenLink(c);
+                    return (
+                      <div className="paylink-links">
+                        {paymentLink ? (
+                          <a className="ghost btn-compact btn-blue btn-link" href={paymentLink} target="_blank" rel="noreferrer" title={maskUrl(paymentLink)}>
+                            Link de pago · {maskUrl(paymentLink)}
+                          </a>
+                        ) : null}
+                        {tokenLink ? (
+                          <a className="ghost btn-compact btn-amber btn-link" href={tokenLink} target="_blank" rel="noreferrer" title={maskUrl(tokenLink)}>
+                            Link de token · {maskUrl(tokenLink)}
+                          </a>
+                        ) : null}
+                      </div>
+                    );
+                  })()}
                   {sendOk[c.id] ? <div className="paylink-success">Link enviado.</div> : null}
                 </div>
                 <div className="contact-secondary-actions">
@@ -565,6 +612,25 @@ export function CustomersTable({
                   {sendError[detailsCustomer.id] && sendError[detailsCustomer.id] !== "auth_required" && sendError[detailsCustomer.id] !== "no_rules" ? (
                     <div className="paylink-error">{sendError[detailsCustomer.id]}</div>
                   ) : null}
+                  {(() => {
+                    const override = linkOverrides[detailsCustomer.id] || {};
+                    const paymentLink = override.payment || latestLinks[String(detailsCustomer.id)]?.checkoutUrl || "";
+                    const tokenLink = override.token || getTokenLink(detailsCustomer);
+                    return (
+                      <div className="paylink-links">
+                        {paymentLink ? (
+                          <a className="ghost btn-compact btn-blue btn-link" href={paymentLink} target="_blank" rel="noreferrer" title={maskUrl(paymentLink)}>
+                            Link de pago · {maskUrl(paymentLink)}
+                          </a>
+                        ) : null}
+                        {tokenLink ? (
+                          <a className="ghost btn-compact btn-amber btn-link" href={tokenLink} target="_blank" rel="noreferrer" title={maskUrl(tokenLink)}>
+                            Link de token · {maskUrl(tokenLink)}
+                          </a>
+                        ) : null}
+                      </div>
+                    );
+                  })()}
                   {sendOk[detailsCustomer.id] ? <div className="paylink-success">Link enviado.</div> : null}
                 </div>
               </div>
