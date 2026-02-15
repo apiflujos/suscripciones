@@ -215,54 +215,101 @@ export function CustomersTable({
                   ) : null}
                 </div>
                 <div className="contact-paylink">
-                  <div className="paylink-title">Link de pago</div>
-                  <form
-                    id={formId}
-                    className="paylink-form"
-                    onSubmit={async (e) => {
-                      e.preventDefault();
-                      const form = e.currentTarget;
-                      const amount = (form.elements.namedItem("amount") as HTMLInputElement | null)?.value || "";
-                      setSendingId(c.id);
-                      setSendError((prev) => ({ ...prev, [c.id]: "" }));
-                      setSendOk((prev) => ({ ...prev, [c.id]: "" }));
-                      try {
-                        const res = await fetch("/api/customers/send-payment-link", {
-                          method: "POST",
-                          headers: { "content-type": "application/json" },
-                          body: JSON.stringify({
-                            customerId: c.id,
-                            customerName: c.name || "",
-                            amount
-                          })
-                        });
-                        const contentType = res.headers.get("content-type") || "";
-                        if (!contentType.includes("application/json")) {
-                          setSendError((prev) => ({ ...prev, [c.id]: "auth_required" }));
-                          return;
-                        }
-                        const json = await res.json().catch(() => ({}));
-                        if (!res.ok || !json?.ok) {
-                          setSendError((prev) => ({ ...prev, [c.id]: json?.error || "send_failed" }));
-                          return;
-                        }
-                        if (typeof json?.notificationsScheduled === "number" && json.notificationsScheduled === 0) {
-                          setSendError((prev) => ({ ...prev, [c.id]: "no_rules" }));
-                          return;
-                        }
-                        setSendOk((prev) => ({ ...prev, [c.id]: "sent" }));
-                      } finally {
-                        setSendingId(null);
-                      }
-                    }}
-                  >
-                    <input type="hidden" name="customerId" value={c.id} />
-                    <input type="hidden" name="customerName" value={c.name || ""} />
-                    <input className="input" name="amount" placeholder="$ 10000" inputMode="numeric" aria-label="Monto" />
-                    <button className="primary btn-compact" type="submit" disabled={sendingId === c.id}>
-                      {sendingId === c.id ? "Enviando..." : "Enviar"}
-                    </button>
-                  </form>
+                  {hasPlan && !hasToken(c) ? (
+                    <>
+                      <div className="paylink-title">Link de tokenización</div>
+                      <form
+                        id={formId}
+                        className="paylink-form"
+                        onSubmit={async (e) => {
+                          e.preventDefault();
+                          setSendingId(c.id);
+                          setSendError((prev) => ({ ...prev, [c.id]: "" }));
+                          setSendOk((prev) => ({ ...prev, [c.id]: "" }));
+                          try {
+                            const res = await fetch("/api/customers/send-tokenization-link", {
+                              method: "POST",
+                              headers: { "content-type": "application/json" },
+                              body: JSON.stringify({
+                                customerId: c.id,
+                                customerName: c.name || ""
+                              })
+                            });
+                            const contentType = res.headers.get("content-type") || "";
+                            if (!contentType.includes("application/json")) {
+                              setSendError((prev) => ({ ...prev, [c.id]: "auth_required" }));
+                              return;
+                            }
+                            const json = await res.json().catch(() => ({}));
+                            if (!res.ok || !json?.ok) {
+                              setSendError((prev) => ({ ...prev, [c.id]: json?.error || "send_failed" }));
+                              return;
+                            }
+                            setSendOk((prev) => ({ ...prev, [c.id]: "sent" }));
+                          } finally {
+                            setSendingId(null);
+                          }
+                        }}
+                      >
+                        <input type="hidden" name="customerId" value={c.id} />
+                        <input type="hidden" name="customerName" value={c.name || ""} />
+                        <button className="primary btn-compact" type="submit" disabled={sendingId === c.id}>
+                          {sendingId === c.id ? "Enviando..." : "Enviar"}
+                        </button>
+                      </form>
+                    </>
+                  ) : (
+                    <>
+                      <div className="paylink-title">Link de pago</div>
+                      <form
+                        id={formId}
+                        className="paylink-form"
+                        onSubmit={async (e) => {
+                          e.preventDefault();
+                          const form = e.currentTarget;
+                          const amount = (form.elements.namedItem("amount") as HTMLInputElement | null)?.value || "";
+                          setSendingId(c.id);
+                          setSendError((prev) => ({ ...prev, [c.id]: "" }));
+                          setSendOk((prev) => ({ ...prev, [c.id]: "" }));
+                          try {
+                            const res = await fetch("/api/customers/send-payment-link", {
+                              method: "POST",
+                              headers: { "content-type": "application/json" },
+                              body: JSON.stringify({
+                                customerId: c.id,
+                                customerName: c.name || "",
+                                amount
+                              })
+                            });
+                            const contentType = res.headers.get("content-type") || "";
+                            if (!contentType.includes("application/json")) {
+                              setSendError((prev) => ({ ...prev, [c.id]: "auth_required" }));
+                              return;
+                            }
+                            const json = await res.json().catch(() => ({}));
+                            if (!res.ok || !json?.ok) {
+                              setSendError((prev) => ({ ...prev, [c.id]: json?.error || "send_failed" }));
+                              return;
+                            }
+                            if (typeof json?.notificationsScheduled === "number" && json.notificationsScheduled === 0) {
+                              setSendError((prev) => ({ ...prev, [c.id]: "no_rules" }));
+                              return;
+                            }
+                            setSendOk((prev) => ({ ...prev, [c.id]: "sent" }));
+                          } finally {
+                            setSendingId(null);
+                          }
+                        }}
+                      >
+                        <input type="hidden" name="customerId" value={c.id} />
+                        <input type="hidden" name="customerName" value={c.name || ""} />
+                        <input className="input" name="amount" placeholder="$ 10000" inputMode="numeric" aria-label="Monto" />
+                        <button className="primary btn-compact" type="submit" disabled={sendingId === c.id}>
+                          {sendingId === c.id ? "Enviando..." : "Enviar"}
+                        </button>
+                      </form>
+                    </>
+                  )}
                   {sendError[c.id] === "auth_required" ? (
                     <div className="paylink-error">Sesión vencida. Vuelve a iniciar sesión.</div>
                   ) : null}
@@ -311,16 +358,20 @@ export function CustomersTable({
             style={{ width: "min(820px, 96vw)", maxHeight: "90vh", overflow: "auto" }}
             onKeyDown={onModalKeyDown}
           >
-            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 id="customer-details-title" style={{ margin: 0 }}>
-                Detalles: {detailsCustomer.name || detailsCustomer.email || detailsCustomer.id}
-              </h3>
-              <button type="button" className="ghost" onClick={closeDetails}>
-                Cerrar
-              </button>
-            </div>
+            {(() => {
+              const detailsHasPlan = subscriptionsByCustomer[String(detailsCustomer.id)]?.hasPlan ?? false;
+              return (
+            <>
+              <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <h3 id="customer-details-title" style={{ margin: 0 }}>
+                  Detalles: {detailsCustomer.name || detailsCustomer.email || detailsCustomer.id}
+                </h3>
+                <button type="button" className="ghost" onClick={closeDetails}>
+                  Cerrar
+                </button>
+              </div>
 
-            <div style={{ display: "grid", gap: 14 }}>
+              <div style={{ display: "grid", gap: 14 }}>
               <div>
                 <div className="contact-section-title">Datos personales</div>
                 <div className="contact-person-grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
@@ -413,54 +464,101 @@ export function CustomersTable({
                   ) : null}
                 </div>
                 <div className="contact-paylink" style={{ marginTop: 10 }}>
-                  <div className="paylink-title">Crear link de pago</div>
-                  <form
-                    id={`details-paylink-${detailsCustomer.id}`}
-                    className="paylink-form"
-                    onSubmit={async (e) => {
-                      e.preventDefault();
-                      const form = e.currentTarget;
-                      const amount = (form.elements.namedItem("amount") as HTMLInputElement | null)?.value || "";
-                      setSendingId(detailsCustomer.id);
-                      setSendError((prev) => ({ ...prev, [detailsCustomer.id]: "" }));
-                      setSendOk((prev) => ({ ...prev, [detailsCustomer.id]: "" }));
-                      try {
-                        const res = await fetch("/api/customers/send-payment-link", {
-                          method: "POST",
-                          headers: { "content-type": "application/json" },
-                          body: JSON.stringify({
-                            customerId: detailsCustomer.id,
-                            customerName: detailsCustomer.name || "",
-                            amount
-                          })
-                        });
-                        const contentType = res.headers.get("content-type") || "";
-                        if (!contentType.includes("application/json")) {
-                          setSendError((prev) => ({ ...prev, [detailsCustomer.id]: "auth_required" }));
-                          return;
-                        }
-                        const json = await res.json().catch(() => ({}));
-                        if (!res.ok || !json?.ok) {
-                          setSendError((prev) => ({ ...prev, [detailsCustomer.id]: json?.error || "send_failed" }));
-                          return;
-                        }
-                        if (typeof json?.notificationsScheduled === "number" && json.notificationsScheduled === 0) {
-                          setSendError((prev) => ({ ...prev, [detailsCustomer.id]: "no_rules" }));
-                          return;
-                        }
-                        setSendOk((prev) => ({ ...prev, [detailsCustomer.id]: "sent" }));
-                      } finally {
-                        setSendingId(null);
-                      }
-                    }}
-                  >
-                    <input type="hidden" name="customerId" value={detailsCustomer.id} />
-                    <input type="hidden" name="customerName" value={detailsCustomer.name || ""} />
-                    <input className="input" name="amount" placeholder="$ 10000" inputMode="numeric" aria-label="Monto" />
-                    <button className="primary btn-compact" type="submit" disabled={sendingId === detailsCustomer.id}>
-                      {sendingId === detailsCustomer.id ? "Enviando..." : "Enviar link"}
-                    </button>
-                  </form>
+                  {detailsHasPlan && !hasToken(detailsCustomer) ? (
+                    <>
+                      <div className="paylink-title">Link de tokenización</div>
+                      <form
+                        id={`details-token-${detailsCustomer.id}`}
+                        className="paylink-form"
+                        onSubmit={async (e) => {
+                          e.preventDefault();
+                          setSendingId(detailsCustomer.id);
+                          setSendError((prev) => ({ ...prev, [detailsCustomer.id]: "" }));
+                          setSendOk((prev) => ({ ...prev, [detailsCustomer.id]: "" }));
+                          try {
+                            const res = await fetch("/api/customers/send-tokenization-link", {
+                              method: "POST",
+                              headers: { "content-type": "application/json" },
+                              body: JSON.stringify({
+                                customerId: detailsCustomer.id,
+                                customerName: detailsCustomer.name || ""
+                              })
+                            });
+                            const contentType = res.headers.get("content-type") || "";
+                            if (!contentType.includes("application/json")) {
+                              setSendError((prev) => ({ ...prev, [detailsCustomer.id]: "auth_required" }));
+                              return;
+                            }
+                            const json = await res.json().catch(() => ({}));
+                            if (!res.ok || !json?.ok) {
+                              setSendError((prev) => ({ ...prev, [detailsCustomer.id]: json?.error || "send_failed" }));
+                              return;
+                            }
+                            setSendOk((prev) => ({ ...prev, [detailsCustomer.id]: "sent" }));
+                          } finally {
+                            setSendingId(null);
+                          }
+                        }}
+                      >
+                        <input type="hidden" name="customerId" value={detailsCustomer.id} />
+                        <input type="hidden" name="customerName" value={detailsCustomer.name || ""} />
+                        <button className="primary btn-compact" type="submit" disabled={sendingId === detailsCustomer.id}>
+                          {sendingId === detailsCustomer.id ? "Enviando..." : "Enviar link"}
+                        </button>
+                      </form>
+                    </>
+                  ) : (
+                    <>
+                      <div className="paylink-title">Crear link de pago</div>
+                      <form
+                        id={`details-paylink-${detailsCustomer.id}`}
+                        className="paylink-form"
+                        onSubmit={async (e) => {
+                          e.preventDefault();
+                          const form = e.currentTarget;
+                          const amount = (form.elements.namedItem("amount") as HTMLInputElement | null)?.value || "";
+                          setSendingId(detailsCustomer.id);
+                          setSendError((prev) => ({ ...prev, [detailsCustomer.id]: "" }));
+                          setSendOk((prev) => ({ ...prev, [detailsCustomer.id]: "" }));
+                          try {
+                            const res = await fetch("/api/customers/send-payment-link", {
+                              method: "POST",
+                              headers: { "content-type": "application/json" },
+                              body: JSON.stringify({
+                                customerId: detailsCustomer.id,
+                                customerName: detailsCustomer.name || "",
+                                amount
+                              })
+                            });
+                            const contentType = res.headers.get("content-type") || "";
+                            if (!contentType.includes("application/json")) {
+                              setSendError((prev) => ({ ...prev, [detailsCustomer.id]: "auth_required" }));
+                              return;
+                            }
+                            const json = await res.json().catch(() => ({}));
+                            if (!res.ok || !json?.ok) {
+                              setSendError((prev) => ({ ...prev, [detailsCustomer.id]: json?.error || "send_failed" }));
+                              return;
+                            }
+                            if (typeof json?.notificationsScheduled === "number" && json.notificationsScheduled === 0) {
+                              setSendError((prev) => ({ ...prev, [detailsCustomer.id]: "no_rules" }));
+                              return;
+                            }
+                            setSendOk((prev) => ({ ...prev, [detailsCustomer.id]: "sent" }));
+                          } finally {
+                            setSendingId(null);
+                          }
+                        }}
+                      >
+                        <input type="hidden" name="customerId" value={detailsCustomer.id} />
+                        <input type="hidden" name="customerName" value={detailsCustomer.name || ""} />
+                        <input className="input" name="amount" placeholder="$ 10000" inputMode="numeric" aria-label="Monto" />
+                        <button className="primary btn-compact" type="submit" disabled={sendingId === detailsCustomer.id}>
+                          {sendingId === detailsCustomer.id ? "Enviando..." : "Enviar link"}
+                        </button>
+                      </form>
+                    </>
+                  )}
                   {sendError[detailsCustomer.id] === "auth_required" ? (
                     <div className="paylink-error">Sesión vencida. Vuelve a iniciar sesión.</div>
                   ) : null}
@@ -472,6 +570,10 @@ export function CustomersTable({
                   ) : null}
                   {sendOk[detailsCustomer.id] ? <div className="paylink-success">Link enviado.</div> : null}
                 </div>
+              </div>
+            </>
+              );
+            })()}
               </div>
             </div>
           </div>
