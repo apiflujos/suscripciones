@@ -998,6 +998,8 @@ textarea {
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
+  max-width: 820px;
+  margin: 0 auto;
 }
 
 .billing-card {
@@ -1008,6 +1010,7 @@ textarea {
   padding: 8px 10px;
   display: grid;
   gap: 6px;
+  width: 100%;
 }
 
 .billing-header {
