@@ -739,9 +739,6 @@ textarea {
   justify-content: center;
   cursor: pointer;
   border: 1px solid transparent;
-}
-
-.btn-uniform {
   min-width: 140px;
 }
 

@@ -387,7 +387,7 @@ export default async function BillingPage({
                             <input type="hidden" name="csrf" value={csrfToken} />
                             <input type="hidden" name="subscriptionId" value={r.id} />
                             <input type="hidden" name="customerId" value={r.customerId} />
-                            <button className="ghost btn-uniform" type="submit" style={{ borderColor: "#60a5fa", color: "#1d4ed8" }}>
+                            <button className="ghost" type="submit" style={{ borderColor: "#60a5fa", color: "#1d4ed8" }}>
                               Generar link
                             </button>
                           </form>
@@ -397,7 +397,7 @@ export default async function BillingPage({
                               <form action={resumeSubscription}>
                                 <input type="hidden" name="csrf" value={csrfToken} />
                                 <input type="hidden" name="subscriptionId" value={r.id} />
-                                <button className="ghost btn-uniform" type="submit" style={{ borderColor: "#16a34a", color: "#15803d" }}>
+                                <button className="ghost" type="submit" style={{ borderColor: "#16a34a", color: "#15803d" }}>
                                   Reanudar
                                 </button>
                               </form>
@@ -405,7 +405,7 @@ export default async function BillingPage({
                               <form action={activateSubscription}>
                                 <input type="hidden" name="csrf" value={csrfToken} />
                                 <input type="hidden" name="subscriptionId" value={r.id} />
-                                <button className="ghost btn-uniform" type="submit" style={{ borderColor: "#16a34a", color: "#15803d" }}>
+                                <button className="ghost" type="submit" style={{ borderColor: "#16a34a", color: "#15803d" }}>
                                   Activar
                                 </button>
                               </form>
@@ -414,14 +414,14 @@ export default async function BillingPage({
                                 <form action={suspendSubscription}>
                                   <input type="hidden" name="csrf" value={csrfToken} />
                                   <input type="hidden" name="subscriptionId" value={r.id} />
-                                  <button className="ghost btn-uniform" type="submit" style={{ borderColor: "#f59e0b", color: "#b45309" }}>
+                                  <button className="ghost" type="submit" style={{ borderColor: "#f59e0b", color: "#b45309" }}>
                                     Suspender
                                   </button>
                                 </form>
                                 <form action={cancelSubscription}>
                                   <input type="hidden" name="csrf" value={csrfToken} />
                                   <input type="hidden" name="subscriptionId" value={r.id} />
-                                  <button className="ghost btn-uniform" type="submit" style={{ borderColor: "#ef4444", color: "#b91c1c" }}>
+                                  <button className="ghost" type="submit" style={{ borderColor: "#ef4444", color: "#b91c1c" }}>
                                     Cancelar
                                   </button>
                                 </form>
