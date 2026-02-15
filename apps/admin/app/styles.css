@@ -956,12 +956,11 @@ textarea {
 }
 
 .btn-link {
-  width: 240px;
+  min-width: 180px;
+  height: 32px;
   justify-content: center;
   text-align: center;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .paylink-meta {

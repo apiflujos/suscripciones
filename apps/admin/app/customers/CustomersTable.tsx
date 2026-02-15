@@ -356,12 +356,12 @@ export function CustomersTable({
                       <div className="paylink-links">
                         {paymentLink ? (
                           <a className="ghost btn-compact btn-blue btn-link" href={paymentLink} target="_blank" rel="noreferrer" title={maskUrl(paymentLink)}>
-                            Link de pago · {maskUrl(paymentLink)}
+                            Link de pago
                           </a>
                         ) : null}
                         {tokenLink ? (
                           <a className="ghost btn-compact btn-amber btn-link" href={tokenLink} target="_blank" rel="noreferrer" title={maskUrl(tokenLink)}>
-                            Link de token · {maskUrl(tokenLink)}
+                            Link de tokenización
                           </a>
                         ) : null}
                       </div>
@@ -620,12 +620,12 @@ export function CustomersTable({
                       <div className="paylink-links">
                         {paymentLink ? (
                           <a className="ghost btn-compact btn-blue btn-link" href={paymentLink} target="_blank" rel="noreferrer" title={maskUrl(paymentLink)}>
-                            Link de pago · {maskUrl(paymentLink)}
+                            Link de pago
                           </a>
                         ) : null}
                         {tokenLink ? (
                           <a className="ghost btn-compact btn-amber btn-link" href={tokenLink} target="_blank" rel="noreferrer" title={maskUrl(tokenLink)}>
-                            Link de token · {maskUrl(tokenLink)}
+                            Link de tokenización
                           </a>
                         ) : null}
                       </div>
