@@ -796,7 +796,7 @@ textarea {
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
   padding: 6px 8px;
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
   gap: 6px;
   align-items: start;
 }
@@ -829,7 +829,7 @@ textarea {
 }
 
 .contact-section-title {
-  font-size: 11px;
+  font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--muted);
@@ -840,8 +840,8 @@ textarea {
 .contact-plan-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px 10px;
-  font-size: 11px;
+  gap: 3px 6px;
+  font-size: 12px;
   color: #0f172a;
 }
 
@@ -855,20 +855,21 @@ textarea {
 
 .contact-right {
   display: grid;
-  gap: 8px;
+  gap: 4px;
 }
 
 .contact-right-top {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  gap: 8px;
+  align-items: flex-start;
+  gap: 6px;
 }
 
 .contact-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 6px;
+  gap: 4px;
+  flex-direction: column;
 }
 
 .btn-compact {

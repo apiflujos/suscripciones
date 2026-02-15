@@ -160,7 +160,7 @@ export function CustomersTable({
             <div className="contact-card" key={c.id}>
               <div className="contact-left">
                 <div className="contact-section-title">Información personal</div>
-                <div className="contact-person-grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+                <div className="contact-person-grid" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
                   <div>
                     <span>Nombre</span>
                     <strong>{c.name || "—"}</strong>
@@ -172,10 +172,6 @@ export function CustomersTable({
                   <div>
                     <span>Teléfono</span>
                     {c.phone || "—"}
-                  </div>
-                  <div>
-                    <span>Identificación</span>
-                    {c.metadata?.identificacion || c.metadata?.identificationNumber || "—"}
                   </div>
                 </div>
               </div>
@@ -204,30 +200,20 @@ export function CustomersTable({
                     </form>
                   </div>
                 </div>
-                <div className="contact-plan-grid" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
+                <div className="contact-plan-grid" style={{ gridTemplateColumns: "1fr" }}>
                   <div>
                     <span>Link de pago</span>
-                    {link?.checkoutUrl ? (
-                      <a className="ghost btn-compact btn-blue" href={link.checkoutUrl} target="_blank" rel="noreferrer">
-                        Abrir link
-                      </a>
-                    ) : (
-                      "—"
-                    )}
-                  </div>
-                  <div>
-                    <span>Estado link</span>
-                    {statusLabel ? (
-                      <span className={`pill ${status === "SENT" ? "pill-ok" : status === "FAILED" ? "pill-bad" : "pill-warn"}`}>
-                        {statusLabel}
-                      </span>
-                    ) : (
-                      "—"
-                    )}
-                  </div>
-                  <div>
-                    <span>Último link</span>
-                    {link?.createdAt ? <LocalDateTime value={link.createdAt} /> : "—"}
+                    <div style={{ display: "inline-flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                      {link?.checkoutUrl ? (
+                        <a className="ghost btn-compact btn-blue" href={link.checkoutUrl} target="_blank" rel="noreferrer">
+                          Abrir link
+                        </a>
+                      ) : (
+                        <span>—</span>
+                      )}
+                      <span className="field-hint">Estado: {statusLabel || "—"}</span>
+                      <span className="field-hint">Último: {link?.createdAt ? <LocalDateTime value={link.createdAt} /> : "—"}</span>
+                    </div>
                   </div>
                 </div>
               </div>
