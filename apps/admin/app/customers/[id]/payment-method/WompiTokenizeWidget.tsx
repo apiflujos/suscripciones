@@ -10,12 +10,11 @@ export function WompiTokenizeWidget({ publicKey }: { publicKey: string }) {
     if (!host) return;
     host.innerHTML = "";
 
-    const form = host.closest("form");
-    if (form) {
-      // Wompi widget expects POST (uppercase) on the parent form.
-      form.setAttribute("method", "POST");
-      if (!form.getAttribute("action")) form.setAttribute("action", window.location.pathname);
-    }
+    // Wompi widget expects to live inside a POST form.
+    const form = document.createElement("form");
+    form.setAttribute("method", "POST");
+    form.setAttribute("action", window.location.pathname);
+    host.appendChild(form);
 
     const script = document.createElement("script");
     script.src = "/wompi/widget";
@@ -23,7 +22,7 @@ export function WompiTokenizeWidget({ publicKey }: { publicKey: string }) {
     script.setAttribute("data-render", "button");
     script.setAttribute("data-widget-operation", "tokenize");
     script.setAttribute("data-public-key", publicKey);
-    host.appendChild(script);
+    form.appendChild(script);
 
     return () => {
       try {
