@@ -71,7 +71,14 @@ export default async function CustomerPaymentMethodPage({
         <div className="settings-group-body">
           <div className="panel module">
             <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-              <h3>{customer.email || customer.name || customer.id}</h3>
+              <h3 style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span>{customer.email || customer.name || customer.id}</span>
+                {customer?.metadata?.wompi?.paymentSourceId ? (
+                  <span className="pill pill-ok">Tokenizada</span>
+                ) : (
+                  <span className="pill pill-bad">Sin token</span>
+                )}
+              </h3>
               <span className="settings-group-title">
                 <Link href="/customers" style={{ textDecoration: "underline" }}>
                   Volver
