@@ -376,6 +376,7 @@ export default async function BillingPage({
                 periodEndAt: r.periodoFinAt
               });
               const subscriptionStatus = getSubscriptionStatusLabel(r.status);
+              const subscriptionBadge = `Suscripción ${subscriptionStatus.toLowerCase()}`;
               return (
                 <div className="billing-card" key={r.id}>
                   <div className="billing-header">
@@ -387,15 +388,14 @@ export default async function BillingPage({
                     </div>
                   <div className="billing-badges">
                     <span className={`pill ${subscriptionStatus === "Activa" ? "pill-ok" : subscriptionStatus === "En mora" ? "pill-warn" : subscriptionStatus === "Suspendida" ? "pill-warn" : subscriptionStatus === "Cancelada" ? "pill-bad" : "pill-muted"}`}>
-                      Suscripción: {subscriptionStatus}
+                      {subscriptionBadge}
                     </span>
                     <span className={`pill ${paymentStatus === "Pagado" ? "pill-ok" : paymentStatus === "En mora" ? "pill-warn" : "pill-muted"}`}>
-                      Pago: {paymentStatus}
+                      Pago {paymentStatus.toLowerCase()}
                     </span>
                     <span className={`pill ${r.customerTokenized ? "pill-ok" : "pill-bad"}`}>
                       {r.customerTokenized ? "Tokenizada" : "Sin token"}
                     </span>
-                    <span className="pill pill-muted">{r.tipoTx}</span>
                   </div>
                   </div>
 

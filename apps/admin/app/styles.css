@@ -948,6 +948,10 @@ textarea {
   align-items: center;
 }
 
+.paylink-form .input {
+  height: 32px;
+}
+
 .paylink-links {
   display: flex;
   gap: 6px;

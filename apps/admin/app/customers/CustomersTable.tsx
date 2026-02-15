@@ -231,9 +231,9 @@ export function CustomersTable({
                     <div>
                       <span>Método de pago</span>
                       <Link className="ghost btn-compact btn-amber" href={`/customers/${c.id}/payment-method`}>
-                        Tokenizar
+                        Abrir tokenización
                       </Link>
-                      <div className="field-hint">Sin token: no se puede cobrar automático</div>
+                      <div className="field-hint">Envía el link de tokenización para que el cliente guarde su tarjeta.</div>
                     </div>
                   ) : null}
                 </div>
