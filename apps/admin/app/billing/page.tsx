@@ -147,6 +147,9 @@ export default async function BillingPage({
     fetchAdmin("/admin/customers?take=200"),
     fetchAdmin("/admin/products?take=200")
   ]);
+  const plansError = plans.ok
+    ? ""
+    : String(plans.json?.error || plans.json?.reason || (plans.status ? `HTTP ${plans.status}` : "unknown_error"));
   const subItems = (subs.json?.items ?? []) as any[];
   const planItems = (plans.json?.items ?? []) as any[];
   const customerItems = (customers.json?.items ?? []) as any[];
@@ -216,6 +219,11 @@ export default async function BillingPage({
 
   return (
     <main className="page" style={{ maxWidth: 1100 }}>
+      {plansError ? (
+        <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
+          No se pudieron cargar los planes/suscripciones. Error: {plansError}. Revisa `ADMIN_API_TOKEN` y la URL del API.
+        </div>
+      ) : null}
       {error ? (
         <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
           Error: {error}

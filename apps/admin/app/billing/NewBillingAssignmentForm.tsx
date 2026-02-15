@@ -283,7 +283,7 @@ export function NewBillingAssignmentForm({
                     setShowNewPlan(false);
                   }}
                 >
-                  <option value="">Selecciona una plantilla…</option>
+                  <option value="">Selecciona un plan / suscripción…</option>
                   {filteredPlans.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name} · {planTipo(p as any) === "SUSCRIPCION" ? "Suscripción" : "Plan"} ·{" "}
@@ -293,7 +293,7 @@ export function NewBillingAssignmentForm({
                 </select>
                 {filteredPlans.length === 0 ? (
                   <div style={{ color: "var(--muted)" }}>
-                    {plans.length === 0 ? "No hay plantillas. Crea un plan / suscripción." : "No se encontraron plantillas."}
+                    {plans.length === 0 ? "No hay planes o suscripciones. Crea uno nuevo." : "No se encontraron planes o suscripciones."}
                   </div>
                 ) : null}
               </div>
