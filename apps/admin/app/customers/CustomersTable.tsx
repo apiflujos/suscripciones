@@ -204,6 +204,15 @@ export function CustomersTable({
                       {hasPlan ? <span className="pill pill-ok pill-sm">Sí</span> : <span className="pill pill-muted pill-sm">No</span>}
                     </div>
                   </div>
+                  {!hasToken(c) ? (
+                    <div>
+                      <span>Método de pago</span>
+                      <Link className="ghost btn-compact btn-amber" href={`/customers/${c.id}/payment-method`}>
+                        Tokenizar
+                      </Link>
+                      <div className="field-hint">Sin token: no se puede cobrar automático</div>
+                    </div>
+                  ) : null}
                 </div>
                 <div className="contact-paylink">
                   <div className="paylink-title">Link de pago</div>
