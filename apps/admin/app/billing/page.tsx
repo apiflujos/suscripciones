@@ -387,10 +387,10 @@ export default async function BillingPage({
                     </div>
                   <div className="billing-badges">
                     <span className={`pill ${subscriptionStatus === "Activa" ? "pill-ok" : subscriptionStatus === "En mora" ? "pill-warn" : subscriptionStatus === "Suspendida" ? "pill-warn" : subscriptionStatus === "Cancelada" ? "pill-bad" : "pill-muted"}`}>
-                      {subscriptionStatus}
+                      Suscripción: {subscriptionStatus}
                     </span>
                     <span className={`pill ${paymentStatus === "Pagado" ? "pill-ok" : paymentStatus === "En mora" ? "pill-warn" : "pill-muted"}`}>
-                      {paymentStatus}
+                      Pago: {paymentStatus}
                     </span>
                     <span className={`pill ${r.customerTokenized ? "pill-ok" : "pill-bad"}`}>
                       {r.customerTokenized ? "Tokenizada" : "Sin token"}
