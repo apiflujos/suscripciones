@@ -6,8 +6,8 @@
   /* Tokens (colores y sombras) */
   --bg: #f9f9f9;
   --panel: #ffffff;
-  --text: #0f172a;
-  --muted: #6b7280;
+  --text: #0b1220;
+  --muted: #4b5563;
   --primary: #002b5b;
   --primary-soft: rgba(0, 43, 91, 0.1);
   --accent: #24a148;
@@ -833,7 +833,7 @@ textarea {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--muted);
+  color: #3f4754;
   font-weight: 700;
 }
 
@@ -843,13 +843,13 @@ textarea {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 2px 6px;
   font-size: 13px;
-  color: #0f172a;
+  color: #0b1220;
 }
 
 .contact-person-grid span,
 .contact-plan-grid span {
   display: block;
-  color: var(--muted);
+  color: #4b5563;
   font-size: 11px;
   margin-bottom: 2px;
 }
