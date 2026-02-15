@@ -232,7 +232,7 @@ export function NewBillingAssignmentForm({
           <h3 style={{ margin: 0 }}>Crear plan o suscripción para un contacto</h3>
         </div>
         <button className={open ? "ghost" : "primary"} type="button" onClick={() => setOpen((v) => !v)}>
-          {open ? "Cerrar" : "Crear nuevo"}
+          {open ? "Cerrar" : "Crear plan / suscripción"}
         </button>
       </div>
 
@@ -242,7 +242,7 @@ export function NewBillingAssignmentForm({
             <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
               <h3 style={{ margin: 0 }}>1) Plan o suscripción</h3>
               <button className="ghost" type="button" onClick={() => setShowNewPlan((v) => !v)}>
-                {showNewPlan ? "Cerrar" : "Crear plantilla"}
+                {showNewPlan ? "Cerrar" : "Crear plan / suscripción"}
               </button>
             </div>
 
@@ -291,7 +291,11 @@ export function NewBillingAssignmentForm({
                     </option>
                   ))}
                 </select>
-                {filteredPlans.length === 0 ? <div style={{ color: "var(--muted)" }}>No se encontraron plantillas.</div> : null}
+                {filteredPlans.length === 0 ? (
+                  <div style={{ color: "var(--muted)" }}>
+                    {plans.length === 0 ? "No hay plantillas. Crea un plan / suscripción." : "No se encontraron plantillas."}
+                  </div>
+                ) : null}
               </div>
             )}
 
