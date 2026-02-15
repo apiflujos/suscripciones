@@ -18,7 +18,7 @@ export function WompiTokenizeWidget({ publicKey }: { publicKey: string }) {
     }
 
     const script = document.createElement("script");
-    script.src = "https://checkout.wompi.co/widget.js";
+    script.src = "/wompi/widget";
     script.type = "module";
     script.setAttribute("data-render", "button");
     script.setAttribute("data-widget-operation", "tokenize");
