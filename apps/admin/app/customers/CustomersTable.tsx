@@ -203,7 +203,7 @@ export function CustomersTable({
                 <div className="contact-plan-grid" style={{ gridTemplateColumns: "1fr" }}>
                   <div>
                     <span>Link de pago</span>
-                    <div style={{ display: "inline-flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                    <div style={{ display: "inline-flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
                       {link?.checkoutUrl ? (
                         <a className="ghost btn-compact btn-blue" href={link.checkoutUrl} target="_blank" rel="noreferrer">
                           Abrir link
