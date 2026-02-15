@@ -135,42 +135,49 @@ export function ProductsTable({ items, csrfToken }: { items: ProductRow[]; csrfT
 
   return (
     <>
-      <div className="panel module" style={{ padding: 0 }}>
-        <table className="table" aria-label="Tabla de productos y servicios">
-          <thead>
-            <tr>
-              <th>SKU</th>
-              <th>Nombre</th>
-              <th>Tipo</th>
-              <th>Precio</th>
-              <th>IVA</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((p) => (
-              <tr key={p.id}>
-                <td style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>{p.sku}</td>
-                <td>{p.name}</td>
-                <td>{p.kind === "SERVICE" ? "Servicio" : "Producto"}</td>
-                <td>{formatCopFromCents(p.basePriceInCents)}</td>
-                <td>{p.taxPercent ? `${p.taxPercent}%` : "—"}</td>
-                <td style={{ textAlign: "right" }}>
-                  <button className="ghost" type="button" onClick={() => openEditor(p)}>
-                    Editar
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {items.length === 0 ? (
-              <tr>
-                <td colSpan={6} style={{ color: "var(--muted)" }}>
-                  Sin productos/servicios.
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
+      <div className="product-grid" aria-label="Listado de productos y servicios">
+        {items.map((p) => (
+          <div className="product-card" key={p.id}>
+            <div className="product-header">
+              <div className="product-title">
+                <div className="product-name">{p.name}</div>
+                <div className="product-sub">
+                  <span className="product-sku">{p.sku}</span>
+                  <span>·</span>
+                  <span>{p.kind === "SERVICE" ? "Servicio" : "Producto"}</span>
+                </div>
+              </div>
+              <button className="ghost btn-compact btn-blue" type="button" onClick={() => openEditor(p)}>
+                Editar
+              </button>
+            </div>
+            <div className="product-info">
+              <div>
+                <span>Precio</span>
+                <strong>{formatCopFromCents(p.basePriceInCents)}</strong>
+              </div>
+              <div>
+                <span>IVA</span>
+                <strong>{p.taxPercent ? `${p.taxPercent}%` : "—"}</strong>
+              </div>
+              <div>
+                <span>Descuento</span>
+                <strong>
+                  {p.discountType === "PERCENT"
+                    ? `${p.discountPercent || 0}%`
+                    : p.discountType === "FIXED"
+                      ? formatCopFromCents(p.discountValueInCents || 0)
+                      : "—"}
+                </strong>
+              </div>
+              <div>
+                <span>Variantes</span>
+                <strong>{(p.variants || []).length ? `${(p.variants || []).length}` : "—"}</strong>
+              </div>
+            </div>
+          </div>
+        ))}
+        {items.length === 0 ? <div className="contact-empty">Sin productos/servicios.</div> : null}
       </div>
 
       {open && editing ? (
