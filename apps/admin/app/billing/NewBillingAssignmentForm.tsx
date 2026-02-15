@@ -103,6 +103,9 @@ export function NewBillingAssignmentForm({
 
   const [planQ, setPlanQ] = useState("");
   const [planId, setPlanId] = useState(defaultSelectedPlanId || "");
+  const [planHits, setPlanHits] = useState<Plan[]>([]);
+  const [planSearching, setPlanSearching] = useState(false);
+  const [planSearchError, setPlanSearchError] = useState("");
 
   const [customerQ, setCustomerQ] = useState("");
   const [customerId, setCustomerId] = useState(defaultSelectedCustomerId || "");
@@ -128,6 +131,11 @@ export function NewBillingAssignmentForm({
   }, [sameCutoff, startLocal]);
 
   const selectedPlan = useMemo(() => plans.find((p) => String(p.id) === String(planId)) || null, [plans, planId]);
+  const selectedPlanFromHits = useMemo(() => {
+    if (!planId) return null;
+    return planHits.find((p) => String(p.id) === String(planId)) || null;
+  }, [planHits, planId]);
+  const resolvedPlan = selectedPlan || selectedPlanFromHits;
   const selectedCustomer = useMemo(() => {
     if (!customerId) return null;
     if (selectedCustomerOverride && String(selectedCustomerOverride.id) === String(customerId)) return selectedCustomerOverride;
@@ -140,10 +148,16 @@ export function NewBillingAssignmentForm({
 
   const filteredPlans = useMemo(() => {
     const q = planQ.trim().toLowerCase();
+    if (q.length >= 2) {
+      const list = planHits.slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "es"));
+      return list.slice(0, 200);
+    }
     const list = plans.slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "es"));
     if (!q) return list.slice(0, 200);
-    return list.filter((p) => `${p.name || ""} ${p.id}`.toLowerCase().includes(q)).slice(0, 200);
-  }, [plans, planQ]);
+    return list
+      .filter((p) => `${p.name || ""} ${p.id}`.toLowerCase().includes(q))
+      .slice(0, 200);
+  }, [plans, planHits, planQ]);
 
   const filteredCustomers = useMemo(() => {
     const q = customerQ.trim().toLowerCase();
@@ -158,6 +172,45 @@ export function NewBillingAssignmentForm({
       .filter((c) => `${c.name || ""} ${c.email || ""} ${c.phone || ""} ${c.metadata?.identificacion || ""} ${c.id}`.toLowerCase().includes(q))
       .slice(0, 200);
   }, [customers, customerHits, customerQ]);
+
+  useEffect(() => {
+    const q = planQ.trim();
+    if (q.length < 2) {
+      setPlanHits([]);
+      setPlanSearching(false);
+      setPlanSearchError("");
+      return;
+    }
+
+    const ac = new AbortController();
+    setPlanSearching(true);
+    setPlanSearchError("");
+    const t = setTimeout(() => {
+      fetch(`/api/search/plans?${new URLSearchParams({ q, take: "80" }).toString()}`, { cache: "no-store", signal: ac.signal })
+        .then(async (r) => ({ ok: r.ok, status: r.status, json: await r.json().catch(() => null) }))
+        .then(({ ok, status, json }) => {
+          if (!ok) {
+            setPlanHits([]);
+            setPlanSearchError(status === 401 ? "No autorizado (revisa el token del Admin)." : `Error buscando planes (${status}).`);
+            return;
+          }
+          setPlanHits(Array.isArray(json?.items) ? json.items : []);
+        })
+        .catch((err) => {
+          if (err?.name === "AbortError") return;
+          setPlanHits([]);
+          setPlanSearchError("Error de red buscando planes.");
+        })
+        .finally(() => {
+          setPlanSearching(false);
+        });
+    }, 260);
+
+    return () => {
+      clearTimeout(t);
+      ac.abort();
+    };
+  }, [planQ]);
 
   useEffect(() => {
     const q = customerQ.trim();
@@ -246,14 +299,14 @@ export function NewBillingAssignmentForm({
               </button>
             </div>
 
-            {selectedPlan ? (
+            {resolvedPlan ? (
               <div className="card cardPad" style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
                 <div style={{ display: "grid" }}>
-                  <strong>{selectedPlan.name}</strong>
+                  <strong>{resolvedPlan.name}</strong>
                   <span className="field-hint">
-                    {planTipo(selectedPlan) === "SUSCRIPCION" ? "Suscripción" : "Plan"} ·{" "}
-                    {fmtMoneyFromCents(Number(selectedPlan.priceInCents || 0), String(selectedPlan.currency || "COP"))} ·{" "}
-                    {fmtEvery(selectedPlan.intervalUnit, selectedPlan.intervalCount)}
+                    {planTipo(resolvedPlan) === "SUSCRIPCION" ? "Suscripción" : "Plan"} ·{" "}
+                    {fmtMoneyFromCents(Number(resolvedPlan.priceInCents || 0), String(resolvedPlan.currency || "COP"))} ·{" "}
+                    {fmtEvery(resolvedPlan.intervalUnit, resolvedPlan.intervalCount)}
                   </span>
                 </div>
                 <button
@@ -262,10 +315,9 @@ export function NewBillingAssignmentForm({
                   onClick={() => {
                     setPlanId("");
                     setPlanQ("");
-                    setCustomerId("");
-                    setCustomerQ("");
-                    setCustomerHits([]);
-                    setSelectedCustomerOverride(null);
+                    setPlanId("");
+                    setPlanQ("");
+                    setPlanHits([]);
                   }}
                 >
                   Cambiar
@@ -274,23 +326,29 @@ export function NewBillingAssignmentForm({
             ) : (
               <div style={{ display: "grid", gap: 8 }}>
                 <input className="input" value={planQ} onChange={(e) => setPlanQ(e.target.value)} placeholder="Buscar por nombre…" aria-label="Buscar plan o suscripción" />
-                <select
-                  className="select"
-                  value={planId}
-                  onChange={(e) => {
-                    const id = e.target.value;
-                    setPlanId(id);
-                    setShowNewPlan(false);
-                  }}
-                >
-                  <option value="">Selecciona un plan / suscripción…</option>
+                <div style={{ display: "grid", gap: 6 }}>
                   {filteredPlans.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} · {planTipo(p as any) === "SUSCRIPCION" ? "Suscripción" : "Plan"} ·{" "}
-                      {fmtMoneyFromCents(Number(p.priceInCents || 0), String(p.currency || "COP"))} · {fmtEvery(p.intervalUnit, p.intervalCount)}
-                    </option>
+                    <button
+                      key={p.id}
+                      type="button"
+                      className="ghost"
+                      style={{ textAlign: "left", padding: "8px 10px", border: "1px solid rgba(15, 23, 42, 0.08)", borderRadius: 10 }}
+                      onClick={() => {
+                        setPlanId(String(p.id));
+                        setPlanQ(String(p.name || ""));
+                        setShowNewPlan(false);
+                      }}
+                    >
+                      <strong>{p.name}</strong>{" "}
+                      <span className="field-hint">
+                        · {planTipo(p as any) === "SUSCRIPCION" ? "Suscripción" : "Plan"} ·{" "}
+                        {fmtMoneyFromCents(Number(p.priceInCents || 0), String(p.currency || "COP"))} · {fmtEvery(p.intervalUnit, p.intervalCount)}
+                      </span>
+                    </button>
                   ))}
-                </select>
+                </div>
+                {planSearching ? <div className="field-hint">Buscando planes…</div> : null}
+                {planSearchError ? <div className="field-hint" style={{ color: "rgba(217, 83, 79, 0.92)" }}>{planSearchError}</div> : null}
                 {filteredPlans.length === 0 ? (
                   <div style={{ color: "var(--muted)" }}>
                     {plans.length === 0 ? "No hay planes o suscripciones. Crea uno nuevo." : "No se encontraron planes o suscripciones."}
