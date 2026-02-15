@@ -1,4 +1,5 @@
 import { activateSubscription, cancelSubscription, createPaymentLink, deleteSubscription, resumeSubscription, suspendSubscription } from "../subscriptions/actions";
+import { DeleteSubscriptionButton } from "./DeleteSubscriptionButton";
 import { createCustomerFromBilling, createPlanAndSubscription, sendChatwootPaymentLink } from "./actions";
 import { NewBillingAssignmentForm } from "./NewBillingAssignmentForm";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
@@ -428,18 +429,7 @@ export default async function BillingPage({
                             )}
                           </>
                         )}
-                        <form
-                          action={deleteSubscription}
-                          onSubmit={(e) => {
-                            if (!confirm("¿Eliminar esta suscripción?")) e.preventDefault();
-                          }}
-                        >
-                          <input type="hidden" name="csrf" value={csrfToken} />
-                          <input type="hidden" name="subscriptionId" value={r.id} />
-                          <button className="icon-btn danger" type="submit" aria-label="Eliminar suscripción">
-                            🗑
-                          </button>
-                        </form>
+                        <DeleteSubscriptionButton action={deleteSubscription} csrfToken={csrfToken} subscriptionId={r.id} />
                       </div>
                     </td>
                   </tr>
