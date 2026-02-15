@@ -152,6 +152,34 @@ export async function updateChatwoot(formData: FormData) {
   }
 }
 
+export async function updatePublicCheckout(formData: FormData) {
+  await assertCsrfToken(formData);
+  const baseUrl = normalizeUrl(String(formData.get("publicBaseUrl") || ""));
+  const title = String(formData.get("publicTitle") || "").trim();
+  const subtitle = String(formData.get("publicSubtitle") || "").trim();
+  const description = String(formData.get("publicDescription") || "").trim();
+  const contactEmail = String(formData.get("publicContactEmail") || "").trim();
+  const tokenExpiryHours = String(formData.get("publicTokenExpiryHours") || "").trim();
+
+  try {
+    await adminFetch("/admin/settings/public-checkout", {
+      method: "PUT",
+      body: JSON.stringify({
+        ...(baseUrl ? { baseUrl } : { baseUrl: "" }),
+        ...(title ? { title } : { title: "" }),
+        ...(subtitle ? { subtitle } : { subtitle: "" }),
+        ...(description ? { description } : { description: "" }),
+        ...(contactEmail ? { contactEmail } : { contactEmail: "" }),
+        ...(tokenExpiryHours ? { tokenExpiryHours: Number(tokenExpiryHours) } : {})
+      })
+    });
+    redirectWith("public_checkout", "ok");
+  } catch (err) {
+    if (isNextRedirect(err)) throw err;
+    redirectWith("public_checkout", "fail", toShortErrorMessage(err));
+  }
+}
+
 export async function setWompiActiveEnv(formData: FormData) {
   await assertCsrfToken(formData);
   const activeEnv = String(formData.get("activeEnv") || "").trim().toUpperCase();

@@ -111,6 +111,29 @@ export async function getShopifyForwardRetryConfig(): Promise<{ enabled: boolean
   return { enabled, minutes };
 }
 
+export async function getPublicCheckoutConfig(): Promise<{
+  baseUrl?: string;
+  title?: string;
+  subtitle?: string;
+  description?: string;
+  contactEmail?: string;
+  tokenExpiryHours: number;
+}> {
+  const raw = (await getCredential(CredentialProvider.WOMPI, "PUBLIC_CHECKOUT_CONFIG")) || "";
+  let parsed: any = null;
+  try {
+    parsed = raw ? JSON.parse(raw) : null;
+  } catch {}
+  const baseUrl = String(parsed?.baseUrl || process.env.PUBLIC_CHECKOUT_BASE_URL || "").trim() || undefined;
+  const title = String(parsed?.title || process.env.PUBLIC_CHECKOUT_TITLE || "").trim() || undefined;
+  const subtitle = String(parsed?.subtitle || process.env.PUBLIC_CHECKOUT_SUBTITLE || "").trim() || undefined;
+  const description = String(parsed?.description || process.env.PUBLIC_CHECKOUT_DESCRIPTION || "").trim() || undefined;
+  const contactEmail = String(parsed?.contactEmail || process.env.PUBLIC_CHECKOUT_CONTACT_EMAIL || "").trim() || undefined;
+  const hoursNum = Number(parsed?.tokenExpiryHours || process.env.PUBLIC_CHECKOUT_TOKEN_EXPIRY_HOURS || 24);
+  const tokenExpiryHours = Number.isFinite(hoursNum) && hoursNum > 0 ? Math.min(Math.max(Math.trunc(hoursNum), 1), 168) : 24;
+  return { baseUrl, title, subtitle, description, contactEmail, tokenExpiryHours };
+}
+
 export async function getChatwootConfig(): Promise<
   | { configured: false }
   | { configured: true; baseUrl: string; accountId: number; apiAccessToken: string; inboxId: number }

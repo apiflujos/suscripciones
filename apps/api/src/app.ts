@@ -20,6 +20,7 @@ import { authRouter } from "./routes/auth";
 import { chatwootRouter } from "./routes/chatwoot";
 import { chatwootWebhook } from "./routes/webhooksChatwoot";
 import { commsRouter } from "./routes/comms";
+import { publicTokenizationRouter } from "./routes/publicTokenization";
 
 export function createApp() {
   const app = express();
@@ -100,6 +101,7 @@ export function createApp() {
   app.get("/health", health);
   app.post("/webhooks/wompi", wompiWebhook);
   app.post("/webhooks/chatwoot", chatwootWebhook);
+  app.use("/public", publicTokenizationRouter);
 
   app.get("/admin/webhook-events", requireAdminToken, listWebhookEvents);
   app.use("/admin/products", requireAdminToken, productsRouter);

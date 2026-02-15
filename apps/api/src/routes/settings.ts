@@ -61,6 +61,15 @@ const chatwootUpdateSchema = z.object({
   inboxId: z.coerce.number().int().positive().optional()
 });
 
+const publicCheckoutUpdateSchema = z.object({
+  baseUrl: z.string().url().optional().or(z.literal("")),
+  title: z.string().min(1).optional().or(z.literal("")),
+  subtitle: z.string().min(1).optional().or(z.literal("")),
+  description: z.string().min(1).optional().or(z.literal("")),
+  contactEmail: z.string().email().optional().or(z.literal("")),
+  tokenExpiryHours: z.coerce.number().int().positive().optional()
+});
+
 export const settingsRouter = express.Router();
 
 settingsRouter.get("/", async (_req, res) => {
@@ -72,7 +81,7 @@ settingsRouter.get("/", async (_req, res) => {
     encryptionKeyValid = buf.length === 32;
   }
 
-  const [wompiCreds, shopifyCreds, commsCreds] = await Promise.all([
+  const [wompiCreds, shopifyCreds, commsCreds, publicCheckoutRaw] = await Promise.all([
     getCredentialsBulk(CredentialProvider.WOMPI, [
       "ACTIVE_ENV",
       "PUBLIC_KEY",
@@ -112,7 +121,8 @@ settingsRouter.get("/", async (_req, res) => {
       "ACCOUNT_ID_SANDBOX",
       "INBOX_ID_SANDBOX",
       "API_ACCESS_TOKEN_SANDBOX"
-    ])
+    ]),
+    getCredential(CredentialProvider.WOMPI, "PUBLIC_CHECKOUT_CONFIG")
   ]);
 
   const wompiActiveEnv = (() => {
@@ -183,6 +193,13 @@ settingsRouter.get("/", async (_req, res) => {
     inboxId: getComms("INBOX_ID", "SANDBOX", process.env.CHATWOOT_INBOX_ID_SANDBOX) ?? null
   };
 
+  let publicCheckout: any = {};
+  try {
+    publicCheckout = publicCheckoutRaw ? JSON.parse(publicCheckoutRaw) : {};
+  } catch {
+    publicCheckout = {};
+  }
+
   res.json({
     encryptionKeyConfigured,
     encryptionKeyValid,
@@ -206,6 +223,17 @@ settingsRouter.get("/", async (_req, res) => {
       baseUrl: (chatwootActiveEnv === "SANDBOX" ? commsSandbox.baseUrl : commsProd.baseUrl) ?? null,
       accountId: (chatwootActiveEnv === "SANDBOX" ? commsSandbox.accountId : commsProd.accountId) ?? null,
       inboxId: (chatwootActiveEnv === "SANDBOX" ? commsSandbox.inboxId : commsProd.inboxId) ?? null
+    },
+    publicCheckout: {
+      baseUrl: publicCheckout.baseUrl || (process.env.PUBLIC_CHECKOUT_BASE_URL || "").trim() || null,
+      title: publicCheckout.title || (process.env.PUBLIC_CHECKOUT_TITLE || "").trim() || null,
+      subtitle: publicCheckout.subtitle || (process.env.PUBLIC_CHECKOUT_SUBTITLE || "").trim() || null,
+      description: publicCheckout.description || (process.env.PUBLIC_CHECKOUT_DESCRIPTION || "").trim() || null,
+      contactEmail: publicCheckout.contactEmail || (process.env.PUBLIC_CHECKOUT_CONTACT_EMAIL || "").trim() || null,
+      tokenExpiryHours:
+        Number.isFinite(Number(publicCheckout.tokenExpiryHours)) && Number(publicCheckout.tokenExpiryHours) > 0
+          ? Math.trunc(Number(publicCheckout.tokenExpiryHours))
+          : Number(process.env.PUBLIC_CHECKOUT_TOKEN_EXPIRY_HOURS || 24)
     }
   });
 });
@@ -279,6 +307,24 @@ settingsRouter.put("/chatwoot", async (req, res) => {
   }
 
   await systemLog(LogLevel.INFO, "configuracion.comunicaciones", "Credenciales de la central de comunicaciones actualizadas").catch(() => {});
+  res.json({ ok: true });
+});
+
+settingsRouter.put("/public-checkout", async (req, res) => {
+  const parsed = publicCheckoutUpdateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+
+  const payload = {
+    baseUrl: parsed.data.baseUrl || "",
+    title: parsed.data.title || "",
+    subtitle: parsed.data.subtitle || "",
+    description: parsed.data.description || "",
+    contactEmail: parsed.data.contactEmail || "",
+    tokenExpiryHours: parsed.data.tokenExpiryHours || undefined
+  };
+
+  await setCredential(CredentialProvider.WOMPI, "PUBLIC_CHECKOUT_CONFIG", JSON.stringify(payload));
+  await systemLog(LogLevel.INFO, "settings.public_checkout", "Public checkout updated", { baseUrl: payload.baseUrl });
   res.json({ ok: true });
 });
 
