@@ -25,6 +25,8 @@ export async function createPaymentLinkForSubscription(args: {
   });
   if (!sub) throw new Error("subscription_not_found");
   if (sub.status === SubscriptionStatus.CANCELED) throw new Error("subscription_canceled");
+  if (sub.status === SubscriptionStatus.SUSPENDED) throw new Error("subscription_suspended");
+  if (sub.status === SubscriptionStatus.EXPIRED) throw new Error("subscription_expired");
 
   const cycle = sub.currentCycle;
   const reference = `SUB_${sub.id}_${cycle}`;
@@ -189,6 +191,8 @@ export async function createAutoDebitTransactionForSubscription(args: {
   });
   if (!sub) throw new Error("subscription_not_found");
   if (sub.status === SubscriptionStatus.CANCELED) throw new Error("subscription_canceled");
+  if (sub.status === SubscriptionStatus.SUSPENDED) throw new Error("subscription_suspended");
+  if (sub.status === SubscriptionStatus.EXPIRED) throw new Error("subscription_expired");
 
   const paymentSourceId = Number((sub.customer.metadata as any)?.wompi?.paymentSourceId);
   if (!Number.isFinite(paymentSourceId)) throw new Error("customer_payment_source_missing");

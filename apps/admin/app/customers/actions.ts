@@ -155,6 +155,10 @@ export async function deleteCustomer(formData: FormData) {
     redirect("/customers?deleted=1");
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
-    redirect(`/customers?error=${encodeURIComponent(err?.message || "delete_customer_failed")}`);
+    const msg = String(err?.message || "delete_customer_failed");
+    if (msg.includes("customer_has_dependencies")) {
+      return redirect(`/customers?error=${encodeURIComponent("No se puede borrar: tiene suscripciones o pagos asociados.")}`);
+    }
+    redirect(`/customers?error=${encodeURIComponent(msg)}`);
   }
 }

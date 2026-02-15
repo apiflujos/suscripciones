@@ -1,4 +1,4 @@
-import { createPaymentLink } from "../subscriptions/actions";
+import { cancelSubscription, createPaymentLink, suspendSubscription } from "../subscriptions/actions";
 import { createCustomerFromBilling, createPlanAndSubscription, sendChatwootPaymentLink } from "./actions";
 import { NewBillingAssignmentForm } from "./NewBillingAssignmentForm";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
@@ -116,6 +116,8 @@ export default async function BillingPage({
   const sp = (await searchParams) ?? {};
 
   const created = typeof sp.created === "string" ? sp.created : "";
+  const suspended = typeof sp.suspended === "string" ? sp.suspended : "";
+  const canceled = typeof sp.canceled === "string" ? sp.canceled : "";
   const contactCreated = typeof sp.contactCreated === "string" ? sp.contactCreated : "";
   const checkoutUrl = typeof sp.checkoutUrl === "string" ? sp.checkoutUrl : "";
   const checkoutCustomerId = typeof sp.customerId === "string" ? sp.customerId : "";
@@ -219,6 +221,8 @@ export default async function BillingPage({
         </div>
       ) : null}
       {created ? <div className="card cardPad">Guardado.</div> : null}
+      {suspended ? <div className="card cardPad">Suscripción suspendida.</div> : null}
+      {canceled ? <div className="card cardPad">Suscripción cancelada.</div> : null}
       {chatwoot === "sent" ? <div className="card cardPad">Mensaje enviado por Chatwoot.</div> : null}
       {contactCreated ? <div className="card cardPad">Contacto creado.</div> : null}
       {checkoutUrl ? (
@@ -370,18 +374,35 @@ export default async function BillingPage({
                       </div>
                     </td>
                     <td style={{ textAlign: "right" }}>
-                      {r.mode !== "AUTO_DEBIT" ? (
-                        <form action={createPaymentLink}>
-                          <input type="hidden" name="csrf" value={csrfToken} />
-                          <input type="hidden" name="subscriptionId" value={r.id} />
-                          <input type="hidden" name="customerId" value={r.customerId} />
-                          <button className="ghost" type="submit">
-                            Generar link
-                          </button>
-                        </form>
-                      ) : (
-                        <span className="field-hint">—</span>
-                      )}
+                      <div style={{ display: "grid", gap: 6, justifyItems: "end" }}>
+                        {r.mode !== "AUTO_DEBIT" ? (
+                          <form action={createPaymentLink}>
+                            <input type="hidden" name="csrf" value={csrfToken} />
+                            <input type="hidden" name="subscriptionId" value={r.id} />
+                            <input type="hidden" name="customerId" value={r.customerId} />
+                            <button className="ghost" type="submit">
+                              Generar link
+                            </button>
+                          </form>
+                        ) : (
+                          <>
+                            <form action={suspendSubscription}>
+                              <input type="hidden" name="csrf" value={csrfToken} />
+                              <input type="hidden" name="subscriptionId" value={r.id} />
+                              <button className="ghost" type="submit">
+                                Suspender
+                              </button>
+                            </form>
+                            <form action={cancelSubscription}>
+                              <input type="hidden" name="csrf" value={csrfToken} />
+                              <input type="hidden" name="subscriptionId" value={r.id} />
+                              <button className="ghost" type="submit">
+                                Cancelar
+                              </button>
+                            </form>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
