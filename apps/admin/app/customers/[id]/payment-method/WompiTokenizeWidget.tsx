@@ -10,8 +10,16 @@ export function WompiTokenizeWidget({ publicKey }: { publicKey: string }) {
     if (!host) return;
     host.innerHTML = "";
 
+    const form = host.closest("form");
+    if (form) {
+      // Wompi widget expects POST (uppercase) on the parent form.
+      form.setAttribute("method", "POST");
+      if (!form.getAttribute("action")) form.setAttribute("action", window.location.pathname);
+    }
+
     const script = document.createElement("script");
     script.src = "https://checkout.wompi.co/widget.js";
+    script.type = "module";
     script.setAttribute("data-render", "button");
     script.setAttribute("data-widget-operation", "tokenize");
     script.setAttribute("data-public-key", publicKey);
@@ -26,4 +34,3 @@ export function WompiTokenizeWidget({ publicKey }: { publicKey: string }) {
 
   return <div ref={hostRef} />;
 }
-
