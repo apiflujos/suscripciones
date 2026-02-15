@@ -1,11 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { normalizeToken } from "../lib/normalizeToken";
+import { getAdminApiConfig } from "../lib/adminApi";
 import { assertCsrfToken } from "../lib/csrf";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
-const TOKEN = normalizeToken(process.env.ADMIN_API_TOKEN || "");
 
 function safeReturnTo(formData: FormData) {
   const raw = String(formData.get("returnTo") || "").trim();
@@ -23,10 +20,11 @@ function mergeQuery(path: string, extra: Record<string, string | undefined>) {
 }
 
 async function adminFetch(path: string, init: RequestInit) {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const { apiBase, token } = getAdminApiConfig();
+  const res = await fetch(`${apiBase}${path}`, {
     ...init,
     headers: {
-      ...(TOKEN ? { authorization: `Bearer ${TOKEN}`, "x-admin-token": TOKEN } : {}),
+      ...(token ? { authorization: `Bearer ${token}`, "x-admin-token": token } : {}),
       "content-type": "application/json",
       ...(init.headers ?? {})
     },
