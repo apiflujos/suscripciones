@@ -795,6 +795,7 @@ textarea {
   border: 1px solid rgba(15, 23, 42, 0.08);
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
   padding: 4px 6px;
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
   gap: 4px;
@@ -870,13 +871,17 @@ textarea {
   justify-content: flex-end;
   gap: 6px;
   flex-direction: row;
+  position: absolute;
+  top: 6px;
+  right: 6px;
 }
 
 .contact-secondary-actions {
   display: flex;
   gap: 6px;
-  justify-content: flex-start;
+  justify-content: flex-end;
   align-items: center;
+  margin-top: 2px;
 }
 
 .btn-compact {

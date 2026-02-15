@@ -197,14 +197,6 @@ export function CustomersTable({
                     </form>
                   </div>
                 </div>
-                <div className="contact-secondary-actions">
-                  <button className="ghost btn-compact btn-blue" type="button" onClick={() => openDetails(c)}>
-                    Ver detalles
-                  </button>
-                  <Link className="ghost btn-compact btn-green" href={`/billing?crear=1&selectCustomerId=${encodeURIComponent(String(c.id))}`}>
-                    Crear plan / suscripción
-                  </Link>
-                </div>
                 <div className="contact-plan-grid" style={{ gridTemplateColumns: "1fr" }}>
                   <div>
                     <span>Plan / Suscripción</span>
@@ -270,6 +262,14 @@ export function CustomersTable({
                     <div className="paylink-error">{sendError[c.id]}</div>
                   ) : null}
                   {sendOk[c.id] ? <div className="paylink-success">Link enviado.</div> : null}
+                </div>
+                <div className="contact-secondary-actions">
+                  <button className="ghost btn-compact btn-blue" type="button" onClick={() => openDetails(c)}>
+                    Ver detalles
+                  </button>
+                  <Link className="ghost btn-compact btn-green" href={`/billing?crear=1&selectCustomerId=${encodeURIComponent(String(c.id))}`}>
+                    Crear plan / suscripción
+                  </Link>
                 </div>
               </div>
             </div>
