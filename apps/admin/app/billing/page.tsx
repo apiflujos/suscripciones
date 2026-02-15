@@ -380,12 +380,18 @@ export default async function BillingPage({
                         {r.customerEmail || "—"} · {r.identificacion || "—"}
                       </div>
                     </div>
-                    <div className="billing-badges">
-                      <span className={`pill ${r.customerTokenized ? "pill-ok" : "pill-bad"}`}>
-                        {r.customerTokenized ? "Tokenizada" : "Sin token"}
-                      </span>
-                      <span className="pill pill-muted">{r.tipoTx}</span>
-                    </div>
+                  <div className="billing-badges">
+                    <span className={`pill ${subscriptionStatus === "Activa" ? "pill-ok" : subscriptionStatus === "En mora" ? "pill-warn" : subscriptionStatus === "Suspendida" ? "pill-warn" : subscriptionStatus === "Cancelada" ? "pill-bad" : "pill-muted"}`}>
+                      {subscriptionStatus}
+                    </span>
+                    <span className={`pill ${paymentStatus === "Pagado" ? "pill-ok" : paymentStatus === "En mora" ? "pill-warn" : "pill-muted"}`}>
+                      {paymentStatus}
+                    </span>
+                    <span className={`pill ${r.customerTokenized ? "pill-ok" : "pill-bad"}`}>
+                      {r.customerTokenized ? "Tokenizada" : "Sin token"}
+                    </span>
+                    <span className="pill pill-muted">{r.tipoTx}</span>
+                  </div>
                   </div>
 
                   <div className="billing-grid-info">
@@ -396,18 +402,6 @@ export default async function BillingPage({
                     <div>
                       <span>Tipo de pago</span>
                       <strong>{r.tipoPago}</strong>
-                    </div>
-                    <div>
-                      <span>Estado suscripción</span>
-                      <span className={`pill ${subscriptionStatus === "Activa" ? "pill-ok" : subscriptionStatus === "En mora" ? "pill-warn" : subscriptionStatus === "Suspendida" ? "pill-warn" : subscriptionStatus === "Cancelada" ? "pill-bad" : "pill-muted"}`}>
-                        {subscriptionStatus}
-                      </span>
-                    </div>
-                    <div>
-                      <span>Estado pago</span>
-                      <span className={`pill ${paymentStatus === "Pagado" ? "pill-ok" : paymentStatus === "En mora" ? "pill-warn" : "pill-muted"}`}>
-                        {paymentStatus}
-                      </span>
                     </div>
                     <div>
                       <span>Último pago</span>
