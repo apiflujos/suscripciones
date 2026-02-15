@@ -194,8 +194,21 @@ export async function createAutoDebitTransactionForSubscription(args: {
   if (sub.status === SubscriptionStatus.SUSPENDED) throw new Error("subscription_suspended");
   if (sub.status === SubscriptionStatus.EXPIRED) throw new Error("subscription_expired");
 
-  const paymentSourceId = Number((sub.customer.metadata as any)?.wompi?.paymentSourceId);
-  if (!Number.isFinite(paymentSourceId)) throw new Error("customer_payment_source_missing");
+  const paymentSourceId = (() => {
+    const meta = (sub.customer.metadata as any) ?? {};
+    const candidates = [
+      meta?.wompi?.paymentSourceId,
+      meta?.wompi?.payment_source_id,
+      meta?.paymentSourceId,
+      meta?.payment_source_id
+    ];
+    for (const v of candidates) {
+      if (typeof v === "number" && Number.isFinite(v)) return v;
+      if (typeof v === "string" && /^\d+$/.test(v)) return Number(v);
+    }
+    return null;
+  })();
+  if (!Number.isFinite(paymentSourceId as any)) throw new Error("customer_payment_source_missing");
   if (!sub.customer.email) throw new Error("customer_email_required");
 
   const cycle = sub.currentCycle;
@@ -246,7 +259,7 @@ export async function createAutoDebitTransactionForSubscription(args: {
       signature,
       acceptance_token: merchant.acceptanceToken,
       accept_personal_auth: merchant.acceptPersonalAuth,
-      payment_source_id: paymentSourceId,
+      payment_source_id: paymentSourceId as number,
       recurrent: true,
       payment_method: { installments: 1 }
     });

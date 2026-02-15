@@ -32,6 +32,8 @@ export function CustomersTable({
 }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<CustomerRow | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsCustomer, setDetailsCustomer] = useState<CustomerRow | null>(null);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -43,13 +45,22 @@ export function CustomersTable({
   const [city, setCity] = useState("");
   const [code5, setCode5] = useState("");
   const [dane8, setDane8] = useState("");
-  const [sendingId, setSendingId] = useState<string | null>(null);
-  const [sendError, setSendError] = useState<Record<string, string>>({});
-  const [sendOk, setSendOk] = useState<Record<string, string>>({});
   const modalRef = useRef<HTMLDivElement | null>(null);
   const lastActiveRef = useRef<HTMLElement | null>(null);
+  const detailsRef = useRef<HTMLDivElement | null>(null);
 
   const modalTitle = useMemo(() => (editing ? `Editar: ${editing.name || editing.email || "Contacto"}` : "Editar contacto"), [editing]);
+
+  function hasToken(customer: CustomerRow) {
+    const meta = customer.metadata ?? {};
+    const candidates = [
+      meta?.wompi?.paymentSourceId,
+      meta?.wompi?.payment_source_id,
+      meta?.paymentSourceId,
+      meta?.payment_source_id
+    ];
+    return candidates.some((v: any) => (typeof v === "number" && Number.isFinite(v)) || (typeof v === "string" && /^\d+$/.test(v)));
+  }
 
   function initialsFor(customer: CustomerRow) {
     const base = (customer.name || customer.email || "CN").trim();
@@ -82,6 +93,18 @@ export function CustomersTable({
     setTimeout(() => lastActiveRef.current?.focus(), 0);
   }
 
+  function openDetails(item: CustomerRow) {
+    lastActiveRef.current = document.activeElement as HTMLElement | null;
+    setDetailsCustomer(item);
+    setDetailsOpen(true);
+  }
+
+  function closeDetails() {
+    setDetailsOpen(false);
+    setDetailsCustomer(null);
+    setTimeout(() => lastActiveRef.current?.focus(), 0);
+  }
+
   useEffect(() => {
     if (!open) return;
     const el = modalRef.current;
@@ -90,14 +113,23 @@ export function CustomersTable({
     first?.focus();
   }, [open]);
 
+  useEffect(() => {
+    if (!detailsOpen) return;
+    const el = detailsRef.current;
+    if (!el) return;
+    const first = el.querySelector<HTMLElement>("button");
+    first?.focus();
+  }, [detailsOpen]);
+
   function onModalKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Escape") {
       e.preventDefault();
-      closeEditor();
+      if (detailsOpen) closeDetails();
+      else closeEditor();
       return;
     }
     if (e.key !== "Tab") return;
-    const root = modalRef.current;
+    const root = detailsOpen ? detailsRef.current : modalRef.current;
     if (!root) return;
     const focusables = Array.from(root.querySelectorAll<HTMLElement>("input, select, textarea, button, [tabindex]"))
       .filter((el) => !el.hasAttribute("disabled") && el.tabIndex >= 0);
@@ -118,20 +150,16 @@ export function CustomersTable({
       <div className="contacts-grid" aria-label="Lista de contactos">
         {items.map((c) => {
           const link = latestLinks[String(c.id)];
-          const status = String(link?.chatwootStatus || "");
-          const errorMsg = link?.chatwootError || "";
-          const statusLabel = status === "SENT" ? "Enviado" : status === "FAILED" ? "Falló" : status === "PENDING" ? "Pendiente" : "";
-          const formId = `send-link-${c.id}`;
           return (
             <div className="contact-card" key={c.id}>
               <div className="contact-left">
                 <div className="contact-section-title">Información personal</div>
-                <div className="contact-person-grid">
+                <div className="contact-person-grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
                   <div>
                     <span>Nombre</span>
                     <strong style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                       <span>{c.name || "—"}</span>
-                      {c.metadata?.wompi?.paymentSourceId ? (
+                      {hasToken(c) ? (
                         <span className="pill pill-ok">Tokenizada</span>
                       ) : (
                         <span className="pill pill-bad">Sin token</span>
@@ -150,25 +178,16 @@ export function CustomersTable({
                     <span>Identificación</span>
                     {c.metadata?.identificacion || c.metadata?.identificationNumber || "—"}
                   </div>
-                  <div>
-                    <span>Ciudad</span>
-                    {c.metadata?.address?.city || "—"}
-                  </div>
-                  <div>
-                    <span>Dirección</span>
-                    {c.metadata?.address?.line1 || "—"}
-                  </div>
-                  <div>
-                    <span>Creado</span>
-                    <LocalDateTime value={c.createdAt} />
-                  </div>
                 </div>
               </div>
 
               <div className="contact-right">
                 <div className="contact-right-top">
-                  <div className="contact-section-title">Plan / Suscripción</div>
+                  <div className="contact-section-title">Acciones</div>
                   <div className="contact-actions">
+                    <button className="ghost" type="button" onClick={() => openDetails(c)}>
+                      Ver detalles
+                    </button>
                     <button className="icon-btn" type="button" onClick={() => openEditor(c)} aria-label="Editar">✎</button>
                     <form
                       action={deleteCustomer}
@@ -183,111 +202,11 @@ export function CustomersTable({
                     </form>
                   </div>
                 </div>
-                <div className="contact-plan-grid">
+                <div className="contact-plan-grid" style={{ gridTemplateColumns: "1fr" }}>
                   <div>
-                    <span>Cobro auto</span>
-                    {c.metadata?.wompi?.paymentSourceId ? (
-                      <span className="pill pill-ok">OK</span>
-                    ) : (
-                      <Link href={`/customers/${c.id}/payment-method`} style={{ textDecoration: "underline" }}>
-                        Agregar
-                      </Link>
-                    )}
+                    <span>Método de pago</span>
+                    {hasToken(c) ? <span className="pill pill-ok">Tokenizada</span> : <span className="pill pill-bad">Sin token</span>}
                   </div>
-                  <div>
-                    <span>Estado link</span>
-                    {statusLabel ? (
-                      <span className={`pill ${status === "SENT" ? "pill-ok" : status === "FAILED" ? "pill-bad" : "pill-warn"}`}>
-                        {statusLabel}
-                      </span>
-                    ) : (
-                      "—"
-                    )}
-                  </div>
-                  <div>
-                    <span>Último link</span>
-                    {link?.createdAt ? <LocalDateTime value={link.createdAt} /> : "—"}
-                  </div>
-                </div>
-                <div className="contact-paylink">
-                  <div className="paylink-title">Link de pago</div>
-                  <form
-                    id={formId}
-                    className="paylink-form"
-                    onSubmit={async (e) => {
-                      e.preventDefault();
-                      const form = e.currentTarget;
-                      const amount = (form.elements.namedItem("amount") as HTMLInputElement | null)?.value || "";
-                      setSendingId(c.id);
-                      setSendError((prev) => ({ ...prev, [c.id]: "" }));
-                      setSendOk((prev) => ({ ...prev, [c.id]: "" }));
-                      try {
-                        const res = await fetch("/api/customers/send-payment-link", {
-                          method: "POST",
-                          headers: { "content-type": "application/json" },
-                          body: JSON.stringify({
-                            customerId: c.id,
-                            customerName: c.name || "",
-                            amount
-                          })
-                        });
-                        const contentType = res.headers.get("content-type") || "";
-                        if (!contentType.includes("application/json")) {
-                          setSendError((prev) => ({ ...prev, [c.id]: "auth_required" }));
-                          return;
-                        }
-                        const json = await res.json().catch(() => ({}));
-                        if (!res.ok || !json?.ok) {
-                          setSendError((prev) => ({ ...prev, [c.id]: json?.error || "send_failed" }));
-                          return;
-                        }
-                        if (typeof json?.notificationsScheduled === "number" && json.notificationsScheduled === 0) {
-                          setSendError((prev) => ({ ...prev, [c.id]: "no_rules" }));
-                          return;
-                        }
-                        setSendOk((prev) => ({ ...prev, [c.id]: "sent" }));
-                      } finally {
-                        setSendingId(null);
-                      }
-                    }}
-                  >
-                    <input type="hidden" name="customerId" value={c.id} />
-                    <input type="hidden" name="customerName" value={c.name || ""} />
-                    <input className="input" name="amount" placeholder="$ 10000" inputMode="numeric" aria-label="Monto" />
-                    <button className="primary" type="submit" disabled={sendingId === c.id}>
-                      {sendingId === c.id ? "Enviando..." : "Enviar link"}
-                    </button>
-                  </form>
-                  {link?.checkoutUrl ? (
-                    <div className="paylink-meta">
-                      <a className="ghost" href={link.checkoutUrl} target="_blank" rel="noreferrer">
-                        Link de pago
-                      </a>
-                    </div>
-                  ) : null}
-                  {status === "FAILED" && errorMsg ? <div className="paylink-error">{errorMsg}</div> : null}
-                  {sendError[c.id] === "auth_required" ? (
-                    <div className="paylink-error">Sesión vencida. Vuelve a iniciar sesión.</div>
-                  ) : null}
-                  {sendError[c.id] === "no_rules" ? (
-                    <div className="paylink-error">No hay notificaciones activas para enviar el link.</div>
-                  ) : null}
-                  {sendError[c.id] && sendError[c.id] !== "auth_required" && sendError[c.id] !== "no_rules" ? (
-                    <div className="paylink-error">{sendError[c.id]}</div>
-                  ) : null}
-                  {sendOk[c.id] ? <div className="paylink-success">Link enviado.</div> : null}
-                  {status === "FAILED" ? (
-                    <button
-                      className="ghost paylink-retry"
-                      type="button"
-                      onClick={() => {
-                        const form = document.getElementById(formId) as HTMLFormElement | null;
-                        form?.requestSubmit();
-                      }}
-                    >
-                      Reintentar
-                    </button>
-                  ) : null}
                 </div>
               </div>
             </div>
@@ -295,6 +214,135 @@ export function CustomersTable({
         })}
         {items.length === 0 ? <div className="contact-empty">Sin contactos.</div> : null}
       </div>
+
+      {detailsOpen && detailsCustomer ? (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(2, 6, 23, 0.55)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 50,
+            padding: 16
+          }}
+        >
+          <div
+            ref={detailsRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="customer-details-title"
+            className="panel module"
+            style={{ width: "min(820px, 96vw)", maxHeight: "90vh", overflow: "auto" }}
+            onKeyDown={onModalKeyDown}
+          >
+            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 id="customer-details-title" style={{ margin: 0 }}>
+                Detalles: {detailsCustomer.name || detailsCustomer.email || detailsCustomer.id}
+              </h3>
+              <button type="button" className="ghost" onClick={closeDetails}>
+                Cerrar
+              </button>
+            </div>
+
+            <div style={{ display: "grid", gap: 14 }}>
+              <div>
+                <div className="contact-section-title">Datos personales</div>
+                <div className="contact-person-grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+                  <div>
+                    <span>Nombre</span>
+                    <strong>{detailsCustomer.name || "—"}</strong>
+                  </div>
+                  <div>
+                    <span>Email</span>
+                    {detailsCustomer.email || "—"}
+                  </div>
+                  <div>
+                    <span>Teléfono</span>
+                    {detailsCustomer.phone || "—"}
+                  </div>
+                  <div>
+                    <span>Identificación</span>
+                    {detailsCustomer.metadata?.identificacion || detailsCustomer.metadata?.identificationNumber || "—"}
+                  </div>
+                  <div>
+                    <span>ID</span>
+                    <span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{detailsCustomer.id}</span>
+                  </div>
+                  <div>
+                    <span>Creado</span>
+                    <LocalDateTime value={detailsCustomer.createdAt} />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div className="contact-section-title">Dirección</div>
+                <div className="contact-person-grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+                  <div>
+                    <span>Dirección</span>
+                    {detailsCustomer.metadata?.address?.line1 || "—"}
+                  </div>
+                  <div>
+                    <span>Ciudad</span>
+                    {detailsCustomer.metadata?.address?.city || "—"}
+                  </div>
+                  <div>
+                    <span>Departamento</span>
+                    {detailsCustomer.metadata?.address?.dept || "—"}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div className="contact-section-title">Método de pago</div>
+                <div className="contact-person-grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+                  <div>
+                    <span>Estado</span>
+                    {hasToken(detailsCustomer) ? <span className="pill pill-ok">Tokenizada</span> : <span className="pill pill-bad">Sin token</span>}
+                  </div>
+                  <div>
+                    <span>Payment Source ID</span>
+                    <span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
+                      {String((detailsCustomer.metadata as any)?.wompi?.paymentSourceId || (detailsCustomer.metadata as any)?.wompi?.payment_source_id || "—")}
+                    </span>
+                  </div>
+                  <div>
+                    <span>Estado link</span>
+                    {(() => {
+                      const link = latestLinks[String(detailsCustomer.id)];
+                      const status = String(link?.chatwootStatus || "");
+                      const statusLabel = status === "SENT" ? "Enviado" : status === "FAILED" ? "Falló" : status === "PENDING" ? "Pendiente" : "";
+                      return statusLabel ? (
+                        <span className={`pill ${status === "SENT" ? "pill-ok" : status === "FAILED" ? "pill-bad" : "pill-warn"}`}>
+                          {statusLabel}
+                        </span>
+                      ) : (
+                        "—"
+                      );
+                    })()}
+                  </div>
+                  <div>
+                    <span>Último link</span>
+                    {(() => {
+                      const link = latestLinks[String(detailsCustomer.id)];
+                      return link?.createdAt ? <LocalDateTime value={link.createdAt} /> : "—";
+                    })()}
+                  </div>
+                  {!hasToken(detailsCustomer) ? (
+                    <div>
+                      <Link href={`/customers/${detailsCustomer.id}/payment-method`} style={{ textDecoration: "underline" }}>
+                        Tokenizar método
+                      </Link>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {open && editing ? (
         <div

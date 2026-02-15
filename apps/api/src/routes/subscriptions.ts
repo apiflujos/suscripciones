@@ -87,8 +87,21 @@ subscriptionsRouter.post("/", async (req, res) => {
   if (!customer) return res.status(404).json({ error: "customer_not_found" });
 
   const collectionMode = String((plan.metadata as any)?.collectionMode || "MANUAL_LINK");
-  const paymentSourceId = Number((customer.metadata as any)?.wompi?.paymentSourceId);
-  const hasPaymentSource = Number.isFinite(paymentSourceId);
+  const paymentSourceId = (() => {
+    const meta = (customer.metadata as any) ?? {};
+    const candidates = [
+      meta?.wompi?.paymentSourceId,
+      meta?.wompi?.payment_source_id,
+      meta?.paymentSourceId,
+      meta?.payment_source_id
+    ];
+    for (const v of candidates) {
+      if (typeof v === "number" && Number.isFinite(v)) return v;
+      if (typeof v === "string" && /^\d+$/.test(v)) return Number(v);
+    }
+    return null;
+  })();
+  const hasPaymentSource = Number.isFinite(paymentSourceId as any);
   const hasCustomerEmail = !!customer.email;
 
   const startAt = parsed.data.startAt ? new Date(parsed.data.startAt) : new Date();

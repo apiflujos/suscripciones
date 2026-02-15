@@ -131,7 +131,16 @@ export function NewBillingAssignmentForm({
     );
   }, [customers, customerHits, customerId, selectedCustomerOverride]);
 
-  const hasToken = Boolean(selectedCustomer?.metadata?.wompi?.paymentSourceId);
+  const hasToken = useMemo(() => {
+    const meta = selectedCustomer?.metadata ?? {};
+    const candidates = [
+      meta?.wompi?.paymentSourceId,
+      meta?.wompi?.payment_source_id,
+      meta?.paymentSourceId,
+      meta?.payment_source_id
+    ];
+    return candidates.some((v: any) => (typeof v === "number" && Number.isFinite(v)) || (typeof v === "string" && /^\d+$/.test(v)));
+  }, [selectedCustomer]);
 
   const option1Values = useMemo(() => getOptionValues(selectedProduct, "option1"), [selectedProduct]);
   const option2Values = useMemo(() => getOptionValues(selectedProduct, "option2"), [selectedProduct]);
@@ -351,7 +360,7 @@ export function NewBillingAssignmentForm({
                 <div style={{ display: "grid" }}>
                   <strong style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                     <span>{selectedCustomer.name || selectedCustomer.email || selectedCustomer.id}</span>
-                    {selectedCustomer?.metadata?.wompi?.paymentSourceId ? (
+                    {hasToken ? (
                       <span className="pill pill-ok">Tokenizada</span>
                     ) : (
                       <span className="pill pill-bad">Sin token</span>
@@ -404,7 +413,13 @@ export function NewBillingAssignmentForm({
                   {filteredCustomers.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name || c.email || c.id} · {c.metadata?.identificacion || c.email || c.phone || "—"} ·{" "}
-                      {c.metadata?.wompi?.paymentSourceId ? "Tokenizada" : "Sin token"}
+                      {(typeof c.metadata?.wompi?.paymentSourceId === "number" && Number.isFinite(c.metadata?.wompi?.paymentSourceId)) ||
+                      (typeof c.metadata?.wompi?.paymentSourceId === "string" && /^\d+$/.test(c.metadata?.wompi?.paymentSourceId)) ||
+                      (typeof c.metadata?.wompi?.payment_source_id === "string" && /^\d+$/.test(c.metadata?.wompi?.payment_source_id)) ||
+                      (typeof c.metadata?.paymentSourceId === "string" && /^\d+$/.test(c.metadata?.paymentSourceId)) ||
+                      (typeof c.metadata?.payment_source_id === "string" && /^\d+$/.test(c.metadata?.payment_source_id))
+                        ? "Tokenizada"
+                        : "Sin token"}
                     </option>
                   ))}
                 </select>
