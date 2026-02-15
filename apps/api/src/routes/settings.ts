@@ -47,7 +47,9 @@ const wompiUpdateSchema = z.object({
 
 const shopifyUpdateSchema = z.object({
   forwardUrl: z.string().url().optional().or(z.literal("")),
-  forwardSecret: z.string().optional().or(z.literal(""))
+  forwardSecret: z.string().optional().or(z.literal("")),
+  forwardRetryEnabled: z.union([z.boolean(), z.string()]).optional(),
+  forwardRetryMinutes: z.coerce.number().int().positive().optional()
 });
 
 const chatwootUpdateSchema = z.object({
@@ -95,7 +97,7 @@ settingsRouter.get("/", async (_req, res) => {
       "CHECKOUT_LINK_BASE_URL_SANDBOX",
       "REDIRECT_URL_SANDBOX"
     ]),
-    getCredentialsBulk(CredentialProvider.SHOPIFY, ["FORWARD_URL"]),
+    getCredentialsBulk(CredentialProvider.SHOPIFY, ["FORWARD_URL", "FORWARD_RETRY_ENABLED", "FORWARD_RETRY_MINUTES"]),
     getCredentialsBulk(CredentialProvider.CHATWOOT, [
       "ACTIVE_ENV",
       "BASE_URL",
@@ -155,6 +157,18 @@ settingsRouter.get("/", async (_req, res) => {
   };
 
   const shopifyForwardUrl = (shopifyCreds.get("FORWARD_URL") || (process.env.SHOPIFY_FORWARD_URL || "").trim()) || undefined;
+  const shopifyForwardRetryEnabledRaw =
+    shopifyCreds.get("FORWARD_RETRY_ENABLED") || (process.env.SHOPIFY_FORWARD_RETRY_ENABLED || "").trim();
+  const shopifyForwardRetryEnabled = shopifyForwardRetryEnabledRaw
+    ? String(shopifyForwardRetryEnabledRaw).toLowerCase() !== "false"
+    : true;
+  const shopifyForwardRetryMinutesRaw =
+    shopifyCreds.get("FORWARD_RETRY_MINUTES") || (process.env.SHOPIFY_FORWARD_RETRY_MINUTES || "").trim();
+  const shopifyForwardRetryMinutesNum = Number(shopifyForwardRetryMinutesRaw);
+  const shopifyForwardRetryMinutes =
+    Number.isFinite(shopifyForwardRetryMinutesNum) && shopifyForwardRetryMinutesNum > 0
+      ? Math.min(Math.max(Math.trunc(shopifyForwardRetryMinutesNum), 5), 1440)
+      : 15;
 
   const commsProd = {
     baseUrl: getComms("BASE_URL", "PRODUCTION", process.env.CHATWOOT_BASE_URL) ?? null,
@@ -178,7 +192,9 @@ settingsRouter.get("/", async (_req, res) => {
       sandbox: wompiSandbox
     },
     shopify: {
-      forwardUrl: shopifyForwardUrl ?? null
+      forwardUrl: shopifyForwardUrl ?? null,
+      forwardRetryEnabled: shopifyForwardRetryEnabled,
+      forwardRetryMinutes: shopifyForwardRetryMinutes
     },
     communications: {
       activeEnv: chatwootActiveEnv,
@@ -226,6 +242,16 @@ settingsRouter.put("/shopify", async (req, res) => {
     if (parsed.data.forwardUrl != null) await setCredential(CredentialProvider.SHOPIFY, "FORWARD_URL", parsed.data.forwardUrl);
     if (parsed.data.forwardSecret != null)
       await setCredential(CredentialProvider.SHOPIFY, "FORWARD_SECRET", parsed.data.forwardSecret);
+    if (parsed.data.forwardRetryEnabled != null) {
+      await setCredential(
+        CredentialProvider.SHOPIFY,
+        "FORWARD_RETRY_ENABLED",
+        String(parsed.data.forwardRetryEnabled).toLowerCase() === "false" ? "false" : "true"
+      );
+    }
+    if (parsed.data.forwardRetryMinutes != null) {
+      await setCredential(CredentialProvider.SHOPIFY, "FORWARD_RETRY_MINUTES", String(parsed.data.forwardRetryMinutes));
+    }
   } catch (err: any) {
     return res.status(400).json({ error: "credentials_error", message: String(err?.message || err) });
   }

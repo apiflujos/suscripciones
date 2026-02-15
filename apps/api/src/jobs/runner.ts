@@ -7,12 +7,14 @@ import { sendChatwootMessage } from "./handlers/sendChatwootMessage";
 import { paymentRetry } from "./handlers/paymentRetry";
 import { subscriptionReminder } from "./handlers/subscriptionReminder";
 import { systemLog } from "../services/systemLog";
+import { getShopifyForward, getShopifyForwardRetryConfig } from "../services/runtimeConfig";
 import { billingMonthlyReport } from "./handlers/billingMonthlyReport";
 import { sendCampaign } from "./handlers/sendCampaign";
 import { syncSmartLists } from "./handlers/syncSmartLists";
 
 loadEnv(process.env);
 const workerId = `jobs:${process.pid}`;
+let lastShopifyForwardRetryAt = 0;
 
 const BOGOTA_UTC_OFFSET_MS = -5 * 60 * 60 * 1000;
 
@@ -132,6 +134,25 @@ async function ensureLogCleanup() {
   await prisma.systemLog.deleteMany({ where: { createdAt: { lt: cutoff } } });
 }
 
+async function ensureShopifyForwardRetries() {
+  const now = Date.now();
+  const { enabled, minutes } = await getShopifyForwardRetryConfig();
+  if (!enabled) return;
+  if (now - lastShopifyForwardRetryAt < minutes * 60 * 1000) return;
+
+  const cfg = await getShopifyForward();
+  if (!cfg.url) return;
+
+  lastShopifyForwardRetryAt = now;
+  const result = await prisma.retryJob.updateMany({
+    where: { status: RetryJobStatus.FAILED, type: RetryJobType.FORWARD_WOMPI_TO_SHOPIFY },
+    data: { status: RetryJobStatus.PENDING, runAt: new Date(), lockedAt: null, lockedBy: null }
+  });
+  if (result.count) {
+    logger.info({ retried: result.count }, "Shopify forward retries enqueued");
+  }
+}
+
 async function runOnce() {
   const jobs = await claimJobs(10);
   for (const job of jobs) {
@@ -197,6 +218,7 @@ async function main() {
       await ensureMonthlyBillingReportJob();
       await ensureSmartListsSyncJob();
       await ensureLogCleanup();
+      await ensureShopifyForwardRetries();
       await runOnce();
       await new Promise((r) => setTimeout(r, 1000));
     } catch (err: any) {

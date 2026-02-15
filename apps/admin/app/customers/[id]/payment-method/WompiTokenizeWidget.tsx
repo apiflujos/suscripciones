@@ -19,7 +19,7 @@ export function WompiTokenizeWidget({ publicKey }: { publicKey: string }) {
 
     const script = document.createElement("script");
     script.src = "/wompi/widget";
-    script.type = "module";
+    // Wompi widget is a classic script (not ESM). Using module breaks currentScript.
     script.setAttribute("data-render", "button");
     script.setAttribute("data-widget-operation", "tokenize");
     script.setAttribute("data-public-key", publicKey);

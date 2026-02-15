@@ -58,3 +58,12 @@ logsRouter.post("/jobs/retry-failed", async (_req, res) => {
   });
   res.json({ ok: true, retried: result.count });
 });
+
+logsRouter.post("/jobs/retry-forward", async (_req, res) => {
+  const now = new Date();
+  const result = await prisma.retryJob.updateMany({
+    where: { status: RetryJobStatus.FAILED, type: "FORWARD_WOMPI_TO_SHOPIFY" },
+    data: { status: RetryJobStatus.PENDING, runAt: now, lockedAt: null, lockedBy: null }
+  });
+  res.json({ ok: true, retried: result.count });
+});

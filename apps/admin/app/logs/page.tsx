@@ -25,6 +25,18 @@ async function retryFailedJobs(formData: FormData) {
   }).catch(() => {});
 }
 
+async function retryShopifyForwards(formData: FormData) {
+  "use server";
+  await assertCsrfToken(formData);
+  const { apiBase, token } = getConfig();
+  if (!token) return;
+  await fetch(`${apiBase}/admin/logs/jobs/retry-forward`, {
+    method: "POST",
+    cache: "no-store",
+    headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
+  }).catch(() => {});
+}
+
 function normalizeLogSource(source: any) {
   const s = String(source || "");
   if (s === "settings.shopify") return "configuracion.reenvio";
@@ -148,6 +160,12 @@ export default async function LogsPage({
                   <input type="hidden" name="csrf" value={csrfToken} />
                   <button className="primary" type="submit">
                     Reintentar fallidos
+                  </button>
+                </form>
+                <form action={retryShopifyForwards}>
+                  <input type="hidden" name="csrf" value={csrfToken} />
+                  <button className="ghost" type="submit">
+                    Reintentar forwards
                   </button>
                 </form>
                 <span className={`pill ${failedJobsCount > 0 ? "pillDanger" : ""}`}>{failedJobsCount} fallos</span>

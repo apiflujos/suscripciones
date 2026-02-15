@@ -97,6 +97,20 @@ export async function getShopifyForward(): Promise<{ url?: string; secret?: stri
   return { url: url.trim() || undefined, secret: secret.trim() || undefined };
 }
 
+export async function getShopifyForwardRetryConfig(): Promise<{ enabled: boolean; minutes: number }> {
+  const enabledRaw =
+    (await getCredential(CredentialProvider.SHOPIFY, "FORWARD_RETRY_ENABLED")) ||
+    (process.env.SHOPIFY_FORWARD_RETRY_ENABLED || "").trim();
+  const minutesRaw =
+    (await getCredential(CredentialProvider.SHOPIFY, "FORWARD_RETRY_MINUTES")) ||
+    (process.env.SHOPIFY_FORWARD_RETRY_MINUTES || "").trim();
+
+  const enabled = enabledRaw ? String(enabledRaw).toLowerCase() !== "false" : true;
+  const minutesNum = Number(minutesRaw);
+  const minutes = Number.isFinite(minutesNum) && minutesNum > 0 ? Math.min(Math.max(Math.trunc(minutesNum), 5), 1440) : 15;
+  return { enabled, minutes };
+}
+
 export async function getChatwootConfig(): Promise<
   | { configured: false }
   | { configured: true; baseUrl: string; accountId: number; apiAccessToken: string; inboxId: number }

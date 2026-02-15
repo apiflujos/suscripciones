@@ -90,11 +90,18 @@ export async function updateShopify(formData: FormData) {
   await assertCsrfToken(formData);
   const forwardUrl = String(formData.get("forwardUrl") || "").trim();
   const forwardSecret = String(formData.get("forwardSecret") || "").trim();
+  const forwardRetryEnabled = String(formData.get("forwardRetryEnabled") || "").trim();
+  const forwardRetryMinutes = String(formData.get("forwardRetryMinutes") || "").trim();
 
   try {
     await adminFetch("/admin/settings/shopify", {
       method: "PUT",
-      body: JSON.stringify({ forwardUrl, forwardSecret })
+      body: JSON.stringify({
+        forwardUrl,
+        forwardSecret,
+        ...(forwardRetryEnabled ? { forwardRetryEnabled } : {}),
+        ...(forwardRetryMinutes ? { forwardRetryMinutes } : {})
+      })
     });
     redirectWith("shopify_save", "ok");
   } catch (err) {

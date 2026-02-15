@@ -404,6 +404,19 @@ export default async function SettingsPage({
               </label>
               <input className="input" name="forwardSecret" type="password" />
             </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div className="field">
+                <label>Reintento automático</label>
+                <select className="select" name="forwardRetryEnabled" defaultValue={String(settings?.shopify?.forwardRetryEnabled ?? true)}>
+                  <option value="true">Activo</option>
+                  <option value="false">Desactivado</option>
+                </select>
+              </div>
+              <div className="field">
+                <label>Intervalo (min)</label>
+                <input className="input" name="forwardRetryMinutes" placeholder="15" defaultValue={String(settings?.shopify?.forwardRetryMinutes ?? 15)} />
+              </div>
+            </div>
             <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
               {inlineMsg("shopify_save", "Guardado.", "Error guardando")}
               {inlineMsg("shopify_test", "Forward OK.", "Error probando")}
