@@ -36,7 +36,10 @@ export default async function CustomerPaymentMethodPage({
     fetchAdmin("/admin/settings"),
     fetchAdmin(`/admin/customers/${encodeURIComponent(p.id)}`)
   ]);
-  const publicKey = String(settings.json?.wompi?.publicKey || "").trim();
+  const activeEnv = String(settings.json?.wompi?.activeEnv || "PRODUCTION").toUpperCase();
+  const wompiEnv =
+    activeEnv === "SANDBOX" ? settings.json?.wompi?.sandbox : settings.json?.wompi?.production;
+  const publicKey = String(wompiEnv?.publicKey || "").trim();
   const customer = customerRes.ok ? (customerRes.json?.customer ?? null) : null;
 
   if (!customer) {
@@ -49,6 +52,17 @@ export default async function CustomerPaymentMethodPage({
       </main>
     );
   }
+
+  const hasToken = (() => {
+    const meta = customer?.metadata ?? {};
+    const candidates = [
+      meta?.wompi?.paymentSourceId,
+      meta?.wompi?.payment_source_id,
+      meta?.paymentSourceId,
+      meta?.payment_source_id
+    ];
+    return candidates.some((v: any) => (typeof v === "number" && Number.isFinite(v)) || (typeof v === "string" && /^\d+$/.test(v)));
+  })();
 
   return (
     <main className="page" style={{ maxWidth: 980 }}>
@@ -73,7 +87,7 @@ export default async function CustomerPaymentMethodPage({
             <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
               <h3 style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                 <span>{customer.email || customer.name || customer.id}</span>
-                {customer?.metadata?.wompi?.paymentSourceId ? (
+                {hasToken ? (
                   <span className="pill pill-ok">Tokenizada</span>
                 ) : (
                   <span className="pill pill-bad">Sin token</span>
