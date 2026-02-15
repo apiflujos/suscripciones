@@ -98,12 +98,27 @@ customersRouter.delete("/:id", async (req, res) => {
   const customerId = String(req.params.id || "").trim();
   if (!customerId) return res.status(400).json({ error: "invalid_id" });
   try {
+    const [subscriptionsCount, paymentsCount, chatwootCount, smartListCount, campaignCount] = await Promise.all([
+      prisma.subscription.count({ where: { customerId } }),
+      prisma.payment.count({ where: { customerId } }),
+      prisma.chatwootMessage.count({ where: { customerId } }),
+      prisma.smartListMember.count({ where: { customerId } }),
+      prisma.campaignSend.count({ where: { customerId } })
+    ]);
+
+    if (subscriptionsCount || paymentsCount || chatwootCount || smartListCount || campaignCount) {
+      return res.status(409).json({
+        error: "customer_has_dependencies",
+        details: { subscriptionsCount, paymentsCount, chatwootCount, smartListCount, campaignCount }
+      });
+    }
+
     await prisma.customer.delete({ where: { id: customerId } });
     res.json({ ok: true });
   } catch (err: any) {
     if (String(err?.code) === "P2025") return res.status(404).json({ error: "customer_not_found" });
     if (String(err?.code) === "P2003") return res.status(409).json({ error: "customer_has_dependencies" });
-    throw err;
+    res.status(500).json({ error: "delete_customer_failed" });
   }
 });
 

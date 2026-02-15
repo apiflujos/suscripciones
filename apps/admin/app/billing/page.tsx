@@ -1,4 +1,4 @@
-import { cancelSubscription, createPaymentLink, suspendSubscription } from "../subscriptions/actions";
+import { activateSubscription, cancelSubscription, createPaymentLink, resumeSubscription, suspendSubscription } from "../subscriptions/actions";
 import { createCustomerFromBilling, createPlanAndSubscription, sendChatwootPaymentLink } from "./actions";
 import { NewBillingAssignmentForm } from "./NewBillingAssignmentForm";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
@@ -118,6 +118,8 @@ export default async function BillingPage({
   const created = typeof sp.created === "string" ? sp.created : "";
   const suspended = typeof sp.suspended === "string" ? sp.suspended : "";
   const canceled = typeof sp.canceled === "string" ? sp.canceled : "";
+  const resumed = typeof sp.resumed === "string" ? sp.resumed : "";
+  const activated = typeof sp.activated === "string" ? sp.activated : "";
   const contactCreated = typeof sp.contactCreated === "string" ? sp.contactCreated : "";
   const checkoutUrl = typeof sp.checkoutUrl === "string" ? sp.checkoutUrl : "";
   const checkoutCustomerId = typeof sp.customerId === "string" ? sp.customerId : "";
@@ -223,6 +225,8 @@ export default async function BillingPage({
       {created ? <div className="card cardPad">Guardado.</div> : null}
       {suspended ? <div className="card cardPad">Suscripción suspendida.</div> : null}
       {canceled ? <div className="card cardPad">Suscripción cancelada.</div> : null}
+      {resumed ? <div className="card cardPad">Suscripción reanudada.</div> : null}
+      {activated ? <div className="card cardPad">Suscripción activada.</div> : null}
       {chatwoot === "sent" ? <div className="card cardPad">Mensaje enviado por Chatwoot.</div> : null}
       {contactCreated ? <div className="card cardPad">Contacto creado.</div> : null}
       {checkoutUrl ? (
@@ -386,20 +390,40 @@ export default async function BillingPage({
                           </form>
                         ) : (
                           <>
-                            <form action={suspendSubscription}>
-                              <input type="hidden" name="csrf" value={csrfToken} />
-                              <input type="hidden" name="subscriptionId" value={r.id} />
-                              <button className="ghost" type="submit">
-                                Suspender
-                              </button>
-                            </form>
-                            <form action={cancelSubscription}>
-                              <input type="hidden" name="csrf" value={csrfToken} />
-                              <input type="hidden" name="subscriptionId" value={r.id} />
-                              <button className="ghost" type="submit">
-                                Cancelar
-                              </button>
-                            </form>
+                            {r.status === "SUSPENDED" ? (
+                              <form action={resumeSubscription}>
+                                <input type="hidden" name="csrf" value={csrfToken} />
+                                <input type="hidden" name="subscriptionId" value={r.id} />
+                                <button className="ghost" type="submit">
+                                  Reanudar
+                                </button>
+                              </form>
+                            ) : r.status === "CANCELED" ? (
+                              <form action={activateSubscription}>
+                                <input type="hidden" name="csrf" value={csrfToken} />
+                                <input type="hidden" name="subscriptionId" value={r.id} />
+                                <button className="ghost" type="submit">
+                                  Activar
+                                </button>
+                              </form>
+                            ) : (
+                              <>
+                                <form action={suspendSubscription}>
+                                  <input type="hidden" name="csrf" value={csrfToken} />
+                                  <input type="hidden" name="subscriptionId" value={r.id} />
+                                  <button className="ghost" type="submit">
+                                    Suspender
+                                  </button>
+                                </form>
+                                <form action={cancelSubscription}>
+                                  <input type="hidden" name="csrf" value={csrfToken} />
+                                  <input type="hidden" name="subscriptionId" value={r.id} />
+                                  <button className="ghost" type="submit">
+                                    Cancelar
+                                  </button>
+                                </form>
+                              </>
+                            )}
                           </>
                         )}
                       </div>

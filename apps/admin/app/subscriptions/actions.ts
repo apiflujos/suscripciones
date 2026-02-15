@@ -105,6 +105,38 @@ export async function cancelSubscription(formData: FormData) {
   }
 }
 
+export async function resumeSubscription(formData: FormData) {
+  await assertCsrfToken(formData);
+  const subscriptionId = String(formData.get("subscriptionId") || "").trim();
+  if (!subscriptionId) return redirect(`/billing?error=${encodeURIComponent("invalid_subscription_id")}`);
+  try {
+    await adminFetch(`/admin/subscriptions/${encodeURIComponent(subscriptionId)}/resume`, {
+      method: "POST",
+      body: JSON.stringify({})
+    });
+    redirect("/billing?resumed=1");
+  } catch (err: any) {
+    if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
+    redirect(`/billing?error=${encodeURIComponent(err?.message || "resume_subscription_failed")}`);
+  }
+}
+
+export async function activateSubscription(formData: FormData) {
+  await assertCsrfToken(formData);
+  const subscriptionId = String(formData.get("subscriptionId") || "").trim();
+  if (!subscriptionId) return redirect(`/billing?error=${encodeURIComponent("invalid_subscription_id")}`);
+  try {
+    await adminFetch(`/admin/subscriptions/${encodeURIComponent(subscriptionId)}/activate`, {
+      method: "POST",
+      body: JSON.stringify({})
+    });
+    redirect("/billing?activated=1");
+  } catch (err: any) {
+    if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
+    redirect(`/billing?error=${encodeURIComponent(err?.message || "activate_subscription_failed")}`);
+  }
+}
+
 export async function createPlan(formData: FormData) {
   await assertCsrfToken(formData);
   const name = String(formData.get("name") || "").trim();

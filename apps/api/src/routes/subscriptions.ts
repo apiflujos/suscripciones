@@ -221,3 +221,31 @@ subscriptionsRouter.post("/:id/cancel", async (req, res) => {
   await systemLog(LogLevel.INFO, "subscriptions.cancel", "Subscription canceled", { subscriptionId }).catch(() => {});
   res.json({ subscription: updated });
 });
+
+subscriptionsRouter.post("/:id/resume", async (req, res) => {
+  const subscriptionId = String(req.params.id || "").trim();
+  if (!subscriptionId) return res.status(400).json({ error: "invalid_id" });
+  const existing = await prisma.subscription.findUnique({ where: { id: subscriptionId } });
+  if (!existing) return res.status(404).json({ error: "subscription_not_found" });
+
+  const updated = await prisma.subscription.update({
+    where: { id: subscriptionId },
+    data: { status: SubscriptionStatus.ACTIVE, suspendedAt: null }
+  });
+  await systemLog(LogLevel.INFO, "subscriptions.resume", "Subscription resumed", { subscriptionId }).catch(() => {});
+  res.json({ subscription: updated });
+});
+
+subscriptionsRouter.post("/:id/activate", async (req, res) => {
+  const subscriptionId = String(req.params.id || "").trim();
+  if (!subscriptionId) return res.status(400).json({ error: "invalid_id" });
+  const existing = await prisma.subscription.findUnique({ where: { id: subscriptionId } });
+  if (!existing) return res.status(404).json({ error: "subscription_not_found" });
+
+  const updated = await prisma.subscription.update({
+    where: { id: subscriptionId },
+    data: { status: SubscriptionStatus.ACTIVE, canceledAt: null, suspendedAt: null }
+  });
+  await systemLog(LogLevel.INFO, "subscriptions.activate", "Subscription activated", { subscriptionId }).catch(() => {});
+  res.json({ subscription: updated });
+});
