@@ -184,10 +184,10 @@ export function CustomersTable({
                 <div className="contact-right-top">
                   <div className="contact-section-title">Acciones</div>
                   <div className="contact-actions">
-                    <Link className="ghost" href={`/billing?crear=1&selectCustomerId=${encodeURIComponent(String(c.id))}`}>
+                    <Link className="ghost btn-compact btn-green" href={`/billing?crear=1&selectCustomerId=${encodeURIComponent(String(c.id))}`}>
                       Crear plan / suscripción
                     </Link>
-                    <button className="ghost" type="button" onClick={() => openDetails(c)}>
+                    <button className="ghost btn-compact btn-blue" type="button" onClick={() => openDetails(c)}>
                       Ver detalles
                     </button>
                     <button className="icon-btn" type="button" onClick={() => openEditor(c)} aria-label="Editar">✎</button>
@@ -204,12 +204,12 @@ export function CustomersTable({
                     </form>
                   </div>
                 </div>
-                <div className="contact-plan-grid" style={{ gridTemplateColumns: "1fr" }}>
+                <div className="contact-plan-grid" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
                   <div>
                     <span>Link de pago</span>
                     {link?.checkoutUrl ? (
-                      <a className="ghost" href={link.checkoutUrl} target="_blank" rel="noreferrer">
-                        Ver último link
+                      <a className="ghost btn-compact btn-blue" href={link.checkoutUrl} target="_blank" rel="noreferrer">
+                        Abrir link
                       </a>
                     ) : (
                       "—"
@@ -224,6 +224,10 @@ export function CustomersTable({
                     ) : (
                       "—"
                     )}
+                  </div>
+                  <div>
+                    <span>Último link</span>
+                    {link?.createdAt ? <LocalDateTime value={link.createdAt} /> : "—"}
                   </div>
                 </div>
                 <div className="contact-paylink">
@@ -271,7 +275,7 @@ export function CustomersTable({
                     <input type="hidden" name="customerId" value={c.id} />
                     <input type="hidden" name="customerName" value={c.name || ""} />
                     <input className="input" name="amount" placeholder="$ 10000" inputMode="numeric" aria-label="Monto" />
-                    <button className="primary" type="submit" disabled={sendingId === c.id}>
+                    <button className="primary btn-compact" type="submit" disabled={sendingId === c.id}>
                       {sendingId === c.id ? "Enviando..." : "Enviar link"}
                     </button>
                   </form>

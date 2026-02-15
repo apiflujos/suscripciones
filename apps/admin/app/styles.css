@@ -794,10 +794,10 @@ textarea {
   border-radius: 14px;
   border: 1px solid rgba(15, 23, 42, 0.08);
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
-  padding: 10px 12px;
+  padding: 8px 10px;
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
-  gap: 10px;
+  grid-template-columns: 1fr;
+  gap: 8px;
   align-items: start;
 }
 
@@ -841,7 +841,7 @@ textarea {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px 10px;
-  font-size: 11px;
+  font-size: 12.5px;
   color: #0f172a;
 }
 
@@ -849,7 +849,7 @@ textarea {
 .contact-plan-grid span {
   display: block;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   margin-bottom: 2px;
 }
 
@@ -869,6 +869,31 @@ textarea {
   display: flex;
   justify-content: flex-end;
   gap: 6px;
+}
+
+.btn-compact {
+  min-width: 0;
+  padding: 0 10px;
+}
+
+.btn-blue {
+  border-color: #60a5fa;
+  color: #1d4ed8;
+}
+
+.btn-green {
+  border-color: #16a34a;
+  color: #15803d;
+}
+
+.btn-amber {
+  border-color: #f59e0b;
+  color: #b45309;
+}
+
+.btn-red {
+  border-color: #ef4444;
+  color: #b91c1c;
 }
 
 .contact-paylink {
