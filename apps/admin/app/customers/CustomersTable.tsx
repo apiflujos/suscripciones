@@ -53,6 +53,7 @@ export function CustomersTable({
   const modalRef = useRef<HTMLDivElement | null>(null);
   const lastActiveRef = useRef<HTMLElement | null>(null);
   const detailsRef = useRef<HTMLDivElement | null>(null);
+  const detailsHasPlan = detailsCustomer ? (subscriptionsByCustomer[String(detailsCustomer.id)]?.hasPlan ?? false) : false;
 
   const modalTitle = useMemo(() => (editing ? `Editar: ${editing.name || editing.email || "Contacto"}` : "Editar contacto"), [editing]);
 
@@ -358,20 +359,16 @@ export function CustomersTable({
             style={{ width: "min(820px, 96vw)", maxHeight: "90vh", overflow: "auto" }}
             onKeyDown={onModalKeyDown}
           >
-            {(() => {
-              const detailsHasPlan = subscriptionsByCustomer[String(detailsCustomer.id)]?.hasPlan ?? false;
-              return (
-            <>
-              <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <h3 id="customer-details-title" style={{ margin: 0 }}>
-                  Detalles: {detailsCustomer.name || detailsCustomer.email || detailsCustomer.id}
-                </h3>
-                <button type="button" className="ghost" onClick={closeDetails}>
-                  Cerrar
-                </button>
-              </div>
+            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 id="customer-details-title" style={{ margin: 0 }}>
+                Detalles: {detailsCustomer.name || detailsCustomer.email || detailsCustomer.id}
+              </h3>
+              <button type="button" className="ghost" onClick={closeDetails}>
+                Cerrar
+              </button>
+            </div>
 
-              <div style={{ display: "grid", gap: 14 }}>
+            <div style={{ display: "grid", gap: 14 }}>
               <div>
                 <div className="contact-section-title">Datos personales</div>
                 <div className="contact-person-grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
@@ -570,10 +567,6 @@ export function CustomersTable({
                   ) : null}
                   {sendOk[detailsCustomer.id] ? <div className="paylink-success">Link enviado.</div> : null}
                 </div>
-              </div>
-            </>
-              );
-            })()}
               </div>
             </div>
           </div>
