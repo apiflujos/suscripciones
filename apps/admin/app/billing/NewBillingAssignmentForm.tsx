@@ -2,19 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { NewCustomerForm } from "../customers/NewCustomerForm";
-import { NewPlanTemplateForm } from "./NewPlanTemplateForm";
 import { enterToNextField } from "../lib/enterToNext";
 import { HelpTip } from "../ui/HelpTip";
-
-type Plan = {
-  id: string;
-  name: string;
-  currency?: string;
-  priceInCents?: number;
-  intervalUnit?: string;
-  intervalCount?: number;
-  metadata?: { collectionMode?: string } | null;
-};
 
 type Customer = {
   id: string;
@@ -40,25 +29,14 @@ type CatalogItem = {
   variants?: Array<{ option1?: string | null; option2?: string | null; priceDeltaInCents: number }> | null;
 };
 
+type BillingType = "PLAN" | "SUBSCRIPCION";
+
+type IntervalUnit = "DAY" | "WEEK" | "MONTH";
+
 function fmtMoneyFromCents(cents: number, currency = "COP") {
   const major = Math.trunc(Number(cents || 0) / 100);
   if (currency !== "COP") return `${major} ${currency}`;
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(major);
-}
-
-function fmtEvery(intervalUnit: any, intervalCount: any) {
-  const unit = String(intervalUnit || "").toUpperCase();
-  const count = Number(intervalCount || 1);
-  const c = Number.isFinite(count) && count > 0 ? count : 1;
-  if (unit === "DAY") return c === 1 ? "cada día" : `cada ${c} días`;
-  if (unit === "WEEK") return c === 1 ? "cada semana" : `cada ${c} semanas`;
-  if (unit === "MONTH") return c === 1 ? "cada mes" : `cada ${c} meses`;
-  return `cada ${c}`;
-}
-
-function planTipo(plan: Plan | null) {
-  const mode = String(plan?.metadata?.collectionMode || "MANUAL_LINK");
-  return mode === "AUTO_DEBIT" ? "SUSCRIPCION" : "PLAN";
 }
 
 function toDatetimeLocalValue(d: Date) {
@@ -74,38 +52,41 @@ function localToIso(localValue: string) {
   return d.toISOString();
 }
 
+function getOptionValues(item: CatalogItem | null, key: "option1" | "option2") {
+  if (!item) return [] as string[];
+  const values = new Set<string>();
+  for (const v of item.variants ?? []) {
+    const val = key === "option1" ? v.option1 : v.option2;
+    if (val) values.add(String(val));
+  }
+  return Array.from(values).sort((a, b) => a.localeCompare(b, "es"));
+}
+
 export function NewBillingAssignmentForm({
-  plans,
   customers,
   catalogItems,
   csrfToken,
   defaultOpen = false,
-  defaultSelectedPlanId = "",
   defaultSelectedCustomerId = "",
-  createPlanTemplate,
   createCustomer,
-  createSubscription
+  createPlanAndSubscription
 }: {
-  plans: Plan[];
   customers: Customer[];
   catalogItems: CatalogItem[];
   csrfToken: string;
   defaultOpen?: boolean;
-  defaultSelectedPlanId?: string;
   defaultSelectedCustomerId?: string;
-  createPlanTemplate: (formData: FormData) => void | Promise<void>;
   createCustomer: (formData: FormData) => Promise<void>;
-  createSubscription: (formData: FormData) => void | Promise<void>;
+  createPlanAndSubscription: (formData: FormData) => void | Promise<void>;
 }) {
   const [open, setOpen] = useState(Boolean(defaultOpen));
-  const [showNewPlan, setShowNewPlan] = useState(false);
   const [showNewCustomer, setShowNewCustomer] = useState(false);
 
-  const [planQ, setPlanQ] = useState("");
-  const [planId, setPlanId] = useState(defaultSelectedPlanId || "");
-  const [planHits, setPlanHits] = useState<Plan[]>([]);
-  const [planSearching, setPlanSearching] = useState(false);
-  const [planSearchError, setPlanSearchError] = useState("");
+  const [productQ, setProductQ] = useState("");
+  const [productId, setProductId] = useState("");
+  const [productHits, setProductHits] = useState<CatalogItem[]>([]);
+  const [productSearching, setProductSearching] = useState(false);
+  const [productSearchError, setProductSearchError] = useState("");
 
   const [customerQ, setCustomerQ] = useState("");
   const [customerId, setCustomerId] = useState(defaultSelectedCustomerId || "");
@@ -114,10 +95,15 @@ export function NewBillingAssignmentForm({
   const [customerSearchError, setCustomerSearchError] = useState("");
   const [selectedCustomerOverride, setSelectedCustomerOverride] = useState<Customer | null>(null);
 
+  const [billingType, setBillingType] = useState<BillingType>("SUBSCRIPCION");
+  const [intervalUnit, setIntervalUnit] = useState<IntervalUnit>("MONTH");
+  const [intervalCount, setIntervalCount] = useState(1);
+  const [option1Value, setOption1Value] = useState("");
+  const [option2Value, setOption2Value] = useState("");
+
   const [startLocal, setStartLocal] = useState("");
   const [cutoffLocal, setCutoffLocal] = useState("");
   const [sameCutoff, setSameCutoff] = useState(true);
-  const [createLinkNow, setCreateLinkNow] = useState(false);
 
   useEffect(() => {
     const now = new Date();
@@ -130,12 +116,11 @@ export function NewBillingAssignmentForm({
     if (sameCutoff) setCutoffLocal(startLocal);
   }, [sameCutoff, startLocal]);
 
-  const selectedPlan = useMemo(() => plans.find((p) => String(p.id) === String(planId)) || null, [plans, planId]);
-  const selectedPlanFromHits = useMemo(() => {
-    if (!planId) return null;
-    return planHits.find((p) => String(p.id) === String(planId)) || null;
-  }, [planHits, planId]);
-  const resolvedPlan = selectedPlan || selectedPlanFromHits;
+  const selectedProduct = useMemo(() => {
+    if (!productId) return null;
+    return catalogItems.find((p) => String(p.id) === String(productId)) || productHits.find((p) => String(p.id) === String(productId)) || null;
+  }, [catalogItems, productHits, productId]);
+
   const selectedCustomer = useMemo(() => {
     if (!customerId) return null;
     if (selectedCustomerOverride && String(selectedCustomerOverride.id) === String(customerId)) return selectedCustomerOverride;
@@ -146,18 +131,34 @@ export function NewBillingAssignmentForm({
     );
   }, [customers, customerHits, customerId, selectedCustomerOverride]);
 
-  const filteredPlans = useMemo(() => {
-    const q = planQ.trim().toLowerCase();
+  const hasToken = Boolean(selectedCustomer?.metadata?.wompi?.paymentSourceId);
+
+  const option1Values = useMemo(() => getOptionValues(selectedProduct, "option1"), [selectedProduct]);
+  const option2Values = useMemo(() => getOptionValues(selectedProduct, "option2"), [selectedProduct]);
+
+  useEffect(() => {
+    if (!selectedProduct) {
+      setOption1Value("");
+      setOption2Value("");
+      return;
+    }
+    if (option1Value && !option1Values.includes(option1Value)) setOption1Value("");
+    if (option2Value && !option2Values.includes(option2Value)) setOption2Value("");
+  }, [selectedProduct, option1Value, option2Value, option1Values, option2Values]);
+
+
+  const filteredProducts = useMemo(() => {
+    const q = productQ.trim().toLowerCase();
     if (q.length >= 2) {
-      const list = planHits.slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "es"));
+      const list = productHits.slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "es"));
       return list.slice(0, 200);
     }
-    const list = plans.slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "es"));
+    const list = catalogItems.slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "es"));
     if (!q) return list.slice(0, 200);
     return list
-      .filter((p) => `${p.name || ""} ${p.id}`.toLowerCase().includes(q))
+      .filter((p) => `${p.sku || ""} ${p.name || ""} ${p.id}`.toLowerCase().includes(q))
       .slice(0, 200);
-  }, [plans, planHits, planQ]);
+  }, [catalogItems, productHits, productQ]);
 
   const filteredCustomers = useMemo(() => {
     const q = customerQ.trim().toLowerCase();
@@ -174,35 +175,35 @@ export function NewBillingAssignmentForm({
   }, [customers, customerHits, customerQ]);
 
   useEffect(() => {
-    const q = planQ.trim();
+    const q = productQ.trim();
     if (q.length < 2) {
-      setPlanHits([]);
-      setPlanSearching(false);
-      setPlanSearchError("");
+      setProductHits([]);
+      setProductSearching(false);
+      setProductSearchError("");
       return;
     }
 
     const ac = new AbortController();
-    setPlanSearching(true);
-    setPlanSearchError("");
+    setProductSearching(true);
+    setProductSearchError("");
     const t = setTimeout(() => {
-      fetch(`/api/search/plans?${new URLSearchParams({ q, take: "80" }).toString()}`, { cache: "no-store", signal: ac.signal })
+      fetch(`/api/search/products?${new URLSearchParams({ q, take: "80" }).toString()}`, { cache: "no-store", signal: ac.signal })
         .then(async (r) => ({ ok: r.ok, status: r.status, json: await r.json().catch(() => null) }))
         .then(({ ok, status, json }) => {
           if (!ok) {
-            setPlanHits([]);
-            setPlanSearchError(status === 401 ? "No autorizado (revisa el token del Admin)." : `Error buscando planes (${status}).`);
+            setProductHits([]);
+            setProductSearchError(status === 401 ? "No autorizado (revisa el token del Admin)." : `Error buscando productos (${status}).`);
             return;
           }
-          setPlanHits(Array.isArray(json?.items) ? json.items : []);
+          setProductHits(Array.isArray(json?.items) ? json.items : []);
         })
         .catch((err) => {
           if (err?.name === "AbortError") return;
-          setPlanHits([]);
-          setPlanSearchError("Error de red buscando planes.");
+          setProductHits([]);
+          setProductSearchError("Error de red buscando productos.");
         })
         .finally(() => {
-          setPlanSearching(false);
+          setProductSearching(false);
         });
     }, 260);
 
@@ -210,7 +211,7 @@ export function NewBillingAssignmentForm({
       clearTimeout(t);
       ac.abort();
     };
-  }, [planQ]);
+  }, [productQ]);
 
   useEffect(() => {
     const q = customerQ.trim();
@@ -253,30 +254,10 @@ export function NewBillingAssignmentForm({
     };
   }, [customerQ]);
 
-  const returnTo = useMemo(() => {
-    const sp = new URLSearchParams();
-    sp.set("crear", "1");
-    if (planId) sp.set("selectPlanId", planId);
-    if (customerId) sp.set("selectCustomerId", customerId);
-    return `/billing?${sp.toString()}`;
-  }, [planId, customerId]);
-
-  useEffect(() => {
-    if (!selectedPlan) return;
-    const tipo = planTipo(selectedPlan);
-    if (tipo === "PLAN") setCreateLinkNow(true);
-    if (tipo === "SUSCRIPCION") setCreateLinkNow(false);
-  }, [selectedPlan]);
-
-  const primaryLabel = useMemo(() => {
-    if (!selectedPlan) return "Guardar";
-    const tipo = planTipo(selectedPlan);
-    if (tipo === "PLAN" && createLinkNow) return "Generar link de pago";
-    return "Guardar";
-  }, [selectedPlan, createLinkNow]);
-
   const startAtIso = useMemo(() => localToIso(startLocal), [startLocal]);
   const cutoffAtIso = useMemo(() => localToIso(cutoffLocal), [cutoffLocal]);
+
+  const canSubmit = Boolean(productId && customerId && intervalCount > 0);
 
   return (
     <div className="panel module">
@@ -293,31 +274,26 @@ export function NewBillingAssignmentForm({
         <div style={{ display: "grid", gap: 12 }}>
           <div className="panel module" style={{ margin: 0 }}>
             <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-              <h3 style={{ margin: 0 }}>1) Plan o suscripción</h3>
-              <button className="ghost" type="button" onClick={() => setShowNewPlan((v) => !v)}>
-                {showNewPlan ? "Cerrar" : "Crear plan / suscripción"}
-              </button>
+              <h3 style={{ margin: 0 }}>1) Producto</h3>
             </div>
 
-            {resolvedPlan ? (
+            {selectedProduct ? (
               <div className="card cardPad" style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
                 <div style={{ display: "grid" }}>
-                  <strong>{resolvedPlan.name}</strong>
+                  <strong>{selectedProduct.name}</strong>
                   <span className="field-hint">
-                    {planTipo(resolvedPlan) === "SUSCRIPCION" ? "Suscripción" : "Plan"} ·{" "}
-                    {fmtMoneyFromCents(Number(resolvedPlan.priceInCents || 0), String(resolvedPlan.currency || "COP"))} ·{" "}
-                    {fmtEvery(resolvedPlan.intervalUnit, resolvedPlan.intervalCount)}
+                    {selectedProduct.sku || "—"} · {selectedProduct.kind === "SERVICE" ? "Servicio" : "Producto"} · {fmtMoneyFromCents(selectedProduct.basePriceInCents, selectedProduct.currency)}
                   </span>
                 </div>
                 <button
                   className="ghost"
                   type="button"
                   onClick={() => {
-                    setPlanId("");
-                    setPlanQ("");
-                    setPlanId("");
-                    setPlanQ("");
-                    setPlanHits([]);
+                    setProductId("");
+                    setProductQ("");
+                    setProductHits([]);
+                    setOption1Value("");
+                    setOption2Value("");
                   }}
                 >
                   Cambiar
@@ -325,43 +301,41 @@ export function NewBillingAssignmentForm({
               </div>
             ) : (
               <div style={{ display: "grid", gap: 8 }}>
-                <input className="input" value={planQ} onChange={(e) => setPlanQ(e.target.value)} placeholder="Buscar por nombre…" aria-label="Buscar plan o suscripción" />
-                <div style={{ display: "grid", gap: 6 }}>
-                  {filteredPlans.map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      className="ghost"
-                      style={{ textAlign: "left", padding: "8px 10px", border: "1px solid rgba(15, 23, 42, 0.08)", borderRadius: 10 }}
-                      onClick={() => {
-                        setPlanId(String(p.id));
-                        setPlanQ(String(p.name || ""));
-                        setShowNewPlan(false);
-                      }}
-                    >
-                      <strong>{p.name}</strong>{" "}
-                      <span className="field-hint">
-                        · {planTipo(p as any) === "SUSCRIPCION" ? "Suscripción" : "Plan"} ·{" "}
-                        {fmtMoneyFromCents(Number(p.priceInCents || 0), String(p.currency || "COP"))} · {fmtEvery(p.intervalUnit, p.intervalCount)}
-                      </span>
-                    </button>
-                  ))}
+                <input
+                  className="input"
+                  value={productQ}
+                  onChange={(e) => setProductQ(e.target.value)}
+                  placeholder="Buscar por nombre o SKU…"
+                  aria-label="Buscar producto"
+                />
+                <div aria-live="polite">
+                  {productSearching ? <div className="field-hint">Buscando…</div> : null}
+                  {productSearchError ? <div className="field-hint" style={{ color: "rgba(217, 83, 79, 0.92)" }}>{productSearchError}</div> : null}
                 </div>
-                {planSearching ? <div className="field-hint">Buscando planes…</div> : null}
-                {planSearchError ? <div className="field-hint" style={{ color: "rgba(217, 83, 79, 0.92)" }}>{planSearchError}</div> : null}
-                {filteredPlans.length === 0 ? (
-                  <div style={{ color: "var(--muted)" }}>
-                    {plans.length === 0 ? "No hay planes o suscripciones. Crea uno nuevo." : "No se encontraron planes o suscripciones."}
+                <select
+                  className="select"
+                  value={productId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setProductId(id);
+                    const picked = filteredProducts.find((p) => String(p.id) === String(id)) || null;
+                    if (picked) setProductQ(String(picked.name || ""));
+                  }}
+                >
+                  <option value="">Selecciona un producto…</option>
+                  {filteredProducts.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.sku || "—"} · {p.name} · {p.kind === "SERVICE" ? "Servicio" : "Producto"} · {fmtMoneyFromCents(p.basePriceInCents, p.currency)}
+                    </option>
+                  ))}
+                </select>
+                {!productSearching && filteredProducts.length === 0 ? (
+                  <div className="field-hint">
+                    {productQ.trim().length >= 2 ? "Sin resultados. Prueba con otro término." : "No se encontraron productos."}
                   </div>
                 ) : null}
               </div>
             )}
-
-            {showNewPlan ? (
-              <div style={{ marginTop: 10 }}>
-                <NewPlanTemplateForm action={createPlanTemplate} catalogItems={catalogItems} returnTo={returnTo} csrfToken={csrfToken} />
-              </div>
-            ) : null}
           </div>
 
           <div className="panel module" style={{ margin: 0 }}>
@@ -436,22 +410,84 @@ export function NewBillingAssignmentForm({
 
             {showNewCustomer ? (
               <div style={{ marginTop: 10 }}>
-                <NewCustomerForm createCustomer={createCustomer} defaultOpen mode="always_open" hidePanelHeader returnTo={returnTo} csrfToken={csrfToken} />
+                <NewCustomerForm createCustomer={createCustomer} defaultOpen mode="always_open" hidePanelHeader returnTo="/billing?crear=1" csrfToken={csrfToken} />
               </div>
             ) : null}
           </div>
 
-          <div className="panel module" style={{ margin: 0, opacity: planId && customerId ? 1 : 0.6 }}>
+          <div className="panel module" style={{ margin: 0, opacity: canSubmit ? 1 : 0.6 }}>
             <div className="panel-header">
-              <h3 style={{ margin: 0 }}>3) Fechas</h3>
+              <h3 style={{ margin: 0 }}>3) Plan o suscripción</h3>
             </div>
 
-            <form action={createSubscription} onKeyDownCapture={enterToNextField} style={{ display: "grid", gap: 10 }}>
+            <form action={createPlanAndSubscription} onKeyDownCapture={enterToNextField} style={{ display: "grid", gap: 10 }}>
               <input type="hidden" name="csrf" value={csrfToken} />
-              <input type="hidden" name="planId" value={planId} />
               <input type="hidden" name="customerId" value={customerId} />
+              <input type="hidden" name="productId" value={productId} />
+              <input type="hidden" name="billingType" value={billingType} />
+              <input type="hidden" name="intervalUnit" value={intervalUnit} />
+              <input type="hidden" name="intervalCount" value={intervalCount} />
+              <input type="hidden" name="option1Value" value={option1Value} />
+              <input type="hidden" name="option2Value" value={option2Value} />
               <input type="hidden" name="startAt" value={startAtIso} />
               <input type="hidden" name="firstPeriodEndAt" value={cutoffAtIso} />
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div className="field">
+                  <label>Tipo</label>
+                  <select className="select" value={billingType} onChange={(e) => setBillingType(e.target.value === "PLAN" ? "PLAN" : "SUBSCRIPCION")} disabled={!productId || !customerId}>
+                    <option value="SUBSCRIPCION">Suscripción</option>
+                    <option value="PLAN">Plan</option>
+                  </select>
+                </div>
+                <div className="field">
+                  <label>Cobro</label>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    <input
+                      className="input"
+                      type="number"
+                      min={1}
+                      value={intervalCount}
+                      onChange={(e) => setIntervalCount(Math.max(1, Number(e.target.value || 1)))}
+                      disabled={!productId || !customerId}
+                    />
+                    <select
+                      className="select"
+                      value={intervalUnit}
+                      onChange={(e) => setIntervalUnit((e.target.value || "MONTH") as IntervalUnit)}
+                      disabled={!productId || !customerId}
+                    >
+                      <option value="DAY">Día</option>
+                      <option value="WEEK">Semana</option>
+                      <option value="MONTH">Mes</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {selectedProduct?.option1Name ? (
+                <div className="field">
+                  <label>{selectedProduct.option1Name}</label>
+                  <select className="select" value={option1Value} onChange={(e) => setOption1Value(e.target.value)} disabled={!productId || !customerId}>
+                    <option value="">Selecciona…</option>
+                    {option1Values.map((v) => (
+                      <option key={v} value={v}>{v}</option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
+
+              {selectedProduct?.option2Name ? (
+                <div className="field">
+                  <label>{selectedProduct.option2Name}</label>
+                  <select className="select" value={option2Value} onChange={(e) => setOption2Value(e.target.value)} disabled={!productId || !customerId}>
+                    <option value="">Selecciona…</option>
+                    {option2Values.map((v) => (
+                      <option key={v} value={v}>{v}</option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div className="field">
@@ -459,7 +495,7 @@ export function NewBillingAssignmentForm({
                     <span>Inicio (activación)</span>
                     <HelpTip text="Fecha/hora en la que inicia la suscripción." />
                   </label>
-                  <input className="input" type="datetime-local" value={startLocal} onChange={(e) => setStartLocal(e.target.value)} disabled={!planId || !customerId} />
+                  <input className="input" type="datetime-local" value={startLocal} onChange={(e) => setStartLocal(e.target.value)} disabled={!productId || !customerId} />
                 </div>
                 <div className="field">
                   <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -471,10 +507,10 @@ export function NewBillingAssignmentForm({
                     type="datetime-local"
                     value={cutoffLocal}
                     onChange={(e) => setCutoffLocal(e.target.value)}
-                    disabled={!planId || !customerId || sameCutoff}
+                    disabled={!productId || !customerId || sameCutoff}
                   />
                   <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-                    <input type="checkbox" checked={sameCutoff} onChange={(e) => setSameCutoff(e.target.checked)} disabled={!planId || !customerId} />
+                    <input type="checkbox" checked={sameCutoff} onChange={(e) => setSameCutoff(e.target.checked)} disabled={!productId || !customerId} />
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
                       <span>Corte = inicio</span>
                       <HelpTip text="Usa la misma fecha/hora de activación." />
@@ -483,35 +519,39 @@ export function NewBillingAssignmentForm({
                 </div>
               </div>
 
-              {selectedPlan ? (
-                planTipo(selectedPlan) === "PLAN" ? (
-                  <div style={{ display: "grid", gap: 6 }}>
-                    <input type="hidden" name="createPaymentLink" value="on" />
-                    <div className="field-hint">
-                      Se generará un link de pago para este contacto.
-                    </div>
-                  </div>
-                ) : (
-                  <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <input
-                      type="checkbox"
-                      name="createPaymentLink"
-                      checked={createLinkNow}
-                      onChange={(e) => setCreateLinkNow(e.target.checked)}
-                      disabled={!planId || !customerId}
-                    />
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                      Generar link de pago si no se puede cobrar automáticamente
-                      <HelpTip text="Si no hay método de pago, se crea un link para cobrar." />
-                    </span>
-                  </label>
-                )
-              ) : null}
-
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 10, alignItems: "center" }}>
-                <button className="primary" type="submit" disabled={!planId || !customerId}>
-                  {primaryLabel}
-                </button>
+                {billingType === "SUBSCRIPCION" && hasToken ? (
+                  <>
+                    <button
+                      className="ghost"
+                      type="submit"
+                      name="submitAction"
+                      value="CREATE"
+                      disabled={!canSubmit}
+                    >
+                      Crear
+                    </button>
+                    <button
+                      className="primary"
+                      type="submit"
+                      name="submitAction"
+                      value="CHARGE_NOW"
+                      disabled={!canSubmit}
+                    >
+                      Crear y cobrar ahora
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    className="primary"
+                    type="submit"
+                    name="submitAction"
+                    value="LINK_NOW"
+                    disabled={!canSubmit}
+                  >
+                    Crear y enviar link de pago
+                  </button>
+                )}
               </div>
             </form>
           </div>

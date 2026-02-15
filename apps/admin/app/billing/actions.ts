@@ -261,6 +261,126 @@ export async function createPlanTemplate(formData: FormData) {
   }
 }
 
+export async function createPlanAndSubscription(formData: FormData) {
+  await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
+  const customerId = String(formData.get("customerId") || "").trim();
+  const productId = String(formData.get("productId") || "").trim();
+  const billingTypeRaw = String(formData.get("billingType") || "SUBSCRIPCION").trim().toUpperCase();
+  const billingType = billingTypeRaw === "PLAN" ? "PLAN" : "SUBSCRIPCION";
+  const intervalUnit = String(formData.get("intervalUnit") || "MONTH").trim();
+  const intervalCountRaw = Number(String(formData.get("intervalCount") || "1"));
+  const intervalCount = Number.isFinite(intervalCountRaw) && intervalCountRaw > 0 ? Math.trunc(intervalCountRaw) : 1;
+  const option1Value = String(formData.get("option1Value") || "").trim();
+  const option2Value = String(formData.get("option2Value") || "").trim();
+  const startAt = String(formData.get("startAt") || "").trim();
+  const firstPeriodEndAt = String(formData.get("firstPeriodEndAt") || "").trim();
+  const submitActionRaw = String(formData.get("submitAction") || "").trim().toUpperCase();
+  const submitAction = submitActionRaw === "CHARGE_NOW" ? "CHARGE_NOW" : submitActionRaw === "LINK_NOW" ? "LINK_NOW" : "CREATE";
+
+  if (!customerId || !productId) {
+    return redirect(mergeQuery(returnTo, { error: "missing_customer_or_product" }));
+  }
+
+  try {
+    const product = await adminFetch(`/admin/products/${encodeURIComponent(productId)}`, { method: "GET" });
+    const item = product?.item ?? null;
+    if (!item) throw new Error("producto_no_encontrado");
+
+    const variants = Array.isArray(item.variants) ? item.variants : [];
+    const matched = variants.find(
+      (v: any) => String(v?.option1 || "") === String(option1Value || "") && String(v?.option2 || "") === String(option2Value || "")
+    );
+    const delta = matched?.priceDeltaInCents ? Number(matched.priceDeltaInCents) : 0;
+
+    const totals = computeTotalInCents({
+      basePriceInCents: Number(item.basePriceInCents || 0),
+      variantDeltaInCents: delta,
+      discountType: item.discountType,
+      discountValueInCents: item.discountValueInCents,
+      discountPercent: item.discountPercent,
+      taxPercent: item.taxPercent
+    });
+
+    if (!totals.totalInCents || totals.totalInCents <= 0) throw new Error("monto_invalido");
+
+    const collectionMode = billingType === "PLAN" ? "AUTO_LINK" : "AUTO_DEBIT";
+
+    const createdPlan = await adminFetch("/admin/plans", {
+      method: "POST",
+      body: JSON.stringify({
+        name: `${billingType === "PLAN" ? "Plan" : "Suscripción"} - ${item.name}`,
+        priceInCents: totals.totalInCents,
+        currency: item.currency || "COP",
+        intervalUnit,
+        intervalCount,
+        collectionMode,
+        metadata: {
+          catalog: {
+            itemId: item.id,
+            sku: item.sku,
+            name: item.name,
+            kind: item.kind,
+            option1Name: item.option1Name || null,
+            option2Name: item.option2Name || null,
+            option1Value: option1Value || null,
+            option2Value: option2Value || null,
+            variantDeltaInCents: delta || 0
+          },
+          pricing: {
+            basePriceInCents: Number(item.basePriceInCents || 0),
+            subtotalInCents: totals.subtotalInCents,
+            taxPercent: Number(item.taxPercent || 0),
+            taxInCents: totals.taxInCents,
+            discountType: item.discountType || "NONE",
+            discountValueInCents: Number(item.discountValueInCents || 0),
+            discountPercent: Number(item.discountPercent || 0),
+            totalInCents: totals.totalInCents
+          }
+        }
+      })
+    });
+
+    const planId = createdPlan?.plan?.id ? String(createdPlan.plan.id) : "";
+    if (!planId) throw new Error("create_plan_failed");
+
+    const shouldCreateLink = submitAction === "LINK_NOW" || billingType === "PLAN";
+    let startAtValue = startAt || "";
+    let endAtValue = firstPeriodEndAt || "";
+    if (submitAction === "CHARGE_NOW") {
+      const now = new Date().toISOString();
+      startAtValue = startAtValue || now;
+      endAtValue = startAtValue;
+    }
+
+    const sub = await adminFetch("/admin/subscriptions", {
+      method: "POST",
+      body: JSON.stringify({
+        customerId,
+        planId,
+        ...(startAtValue ? { startAt: startAtValue } : {}),
+        ...(endAtValue ? { firstPeriodEndAt: endAtValue } : {}),
+        ...(shouldCreateLink ? { createPaymentLink: true } : {})
+      })
+    });
+
+    const checkoutUrl = sub?.checkoutUrl ? String(sub.checkoutUrl) : "";
+    if (checkoutUrl) {
+      redirect(
+        mergeQuery(returnTo, {
+          created: "1",
+          checkoutUrl,
+          customerId
+        })
+      );
+    }
+    redirect(mergeQuery(returnTo, { created: "1" }));
+  } catch (err: any) {
+    if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
+    redirect(mergeQuery(returnTo, { error: String(err?.message || "create_plan_and_subscription_failed") }));
+  }
+}
+
 export async function sendChatwootPaymentLink(formData: FormData) {
   await assertCsrfToken(formData);
   const checkoutUrl = String(formData.get("checkoutUrl") || "").trim();

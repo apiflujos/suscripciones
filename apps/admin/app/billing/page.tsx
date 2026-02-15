@@ -1,5 +1,5 @@
-import { createPaymentLink, createSubscription } from "../subscriptions/actions";
-import { createCustomerFromBilling, createPlanTemplate, sendChatwootPaymentLink } from "./actions";
+import { createPaymentLink } from "../subscriptions/actions";
+import { createCustomerFromBilling, createPlanAndSubscription, sendChatwootPaymentLink } from "./actions";
 import { NewBillingAssignmentForm } from "./NewBillingAssignmentForm";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { LocalDateTime } from "../ui/LocalDateTime";
@@ -116,14 +116,12 @@ export default async function BillingPage({
   const sp = (await searchParams) ?? {};
 
   const created = typeof sp.created === "string" ? sp.created : "";
-  const planCreated = typeof sp.planCreated === "string" ? sp.planCreated : "";
   const contactCreated = typeof sp.contactCreated === "string" ? sp.contactCreated : "";
   const checkoutUrl = typeof sp.checkoutUrl === "string" ? sp.checkoutUrl : "";
   const checkoutCustomerId = typeof sp.customerId === "string" ? sp.customerId : "";
   const error = typeof sp.error === "string" ? sp.error : "";
   const chatwoot = typeof sp.chatwoot === "string" ? sp.chatwoot : "";
   const crear = typeof sp.crear === "string" ? sp.crear : "";
-  const selectPlanId = typeof sp.selectPlanId === "string" ? sp.selectPlanId : "";
   const selectCustomerId = typeof sp.selectCustomerId === "string" ? sp.selectCustomerId : "";
 
   const tipo = typeof sp.tipo === "string" ? sp.tipo : "todos";
@@ -141,17 +139,12 @@ export default async function BillingPage({
   if (tipo === "suscripciones") subParams.set("collectionMode", "AUTO_DEBIT");
   if (tipo === "planes") subParams.set("collectionMode", "MANUAL_LINK");
 
-  const [subs, plans, customers, products] = await Promise.all([
+  const [subs, customers, products] = await Promise.all([
     fetchAdmin(`/admin/subscriptions?${subParams.toString()}`),
-    fetchAdmin("/admin/plans?take=200"),
     fetchAdmin("/admin/customers?take=200"),
     fetchAdmin("/admin/products?take=200")
   ]);
-  const plansError = plans.ok
-    ? ""
-    : String(plans.json?.error || plans.json?.reason || (plans.status ? `HTTP ${plans.status}` : "unknown_error"));
   const subItems = (subs.json?.items ?? []) as any[];
-  const planItems = (plans.json?.items ?? []) as any[];
   const customerItems = (customers.json?.items ?? []) as any[];
   const productItems = (products.json?.items ?? []) as any[];
 
@@ -219,11 +212,6 @@ export default async function BillingPage({
 
   return (
     <main className="page" style={{ maxWidth: 1100 }}>
-      {plansError ? (
-        <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
-          No se pudieron cargar los planes/suscripciones. Error: {plansError}. Revisa `ADMIN_API_TOKEN` y la URL del API.
-        </div>
-      ) : null}
       {error ? (
         <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
           Error: {error}
@@ -231,7 +219,6 @@ export default async function BillingPage({
       ) : null}
       {created ? <div className="card cardPad">Guardado.</div> : null}
       {chatwoot === "sent" ? <div className="card cardPad">Mensaje enviado por Chatwoot.</div> : null}
-      {planCreated ? <div className="card cardPad">Plan/suscripción creada.</div> : null}
       {contactCreated ? <div className="card cardPad">Contacto creado.</div> : null}
       {checkoutUrl ? (
         <div className="card cardPad" style={{ display: "grid", gap: 8 }}>
@@ -319,16 +306,13 @@ export default async function BillingPage({
 
         <div className="settings-group-body">
           <NewBillingAssignmentForm
-            plans={planItems}
             customers={customerItems}
             catalogItems={productItems}
             csrfToken={csrfToken}
-            defaultOpen={Boolean(crear) || Boolean(selectPlanId) || Boolean(selectCustomerId) || Boolean(planCreated) || Boolean(contactCreated)}
-            defaultSelectedPlanId={selectPlanId}
+            defaultOpen={Boolean(crear) || Boolean(selectCustomerId) || Boolean(contactCreated)}
             defaultSelectedCustomerId={selectCustomerId}
-            createPlanTemplate={createPlanTemplate}
             createCustomer={createCustomerFromBilling}
-            createSubscription={createSubscription}
+            createPlanAndSubscription={createPlanAndSubscription}
           />
 
           <div className="panel module" style={{ padding: 0 }}>
