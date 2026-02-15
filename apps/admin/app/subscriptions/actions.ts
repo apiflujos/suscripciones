@@ -137,6 +137,28 @@ export async function activateSubscription(formData: FormData) {
   }
 }
 
+export async function deleteSubscription(formData: FormData) {
+  await assertCsrfToken(formData);
+  const subscriptionId = String(formData.get("subscriptionId") || "").trim();
+  if (!subscriptionId) return redirect(`/billing?error=${encodeURIComponent("invalid_subscription_id")}`);
+  try {
+    await adminFetch(`/admin/subscriptions/${encodeURIComponent(subscriptionId)}`, {
+      method: "DELETE"
+    });
+    redirect("/billing?deleted=1");
+  } catch (err: any) {
+    if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
+    const msg = String(err?.message || "delete_subscription_failed");
+    if (msg.includes("subscription_must_be_canceled")) {
+      return redirect(`/billing?error=${encodeURIComponent("Primero cancela la suscripción para poder eliminarla.")}`);
+    }
+    if (msg.includes("subscription_has_dependencies")) {
+      return redirect(`/billing?error=${encodeURIComponent("No se puede borrar: tiene pagos o links asociados.")}`);
+    }
+    redirect(`/billing?error=${encodeURIComponent(msg)}`);
+  }
+}
+
 export async function createPlan(formData: FormData) {
   await assertCsrfToken(formData);
   const name = String(formData.get("name") || "").trim();

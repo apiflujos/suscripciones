@@ -1,4 +1,4 @@
-import { activateSubscription, cancelSubscription, createPaymentLink, resumeSubscription, suspendSubscription } from "../subscriptions/actions";
+import { activateSubscription, cancelSubscription, createPaymentLink, deleteSubscription, resumeSubscription, suspendSubscription } from "../subscriptions/actions";
 import { createCustomerFromBilling, createPlanAndSubscription, sendChatwootPaymentLink } from "./actions";
 import { NewBillingAssignmentForm } from "./NewBillingAssignmentForm";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
@@ -120,6 +120,7 @@ export default async function BillingPage({
   const canceled = typeof sp.canceled === "string" ? sp.canceled : "";
   const resumed = typeof sp.resumed === "string" ? sp.resumed : "";
   const activated = typeof sp.activated === "string" ? sp.activated : "";
+  const deleted = typeof sp.deleted === "string" ? sp.deleted : "";
   const contactCreated = typeof sp.contactCreated === "string" ? sp.contactCreated : "";
   const checkoutUrl = typeof sp.checkoutUrl === "string" ? sp.checkoutUrl : "";
   const checkoutCustomerId = typeof sp.customerId === "string" ? sp.customerId : "";
@@ -227,6 +228,7 @@ export default async function BillingPage({
       {canceled ? <div className="card cardPad">Suscripción cancelada.</div> : null}
       {resumed ? <div className="card cardPad">Suscripción reanudada.</div> : null}
       {activated ? <div className="card cardPad">Suscripción activada.</div> : null}
+      {deleted ? <div className="card cardPad">Suscripción eliminada.</div> : null}
       {chatwoot === "sent" ? <div className="card cardPad">Mensaje enviado por Chatwoot.</div> : null}
       {contactCreated ? <div className="card cardPad">Contacto creado.</div> : null}
       {checkoutUrl ? (
@@ -384,7 +386,7 @@ export default async function BillingPage({
                             <input type="hidden" name="csrf" value={csrfToken} />
                             <input type="hidden" name="subscriptionId" value={r.id} />
                             <input type="hidden" name="customerId" value={r.customerId} />
-                            <button className="ghost" type="submit">
+                            <button className="ghost" type="submit" style={{ borderColor: "#60a5fa", color: "#1d4ed8" }}>
                               Generar link
                             </button>
                           </form>
@@ -394,7 +396,7 @@ export default async function BillingPage({
                               <form action={resumeSubscription}>
                                 <input type="hidden" name="csrf" value={csrfToken} />
                                 <input type="hidden" name="subscriptionId" value={r.id} />
-                                <button className="ghost" type="submit">
+                                <button className="ghost" type="submit" style={{ borderColor: "#16a34a", color: "#15803d" }}>
                                   Reanudar
                                 </button>
                               </form>
@@ -402,7 +404,7 @@ export default async function BillingPage({
                               <form action={activateSubscription}>
                                 <input type="hidden" name="csrf" value={csrfToken} />
                                 <input type="hidden" name="subscriptionId" value={r.id} />
-                                <button className="ghost" type="submit">
+                                <button className="ghost" type="submit" style={{ borderColor: "#16a34a", color: "#15803d" }}>
                                   Activar
                                 </button>
                               </form>
@@ -411,14 +413,14 @@ export default async function BillingPage({
                                 <form action={suspendSubscription}>
                                   <input type="hidden" name="csrf" value={csrfToken} />
                                   <input type="hidden" name="subscriptionId" value={r.id} />
-                                  <button className="ghost" type="submit">
+                                  <button className="ghost" type="submit" style={{ borderColor: "#f59e0b", color: "#b45309" }}>
                                     Suspender
                                   </button>
                                 </form>
                                 <form action={cancelSubscription}>
                                   <input type="hidden" name="csrf" value={csrfToken} />
                                   <input type="hidden" name="subscriptionId" value={r.id} />
-                                  <button className="ghost" type="submit">
+                                  <button className="ghost" type="submit" style={{ borderColor: "#ef4444", color: "#b91c1c" }}>
                                     Cancelar
                                   </button>
                                 </form>
@@ -426,6 +428,18 @@ export default async function BillingPage({
                             )}
                           </>
                         )}
+                        <form
+                          action={deleteSubscription}
+                          onSubmit={(e) => {
+                            if (!confirm("¿Eliminar esta suscripción?")) e.preventDefault();
+                          }}
+                        >
+                          <input type="hidden" name="csrf" value={csrfToken} />
+                          <input type="hidden" name="subscriptionId" value={r.id} />
+                          <button className="icon-btn danger" type="submit" aria-label="Eliminar suscripción">
+                            🗑
+                          </button>
+                        </form>
                       </div>
                     </td>
                   </tr>

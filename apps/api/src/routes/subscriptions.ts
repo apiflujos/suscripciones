@@ -249,3 +249,29 @@ subscriptionsRouter.post("/:id/activate", async (req, res) => {
   await systemLog(LogLevel.INFO, "subscriptions.activate", "Subscription activated", { subscriptionId }).catch(() => {});
   res.json({ subscription: updated });
 });
+
+subscriptionsRouter.delete("/:id", async (req, res) => {
+  const subscriptionId = String(req.params.id || "").trim();
+  if (!subscriptionId) return res.status(400).json({ error: "invalid_id" });
+  const existing = await prisma.subscription.findUnique({ where: { id: subscriptionId } });
+  if (!existing) return res.status(404).json({ error: "subscription_not_found" });
+  if (existing.status !== SubscriptionStatus.CANCELED) {
+    return res.status(409).json({ error: "subscription_must_be_canceled" });
+  }
+
+  const [paymentsCount, paymentLinksCount, chatwootCount] = await Promise.all([
+    prisma.payment.count({ where: { subscriptionId } }),
+    prisma.paymentLink.count({ where: { subscriptionId } }),
+    prisma.chatwootMessage.count({ where: { subscriptionId } })
+  ]);
+  if (paymentsCount || paymentLinksCount || chatwootCount) {
+    return res.status(409).json({
+      error: "subscription_has_dependencies",
+      details: { paymentsCount, paymentLinksCount, chatwootCount }
+    });
+  }
+
+  await prisma.subscription.delete({ where: { id: subscriptionId } });
+  await systemLog(LogLevel.INFO, "subscriptions.delete", "Subscription deleted", { subscriptionId }).catch(() => {});
+  res.json({ ok: true });
+});
