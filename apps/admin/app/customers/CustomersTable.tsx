@@ -129,7 +129,14 @@ export function CustomersTable({
                 <div className="contact-person-grid">
                   <div>
                     <span>Nombre</span>
-                    <strong>{c.name || "—"}</strong>
+                    <strong style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <span>{c.name || "—"}</span>
+                      {c.metadata?.wompi?.paymentSourceId ? (
+                        <span className="pill pill-ok">Tokenizada</span>
+                      ) : (
+                        <span className="pill pill-bad">Sin token</span>
+                      )}
+                    </strong>
                   </div>
                   <div>
                     <span>Email</span>

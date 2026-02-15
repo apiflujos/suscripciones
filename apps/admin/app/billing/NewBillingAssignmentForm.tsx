@@ -349,7 +349,14 @@ export function NewBillingAssignmentForm({
             {selectedCustomer ? (
               <div className="card cardPad" style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
                 <div style={{ display: "grid" }}>
-                  <strong>{selectedCustomer.name || selectedCustomer.email || selectedCustomer.id}</strong>
+                  <strong style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <span>{selectedCustomer.name || selectedCustomer.email || selectedCustomer.id}</span>
+                    {selectedCustomer?.metadata?.wompi?.paymentSourceId ? (
+                      <span className="pill pill-ok">Tokenizada</span>
+                    ) : (
+                      <span className="pill pill-bad">Sin token</span>
+                    )}
+                  </strong>
                   <span className="field-hint">
                     {selectedCustomer.metadata?.identificacion || "—"}
                     {selectedCustomer.email ? ` · ${selectedCustomer.email}` : ""}
@@ -396,7 +403,8 @@ export function NewBillingAssignmentForm({
                   <option value="">Selecciona un contacto…</option>
                   {filteredCustomers.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.name || c.email || c.id} · {c.metadata?.identificacion || c.email || c.phone || "—"}
+                      {c.name || c.email || c.id} · {c.metadata?.identificacion || c.email || c.phone || "—"} ·{" "}
+                      {c.metadata?.wompi?.paymentSourceId ? "Tokenizada" : "Sin token"}
                     </option>
                   ))}
                 </select>

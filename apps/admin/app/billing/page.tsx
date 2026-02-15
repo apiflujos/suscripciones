@@ -167,6 +167,7 @@ export default async function BillingPage({
         customerId: String(s.customerId || ""),
         customerName: String(customer?.name || customer?.email || s.customerId || "—"),
         customerEmail: String(customer?.email || ""),
+        customerTokenized: Boolean(customer?.metadata?.wompi?.paymentSourceId),
         identificacion: String(ident || "—"),
         tipoTx,
         tipoPago: getTipoPago(plan),
@@ -337,7 +338,16 @@ export default async function BillingPage({
                   <tr key={r.id}>
                     <td><LocalDateTime value={r.pagoAt} /></td>
                     <td><LocalDateTime value={r.vencimientoAt} /></td>
-                    <td>{r.customerName}</td>
+                    <td>
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <span>{r.customerName}</span>
+                        {r.customerTokenized ? (
+                          <span className="pill pill-ok">Tokenizada</span>
+                        ) : (
+                          <span className="pill pill-bad">Sin token</span>
+                        )}
+                      </div>
+                    </td>
                     <td>{r.customerEmail || "—"}</td>
                     <td style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>{r.identificacion}</td>
                     <td>
