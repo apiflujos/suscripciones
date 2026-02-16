@@ -3,6 +3,3 @@
 
 // NOTE: This file should not be edited
 // see https://nextjs.org/docs/app/building-your-application/configuring/typescript for more information.
-declare module "country-telephone-data" {
-  export const allCountries: Array<[string, string, string, string?, string?]>;
-}
