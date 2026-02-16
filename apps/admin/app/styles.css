@@ -1940,3 +1940,61 @@ textarea {
   align-items: center;
   gap: 10px;
 }
+
+.color-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.color-row input[type="color"] {
+  width: 44px;
+  height: 34px;
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+.color-swatches {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.color-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.15);
+  cursor: pointer;
+}
+
+.wizard-preview {
+  border: 1px dashed var(--stroke);
+  border-radius: 12px;
+  padding: 12px;
+  background: #fff;
+  display: grid;
+  gap: 6px;
+}
+
+.wizard-preview .primary {
+  background: var(--preview-color, var(--primary));
+}
+
+.preview-badge {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.preview-title {
+  font-weight: 800;
+}
+
+.preview-subtitle {
+  color: var(--muted);
+  font-size: 12px;
+}

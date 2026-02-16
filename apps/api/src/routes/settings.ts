@@ -74,7 +74,10 @@ const publicCheckoutUpdateSchema = z.object({
   successTitle: z.string().optional().or(z.literal("")),
   successSubtitle: z.string().optional().or(z.literal("")),
   successButtonText: z.string().optional().or(z.literal("")),
-  redirectUrl: z.string().url().optional().or(z.literal(""))
+  redirectUrl: z.string().url().optional().or(z.literal("")),
+  domainMode: z.enum(["apiflujos", "custom"]).optional(),
+  companyName: z.string().optional().or(z.literal("")),
+  customDomain: z.string().optional().or(z.literal(""))
 });
 
 export const settingsRouter = express.Router();
@@ -247,7 +250,10 @@ settingsRouter.get("/", async (_req, res) => {
       successTitle: publicCheckout.successTitle || null,
       successSubtitle: publicCheckout.successSubtitle || null,
       successButtonText: publicCheckout.successButtonText || null,
-      redirectUrl: publicCheckout.redirectUrl || null
+      redirectUrl: publicCheckout.redirectUrl || null,
+      domainMode: publicCheckout.domainMode || null,
+      companyName: publicCheckout.companyName || null,
+      customDomain: publicCheckout.customDomain || null
     }
   });
 });
@@ -341,7 +347,10 @@ settingsRouter.put("/public-checkout", async (req, res) => {
     successTitle: parsed.data.successTitle || "",
     successSubtitle: parsed.data.successSubtitle || "",
     successButtonText: parsed.data.successButtonText || "",
-    redirectUrl: parsed.data.redirectUrl || ""
+    redirectUrl: parsed.data.redirectUrl || "",
+    domainMode: parsed.data.domainMode || "",
+    companyName: parsed.data.companyName || "",
+    customDomain: parsed.data.customDomain || ""
   };
 
   await setCredential(CredentialProvider.WOMPI, "PUBLIC_CHECKOUT_CONFIG", JSON.stringify(payload));

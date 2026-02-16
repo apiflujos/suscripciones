@@ -22,6 +22,12 @@ export function PublicCheckoutDefaultsWizard({
   onSave: (formData: FormData) => void;
 }) {
   const [step, setStep] = useState(1);
+  const [domainMode, setDomainMode] = useState<"apiflujos" | "custom">(((defaults as any).domainMode as "apiflujos" | "custom") || "apiflujos");
+  const [companyName, setCompanyName] = useState<string>(((defaults as any).companyName as string) || "");
+  const [customDomain, setCustomDomain] = useState<string>(((defaults as any).customDomain as string) || "");
+  const [primaryColor, setPrimaryColor] = useState<string>(((defaults as any).primaryColor as string) || "#002b5b");
+  const [title, setTitle] = useState<string>(defaults.title || "");
+  const [subtitle, setSubtitle] = useState<string>(defaults.subtitle || "");
   const baseRef = useRef<HTMLInputElement | null>(null);
 
   function next() {
@@ -40,6 +46,24 @@ export function PublicCheckoutDefaultsWizard({
     }
   }, [defaults.baseUrl]);
 
+  const suggestedSubdomain = companyName
+    ? `${companyName
+        .toLowerCase()
+        .normalize("NFKD")
+        .replace(/[^\w\s-]/g, "")
+        .trim()
+        .replace(/\s+/g, "-")
+        .replace(/-+/g, "-")
+        .slice(0, 40)}.subs.apiflujos.com`
+    : "";
+
+  useEffect(() => {
+    if (!baseRef.current) return;
+    if (domainMode !== "apiflujos") return;
+    if (!suggestedSubdomain) return;
+    baseRef.current.value = `https://${suggestedSubdomain}`;
+  }, [domainMode, suggestedSubdomain]);
+
   return (
     <form action={onSave} className="wizard" style={{ display: "grid", gap: 14 }}>
       <input type="hidden" name="csrf" value={csrfToken} />
@@ -57,11 +81,11 @@ export function PublicCheckoutDefaultsWizard({
         <div className="wizard-panel">
           <div className="field">
             <label>Título general</label>
-            <input className="input" name="publicTitle" defaultValue={defaults.title || ""} placeholder="Activa tu suscripción" />
+            <input className="input" name="publicTitle" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Activa tu suscripción" />
           </div>
           <div className="field">
             <label>Subtítulo</label>
-            <input className="input" name="publicSubtitle" defaultValue={defaults.subtitle || ""} placeholder="Guarda tu método de pago" />
+            <input className="input" name="publicSubtitle" value={subtitle} onChange={(e) => setSubtitle(e.target.value)} placeholder="Guarda tu método de pago" />
           </div>
           <div className="field">
             <label>Logo (URL)</label>
@@ -69,7 +93,20 @@ export function PublicCheckoutDefaultsWizard({
           </div>
           <div className="field">
             <label>Color primario</label>
-            <input className="input" name="publicPrimaryColor" defaultValue={(defaults as any).primaryColor || ""} placeholder="#0f172a" />
+            <div className="color-row">
+              <input
+                type="color"
+                value={primaryColor}
+                onChange={(e) => setPrimaryColor(e.target.value)}
+                aria-label="Seleccionar color"
+              />
+              <input className="input" name="publicPrimaryColor" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} placeholder="#0f172a" />
+            </div>
+            <div className="color-swatches">
+              {["#002b5b", "#0f172a", "#14532d", "#7c2d12", "#6d28d9"].map((c) => (
+                <button key={c} type="button" className="color-swatch" style={{ background: c }} onClick={() => setPrimaryColor(c)} />
+              ))}
+            </div>
           </div>
           <div className="field">
             <label>Fuente</label>
@@ -94,9 +131,41 @@ export function PublicCheckoutDefaultsWizard({
       {step === 3 ? (
         <div className="wizard-panel">
           <div className="field">
-            <label>URL pública base</label>
-            <input ref={baseRef} className="input" name="publicBaseUrl" defaultValue={defaults.baseUrl || ""} placeholder="https://mdv.subs.apiflujos.com" />
+            <label>Nombre de la empresa</label>
+            <input className="input" name="publicCompanyName" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Mi empresa" />
           </div>
+          <div className="field">
+            <label>Tipo de dominio</label>
+            <select className="select" name="publicDomainMode" value={domainMode} onChange={(e) => setDomainMode(e.target.value as "apiflujos" | "custom")}>
+              <option value="apiflujos">Dominio Apiflujos</option>
+              <option value="custom">Dominio propio</option>
+            </select>
+          </div>
+          <div className="field">
+            <label>URL pública base</label>
+            <input
+              ref={baseRef}
+              className="input"
+              name="publicBaseUrl"
+              defaultValue={defaults.baseUrl || ""}
+              placeholder="https://mdv.subs.apiflujos.com"
+              readOnly={domainMode === "apiflujos"}
+            />
+            {domainMode === "apiflujos" ? (
+              <div className="field-hint">
+                Se generará: <strong>https://{suggestedSubdomain}</strong>
+              </div>
+            ) : null}
+          </div>
+          {domainMode === "custom" ? (
+            <div className="field">
+              <label>Dominio propio</label>
+              <input className="input" name="publicCustomDomain" value={customDomain} onChange={(e) => setCustomDomain(e.target.value)} placeholder="checkout.tuempresa.com" />
+              <div className="field-hint">
+                Instrucciones DNS: crea un registro <strong>CNAME</strong> apuntando tu dominio a <strong>mdv.subs.apiflujos.com</strong>. Luego espera propagación (10-60 min).
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -141,6 +210,13 @@ export function PublicCheckoutDefaultsWizard({
         <PendingButton className="primary" type="submit" pendingText="Guardando...">
           Guardar
         </PendingButton>
+      </div>
+
+      <div className="wizard-preview" style={{ ["--preview-color" as any]: primaryColor }}>
+        <div className="preview-badge">Preview</div>
+        <div className="preview-title">{title || "Activa tu suscripción"}</div>
+        <div className="preview-subtitle">{subtitle || "Guarda tu método de pago"}</div>
+        <button type="button" className="primary" style={{ width: "fit-content" }}>Continuar</button>
       </div>
     </form>
   );

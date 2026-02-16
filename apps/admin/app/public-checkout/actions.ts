@@ -20,7 +20,7 @@ function isNextRedirect(err: unknown) {
 function redirectWith(action: string, status: "ok" | "fail", error?: string) {
   const qp = new URLSearchParams({ a: action, status });
   if (error) qp.set("error", error);
-  redirect(`/public-checkout?${qp.toString()}`);
+  redirect(`/settings?tab=public-checkout&${qp.toString()}`);
 }
 
 function normalizeUrl(input: string) {
@@ -28,6 +28,17 @@ function normalizeUrl(input: string) {
   if (!v) return "";
   if (/^https?:\/\//i.test(v)) return v;
   return `https://${v}`;
+}
+
+function toSlug(input: string) {
+  return String(input || "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^\w\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .slice(0, 40);
 }
 
 async function adminFetch(path: string, init: RequestInit) {
@@ -62,7 +73,16 @@ function buildBranding(_formData: FormData) {
 
 export async function updatePublicCheckoutDefaults(formData: FormData) {
   await assertCsrfToken(formData);
-  const baseUrl = normalizeUrl(String(formData.get("publicBaseUrl") || ""));
+  const domainMode = String(formData.get("publicDomainMode") || "").trim() || "apiflujos";
+  const companyName = String(formData.get("publicCompanyName") || "").trim();
+  const customDomain = String(formData.get("publicCustomDomain") || "").trim();
+  const baseUrlRaw = String(formData.get("publicBaseUrl") || "").trim();
+  const baseUrl =
+    domainMode === "custom"
+      ? normalizeUrl(customDomain || baseUrlRaw)
+      : companyName
+        ? normalizeUrl(`${toSlug(companyName)}.subs.apiflujos.com`)
+        : normalizeUrl(baseUrlRaw);
   const title = String(formData.get("publicTitle") || "").trim();
   const subtitle = String(formData.get("publicSubtitle") || "").trim();
   const description = String(formData.get("publicDescription") || "").trim();
@@ -92,7 +112,10 @@ export async function updatePublicCheckoutDefaults(formData: FormData) {
         ...(successTitle ? { successTitle } : { successTitle: "" }),
         ...(successSubtitle ? { successSubtitle } : { successSubtitle: "" }),
         ...(successButtonText ? { successButtonText } : { successButtonText: "" }),
-        ...(redirectUrl ? { redirectUrl } : { redirectUrl: "" })
+        ...(redirectUrl ? { redirectUrl } : { redirectUrl: "" }),
+        ...(domainMode ? { domainMode } : { domainMode: "" }),
+        ...(companyName ? { companyName } : { companyName: "" }),
+        ...(customDomain ? { customDomain } : { customDomain: "" })
       })
     });
     redirectWith("public_defaults", "ok");
