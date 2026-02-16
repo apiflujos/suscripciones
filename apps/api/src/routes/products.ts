@@ -28,6 +28,7 @@ const createProductSchema = z.object({
   option1Name: z.string().min(1).optional().nullable(),
   option2Name: z.string().min(1).optional().nullable(),
   variants: z.array(variantRowSchema).optional().nullable(),
+  imageUrl: z.string().optional().nullable(),
   metadata: z.any().optional()
 });
 
@@ -78,6 +79,7 @@ productsRouter.get("/", async (_req, res) => {
       option1Name: (p.metadata as any)?.option1Name || null,
       option2Name: (p.metadata as any)?.option2Name || null,
       variants: (p.metadata as any)?.variants || null,
+      imageUrl: (p.metadata as any)?.imageUrl || null,
       createdAt: p.createdAt,
       updatedAt: p.updatedAt
     }))
@@ -113,6 +115,7 @@ productsRouter.get("/:id", async (req, res) => {
       option1Name: (plan.metadata as any)?.option1Name || null,
       option2Name: (plan.metadata as any)?.option2Name || null,
       variants: (plan.metadata as any)?.variants || null,
+      imageUrl: (plan.metadata as any)?.imageUrl || null,
       createdAt: plan.createdAt,
       updatedAt: plan.updatedAt
     }
@@ -160,7 +163,8 @@ productsRouter.put("/:id", async (req, res) => {
     discountPercent: data.discountPercent,
     option1Name: data.option1Name || null,
     option2Name: data.option2Name || null,
-    variants: data.variants ? (data.variants as any) : null
+    variants: data.variants ? (data.variants as any) : null,
+    imageUrl: data.imageUrl || null
   };
 
   const updated = await prisma.subscriptionPlan.update({
@@ -214,7 +218,8 @@ productsRouter.post("/", async (req, res) => {
         discountPercent: data.discountPercent,
         option1Name: data.option1Name || null,
         option2Name: data.option2Name || null,
-        variants: data.variants ? (data.variants as any) : null
+        variants: data.variants ? (data.variants as any) : null,
+        imageUrl: data.imageUrl || null
       } as any
     }
   });

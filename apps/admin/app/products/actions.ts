@@ -74,6 +74,7 @@ export async function createProduct(formData: FormData) {
   const option1Name = String(formData.get("option1Name") || "").trim();
   const option2Name = String(formData.get("option2Name") || "").trim();
   const variantsJson = String(formData.get("variantsJson") || "").trim();
+  const imageUrl = String(formData.get("imageUrl") || "").trim();
 
   let variants: any[] | undefined;
   if (variantsJson) {
@@ -105,7 +106,8 @@ export async function createProduct(formData: FormData) {
         requiresShipping,
         option1Name: option1Name || null,
         option2Name: option2Name || null,
-        variants: variants || null
+        variants: variants || null,
+        imageUrl: imageUrl || null
       })
     });
     redirect("/products?created=1");
@@ -137,6 +139,7 @@ export async function updateProduct(formData: FormData) {
   const option1Name = String(formData.get("option1Name") || "").trim();
   const option2Name = String(formData.get("option2Name") || "").trim();
   const variantsJson = String(formData.get("variantsJson") || "").trim();
+  const imageUrl = String(formData.get("imageUrl") || "").trim();
 
   let variants: any[] | undefined;
   if (variantsJson) {
@@ -170,7 +173,8 @@ export async function updateProduct(formData: FormData) {
         requiresShipping,
         option1Name: option1Name || null,
         option2Name: option2Name || null,
-        variants: variants || null
+        variants: variants || null,
+        imageUrl: imageUrl || null
       })
     });
     redirect("/products?updated=1");
@@ -209,6 +213,7 @@ export async function createPlanTemplate(formData: FormData) {
       const option1Name = String(formData.get("itemOption1Name") || "").trim();
       const option2Name = String(formData.get("itemOption2Name") || "").trim();
       const variantsJson = String(formData.get("itemVariantsJson") || "[]");
+      const imageUrl = String(formData.get("itemImageUrl") || "").trim();
 
       let variants: any[] | null = null;
       try {
@@ -235,7 +240,8 @@ export async function createPlanTemplate(formData: FormData) {
           requiresShipping: itemKind === "PRODUCT",
           option1Name: option1Name || null,
           option2Name: option2Name || null,
-          variants: variants || null
+          variants: variants || null,
+          imageUrl: imageUrl || null
         })
       });
       const createdItemId = created?.product?.id ? String(created.product.id) : "";
@@ -254,7 +260,8 @@ export async function createPlanTemplate(formData: FormData) {
         discountPercent,
         option1Name: option1Name || null,
         option2Name: option2Name || null,
-        variants: variants || null
+        variants: variants || null,
+        imageUrl: imageUrl || null
       };
     } else {
       const products = await adminFetch("/admin/products", { method: "GET" });

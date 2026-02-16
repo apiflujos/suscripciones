@@ -38,6 +38,7 @@ type ProductRow = {
   option1Name?: string | null;
   option2Name?: string | null;
   variants?: Array<{ option1?: string | null; option2?: string | null; priceDeltaInCents: number }> | null;
+  imageUrl?: string | null;
 };
 
 export function ProductsTable({ items, csrfToken }: { items: ProductRow[]; csrfToken: string }) {
@@ -62,6 +63,7 @@ export function ProductsTable({ items, csrfToken }: { items: ProductRow[]; csrfT
   const [option2Name, setOption2Name] = useState("");
   const [variantOptionsCount, setVariantOptionsCount] = useState<0 | 1 | 2>(0);
   const [variantsJson, setVariantsJson] = useState("[]");
+  const [imageUrl, setImageUrl] = useState("");
   const modalRef = useRef<HTMLDivElement | null>(null);
   const lastActiveRef = useRef<HTMLElement | null>(null);
 
@@ -88,6 +90,7 @@ export function ProductsTable({ items, csrfToken }: { items: ProductRow[]; csrfT
     setRequiresShipping(Boolean(item.requiresShipping));
     setOption1Name(item.option1Name || "");
     setOption2Name(item.option2Name || "");
+    setImageUrl(item.imageUrl || "");
     const hasOpt2 = Boolean(item.option2Name) || (item.variants || []).some((v) => v?.option2);
     const hasOpt1 = Boolean(item.option1Name) || (item.variants || []).some((v) => v?.option1);
     setVariantOptionsCount(hasOpt2 ? 2 : hasOpt1 ? 1 : 0);
@@ -133,18 +136,34 @@ export function ProductsTable({ items, csrfToken }: { items: ProductRow[]; csrfT
 
   const modalTitle = useMemo(() => (editing ? `Editar: ${editing.name}` : "Editar producto"), [editing]);
 
+  function onImageFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      if (result) setImageUrl(result);
+    };
+    reader.readAsDataURL(file);
+  }
+
   return (
     <>
       <div className="product-grid" aria-label="Listado de productos y servicios">
         {items.map((p) => (
           <div className="product-card" key={p.id}>
             <div className="product-header">
-              <div className="product-title">
-                <div className="product-name">{p.name}</div>
-                <div className="product-sub">
-                  <span className="product-sku">{p.sku}</span>
-                  <span>·</span>
-                  <span>{p.kind === "SERVICE" ? "Servicio" : "Producto"}</span>
+              <div className="product-title-row">
+                <div className="product-thumb">
+                  {p.imageUrl ? <img src={p.imageUrl} alt={p.name} /> : <span>📦</span>}
+                </div>
+                <div className="product-title">
+                  <div className="product-name">{p.name}</div>
+                  <div className="product-sub">
+                    <span className="product-sku">{p.sku}</span>
+                    <span>·</span>
+                    <span>{p.kind === "SERVICE" ? "Servicio" : "Producto"}</span>
+                  </div>
                 </div>
               </div>
               <button className="ghost btn-compact btn-blue" type="button" onClick={() => openEditor(p)}>
@@ -213,6 +232,7 @@ export function ProductsTable({ items, csrfToken }: { items: ProductRow[]; csrfT
               <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="id" value={editing.id} />
               <input type="hidden" name="currency" value="COP" />
+              <input type="hidden" name="imageUrl" value={imageUrl} />
 
               <div className="field">
                 <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -242,6 +262,18 @@ export function ProductsTable({ items, csrfToken }: { items: ProductRow[]; csrfT
               <div className="field">
                 <label>Descripción</label>
                 <textarea className="input" name="description" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
+              </div>
+              <div className="field">
+                <label>Imagen</label>
+                <div className="file-row">
+                  <input type="file" accept="image/*" onChange={onImageFile} />
+                  {imageUrl ? <img src={imageUrl} alt="Producto" className="logo-preview" /> : null}
+                  {imageUrl ? (
+                    <button type="button" className="ghost" onClick={() => setImageUrl("")}>
+                      Quitar
+                    </button>
+                  ) : null}
+                </div>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>

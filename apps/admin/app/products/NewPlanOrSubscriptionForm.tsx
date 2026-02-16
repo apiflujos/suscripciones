@@ -70,6 +70,7 @@ export function NewPlanOrSubscriptionForm({
   const [itemOption1Name, setItemOption1Name] = useState("");
   const [itemOption2Name, setItemOption2Name] = useState("");
   const [itemVariantsJson, setItemVariantsJson] = useState("[]");
+  const [itemImageUrl, setItemImageUrl] = useState("");
 
   const catalogPool = useMemo(() => {
     const map = new Map<string, CatalogItem>();
@@ -174,6 +175,17 @@ export function NewPlanOrSubscriptionForm({
 
   const [option1Value, setOption1Value] = useState("");
   const [option2Value, setOption2Value] = useState("");
+
+  function onItemImageFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      if (result) setItemImageUrl(result);
+    };
+    reader.readAsDataURL(file);
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -395,6 +407,14 @@ export function NewPlanOrSubscriptionForm({
                       </label>
                       <input className="input" name="itemSku" value={itemSku} onChange={(e) => setItemSku(e.target.value)} required />
                     </div>
+                  </div>
+                  <div className="field">
+                    <label>Imagen del ítem</label>
+                    <div className="file-row">
+                      <input type="file" accept="image/*" onChange={onItemImageFile} />
+                      {itemImageUrl ? <img src={itemImageUrl} alt="Ítem" className="logo-preview" /> : null}
+                    </div>
+                    <input type="hidden" name="itemImageUrl" value={itemImageUrl} />
                   </div>
 
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
