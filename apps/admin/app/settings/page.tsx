@@ -96,6 +96,7 @@ export default async function SettingsPage({
   const status = String(sp.status || "");
   const errorText = sp.error ? String(sp.error) : "";
   const tab = String(sp.tab || "connections");
+  const autoOpenTemplate = String(sp.new || sp.create || "") === "1";
   const inlineState = { action, status, errorText };
   const inlineMsg = (key: string, okText: string, failPrefix: string) => {
     if (action !== key) return null;
@@ -236,8 +237,36 @@ export default async function SettingsPage({
 
       {tab === "public-checkout" ? (
         <>
+          <div className="settings-cta-row">
+            <a className="primary" href="/settings?tab=public-checkout#defaults">
+              Configurar defaults
+            </a>
+            <a className="secondary" href="/settings?tab=public-checkout&new=1#templates">
+              Nueva plantilla
+            </a>
+          </div>
+
           <section className="settings-group">
-            <div className="settings-group-header">
+            <div className="settings-group-header" id="defaults">
+              <div className="panelHeaderRow">
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <h3>Defaults del checkout</h3>
+                  <HelpTip text="Se usan cuando una plantilla no define su propia marca." />
+                </div>
+              </div>
+            </div>
+            <div className="settings-group-body">
+              <div className="panel module">
+                <PublicCheckoutDefaultsWizard defaults={publicCheckout} csrfToken={csrfToken} onSave={updatePublicCheckoutDefaults} />
+                <div style={{ marginTop: 8 }}>
+                  {inlineMsg("public_defaults", "Guardado.", "Error guardando")}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="settings-group">
+            <div className="settings-group-header" id="templates">
               <div className="panelHeaderRow" style={{ justifyContent: "space-between" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <h3>Plantillas</h3>
@@ -253,31 +282,13 @@ export default async function SettingsPage({
                 csrfToken={csrfToken}
                 publicBaseUrl={publicCheckout.baseUrl || ""}
                 inlineState={inlineState}
+                autoOpen={autoOpenTemplate}
                 actions={{
                   create: createPublicCheckoutTemplate,
                   update: updatePublicCheckoutTemplate,
                   deactivate: deactivatePublicCheckoutTemplate
                 }}
               />
-            </div>
-          </section>
-
-          <section className="settings-group">
-            <div className="settings-group-header">
-              <div className="panelHeaderRow">
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <h3>Defaults del checkout</h3>
-                  <HelpTip text="Se usan cuando una plantilla no define su propia marca." />
-                </div>
-              </div>
-            </div>
-            <div className="settings-group-body">
-              <div className="panel module">
-                <PublicCheckoutDefaultsWizard defaults={publicCheckout} csrfToken={csrfToken} onSave={updatePublicCheckoutDefaults} />
-                <div style={{ marginTop: 8 }}>
-                  {inlineMsg("public_defaults", "Guardado.", "Error guardando")}
-                </div>
-              </div>
             </div>
           </section>
         </>

@@ -52,6 +52,7 @@ export function PublicCheckoutTemplatesPanel({
   products,
   csrfToken,
   publicBaseUrl,
+  autoOpen,
   inlineState,
   actions
 }: {
@@ -60,6 +61,7 @@ export function PublicCheckoutTemplatesPanel({
   products: Product[];
   csrfToken: string;
   publicBaseUrl: string;
+  autoOpen?: boolean;
   inlineState: InlineState;
   actions: {
     create: (formData: FormData) => void;
@@ -159,6 +161,12 @@ export function PublicCheckoutTemplatesPanel({
     if (!open) return;
     if (editing?.kind) setFormKind(editing.kind);
   }, [open, editing]);
+
+  useEffect(() => {
+    if (!autoOpen) return;
+    if (open) return;
+    openCreate();
+  }, [autoOpen, open]);
 
   useEffect(() => {
     if (!open) return;
