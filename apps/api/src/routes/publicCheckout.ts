@@ -132,7 +132,8 @@ publicCheckoutRouter.get("/checkout/:slug", async (req, res) => {
       requireShipping: template.requireShipping,
       requireAddress: template.requireAddress,
       planId: template.planId,
-      branding: template.branding || {}
+      branding: template.branding || {},
+      layout: template.layout || null
     },
     plans: plans.map((p) => ({
       id: p.id,

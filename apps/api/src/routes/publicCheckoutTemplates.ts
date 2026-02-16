@@ -12,7 +12,8 @@ const templateSchema = z.object({
   allowPlanSelect: z.boolean().optional(),
   requireShipping: z.boolean().optional(),
   requireAddress: z.boolean().optional(),
-  branding: z.any().optional()
+  branding: z.any().optional(),
+  layout: z.any().optional()
 });
 
 function slugify(input: string) {
@@ -86,7 +87,8 @@ publicCheckoutTemplatesRouter.post("/templates", async (req, res) => {
       allowPlanSelect: data.allowPlanSelect ?? false,
       requireShipping: data.requireShipping ?? false,
       requireAddress: data.requireAddress ?? false,
-      branding: data.branding ?? {}
+      branding: data.branding ?? {},
+      layout: data.layout ?? null
     },
     include: { plan: true }
   });
@@ -130,7 +132,8 @@ publicCheckoutTemplatesRouter.put("/templates/:id", async (req, res) => {
       allowPlanSelect: data.allowPlanSelect ?? existing.allowPlanSelect,
       requireShipping: data.requireShipping ?? existing.requireShipping,
       requireAddress: data.requireAddress ?? existing.requireAddress,
-      branding: data.branding ?? existing.branding
+      branding: data.branding ?? existing.branding,
+      layout: data.layout ?? existing.layout
     },
     include: { plan: true }
   });

@@ -172,6 +172,7 @@ model PublicCheckoutTemplate {
   requireShipping  Boolean             @default(false)
   requireAddress   Boolean             @default(false)
   branding         Json?
+  layout           Json?
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
 
