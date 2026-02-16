@@ -1166,6 +1166,116 @@ textarea {
   font-size: 11px;
 }
 
+.conn-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.conn-card {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 14px;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: center;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+.conn-card:hover {
+  background: #f8fafc;
+}
+
+.conn-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 18px;
+  color: #fff;
+}
+
+.conn-icon-wompi {
+  background: #111827;
+}
+
+.conn-icon-shopify {
+  background: #16a34a;
+}
+
+.conn-icon-apiflujos {
+  background: #0ea5a8;
+  padding: 6px;
+}
+
+.conn-icon-apiflujos img {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.conn-title {
+  font-weight: 700;
+  color: #0b1220;
+}
+
+.conn-sub {
+  font-size: 12px;
+  color: #475569;
+}
+
+.conn-status {
+  font-size: 11px;
+  color: #334155;
+  background: #f1f5f9;
+  padding: 4px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+  padding: 16px;
+}
+
+.modal-panel {
+  width: min(980px, 96vw);
+  max-height: 90vh;
+  overflow: auto;
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.2);
+  padding: 12px;
+}
+
+.modal-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 980px) {
+  .conn-grid {
+    grid-template-columns: 1fr;
+  }
+  .modal-split {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 980px) {
   .product-info {
     grid-template-columns: 1fr 1fr;

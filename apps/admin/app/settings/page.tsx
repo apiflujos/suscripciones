@@ -15,8 +15,8 @@ import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
 import { HelpTip } from "../ui/HelpTip";
 import { PendingButton } from "../ui/PendingButton";
-import { DualActionButtons } from "../ui/DualActionButtons";
 import { getCsrfToken } from "../lib/csrf";
+import { ConnectionsPanel } from "./ConnectionsPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -71,12 +71,11 @@ export default async function SettingsPage({
   const action = String(sp.a || "");
   const status = String(sp.status || "");
   const errorText = sp.error ? String(sp.error) : "";
-  const isOk = status === "ok";
-  const isFail = status === "fail";
+  const inlineState = { action, status, errorText };
   const inlineMsg = (key: string, okText: string, failPrefix: string) => {
     if (action !== key) return null;
-    if (isOk) return <div className="field-hint">{okText}</div>;
-    if (isFail) return <div className="field-hint" style={{ color: "var(--danger)" }}>{failPrefix}: {errorText || "unknown_error"}</div>;
+    if (status === "ok") return <div className="field-hint">{okText}</div>;
+    if (status === "fail") return <div className="field-hint" style={{ color: "var(--danger)" }}>{failPrefix}: {errorText || "unknown_error"}</div>;
     return null;
   };
 
@@ -108,275 +107,33 @@ export default async function SettingsPage({
         <div className="settings-group-header">
           <div className="panelHeaderRow">
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <h3>Conexiones nuevas</h3>
-              <HelpTip text="Completa los datos y guarda. Los formularios siempre estarán en blanco." />
+              <h3>Conexiones</h3>
+              <HelpTip text="Abre cada conexión para configurar sus credenciales." />
             </div>
           </div>
         </div>
         <div className="settings-group-body">
-          <div className="panel module">
-            <div className="panelHeaderRow">
-              <strong>Wompi</strong>
-            </div>
-            <form action={setWompiActiveEnv} style={{ display: "grid", gridTemplateColumns: "1fr auto", alignItems: "end", gap: 10 }}>
-              <input type="hidden" name="csrf" value={csrfToken} />
-              <div className="field">
-                <label>
-                  Entorno activo
-                  <HelpTip text="Define qué entorno usa el sistema para operaciones por defecto." />
-                </label>
-                <select className="select" name="activeEnv" defaultValue={wompiActiveEnv}>
-                  <option value="PRODUCTION">Producción</option>
-                  <option value="SANDBOX">Sandbox</option>
-                </select>
-              </div>
-              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-                {inlineMsg("wompi_env", "Guardado.", "Error guardando")}
-                <PendingButton className="primary" type="submit" pendingText="Guardando...">
-                  Guardar
-                </PendingButton>
-              </div>
-            </form>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
-              {([
-                ["PRODUCTION", "Producción"],
-                ["SANDBOX", "Sandbox"]
-              ] as const).map(([envKey, envLabel]) => (
-                <div key={envKey} className="panel module">
-                  <div className="panelHeaderRow">
-                    <strong>Nueva conexión ({envLabel})</strong>
-                  </div>
-                  <form action={updateWompi} style={{ display: "grid", gap: 10 }}>
-                    <input type="hidden" name="csrf" value={csrfToken} />
-                    <input type="hidden" name="environment" value={envKey} />
-                    <div className="field">
-                      <label>
-                        Llave pública
-                        <HelpTip text="Clave pública de tu cuenta Wompi (empieza con pub_)." />
-                      </label>
-                      <input className="input" name="publicKey" placeholder="pub_..." />
-                    </div>
-                    <div className="field">
-                      <label>
-                        Llave privada
-                        <HelpTip text="Clave privada de Wompi para autenticar llamadas." />
-                      </label>
-                      <input className="input" name="privateKey" type="password" />
-                    </div>
-                    <div className="field">
-                      <label>
-                        Secreto de integridad
-                        <HelpTip text="Usado para firmar y validar la integridad de los eventos." />
-                      </label>
-                      <input className="input" name="integritySecret" type="password" />
-                    </div>
-                    <div className="field">
-                      <label>
-                        Secreto de eventos
-                        <HelpTip text="Secreto para validar webhooks/eventos entrantes." />
-                      </label>
-                      <input className="input" name="eventsSecret" type="password" />
-                    </div>
-                    <div className="field">
-                      <label>
-                        URL base del API
-                        <HelpTip text="Base del API de Wompi según entorno." />
-                      </label>
-                      <input
-                        className="input"
-                        name="apiBaseUrl"
-                        placeholder={envKey === "SANDBOX" ? "https://sandbox.wompi.co/v1" : "https://production.wompi.co/v1"}
-                      />
-                    </div>
-                    <div className="field">
-                      <label>
-                        URL base de links de pago
-                        <HelpTip text="Base para generar links de pago." />
-                      </label>
-                      <input className="input" name="checkoutLinkBaseUrl" placeholder="https://checkout.wompi.co/l/" />
-                    </div>
-                    <div className="field">
-                      <label>
-                        URL de redirección (opcional)
-                        <HelpTip text="URL a la que Wompi redirige después del pago." />
-                      </label>
-                      <input className="input" name="redirectUrl" />
-                    </div>
-                    <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-                      {inlineMsg("wompi_creds", "Guardado.", "Error guardando")}
-                      <PendingButton className="primary" type="submit" pendingText="Guardando...">
-                        Guardar
-                      </PendingButton>
-                    </div>
-                  </form>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="settings-group">
-        <div className="settings-group-header">
-          <div className="panelHeaderRow">
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <h3>Conexiones nuevas (continuación)</h3>
-              <HelpTip text="Configura los conectores adicionales." />
-            </div>
-          </div>
-        </div>
-        <div className="settings-group-body">
-          <div className="panel module">
-            <div className="panelHeaderRow">
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <strong>Central de Comunicaciones (Producción)</strong>
-              </div>
-            </div>
-            <form action={updateChatwoot} style={{ display: "grid", gap: 10 }}>
-              <input type="hidden" name="csrf" value={csrfToken} />
-              <input type="hidden" name="environment" value="PRODUCTION" />
-              <div className="field">
-                <label>
-                  URL base
-                  <HelpTip text="Ej: https://tu-central.com (sin / al final)" />
-                </label>
-                <input className="input" name="baseUrl" placeholder="https://central.tu-dominio.com" defaultValue={commsProduction?.baseUrl || ""} />
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-                <div className="field">
-                  <label>
-                    ID de cuenta
-                    <HelpTip text="ID numérico de la cuenta en tu central." />
-                  </label>
-                  <input className="input" name="accountId" defaultValue={commsProduction?.accountId || ""} />
-                </div>
-                <div className="field">
-                  <label>
-                    ID de bandeja
-                    <HelpTip text="ID numérico del inbox/bandeja." />
-                  </label>
-                  <input className="input" name="inboxId" defaultValue={commsProduction?.inboxId || ""} />
-                </div>
-                <div className="field">
-                  <label>
-                    Token API
-                    <HelpTip text="Token privado de la central para API." />
-                  </label>
-                  <input className="input" name="apiAccessToken" type="password" defaultValue={commsProduction?.apiAccessToken || ""} />
-                </div>
-              </div>
-              <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  {inlineMsg("central_delete", "Eliminado.", "Error eliminando")}
-                  <button className="ghost" type="submit" formAction={deleteCentralConnection}>
-                    Eliminar conexión
-                  </button>
-                </div>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  {inlineMsg("central_save", "Guardado.", "Error guardando")}
-                  {inlineMsg("central_test", "Conexión exitosa.", "Error conectando")}
-                  <DualActionButtons
-                    primaryLabel="Guardar"
-                    primaryPendingLabel="Guardando..."
-                    primaryClassName="primary"
-                    secondaryLabel="Probar conexión"
-                    secondaryPendingLabel="Conectando..."
-                    secondaryClassName="ghost"
-                    secondaryFormAction={testCentralConnection}
-                  />
-                </div>
-              </div>
-            </form>
-          </div>
-
-          <div className="panel module">
-            <div className="panelHeaderRow">
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <strong>Central de Comunicaciones (Sandbox)</strong>
-              </div>
-            </div>
-            <form action={updateChatwoot} style={{ display: "grid", gap: 10 }}>
-              <input type="hidden" name="csrf" value={csrfToken} />
-              <input type="hidden" name="environment" value="SANDBOX" />
-              <div className="field">
-                <label>
-                  URL base
-                  <HelpTip text="Ej: https://tu-central.com (sin / al final)" />
-                </label>
-                <input className="input" name="baseUrl" placeholder="https://central.tu-dominio.com" defaultValue={commsSandbox?.baseUrl || ""} />
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-                <div className="field">
-                  <label>
-                    ID de cuenta
-                    <HelpTip text="ID numérico de la cuenta en tu central." />
-                  </label>
-                  <input className="input" name="accountId" defaultValue={commsSandbox?.accountId || ""} />
-                </div>
-                <div className="field">
-                  <label>
-                    ID de bandeja
-                    <HelpTip text="ID numérico del inbox/bandeja." />
-                  </label>
-                  <input className="input" name="inboxId" defaultValue={commsSandbox?.inboxId || ""} />
-                </div>
-                <div className="field">
-                  <label>
-                    Token API
-                    <HelpTip text="Token privado de la central para API." />
-                  </label>
-                  <input className="input" name="apiAccessToken" type="password" defaultValue={commsSandbox?.apiAccessToken || ""} />
-                </div>
-              </div>
-              <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-                <div>
-                  <button className="ghost" type="submit" formAction={deleteCentralConnection}>
-                    Eliminar conexión
-                  </button>
-                </div>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <DualActionButtons
-                    primaryLabel="Guardar"
-                    primaryPendingLabel="Guardando..."
-                    primaryClassName="primary"
-                    secondaryLabel="Probar conexión"
-                    secondaryPendingLabel="Conectando..."
-                    secondaryClassName="ghost"
-                    secondaryFormAction={testCentralConnection}
-                  />
-                </div>
-              </div>
-            </form>
-          </div>
-
-          <div className="panel module" style={{ display: "grid", gap: 10 }}>
-            <div className="panelHeaderRow">
-              <strong>Acciones rápidas</strong>
-            </div>
-            <form action={bootstrapCentralAttributes}>
-              <input type="hidden" name="csrf" value={csrfToken} />
-              {inlineMsg("central_bootstrap", "Atributos creados.", "Error creando")}
-              <PendingButton className="ghost" type="submit" pendingText="Creando...">
-                Crear atributos de contacto
-              </PendingButton>
-            </form>
-            <form action={syncCentralAttributes} style={{ display: "flex", gap: 8, alignItems: "end" }}>
-              <input type="hidden" name="csrf" value={csrfToken} />
-              <div className="field" style={{ flex: 1 }}>
-                <label>
-                  Límite a sincronizar
-                  <HelpTip text="Cantidad máxima de contactos a sincronizar en esta ejecución." />
-                </label>
-                <input className="input" name="limit" placeholder="200" />
-              </div>
-              {inlineMsg("central_sync", "Sincronización iniciada.", "Error sincronizando")}
-              <PendingButton className="ghost" type="submit" pendingText="Sincronizando...">
-                Sincronizar contactos
-              </PendingButton>
-            </form>
-            <div className="field-hint">Sincroniza atributos de pagos y suscripciones con la Central de Comunicaciones Apiflujos.</div>
-          </div>
+          <ConnectionsPanel
+            csrfToken={csrfToken}
+            wompiActiveEnv={wompiActiveEnv}
+            wompiProduction={wompiProduction}
+            wompiSandbox={wompiSandbox}
+            commsProduction={commsProduction}
+            commsSandbox={commsSandbox}
+            shopify={settings?.shopify || {}}
+            actions={{
+              setWompiActiveEnv,
+              updateWompi,
+              updateChatwoot,
+              deleteCentralConnection,
+              testCentralConnection,
+              bootstrapCentralAttributes,
+              syncCentralAttributes,
+              updateShopify,
+              testShopifyForward
+            }}
+            inlineState={inlineState}
+          />
         </div>
       </section>
 
@@ -425,62 +182,6 @@ export default async function SettingsPage({
               </div>
             </form>
           </div>
-        </div>
-      </section>
-
-      <section className="settings-group">
-        <div className="settings-group-header">
-          <div className="panelHeaderRow">
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <h3>Conexión nueva (Shopify)</h3>
-              <HelpTip text="Reenvío de eventos/órdenes." />
-            </div>
-          </div>
-        </div>
-        <div className="settings-group-body">
-          <form action={updateShopify} className="panel module" style={{ display: "grid", gap: 10 }}>
-            <input type="hidden" name="csrf" value={csrfToken} />
-            <div className="field">
-              <label>
-                URL de reenvío
-                <HelpTip text="Endpoint del e-commerce para recibir eventos." />
-              </label>
-              <input className="input" name="forwardUrl" />
-            </div>
-            <div className="field">
-              <label>
-                Secreto de reenvío (opcional)
-                <HelpTip text="Secreto compartido para validar los eventos reenviados." />
-              </label>
-              <input className="input" name="forwardSecret" type="password" />
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <div className="field">
-                <label>Reintento automático</label>
-                <select className="select" name="forwardRetryEnabled" defaultValue={String(settings?.shopify?.forwardRetryEnabled ?? true)}>
-                  <option value="true">Activo</option>
-                  <option value="false">Desactivado</option>
-                </select>
-              </div>
-              <div className="field">
-                <label>Intervalo (min)</label>
-                <input className="input" name="forwardRetryMinutes" placeholder="15" defaultValue={String(settings?.shopify?.forwardRetryMinutes ?? 15)} />
-              </div>
-            </div>
-            <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-              {inlineMsg("shopify_save", "Guardado.", "Error guardando")}
-              {inlineMsg("shopify_test", "Forward OK.", "Error probando")}
-              <DualActionButtons
-                primaryLabel="Guardar"
-                primaryPendingLabel="Guardando..."
-                primaryClassName="primary"
-                secondaryLabel="Probar forward"
-                secondaryPendingLabel="Probando..."
-                secondaryClassName="ghost"
-                secondaryFormAction={testShopifyForward}
-              />
-            </div>
-          </form>
         </div>
       </section>
 
