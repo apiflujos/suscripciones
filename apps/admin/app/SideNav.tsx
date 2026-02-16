@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { AdminSession } from "../lib/session";
 
@@ -165,6 +165,7 @@ function LogoutIcon({ className }: { className?: string }) {
 
 export function SideNav({ session }: { session: AdminSession | null }) {
   const pathname = usePathname() || "";
+  const searchParams = useSearchParams();
   const isSuperAdminPath = pathname.startsWith("/sa") || pathname.startsWith("/__sa");
   const isSuperAdmin = session?.role === "SUPER_ADMIN";
   const [collapsed, setCollapsed] = useState(false);
@@ -301,10 +302,10 @@ export function SideNav({ session }: { session: AdminSession | null }) {
         <span className="nav-label">Planes y Suscripciones</span>
       </Link>
       <Link
-        className={`nav-item ${isActivePath(pathname, "/public-checkout") ? "is-active" : ""}`}
-        href="/public-checkout"
+        className={`nav-item ${isPublicCheckoutActive ? "is-active" : ""}`}
+        href="/settings?tab=public-checkout"
         prefetch={false}
-        aria-current={isActivePath(pathname, "/public-checkout") ? "page" : undefined}
+        aria-current={isPublicCheckoutActive ? "page" : undefined}
       >
         <NavIcon name="checkout" className="nav-icon" />
         <span className="nav-label">Checkout público</span>
@@ -369,3 +370,6 @@ export function SideNav({ session }: { session: AdminSession | null }) {
     </div>
   );
 }
+  const isPublicCheckoutActive =
+    pathname.startsWith("/public-checkout") ||
+    (pathname.startsWith("/settings") && searchParams?.get("tab") === "public-checkout");

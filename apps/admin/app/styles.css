@@ -1853,3 +1853,29 @@ textarea {
 .field.row label {
   margin: 0;
 }
+
+.settings-tabs {
+  display: inline-flex;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid var(--stroke);
+  margin: 6px 0 18px;
+}
+
+.settings-tab {
+  padding: 6px 12px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--text);
+  font-weight: 600;
+  background: transparent;
+  border: 1px solid transparent;
+}
+
+.settings-tab.is-active {
+  background: var(--primary-soft);
+  border-color: rgba(0, 43, 91, 0.2);
+  color: var(--primary);
+}

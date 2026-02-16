@@ -24,19 +24,21 @@ type Plan = {
   active: boolean;
 };
 
+type InlineState = { action: string; status: string; errorText: string };
+
 export function PublicCheckoutTemplatesPanel({
   templates,
   plans,
   csrfToken,
   publicBaseUrl,
-  inlineMsg,
+  inlineState,
   actions
 }: {
   templates: Template[];
   plans: Plan[];
   csrfToken: string;
   publicBaseUrl: string;
-  inlineMsg: (key: string, ok: string, fail: string) => ReactNode;
+  inlineState: InlineState;
   actions: {
     create: (formData: FormData) => void;
     update: (formData: FormData) => void;
@@ -92,6 +94,19 @@ export function PublicCheckoutTemplatesPanel({
     if (!open) return;
     if (editing?.kind) setFormKind(editing.kind);
   }, [open, editing]);
+
+  function inlineMsg(key: string, okText: string, failPrefix: string) {
+    if (inlineState.action !== key) return null;
+    if (inlineState.status === "ok") return <div className="field-hint">{okText}</div>;
+    if (inlineState.status === "fail") {
+      return (
+        <div className="field-hint" style={{ color: "var(--danger)" }}>
+          {failPrefix}: {inlineState.errorText || "unknown_error"}
+        </div>
+      );
+    }
+    return null;
+  }
 
   return (
     <div className="template-shell">
