@@ -106,6 +106,11 @@ async function listPlans(kind: PublicCheckoutKind) {
 
 export const publicCheckoutRouter = express.Router();
 
+publicCheckoutRouter.get("/checkout-config", async (_req, res) => {
+  const config = await getPublicCheckoutConfig();
+  res.json({ ok: true, config });
+});
+
 publicCheckoutRouter.get("/checkout/:slug", async (req, res) => {
   const slug = String(req.params.slug || "").trim();
   if (!slug) return res.status(400).json({ error: "invalid_slug" });
