@@ -25,15 +25,19 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     h.get("x-invoke-path") ||
     h.get("x-matched-path") ||
     h.get("x-nextjs-url") ||
+    h.get("x-forwarded-uri") ||
+    h.get("x-original-uri") ||
+    h.get("x-rewrite-url") ||
     "";
+  const pathHint = String(pathname || "");
   const isAuthScreen =
-    !pathname ||
-    pathname === "/login" ||
-    pathname === "/sa/login" ||
-    pathname === "/__sa/login" ||
-    pathname === "/404" ||
-    pathname === "/500" ||
-    pathname === "/_error";
+    !pathHint ||
+    pathHint.includes("/login") ||
+    pathHint.includes("/sa/login") ||
+    pathHint.includes("/__sa/login") ||
+    pathHint.includes("/404") ||
+    pathHint.includes("/500") ||
+    pathHint.includes("/_error");
 
   const c = await cookies();
   const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
