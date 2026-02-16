@@ -1841,6 +1841,15 @@ textarea {
   justify-content: space-between;
   gap: 16px;
 }
+.template-inline-builder {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 16px;
+  padding: 14px;
+  background: #fff;
+  margin: 14px 0;
+  display: grid;
+  gap: 12px;
+}
 
 .template-grid {
   display: grid;

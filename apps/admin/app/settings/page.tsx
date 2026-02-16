@@ -238,12 +238,8 @@ export default async function SettingsPage({
       {tab === "public-checkout" ? (
         <>
           <div className="settings-cta-row">
-            <a className="primary" href="/settings?tab=public-checkout#defaults">
-              Configurar defaults
-            </a>
-            <a className="secondary" href="/settings?tab=public-checkout&new=1#templates">
-              Nueva plantilla
-            </a>
+            <span className="pill">Paso 1 · Defaults</span>
+            <span className="pill">Paso 2 · Plantillas</span>
           </div>
 
           <section className="settings-group">
@@ -281,6 +277,7 @@ export default async function SettingsPage({
                 products={products}
                 csrfToken={csrfToken}
                 publicBaseUrl={publicCheckout.baseUrl || ""}
+                brandingDefaults={publicCheckout}
                 inlineState={inlineState}
                 autoOpen={autoOpenTemplate}
                 actions={{

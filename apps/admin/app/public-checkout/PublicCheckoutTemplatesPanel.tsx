@@ -52,6 +52,7 @@ export function PublicCheckoutTemplatesPanel({
   products,
   csrfToken,
   publicBaseUrl,
+  brandingDefaults,
   autoOpen,
   inlineState,
   actions
@@ -61,6 +62,7 @@ export function PublicCheckoutTemplatesPanel({
   products: Product[];
   csrfToken: string;
   publicBaseUrl: string;
+  brandingDefaults?: any;
   autoOpen?: boolean;
   inlineState: InlineState;
   actions: {
@@ -308,6 +310,12 @@ export function PublicCheckoutTemplatesPanel({
   const previewCta = formKind === "PLAN" ? "Pagar" : "Guardar y pagar";
   const selectedSection = layout.sections.find((s) => s.id === selectedSectionId) || null;
 
+  const brandingStyle: React.CSSProperties = {
+    ...(brandingDefaults?.fontFamily ? { fontFamily: brandingDefaults.fontFamily } : {}),
+    ...(brandingDefaults?.primaryColor ? ({ ["--primary" as any]: brandingDefaults.primaryColor } as any) : {})
+  };
+  const logoUrl = brandingDefaults?.logoUrl || "";
+
   return (
     <div className="template-shell">
       <div className="template-header">
@@ -319,6 +327,296 @@ export function PublicCheckoutTemplatesPanel({
           Nueva plantilla
         </button>
       </div>
+
+      {open ? (
+        <div className="template-inline-builder">
+          <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <strong>{formTitle}</strong>
+              <div className="field-hint">Configura la plantilla y guarda.</div>
+            </div>
+            <button className="ghost" type="button" onClick={closeModal}>
+              Cerrar
+            </button>
+          </div>
+
+          <form
+            action={formAction}
+            className="template-modal-body"
+            onSubmit={(e) => {
+              const err = validateForm();
+              if (err) {
+                e.preventDefault();
+                setFormError(err);
+                return;
+              }
+              setFormError("");
+            }}
+          >
+            <input type="hidden" name="layout" value={JSON.stringify(layout)} />
+            <input type="hidden" name="csrf" value={csrfToken} />
+            {editing ? <input type="hidden" name="id" value={editing.id} /> : null}
+
+            <div className="template-modal-left">
+              <div className="field">
+                <label>Nombre</label>
+                <input className="input" name="name" value={formName} onChange={(e) => setFormName(e.target.value)} required />
+              </div>
+              <div className="field">
+                <label>Slug (opcional)</label>
+                <input className="input" name="slug" value={formSlug} onChange={(e) => setFormSlug(e.target.value)} />
+              </div>
+              <div className="field row">
+                <label>Activa</label>
+                <input type="checkbox" name="active" defaultChecked={editing ? editing.active : true} />
+              </div>
+              <div className="field">
+                <label>Tipo</label>
+                <select
+                  className="select"
+                  name="kind"
+                  value={formKind}
+                  onChange={(e) => setFormKind(e.target.value as "PLAN" | "SUBSCRIPTION")}
+                >
+                  <option value="PLAN">Plan con link de pago</option>
+                  <option value="SUBSCRIPTION">Suscripción con tokenización</option>
+                </select>
+              </div>
+
+              <div className="field row">
+                <label>Selector de productos</label>
+                <input
+                  type="checkbox"
+                  name="allowPlanSelect"
+                  checked={formAllowSelect}
+                  onChange={(e) => setFormAllowSelect(e.target.checked)}
+                />
+                <span className="field-hint">Permite escoger el producto en el checkout</span>
+              </div>
+
+              <div className="field">
+                <label>Buscar producto</label>
+                <input
+                  className="input"
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                  placeholder="Buscar por nombre o SKU..."
+                />
+              </div>
+
+              <div className="field">
+                <label>Producto predeterminado</label>
+                <input type="hidden" name="planId" value={formPlanId} />
+                {formAllowSelect ? <div className="field-hint">Se mostrará un selector en el checkout.</div> : null}
+                {!formAllowSelect && !formPlanId ? (
+                  <div className="field-hint" style={{ color: "var(--danger)" }}>
+                    Debes seleccionar un producto o activar el selector.
+                  </div>
+                ) : null}
+                <div className={`product-pick ${formAllowSelect ? "is-disabled" : ""}`} aria-disabled={formAllowSelect}>
+                  {(formKind === "PLAN" ? filteredProducts : availablePlans(formKind)).map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className={`product-option ${formPlanId === p.id ? "is-active" : ""}`}
+                      onClick={() => setFormPlanId(p.id)}
+                      disabled={formAllowSelect}
+                      title={p.name}
+                    >
+                      <div className="product-card-row">
+                        {"imageUrl" in p && p.imageUrl ? (
+                          <img src={p.imageUrl} alt={p.name} className="product-thumb" />
+                        ) : (
+                          <div className="product-thumb product-thumb-fallback">📦</div>
+                        )}
+                        <div className="product-card-text">
+                          <div className="product-title">{p.name}</div>
+                          {"sku" in p && p.sku ? <div className="field-hint">SKU: {p.sku}</div> : null}
+                          {"basePriceInCents" in p && typeof p.basePriceInCents === "number" ? (
+                            <div className="field-hint">{formatCopFromCents(p.basePriceInCents)}</div>
+                          ) : null}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                  {!(formKind === "PLAN" ? filteredProducts : availablePlans(formKind)).length ? (
+                    <div className="field-hint">No hay productos con ese filtro.</div>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="field row">
+                <label>Requiere dirección</label>
+                <input
+                  type="checkbox"
+                  name="requireAddress"
+                  checked={formRequireAddress}
+                  onChange={(e) => setFormRequireAddress(e.target.checked)}
+                />
+              </div>
+              <div className="field row">
+                <label>Requiere envío</label>
+                <input
+                  type="checkbox"
+                  name="requireShipping"
+                  checked={formRequireShipping}
+                  onChange={(e) => setFormRequireShipping(e.target.checked)}
+                />
+              </div>
+
+              <div className="field-divider" />
+              <div className="field-hint">El branding es global y se configura en los defaults.</div>
+
+              <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ display: "grid", gap: 4 }}>
+                  {formError ? <div className="field-hint" style={{ color: "var(--danger)" }}>{formError}</div> : null}
+                  {inlineMsg(editing ? "template_update" : "template_create", "Guardado.", "Error guardando")}
+                </div>
+                <PendingButton className="primary" type="submit" pendingText="Guardando...">
+                  Guardar
+                </PendingButton>
+              </div>
+            </div>
+
+              <aside className="template-preview template-builder" style={brandingStyle}>
+                <div className="preview-badge">Builder</div>
+                {logoUrl ? <img src={logoUrl} alt="Logo" className="logo-preview" /> : null}
+              <div className="builder-canvas">
+                {layout.sections.map((section) => {
+                  if (!section.enabled) return null;
+                  if (section.type === "header") {
+                    return (
+                      <div key={section.id} className={`canvas-block ${selectedSectionId === section.id ? "is-selected" : ""}`} onClick={() => setSelectedSectionId(section.id)}>
+                        <div className="canvas-title">{section.props.title || "Título"}</div>
+                        <div className="canvas-subtitle">{section.props.subtitle || "Subtítulo"}</div>
+                      </div>
+                    );
+                  }
+                  if (section.type === "products") {
+                    return (
+                      <div key={section.id} className={`canvas-block ${selectedSectionId === section.id ? "is-selected" : ""}`} onClick={() => setSelectedSectionId(section.id)}>
+                        <div className="canvas-label">{section.props.title || "Productos"}</div>
+                        <div className="canvas-products">
+                          {(previewList || []).slice(0, 3).map((p) => (
+                            <div key={p.id} className="canvas-product-card">
+                              {"imageUrl" in p && p.imageUrl ? <img src={p.imageUrl} alt={p.name} /> : <div className="canvas-thumb">📦</div>}
+                              <div className="canvas-product-name">{p.name}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  }
+                  if (section.type === "form") {
+                    return (
+                      <div key={section.id} className={`canvas-block ${selectedSectionId === section.id ? "is-selected" : ""}`} onClick={() => setSelectedSectionId(section.id)}>
+                        <div className="canvas-label">{section.props.title || "Tus datos"}</div>
+                        <div className="canvas-input" />
+                        <div className="canvas-input" />
+                        <div className="canvas-input" />
+                      </div>
+                    );
+                  }
+                  if (section.type === "cta") {
+                    return (
+                      <div key={section.id} className={`canvas-block ${selectedSectionId === section.id ? "is-selected" : ""}`} onClick={() => setSelectedSectionId(section.id)}>
+                        <button type="button" className="canvas-cta">{previewCta}</button>
+                      </div>
+                    );
+                  }
+                  if (section.type === "footer") {
+                    return (
+                      <div key={section.id} className={`canvas-block ${selectedSectionId === section.id ? "is-selected" : ""}`} onClick={() => setSelectedSectionId(section.id)}>
+                        <div className="canvas-muted">{section.props.text || "Texto footer"}</div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })}
+              </div>
+
+              <div className="builder-toolbar">
+                <div className="builder-title">Secciones</div>
+                <div className="builder-list">
+                  {layout.sections.map((s) => (
+                    <div key={s.id} className={`builder-row ${selectedSectionId === s.id ? "is-active" : ""}`}>
+                      <button type="button" className="ghost" onClick={() => setSelectedSectionId(s.id)}>
+                        {s.type}
+                      </button>
+                      <div className="builder-actions">
+                        <button type="button" className="ghost" onClick={() => moveSection(s.id, -1)}>↑</button>
+                        <button type="button" className="ghost" onClick={() => moveSection(s.id, 1)}>↓</button>
+                        <button type="button" className="ghost" onClick={() => updateSection(s.id, { enabled: !s.enabled })}>
+                          {s.enabled ? "Ocultar" : "Mostrar"}
+                        </button>
+                        <button type="button" className="ghost" onClick={() => removeSection(s.id)}>Quitar</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="builder-add">
+                  <button type="button" className="secondary" onClick={() => addSection("header")}>+ Header</button>
+                  <button type="button" className="secondary" onClick={() => addSection("products")}>+ Productos</button>
+                  <button type="button" className="secondary" onClick={() => addSection("form")}>+ Formulario</button>
+                  <button type="button" className="secondary" onClick={() => addSection("cta")}>+ CTA</button>
+                  <button type="button" className="secondary" onClick={() => addSection("footer")}>+ Footer</button>
+                </div>
+              </div>
+
+              <div className="builder-props">
+                <div className="builder-title">Propiedades</div>
+                {!selectedSection ? <div className="field-hint">Selecciona una sección.</div> : null}
+                {selectedSection?.type === "header" ? (
+                  <div className="field">
+                    <label>Título</label>
+                    <input
+                      className="input"
+                      value={selectedSection.props.title || ""}
+                      onChange={(e) => updateSectionProps(selectedSection.id, { title: e.target.value })}
+                    />
+                    <label>Subtítulo</label>
+                    <input
+                      className="input"
+                      value={selectedSection.props.subtitle || ""}
+                      onChange={(e) => updateSectionProps(selectedSection.id, { subtitle: e.target.value })}
+                    />
+                  </div>
+                ) : null}
+                {selectedSection?.type === "products" ? (
+                  <div className="field">
+                    <label>Título productos</label>
+                    <input
+                      className="input"
+                      value={selectedSection.props.title || ""}
+                      onChange={(e) => updateSectionProps(selectedSection.id, { title: e.target.value })}
+                    />
+                  </div>
+                ) : null}
+                {selectedSection?.type === "form" ? (
+                  <div className="field">
+                    <label>Título formulario</label>
+                    <input
+                      className="input"
+                      value={selectedSection.props.title || ""}
+                      onChange={(e) => updateSectionProps(selectedSection.id, { title: e.target.value })}
+                    />
+                  </div>
+                ) : null}
+                {selectedSection?.type === "footer" ? (
+                  <div className="field">
+                    <label>Texto footer</label>
+                    <input
+                      className="input"
+                      value={selectedSection.props.text || ""}
+                      onChange={(e) => updateSectionProps(selectedSection.id, { text: e.target.value })}
+                    />
+                  </div>
+                ) : null}
+              </div>
+            </aside>
+          </form>
+        </div>
+      ) : null}
 
       <div className="template-grid">
         {templates.map((t) => (
@@ -374,295 +672,6 @@ export function PublicCheckoutTemplatesPanel({
         {!templates.length ? <div className="field-hint">No hay plantillas aún.</div> : null}
       </div>
 
-      {open ? (
-        <div className="modal-backdrop" role="presentation" onClick={closeModal}>
-          <div className="modal-panel" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div>
-                <h3 style={{ margin: 0 }}>{formTitle}</h3>
-                <div className="field-hint">Personaliza el checkout público.</div>
-              </div>
-              <button className="ghost" type="button" onClick={closeModal}>
-                Cerrar
-              </button>
-            </div>
-            <form
-              action={formAction}
-              className="modal-body template-modal-body"
-              onSubmit={(e) => {
-                const err = validateForm();
-                if (err) {
-                  e.preventDefault();
-                  setFormError(err);
-                  return;
-                }
-                setFormError("");
-              }}
-            >
-              <input type="hidden" name="layout" value={JSON.stringify(layout)} />
-              <input type="hidden" name="csrf" value={csrfToken} />
-              {editing ? <input type="hidden" name="id" value={editing.id} /> : null}
-
-              <div className="template-modal-left">
-                <div className="field">
-                  <label>Nombre</label>
-                  <input className="input" name="name" value={formName} onChange={(e) => setFormName(e.target.value)} required />
-                </div>
-                <div className="field">
-                  <label>Slug (opcional)</label>
-                  <input className="input" name="slug" value={formSlug} onChange={(e) => setFormSlug(e.target.value)} />
-                </div>
-                <div className="field row">
-                  <label>Activa</label>
-                  <input type="checkbox" name="active" defaultChecked={editing ? editing.active : true} />
-                </div>
-                <div className="field">
-                  <label>Tipo</label>
-                  <select
-                    className="select"
-                    name="kind"
-                    value={formKind}
-                    onChange={(e) => setFormKind(e.target.value as "PLAN" | "SUBSCRIPTION")}
-                  >
-                    <option value="PLAN">Plan con link de pago</option>
-                    <option value="SUBSCRIPTION">Suscripción con tokenización</option>
-                  </select>
-                </div>
-
-                <div className="field row">
-                  <label>Selector de productos</label>
-                  <input
-                    type="checkbox"
-                    name="allowPlanSelect"
-                    checked={formAllowSelect}
-                    onChange={(e) => setFormAllowSelect(e.target.checked)}
-                  />
-                  <span className="field-hint">Permite escoger el producto en el checkout</span>
-                </div>
-
-                <div className="field">
-                  <label>Buscar producto</label>
-                  <input
-                    className="input"
-                    value={productSearch}
-                    onChange={(e) => setProductSearch(e.target.value)}
-                    placeholder="Buscar por nombre o SKU..."
-                  />
-                </div>
-
-                <div className="field">
-                  <label>Producto predeterminado</label>
-                  <input type="hidden" name="planId" value={formPlanId} />
-                  {formAllowSelect ? <div className="field-hint">Se mostrará un selector en el checkout.</div> : null}
-                  {!formAllowSelect && !formPlanId ? (
-                    <div className="field-hint" style={{ color: "var(--danger)" }}>
-                      Debes seleccionar un producto o activar el selector.
-                    </div>
-                  ) : null}
-                  <div className={`product-pick ${formAllowSelect ? "is-disabled" : ""}`} aria-disabled={formAllowSelect}>
-                    {(formKind === "PLAN" ? filteredProducts : availablePlans(formKind)).map((p) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        className={`product-option ${formPlanId === p.id ? "is-active" : ""}`}
-                        onClick={() => setFormPlanId(p.id)}
-                        disabled={formAllowSelect}
-                        title={p.name}
-                      >
-                        <div className="product-card-row">
-                          {"imageUrl" in p && p.imageUrl ? (
-                            <img src={p.imageUrl} alt={p.name} className="product-thumb" />
-                          ) : (
-                            <div className="product-thumb product-thumb-fallback">📦</div>
-                          )}
-                          <div className="product-card-text">
-                            <div className="product-title">{p.name}</div>
-                            {"sku" in p && p.sku ? <div className="field-hint">SKU: {p.sku}</div> : null}
-                            {"basePriceInCents" in p && typeof p.basePriceInCents === "number" ? (
-                              <div className="field-hint">{formatCopFromCents(p.basePriceInCents)}</div>
-                            ) : null}
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                    {!(formKind === "PLAN" ? filteredProducts : availablePlans(formKind)).length ? (
-                      <div className="field-hint">No hay productos con ese filtro.</div>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="field row">
-                  <label>Requiere dirección</label>
-                  <input
-                    type="checkbox"
-                    name="requireAddress"
-                    checked={formRequireAddress}
-                    onChange={(e) => setFormRequireAddress(e.target.checked)}
-                  />
-                </div>
-                <div className="field row">
-                  <label>Requiere envío</label>
-                  <input
-                    type="checkbox"
-                    name="requireShipping"
-                    checked={formRequireShipping}
-                    onChange={(e) => setFormRequireShipping(e.target.checked)}
-                  />
-                </div>
-
-                <div className="field-divider" />
-                <div className="field-hint">El branding es global y se configura en los defaults.</div>
-
-                <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ display: "grid", gap: 4 }}>
-                    {formError ? <div className="field-hint" style={{ color: "var(--danger)" }}>{formError}</div> : null}
-                    {inlineMsg(editing ? "template_update" : "template_create", "Guardado.", "Error guardando")}
-                  </div>
-                  <PendingButton className="primary" type="submit" pendingText="Guardando...">
-                    Guardar
-                  </PendingButton>
-                </div>
-              </div>
-
-              <aside className="template-preview template-builder">
-                <div className="preview-badge">Builder</div>
-                <div className="builder-canvas">
-                  {layout.sections.map((section) => {
-                    if (!section.enabled) return null;
-                    if (section.type === "header") {
-                      return (
-                        <div key={section.id} className={`canvas-block ${selectedSectionId === section.id ? "is-selected" : ""}`} onClick={() => setSelectedSectionId(section.id)}>
-                          <div className="canvas-title">{section.props.title || "Título"}</div>
-                          <div className="canvas-subtitle">{section.props.subtitle || "Subtítulo"}</div>
-                        </div>
-                      );
-                    }
-                    if (section.type === "products") {
-                      return (
-                        <div key={section.id} className={`canvas-block ${selectedSectionId === section.id ? "is-selected" : ""}`} onClick={() => setSelectedSectionId(section.id)}>
-                          <div className="canvas-label">{section.props.title || "Productos"}</div>
-                          <div className="canvas-products">
-                            {(previewList || []).slice(0, 3).map((p) => (
-                              <div key={p.id} className="canvas-product-card">
-                                {"imageUrl" in p && p.imageUrl ? <img src={p.imageUrl} alt={p.name} /> : <div className="canvas-thumb">📦</div>}
-                                <div className="canvas-product-name">{p.name}</div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    }
-                    if (section.type === "form") {
-                      return (
-                        <div key={section.id} className={`canvas-block ${selectedSectionId === section.id ? "is-selected" : ""}`} onClick={() => setSelectedSectionId(section.id)}>
-                          <div className="canvas-label">{section.props.title || "Tus datos"}</div>
-                          <div className="canvas-input" />
-                          <div className="canvas-input" />
-                          <div className="canvas-input" />
-                        </div>
-                      );
-                    }
-                    if (section.type === "cta") {
-                      return (
-                        <div key={section.id} className={`canvas-block ${selectedSectionId === section.id ? "is-selected" : ""}`} onClick={() => setSelectedSectionId(section.id)}>
-                          <button type="button" className="canvas-cta">{previewCta}</button>
-                        </div>
-                      );
-                    }
-                    if (section.type === "footer") {
-                      return (
-                        <div key={section.id} className={`canvas-block ${selectedSectionId === section.id ? "is-selected" : ""}`} onClick={() => setSelectedSectionId(section.id)}>
-                          <div className="canvas-muted">{section.props.text || "Texto footer"}</div>
-                        </div>
-                      );
-                    }
-                    return null;
-                  })}
-                </div>
-
-                <div className="builder-toolbar">
-                  <div className="builder-title">Secciones</div>
-                  <div className="builder-list">
-                    {layout.sections.map((s) => (
-                      <div key={s.id} className={`builder-row ${selectedSectionId === s.id ? "is-active" : ""}`}>
-                        <button type="button" className="ghost" onClick={() => setSelectedSectionId(s.id)}>
-                          {s.type}
-                        </button>
-                        <div className="builder-actions">
-                          <button type="button" className="ghost" onClick={() => moveSection(s.id, -1)}>↑</button>
-                          <button type="button" className="ghost" onClick={() => moveSection(s.id, 1)}>↓</button>
-                          <button type="button" className="ghost" onClick={() => updateSection(s.id, { enabled: !s.enabled })}>
-                            {s.enabled ? "Ocultar" : "Mostrar"}
-                          </button>
-                          <button type="button" className="ghost" onClick={() => removeSection(s.id)}>Quitar</button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="builder-add">
-                    <button type="button" className="secondary" onClick={() => addSection("header")}>+ Header</button>
-                    <button type="button" className="secondary" onClick={() => addSection("products")}>+ Productos</button>
-                    <button type="button" className="secondary" onClick={() => addSection("form")}>+ Formulario</button>
-                    <button type="button" className="secondary" onClick={() => addSection("cta")}>+ CTA</button>
-                    <button type="button" className="secondary" onClick={() => addSection("footer")}>+ Footer</button>
-                  </div>
-                </div>
-
-                <div className="builder-props">
-                  <div className="builder-title">Propiedades</div>
-                  {!selectedSection ? <div className="field-hint">Selecciona una sección.</div> : null}
-                  {selectedSection?.type === "header" ? (
-                    <div className="field">
-                      <label>Título</label>
-                      <input
-                        className="input"
-                        value={selectedSection.props.title || ""}
-                        onChange={(e) => updateSectionProps(selectedSection.id, { title: e.target.value })}
-                      />
-                      <label>Subtítulo</label>
-                      <input
-                        className="input"
-                        value={selectedSection.props.subtitle || ""}
-                        onChange={(e) => updateSectionProps(selectedSection.id, { subtitle: e.target.value })}
-                      />
-                    </div>
-                  ) : null}
-                  {selectedSection?.type === "products" ? (
-                    <div className="field">
-                      <label>Título productos</label>
-                      <input
-                        className="input"
-                        value={selectedSection.props.title || ""}
-                        onChange={(e) => updateSectionProps(selectedSection.id, { title: e.target.value })}
-                      />
-                    </div>
-                  ) : null}
-                  {selectedSection?.type === "form" ? (
-                    <div className="field">
-                      <label>Título formulario</label>
-                      <input
-                        className="input"
-                        value={selectedSection.props.title || ""}
-                        onChange={(e) => updateSectionProps(selectedSection.id, { title: e.target.value })}
-                      />
-                    </div>
-                  ) : null}
-                  {selectedSection?.type === "footer" ? (
-                    <div className="field">
-                      <label>Texto footer</label>
-                      <input
-                        className="input"
-                        value={selectedSection.props.text || ""}
-                        onChange={(e) => updateSectionProps(selectedSection.id, { text: e.target.value })}
-                      />
-                    </div>
-                  ) : null}
-                </div>
-              </aside>
-            </form>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
