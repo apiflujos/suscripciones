@@ -1768,6 +1768,57 @@ textarea {
   display: grid;
   gap: 12px;
 }
+.publicProductGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+.publicProductCard {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: #fff;
+  text-align: left;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+}
+.publicProductCard:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.08);
+}
+.publicProductCard.is-active {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.08);
+}
+.publicProductCard img,
+.publicProductThumb {
+  width: 100%;
+  height: 140px;
+  border-radius: 12px;
+  object-fit: cover;
+  background: #e2e8f0;
+  display: grid;
+  place-items: center;
+  font-size: 28px;
+  color: #475569;
+}
+.publicProductInfo {
+  display: grid;
+  gap: 4px;
+}
+.publicProductName {
+  font-weight: 700;
+  color: #0f172a;
+}
+.publicProductSku {
+  font-size: 12px;
+  color: #64748b;
+}
+.publicProductPrice {
+  font-weight: 600;
+  color: #111827;
+}
 
 .publicCheckoutAddress {
   display: grid;

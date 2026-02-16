@@ -141,7 +141,9 @@ publicCheckoutRouter.get("/checkout/:slug", async (req, res) => {
       currency: p.currency,
       intervalUnit: p.intervalUnit,
       intervalCount: p.intervalCount,
-      planType: p.planType
+      planType: p.planType,
+      imageUrl: (p.metadata as any)?.imageUrl || null,
+      sku: (p.metadata as any)?.sku || null
     })),
     config
   });

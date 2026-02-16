@@ -19,6 +19,8 @@ type Plan = {
   currency: string;
   intervalUnit: string;
   intervalCount: number;
+  imageUrl?: string | null;
+  sku?: string | null;
 };
 
 type Config = {
@@ -40,6 +42,7 @@ export function PublicCheckoutForm({
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedPlanId, setSelectedPlanId] = useState<string>("");
 
   const brand = (template.branding || {}) as any;
   const title = brand.title || config.title || "Completa tus datos";
@@ -49,6 +52,12 @@ export function PublicCheckoutForm({
 
   const plansOptions = useMemo(() => plans, [plans]);
 
+  function formatCopFromCents(cents: number) {
+    const pesos = Math.trunc(Number(cents || 0) / 100);
+    if (!Number.isFinite(pesos)) return "";
+    return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(pesos);
+  }
+
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
@@ -56,6 +65,11 @@ export function PublicCheckoutForm({
 
     const form = e.currentTarget;
     const formData = new FormData(form);
+    if (template.allowPlanSelect && !String(formData.get("planId") || "").trim()) {
+      setError("Selecciona un producto.");
+      setLoading(false);
+      return;
+    }
     const payload = {
       customer: {
         name: String(formData.get("name") || "").trim(),
@@ -151,14 +165,26 @@ export function PublicCheckoutForm({
       {template.allowPlanSelect ? (
         <div className="field">
           <label>Producto</label>
-          <select className="select" name="planId" required>
-            <option value="">Selecciona un producto</option>
+          <input type="hidden" name="planId" value={selectedPlanId} />
+          <div className="publicProductGrid">
             {plansOptions.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
+              <button
+                key={p.id}
+                type="button"
+                className={`publicProductCard ${selectedPlanId === p.id ? "is-active" : ""}`}
+                onClick={() => setSelectedPlanId(p.id)}
+                aria-pressed={selectedPlanId === p.id}
+              >
+                {p.imageUrl ? <img src={p.imageUrl} alt={p.name} /> : <div className="publicProductThumb">📦</div>}
+                <div className="publicProductInfo">
+                  <div className="publicProductName">{p.name}</div>
+                  {p.sku ? <div className="publicProductSku">SKU: {p.sku}</div> : null}
+                  <div className="publicProductPrice">{formatCopFromCents(p.priceInCents)}</div>
+                </div>
+              </button>
             ))}
-          </select>
+          </div>
+          {!selectedPlanId ? <div className="field-hint" style={{ color: "var(--danger)" }}>Selecciona un producto.</div> : null}
         </div>
       ) : null}
 
