@@ -6,7 +6,6 @@ import {
   testCentralConnection,
   testShopifyForward,
   updateChatwoot,
-  updatePublicCheckout,
   updateShopify,
   updateWompi
 } from "./actions";
@@ -14,7 +13,6 @@ import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
 import { HelpTip } from "../ui/HelpTip";
-import { PendingButton } from "../ui/PendingButton";
 import { getCsrfToken } from "../lib/csrf";
 import { ConnectionsPanel } from "./ConnectionsPanel";
 
@@ -65,8 +63,6 @@ export default async function SettingsPage({
   const comms = (settings?.communications || null) as any;
   const commsProduction = (comms?.production || settings?.chatwoot || {}) as any;
   const commsSandbox = (comms?.sandbox || {}) as any;
-  const publicCheckout = (settings?.publicCheckout || {}) as any;
-
   const sp = (await searchParams) ?? {};
   const action = String(sp.a || "");
   const status = String(sp.status || "");
@@ -134,54 +130,6 @@ export default async function SettingsPage({
             }}
             inlineState={inlineState}
           />
-        </div>
-      </section>
-
-      <section className="settings-group">
-        <div className="settings-group-header">
-          <div className="panelHeaderRow">
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <h3>Checkout público</h3>
-              <HelpTip text="Configura la página pública de tokenización y su información." />
-            </div>
-          </div>
-        </div>
-        <div className="settings-group-body">
-          <div className="panel module">
-            <form action={updatePublicCheckout} style={{ display: "grid", gap: 10 }}>
-              <input type="hidden" name="csrf" value={csrfToken} />
-              <div className="field">
-                <label>URL pública</label>
-                <input className="input" name="publicBaseUrl" defaultValue={publicCheckout.baseUrl || ""} placeholder="https://mdv.subs.apiflujos.com" />
-              </div>
-              <div className="field">
-                <label>Título</label>
-                <input className="input" name="publicTitle" defaultValue={publicCheckout.title || ""} placeholder="Activa tu suscripción" />
-              </div>
-              <div className="field">
-                <label>Subtítulo</label>
-                <input className="input" name="publicSubtitle" defaultValue={publicCheckout.subtitle || ""} placeholder="Guarda tu método de pago" />
-              </div>
-              <div className="field">
-                <label>Descripción</label>
-                <textarea className="input" name="publicDescription" defaultValue={publicCheckout.description || ""} rows={3} />
-              </div>
-              <div className="field">
-                <label>Email de contacto</label>
-                <input className="input" name="publicContactEmail" defaultValue={publicCheckout.contactEmail || ""} placeholder="mdv.subs@apiflujos.com" />
-              </div>
-              <div className="field">
-                <label>Expiración del link (horas)</label>
-                <input className="input" name="publicTokenExpiryHours" defaultValue={publicCheckout.tokenExpiryHours || 24} />
-              </div>
-              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-                {inlineMsg("public_checkout", "Guardado.", "Error guardando")}
-                <PendingButton className="primary" type="submit" pendingText="Guardando...">
-                  Guardar
-                </PendingButton>
-              </div>
-            </form>
-          </div>
         </div>
       </section>
 

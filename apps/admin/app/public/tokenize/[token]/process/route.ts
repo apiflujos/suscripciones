@@ -44,6 +44,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   }
 
   const customerId = String(tokenJson?.customer?.id || "").trim();
+  const linkPlanId = String(tokenJson?.link?.planId || tokenJson?.template?.planId || "").trim();
+  const linkKind = String(tokenJson?.link?.kind || tokenJson?.template?.kind || "").trim();
   if (!customerId) return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=customer_not_found`, req.url));
 
   const formData = await req.formData().catch(() => null);
@@ -94,6 +96,40 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
       },
       body: JSON.stringify({ metadata: nextMeta })
     });
+
+    if (linkKind === "SUBSCRIPTION" && linkPlanId) {
+      try {
+        const subRes = await fetch(`${apiBase}/admin/subscriptions`, {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${token}`,
+            "x-admin-token": token,
+            "content-type": "application/json"
+          },
+          body: JSON.stringify({ customerId, planId: linkPlanId, createPaymentLink: false }),
+          cache: "no-store"
+        });
+        const subJson = await subRes.json().catch(() => null);
+        if (subRes.ok && subJson?.subscription?.id) {
+          const finalMeta = {
+            ...nextMeta,
+            tokenizationLink: {
+              ...(nextMeta?.tokenizationLink || {}),
+              subscriptionId: subJson.subscription.id
+            }
+          };
+          await fetch(`${apiBase}/admin/customers/${customerId}`, {
+            method: "PUT",
+            headers: {
+              authorization: `Bearer ${token}`,
+              "x-admin-token": token,
+              "content-type": "application/json"
+            },
+            body: JSON.stringify({ metadata: finalMeta })
+          });
+        }
+      } catch {}
+    }
 
     return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}/success`, req.url));
   } catch (err: any) {

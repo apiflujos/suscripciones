@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { WompiTokenizeWidget } from "../../../customers/[id]/payment-method/WompiTokenizeWidget";
 import { fetchAdminCached, getAdminApiConfig } from "../../../lib/adminApi";
 
@@ -23,13 +24,19 @@ export default async function PublicTokenizePage({
   const { token: adminToken } = getAdminApiConfig();
   const settingsRes = adminToken ? await fetchAdminCached("/admin/settings", { ttlMs: 1500 }) : { ok: false, json: null };
   const settings = settingsRes.ok ? settingsRes.json : null;
+  const template = tokenRes.ok ? tokenRes.json?.template : null;
+  const brand = (template?.branding || {}) as any;
 
-  const title = settings?.publicCheckout?.title || "Activa tu suscripción";
-  const subtitle = settings?.publicCheckout?.subtitle || "Guarda tu método de pago en un paso seguro.";
+  const title = brand?.title || settings?.publicCheckout?.title || "Activa tu suscripción";
+  const subtitle = brand?.subtitle || settings?.publicCheckout?.subtitle || "Guarda tu método de pago en un paso seguro.";
   const description =
+    brand?.description ||
     settings?.publicCheckout?.description ||
     "Usamos Wompi para tokenizar tu tarjeta. No se realizan cargos en este paso.";
-  const contactEmail = settings?.publicCheckout?.contactEmail || "";
+  const contactEmail = brand?.contactEmail || settings?.publicCheckout?.contactEmail || "";
+  const logoUrl = brand?.logoUrl || "";
+  const fontFamily = brand?.fontFamily || "";
+  const primaryColor = brand?.primaryColor || "";
 
   const publicKey = (() => {
     const activeEnv = String(settings?.wompi?.activeEnv || "PRODUCTION").toUpperCase();
@@ -53,10 +60,13 @@ export default async function PublicTokenizePage({
     );
   }
 
+  const styleVars = primaryColor ? ({ ["--primary" as any]: primaryColor } as CSSProperties) : {};
+
   return (
-    <main className="page" style={{ maxWidth: 680 }}>
-      <div className="card cardPad" style={{ display: "grid", gap: 12 }}>
+    <main className="page publicCheckoutShell" style={{ maxWidth: 680, ...(fontFamily ? { fontFamily } : {}), ...styleVars }}>
+      <div className="card cardPad publicCheckoutCard" style={{ display: "grid", gap: 12, ...(primaryColor ? { borderColor: primaryColor } : {}) }}>
         <div>
+          {logoUrl ? <img src={logoUrl} alt={title} className="publicCheckoutLogo" /> : null}
           <h1 style={{ marginTop: 0 }}>{title}</h1>
           <p style={{ marginTop: 6 }}>{subtitle}</p>
           <p className="field-hint">{description}</p>

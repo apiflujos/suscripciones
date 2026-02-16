@@ -16,7 +16,7 @@ function NavIcon({
   name,
   className
 }: {
-  name: "metrics" | "contacts" | "products" | "billing" | "notifications" | "logs" | "settings" | "lists" | "campaigns";
+  name: "metrics" | "contacts" | "products" | "billing" | "checkout" | "notifications" | "logs" | "settings" | "lists" | "campaigns";
   className?: string;
 }) {
   if (name === "metrics") {
@@ -56,6 +56,16 @@ function NavIcon({
         <path d="M9 8h6" />
         <path d="M9 12h6" />
         <path d="M9 16h4" />
+      </svg>
+    );
+  }
+  if (name === "checkout") {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+        <path d="M6 6h15l-1.5 9H7.5L6 6z" />
+        <path d="M9 6V4a3 3 0 0 1 6 0v2" />
+        <circle cx="9" cy="20" r="1.2" />
+        <circle cx="18" cy="20" r="1.2" />
       </svg>
     );
   }
@@ -289,6 +299,15 @@ export function SideNav({ session }: { session: AdminSession | null }) {
       >
         <NavIcon name="billing" className="nav-icon" />
         <span className="nav-label">Planes y Suscripciones</span>
+      </Link>
+      <Link
+        className={`nav-item ${isActivePath(pathname, "/public-checkout") ? "is-active" : ""}`}
+        href="/public-checkout"
+        prefetch={false}
+        aria-current={isActivePath(pathname, "/public-checkout") ? "page" : undefined}
+      >
+        <NavIcon name="checkout" className="nav-icon" />
+        <span className="nav-label">Checkout público</span>
       </Link>
       <Link
         className={`nav-item ${isActivePath(pathname, "/notifications") ? "is-active" : ""}`}

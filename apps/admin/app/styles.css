@@ -1739,3 +1739,117 @@ textarea {
     justify-content: center;
   }
 }
+
+.publicCheckoutShell {
+  display: grid;
+  gap: 16px;
+}
+
+.publicCheckoutCard {
+  border-radius: 16px;
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow);
+}
+
+.publicCheckoutLogo {
+  height: 36px;
+  width: auto;
+  display: block;
+}
+
+.publicCheckoutForm {
+  display: grid;
+  gap: 12px;
+}
+
+.publicCheckoutAddress {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.template-shell {
+  display: grid;
+  gap: 16px;
+}
+
+.template-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.template-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.template-card {
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  border-radius: 14px;
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.template-card.is-disabled {
+  opacity: 0.6;
+}
+
+.template-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.template-title {
+  font-weight: 700;
+}
+
+.template-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.template-link {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.template-link .input {
+  flex: 1;
+}
+
+.template-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.pill-green {
+  background: #e7f8ee;
+  color: #0f6b3a;
+  border: 1px solid #8dd9a9;
+}
+
+.field-divider {
+  height: 1px;
+  background: var(--stroke);
+  border-radius: 999px;
+}
+
+.field.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.field.row label {
+  margin: 0;
+}
