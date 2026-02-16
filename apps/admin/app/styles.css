@@ -2120,6 +2120,39 @@ textarea {
   align-items: center;
   margin-bottom: 16px;
 }
+.collapsible {
+  border: 1px solid var(--stroke);
+  border-radius: 14px;
+  background: #fff;
+}
+.collapsible summary {
+  list-style: none;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+}
+.collapsible summary::-webkit-details-marker {
+  display: none;
+}
+.summary-left {
+  display: grid;
+  gap: 6px;
+}
+.summary-meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.summary-btn {
+  border: 1px solid var(--stroke);
+  background: #fff;
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-weight: 700;
+}
 @media (max-width: 900px) {
   .template-modal-body {
     grid-template-columns: 1fr;

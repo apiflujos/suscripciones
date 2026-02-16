@@ -251,19 +251,34 @@ export default async function SettingsPage({
                 </div>
               </div>
             </div>
-            <div className="settings-group-body">
-              <div className="panel module">
-                <PublicCheckoutDefaultsWizard defaults={publicCheckout} csrfToken={csrfToken} onSave={updatePublicCheckoutDefaults} />
-                <div style={{ marginTop: 8 }}>
-                  {inlineState.action === "public_defaults" && inlineState.status === "ok" ? (
-                    <div className="authAlert">Configuración guardada.</div>
-                  ) : null}
-                  {inlineState.action === "public_defaults" && inlineState.status === "fail" ? (
-                    <div className="authAlert is-danger">Error guardando: {inlineState.errorText || "unknown_error"}</div>
-                  ) : null}
+            <details className="collapsible">
+              <summary>
+                <div className="summary-left">
+                  <strong>Resumen</strong>
+                  <div className="summary-meta">
+                    <span className="pill">Título: {publicCheckout?.title || "—"}</span>
+                    <span className="pill">Color: {publicCheckout?.primaryColor || "—"}</span>
+                    <span className="pill">Fuente: {publicCheckout?.fontFamily || "—"}</span>
+                    <span className="pill">Dominio: {publicCheckout?.baseUrl || "—"}</span>
+                    <span className="pill">Expira: {publicCheckout?.tokenExpiryHours || 24}h</span>
+                  </div>
+                </div>
+                <span className="summary-btn">Editar</span>
+              </summary>
+              <div className="settings-group-body">
+                <div className="panel module">
+                  <PublicCheckoutDefaultsWizard defaults={publicCheckout} csrfToken={csrfToken} onSave={updatePublicCheckoutDefaults} />
+                  <div style={{ marginTop: 8 }}>
+                    {inlineState.action === "public_defaults" && inlineState.status === "ok" ? (
+                      <div className="authAlert">Configuración guardada.</div>
+                    ) : null}
+                    {inlineState.action === "public_defaults" && inlineState.status === "fail" ? (
+                      <div className="authAlert is-danger">Error guardando: {inlineState.errorText || "unknown_error"}</div>
+                    ) : null}
+                  </div>
                 </div>
               </div>
-            </div>
+            </details>
           </section>
 
           <section className="settings-group">
