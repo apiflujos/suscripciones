@@ -23,7 +23,6 @@ import { PendingButton } from "../ui/PendingButton";
 import { getCsrfToken } from "../lib/csrf";
 import { ConnectionsPanel } from "./ConnectionsPanel";
 import { PublicCheckoutTemplatesPanel } from "../public-checkout/PublicCheckoutTemplatesPanel";
-import { PublicCheckoutDefaultsWizard } from "../public-checkout/PublicCheckoutDefaultsWizard";
 
 export const dynamic = "force-dynamic";
 
@@ -231,50 +230,6 @@ export default async function SettingsPage({
 
       {tab === "public-checkout" ? (
         <>
-          <div className="settings-cta-row">
-            <span className="pill">Paso 1 · Configuración base</span>
-            <span className="pill">Paso 2 · Plantillas</span>
-          </div>
-
-          <section className="settings-group">
-            <div className="settings-group-header" id="defaults">
-              <div className="panelHeaderRow">
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <h3>Configuración base del checkout</h3>
-                  <HelpTip text="Se aplica a todas las plantillas, a menos que una sección la sobrescriba." />
-                </div>
-              </div>
-            </div>
-            <details className="collapsible">
-              <summary>
-                <div className="summary-left">
-                  <strong>Resumen</strong>
-                  <div className="summary-meta">
-                    <span className="pill">Logo: {publicCheckout?.logoUrl ? "Cargado" : "—"}</span>
-                    <span className="pill">Color: {publicCheckout?.primaryColor || "—"}</span>
-                    <span className="pill">Fuente: {publicCheckout?.fontFamily || "—"}</span>
-                    <span className="pill">Dominio: {publicCheckout?.baseUrl || "—"}</span>
-                    <span className="pill">Expira: {publicCheckout?.tokenExpiryHours || 24}h</span>
-                  </div>
-                </div>
-                <span className="summary-btn">Editar</span>
-              </summary>
-              <div className="settings-group-body">
-                <div className="panel module">
-                  <PublicCheckoutDefaultsWizard defaults={publicCheckout} csrfToken={csrfToken} onSave={updatePublicCheckoutDefaults} />
-                  <div style={{ marginTop: 8 }}>
-                    {inlineState.action === "public_defaults" && inlineState.status === "ok" ? (
-                      <div className="authAlert">Configuración guardada.</div>
-                    ) : null}
-                    {inlineState.action === "public_defaults" && inlineState.status === "fail" ? (
-                      <div className="authAlert is-danger">Error guardando: {inlineState.errorText || "unknown_error"}</div>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            </details>
-          </section>
-
           <section className="settings-group">
             <div className="settings-group-header" id="templates">
               <div className="panelHeaderRow" style={{ justifyContent: "space-between" }}>
@@ -294,6 +249,8 @@ export default async function SettingsPage({
                 brandingDefaults={publicCheckout}
                 inlineState={inlineState}
                 autoOpen={autoOpenTemplate}
+                defaults={publicCheckout}
+                onSaveDefaults={updatePublicCheckoutDefaults}
                 actions={{
                   create: createPublicCheckoutTemplate,
                   update: updatePublicCheckoutTemplate,

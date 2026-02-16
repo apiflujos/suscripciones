@@ -6,6 +6,7 @@ import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } 
 import { CSS } from "@dnd-kit/utilities";
 import { PendingButton } from "../ui/PendingButton";
 import { FIELD_PRESETS, FieldPreset } from "./fieldOptions";
+import { PublicCheckoutDefaultsWizard } from "./PublicCheckoutDefaultsWizard";
 
 type Template = {
   id: string;
@@ -107,6 +108,8 @@ export function PublicCheckoutTemplatesPanel({
   csrfToken,
   publicBaseUrl,
   brandingDefaults,
+  defaults,
+  onSaveDefaults,
   autoOpen,
   inlineState,
   actions
@@ -117,6 +120,8 @@ export function PublicCheckoutTemplatesPanel({
   csrfToken: string;
   publicBaseUrl: string;
   brandingDefaults?: any;
+  defaults?: any;
+  onSaveDefaults?: (formData: FormData) => void;
   autoOpen?: boolean;
   inlineState: InlineState;
   actions: {
@@ -253,7 +258,7 @@ export function PublicCheckoutTemplatesPanel({
           id: crypto.randomUUID(),
           type: "header",
           enabled: true,
-          props: { title: "Completa tu compra", subtitle: "Escoge tu producto y paga en minutos.", logoUrl: "" }
+          props: { title: "Completa tu compra", subtitle: "Escoge tu producto y paga en minutos." }
         },
         { id: crypto.randomUUID(), type: "products", enabled: true, props: { title: "Productos" } },
         ...FIELD_PRESETS.map((preset) => ({
@@ -405,24 +410,31 @@ export function PublicCheckoutTemplatesPanel({
     ...(brandingDefaults?.primaryColor ? ({ ["--primary" as any]: brandingDefaults.primaryColor } as any) : {})
   };
   const logoUrl = brandingDefaults?.logoUrl || "";
-  const previewLogo = headerSection?.props?.logoUrl || logoUrl || "";
+  const previewLogo = logoUrl || "";
   const previewTitle = headerSection?.props?.title || "Completa tu compra";
   const previewSubtitle = headerSection?.props?.subtitle || "Escoge tu producto y paga en minutos.";
   const previewCtaLabel = ctaSection?.props?.label || previewCta;
 
-  function onHeaderLogoFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || !headerSection) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === "string" ? reader.result : "";
-      if (result) updateSectionProps(headerSection.id, { logoUrl: result });
-    };
-    reader.readAsDataURL(file);
-  }
-
   return (
     <div className="template-shell">
+      {defaults && onSaveDefaults ? (
+        <div className="panel module" style={{ marginBottom: 12 }}>
+          <div className="panelHeaderRow" style={{ marginBottom: 8 }}>
+            <strong>Checkout público</strong>
+            <span className="field-hint">Marca global, dominio y expiración.</span>
+          </div>
+          <PublicCheckoutDefaultsWizard defaults={defaults} csrfToken={csrfToken} onSave={onSaveDefaults} />
+          <div style={{ marginTop: 8 }}>
+            {inlineState.action === "public_defaults" && inlineState.status === "ok" ? (
+              <div className="authAlert">Configuración guardada.</div>
+            ) : null}
+            {inlineState.action === "public_defaults" && inlineState.status === "fail" ? (
+              <div className="authAlert is-danger">Error guardando: {inlineState.errorText || "unknown_error"}</div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
       <div className="template-header">
         <div>
           <h3 style={{ margin: 0 }}>Plantillas públicas</h3>
@@ -591,13 +603,6 @@ export function PublicCheckoutTemplatesPanel({
                   />
                 </div>
                 <div className="field">
-                  <label>Logo (plantilla)</label>
-                  <div className="file-row">
-                    <input type="file" accept="image/*" onChange={onHeaderLogoFile} />
-                    {headerSection?.props?.logoUrl ? <img src={headerSection.props.logoUrl} alt="Logo" className="logo-preview" /> : null}
-                  </div>
-                </div>
-                <div className="field">
                   <label>Texto botón</label>
                   <input
                     className="input"
@@ -660,26 +665,54 @@ export function PublicCheckoutTemplatesPanel({
 
             <aside className="template-preview template-builder" style={brandingStyle}>
               <div className="preview-badge">Preview</div>
-              {previewLogo ? <img src={previewLogo} alt="Logo" className="logo-preview" /> : null}
-              <div className="canvas-title">{previewTitle}</div>
-              <div className="canvas-subtitle">{previewSubtitle}</div>
-              <div className="canvas-products">
-                {(previewList || []).slice(0, 3).map((p) => (
-                  <div key={p.id} className="canvas-product-card">
-                    {"imageUrl" in p && p.imageUrl ? <img src={p.imageUrl} alt={p.name} /> : <div className="canvas-thumb">📦</div>}
-                    <div className="canvas-product-name">{p.name}</div>
+              <div className="preview-grid">
+                <div className="preview-card">
+                  <div className="preview-device">Desktop</div>
+                  {previewLogo ? <img src={previewLogo} alt="Logo" className="logo-preview" /> : null}
+                  <div className="canvas-title">{previewTitle}</div>
+                  <div className="canvas-subtitle">{previewSubtitle}</div>
+                  <div className="canvas-products">
+                    {(previewList || []).slice(0, 3).map((p) => (
+                      <div key={p.id} className="canvas-product-card">
+                        {"imageUrl" in p && p.imageUrl ? <img src={p.imageUrl} alt={p.name} /> : <div className="canvas-thumb">📦</div>}
+                        <div className="canvas-product-name">{p.name}</div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-              <div className="canvas-form-preview">
-                {fieldSections.filter((f) => f.enabled).map((f) => (
-                  <div key={f.id} className="canvas-input">
-                    <span>{f.props.label}</span>
+                  <div className="canvas-form-preview">
+                    {fieldSections.filter((f) => f.enabled).map((f) => (
+                      <div key={f.id} className="canvas-input">
+                        <span>{f.props.label}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                  <button type="button" className="canvas-cta">{previewCtaLabel}</button>
+                  {footerSection?.props?.text ? <div className="canvas-muted">{footerSection.props.text}</div> : null}
+                </div>
+                <div className="preview-card preview-mobile">
+                  <div className="preview-device">Mobile</div>
+                  {previewLogo ? <img src={previewLogo} alt="Logo" className="logo-preview" /> : null}
+                  <div className="canvas-title">{previewTitle}</div>
+                  <div className="canvas-subtitle">{previewSubtitle}</div>
+                  <div className="canvas-products">
+                    {(previewList || []).slice(0, 2).map((p) => (
+                      <div key={p.id} className="canvas-product-card">
+                        {"imageUrl" in p && p.imageUrl ? <img src={p.imageUrl} alt={p.name} /> : <div className="canvas-thumb">📦</div>}
+                        <div className="canvas-product-name">{p.name}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="canvas-form-preview">
+                    {fieldSections.filter((f) => f.enabled).map((f) => (
+                      <div key={f.id} className="canvas-input">
+                        <span>{f.props.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <button type="button" className="canvas-cta">{previewCtaLabel}</button>
+                  {footerSection?.props?.text ? <div className="canvas-muted">{footerSection.props.text}</div> : null}
+                </div>
               </div>
-              <button type="button" className="canvas-cta">{previewCtaLabel}</button>
-              {footerSection?.props?.text ? <div className="canvas-muted">{footerSection.props.text}</div> : null}
             </aside>
           </form>
         </div>

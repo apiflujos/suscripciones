@@ -307,7 +307,6 @@ export function PublicCheckoutForm({
   function renderHeaderBlock(props: any) {
     return (
       <div>
-        {props?.logoUrl ? <img src={props.logoUrl} alt="Logo" className="publicCheckoutLogo" /> : null}
         <h1 style={{ marginTop: 0 }}>{props?.title || title}</h1>
         <p style={{ marginTop: 6 }}>{props?.subtitle || subtitle}</p>
         {description ? <p className="field-hint">{description}</p> : null}
