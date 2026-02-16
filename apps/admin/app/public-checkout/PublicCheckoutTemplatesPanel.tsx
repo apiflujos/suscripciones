@@ -57,6 +57,13 @@ export function PublicCheckoutTemplatesPanel({
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Template | null>(null);
   const [formKind, setFormKind] = useState<"PLAN" | "SUBSCRIPTION">("PLAN");
+  const [formName, setFormName] = useState("");
+  const [formSlug, setFormSlug] = useState("");
+  const [formAllowSelect, setFormAllowSelect] = useState(false);
+  const [formPlanId, setFormPlanId] = useState("");
+  const [formRequireShipping, setFormRequireShipping] = useState(false);
+  const [formRequireAddress, setFormRequireAddress] = useState(false);
+  const [productSearch, setProductSearch] = useState("");
   const [baseOverride, setBaseOverride] = useState("");
 
   const baseUrl = publicBaseUrl?.trim() || baseOverride || "";
@@ -72,12 +79,26 @@ export function PublicCheckoutTemplatesPanel({
   function openCreate() {
     setEditing(null);
     setFormKind("PLAN");
+    setFormName("");
+    setFormSlug("");
+    setFormAllowSelect(false);
+    setFormPlanId("");
+    setFormRequireShipping(false);
+    setFormRequireAddress(false);
+    setProductSearch("");
     setOpen(true);
   }
 
   function openEdit(t: Template) {
     setEditing(t);
     setFormKind(t.kind);
+    setFormName(t.name || "");
+    setFormSlug(t.slug || "");
+    setFormAllowSelect(Boolean(t.allowPlanSelect));
+    setFormPlanId(t.planId || "");
+    setFormRequireShipping(Boolean(t.requireShipping));
+    setFormRequireAddress(Boolean(t.requireAddress));
+    setProductSearch("");
     setOpen(true);
   }
 
@@ -104,11 +125,32 @@ export function PublicCheckoutTemplatesPanel({
   const availablePlans = (kind: "PLAN" | "SUBSCRIPTION") =>
     activePlans.filter((p) => (kind === "PLAN" ? p.planType === "manual_link" : p.planType === "auto_subscription"));
   const availableProducts = activeProducts;
+  const filteredProducts = useMemo(() => {
+    if (!productSearch.trim()) return availableProducts;
+    const q = productSearch.toLowerCase();
+    return availableProducts.filter((p) => `${p.name} ${p.sku || ""}`.toLowerCase().includes(q));
+  }, [availableProducts, productSearch]);
 
   useEffect(() => {
     if (!open) return;
     if (editing?.kind) setFormKind(editing.kind);
   }, [open, editing]);
+
+  useEffect(() => {
+    if (!open) return;
+    if ((inlineState.action === "template_create" || inlineState.action === "template_update") && inlineState.status === "ok") {
+      closeModal();
+    }
+  }, [open, inlineState.action, inlineState.status]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (!formPlanId) return;
+    const list = formKind === "PLAN" ? activeProducts : availablePlans(formKind);
+    if (!list.find((p) => p.id === formPlanId)) {
+      setFormPlanId("");
+    }
+  }, [open, formKind, formPlanId, activeProducts, activePlans]);
 
   useEffect(() => {
     if (publicBaseUrl?.trim()) return;
@@ -128,6 +170,25 @@ export function PublicCheckoutTemplatesPanel({
     }
     return null;
   }
+
+  function slugify(input: string) {
+    return String(input || "")
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/[^\w\s-]/g, "")
+      .trim()
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .slice(0, 40);
+  }
+
+  const effectiveSlug = formSlug.trim() || slugify(formName);
+  const previewLink = effectiveSlug ? buildLink(effectiveSlug) : "";
+  const previewProduct =
+    formKind === "PLAN"
+      ? productById.get(formPlanId || "")?.name || ""
+      : availablePlans(formKind).find((p) => p.id === formPlanId)?.name || "";
+  const previewList = formKind === "PLAN" ? filteredProducts : availablePlans(formKind);
 
   return (
     <div className="template-shell">
@@ -207,71 +268,136 @@ export function PublicCheckoutTemplatesPanel({
                 Cerrar
               </button>
             </div>
-            <form action={formAction} className="modal-body" style={{ display: "grid", gap: 12 }}>
+            <form action={formAction} className="modal-body template-modal-body">
               <input type="hidden" name="csrf" value={csrfToken} />
               {editing ? <input type="hidden" name="id" value={editing.id} /> : null}
 
-              <div className="field">
-                <label>Nombre</label>
-                <input className="input" name="name" defaultValue={editing?.name || ""} required />
-              </div>
-              <div className="field">
-                <label>Slug (opcional)</label>
-                <input className="input" name="slug" defaultValue={editing?.slug || ""} />
-              </div>
-              <div className="field row">
-                <label>Activa</label>
-                <input type="checkbox" name="active" defaultChecked={editing ? editing.active : true} />
-              </div>
-              <div className="field">
-                <label>Tipo</label>
-                <select
-                  className="select"
-                  name="kind"
-                  value={formKind}
-                  onChange={(e) => setFormKind(e.target.value as "PLAN" | "SUBSCRIPTION")}
-                >
-                  <option value="PLAN">Plan con link de pago</option>
-                  <option value="SUBSCRIPTION">Suscripción con tokenización</option>
-                </select>
+              <div className="template-modal-left">
+                <div className="field">
+                  <label>Nombre</label>
+                  <input className="input" name="name" value={formName} onChange={(e) => setFormName(e.target.value)} required />
+                </div>
+                <div className="field">
+                  <label>Slug (opcional)</label>
+                  <input className="input" name="slug" value={formSlug} onChange={(e) => setFormSlug(e.target.value)} />
+                </div>
+                <div className="field row">
+                  <label>Activa</label>
+                  <input type="checkbox" name="active" defaultChecked={editing ? editing.active : true} />
+                </div>
+                <div className="field">
+                  <label>Tipo</label>
+                  <select
+                    className="select"
+                    name="kind"
+                    value={formKind}
+                    onChange={(e) => setFormKind(e.target.value as "PLAN" | "SUBSCRIPTION")}
+                  >
+                    <option value="PLAN">Plan con link de pago</option>
+                    <option value="SUBSCRIPTION">Suscripción con tokenización</option>
+                  </select>
+                </div>
+
+                <div className="field row">
+                  <label>Selector de productos</label>
+                  <input
+                    type="checkbox"
+                    name="allowPlanSelect"
+                    checked={formAllowSelect}
+                    onChange={(e) => setFormAllowSelect(e.target.checked)}
+                  />
+                  <span className="field-hint">Permite escoger el producto en el checkout</span>
+                </div>
+
+                <div className="field">
+                  <label>Buscar producto</label>
+                  <input
+                    className="input"
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                    placeholder="Buscar por nombre o SKU..."
+                  />
+                </div>
+
+                <div className="field">
+                  <label>Producto predeterminado</label>
+                  <select
+                    className="select"
+                    name="planId"
+                    value={formPlanId}
+                    onChange={(e) => setFormPlanId(e.target.value)}
+                    disabled={formAllowSelect}
+                    required={!formAllowSelect}
+                  >
+                    <option value="">Selecciona un producto</option>
+                    {(formKind === "PLAN" ? filteredProducts : availablePlans(formKind)).map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                  {formAllowSelect ? <div className="field-hint">Se mostrará un selector en el checkout.</div> : null}
+                  {!formAllowSelect && !formPlanId ? (
+                    <div className="field-hint" style={{ color: "var(--danger)" }}>
+                      Debes seleccionar un producto o activar el selector.
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="field row">
+                  <label>Requiere dirección</label>
+                  <input
+                    type="checkbox"
+                    name="requireAddress"
+                    checked={formRequireAddress}
+                    onChange={(e) => setFormRequireAddress(e.target.checked)}
+                  />
+                </div>
+                <div className="field row">
+                  <label>Requiere envío</label>
+                  <input
+                    type="checkbox"
+                    name="requireShipping"
+                    checked={formRequireShipping}
+                    onChange={(e) => setFormRequireShipping(e.target.checked)}
+                  />
+                </div>
+
+                <div className="field-divider" />
+                <div className="field-hint">El branding es global y se configura en los defaults.</div>
+
+                <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  {inlineMsg(editing ? "template_update" : "template_create", "Guardado.", "Error guardando")}
+                  <PendingButton className="primary" type="submit" pendingText="Guardando...">
+                    Guardar
+                  </PendingButton>
+                </div>
               </div>
 
-              <div className="field row">
-                <label>Selector de productos</label>
-                <input type="checkbox" name="allowPlanSelect" defaultChecked={editing?.allowPlanSelect || false} />
-                <span className="field-hint">Permite escoger el producto en el checkout</span>
-              </div>
-
-              <div className="field">
-                <label>Producto predeterminado</label>
-                <select className="select" name="planId" defaultValue={editing?.planId || ""}>
-                  <option value="">Selecciona un producto</option>
-                  {(formKind === "PLAN" ? availableProducts : availablePlans(formKind)).map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="field row">
-                <label>Requiere dirección</label>
-                <input type="checkbox" name="requireAddress" defaultChecked={editing?.requireAddress || false} />
-              </div>
-              <div className="field row">
-                <label>Requiere envío</label>
-                <input type="checkbox" name="requireShipping" defaultChecked={editing?.requireShipping || false} />
-              </div>
-
-              <div className="field-divider" />
-              <div className="field-hint">El branding es global y se configura en los defaults.</div>
-
-              <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                {inlineMsg(editing ? "template_update" : "template_create", "Guardado.", "Error guardando")}
-                <PendingButton className="primary" type="submit" pendingText="Guardando...">
-                  Guardar
-                </PendingButton>
-              </div>
+              <aside className="template-preview">
+                <div className="preview-badge">Preview</div>
+                <div className="preview-title">{formName || "Nombre de la plantilla"}</div>
+                <div className="preview-subtitle">
+                  {formKind === "PLAN" ? "Plan (link de pago)" : "Suscripción (tokenización)"}
+                </div>
+                {previewLink ? <div className="preview-link">{previewLink}</div> : null}
+                <div className="preview-list">
+                  <div><strong>Producto</strong>: {formAllowSelect ? "Selector" : previewProduct || "—"}</div>
+                  <div><strong>Dirección</strong>: {formRequireAddress ? "Sí" : "No"}</div>
+                  <div><strong>Envío</strong>: {formRequireShipping ? "Sí" : "No"}</div>
+                </div>
+                {formAllowSelect ? (
+                  <div className="preview-products">
+                    {(previewList || []).slice(0, 3).map((p) => (
+                      <span key={p.id} className="pill">{p.name}</span>
+                    ))}
+                    {previewList.length > 3 ? <span className="pill">+{previewList.length - 3} más</span> : null}
+                  </div>
+                ) : null}
+                <div className="preview-cta">
+                  {formKind === "PLAN" ? "Pagar ahora" : "Tokenizar método"}
+                </div>
+              </aside>
             </form>
           </div>
         </div>
