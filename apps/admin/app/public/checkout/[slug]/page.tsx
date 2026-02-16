@@ -24,10 +24,9 @@ export default async function PublicCheckoutPage({ params }: { params: Promise<{
   const template = templateRes.json?.template || {};
   const plans = templateRes.json?.plans || [];
   const config = templateRes.json?.config || {};
-  const brand = (template.branding || {}) as any;
-  const logoUrl = brand.logoUrl || "";
-  const fontFamily = brand.fontFamily || "";
-  const primaryColor = brand.primaryColor || "";
+  const logoUrl = config.logoUrl || "";
+  const fontFamily = config.fontFamily || "";
+  const primaryColor = config.primaryColor || "";
 
   const styleVars = primaryColor ? ({ ["--primary" as any]: primaryColor } as CSSProperties) : {};
 

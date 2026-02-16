@@ -24,19 +24,15 @@ export default async function PublicTokenizePage({
   const { token: adminToken } = getAdminApiConfig();
   const settingsRes = adminToken ? await fetchAdminCached("/admin/settings", { ttlMs: 1500 }) : { ok: false, json: null };
   const settings = settingsRes.ok ? settingsRes.json : null;
-  const template = tokenRes.ok ? tokenRes.json?.template : null;
-  const brand = (template?.branding || {}) as any;
-
-  const title = brand?.title || settings?.publicCheckout?.title || "Activa tu suscripción";
-  const subtitle = brand?.subtitle || settings?.publicCheckout?.subtitle || "Guarda tu método de pago en un paso seguro.";
+  const title = settings?.publicCheckout?.title || "Activa tu suscripción";
+  const subtitle = settings?.publicCheckout?.subtitle || "Guarda tu método de pago en un paso seguro.";
   const description =
-    brand?.description ||
     settings?.publicCheckout?.description ||
     "Usamos Wompi para tokenizar tu tarjeta. No se realizan cargos en este paso.";
-  const contactEmail = brand?.contactEmail || settings?.publicCheckout?.contactEmail || "";
-  const logoUrl = brand?.logoUrl || "";
-  const fontFamily = brand?.fontFamily || "";
-  const primaryColor = brand?.primaryColor || "";
+  const contactEmail = settings?.publicCheckout?.contactEmail || "";
+  const logoUrl = settings?.publicCheckout?.logoUrl || "";
+  const fontFamily = settings?.publicCheckout?.fontFamily || "";
+  const primaryColor = settings?.publicCheckout?.primaryColor || "";
 
   const publicKey = (() => {
     const activeEnv = String(settings?.wompi?.activeEnv || "PRODUCTION").toUpperCase();

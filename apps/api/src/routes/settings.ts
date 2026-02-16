@@ -67,7 +67,14 @@ const publicCheckoutUpdateSchema = z.object({
   subtitle: z.string().min(1).optional().or(z.literal("")),
   description: z.string().min(1).optional().or(z.literal("")),
   contactEmail: z.string().email().optional().or(z.literal("")),
-  tokenExpiryHours: z.coerce.number().int().positive().optional()
+  tokenExpiryHours: z.coerce.number().int().positive().optional(),
+  logoUrl: z.string().url().optional().or(z.literal("")),
+  primaryColor: z.string().optional().or(z.literal("")),
+  fontFamily: z.string().optional().or(z.literal("")),
+  successTitle: z.string().optional().or(z.literal("")),
+  successSubtitle: z.string().optional().or(z.literal("")),
+  successButtonText: z.string().optional().or(z.literal("")),
+  redirectUrl: z.string().url().optional().or(z.literal(""))
 });
 
 export const settingsRouter = express.Router();
@@ -233,7 +240,14 @@ settingsRouter.get("/", async (_req, res) => {
       tokenExpiryHours:
         Number.isFinite(Number(publicCheckout.tokenExpiryHours)) && Number(publicCheckout.tokenExpiryHours) > 0
           ? Math.trunc(Number(publicCheckout.tokenExpiryHours))
-          : Number(process.env.PUBLIC_CHECKOUT_TOKEN_EXPIRY_HOURS || 24)
+          : Number(process.env.PUBLIC_CHECKOUT_TOKEN_EXPIRY_HOURS || 24),
+      logoUrl: publicCheckout.logoUrl || null,
+      primaryColor: publicCheckout.primaryColor || null,
+      fontFamily: publicCheckout.fontFamily || null,
+      successTitle: publicCheckout.successTitle || null,
+      successSubtitle: publicCheckout.successSubtitle || null,
+      successButtonText: publicCheckout.successButtonText || null,
+      redirectUrl: publicCheckout.redirectUrl || null
     }
   });
 });
@@ -320,7 +334,14 @@ settingsRouter.put("/public-checkout", async (req, res) => {
     subtitle: parsed.data.subtitle || "",
     description: parsed.data.description || "",
     contactEmail: parsed.data.contactEmail || "",
-    tokenExpiryHours: parsed.data.tokenExpiryHours || undefined
+    tokenExpiryHours: parsed.data.tokenExpiryHours || undefined,
+    logoUrl: parsed.data.logoUrl || "",
+    primaryColor: parsed.data.primaryColor || "",
+    fontFamily: parsed.data.fontFamily || "",
+    successTitle: parsed.data.successTitle || "",
+    successSubtitle: parsed.data.successSubtitle || "",
+    successButtonText: parsed.data.successButtonText || "",
+    redirectUrl: parsed.data.redirectUrl || ""
   };
 
   await setCredential(CredentialProvider.WOMPI, "PUBLIC_CHECKOUT_CONFIG", JSON.stringify(payload));

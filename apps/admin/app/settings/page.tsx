@@ -23,6 +23,7 @@ import { PendingButton } from "../ui/PendingButton";
 import { getCsrfToken } from "../lib/csrf";
 import { ConnectionsPanel } from "./ConnectionsPanel";
 import { PublicCheckoutTemplatesPanel } from "../public-checkout/PublicCheckoutTemplatesPanel";
+import { PublicCheckoutDefaultsWizard } from "../public-checkout/PublicCheckoutDefaultsWizard";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,10 @@ async function fetchTemplates() {
 
 async function fetchPlans() {
   return fetchAdminCached("/admin/plans?take=200", { ttlMs: 1500 });
+}
+
+async function fetchProducts() {
+  return fetchAdminCached("/admin/products?take=200", { ttlMs: 1500 });
 }
 
 export default async function SettingsPage({
@@ -61,9 +66,11 @@ export default async function SettingsPage({
   const settingsRes = await fetchSettings();
   const templatesRes = await fetchTemplates();
   const plansRes = await fetchPlans();
+  const productsRes = await fetchProducts();
   const settings = settingsRes.ok ? settingsRes.json : null;
   const templates = templatesRes.ok ? templatesRes.json?.items || [] : [];
   const plans = plansRes.ok ? plansRes.json?.items || [] : [];
+  const products = productsRes.ok ? productsRes.json?.items || [] : [];
   const c = await cookies();
   const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
   const session = await verifyAdminSessionToken(sessionToken);
@@ -242,6 +249,7 @@ export default async function SettingsPage({
               <PublicCheckoutTemplatesPanel
                 templates={templates}
                 plans={plans}
+                products={products}
                 csrfToken={csrfToken}
                 publicBaseUrl={publicCheckout.baseUrl || ""}
                 inlineState={inlineState}
@@ -265,39 +273,10 @@ export default async function SettingsPage({
             </div>
             <div className="settings-group-body">
               <div className="panel module">
-                <form action={updatePublicCheckoutDefaults} style={{ display: "grid", gap: 10 }}>
-                  <input type="hidden" name="csrf" value={csrfToken} />
-                  <div className="field">
-                    <label>URL pública base</label>
-                    <input className="input" name="publicBaseUrl" defaultValue={publicCheckout.baseUrl || ""} placeholder="https://mdv.subs.apiflujos.com" />
-                  </div>
-                  <div className="field">
-                    <label>Título</label>
-                    <input className="input" name="publicTitle" defaultValue={publicCheckout.title || ""} placeholder="Activa tu suscripción" />
-                  </div>
-                  <div className="field">
-                    <label>Subtítulo</label>
-                    <input className="input" name="publicSubtitle" defaultValue={publicCheckout.subtitle || ""} placeholder="Guarda tu método de pago" />
-                  </div>
-                  <div className="field">
-                    <label>Descripción</label>
-                    <textarea className="input" name="publicDescription" defaultValue={publicCheckout.description || ""} rows={3} />
-                  </div>
-                  <div className="field">
-                    <label>Email de contacto</label>
-                    <input className="input" name="publicContactEmail" defaultValue={publicCheckout.contactEmail || ""} placeholder="mdv.subs@apiflujos.com" />
-                  </div>
-                  <div className="field">
-                    <label>Expiración del link (horas)</label>
-                    <input className="input" name="publicTokenExpiryHours" defaultValue={publicCheckout.tokenExpiryHours || 24} />
-                  </div>
-                  <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-                    {inlineMsg("public_defaults", "Guardado.", "Error guardando")}
-                    <PendingButton className="primary" type="submit" pendingText="Guardando...">
-                      Guardar
-                    </PendingButton>
-                  </div>
-                </form>
+                <PublicCheckoutDefaultsWizard defaults={publicCheckout} csrfToken={csrfToken} onSave={updatePublicCheckoutDefaults} />
+                <div style={{ marginTop: 8 }}>
+                  {inlineMsg("public_defaults", "Guardado.", "Error guardando")}
+                </div>
               </div>
             </div>
           </section>

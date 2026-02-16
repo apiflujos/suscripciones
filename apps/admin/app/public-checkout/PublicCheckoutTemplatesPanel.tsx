@@ -24,11 +24,19 @@ type Plan = {
   active: boolean;
 };
 
+type Product = {
+  id: string;
+  name: string;
+  sku?: string;
+  requiresShipping?: boolean;
+};
+
 type InlineState = { action: string; status: string; errorText: string };
 
 export function PublicCheckoutTemplatesPanel({
   templates,
   plans,
+  products,
   csrfToken,
   publicBaseUrl,
   inlineState,
@@ -36,6 +44,7 @@ export function PublicCheckoutTemplatesPanel({
 }: {
   templates: Template[];
   plans: Plan[];
+  products: Product[];
   csrfToken: string;
   publicBaseUrl: string;
   inlineState: InlineState;
@@ -48,10 +57,17 @@ export function PublicCheckoutTemplatesPanel({
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Template | null>(null);
   const [formKind, setFormKind] = useState<"PLAN" | "SUBSCRIPTION">("PLAN");
+  const [baseOverride, setBaseOverride] = useState("");
 
-  const baseUrl = publicBaseUrl?.trim() || "";
+  const baseUrl = publicBaseUrl?.trim() || baseOverride || "";
 
   const activePlans = useMemo(() => plans.filter((p) => p.active), [plans]);
+  const activeProducts = useMemo(() => products.filter(Boolean), [products]);
+  const productById = useMemo(() => {
+    const map = new Map<string, Product>();
+    for (const p of activeProducts) map.set(p.id, p);
+    return map;
+  }, [activeProducts]);
 
   function openCreate() {
     setEditing(null);
@@ -87,13 +103,18 @@ export function PublicCheckoutTemplatesPanel({
 
   const availablePlans = (kind: "PLAN" | "SUBSCRIPTION") =>
     activePlans.filter((p) => (kind === "PLAN" ? p.planType === "manual_link" : p.planType === "auto_subscription"));
-
-  const branding = (editing?.branding || {}) as any;
+  const availableProducts = activeProducts;
 
   useEffect(() => {
     if (!open) return;
     if (editing?.kind) setFormKind(editing.kind);
   }, [open, editing]);
+
+  useEffect(() => {
+    if (publicBaseUrl?.trim()) return;
+    if (typeof window === "undefined") return;
+    setBaseOverride(window.location.origin);
+  }, [publicBaseUrl]);
 
   function inlineMsg(key: string, okText: string, failPrefix: string) {
     if (inlineState.action !== key) return null;
@@ -135,7 +156,13 @@ export function PublicCheckoutTemplatesPanel({
             <div className="template-meta">
               <div>
                 <div className="field-hint">Producto</div>
-                <strong>{t.allowPlanSelect ? "Selector" : t.planId ? "Producto fijo" : "—"}</strong>
+                <strong>
+                  {t.allowPlanSelect
+                    ? "Selector"
+                    : t.planId
+                      ? (t.kind === "PLAN" ? productById.get(t.planId)?.name : availablePlans(t.kind).find((p) => p.id === t.planId)?.name) || "—"
+                      : "—"}
+                </strong>
               </div>
               <div>
                 <div className="field-hint">Slug</div>
@@ -147,6 +174,9 @@ export function PublicCheckoutTemplatesPanel({
               <button className="ghost" type="button" onClick={() => copyLink(t.slug)}>
                 Copiar
               </button>
+              <a className="ghost" href={buildLink(t.slug)} target="_blank" rel="noreferrer">
+                Previsualizar
+              </a>
             </div>
             <div className="template-actions">
               <button className="secondary" type="button" onClick={() => openEdit(t)}>
@@ -216,7 +246,7 @@ export function PublicCheckoutTemplatesPanel({
                 <label>Producto predeterminado</label>
                 <select className="select" name="planId" defaultValue={editing?.planId || ""}>
                   <option value="">Selecciona un producto</option>
-                  {availablePlans(formKind).map((p) => (
+                  {(formKind === "PLAN" ? availableProducts : availablePlans(formKind)).map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name}
                     </option>
@@ -234,52 +264,7 @@ export function PublicCheckoutTemplatesPanel({
               </div>
 
               <div className="field-divider" />
-
-              <div className="field">
-                <label>Título</label>
-                <input className="input" name="brandTitle" defaultValue={branding.title || ""} />
-              </div>
-              <div className="field">
-                <label>Subtítulo</label>
-                <input className="input" name="brandSubtitle" defaultValue={branding.subtitle || ""} />
-              </div>
-              <div className="field">
-                <label>Descripción</label>
-                <textarea className="input" name="brandDescription" rows={3} defaultValue={branding.description || ""} />
-              </div>
-              <div className="field">
-                <label>Logo URL</label>
-                <input className="input" name="brandLogoUrl" defaultValue={branding.logoUrl || ""} />
-              </div>
-              <div className="field">
-                <label>Color primario</label>
-                <input className="input" name="brandPrimaryColor" defaultValue={branding.primaryColor || ""} placeholder="#0f172a" />
-              </div>
-              <div className="field">
-                <label>Fuente</label>
-                <input className="input" name="brandFontFamily" defaultValue={branding.fontFamily || ""} placeholder="Manrope" />
-              </div>
-              <div className="field">
-                <label>Email de contacto</label>
-                <input className="input" name="brandContactEmail" defaultValue={branding.contactEmail || ""} placeholder="mdv.subs@apiflujos.com" />
-              </div>
-
-              <div className="field">
-                <label>Título de gracias</label>
-                <input className="input" name="brandSuccessTitle" defaultValue={branding.successTitle || ""} />
-              </div>
-              <div className="field">
-                <label>Subtítulo de gracias</label>
-                <input className="input" name="brandSuccessSubtitle" defaultValue={branding.successSubtitle || ""} />
-              </div>
-              <div className="field">
-                <label>Botón de gracias</label>
-                <input className="input" name="brandSuccessButtonText" defaultValue={branding.successButtonText || ""} />
-              </div>
-              <div className="field">
-                <label>URL de redirección</label>
-                <input className="input" name="brandRedirectUrl" defaultValue={branding.redirectUrl || ""} />
-              </div>
+              <div className="field-hint">El branding es global y se configura en los defaults.</div>
 
               <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 {inlineMsg(editing ? "template_update" : "template_create", "Guardado.", "Error guardando")}

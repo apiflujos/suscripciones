@@ -56,20 +56,8 @@ async function adminFetch(path: string, init: RequestInit) {
   return json;
 }
 
-function buildBranding(formData: FormData) {
-  return {
-    title: String(formData.get("brandTitle") || "").trim() || undefined,
-    subtitle: String(formData.get("brandSubtitle") || "").trim() || undefined,
-    description: String(formData.get("brandDescription") || "").trim() || undefined,
-    logoUrl: String(formData.get("brandLogoUrl") || "").trim() || undefined,
-    primaryColor: String(formData.get("brandPrimaryColor") || "").trim() || undefined,
-    fontFamily: String(formData.get("brandFontFamily") || "").trim() || undefined,
-    contactEmail: String(formData.get("brandContactEmail") || "").trim() || undefined,
-    successTitle: String(formData.get("brandSuccessTitle") || "").trim() || undefined,
-    successSubtitle: String(formData.get("brandSuccessSubtitle") || "").trim() || undefined,
-    successButtonText: String(formData.get("brandSuccessButtonText") || "").trim() || undefined,
-    redirectUrl: String(formData.get("brandRedirectUrl") || "").trim() || undefined
-  };
+function buildBranding(_formData: FormData) {
+  return {};
 }
 
 export async function updatePublicCheckoutDefaults(formData: FormData) {
@@ -80,6 +68,13 @@ export async function updatePublicCheckoutDefaults(formData: FormData) {
   const description = String(formData.get("publicDescription") || "").trim();
   const contactEmail = String(formData.get("publicContactEmail") || "").trim();
   const tokenExpiryHours = String(formData.get("publicTokenExpiryHours") || "").trim();
+  const logoUrl = normalizeUrl(String(formData.get("publicLogoUrl") || "").trim());
+  const primaryColor = String(formData.get("publicPrimaryColor") || "").trim();
+  const fontFamily = String(formData.get("publicFontFamily") || "").trim();
+  const successTitle = String(formData.get("publicSuccessTitle") || "").trim();
+  const successSubtitle = String(formData.get("publicSuccessSubtitle") || "").trim();
+  const successButtonText = String(formData.get("publicSuccessButtonText") || "").trim();
+  const redirectUrl = normalizeUrl(String(formData.get("publicRedirectUrl") || "").trim());
 
   try {
     await adminFetch("/admin/settings/public-checkout", {
@@ -90,7 +85,14 @@ export async function updatePublicCheckoutDefaults(formData: FormData) {
         ...(subtitle ? { subtitle } : { subtitle: "" }),
         ...(description ? { description } : { description: "" }),
         ...(contactEmail ? { contactEmail } : { contactEmail: "" }),
-        ...(tokenExpiryHours ? { tokenExpiryHours: Number(tokenExpiryHours) } : {})
+        ...(tokenExpiryHours ? { tokenExpiryHours: Number(tokenExpiryHours) } : {}),
+        ...(logoUrl ? { logoUrl } : { logoUrl: "" }),
+        ...(primaryColor ? { primaryColor } : { primaryColor: "" }),
+        ...(fontFamily ? { fontFamily } : { fontFamily: "" }),
+        ...(successTitle ? { successTitle } : { successTitle: "" }),
+        ...(successSubtitle ? { successSubtitle } : { successSubtitle: "" }),
+        ...(successButtonText ? { successButtonText } : { successButtonText: "" }),
+        ...(redirectUrl ? { redirectUrl } : { redirectUrl: "" })
       })
     });
     redirectWith("public_defaults", "ok");
@@ -122,8 +124,7 @@ export async function createPublicCheckoutTemplate(formData: FormData) {
         allowPlanSelect,
         ...(planId ? { planId } : {}),
         requireShipping,
-        requireAddress,
-        branding: buildBranding(formData)
+        requireAddress
       })
     });
     redirectWith("template_create", "ok");
@@ -156,8 +157,7 @@ export async function updatePublicCheckoutTemplate(formData: FormData) {
         allowPlanSelect,
         ...(planId ? { planId } : {}),
         requireShipping,
-        requireAddress,
-        branding: buildBranding(formData)
+        requireAddress
       })
     });
     redirectWith("template_update", "ok");

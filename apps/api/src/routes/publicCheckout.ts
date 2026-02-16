@@ -88,9 +88,18 @@ async function resolveTemplate(slug: string) {
 }
 
 async function listPlans(kind: PublicCheckoutKind) {
-  const planType = kind === PublicCheckoutKind.PLAN ? PlanType.manual_link : PlanType.auto_subscription;
+  if (kind === PublicCheckoutKind.PLAN) {
+    return prisma.subscriptionPlan.findMany({
+      where: {
+        active: true,
+        planType: PlanType.manual_link,
+        metadata: { path: ["kind"], equals: "CATALOG_ITEM" } as any
+      },
+      orderBy: { createdAt: "desc" }
+    });
+  }
   return prisma.subscriptionPlan.findMany({
-    where: { active: true, planType },
+    where: { active: true, planType: PlanType.auto_subscription },
     orderBy: { createdAt: "desc" }
   });
 }

@@ -16,21 +16,19 @@ export default async function PublicTokenizeSuccessPage({ params }: { params: Pr
   const settingsRes = token ? await fetchAdminCached("/admin/settings", { ttlMs: 1500 }) : { ok: false, json: null };
   const settings = settingsRes.ok ? settingsRes.json : null;
   const tokenRes = await fetchPublicToken(linkToken);
-  const template = tokenRes.ok ? tokenRes.json?.template : null;
-  const brand = (template?.branding || {}) as any;
+  void tokenRes;
 
-  const title = brand?.successTitle || brand?.title || settings?.publicCheckout?.title || "Gracias";
-  const subtitle = brand?.successSubtitle || settings?.publicCheckout?.subtitle || "Tu método de pago quedó guardado.";
+  const title = settings?.publicCheckout?.successTitle || settings?.publicCheckout?.title || "Gracias";
+  const subtitle = settings?.publicCheckout?.successSubtitle || settings?.publicCheckout?.subtitle || "Tu método de pago quedó guardado.";
   const description =
-    brand?.description ||
     settings?.publicCheckout?.description ||
     "Desde ahora podremos procesar tu suscripción de forma automática.";
-  const contactEmail = brand?.contactEmail || settings?.publicCheckout?.contactEmail || "";
-  const logoUrl = brand?.logoUrl || "";
-  const fontFamily = brand?.fontFamily || "";
-  const primaryColor = brand?.primaryColor || "";
-  const redirectUrl = brand?.redirectUrl || "";
-  const buttonLabel = brand?.successButtonText || "Volver";
+  const contactEmail = settings?.publicCheckout?.contactEmail || "";
+  const logoUrl = settings?.publicCheckout?.logoUrl || "";
+  const fontFamily = settings?.publicCheckout?.fontFamily || "";
+  const primaryColor = settings?.publicCheckout?.primaryColor || "";
+  const redirectUrl = settings?.publicCheckout?.redirectUrl || "";
+  const buttonLabel = settings?.publicCheckout?.successButtonText || "Volver";
 
   const styleVars = primaryColor ? ({ ["--primary" as any]: primaryColor } as CSSProperties) : {};
 
