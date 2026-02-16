@@ -20,7 +20,12 @@ export const fetchCache = "force-no-store";
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const h = await headers();
-  const pathname = h.get("x-app-pathname") || "";
+  const pathname =
+    h.get("x-app-pathname") ||
+    h.get("x-invoke-path") ||
+    h.get("x-matched-path") ||
+    h.get("x-nextjs-url") ||
+    "";
   const isAuthScreen =
     !pathname ||
     pathname === "/login" ||
@@ -34,11 +39,13 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
   const session = await verifyAdminSessionToken(sessionToken);
 
+  const shouldUseAuthShell = isAuthScreen || !session;
+
   return (
     <html lang="es">
       <head />
-      <body className={isAuthScreen ? "authBody" : undefined}>
-        {isAuthScreen ? (
+      <body className={shouldUseAuthShell ? "authBody" : undefined}>
+        {shouldUseAuthShell ? (
           <div className="authShell">{children}</div>
         ) : (
           <div className="app-shell">
