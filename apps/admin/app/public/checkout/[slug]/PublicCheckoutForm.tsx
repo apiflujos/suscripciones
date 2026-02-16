@@ -323,9 +323,11 @@ export function PublicCheckoutForm({
     );
   }
 
-  const layoutSections = Array.isArray(template.layout?.sections) ? template.layout.sections : fallbackSections;
+  const layoutSections: FieldSection[] = Array.isArray(template.layout?.sections)
+    ? (template.layout.sections as FieldSection[])
+    : fallbackSections;
   const ctaLabel = useMemo(() => {
-    const cta = layoutSections.find((section) => section.type === "cta");
+    const cta = layoutSections.find((section: FieldSection) => section.type === "cta");
     const label = cta?.props?.label;
     return label || (template.kind === "PLAN" ? "Pagar" : "Guardar y pagar");
   }, [layoutSections, template.kind]);
