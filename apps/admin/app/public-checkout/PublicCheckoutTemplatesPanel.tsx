@@ -29,6 +29,9 @@ type Product = {
   name: string;
   sku?: string;
   requiresShipping?: boolean;
+  imageUrl?: string | null;
+  basePriceInCents?: number;
+  currency?: string;
 };
 
 type InlineState = { action: string; status: string; errorText: string };
@@ -169,6 +172,12 @@ export function PublicCheckoutTemplatesPanel({
       );
     }
     return null;
+  }
+
+  function formatCopFromCents(cents: number) {
+    const pesos = Math.trunc(Number(cents || 0) / 100);
+    if (!Number.isFinite(pesos)) return "";
+    return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(pesos);
   }
 
   function slugify(input: string) {
@@ -321,27 +330,43 @@ export function PublicCheckoutTemplatesPanel({
 
                 <div className="field">
                   <label>Producto predeterminado</label>
-                  <select
-                    className="select"
-                    name="planId"
-                    value={formPlanId}
-                    onChange={(e) => setFormPlanId(e.target.value)}
-                    disabled={formAllowSelect}
-                    required={!formAllowSelect}
-                  >
-                    <option value="">Selecciona un producto</option>
-                    {(formKind === "PLAN" ? filteredProducts : availablePlans(formKind)).map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
+                  <input type="hidden" name="planId" value={formPlanId} />
                   {formAllowSelect ? <div className="field-hint">Se mostrará un selector en el checkout.</div> : null}
                   {!formAllowSelect && !formPlanId ? (
                     <div className="field-hint" style={{ color: "var(--danger)" }}>
                       Debes seleccionar un producto o activar el selector.
                     </div>
                   ) : null}
+                  <div className={`product-pick ${formAllowSelect ? "is-disabled" : ""}`} aria-disabled={formAllowSelect}>
+                    {(formKind === "PLAN" ? filteredProducts : availablePlans(formKind)).map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        className={`product-option ${formPlanId === p.id ? "is-active" : ""}`}
+                        onClick={() => setFormPlanId(p.id)}
+                        disabled={formAllowSelect}
+                        title={p.name}
+                      >
+                        <div className="product-card-row">
+                          {"imageUrl" in p && p.imageUrl ? (
+                            <img src={p.imageUrl} alt={p.name} className="product-thumb" />
+                          ) : (
+                            <div className="product-thumb product-thumb-fallback">📦</div>
+                          )}
+                          <div className="product-card-text">
+                            <div className="product-title">{p.name}</div>
+                            {"sku" in p && p.sku ? <div className="field-hint">SKU: {p.sku}</div> : null}
+                            {"basePriceInCents" in p && typeof p.basePriceInCents === "number" ? (
+                              <div className="field-hint">{formatCopFromCents(p.basePriceInCents)}</div>
+                            ) : null}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                    {!(formKind === "PLAN" ? filteredProducts : availablePlans(formKind)).length ? (
+                      <div className="field-hint">No hay productos con ese filtro.</div>
+                    ) : null}
+                  </div>
                 </div>
 
                 <div className="field row">
