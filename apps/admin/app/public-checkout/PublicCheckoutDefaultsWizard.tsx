@@ -26,6 +26,8 @@ export function PublicCheckoutDefaultsWizard({
   const [companyName, setCompanyName] = useState<string>(((defaults as any).companyName as string) || "");
   const [customDomain, setCustomDomain] = useState<string>(((defaults as any).customDomain as string) || "");
   const [primaryColor, setPrimaryColor] = useState<string>(((defaults as any).primaryColor as string) || "#002b5b");
+  const [logoData, setLogoData] = useState<string>(((defaults as any).logoUrl as string) || "");
+  const [fontFamily, setFontFamily] = useState<string>(((defaults as any).fontFamily as string) || "Manrope");
   const [title, setTitle] = useState<string>(defaults.title || "");
   const [subtitle, setSubtitle] = useState<string>(defaults.subtitle || "");
   const baseRef = useRef<HTMLInputElement | null>(null);
@@ -56,6 +58,17 @@ export function PublicCheckoutDefaultsWizard({
         .replace(/-+/g, "-")
         .slice(0, 40)}.subs.apiflujos.com`
     : "";
+
+  function onLogoFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      if (result) setLogoData(result);
+    };
+    reader.readAsDataURL(file);
+  }
 
   useEffect(() => {
     if (!baseRef.current) return;
@@ -88,8 +101,12 @@ export function PublicCheckoutDefaultsWizard({
             <input className="input" name="publicSubtitle" value={subtitle} onChange={(e) => setSubtitle(e.target.value)} placeholder="Guarda tu método de pago" />
           </div>
           <div className="field">
-            <label>Logo (URL)</label>
-            <input className="input" name="publicLogoUrl" defaultValue={(defaults as any).logoUrl || ""} placeholder="https://..." />
+            <label>Logo</label>
+            <div className="file-row">
+              <input type="file" accept="image/*" onChange={onLogoFile} />
+              {logoData ? <img src={logoData} alt="Logo" className="logo-preview" /> : null}
+            </div>
+            <input type="hidden" name="publicLogoUrl" value={logoData} />
           </div>
           <div className="field">
             <label>Color primario</label>
@@ -110,7 +127,11 @@ export function PublicCheckoutDefaultsWizard({
           </div>
           <div className="field">
             <label>Fuente</label>
-            <input className="input" name="publicFontFamily" defaultValue={(defaults as any).fontFamily || ""} placeholder="Manrope" />
+            <select className="select" name="publicFontFamily" value={fontFamily} onChange={(e) => setFontFamily(e.target.value)}>
+              {["Manrope", "Sora", "Space Grotesk", "Outfit", "Plus Jakarta Sans", "IBM Plex Sans", "Montserrat"].map((f) => (
+                <option key={f} value={f}>{f}</option>
+              ))}
+            </select>
           </div>
         </div>
       ) : null}
@@ -212,8 +233,9 @@ export function PublicCheckoutDefaultsWizard({
         </PendingButton>
       </div>
 
-      <div className="wizard-preview" style={{ ["--preview-color" as any]: primaryColor }}>
+      <div className="wizard-preview" style={{ ["--preview-color" as any]: primaryColor, fontFamily }}>
         <div className="preview-badge">Preview</div>
+        {logoData ? <img src={logoData} alt="Logo" className="logo-preview" /> : null}
         <div className="preview-title">{title || "Activa tu suscripción"}</div>
         <div className="preview-subtitle">{subtitle || "Guarda tu método de pago"}</div>
         <button type="button" className="primary" style={{ width: "fit-content" }}>Continuar</button>
