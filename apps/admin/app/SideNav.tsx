@@ -171,6 +171,9 @@ export function SideNav({ session }: { session: AdminSession | null }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const isPublicCheckoutActive =
+    pathname.startsWith("/public-checkout") ||
+    (pathname.startsWith("/settings") && searchParams?.get("tab") === "public-checkout");
 
   useEffect(() => {
     const shell = document.querySelector(".app-shell") as HTMLElement | null;
@@ -370,6 +373,3 @@ export function SideNav({ session }: { session: AdminSession | null }) {
     </div>
   );
 }
-  const isPublicCheckoutActive =
-    pathname.startsWith("/public-checkout") ||
-    (pathname.startsWith("/settings") && searchParams?.get("tab") === "public-checkout");
