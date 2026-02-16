@@ -51,7 +51,9 @@ export function ConnectionsPanel({
     <>
       <div className="conn-grid">
         <button className="conn-card" type="button" onClick={() => setOpen("wompi")}>
-          <div className="conn-icon conn-icon-wompi">W</div>
+          <div className="conn-icon conn-icon-wompi">
+            <img src="/brand/conn-wompi.png" alt="Wompi" />
+          </div>
           <div className="conn-body">
             <div className="conn-title">Wompi</div>
             <div className="conn-sub">Pagos y tokenización</div>
@@ -61,7 +63,7 @@ export function ConnectionsPanel({
 
         <button className="conn-card" type="button" onClick={() => setOpen("central")}>
           <div className="conn-icon conn-icon-apiflujos">
-            <img src="/brand/logo-horizontal.png" alt="Apiflujos" />
+            <img src="/brand/conn-apiflujos.png" alt="Apiflujos" />
           </div>
           <div className="conn-body">
             <div className="conn-title">Central</div>
@@ -71,7 +73,9 @@ export function ConnectionsPanel({
         </button>
 
         <button className="conn-card" type="button" onClick={() => setOpen("shopify")}>
-          <div className="conn-icon conn-icon-shopify">S</div>
+          <div className="conn-icon conn-icon-shopify">
+            <img src="/brand/conn-shopify.png" alt="Shopify" />
+          </div>
           <div className="conn-body">
             <div className="conn-title">Shopify</div>
             <div className="conn-sub">Reenvío de eventos</div>

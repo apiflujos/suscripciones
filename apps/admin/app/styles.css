@@ -1196,27 +1196,13 @@ textarea {
   border-radius: 12px;
   display: grid;
   place-items: center;
-  font-weight: 800;
-  font-size: 18px;
-  color: #fff;
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.12);
 }
 
-.conn-icon-wompi {
-  background: #111827;
-}
-
-.conn-icon-shopify {
-  background: #16a34a;
-}
-
-.conn-icon-apiflujos {
-  background: #0ea5a8;
-  padding: 6px;
-}
-
-.conn-icon-apiflujos img {
-  width: 100%;
-  height: auto;
+.conn-icon img {
+  width: 70%;
+  height: 70%;
   object-fit: contain;
 }
 
