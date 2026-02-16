@@ -10,6 +10,7 @@ type Template = {
   requireAddress?: boolean;
   branding?: any;
   planId?: string | null;
+  layout?: any;
 };
 
 type Plan = {
@@ -127,72 +128,116 @@ export function PublicCheckoutForm({
     }
   }
 
-  return (
-    <form className="publicCheckoutForm" onSubmit={onSubmit}>
+  function renderProductsBlock(titleOverride?: string) {
+    return template.allowPlanSelect ? (
+      <div className="field">
+        {titleOverride ? <label>{titleOverride}</label> : <label>Producto</label>}
+        <input type="hidden" name="planId" value={selectedPlanId} />
+        <div className="publicProductGrid">
+          {plansOptions.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className={`publicProductCard ${selectedPlanId === p.id ? "is-active" : ""}`}
+              onClick={() => setSelectedPlanId(p.id)}
+              aria-pressed={selectedPlanId === p.id}
+            >
+              {p.imageUrl ? <img src={p.imageUrl} alt={p.name} /> : <div className="publicProductThumb">📦</div>}
+              <div className="publicProductInfo">
+                <div className="publicProductName">{p.name}</div>
+                {p.sku ? <div className="publicProductSku">SKU: {p.sku}</div> : null}
+                <div className="publicProductPrice">{formatCopFromCents(p.priceInCents)}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+        {!selectedPlanId ? <div className="field-hint" style={{ color: "var(--danger)" }}>Selecciona un producto.</div> : null}
+      </div>
+    ) : null;
+  }
+
+  function renderFormBlock(titleOverride?: string) {
+    return (
+      <div className="field">
+        {titleOverride ? <label>{titleOverride}</label> : null}
+        <div className="publicCheckoutMiniForm">
+          <div className="field">
+            <label>Nombre completo</label>
+            <input className="input" name="name" required />
+          </div>
+          <div className="field">
+            <label>Email</label>
+            <input className="input" name="email" type="email" required />
+          </div>
+          <div className="field">
+            <label>Teléfono</label>
+            <input className="input" name="phone" required />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function renderHeaderBlock(props: any) {
+    return (
       <div>
-        <h1 style={{ marginTop: 0 }}>{title}</h1>
-        <p style={{ marginTop: 6 }}>{subtitle}</p>
+        <h1 style={{ marginTop: 0 }}>{props?.title || title}</h1>
+        <p style={{ marginTop: 6 }}>{props?.subtitle || subtitle}</p>
         {description ? <p className="field-hint">{description}</p> : null}
       </div>
+    );
+  }
 
+  function renderFooterBlock(props: any) {
+    return (
+      <div className="field-hint">
+        {props?.text || contactEmail ? `¿Necesitas ayuda? Escríbenos a ${contactEmail}.` : ""}
+      </div>
+    );
+  }
+
+  const layoutSections = Array.isArray(template.layout?.sections) ? template.layout.sections : [];
+
+  return (
+    <form className="publicCheckoutForm" onSubmit={onSubmit}>
       {error ? (
         <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
           Error: {error}
         </div>
       ) : null}
 
-      <div className="field">
-        <label>Nombre completo</label>
-        <input className="input" name="name" required />
-      </div>
-      <div className="field">
-        <label>Email</label>
-        <input className="input" name="email" type="email" required />
-      </div>
-      <div className="field">
-        <label>Teléfono</label>
-        <input className="input" name="phone" required />
-      </div>
-
-      {template.allowPlanSelect ? (
-        <div className="field">
-          <label>Producto</label>
-          <input type="hidden" name="planId" value={selectedPlanId} />
-          <div className="publicProductGrid">
-            {plansOptions.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                className={`publicProductCard ${selectedPlanId === p.id ? "is-active" : ""}`}
-                onClick={() => setSelectedPlanId(p.id)}
-                aria-pressed={selectedPlanId === p.id}
-              >
-                {p.imageUrl ? <img src={p.imageUrl} alt={p.name} /> : <div className="publicProductThumb">📦</div>}
-                <div className="publicProductInfo">
-                  <div className="publicProductName">{p.name}</div>
-                  {p.sku ? <div className="publicProductSku">SKU: {p.sku}</div> : null}
-                  <div className="publicProductPrice">{formatCopFromCents(p.priceInCents)}</div>
-                </div>
-              </button>
-            ))}
-          </div>
-          {!selectedPlanId ? <div className="field-hint" style={{ color: "var(--danger)" }}>Selecciona un producto.</div> : null}
-        </div>
-      ) : null}
-
-      {template.requireAddress || template.requireShipping ? (
-        <div className="field-hint" style={{ marginTop: 6 }}>
-          El envío/dirección se solicita directamente en Wompi.
-        </div>
-      ) : null}
-
-      <button className="primary" type="submit" disabled={loading}>
-        {loading ? "Procesando..." : template.kind === "PLAN" ? "Pagar" : "Guardar y pagar"}
-      </button>
-
-      {contactEmail ? (
-        <div className="field-hint">¿Necesitas ayuda? Escríbenos a {contactEmail}.</div>
-      ) : null}
+      {layoutSections.length
+        ? layoutSections.map((section: any) => {
+            if (section?.enabled === false) return null;
+            if (section?.type === "header") return <div key={section.id}>{renderHeaderBlock(section.props)}</div>;
+            if (section?.type === "products") return <div key={section.id}>{renderProductsBlock(section.props?.title)}</div>;
+            if (section?.type === "form") return <div key={section.id}>{renderFormBlock(section.props?.title)}</div>;
+            if (section?.type === "cta") {
+              return (
+                <button key={section.id} className="primary" type="submit" disabled={loading}>
+                  {loading ? "Procesando..." : template.kind === "PLAN" ? "Pagar" : "Guardar y pagar"}
+                </button>
+              );
+            }
+            if (section?.type === "footer") return <div key={section.id}>{renderFooterBlock(section.props)}</div>;
+            return null;
+          })
+        : (
+          <>
+            {renderHeaderBlock({})}
+            {renderProductsBlock()}
+            {renderFormBlock()}
+            {template.requireAddress || template.requireShipping ? (
+              <div className="field-hint" style={{ marginTop: 6 }}>
+                El envío/dirección se solicita directamente en Wompi.
+              </div>
+            ) : null}
+            <button className="primary" type="submit" disabled={loading}>
+              {loading ? "Procesando..." : template.kind === "PLAN" ? "Pagar" : "Guardar y pagar"}
+            </button>
+            {contactEmail ? <div className="field-hint">¿Necesitas ayuda? Escríbenos a {contactEmail}.</div> : null}
+          </>
+        )}
     </form>
   );
 }

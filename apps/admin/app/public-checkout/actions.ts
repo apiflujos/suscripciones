@@ -116,6 +116,15 @@ export async function createPublicCheckoutTemplate(formData: FormData) {
   const planId = String(formData.get("planId") || "").trim();
   const requireShipping = String(formData.get("requireShipping") || "").trim() === "on";
   const requireAddress = String(formData.get("requireAddress") || "").trim() === "on";
+  const layoutRaw = String(formData.get("layout") || "").trim();
+  let layout: any = undefined;
+  if (layoutRaw) {
+    try {
+      layout = JSON.parse(layoutRaw);
+    } catch {
+      layout = undefined;
+    }
+  }
 
   try {
     await adminFetch("/admin/public-checkout/templates", {
@@ -128,7 +137,8 @@ export async function createPublicCheckoutTemplate(formData: FormData) {
         allowPlanSelect,
         ...(planId ? { planId } : {}),
         requireShipping,
-        requireAddress
+        requireAddress,
+        ...(layout ? { layout } : {})
       })
     });
     redirectWith("template_create", "ok");
@@ -149,6 +159,15 @@ export async function updatePublicCheckoutTemplate(formData: FormData) {
   const planId = String(formData.get("planId") || "").trim();
   const requireShipping = String(formData.get("requireShipping") || "").trim() === "on";
   const requireAddress = String(formData.get("requireAddress") || "").trim() === "on";
+  const layoutRaw = String(formData.get("layout") || "").trim();
+  let layout: any = undefined;
+  if (layoutRaw) {
+    try {
+      layout = JSON.parse(layoutRaw);
+    } catch {
+      layout = undefined;
+    }
+  }
 
   try {
     await adminFetch(`/admin/public-checkout/templates/${id}`, {
@@ -161,7 +180,8 @@ export async function updatePublicCheckoutTemplate(formData: FormData) {
         allowPlanSelect,
         ...(planId ? { planId } : {}),
         requireShipping,
-        requireAddress
+        requireAddress,
+        ...(layout ? { layout } : {})
       })
     });
     redirectWith("template_update", "ok");
