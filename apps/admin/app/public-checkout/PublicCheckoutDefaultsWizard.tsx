@@ -22,14 +22,13 @@ export function PublicCheckoutDefaultsWizard({
   onSave: (formData: FormData) => void;
 }) {
   const [step, setStep] = useState(1);
-  const [domainMode, setDomainMode] = useState<"apiflujos" | "custom">(((defaults as any).domainMode as "apiflujos" | "custom") || "apiflujos");
-  const [companyName, setCompanyName] = useState<string>(((defaults as any).companyName as string) || "");
-  const [customDomain, setCustomDomain] = useState<string>(((defaults as any).customDomain as string) || "");
+  const [baseUrl, setBaseUrl] = useState<string>(defaults.baseUrl || "");
   const [primaryColor, setPrimaryColor] = useState<string>(((defaults as any).primaryColor as string) || "#002b5b");
   const [logoData, setLogoData] = useState<string>(((defaults as any).logoUrl as string) || "");
   const [fontFamily, setFontFamily] = useState<string>(((defaults as any).fontFamily as string) || "Manrope");
   const [title, setTitle] = useState<string>(defaults.title || "");
   const [subtitle, setSubtitle] = useState<string>(defaults.subtitle || "");
+  const [redirectUrl, setRedirectUrl] = useState<string>(((defaults as any).redirectUrl as string) || "");
   const baseRef = useRef<HTMLInputElement | null>(null);
 
   function next() {
@@ -42,22 +41,9 @@ export function PublicCheckoutDefaultsWizard({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (defaults.baseUrl) return;
-    if (baseRef.current && !baseRef.current.value) {
-      baseRef.current.value = window.location.origin;
-    }
-  }, [defaults.baseUrl]);
-
-  const suggestedSubdomain = companyName
-    ? `${companyName
-        .toLowerCase()
-        .normalize("NFKD")
-        .replace(/[^\w\s-]/g, "")
-        .trim()
-        .replace(/\s+/g, "-")
-        .replace(/-+/g, "-")
-        .slice(0, 40)}.subs.apiflujos.com`
-    : "";
+    const origin = window.location.origin;
+    setBaseUrl(origin);
+  }, []);
 
   function onLogoFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -71,11 +57,10 @@ export function PublicCheckoutDefaultsWizard({
   }
 
   useEffect(() => {
-    if (!baseRef.current) return;
-    if (domainMode !== "apiflujos") return;
-    if (!suggestedSubdomain) return;
-    baseRef.current.value = `https://${suggestedSubdomain}`;
-  }, [domainMode, suggestedSubdomain]);
+    if (!baseUrl) return;
+    const normalized = baseUrl.replace(/\/$/, "");
+    setRedirectUrl(`${normalized}/gracias`);
+  }, [baseUrl]);
 
   return (
     <form action={onSave} className="wizard" style={{ display: "grid", gap: 14 }}>
@@ -152,41 +137,17 @@ export function PublicCheckoutDefaultsWizard({
       {step === 3 ? (
         <div className="wizard-panel">
           <div className="field">
-            <label>Nombre de la empresa</label>
-            <input className="input" name="publicCompanyName" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Mi empresa" />
-          </div>
-          <div className="field">
-            <label>Tipo de dominio</label>
-            <select className="select" name="publicDomainMode" value={domainMode} onChange={(e) => setDomainMode(e.target.value as "apiflujos" | "custom")}>
-              <option value="apiflujos">Dominio Apiflujos</option>
-              <option value="custom">Dominio propio</option>
-            </select>
-          </div>
-          <div className="field">
             <label>URL pública base</label>
             <input
               ref={baseRef}
               className="input"
               name="publicBaseUrl"
-              defaultValue={defaults.baseUrl || ""}
+              value={baseUrl}
               placeholder="https://mdv.subs.apiflujos.com"
-              readOnly={domainMode === "apiflujos"}
+              readOnly
             />
-            {domainMode === "apiflujos" ? (
-              <div className="field-hint">
-                Se generará: <strong>https://{suggestedSubdomain}</strong>
-              </div>
-            ) : null}
+            <div className="field-hint">Usamos siempre el mismo dominio del panel.</div>
           </div>
-          {domainMode === "custom" ? (
-            <div className="field">
-              <label>Dominio propio</label>
-              <input className="input" name="publicCustomDomain" value={customDomain} onChange={(e) => setCustomDomain(e.target.value)} placeholder="checkout.tuempresa.com" />
-              <div className="field-hint">
-                Instrucciones DNS: crea un registro <strong>CNAME</strong> apuntando tu dominio a <strong>mdv.subs.apiflujos.com</strong>. Luego espera propagación (10-60 min).
-              </div>
-            </div>
-          ) : null}
         </div>
       ) : null}
 
@@ -210,7 +171,10 @@ export function PublicCheckoutDefaultsWizard({
           </div>
           <div className="field">
             <label>URL redirección gracias</label>
-            <input className="input" name="publicRedirectUrl" defaultValue={(defaults as any).redirectUrl || ""} placeholder="https://..." />
+            <input className="input" name="publicRedirectUrl" value={redirectUrl} readOnly />
+            <div className="field-hint">
+              Se generará: <strong>{redirectUrl}</strong>
+            </div>
           </div>
         </div>
       ) : null}
@@ -222,15 +186,16 @@ export function PublicCheckoutDefaultsWizard({
               Atrás
             </button>
           ) : null}
-          {step < 4 ? (
-            <button className="secondary" type="button" onClick={next}>
-              Siguiente
-            </button>
-          ) : null}
         </div>
-        <PendingButton className="primary" type="submit" pendingText="Guardando...">
-          Guardar
-        </PendingButton>
+        {step < 4 ? (
+          <button className="primary" type="button" onClick={next}>
+            Siguiente
+          </button>
+        ) : (
+          <PendingButton className="primary" type="submit" pendingText="Guardando...">
+            Guardar
+          </PendingButton>
+        )}
       </div>
 
       <div className="wizard-preview" style={{ ["--preview-color" as any]: primaryColor, fontFamily }}>
@@ -238,7 +203,7 @@ export function PublicCheckoutDefaultsWizard({
         {logoData ? <img src={logoData} alt="Logo" className="logo-preview" /> : null}
         <div className="preview-title">{title || "Activa tu suscripción"}</div>
         <div className="preview-subtitle">{subtitle || "Guarda tu método de pago"}</div>
-        <button type="button" className="primary" style={{ width: "fit-content" }}>Continuar</button>
+        {baseUrl ? <div className="preview-link">{baseUrl}</div> : null}
       </div>
     </form>
   );

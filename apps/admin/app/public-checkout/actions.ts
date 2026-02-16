@@ -30,17 +30,6 @@ function normalizeUrl(input: string) {
   return `https://${v}`;
 }
 
-function toSlug(input: string) {
-  return String(input || "")
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[^\w\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .slice(0, 40);
-}
-
 async function adminFetch(path: string, init: RequestInit) {
   const res = await fetch(`${API_BASE}${path}`,
     {
@@ -73,16 +62,8 @@ function buildBranding(_formData: FormData) {
 
 export async function updatePublicCheckoutDefaults(formData: FormData) {
   await assertCsrfToken(formData);
-  const domainMode = String(formData.get("publicDomainMode") || "").trim() || "apiflujos";
-  const companyName = String(formData.get("publicCompanyName") || "").trim();
-  const customDomain = String(formData.get("publicCustomDomain") || "").trim();
   const baseUrlRaw = String(formData.get("publicBaseUrl") || "").trim();
-  const baseUrl =
-    domainMode === "custom"
-      ? normalizeUrl(customDomain || baseUrlRaw)
-      : companyName
-        ? normalizeUrl(`${toSlug(companyName)}.subs.apiflujos.com`)
-        : normalizeUrl(baseUrlRaw);
+  const baseUrl = normalizeUrl(baseUrlRaw);
   const title = String(formData.get("publicTitle") || "").trim();
   const subtitle = String(formData.get("publicSubtitle") || "").trim();
   const description = String(formData.get("publicDescription") || "").trim();
@@ -94,7 +75,10 @@ export async function updatePublicCheckoutDefaults(formData: FormData) {
   const successTitle = String(formData.get("publicSuccessTitle") || "").trim();
   const successSubtitle = String(formData.get("publicSuccessSubtitle") || "").trim();
   const successButtonText = String(formData.get("publicSuccessButtonText") || "").trim();
-  const redirectUrl = normalizeUrl(String(formData.get("publicRedirectUrl") || "").trim());
+  const redirectUrlRaw = String(formData.get("publicRedirectUrl") || "").trim();
+  const redirectUrl = normalizeUrl(
+    redirectUrlRaw || (baseUrl ? `${baseUrl.replace(/\/$/, "")}/gracias` : "")
+  );
 
   try {
     await adminFetch("/admin/settings/public-checkout", {
@@ -112,10 +96,7 @@ export async function updatePublicCheckoutDefaults(formData: FormData) {
         ...(successTitle ? { successTitle } : { successTitle: "" }),
         ...(successSubtitle ? { successSubtitle } : { successSubtitle: "" }),
         ...(successButtonText ? { successButtonText } : { successButtonText: "" }),
-        ...(redirectUrl ? { redirectUrl } : { redirectUrl: "" }),
-        ...(domainMode ? { domainMode } : { domainMode: "" }),
-        ...(companyName ? { companyName } : { companyName: "" }),
-        ...(customDomain ? { customDomain } : { customDomain: "" })
+        ...(redirectUrl ? { redirectUrl } : { redirectUrl: "" })
       })
     });
     redirectWith("public_defaults", "ok");
