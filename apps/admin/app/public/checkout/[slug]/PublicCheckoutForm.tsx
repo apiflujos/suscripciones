@@ -151,15 +151,7 @@ export function PublicCheckoutForm({
       </div>
       <div className="field">
         <label>Teléfono</label>
-        <input className="input" name="phone" />
-      </div>
-      <div className="field">
-        <label>Tipo de documento</label>
-        <input className="input" name="document" placeholder="CC" />
-      </div>
-      <div className="field">
-        <label>Número de documento</label>
-        <input className="input" name="documentNumber" />
+        <input className="input" name="phone" required />
       </div>
 
       {template.allowPlanSelect ? (
@@ -189,36 +181,13 @@ export function PublicCheckoutForm({
       ) : null}
 
       {template.requireAddress || template.requireShipping ? (
-        <div className="publicCheckoutAddress">
-          <div className="field">
-            <label>Dirección</label>
-            <input className="input" name="addressLine1" />
-          </div>
-          <div className="field">
-            <label>Complemento</label>
-            <input className="input" name="addressLine2" />
-          </div>
-          <div className="field">
-            <label>Ciudad</label>
-            <input className="input" name="addressCity" />
-          </div>
-          <div className="field">
-            <label>Departamento</label>
-            <input className="input" name="addressState" />
-          </div>
-          <div className="field">
-            <label>Código postal</label>
-            <input className="input" name="addressPostal" />
-          </div>
-          <div className="field">
-            <label>País</label>
-            <input className="input" name="addressCountry" defaultValue="CO" />
-          </div>
+        <div className="field-hint" style={{ marginTop: 6 }}>
+          El envío/dirección se solicita directamente en Wompi.
         </div>
       ) : null}
 
       <button className="primary" type="submit" disabled={loading}>
-        {loading ? "Procesando..." : template.kind === "PLAN" ? "Ir a pagar" : "Tokenizar método"}
+        {loading ? "Procesando..." : template.kind === "PLAN" ? "Pagar" : "Guardar y pagar"}
       </button>
 
       {contactEmail ? (

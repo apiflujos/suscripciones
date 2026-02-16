@@ -198,6 +198,7 @@ export function PublicCheckoutTemplatesPanel({
       ? productById.get(formPlanId || "")?.name || ""
       : availablePlans(formKind).find((p) => p.id === formPlanId)?.name || "";
   const previewList = formKind === "PLAN" ? filteredProducts : availablePlans(formKind);
+  const previewCta = formKind === "PLAN" ? "Pagar" : "Guardar y pagar";
 
   return (
     <div className="template-shell">
@@ -419,9 +420,7 @@ export function PublicCheckoutTemplatesPanel({
                     {previewList.length > 3 ? <span className="pill">+{previewList.length - 3} más</span> : null}
                   </div>
                 ) : null}
-                <div className="preview-cta">
-                  {formKind === "PLAN" ? "Pagar ahora" : "Tokenizar método"}
-                </div>
+                <div className="preview-cta">{previewCta}</div>
               </aside>
             </form>
           </div>
