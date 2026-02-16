@@ -14,6 +14,7 @@ const customerSchema = z.object({
   phone: z.string().min(6).optional().or(z.literal("")),
   document: z.string().optional().or(z.literal("")),
   documentNumber: z.string().optional().or(z.literal("")),
+  metadata: z.record(z.any()).optional(),
   address: z
     .object({
       line1: z.string().optional(),
@@ -38,6 +39,7 @@ const subscriptionCheckoutSchema = z.object({
 
 function toMetaCustomer(customer: z.infer<typeof customerSchema>) {
   const meta: any = {
+    ...(customer.metadata || {}),
     document: customer.document || undefined,
     documentNumber: customer.documentNumber || undefined
   };

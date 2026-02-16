@@ -5,9 +5,6 @@ import { PendingButton } from "../ui/PendingButton";
 
 type Defaults = {
   baseUrl?: string;
-  title?: string;
-  subtitle?: string;
-  description?: string;
   contactEmail?: string;
   tokenExpiryHours?: number;
 };
@@ -26,13 +23,11 @@ export function PublicCheckoutDefaultsWizard({
   const [primaryColor, setPrimaryColor] = useState<string>(((defaults as any).primaryColor as string) || "#002b5b");
   const [logoData, setLogoData] = useState<string>(((defaults as any).logoUrl as string) || "");
   const [fontFamily, setFontFamily] = useState<string>(((defaults as any).fontFamily as string) || "Manrope");
-  const [title, setTitle] = useState<string>(defaults.title || "");
-  const [subtitle, setSubtitle] = useState<string>(defaults.subtitle || "");
   const [redirectUrl, setRedirectUrl] = useState<string>(((defaults as any).redirectUrl as string) || "");
   const baseRef = useRef<HTMLInputElement | null>(null);
 
   function next() {
-    setStep((s) => Math.min(4, s + 1));
+    setStep((s) => Math.min(3, s + 1));
   }
 
   function prev() {
@@ -42,7 +37,7 @@ export function PublicCheckoutDefaultsWizard({
   useEffect(() => {
     if (typeof window === "undefined") return;
     const origin = window.location.origin;
-    setBaseUrl(origin);
+    setBaseUrl((prev) => prev || origin);
   }, []);
 
   function onLogoFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -67,7 +62,7 @@ export function PublicCheckoutDefaultsWizard({
       <input type="hidden" name="csrf" value={csrfToken} />
 
       <div className="wizard-steps">
-        {["Marca", "Texto", "Dominio", "Gracias"].map((label, idx) => (
+        {["Marca", "Dominio y contacto", "Gracias"].map((label, idx) => (
           <div key={label} className={`wizard-step ${step === idx + 1 ? "is-active" : step > idx + 1 ? "is-done" : ""}`}>
             <span>{idx + 1}</span>
             <small>{label}</small>
@@ -77,14 +72,6 @@ export function PublicCheckoutDefaultsWizard({
 
       {step === 1 ? (
         <div className="wizard-panel">
-          <div className="field">
-            <label>Título principal</label>
-            <input className="input" name="publicTitle" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Activa tu suscripción" />
-          </div>
-          <div className="field">
-            <label>Subtítulo</label>
-            <input className="input" name="publicSubtitle" value={subtitle} onChange={(e) => setSubtitle(e.target.value)} placeholder="Guarda tu método de pago" />
-          </div>
           <div className="field">
             <label>Logo</label>
             <div className="file-row">
@@ -124,18 +111,9 @@ export function PublicCheckoutDefaultsWizard({
       {step === 2 ? (
         <div className="wizard-panel">
           <div className="field">
-            <label>Descripción</label>
-            <textarea className="input" name="publicDescription" defaultValue={defaults.description || ""} rows={3} />
-          </div>
-          <div className="field">
             <label>Email de contacto</label>
             <input className="input" name="publicContactEmail" defaultValue={defaults.contactEmail || ""} placeholder="mdv.subs@apiflujos.com" />
           </div>
-        </div>
-      ) : null}
-
-      {step === 3 ? (
-        <div className="wizard-panel">
           <div className="field">
             <label>Dominio (automático)</label>
             <input
@@ -148,15 +126,15 @@ export function PublicCheckoutDefaultsWizard({
             />
             <div className="field-hint">Se usa el mismo dominio del panel.</div>
           </div>
-        </div>
-      ) : null}
-
-      {step === 4 ? (
-        <div className="wizard-panel">
           <div className="field">
             <label>Expiración del link (horas)</label>
             <input className="input" name="publicTokenExpiryHours" defaultValue={defaults.tokenExpiryHours || 24} />
           </div>
+        </div>
+      ) : null}
+
+      {step === 3 ? (
+        <div className="wizard-panel">
           <div className="field">
             <label>Título de gracias</label>
             <input className="input" name="publicSuccessTitle" defaultValue={(defaults as any).successTitle || ""} />
@@ -187,7 +165,7 @@ export function PublicCheckoutDefaultsWizard({
             </button>
           ) : null}
         </div>
-        {step < 4 ? (
+        {step < 3 ? (
           <button className="primary" type="button" onClick={next}>
             Siguiente
           </button>
@@ -201,8 +179,8 @@ export function PublicCheckoutDefaultsWizard({
       <div className="wizard-preview" style={{ ["--preview-color" as any]: primaryColor, fontFamily }}>
         <div className="preview-badge">Preview</div>
         {logoData ? <img src={logoData} alt="Logo" className="logo-preview" /> : null}
-        <div className="preview-title">{title || "Activa tu suscripción"}</div>
-        <div className="preview-subtitle">{subtitle || "Guarda tu método de pago"}</div>
+        <div className="preview-title">Checkout público</div>
+        <div className="preview-subtitle">Previsualiza la marca global.</div>
         {baseUrl ? <div className="preview-link">{baseUrl}</div> : null}
       </div>
     </form>

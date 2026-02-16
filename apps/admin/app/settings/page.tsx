@@ -98,12 +98,6 @@ export default async function SettingsPage({
   const tab = String(sp.tab || "connections");
   const autoOpenTemplate = String(sp.new || sp.create || "") === "1";
   const inlineState = { action, status, errorText };
-  const inlineMsg = (key: string, okText: string, failPrefix: string) => {
-    if (action !== key) return null;
-    if (status === "ok") return <div className="field-hint">{okText}</div>;
-    if (status === "fail") return <div className="field-hint" style={{ color: "var(--danger)" }}>{failPrefix}: {errorText || "unknown_error"}</div>;
-    return null;
-  };
 
   return (
     <main className="page" style={{ maxWidth: 980 }}>
@@ -256,7 +250,7 @@ export default async function SettingsPage({
                 <div className="summary-left">
                   <strong>Resumen</strong>
                   <div className="summary-meta">
-                    <span className="pill">Título: {publicCheckout?.title || "—"}</span>
+                    <span className="pill">Logo: {publicCheckout?.logoUrl ? "Cargado" : "—"}</span>
                     <span className="pill">Color: {publicCheckout?.primaryColor || "—"}</span>
                     <span className="pill">Fuente: {publicCheckout?.fontFamily || "—"}</span>
                     <span className="pill">Dominio: {publicCheckout?.baseUrl || "—"}</span>

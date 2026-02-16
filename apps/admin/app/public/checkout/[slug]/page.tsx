@@ -25,6 +25,10 @@ export default async function PublicCheckoutPage({ params }: { params: Promise<{
   const plans = templateRes.json?.plans || [];
   const config = templateRes.json?.config || {};
   const logoUrl = config.logoUrl || "";
+  const headerLogo =
+    Array.isArray(template.layout?.sections)
+      ? template.layout.sections.find((section: any) => section?.type === "header")?.props?.logoUrl
+      : "";
   const fontFamily = config.fontFamily || "";
   const primaryColor = config.primaryColor || "";
 
@@ -33,7 +37,7 @@ export default async function PublicCheckoutPage({ params }: { params: Promise<{
   return (
     <main className="page publicCheckoutShell" style={{ maxWidth: 720, ...(fontFamily ? { fontFamily } : {}), ...styleVars }}>
       <div className="card cardPad publicCheckoutCard" style={{ display: "grid", gap: 16, ...(primaryColor ? { borderColor: primaryColor } : {}) }}>
-        {logoUrl ? <img src={logoUrl} alt={template.name || "Checkout"} className="publicCheckoutLogo" /> : null}
+        {logoUrl && !headerLogo ? <img src={logoUrl} alt={template.name || "Checkout"} className="publicCheckoutLogo" /> : null}
         <PublicCheckoutForm template={template} plans={plans} config={config} />
       </div>
     </main>

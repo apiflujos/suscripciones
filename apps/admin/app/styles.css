@@ -1919,6 +1919,80 @@ textarea {
 .template-builder {
   gap: 12px;
 }
+.builder-group {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 14px;
+  padding: 12px;
+  background: #fff;
+  display: grid;
+  gap: 10px;
+}
+.builder-group-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  font-weight: 700;
+}
+.field-list {
+  display: grid;
+  gap: 8px;
+}
+.field-row {
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #f8fafc;
+}
+.field-row.is-disabled {
+  opacity: 0.6;
+}
+.drag-handle {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: #fff;
+  cursor: grab;
+  color: #64748b;
+}
+.field-row-body {
+  display: grid;
+  gap: 6px;
+}
+.field-row-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.field-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #475569;
+}
+.field-row-actions {
+  display: flex;
+  gap: 6px;
+}
+.field-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+@media (max-width: 720px) {
+  .field-row {
+    grid-template-columns: 1fr;
+  }
+  .field-row-actions {
+    justify-content: flex-end;
+  }
+}
 .builder-canvas {
   border: 1px dashed rgba(15, 23, 42, 0.2);
   padding: 12px;
@@ -1983,11 +2057,20 @@ textarea {
   color: #0f172a;
   font-weight: 600;
 }
+.canvas-form-preview {
+  display: grid;
+  gap: 6px;
+}
 .canvas-input {
   height: 34px;
   border-radius: 8px;
   border: 1px solid rgba(15, 23, 42, 0.15);
   background: #fff;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  font-size: 12px;
+  color: #94a3b8;
 }
 .canvas-cta {
   border-radius: 10px;
@@ -2113,6 +2196,19 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+.phone-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 8px;
+}
+.phone-country {
+  min-width: 120px;
+}
+@media (max-width: 600px) {
+  .phone-row {
+    grid-template-columns: 1fr;
+  }
 }
 .settings-cta-row {
   display: flex;
@@ -2260,7 +2356,7 @@ textarea {
 
 .wizard-steps {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 
