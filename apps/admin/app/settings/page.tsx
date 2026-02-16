@@ -238,7 +238,7 @@ export default async function SettingsPage({
       {tab === "public-checkout" ? (
         <>
           <div className="settings-cta-row">
-            <span className="pill">Paso 1 · Defaults</span>
+            <span className="pill">Paso 1 · Configuración base</span>
             <span className="pill">Paso 2 · Plantillas</span>
           </div>
 
@@ -246,8 +246,8 @@ export default async function SettingsPage({
             <div className="settings-group-header" id="defaults">
               <div className="panelHeaderRow">
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <h3>Defaults del checkout</h3>
-                  <HelpTip text="Se usan cuando una plantilla no define su propia marca." />
+                  <h3>Configuración base del checkout</h3>
+                  <HelpTip text="Se aplica a todas las plantillas, a menos que una sección la sobrescriba." />
                 </div>
               </div>
             </div>
@@ -255,7 +255,12 @@ export default async function SettingsPage({
               <div className="panel module">
                 <PublicCheckoutDefaultsWizard defaults={publicCheckout} csrfToken={csrfToken} onSave={updatePublicCheckoutDefaults} />
                 <div style={{ marginTop: 8 }}>
-                  {inlineMsg("public_defaults", "Guardado.", "Error guardando")}
+                  {inlineState.action === "public_defaults" && inlineState.status === "ok" ? (
+                    <div className="authAlert">Configuración guardada.</div>
+                  ) : null}
+                  {inlineState.action === "public_defaults" && inlineState.status === "fail" ? (
+                    <div className="authAlert is-danger">Error guardando: {inlineState.errorText || "unknown_error"}</div>
+                  ) : null}
                 </div>
               </div>
             </div>

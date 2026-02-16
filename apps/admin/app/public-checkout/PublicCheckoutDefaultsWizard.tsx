@@ -67,7 +67,7 @@ export function PublicCheckoutDefaultsWizard({
       <input type="hidden" name="csrf" value={csrfToken} />
 
       <div className="wizard-steps">
-        {["Branding", "Contenido", "Dominio", "Expiración"].map((label, idx) => (
+        {["Marca", "Texto", "Dominio", "Gracias"].map((label, idx) => (
           <div key={label} className={`wizard-step ${step === idx + 1 ? "is-active" : step > idx + 1 ? "is-done" : ""}`}>
             <span>{idx + 1}</span>
             <small>{label}</small>
@@ -78,7 +78,7 @@ export function PublicCheckoutDefaultsWizard({
       {step === 1 ? (
         <div className="wizard-panel">
           <div className="field">
-            <label>Título general</label>
+            <label>Título principal</label>
             <input className="input" name="publicTitle" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Activa tu suscripción" />
           </div>
           <div className="field">
@@ -137,7 +137,7 @@ export function PublicCheckoutDefaultsWizard({
       {step === 3 ? (
         <div className="wizard-panel">
           <div className="field">
-            <label>URL pública base</label>
+            <label>Dominio (automático)</label>
             <input
               ref={baseRef}
               className="input"
@@ -146,7 +146,7 @@ export function PublicCheckoutDefaultsWizard({
               placeholder="https://mdv.subs.apiflujos.com"
               readOnly
             />
-            <div className="field-hint">Usamos siempre el mismo dominio del panel.</div>
+            <div className="field-hint">Se usa el mismo dominio del panel.</div>
           </div>
         </div>
       ) : null}
