@@ -171,9 +171,7 @@ export function SideNav({ session }: { session: AdminSession | null }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const isPublicCheckoutActive =
-    pathname.startsWith("/public-checkout") ||
-    (pathname.startsWith("/settings") && searchParams?.get("tab") === "public-checkout");
+  void searchParams;
 
   useEffect(() => {
     const shell = document.querySelector(".app-shell") as HTMLElement | null;
@@ -303,15 +301,6 @@ export function SideNav({ session }: { session: AdminSession | null }) {
       >
         <NavIcon name="billing" className="nav-icon" />
         <span className="nav-label">Planes y Suscripciones</span>
-      </Link>
-      <Link
-        className={`nav-item ${isPublicCheckoutActive ? "is-active" : ""}`}
-        href="/settings?tab=public-checkout"
-        prefetch={false}
-        aria-current={isPublicCheckoutActive ? "page" : undefined}
-      >
-        <NavIcon name="checkout" className="nav-icon" />
-        <span className="nav-label">Checkout público</span>
       </Link>
       <Link
         className={`nav-item ${isActivePath(pathname, "/notifications") ? "is-active" : ""}`}
