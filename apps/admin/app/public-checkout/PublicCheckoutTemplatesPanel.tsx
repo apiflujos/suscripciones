@@ -418,15 +418,19 @@ export function PublicCheckoutTemplatesPanel({
   return (
     <div className="template-shell">
       <div className="panel module checkout-panel">
+        <div className="panelHeaderRow" style={{ marginBottom: 10 }}>
+          <div>
+            <strong>Checkout público</strong>
+            <div className="field-hint">Configura marca, dominio y plantillas en un solo lugar.</div>
+          </div>
+          <button className="primary" type="button" onClick={openCreate}>
+            Nueva plantilla
+          </button>
+        </div>
         <div className="checkout-panel-grid">
           {defaults && onSaveDefaults ? (
             <div className="checkout-section">
-              <div className="panelHeaderRow" style={{ marginBottom: 8 }}>
-                <div>
-                  <strong>Checkout público</strong>
-                  <div className="field-hint">Marca global, dominio automático y expiración.</div>
-                </div>
-              </div>
+              <div className="section-label">Marca y dominio</div>
               <PublicCheckoutDefaultsWizard defaults={defaults} csrfToken={csrfToken} onSave={onSaveDefaults} />
               <div style={{ marginTop: 8 }}>
                 {inlineState.action === "public_defaults" && inlineState.status === "ok" ? (
@@ -439,19 +443,11 @@ export function PublicCheckoutTemplatesPanel({
             </div>
           ) : null}
 
-        <div className="checkout-section">
-          <div className="template-header">
-            <div>
-              <h3 style={{ margin: 0 }}>Plantillas</h3>
-              <div className="field-hint">Crea checkout de Plan (link de pago) o Suscripción (tokenización).</div>
-            </div>
-            <button className="primary" type="button" onClick={openCreate}>
-              Nueva plantilla
-            </button>
-          </div>
-          <div className="template-grid">
-            {templates.map((t) => (
-              <div key={t.id} className={`template-card ${t.active ? "" : "is-disabled"}`}>
+          <div className="checkout-section">
+            <div className="section-label">Plantillas</div>
+            <div className="template-grid">
+              {templates.map((t) => (
+                <div key={t.id} className={`template-card ${t.active ? "" : "is-disabled"}`}>
                 <div className="template-card-top">
                   <div>
                     <div className="template-title">{t.name}</div>

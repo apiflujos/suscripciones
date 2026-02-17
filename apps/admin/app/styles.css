@@ -1838,6 +1838,13 @@ textarea {
   display: grid;
   gap: 16px;
 }
+.section-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  font-weight: 700;
+}
 .checkout-panel-grid {
   display: grid;
   grid-template-columns: minmax(0, 0.55fr) minmax(0, 0.45fr);
