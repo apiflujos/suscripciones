@@ -348,7 +348,7 @@ export function CheckoutTemplatesPanel({
               </div>
               <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
-                  {inlineMsg("checkout_template_update", "Guardado.", "Error guardando", inlineState)}
+                  {inlineMsg("checkout_template_update")}
                 </div>
                 <PendingButton className="primary" type="submit" pendingText="Guardando...">Guardar cambios</PendingButton>
               </div>
