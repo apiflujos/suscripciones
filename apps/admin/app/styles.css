@@ -1759,7 +1759,9 @@ textarea {
 }
 
 .publicCheckoutLogo {
-  height: 36px;
+  max-height: 72px;
+  max-width: 180px;
+  height: auto;
   width: auto;
   display: block;
 }

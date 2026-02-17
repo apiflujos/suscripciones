@@ -118,11 +118,13 @@ ordersRouter.post("/", async (req, res) => {
   const redirectUrl = await getWompiRedirectUrl();
   const customerName = customer.name || "Cliente";
   const itemName = parsed.data.lineItems?.[0]?.name ? String(parsed.data.lineItems[0].name) : "Producto";
+  const amountLabel = new Intl.NumberFormat("es-CO", { style: "currency", currency: parsed.data.currency, maximumFractionDigits: 0 })
+    .format(Math.trunc(totals.total / 100));
   let created: Awaited<ReturnType<WompiClient["createPaymentLink"]>> | null = null;
   try {
     created = await wompi.createPaymentLink({
-      name: `Pago a ${customerName}`,
-      description: itemName,
+      name: `${itemName} · ${customerName}`,
+      description: `${itemName} · ${amountLabel}`,
       single_use: true,
       collect_shipping: false,
       currency: parsed.data.currency,

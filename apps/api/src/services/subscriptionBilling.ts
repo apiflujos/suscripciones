@@ -15,6 +15,20 @@ import {
 } from "./runtimeConfig";
 import { schedulePaymentLinkNotifications } from "./notificationsScheduler";
 
+function formatCop(amountInCents: number) {
+  const pesos = Math.trunc(Number(amountInCents || 0) / 100);
+  return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(pesos);
+}
+
+function formatPeriodicity(intervalUnit: string, intervalCount: number) {
+  const count = Number(intervalCount || 1);
+  const unit = String(intervalUnit || "MONTH").toUpperCase();
+  if (unit === "DAY") return count === 1 ? "diaria" : `cada ${count} días`;
+  if (unit === "WEEK") return count === 1 ? "semanal" : `cada ${count} semanas`;
+  if (unit === "MONTH") return count === 1 ? "mensual" : `cada ${count} meses`;
+  return count === 1 ? "periódica" : `cada ${count} periodos`;
+}
+
 export async function createPaymentLinkForSubscription(args: {
   subscriptionId: string;
   amountInCentsOverride?: number;
@@ -96,9 +110,13 @@ export async function createPaymentLinkForSubscription(args: {
   let created: Awaited<ReturnType<WompiClient["createPaymentLink"]>>;
   try {
     const redirectUrl = await getWompiRedirectUrl();
+    const periodicidad = formatPeriodicity(sub.plan.intervalUnit, sub.plan.intervalCount);
+    const monto = formatCop(amountInCents);
+    const cliente = sub.customer?.name || sub.customer?.email || "Cliente";
+    const producto = sub.plan?.name || "Suscripción";
     created = await wompi.createPaymentLink({
-      name: `Suscripción ${sub.plan.name}`,
-      description: `Suscripción ${sub.id} (ciclo ${cycle})`,
+      name: `${producto} · ${cliente}`,
+      description: `${producto} (${periodicidad}) · ${monto} · ciclo ${cycle}`,
       single_use: true,
       collect_shipping: false,
       currency: sub.plan.currency,
