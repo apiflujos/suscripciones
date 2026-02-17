@@ -5,6 +5,7 @@ import {
   syncCentralAttributes,
   testCentralConnection,
   testShopifyForward,
+  updateCheckoutConfig,
   updateChatwoot,
   updateShopify,
   updateWompi
