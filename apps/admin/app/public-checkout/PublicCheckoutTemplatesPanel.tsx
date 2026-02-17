@@ -418,10 +418,12 @@ export function PublicCheckoutTemplatesPanel({
   return (
     <div className="template-shell">
       {defaults && onSaveDefaults ? (
-        <div className="panel module" style={{ marginBottom: 12 }}>
+        <div className="panel module checkout-base">
           <div className="panelHeaderRow" style={{ marginBottom: 8 }}>
-            <strong>Checkout público</strong>
-            <span className="field-hint">Marca global, dominio y expiración.</span>
+            <div>
+              <strong>Checkout público</strong>
+              <div className="field-hint">Marca global, dominio automático y expiración.</div>
+            </div>
           </div>
           <PublicCheckoutDefaultsWizard defaults={defaults} csrfToken={csrfToken} onSave={onSaveDefaults} />
           <div style={{ marginTop: 8 }}>
@@ -438,7 +440,7 @@ export function PublicCheckoutTemplatesPanel({
       <div className="template-header">
         <div>
           <h3 style={{ margin: 0 }}>Plantillas públicas</h3>
-          <div className="field-hint">Cada plantilla genera su propia URL pública.</div>
+          <div className="field-hint">Crea checkout de Plan (link de pago) o Suscripción (tokenización).</div>
         </div>
         <button className="primary" type="button" onClick={openCreate}>
           Nueva plantilla
@@ -450,7 +452,7 @@ export function PublicCheckoutTemplatesPanel({
           <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
               <strong>{formTitle}</strong>
-              <div className="field-hint">Configura la plantilla y guarda.</div>
+              <div className="field-hint">Configura y guarda. El preview se actualiza en tiempo real.</div>
             </div>
             <button className="ghost" type="button" onClick={closeModal}>
               Cerrar
@@ -476,7 +478,7 @@ export function PublicCheckoutTemplatesPanel({
 
             <div className="template-modal-left">
               <div className="builder-group">
-                <div className="builder-group-title">Datos de la plantilla</div>
+                <div className="builder-group-title">1. Datos de la plantilla</div>
                 <div className="field">
                   <label>Nombre</label>
                   <input className="input" name="name" value={formName} onChange={(e) => setFormName(e.target.value)} required />
@@ -504,7 +506,7 @@ export function PublicCheckoutTemplatesPanel({
               </div>
 
               <div className="builder-group">
-                <div className="builder-group-title">Productos</div>
+                <div className="builder-group-title">2. Productos</div>
                 <div className="field row">
                   <label>Selector de productos</label>
                   <input
@@ -585,7 +587,7 @@ export function PublicCheckoutTemplatesPanel({
               </div>
 
               <div className="builder-group">
-                <div className="builder-group-title">Contenido del checkout</div>
+                <div className="builder-group-title">3. Contenido</div>
                 <div className="field">
                   <label>Título (checkout)</label>
                   <input
@@ -624,7 +626,7 @@ export function PublicCheckoutTemplatesPanel({
               </div>
 
               <div className="builder-group">
-                <div className="builder-group-title">Campos personales</div>
+                <div className="builder-group-title">4. Campos personales</div>
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
                   <SortableContext items={fieldSections.map((f) => f.id)} strategy={verticalListSortingStrategy}>
                     <div className="field-list">

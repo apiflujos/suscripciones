@@ -1832,7 +1832,7 @@ textarea {
 
 .template-shell {
   display: grid;
-  gap: 16px;
+  gap: 18px;
 }
 
 .template-header {
@@ -1843,12 +1843,12 @@ textarea {
 }
 .template-inline-builder {
   border: 1px solid rgba(15, 23, 42, 0.12);
-  border-radius: 16px;
-  padding: 14px;
+  border-radius: 18px;
+  padding: 18px;
   background: #fff;
   margin: 14px 0;
   display: grid;
-  gap: 12px;
+  gap: 16px;
 }
 
 .template-grid {
@@ -1859,20 +1859,20 @@ textarea {
 .template-modal-body {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
-  gap: 16px;
+  gap: 20px;
   align-items: start;
 }
 .template-modal-left {
   display: grid;
-  gap: 12px;
+  gap: 14px;
 }
 .template-preview {
   border: 1px solid rgba(15, 23, 42, 0.12);
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 14px;
-  background: #fbfbfd;
+  background: #f8fafc;
   display: grid;
-  gap: 10px;
+  gap: 12px;
   align-content: start;
   min-height: 220px;
 }
@@ -1884,11 +1884,11 @@ textarea {
 }
 .preview-card {
   border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 12px;
-  padding: 10px;
+  border-radius: 14px;
+  padding: 12px;
   background: #fff;
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 .preview-device {
   font-size: 11px;
@@ -1953,8 +1953,8 @@ textarea {
 }
 .builder-group {
   border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 14px;
-  padding: 12px;
+  border-radius: 16px;
+  padding: 14px;
   background: #fff;
   display: grid;
   gap: 10px;
@@ -1973,10 +1973,10 @@ textarea {
 .field-row {
   display: grid;
   grid-template-columns: 34px 1fr auto;
-  gap: 8px;
+  gap: 10px;
   align-items: center;
-  padding: 8px;
-  border-radius: 12px;
+  padding: 10px;
+  border-radius: 14px;
   border: 1px solid rgba(15, 23, 42, 0.08);
   background: #f8fafc;
 }
@@ -1986,7 +1986,7 @@ textarea {
 .drag-handle {
   width: 30px;
   height: 30px;
-  border-radius: 8px;
+  border-radius: 10px;
   border: 1px solid rgba(15, 23, 42, 0.1);
   background: #fff;
   cursor: grab;
