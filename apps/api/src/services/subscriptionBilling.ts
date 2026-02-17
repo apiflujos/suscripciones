@@ -4,6 +4,7 @@ import { WompiClient } from "../providers/wompi/client";
 import { systemLog } from "./systemLog";
 import { sha256Hex } from "../lib/crypto";
 import { ensureChatwootContactForCustomer, syncChatwootAttributesForCustomer } from "./chatwootSync";
+import { getCredential } from "./credentials";
 import {
   getChatwootConfig,
   getWompiApiBaseUrl,
@@ -27,6 +28,15 @@ function formatPeriodicity(intervalUnit: string, intervalCount: number) {
   if (unit === "WEEK") return count === 1 ? "semanal" : `cada ${count} semanas`;
   if (unit === "MONTH") return count === 1 ? "mensual" : `cada ${count} meses`;
   return count === 1 ? "periódica" : `cada ${count} periodos`;
+}
+
+function replaceVars(input: string, vars: Record<string, string>) {
+  return input
+    .replaceAll("{contacto}", vars.contacto)
+    .replaceAll("{producto}", vars.producto)
+    .replaceAll("{monto}", vars.monto)
+    .replaceAll("{periodicidad}", vars.periodicidad)
+    .replaceAll("{fecha_expira}", vars.fecha_expira);
 }
 
 export async function createPaymentLinkForSubscription(args: {
@@ -114,9 +124,25 @@ export async function createPaymentLinkForSubscription(args: {
     const monto = formatCop(amountInCents);
     const cliente = sub.customer?.name || sub.customer?.email || "Cliente";
     const producto = sub.plan?.name || "Suscripción";
+    const rawConfig = (await getCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG")) || "";
+    let cfg: any = null;
+    try {
+      cfg = rawConfig ? JSON.parse(rawConfig) : null;
+    } catch {}
+    const templateTitle = String(cfg?.subscriptionWompiTitle || "").trim();
+    const templateDesc = String(cfg?.subscriptionWompiDescription || "").trim();
+    const vars = {
+      contacto: cliente,
+      producto,
+      monto,
+      periodicidad,
+      fecha_expira: ""
+    };
+    const wompiTitle = templateTitle ? replaceVars(templateTitle, vars) : `${producto} · ${cliente}`;
+    const wompiDescription = templateDesc ? replaceVars(templateDesc, vars) : `${producto} (${periodicidad}) · ${monto} · ciclo ${cycle}`;
     created = await wompi.createPaymentLink({
-      name: `${producto} · ${cliente}`,
-      description: `${producto} (${periodicidad}) · ${monto} · ciclo ${cycle}`,
+      name: wompiTitle,
+      description: wompiDescription,
       single_use: true,
       collect_shipping: false,
       currency: sub.plan.currency,

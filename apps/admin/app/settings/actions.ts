@@ -162,6 +162,10 @@ export async function updateCheckoutConfig(formData: FormData) {
   const planDescription = String(formData.get("planDescription") || "").trim();
   const subscriptionTitle = String(formData.get("subscriptionTitle") || "").trim();
   const subscriptionDescription = String(formData.get("subscriptionDescription") || "").trim();
+  const planWompiTitle = String(formData.get("planWompiTitle") || "").trim();
+  const planWompiDescription = String(formData.get("planWompiDescription") || "").trim();
+  const subscriptionWompiTitle = String(formData.get("subscriptionWompiTitle") || "").trim();
+  const subscriptionWompiDescription = String(formData.get("subscriptionWompiDescription") || "").trim();
 
   try {
     await adminFetch("/admin/settings/checkout-config", {
@@ -174,7 +178,11 @@ export async function updateCheckoutConfig(formData: FormData) {
         ...(planTitle ? { planTitle } : { planTitle: "" }),
         ...(planDescription ? { planDescription } : { planDescription: "" }),
         ...(subscriptionTitle ? { subscriptionTitle } : { subscriptionTitle: "" }),
-        ...(subscriptionDescription ? { subscriptionDescription } : { subscriptionDescription: "" })
+        ...(subscriptionDescription ? { subscriptionDescription } : { subscriptionDescription: "" }),
+        ...(planWompiTitle ? { planWompiTitle } : { planWompiTitle: "" }),
+        ...(planWompiDescription ? { planWompiDescription } : { planWompiDescription: "" }),
+        ...(subscriptionWompiTitle ? { subscriptionWompiTitle } : { subscriptionWompiTitle: "" }),
+        ...(subscriptionWompiDescription ? { subscriptionWompiDescription } : { subscriptionWompiDescription: "" })
       })
     });
     redirectWith("checkout_config", "ok");

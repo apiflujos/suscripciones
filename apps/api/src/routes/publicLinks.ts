@@ -19,7 +19,11 @@ publicLinksRouter.get("/checkout-config", async (_req, res) => {
     planTitle: String(parsed?.planTitle || "").trim() || "Paga tu plan",
     planDescription: String(parsed?.planDescription || "").trim() || "",
     subscriptionTitle: String(parsed?.subscriptionTitle || "").trim() || "Activa tu suscripción",
-    subscriptionDescription: String(parsed?.subscriptionDescription || "").trim() || ""
+    subscriptionDescription: String(parsed?.subscriptionDescription || "").trim() || "",
+    planWompiTitle: String(parsed?.planWompiTitle || "").trim() || "",
+    planWompiDescription: String(parsed?.planWompiDescription || "").trim() || "",
+    subscriptionWompiTitle: String(parsed?.subscriptionWompiTitle || "").trim() || "",
+    subscriptionWompiDescription: String(parsed?.subscriptionWompiDescription || "").trim() || ""
   };
   res.json({ ok: true, config });
 });

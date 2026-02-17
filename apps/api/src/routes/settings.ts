@@ -69,7 +69,11 @@ const checkoutConfigUpdateSchema = z.object({
   planTitle: z.string().optional().or(z.literal("")),
   planDescription: z.string().optional().or(z.literal("")),
   subscriptionTitle: z.string().optional().or(z.literal("")),
-  subscriptionDescription: z.string().optional().or(z.literal(""))
+  subscriptionDescription: z.string().optional().or(z.literal("")),
+  planWompiTitle: z.string().optional().or(z.literal("")),
+  planWompiDescription: z.string().optional().or(z.literal("")),
+  subscriptionWompiTitle: z.string().optional().or(z.literal("")),
+  subscriptionWompiDescription: z.string().optional().or(z.literal(""))
 });
 
  
@@ -239,7 +243,11 @@ settingsRouter.get("/", async (_req, res) => {
       planTitle: checkoutConfig.planTitle || "Paga tu plan",
       planDescription: checkoutConfig.planDescription || "",
       subscriptionTitle: checkoutConfig.subscriptionTitle || "Activa tu suscripción",
-      subscriptionDescription: checkoutConfig.subscriptionDescription || ""
+      subscriptionDescription: checkoutConfig.subscriptionDescription || "",
+      planWompiTitle: checkoutConfig.planWompiTitle || "",
+      planWompiDescription: checkoutConfig.planWompiDescription || "",
+      subscriptionWompiTitle: checkoutConfig.subscriptionWompiTitle || "",
+      subscriptionWompiDescription: checkoutConfig.subscriptionWompiDescription || ""
     }
   });
 });
@@ -308,7 +316,11 @@ settingsRouter.put("/checkout-config", async (req, res) => {
     planTitle: parsed.data.planTitle || "",
     planDescription: parsed.data.planDescription || "",
     subscriptionTitle: parsed.data.subscriptionTitle || "",
-    subscriptionDescription: parsed.data.subscriptionDescription || ""
+    subscriptionDescription: parsed.data.subscriptionDescription || "",
+    planWompiTitle: parsed.data.planWompiTitle || "",
+    planWompiDescription: parsed.data.planWompiDescription || "",
+    subscriptionWompiTitle: parsed.data.subscriptionWompiTitle || "",
+    subscriptionWompiDescription: parsed.data.subscriptionWompiDescription || ""
   };
 
   await setCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG", JSON.stringify(payload));

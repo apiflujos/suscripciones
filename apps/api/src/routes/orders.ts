@@ -1,9 +1,10 @@
 import express from "express";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
-import { LogLevel, PaymentStatus, RetryJobType } from "@prisma/client";
+import { LogLevel, PaymentStatus, RetryJobType, CredentialProvider } from "@prisma/client";
 import { WompiClient } from "../providers/wompi/client";
 import { getChatwootConfig, getWompiApiBaseUrl, getWompiCheckoutLinkBaseUrl, getWompiPrivateKey, getWompiRedirectUrl } from "../services/runtimeConfig";
+import { getCredential } from "../services/credentials";
 import { ensureChatwootContactForCustomer, syncChatwootAttributesForCustomer } from "../services/chatwootSync";
 import { schedulePaymentLinkNotifications } from "../services/notificationsScheduler";
 import { systemLog } from "../services/systemLog";
@@ -116,15 +117,32 @@ ordersRouter.post("/", async (req, res) => {
   });
 
   const redirectUrl = await getWompiRedirectUrl();
-  const customerName = customer.name || "Cliente";
+  const customerName = customer.name || customer.email || "Cliente";
   const itemName = parsed.data.lineItems?.[0]?.name ? String(parsed.data.lineItems[0].name) : "Producto";
   const amountLabel = new Intl.NumberFormat("es-CO", { style: "currency", currency: parsed.data.currency, maximumFractionDigits: 0 })
     .format(Math.trunc(totals.total / 100));
+
+  const rawConfig = (await getCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG")) || "";
+  let cfg: any = null;
+  try {
+    cfg = rawConfig ? JSON.parse(rawConfig) : null;
+  } catch {}
+  const templateTitle = String(cfg?.planWompiTitle || "").trim();
+  const templateDesc = String(cfg?.planWompiDescription || "").trim();
+  const replaceVars = (input: string) =>
+    input
+      .replaceAll("{contacto}", customerName)
+      .replaceAll("{producto}", itemName)
+      .replaceAll("{monto}", amountLabel)
+      .replaceAll("{periodicidad}", "")
+      .replaceAll("{fecha_expira}", parsed.data.expiresAt ? String(parsed.data.expiresAt) : "");
+  const wompiTitle = templateTitle ? replaceVars(templateTitle) : `${itemName} · ${customerName}`;
+  const wompiDescription = templateDesc ? replaceVars(templateDesc) : `${itemName} · ${amountLabel}`;
   let created: Awaited<ReturnType<WompiClient["createPaymentLink"]>> | null = null;
   try {
     created = await wompi.createPaymentLink({
-      name: `${itemName} · ${customerName}`,
-      description: `${itemName} · ${amountLabel}`,
+      name: wompiTitle,
+      description: wompiDescription,
       single_use: true,
       collect_shipping: false,
       currency: parsed.data.currency,
