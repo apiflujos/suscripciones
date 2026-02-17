@@ -30,6 +30,7 @@ export default async function PublicTokenizePage({
   const tokenRes = await fetchPublicToken(token);
   const configRes = await fetchCheckoutConfig();
   const config = configRes.ok ? configRes.json?.config || {} : {};
+  const template = tokenRes.ok ? tokenRes.json?.template || null : null;
   const { token: adminToken } = getAdminApiConfig();
   const settingsRes = adminToken
     ? await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001"}/admin/settings`, {
@@ -38,11 +39,14 @@ export default async function PublicTokenizePage({
       })
     : null;
   const settings = settingsRes && "ok" in settingsRes ? await (settingsRes as any).json().catch(() => null) : null;
-  const title = config?.subscriptionTitle || "Activa tu suscripción";
+  const title = template?.publicTitle || config?.subscriptionTitle || "Activa tu suscripción";
   const subtitle = "Guarda tu método de pago en un paso seguro.";
-  const description = config?.subscriptionDescription || "Usamos Wompi para tokenizar tu tarjeta. No se realizan cargos en este paso.";
+  const description =
+    template?.publicDescription ||
+    config?.subscriptionDescription ||
+    "Usamos Wompi para tokenizar tu tarjeta. No se realizan cargos en este paso.";
   const contactEmail = "";
-  const logoUrl = config?.logoUrl || "";
+  const logoUrl = template?.logoUrl || config?.logoUrl || "";
   const fontFamily = "";
   const primaryColor = "";
 
@@ -71,36 +75,39 @@ export default async function PublicTokenizePage({
   const styleVars = primaryColor ? ({ ["--primary" as any]: primaryColor } as CSSProperties) : {};
 
   return (
-    <main className="page publicCheckoutShell" style={{ maxWidth: 680, ...(fontFamily ? { fontFamily } : {}), ...styleVars }}>
-      <div className="card cardPad publicCheckoutCard" style={{ display: "grid", gap: 12, ...(primaryColor ? { borderColor: primaryColor } : {}) }}>
-        <div>
-          {logoUrl ? <img src={logoUrl} alt={title} className="publicCheckoutLogo" /> : null}
-          <h1 style={{ marginTop: 0 }}>{title}</h1>
-          <p style={{ marginTop: 6 }}>{subtitle}</p>
-          <p className="field-hint">{description}</p>
+    <main className="page publicCheckoutShell" style={{ maxWidth: 860, ...(fontFamily ? { fontFamily } : {}), ...styleVars }}>
+      <div className="card cardPad publicCheckoutCard" style={{ ...(primaryColor ? { borderColor: primaryColor } : {}) }}>
+        <div className="publicCheckoutLayout">
+          <div className="publicCheckoutIntro">
+            {logoUrl ? <img src={logoUrl} alt={title} className="publicCheckoutLogo" /> : null}
+            <h1 style={{ marginTop: 0 }}>{title}</h1>
+            <p style={{ marginTop: 6 }}>{subtitle}</p>
+            <p className="field-hint">{description}</p>
+            {contactEmail ? (
+              <div className="field-hint">
+                ¿Necesitas ayuda? Escríbenos a {contactEmail}.
+              </div>
+            ) : null}
+          </div>
+
+          <div className="publicCheckoutSide">
+            {sp.error ? (
+              <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
+                Error: {sp.error}
+              </div>
+            ) : null}
+
+            {!publicKey ? (
+              <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
+                Servicio temporalmente no disponible.
+              </div>
+            ) : (
+              <form method="POST" action={`/public/tokenize/${encodeURIComponent(token)}/process`} style={{ display: "grid", gap: 10 }}>
+                <WompiTokenizeWidget publicKey={publicKey} />
+              </form>
+            )}
+          </div>
         </div>
-
-        {sp.error ? (
-          <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
-            Error: {sp.error}
-          </div>
-        ) : null}
-
-        {!publicKey ? (
-          <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
-            Servicio temporalmente no disponible.
-          </div>
-        ) : (
-          <form method="POST" action={`/public/tokenize/${encodeURIComponent(token)}/process`} style={{ display: "grid", gap: 10 }}>
-            <WompiTokenizeWidget publicKey={publicKey} />
-          </form>
-        )}
-
-        {contactEmail ? (
-          <div className="field-hint">
-            ¿Necesitas ayuda? Escríbenos a {contactEmail}.
-          </div>
-        ) : null}
       </div>
     </main>
   );

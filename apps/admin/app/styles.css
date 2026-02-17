@@ -1759,8 +1759,8 @@ textarea {
 }
 
 .publicCheckoutLogo {
-  max-height: 72px;
-  max-width: 180px;
+  max-height: 96px;
+  max-width: 240px;
   height: auto;
   width: auto;
   display: block;
@@ -1769,6 +1769,25 @@ textarea {
 .publicCheckoutForm {
   display: grid;
   gap: 12px;
+}
+.publicCheckoutLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.58fr) minmax(0, 0.42fr);
+  gap: 18px;
+  align-items: start;
+}
+.publicCheckoutIntro {
+  display: grid;
+  gap: 8px;
+}
+.publicCheckoutSide {
+  display: grid;
+  gap: 10px;
+}
+@media (max-width: 860px) {
+  .publicCheckoutLayout {
+    grid-template-columns: 1fr;
+  }
 }
 .publicCheckoutMiniForm {
   display: grid;
@@ -1917,6 +1936,23 @@ textarea {
   background: #fff;
   display: grid;
   gap: 10px;
+}
+.preview-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.58fr) minmax(0, 0.42fr);
+  gap: 10px;
+  align-items: start;
+}
+.preview-layout.preview-layout-mobile {
+  grid-template-columns: 1fr;
+}
+.preview-intro {
+  display: grid;
+  gap: 6px;
+}
+.preview-form {
+  display: grid;
+  gap: 8px;
 }
 .preview-device {
   font-size: 11px;

@@ -173,14 +173,16 @@ export default async function BillingPage({
   if (tipo === "suscripciones") subParams.set("collectionMode", "AUTO_DEBIT");
   if (tipo === "planes") subParams.set("collectionMode", "MANUAL_LINK");
 
-  const [subs, customers, products] = await Promise.all([
+  const [subs, customers, products, templates] = await Promise.all([
     fetchAdmin(`/admin/subscriptions?${subParams.toString()}`),
     fetchAdmin("/admin/customers?take=200"),
-    fetchAdmin("/admin/products?take=200")
+    fetchAdmin("/admin/products?take=200"),
+    fetchAdmin("/admin/checkout-templates")
   ]);
   const subItems = (subs.json?.items ?? []) as any[];
   const customerItems = (customers.json?.items ?? []) as any[];
   const productItems = (products.json?.items ?? []) as any[];
+  const checkoutTemplates = (templates.json?.items ?? []) as any[];
 
   const rows = subItems
     .map((s) => {
@@ -360,6 +362,7 @@ export default async function BillingPage({
           <NewBillingAssignmentForm
             customers={customerItems}
             catalogItems={productItems}
+            checkoutTemplates={checkoutTemplates}
             csrfToken={csrfToken}
             defaultOpen={Boolean(crear) || Boolean(selectCustomerId) || Boolean(contactCreated)}
             defaultSelectedCustomerId={selectCustomerId}

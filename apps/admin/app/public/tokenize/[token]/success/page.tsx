@@ -21,13 +21,16 @@ export default async function PublicTokenizeSuccessPage({ params }: { params: Pr
   const configRes = await fetchCheckoutConfig();
   const config = configRes.ok ? configRes.json?.config || {} : {};
   const tokenRes = await fetchPublicToken(linkToken);
-  void tokenRes;
+  const template = tokenRes.ok ? tokenRes.json?.template || null : null;
 
   const title = "Gracias";
   const subtitle = "Tu método de pago quedó guardado.";
-  const description = config?.subscriptionDescription || "Desde ahora podremos procesar tu suscripción de forma automática.";
+  const description =
+    template?.publicDescription ||
+    config?.subscriptionDescription ||
+    "Desde ahora podremos procesar tu suscripción de forma automática.";
   const contactEmail = "";
-  const logoUrl = config?.logoUrl || "";
+  const logoUrl = template?.logoUrl || config?.logoUrl || "";
   const fontFamily = "";
   const primaryColor = "";
   const redirectUrl = "";

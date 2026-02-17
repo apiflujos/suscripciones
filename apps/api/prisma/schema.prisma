@@ -27,6 +27,10 @@ enum PlanType {
   auto_subscription
 }
 
+enum PublicCheckoutKind {
+  PLAN
+  SUBSCRIPTION
+}
 
 enum PaymentStatus {
   PENDING
@@ -155,6 +159,25 @@ model SubscriptionPlan {
 
   subscriptions Subscription[]
   paymentLinks  PaymentLink[]
+}
+
+model PublicCheckoutTemplate {
+  id               String              @id @default(uuid()) @db.Uuid
+  name             String
+  kind             PublicCheckoutKind
+  active           Boolean             @default(true)
+  allowProductSelect Boolean           @default(false)
+  productIds       Json?
+  expiryHours      Int?
+  logoUrl          String?
+  publicTitle      String?
+  publicDescription String?
+  wompiTitle       String?
+  wompiDescription String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@index([active, kind])
 }
 
 model Subscription {

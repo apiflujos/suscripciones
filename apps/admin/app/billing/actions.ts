@@ -274,6 +274,7 @@ export async function createPlanAndSubscription(formData: FormData) {
   const option2Value = String(formData.get("option2Value") || "").trim();
   const startAt = String(formData.get("startAt") || "").trim();
   const firstPeriodEndAt = String(formData.get("firstPeriodEndAt") || "").trim();
+  const templateIdRaw = String(formData.get("templateId") || "").trim();
   const submitActionRaw = String(formData.get("submitAction") || "").trim().toUpperCase();
   const submitAction = submitActionRaw === "CHARGE_NOW" ? "CHARGE_NOW" : submitActionRaw === "LINK_NOW" ? "LINK_NOW" : "CREATE";
 
@@ -304,6 +305,16 @@ export async function createPlanAndSubscription(formData: FormData) {
     if (!totals.totalInCents || totals.totalInCents <= 0) throw new Error("monto_invalido");
 
     const collectionMode = billingType === "PLAN" ? "AUTO_LINK" : "AUTO_DEBIT";
+
+    const templatesRes = templateIdRaw ? await adminFetch("/admin/checkout-templates", { method: "GET" }).catch(() => null) : null;
+    const templateCandidate = templateIdRaw
+      ? (templatesRes?.items ?? []).find((t: any) => String(t.id) === String(templateIdRaw)) ?? null
+      : null;
+    const template =
+      templateCandidate &&
+      String(templateCandidate.kind || "").toUpperCase() === (billingType === "PLAN" ? "PLAN" : "SUBSCRIPTION")
+        ? templateCandidate
+        : null;
 
     const createdPlan = await adminFetch("/admin/plans", {
       method: "POST",
@@ -357,6 +368,7 @@ export async function createPlanAndSubscription(formData: FormData) {
       body: JSON.stringify({
         customerId,
         planId,
+        ...(template?.id ? { metadata: { templateId: String(template.id) } } : {}),
         ...(startAtValue ? { startAt: startAtValue } : {}),
         ...(endAtValue ? { firstPeriodEndAt: endAtValue } : {}),
         ...(shouldCreateLink ? { createPaymentLink: true } : {})
@@ -366,17 +378,24 @@ export async function createPlanAndSubscription(formData: FormData) {
     const checkoutUrl = sub?.checkoutUrl ? String(sub.checkoutUrl) : "";
     const settings = await adminFetch("/admin/settings", { method: "GET" }).catch(() => null);
     const checkoutConfig = settings?.checkoutConfig || {};
+    const templateExpiryHours = template?.expiryHours ?? null;
+    const configExpiryHours =
+      Number.isFinite(Number(checkoutConfig?.tokenExpiryHours)) && Number(checkoutConfig?.tokenExpiryHours) > 0
+        ? Math.min(Math.max(Math.trunc(Number(checkoutConfig?.tokenExpiryHours)), 1), 168)
+        : null;
+    const expiryHours = template
+      ? (Number.isFinite(Number(templateExpiryHours)) && Number(templateExpiryHours) > 0
+          ? Math.min(Math.max(Math.trunc(Number(templateExpiryHours)), 1), 168)
+          : null)
+      : configExpiryHours;
 
     if (billingType === "PLAN" && checkoutUrl) {
       const customerRes = await adminFetch(`/admin/customers/${customerId}`, { method: "GET" }).catch(() => null);
       const customer = customerRes?.customer || {};
       const base = String(checkoutConfig?.planBaseUrl || "").trim();
-      const hours = Number.isFinite(Number(checkoutConfig?.tokenExpiryHours)) && Number(checkoutConfig?.tokenExpiryHours) > 0
-        ? Math.min(Math.max(Math.trunc(Number(checkoutConfig?.tokenExpiryHours)), 1), 168)
-        : 24;
       const token = crypto.randomBytes(18).toString("hex");
       const url = base ? `${base.replace(/\/$/, "")}/public/plan/${token}` : `/public/plan/${token}`;
-      const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+      const expiresAt = expiryHours ? new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString() : null;
       const prevMeta = customer?.metadata ?? {};
       const nextMeta = {
         ...prevMeta,
@@ -386,6 +405,7 @@ export async function createPlanAndSubscription(formData: FormData) {
           checkoutUrl,
           planId,
           kind: "PLAN",
+          templateId: template?.id || null,
           createdAt: new Date().toISOString(),
           expiresAt,
           usedAt: null
@@ -425,12 +445,9 @@ export async function createPlanAndSubscription(formData: FormData) {
         redirect(mergeQuery(returnTo, { created: "1", customerId }));
       }
       const base = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
-      const hours = Number.isFinite(Number(checkoutConfig?.tokenExpiryHours)) && Number(checkoutConfig?.tokenExpiryHours) > 0
-        ? Math.min(Math.max(Math.trunc(Number(checkoutConfig?.tokenExpiryHours)), 1), 168)
-        : 24;
       const token = crypto.randomBytes(18).toString("hex");
       const url = base ? `${base.replace(/\/$/, "")}/public/suscripcion/${token}` : `/public/suscripcion/${token}`;
-      const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+      const expiresAt = expiryHours ? new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString() : null;
       const prevMeta = customer?.metadata ?? {};
       const nextMeta = {
         ...prevMeta,
@@ -439,6 +456,7 @@ export async function createPlanAndSubscription(formData: FormData) {
           token,
           planId,
           kind: "SUBSCRIPTION",
+          templateId: template?.id || null,
           createdAt: new Date().toISOString(),
           expiresAt,
           usedAt: null

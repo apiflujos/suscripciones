@@ -18,6 +18,8 @@ import { PendingButton } from "../ui/PendingButton";
 import { getCsrfToken } from "../lib/csrf";
 import { ConnectionsPanel } from "./ConnectionsPanel";
 import { CheckoutConfigPanel } from "./CheckoutConfigPanel";
+import { CheckoutTemplatesPanel } from "../checkout-templates/CheckoutTemplatesPanel";
+import { createCheckoutTemplate, updateCheckoutTemplate, deleteCheckoutTemplate } from "../checkout-templates/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +29,14 @@ function getConfig() {
 
 async function fetchSettings() {
   return fetchAdminCached("/admin/settings", { ttlMs: 1500 });
+}
+
+async function fetchCheckoutTemplates() {
+  return fetchAdminCached("/admin/checkout-templates", { ttlMs: 1500 });
+}
+
+async function fetchProducts() {
+  return fetchAdminCached("/admin/products?take=200", { ttlMs: 1500 });
 }
 
 export default async function SettingsPage({
@@ -46,7 +56,11 @@ export default async function SettingsPage({
   }
 
   const settingsRes = await fetchSettings();
+  const templatesRes = await fetchCheckoutTemplates();
+  const productsRes = await fetchProducts();
   const settings = settingsRes.ok ? settingsRes.json : null;
+  const templates = templatesRes.ok ? templatesRes.json?.items || [] : [];
+  const products = productsRes.ok ? productsRes.json?.items || [] : [];
   const c = await cookies();
   const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
   const session = await verifyAdminSessionToken(sessionToken);
@@ -220,6 +234,18 @@ export default async function SettingsPage({
               csrfToken={csrfToken}
               onSave={updateCheckoutConfig}
               inlineState={inlineState}
+            />
+            <div style={{ height: 16 }} />
+            <CheckoutTemplatesPanel
+              templates={templates}
+              products={products}
+              csrfToken={csrfToken}
+              inlineState={inlineState}
+              actions={{
+                create: createCheckoutTemplate,
+                update: updateCheckoutTemplate,
+                remove: deleteCheckoutTemplate
+              }}
             />
           </div>
         </section>

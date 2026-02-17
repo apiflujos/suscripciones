@@ -1,4 +1,4 @@
-import { LogLevel, PaymentStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
+import { CredentialProvider, LogLevel, PaymentStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { WompiClient } from "../providers/wompi/client";
 import { systemLog } from "./systemLog";
@@ -129,8 +129,22 @@ export async function createPaymentLinkForSubscription(args: {
     try {
       cfg = rawConfig ? JSON.parse(rawConfig) : null;
     } catch {}
-    const templateTitle = String(cfg?.subscriptionWompiTitle || "").trim();
-    const templateDesc = String(cfg?.subscriptionWompiDescription || "").trim();
+    const collectionMode = String((sub.plan.metadata as any)?.collectionMode || "MANUAL_LINK");
+    const isPlan = collectionMode === "AUTO_LINK";
+    const baseTitle = String(isPlan ? cfg?.planWompiTitle : cfg?.subscriptionWompiTitle || "").trim();
+    const baseDesc = String(isPlan ? cfg?.planWompiDescription : cfg?.subscriptionWompiDescription || "").trim();
+    const templateId = String((sub.metadata as any)?.templateId || "").trim();
+    const template =
+      templateId
+        ? await prisma.publicCheckoutTemplate.findUnique({ where: { id: templateId } })
+        : null;
+    const templateOk =
+      template &&
+      String(template.kind || "").toUpperCase() === (isPlan ? "PLAN" : "SUBSCRIPTION")
+        ? template
+        : null;
+    const templateTitle = String(templateOk?.wompiTitle || baseTitle || "").trim();
+    const templateDesc = String(templateOk?.wompiDescription || baseDesc || "").trim();
     const vars = {
       contacto: cliente,
       producto,

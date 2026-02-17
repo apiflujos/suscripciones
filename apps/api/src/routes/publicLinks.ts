@@ -44,6 +44,11 @@ publicLinksRouter.get("/payment-links/:token", async (req, res) => {
     return res.status(410).json({ error: "expired" });
   }
 
+  const templateId = String(link?.templateId || "").trim();
+  const template = templateId
+    ? await prisma.publicCheckoutTemplate.findUnique({ where: { id: templateId } })
+    : null;
+
   res.json({
     ok: true,
     checkoutUrl: String(link?.checkoutUrl || ""),
@@ -52,6 +57,18 @@ publicLinksRouter.get("/payment-links/:token", async (req, res) => {
       name: customer.name || "",
       email: customer.email || "",
       phone: customer.phone || ""
-    }
+    },
+    template: template
+      ? {
+          id: template.id,
+          name: template.name,
+          kind: template.kind,
+          logoUrl: template.logoUrl || null,
+          publicTitle: template.publicTitle || null,
+          publicDescription: template.publicDescription || null,
+          wompiTitle: template.wompiTitle || null,
+          wompiDescription: template.wompiDescription || null
+        }
+      : null
   });
 });

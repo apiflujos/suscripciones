@@ -1,0 +1,92 @@
+import express from "express";
+import { z } from "zod";
+import { prisma } from "../db/prisma";
+import { PublicCheckoutKind } from "@prisma/client";
+
+const templateSchema = z.object({
+  name: z.string().min(1),
+  kind: z.nativeEnum(PublicCheckoutKind),
+  active: z.boolean().optional(),
+  allowProductSelect: z.boolean().optional(),
+  productIds: z.array(z.string()).optional(),
+  expiryHours: z.coerce.number().int().positive().optional(),
+  logoUrl: z.string().optional().or(z.literal("")),
+  publicTitle: z.string().optional().or(z.literal("")),
+  publicDescription: z.string().optional().or(z.literal("")),
+  wompiTitle: z.string().optional().or(z.literal("")),
+  wompiDescription: z.string().optional().or(z.literal(""))
+});
+
+export const checkoutTemplatesRouter = express.Router();
+
+checkoutTemplatesRouter.get("/", async (_req, res) => {
+  const items = await prisma.publicCheckoutTemplate.findMany({
+    orderBy: { createdAt: "desc" }
+  });
+  res.json({ items });
+});
+
+checkoutTemplatesRouter.post("/", async (req, res) => {
+  const parsed = templateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+  const data = parsed.data;
+
+  if (!data.allowProductSelect && (!data.productIds || data.productIds.length === 0)) {
+    return res.status(400).json({ error: "product_required" });
+  }
+
+  const created = await prisma.publicCheckoutTemplate.create({
+    data: {
+      name: data.name,
+      kind: data.kind,
+      active: data.active ?? true,
+      allowProductSelect: data.allowProductSelect ?? false,
+      productIds: data.productIds || [],
+      expiryHours: data.expiryHours ?? null,
+      logoUrl: data.logoUrl || null,
+      publicTitle: data.publicTitle || null,
+      publicDescription: data.publicDescription || null,
+      wompiTitle: data.wompiTitle || null,
+      wompiDescription: data.wompiDescription || null
+    }
+  });
+
+  res.status(201).json({ template: created });
+});
+
+checkoutTemplatesRouter.put("/:id", async (req, res) => {
+  const id = String(req.params.id || "").trim();
+  if (!id) return res.status(400).json({ error: "invalid_id" });
+  const parsed = templateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+  const data = parsed.data;
+
+  if (!data.allowProductSelect && (!data.productIds || data.productIds.length === 0)) {
+    return res.status(400).json({ error: "product_required" });
+  }
+
+  const updated = await prisma.publicCheckoutTemplate.update({
+    where: { id },
+    data: {
+      name: data.name,
+      kind: data.kind,
+      active: data.active ?? true,
+      allowProductSelect: data.allowProductSelect ?? false,
+      productIds: data.productIds || [],
+      expiryHours: data.expiryHours ?? null,
+      logoUrl: data.logoUrl || null,
+      publicTitle: data.publicTitle || null,
+      publicDescription: data.publicDescription || null,
+      wompiTitle: data.wompiTitle || null,
+      wompiDescription: data.wompiDescription || null
+    }
+  });
+  res.json({ template: updated });
+});
+
+checkoutTemplatesRouter.delete("/:id", async (req, res) => {
+  const id = String(req.params.id || "").trim();
+  if (!id) return res.status(400).json({ error: "invalid_id" });
+  await prisma.publicCheckoutTemplate.delete({ where: { id } });
+  res.json({ ok: true });
+});

@@ -33,6 +33,13 @@ type BillingType = "PLAN" | "SUBSCRIPCION";
 
 type IntervalUnit = "DAY" | "WEEK" | "MONTH";
 
+type CheckoutTemplate = {
+  id: string;
+  name: string;
+  kind: "PLAN" | "SUBSCRIPTION";
+  active: boolean;
+};
+
 function fmtMoneyFromCents(cents: number, currency = "COP") {
   const major = Math.trunc(Number(cents || 0) / 100);
   if (currency !== "COP") return `${major} ${currency}`;
@@ -65,6 +72,7 @@ function getOptionValues(item: CatalogItem | null, key: "option1" | "option2") {
 export function NewBillingAssignmentForm({
   customers,
   catalogItems,
+  checkoutTemplates,
   csrfToken,
   defaultOpen = false,
   defaultSelectedCustomerId = "",
@@ -73,6 +81,7 @@ export function NewBillingAssignmentForm({
 }: {
   customers: Customer[];
   catalogItems: CatalogItem[];
+  checkoutTemplates: CheckoutTemplate[];
   csrfToken: string;
   defaultOpen?: boolean;
   defaultSelectedCustomerId?: string;
@@ -100,6 +109,7 @@ export function NewBillingAssignmentForm({
   const [intervalCount, setIntervalCount] = useState(1);
   const [option1Value, setOption1Value] = useState("");
   const [option2Value, setOption2Value] = useState("");
+  const [templateId, setTemplateId] = useState("");
 
   const [startLocal, setStartLocal] = useState("");
   const [cutoffLocal, setCutoffLocal] = useState("");
@@ -144,6 +154,18 @@ export function NewBillingAssignmentForm({
 
   const option1Values = useMemo(() => getOptionValues(selectedProduct, "option1"), [selectedProduct]);
   const option2Values = useMemo(() => getOptionValues(selectedProduct, "option2"), [selectedProduct]);
+
+  const templatesForType = useMemo(() => {
+    const targetKind = billingType === "PLAN" ? "PLAN" : "SUBSCRIPTION";
+    return checkoutTemplates.filter((t) => t.kind === targetKind);
+  }, [billingType, checkoutTemplates]);
+
+  useEffect(() => {
+    if (!templateId) return;
+    if (!templatesForType.some((t) => String(t.id) === String(templateId))) {
+      setTemplateId("");
+    }
+  }, [templateId, templatesForType]);
 
   useEffect(() => {
     if (!selectedProduct) {
@@ -486,6 +508,25 @@ export function NewBillingAssignmentForm({
                     </select>
                   </div>
                 </div>
+              </div>
+
+              <div className="field">
+                <label>Plantilla de checkout</label>
+                <select
+                  className="select"
+                  name="templateId"
+                  value={templateId}
+                  onChange={(e) => setTemplateId(e.target.value)}
+                  disabled={!productId || !customerId}
+                >
+                  <option value="">Usar configuración global</option>
+                  {templatesForType.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}{t.active ? "" : " (inactiva)"}
+                    </option>
+                  ))}
+                </select>
+                {!templatesForType.length ? <div className="field-hint">No hay plantillas {billingType === "PLAN" ? "de plan" : "de suscripción"}.</div> : null}
               </div>
 
               {selectedProduct?.option1Name ? (

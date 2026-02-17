@@ -237,15 +237,20 @@ export function CheckoutConfigPanel({
           ].map((item) => (
             <div key={item.label} className={`preview-card ${item.label.includes("Mobile") ? "preview-mobile" : ""}`}>
               <div className="preview-device">{item.label}</div>
-              {logoData ? <img src={logoData} alt="Logo" className="logo-preview" /> : null}
-              <div className="canvas-title">{item.data.title}</div>
-              {item.data.description ? <div className="canvas-muted">{item.data.description}</div> : null}
-              <div className="canvas-form-preview">
-                <div className="canvas-input"><span>Nombre completo</span></div>
-                <div className="canvas-input"><span>Email</span></div>
-                <div className="canvas-input"><span>Teléfono</span></div>
+              <div className={`preview-layout ${item.label.includes("Mobile") ? "preview-layout-mobile" : ""}`}>
+                <div className="preview-intro">
+                  {logoData ? <img src={logoData} alt="Logo" className="logo-preview" /> : null}
+                  <div className="canvas-title">{item.data.title}</div>
+                  {item.data.description ? <div className="canvas-muted">{item.data.description}</div> : null}
+                </div>
+                <div className="preview-form">
+                  <div className="canvas-form-preview">
+                    <div className="canvas-input"><span>Nombre completo</span></div>
+                    <div className="canvas-input"><span>Teléfono</span></div>
+                  </div>
+                  <button type="button" className="canvas-cta">{item.data.cta}</button>
+                </div>
               </div>
-              <button type="button" className="canvas-cta">{item.data.cta}</button>
             </div>
           ))}
         </div>
@@ -284,15 +289,20 @@ export function CheckoutConfigPanel({
               ].map((item) => (
                 <div key={item.label} className={`preview-card ${item.label.includes("Mobile") ? "preview-mobile" : ""}`}>
                   <div className="preview-device">{item.label}</div>
-                  {logoData ? <img src={logoData} alt="Logo" className="publicCheckoutLogo" /> : null}
-                  <div className="canvas-title">{item.data.title}</div>
-                  {item.data.description ? <div className="canvas-muted">{item.data.description}</div> : null}
-                  <div className="canvas-form-preview">
-                    <div className="canvas-input"><span>Nombre completo</span></div>
-                    <div className="canvas-input"><span>Email</span></div>
-                    <div className="canvas-input"><span>Teléfono</span></div>
+                  <div className={`preview-layout ${item.label.includes("Mobile") ? "preview-layout-mobile" : ""}`}>
+                    <div className="preview-intro">
+                      {logoData ? <img src={logoData} alt="Logo" className="publicCheckoutLogo" /> : null}
+                      <div className="canvas-title">{item.data.title}</div>
+                      {item.data.description ? <div className="canvas-muted">{item.data.description}</div> : null}
+                    </div>
+                    <div className="preview-form">
+                      <div className="canvas-form-preview">
+                        <div className="canvas-input"><span>Nombre completo</span></div>
+                        <div className="canvas-input"><span>Teléfono</span></div>
+                      </div>
+                      <button type="button" className="canvas-cta">{item.data.cta}</button>
+                    </div>
                   </div>
-                  <button type="button" className="canvas-cta">{item.data.cta}</button>
                 </div>
               ))}
             </div>

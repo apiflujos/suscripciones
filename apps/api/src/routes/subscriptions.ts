@@ -13,7 +13,8 @@ const createSubscriptionSchema = z.object({
   planId: z.string().uuid(),
   startAt: z.string().datetime().optional(),
   firstPeriodEndAt: z.string().datetime().optional(),
-  createPaymentLink: z.boolean().optional().default(false)
+  createPaymentLink: z.boolean().optional().default(false),
+  metadata: z.record(z.any()).optional()
 });
 
 export const subscriptionsRouter = express.Router();
@@ -118,7 +119,8 @@ subscriptionsRouter.post("/", async (req, res) => {
       startAt,
       currentPeriodStartAt: startAt,
       currentPeriodEndAt: periodEnd,
-      currentCycle: 1
+      currentCycle: 1,
+      ...(parsed.data.metadata ? { metadata: parsed.data.metadata } : {})
     }
   });
 

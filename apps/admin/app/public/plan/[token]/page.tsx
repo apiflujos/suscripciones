@@ -21,9 +21,10 @@ export default async function PublicPlanPage({ params }: { params: Promise<{ tok
   const linkRes = await fetchPaymentLink(token);
   const configRes = await fetchCheckoutConfig();
   const config = configRes.ok ? configRes.json?.config || {} : {};
-  const title = config?.planTitle || "Paga tu plan";
-  const description = config?.planDescription || "";
-  const logoUrl = config?.logoUrl || "";
+  const template = linkRes.ok ? linkRes.json?.template || null : null;
+  const title = template?.publicTitle || config?.planTitle || "Paga tu plan";
+  const description = template?.publicDescription || config?.planDescription || "";
+  const logoUrl = template?.logoUrl || config?.logoUrl || "";
   const primaryColor = "";
   const fontFamily = "";
 
@@ -44,30 +45,28 @@ export default async function PublicPlanPage({ params }: { params: Promise<{ tok
   const checkoutUrl = linkRes.json?.checkoutUrl || "";
 
   return (
-    <main className="page publicCheckoutShell" style={{ maxWidth: 680, ...(fontFamily ? { fontFamily } : {}), ...styleVars }}>
-      <div className="card cardPad publicCheckoutCard" style={{ display: "grid", gap: 12 }}>
-        <div>
-          {logoUrl ? <img src={logoUrl} alt={title} className="publicCheckoutLogo" /> : null}
-          <h1 style={{ marginTop: 0 }}>{title}</h1>
-          {description ? <p className="field-hint">{description}</p> : null}
-        </div>
+    <main className="page publicCheckoutShell" style={{ maxWidth: 860, ...(fontFamily ? { fontFamily } : {}), ...styleVars }}>
+      <div className="card cardPad publicCheckoutCard">
+        <div className="publicCheckoutLayout">
+          <div className="publicCheckoutIntro">
+            {logoUrl ? <img src={logoUrl} alt={title} className="publicCheckoutLogo" /> : null}
+            <h1 style={{ marginTop: 0 }}>{title}</h1>
+            {description ? <p className="field-hint">{description}</p> : null}
+          </div>
 
-        <div style={{ display: "grid", gap: 10 }}>
-          <div className="field">
-            <label>Nombre completo</label>
-            <input className="input" readOnly value={customer.name || ""} />
+          <div className="publicCheckoutSide">
+            <div className="field">
+              <label>Nombre completo</label>
+              <input className="input" readOnly value={customer.name || ""} />
+            </div>
+            <div className="field">
+              <label>Teléfono</label>
+              <input className="input" readOnly value={customer.phone || ""} />
+            </div>
+            <a className="primary" href={checkoutUrl}>
+              Pagar
+            </a>
           </div>
-          <div className="field">
-            <label>Email</label>
-            <input className="input" readOnly value={customer.email || ""} />
-          </div>
-          <div className="field">
-            <label>Teléfono</label>
-            <input className="input" readOnly value={customer.phone || ""} />
-          </div>
-          <a className="primary" href={checkoutUrl}>
-            Pagar
-          </a>
         </div>
       </div>
     </main>
