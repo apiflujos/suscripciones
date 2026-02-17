@@ -507,7 +507,7 @@ export function PublicCheckoutTemplatesPanel({
           <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
               <strong>{formTitle}</strong>
-              <div className="field-hint">Configura y guarda. El preview se actualiza en tiempo real.</div>
+              <div className="field-hint">Configura y guarda.</div>
             </div>
             <button className="ghost" type="button" onClick={closeModal}>
               Cerrar
