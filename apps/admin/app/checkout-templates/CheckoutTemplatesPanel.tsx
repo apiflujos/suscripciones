@@ -161,7 +161,7 @@ export function CheckoutTemplatesPanel({
               </button>
             </div>
 
-            {step === "choose" ? (
+            {(!editing && step === "choose") ? (
               <div className="panel module" style={{ display: "grid", gap: 12 }}>
                 <div className="field-hint">Elige primero el tipo de checkout que quieres crear.</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
