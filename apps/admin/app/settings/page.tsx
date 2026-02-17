@@ -80,6 +80,9 @@ export default async function SettingsPage({
         <a className={`settings-tab ${tab === "connections" ? "is-active" : ""}`} href="/settings?tab=connections">
           Conexiones
         </a>
+        <a className={`settings-tab ${tab === "checkout-publico" ? "is-active" : ""}`} href="/settings?tab=checkout-publico">
+          Checkout público
+        </a>
       </div>
 
       {!settingsRes.ok ? (
@@ -198,25 +201,28 @@ export default async function SettingsPage({
             </div>
           </section>
 
-          <section className="settings-group">
-            <div className="settings-group-header">
-              <div className="panelHeaderRow">
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <h3>Checkout</h3>
-                  <HelpTip text="Configura URLs públicas para planes y suscripciones." />
-                </div>
+        </>
+      ) : null}
+
+      {tab === "checkout-publico" ? (
+        <section className="settings-group">
+          <div className="settings-group-header">
+            <div className="panelHeaderRow">
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <h3>Checkout público</h3>
+                <HelpTip text="Configura URLs públicas para planes y suscripciones." />
               </div>
             </div>
-            <div className="settings-group-body">
-              <CheckoutConfigPanel
-                defaults={(settings?.checkoutConfig || {}) as any}
-                csrfToken={csrfToken}
-                onSave={updateCheckoutConfig}
-                inlineState={inlineState}
-              />
-            </div>
-          </section>
-        </>
+          </div>
+          <div className="settings-group-body">
+            <CheckoutConfigPanel
+              defaults={(settings?.checkoutConfig || {}) as any}
+              csrfToken={csrfToken}
+              onSave={updateCheckoutConfig}
+              inlineState={inlineState}
+            />
+          </div>
+        </section>
       ) : null}
 
     </main>
