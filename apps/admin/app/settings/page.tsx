@@ -42,7 +42,7 @@ async function fetchProducts() {
 export default async function SettingsPage({
   searchParams
 }: {
-  searchParams?: Promise<{ a?: string; status?: string; error?: string; tab?: string; new?: string; create?: string; step?: string }>;
+  searchParams?: Promise<{ a?: string; status?: string; error?: string; tab?: string; new?: string; create?: string; step?: string; kind?: string }>;
 }) {
   const csrfToken = await getCsrfToken();
   const { token } = getConfig();
@@ -87,6 +87,8 @@ export default async function SettingsPage({
   const tab = String(sp.tab || "connections");
   const checkoutStepRaw = String(sp.step || "1");
   const checkoutStep = checkoutStepRaw === "2" ? "2" : "1";
+  const checkoutKindRaw = String(sp.kind || "plan").toLowerCase();
+  const checkoutKind = checkoutKindRaw === "sub" || checkoutKindRaw === "suscripcion" || checkoutKindRaw === "subscription" ? "SUBSCRIPTION" : "PLAN";
   const inlineState = { action, status, errorText };
 
   return (
@@ -235,8 +237,26 @@ export default async function SettingsPage({
               <div className="panel module">
                 <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <strong>Paso 1 · Configuración</strong>
-                  <a className="primary" href="/settings?tab=checkout-publico&step=2">
+                  <a className="primary" href={`/settings?tab=checkout-publico&step=2&kind=${checkoutKind === "PLAN" ? "plan" : "sub"}`}>
                     Siguiente
+                  </a>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+                  <a
+                    className={`card cardPad ${checkoutKind === "PLAN" ? "is-active" : ""}`}
+                    href="/settings?tab=checkout-publico&step=1&kind=plan"
+                    style={{ textAlign: "left" }}
+                  >
+                    <strong>Plan</strong>
+                    <div className="field-hint">Checkout de pago / link</div>
+                  </a>
+                  <a
+                    className={`card cardPad ${checkoutKind === "SUBSCRIPTION" ? "is-active" : ""}`}
+                    href="/settings?tab=checkout-publico&step=1&kind=sub"
+                    style={{ textAlign: "left" }}
+                  >
+                    <strong>Suscripción</strong>
+                    <div className="field-hint">Checkout de tokenización</div>
                   </a>
                 </div>
                 <CheckoutConfigPanel
@@ -244,16 +264,29 @@ export default async function SettingsPage({
                   csrfToken={csrfToken}
                   onSave={updateCheckoutConfig}
                   inlineState={inlineState}
+                  mode={checkoutKind === "PLAN" ? "PLAN" : "SUBSCRIPTION"}
+                  showPreview={false}
+                  showFullscreen={false}
                 />
               </div>
             ) : (
               <div className="panel module">
                 <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <strong>Paso 2 · Plantillas</strong>
-                  <a className="ghost" href="/settings?tab=checkout-publico&step=1">
+                  <a className="ghost" href={`/settings?tab=checkout-publico&step=1&kind=${checkoutKind === "PLAN" ? "plan" : "sub"}`}>
                     Volver
                   </a>
                 </div>
+                <CheckoutConfigPanel
+                  defaults={(settings?.checkoutConfig || {}) as any}
+                  csrfToken={csrfToken}
+                  onSave={updateCheckoutConfig}
+                  inlineState={inlineState}
+                  mode={checkoutKind === "PLAN" ? "PLAN" : "SUBSCRIPTION"}
+                  showPreview
+                  showFullscreen
+                />
+                <div style={{ height: 16 }} />
                 <CheckoutTemplatesPanel
                   templates={templates}
                   products={products}

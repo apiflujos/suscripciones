@@ -22,12 +22,18 @@ export function CheckoutConfigPanel({
   defaults,
   csrfToken,
   onSave,
-  inlineState
+  inlineState,
+  mode = "PLAN",
+  showPreview = true,
+  showFullscreen = true
 }: {
   defaults: CheckoutConfig;
   csrfToken: string;
   onSave: (formData: FormData) => void;
   inlineState: { action: string; status: string; errorText: string };
+  mode?: "PLAN" | "SUBSCRIPTION";
+  showPreview?: boolean;
+  showFullscreen?: boolean;
 }) {
   const [logoData, setLogoData] = useState<string>(defaults.logoUrl || "");
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -72,15 +78,22 @@ export function CheckoutConfigPanel({
       <input type="hidden" name="planWompiDescription" value={wompiDescription} />
       <input type="hidden" name="subscriptionWompiTitle" value={wompiTitle} />
       <input type="hidden" name="subscriptionWompiDescription" value={wompiDescription} />
+      {mode === "PLAN" ? (
+        <input type="hidden" name="subscriptionBaseUrl" value={subscriptionBaseUrl} />
+      ) : (
+        <input type="hidden" name="planBaseUrl" value={planBaseUrl} />
+      )}
 
       <div className="panelHeaderRow" style={{ justifyContent: "space-between" }}>
         <div>
           <strong>Configuración de checkout</strong>
           <div className="field-hint">Base URL, expiración y textos públicos.</div>
         </div>
-        <button className="ghost" type="button" onClick={() => setPreviewOpen(true)}>
-          Ver fullscreen
-        </button>
+        {showFullscreen ? (
+          <button className="ghost" type="button" onClick={() => setPreviewOpen(true)}>
+            Ver fullscreen
+          </button>
+        ) : null}
       </div>
 
       <div className="field">
@@ -91,11 +104,13 @@ export function CheckoutConfigPanel({
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      {mode === "PLAN" ? (
         <div className="field">
           <label>Base URL Plan</label>
           <input className="input" name="planBaseUrl" value={planBaseUrl} onChange={(e) => setPlanBaseUrl(e.target.value)} placeholder="https://pagos.tu-dominio.com" />
+          {planBaseUrl ? <div className="field-hint">URL pública: {`${planBaseUrl.replace(/\/$/, "")}/public/plan/{token}`}</div> : null}
         </div>
+      ) : (
         <div className="field">
           <label>Base URL Suscripción</label>
           <input
@@ -105,8 +120,9 @@ export function CheckoutConfigPanel({
             onChange={(e) => setSubscriptionBaseUrl(e.target.value)}
             placeholder="https://suscripciones.tu-dominio.com"
           />
+          {subscriptionBaseUrl ? <div className="field-hint">URL pública: {`${subscriptionBaseUrl.replace(/\/$/, "")}/public/suscripcion/{token}`}</div> : null}
         </div>
-      </div>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <div className="field">
@@ -127,7 +143,6 @@ export function CheckoutConfigPanel({
           <label>Descripción</label>
           <textarea className="input" rows={3} value={checkoutDescription} onChange={(e) => setCheckoutDescription(e.target.value)} />
         </div>
-        <div className="field-hint">Se usa igual para Plan y Suscripción.</div>
       </div>
 
       <div className="panel module" style={{ margin: 0 }}>
@@ -155,7 +170,7 @@ export function CheckoutConfigPanel({
           />
         </div>
         <div className="field-hint" style={{ marginTop: 8 }}>
-          Se usa igual para Plan y Suscripción. Si dejas vacío, se usan textos por defecto.
+          Si dejas vacío, se usan textos por defecto.
         </div>
       </div>
 
@@ -173,39 +188,39 @@ export function CheckoutConfigPanel({
         </PendingButton>
       </div>
 
-      <div className="panel module" style={{ margin: 0 }}>
-        <div className="panel-header">
-          <strong>Preview</strong>
-        </div>
-        <div className="preview-grid">
-          {[
-            { label: "Plan · Desktop", data: previewPlan },
-            { label: "Plan · Mobile", data: previewPlan },
-            { label: "Suscripción · Desktop", data: previewSub },
-            { label: "Suscripción · Mobile", data: previewSub }
-          ].map((item) => (
-            <div key={item.label} className={`preview-card ${item.label.includes("Mobile") ? "preview-mobile" : ""}`}>
-              <div className="preview-device">{item.label}</div>
-              <div className={`preview-layout ${item.label.includes("Mobile") ? "preview-layout-mobile" : ""}`}>
-                <div className="preview-intro">
-                  {logoData ? <img src={logoData} alt="Logo" className="logo-preview" /> : null}
-                  <div className="canvas-title">{item.data.title}</div>
-                  {item.data.description ? <div className="canvas-muted">{item.data.description}</div> : null}
-                </div>
-                <div className="preview-form">
-                  <div className="canvas-form-preview">
-                    <div className="canvas-input"><span>Nombre completo</span></div>
-                    <div className="canvas-input"><span>Teléfono</span></div>
+      {showPreview ? (
+        <div className="panel module" style={{ margin: 0 }}>
+          <div className="panel-header">
+            <strong>Preview</strong>
+          </div>
+          <div className="preview-grid">
+            {[
+              { label: `${mode === "PLAN" ? "Plan" : "Suscripción"} · Desktop`, data: mode === "PLAN" ? previewPlan : previewSub },
+              { label: `${mode === "PLAN" ? "Plan" : "Suscripción"} · Mobile`, data: mode === "PLAN" ? previewPlan : previewSub }
+            ].map((item) => (
+              <div key={item.label} className={`preview-card ${item.label.includes("Mobile") ? "preview-mobile" : ""}`}>
+                <div className="preview-device">{item.label}</div>
+                <div className={`preview-layout ${item.label.includes("Mobile") ? "preview-layout-mobile" : ""}`}>
+                  <div className="preview-intro">
+                    {logoData ? <img src={logoData} alt="Logo" className="logo-preview" /> : null}
+                    <div className="canvas-title">{item.data.title}</div>
+                    {item.data.description ? <div className="canvas-muted">{item.data.description}</div> : null}
                   </div>
-                  <button type="button" className="canvas-cta">{item.data.cta}</button>
+                  <div className="preview-form">
+                    <div className="canvas-form-preview">
+                      <div className="canvas-input"><span>Nombre completo</span></div>
+                      <div className="canvas-input"><span>Teléfono</span></div>
+                    </div>
+                    <button type="button" className="canvas-cta">{item.data.cta}</button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      ) : null}
 
-      {previewOpen ? (
+      {showPreview && previewOpen ? (
         <div
           style={{
             position: "fixed",

@@ -2579,7 +2579,7 @@ textarea {
 }
 
 .logo-preview {
-  height: 32px;
+  height: 56px;
   width: auto;
   border-radius: 6px;
   border: 1px solid var(--stroke);
