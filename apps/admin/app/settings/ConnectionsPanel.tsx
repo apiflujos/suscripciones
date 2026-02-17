@@ -89,7 +89,7 @@ export function ConnectionsPanel({
           <div className="modal-panel">
             <div className="panel-header">
               <h3 style={{ margin: 0 }}>Wompi</h3>
-              <button type="button" className="ghost" onClick={() => setOpen(null)}>Cerrar</button>
+              <button type="button" className="ghost" onClick={() => setOpen(null)} aria-label="Cerrar">X</button>
             </div>
 
             <form action={actions.setWompiActiveEnv} style={{ display: "grid", gridTemplateColumns: "1fr auto", alignItems: "end", gap: 10 }}>
@@ -175,7 +175,7 @@ export function ConnectionsPanel({
           <div className="modal-panel">
             <div className="panel-header">
               <h3 style={{ margin: 0 }}>Central de Comunicaciones</h3>
-              <button type="button" className="ghost" onClick={() => setOpen(null)}>Cerrar</button>
+              <button type="button" className="ghost" onClick={() => setOpen(null)} aria-label="Cerrar">X</button>
             </div>
 
             <div className="modal-split">
@@ -267,7 +267,7 @@ export function ConnectionsPanel({
           <div className="modal-panel">
             <div className="panel-header">
               <h3 style={{ margin: 0 }}>Shopify</h3>
-              <button type="button" className="ghost" onClick={() => setOpen(null)}>Cerrar</button>
+              <button type="button" className="ghost" onClick={() => setOpen(null)} aria-label="Cerrar">X</button>
             </div>
 
             <form action={actions.updateShopify} className="panel module" style={{ display: "grid", gap: 10 }}>

@@ -223,8 +223,8 @@ export function ProductsTable({ items, csrfToken }: { items: ProductRow[]; csrfT
           >
             <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h3 id="product-edit-title" style={{ margin: 0 }}>{modalTitle}</h3>
-              <button type="button" className="ghost" onClick={closeEditor}>
-                Cerrar
+              <button type="button" className="ghost" onClick={closeEditor} aria-label="Cerrar">
+                X
               </button>
             </div>
 

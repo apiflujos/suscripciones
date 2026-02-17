@@ -410,8 +410,8 @@ export function CustomersTable({
               <h3 id="customer-details-title" style={{ margin: 0 }}>
                 Detalles: {detailsCustomer.name || detailsCustomer.email || detailsCustomer.id}
               </h3>
-              <button type="button" className="ghost" onClick={closeDetails}>
-                Cerrar
+              <button type="button" className="ghost" onClick={closeDetails} aria-label="Cerrar">
+                X
               </button>
             </div>
 
@@ -663,8 +663,8 @@ export function CustomersTable({
           >
             <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h3 id="customer-edit-title" style={{ margin: 0 }}>{modalTitle}</h3>
-              <button type="button" className="ghost" onClick={closeEditor}>
-                Cerrar
+              <button type="button" className="ghost" onClick={closeEditor} aria-label="Cerrar">
+                X
               </button>
             </div>
 

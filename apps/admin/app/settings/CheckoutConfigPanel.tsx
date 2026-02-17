@@ -225,8 +225,8 @@ export function CheckoutConfigPanel({
           >
             <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <strong>Preview fullscreen</strong>
-              <button className="ghost" type="button" onClick={() => setPreviewOpen(false)}>
-                Cerrar
+              <button className="ghost" type="button" onClick={() => setPreviewOpen(false)} aria-label="Cerrar">
+                X
               </button>
             </div>
             <div className="preview-grid">

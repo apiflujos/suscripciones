@@ -312,8 +312,8 @@ export default async function LogsPage({
             <div className="panel" aria-label="Detalle del log">
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
                 <strong>Detalle</strong>
-                <Link className="btnLink" href={q ? `/logs?${new URLSearchParams({ tab: "system", q })}` : "/logs"} prefetch={false}>
-                  Cerrar
+                <Link className="btnLink" href={q ? `/logs?${new URLSearchParams({ tab: "system", q })}` : "/logs"} prefetch={false} aria-label="Cerrar">
+                  X
                 </Link>
               </div>
               <div style={{ marginTop: 8, color: "var(--muted)" }}>{selected.source}</div>

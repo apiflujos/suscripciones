@@ -160,8 +160,8 @@ export function CheckoutTemplatesPanel({
           <div className="modal-panel" style={{ width: "min(900px, 96vw)" }}>
             <div className="panel-header">
               <h3 style={{ margin: 0 }}>{editing ? "Editar plantilla" : step === "choose" ? "Nueva plantilla" : "Configurar plantilla"}</h3>
-              <button className="ghost" type="button" onClick={closeModal}>
-                Cerrar
+              <button className="ghost" type="button" onClick={closeModal} aria-label="Cerrar">
+                X
               </button>
             </div>
 
