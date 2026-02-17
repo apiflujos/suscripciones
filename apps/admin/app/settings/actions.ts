@@ -90,6 +90,7 @@ export async function updateShopify(formData: FormData) {
   await assertCsrfToken(formData);
   const forwardUrl = String(formData.get("forwardUrl") || "").trim();
   const forwardSecret = String(formData.get("forwardSecret") || "").trim();
+  const forwardOrigin = String(formData.get("forwardOrigin") || "").trim();
   const forwardRetryEnabled = String(formData.get("forwardRetryEnabled") || "").trim();
   const forwardRetryMinutes = String(formData.get("forwardRetryMinutes") || "").trim();
 
@@ -99,6 +100,7 @@ export async function updateShopify(formData: FormData) {
       body: JSON.stringify({
         forwardUrl,
         forwardSecret,
+        ...(forwardOrigin ? { forwardOrigin } : {}),
         ...(forwardRetryEnabled ? { forwardRetryEnabled } : {}),
         ...(forwardRetryMinutes ? { forwardRetryMinutes } : {})
       })
@@ -114,10 +116,11 @@ export async function testShopifyForward(formData: FormData) {
   await assertCsrfToken(formData);
   const forwardUrl = String(formData.get("forwardUrl") || "").trim();
   const forwardSecret = String(formData.get("forwardSecret") || "").trim();
+  const forwardOrigin = String(formData.get("forwardOrigin") || "").trim();
   try {
     await adminFetch("/admin/settings/shopify/test-forward", {
       method: "POST",
-      body: JSON.stringify({ forwardUrl, forwardSecret })
+      body: JSON.stringify({ forwardUrl, forwardSecret, ...(forwardOrigin ? { forwardOrigin } : {}) })
     });
     redirectWith("shopify_test", "ok");
   } catch (err) {

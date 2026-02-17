@@ -96,10 +96,26 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
 
   const meta: any = (msg.subscription?.metadata ?? {}) as any;
   const existingConversationId = meta?.chatwoot?.conversationId;
-  const conversationId =
-    typeof existingConversationId === "number"
-      ? existingConversationId
-      : (await client.createConversation({ contactId, sourceId, message: undefined })).conversationId;
+  let conversationId: number;
+  if (typeof existingConversationId === "number") {
+    conversationId = existingConversationId;
+  } else {
+    try {
+      conversationId = (await client.createConversation({ contactId, sourceId, message: undefined })).conversationId;
+    } catch (err: any) {
+      const message = err?.message ? String(err.message) : "chatwoot_create_conversation_failed";
+      await prisma.chatwootMessage.update({
+        where: { id: chatwootMessageId },
+        data: { status: MessageStatus.FAILED, errorMessage: message }
+      }).catch(() => {});
+      await systemLog(LogLevel.ERROR, "chatwoot.send", "Error creando conversación", {
+        chatwootMessageId,
+        customerId: msg.customerId,
+        err: message
+      }).catch(() => {});
+      return;
+    }
+  }
 
   if (typeof existingConversationId !== "number" && msg.subscriptionId) {
     const merged = {

@@ -48,6 +48,7 @@ const wompiUpdateSchema = z.object({
 const shopifyUpdateSchema = z.object({
   forwardUrl: z.string().url().optional().or(z.literal("")),
   forwardSecret: z.string().optional().or(z.literal("")),
+  forwardOrigin: z.enum(["shopify", "shopify-native"]).optional(),
   forwardRetryEnabled: z.union([z.boolean(), z.string()]).optional(),
   forwardRetryMinutes: z.coerce.number().int().positive().optional()
 });
@@ -114,7 +115,7 @@ settingsRouter.get("/", async (_req, res) => {
       "CHECKOUT_LINK_BASE_URL_SANDBOX",
       "REDIRECT_URL_SANDBOX"
     ]),
-    getCredentialsBulk(CredentialProvider.SHOPIFY, ["FORWARD_URL", "FORWARD_RETRY_ENABLED", "FORWARD_RETRY_MINUTES"]),
+    getCredentialsBulk(CredentialProvider.SHOPIFY, ["FORWARD_URL", "FORWARD_SECRET", "FORWARD_ORIGIN", "FORWARD_RETRY_ENABLED", "FORWARD_RETRY_MINUTES"]),
     getCredentialsBulk(CredentialProvider.CHATWOOT, [
       "ACTIVE_ENV",
       "BASE_URL",
@@ -175,6 +176,8 @@ settingsRouter.get("/", async (_req, res) => {
   };
 
   const shopifyForwardUrl = (shopifyCreds.get("FORWARD_URL") || (process.env.SHOPIFY_FORWARD_URL || "").trim()) || undefined;
+  const shopifyForwardOrigin =
+    (shopifyCreds.get("FORWARD_ORIGIN") || (process.env.SHOPIFY_FORWARD_ORIGIN || "").trim() || "shopify").trim();
   const shopifyForwardRetryEnabledRaw =
     shopifyCreds.get("FORWARD_RETRY_ENABLED") || (process.env.SHOPIFY_FORWARD_RETRY_ENABLED || "").trim();
   const shopifyForwardRetryEnabled = shopifyForwardRetryEnabledRaw
@@ -218,6 +221,7 @@ settingsRouter.get("/", async (_req, res) => {
     },
     shopify: {
       forwardUrl: shopifyForwardUrl ?? null,
+      forwardOrigin: shopifyForwardOrigin,
       forwardRetryEnabled: shopifyForwardRetryEnabled,
       forwardRetryMinutes: shopifyForwardRetryMinutes
     },
@@ -284,6 +288,9 @@ settingsRouter.put("/shopify", async (req, res) => {
     if (parsed.data.forwardUrl != null) await setCredential(CredentialProvider.SHOPIFY, "FORWARD_URL", parsed.data.forwardUrl);
     if (parsed.data.forwardSecret != null)
       await setCredential(CredentialProvider.SHOPIFY, "FORWARD_SECRET", parsed.data.forwardSecret);
+    if (parsed.data.forwardOrigin != null) {
+      await setCredential(CredentialProvider.SHOPIFY, "FORWARD_ORIGIN", parsed.data.forwardOrigin);
+    }
     if (parsed.data.forwardRetryEnabled != null) {
       await setCredential(
         CredentialProvider.SHOPIFY,

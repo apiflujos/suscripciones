@@ -90,11 +90,15 @@ export async function getWompiRedirectUrl(): Promise<string | undefined> {
   return (env.WOMPI_REDIRECT_URL || "").trim() || undefined;
 }
 
-export async function getShopifyForward(): Promise<{ url?: string; secret?: string }> {
+export async function getShopifyForward(): Promise<{ url?: string; secret?: string; origin?: string }> {
   const url = (await getCredential(CredentialProvider.SHOPIFY, "FORWARD_URL")) || loadEnv(process.env).SHOPIFY_FORWARD_URL || "";
   const secret =
     (await getCredential(CredentialProvider.SHOPIFY, "FORWARD_SECRET")) || loadEnv(process.env).SHOPIFY_FORWARD_SECRET || "";
-  return { url: url.trim() || undefined, secret: secret.trim() || undefined };
+  const origin =
+    (await getCredential(CredentialProvider.SHOPIFY, "FORWARD_ORIGIN")) ||
+    loadEnv(process.env).SHOPIFY_FORWARD_ORIGIN ||
+    "shopify";
+  return { url: url.trim() || undefined, secret: secret.trim() || undefined, origin: String(origin || "").trim() || "shopify" };
 }
 
 export async function getShopifyForwardRetryConfig(): Promise<{ enabled: boolean; minutes: number }> {

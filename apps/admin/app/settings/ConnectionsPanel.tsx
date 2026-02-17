@@ -277,6 +277,14 @@ export function ConnectionsPanel({
                 <input className="input" name="forwardUrl" defaultValue={shopify?.forwardUrl || ""} />
               </div>
               <div className="field">
+                <label>Origin</label>
+                <select className="select" name="forwardOrigin" defaultValue={shopify?.forwardOrigin || "shopify"}>
+                  <option value="shopify">shopify</option>
+                  <option value="shopify-native">shopify-native</option>
+                </select>
+                <div className="field-hint">El servicio de Shopify acepta solo estos valores.</div>
+              </div>
+              <div className="field">
                 <label>Secreto de reenvío (opcional)</label>
                 <input className="input" name="forwardSecret" type="password" />
               </div>

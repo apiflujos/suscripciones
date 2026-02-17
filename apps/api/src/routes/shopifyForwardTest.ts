@@ -4,20 +4,22 @@ import { postJson } from "../lib/http";
 
 const schema = z.object({
   forwardUrl: z.string().url(),
-  forwardSecret: z.string().optional().or(z.literal(""))
+  forwardSecret: z.string().optional().or(z.literal("")),
+  forwardOrigin: z.enum(["shopify", "shopify-native"]).optional()
 });
 
 export async function testShopifyForward(req: Request, res: Response) {
   const parsed = schema.safeParse(req.body ?? {});
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
 
+  const origin = parsed.data.forwardOrigin || "shopify";
   const payload = {
     event: "wompi.forward.test",
     data: {
-      origin: "wompi",
+      origin,
       transaction: {
         id: "test_txn",
-        origin: "wompi",
+        origin,
         status: "APPROVED",
         amount_in_cents: 1000,
         currency: "COP",
@@ -26,7 +28,7 @@ export async function testShopifyForward(req: Request, res: Response) {
     },
     sent_at: new Date().toISOString(),
     timestamp: Date.now(),
-    origin: "wompi"
+    origin
   };
 
   const headers = {

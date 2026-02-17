@@ -115,6 +115,7 @@ Opcionales (ENV o `/settings`):
 
 - `SHOPIFY_FORWARD_URL` (URL para forward de eventos Wompi cuando aplique)
 - `SHOPIFY_FORWARD_SECRET` (secreto compartido opcional para forward)
+- `SHOPIFY_FORWARD_ORIGIN` (`shopify` | `shopify-native`)
 - `SHOPIFY_FORWARD_RETRY_ENABLED` (default `true`)
 - `SHOPIFY_FORWARD_RETRY_MINUTES` (default `15`)
 - `CHATWOOT_*` (si quieres notificaciones en Chatwoot)
