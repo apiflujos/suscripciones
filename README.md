@@ -93,6 +93,7 @@ Obligatorias (para arrancar):
 
 - `DATABASE_URL`
 - `ADMIN_API_TOKEN` (para endpoints admin del API)
+- `ADMIN_SESSION_SECRET` (firma de sesión del Admin)
 
 Credenciales (pueden ir por **ENV** o guardarse desde el Admin en `/settings`):
 
@@ -108,12 +109,17 @@ Wompi API (defaults OK):
 - `WOMPI_API_BASE_URL` (ej. `https://sandbox.wompi.co/v1`)
 - `WOMPI_CHECKOUT_LINK_BASE_URL` (default: `https://checkout.wompi.co/l/`)
 - `WOMPI_REDIRECT_URL` (opcional)
+- `WOMPI_ACTIVE_ENV` (`PRODUCTION` | `SANDBOX`)
 
 Opcionales (ENV o `/settings`):
 
 - `SHOPIFY_FORWARD_URL` (URL para forward de eventos Wompi cuando aplique)
 - `SHOPIFY_FORWARD_SECRET` (secreto compartido opcional para forward)
+- `SHOPIFY_FORWARD_RETRY_ENABLED` (default `true`)
+- `SHOPIFY_FORWARD_RETRY_MINUTES` (default `15`)
 - `CHATWOOT_*` (si quieres notificaciones en Chatwoot)
+- `CHATWOOT_ACTIVE_ENV` (`PRODUCTION` | `SANDBOX`)
+- `APP_HOST` (URL pública del API, opcional)
 
 ## Variables de entorno (Admin)
 
@@ -124,6 +130,7 @@ Ver `apps/admin/.env.example`.
 Ver `docs/API.md`.
 
 - `NEXT_PUBLIC_API_BASE_URL` (ej. `http://localhost:3001`)
+- `ADMIN_INTERNAL_API_BASE_URL` (opcional, override interno)
 - `ADMIN_API_TOKEN` (el mismo valor que el `ADMIN_API_TOKEN` del API)
 - `ADMIN_BASIC_USER`, `ADMIN_BASIC_PASS` (si están seteadas, el panel pide Basic Auth)
 
