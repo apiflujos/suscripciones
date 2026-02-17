@@ -992,6 +992,7 @@ export function PublicCheckoutTemplatesPanel({
                   Guardar
                 </PendingButton>
               </div>
+            </div>
           </form>
         </div>
       ) : null}
