@@ -36,6 +36,14 @@ async function fetchJson(url: string, init?: RequestInit): Promise<FetchResult> 
   }
 }
 
+function shouldRetryStatus(status: number) {
+  return status === 0 || status === 502 || status === 503 || status === 504;
+}
+
+function waitMs(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function fetchPublicCached(path: string, opts?: { ttlMs?: number }): Promise<FetchResult> {
   const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
   const url = `${apiBase}${path}`;
@@ -46,7 +54,11 @@ export async function fetchPublicCached(path: string, opts?: { ttlMs?: number })
   const hit = cache.get(key);
   if (hit && Date.now() - hit.atMs < ttlMs) return hit.result;
 
-  const result = await fetchJson(url, { cache: "no-store" });
+  let result = await fetchJson(url, { cache: "no-store" });
+  if (!result.ok && shouldRetryStatus(result.status)) {
+    await waitMs(1200);
+    result = await fetchJson(url, { cache: "no-store" });
+  }
   if (result.ok) {
     cache.set(key, { atMs: Date.now(), result });
     pruneCache();
@@ -71,10 +83,17 @@ export async function fetchAdminCached(path: string, opts?: { ttlMs?: number }):
   const hit = cache.get(key);
   if (hit && Date.now() - hit.atMs < ttlMs) return hit.result;
 
-  const result = await fetchJson(url, {
+  let result = await fetchJson(url, {
     cache: "no-store",
     headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
   });
+  if (!result.ok && shouldRetryStatus(result.status)) {
+    await waitMs(1200);
+    result = await fetchJson(url, {
+      cache: "no-store",
+      headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
+    });
+  }
 
   if (result.ok) {
     cache.set(key, { atMs: Date.now(), result });
