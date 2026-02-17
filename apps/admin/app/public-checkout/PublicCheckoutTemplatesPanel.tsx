@@ -52,17 +52,19 @@ type Layout = { sections: LayoutSection[] };
 
 const LOCKED_FIELD_KEYS = new Set(["firstName", "phone"]);
 
-function SortableFieldRow({
+function SortableCanvasRow({
   section,
   onRemove,
   onToggle,
-  onUpdate,
+  onSelect,
+  selected,
   locked
 }: {
   section: LayoutSection;
   onRemove: (id: string) => void;
   onToggle: (id: string) => void;
-  onUpdate: (id: string, patch: Record<string, any>) => void;
+  onSelect: (id: string) => void;
+  selected: boolean;
   locked: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: section.id, disabled: locked });
@@ -70,38 +72,50 @@ function SortableFieldRow({
     transform: CSS.Transform.toString(transform),
     transition
   };
+  const typeLabel =
+    section.type === "header"
+      ? "Encabezado"
+      : section.type === "products"
+        ? "Productos"
+        : section.type === "cta"
+          ? "Botón"
+          : section.type === "footer"
+            ? "Pie"
+            : "Campo";
+  const fieldLabel = section.type === "field" ? section.props?.label || section.props?.key || "Campo" : "";
   return (
-    <div ref={setNodeRef} style={style} className={`field-row ${section.enabled ? "" : "is-disabled"}`}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`field-row ${section.enabled ? "" : "is-disabled"} ${selected ? "is-selected" : ""}`}
+      onClick={() => onSelect(section.id)}
+      role="button"
+      tabIndex={0}
+    >
       <button type="button" className="drag-handle" {...attributes} {...listeners} disabled={locked}>
         ⋮⋮
       </button>
       <div className="field-row-body">
-        <input
-          className="input"
-          value={section.props.label || ""}
-          onChange={(e) => onUpdate(section.id, { label: e.target.value })}
-          disabled={locked}
-        />
+        <div style={{ display: "grid", gap: 2 }}>
+          <strong>{typeLabel}</strong>
+          {fieldLabel ? <span className="field-hint">{fieldLabel}</span> : null}
+        </div>
         <div className="field-row-meta">
-          <span className="pill">{section.props.input || "text"}</span>
-          <label className="field-toggle">
-            <input
-              type="checkbox"
-              checked={Boolean(section.props.required)}
-              onChange={(e) => onUpdate(section.id, { required: e.target.checked })}
-              disabled={locked}
-            />
-            Requerido
-          </label>
+          {section.type === "field" ? <span className="pill">{section.props.input || "text"}</span> : null}
+          {section.type === "field" ? (
+            <span className="pill">{section.props.required ? "Obligatorio" : "Opcional"}</span>
+          ) : null}
         </div>
       </div>
       <div className="field-row-actions">
-        <button type="button" className="ghost" onClick={() => onToggle(section.id)} disabled={locked}>
+        <button type="button" className="ghost" onClick={() => onToggle(section.id)} disabled={locked || section.type === "cta"}>
           {section.enabled ? "Ocultar" : "Mostrar"}
         </button>
-        <button type="button" className="ghost" onClick={() => onRemove(section.id)} disabled={locked}>
-          ✕
-        </button>
+        {section.type === "field" ? (
+          <button type="button" className="ghost" onClick={() => onRemove(section.id)} disabled={locked}>
+            Quitar
+          </button>
+        ) : null}
       </div>
     </div>
   );
@@ -181,6 +195,8 @@ export function PublicCheckoutTemplatesPanel({
   const [formError, setFormError] = useState("");
   const [layout, setLayout] = useState<Layout>({ sections: [] });
   const [baseOverride, setBaseOverride] = useState("");
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
 
   const baseUrl = publicBaseUrl?.trim() || baseOverride || "";
 
@@ -231,6 +247,8 @@ export function PublicCheckoutTemplatesPanel({
     setOpen(false);
     setEditing(null);
     setFormError("");
+    setPreviewOpen(false);
+    setSelectedSectionId(null);
   }
 
   function buildLink(slug: string) {
@@ -262,6 +280,12 @@ export function PublicCheckoutTemplatesPanel({
     if (!open) return;
     if (editing?.kind) setFormKind(editing.kind);
   }, [open, editing]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (selectedSectionId) return;
+    if (layout.sections.length) setSelectedSectionId(layout.sections[0].id);
+  }, [open, selectedSectionId, layout.sections.length]);
 
   useEffect(() => {
     if (!autoOpen) return;
@@ -399,7 +423,7 @@ export function PublicCheckoutTemplatesPanel({
     if (!formName.trim()) return "El nombre es obligatorio.";
     if (!formAllowSelect && !formPlanId) return "Selecciona un producto o activa el selector.";
     if (formAllowSelect && !selectedProductIds.length) return "Selecciona al menos un producto.";
-    const keys = fieldSections.map((f) => String(f.props?.key || ""));
+    const keys = fieldSections.filter((f) => f.enabled !== false).map((f) => String(f.props?.key || ""));
     const hasEmail = keys.includes("email");
     const hasPhone = keys.includes("phone");
     const hasName = keys.includes("firstName") || keys.includes("lastName") || keys.includes("name");
@@ -423,33 +447,25 @@ export function PublicCheckoutTemplatesPanel({
   const effectiveSlug = formSlug.trim() || slugify(formName);
   const previewList = formKind === "PLAN" ? filteredProducts : availablePlans(formKind);
   const previewCta = formKind === "PLAN" ? "Pagar" : "Guardar y pagar";
-  const headerSection = layout.sections.find((s) => s.type === "header") || null;
-  const productsSection = layout.sections.find((s) => s.type === "products") || null;
-  const footerSection = layout.sections.find((s) => s.type === "footer") || null;
-  const ctaSection = layout.sections.find((s) => s.type === "cta") || null;
-  const fieldSections = layout.sections.filter((s) => s.type === "field");
+  const layoutSections = layout.sections;
+  const headerSection = layoutSections.find((s) => s.type === "header") || null;
+  const productsSection = layoutSections.find((s) => s.type === "products") || null;
+  const footerSection = layoutSections.find((s) => s.type === "footer") || null;
+  const ctaSection = layoutSections.find((s) => s.type === "cta") || null;
+  const fieldSections = layoutSections.filter((s) => s.type === "field");
+  const selectedSection = layoutSections.find((s) => s.id === selectedSectionId) || null;
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const productSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const selectedProductIds = Array.isArray(productsSection?.props?.selectedIds) ? (productsSection?.props?.selectedIds as string[]) : [];
 
-  function rebuildLayoutWithFields(nextFields: LayoutSection[]) {
-    const base: LayoutSection[] = [];
-    if (headerSection) base.push(headerSection);
-    if (productsSection) base.push(productsSection);
-    base.push(...nextFields);
-    if (ctaSection) base.push(ctaSection);
-    if (footerSection) base.push(footerSection);
-    setLayout({ sections: base });
-  }
-
   function onDragEnd(event: any) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const oldIndex = fieldSections.findIndex((f) => f.id === active.id);
-    const newIndex = fieldSections.findIndex((f) => f.id === over.id);
+    const oldIndex = layoutSections.findIndex((f) => f.id === active.id);
+    const newIndex = layoutSections.findIndex((f) => f.id === over.id);
     if (oldIndex < 0 || newIndex < 0) return;
-    const nextFields = arrayMove(fieldSections, oldIndex, newIndex);
-    rebuildLayoutWithFields(nextFields);
+    const nextSections = arrayMove(layoutSections, oldIndex, newIndex);
+    setLayout({ sections: nextSections });
   }
 
   function addField(preset: FieldPreset) {
@@ -466,22 +482,28 @@ export function PublicCheckoutTemplatesPanel({
         options: preset.options || []
       }
     };
-    rebuildLayoutWithFields([...fieldSections, section]);
+    const ctaIndex = layoutSections.findIndex((s) => s.type === "cta");
+    const insertAt = ctaIndex >= 0 ? ctaIndex : layoutSections.length;
+    const next = [...layoutSections.slice(0, insertAt), section, ...layoutSections.slice(insertAt)];
+    setLayout({ sections: next });
   }
 
   function updateField(id: string, patch: Record<string, any>) {
-    const nextFields = fieldSections.map((f) => (f.id === id ? { ...f, props: { ...f.props, ...patch } } : f));
-    rebuildLayoutWithFields(nextFields);
+    const nextSections = layoutSections.map((f) => (f.id === id ? { ...f, props: { ...f.props, ...patch } } : f));
+    setLayout({ sections: nextSections });
   }
 
-  function toggleField(id: string) {
-    const nextFields = fieldSections.map((f) => (f.id === id ? { ...f, enabled: !f.enabled } : f));
-    rebuildLayoutWithFields(nextFields);
+  function toggleSection(id: string) {
+    const nextSections = layoutSections.map((f) => (f.id === id ? { ...f, enabled: !f.enabled } : f));
+    setLayout({ sections: nextSections });
   }
 
   function removeField(id: string) {
-    const nextFields = fieldSections.filter((f) => f.id !== id);
-    rebuildLayoutWithFields(nextFields);
+    const nextSections = layoutSections.filter((f) => f.id !== id);
+    setLayout({ sections: nextSections });
+    if (selectedSectionId === id) {
+      setSelectedSectionId(nextSections[0]?.id || null);
+    }
   }
 
   function setSelectedProducts(nextIds: string[]) {
@@ -582,15 +604,17 @@ export function PublicCheckoutTemplatesPanel({
     if (!open) return;
     if (!productsSection) return;
     if (!formRequireAddress) {
-      const nextFields = fieldSections.map((f) =>
-        f.props?.key === "address" || f.props?.key === "city" || f.props?.key === "department"
+      const nextSections = layoutSections.map((f) =>
+        f.type === "field" && (f.props?.key === "address" || f.props?.key === "city" || f.props?.key === "department")
           ? { ...f, enabled: false, props: { ...f.props, required: false } }
           : f
       );
-      rebuildLayoutWithFields(nextFields);
+      setLayout({ sections: nextSections });
       return;
     }
-    const existingKeys = new Set(fieldSections.map((f) => String(f.props?.key || "")));
+    const existingKeys = new Set(
+      layoutSections.filter((s) => s.type === "field").map((f) => String(f.props?.key || ""))
+    );
     const addressPresets = FIELD_PRESETS.filter((p) => ["address", "city", "department"].includes(p.key));
     const missing = addressPresets.filter((p) => !existingKeys.has(p.key));
     const appended = missing.map((preset) => ({
@@ -605,12 +629,17 @@ export function PublicCheckoutTemplatesPanel({
         options: preset.options || []
       }
     }));
-    const combined = [...fieldSections, ...appended].map((f) =>
-      f.props?.key === "address" || f.props?.key === "city" || f.props?.key === "department"
+    const ctaIndex = layoutSections.findIndex((s) => s.type === "cta");
+    const insertAt = ctaIndex >= 0 ? ctaIndex : layoutSections.length;
+    const withAppended = missing.length
+      ? [...layoutSections.slice(0, insertAt), ...appended, ...layoutSections.slice(insertAt)]
+      : layoutSections;
+    const combined = withAppended.map((f) =>
+      f.type === "field" && (f.props?.key === "address" || f.props?.key === "city" || f.props?.key === "department")
         ? { ...f, enabled: true, props: { ...f.props, required: true } }
         : f
     );
-    rebuildLayoutWithFields(combined);
+    setLayout({ sections: combined });
   }, [open, formRequireAddress]);
 
   return (
@@ -707,14 +736,20 @@ export function PublicCheckoutTemplatesPanel({
               <strong>{formTitle}</strong>
               <div className="field-hint">Configura y guarda.</div>
             </div>
-            <button className="ghost" type="button" onClick={closeModal}>
-              Cerrar
-            </button>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="ghost" type="button" onClick={() => setPreviewOpen(true)}>
+                Preview
+              </button>
+              <button className="ghost" type="button" onClick={closeModal}>
+                Cerrar
+              </button>
+            </div>
           </div>
 
           <form
             action={formAction}
             className="template-modal-body"
+            style={{ display: "grid", gap: 18, gridTemplateColumns: "1fr" }}
             onSubmit={(e) => {
               const err = validateForm();
               if (err) {
@@ -727,9 +762,10 @@ export function PublicCheckoutTemplatesPanel({
           >
             <input type="hidden" name="layout" value={JSON.stringify(layout)} />
             <input type="hidden" name="csrf" value={csrfToken} />
+            <input type="hidden" name="planId" value={formPlanId} />
             {editing ? <input type="hidden" name="id" value={editing.id} /> : null}
 
-            <div className="template-modal-left">
+            <div>
               <div className="builder-group">
                 <div className="builder-group-title">1. Datos de la plantilla</div>
                 <div className="field">
@@ -759,140 +795,19 @@ export function PublicCheckoutTemplatesPanel({
               </div>
 
               <div className="builder-group">
-                <div className="builder-group-title">2. Productos</div>
-                <div className="field row">
-                  <label>Selector de productos</label>
-                  <input
-                    type="checkbox"
-                    name="allowPlanSelect"
-                    checked={formAllowSelect}
-                    onChange={(e) => setFormAllowSelect(e.target.checked)}
-                  />
-                  <span className="field-hint">Permite escoger el producto en el checkout</span>
-                </div>
-                <div className="field">
-                  <label>Buscar producto</label>
-                  <input
-                    className="input"
-                    value={productSearch}
-                    onChange={(e) => setProductSearch(e.target.value)}
-                    placeholder="Buscar por nombre o SKU..."
-                  />
-                </div>
-                <div className="field">
-                  <label>Productos en el checkout</label>
-                  <input type="hidden" name="planId" value={formPlanId} />
-                  {formAllowSelect ? <div className="field-hint">El cliente verá un selector de productos.</div> : null}
-                  {!formAllowSelect && !formPlanId ? (
-                    <div className="field-hint" style={{ color: "var(--danger)" }}>
-                      Debes seleccionar un producto o activar el selector.
-                    </div>
-                  ) : null}
-                  <DndContext sensors={productSensors} collisionDetection={closestCenter} onDragEnd={onProductDragEnd}>
-                    <SortableContext items={selectedProductIds} strategy={verticalListSortingStrategy}>
-                      <div className="field-list">
-                        {selectedProducts.map((p) => (
-                          <SortableProductRow key={p.id} product={p} onRemove={removeSelectedProduct} />
-                        ))}
-                      </div>
-                    </SortableContext>
-                  </DndContext>
-                  {!selectedProducts.length ? <div className="field-hint">No hay productos seleccionados.</div> : null}
-                  <div className="field" style={{ marginTop: 10 }}>
-                    <label>Agregar producto</label>
-                    <div className="field-add">
-                    {selectableItems.map((p) => {
-                        const disabled = !formAllowSelect && selectedProductIds.length >= 1 && !selectedProductIds.includes(p.id);
-                        return (
-                          <button key={p.id} type="button" className="ghost" onClick={() => addSelectedProduct(p.id)} disabled={disabled}>
-                            + {p.name}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-                <div className="field row">
-                  <label>Requiere dirección</label>
-                  <input
-                    type="checkbox"
-                    name="requireAddress"
-                    checked={formRequireAddress}
-                    onChange={(e) => setFormRequireAddress(e.target.checked)}
-                  />
-                </div>
-                <div className="field row">
-                  <label>Requiere envío</label>
-                  <input
-                    type="checkbox"
-                    name="requireShipping"
-                    checked={formRequireShipping}
-                    onChange={(e) => setFormRequireShipping(e.target.checked)}
-                  />
-                </div>
-              </div>
-
-              <div className="builder-group">
-                <div className="builder-group-title">3. Contenido</div>
-                <div className="field">
-                  <label>Título (checkout)</label>
-                  <input
-                    className="input"
-                    value={previewTitle}
-                    onChange={(e) => headerSection && updateSectionProps(headerSection.id, { title: e.target.value })}
-                  />
-                </div>
-                <div className="field">
-                  <label>Subtítulo</label>
-                  <input
-                    className="input"
-                    value={previewSubtitle}
-                    onChange={(e) => headerSection && updateSectionProps(headerSection.id, { subtitle: e.target.value })}
-                  />
-                </div>
-                <div className="field">
-                  <label>Texto botón</label>
-                  <input
-                    className="input"
-                    value={ctaSection?.props?.label || ""}
-                    onChange={(e) => ctaSection && updateSectionProps(ctaSection.id, { label: e.target.value })}
-                    placeholder={previewCta}
-                  />
-                </div>
-                <div className="field">
-                  <label>Descripción</label>
-                  <input
-                    className="input"
-                    value={previewDescription}
-                    onChange={(e) => headerSection && updateSectionProps(headerSection.id, { description: e.target.value })}
-                    placeholder="Añade un texto corto."
-                  />
-                </div>
-                <div className="field">
-                  <label>Texto de ayuda</label>
-                  <input
-                    className="input"
-                    value={footerSection?.props?.text || ""}
-                    onChange={(e) => footerSection && updateSectionProps(footerSection.id, { text: e.target.value })}
-                    placeholder="¿Dudas? Escríbenos."
-                  />
-                </div>
-                <div className="field-hint">El branding general (logo, color, fuente) se define en la configuración base.</div>
-              </div>
-
-              <div className="builder-group">
-                <div className="builder-group-title">4. Campos personales</div>
+                <div className="builder-group-title">2. Canvas</div>
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-                  <SortableContext items={fieldSections.map((f) => f.id)} strategy={verticalListSortingStrategy}>
+                  <SortableContext items={layoutSections.map((s) => s.id)} strategy={verticalListSortingStrategy}>
                     <div className="field-list">
-                      {fieldSections.map((f) => (
-                        <SortableFieldRow
-                          key={f.id}
-                          section={f}
+                      {layoutSections.map((section) => (
+                        <SortableCanvasRow
+                          key={section.id}
+                          section={section}
+                          selected={selectedSectionId === section.id}
+                          onSelect={setSelectedSectionId}
                           onRemove={removeField}
-                          onToggle={toggleField}
-                          onUpdate={updateField}
-                          locked={LOCKED_FIELD_KEYS.has(String(f.props?.key || ""))}
+                          onToggle={toggleSection}
+                          locked={section.type === "field" && LOCKED_FIELD_KEYS.has(String(section.props?.key || ""))}
                         />
                       ))}
                     </div>
@@ -910,6 +825,164 @@ export function PublicCheckoutTemplatesPanel({
                 </div>
               </div>
 
+              <div className="builder-group">
+                <div className="builder-group-title">3. Editor de bloque</div>
+                {!selectedSection ? <div className="field-hint">Selecciona un bloque del canvas.</div> : null}
+
+                {selectedSection?.type === "header" ? (
+                  <>
+                    <div className="field">
+                      <label>Título (checkout)</label>
+                      <input
+                        className="input"
+                        value={previewTitle}
+                        onChange={(e) => updateSectionProps(selectedSection.id, { title: e.target.value })}
+                      />
+                    </div>
+                    <div className="field">
+                      <label>Subtítulo</label>
+                      <input
+                        className="input"
+                        value={previewSubtitle}
+                        onChange={(e) => updateSectionProps(selectedSection.id, { subtitle: e.target.value })}
+                      />
+                    </div>
+                    <div className="field">
+                      <label>Descripción</label>
+                      <input
+                        className="input"
+                        value={previewDescription}
+                        onChange={(e) => updateSectionProps(selectedSection.id, { description: e.target.value })}
+                        placeholder="Añade un texto corto."
+                      />
+                    </div>
+                    <div className="field-hint">El branding general (logo, color, fuente) se define en la configuración base.</div>
+                  </>
+                ) : null}
+
+                {selectedSection?.type === "products" ? (
+                  <>
+                    <div className="field row">
+                      <label>Selector de productos</label>
+                      <input
+                        type="checkbox"
+                        name="allowPlanSelect"
+                        checked={formAllowSelect}
+                        onChange={(e) => setFormAllowSelect(e.target.checked)}
+                      />
+                      <span className="field-hint">Permite escoger el producto en el checkout</span>
+                    </div>
+                    <div className="field">
+                      <label>Buscar producto</label>
+                      <input
+                        className="input"
+                        value={productSearch}
+                        onChange={(e) => setProductSearch(e.target.value)}
+                        placeholder="Buscar por nombre o SKU..."
+                      />
+                    </div>
+                    <div className="field">
+                      <label>Productos en el checkout</label>
+                      {formAllowSelect ? <div className="field-hint">El cliente verá un selector de productos.</div> : null}
+                      {!formAllowSelect && !formPlanId ? (
+                        <div className="field-hint" style={{ color: "var(--danger)" }}>
+                          Debes seleccionar un producto o activar el selector.
+                        </div>
+                      ) : null}
+                      <DndContext sensors={productSensors} collisionDetection={closestCenter} onDragEnd={onProductDragEnd}>
+                        <SortableContext items={selectedProductIds} strategy={verticalListSortingStrategy}>
+                          <div className="field-list">
+                            {selectedProducts.map((p) => (
+                              <SortableProductRow key={p.id} product={p} onRemove={removeSelectedProduct} />
+                            ))}
+                          </div>
+                        </SortableContext>
+                      </DndContext>
+                      {!selectedProducts.length ? <div className="field-hint">No hay productos seleccionados.</div> : null}
+                      <div className="field" style={{ marginTop: 10 }}>
+                        <label>Agregar producto</label>
+                        <div className="field-add">
+                          {selectableItems.map((p) => {
+                            const disabled = !formAllowSelect && selectedProductIds.length >= 1 && !selectedProductIds.includes(p.id);
+                            return (
+                              <button key={p.id} type="button" className="ghost" onClick={() => addSelectedProduct(p.id)} disabled={disabled}>
+                                + {p.name}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="field row">
+                      <label>Requiere dirección</label>
+                      <input
+                        type="checkbox"
+                        name="requireAddress"
+                        checked={formRequireAddress}
+                        onChange={(e) => setFormRequireAddress(e.target.checked)}
+                      />
+                    </div>
+                    <div className="field row">
+                      <label>Requiere envío</label>
+                      <input
+                        type="checkbox"
+                        name="requireShipping"
+                        checked={formRequireShipping}
+                        onChange={(e) => setFormRequireShipping(e.target.checked)}
+                      />
+                    </div>
+                  </>
+                ) : null}
+
+                {selectedSection?.type === "field" ? (
+                  <>
+                    <div className="field">
+                      <label>Etiqueta</label>
+                      <input
+                        className="input"
+                        value={selectedSection.props?.label || ""}
+                        onChange={(e) => updateField(selectedSection.id, { label: e.target.value })}
+                        disabled={LOCKED_FIELD_KEYS.has(String(selectedSection.props?.key || ""))}
+                      />
+                    </div>
+                    <div className="field row">
+                      <label>Requerido</label>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(selectedSection.props?.required)}
+                        onChange={(e) => updateField(selectedSection.id, { required: e.target.checked })}
+                        disabled={LOCKED_FIELD_KEYS.has(String(selectedSection.props?.key || ""))}
+                      />
+                    </div>
+                    <div className="field-hint">El tipo de campo se define por el preset.</div>
+                  </>
+                ) : null}
+
+                {selectedSection?.type === "cta" ? (
+                  <div className="field">
+                    <label>Texto botón</label>
+                    <input
+                      className="input"
+                      value={selectedSection.props?.label || ""}
+                      onChange={(e) => updateSectionProps(selectedSection.id, { label: e.target.value })}
+                      placeholder={previewCta}
+                    />
+                  </div>
+                ) : null}
+
+                {selectedSection?.type === "footer" ? (
+                  <div className="field">
+                    <label>Texto de ayuda</label>
+                    <input
+                      className="input"
+                      value={selectedSection.props?.text || ""}
+                      onChange={(e) => updateSectionProps(selectedSection.id, { text: e.target.value })}
+                      placeholder="¿Dudas? Escríbenos."
+                    />
+                  </div>
+                ) : null}
+              </div>
+
               <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "grid", gap: 4 }}>
                   {formError ? <div className="field-hint" style={{ color: "var(--danger)" }}>{formError}</div> : null}
@@ -919,62 +992,89 @@ export function PublicCheckoutTemplatesPanel({
                   Guardar
                 </PendingButton>
               </div>
-            </div>
-
-            <aside className="template-preview template-builder" style={brandingStyle}>
-              <div className="preview-badge">Preview</div>
-              <div className="preview-grid">
-                <div className="preview-card">
-                  <div className="preview-device">Desktop</div>
-                  {previewLogo ? <img src={previewLogo} alt="Logo" className="logo-preview" /> : null}
-                  <div className="canvas-title">{previewTitle}</div>
-                  <div className="canvas-subtitle">{previewSubtitle}</div>
-                  {previewDescription ? <div className="canvas-muted">{previewDescription}</div> : null}
-                  <div className="canvas-products">
-                    {(previewProducts || []).slice(0, 3).map((p) => (
-                      <div key={p.id} className="canvas-product-card">
-                        {"imageUrl" in p && p.imageUrl ? <img src={p.imageUrl} alt={p.name} /> : <div className="canvas-thumb">📦</div>}
-                        <div className="canvas-product-name">{p.name}</div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="canvas-form-preview">
-                    {fieldSections.filter((f) => f.enabled).map((f) => (
-                      <div key={f.id} className="canvas-input">
-                        <span>{f.props.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <button type="button" className="canvas-cta">{previewCtaLabel}</button>
-                  {footerSection?.props?.text ? <div className="canvas-muted">{footerSection.props.text}</div> : null}
-                </div>
-                <div className="preview-card preview-mobile">
-                  <div className="preview-device">Mobile</div>
-                  {previewLogo ? <img src={previewLogo} alt="Logo" className="logo-preview" /> : null}
-                  <div className="canvas-title">{previewTitle}</div>
-                  <div className="canvas-subtitle">{previewSubtitle}</div>
-                  {previewDescription ? <div className="canvas-muted">{previewDescription}</div> : null}
-                  <div className="canvas-products">
-                    {(previewProducts || []).slice(0, 2).map((p) => (
-                      <div key={p.id} className="canvas-product-card">
-                        {"imageUrl" in p && p.imageUrl ? <img src={p.imageUrl} alt={p.name} /> : <div className="canvas-thumb">📦</div>}
-                        <div className="canvas-product-name">{p.name}</div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="canvas-form-preview">
-                    {fieldSections.filter((f) => f.enabled).map((f) => (
-                      <div key={f.id} className="canvas-input">
-                        <span>{f.props.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <button type="button" className="canvas-cta">{previewCtaLabel}</button>
-                  {footerSection?.props?.text ? <div className="canvas-muted">{footerSection.props.text}</div> : null}
-                </div>
-              </div>
-            </aside>
           </form>
+        </div>
+      ) : null}
+
+      {open && previewOpen ? (
+        <div
+          className="preview-modal"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(10,10,10,0.55)",
+            display: "grid",
+            placeItems: "center",
+            zIndex: 9999
+          }}
+          onClick={() => setPreviewOpen(false)}
+        >
+          <div
+            className="template-preview template-builder"
+            style={{ ...brandingStyle, width: "min(980px, 92vw)", maxHeight: "88vh", overflow: "auto", background: "var(--panel, #fff)", borderRadius: 16, padding: 18 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="panelHeaderRow" style={{ justifyContent: "space-between", marginBottom: 12 }}>
+              <strong>Preview</strong>
+              <button className="ghost" type="button" onClick={() => setPreviewOpen(false)}>
+                Cerrar
+              </button>
+            </div>
+            <div className="preview-grid">
+              {[{ label: "Desktop", maxProducts: 3, extraClass: "" }, { label: "Mobile", maxProducts: 2, extraClass: "preview-mobile" }].map((cfg) => (
+                <div key={cfg.label} className={`preview-card ${cfg.extraClass}`}>
+                  <div className="preview-device">{cfg.label}</div>
+                  {previewLogo ? <img src={previewLogo} alt="Logo" className="logo-preview" /> : null}
+                  {layoutSections.map((section) => {
+                    if (section.enabled === false) return null;
+                    if (section.type === "header") {
+                      return (
+                        <div key={section.id}>
+                          <div className="canvas-title">{previewTitle}</div>
+                          <div className="canvas-subtitle">{previewSubtitle}</div>
+                          {previewDescription ? <div className="canvas-muted">{previewDescription}</div> : null}
+                        </div>
+                      );
+                    }
+                    if (section.type === "products") {
+                      return (
+                        <div key={section.id} className="canvas-products">
+                          {(previewProducts || []).slice(0, cfg.maxProducts).map((p) => (
+                            <div key={p.id} className="canvas-product-card">
+                              {"imageUrl" in p && p.imageUrl ? <img src={p.imageUrl} alt={p.name} /> : <div className="canvas-thumb">📦</div>}
+                              <div className="canvas-product-name">{p.name}</div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    }
+                    if (section.type === "field") {
+                      return (
+                        <div key={section.id} className="canvas-input">
+                          <span>{section.props?.label}</span>
+                        </div>
+                      );
+                    }
+                    if (section.type === "cta") {
+                      return (
+                        <button key={section.id} type="button" className="canvas-cta">
+                          {previewCtaLabel}
+                        </button>
+                      );
+                    }
+                    if (section.type === "footer") {
+                      return (
+                        <div key={section.id} className="canvas-muted">
+                          {footerSection?.props?.text || ""}
+                        </div>
+                      );
+                    }
+                    return null;
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       ) : null}
 
