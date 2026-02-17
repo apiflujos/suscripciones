@@ -5,7 +5,6 @@ import {
   syncCentralAttributes,
   testCentralConnection,
   testShopifyForward,
-  updateCheckoutConfig,
   updateChatwoot,
   updateShopify,
   updateWompi
@@ -17,7 +16,6 @@ import { HelpTip } from "../ui/HelpTip";
 import { PendingButton } from "../ui/PendingButton";
 import { getCsrfToken } from "../lib/csrf";
 import { ConnectionsPanel } from "./ConnectionsPanel";
-import { CheckoutConfigPanel } from "./CheckoutConfigPanel";
 import { CheckoutTemplatesPanel } from "../checkout-templates/CheckoutTemplatesPanel";
 import { createCheckoutTemplate, updateCheckoutTemplate, deleteCheckoutTemplate } from "../checkout-templates/actions";
 
@@ -42,7 +40,7 @@ async function fetchProducts() {
 export default async function SettingsPage({
   searchParams
 }: {
-  searchParams?: Promise<{ a?: string; status?: string; error?: string; tab?: string; new?: string; create?: string; step?: string; kind?: string }>;
+  searchParams?: Promise<{ a?: string; status?: string; error?: string; tab?: string; new?: string; create?: string }>;
 }) {
   const csrfToken = await getCsrfToken();
   const { token } = getConfig();
@@ -85,15 +83,6 @@ export default async function SettingsPage({
   const status = String(sp.status || "");
   const errorText = sp.error ? String(sp.error) : "";
   const tab = String(sp.tab || "connections");
-  const checkoutStepRaw = String(sp.step || "1");
-  const checkoutStep = checkoutStepRaw === "2" ? "2" : "1";
-  const checkoutKindRaw = String(sp.kind || "").toLowerCase();
-  const checkoutKind =
-    checkoutKindRaw === "plan"
-      ? "PLAN"
-      : checkoutKindRaw === "sub" || checkoutKindRaw === "suscripcion" || checkoutKindRaw === "subscription"
-        ? "SUBSCRIPTION"
-        : null;
   const inlineState = { action, status, errorText };
 
   return (
@@ -233,83 +222,22 @@ export default async function SettingsPage({
             <div className="panelHeaderRow">
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <h3>Checkout público</h3>
-                <HelpTip text="Paso 1: configura textos y preview. Paso 2: crea la plantilla." />
+                <HelpTip text="Crea plantillas de checkout para planes y suscripciones." />
               </div>
             </div>
           </div>
           <div className="settings-group-body">
-            {checkoutStep === "1" ? (
-              <div className="panel module">
-                <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <strong>Paso 1 · Elige el tipo</strong>
-                  {checkoutKind ? (
-                    <a className="primary" href={`/settings?tab=checkout-publico&step=2&kind=${checkoutKind === "PLAN" ? "plan" : "sub"}`}>
-                      Siguiente
-                    </a>
-                  ) : (
-                    <button className="primary" type="button" disabled>
-                      Siguiente
-                    </button>
-                  )}
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-                  <a
-                    className={`card cardPad ${checkoutKind === "PLAN" ? "is-active" : ""}`}
-                    href="/settings?tab=checkout-publico&step=1&kind=plan"
-                    style={{ textAlign: "left" }}
-                  >
-                    <strong>Plan</strong>
-                    <div className="field-hint">Checkout de pago / link</div>
-                  </a>
-                  <a
-                    className={`card cardPad ${checkoutKind === "SUBSCRIPTION" ? "is-active" : ""}`}
-                    href="/settings?tab=checkout-publico&step=1&kind=sub"
-                    style={{ textAlign: "left" }}
-                  >
-                    <strong>Suscripción</strong>
-                    <div className="field-hint">Checkout de tokenización</div>
-                  </a>
-                </div>
-              </div>
-            ) : (
-              <div className="panel module">
-                <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <strong>Paso 2 · Plantillas</strong>
-                  <a className="ghost" href={`/settings?tab=checkout-publico&step=1${checkoutKind ? `&kind=${checkoutKind === "PLAN" ? "plan" : "sub"}` : ""}`}>
-                    Volver
-                  </a>
-                </div>
-                {!checkoutKind ? (
-                  <div className="field-hint">
-                    Primero selecciona Plan o Suscripción en el paso 1.
-                  </div>
-                ) : (
-                  <>
-                    <CheckoutConfigPanel
-                      defaults={(settings?.checkoutConfig || {}) as any}
-                      csrfToken={csrfToken}
-                      onSave={updateCheckoutConfig}
-                      inlineState={inlineState}
-                      mode={checkoutKind === "PLAN" ? "PLAN" : "SUBSCRIPTION"}
-                      showPreview
-                      showFullscreen
-                    />
-                    <div style={{ height: 16 }} />
-                    <CheckoutTemplatesPanel
-                      templates={templates}
-                      products={products}
-                      csrfToken={csrfToken}
-                      inlineState={inlineState}
-                      actions={{
-                        create: createCheckoutTemplate,
-                        update: updateCheckoutTemplate,
-                        remove: deleteCheckoutTemplate
-                      }}
-                    />
-                  </>
-                )}
-              </div>
-            )}
+            <CheckoutTemplatesPanel
+              templates={templates}
+              products={products}
+              csrfToken={csrfToken}
+              inlineState={inlineState}
+              actions={{
+                create: createCheckoutTemplate,
+                update: updateCheckoutTemplate,
+                remove: deleteCheckoutTemplate
+              }}
+            />
           </div>
         </section>
       ) : null}
