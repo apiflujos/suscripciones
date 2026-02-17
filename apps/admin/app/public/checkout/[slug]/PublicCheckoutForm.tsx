@@ -28,9 +28,6 @@ type Plan = {
 
 type Config = {
   baseUrl?: string;
-  title?: string;
-  subtitle?: string;
-  description?: string;
   contactEmail?: string;
 };
 
@@ -54,18 +51,14 @@ export function PublicCheckoutForm({
   const [error, setError] = useState<string | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState<string>("");
 
-  const brand = (template.branding || {}) as any;
-  const title = brand.title || config.title || "Completa tus datos";
-  const subtitle = brand.subtitle || config.subtitle || "Continuemos con el proceso";
-  const description = brand.description || config.description || "";
-  const contactEmail = brand.contactEmail || config.contactEmail || "";
+  const contactEmail = config.contactEmail || "";
 
   const plansOptions = useMemo(() => plans, [plans]);
   useEffect(() => {
     if (!template.allowPlanSelect) return;
     if (selectedPlanId) return;
-    if (plansOptions.length) setSelectedPlanId(plansOptions[0].id);
-  }, [template.allowPlanSelect, plansOptions, selectedPlanId]);
+    if (orderedPlans.length) setSelectedPlanId(orderedPlans[0].id);
+  }, [template.allowPlanSelect, orderedPlans, selectedPlanId]);
 
   const fallbackSections: FieldSection[] = [
     { id: "header", type: "header", enabled: true, props: {} },
@@ -79,6 +72,21 @@ export function PublicCheckoutForm({
     { id: "cta", type: "cta", enabled: true, props: {} },
     { id: "footer", type: "footer", enabled: true, props: {} }
   ];
+
+  const layoutSections: FieldSection[] = Array.isArray(template.layout?.sections)
+    ? (template.layout.sections as FieldSection[])
+    : fallbackSections;
+  const headerSection = layoutSections.find((section: FieldSection) => section.type === "header");
+  const productsSection = layoutSections.find((section: FieldSection) => section.type === "products");
+  const title = headerSection?.props?.title || "Completa tus datos";
+  const subtitle = headerSection?.props?.subtitle || "Continuemos con el proceso";
+  const description = headerSection?.props?.description || "";
+  const selectedIds = Array.isArray(productsSection?.props?.selectedIds) ? (productsSection?.props?.selectedIds as string[]) : [];
+  const orderedPlans = useMemo(() => {
+    if (!selectedIds.length) return plansOptions;
+    const mapped = selectedIds.map((id) => plansOptions.find((p) => p.id === id)).filter(Boolean) as Plan[];
+    return mapped.length ? mapped : plansOptions;
+  }, [selectedIds, plansOptions]);
 
   function formatCopFromCents(cents: number) {
     const pesos = Math.trunc(Number(cents || 0) / 100);
@@ -195,7 +203,7 @@ export function PublicCheckoutForm({
           {titleOverride ? <label>{titleOverride}</label> : <label>Producto</label>}
           <input type="hidden" name="planId" value={selectedPlanId} />
           <div className="publicProductGrid">
-            {plansOptions.map((p) => (
+            {orderedPlans.map((p) => (
               <button
                 key={p.id}
                 type="button"
@@ -216,7 +224,7 @@ export function PublicCheckoutForm({
         </div>
       );
     }
-    const fixedPlan = plansOptions[0];
+    const fixedPlan = plansOptions.find((p) => p.id === template.planId) || orderedPlans[0];
     if (!fixedPlan) return null;
     return (
       <div className="field">
@@ -322,9 +330,6 @@ export function PublicCheckoutForm({
     );
   }
 
-  const layoutSections: FieldSection[] = Array.isArray(template.layout?.sections)
-    ? (template.layout.sections as FieldSection[])
-    : fallbackSections;
   const ctaLabel = useMemo(() => {
     const cta = layoutSections.find((section: FieldSection) => section.type === "cta");
     const label = cta?.props?.label;

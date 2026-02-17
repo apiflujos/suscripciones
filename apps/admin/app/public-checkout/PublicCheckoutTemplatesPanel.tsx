@@ -50,25 +50,29 @@ type LayoutSection = {
 };
 type Layout = { sections: LayoutSection[] };
 
+const LOCKED_FIELD_KEYS = new Set(["firstName", "phone"]);
+
 function SortableFieldRow({
   section,
   onRemove,
   onToggle,
-  onUpdate
+  onUpdate,
+  locked
 }: {
   section: LayoutSection;
   onRemove: (id: string) => void;
   onToggle: (id: string) => void;
   onUpdate: (id: string, patch: Record<string, any>) => void;
+  locked: boolean;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: section.id });
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: section.id, disabled: locked });
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition
   };
   return (
     <div ref={setNodeRef} style={style} className={`field-row ${section.enabled ? "" : "is-disabled"}`}>
-      <button type="button" className="drag-handle" {...attributes} {...listeners}>
+      <button type="button" className="drag-handle" {...attributes} {...listeners} disabled={locked}>
         ⋮⋮
       </button>
       <div className="field-row-body">
@@ -76,6 +80,7 @@ function SortableFieldRow({
           className="input"
           value={section.props.label || ""}
           onChange={(e) => onUpdate(section.id, { label: e.target.value })}
+          disabled={locked}
         />
         <div className="field-row-meta">
           <span className="pill">{section.props.input || "text"}</span>
@@ -84,17 +89,50 @@ function SortableFieldRow({
               type="checkbox"
               checked={Boolean(section.props.required)}
               onChange={(e) => onUpdate(section.id, { required: e.target.checked })}
+              disabled={locked}
             />
             Requerido
           </label>
         </div>
       </div>
       <div className="field-row-actions">
-        <button type="button" className="ghost" onClick={() => onToggle(section.id)}>
+        <button type="button" className="ghost" onClick={() => onToggle(section.id)} disabled={locked}>
           {section.enabled ? "Ocultar" : "Mostrar"}
         </button>
-        <button type="button" className="ghost" onClick={() => onRemove(section.id)}>
+        <button type="button" className="ghost" onClick={() => onRemove(section.id)} disabled={locked}>
           ✕
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SortableProductRow({
+  product,
+  onRemove
+}: {
+  product: Product | Plan;
+  onRemove: (id: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: product.id });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition
+  };
+  return (
+    <div ref={setNodeRef} style={style} className="field-row">
+      <button type="button" className="drag-handle" {...attributes} {...listeners}>
+        ⋮⋮
+      </button>
+      <div className="field-row-body">
+        <div style={{ display: "grid" }}>
+          <strong>{product.name}</strong>
+          {"sku" in product && product.sku ? <span className="field-hint">SKU: {product.sku}</span> : null}
+        </div>
+      </div>
+      <div className="field-row-actions">
+        <button type="button" className="ghost" onClick={() => onRemove(product.id)}>
+          Quitar
         </button>
       </div>
     </div>
@@ -153,6 +191,11 @@ export function PublicCheckoutTemplatesPanel({
     for (const p of activeProducts) map.set(p.id, p);
     return map;
   }, [activeProducts]);
+  const planById = useMemo(() => {
+    const map = new Map<string, Plan>();
+    for (const p of activePlans) map.set(p.id, p);
+    return map;
+  }, [activePlans]);
 
   function openCreate() {
     setEditing(null);
@@ -213,6 +256,7 @@ export function PublicCheckoutTemplatesPanel({
     const q = productSearch.toLowerCase();
     return availableProducts.filter((p) => `${p.name} ${p.sku || ""}`.toLowerCase().includes(q));
   }, [availableProducts, productSearch]);
+  const selectableItems = formKind === "PLAN" ? filteredProducts : availablePlans(formKind);
 
   useEffect(() => {
     if (!open) return;
@@ -258,9 +302,9 @@ export function PublicCheckoutTemplatesPanel({
           id: crypto.randomUUID(),
           type: "header",
           enabled: true,
-          props: { title: "Completa tu compra", subtitle: "Escoge tu producto y paga en minutos." }
+          props: { title: "Completa tu compra", subtitle: "Escoge tu producto y paga en minutos.", description: "" }
         },
-        { id: crypto.randomUUID(), type: "products", enabled: true, props: { title: "Productos" } },
+        { id: crypto.randomUUID(), type: "products", enabled: true, props: { title: "Productos", selectedIds: [] } },
         ...FIELD_PRESETS.map((preset) => ({
           id: crypto.randomUUID(),
           type: "field" as const,
@@ -283,7 +327,45 @@ export function PublicCheckoutTemplatesPanel({
     if (raw && Array.isArray(raw.sections)) {
       const hasField = raw.sections.some((s: any) => s?.type === "field");
       if (!hasField) return defaultLayout();
-      return raw as Layout;
+      const next = raw as Layout;
+      const fields = next.sections.filter((s) => s.type === "field");
+      const missingLocked = Array.from(LOCKED_FIELD_KEYS).filter((key) => !fields.some((f) => f.props?.key === key));
+      if (missingLocked.length) {
+        const lockedPresets = FIELD_PRESETS.filter((p) => missingLocked.includes(p.key)).map((preset) => ({
+          id: crypto.randomUUID(),
+          type: "field" as const,
+          enabled: true,
+          props: {
+            key: preset.key,
+            label: preset.label,
+            input: preset.input,
+            required: true,
+            options: preset.options || []
+          }
+        }));
+        const nextFields = [...lockedPresets, ...fields].map((f) =>
+          LOCKED_FIELD_KEYS.has(String(f.props?.key || ""))
+            ? { ...f, enabled: true, props: { ...f.props, required: true } }
+            : f
+        );
+        const base: LayoutSection[] = [];
+        const header = next.sections.find((s) => s.type === "header");
+        const products = next.sections.find((s) => s.type === "products");
+        const cta = next.sections.find((s) => s.type === "cta");
+        const footer = next.sections.find((s) => s.type === "footer");
+        if (header) base.push(header);
+        if (products) base.push(products);
+        base.push(...nextFields);
+        if (cta) base.push(cta);
+        if (footer) base.push(footer);
+        return { sections: base };
+      }
+      const enforced = next.sections.map((s) =>
+        s.type === "field" && LOCKED_FIELD_KEYS.has(String(s.props?.key || ""))
+          ? { ...s, enabled: true, props: { ...s.props, required: true } }
+          : s
+      );
+      return { sections: enforced };
     }
     return defaultLayout();
   }
@@ -316,6 +398,7 @@ export function PublicCheckoutTemplatesPanel({
   function validateForm() {
     if (!formName.trim()) return "El nombre es obligatorio.";
     if (!formAllowSelect && !formPlanId) return "Selecciona un producto o activa el selector.";
+    if (formAllowSelect && !selectedProductIds.length) return "Selecciona al menos un producto.";
     const keys = fieldSections.map((f) => String(f.props?.key || ""));
     const hasEmail = keys.includes("email");
     const hasPhone = keys.includes("phone");
@@ -324,12 +407,6 @@ export function PublicCheckoutTemplatesPanel({
     if (!hasPhone) return "El checkout debe incluir el campo Teléfono.";
     if (!hasName) return "El checkout debe incluir Nombre o Apellido.";
     return "";
-  }
-
-  function formatCopFromCents(cents: number) {
-    const pesos = Math.trunc(Number(cents || 0) / 100);
-    if (!Number.isFinite(pesos)) return "";
-    return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(pesos);
   }
 
   function slugify(input: string) {
@@ -352,6 +429,8 @@ export function PublicCheckoutTemplatesPanel({
   const ctaSection = layout.sections.find((s) => s.type === "cta") || null;
   const fieldSections = layout.sections.filter((s) => s.type === "field");
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const productSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const selectedProductIds = Array.isArray(productsSection?.props?.selectedIds) ? (productsSection?.props?.selectedIds as string[]) : [];
 
   function rebuildLayoutWithFields(nextFields: LayoutSection[]) {
     const base: LayoutSection[] = [];
@@ -405,6 +484,43 @@ export function PublicCheckoutTemplatesPanel({
     rebuildLayoutWithFields(nextFields);
   }
 
+  function setSelectedProducts(nextIds: string[]) {
+    if (!productsSection) return;
+    updateSectionProps(productsSection.id, { selectedIds: nextIds });
+  }
+
+  function addSelectedProduct(id: string) {
+    if (!productsSection) return;
+    if (!formAllowSelect && selectedProductIds.length) {
+      setSelectedProducts([id]);
+      setFormPlanId(id);
+      return;
+    }
+    if (selectedProductIds.includes(id)) return;
+    const next = [...selectedProductIds, id];
+    setSelectedProducts(next);
+  }
+
+  function removeSelectedProduct(id: string) {
+    if (!productsSection) return;
+    const next = selectedProductIds.filter((pid) => pid !== id);
+    if (!next.length) return;
+    setSelectedProducts(next);
+    if (!formAllowSelect) {
+      setFormPlanId(next[0] || "");
+    }
+  }
+
+  function onProductDragEnd(event: any) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = selectedProductIds.findIndex((f) => f === active.id);
+    const newIndex = selectedProductIds.findIndex((f) => f === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+    const next = arrayMove(selectedProductIds, oldIndex, newIndex);
+    setSelectedProducts(next);
+  }
+
   const brandingStyle: React.CSSProperties = {
     ...(brandingDefaults?.fontFamily ? { fontFamily: brandingDefaults.fontFamily } : {}),
     ...(brandingDefaults?.primaryColor ? ({ ["--primary" as any]: brandingDefaults.primaryColor } as any) : {})
@@ -413,7 +529,89 @@ export function PublicCheckoutTemplatesPanel({
   const previewLogo = logoUrl || "";
   const previewTitle = headerSection?.props?.title || "Completa tu compra";
   const previewSubtitle = headerSection?.props?.subtitle || "Escoge tu producto y paga en minutos.";
+  const previewDescription = headerSection?.props?.description || "";
   const previewCtaLabel = ctaSection?.props?.label || previewCta;
+  const selectedProducts = selectedProductIds
+    .map((id) => (formKind === "PLAN" ? productById.get(id) : planById.get(id)))
+    .filter(Boolean) as Array<Product | Plan>;
+  const previewProducts = selectedProducts.length ? selectedProducts : previewList;
+
+  useEffect(() => {
+    if (!open) return;
+    if (!productsSection) return;
+    if (selectedProductIds.length) return;
+    const seed = formKind === "PLAN" ? activeProducts.map((p) => p.id) : availablePlans(formKind).map((p) => p.id);
+    if (!seed.length) return;
+    updateSectionProps(productsSection.id, { selectedIds: seed });
+  }, [open, productsSection?.id, activeProducts, selectedProductIds.length, formKind]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (!productsSection) return;
+    const validIds = new Set(selectableItems.map((p) => p.id));
+    const filtered = selectedProductIds.filter((id) => validIds.has(id));
+    if (filtered.length !== selectedProductIds.length) {
+      setSelectedProducts(filtered);
+    }
+    if (!filtered.length && selectableItems.length) {
+      setSelectedProducts([selectableItems[0].id]);
+    }
+  }, [open, productsSection?.id, selectableItems, selectedProductIds]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (formAllowSelect) return;
+    if (selectedProductIds.length) {
+      if (selectedProductIds[0] !== formPlanId) setFormPlanId(selectedProductIds[0]);
+      return;
+    }
+    if (formPlanId) setSelectedProducts([formPlanId]);
+  }, [open, formAllowSelect, selectedProductIds, formPlanId]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (!productsSection) return;
+    if (!formAllowSelect && selectedProductIds.length > 1) {
+      const next = [selectedProductIds[0]];
+      setSelectedProducts(next);
+      setFormPlanId(next[0] || "");
+    }
+  }, [open, formAllowSelect, selectedProductIds, productsSection?.id]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (!productsSection) return;
+    if (!formRequireAddress) {
+      const nextFields = fieldSections.map((f) =>
+        f.props?.key === "address" || f.props?.key === "city" || f.props?.key === "department"
+          ? { ...f, enabled: false, props: { ...f.props, required: false } }
+          : f
+      );
+      rebuildLayoutWithFields(nextFields);
+      return;
+    }
+    const existingKeys = new Set(fieldSections.map((f) => String(f.props?.key || "")));
+    const addressPresets = FIELD_PRESETS.filter((p) => ["address", "city", "department"].includes(p.key));
+    const missing = addressPresets.filter((p) => !existingKeys.has(p.key));
+    const appended = missing.map((preset) => ({
+      id: crypto.randomUUID(),
+      type: "field" as const,
+      enabled: true,
+      props: {
+        key: preset.key,
+        label: preset.label,
+        input: preset.input,
+        required: true,
+        options: preset.options || []
+      }
+    }));
+    const combined = [...fieldSections, ...appended].map((f) =>
+      f.props?.key === "address" || f.props?.key === "city" || f.props?.key === "department"
+        ? { ...f, enabled: true, props: { ...f.props, required: true } }
+        : f
+    );
+    rebuildLayoutWithFields(combined);
+  }, [open, formRequireAddress]);
 
   return (
     <div className="template-shell">
@@ -582,43 +780,36 @@ export function PublicCheckoutTemplatesPanel({
                   />
                 </div>
                 <div className="field">
-                  <label>Producto predeterminado</label>
+                  <label>Productos en el checkout</label>
                   <input type="hidden" name="planId" value={formPlanId} />
-                  {formAllowSelect ? <div className="field-hint">Se mostrará un selector en el checkout.</div> : null}
+                  {formAllowSelect ? <div className="field-hint">El cliente verá un selector de productos.</div> : null}
                   {!formAllowSelect && !formPlanId ? (
                     <div className="field-hint" style={{ color: "var(--danger)" }}>
                       Debes seleccionar un producto o activar el selector.
                     </div>
                   ) : null}
-                  <div className={`product-pick ${formAllowSelect ? "is-disabled" : ""}`} aria-disabled={formAllowSelect}>
-                    {(formKind === "PLAN" ? filteredProducts : availablePlans(formKind)).map((p) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        className={`product-option ${formPlanId === p.id ? "is-active" : ""}`}
-                        onClick={() => setFormPlanId(p.id)}
-                        disabled={formAllowSelect}
-                        title={p.name}
-                      >
-                        <div className="product-card-row">
-                          {"imageUrl" in p && p.imageUrl ? (
-                            <img src={p.imageUrl} alt={p.name} className="product-thumb" />
-                          ) : (
-                            <div className="product-thumb product-thumb-fallback">📦</div>
-                          )}
-                          <div className="product-card-text">
-                            <div className="product-title">{p.name}</div>
-                            {"sku" in p && p.sku ? <div className="field-hint">SKU: {p.sku}</div> : null}
-                            {"basePriceInCents" in p && typeof p.basePriceInCents === "number" ? (
-                              <div className="field-hint">{formatCopFromCents(p.basePriceInCents)}</div>
-                            ) : null}
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                    {!(formKind === "PLAN" ? filteredProducts : availablePlans(formKind)).length ? (
-                      <div className="field-hint">No hay productos con ese filtro.</div>
-                    ) : null}
+                  <DndContext sensors={productSensors} collisionDetection={closestCenter} onDragEnd={onProductDragEnd}>
+                    <SortableContext items={selectedProductIds} strategy={verticalListSortingStrategy}>
+                      <div className="field-list">
+                        {selectedProducts.map((p) => (
+                          <SortableProductRow key={p.id} product={p} onRemove={removeSelectedProduct} />
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
+                  {!selectedProducts.length ? <div className="field-hint">No hay productos seleccionados.</div> : null}
+                  <div className="field" style={{ marginTop: 10 }}>
+                    <label>Agregar producto</label>
+                    <div className="field-add">
+                    {selectableItems.map((p) => {
+                        const disabled = !formAllowSelect && selectedProductIds.length >= 1 && !selectedProductIds.includes(p.id);
+                        return (
+                          <button key={p.id} type="button" className="ghost" onClick={() => addSelectedProduct(p.id)} disabled={disabled}>
+                            + {p.name}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
                 <div className="field row">
@@ -669,6 +860,15 @@ export function PublicCheckoutTemplatesPanel({
                   />
                 </div>
                 <div className="field">
+                  <label>Descripción</label>
+                  <input
+                    className="input"
+                    value={previewDescription}
+                    onChange={(e) => headerSection && updateSectionProps(headerSection.id, { description: e.target.value })}
+                    placeholder="Añade un texto corto."
+                  />
+                </div>
+                <div className="field">
                   <label>Texto de ayuda</label>
                   <input
                     className="input"
@@ -692,6 +892,7 @@ export function PublicCheckoutTemplatesPanel({
                           onRemove={removeField}
                           onToggle={toggleField}
                           onUpdate={updateField}
+                          locked={LOCKED_FIELD_KEYS.has(String(f.props?.key || ""))}
                         />
                       ))}
                     </div>
@@ -728,8 +929,9 @@ export function PublicCheckoutTemplatesPanel({
                   {previewLogo ? <img src={previewLogo} alt="Logo" className="logo-preview" /> : null}
                   <div className="canvas-title">{previewTitle}</div>
                   <div className="canvas-subtitle">{previewSubtitle}</div>
+                  {previewDescription ? <div className="canvas-muted">{previewDescription}</div> : null}
                   <div className="canvas-products">
-                    {(previewList || []).slice(0, 3).map((p) => (
+                    {(previewProducts || []).slice(0, 3).map((p) => (
                       <div key={p.id} className="canvas-product-card">
                         {"imageUrl" in p && p.imageUrl ? <img src={p.imageUrl} alt={p.name} /> : <div className="canvas-thumb">📦</div>}
                         <div className="canvas-product-name">{p.name}</div>
@@ -751,8 +953,9 @@ export function PublicCheckoutTemplatesPanel({
                   {previewLogo ? <img src={previewLogo} alt="Logo" className="logo-preview" /> : null}
                   <div className="canvas-title">{previewTitle}</div>
                   <div className="canvas-subtitle">{previewSubtitle}</div>
+                  {previewDescription ? <div className="canvas-muted">{previewDescription}</div> : null}
                   <div className="canvas-products">
-                    {(previewList || []).slice(0, 2).map((p) => (
+                    {(previewProducts || []).slice(0, 2).map((p) => (
                       <div key={p.id} className="canvas-product-card">
                         {"imageUrl" in p && p.imageUrl ? <img src={p.imageUrl} alt={p.name} /> : <div className="canvas-thumb">📦</div>}
                         <div className="canvas-product-name">{p.name}</div>
