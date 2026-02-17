@@ -39,6 +39,7 @@ export function CheckoutTemplatesPanel({
 }) {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<"choose" | "form">("choose");
+  const [kindChosen, setKindChosen] = useState(false);
   const [editing, setEditing] = useState<Template | null>(null);
   const [kind, setKind] = useState<"PLAN" | "SUBSCRIPTION">("PLAN");
   const [name, setName] = useState("");
@@ -70,6 +71,7 @@ export function CheckoutTemplatesPanel({
     setWompiTitle("");
     setWompiDescription("");
     setStep("choose");
+    setKindChosen(false);
     setOpen(true);
   }
 
@@ -86,6 +88,7 @@ export function CheckoutTemplatesPanel({
     setWompiTitle(t.wompiTitle || "");
     setWompiDescription(t.wompiDescription || "");
     setStep("form");
+    setKindChosen(true);
     setOpen(true);
   }
 
@@ -93,6 +96,7 @@ export function CheckoutTemplatesPanel({
     setOpen(false);
     setEditing(null);
     setStep("choose");
+    setKindChosen(false);
   }
 
   const formAction = editing ? actions.update : actions.create;
@@ -161,7 +165,7 @@ export function CheckoutTemplatesPanel({
               </button>
             </div>
 
-            {(!editing && step === "choose") ? (
+            {(!editing && !kindChosen) ? (
               <div className="panel module" style={{ display: "grid", gap: 12 }}>
                 <div className="field-hint">Elige primero el tipo de checkout que quieres crear.</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -171,6 +175,7 @@ export function CheckoutTemplatesPanel({
                     onClick={() => {
                       setKind("PLAN");
                       setStep("form");
+                      setKindChosen(true);
                     }}
                     style={{ textAlign: "left" }}
                   >
@@ -183,6 +188,7 @@ export function CheckoutTemplatesPanel({
                     onClick={() => {
                       setKind("SUBSCRIPTION");
                       setStep("form");
+                      setKindChosen(true);
                     }}
                     style={{ textAlign: "left" }}
                   >
