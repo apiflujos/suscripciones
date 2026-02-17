@@ -6,7 +6,6 @@ import {
   testCentralConnection,
   testShopifyForward,
   updateChatwoot,
-  updateCheckoutConfig,
   updateShopify,
   updateWompi
 } from "./actions";
@@ -17,7 +16,6 @@ import { HelpTip } from "../ui/HelpTip";
 import { PendingButton } from "../ui/PendingButton";
 import { getCsrfToken } from "../lib/csrf";
 import { ConnectionsPanel } from "./ConnectionsPanel";
-import { CheckoutConfigPanel } from "./CheckoutConfigPanel";
 import { CheckoutTemplatesPanel } from "../checkout-templates/CheckoutTemplatesPanel";
 import { createCheckoutTemplate, updateCheckoutTemplate, deleteCheckoutTemplate } from "../checkout-templates/actions";
 
@@ -224,18 +222,11 @@ export default async function SettingsPage({
             <div className="panelHeaderRow">
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <h3>Checkout público</h3>
-                <HelpTip text="Configura URLs públicas para planes y suscripciones." />
+                <HelpTip text="Crea plantillas de checkout para planes y suscripciones." />
               </div>
             </div>
           </div>
           <div className="settings-group-body">
-            <CheckoutConfigPanel
-              defaults={(settings?.checkoutConfig || {}) as any}
-              csrfToken={csrfToken}
-              onSave={updateCheckoutConfig}
-              inlineState={inlineState}
-            />
-            <div style={{ height: 16 }} />
             <CheckoutTemplatesPanel
               templates={templates}
               products={products}
