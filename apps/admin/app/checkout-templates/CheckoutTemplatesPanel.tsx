@@ -217,7 +217,7 @@ export function CheckoutTemplatesPanel({
             </div>
             <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                {inlineMsg("checkout_template_create", "Guardado.", "Error guardando", inlineState)}
+                {inlineMsg("checkout_template_create")}
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <button className="ghost" type="button" onClick={() => setStep("choose")}>
