@@ -14,6 +14,7 @@ const envSchema = z.object({
   ADMIN_API_TOKEN: z.string().min(12),
   SHOPIFY_FORWARD_URL: z.string().url().optional().or(z.literal("")),
   SHOPIFY_FORWARD_SECRET: z.string().optional().or(z.literal("")),
+  SHOPIFY_FORWARD_ORIGIN: z.enum(["shopify", "shopify-native"]).optional(),
   CREDENTIALS_ENCRYPTION_KEY_B64: z.string().optional().or(z.literal("")),
   CHATWOOT_BASE_URL: z.string().url().optional().or(z.literal("")),
   CHATWOOT_ACCOUNT_ID: z.coerce.number().int().positive().optional(),
