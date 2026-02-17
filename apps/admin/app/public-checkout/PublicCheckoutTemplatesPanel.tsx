@@ -417,34 +417,92 @@ export function PublicCheckoutTemplatesPanel({
 
   return (
     <div className="template-shell">
-      {defaults && onSaveDefaults ? (
-        <div className="panel module checkout-base">
-          <div className="panelHeaderRow" style={{ marginBottom: 8 }}>
-            <div>
-              <strong>Checkout público</strong>
-              <div className="field-hint">Marca global, dominio automático y expiración.</div>
+      <div className="panel module checkout-panel">
+        <div className="checkout-panel-grid">
+          {defaults && onSaveDefaults ? (
+            <div className="checkout-section">
+              <div className="panelHeaderRow" style={{ marginBottom: 8 }}>
+                <div>
+                  <strong>Checkout público</strong>
+                  <div className="field-hint">Marca global, dominio automático y expiración.</div>
+                </div>
+              </div>
+              <PublicCheckoutDefaultsWizard defaults={defaults} csrfToken={csrfToken} onSave={onSaveDefaults} />
+              <div style={{ marginTop: 8 }}>
+                {inlineState.action === "public_defaults" && inlineState.status === "ok" ? (
+                  <div className="authAlert">Configuración guardada.</div>
+                ) : null}
+                {inlineState.action === "public_defaults" && inlineState.status === "fail" ? (
+                  <div className="authAlert is-danger">Error guardando: {inlineState.errorText || "unknown_error"}</div>
+                ) : null}
+              </div>
             </div>
-          </div>
-          <PublicCheckoutDefaultsWizard defaults={defaults} csrfToken={csrfToken} onSave={onSaveDefaults} />
-          <div style={{ marginTop: 8 }}>
-            {inlineState.action === "public_defaults" && inlineState.status === "ok" ? (
-              <div className="authAlert">Configuración guardada.</div>
-            ) : null}
-            {inlineState.action === "public_defaults" && inlineState.status === "fail" ? (
-              <div className="authAlert is-danger">Error guardando: {inlineState.errorText || "unknown_error"}</div>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
+          ) : null}
 
-      <div className="template-header">
-        <div>
-          <h3 style={{ margin: 0 }}>Plantillas públicas</h3>
-          <div className="field-hint">Crea checkout de Plan (link de pago) o Suscripción (tokenización).</div>
+        <div className="checkout-section">
+          <div className="template-header">
+            <div>
+              <h3 style={{ margin: 0 }}>Plantillas</h3>
+              <div className="field-hint">Crea checkout de Plan (link de pago) o Suscripción (tokenización).</div>
+            </div>
+            <button className="primary" type="button" onClick={openCreate}>
+              Nueva plantilla
+            </button>
+          </div>
+          <div className="template-grid">
+            {templates.map((t) => (
+              <div key={t.id} className={`template-card ${t.active ? "" : "is-disabled"}`}>
+                <div className="template-card-top">
+                  <div>
+                    <div className="template-title">{t.name}</div>
+                    <div className="field-hint">
+                      {t.kind === "PLAN" ? "Plan (link de pago)" : "Suscripción (tokenización)"}
+                    </div>
+                  </div>
+                  <span className={`pill ${t.active ? "pill-green" : ""}`}>{t.active ? "Activa" : "Inactiva"}</span>
+                </div>
+                <div className="template-meta">
+                  <div>
+                    <div className="field-hint">Producto</div>
+                    <strong>
+                      {t.allowPlanSelect
+                        ? "Selector"
+                        : t.planId
+                          ? (t.kind === "PLAN" ? productById.get(t.planId)?.name : availablePlans(t.kind).find((p) => p.id === t.planId)?.name) || "—"
+                          : "—"}
+                    </strong>
+                  </div>
+                  <div>
+                    <div className="field-hint">Slug</div>
+                    <strong>{t.slug}</strong>
+                  </div>
+                </div>
+                <div className="template-link">
+                  <input className="input" readOnly value={buildLink(t.slug)} />
+                  <button className="ghost" type="button" onClick={() => copyLink(t.slug)}>
+                    Copiar
+                  </button>
+                  <a className="ghost" href={buildLink(t.slug)} target="_blank" rel="noreferrer">
+                    Previsualizar
+                  </a>
+                </div>
+                <div className="template-actions">
+                  <button className="secondary" type="button" onClick={() => openEdit(t)}>
+                    Editar
+                  </button>
+                  <form action={actions.deactivate}>
+                    <input type="hidden" name="csrf" value={csrfToken} />
+                    <input type="hidden" name="id" value={t.id} />
+                    <PendingButton className="ghost" type="submit" pendingText="Desactivando...">
+                      Desactivar
+                    </PendingButton>
+                  </form>
+                </div>
+              </div>
+            ))}
+            {!templates.length ? <div className="field-hint">No hay plantillas aún.</div> : null}
+          </div>
         </div>
-        <button className="primary" type="button" onClick={openCreate}>
-          Nueva plantilla
-        </button>
       </div>
 
       {open ? (
@@ -719,60 +777,6 @@ export function PublicCheckoutTemplatesPanel({
           </form>
         </div>
       ) : null}
-
-      <div className="template-grid">
-        {templates.map((t) => (
-          <div key={t.id} className={`template-card ${t.active ? "" : "is-disabled"}`}>
-            <div className="template-card-top">
-              <div>
-                <div className="template-title">{t.name}</div>
-                <div className="field-hint">
-                  {t.kind === "PLAN" ? "Plan (link de pago)" : "Suscripción (tokenización)"}
-                </div>
-              </div>
-              <span className={`pill ${t.active ? "pill-green" : ""}`}>{t.active ? "Activa" : "Inactiva"}</span>
-            </div>
-            <div className="template-meta">
-              <div>
-                <div className="field-hint">Producto</div>
-                <strong>
-                  {t.allowPlanSelect
-                    ? "Selector"
-                    : t.planId
-                      ? (t.kind === "PLAN" ? productById.get(t.planId)?.name : availablePlans(t.kind).find((p) => p.id === t.planId)?.name) || "—"
-                      : "—"}
-                </strong>
-              </div>
-              <div>
-                <div className="field-hint">Slug</div>
-                <strong>{t.slug}</strong>
-              </div>
-            </div>
-            <div className="template-link">
-              <input className="input" readOnly value={buildLink(t.slug)} />
-              <button className="ghost" type="button" onClick={() => copyLink(t.slug)}>
-                Copiar
-              </button>
-              <a className="ghost" href={buildLink(t.slug)} target="_blank" rel="noreferrer">
-                Previsualizar
-              </a>
-            </div>
-            <div className="template-actions">
-              <button className="secondary" type="button" onClick={() => openEdit(t)}>
-                Editar
-              </button>
-              <form action={actions.deactivate}>
-                <input type="hidden" name="csrf" value={csrfToken} />
-                <input type="hidden" name="id" value={t.id} />
-                <PendingButton className="ghost" type="submit" pendingText="Desactivando...">
-                  Desactivar
-                </PendingButton>
-              </form>
-            </div>
-          </div>
-        ))}
-        {!templates.length ? <div className="field-hint">No hay plantillas aún.</div> : null}
-      </div>
 
     </div>
   );

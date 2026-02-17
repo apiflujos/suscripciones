@@ -1834,6 +1834,25 @@ textarea {
   display: grid;
   gap: 18px;
 }
+.checkout-panel {
+  display: grid;
+  gap: 16px;
+}
+.checkout-panel-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.55fr) minmax(0, 0.45fr);
+  gap: 18px;
+  align-items: start;
+}
+.checkout-section {
+  display: grid;
+  gap: 12px;
+}
+@media (max-width: 980px) {
+  .checkout-panel-grid {
+    grid-template-columns: 1fr;
+  }
+}
 
 .template-header {
   display: flex;
