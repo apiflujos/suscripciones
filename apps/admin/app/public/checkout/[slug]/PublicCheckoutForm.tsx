@@ -53,13 +53,6 @@ export function PublicCheckoutForm({
 
   const contactEmail = config.contactEmail || "";
 
-  const plansOptions = useMemo(() => plans, [plans]);
-  useEffect(() => {
-    if (!template.allowPlanSelect) return;
-    if (selectedPlanId) return;
-    if (orderedPlans.length) setSelectedPlanId(orderedPlans[0].id);
-  }, [template.allowPlanSelect, orderedPlans, selectedPlanId]);
-
   const fallbackSections: FieldSection[] = [
     { id: "header", type: "header", enabled: true, props: {} },
     { id: "products", type: "products", enabled: true, props: {} },
@@ -82,11 +75,18 @@ export function PublicCheckoutForm({
   const subtitle = headerSection?.props?.subtitle || "Continuemos con el proceso";
   const description = headerSection?.props?.description || "";
   const selectedIds = Array.isArray(productsSection?.props?.selectedIds) ? (productsSection?.props?.selectedIds as string[]) : [];
+  const plansOptions = useMemo(() => plans, [plans]);
   const orderedPlans = useMemo(() => {
     if (!selectedIds.length) return plansOptions;
     const mapped = selectedIds.map((id) => plansOptions.find((p) => p.id === id)).filter(Boolean) as Plan[];
     return mapped.length ? mapped : plansOptions;
   }, [selectedIds, plansOptions]);
+
+  useEffect(() => {
+    if (!template.allowPlanSelect) return;
+    if (selectedPlanId) return;
+    if (orderedPlans.length) setSelectedPlanId(orderedPlans[0].id);
+  }, [template.allowPlanSelect, orderedPlans, selectedPlanId]);
 
   function formatCopFromCents(cents: number) {
     const pesos = Math.trunc(Number(cents || 0) / 100);
