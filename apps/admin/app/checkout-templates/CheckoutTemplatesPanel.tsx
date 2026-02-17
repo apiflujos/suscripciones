@@ -123,7 +123,10 @@ export function CheckoutTemplatesPanel({
               <button
                 type="button"
                 className={`card cardPad ${kind === "PLAN" ? "is-active" : ""}`}
-                onClick={() => setKind("PLAN")}
+                onClick={() => {
+                  setKind("PLAN");
+                  setStep("form");
+                }}
                 style={{ textAlign: "left" }}
               >
                 <strong>Plan</strong>
@@ -132,16 +135,14 @@ export function CheckoutTemplatesPanel({
               <button
                 type="button"
                 className={`card cardPad ${kind === "SUBSCRIPTION" ? "is-active" : ""}`}
-                onClick={() => setKind("SUBSCRIPTION")}
+                onClick={() => {
+                  setKind("SUBSCRIPTION");
+                  setStep("form");
+                }}
                 style={{ textAlign: "left" }}
               >
                 <strong>Suscripción</strong>
                 <div className="field-hint">Checkout de tokenización.</div>
-              </button>
-            </div>
-            <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <button className="primary" type="button" onClick={() => setStep("form")}>
-                Siguiente
               </button>
             </div>
           </div>
