@@ -34,14 +34,10 @@ export function CheckoutConfigPanel({
   const [planBaseUrl, setPlanBaseUrl] = useState<string>(String(defaults.planBaseUrl || ""));
   const [subscriptionBaseUrl, setSubscriptionBaseUrl] = useState<string>(String(defaults.subscriptionBaseUrl || ""));
   const [tokenExpiryHours, setTokenExpiryHours] = useState<string>(String(defaults.tokenExpiryHours || 24));
-  const [planTitle, setPlanTitle] = useState<string>(String(defaults.planTitle || "Paga tu plan"));
-  const [planDescription, setPlanDescription] = useState<string>(String(defaults.planDescription || ""));
-  const [subscriptionTitle, setSubscriptionTitle] = useState<string>(String(defaults.subscriptionTitle || "Activa tu suscripción"));
-  const [subscriptionDescription, setSubscriptionDescription] = useState<string>(String(defaults.subscriptionDescription || ""));
-  const [planWompiTitle, setPlanWompiTitle] = useState<string>(String(defaults.planWompiTitle || ""));
-  const [planWompiDescription, setPlanWompiDescription] = useState<string>(String(defaults.planWompiDescription || ""));
-  const [subscriptionWompiTitle, setSubscriptionWompiTitle] = useState<string>(String(defaults.subscriptionWompiTitle || ""));
-  const [subscriptionWompiDescription, setSubscriptionWompiDescription] = useState<string>(String(defaults.subscriptionWompiDescription || ""));
+  const [checkoutTitle, setCheckoutTitle] = useState<string>(String(defaults.planTitle || defaults.subscriptionTitle || "Checkout"));
+  const [checkoutDescription, setCheckoutDescription] = useState<string>(String(defaults.planDescription || defaults.subscriptionDescription || ""));
+  const [wompiTitle, setWompiTitle] = useState<string>(String(defaults.planWompiTitle || defaults.subscriptionWompiTitle || ""));
+  const [wompiDescription, setWompiDescription] = useState<string>(String(defaults.planWompiDescription || defaults.subscriptionWompiDescription || ""));
 
   useEffect(() => {
     if (defaults.logoUrl) setLogoData(String(defaults.logoUrl));
@@ -58,16 +54,24 @@ export function CheckoutConfigPanel({
     reader.readAsDataURL(file);
   }
 
-  const previewPlan = useMemo(() => ({ title: planTitle, description: planDescription, cta: "Pagar plan" }), [planTitle, planDescription]);
+  const previewPlan = useMemo(() => ({ title: checkoutTitle, description: checkoutDescription, cta: "Pagar" }), [checkoutTitle, checkoutDescription]);
   const previewSub = useMemo(
-    () => ({ title: subscriptionTitle, description: subscriptionDescription, cta: "Guardar método" }),
-    [subscriptionTitle, subscriptionDescription]
+    () => ({ title: checkoutTitle, description: checkoutDescription, cta: "Guardar método" }),
+    [checkoutTitle, checkoutDescription]
   );
 
   return (
     <form action={onSave} className="panel module" style={{ display: "grid", gap: 16 }}>
       <input type="hidden" name="csrf" value={csrfToken} />
       <input type="hidden" name="logoUrl" value={logoData} />
+      <input type="hidden" name="planTitle" value={checkoutTitle} />
+      <input type="hidden" name="planDescription" value={checkoutDescription} />
+      <input type="hidden" name="subscriptionTitle" value={checkoutTitle} />
+      <input type="hidden" name="subscriptionDescription" value={checkoutDescription} />
+      <input type="hidden" name="planWompiTitle" value={wompiTitle} />
+      <input type="hidden" name="planWompiDescription" value={wompiDescription} />
+      <input type="hidden" name="subscriptionWompiTitle" value={wompiTitle} />
+      <input type="hidden" name="subscriptionWompiDescription" value={wompiDescription} />
 
       <div className="panelHeaderRow" style={{ justifyContent: "space-between" }}>
         <div>
@@ -111,40 +115,19 @@ export function CheckoutConfigPanel({
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <div className="panel module" style={{ margin: 0 }}>
-          <div className="panel-header">
-            <strong>Plan</strong>
-          </div>
-          <div className="field">
-            <label>Título</label>
-            <input className="input" name="planTitle" value={planTitle} onChange={(e) => setPlanTitle(e.target.value)} />
-          </div>
-          <div className="field">
-            <label>Descripción</label>
-            <textarea className="input" name="planDescription" rows={3} value={planDescription} onChange={(e) => setPlanDescription(e.target.value)} />
-          </div>
+      <div className="panel module" style={{ margin: 0 }}>
+        <div className="panel-header">
+          <strong>Checkout público</strong>
         </div>
-
-        <div className="panel module" style={{ margin: 0 }}>
-          <div className="panel-header">
-            <strong>Suscripción</strong>
-          </div>
-          <div className="field">
-            <label>Título</label>
-            <input className="input" name="subscriptionTitle" value={subscriptionTitle} onChange={(e) => setSubscriptionTitle(e.target.value)} />
-          </div>
-          <div className="field">
-            <label>Descripción</label>
-            <textarea
-              className="input"
-              name="subscriptionDescription"
-              rows={3}
-              value={subscriptionDescription}
-              onChange={(e) => setSubscriptionDescription(e.target.value)}
-            />
-          </div>
+        <div className="field">
+          <label>Título</label>
+          <input className="input" value={checkoutTitle} onChange={(e) => setCheckoutTitle(e.target.value)} />
         </div>
+        <div className="field">
+          <label>Descripción</label>
+          <textarea className="input" rows={3} value={checkoutDescription} onChange={(e) => setCheckoutDescription(e.target.value)} />
+        </div>
+        <div className="field-hint">Se usa igual para Plan y Suscripción.</div>
       </div>
 
       <div className="panel module" style={{ margin: 0 }}>
@@ -158,55 +141,21 @@ export function CheckoutConfigPanel({
           <span className="pill">{`{periodicidad}`}</span>{" "}
           <span className="pill">{`{fecha_expira}`}</span>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 10 }}>
-          <div className="panel module" style={{ margin: 0 }}>
-            <div className="panel-header">
-              <strong>Plan</strong>
-            </div>
-            <div className="field">
-              <label>Title Wompi</label>
-              <input className="input" name="planWompiTitle" value={planWompiTitle} onChange={(e) => setPlanWompiTitle(e.target.value)} placeholder="{producto} · {contacto}" />
-            </div>
-            <div className="field">
-              <label>Description Wompi</label>
-              <input
-                className="input"
-                name="planWompiDescription"
-                value={planWompiDescription}
-                onChange={(e) => setPlanWompiDescription(e.target.value)}
-                placeholder="{producto} · {monto}"
-              />
-            </div>
-          </div>
-
-          <div className="panel module" style={{ margin: 0 }}>
-            <div className="panel-header">
-              <strong>Suscripción</strong>
-            </div>
-            <div className="field">
-              <label>Title Wompi</label>
-              <input
-                className="input"
-                name="subscriptionWompiTitle"
-                value={subscriptionWompiTitle}
-                onChange={(e) => setSubscriptionWompiTitle(e.target.value)}
-                placeholder="{producto} · {contacto}"
-              />
-            </div>
-            <div className="field">
-              <label>Description Wompi</label>
-              <input
-                className="input"
-                name="subscriptionWompiDescription"
-                value={subscriptionWompiDescription}
-                onChange={(e) => setSubscriptionWompiDescription(e.target.value)}
-                placeholder="{producto} · {periodicidad} · {monto}"
-              />
-            </div>
-          </div>
+        <div className="field" style={{ marginTop: 10 }}>
+          <label>Title Wompi</label>
+          <input className="input" value={wompiTitle} onChange={(e) => setWompiTitle(e.target.value)} placeholder="{producto} · {contacto}" />
+        </div>
+        <div className="field">
+          <label>Description Wompi</label>
+          <input
+            className="input"
+            value={wompiDescription}
+            onChange={(e) => setWompiDescription(e.target.value)}
+            placeholder="{producto} · {monto}"
+          />
         </div>
         <div className="field-hint" style={{ marginTop: 8 }}>
-          Si dejas vacío, se usan textos por defecto.
+          Se usa igual para Plan y Suscripción. Si dejas vacío, se usan textos por defecto.
         </div>
       </div>
 
@@ -265,13 +214,13 @@ export function CheckoutConfigPanel({
             display: "grid",
             placeItems: "center",
             zIndex: 9999,
-            padding: 16
+            padding: 0
           }}
           onClick={() => setPreviewOpen(false)}
         >
           <div
             className="panel module"
-            style={{ width: "min(1100px, 96vw)", maxHeight: "90vh", overflow: "auto" }}
+            style={{ width: "100vw", height: "100vh", maxHeight: "100vh", borderRadius: 0, overflow: "auto" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
