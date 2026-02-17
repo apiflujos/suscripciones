@@ -1,5 +1,4 @@
 import type { CSSProperties } from "react";
-import { fetchAdminCached, getAdminApiConfig } from "../../../../lib/adminApi";
 
 export const dynamic = "force-dynamic";
 
@@ -10,25 +9,29 @@ async function fetchPublicToken(token: string) {
   return { ok: res.ok, status: res.status, json };
 }
 
+async function fetchCheckoutConfig() {
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
+  const res = await fetch(`${apiBase}/public/checkout-config`, { cache: "no-store" });
+  const json = await res.json().catch(() => null);
+  return { ok: res.ok, json };
+}
+
 export default async function PublicTokenizeSuccessPage({ params }: { params: Promise<{ token: string }> }) {
   const { token: linkToken } = await params;
-  const { token } = getAdminApiConfig();
-  const settingsRes = token ? await fetchAdminCached("/admin/settings", { ttlMs: 1500 }) : { ok: false, json: null };
-  const settings = settingsRes.ok ? settingsRes.json : null;
+  const configRes = await fetchCheckoutConfig();
+  const config = configRes.ok ? configRes.json?.config || {} : {};
   const tokenRes = await fetchPublicToken(linkToken);
   void tokenRes;
 
-  const title = settings?.publicCheckout?.successTitle || settings?.publicCheckout?.title || "Gracias";
-  const subtitle = settings?.publicCheckout?.successSubtitle || settings?.publicCheckout?.subtitle || "Tu método de pago quedó guardado.";
-  const description =
-    settings?.publicCheckout?.description ||
-    "Desde ahora podremos procesar tu suscripción de forma automática.";
-  const contactEmail = settings?.publicCheckout?.contactEmail || "";
-  const logoUrl = settings?.publicCheckout?.logoUrl || "";
-  const fontFamily = settings?.publicCheckout?.fontFamily || "";
-  const primaryColor = settings?.publicCheckout?.primaryColor || "";
-  const redirectUrl = settings?.publicCheckout?.redirectUrl || "";
-  const buttonLabel = settings?.publicCheckout?.successButtonText || "Volver";
+  const title = "Gracias";
+  const subtitle = "Tu método de pago quedó guardado.";
+  const description = config?.subscriptionDescription || "Desde ahora podremos procesar tu suscripción de forma automática.";
+  const contactEmail = "";
+  const logoUrl = config?.logoUrl || "";
+  const fontFamily = "";
+  const primaryColor = "";
+  const redirectUrl = "";
+  const buttonLabel = "Volver";
 
   const styleVars = primaryColor ? ({ ["--primary" as any]: primaryColor } as CSSProperties) : {};
 

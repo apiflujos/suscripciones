@@ -61,24 +61,18 @@ const chatwootUpdateSchema = z.object({
   inboxId: z.coerce.number().int().positive().optional()
 });
 
-const publicCheckoutUpdateSchema = z.object({
-  baseUrl: z.string().url().optional().or(z.literal("")),
-  title: z.string().min(1).optional().or(z.literal("")),
-  subtitle: z.string().min(1).optional().or(z.literal("")),
-  description: z.string().min(1).optional().or(z.literal("")),
-  contactEmail: z.string().email().optional().or(z.literal("")),
+const checkoutConfigUpdateSchema = z.object({
+  planBaseUrl: z.string().url().optional().or(z.literal("")),
+  subscriptionBaseUrl: z.string().url().optional().or(z.literal("")),
   tokenExpiryHours: z.coerce.number().int().positive().optional(),
-  logoUrl: z.string().url().optional().or(z.literal("")),
-  primaryColor: z.string().optional().or(z.literal("")),
-  fontFamily: z.string().optional().or(z.literal("")),
-  successTitle: z.string().optional().or(z.literal("")),
-  successSubtitle: z.string().optional().or(z.literal("")),
-  successButtonText: z.string().optional().or(z.literal("")),
-  redirectUrl: z.string().url().optional().or(z.literal("")),
-  domainMode: z.enum(["apiflujos", "custom"]).optional(),
-  companyName: z.string().optional().or(z.literal("")),
-  customDomain: z.string().optional().or(z.literal(""))
+  logoUrl: z.string().optional().or(z.literal("")),
+  planTitle: z.string().optional().or(z.literal("")),
+  planDescription: z.string().optional().or(z.literal("")),
+  subscriptionTitle: z.string().optional().or(z.literal("")),
+  subscriptionDescription: z.string().optional().or(z.literal(""))
 });
+
+ 
 
 export const settingsRouter = express.Router();
 
@@ -91,7 +85,7 @@ settingsRouter.get("/", async (_req, res) => {
     encryptionKeyValid = buf.length === 32;
   }
 
-  const [wompiCreds, shopifyCreds, commsCreds, publicCheckoutRaw] = await Promise.all([
+  const [wompiCreds, shopifyCreds, commsCreds, checkoutConfigRaw] = await Promise.all([
     getCredentialsBulk(CredentialProvider.WOMPI, [
       "ACTIVE_ENV",
       "PUBLIC_KEY",
@@ -132,7 +126,7 @@ settingsRouter.get("/", async (_req, res) => {
       "INBOX_ID_SANDBOX",
       "API_ACCESS_TOKEN_SANDBOX"
     ]),
-    getCredential(CredentialProvider.WOMPI, "PUBLIC_CHECKOUT_CONFIG")
+    getCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG")
   ]);
 
   const wompiActiveEnv = (() => {
@@ -203,11 +197,11 @@ settingsRouter.get("/", async (_req, res) => {
     inboxId: getComms("INBOX_ID", "SANDBOX", process.env.CHATWOOT_INBOX_ID_SANDBOX) ?? null
   };
 
-  let publicCheckout: any = {};
+  let checkoutConfig: any = {};
   try {
-    publicCheckout = publicCheckoutRaw ? JSON.parse(publicCheckoutRaw) : {};
+    checkoutConfig = checkoutConfigRaw ? JSON.parse(checkoutConfigRaw) : {};
   } catch {
-    publicCheckout = {};
+    checkoutConfig = {};
   }
 
   res.json({
@@ -234,26 +228,18 @@ settingsRouter.get("/", async (_req, res) => {
       accountId: (chatwootActiveEnv === "SANDBOX" ? commsSandbox.accountId : commsProd.accountId) ?? null,
       inboxId: (chatwootActiveEnv === "SANDBOX" ? commsSandbox.inboxId : commsProd.inboxId) ?? null
     },
-    publicCheckout: {
-      baseUrl: publicCheckout.baseUrl || (process.env.PUBLIC_CHECKOUT_BASE_URL || "").trim() || null,
-      title: publicCheckout.title || (process.env.PUBLIC_CHECKOUT_TITLE || "").trim() || null,
-      subtitle: publicCheckout.subtitle || (process.env.PUBLIC_CHECKOUT_SUBTITLE || "").trim() || null,
-      description: publicCheckout.description || (process.env.PUBLIC_CHECKOUT_DESCRIPTION || "").trim() || null,
-      contactEmail: publicCheckout.contactEmail || (process.env.PUBLIC_CHECKOUT_CONTACT_EMAIL || "").trim() || null,
+    checkoutConfig: {
+      planBaseUrl: checkoutConfig.planBaseUrl || (process.env.PUBLIC_PLAN_BASE_URL || "").trim() || null,
+      subscriptionBaseUrl: checkoutConfig.subscriptionBaseUrl || (process.env.PUBLIC_SUBSCRIPTION_BASE_URL || "").trim() || null,
       tokenExpiryHours:
-        Number.isFinite(Number(publicCheckout.tokenExpiryHours)) && Number(publicCheckout.tokenExpiryHours) > 0
-          ? Math.trunc(Number(publicCheckout.tokenExpiryHours))
+        Number.isFinite(Number(checkoutConfig.tokenExpiryHours)) && Number(checkoutConfig.tokenExpiryHours) > 0
+          ? Math.trunc(Number(checkoutConfig.tokenExpiryHours))
           : Number(process.env.PUBLIC_CHECKOUT_TOKEN_EXPIRY_HOURS || 24),
-      logoUrl: publicCheckout.logoUrl || null,
-      primaryColor: publicCheckout.primaryColor || null,
-      fontFamily: publicCheckout.fontFamily || null,
-      successTitle: publicCheckout.successTitle || null,
-      successSubtitle: publicCheckout.successSubtitle || null,
-      successButtonText: publicCheckout.successButtonText || null,
-      redirectUrl: publicCheckout.redirectUrl || null,
-      domainMode: publicCheckout.domainMode || null,
-      companyName: publicCheckout.companyName || null,
-      customDomain: publicCheckout.customDomain || null
+      logoUrl: checkoutConfig.logoUrl || null,
+      planTitle: checkoutConfig.planTitle || "Paga tu plan",
+      planDescription: checkoutConfig.planDescription || "",
+      subscriptionTitle: checkoutConfig.subscriptionTitle || "Activa tu suscripción",
+      subscriptionDescription: checkoutConfig.subscriptionDescription || ""
     }
   });
 });
@@ -310,6 +296,26 @@ settingsRouter.put("/shopify", async (req, res) => {
 
 settingsRouter.post("/shopify/test-forward", testShopifyForward);
 
+settingsRouter.put("/checkout-config", async (req, res) => {
+  const parsed = checkoutConfigUpdateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+
+  const payload = {
+    planBaseUrl: parsed.data.planBaseUrl || "",
+    subscriptionBaseUrl: parsed.data.subscriptionBaseUrl || "",
+    tokenExpiryHours: parsed.data.tokenExpiryHours || undefined,
+    logoUrl: parsed.data.logoUrl || "",
+    planTitle: parsed.data.planTitle || "",
+    planDescription: parsed.data.planDescription || "",
+    subscriptionTitle: parsed.data.subscriptionTitle || "",
+    subscriptionDescription: parsed.data.subscriptionDescription || ""
+  };
+
+  await setCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG", JSON.stringify(payload));
+  await systemLog(LogLevel.INFO, "settings.checkout_config", "Checkout config updated");
+  res.json({ ok: true });
+});
+
 settingsRouter.put("/chatwoot", async (req, res) => {
   const parsed = chatwootUpdateSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
@@ -327,34 +333,6 @@ settingsRouter.put("/chatwoot", async (req, res) => {
   }
 
   await systemLog(LogLevel.INFO, "configuracion.comunicaciones", "Credenciales de la central de comunicaciones actualizadas").catch(() => {});
-  res.json({ ok: true });
-});
-
-settingsRouter.put("/public-checkout", async (req, res) => {
-  const parsed = publicCheckoutUpdateSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
-
-  const payload = {
-    baseUrl: parsed.data.baseUrl || "",
-    title: parsed.data.title || "",
-    subtitle: parsed.data.subtitle || "",
-    description: parsed.data.description || "",
-    contactEmail: parsed.data.contactEmail || "",
-    tokenExpiryHours: parsed.data.tokenExpiryHours || undefined,
-    logoUrl: parsed.data.logoUrl || "",
-    primaryColor: parsed.data.primaryColor || "",
-    fontFamily: parsed.data.fontFamily || "",
-    successTitle: parsed.data.successTitle || "",
-    successSubtitle: parsed.data.successSubtitle || "",
-    successButtonText: parsed.data.successButtonText || "",
-    redirectUrl: parsed.data.redirectUrl || "",
-    domainMode: parsed.data.domainMode || "",
-    companyName: parsed.data.companyName || "",
-    customDomain: parsed.data.customDomain || ""
-  };
-
-  await setCredential(CredentialProvider.WOMPI, "PUBLIC_CHECKOUT_CONFIG", JSON.stringify(payload));
-  await systemLog(LogLevel.INFO, "settings.public_checkout", "Public checkout updated", { baseUrl: payload.baseUrl });
   res.json({ ok: true });
 });
 

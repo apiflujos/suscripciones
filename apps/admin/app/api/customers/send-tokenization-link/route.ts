@@ -26,12 +26,12 @@ export async function POST(req: Request) {
     headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
   }).catch(() => null);
   const settingsJson = settingsRes && "ok" in settingsRes ? await (settingsRes as any).json().catch(() => null) : null;
-  const baseFromSettings = String(settingsJson?.publicCheckout?.baseUrl || "").trim();
+  const baseFromSettings = String(settingsJson?.checkoutConfig?.subscriptionBaseUrl || "").trim();
   const base = (baseFromSettings || PUBLIC_CHECKOUT_BASE || ADMIN_BASE).replace(/\/$/, "");
   if (!base) return NextResponse.json({ ok: false, error: "missing_public_base_url" }, { status: 400 });
 
   const linkToken = crypto.randomBytes(18).toString("hex");
-  const link = `${base}/public/tokenize/${linkToken}`;
+  const link = `${base}/public/suscripcion/${linkToken}`;
   const content = `Hola ${customerName}, para activar tu suscripción guarda tu método de pago aquí: ${link}`;
 
   const res = await fetch(`${API_BASE}/admin/chatwoot/messages`, {
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
     .then((r) => r.json())
     .catch(() => null);
   const prevMeta = existing?.customer?.metadata ?? {};
-  const expiryHours = Number(settingsJson?.publicCheckout?.tokenExpiryHours || 24);
+  const expiryHours = Number(settingsJson?.checkoutConfig?.tokenExpiryHours || 24);
   const hours = Number.isFinite(expiryHours) && expiryHours > 0 ? Math.min(Math.max(Math.trunc(expiryHours), 1), 168) : 24;
   const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
 

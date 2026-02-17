@@ -23,14 +23,6 @@ publicTokenizationRouter.get("/tokenization-links/:token", async (req, res) => {
     return res.status(410).json({ error: "token_expired" });
   }
 
-  const templateId = String(link?.templateId || "").trim();
-  const templateSlug = String(link?.templateSlug || "").trim();
-  const template = templateId || templateSlug
-    ? await prisma.publicCheckoutTemplate.findFirst({
-        where: templateId ? { id: templateId } : { slug: templateSlug }
-      })
-    : null;
-
   res.json({
     ok: true,
     customer: {
@@ -40,20 +32,8 @@ publicTokenizationRouter.get("/tokenization-links/:token", async (req, res) => {
     },
     link: {
       planId: link?.planId || null,
-      kind: link?.kind || null,
-      templateId: link?.templateId || null,
-      templateSlug: link?.templateSlug || null
+      kind: link?.kind || null
     },
-    template: template
-      ? {
-          id: template.id,
-          name: template.name,
-          slug: template.slug,
-          kind: template.kind,
-          branding: template.branding || {},
-          planId: template.planId || null
-        }
-      : null,
     expiresAt: expiresAt ? expiresAt.toISOString() : null
   });
 });

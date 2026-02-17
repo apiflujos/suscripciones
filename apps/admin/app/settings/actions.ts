@@ -152,31 +152,35 @@ export async function updateChatwoot(formData: FormData) {
   }
 }
 
-export async function updatePublicCheckout(formData: FormData) {
+export async function updateCheckoutConfig(formData: FormData) {
   await assertCsrfToken(formData);
-  const baseUrl = normalizeUrl(String(formData.get("publicBaseUrl") || ""));
-  const title = String(formData.get("publicTitle") || "").trim();
-  const subtitle = String(formData.get("publicSubtitle") || "").trim();
-  const description = String(formData.get("publicDescription") || "").trim();
-  const contactEmail = String(formData.get("publicContactEmail") || "").trim();
-  const tokenExpiryHours = String(formData.get("publicTokenExpiryHours") || "").trim();
+  const planBaseUrl = String(formData.get("planBaseUrl") || "").trim();
+  const subscriptionBaseUrl = String(formData.get("subscriptionBaseUrl") || "").trim();
+  const tokenExpiryHours = String(formData.get("tokenExpiryHours") || "").trim();
+  const logoUrl = String(formData.get("logoUrl") || "").trim();
+  const planTitle = String(formData.get("planTitle") || "").trim();
+  const planDescription = String(formData.get("planDescription") || "").trim();
+  const subscriptionTitle = String(formData.get("subscriptionTitle") || "").trim();
+  const subscriptionDescription = String(formData.get("subscriptionDescription") || "").trim();
 
   try {
-    await adminFetch("/admin/settings/public-checkout", {
+    await adminFetch("/admin/settings/checkout-config", {
       method: "PUT",
       body: JSON.stringify({
-        ...(baseUrl ? { baseUrl } : { baseUrl: "" }),
-        ...(title ? { title } : { title: "" }),
-        ...(subtitle ? { subtitle } : { subtitle: "" }),
-        ...(description ? { description } : { description: "" }),
-        ...(contactEmail ? { contactEmail } : { contactEmail: "" }),
-        ...(tokenExpiryHours ? { tokenExpiryHours: Number(tokenExpiryHours) } : {})
+        ...(planBaseUrl ? { planBaseUrl } : { planBaseUrl: "" }),
+        ...(subscriptionBaseUrl ? { subscriptionBaseUrl } : { subscriptionBaseUrl: "" }),
+        ...(tokenExpiryHours ? { tokenExpiryHours: Number(tokenExpiryHours) } : {}),
+        ...(logoUrl ? { logoUrl } : { logoUrl: "" }),
+        ...(planTitle ? { planTitle } : { planTitle: "" }),
+        ...(planDescription ? { planDescription } : { planDescription: "" }),
+        ...(subscriptionTitle ? { subscriptionTitle } : { subscriptionTitle: "" }),
+        ...(subscriptionDescription ? { subscriptionDescription } : { subscriptionDescription: "" })
       })
     });
-    redirectWith("public_checkout", "ok");
+    redirectWith("checkout_config", "ok");
   } catch (err) {
     if (isNextRedirect(err)) throw err;
-    redirectWith("public_checkout", "fail", toShortErrorMessage(err));
+    redirectWith("checkout_config", "fail", toShortErrorMessage(err));
   }
 }
 

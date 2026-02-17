@@ -6,15 +6,10 @@ import {
   testCentralConnection,
   testShopifyForward,
   updateChatwoot,
+  updateCheckoutConfig,
   updateShopify,
   updateWompi
 } from "./actions";
-import {
-  createPublicCheckoutTemplate,
-  deactivatePublicCheckoutTemplate,
-  updatePublicCheckoutDefaults,
-  updatePublicCheckoutTemplate
-} from "../public-checkout/actions";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
@@ -22,7 +17,7 @@ import { HelpTip } from "../ui/HelpTip";
 import { PendingButton } from "../ui/PendingButton";
 import { getCsrfToken } from "../lib/csrf";
 import { ConnectionsPanel } from "./ConnectionsPanel";
-import { PublicCheckoutTemplatesPanel } from "../public-checkout/PublicCheckoutTemplatesPanel";
+import { CheckoutConfigPanel } from "./CheckoutConfigPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -32,18 +27,6 @@ function getConfig() {
 
 async function fetchSettings() {
   return fetchAdminCached("/admin/settings", { ttlMs: 1500 });
-}
-
-async function fetchTemplates() {
-  return fetchAdminCached("/admin/public-checkout/templates", { ttlMs: 1500 });
-}
-
-async function fetchPlans() {
-  return fetchAdminCached("/admin/plans?take=200", { ttlMs: 1500 });
-}
-
-async function fetchProducts() {
-  return fetchAdminCached("/admin/products?take=200", { ttlMs: 1500 });
 }
 
 export default async function SettingsPage({
@@ -63,13 +46,7 @@ export default async function SettingsPage({
   }
 
   const settingsRes = await fetchSettings();
-  const templatesRes = await fetchTemplates();
-  const plansRes = await fetchPlans();
-  const productsRes = await fetchProducts();
   const settings = settingsRes.ok ? settingsRes.json : null;
-  const templates = templatesRes.ok ? templatesRes.json?.items || [] : [];
-  const plans = plansRes.ok ? plansRes.json?.items || [] : [];
-  const products = productsRes.ok ? productsRes.json?.items || [] : [];
   const c = await cookies();
   const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
   const session = await verifyAdminSessionToken(sessionToken);
@@ -89,13 +66,11 @@ export default async function SettingsPage({
   const comms = (settings?.communications || null) as any;
   const commsProduction = (comms?.production || settings?.chatwoot || {}) as any;
   const commsSandbox = (comms?.sandbox || {}) as any;
-  const publicCheckout = (settings?.publicCheckout || {}) as any;
   const sp = (await searchParams) ?? {};
   const action = String(sp.a || "");
   const status = String(sp.status || "");
   const errorText = sp.error ? String(sp.error) : "";
   const tab = String(sp.tab || "connections");
-  const autoOpenTemplate = String(sp.new || sp.create || "") === "1";
   const inlineState = { action, status, errorText };
 
   return (
@@ -104,9 +79,6 @@ export default async function SettingsPage({
       <div className="settings-tabs">
         <a className={`settings-tab ${tab === "connections" ? "is-active" : ""}`} href="/settings?tab=connections">
           Conexiones
-        </a>
-        <a className={`settings-tab ${tab === "public-checkout" ? "is-active" : ""}`} href="/settings?tab=public-checkout">
-          Checkout público
         </a>
       </div>
 
@@ -225,42 +197,28 @@ export default async function SettingsPage({
               </div>
             </div>
           </section>
-        </>
-      ) : null}
 
-      {tab === "public-checkout" ? (
-        <>
           <section className="settings-group">
-            <div className="settings-group-header" id="templates">
-              <div className="panelHeaderRow" style={{ justifyContent: "space-between" }}>
+            <div className="settings-group-header">
+              <div className="panelHeaderRow">
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <h3>Plantillas</h3>
-                  <HelpTip text="Crea múltiples URLs públicas con configuración propia." />
+                  <h3>Checkout</h3>
+                  <HelpTip text="Configura URLs públicas para planes y suscripciones." />
                 </div>
               </div>
             </div>
             <div className="settings-group-body">
-              <PublicCheckoutTemplatesPanel
-                templates={templates}
-                plans={plans}
-                products={products}
+              <CheckoutConfigPanel
+                defaults={(settings?.checkoutConfig || {}) as any}
                 csrfToken={csrfToken}
-                publicBaseUrl={publicCheckout.baseUrl || ""}
-                brandingDefaults={publicCheckout}
+                onSave={updateCheckoutConfig}
                 inlineState={inlineState}
-                autoOpen={autoOpenTemplate}
-                defaults={publicCheckout}
-                onSaveDefaults={updatePublicCheckoutDefaults}
-                actions={{
-                  create: createPublicCheckoutTemplate,
-                  update: updatePublicCheckoutTemplate,
-                  deactivate: deactivatePublicCheckoutTemplate
-                }}
               />
             </div>
           </section>
         </>
       ) : null}
+
     </main>
   );
 }

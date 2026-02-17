@@ -21,8 +21,7 @@ import { chatwootRouter } from "./routes/chatwoot";
 import { chatwootWebhook } from "./routes/webhooksChatwoot";
 import { commsRouter } from "./routes/comms";
 import { publicTokenizationRouter } from "./routes/publicTokenization";
-import { publicCheckoutRouter } from "./routes/publicCheckout";
-import { publicCheckoutTemplatesRouter } from "./routes/publicCheckoutTemplates";
+import { publicLinksRouter } from "./routes/publicLinks";
 
 export function createApp() {
   const app = express();
@@ -104,7 +103,7 @@ export function createApp() {
   app.post("/webhooks/wompi", wompiWebhook);
   app.post("/webhooks/chatwoot", chatwootWebhook);
   app.use("/public", publicTokenizationRouter);
-  app.use("/public", publicCheckoutRouter);
+  app.use("/public", publicLinksRouter);
 
   app.get("/admin/webhook-events", requireAdminToken, listWebhookEvents);
   app.use("/admin/products", requireAdminToken, productsRouter);
@@ -120,7 +119,6 @@ export function createApp() {
   app.use("/admin/sa", requireAdminToken, superAdminRouter);
   app.use("/admin/chatwoot", requireAdminToken, chatwootRouter);
   app.use("/admin/comms", requireAdminToken, commsRouter);
-  app.use("/admin/public-checkout", requireAdminToken, publicCheckoutTemplatesRouter);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

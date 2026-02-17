@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { WompiTokenizeWidget } from "../../../customers/[id]/payment-method/WompiTokenizeWidget";
-import { fetchAdminCached, getAdminApiConfig } from "../../../lib/adminApi";
+import { getAdminApiConfig } from "../../../lib/adminApi";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +9,13 @@ async function fetchPublicToken(token: string) {
   const res = await fetch(`${apiBase}/public/tokenization-links/${encodeURIComponent(token)}`, { cache: "no-store" });
   const json = await res.json().catch(() => null);
   return { ok: res.ok, status: res.status, json };
+}
+
+async function fetchCheckoutConfig() {
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
+  const res = await fetch(`${apiBase}/public/checkout-config`, { cache: "no-store" });
+  const json = await res.json().catch(() => null);
+  return { ok: res.ok, json };
 }
 
 export default async function PublicTokenizePage({
@@ -21,18 +28,23 @@ export default async function PublicTokenizePage({
   const { token } = await params;
   const sp = (await searchParams) ?? {};
   const tokenRes = await fetchPublicToken(token);
+  const configRes = await fetchCheckoutConfig();
+  const config = configRes.ok ? configRes.json?.config || {} : {};
   const { token: adminToken } = getAdminApiConfig();
-  const settingsRes = adminToken ? await fetchAdminCached("/admin/settings", { ttlMs: 1500 }) : { ok: false, json: null };
-  const settings = settingsRes.ok ? settingsRes.json : null;
-  const title = settings?.publicCheckout?.title || "Activa tu suscripción";
-  const subtitle = settings?.publicCheckout?.subtitle || "Guarda tu método de pago en un paso seguro.";
-  const description =
-    settings?.publicCheckout?.description ||
-    "Usamos Wompi para tokenizar tu tarjeta. No se realizan cargos en este paso.";
-  const contactEmail = settings?.publicCheckout?.contactEmail || "";
-  const logoUrl = settings?.publicCheckout?.logoUrl || "";
-  const fontFamily = settings?.publicCheckout?.fontFamily || "";
-  const primaryColor = settings?.publicCheckout?.primaryColor || "";
+  const settingsRes = adminToken
+    ? await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001"}/admin/settings`, {
+        cache: "no-store",
+        headers: { authorization: `Bearer ${adminToken}`, "x-admin-token": adminToken }
+      })
+    : null;
+  const settings = settingsRes && "ok" in settingsRes ? await (settingsRes as any).json().catch(() => null) : null;
+  const title = config?.subscriptionTitle || "Activa tu suscripción";
+  const subtitle = "Guarda tu método de pago en un paso seguro.";
+  const description = config?.subscriptionDescription || "Usamos Wompi para tokenizar tu tarjeta. No se realizan cargos en este paso.";
+  const contactEmail = "";
+  const logoUrl = config?.logoUrl || "";
+  const fontFamily = "";
+  const primaryColor = "";
 
   const publicKey = (() => {
     const activeEnv = String(settings?.wompi?.activeEnv || "PRODUCTION").toUpperCase();

@@ -572,7 +572,7 @@ export function NewBillingAssignmentForm({
                     value="LINK_NOW"
                     disabled={!canSubmit}
                   >
-                    Crear y enviar link de pago
+                    {billingType === "PLAN" ? "Crear y enviar link de pago" : "Crear y enviar link de tokenización"}
                   </button>
                 )}
               </div>

@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import crypto from "crypto";
 import { getAdminApiConfig } from "../lib/adminApi";
 import { assertCsrfToken } from "../lib/csrf";
 
@@ -342,7 +343,7 @@ export async function createPlanAndSubscription(formData: FormData) {
     const planId = createdPlan?.plan?.id ? String(createdPlan.plan.id) : "";
     if (!planId) throw new Error("create_plan_failed");
 
-    const shouldCreateLink = submitAction === "LINK_NOW" || billingType === "PLAN";
+    const shouldCreateLink = billingType === "PLAN";
     let startAtValue = startAt || "";
     let endAtValue = firstPeriodEndAt || "";
     if (submitAction === "CHARGE_NOW") {
@@ -363,6 +364,100 @@ export async function createPlanAndSubscription(formData: FormData) {
     });
 
     const checkoutUrl = sub?.checkoutUrl ? String(sub.checkoutUrl) : "";
+    const settings = await adminFetch("/admin/settings", { method: "GET" }).catch(() => null);
+    const checkoutConfig = settings?.checkoutConfig || {};
+
+    if (billingType === "PLAN" && checkoutUrl) {
+      const customerRes = await adminFetch(`/admin/customers/${customerId}`, { method: "GET" }).catch(() => null);
+      const customer = customerRes?.customer || {};
+      const base = String(checkoutConfig?.planBaseUrl || "").trim();
+      const hours = Number.isFinite(Number(checkoutConfig?.tokenExpiryHours)) && Number(checkoutConfig?.tokenExpiryHours) > 0
+        ? Math.min(Math.max(Math.trunc(Number(checkoutConfig?.tokenExpiryHours)), 1), 168)
+        : 24;
+      const token = crypto.randomBytes(18).toString("hex");
+      const url = base ? `${base.replace(/\/$/, "")}/public/plan/${token}` : `/public/plan/${token}`;
+      const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+      const prevMeta = customer?.metadata ?? {};
+      const nextMeta = {
+        ...prevMeta,
+        paymentLink: {
+          url,
+          token,
+          checkoutUrl,
+          planId,
+          kind: "PLAN",
+          createdAt: new Date().toISOString(),
+          expiresAt,
+          usedAt: null
+        }
+      };
+      await adminFetch(`/admin/customers/${customerId}`, {
+        method: "PUT",
+        body: JSON.stringify({ metadata: nextMeta })
+      }).catch(() => {});
+
+      const content = `Hola ${customer?.name || "Cliente"}, aquí está tu link de pago: ${url}`;
+      await adminFetch("/admin/chatwoot/messages", {
+        method: "POST",
+        body: JSON.stringify({ customerId, content })
+      }).catch(() => {});
+
+      redirect(
+        mergeQuery(returnTo, {
+          created: "1",
+          checkoutUrl: url,
+          customerId
+        })
+      );
+    }
+
+    if (billingType === "SUBSCRIPCION") {
+      const customerRes = await adminFetch(`/admin/customers/${customerId}`, { method: "GET" }).catch(() => null);
+      const customer = customerRes?.customer || {};
+      const meta = customer?.metadata || {};
+      const paymentSource =
+        meta?.wompi?.paymentSourceId ||
+        meta?.wompi?.payment_source_id ||
+        meta?.paymentSourceId ||
+        meta?.payment_source_id;
+      const hasToken = Boolean(paymentSource);
+      if (hasToken) {
+        redirect(mergeQuery(returnTo, { created: "1", customerId }));
+      }
+      const base = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
+      const hours = Number.isFinite(Number(checkoutConfig?.tokenExpiryHours)) && Number(checkoutConfig?.tokenExpiryHours) > 0
+        ? Math.min(Math.max(Math.trunc(Number(checkoutConfig?.tokenExpiryHours)), 1), 168)
+        : 24;
+      const token = crypto.randomBytes(18).toString("hex");
+      const url = base ? `${base.replace(/\/$/, "")}/public/suscripcion/${token}` : `/public/suscripcion/${token}`;
+      const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+      const prevMeta = customer?.metadata ?? {};
+      const nextMeta = {
+        ...prevMeta,
+        tokenizationLink: {
+          url,
+          token,
+          planId,
+          kind: "SUBSCRIPTION",
+          createdAt: new Date().toISOString(),
+          expiresAt,
+          usedAt: null
+        }
+      };
+      await adminFetch(`/admin/customers/${customerId}`, {
+        method: "PUT",
+        body: JSON.stringify({ metadata: nextMeta })
+      }).catch(() => {});
+
+      const content = `Hola ${customer?.name || "Cliente"}, activa tu suscripción guardando tu método de pago aquí: ${url}`;
+      await adminFetch("/admin/chatwoot/messages", {
+        method: "POST",
+        body: JSON.stringify({ customerId, content })
+      }).catch(() => {});
+
+      redirect(mergeQuery(returnTo, { created: "1", checkoutUrl: url, customerId }));
+    }
+
     if (checkoutUrl) {
       redirect(
         mergeQuery(returnTo, {
