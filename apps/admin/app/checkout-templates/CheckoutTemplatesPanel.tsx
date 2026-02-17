@@ -38,6 +38,7 @@ export function CheckoutTemplatesPanel({
   };
 }) {
   const [open, setOpen] = useState(false);
+  const [step, setStep] = useState<"choose" | "form">("choose");
   const [editing, setEditing] = useState<Template | null>(null);
   const [kind, setKind] = useState<"PLAN" | "SUBSCRIPTION">("PLAN");
   const [name, setName] = useState("");
@@ -68,6 +69,7 @@ export function CheckoutTemplatesPanel({
     setPublicDescription("");
     setWompiTitle("");
     setWompiDescription("");
+    setStep("choose");
     setOpen(true);
   }
 
@@ -83,12 +85,14 @@ export function CheckoutTemplatesPanel({
     setPublicDescription(t.publicDescription || "");
     setWompiTitle(t.wompiTitle || "");
     setWompiDescription(t.wompiDescription || "");
+    setStep("form");
     setOpen(true);
   }
 
   function closeModal() {
     setOpen(false);
     setEditing(null);
+    setStep("choose");
   }
 
   const formAction = editing ? actions.update : actions.create;
@@ -148,95 +152,124 @@ export function CheckoutTemplatesPanel({
       </div>
 
       {open ? (
-        <div className="panel module" style={{ marginTop: 16 }}>
-          <div className="panelHeaderRow" style={{ justifyContent: "space-between" }}>
-            <strong>{editing ? "Editar plantilla" : "Nueva plantilla"}</strong>
-            <button className="ghost" type="button" onClick={closeModal}>
-              Cerrar
-            </button>
+        <div className="modal-backdrop">
+          <div className="modal-panel" style={{ width: "min(900px, 96vw)" }}>
+            <div className="panel-header">
+              <h3 style={{ margin: 0 }}>{editing ? "Editar plantilla" : step === "choose" ? "Nueva plantilla" : "Configurar plantilla"}</h3>
+              <button className="ghost" type="button" onClick={closeModal}>
+                Cerrar
+              </button>
+            </div>
+
+            {step === "choose" ? (
+              <div className="panel module" style={{ display: "grid", gap: 12 }}>
+                <div className="field-hint">Elige primero el tipo de checkout que quieres crear.</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <button
+                    type="button"
+                    className="card cardPad"
+                    onClick={() => {
+                      setKind("PLAN");
+                      setStep("form");
+                    }}
+                    style={{ textAlign: "left" }}
+                  >
+                    <strong>Plan</strong>
+                    <div className="field-hint">Checkout de pago único / link de pago.</div>
+                  </button>
+                  <button
+                    type="button"
+                    className="card cardPad"
+                    onClick={() => {
+                      setKind("SUBSCRIPTION");
+                      setStep("form");
+                    }}
+                    style={{ textAlign: "left" }}
+                  >
+                    <strong>Suscripción</strong>
+                    <div className="field-hint">Checkout de tokenización / suscripción.</div>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form action={formAction} className="panel module" style={{ display: "grid", gap: 10 }}>
+                <input type="hidden" name="csrf" value={csrfToken} />
+                {editing ? <input type="hidden" name="id" value={editing.id} /> : null}
+                <input type="hidden" name="kind" value={kind} />
+                <div className="field">
+                  <label>Nombre</label>
+                  <input className="input" name="name" value={name} onChange={(e) => setName(e.target.value)} required />
+                </div>
+                <div className="field row">
+                  <label>Activa</label>
+                  <input type="checkbox" name="active" defaultChecked={editing ? editing.active : true} />
+                </div>
+                <div className="field row">
+                  <label>Selector de productos</label>
+                  <input type="checkbox" name="allowProductSelect" checked={allowSelect} onChange={(e) => setAllowSelect(e.target.checked)} />
+                </div>
+                <div className="field">
+                  <label>Productos</label>
+                  <input type="hidden" name="productIds" value={productIds.join(",")} />
+                  <div className="field-add">
+                    {products.map((p) => {
+                      const active = productIds.includes(p.id);
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          className={`ghost ${active ? "is-active" : ""}`}
+                          onClick={() => {
+                            if (active) setProductIds(productIds.filter((id) => id !== p.id));
+                            else setProductIds([...productIds, p.id]);
+                          }}
+                        >
+                          {active ? "✓ " : "+ "}
+                          {p.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="field">
+                  <label>Expiración</label>
+                  <select className="select" name="expiryHours" value={expiryHours} onChange={(e) => setExpiryHours(e.target.value)}>
+                    <option value="1">1 hora</option>
+                    <option value="6">6 horas</option>
+                    <option value="13">13 horas</option>
+                    <option value="24">24 horas</option>
+                    <option value="">Nunca</option>
+                  </select>
+                </div>
+                <div className="field">
+                  <label>Logo (URL)</label>
+                  <input className="input" name="logoUrl" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://..." />
+                </div>
+                <div className="field">
+                  <label>Título público</label>
+                  <input className="input" name="publicTitle" value={publicTitle} onChange={(e) => setPublicTitle(e.target.value)} placeholder="Paga tu plan" />
+                </div>
+                <div className="field">
+                  <label>Descripción pública</label>
+                  <textarea className="input" name="publicDescription" rows={2} value={publicDescription} onChange={(e) => setPublicDescription(e.target.value)} placeholder="Descripción corta" />
+                </div>
+                <div className="field">
+                  <label>Wompi Title</label>
+                  <input className="input" name="wompiTitle" value={wompiTitle} onChange={(e) => setWompiTitle(e.target.value)} placeholder="{producto} · {contacto}" />
+                </div>
+                <div className="field">
+                  <label>Wompi Description</label>
+                  <input className="input" name="wompiDescription" value={wompiDescription} onChange={(e) => setWompiDescription(e.target.value)} placeholder="{producto} · {monto}" />
+                </div>
+                <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    {inlineMsg(editing ? "checkout_template_update" : "checkout_template_create")}
+                  </div>
+                  <PendingButton className="primary" type="submit" pendingText="Guardando...">Guardar</PendingButton>
+                </div>
+              </form>
+            )}
           </div>
-          <form action={formAction} style={{ display: "grid", gap: 10 }}>
-            <input type="hidden" name="csrf" value={csrfToken} />
-            {editing ? <input type="hidden" name="id" value={editing.id} /> : null}
-            <div className="field">
-              <label>Nombre</label>
-              <input className="input" name="name" value={name} onChange={(e) => setName(e.target.value)} required />
-            </div>
-            <div className="field">
-              <label>Tipo</label>
-              <select className="select" name="kind" value={kind} onChange={(e) => setKind(e.target.value as any)}>
-                <option value="PLAN">Plan</option>
-                <option value="SUBSCRIPTION">Suscripción</option>
-              </select>
-            </div>
-            <div className="field row">
-              <label>Activa</label>
-              <input type="checkbox" name="active" defaultChecked={editing ? editing.active : true} />
-            </div>
-            <div className="field row">
-              <label>Selector de productos</label>
-              <input type="checkbox" name="allowProductSelect" checked={allowSelect} onChange={(e) => setAllowSelect(e.target.checked)} />
-            </div>
-            <div className="field">
-              <label>Productos</label>
-              <input type="hidden" name="productIds" value={productIds.join(",")} />
-              <div className="field-add">
-                {products.map((p) => {
-                  const active = productIds.includes(p.id);
-                  return (
-                    <button
-                      key={p.id}
-                      type="button"
-                      className={`ghost ${active ? "is-active" : ""}`}
-                      onClick={() => {
-                        if (active) setProductIds(productIds.filter((id) => id !== p.id));
-                        else setProductIds([...productIds, p.id]);
-                      }}
-                    >
-                      {active ? "✓ " : "+ "}
-                      {p.name}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <div className="field">
-              <label>Expiración</label>
-              <select className="select" name="expiryHours" value={expiryHours} onChange={(e) => setExpiryHours(e.target.value)}>
-                <option value="1">1 hora</option>
-                <option value="6">6 horas</option>
-                <option value="13">13 horas</option>
-                <option value="24">24 horas</option>
-                <option value="">Nunca</option>
-              </select>
-            </div>
-            <div className="field">
-              <label>Logo (URL)</label>
-              <input className="input" name="logoUrl" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://..." />
-            </div>
-            <div className="field">
-              <label>Título público</label>
-              <input className="input" name="publicTitle" value={publicTitle} onChange={(e) => setPublicTitle(e.target.value)} placeholder="Paga tu plan" />
-            </div>
-            <div className="field">
-              <label>Descripción pública</label>
-              <textarea className="input" name="publicDescription" rows={2} value={publicDescription} onChange={(e) => setPublicDescription(e.target.value)} placeholder="Descripción corta" />
-            </div>
-            <div className="field">
-              <label>Wompi Title</label>
-              <input className="input" name="wompiTitle" value={wompiTitle} onChange={(e) => setWompiTitle(e.target.value)} placeholder="{producto} · {contacto}" />
-            </div>
-            <div className="field">
-              <label>Wompi Description</label>
-              <input className="input" name="wompiDescription" value={wompiDescription} onChange={(e) => setWompiDescription(e.target.value)} placeholder="{producto} · {monto}" />
-            </div>
-            <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
-                {inlineMsg(editing ? "checkout_template_update" : "checkout_template_create")}
-              </div>
-              <PendingButton className="primary" type="submit" pendingText="Guardando...">Guardar</PendingButton>
-            </div>
-          </form>
         </div>
       ) : null}
     </div>
