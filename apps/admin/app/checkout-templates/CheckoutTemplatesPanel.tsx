@@ -25,22 +25,23 @@ export function CheckoutTemplatesPanel({
   products,
   csrfToken,
   inlineState,
+  baseUrls,
   actions
 }: {
   templates: Template[];
   products: Product[];
   csrfToken: string;
   inlineState: { action: string; status: string; errorText: string };
+  baseUrls?: { planBaseUrl?: string | null; subscriptionBaseUrl?: string | null };
   actions: {
     create: (formData: FormData) => void;
     update: (formData: FormData) => void;
     remove: (formData: FormData) => void;
   };
 }) {
-  const [open, setOpen] = useState(false);
   const [step, setStep] = useState<"choose" | "form">("choose");
   const [editing, setEditing] = useState<Template | null>(null);
-  const [kind, setKind] = useState<"PLAN" | "SUBSCRIPTION">("PLAN");
+  const [kind, setKind] = useState<"PLAN" | "SUBSCRIPTION" | "">("");
   const [name, setName] = useState("");
   const [allowSelect, setAllowSelect] = useState(false);
   const [productIds, setProductIds] = useState<string[]>([]);
@@ -59,7 +60,7 @@ export function CheckoutTemplatesPanel({
 
   function resetCreateForm() {
     setEditing(null);
-    setKind("PLAN");
+    setKind("");
     setName("");
     setAllowSelect(false);
     setProductIds([]);
@@ -85,16 +86,27 @@ export function CheckoutTemplatesPanel({
     setWompiTitle(t.wompiTitle || "");
     setWompiDescription(t.wompiDescription || "");
     setStep("form");
-    setOpen(true);
-  }
-
-  function closeModal() {
-    setOpen(false);
-    setEditing(null);
-    setStep("choose");
   }
 
   const formAction = editing ? actions.update : actions.create;
+  const selectedKind = (editing ? editing.kind : kind) || "";
+  const publicBase =
+    selectedKind === "PLAN"
+      ? String(baseUrls?.planBaseUrl || "").trim()
+      : selectedKind === "SUBSCRIPTION"
+        ? String(baseUrls?.subscriptionBaseUrl || "").trim()
+        : "";
+
+  function onLogoFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      if (result) setLogoUrl(result);
+    };
+    reader.readAsDataURL(file);
+  }
 
   const inlineMsg = (key: string) => {
     if (inlineState.action !== key) return null;
@@ -114,7 +126,12 @@ export function CheckoutTemplatesPanel({
 
       <div className="panel module" style={{ marginTop: 12 }}>
         <div className="panel-header">
-          <strong>Nueva plantilla</strong>
+          <strong>{editing ? "Editar plantilla" : "Nueva plantilla"}</strong>
+          {editing ? (
+            <button className="ghost" type="button" onClick={resetCreateForm}>
+              Cancelar edición
+            </button>
+          ) : null}
         </div>
         {step === "choose" ? (
           <div style={{ display: "grid", gap: 12 }}>
@@ -123,10 +140,7 @@ export function CheckoutTemplatesPanel({
               <button
                 type="button"
                 className={`card cardPad ${kind === "PLAN" ? "is-active" : ""}`}
-                onClick={() => {
-                  setKind("PLAN");
-                  setStep("form");
-                }}
+                onClick={() => setKind("PLAN")}
                 style={{ textAlign: "left" }}
               >
                 <strong>Plan</strong>
@@ -135,21 +149,32 @@ export function CheckoutTemplatesPanel({
               <button
                 type="button"
                 className={`card cardPad ${kind === "SUBSCRIPTION" ? "is-active" : ""}`}
-                onClick={() => {
-                  setKind("SUBSCRIPTION");
-                  setStep("form");
-                }}
+                onClick={() => setKind("SUBSCRIPTION")}
                 style={{ textAlign: "left" }}
               >
                 <strong>Suscripción</strong>
                 <div className="field-hint">Checkout de tokenización.</div>
               </button>
             </div>
+            <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <button className="primary" type="button" onClick={() => setStep("form")} disabled={!kind}>
+                Siguiente
+              </button>
+            </div>
           </div>
         ) : (
           <form action={formAction} style={{ display: "grid", gap: 10 }}>
             <input type="hidden" name="csrf" value={csrfToken} />
-            <input type="hidden" name="kind" value={kind} />
+            {editing ? <input type="hidden" name="id" value={editing.id} /> : null}
+            <input type="hidden" name="kind" value={selectedKind} />
+            <input type="hidden" name="logoUrl" value={logoUrl} />
+            {publicBase ? (
+              <div className="field-hint">
+                Dominio público: {publicBase.replace(/\/$/, "")}{selectedKind === "PLAN" ? "/public/plan/{token}" : "/public/suscripcion/{token}"}
+              </div>
+            ) : (
+              <div className="field-hint">Dominio público: configurar Base URL en ajustes de checkout.</div>
+            )}
             <div className="field">
               <label>Nombre</label>
               <input className="input" name="name" value={name} onChange={(e) => setName(e.target.value)} required />
@@ -196,8 +221,11 @@ export function CheckoutTemplatesPanel({
               </select>
             </div>
             <div className="field">
-              <label>Logo (URL)</label>
-              <input className="input" name="logoUrl" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://..." />
+              <label>Logo</label>
+              <div className="file-row">
+                <input type="file" accept="image/*" onChange={onLogoFile} />
+                {logoUrl ? <img src={logoUrl} alt="Logo" className="logo-preview" /> : null}
+              </div>
             </div>
             <div className="field">
               <label>Título público</label>
@@ -217,13 +245,15 @@ export function CheckoutTemplatesPanel({
             </div>
             <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                {inlineMsg("checkout_template_create")}
+                {inlineMsg(editing ? "checkout_template_update" : "checkout_template_create")}
               </div>
               <div style={{ display: "flex", gap: 8 }}>
-                <button className="ghost" type="button" onClick={() => setStep("choose")}>
+                <button className="ghost" type="button" onClick={resetCreateForm}>
                   Atrás
                 </button>
-                <PendingButton className="primary" type="submit" pendingText="Guardando...">Guardar plantilla</PendingButton>
+                <PendingButton className="primary" type="submit" pendingText="Guardando...">
+                  {editing ? "Guardar cambios" : "Guardar plantilla"}
+                </PendingButton>
               </div>
             </div>
           </form>
@@ -268,94 +298,6 @@ export function CheckoutTemplatesPanel({
         ))}
       </div>
 
-      {open ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel" style={{ width: "min(900px, 96vw)" }}>
-            <div className="panel-header">
-              <h3 style={{ margin: 0 }}>{editing ? "Editar plantilla" : step === "choose" ? "Nueva plantilla" : "Configurar plantilla"}</h3>
-              <button className="ghost" type="button" onClick={closeModal} aria-label="Cerrar">
-                X
-              </button>
-            </div>
-            <form action={actions.update} className="panel module" style={{ display: "grid", gap: 10 }}>
-              <input type="hidden" name="csrf" value={csrfToken} />
-              {editing ? <input type="hidden" name="id" value={editing.id} /> : null}
-              <input type="hidden" name="kind" value={kind} />
-              <div className="field">
-                <label>Nombre</label>
-                <input className="input" name="name" value={name} onChange={(e) => setName(e.target.value)} required />
-              </div>
-              <div className="field row">
-                <label>Activa</label>
-                <input type="checkbox" name="active" defaultChecked={editing ? editing.active : true} />
-              </div>
-              <div className="field row">
-                <label>Selector de productos</label>
-                <input type="checkbox" name="allowProductSelect" checked={allowSelect} onChange={(e) => setAllowSelect(e.target.checked)} />
-              </div>
-              <div className="field">
-                <label>Productos</label>
-                <input type="hidden" name="productIds" value={productIds.join(",")} />
-                <div className="field-add">
-                  {products.map((p) => {
-                    const active = productIds.includes(p.id);
-                    return (
-                      <button
-                        key={p.id}
-                        type="button"
-                        className={`ghost ${active ? "is-active" : ""}`}
-                        onClick={() => {
-                          if (active) setProductIds(productIds.filter((id) => id !== p.id));
-                          else setProductIds([...productIds, p.id]);
-                        }}
-                      >
-                        {active ? "✓ " : "+ "}
-                        {p.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div className="field">
-                <label>Expiración</label>
-                <select className="select" name="expiryHours" value={expiryHours} onChange={(e) => setExpiryHours(e.target.value)}>
-                  <option value="1">1 hora</option>
-                  <option value="6">6 horas</option>
-                  <option value="13">13 horas</option>
-                  <option value="24">24 horas</option>
-                  <option value="">Nunca</option>
-                </select>
-              </div>
-              <div className="field">
-                <label>Logo (URL)</label>
-                <input className="input" name="logoUrl" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://..." />
-              </div>
-              <div className="field">
-                <label>Título público</label>
-                <input className="input" name="publicTitle" value={publicTitle} onChange={(e) => setPublicTitle(e.target.value)} placeholder="Checkout" />
-              </div>
-              <div className="field">
-                <label>Descripción pública</label>
-                <textarea className="input" name="publicDescription" rows={2} value={publicDescription} onChange={(e) => setPublicDescription(e.target.value)} placeholder="Descripción corta" />
-              </div>
-              <div className="field">
-                <label>Wompi Title</label>
-                <input className="input" name="wompiTitle" value={wompiTitle} onChange={(e) => setWompiTitle(e.target.value)} placeholder="{producto} · {contacto}" />
-              </div>
-              <div className="field">
-                <label>Wompi Description</label>
-                <input className="input" name="wompiDescription" value={wompiDescription} onChange={(e) => setWompiDescription(e.target.value)} placeholder="{producto} · {monto}" />
-              </div>
-              <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  {inlineMsg("checkout_template_update")}
-                </div>
-                <PendingButton className="primary" type="submit" pendingText="Guardando...">Guardar cambios</PendingButton>
-              </div>
-            </form>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

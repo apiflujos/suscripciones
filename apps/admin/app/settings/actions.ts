@@ -157,36 +157,34 @@ export async function updateChatwoot(formData: FormData) {
 
 export async function updateCheckoutConfig(formData: FormData) {
   await assertCsrfToken(formData);
-  const planBaseUrl = String(formData.get("planBaseUrl") || "").trim();
-  const subscriptionBaseUrl = String(formData.get("subscriptionBaseUrl") || "").trim();
-  const tokenExpiryHours = String(formData.get("tokenExpiryHours") || "").trim();
-  const logoUrl = String(formData.get("logoUrl") || "").trim();
-  const planTitle = String(formData.get("planTitle") || "").trim();
-  const planDescription = String(formData.get("planDescription") || "").trim();
-  const subscriptionTitle = String(formData.get("subscriptionTitle") || "").trim();
-  const subscriptionDescription = String(formData.get("subscriptionDescription") || "").trim();
-  const planWompiTitle = String(formData.get("planWompiTitle") || "").trim();
-  const planWompiDescription = String(formData.get("planWompiDescription") || "").trim();
-  const subscriptionWompiTitle = String(formData.get("subscriptionWompiTitle") || "").trim();
-  const subscriptionWompiDescription = String(formData.get("subscriptionWompiDescription") || "").trim();
+  const payload: Record<string, unknown> = {};
+  const setString = (key: string) => {
+    if (!formData.has(key)) return;
+    payload[key] = String(formData.get(key) || "").trim();
+  };
+  const setNumber = (key: string) => {
+    if (!formData.has(key)) return;
+    const raw = String(formData.get(key) || "").trim();
+    payload[key] = raw ? Number(raw) : null;
+  };
+
+  setString("planBaseUrl");
+  setString("subscriptionBaseUrl");
+  setNumber("tokenExpiryHours");
+  setString("logoUrl");
+  setString("planTitle");
+  setString("planDescription");
+  setString("subscriptionTitle");
+  setString("subscriptionDescription");
+  setString("planWompiTitle");
+  setString("planWompiDescription");
+  setString("subscriptionWompiTitle");
+  setString("subscriptionWompiDescription");
 
   try {
     await adminFetch("/admin/settings/checkout-config", {
       method: "PUT",
-      body: JSON.stringify({
-        ...(planBaseUrl ? { planBaseUrl } : { planBaseUrl: "" }),
-        ...(subscriptionBaseUrl ? { subscriptionBaseUrl } : { subscriptionBaseUrl: "" }),
-        ...(tokenExpiryHours ? { tokenExpiryHours: Number(tokenExpiryHours) } : {}),
-        ...(logoUrl ? { logoUrl } : { logoUrl: "" }),
-        ...(planTitle ? { planTitle } : { planTitle: "" }),
-        ...(planDescription ? { planDescription } : { planDescription: "" }),
-        ...(subscriptionTitle ? { subscriptionTitle } : { subscriptionTitle: "" }),
-        ...(subscriptionDescription ? { subscriptionDescription } : { subscriptionDescription: "" }),
-        ...(planWompiTitle ? { planWompiTitle } : { planWompiTitle: "" }),
-        ...(planWompiDescription ? { planWompiDescription } : { planWompiDescription: "" }),
-        ...(subscriptionWompiTitle ? { subscriptionWompiTitle } : { subscriptionWompiTitle: "" }),
-        ...(subscriptionWompiDescription ? { subscriptionWompiDescription } : { subscriptionWompiDescription: "" })
-      })
+      body: JSON.stringify(payload)
     });
     redirectWith("checkout_config", "ok");
   } catch (err) {

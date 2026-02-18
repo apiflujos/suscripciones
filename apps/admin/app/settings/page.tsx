@@ -5,6 +5,7 @@ import {
   syncCentralAttributes,
   testCentralConnection,
   testShopifyForward,
+  updateCheckoutConfig,
   updateChatwoot,
   updateShopify,
   updateWompi
@@ -227,11 +228,53 @@ export default async function SettingsPage({
             </div>
           </div>
           <div className="settings-group-body">
+            <form action={updateCheckoutConfig} className="panel module" style={{ display: "grid", gap: 12 }}>
+              <input type="hidden" name="csrf" value={csrfToken} />
+              <div className="panelHeaderRow">
+                <strong>Dominio público</strong>
+                <div className="field-hint">Se usa para construir la URL pública del checkout.</div>
+              </div>
+              <div className="field">
+                <label>Base URL Plan</label>
+                <input
+                  className="input"
+                  name="planBaseUrl"
+                  defaultValue={settings?.checkoutConfig?.planBaseUrl || ""}
+                  placeholder="https://pagos.tu-dominio.com"
+                />
+              </div>
+              <div className="field">
+                <label>Base URL Suscripción</label>
+                <input
+                  className="input"
+                  name="subscriptionBaseUrl"
+                  defaultValue={settings?.checkoutConfig?.subscriptionBaseUrl || ""}
+                  placeholder="https://suscripciones.tu-dominio.com"
+                />
+              </div>
+              <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  {inlineState.action === "checkout_config" && inlineState.status === "ok" ? <div className="field-hint">Configuración guardada.</div> : null}
+                  {inlineState.action === "checkout_config" && inlineState.status === "fail" ? (
+                    <div className="field-hint" style={{ color: "var(--danger)" }}>
+                      Error: {inlineState.errorText || "unknown_error"}
+                    </div>
+                  ) : null}
+                </div>
+                <PendingButton className="primary" type="submit" pendingText="Guardando...">
+                  Guardar dominio
+                </PendingButton>
+              </div>
+            </form>
             <CheckoutTemplatesPanel
               templates={templates}
               products={products}
               csrfToken={csrfToken}
               inlineState={inlineState}
+              baseUrls={{
+                planBaseUrl: settings?.checkoutConfig?.planBaseUrl,
+                subscriptionBaseUrl: settings?.checkoutConfig?.subscriptionBaseUrl
+              }}
               actions={{
                 create: createCheckoutTemplate,
                 update: updateCheckoutTemplate,
