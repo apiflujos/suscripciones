@@ -138,34 +138,35 @@ export function CheckoutTemplatesPanel({
           <div style={{ display: "grid", gap: 12 }}>
             <div className="field-hint">Selecciona el tipo de plantilla.</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <a
-                className={`card cardPad ${kind === "PLAN" ? "is-active" : ""}`}
-                href={`/settings?tab=checkout-publico&step=choose&kind=PLAN`}
-                onClick={() => setKind("PLAN")}
-                style={{ textAlign: "left" }}
-              >
+              <label className={`card cardPad ${kind === "PLAN" ? "is-active" : ""}`} style={{ textAlign: "left", cursor: "pointer" }}>
+                <input
+                  type="radio"
+                  name="templateKind"
+                  value="PLAN"
+                  checked={kind === "PLAN"}
+                  onChange={() => setKind("PLAN")}
+                  style={{ display: "none" }}
+                />
                 <strong>Plan</strong>
                 <div className="field-hint">Checkout de pago / link.</div>
-              </a>
-              <a
-                className={`card cardPad ${kind === "SUBSCRIPTION" ? "is-active" : ""}`}
-                href={`/settings?tab=checkout-publico&step=choose&kind=SUBSCRIPTION`}
-                onClick={() => setKind("SUBSCRIPTION")}
-                style={{ textAlign: "left" }}
-              >
+              </label>
+              <label className={`card cardPad ${kind === "SUBSCRIPTION" ? "is-active" : ""}`} style={{ textAlign: "left", cursor: "pointer" }}>
+                <input
+                  type="radio"
+                  name="templateKind"
+                  value="SUBSCRIPTION"
+                  checked={kind === "SUBSCRIPTION"}
+                  onChange={() => setKind("SUBSCRIPTION")}
+                  style={{ display: "none" }}
+                />
                 <strong>Suscripción</strong>
                 <div className="field-hint">Checkout de tokenización.</div>
-              </a>
+              </label>
             </div>
             <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <a
-                className={`primary ${!kind ? "is-disabled" : ""}`}
-                href={kind ? `/settings?tab=checkout-publico&step=form&kind=${kind}` : undefined}
-                onClick={() => (kind ? setStep("form") : null)}
-                aria-disabled={!kind}
-              >
+              <button className="primary" type="button" onClick={() => setStep("form")} disabled={!kind}>
                 Siguiente
-              </a>
+              </button>
             </div>
           </div>
         ) : (
