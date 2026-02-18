@@ -16,6 +16,7 @@ type Template = {
   publicDescription?: string | null;
   wompiTitle?: string | null;
   wompiDescription?: string | null;
+  utmParams?: string | null;
 };
 
 type Product = { id: string; name: string; sku?: string };
@@ -25,14 +26,12 @@ export function CheckoutTemplatesPanel({
   products,
   csrfToken,
   inlineState,
-  baseUrls,
   actions
 }: {
   templates: Template[];
   products: Product[];
   csrfToken: string;
   inlineState: { action: string; status: string; errorText: string };
-  baseUrls?: { planBaseUrl?: string | null; subscriptionBaseUrl?: string | null };
   actions: {
     create: (formData: FormData) => void;
     update: (formData: FormData) => void;
@@ -51,6 +50,7 @@ export function CheckoutTemplatesPanel({
   const [publicDescription, setPublicDescription] = useState("");
   const [wompiTitle, setWompiTitle] = useState("");
   const [wompiDescription, setWompiDescription] = useState("");
+  const [utmParams, setUtmParams] = useState("");
 
   const productById = useMemo(() => {
     const map = new Map<string, Product>();
@@ -70,6 +70,7 @@ export function CheckoutTemplatesPanel({
     setPublicDescription("");
     setWompiTitle("");
     setWompiDescription("");
+    setUtmParams("");
     setStep("choose");
   }
 
@@ -85,18 +86,12 @@ export function CheckoutTemplatesPanel({
     setPublicDescription(t.publicDescription || "");
     setWompiTitle(t.wompiTitle || "");
     setWompiDescription(t.wompiDescription || "");
+    setUtmParams(t.utmParams || "");
     setStep("form");
   }
 
   const formAction = editing ? actions.update : actions.create;
   const selectedKind = (editing ? editing.kind : kind) || "";
-  const publicBase =
-    selectedKind === "PLAN"
-      ? String(baseUrls?.planBaseUrl || "").trim()
-      : selectedKind === "SUBSCRIPTION"
-        ? String(baseUrls?.subscriptionBaseUrl || "").trim()
-        : "";
-
   function onLogoFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -168,13 +163,7 @@ export function CheckoutTemplatesPanel({
             {editing ? <input type="hidden" name="id" value={editing.id} /> : null}
             <input type="hidden" name="kind" value={selectedKind} />
             <input type="hidden" name="logoUrl" value={logoUrl} />
-            {publicBase ? (
-              <div className="field-hint">
-                Dominio público: {publicBase.replace(/\/$/, "")}{selectedKind === "PLAN" ? "/public/plan/{token}" : "/public/suscripcion/{token}"}
-              </div>
-            ) : (
-              <div className="field-hint">Dominio público: configurar Base URL en ajustes de checkout.</div>
-            )}
+            <div className="field-hint">La URL pública se genera automáticamente al crear el link.</div>
             <div className="field">
               <label>Nombre</label>
               <input className="input" name="name" value={name} onChange={(e) => setName(e.target.value)} required />
@@ -242,6 +231,11 @@ export function CheckoutTemplatesPanel({
             <div className="field">
               <label>Wompi Description</label>
               <input className="input" name="wompiDescription" value={wompiDescription} onChange={(e) => setWompiDescription(e.target.value)} placeholder="{producto} · {monto}" />
+            </div>
+            <div className="field">
+              <label>UTM (opcional)</label>
+              <input className="input" name="utmParams" value={utmParams} onChange={(e) => setUtmParams(e.target.value)} placeholder="utm_source=apiflujos&utm_campaign=plan" />
+              <div className="field-hint">Se agrega al final del link. No incluyas el signo ?</div>
             </div>
             <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>

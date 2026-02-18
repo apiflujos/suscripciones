@@ -47,7 +47,8 @@ export async function createCheckoutTemplate(formData: FormData) {
       publicTitle: String(formData.get("publicTitle") || "").trim(),
       publicDescription: String(formData.get("publicDescription") || "").trim(),
       wompiTitle: String(formData.get("wompiTitle") || "").trim(),
-      wompiDescription: String(formData.get("wompiDescription") || "").trim()
+      wompiDescription: String(formData.get("wompiDescription") || "").trim(),
+      utmParams: String(formData.get("utmParams") || "").trim()
     };
     await adminFetch("/admin/checkout-templates", { method: "POST", body: JSON.stringify(payload) });
     redirectWith("checkout_template_create", "ok");
@@ -75,7 +76,8 @@ export async function updateCheckoutTemplate(formData: FormData) {
       publicTitle: String(formData.get("publicTitle") || "").trim(),
       publicDescription: String(formData.get("publicDescription") || "").trim(),
       wompiTitle: String(formData.get("wompiTitle") || "").trim(),
-      wompiDescription: String(formData.get("wompiDescription") || "").trim()
+      wompiDescription: String(formData.get("wompiDescription") || "").trim(),
+      utmParams: String(formData.get("utmParams") || "").trim()
     };
     await adminFetch(`/admin/checkout-templates/${id}`, { method: "PUT", body: JSON.stringify(payload) });
     redirectWith("checkout_template_update", "ok");

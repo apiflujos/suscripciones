@@ -394,7 +394,9 @@ export async function createPlanAndSubscription(formData: FormData) {
       const customer = customerRes?.customer || {};
       const base = String(checkoutConfig?.planBaseUrl || "").trim();
       const token = crypto.randomBytes(18).toString("hex");
-      const url = base ? `${base.replace(/\/$/, "")}/public/plan/${token}` : `/public/plan/${token}`;
+      const baseUrl = base ? `${base.replace(/\/$/, "")}/public/plan/${token}` : `/public/plan/${token}`;
+      const utm = String(template?.utmParams || "").trim();
+      const url = utm ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${utm.replace(/^\?+/, "")}` : baseUrl;
       const expiresAt = expiryHours ? new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString() : null;
       const prevMeta = customer?.metadata ?? {};
       const nextMeta = {
@@ -406,6 +408,7 @@ export async function createPlanAndSubscription(formData: FormData) {
           planId,
           kind: "PLAN",
           templateId: template?.id || null,
+          utmParams: template?.utmParams || null,
           createdAt: new Date().toISOString(),
           expiresAt,
           usedAt: null
@@ -446,7 +449,9 @@ export async function createPlanAndSubscription(formData: FormData) {
       }
       const base = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
       const token = crypto.randomBytes(18).toString("hex");
-      const url = base ? `${base.replace(/\/$/, "")}/public/suscripcion/${token}` : `/public/suscripcion/${token}`;
+      const baseUrl = base ? `${base.replace(/\/$/, "")}/public/suscripcion/${token}` : `/public/suscripcion/${token}`;
+      const utm = String(template?.utmParams || "").trim();
+      const url = utm ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${utm.replace(/^\?+/, "")}` : baseUrl;
       const expiresAt = expiryHours ? new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString() : null;
       const prevMeta = customer?.metadata ?? {};
       const nextMeta = {
@@ -457,6 +462,7 @@ export async function createPlanAndSubscription(formData: FormData) {
           planId,
           kind: "SUBSCRIPTION",
           templateId: template?.id || null,
+          utmParams: template?.utmParams || null,
           createdAt: new Date().toISOString(),
           expiresAt,
           usedAt: null
