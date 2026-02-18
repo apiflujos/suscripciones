@@ -1,7 +1,7 @@
 import express from "express";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
-import { PublicCheckoutKind } from "@prisma/client";
+import { Prisma, PublicCheckoutKind } from "@prisma/client";
 
 const layoutSchema = z
   .object({
@@ -68,7 +68,7 @@ checkoutTemplatesRouter.post("/", async (req, res) => {
       wompiTitle: data.wompiTitle || null,
       wompiDescription: data.wompiDescription || null,
       utmParams: data.utmParams || null,
-      layout: data.layout || null
+      layout: data.layout ?? Prisma.JsonNull
     }
   });
 
@@ -101,7 +101,7 @@ checkoutTemplatesRouter.put("/:id", async (req, res) => {
       wompiTitle: data.wompiTitle || null,
       wompiDescription: data.wompiDescription || null,
       utmParams: data.utmParams || null,
-      layout: data.layout || null
+      layout: data.layout ?? Prisma.JsonNull
     }
   });
   res.json({ template: updated });
