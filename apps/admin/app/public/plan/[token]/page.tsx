@@ -1,4 +1,7 @@
-import type { CSSProperties } from "react";
+import { PublicCheckoutLayout } from "../../_components/PublicCheckoutLayout";
+import { PublicAlert } from "../../_components/PublicAlert";
+import { PublicErrorPage } from "../../_components/PublicErrorPage";
+import { PUBLIC_COPY } from "../../_components/publicCopy";
 
 export const dynamic = "force-dynamic";
 
@@ -22,53 +25,86 @@ export default async function PublicPlanPage({ params }: { params: Promise<{ tok
   const configRes = await fetchCheckoutConfig();
   const config = configRes.ok ? configRes.json?.config || {} : {};
   const template = linkRes.ok ? linkRes.json?.template || null : null;
+  const layout = (template?.layout || {}) as any;
   const title = template?.publicTitle || config?.planTitle || "Paga tu plan";
   const description = template?.publicDescription || config?.planDescription || "";
   const logoUrl = template?.logoUrl || config?.logoUrl || "";
-  const primaryColor = "";
-  const fontFamily = "";
+  const primaryColor = String(layout?.primaryColor || "").trim();
+  const fontFamily = String(layout?.fontFamily || "").trim();
+  const ctaLabel = String(layout?.ctaLabel || "").trim() || "Pagar";
+  const supportEmail = String(process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "").trim();
+  const supportUrl = String(process.env.NEXT_PUBLIC_SUPPORT_URL || "").trim();
+  const layoutSupportEmail = String(layout?.supportEmail || "").trim();
+  const layoutSupportUrl = String(layout?.supportUrl || "").trim();
+  const supportHref = (layoutSupportEmail ? `mailto:${layoutSupportEmail}` : layoutSupportUrl) || (supportEmail ? `mailto:${supportEmail}` : supportUrl) || "";
+  const supportLabel =
+    layoutSupportEmail ||
+    layoutSupportUrl.replace(/^https?:\/\//, "") ||
+    supportEmail ||
+    supportUrl.replace(/^https?:\/\//, "") ||
+    "";
+  const showName = layout?.fields?.showName !== false;
+  const showPhone = layout?.fields?.showPhone !== false;
+  const showEmail = Boolean(layout?.fields?.showEmail);
 
   if (!linkRes.ok) {
-    const msg = linkRes.status === 410 ? "Este link está vencido." : "El link no es válido.";
+    const msg = linkRes.status === 410 ? PUBLIC_COPY.errorExpiredLink : PUBLIC_COPY.errorInvalidLink;
+    console.info("public_plan_error", {
+      status: linkRes.status,
+      token,
+      message: msg
+    });
     return (
-      <main className="page" style={{ maxWidth: 680 }}>
-        <div className="card cardPad">
-          <h1 style={{ marginTop: 0 }}>{title}</h1>
-          <p>{msg}</p>
-        </div>
-      </main>
+      <PublicErrorPage
+        title={title}
+        message={msg}
+        logoUrl={logoUrl}
+        trustText={PUBLIC_COPY.trustPayment}
+        supportHref={supportHref || undefined}
+        supportLabel={supportLabel || undefined}
+      />
     );
   }
 
-  const styleVars = primaryColor ? ({ ["--primary" as any]: primaryColor } as CSSProperties) : {};
   const customer = linkRes.json?.customer || {};
-  const checkoutUrl = linkRes.json?.checkoutUrl || "";
+  const checkoutUrl = String(linkRes.json?.checkoutUrl || "").trim();
 
   return (
-    <main className="page publicCheckoutShell" style={{ maxWidth: 860, ...(fontFamily ? { fontFamily } : {}), ...styleVars }}>
-      <div className="card cardPad publicCheckoutCard">
-        <div className="publicCheckoutLayout">
-          <div className="publicCheckoutIntro">
-            {logoUrl ? <img src={logoUrl} alt={title} className="publicCheckoutLogo" /> : null}
-            <h1 style={{ marginTop: 0 }}>{title}</h1>
-            {description ? <p className="field-hint">{description}</p> : null}
-          </div>
-
-          <div className="publicCheckoutSide">
-            <div className="field">
-              <label>Nombre completo</label>
-              <input className="input" readOnly value={customer.name || ""} />
-            </div>
-            <div className="field">
-              <label>Teléfono</label>
-              <input className="input" readOnly value={customer.phone || ""} />
-            </div>
-            <a className="primary" href={checkoutUrl}>
-              Pagar
-            </a>
-          </div>
+    <PublicCheckoutLayout
+      title={title}
+      description={description}
+      logoUrl={logoUrl}
+      trustText={PUBLIC_COPY.trustPayment}
+      supportHref={supportHref || undefined}
+      supportLabel={supportLabel || undefined}
+      primaryColor={primaryColor}
+      fontFamily={fontFamily}
+    >
+      {showName ? (
+        <div className="field">
+          <label>Nombre completo</label>
+          <input className="input" readOnly value={customer.name || ""} />
         </div>
-      </div>
-    </main>
+      ) : null}
+      {showPhone ? (
+        <div className="field">
+          <label>Teléfono</label>
+          <input className="input" readOnly value={customer.phone || ""} />
+        </div>
+      ) : null}
+      {showEmail ? (
+        <div className="field">
+          <label>Email</label>
+          <input className="input" readOnly value={customer.email || ""} />
+        </div>
+      ) : null}
+      {checkoutUrl ? (
+        <a className="primary" href={checkoutUrl} referrerPolicy="no-referrer">
+          {ctaLabel}
+        </a>
+      ) : (
+        <PublicAlert>{PUBLIC_COPY.errorNoCheckout}</PublicAlert>
+      )}
+    </PublicCheckoutLayout>
   );
 }

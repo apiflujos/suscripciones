@@ -86,6 +86,38 @@ productsRouter.get("/", async (_req, res) => {
   });
 });
 
+productsRouter.get("/:id/payments", async (req, res) => {
+  const id = String(req.params.id || "").trim();
+  if (!id) return res.status(400).json({ error: "invalid_id" });
+  const takeRaw = Number(req?.query?.take ?? 50);
+  const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 200) : 50;
+  const skipRaw = Number(req?.query?.skip ?? 0);
+  const skip = Number.isFinite(skipRaw) ? Math.max(Math.trunc(skipRaw), 0) : 0;
+
+  const payments = await prisma.payment.findMany({
+    where: { subscription: { planId: id } },
+    orderBy: { createdAt: "desc" },
+    take,
+    skip,
+    include: { customer: true, subscription: { include: { plan: true } } }
+  });
+
+  res.json({
+    items: payments.map((p) => ({
+      id: p.id,
+      amountInCents: p.amountInCents,
+      currency: p.currency,
+      status: p.status,
+      createdAt: p.createdAt,
+      paidAt: p.paidAt,
+      reference: p.reference,
+      customerId: p.customerId,
+      customerName: p.customer?.name || p.customer?.email || null,
+      planName: p.subscription?.plan?.name || null
+    }))
+  });
+});
+
 productsRouter.get("/:id", async (req, res) => {
   const id = String(req.params.id || "").trim();
   if (!id) return res.status(400).json({ error: "invalid_id" });

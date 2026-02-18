@@ -38,7 +38,8 @@ publicTokenizationRouter.get("/tokenization-links/:token", async (req, res) => {
     link: {
       planId: link?.planId || null,
       kind: link?.kind || null,
-      templateId: link?.templateId || null
+      templateId: link?.templateId || null,
+      usedAt: usedAt ? usedAt.toISOString() : null
     },
     template: template
       ? {
@@ -49,7 +50,8 @@ publicTokenizationRouter.get("/tokenization-links/:token", async (req, res) => {
           publicTitle: template.publicTitle || null,
           publicDescription: template.publicDescription || null,
           wompiTitle: template.wompiTitle || null,
-          wompiDescription: template.wompiDescription || null
+          wompiDescription: template.wompiDescription || null,
+          layout: template.layout || null
         }
       : null,
     expiresAt: expiresAt ? expiresAt.toISOString() : null

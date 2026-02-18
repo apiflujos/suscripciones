@@ -37,11 +37,22 @@ export function WompiTokenizeWidget({ publicKey }: { publicKey: string }) {
     script.setAttribute("data-wompi-widget", "tokenize");
     form.appendChild(script);
 
+    const onSubmit = () => {
+      const button = form.querySelector<HTMLButtonElement>(".waybox-button, button[type='submit']");
+      if (button) {
+        button.disabled = true;
+        button.setAttribute("aria-disabled", "true");
+      }
+      form.setAttribute("data-submitting", "true");
+    };
+    form.addEventListener("submit", onSubmit);
+
     return () => {
       try {
         const currentScript = form.querySelector('script[data-wompi-widget="tokenize"]');
         if (currentScript) currentScript.remove();
       } catch {}
+      form.removeEventListener("submit", onSubmit);
     };
   }, [publicKey]);
 

@@ -67,7 +67,8 @@ publicLinksRouter.get("/payment-links/:token", async (req, res) => {
           publicTitle: template.publicTitle || null,
           publicDescription: template.publicDescription || null,
           wompiTitle: template.wompiTitle || null,
-          wompiDescription: template.wompiDescription || null
+          wompiDescription: template.wompiDescription || null,
+          layout: template.layout || null
         }
       : null
   });

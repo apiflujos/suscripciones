@@ -33,6 +33,12 @@ function redirectWith(action: string, status: "ok" | "fail", error?: string) {
 export async function createCheckoutTemplate(formData: FormData) {
   await assertCsrfToken(formData);
   try {
+    let layout: any = {};
+    try {
+      layout = JSON.parse(String(formData.get("layout") || "{}"));
+    } catch {
+      layout = {};
+    }
     const payload = {
       name: String(formData.get("name") || "").trim(),
       kind: String(formData.get("kind") || "PLAN").trim().toUpperCase(),
@@ -48,7 +54,8 @@ export async function createCheckoutTemplate(formData: FormData) {
       publicDescription: String(formData.get("publicDescription") || "").trim(),
       wompiTitle: String(formData.get("wompiTitle") || "").trim(),
       wompiDescription: String(formData.get("wompiDescription") || "").trim(),
-      utmParams: String(formData.get("utmParams") || "").trim()
+      utmParams: String(formData.get("utmParams") || "").trim(),
+      layout
     };
     await adminFetch("/admin/checkout-templates", { method: "POST", body: JSON.stringify(payload) });
     redirectWith("checkout_template_create", "ok");
@@ -62,6 +69,12 @@ export async function updateCheckoutTemplate(formData: FormData) {
   const id = String(formData.get("id") || "").trim();
   if (!id) return redirectWith("checkout_template_update", "fail", "missing_id");
   try {
+    let layout: any = {};
+    try {
+      layout = JSON.parse(String(formData.get("layout") || "{}"));
+    } catch {
+      layout = {};
+    }
     const payload = {
       name: String(formData.get("name") || "").trim(),
       kind: String(formData.get("kind") || "PLAN").trim().toUpperCase(),
@@ -77,7 +90,8 @@ export async function updateCheckoutTemplate(formData: FormData) {
       publicDescription: String(formData.get("publicDescription") || "").trim(),
       wompiTitle: String(formData.get("wompiTitle") || "").trim(),
       wompiDescription: String(formData.get("wompiDescription") || "").trim(),
-      utmParams: String(formData.get("utmParams") || "").trim()
+      utmParams: String(formData.get("utmParams") || "").trim(),
+      layout
     };
     await adminFetch(`/admin/checkout-templates/${id}`, { method: "PUT", body: JSON.stringify(payload) });
     redirectWith("checkout_template_update", "ok");

@@ -1,6 +1,9 @@
-import type { CSSProperties } from "react";
 import { WompiTokenizeWidget } from "../../../customers/[id]/payment-method/WompiTokenizeWidget";
 import { getAdminApiConfig } from "../../../lib/adminApi";
+import { PublicCheckoutLayout } from "../../_components/PublicCheckoutLayout";
+import { PublicAlert } from "../../_components/PublicAlert";
+import { PublicErrorPage } from "../../_components/PublicErrorPage";
+import { PUBLIC_COPY } from "../../_components/publicCopy";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +34,7 @@ export default async function PublicTokenizePage({
   const configRes = await fetchCheckoutConfig();
   const config = configRes.ok ? configRes.json?.config || {} : {};
   const template = tokenRes.ok ? tokenRes.json?.template || null : null;
+  const layout = (template?.layout || {}) as any;
   const { token: adminToken } = getAdminApiConfig();
   const settingsRes = adminToken
     ? await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001"}/admin/settings`, {
@@ -45,10 +49,23 @@ export default async function PublicTokenizePage({
     template?.publicDescription ||
     config?.subscriptionDescription ||
     "Usamos Wompi para tokenizar tu tarjeta. No se realizan cargos en este paso.";
-  const contactEmail = "";
+  const contactEmail = String(process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "").trim();
+  const supportUrl = String(process.env.NEXT_PUBLIC_SUPPORT_URL || "").trim();
   const logoUrl = template?.logoUrl || config?.logoUrl || "";
-  const fontFamily = "";
-  const primaryColor = "";
+  const fontFamily = String(layout?.fontFamily || "").trim();
+  const primaryColor = String(layout?.primaryColor || "").trim();
+  const layoutSupportEmail = String(layout?.supportEmail || "").trim();
+  const layoutSupportUrl = String(layout?.supportUrl || "").trim();
+  const supportHref =
+    (layoutSupportEmail ? `mailto:${layoutSupportEmail}` : layoutSupportUrl) ||
+    (contactEmail ? `mailto:${contactEmail}` : supportUrl) ||
+    "";
+  const supportLabel =
+    layoutSupportEmail ||
+    layoutSupportUrl.replace(/^https?:\/\//, "") ||
+    contactEmail ||
+    supportUrl.replace(/^https?:\/\//, "") ||
+    "";
 
   const publicKey = (() => {
     const activeEnv = String(settings?.wompi?.activeEnv || "PRODUCTION").toUpperCase();
@@ -58,57 +75,49 @@ export default async function PublicTokenizePage({
   })();
 
   if (!tokenRes.ok) {
-    const msg =
-      tokenRes.status === 410
-        ? "Este link ya fue usado o está vencido."
-        : "El link no es válido.";
+    const msg = tokenRes.status === 410 ? PUBLIC_COPY.errorUsedLink : PUBLIC_COPY.errorInvalidLink;
+    console.info("public_tokenize_error", {
+      status: tokenRes.status,
+      token,
+      message: msg
+    });
     return (
-      <main className="page" style={{ maxWidth: 680 }}>
-        <div className="card cardPad">
-          <h1 style={{ marginTop: 0 }}>{title}</h1>
-          <p>{msg}</p>
-        </div>
-      </main>
+      <PublicErrorPage
+        title={title}
+        message={msg}
+        logoUrl={logoUrl}
+        trustText={PUBLIC_COPY.trustTokenize}
+        supportHref={supportHref || undefined}
+        supportLabel={supportLabel || undefined}
+      />
     );
   }
 
-  const styleVars = primaryColor ? ({ ["--primary" as any]: primaryColor } as CSSProperties) : {};
-
   return (
-    <main className="page publicCheckoutShell" style={{ maxWidth: 860, ...(fontFamily ? { fontFamily } : {}), ...styleVars }}>
-      <div className="card cardPad publicCheckoutCard" style={{ ...(primaryColor ? { borderColor: primaryColor } : {}) }}>
-        <div className="publicCheckoutLayout">
-          <div className="publicCheckoutIntro">
-            {logoUrl ? <img src={logoUrl} alt={title} className="publicCheckoutLogo" /> : null}
-            <h1 style={{ marginTop: 0 }}>{title}</h1>
-            <p style={{ marginTop: 6 }}>{subtitle}</p>
-            <p className="field-hint">{description}</p>
-            {contactEmail ? (
-              <div className="field-hint">
-                ¿Necesitas ayuda? Escríbenos a {contactEmail}.
-              </div>
-            ) : null}
-          </div>
+    <PublicCheckoutLayout
+      title={title}
+      subtitle={subtitle}
+      description={description}
+      logoUrl={logoUrl}
+      trustText={PUBLIC_COPY.trustTokenize}
+      supportHref={supportHref || undefined}
+      supportLabel={supportLabel || undefined}
+      primaryColor={primaryColor}
+      fontFamily={fontFamily}
+    >
+      {sp.error ? (
+        <PublicAlert>
+          Ocurrió un error: {sp.error}. {PUBLIC_COPY.errorGenericHelp}
+        </PublicAlert>
+      ) : null}
 
-          <div className="publicCheckoutSide">
-            {sp.error ? (
-              <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
-                Error: {sp.error}
-              </div>
-            ) : null}
-
-            {!publicKey ? (
-              <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
-                Servicio temporalmente no disponible.
-              </div>
-            ) : (
-              <form method="POST" action={`/public/tokenize/${encodeURIComponent(token)}/process`} style={{ display: "grid", gap: 10 }}>
-                <WompiTokenizeWidget publicKey={publicKey} />
-              </form>
-            )}
-          </div>
-        </div>
-      </div>
-    </main>
+      {!publicKey ? (
+        <PublicAlert>Servicio temporalmente no disponible. Solicita un nuevo link o intenta más tarde.</PublicAlert>
+      ) : (
+        <form method="POST" action={`/public/tokenize/${encodeURIComponent(token)}/process`} style={{ display: "grid", gap: 10 }}>
+          <WompiTokenizeWidget publicKey={publicKey} />
+        </form>
+      )}
+    </PublicCheckoutLayout>
   );
 }

@@ -27,6 +27,37 @@ const wompiPaymentSourceSchema = z.object({
 
 export const customersRouter = express.Router();
 
+customersRouter.post("/tokenization-links/:token/consume", async (req, res) => {
+  const token = String(req.params.token || "").trim();
+  if (!token) return res.status(400).json({ error: "missing_token" });
+
+  const customer = await prisma.customer.findFirst({
+    where: { metadata: { path: ["tokenizationLink", "token"], equals: token } as any }
+  });
+  if (!customer) return res.status(404).json({ error: "token_not_found" });
+
+  const meta: any = customer.metadata ?? {};
+  const link = meta?.tokenizationLink ?? {};
+  const expiresAt = link?.expiresAt ? new Date(link.expiresAt) : null;
+  const usedAt = link?.usedAt ? new Date(link.usedAt) : null;
+
+  if (usedAt) return res.status(409).json({ error: "token_used" });
+  if (expiresAt && Number.isFinite(expiresAt.getTime()) && expiresAt.getTime() < Date.now()) {
+    return res.status(410).json({ error: "token_expired" });
+  }
+
+  const now = new Date().toISOString();
+  const updated = await prisma.$executeRaw`
+    UPDATE "Customer"
+    SET "metadata" = jsonb_set(COALESCE("metadata",'{}'::jsonb), '{tokenizationLink,usedAt}', to_jsonb(${now}::text), true)
+    WHERE "metadata"->'tokenizationLink'->>'token' = ${token}
+      AND (("metadata"->'tokenizationLink'->>'usedAt') IS NULL OR ("metadata"->'tokenizationLink'->>'usedAt') = '')
+  `;
+
+  if (!updated) return res.status(409).json({ error: "token_used" });
+  res.json({ ok: true, customerId: customer.id, usedAt: now });
+});
+
 customersRouter.get("/", async (_req, res) => {
   const req = _req as any;
   const takeRaw = Number(req?.query?.take ?? 50);
@@ -59,6 +90,37 @@ customersRouter.get("/:id", async (req, res) => {
   const customer = await prisma.customer.findUnique({ where: { id: customerId } });
   if (!customer) return res.status(404).json({ error: "customer_not_found" });
   res.json({ customer });
+});
+
+customersRouter.get("/:id/payments", async (req, res) => {
+  const customerId = String(req.params.id || "").trim();
+  if (!customerId) return res.status(400).json({ error: "invalid_id" });
+  const takeRaw = Number(req.query.take ?? 50);
+  const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 200) : 50;
+  const skipRaw = Number(req.query.skip ?? 0);
+  const skip = Number.isFinite(skipRaw) ? Math.max(Math.trunc(skipRaw), 0) : 0;
+
+  const items = await prisma.payment.findMany({
+    where: { customerId },
+    orderBy: { createdAt: "desc" },
+    take,
+    skip,
+    include: { subscription: { include: { plan: true } } }
+  });
+
+  res.json({
+    items: items.map((p) => ({
+      id: p.id,
+      amountInCents: p.amountInCents,
+      currency: p.currency,
+      status: p.status,
+      createdAt: p.createdAt,
+      paidAt: p.paidAt,
+      reference: p.reference,
+      planId: p.subscription?.planId || null,
+      planName: p.subscription?.plan?.name || null
+    }))
+  });
 });
 
 customersRouter.post("/", async (req, res) => {

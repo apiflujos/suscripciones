@@ -1,4 +1,5 @@
-import type { CSSProperties } from "react";
+import { PublicCheckoutLayout } from "../../../_components/PublicCheckoutLayout";
+import { PUBLIC_COPY } from "../../../_components/publicCopy";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,7 @@ export default async function PublicTokenizeSuccessPage({ params }: { params: Pr
   const config = configRes.ok ? configRes.json?.config || {} : {};
   const tokenRes = await fetchPublicToken(linkToken);
   const template = tokenRes.ok ? tokenRes.json?.template || null : null;
+  const layout = (template?.layout || {}) as any;
 
   const title = "Gracias";
   const subtitle = "Tu método de pago quedó guardado.";
@@ -29,35 +31,45 @@ export default async function PublicTokenizeSuccessPage({ params }: { params: Pr
     template?.publicDescription ||
     config?.subscriptionDescription ||
     "Desde ahora podremos procesar tu suscripción de forma automática.";
-  const contactEmail = "";
+  const contactEmail = String(process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "").trim();
+  const supportUrl = String(process.env.NEXT_PUBLIC_SUPPORT_URL || "").trim();
   const logoUrl = template?.logoUrl || config?.logoUrl || "";
-  const fontFamily = "";
-  const primaryColor = "";
-  const redirectUrl = "";
+  const fontFamily = String(layout?.fontFamily || "").trim();
+  const primaryColor = String(layout?.primaryColor || "").trim();
+  const layoutSupportEmail = String(layout?.supportEmail || "").trim();
+  const layoutSupportUrl = String(layout?.supportUrl || "").trim();
+  const supportHref =
+    (layoutSupportEmail ? `mailto:${layoutSupportEmail}` : layoutSupportUrl) ||
+    (contactEmail ? `mailto:${contactEmail}` : supportUrl) ||
+    "";
+  const supportLabel =
+    layoutSupportEmail ||
+    layoutSupportUrl.replace(/^https?:\/\//, "") ||
+    contactEmail ||
+    supportUrl.replace(/^https?:\/\//, "") ||
+    "";
+  const redirectUrl =
+    String(process.env.NEXT_PUBLIC_PUBLIC_CHECKOUT_BASE_URL || "").trim() ||
+    String(process.env.NEXT_PUBLIC_ADMIN_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || "").trim() ||
+    "/";
   const buttonLabel = "Volver";
 
-  const styleVars = primaryColor ? ({ ["--primary" as any]: primaryColor } as CSSProperties) : {};
-
   return (
-    <main className="page publicCheckoutShell" style={{ maxWidth: 680, ...(fontFamily ? { fontFamily } : {}), ...styleVars }}>
-      <div className="card cardPad publicCheckoutCard" style={{ display: "grid", gap: 12, ...(primaryColor ? { borderColor: primaryColor } : {}) }}>
-        <div>
-          {logoUrl ? <img src={logoUrl} alt={title} className="publicCheckoutLogo" /> : null}
-          <h1 style={{ marginTop: 0 }}>{title}</h1>
-          <p style={{ marginTop: 6 }}>{subtitle}</p>
-          <p className="field-hint">{description}</p>
-        </div>
-        {redirectUrl ? (
-          <a className="primary" href={redirectUrl} style={{ width: "fit-content" }}>
-            {buttonLabel}
-          </a>
-        ) : null}
-        {contactEmail ? (
-          <div className="field-hint">
-            ¿Necesitas ayuda? Escríbenos a {contactEmail}.
-          </div>
-        ) : null}
-      </div>
-    </main>
+    <PublicCheckoutLayout
+      title={title}
+      subtitle={subtitle}
+      description={description}
+      logoUrl={logoUrl}
+      trustText={PUBLIC_COPY.trustTokenize}
+      supportHref={supportHref || undefined}
+      supportLabel={supportLabel || undefined}
+      primaryColor={primaryColor}
+      fontFamily={fontFamily}
+      maxWidth={680}
+    >
+      <a className="primary" href={redirectUrl} style={{ width: "fit-content" }} referrerPolicy="no-referrer">
+        {buttonLabel}
+      </a>
+    </PublicCheckoutLayout>
   );
 }

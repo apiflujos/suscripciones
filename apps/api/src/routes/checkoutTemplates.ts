@@ -3,6 +3,23 @@ import { z } from "zod";
 import { prisma } from "../db/prisma";
 import { PublicCheckoutKind } from "@prisma/client";
 
+const layoutSchema = z
+  .object({
+    primaryColor: z.string().optional().or(z.literal("")),
+    fontFamily: z.string().optional().or(z.literal("")),
+    supportEmail: z.string().optional().or(z.literal("")),
+    supportUrl: z.string().optional().or(z.literal("")),
+    ctaLabel: z.string().optional().or(z.literal("")),
+    fields: z
+      .object({
+        showName: z.boolean().optional(),
+        showPhone: z.boolean().optional(),
+        showEmail: z.boolean().optional()
+      })
+      .optional()
+  })
+  .optional();
+
 const templateSchema = z.object({
   name: z.string().min(1),
   kind: z.nativeEnum(PublicCheckoutKind),
@@ -14,7 +31,9 @@ const templateSchema = z.object({
   publicTitle: z.string().optional().or(z.literal("")),
   publicDescription: z.string().optional().or(z.literal("")),
   wompiTitle: z.string().optional().or(z.literal("")),
-  wompiDescription: z.string().optional().or(z.literal(""))
+  wompiDescription: z.string().optional().or(z.literal("")),
+  utmParams: z.string().optional().or(z.literal("")),
+  layout: layoutSchema
 });
 
 export const checkoutTemplatesRouter = express.Router();
@@ -47,7 +66,9 @@ checkoutTemplatesRouter.post("/", async (req, res) => {
       publicTitle: data.publicTitle || null,
       publicDescription: data.publicDescription || null,
       wompiTitle: data.wompiTitle || null,
-      wompiDescription: data.wompiDescription || null
+      wompiDescription: data.wompiDescription || null,
+      utmParams: data.utmParams || null,
+      layout: data.layout || null
     }
   });
 
@@ -78,7 +99,9 @@ checkoutTemplatesRouter.put("/:id", async (req, res) => {
       publicTitle: data.publicTitle || null,
       publicDescription: data.publicDescription || null,
       wompiTitle: data.wompiTitle || null,
-      wompiDescription: data.wompiDescription || null
+      wompiDescription: data.wompiDescription || null,
+      utmParams: data.utmParams || null,
+      layout: data.layout || null
     }
   });
   res.json({ template: updated });
