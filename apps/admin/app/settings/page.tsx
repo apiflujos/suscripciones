@@ -84,6 +84,8 @@ export default async function SettingsPage({
   const status = String(sp.status || "");
   const errorText = sp.error ? String(sp.error) : "";
   const tab = String(sp.tab || "connections");
+  const templateKind = String(sp.kind || "").toUpperCase();
+  const templateStep = String(sp.step || "choose");
   const inlineState = { action, status, errorText };
 
   return (
@@ -277,6 +279,8 @@ export default async function SettingsPage({
               products={products}
               csrfToken={csrfToken}
               inlineState={inlineState}
+              initialKind={templateKind === "PLAN" || templateKind === "SUBSCRIPTION" ? (templateKind as any) : ""}
+              initialStep={templateStep === "form" ? "form" : "choose"}
               actions={{
                 create: createCheckoutTemplate,
                 update: updateCheckoutTemplate,

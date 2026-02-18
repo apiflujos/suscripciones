@@ -26,21 +26,27 @@ export function CheckoutTemplatesPanel({
   products,
   csrfToken,
   inlineState,
+  initialKind = "",
+  initialStep = "choose",
   actions
 }: {
   templates: Template[];
   products: Product[];
   csrfToken: string;
   inlineState: { action: string; status: string; errorText: string };
+  initialKind?: "PLAN" | "SUBSCRIPTION" | "";
+  initialStep?: "choose" | "form";
   actions: {
     create: (formData: FormData) => void;
     update: (formData: FormData) => void;
     remove: (formData: FormData) => void;
   };
 }) {
-  const [step, setStep] = useState<"choose" | "form">("choose");
+  const [step, setStep] = useState<"choose" | "form">(initialStep === "form" ? "form" : "choose");
   const [editing, setEditing] = useState<Template | null>(null);
-  const [kind, setKind] = useState<"PLAN" | "SUBSCRIPTION" | "">("");
+  const [kind, setKind] = useState<"PLAN" | "SUBSCRIPTION" | "">(
+    initialKind === "PLAN" ? "PLAN" : initialKind === "SUBSCRIPTION" ? "SUBSCRIPTION" : ""
+  );
   const [name, setName] = useState("");
   const [allowSelect, setAllowSelect] = useState(false);
   const [productIds, setProductIds] = useState<string[]>([]);
@@ -132,29 +138,34 @@ export function CheckoutTemplatesPanel({
           <div style={{ display: "grid", gap: 12 }}>
             <div className="field-hint">Selecciona el tipo de plantilla.</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <button
-                type="button"
+              <a
                 className={`card cardPad ${kind === "PLAN" ? "is-active" : ""}`}
+                href={`/settings?tab=checkout-publico&step=choose&kind=PLAN`}
                 onClick={() => setKind("PLAN")}
                 style={{ textAlign: "left" }}
               >
                 <strong>Plan</strong>
                 <div className="field-hint">Checkout de pago / link.</div>
-              </button>
-              <button
-                type="button"
+              </a>
+              <a
                 className={`card cardPad ${kind === "SUBSCRIPTION" ? "is-active" : ""}`}
+                href={`/settings?tab=checkout-publico&step=choose&kind=SUBSCRIPTION`}
                 onClick={() => setKind("SUBSCRIPTION")}
                 style={{ textAlign: "left" }}
               >
                 <strong>Suscripción</strong>
                 <div className="field-hint">Checkout de tokenización.</div>
-              </button>
+              </a>
             </div>
             <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <button className="primary" type="button" onClick={() => setStep("form")} disabled={!kind}>
+              <a
+                className={`primary ${!kind ? "is-disabled" : ""}`}
+                href={kind ? `/settings?tab=checkout-publico&step=form&kind=${kind}` : undefined}
+                onClick={() => (kind ? setStep("form") : null)}
+                aria-disabled={!kind}
+              >
                 Siguiente
-              </button>
+              </a>
             </div>
           </div>
         ) : (
