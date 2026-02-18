@@ -211,6 +211,50 @@ export default async function SettingsPage({
                 </div>
                 <div className="field-hint">URL: {settings?.shopify?.forwardUrl || "—"}</div>
               </div>
+
+              <form action={updateCheckoutConfig} className="panel module" style={{ display: "grid", gap: 12 }}>
+                <input type="hidden" name="csrf" value={csrfToken} />
+                <div className="panelHeaderRow">
+                  <strong>Dominio público del checkout</strong>
+                  <div className="field-hint">Si lo dejas vacío, usamos el dominio público por defecto.</div>
+                </div>
+                <div className="field-hint">
+                  Instrucciones DNS para dominio propio:
+                  <div className="field-hint">1. Crea un registro CNAME apuntando tu dominio al dominio público de Apiflujos.</div>
+                  <div className="field-hint">2. Espera propagación y luego guarda aquí la Base URL.</div>
+                </div>
+                <div className="field">
+                  <label>Base URL Plan</label>
+                  <input
+                    className="input"
+                    name="planBaseUrl"
+                    defaultValue={settings?.checkoutConfig?.planBaseUrl || ""}
+                    placeholder="https://pagos.tu-dominio.com"
+                  />
+                </div>
+                <div className="field">
+                  <label>Base URL Suscripción</label>
+                  <input
+                    className="input"
+                    name="subscriptionBaseUrl"
+                    defaultValue={settings?.checkoutConfig?.subscriptionBaseUrl || ""}
+                    placeholder="https://suscripciones.tu-dominio.com"
+                  />
+                </div>
+                <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    {inlineState.action === "checkout_config" && inlineState.status === "ok" ? <div className="field-hint">Configuración guardada.</div> : null}
+                    {inlineState.action === "checkout_config" && inlineState.status === "fail" ? (
+                      <div className="field-hint" style={{ color: "var(--danger)" }}>
+                        Error: {inlineState.errorText || "unknown_error"}
+                      </div>
+                    ) : null}
+                  </div>
+                  <PendingButton className="primary" type="submit" pendingText="Guardando...">
+                    Guardar dominio
+                  </PendingButton>
+                </div>
+              </form>
             </div>
           </section>
 
@@ -228,53 +272,11 @@ export default async function SettingsPage({
             </div>
           </div>
           <div className="settings-group-body">
-            <form action={updateCheckoutConfig} className="panel module" style={{ display: "grid", gap: 12 }}>
-              <input type="hidden" name="csrf" value={csrfToken} />
-              <div className="panelHeaderRow">
-                <strong>Dominio público</strong>
-                <div className="field-hint">Se usa para construir la URL pública del checkout.</div>
-              </div>
-              <div className="field">
-                <label>Base URL Plan</label>
-                <input
-                  className="input"
-                  name="planBaseUrl"
-                  defaultValue={settings?.checkoutConfig?.planBaseUrl || ""}
-                  placeholder="https://pagos.tu-dominio.com"
-                />
-              </div>
-              <div className="field">
-                <label>Base URL Suscripción</label>
-                <input
-                  className="input"
-                  name="subscriptionBaseUrl"
-                  defaultValue={settings?.checkoutConfig?.subscriptionBaseUrl || ""}
-                  placeholder="https://suscripciones.tu-dominio.com"
-                />
-              </div>
-              <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  {inlineState.action === "checkout_config" && inlineState.status === "ok" ? <div className="field-hint">Configuración guardada.</div> : null}
-                  {inlineState.action === "checkout_config" && inlineState.status === "fail" ? (
-                    <div className="field-hint" style={{ color: "var(--danger)" }}>
-                      Error: {inlineState.errorText || "unknown_error"}
-                    </div>
-                  ) : null}
-                </div>
-                <PendingButton className="primary" type="submit" pendingText="Guardando...">
-                  Guardar dominio
-                </PendingButton>
-              </div>
-            </form>
             <CheckoutTemplatesPanel
               templates={templates}
               products={products}
               csrfToken={csrfToken}
               inlineState={inlineState}
-              baseUrls={{
-                planBaseUrl: settings?.checkoutConfig?.planBaseUrl,
-                subscriptionBaseUrl: settings?.checkoutConfig?.subscriptionBaseUrl
-              }}
               actions={{
                 create: createCheckoutTemplate,
                 update: updateCheckoutTemplate,
