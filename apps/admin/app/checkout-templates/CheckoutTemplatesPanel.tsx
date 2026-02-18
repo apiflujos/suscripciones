@@ -233,7 +233,19 @@ export function CheckoutTemplatesPanel({
             <div style={{ display: "grid", gap: 12 }}>
               <div className="field-hint">Selecciona el tipo de plantilla.</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <label className={`card cardPad ${kind === "PLAN" ? "is-active" : ""}`} style={{ textAlign: "left", cursor: "pointer" }}>
+                <label
+                  className={`card cardPad ${kind === "PLAN" ? "is-active" : ""}`}
+                  style={{
+                    textAlign: "left",
+                    cursor: "pointer",
+                    borderColor: kind === "PLAN" ? "var(--primary)" : "var(--stroke)",
+                    background: kind === "PLAN" ? "rgba(14, 165, 233, 0.08)" : "transparent",
+                    boxShadow: kind === "PLAN" ? "0 0 0 2px rgba(14, 165, 233, 0.25)" : "none"
+                  }}
+                  onClick={() => setKind("PLAN")}
+                  role="button"
+                  aria-pressed={kind === "PLAN"}
+                >
                   <input
                     type="radio"
                     name="templateKind"
@@ -245,7 +257,19 @@ export function CheckoutTemplatesPanel({
                   <strong>Plan</strong>
                   <div className="field-hint">Checkout de pago / link.</div>
                 </label>
-                <label className={`card cardPad ${kind === "SUBSCRIPTION" ? "is-active" : ""}`} style={{ textAlign: "left", cursor: "pointer" }}>
+                <label
+                  className={`card cardPad ${kind === "SUBSCRIPTION" ? "is-active" : ""}`}
+                  style={{
+                    textAlign: "left",
+                    cursor: "pointer",
+                    borderColor: kind === "SUBSCRIPTION" ? "var(--primary)" : "var(--stroke)",
+                    background: kind === "SUBSCRIPTION" ? "rgba(14, 165, 233, 0.08)" : "transparent",
+                    boxShadow: kind === "SUBSCRIPTION" ? "0 0 0 2px rgba(14, 165, 233, 0.25)" : "none"
+                  }}
+                  onClick={() => setKind("SUBSCRIPTION")}
+                  role="button"
+                  aria-pressed={kind === "SUBSCRIPTION"}
+                >
                   <input
                     type="radio"
                     name="templateKind"
