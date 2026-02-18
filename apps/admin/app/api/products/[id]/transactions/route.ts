@@ -11,7 +11,7 @@ export async function GET(req: NextRequest, context: any) {
 
   const url = new URL(req.url);
   const take = url.searchParams.get("take") || "50";
-  const res = await fetch(`${apiBase}/admin/customers/${encodeURIComponent(id)}/payments?take=${encodeURIComponent(take)}` as string, {
+  const res = await fetch(`${apiBase}/admin/products/${encodeURIComponent(id)}/payments?take=${encodeURIComponent(take)}` as string, {
     headers: {
       ...(token ? { authorization: `Bearer ${token}`, "x-admin-token": token } : {})
     },
