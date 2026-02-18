@@ -4,6 +4,7 @@ import { useMemo, useRef, useState, useEffect } from "react";
 import { updateProduct } from "./actions";
 import { HelpTip } from "../ui/HelpTip";
 import { VariantsEditor } from "./VariantsEditor";
+import { LocalDateTime } from "../ui/LocalDateTime";
 
 function formatCopCurrency(input: string): string {
   const digits = String(input || "").replace(/[^\d]/g, "");
@@ -44,6 +45,11 @@ type ProductRow = {
 export function ProductsTable({ items, csrfToken }: { items: ProductRow[]; csrfToken: string }) {
   const [editing, setEditing] = useState<ProductRow | null>(null);
   const [open, setOpen] = useState(false);
+  const [txOpen, setTxOpen] = useState(false);
+  const [txProduct, setTxProduct] = useState<ProductRow | null>(null);
+  const [txItems, setTxItems] = useState<any[]>([]);
+  const [txLoading, setTxLoading] = useState(false);
+  const [txError, setTxError] = useState("");
 
   const [kind, setKind] = useState<"PRODUCT" | "SERVICE">("PRODUCT");
   const [name, setName] = useState("");
@@ -100,6 +106,36 @@ export function ProductsTable({ items, csrfToken }: { items: ProductRow[]; csrfT
   function closeEditor() {
     setOpen(false);
     setEditing(null);
+    setTimeout(() => lastActiveRef.current?.focus(), 0);
+  }
+
+  async function openTransactions(item: ProductRow) {
+    lastActiveRef.current = document.activeElement as HTMLElement | null;
+    setTxProduct(item);
+    setTxOpen(true);
+    setTxLoading(true);
+    setTxError("");
+    setTxItems([]);
+    try {
+      const res = await fetch(`/api/products/${encodeURIComponent(String(item.id))}/transactions`, { cache: "no-store" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setTxError(json?.error || `Error ${res.status}`);
+        return;
+      }
+      setTxItems(Array.isArray(json?.items) ? json.items : []);
+    } catch (err: any) {
+      setTxError(String(err?.message || "request_failed"));
+    } finally {
+      setTxLoading(false);
+    }
+  }
+
+  function closeTransactions() {
+    setTxOpen(false);
+    setTxProduct(null);
+    setTxItems([]);
+    setTxError("");
     setTimeout(() => lastActiveRef.current?.focus(), 0);
   }
 
@@ -166,9 +202,14 @@ export function ProductsTable({ items, csrfToken }: { items: ProductRow[]; csrfT
                   </div>
                 </div>
               </div>
-              <button className="ghost btn-compact btn-blue" type="button" onClick={() => openEditor(p)}>
-                Editar
-              </button>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="ghost btn-compact btn-blue" type="button" onClick={() => openTransactions(p)}>
+                  🧾 Transacciones
+                </button>
+                <button className="ghost btn-compact btn-blue" type="button" onClick={() => openEditor(p)}>
+                  Editar
+                </button>
+              </div>
             </div>
             <div className="product-info">
               <div>
@@ -451,6 +492,67 @@ export function ProductsTable({ items, csrfToken }: { items: ProductRow[]; csrfT
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {txOpen && txProduct ? (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(2, 6, 23, 0.55)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 50,
+            padding: 16
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="product-tx-title"
+            className="panel module"
+            style={{ width: "min(900px, 96vw)", maxHeight: "90vh", overflow: "auto" }}
+          >
+            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 id="product-tx-title" style={{ margin: 0 }}>
+                Transacciones: {txProduct.name}
+              </h3>
+              <button type="button" className="ghost" onClick={closeTransactions} aria-label="Cerrar">
+                X
+              </button>
+            </div>
+            {txLoading ? <div className="field-hint">Cargando transacciones…</div> : null}
+            {txError ? <div className="field-hint" style={{ color: "var(--danger)" }}>Error: {txError}</div> : null}
+            {!txLoading && !txError && txItems.length === 0 ? <div className="field-hint">No hay transacciones.</div> : null}
+            {!txLoading && !txError && txItems.length ? (
+              <div className="table-scroll">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Fecha</th>
+                      <th>Monto</th>
+                      <th>Estado</th>
+                      <th>Contacto</th>
+                      <th>Referencia</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {txItems.map((t) => (
+                      <tr key={t.id}>
+                        <td><LocalDateTime value={t.createdAt} /></td>
+                        <td>{formatCopFromCents(t.amountInCents)}</td>
+                        <td>{t.status}</td>
+                        <td>{t.customerName || "—"}</td>
+                        <td style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{t.reference || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}

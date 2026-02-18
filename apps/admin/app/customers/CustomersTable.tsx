@@ -5,6 +5,12 @@ import Link from "next/link";
 import { deleteCustomer, updateCustomer } from "./actions";
 import { LocalDateTime } from "../ui/LocalDateTime";
 
+function formatCopFromCents(cents: number) {
+  const pesos = Math.trunc(Number(cents || 0) / 100);
+  if (!Number.isFinite(pesos)) return "";
+  return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(pesos);
+}
+
 type CustomerRow = {
   id: string;
   name?: string | null;
@@ -19,6 +25,17 @@ type LatestLink = {
   createdAt: string;
   chatwootStatus: string;
   chatwootError?: string;
+};
+
+type TransactionRow = {
+  id: string;
+  amountInCents: number;
+  currency: string;
+  status: string;
+  createdAt: string;
+  paidAt?: string | null;
+  reference?: string | null;
+  planName?: string | null;
 };
 
 export function CustomersTable({
@@ -36,6 +53,11 @@ export function CustomersTable({
   const [editing, setEditing] = useState<CustomerRow | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [detailsCustomer, setDetailsCustomer] = useState<CustomerRow | null>(null);
+  const [txOpen, setTxOpen] = useState(false);
+  const [txCustomer, setTxCustomer] = useState<CustomerRow | null>(null);
+  const [txItems, setTxItems] = useState<TransactionRow[]>([]);
+  const [txLoading, setTxLoading] = useState(false);
+  const [txError, setTxError] = useState("");
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [sendError, setSendError] = useState<Record<string, string>>({});
   const [sendOk, setSendOk] = useState<Record<string, string>>({});
@@ -133,6 +155,36 @@ export function CustomersTable({
     setTimeout(() => lastActiveRef.current?.focus(), 0);
   }
 
+  async function openTransactions(item: CustomerRow) {
+    lastActiveRef.current = document.activeElement as HTMLElement | null;
+    setTxCustomer(item);
+    setTxOpen(true);
+    setTxLoading(true);
+    setTxError("");
+    setTxItems([]);
+    try {
+      const res = await fetch(`/api/customers/${encodeURIComponent(String(item.id))}/transactions`, { cache: "no-store" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setTxError(json?.error || `Error ${res.status}`);
+        return;
+      }
+      setTxItems(Array.isArray(json?.items) ? json.items : []);
+    } catch (err: any) {
+      setTxError(String(err?.message || "request_failed"));
+    } finally {
+      setTxLoading(false);
+    }
+  }
+
+  function closeTransactions() {
+    setTxOpen(false);
+    setTxCustomer(null);
+    setTxItems([]);
+    setTxError("");
+    setTimeout(() => lastActiveRef.current?.focus(), 0);
+  }
+
   useEffect(() => {
     if (!open) return;
     const el = modalRef.current;
@@ -206,6 +258,7 @@ export function CustomersTable({
               <div className="contact-right">
                 <div className="contact-right-top">
                   <div className="contact-actions">
+                    <button className="icon-btn" type="button" onClick={() => openTransactions(c)} aria-label="Transacciones">🧾</button>
                     <button className="icon-btn" type="button" onClick={() => openEditor(c)} aria-label="Editar">✎</button>
                     <form
                       action={deleteCustomer}
@@ -730,6 +783,68 @@ export function CustomersTable({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {txOpen && txCustomer ? (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(2, 6, 23, 0.55)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 50,
+            padding: 16
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="customer-tx-title"
+            className="panel module"
+            style={{ width: "min(900px, 96vw)", maxHeight: "90vh", overflow: "auto" }}
+            onKeyDown={onModalKeyDown}
+          >
+            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 id="customer-tx-title" style={{ margin: 0 }}>
+                Transacciones: {txCustomer.name || txCustomer.email || txCustomer.id}
+              </h3>
+              <button type="button" className="ghost" onClick={closeTransactions} aria-label="Cerrar">
+                X
+              </button>
+            </div>
+            {txLoading ? <div className="field-hint">Cargando transacciones…</div> : null}
+            {txError ? <div className="field-hint" style={{ color: "var(--danger)" }}>Error: {txError}</div> : null}
+            {!txLoading && !txError && txItems.length === 0 ? <div className="field-hint">No hay transacciones.</div> : null}
+            {!txLoading && !txError && txItems.length ? (
+              <div className="table-scroll">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Fecha</th>
+                      <th>Monto</th>
+                      <th>Estado</th>
+                      <th>Producto/Plan</th>
+                      <th>Referencia</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {txItems.map((t) => (
+                      <tr key={t.id}>
+                        <td><LocalDateTime value={t.createdAt} /></td>
+                        <td>{formatCopFromCents(t.amountInCents)}</td>
+                        <td>{t.status}</td>
+                        <td>{t.planName || "—"}</td>
+                        <td style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{t.reference || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}
