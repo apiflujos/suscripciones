@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { PendingButton } from "../ui/PendingButton";
 
 export function LoginForm({
   action,
@@ -40,9 +41,9 @@ export function LoginForm({
         <input type="checkbox" name="remember" value="1" />
         <span>Recordarme</span>
       </label>
-      <button className="primary loginPrimary" type="submit">
+      <PendingButton className="primary loginPrimary" type="submit" pendingText="Entrando...">
         Entrar
-      </button>
+      </PendingButton>
     </form>
   );
 }

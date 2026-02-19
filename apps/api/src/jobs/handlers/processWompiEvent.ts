@@ -42,8 +42,8 @@ function getCustomerPhoneFromPayload(payload: any): string | undefined {
   return trimmed || undefined;
 }
 
-export async function processWompiEvent(webhookEventId: string) {
-  const event = await prisma.webhookEvent.findUnique({ where: { id: webhookEventId } });
+export async function processWompiEventLogic(webhookEventId: string, db: typeof prisma) {
+  const event = await db.webhookEvent.findUnique({ where: { id: webhookEventId } });
   if (!event) return;
   if (event.processStatus === WebhookProcessStatus.PROCESSED) return;
 
@@ -58,13 +58,13 @@ export async function processWompiEvent(webhookEventId: string) {
 
   // Prefer mapping by payment_link_id (subscriptions created via API payment links)
   const paymentByLink = paymentLinkId
-    ? await prisma.payment.findUnique({ where: { wompiPaymentLinkId: paymentLinkId } })
+    ? await db.payment.findUnique({ where: { wompiPaymentLinkId: paymentLinkId } })
     : null;
   const referenceClassification = classifyReference(reference);
 
   // Shopify references are forwarded but not processed as subscriptions.
   if (!paymentByLink && referenceClassification.kind === "shopify") {
-    await prisma.webhookEvent.update({
+    await db.webhookEvent.update({
       where: { id: webhookEventId },
       data: { processStatus: WebhookProcessStatus.SKIPPED, processedAt: new Date() }
     });
@@ -75,17 +75,22 @@ export async function processWompiEvent(webhookEventId: string) {
     paymentByLink?.subscriptionId ??
     (referenceClassification.kind === "subscription" ? referenceClassification.subscriptionId : "");
 
-  let inferredSubscription: Awaited<ReturnType<typeof prisma.subscription.create>> | null = null;
-  if (!paymentByLink && !inferredSubscriptionId) {
+  let inferredSubscription: any | null = null;
+  
+  // SOLO intentar inferencia por precio si NO tenemos un ID de suscripción de la referencia
+  // y la referencia no es explícitamente de otro tipo (como shopify).
+  const shouldAttemptPriceInference = !paymentByLink && !inferredSubscriptionId && referenceClassification.kind === "unknown";
+
+  if (shouldAttemptPriceInference) {
     if (!amountInCents) {
-      await prisma.webhookEvent.update({
+      await db.webhookEvent.update({
         where: { id: webhookEventId },
         data: { processStatus: WebhookProcessStatus.FAILED, errorMessage: "missing_amount_in_cents", processedAt: new Date() }
       });
       return;
     }
 
-    const plan = await prisma.subscriptionPlan.findFirst({
+    const plans = await db.subscriptionPlan.findMany({
       where: {
         active: true,
         priceInCents: amountInCents,
@@ -94,26 +99,36 @@ export async function processWompiEvent(webhookEventId: string) {
       orderBy: { updatedAt: "desc" }
     });
 
-    if (!plan) {
-      await prisma.webhookEvent.update({
+    if (plans.length === 0) {
+      await db.webhookEvent.update({
         where: { id: webhookEventId },
         data: { processStatus: WebhookProcessStatus.FAILED, errorMessage: "plan_not_found_for_amount", processedAt: new Date() }
       });
       return;
     }
 
+    if (plans.length > 1) {
+      await systemLog(LogLevel.WARN, "processWompiEvent", "Ambiguous plan inference by price", {
+        amountInCents,
+        currency,
+        foundPlans: plans.map((p) => ({ id: p.id, name: p.name }))
+      }).catch(() => {});
+    }
+
+    const plan = plans[0];
+
     const email = getCustomerEmailFromPayload(payload);
     if (!email) {
-      await prisma.webhookEvent.update({
+      await db.webhookEvent.update({
         where: { id: webhookEventId },
         data: { processStatus: WebhookProcessStatus.FAILED, errorMessage: "customer_email_missing", processedAt: new Date() }
       });
       return;
     }
 
-    let customer = await prisma.customer.findUnique({ where: { email } });
+    let customer = await db.customer.findUnique({ where: { email } });
     if (!customer) {
-      customer = await prisma.customer.create({
+      customer = await db.customer.create({
         data: {
           email,
           name: getCustomerNameFromPayload(payload),
@@ -125,7 +140,7 @@ export async function processWompiEvent(webhookEventId: string) {
     const startAt = new Date();
     const periodEnd = addIntervalUtc(startAt, plan.intervalUnit, plan.intervalCount);
 
-    inferredSubscription = await prisma.subscription.create({
+    inferredSubscription = await db.subscription.create({
       data: {
         customerId: customer.id,
         planId: plan.id,
@@ -145,9 +160,9 @@ export async function processWompiEvent(webhookEventId: string) {
   // Registrar pago y, si está aprobado, renovar ciclo (solo para suscripciones).
   const subscription =
     inferredSubscription ??
-    (isSubscription ? await prisma.subscription.findUnique({ where: { id: subscriptionId } }) : null);
+    (isSubscription ? await db.subscription.findUnique({ where: { id: subscriptionId } }) : null);
   if (isSubscription && !subscription) {
-    await prisma.webhookEvent.update({
+    await db.webhookEvent.update({
       where: { id: webhookEventId },
       data: { processStatus: WebhookProcessStatus.FAILED, errorMessage: "subscription not found", processedAt: new Date() }
     });
@@ -163,7 +178,7 @@ export async function processWompiEvent(webhookEventId: string) {
           ? PaymentStatus.VOIDED
           : PaymentStatus.ERROR;
 
-  const prevByTx = transactionId != null ? await prisma.payment.findUnique({ where: { wompiTransactionId: transactionId } }) : null;
+  const prevByTx = transactionId != null ? await db.payment.findUnique({ where: { wompiTransactionId: transactionId } }) : null;
   const prevStatus = prevByTx?.status ?? paymentByLink?.status ?? null;
 
   const cycleFromRef = referenceClassification.kind === "subscription" ? referenceClassification.cycle ?? null : null;
@@ -177,7 +192,7 @@ export async function processWompiEvent(webhookEventId: string) {
   const computedFailedAt = paymentStatus === PaymentStatus.APPROVED ? null : now;
 
   if (!paymentByLink && !subscription) {
-    await prisma.webhookEvent.update({
+    await db.webhookEvent.update({
       where: { id: webhookEventId },
       data: { processStatus: WebhookProcessStatus.FAILED, errorMessage: "payment not linked to subscription", processedAt: new Date() }
     });
@@ -185,7 +200,7 @@ export async function processWompiEvent(webhookEventId: string) {
   }
 
   const paymentRecord = paymentByLink
-    ? await prisma.payment.update({
+    ? await db.payment.update({
         where: { id: paymentByLink.id },
         data: {
           wompiTransactionId: transactionId,
@@ -203,7 +218,7 @@ export async function processWompiEvent(webhookEventId: string) {
           subscriptionCycleKey: paymentByLink.subscriptionId ? subscriptionCycleKey : paymentByLink.subscriptionCycleKey
         }
       })
-    : await prisma.payment.upsert({
+    : await db.payment.upsert({
         where: { subscriptionCycleKey: subscriptionCycleKey as string },
         create: {
           customerId: subscription!.customerId,
@@ -234,9 +249,9 @@ export async function processWompiEvent(webhookEventId: string) {
   if (paymentRecord.subscriptionId && paymentRecord.wompiPaymentLinkId && paymentRecord.checkoutUrl) {
     const planId =
       subscription?.planId ??
-      (await prisma.subscription.findUnique({ where: { id: paymentRecord.subscriptionId }, select: { planId: true } }))?.planId;
+      (await db.subscription.findUnique({ where: { id: paymentRecord.subscriptionId }, select: { planId: true } }))?.planId;
     if (planId) {
-      await prisma.paymentLink
+      await db.paymentLink
         .upsert({
           where: { paymentId: paymentRecord.id },
           create: {
@@ -262,7 +277,7 @@ export async function processWompiEvent(webhookEventId: string) {
     }
   }
 
-  await prisma.webhookEvent.update({
+  await db.webhookEvent.update({
     where: { id: webhookEventId },
     data: { processStatus: WebhookProcessStatus.PROCESSED, processedAt: new Date() }
   });
@@ -279,7 +294,7 @@ export async function processWompiEvent(webhookEventId: string) {
   }
 
   if (!wasApproved && paymentStatus === PaymentStatus.APPROVED && subscription) {
-    const advancedTo = await prisma.$transaction(async (tx) => {
+    const advancedTo = await db.$transaction(async (tx) => {
       const sub = await tx.subscription.findUnique({
         where: { id: subscription.id },
         include: { plan: true }
@@ -342,6 +357,10 @@ export async function processWompiEvent(webhookEventId: string) {
   }
 
   // Notifications are handled via rules (PAYMENT_APPROVED / PAYMENT_DECLINED).
+}
+
+export async function processWompiEvent(webhookEventId: string) {
+  return processWompiEventLogic(webhookEventId, prisma);
 }
 
 export async function forwardWompiToShopify(webhookEventId: string) {

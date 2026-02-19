@@ -81,7 +81,7 @@ export async function adminLogin(formData: FormData) {
     const cookieStore = await cookies();
     cookieStore.set(ADMIN_SESSION_COOKIE, sessionToken, {
       httpOnly: true,
-      sameSite: "lax",
+      sameSite: "strict",
       path: "/",
       secure: process.env.NODE_ENV === "production",
       ...(remember ? { maxAge: 60 * 60 * 24 * 30 } : {})
@@ -91,7 +91,7 @@ export async function adminLogin(formData: FormData) {
     if (saToken) {
       cookieStore.set("sa_session", saToken, {
         httpOnly: true,
-        sameSite: "lax",
+        sameSite: "strict",
         path: "/",
         secure: process.env.NODE_ENV === "production",
         ...(remember ? { maxAge: 60 * 60 * 24 * 30 } : {})

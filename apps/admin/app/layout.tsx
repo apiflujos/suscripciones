@@ -20,28 +20,30 @@ export const fetchCache = "force-no-store";
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const h = await headers();
-  const pathname =
-    h.get("x-app-pathname") ||
-    h.get("x-invoke-path") ||
-    h.get("x-matched-path") ||
-    h.get("x-nextjs-url") ||
-    h.get("x-forwarded-uri") ||
-    h.get("x-original-uri") ||
-    h.get("x-rewrite-url") ||
-    "";
-  const pathHint = String(pathname || "");
+  // Middleware inyecta x-app-pathname y x-auth-user
+  const pathname = h.get("x-app-pathname") || "";
+  const authUser = h.get("x-auth-user");
+  
+  // Rutas de autenticación
   const isAuthScreen =
-    !pathHint ||
-    pathHint.includes("/login") ||
-    pathHint.includes("/sa/login") ||
-    pathHint.includes("/__sa/login") ||
-    pathHint.includes("/404") ||
-    pathHint.includes("/500") ||
-    pathHint.includes("/_error");
+    !pathname ||
+    pathname === "/login" ||
+    pathname.startsWith("/login/") ||
+    pathname.startsWith("/sa/login") ||
+    pathname.startsWith("/__sa/login") ||
+    pathname === "/404" ||
+    pathname === "/500" ||
+    pathname === "/_error";
 
-  const c = await cookies();
-  const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
-  const session = await verifyAdminSessionToken(sessionToken);
+  let session = null;
+  if (authUser) {
+    // Si el middleware ya validó, podemos confiar o re-verificar rápido.
+    // Para mayor seguridad y obtener el objeto completo, re-verificamos el token de la cookie
+    // ya que el header solo trae strings simples.
+    const c = await cookies();
+    const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
+    session = await verifyAdminSessionToken(sessionToken);
+  }
 
   const shouldUseAuthShell = isAuthScreen || !session;
 

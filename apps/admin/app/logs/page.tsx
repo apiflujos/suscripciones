@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { revalidatePath } from "next/cache";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { LocalDateTime } from "../ui/LocalDateTime";
 import { getCsrfToken, assertCsrfToken } from "../lib/csrf";
+import { PendingButton } from "../ui/PendingButton";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +25,7 @@ async function retryFailedJobs(formData: FormData) {
     cache: "no-store",
     headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
   }).catch(() => {});
+  revalidatePath("/logs");
 }
 
 async function retryShopifyForwards(formData: FormData) {
@@ -35,6 +38,7 @@ async function retryShopifyForwards(formData: FormData) {
     cache: "no-store",
     headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
   }).catch(() => {});
+  revalidatePath("/logs");
 }
 
 function normalizeLogSource(source: any) {
@@ -141,13 +145,10 @@ export default async function LogsPage({
             <div className="filtersRow">
               <div className="filtersLeft">
                 <div className="filter-group">
-                  <div className="filter-label">ID de pedido</div>
+                  <div className="filter-label">Búsqueda</div>
                   <form action="/logs" method="GET" style={{ display: "flex", gap: 10, alignItems: "center" }}>
                     <input type="hidden" name="tab" value="system" />
                     <input className="input" name="q" defaultValue={q} placeholder="Buscar en logs..." aria-label="Buscar en logs" />
-                    <select className="select" name="status" aria-label="Estado">
-                      <option>Todos</option>
-                    </select>
                     <button className="ghost" type="submit">
                       Filtrar
                     </button>
@@ -158,15 +159,15 @@ export default async function LogsPage({
               <div className="filtersRight">
                 <form action={retryFailedJobs}>
                   <input type="hidden" name="csrf" value={csrfToken} />
-                  <button className="primary" type="submit">
+                  <PendingButton className="primary" type="submit" pendingText="Reintentando...">
                     Reintentar fallidos
-                  </button>
+                  </PendingButton>
                 </form>
                 <form action={retryShopifyForwards}>
                   <input type="hidden" name="csrf" value={csrfToken} />
-                  <button className="ghost" type="submit">
+                  <PendingButton className="ghost" type="submit" pendingText="Reintentando...">
                     Reintentar forwards
-                  </button>
+                  </PendingButton>
                 </form>
                 <span className={`pill ${failedJobsCount > 0 ? "pillDanger" : ""}`}>{failedJobsCount} fallos</span>
               </div>
