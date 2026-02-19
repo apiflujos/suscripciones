@@ -79,10 +79,10 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   
   // SOLO intentar inferencia por precio si NO tenemos un ID de suscripción de la referencia
   // y la referencia no es explícitamente de otro tipo (como shopify).
-  const shouldAttemptPriceInference = !paymentByLink && !inferredSubscriptionId && referenceClassification.kind === "unknown";
+  const shouldAttemptPriceInference = !paymentByLink && !inferredSubscriptionId && (referenceClassification.kind === "unknown" || (referenceClassification.kind === "order" && !referenceClassification.planId));
 
-  if (shouldAttemptPriceInference) {
-    if (!amountInCents) {
+  if (shouldAttemptPriceInference || (referenceClassification.kind === "order" && referenceClassification.planId)) {
+    if (!amountInCents && shouldAttemptPriceInference) {
       await db.webhookEvent.update({
         where: { id: webhookEventId },
         data: { processStatus: WebhookProcessStatus.FAILED, errorMessage: "missing_amount_in_cents", processedAt: new Date() }
@@ -90,32 +90,45 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
       return;
     }
 
-    const plans = await db.subscriptionPlan.findMany({
-      where: {
-        active: true,
-        priceInCents: amountInCents,
-        currency: (currency || "COP").toUpperCase()
-      },
-      orderBy: { updatedAt: "desc" }
-    });
+    let plan = null;
+    if (referenceClassification.kind === "order" && referenceClassification.planId) {
+      plan = await db.subscriptionPlan.findUnique({ where: { id: referenceClassification.planId } });
+      if (plan && plan.priceInCents !== amountInCents) {
+        await systemLog(LogLevel.WARN, "processWompiEvent", "Price mismatch with reference planId; using reference planId", {
+          expected: plan.priceInCents,
+          received: amountInCents,
+          planId: plan.id
+        }).catch(() => {});
+      }
+    }
 
-    if (plans.length === 0) {
-      await db.webhookEvent.update({
-        where: { id: webhookEventId },
-        data: { processStatus: WebhookProcessStatus.FAILED, errorMessage: "plan_not_found_for_amount", processedAt: new Date() }
+    if (!plan) {
+      const plans = await db.subscriptionPlan.findMany({
+        where: {
+          active: true,
+          priceInCents: amountInCents,
+          currency: (currency || "COP").toUpperCase()
+        },
+        orderBy: { updatedAt: "desc" }
       });
-      return;
-    }
 
-    if (plans.length > 1) {
-      await systemLog(LogLevel.WARN, "processWompiEvent", "Ambiguous plan inference by price", {
-        amountInCents,
-        currency,
-        foundPlans: plans.map((p) => ({ id: p.id, name: p.name }))
-      }).catch(() => {});
-    }
+      if (plans.length === 0) {
+        await db.webhookEvent.update({
+          where: { id: webhookEventId },
+          data: { processStatus: WebhookProcessStatus.FAILED, errorMessage: "plan_not_found_for_amount", processedAt: new Date() }
+        });
+        return;
+      }
 
-    const plan = plans[0];
+      if (plans.length > 1) {
+        await systemLog(LogLevel.WARN, "processWompiEvent", "Ambiguous plan inference by price", {
+          amountInCents,
+          currency,
+          foundPlans: plans.map((p) => ({ id: p.id, name: p.name }))
+        }).catch(() => {});
+      }
+      plan = plans[0];
+    }
 
     const email = getCustomerEmailFromPayload(payload);
     if (!email) {
