@@ -1,4 +1,11 @@
-CREATE TYPE "PublicCheckoutKind" AS ENUM ('PLAN', 'SUBSCRIPTION');
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'PublicCheckoutKind') THEN
+        CREATE TYPE "PublicCheckoutKind" AS ENUM ('PLAN', 'SUBSCRIPTION');
+    END IF;
+END$$;
+
+DROP TABLE IF EXISTS "PublicCheckoutTemplate";
 
 CREATE TABLE "PublicCheckoutTemplate" (
   "id" UUID NOT NULL DEFAULT gen_random_uuid(),
