@@ -67,8 +67,10 @@ export function createApp() {
   const rateBuckets = new Map<string, { count: number; resetAt: number }>();
   let rateRequests = 0;
   app.use((req, res, next) => {
-    // No limitar health checks ni peticiones HEAD (usualmente de monitoreo/infraestructura)
-    if (req.path === "/health" || req.path === "/healthz" || req.method === "HEAD") return next();
+    // No limitar health checks, peticiones HEAD, ni peticiones del Admin interno
+    const isHealth = req.path === "/health" || req.path === "/healthz";
+    const isAdminInternal = req.header("x-admin-token") === process.env.ADMIN_API_TOKEN;
+    if (isHealth || req.method === "HEAD" || isAdminInternal) return next();
     
     const forwarded = String(req.header("x-forwarded-for") || "").split(",")[0]?.trim();
     const key = forwarded || req.ip || "unknown";
