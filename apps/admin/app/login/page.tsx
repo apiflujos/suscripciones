@@ -46,8 +46,7 @@ export default async function LoginPage({
         <div className="authCardInner loginCardInner">
           <div className="loginHeader">
             <div className="authBrand" aria-label="Marca">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/brand/logo-horizontal.png" alt="ApiFlujos" className="authLogo" />
+              <img src="/brand/logo-horizontal.png" alt="ApiFlujos" className="authLogo" style={{ display: 'block' }} />
             </div>
             <div className="loginBot">
               {/* eslint-disable-next-line @next/next/no-img-element */}

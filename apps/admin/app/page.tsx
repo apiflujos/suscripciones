@@ -174,27 +174,12 @@ export default async function Home({
 
   return (
     <div style={{ display: "grid", gap: 14 }}>
-      <div>
-        <h1 className="pageTitle">Métricas</h1>
-        <p className="pageSub">Link de pago vs suscripción automática.</p>
-      </div>
-
-      <div className="card cardPad" style={{ display: "grid", gap: 10 }}>
-        <strong>Estado API</strong>
-        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          <span className={`pill ${health.ok ? "" : "pillDanger"}`}>{health.ok ? "OK" : `ERROR (${health.status})`}</span>
-          <span style={{ color: "var(--muted)", fontSize: 13 }}>
-            Salud:{" "}
-            <Link href="/logs" prefetch={false} style={{ textDecoration: "underline" }}>
-              ver logs
-            </Link>
-          </span>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
+        <div>
+          <h1 className="pageTitle">Métricas</h1>
+          <p className="pageSub">Link de pago vs suscripción automática.</p>
         </div>
-        {!hasToken ? (
-          <div style={{ color: "var(--muted)", fontSize: 13 }}>
-            Para ver métricas completas, configura <code>ADMIN_API_TOKEN</code> en el Admin.
-          </div>
-        ) : null}
+        <img src="/brand/logo-horizontal.png" alt="ApiFlujos" style={{ height: 40, width: "auto" }} />
       </div>
 
       <section className="settings-group">
