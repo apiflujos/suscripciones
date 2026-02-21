@@ -45,11 +45,13 @@ export default async function LoginPage({
       <div className="authCard loginCard">
         <div className="authCardInner loginCardInner">
           <div className="loginHeader">
-            <div className="authBrand" aria-label="Marca" style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--primary)' }}>
-              ADMIN PANEL
+            <div className="authBrand" aria-label="Marca">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/brand/logo-horizontal.png" alt="ApiFlujos" className="authLogo" />
             </div>
             <div className="loginBot">
-               {/* Espacio para avatar genérico o vacío */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/brand/avatar.png" alt="" />
             </div>
           </div>
 

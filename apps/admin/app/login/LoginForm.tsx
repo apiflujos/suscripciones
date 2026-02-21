@@ -20,7 +20,7 @@ export function LoginForm({
       <input type="hidden" name="csrf" value={csrfToken} />
       <div className="field">
         <label>Usuario</label>
-        <input name="email" className="input loginInput" placeholder="admin@tuservicio.com" autoComplete="username" required />
+        <input name="email" className="input loginInput" placeholder="admin@apiflujos.com" autoComplete="username" required />
       </div>
       <div className="field">
         <label>Contraseña</label>
