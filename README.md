@@ -173,3 +173,33 @@ Si no usas Blueprint (servicios creados manualmente en Render), usa estos comand
 - **API**
   - Build: `npm ci && npm -w apps/api run build`
   - Start: `npm -w apps/api run start:migrate` (o `npm run start:migrate`)
+
+## Despliegue con PM2 (VPS / Linux)
+
+Para desplegar en un servidor propio usando PM2, sigue estos pasos:
+
+1. **Build completo**:
+   ```bash
+   npm install
+   npm run build --workspaces
+   ```
+
+2. **Variables de entorno**:
+   Copia los archivos `.env` en `apps/api/.env` y `apps/admin/.env.local` con tus credenciales de producción.
+
+3. **Arrancar con PM2**:
+   Usa el archivo `ecosystem.config.js` incluido en la raíz:
+   ```bash
+   pm2 start ecosystem.config.js
+   ```
+
+Este comando arrancará 3 procesos:
+- `wompi-subs-api`: La API principal y el servidor de webhooks.
+- `wompi-subs-jobs`: El procesador de tareas en segundo plano.
+- `wompi-subs-admin`: El panel administrativo (Next.js en modo standalone).
+
+**Comandos útiles de PM2:**
+- Ver estado: `pm2 status`
+- Ver logs: `pm2 logs`
+- Reiniciar todo: `pm2 restart ecosystem.config.js`
+- Detener todo: `pm2 stop ecosystem.config.js`

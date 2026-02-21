@@ -26,6 +26,7 @@ import { checkoutTemplatesRouter } from "./routes/checkoutTemplates";
 
 export function createApp() {
   const app = express();
+  app.set("trust proxy", 1);
 
   app.use(pinoHttp({ logger }));
   app.use(
@@ -62,11 +63,13 @@ export function createApp() {
   app.use(express.json({ limit: "2mb" }));
 
   const rateLimitWindowMs = Math.max(10_000, Number(process.env.RATE_LIMIT_WINDOW_MS || 600_000));
-  const rateLimitMax = Math.max(10, Number(process.env.RATE_LIMIT_MAX || 600));
+  const rateLimitMax = Math.max(10, Number(process.env.RATE_LIMIT_MAX || 2000));
   const rateBuckets = new Map<string, { count: number; resetAt: number }>();
   let rateRequests = 0;
   app.use((req, res, next) => {
-    if (req.path === "/health" || req.path === "/healthz") return next();
+    // No limitar health checks ni peticiones HEAD (usualmente de monitoreo/infraestructura)
+    if (req.path === "/health" || req.path === "/healthz" || req.method === "HEAD") return next();
+    
     const forwarded = String(req.header("x-forwarded-for") || "").split(",")[0]?.trim();
     const key = forwarded || req.ip || "unknown";
     const now = Date.now();
