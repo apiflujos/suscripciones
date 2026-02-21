@@ -63,7 +63,7 @@ export function createApp() {
   app.use(express.json({ limit: "2mb" }));
 
   const rateLimitWindowMs = Math.max(10_000, Number(process.env.RATE_LIMIT_WINDOW_MS || 600_000));
-  const rateLimitMax = Math.max(10, Number(process.env.RATE_LIMIT_MAX || 5000));
+  const rateLimitMax = Math.max(10, Number(process.env.RATE_LIMIT_MAX || 10000));
   const rateBuckets = new Map<string, { count: number; resetAt: number }>();
   let rateRequests = 0;
   app.use((req, res, next) => {

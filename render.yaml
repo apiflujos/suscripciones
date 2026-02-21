@@ -111,7 +111,7 @@ services:
     plan: starter
     rootDir: .
     buildCommand: npm ci && npm -w apps/admin run build
-    startCommand: npm -w apps/admin run start:standalone
+    startCommand: npm -w apps/admin run start
     envVars:
       - key: NODE_ENV
         value: "production"
