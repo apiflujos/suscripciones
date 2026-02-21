@@ -265,15 +265,18 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
      )
      SELECT
        COUNT(*)::bigint AS links_sent,
-       COUNT(*) FILTER (WHERE "paidAt" IS NOT NULL)::bigint AS links_paid_any,
-       COUNT(*) FILTER (WHERE "paidAt" IS NOT NULL AND "paidAt" >= $1::timestamptz AND "paidAt" < $2::timestamptz)::bigint AS links_paid_in_range,
+       COUNT(*) FILTER (WHERE pl."paidAt" IS NOT NULL)::bigint AS links_paid_any,
+       COUNT(*) FILTER (WHERE pl."paidAt" IS NOT NULL AND pl."paidAt" >= $1::timestamptz AND pl."paidAt" < $2::timestamptz)::bigint AS links_paid_in_range,
        COALESCE(SUM(p."amountInCents") FILTER (WHERE p."status"='APPROVED' AND p."paidAt" IS NOT NULL AND p."paidAt" >= $1::timestamptz AND p."paidAt" < $2::timestamptz), 0)::bigint AS link_revenue_cents,
-       AVG(EXTRACT(EPOCH FROM ("paidAt" - "sentAt"))) FILTER (WHERE "paidAt" IS NOT NULL AND "paidAt" >= "sentAt") AS avg_time_to_pay_sec
+       AVG(EXTRACT(EPOCH FROM (pl."paidAt" - pl."sentAt"))) FILTER (WHERE pl."paidAt" IS NOT NULL AND pl."paidAt" >= pl."sentAt") AS avg_time_to_pay_sec
      FROM sent_in_range pl
      LEFT JOIN "Payment" p ON p."id" = pl."paymentId"`,
     from,
     to
-  );
+  ).catch((err) => {
+    console.error("Error in linksTotalsRow:", err);
+    return [{ links_sent: 0n, links_paid_any: 0n, links_paid_in_range: 0n, link_revenue_cents: 0n, avg_time_to_pay_sec: null }];
+  });
 
   const autoSubsSnapshot = await prisma.subscription.count({
     where: { status: { in: ACTIVE_SUBSCRIPTION_STATUSES }, plan: { planType: PlanType.auto_subscription } }
