@@ -67,10 +67,17 @@ export function createApp() {
   const rateBuckets = new Map<string, { count: number; resetAt: number }>();
   let rateRequests = 0;
   app.use((req, res, next) => {
-    // No limitar health checks, peticiones HEAD, ni peticiones del Admin interno
-    const isHealth = req.path === "/health" || req.path === "/healthz";
-    const isAdminInternal = req.header("x-admin-token") === process.env.ADMIN_API_TOKEN;
-    if (isHealth || req.method === "HEAD" || isAdminInternal) return next();
+    // 1. Bypass TOTAL para health checks y monitoreo (HEAD)
+    const isHealth = req.path === "/health" || req.path === "/healthz" || req.path === "/health/";
+    if (isHealth || req.method === "HEAD") return next();
+
+    // 2. Bypass para el Admin (comparando token de env)
+    const authHeader = req.header("authorization") || "";
+    const adminTokenHeader = req.header("x-admin-token") || "";
+    const providedToken = adminTokenHeader || (authHeader.startsWith("Bearer ") ? authHeader.substring(7) : "");
+    
+    const isAdmin = providedToken && providedToken === process.env.ADMIN_API_TOKEN;
+    if (isAdmin) return next();
     
     const forwarded = String(req.header("x-forwarded-for") || "").split(",")[0]?.trim();
     const key = forwarded || req.ip || "unknown";
