@@ -29,44 +29,49 @@ export function createApp() {
   app.set("trust proxy", true); // Más flexible para Render/Cloudflare
 
   app.use(pinoHttp({ logger }));
-  app.use(
-    helmet({
-      contentSecurityPolicy: {
-        useDefaults: true,
-        directives: {
-          "default-src": ["'self'"],
-          "base-uri": ["'self'"],
-          "object-src": ["'none'"],
-          "frame-ancestors": ["'none'"],
-          "img-src": ["'self'", "data:", "https:"],
-          "script-src": ["'self'"],
-          "style-src": ["'self'", "'unsafe-inline'"]
-        }
+  const apiPrefixes = ["/admin", "/webhooks", "/public", "/health", "/healthz"];
+  const isApiPath = (path: string) => apiPrefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
+
+  const helmetMw = helmet({
+    contentSecurityPolicy: {
+      useDefaults: true,
+      directives: {
+        "default-src": ["'self'"],
+        "base-uri": ["'self'"],
+        "object-src": ["'none'"],
+        "frame-ancestors": ["'none'"],
+        "img-src": ["'self'", "data:", "https:"],
+        "script-src": ["'self'"],
+        "style-src": ["'self'", "'unsafe-inline'"]
       }
-    })
-  );
+    }
+  });
+  app.use((req, res, next) => (isApiPath(req.path) ? helmetMw(req, res, next) : next()));
+
   const corsOriginsRaw = process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || "";
   const corsOrigins = corsOriginsRaw
     .split(",")
     .map((o) => o.trim())
     .filter(Boolean);
   const isProd = process.env.NODE_ENV === "production";
-  app.use(
-    cors(
-      corsOrigins.length
-        ? { origin: corsOrigins, credentials: true }
-        : isProd
-          ? { origin: false }
-          : { origin: true }
-    )
+  const corsMw = cors(
+    corsOrigins.length
+      ? { origin: corsOrigins, credentials: true }
+      : isProd
+        ? { origin: false }
+        : { origin: true }
   );
-  app.use(express.json({ limit: "2mb" }));
+  app.use((req, res, next) => (isApiPath(req.path) ? corsMw(req, res, next) : next()));
+
+  const jsonMw = express.json({ limit: "2mb" });
+  app.use((req, res, next) => (isApiPath(req.path) ? jsonMw(req, res, next) : next()));
 
   const rateLimitWindowMs = Math.max(10_000, Number(process.env.RATE_LIMIT_WINDOW_MS || 600_000));
   const rateLimitMax = Math.max(10, Number(process.env.RATE_LIMIT_MAX || 10000));
   const rateBuckets = new Map<string, { count: number; resetAt: number }>();
   let rateRequests = 0;
   app.use((req, res, next) => {
+    if (!isApiPath(req.path)) return next();
     // 1. Bypass TOTAL para health checks y monitoreo (HEAD)
     const isHealth = req.path === "/health" || req.path === "/healthz" || req.path === "/health/";
     if (isHealth || req.method === "HEAD") return next();

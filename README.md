@@ -40,7 +40,7 @@ Clasificación actual por prefijo:
 
 ## Estructura
 
-- `apps/api`: backend + Prisma + jobs + webhook Wompi
+- `apps/api`: backend + Prisma + jobs + webhook Wompi (también sirve el Admin)
 - `apps/admin`: panel administrativo (Next.js)
 
 ## Setup local
@@ -126,11 +126,30 @@ Opcionales (ENV o `/settings`):
 
 Ver `apps/admin/.env.example`.
 
+## Configuración única con `.env.example` (producción/PM2)
+
+Si quieres unificar la configuración, usa el `.env.example` de la **raíz** como plantilla única.
+Ese archivo ya trae los bloques para **API** y **Admin**.
+
+Pasos:
+
+1. Copia la plantilla y completa valores reales:
+   - `DATABASE_URL`, `ADMIN_API_TOKEN`, `ADMIN_SESSION_SECRET`, y credenciales Wompi/Chatwoot si aplica.
+   - `NEXT_PUBLIC_API_BASE_URL` debe ser **el mismo dominio** donde corre el Admin (ej. `https://tu-dominio.com`).
+
+2. Duplica el contenido en los archivos reales:
+   - `apps/api/.env`
+   - `apps/admin/.env.local`
+
+Notas:
+- `ADMIN_API_TOKEN` **debe ser el mismo** en API y Admin.
+- Si usas un solo dominio, no necesitas puertos separados para Admin.
+
 ## API Docs (mínimo)
 
 Ver `docs/API.md`.
 
-- `NEXT_PUBLIC_API_BASE_URL` (ej. `http://localhost:3001`)
+- `NEXT_PUBLIC_API_BASE_URL` (ej. `http://localhost:3001` en local, o `https://tu-dominio.com` si el Admin corre en el mismo servidor)
 - `ADMIN_INTERNAL_API_BASE_URL` (opcional, override interno)
 - `ADMIN_API_TOKEN` (el mismo valor que el `ADMIN_API_TOKEN` del API)
 - `ADMIN_BASIC_USER`, `ADMIN_BASIC_PASS` (si están seteadas, el panel pide Basic Auth)
@@ -193,10 +212,9 @@ Para desplegar en un servidor propio usando PM2, sigue estos pasos:
    pm2 start ecosystem.config.js
    ```
 
-Este comando arrancará 3 procesos:
-- `wompi-subs-api`: La API principal y el servidor de webhooks.
+Este comando arrancará 2 procesos:
+- `wompi-subs-api`: La API principal, el servidor de webhooks y el Admin (Next.js).
 - `wompi-subs-jobs`: El procesador de tareas en segundo plano.
-- `wompi-subs-admin`: El panel administrativo (Next.js en modo standalone).
 
 **Comandos útiles de PM2:**
 - Ver estado: `pm2 status`
