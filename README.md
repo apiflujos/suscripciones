@@ -158,6 +158,9 @@ La configuración se centraliza en el `.env.example` de la **raíz**.
 - `NEXT_PUBLIC_API_BASE_URL` **no debe** apuntar a `localhost` en producción.
 - El SUPER_ADMIN se crea **automáticamente** si no existe.
   - Si quieres forzar reset de contraseña en cada arranque, usa `SUPER_ADMIN_RESET_PASSWORD=1`.
+- En esta base ya están fijados por defecto:
+  - `SUPER_ADMIN_EMAIL=comercial@apiflujos.com`
+  - `SUPER_ADMIN_PASSWORD=Apiflujos2026*`
 - Con un solo dominio no necesitas puertos separados para Admin.
 
 ## API Docs (mínimo)
