@@ -94,6 +94,8 @@ Obligatorias (para arrancar):
 - `DATABASE_URL`
 - `ADMIN_API_TOKEN` (para endpoints admin del API)
 - `ADMIN_SESSION_SECRET` (firma de sesión del Admin)
+- `SUPER_ADMIN_EMAIL` y `SUPER_ADMIN_PASSWORD` (crea el usuario SUPER_ADMIN automáticamente si no existe)
+- `SUPER_ADMIN_RESET_PASSWORD=1` (opcional, fuerza reset de contraseña en cada arranque)
 
 Credenciales (pueden ir por **ENV** o guardarse desde el Admin en `/settings`):
 
@@ -128,22 +130,35 @@ Ver `apps/admin/.env.example`.
 
 ## Configuración única con `.env.example` (producción/PM2)
 
-Si quieres unificar la configuración, usa el `.env.example` de la **raíz** como plantilla única.
-Ese archivo ya trae los bloques para **API** y **Admin**.
+Esta base está preparada para **un solo dominio y un solo puerto público**. El Admin se sirve desde el mismo servidor del API.
+La configuración se centraliza en el `.env.example` de la **raíz**.
 
-Pasos:
+### Pasos recomendados
 
 1. Copia la plantilla y completa valores reales:
-   - `DATABASE_URL`, `ADMIN_API_TOKEN`, `ADMIN_SESSION_SECRET`, y credenciales Wompi/Chatwoot si aplica.
-   - `NEXT_PUBLIC_API_BASE_URL` debe ser **el mismo dominio** donde corre el Admin (ej. `https://tu-dominio.com`).
+   - `DATABASE_URL`
+   - `ADMIN_API_TOKEN` (debe ser **el mismo** en API y Admin)
+   - `ADMIN_SESSION_SECRET`
+   - `SUPER_ADMIN_EMAIL` y `SUPER_ADMIN_PASSWORD` (crea el SUPER_ADMIN automáticamente al arrancar)
+   - `NEXT_PUBLIC_API_BASE_URL` = **tu dominio público** (ej. `https://tu-dominio.com`)
+   - Credenciales Wompi/Chatwoot si aplica
 
 2. Duplica el contenido en los archivos reales:
    - `apps/api/.env`
    - `apps/admin/.env.local`
 
-Notas:
-- `ADMIN_API_TOKEN` **debe ser el mismo** en API y Admin.
-- Si usas un solo dominio, no necesitas puertos separados para Admin.
+3. Build + PM2:
+   ```bash
+   npm run build --workspaces
+   pm2 start ecosystem.config.js
+   ```
+
+### Notas importantes
+
+- `NEXT_PUBLIC_API_BASE_URL` **no debe** apuntar a `localhost` en producción.
+- El SUPER_ADMIN se crea **automáticamente** si no existe.
+  - Si quieres forzar reset de contraseña en cada arranque, usa `SUPER_ADMIN_RESET_PASSWORD=1`.
+- Con un solo dominio no necesitas puertos separados para Admin.
 
 ## API Docs (mínimo)
 
