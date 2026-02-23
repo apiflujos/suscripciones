@@ -1,14 +1,17 @@
 import {
   bootstrapCentralAttributes,
+  deleteShopifyConnection,
   deleteCentralConnection,
   setWompiActiveEnv,
   syncCentralAttributes,
   testCentralConnection,
+  testWompiConnection,
   testShopifyForward,
   updateCheckoutConfig,
   updateChatwoot,
   updateShopify,
-  updateWompi
+  updateWompi,
+  deleteWompiConnection
 } from "./actions";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { cookies } from "next/headers";
@@ -143,12 +146,15 @@ export default async function SettingsPage({
                 actions={{
                   setWompiActiveEnv,
                   updateWompi,
+                  testWompiConnection,
+                  deleteWompiConnection,
                   updateChatwoot,
                   deleteCentralConnection,
                   testCentralConnection,
                   bootstrapCentralAttributes,
                   syncCentralAttributes,
                   updateShopify,
+                  deleteShopifyConnection,
                   testShopifyForward
                 }}
                 inlineState={inlineState}

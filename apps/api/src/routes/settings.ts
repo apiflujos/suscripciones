@@ -1,9 +1,10 @@
 import express from "express";
 import { z } from "zod";
 import { CredentialProvider, LogLevel } from "@prisma/client";
-import { getCredential, getCredentialsBulk, setCredential } from "../services/credentials";
+import { clearCredential, getCredential, getCredentialsBulk, setCredential } from "../services/credentials";
 import { systemLog } from "../services/systemLog";
 import { testShopifyForward } from "./shopifyForwardTest";
+import { WompiClient } from "../providers/wompi/client";
 
 const envSchema = z.enum(["PRODUCTION", "SANDBOX"]);
 type ActiveEnv = z.infer<typeof envSchema>;
@@ -13,24 +14,6 @@ function maskSecret(value: string | undefined) {
   const v = value.trim();
   if (v.length <= 4) return "****";
   return `${"*".repeat(Math.min(12, v.length - 4))}${v.slice(-4)}`;
-}
-
-async function getOrEnv(provider: CredentialProvider, key: string, envVal: string | undefined) {
-  const fromDb = await getCredential(provider, key);
-  return (fromDb ?? (envVal || "").trim()) || undefined;
-}
-
-async function getOrEnvEnv(provider: CredentialProvider, key: string, env: ActiveEnv, envVal: string | undefined) {
-  const fromDb = await getCredential(provider, `${key}_${env}`);
-  return (fromDb ?? (envVal || "").trim()) || undefined;
-}
-
-async function getActiveEnv(provider: CredentialProvider, envVarName: string): Promise<ActiveEnv> {
-  const fromDb = await getCredential(provider, "ACTIVE_ENV");
-  const normalized = String(fromDb || process.env[envVarName] || "PRODUCTION")
-    .trim()
-    .toUpperCase();
-  return normalized === "SANDBOX" ? "SANDBOX" : "PRODUCTION";
 }
 
 const wompiUpdateSchema = z.object({
@@ -43,6 +26,16 @@ const wompiUpdateSchema = z.object({
   apiBaseUrl: z.string().url().optional(),
   checkoutLinkBaseUrl: z.string().url().optional(),
   redirectUrl: z.string().url().optional().or(z.literal(""))
+});
+
+const wompiTestSchema = z.object({
+  environment: envSchema.optional(),
+  publicKey: z.string().optional().or(z.literal("")),
+  apiBaseUrl: z.string().url().optional().or(z.literal(""))
+});
+
+const envOnlySchema = z.object({
+  environment: envSchema.optional()
 });
 
 const shopifyUpdateSchema = z.object({
@@ -136,7 +129,7 @@ settingsRouter.get("/", async (_req, res) => {
 
   const wompiActiveEnv = (() => {
     const fromDb = wompiCreds.get("ACTIVE_ENV");
-    const normalized = String(fromDb || process.env.WOMPI_ACTIVE_ENV || "PRODUCTION")
+    const normalized = String(fromDb || "PRODUCTION")
       .trim()
       .toUpperCase();
     return normalized === "SANDBOX" ? "SANDBOX" : "PRODUCTION";
@@ -144,47 +137,42 @@ settingsRouter.get("/", async (_req, res) => {
 
   const chatwootActiveEnv = (() => {
     const fromDb = commsCreds.get("ACTIVE_ENV");
-    const normalized = String(fromDb || process.env.CHATWOOT_ACTIVE_ENV || "PRODUCTION")
+    const normalized = String(fromDb || "PRODUCTION")
       .trim()
       .toUpperCase();
     return normalized === "SANDBOX" ? "SANDBOX" : "PRODUCTION";
   })() as ActiveEnv;
 
-  const getWompi = (key: string, env: ActiveEnv, envVal?: string) =>
-    (wompiCreds.get(`${key}_${env}`) || wompiCreds.get(key) || (envVal || "").trim()) || undefined;
-  const getComms = (key: string, env: ActiveEnv, envVal?: string) =>
-    (commsCreds.get(`${key}_${env}`) || commsCreds.get(key) || (envVal || "").trim()) || undefined;
+  const getWompi = (key: string, env: ActiveEnv) => (wompiCreds.get(`${key}_${env}`) || wompiCreds.get(key)) || undefined;
+  const getComms = (key: string, env: ActiveEnv) => (commsCreds.get(`${key}_${env}`) || commsCreds.get(key)) || undefined;
 
   const wompiProd = {
-    publicKey: getWompi("PUBLIC_KEY", "PRODUCTION", process.env.WOMPI_PUBLIC_KEY) ?? null,
-    privateKey: maskSecret(getWompi("PRIVATE_KEY", "PRODUCTION", process.env.WOMPI_PRIVATE_KEY)),
-    integritySecret: maskSecret(getWompi("INTEGRITY_SECRET", "PRODUCTION", process.env.WOMPI_INTEGRITY_SECRET)),
-    eventsSecret: maskSecret(getWompi("EVENTS_SECRET", "PRODUCTION", process.env.WOMPI_EVENTS_SECRET)),
-    apiBaseUrl: getWompi("API_BASE_URL", "PRODUCTION", process.env.WOMPI_API_BASE_URL) ?? null,
-    checkoutLinkBaseUrl: getWompi("CHECKOUT_LINK_BASE_URL", "PRODUCTION", process.env.WOMPI_CHECKOUT_LINK_BASE_URL) ?? null,
-    redirectUrl: getWompi("REDIRECT_URL", "PRODUCTION", process.env.WOMPI_REDIRECT_URL) ?? null
+    publicKey: getWompi("PUBLIC_KEY", "PRODUCTION") ?? null,
+    privateKey: maskSecret(getWompi("PRIVATE_KEY", "PRODUCTION")),
+    integritySecret: maskSecret(getWompi("INTEGRITY_SECRET", "PRODUCTION")),
+    eventsSecret: maskSecret(getWompi("EVENTS_SECRET", "PRODUCTION")),
+    apiBaseUrl: getWompi("API_BASE_URL", "PRODUCTION") ?? null,
+    checkoutLinkBaseUrl: getWompi("CHECKOUT_LINK_BASE_URL", "PRODUCTION") ?? null,
+    redirectUrl: getWompi("REDIRECT_URL", "PRODUCTION") ?? null
   };
 
   const wompiSandbox = {
-    publicKey: getWompi("PUBLIC_KEY", "SANDBOX", process.env.WOMPI_PUBLIC_KEY_SANDBOX) ?? null,
-    privateKey: maskSecret(getWompi("PRIVATE_KEY", "SANDBOX", process.env.WOMPI_PRIVATE_KEY_SANDBOX)),
-    integritySecret: maskSecret(getWompi("INTEGRITY_SECRET", "SANDBOX", process.env.WOMPI_INTEGRITY_SECRET_SANDBOX)),
-    eventsSecret: maskSecret(getWompi("EVENTS_SECRET", "SANDBOX", process.env.WOMPI_EVENTS_SECRET_SANDBOX)),
-    apiBaseUrl: getWompi("API_BASE_URL", "SANDBOX", process.env.WOMPI_API_BASE_URL_SANDBOX) ?? null,
-    checkoutLinkBaseUrl: getWompi("CHECKOUT_LINK_BASE_URL", "SANDBOX", process.env.WOMPI_CHECKOUT_LINK_BASE_URL_SANDBOX) ?? null,
-    redirectUrl: getWompi("REDIRECT_URL", "SANDBOX", process.env.WOMPI_REDIRECT_URL_SANDBOX) ?? null
+    publicKey: getWompi("PUBLIC_KEY", "SANDBOX") ?? null,
+    privateKey: maskSecret(getWompi("PRIVATE_KEY", "SANDBOX")),
+    integritySecret: maskSecret(getWompi("INTEGRITY_SECRET", "SANDBOX")),
+    eventsSecret: maskSecret(getWompi("EVENTS_SECRET", "SANDBOX")),
+    apiBaseUrl: getWompi("API_BASE_URL", "SANDBOX") ?? null,
+    checkoutLinkBaseUrl: getWompi("CHECKOUT_LINK_BASE_URL", "SANDBOX") ?? null,
+    redirectUrl: getWompi("REDIRECT_URL", "SANDBOX") ?? null
   };
 
-  const shopifyForwardUrl = (shopifyCreds.get("FORWARD_URL") || (process.env.SHOPIFY_FORWARD_URL || "").trim()) || undefined;
-  const shopifyForwardOrigin =
-    (shopifyCreds.get("FORWARD_ORIGIN") || (process.env.SHOPIFY_FORWARD_ORIGIN || "").trim() || "shopify").trim();
-  const shopifyForwardRetryEnabledRaw =
-    shopifyCreds.get("FORWARD_RETRY_ENABLED") || (process.env.SHOPIFY_FORWARD_RETRY_ENABLED || "").trim();
+  const shopifyForwardUrl = shopifyCreds.get("FORWARD_URL") || undefined;
+  const shopifyForwardOrigin = (shopifyCreds.get("FORWARD_ORIGIN") || "shopify").trim();
+  const shopifyForwardRetryEnabledRaw = shopifyCreds.get("FORWARD_RETRY_ENABLED") || "";
   const shopifyForwardRetryEnabled = shopifyForwardRetryEnabledRaw
     ? String(shopifyForwardRetryEnabledRaw).toLowerCase() !== "false"
     : true;
-  const shopifyForwardRetryMinutesRaw =
-    shopifyCreds.get("FORWARD_RETRY_MINUTES") || (process.env.SHOPIFY_FORWARD_RETRY_MINUTES || "").trim();
+  const shopifyForwardRetryMinutesRaw = shopifyCreds.get("FORWARD_RETRY_MINUTES") || "";
   const shopifyForwardRetryMinutesNum = Number(shopifyForwardRetryMinutesRaw);
   const shopifyForwardRetryMinutes =
     Number.isFinite(shopifyForwardRetryMinutesNum) && shopifyForwardRetryMinutesNum > 0
@@ -192,16 +180,15 @@ settingsRouter.get("/", async (_req, res) => {
       : 15;
 
   const commsProd = {
-    baseUrl: getComms("BASE_URL", "PRODUCTION", process.env.CHATWOOT_BASE_URL) ?? null,
-    accountId:
-      getComms("ACCOUNT_ID", "PRODUCTION", process.env.CHATWOOT_ACCOUNT_ID ? String(process.env.CHATWOOT_ACCOUNT_ID) : undefined) ?? null,
-    inboxId: getComms("INBOX_ID", "PRODUCTION", process.env.CHATWOOT_INBOX_ID ? String(process.env.CHATWOOT_INBOX_ID) : undefined) ?? null
+    baseUrl: getComms("BASE_URL", "PRODUCTION") ?? null,
+    accountId: getComms("ACCOUNT_ID", "PRODUCTION") ?? null,
+    inboxId: getComms("INBOX_ID", "PRODUCTION") ?? null
   };
 
   const commsSandbox = {
-    baseUrl: getComms("BASE_URL", "SANDBOX", process.env.CHATWOOT_BASE_URL_SANDBOX) ?? null,
-    accountId: getComms("ACCOUNT_ID", "SANDBOX", process.env.CHATWOOT_ACCOUNT_ID_SANDBOX) ?? null,
-    inboxId: getComms("INBOX_ID", "SANDBOX", process.env.CHATWOOT_INBOX_ID_SANDBOX) ?? null
+    baseUrl: getComms("BASE_URL", "SANDBOX") ?? null,
+    accountId: getComms("ACCOUNT_ID", "SANDBOX") ?? null,
+    inboxId: getComms("INBOX_ID", "SANDBOX") ?? null
   };
 
   let checkoutConfig: any = {};
@@ -280,6 +267,64 @@ settingsRouter.put("/wompi", async (req, res) => {
   res.json({ ok: true });
 });
 
+settingsRouter.post("/wompi/test", async (req, res) => {
+  const parsed = wompiTestSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+  const env: ActiveEnv = parsed.data.environment || "PRODUCTION";
+  const publicKeyInput = String(parsed.data.publicKey || "").trim();
+  const apiBaseInput = String(parsed.data.apiBaseUrl || "").trim();
+
+  const publicKey =
+    publicKeyInput ||
+    (await getCredential(CredentialProvider.WOMPI, `PUBLIC_KEY_${env}`)) ||
+    (await getCredential(CredentialProvider.WOMPI, "PUBLIC_KEY")) ||
+    "";
+  const apiBaseUrl =
+    apiBaseInput ||
+    (await getCredential(CredentialProvider.WOMPI, `API_BASE_URL_${env}`)) ||
+    (await getCredential(CredentialProvider.WOMPI, "API_BASE_URL")) ||
+    (env === "SANDBOX" ? "https://sandbox.wompi.co/v1" : "https://production.wompi.co/v1");
+
+  if (!publicKey) return res.status(400).json({ error: "wompi_public_key_not_configured" });
+
+  try {
+    const wompi = new WompiClient({ apiBaseUrl, privateKey: "unused", checkoutLinkBaseUrl: "https://checkout.wompi.co/l/" });
+    await wompi.getMerchant(publicKey);
+  } catch (err: any) {
+    return res.status(400).json({ error: "wompi_test_failed", message: String(err?.message || err) });
+  }
+
+  res.json({ ok: true });
+});
+
+settingsRouter.delete("/wompi", async (req, res) => {
+  const parsed = envOnlySchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+  const env: ActiveEnv = parsed.data.environment || "PRODUCTION";
+  const keys = [
+    `PUBLIC_KEY_${env}`,
+    `PRIVATE_KEY_${env}`,
+    `INTEGRITY_SECRET_${env}`,
+    `EVENTS_SECRET_${env}`,
+    `API_BASE_URL_${env}`,
+    `CHECKOUT_LINK_BASE_URL_${env}`,
+    `REDIRECT_URL_${env}`
+  ];
+
+  try {
+    await Promise.all(
+      keys.map((key) =>
+        clearCredential(CredentialProvider.WOMPI, key).catch(() => {})
+      )
+    );
+  } catch (err: any) {
+    return res.status(400).json({ error: "credentials_error", message: String(err?.message || err) });
+  }
+
+  await systemLog(LogLevel.INFO, "configuracion.wompi", "Credenciales de Wompi eliminadas", { env }).catch(() => {});
+  res.json({ ok: true });
+});
+
 settingsRouter.put("/shopify", async (req, res) => {
   const parsed = shopifyUpdateSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
@@ -306,6 +351,23 @@ settingsRouter.put("/shopify", async (req, res) => {
   }
 
   await systemLog(LogLevel.INFO, "configuracion.reenvio", "Configuración de reenvío actualizada").catch(() => {});
+  res.json({ ok: true });
+});
+
+settingsRouter.delete("/shopify", async (_req, res) => {
+  try {
+    await Promise.all([
+      clearCredential(CredentialProvider.SHOPIFY, "FORWARD_URL").catch(() => {}),
+      clearCredential(CredentialProvider.SHOPIFY, "FORWARD_SECRET").catch(() => {}),
+      clearCredential(CredentialProvider.SHOPIFY, "FORWARD_ORIGIN").catch(() => {}),
+      clearCredential(CredentialProvider.SHOPIFY, "FORWARD_RETRY_ENABLED").catch(() => {}),
+      clearCredential(CredentialProvider.SHOPIFY, "FORWARD_RETRY_MINUTES").catch(() => {})
+    ]);
+  } catch (err: any) {
+    return res.status(400).json({ error: "credentials_error", message: String(err?.message || err) });
+  }
+
+  await systemLog(LogLevel.INFO, "configuracion.reenvio", "Configuración de reenvío eliminada").catch(() => {});
   res.json({ ok: true });
 });
 

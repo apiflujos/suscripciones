@@ -35,12 +35,15 @@ export function ConnectionsPanel({
   actions: {
     setWompiActiveEnv: (formData: FormData) => void;
     updateWompi: (formData: FormData) => void;
+    testWompiConnection: (formData: FormData) => void;
+    deleteWompiConnection: (formData: FormData) => void;
     updateChatwoot: (formData: FormData) => void;
     deleteCentralConnection: (formData: FormData) => void;
     testCentralConnection: (formData: FormData) => void;
     bootstrapCentralAttributes: (formData: FormData) => void;
     syncCentralAttributes: (formData: FormData) => void;
     updateShopify: (formData: FormData) => void;
+    deleteShopifyConnection: (formData: FormData) => void;
     testShopifyForward: (formData: FormData) => void;
   };
   inlineState: InlineMsgProps;
@@ -126,7 +129,7 @@ export function ConnectionsPanel({
                     <input type="hidden" name="environment" value={envKey} />
                     <div className="field">
                       <label>Llave pública</label>
-                      <input className="input" name="publicKey" placeholder="pub_..." />
+                      <input className="input" name="publicKey" placeholder="pub_..." defaultValue={(envKey === "PRODUCTION" ? wompiProduction : wompiSandbox)?.publicKey || ""} />
                     </div>
                     <div className="field">
                       <label>Llave privada</label>
@@ -146,21 +149,42 @@ export function ConnectionsPanel({
                         className="input"
                         name="apiBaseUrl"
                         placeholder={envKey === "SANDBOX" ? "https://sandbox.wompi.co/v1" : "https://production.wompi.co/v1"}
+                        defaultValue={(envKey === "PRODUCTION" ? wompiProduction : wompiSandbox)?.apiBaseUrl || ""}
                       />
                     </div>
                     <div className="field">
                       <label>URL base de links de pago</label>
-                      <input className="input" name="checkoutLinkBaseUrl" placeholder="https://checkout.wompi.co/l/" />
+                      <input
+                        className="input"
+                        name="checkoutLinkBaseUrl"
+                        placeholder="https://checkout.wompi.co/l/"
+                        defaultValue={(envKey === "PRODUCTION" ? wompiProduction : wompiSandbox)?.checkoutLinkBaseUrl || ""}
+                      />
                     </div>
                     <div className="field">
                       <label>URL de redirección (opcional)</label>
-                      <input className="input" name="redirectUrl" />
+                      <input className="input" name="redirectUrl" defaultValue={(envKey === "PRODUCTION" ? wompiProduction : wompiSandbox)?.redirectUrl || ""} />
                     </div>
-                    <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-                      {inlineMsg("wompi_creds", "Guardado.", "Error guardando", inlineState)}
-                      <PendingButton className="primary" type="submit" pendingText="Guardando...">
-                        Guardar
-                      </PendingButton>
+                    <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        {inlineMsg("wompi_delete", "Eliminado.", "Error eliminando", inlineState)}
+                        <button className="ghost" type="submit" formAction={actions.deleteWompiConnection}>
+                          Eliminar conexión
+                        </button>
+                      </div>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        {inlineMsg("wompi_creds", "Guardado.", "Error guardando", inlineState)}
+                        {inlineMsg("wompi_test", "Conexión exitosa.", "Error conectando", inlineState)}
+                        <DualActionButtons
+                          primaryLabel="Guardar"
+                          primaryPendingLabel="Guardando..."
+                          primaryClassName="primary"
+                          secondaryLabel="Probar conexión"
+                          secondaryPendingLabel="Conectando..."
+                          secondaryClassName="ghost"
+                          secondaryFormAction={actions.testWompiConnection}
+                        />
+                      </div>
                     </div>
                   </form>
                 </div>
@@ -302,17 +326,25 @@ export function ConnectionsPanel({
                 </div>
               </div>
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-                {inlineMsg("shopify_save", "Guardado.", "Error guardando", inlineState)}
-                {inlineMsg("shopify_test", "Forward OK.", "Error probando", inlineState)}
-                <DualActionButtons
-                  primaryLabel="Guardar"
-                  primaryPendingLabel="Guardando..."
-                  primaryClassName="primary"
-                  secondaryLabel="Probar forward"
-                  secondaryPendingLabel="Probando..."
-                  secondaryClassName="ghost"
-                  secondaryFormAction={actions.testShopifyForward}
-                />
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  {inlineMsg("shopify_delete", "Eliminado.", "Error eliminando", inlineState)}
+                  <button className="ghost" type="submit" formAction={actions.deleteShopifyConnection}>
+                    Eliminar conexión
+                  </button>
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  {inlineMsg("shopify_save", "Guardado.", "Error guardando", inlineState)}
+                  {inlineMsg("shopify_test", "Forward OK.", "Error probando", inlineState)}
+                  <DualActionButtons
+                    primaryLabel="Guardar"
+                    primaryPendingLabel="Guardando..."
+                    primaryClassName="primary"
+                    secondaryLabel="Probar forward"
+                    secondaryPendingLabel="Probando..."
+                    secondaryClassName="ghost"
+                    secondaryFormAction={actions.testShopifyForward}
+                  />
+                </div>
               </div>
             </form>
           </div>

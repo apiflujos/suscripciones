@@ -86,6 +86,44 @@ export async function updateWompi(formData: FormData) {
   }
 }
 
+export async function testWompiConnection(formData: FormData) {
+  await assertCsrfToken(formData);
+  const environment = String(formData.get("environment") || "").trim();
+  const publicKey = String(formData.get("publicKey") || "").trim();
+  const apiBaseUrl = String(formData.get("apiBaseUrl") || "").trim();
+
+  try {
+    await adminFetch("/admin/settings/wompi/test", {
+      method: "POST",
+      body: JSON.stringify({
+        ...(environment ? { environment } : {}),
+        ...(publicKey ? { publicKey } : {}),
+        ...(apiBaseUrl ? { apiBaseUrl } : {})
+      })
+    });
+    redirectWith("wompi_test", "ok");
+  } catch (err) {
+    if (isNextRedirect(err)) throw err;
+    redirectWith("wompi_test", "fail", toShortErrorMessage(err));
+  }
+}
+
+export async function deleteWompiConnection(formData: FormData) {
+  await assertCsrfToken(formData);
+  const environment = String(formData.get("environment") || "").trim();
+
+  try {
+    await adminFetch("/admin/settings/wompi", {
+      method: "DELETE",
+      body: JSON.stringify({ environment: environment || "PRODUCTION" })
+    });
+    redirectWith("wompi_delete", "ok");
+  } catch (err) {
+    if (isNextRedirect(err)) throw err;
+    redirectWith("wompi_delete", "fail", toShortErrorMessage(err));
+  }
+}
+
 export async function updateShopify(formData: FormData) {
   await assertCsrfToken(formData);
   const forwardUrl = String(formData.get("forwardUrl") || "").trim();
@@ -109,6 +147,17 @@ export async function updateShopify(formData: FormData) {
   } catch (err) {
     if (isNextRedirect(err)) throw err;
     redirectWith("shopify_save", "fail", toShortErrorMessage(err));
+  }
+}
+
+export async function deleteShopifyConnection(formData: FormData) {
+  await assertCsrfToken(formData);
+  try {
+    await adminFetch("/admin/settings/shopify", { method: "DELETE" });
+    redirectWith("shopify_delete", "ok");
+  } catch (err) {
+    if (isNextRedirect(err)) throw err;
+    redirectWith("shopify_delete", "fail", toShortErrorMessage(err));
   }
 }
 
