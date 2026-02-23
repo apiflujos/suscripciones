@@ -168,7 +168,9 @@ export async function deleteSubscription(formData: FormData) {
   const tenantId = String(formData.get("tenantId") || "").trim();
   if (!subscriptionId) return redirect(`/billing?error=${encodeURIComponent("invalid_subscription_id")}`);
   try {
-    const path = tenantId ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}?tenantId=${encodeURIComponent(tenantId)}` : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}`;
+    const path = tenantId
+      ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}?tenantId=${encodeURIComponent(tenantId)}&force=1`
+      : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}?force=1`;
     await adminFetch(path, {
       method: "DELETE"
     });

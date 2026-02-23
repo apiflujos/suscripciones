@@ -17,7 +17,7 @@ export function DeleteSubscriptionButton({
     <form
       action={action}
       onSubmit={(e) => {
-        if (!confirm("¿Eliminar esta suscripción?")) e.preventDefault();
+        if (!confirm("¿Eliminar esta suscripción y sus pagos relacionados?")) e.preventDefault();
       }}
     >
       <input type="hidden" name="csrf" value={csrfToken} />

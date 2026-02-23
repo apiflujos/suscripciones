@@ -545,7 +545,9 @@ export async function deletePlanAndSubscription(formData: FormData) {
   if (!subscriptionId || !planId) return redirect("/billing?error=missing_plan_or_subscription");
 
   try {
-    const path = tenantId ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}?tenantId=${encodeURIComponent(tenantId)}` : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}`;
+    const path = tenantId
+      ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}?tenantId=${encodeURIComponent(tenantId)}&force=1`
+      : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}?force=1`;
     await adminFetch(path, {
       method: "DELETE"
     });
@@ -562,7 +564,9 @@ export async function deletePlanAndSubscription(formData: FormData) {
   }
 
   try {
-    const path = tenantId ? `/admin/plans/${encodeURIComponent(planId)}?tenantId=${encodeURIComponent(tenantId)}` : `/admin/plans/${encodeURIComponent(planId)}`;
+    const path = tenantId
+      ? `/admin/plans/${encodeURIComponent(planId)}?tenantId=${encodeURIComponent(tenantId)}&force=1`
+      : `/admin/plans/${encodeURIComponent(planId)}?force=1`;
     await adminFetch(path, { method: "DELETE" });
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;

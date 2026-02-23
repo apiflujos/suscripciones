@@ -330,7 +330,8 @@ subscriptionsRouter.delete("/:id", async (req, res) => {
     const allowed = existing.tenantId === tenantId || (existing.tenantLinks || []).some((t) => t.tenantId === tenantId);
     if (!allowed) return res.status(404).json({ error: "subscription_not_found" });
   }
-  if (existing.status !== SubscriptionStatus.CANCELED) {
+  const force = String((req as any)?.query?.force || "").trim() === "1";
+  if (!force && existing.status !== SubscriptionStatus.CANCELED) {
     return res.status(409).json({ error: "subscription_must_be_canceled" });
   }
 
@@ -339,11 +340,22 @@ subscriptionsRouter.delete("/:id", async (req, res) => {
     prisma.paymentLink.count({ where: { subscriptionId } }),
     prisma.chatwootMessage.count({ where: { subscriptionId } })
   ]);
-  if (paymentsCount || paymentLinksCount || chatwootCount) {
+  if (!force && (paymentsCount || paymentLinksCount || chatwootCount)) {
     return res.status(409).json({
       error: "subscription_has_dependencies",
       details: { paymentsCount, paymentLinksCount, chatwootCount }
     });
+  }
+
+  if (force) {
+    const payments = await prisma.payment.findMany({ where: { subscriptionId }, select: { id: true } });
+    const paymentIds = payments.map((p) => p.id);
+    if (paymentIds.length) {
+      await prisma.paymentAttempt.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch(() => {});
+    }
+    await prisma.paymentLink.deleteMany({ where: { subscriptionId } }).catch(() => {});
+    await prisma.chatwootMessage.deleteMany({ where: { subscriptionId } }).catch(() => {});
+    await prisma.payment.deleteMany({ where: { subscriptionId } }).catch(() => {});
   }
 
   await prisma.subscription.delete({ where: { id: subscriptionId } });

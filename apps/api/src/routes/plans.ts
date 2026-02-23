@@ -95,11 +95,29 @@ plansRouter.delete("/:id", async (req, res) => {
     prisma.paymentLink.count({ where: { planId: id } })
   ]);
 
-  if (subscriptionsCount || paymentLinksCount) {
+  const force = String((req as any)?.query?.force || "").trim() === "1";
+  if (!force && (subscriptionsCount || paymentLinksCount)) {
     return res.status(409).json({
       error: "plan_has_dependencies",
       details: { subscriptionsCount, paymentLinksCount }
     });
+  }
+
+  if (force) {
+    const subs = await prisma.subscription.findMany({ where: { planId: id }, select: { id: true } });
+    const subIds = subs.map((s) => s.id);
+    const payments = await prisma.payment.findMany({ where: { subscriptionId: { in: subIds } }, select: { id: true } });
+    const paymentIds = payments.map((p) => p.id);
+
+    if (paymentIds.length) {
+      await prisma.paymentAttempt.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch(() => {});
+    }
+    await prisma.chatwootMessage.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch(() => {});
+    await prisma.paymentLink.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch(() => {});
+    await prisma.payment.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch(() => {});
+    await prisma.subscriptionTenant.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch(() => {});
+    await prisma.subscription.deleteMany({ where: { id: { in: subIds } } }).catch(() => {});
+    await prisma.subscriptionPlanTenant.deleteMany({ where: { planId: id } }).catch(() => {});
   }
 
   await prisma.subscriptionPlan.delete({ where: { id } });

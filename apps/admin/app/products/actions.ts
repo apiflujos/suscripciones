@@ -204,7 +204,9 @@ export async function deleteProduct(formData: FormData) {
   if (!id) return redirect("/products?error=missing_id");
 
   try {
-    const path = tenantId ? `/admin/products/${encodeURIComponent(id)}?tenantId=${encodeURIComponent(tenantId)}` : `/admin/products/${encodeURIComponent(id)}`;
+    const path = tenantId
+      ? `/admin/products/${encodeURIComponent(id)}?tenantId=${encodeURIComponent(tenantId)}&force=1`
+      : `/admin/products/${encodeURIComponent(id)}?force=1`;
     await adminFetch(path, {
       method: "DELETE"
     });
