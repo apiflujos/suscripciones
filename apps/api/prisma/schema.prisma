@@ -513,6 +513,17 @@ model SaTenant {
   usageCounters SaUsageCounter[]
   billingEvents SaBillingEvent[]
   billingCounters SaBillingCounter[]
+  customers Customer[]
+  plans SubscriptionPlan[]
+  checkoutTemplates PublicCheckoutTemplate[]
+  subscriptions Subscription[]
+  payments Payment[]
+  paymentLinks PaymentLink[]
+  webhookEvents WebhookEvent[]
+  chatwootMessages ChatwootMessage[]
+  smartLists SmartList[]
+  campaigns Campaign[]
+  campaignSends CampaignSend[]
 }
 
 model SaUser {

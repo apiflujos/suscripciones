@@ -74,16 +74,7 @@ async function fetchCustomerSubscriptions(tenantId?: string) {
 export default async function CustomersPage({
   searchParams
 }: {
-  searchParams?: Promise<{
-    created?: string;
-    updated?: string;
-    deleted?: string;
-    paymentSource?: string;
-    paymentLink?: string;
-    error?: string;
-    q?: string;
-    page?: string;
-  }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const csrfToken = await getCsrfToken();
   const { token } = getConfig();
