@@ -21,6 +21,10 @@ export function classifyReference(reference: string | undefined | null): Payment
     const parts = ref.split("_");
     const externalRef = parts[1] ?? "";
     const planId = parts[2] ?? undefined;
+    const externalRefUpper = String(externalRef || "").toUpperCase();
+    if (externalRefUpper.includes("SHOPIFY")) {
+      return { kind: "shopify", reference: ref };
+    }
     return { kind: "order", reference: externalRef, planId: (planId && planId.length > 20) ? planId : undefined };
   }
 
@@ -30,4 +34,3 @@ export function classifyReference(reference: string | undefined | null): Payment
 
   return { kind: "unknown", reference: ref };
 }
-

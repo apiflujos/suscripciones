@@ -242,21 +242,21 @@ export function CustomersTable({
                   <div>
                     <span>Nombre</span>
                     <strong style={{ display: "inline-flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                      <span>{c.name || "—"}</span>
+                      <span className="contact-value">{c.name || "—"}</span>
                       {hasToken(c) ? <span className="pill pill-ok">Tokenizada</span> : <span className="pill pill-bad">Sin token</span>}
                     </strong>
                   </div>
                   <div>
                     <span>Email</span>
-                    {c.email || "—"}
+                    <div className="contact-value">{c.email || "—"}</div>
                   </div>
                   <div>
                     <span>Teléfono</span>
-                    {c.phone || "—"}
+                    <div className="contact-value">{c.phone || "—"}</div>
                   </div>
                   <div>
                     <span>Canal</span>
-                    {c.tenantName || "—"}
+                    <div className="contact-value">{c.tenantName || "—"}</div>
                   </div>
                 </div>
               </div>

@@ -16,6 +16,10 @@ type CheckoutConfig = {
   planWompiDescription?: string | null;
   subscriptionWompiTitle?: string | null;
   subscriptionWompiDescription?: string | null;
+  tokenizationSuccessTitle?: string | null;
+  tokenizationSuccessMessage?: string | null;
+  tokenizationErrorMessage?: string | null;
+  tokenizationReturnUrl?: string | null;
 };
 
 export function CheckoutConfigPanel({
@@ -44,6 +48,14 @@ export function CheckoutConfigPanel({
   const [checkoutDescription, setCheckoutDescription] = useState<string>(String(defaults.planDescription || defaults.subscriptionDescription || ""));
   const [wompiTitle, setWompiTitle] = useState<string>(String(defaults.planWompiTitle || defaults.subscriptionWompiTitle || ""));
   const [wompiDescription, setWompiDescription] = useState<string>(String(defaults.planWompiDescription || defaults.subscriptionWompiDescription || ""));
+  const [tokenSuccessTitle, setTokenSuccessTitle] = useState<string>(String(defaults.tokenizationSuccessTitle || "Gracias"));
+  const [tokenSuccessMessage, setTokenSuccessMessage] = useState<string>(
+    String(defaults.tokenizationSuccessMessage || "Tu método de pago quedó guardado correctamente.")
+  );
+  const [tokenErrorMessage, setTokenErrorMessage] = useState<string>(
+    String(defaults.tokenizationErrorMessage || "No pudimos guardar tu método de pago. Intenta nuevamente.")
+  );
+  const [tokenReturnUrl, setTokenReturnUrl] = useState<string>(String(defaults.tokenizationReturnUrl || ""));
 
   useEffect(() => {
     if (defaults.logoUrl) setLogoData(String(defaults.logoUrl));
@@ -78,6 +90,10 @@ export function CheckoutConfigPanel({
       <input type="hidden" name="planWompiDescription" value={wompiDescription} />
       <input type="hidden" name="subscriptionWompiTitle" value={wompiTitle} />
       <input type="hidden" name="subscriptionWompiDescription" value={wompiDescription} />
+      <input type="hidden" name="tokenizationSuccessTitle" value={tokenSuccessTitle} />
+      <input type="hidden" name="tokenizationSuccessMessage" value={tokenSuccessMessage} />
+      <input type="hidden" name="tokenizationErrorMessage" value={tokenErrorMessage} />
+      <input type="hidden" name="tokenizationReturnUrl" value={tokenReturnUrl} />
       {mode === "PLAN" ? (
         <input type="hidden" name="subscriptionBaseUrl" value={subscriptionBaseUrl} />
       ) : (
@@ -171,6 +187,28 @@ export function CheckoutConfigPanel({
         </div>
         <div className="field-hint" style={{ marginTop: 8 }}>
           Si dejas vacío, se usan textos por defecto.
+        </div>
+      </div>
+
+      <div className="panel module" style={{ margin: 0 }}>
+        <div className="panel-header">
+          <strong>Tokenización pública</strong>
+        </div>
+        <div className="field">
+          <label>Título éxito</label>
+          <input className="input" value={tokenSuccessTitle} onChange={(e) => setTokenSuccessTitle(e.target.value)} />
+        </div>
+        <div className="field">
+          <label>Mensaje éxito</label>
+          <textarea className="input" rows={2} value={tokenSuccessMessage} onChange={(e) => setTokenSuccessMessage(e.target.value)} />
+        </div>
+        <div className="field">
+          <label>Mensaje error</label>
+          <textarea className="input" rows={2} value={tokenErrorMessage} onChange={(e) => setTokenErrorMessage(e.target.value)} />
+        </div>
+        <div className="field">
+          <label>URL de retorno (botón)</label>
+          <input className="input" value={tokenReturnUrl} onChange={(e) => setTokenReturnUrl(e.target.value)} placeholder="https://tusitio.com" />
         </div>
       </div>
 

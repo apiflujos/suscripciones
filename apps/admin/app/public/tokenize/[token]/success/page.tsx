@@ -25,9 +25,10 @@ export default async function PublicTokenizeSuccessPage({ params }: { params: Pr
   const template = tokenRes.ok ? tokenRes.json?.template || null : null;
   const layout = (template?.layout || {}) as any;
 
-  const title = "Gracias";
+  const title = String(config?.tokenizationSuccessTitle || "Gracias");
   const subtitle = "Tu método de pago quedó guardado.";
   const description =
+    String(config?.tokenizationSuccessMessage || "").trim() ||
     template?.publicDescription ||
     config?.subscriptionDescription ||
     "Desde ahora podremos procesar tu suscripción de forma automática.";
@@ -48,10 +49,7 @@ export default async function PublicTokenizeSuccessPage({ params }: { params: Pr
     contactEmail ||
     supportUrl.replace(/^https?:\/\//, "") ||
     "";
-  const redirectUrl =
-    String(process.env.NEXT_PUBLIC_PUBLIC_CHECKOUT_BASE_URL || "").trim() ||
-    String(process.env.NEXT_PUBLIC_ADMIN_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || "").trim() ||
-    "/";
+  const redirectUrl = String(config?.tokenizationReturnUrl || "").trim() || "/";
   const buttonLabel = "Volver";
 
   return (

@@ -67,7 +67,11 @@ const checkoutConfigUpdateSchema = z.object({
   planWompiTitle: z.string().optional().or(z.literal("")),
   planWompiDescription: z.string().optional().or(z.literal("")),
   subscriptionWompiTitle: z.string().optional().or(z.literal("")),
-  subscriptionWompiDescription: z.string().optional().or(z.literal(""))
+  subscriptionWompiDescription: z.string().optional().or(z.literal("")),
+  tokenizationSuccessTitle: z.string().optional().or(z.literal("")),
+  tokenizationSuccessMessage: z.string().optional().or(z.literal("")),
+  tokenizationErrorMessage: z.string().optional().or(z.literal("")),
+  tokenizationReturnUrl: z.string().url().optional().or(z.literal(""))
 });
 
  
@@ -224,12 +228,12 @@ settingsRouter.get("/", async (_req, res) => {
       inboxId: (chatwootActiveEnv === "SANDBOX" ? commsSandbox.inboxId : commsProd.inboxId) ?? null
     },
     checkoutConfig: {
-      planBaseUrl: checkoutConfig.planBaseUrl || (process.env.PUBLIC_PLAN_BASE_URL || "").trim() || null,
-      subscriptionBaseUrl: checkoutConfig.subscriptionBaseUrl || (process.env.PUBLIC_SUBSCRIPTION_BASE_URL || "").trim() || null,
+      planBaseUrl: checkoutConfig.planBaseUrl || null,
+      subscriptionBaseUrl: checkoutConfig.subscriptionBaseUrl || null,
       tokenExpiryHours:
         Number.isFinite(Number(checkoutConfig.tokenExpiryHours)) && Number(checkoutConfig.tokenExpiryHours) > 0
           ? Math.trunc(Number(checkoutConfig.tokenExpiryHours))
-          : Number(process.env.PUBLIC_CHECKOUT_TOKEN_EXPIRY_HOURS || 24),
+          : 24,
       logoUrl: checkoutConfig.logoUrl || null,
       planTitle: checkoutConfig.planTitle || "Paga tu plan",
       planDescription: checkoutConfig.planDescription || "",
@@ -238,7 +242,11 @@ settingsRouter.get("/", async (_req, res) => {
       planWompiTitle: checkoutConfig.planWompiTitle || "",
       planWompiDescription: checkoutConfig.planWompiDescription || "",
       subscriptionWompiTitle: checkoutConfig.subscriptionWompiTitle || "",
-      subscriptionWompiDescription: checkoutConfig.subscriptionWompiDescription || ""
+      subscriptionWompiDescription: checkoutConfig.subscriptionWompiDescription || "",
+      tokenizationSuccessTitle: checkoutConfig.tokenizationSuccessTitle || "",
+      tokenizationSuccessMessage: checkoutConfig.tokenizationSuccessMessage || "",
+      tokenizationErrorMessage: checkoutConfig.tokenizationErrorMessage || "",
+      tokenizationReturnUrl: checkoutConfig.tokenizationReturnUrl || ""
     }
   });
 });
@@ -389,7 +397,11 @@ settingsRouter.put("/checkout-config", async (req, res) => {
     planWompiTitle: parsed.data.planWompiTitle || "",
     planWompiDescription: parsed.data.planWompiDescription || "",
     subscriptionWompiTitle: parsed.data.subscriptionWompiTitle || "",
-    subscriptionWompiDescription: parsed.data.subscriptionWompiDescription || ""
+    subscriptionWompiDescription: parsed.data.subscriptionWompiDescription || "",
+    tokenizationSuccessTitle: parsed.data.tokenizationSuccessTitle || "",
+    tokenizationSuccessMessage: parsed.data.tokenizationSuccessMessage || "",
+    tokenizationErrorMessage: parsed.data.tokenizationErrorMessage || "",
+    tokenizationReturnUrl: parsed.data.tokenizationReturnUrl || ""
   };
 
   await setCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG", JSON.stringify(payload));

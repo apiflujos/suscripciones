@@ -63,8 +63,13 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     : null;
   const referenceClassification = classifyReference(reference);
 
-  // Shopify references are forwarded but not processed as subscriptions.
-  if (!paymentByLink && referenceClassification.kind === "shopify") {
+  const paymentSource = String((paymentByLink?.providerResponse as any)?.order?.source || "").toUpperCase();
+  const isShopifyPayment =
+    referenceClassification.kind === "shopify" ||
+    paymentSource === "SHOPIFY";
+
+  // Shopify payments are forwarded but not processed as subscriptions.
+  if (isShopifyPayment) {
     await db.webhookEvent.update({
       where: { id: webhookEventId },
       data: { processStatus: WebhookProcessStatus.SKIPPED, processedAt: new Date() }

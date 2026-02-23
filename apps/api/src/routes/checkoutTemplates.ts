@@ -49,6 +49,16 @@ checkoutTemplatesRouter.get("/", async (_req, res) => {
   res.json({ items });
 });
 
+checkoutTemplatesRouter.get("/:id", async (req, res) => {
+  const id = String(req.params.id || "").trim();
+  if (!id) return res.status(400).json({ error: "invalid_id" });
+  const tenantId = await getEffectiveTenantId(req);
+  const item = await prisma.publicCheckoutTemplate.findUnique({ where: { id } });
+  if (!item) return res.status(404).json({ error: "not_found" });
+  if (tenantId && item.tenantId && item.tenantId !== tenantId) return res.status(404).json({ error: "not_found" });
+  res.json({ item });
+});
+
 checkoutTemplatesRouter.post("/", async (req, res) => {
   const parsed = templateSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });

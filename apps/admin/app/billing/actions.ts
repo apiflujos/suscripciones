@@ -320,11 +320,13 @@ export async function createPlanAndSubscription(formData: FormData) {
 
     const collectionMode = billingType === "PLAN" ? "AUTO_LINK" : "AUTO_DEBIT";
 
-    const templatesRes = templateIdRaw
-      ? await adminFetch(tenantId ? `/admin/checkout-templates?tenantId=${encodeURIComponent(tenantId)}` : "/admin/checkout-templates", { method: "GET" }).catch(() => null)
-      : null;
     const templateCandidate = templateIdRaw
-      ? (templatesRes?.items ?? []).find((t: any) => String(t.id) === String(templateIdRaw)) ?? null
+      ? await adminFetch(
+          tenantId
+            ? `/admin/checkout-templates/${encodeURIComponent(templateIdRaw)}?tenantId=${encodeURIComponent(tenantId)}`
+            : `/admin/checkout-templates/${encodeURIComponent(templateIdRaw)}`,
+          { method: "GET" }
+        ).then((r) => r?.item ?? null).catch(() => null)
       : null;
     const template =
       templateCandidate &&

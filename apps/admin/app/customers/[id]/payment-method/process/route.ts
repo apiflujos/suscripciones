@@ -61,7 +61,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       return NextResponse.redirect(new URL(`/customers/${id}/payment-method?error=${encodeURIComponent(msg)}`, req.url));
     }
 
-    return NextResponse.redirect(new URL(`/customers?paymentSource=1`, req.url));
+    return NextResponse.redirect(new URL(`/customers/${id}/payment-method/success`, req.url));
   } catch (err: any) {
     const msg = err?.message ? String(err.message) : "request_failed";
     return NextResponse.redirect(new URL(`/customers/${id}/payment-method?error=${encodeURIComponent(msg)}`, req.url));

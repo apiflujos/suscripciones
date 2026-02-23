@@ -23,7 +23,8 @@ export function ConnectionsPanel({
   commsSandbox,
   shopify,
   actions,
-  inlineState
+  inlineState,
+  initialOpen
 }: {
   csrfToken: string;
   wompiActiveEnv: "PRODUCTION" | "SANDBOX";
@@ -47,8 +48,10 @@ export function ConnectionsPanel({
     testShopifyForward: (formData: FormData) => void;
   };
   inlineState: InlineMsgProps;
+  initialOpen?: string;
 }) {
-  const [open, setOpen] = useState<null | "wompi" | "central" | "shopify">(null);
+  const initial = initialOpen === "wompi" || initialOpen === "central" || initialOpen === "shopify" ? initialOpen : null;
+  const [open, setOpen] = useState<null | "wompi" | "central" | "shopify">(initial);
 
   return (
     <>

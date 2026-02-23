@@ -49,6 +49,7 @@ export default async function PublicTokenizePage({
     template?.publicDescription ||
     config?.subscriptionDescription ||
     "Usamos Wompi para tokenizar tu tarjeta. No se realizan cargos en este paso.";
+  const tokenErrorMessage = String(config?.tokenizationErrorMessage || "").trim();
   const contactEmail = String(process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "").trim();
   const supportUrl = String(process.env.NEXT_PUBLIC_SUPPORT_URL || "").trim();
   const logoUrl = template?.logoUrl || config?.logoUrl || "";
@@ -107,7 +108,8 @@ export default async function PublicTokenizePage({
     >
       {sp.error ? (
         <PublicAlert>
-          Ocurrió un error: {sp.error}. {PUBLIC_COPY.errorGenericHelp}
+          {tokenErrorMessage || "Ocurrió un error al guardar tu método de pago."}{" "}
+          <span style={{ opacity: 0.8 }}>({sp.error})</span> {PUBLIC_COPY.errorGenericHelp}
         </PublicAlert>
       ) : null}
 

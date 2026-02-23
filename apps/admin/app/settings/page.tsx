@@ -87,6 +87,7 @@ export default async function SettingsPage({
   const status = String(sp.status || "");
   const errorText = sp.error ? String(sp.error) : "";
   const tab = String(sp.tab || "connections");
+  const open = String(sp.open || "");
   const templateKind = String(sp.kind || "").toUpperCase();
   const templateStep = String(sp.step || "choose");
   const inlineState = { action, status, errorText };
@@ -158,6 +159,7 @@ export default async function SettingsPage({
                   testShopifyForward
                 }}
                 inlineState={inlineState}
+                initialOpen={open}
               />
             </div>
           </section>
@@ -181,6 +183,19 @@ export default async function SettingsPage({
                     <span className="pill" style={{ opacity: 0.65 }}>Inactiva</span>
                   )}
                 </div>
+                <div className="panelRowActions" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <a className="ghost" href="/settings?tab=connections&open=wompi">Editar</a>
+                  <form action={testWompiConnection}>
+                    <input type="hidden" name="csrf" value={csrfToken} />
+                    <input type="hidden" name="environment" value="PRODUCTION" />
+                    <button className="ghost" type="submit">Probar</button>
+                  </form>
+                  <form action={deleteWompiConnection}>
+                    <input type="hidden" name="csrf" value={csrfToken} />
+                    <input type="hidden" name="environment" value="PRODUCTION" />
+                    <button className="ghost" type="submit">Eliminar</button>
+                  </form>
+                </div>
                 <div className="field-hint">
                   Llave pública: {wompiProduction?.publicKey || "—"} · Llave privada: {wompiProduction?.privateKey || "—"} · Integridad: {wompiProduction?.integritySecret || "—"} · Eventos: {wompiProduction?.eventsSecret || "—"}
                   {" · "}API: {wompiProduction?.apiBaseUrl || "—"} · Links: {wompiProduction?.checkoutLinkBaseUrl || "—"} · Redirección: {wompiProduction?.redirectUrl || "—"}
@@ -195,6 +210,19 @@ export default async function SettingsPage({
                   ) : (
                     <span className="pill" style={{ opacity: 0.65 }}>Inactiva</span>
                   )}
+                </div>
+                <div className="panelRowActions" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <a className="ghost" href="/settings?tab=connections&open=wompi">Editar</a>
+                  <form action={testWompiConnection}>
+                    <input type="hidden" name="csrf" value={csrfToken} />
+                    <input type="hidden" name="environment" value="SANDBOX" />
+                    <button className="ghost" type="submit">Probar</button>
+                  </form>
+                  <form action={deleteWompiConnection}>
+                    <input type="hidden" name="csrf" value={csrfToken} />
+                    <input type="hidden" name="environment" value="SANDBOX" />
+                    <button className="ghost" type="submit">Eliminar</button>
+                  </form>
                 </div>
                 <div className="field-hint">
                   Llave pública: {wompiSandbox?.publicKey || "—"} · Llave privada: {wompiSandbox?.privateKey || "—"} · Integridad: {wompiSandbox?.integritySecret || "—"} · Eventos: {wompiSandbox?.eventsSecret || "—"}
@@ -216,6 +244,19 @@ export default async function SettingsPage({
                 <div className="panelHeaderRow">
                   <strong>Shopify</strong>
                   <span className="pill" style={{ background: "#e7f8ee", color: "#0f6b3a", border: "1px solid #8dd9a9" }}>Activa</span>
+                </div>
+                <div className="panelRowActions" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <a className="ghost" href="/settings?tab=connections&open=shopify">Editar</a>
+                  <form action={testShopifyForward}>
+                    <input type="hidden" name="csrf" value={csrfToken} />
+                    <input type="hidden" name="forwardUrl" value={settings?.shopify?.forwardUrl || ""} />
+                    <input type="hidden" name="forwardOrigin" value={settings?.shopify?.forwardOrigin || "shopify"} />
+                    <button className="ghost" type="submit">Probar</button>
+                  </form>
+                  <form action={deleteShopifyConnection}>
+                    <input type="hidden" name="csrf" value={csrfToken} />
+                    <button className="ghost" type="submit">Eliminar</button>
+                  </form>
                 </div>
                 <div className="field-hint">URL: {settings?.shopify?.forwardUrl || "—"}</div>
               </div>
