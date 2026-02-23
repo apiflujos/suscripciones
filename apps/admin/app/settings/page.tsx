@@ -44,7 +44,7 @@ async function fetchProducts() {
 export default async function SettingsPage({
   searchParams
 }: {
-  searchParams?: Promise<{ a?: string; status?: string; error?: string; tab?: string; new?: string; create?: string; kind?: string; step?: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const csrfToken = await getCsrfToken();
   const { token } = getConfig();

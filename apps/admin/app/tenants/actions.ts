@@ -7,6 +7,14 @@ import { assertCsrfToken } from "../lib/csrf";
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
 const TOKEN = normalizeToken(process.env.ADMIN_API_TOKEN || "");
 
+function mergeQuery(path: string, extra: Record<string, string | undefined>) {
+  const url = new URL(path || "/", "http://localhost");
+  for (const [key, value] of Object.entries(extra)) {
+    if (value) url.searchParams.set(key, value);
+  }
+  return `${url.pathname}${url.search}`;
+}
+
 async function adminFetch(path: string, init: RequestInit) {
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
@@ -26,7 +34,7 @@ export async function createTenant(formData: FormData) {
   await assertCsrfToken(formData);
   const name = String(formData.get("name") || "").trim();
   const returnTo = String(formData.get("returnTo") || "").trim() || "/";
-  if (!name) return redirect(`${returnTo}?error=tenant_name_required`);
+  if (!name) return redirect(mergeQuery(returnTo, { error: "tenant_name_required" }));
 
   try {
     const res = await adminFetch("/admin/tenants", { method: "POST", body: JSON.stringify({ name }) });
@@ -37,6 +45,6 @@ export async function createTenant(formData: FormData) {
     redirect(`${url.pathname}${url.search}`);
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
-    redirect(`${returnTo}?error=${encodeURIComponent(err?.message || "create_tenant_failed")}`);
+    redirect(mergeQuery(returnTo, { error: String(err?.message || "create_tenant_failed") }));
   }
 }
