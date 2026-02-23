@@ -8,6 +8,7 @@ import { getCredential } from "../services/credentials";
 import { ensureChatwootContactForCustomer, syncChatwootAttributesForCustomer } from "../services/chatwootSync";
 import { schedulePaymentLinkNotifications } from "../services/notificationsScheduler";
 import { systemLog } from "../services/systemLog";
+import { getEffectiveTenantId } from "../services/tenantContext";
 
 const lineItemSchema = z.object({
   sku: z.string().optional().nullable(),
@@ -49,11 +50,13 @@ export const ordersRouter = express.Router();
 
 ordersRouter.get("/", async (_req, res) => {
   const req = _req as any;
+  const tenantId = await getEffectiveTenantId(req);
   const takeRaw = Number(req?.query?.take ?? 50);
   const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 500) : 50;
   const q = String(req?.query?.q ?? "").trim();
 
   const where: any = { subscriptionId: null, wompiPaymentLinkId: { not: null } };
+  if (tenantId) where.tenantId = tenantId;
   if (q) {
     where.OR = [
       { reference: { contains: q, mode: "insensitive" } },
@@ -80,11 +83,14 @@ ordersRouter.post("/", async (req, res) => {
 
   const customer = await prisma.customer.findUnique({ where: { id: parsed.data.customerId } });
   if (!customer) return res.status(404).json({ error: "customer_not_found" });
+  const tenantId = customer.tenantId || (await getEffectiveTenantId(req));
+  if (!tenantId) return res.status(400).json({ error: "tenant_required" });
 
   const totals = computeTotals(parsed.data);
 
   const payment = await prisma.payment.create({
     data: {
+      tenantId,
       customerId: customer.id,
       subscriptionId: null,
       amountInCents: totals.total,

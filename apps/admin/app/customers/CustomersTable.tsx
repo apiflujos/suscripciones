@@ -13,6 +13,8 @@ function formatCopFromCents(cents: number) {
 
 type CustomerRow = {
   id: string;
+  tenantId?: string | null;
+  tenantName?: string;
   name?: string | null;
   email?: string | null;
   phone?: string | null;
@@ -236,7 +238,7 @@ export function CustomersTable({
             <div className="contact-card" key={c.id}>
               <div className="contact-left">
                 <div className="contact-section-title">Información personal</div>
-                <div className="contact-person-grid" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
+                <div className="contact-person-grid" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
                   <div>
                     <span>Nombre</span>
                     <strong style={{ display: "inline-flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
@@ -251,6 +253,10 @@ export function CustomersTable({
                   <div>
                     <span>Teléfono</span>
                     {c.phone || "—"}
+                  </div>
+                  <div>
+                    <span>Canal</span>
+                    {c.tenantName || "—"}
                   </div>
                 </div>
               </div>
@@ -269,6 +275,7 @@ export function CustomersTable({
                     >
                       <input type="hidden" name="csrf" value={csrfToken} />
                       <input type="hidden" name="id" value={c.id} />
+                      <input type="hidden" name="tenantId" value={c.tenantId || ""} />
                       <button className="icon-btn danger" type="submit" aria-label="Eliminar">🗑</button>
                     </form>
                   </div>
@@ -308,7 +315,8 @@ export function CustomersTable({
                           headers: { "content-type": "application/json" },
                           body: JSON.stringify({
                             customerId: c.id,
-                            customerName: c.name || ""
+                            customerName: c.name || "",
+                            tenantId: c.tenantId || ""
                           })
                         });
                             const contentType = res.headers.get("content-type") || "";
@@ -624,7 +632,8 @@ export function CustomersTable({
                               body: JSON.stringify({
                                 customerId: detailsCustomer.id,
                                 customerName: detailsCustomer.name || "",
-                                amount
+                                amount,
+                                tenantId: detailsCustomer.tenantId || ""
                               })
                             });
                             const contentType = res.headers.get("content-type") || "";
@@ -724,6 +733,7 @@ export function CustomersTable({
             <form action={updateCustomer} style={{ display: "grid", gap: 10 }}>
               <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="id" value={editing.id} />
+              <input type="hidden" name="tenantId" value={editing.tenantId || ""} />
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <div className="field">

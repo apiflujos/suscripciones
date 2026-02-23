@@ -4,6 +4,7 @@ import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { HelpTip } from "../ui/HelpTip";
 import { CustomersTable } from "./CustomersTable";
 import { getCsrfToken } from "../lib/csrf";
+import { createTenant } from "../tenants/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -11,12 +12,14 @@ function getConfig() {
   return getAdminApiConfig();
 }
 
-async function fetchCustomers(opts?: { q?: string; take?: number; page?: number }) {
+async function fetchCustomers(opts?: { q?: string; take?: number; page?: number; tenantId?: string }) {
   const sp = new URLSearchParams();
   const q = String(opts?.q || "").trim();
   const take = Number(opts?.take ?? 200);
   const page = Number(opts?.page ?? 1);
+  const tenantId = String(opts?.tenantId || "").trim();
   if (q) sp.set("q", q);
+  if (tenantId) sp.set("tenantId", tenantId);
   if (Number.isFinite(take) && take > 0) sp.set("take", String(Math.min(Math.trunc(take), 500)));
   if (Number.isFinite(page) && page > 1) sp.set("skip", String((Math.trunc(page) - 1) * Math.min(Math.trunc(take), 500)));
 
@@ -25,10 +28,11 @@ async function fetchCustomers(opts?: { q?: string; take?: number; page?: number 
   return res.json || { items: [] as any[] };
 }
 
-async function fetchPaymentLinks(q: string) {
+async function fetchPaymentLinks(q: string, tenantId?: string) {
   const sp = new URLSearchParams();
   sp.set("take", "200");
   if (q.trim()) sp.set("q", q.trim());
+  if (tenantId) sp.set("tenantId", tenantId);
   const res = await fetchAdminCached(`/admin/orders?${sp.toString()}`, { ttlMs: 1500 });
   const data = res.json || { items: [] as any[] };
   const items = Array.isArray(data.items) ? data.items : [];
@@ -48,8 +52,11 @@ async function fetchPaymentLinks(q: string) {
   return latestByCustomer;
 }
 
-async function fetchCustomerSubscriptions() {
-  const res = await fetchAdminCached(`/admin/subscriptions?take=300`, { ttlMs: 1500 });
+async function fetchCustomerSubscriptions(tenantId?: string) {
+  const sp = new URLSearchParams();
+  sp.set("take", "300");
+  if (tenantId) sp.set("tenantId", tenantId);
+  const res = await fetchAdminCached(`/admin/subscriptions?${sp.toString()}`, { ttlMs: 1500 });
   const data = res.json || { items: [] as any[] };
   const items = Array.isArray(data.items) ? data.items : [];
   const map: Record<string, { hasPlan: boolean }> = {};
@@ -84,12 +91,19 @@ export default async function CustomersPage({
   const sp = (await searchParams) ?? {};
   const q = typeof sp.q === "string" ? sp.q : "";
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
+  const tenantId = typeof sp.tenantId === "string" ? sp.tenantId : "";
+  const tenantCreated = typeof sp.tenantCreated === "string" ? sp.tenantCreated : "";
   const take = 200;
-  const data = await fetchCustomers({ q, take, page });
+  const [data, tenantsRes] = await Promise.all([
+    fetchCustomers({ q, take, page, tenantId }),
+    fetchAdminCached("/admin/tenants", { ttlMs: 1500 })
+  ]);
   const items = (data.items ?? []) as any[];
+  const tenants = (tenantsRes.json?.items ?? []) as Array<{ id: string; name: string }>;
+  const tenantById = new Map(tenants.map((t) => [String(t.id), String(t.name)]));
   const [latestLinks, subscriptionsByCustomer] = await Promise.all([
-    fetchPaymentLinks(q),
-    fetchCustomerSubscriptions()
+    fetchPaymentLinks(q, tenantId),
+    fetchCustomerSubscriptions(tenantId)
   ]);
   const latestLinksObj = Object.fromEntries(latestLinks.entries());
 
@@ -105,6 +119,7 @@ export default async function CustomersPage({
       {sp.deleted ? <div className="card cardPad">Contacto eliminado.</div> : null}
       {sp.paymentSource ? <div className="card cardPad">Método de pago guardado.</div> : null}
       {sp.paymentLink ? <div className="card cardPad">Link de pago enviado.</div> : null}
+      {tenantCreated ? <div className="card cardPad">Canal creado.</div> : null}
 
       <section className="settings-group">
         <div className="settings-group-header">
@@ -113,12 +128,31 @@ export default async function CustomersPage({
               <h3>Contactos</h3>
               <HelpTip text="Clientes y datos de contacto (email / teléfono). También permite guardar método de pago para cobros automáticos." />
             </div>
-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
               <form action="/customers" method="GET" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
                 <input className="input" name="q" defaultValue={q} placeholder="Buscar..." aria-label="Buscar contactos" />
                 <button className="ghost" type="submit">
                   Buscar
                 </button>
+              </form>
+              <form action="/customers" method="GET" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                {q ? <input type="hidden" name="q" value={q} /> : null}
+                <select className="select" name="tenantId" defaultValue={tenantId}>
+                  <option value="">Canal: (todos)</option>
+                  {tenants.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+                <button className="ghost" type="submit">Aplicar</button>
+              </form>
+              <form action={createTenant} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input type="hidden" name="csrf" value={csrfToken} />
+                <input type="hidden" name="returnTo" value={`/customers${tenantId || q ? `?${new URLSearchParams({ ...(tenantId ? { tenantId } : {}), ...(q ? { q } : {}) }).toString()}` : ""}`} />
+                <input className="input" name="name" placeholder="Nuevo canal" />
+                <button className="ghost" type="submit">Crear canal</button>
               </form>
               <span className="pill">{items.length} resultados</span>
             </div>
@@ -126,21 +160,34 @@ export default async function CustomersPage({
         </div>
 
         <div className="settings-group-body">
-          <NewCustomerForm createCustomer={createCustomer} csrfToken={csrfToken} />
+          <NewCustomerForm createCustomer={createCustomer} csrfToken={csrfToken} tenantId={tenantId} tenants={tenants} />
 
-          <CustomersTable items={items} latestLinks={latestLinksObj} subscriptionsByCustomer={subscriptionsByCustomer} csrfToken={csrfToken} />
+          <CustomersTable
+            items={items.map((c) => ({ ...c, tenantName: tenantById.get(String(c.tenantId || "")) || "—" }))}
+            latestLinks={latestLinksObj}
+            subscriptionsByCustomer={subscriptionsByCustomer}
+            csrfToken={csrfToken}
+          />
 
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>
             <a
               className="ghost"
-              href={`/customers?${new URLSearchParams({ ...(q ? { q } : {}), page: String(Math.max(1, (Number(page) || 1) - 1)) })}`}
+              href={`/customers?${new URLSearchParams({
+                ...(q ? { q } : {}),
+                ...(tenantId ? { tenantId } : {}),
+                page: String(Math.max(1, (Number(page) || 1) - 1))
+              })}`}
               aria-disabled={Number(page) <= 1}
             >
               Anterior
             </a>
             <a
               className="ghost"
-              href={`/customers?${new URLSearchParams({ ...(q ? { q } : {}), page: String((Number(page) || 1) + 1) })}`}
+              href={`/customers?${new URLSearchParams({
+                ...(q ? { q } : {}),
+                ...(tenantId ? { tenantId } : {}),
+                page: String((Number(page) || 1) + 1)
+              })}`}
               aria-disabled={items.length < take}
             >
               Siguiente

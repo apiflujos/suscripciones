@@ -3,6 +3,7 @@ import next from "next";
 import { createApp } from "./app";
 import { loadEnv } from "./config/env";
 import { logger } from "./lib/logger";
+import { ensureBootstrapSuperAdmin } from "./services/superAdminAuth";
 
 async function start() {
   const env = loadEnv(process.env);
@@ -16,6 +17,10 @@ async function start() {
   await nextApp.prepare();
 
   app.all("*", (req, res) => handle(req, res));
+
+  await ensureBootstrapSuperAdmin().catch((err) => {
+    logger.error({ err }, "Failed to bootstrap SUPER_ADMIN");
+  });
 
   app.listen(env.PORT, () => {
     logger.info({ port: env.PORT }, "API + Admin listening");

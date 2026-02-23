@@ -10,6 +10,7 @@ import { getShopifyForward } from "../../services/runtimeConfig";
 import { schedulePaymentStatusNotifications, scheduleSubscriptionDueNotifications } from "../../services/notificationsScheduler";
 import { consumeApp } from "../../services/superAdminApp";
 import { syncChatwootAttributesForCustomer } from "../../services/chatwootSync";
+import { getDefaultTenantId } from "../../services/tenantContext";
 
 function getTransactionFromPayload(payload: any): any | null {
   const tx = payload?.data?.transaction;
@@ -90,6 +91,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
       return;
     }
 
+    const defaultTenantId = await getDefaultTenantId();
     let plan = null;
     if (referenceClassification.kind === "order" && referenceClassification.planId) {
       plan = await db.subscriptionPlan.findUnique({ where: { id: referenceClassification.planId } });
@@ -107,7 +109,8 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         where: {
           active: true,
           priceInCents: amountInCents,
-          currency: (currency || "COP").toUpperCase()
+          currency: (currency || "COP").toUpperCase(),
+          ...(defaultTenantId ? { tenantId: defaultTenantId } : {})
         },
         orderBy: { updatedAt: "desc" }
       });
@@ -143,6 +146,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     if (!customer) {
       customer = await db.customer.create({
         data: {
+          tenantId: plan?.tenantId ?? defaultTenantId ?? null,
           email,
           name: getCustomerNameFromPayload(payload),
           phone: getCustomerPhoneFromPayload(payload)
@@ -155,6 +159,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
 
     inferredSubscription = await db.subscription.create({
       data: {
+        tenantId: plan?.tenantId ?? defaultTenantId ?? null,
         customerId: customer.id,
         planId: plan.id,
         status: SubscriptionStatus.PAST_DUE,
@@ -164,6 +169,15 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         currentCycle: 1
       }
     });
+    const linkTenantId = plan?.tenantId ?? defaultTenantId ?? null;
+    if (linkTenantId) {
+      await db.subscriptionTenant
+        .createMany({
+          data: [{ subscriptionId: inferredSubscription.id, tenantId: linkTenantId }],
+          skipDuplicates: true
+        })
+        .catch(() => {});
+    }
     inferredSubscriptionId = inferredSubscription.id;
   }
 
@@ -212,10 +226,14 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     return;
   }
 
+  const tenantIdForPayment =
+    subscription?.tenantId ?? paymentByLink?.tenantId ?? (await getDefaultTenantId());
+
   const paymentRecord = paymentByLink
     ? await db.payment.update({
         where: { id: paymentByLink.id },
         data: {
+          ...(tenantIdForPayment ? { tenantId: tenantIdForPayment } : {}),
           wompiTransactionId: transactionId,
           status: paymentStatus,
           paidAt,
@@ -234,6 +252,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     : await db.payment.upsert({
         where: { subscriptionCycleKey: subscriptionCycleKey as string },
         create: {
+          ...(tenantIdForPayment ? { tenantId: tenantIdForPayment } : {}),
           customerId: subscription!.customerId,
           subscriptionId: subscription!.id,
           amountInCents: amountInCents ?? 0,
@@ -249,6 +268,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
           subscriptionCycleKey: subscriptionCycleKey as string
         },
         update: {
+          ...(tenantIdForPayment ? { tenantId: tenantIdForPayment } : {}),
           wompiTransactionId: transactionId,
           status: paymentStatus,
           paidAt,
@@ -268,6 +288,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         .upsert({
           where: { paymentId: paymentRecord.id },
           create: {
+            ...(tenantIdForPayment ? { tenantId: tenantIdForPayment } : {}),
             planId,
             subscriptionId: paymentRecord.subscriptionId,
             paymentId: paymentRecord.id,
@@ -278,6 +299,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
             paidAt: paymentRecord.paidAt ?? null
           },
           update: {
+            ...(tenantIdForPayment ? { tenantId: tenantIdForPayment } : {}),
             planId,
             subscriptionId: paymentRecord.subscriptionId,
             wompiPaymentLinkId: paymentRecord.wompiPaymentLinkId,

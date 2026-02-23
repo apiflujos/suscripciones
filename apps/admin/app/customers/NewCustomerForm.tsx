@@ -13,6 +13,8 @@ type Props = {
   hidePanelHeader?: boolean;
   returnTo?: string;
   csrfToken: string;
+  tenantId?: string;
+  tenants: Array<{ id: string; name: string }>;
 };
 
 export function NewCustomerForm({
@@ -21,7 +23,9 @@ export function NewCustomerForm({
   mode = "toggle",
   hidePanelHeader = false,
   returnTo,
-  csrfToken
+  csrfToken,
+  tenantId,
+  tenants
 }: Props) {
   const alwaysOpen = mode === "always_open";
   const [open, setOpen] = useState(alwaysOpen ? true : Boolean(defaultOpen));
@@ -118,6 +122,19 @@ export function NewCustomerForm({
         <form action={createCustomer} onKeyDownCapture={enterToNextField} style={{ display: "grid", gap: 10 }}>
           <input type="hidden" name="csrf" value={csrfToken} />
           {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
+          <div className="field">
+            <label>Canal de ventas</label>
+            <select className="select" name="tenantId" defaultValue={tenantId || ""} required>
+              <option value="" disabled>
+                Selecciona un canal
+              </option>
+              {tenants.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="field">
             <label>Nombre</label>
             <input ref={nameRef} className="input" name="name" placeholder="Nombre" required />

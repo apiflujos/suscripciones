@@ -30,6 +30,13 @@ function pesosToCents(input: string): number {
   return Math.trunc(pesos) * 100;
 }
 
+function readTenantIds(formData: FormData): string[] {
+  const raw = formData.getAll("tenantIds").map((v) => String(v || "").trim()).filter(Boolean);
+  const single = String(formData.get("tenantId") || "").trim();
+  const out = raw.length ? raw : (single ? [single] : []);
+  return Array.from(new Set(out));
+}
+
 function computeTotalInCents(args: {
   basePriceInCents: number;
   variantDeltaInCents: number;
@@ -120,6 +127,8 @@ export async function createProduct(formData: FormData) {
 export async function updateProduct(formData: FormData) {
   await assertCsrfToken(formData);
   const id = String(formData.get("id") || "").trim();
+  const tenantIds = readTenantIds(formData);
+  const tenantId = tenantIds[0] || "";
   const name = String(formData.get("name") || "").trim();
   const sku = String(formData.get("sku") || "").trim();
   const kind = String(formData.get("kind") || "PRODUCT").trim();
@@ -155,6 +164,7 @@ export async function updateProduct(formData: FormData) {
     await adminFetch(`/admin/products/${encodeURIComponent(id)}`, {
       method: "PUT",
       body: JSON.stringify({
+        ...(tenantId ? { tenantId } : {}),
         name,
         sku,
         kind,
@@ -177,15 +187,48 @@ export async function updateProduct(formData: FormData) {
         imageUrl: imageUrl || null
       })
     });
-    redirect("/products?updated=1");
+    const qs = new URLSearchParams({ updated: "1", ...(tenantId ? { tenantId } : {}) }).toString();
+    redirect(`/products?${qs}`);
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
-    redirect(`/products?error=${encodeURIComponent(err?.message || "update_product_failed")}`);
+    const qs = new URLSearchParams({ error: String(err?.message || "update_product_failed"), ...(tenantId ? { tenantId } : {}) }).toString();
+    redirect(`/products?${qs}`);
+  }
+}
+
+export async function deleteProduct(formData: FormData) {
+  await assertCsrfToken(formData);
+  const id = String(formData.get("id") || "").trim();
+  const tenantIds = readTenantIds(formData);
+  const tenantId = tenantIds[0] || "";
+  if (!id) return redirect("/products?error=missing_id");
+
+  try {
+    const path = tenantId ? `/admin/products/${encodeURIComponent(id)}?tenantId=${encodeURIComponent(tenantId)}` : `/admin/products/${encodeURIComponent(id)}`;
+    await adminFetch(path, {
+      method: "DELETE"
+    });
+    const qs = new URLSearchParams({ deleted: "1", ...(tenantId ? { tenantId } : {}) }).toString();
+    redirect(`/products?${qs}`);
+  } catch (err: any) {
+    if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
+    const msg = String(err?.message || "delete_product_failed");
+    if (msg.includes("product_has_dependencies")) {
+      const qs = new URLSearchParams({
+        error: "No se puede borrar: tiene suscripciones o links asociados.",
+        ...(tenantId ? { tenantId } : {})
+      }).toString();
+      return redirect(`/products?${qs}`);
+    }
+    const qs = new URLSearchParams({ error: msg, ...(tenantId ? { tenantId } : {}) }).toString();
+    redirect(`/products?${qs}`);
   }
 }
 
 export async function createPlanTemplate(formData: FormData) {
   await assertCsrfToken(formData);
+  const tenantIds = readTenantIds(formData);
+  const tenantId = tenantIds[0] || "";
   const billingTypeRaw = String(formData.get("billingType") || "SUBSCRIPCION").trim().toUpperCase();
   const billingType = billingTypeRaw === "PLAN" ? "PLAN" : "SUBSCRIPCION";
   const name = String(formData.get("name") || "").trim();
@@ -227,6 +270,7 @@ export async function createPlanTemplate(formData: FormData) {
       const created = await adminFetch("/admin/products", {
         method: "POST",
         body: JSON.stringify({
+          ...(tenantIds.length ? { tenantIds } : {}),
           name: itemName,
           sku: itemSku,
           kind: itemKind,
@@ -264,7 +308,7 @@ export async function createPlanTemplate(formData: FormData) {
         imageUrl: imageUrl || null
       };
     } else {
-      const products = await adminFetch("/admin/products", { method: "GET" });
+      const products = await adminFetch(tenantId ? `/admin/products?tenantId=${encodeURIComponent(tenantId)}` : "/admin/products", { method: "GET" });
       item = (products?.items ?? []).find((p: any) => String(p.id) === catalogItemId);
       if (!item) throw new Error("producto_no_encontrado");
     }
@@ -291,6 +335,7 @@ export async function createPlanTemplate(formData: FormData) {
     await adminFetch("/admin/plans", {
       method: "POST",
       body: JSON.stringify({
+        ...(tenantIds.length ? { tenantIds } : {}),
         name: name || `${billingType === "PLAN" ? "Plan" : "Suscripción"} - ${item.name}`,
         priceInCents: totals.totalInCents,
         currency: item.currency || "COP",
@@ -323,9 +368,11 @@ export async function createPlanTemplate(formData: FormData) {
       })
     });
 
-    redirect(`/products?created=1`);
+    const qs = new URLSearchParams({ created: "1", ...(tenantId ? { tenantId } : {}) }).toString();
+    redirect(`/products?${qs}`);
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
-    redirect(`/products?error=${encodeURIComponent(err?.message || "create_plan_failed")}`);
+    const qs = new URLSearchParams({ error: String(err?.message || "create_plan_failed"), ...(tenantId ? { tenantId } : {}) }).toString();
+    redirect(`/products?${qs}`);
   }
 }

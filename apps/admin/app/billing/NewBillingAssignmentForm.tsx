@@ -74,6 +74,8 @@ export function NewBillingAssignmentForm({
   catalogItems,
   checkoutTemplates,
   csrfToken,
+  tenantId,
+  tenants,
   defaultOpen = false,
   defaultSelectedCustomerId = "",
   createCustomer,
@@ -83,6 +85,8 @@ export function NewBillingAssignmentForm({
   catalogItems: CatalogItem[];
   checkoutTemplates: CheckoutTemplate[];
   csrfToken: string;
+  tenantId?: string;
+  tenants: Array<{ id: string; name: string }>;
   defaultOpen?: boolean;
   defaultSelectedCustomerId?: string;
   createCustomer: (formData: FormData) => Promise<void>;
@@ -218,7 +222,7 @@ export function NewBillingAssignmentForm({
     setProductSearching(true);
     setProductSearchError("");
     const t = setTimeout(() => {
-      fetch(`/api/search/products?${new URLSearchParams({ q, take: "80" }).toString()}`, { cache: "no-store", signal: ac.signal })
+      fetch(`/api/search/products?${new URLSearchParams({ q, take: "80", ...(tenantId ? { tenantId } : {}) }).toString()}`, { cache: "no-store", signal: ac.signal })
         .then(async (r) => ({ ok: r.ok, status: r.status, json: await r.json().catch(() => null) }))
         .then(({ ok, status, json }) => {
           if (!ok) {
@@ -257,7 +261,7 @@ export function NewBillingAssignmentForm({
     setCustomerSearching(true);
     setCustomerSearchError("");
     const t = setTimeout(() => {
-      fetch(`/api/search/customers?${new URLSearchParams({ q, take: "80" }).toString()}`, { cache: "no-store", signal: ac.signal })
+      fetch(`/api/search/customers?${new URLSearchParams({ q, take: "80", ...(tenantId ? { tenantId } : {}) }).toString()}`, { cache: "no-store", signal: ac.signal })
         .then(async (r) => ({ ok: r.ok, status: r.status, json: await r.json().catch(() => null) }))
         .then(({ ok, status, json }) => {
           if (!ok) {
@@ -455,7 +459,7 @@ export function NewBillingAssignmentForm({
 
             {showNewCustomer ? (
               <div style={{ marginTop: 10 }}>
-                <NewCustomerForm createCustomer={createCustomer} defaultOpen mode="always_open" hidePanelHeader returnTo="/billing?crear=1" csrfToken={csrfToken} />
+                <NewCustomerForm createCustomer={createCustomer} defaultOpen mode="always_open" hidePanelHeader returnTo="/billing?crear=1" csrfToken={csrfToken} tenantId={tenantId} tenants={tenants} />
               </div>
             ) : null}
           </div>
@@ -507,6 +511,16 @@ export function NewBillingAssignmentForm({
                       <option value="MONTH">Mes</option>
                     </select>
                   </div>
+                </div>
+                <div className="field">
+                  <label>Canales</label>
+                  <select className="select" name="tenantIds" multiple defaultValue={tenantId ? [tenantId] : []} required>
+                    {tenants.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 

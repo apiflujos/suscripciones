@@ -130,6 +130,7 @@ enum SaPlanKind {
 
 model Customer {
   id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String?  @db.Uuid
   name      String?
   email     String?  @unique
   phone     String?
@@ -137,15 +138,19 @@ model Customer {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  tenant        SaTenant?       @relation(fields: [tenantId], references: [id])
   subscriptions Subscription[]
   payments      Payment[]
   chatwootMsgs  ChatwootMessage[]
   smartListMembers SmartListMember[]
   campaignSends    CampaignSend[]
+
+  @@index([tenantId])
 }
 
 model SubscriptionPlan {
   id           String           @id @default(uuid()) @db.Uuid
+  tenantId     String?          @db.Uuid
   name         String           @unique
   priceInCents Int
   currency     String           @default("COP")
@@ -157,12 +162,17 @@ model SubscriptionPlan {
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 
+  tenant        SaTenant?       @relation(fields: [tenantId], references: [id])
+  tenantLinks   SubscriptionPlanTenant[]
   subscriptions Subscription[]
   paymentLinks  PaymentLink[]
+
+  @@index([tenantId])
 }
 
 model PublicCheckoutTemplate {
   id               String              @id @default(uuid()) @db.Uuid
+  tenantId         String?             @db.Uuid
   name             String
   kind             PublicCheckoutKind
   active           Boolean             @default(true)
@@ -179,11 +189,14 @@ model PublicCheckoutTemplate {
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
 
+  tenant SaTenant? @relation(fields: [tenantId], references: [id])
   @@index([active, kind])
+  @@index([tenantId])
 }
 
 model Subscription {
   id                   String             @id @default(uuid()) @db.Uuid
+  tenantId             String?            @db.Uuid
   customerId           String             @db.Uuid
   planId               String             @db.Uuid
   status               SubscriptionStatus @default(ACTIVE)
@@ -199,6 +212,8 @@ model Subscription {
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
 
+  tenant  SaTenant?        @relation(fields: [tenantId], references: [id])
+  tenantLinks SubscriptionTenant[]
   customer Customer         @relation(fields: [customerId], references: [id])
   plan     SubscriptionPlan @relation(fields: [planId], references: [id])
   payments Payment[]
@@ -208,10 +223,12 @@ model Subscription {
   @@index([status, currentPeriodEndAt])
   @@index([customerId])
   @@index([planId])
+  @@index([tenantId])
 }
 
 model Payment {
   id                 String        @id @default(uuid()) @db.Uuid
+  tenantId           String?       @db.Uuid
   customerId         String        @db.Uuid
   subscriptionId     String?       @db.Uuid
   paymentLink        PaymentLink?
@@ -230,6 +247,7 @@ model Payment {
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 
+  tenant       SaTenant?    @relation(fields: [tenantId], references: [id])
   customer     Customer      @relation(fields: [customerId], references: [id])
   subscription Subscription? @relation(fields: [subscriptionId], references: [id])
   attempts     PaymentAttempt[]
@@ -238,10 +256,12 @@ model Payment {
   @@unique([wompiTransactionId])
   @@index([reference])
   @@index([subscriptionId, status])
+  @@index([tenantId])
 }
 
 model PaymentLink {
   id               String   @id @default(uuid()) @db.Uuid
+  tenantId         String?  @db.Uuid
   planId           String   @db.Uuid
   subscriptionId   String   @db.Uuid
   paymentId        String   @unique @db.Uuid
@@ -253,6 +273,7 @@ model PaymentLink {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
+  tenant       SaTenant?        @relation(fields: [tenantId], references: [id])
   plan         SubscriptionPlan @relation(fields: [planId], references: [id])
   subscription Subscription     @relation(fields: [subscriptionId], references: [id])
   payment      Payment          @relation(fields: [paymentId], references: [id])
@@ -260,6 +281,7 @@ model PaymentLink {
   @@index([planId, sentAt])
   @@index([subscriptionId, sentAt])
   @@index([sentAt])
+  @@index([tenantId])
 }
 
 model PaymentAttempt {
@@ -280,6 +302,7 @@ model PaymentAttempt {
 
 model WebhookEvent {
   id            String               @id @default(uuid()) @db.Uuid
+  tenantId      String?              @db.Uuid
   provider      WebhookProvider
   checksum      String               @unique
   eventName     String
@@ -291,12 +314,15 @@ model WebhookEvent {
   processStatus WebhookProcessStatus @default(RECEIVED)
   errorMessage  String?
 
+  tenant SaTenant? @relation(fields: [tenantId], references: [id])
   @@index([provider, receivedAt])
   @@index([processStatus, receivedAt])
+  @@index([tenantId])
 }
 
 model ChatwootMessage {
   id             String            @id @default(uuid()) @db.Uuid
+  tenantId       String?           @db.Uuid
   customerId     String            @db.Uuid
   subscriptionId String?           @db.Uuid
   paymentId      String?           @db.Uuid
@@ -309,16 +335,19 @@ model ChatwootMessage {
   sentAt         DateTime?
   createdAt      DateTime          @default(now())
 
+  tenant       SaTenant?    @relation(fields: [tenantId], references: [id])
   customer     Customer      @relation(fields: [customerId], references: [id])
   subscription Subscription? @relation(fields: [subscriptionId], references: [id])
   payment      Payment?      @relation(fields: [paymentId], references: [id])
 
   @@index([status, createdAt])
   @@index([customerId])
+  @@index([tenantId])
 }
 
 model SmartList {
   id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String?  @db.Uuid
   name          String   @unique
   description   String?
   enabled       Boolean  @default(true)
@@ -328,10 +357,12 @@ model SmartList {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  tenant    SaTenant? @relation(fields: [tenantId], references: [id])
   campaigns Campaign[]
   members   SmartListMember[]
 
   @@index([enabled, createdAt])
+  @@index([tenantId])
 }
 
 model SmartListMember {
@@ -352,6 +383,7 @@ model SmartListMember {
 
 model Campaign {
   id            String           @id @default(uuid()) @db.Uuid
+  tenantId      String?          @db.Uuid
   name          String
   smartListId   String?          @db.Uuid
   status        CampaignStatus   @default(DRAFT)
@@ -365,15 +397,18 @@ model Campaign {
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
 
+  tenant     SaTenant?      @relation(fields: [tenantId], references: [id])
   smartList  SmartList?     @relation(fields: [smartListId], references: [id])
   recipients CampaignSend[]
 
   @@index([status, createdAt])
   @@index([smartListId])
+  @@index([tenantId])
 }
 
 model CampaignSend {
   id          String             @id @default(uuid()) @db.Uuid
+  tenantId    String?            @db.Uuid
   campaignId  String             @db.Uuid
   customerId  String             @db.Uuid
   status      CampaignSendStatus @default(PENDING)
@@ -382,12 +417,40 @@ model CampaignSend {
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
 
+  tenant   SaTenant? @relation(fields: [tenantId], references: [id])
   campaign Campaign @relation(fields: [campaignId], references: [id])
   customer Customer @relation(fields: [customerId], references: [id])
 
   @@unique([campaignId, customerId])
   @@index([status, createdAt])
   @@index([customerId])
+  @@index([tenantId])
+}
+
+model SubscriptionPlanTenant {
+  id        String   @id @default(uuid()) @db.Uuid
+  planId    String   @db.Uuid
+  tenantId  String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  plan   SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  tenant SaTenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, tenantId])
+  @@index([tenantId])
+}
+
+model SubscriptionTenant {
+  id             String   @id @default(uuid()) @db.Uuid
+  subscriptionId String   @db.Uuid
+  tenantId       String   @db.Uuid
+  createdAt      DateTime @default(now())
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  tenant       SaTenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionId, tenantId])
+  @@index([tenantId])
 }
 
 model SystemLog {
@@ -441,6 +504,9 @@ model SaTenant {
   updatedAt DateTime @updatedAt
 
   users      SaUser[]
+  userLinks  SaUserTenant[]
+  planLinks  SubscriptionPlanTenant[]
+  subscriptionLinks SubscriptionTenant[]
   planSnaps  SaTenantPlanSnapshot[]
   modules    SaTenantModuleToggle[]
   usageEvents SaUsageEvent[]
@@ -460,10 +526,24 @@ model SaUser {
   updatedAt    DateTime   @updatedAt
 
   tenant SaTenant? @relation(fields: [tenantId], references: [id])
+  tenants SaUserTenant[]
 
   @@unique([email])
   @@index([tenantId])
   @@index([role])
+}
+
+model SaUserTenant {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  tenantId  String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  user   SaUser   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant SaTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tenantId])
+  @@index([tenantId])
 }
 
 model SaSession {

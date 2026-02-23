@@ -5,6 +5,7 @@ import { updateProduct } from "./actions";
 import { HelpTip } from "../ui/HelpTip";
 import { VariantsEditor } from "./VariantsEditor";
 import { LocalDateTime } from "../ui/LocalDateTime";
+import { DeleteProductButton } from "./DeleteProductButton";
 
 function formatCopCurrency(input: string): string {
   const digits = String(input || "").replace(/[^\d]/g, "");
@@ -24,6 +25,9 @@ type ProductRow = {
   id: string;
   sku: string;
   name: string;
+  tenantName?: string;
+  tenantId?: string | null;
+  tenantIds?: string[];
   kind: "PRODUCT" | "SERVICE";
   basePriceInCents: number;
   taxPercent?: number;
@@ -42,7 +46,15 @@ type ProductRow = {
   imageUrl?: string | null;
 };
 
-export function ProductsTable({ items, csrfToken }: { items: ProductRow[]; csrfToken: string }) {
+export function ProductsTable({
+  items,
+  csrfToken,
+  deleteProductAction
+}: {
+  items: ProductRow[];
+  csrfToken: string;
+  deleteProductAction: (formData: FormData) => void | Promise<void>;
+}) {
   const [editing, setEditing] = useState<ProductRow | null>(null);
   const [open, setOpen] = useState(false);
   const [txOpen, setTxOpen] = useState(false);
@@ -193,15 +205,21 @@ export function ProductsTable({ items, csrfToken }: { items: ProductRow[]; csrfT
                 <div className="product-thumb">
                   {p.imageUrl ? <img src={p.imageUrl} alt={p.name} /> : <span>📦</span>}
                 </div>
-                <div className="product-title">
-                  <div className="product-name">{p.name}</div>
-                  <div className="product-sub">
-                    <span className="product-sku">{p.sku}</span>
-                    <span>·</span>
-                    <span>{p.kind === "SERVICE" ? "Servicio" : "Producto"}</span>
-                  </div>
+              <div className="product-title">
+                <div className="product-name">{p.name}</div>
+                <div className="product-sub">
+                  <span className="product-sku">{p.sku}</span>
+                  <span>·</span>
+                  <span>{p.kind === "SERVICE" ? "Servicio" : "Producto"}</span>
+                  {p.tenantName ? (
+                    <>
+                      <span>·</span>
+                      <span>{p.tenantName}</span>
+                    </>
+                  ) : null}
                 </div>
               </div>
+            </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <button className="ghost btn-compact btn-blue" type="button" onClick={() => openTransactions(p)}>
                   🧾 Transacciones
@@ -209,6 +227,7 @@ export function ProductsTable({ items, csrfToken }: { items: ProductRow[]; csrfT
                 <button className="ghost btn-compact btn-blue" type="button" onClick={() => openEditor(p)}>
                   Editar
                 </button>
+                <DeleteProductButton action={deleteProductAction} csrfToken={csrfToken} productId={p.id} tenantId={String(p.tenantId || "")} />
               </div>
             </div>
             <div className="product-info">
@@ -273,6 +292,7 @@ export function ProductsTable({ items, csrfToken }: { items: ProductRow[]; csrfT
               <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="id" value={editing.id} />
               <input type="hidden" name="currency" value="COP" />
+              <input type="hidden" name="tenantId" value={editing.tenantId || ""} />
               <input type="hidden" name="imageUrl" value={imageUrl} />
 
               <div className="field">

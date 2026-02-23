@@ -2,6 +2,7 @@ import express from "express";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
 import { Prisma, PublicCheckoutKind } from "@prisma/client";
+import { getEffectiveTenantId } from "../services/tenantContext";
 
 const layoutSchema = z
   .object({
@@ -39,7 +40,10 @@ const templateSchema = z.object({
 export const checkoutTemplatesRouter = express.Router();
 
 checkoutTemplatesRouter.get("/", async (_req, res) => {
+  const req = _req as any;
+  const tenantId = await getEffectiveTenantId(req);
   const items = await prisma.publicCheckoutTemplate.findMany({
+    where: tenantId ? { tenantId } : undefined,
     orderBy: { createdAt: "desc" }
   });
   res.json({ items });
@@ -54,8 +58,11 @@ checkoutTemplatesRouter.post("/", async (req, res) => {
     return res.status(400).json({ error: "product_required" });
   }
 
+  const tenantId = await getEffectiveTenantId(req);
+  if (!tenantId) return res.status(400).json({ error: "tenant_required" });
   const created = await prisma.publicCheckoutTemplate.create({
     data: {
+      tenantId,
       name: data.name,
       kind: data.kind,
       active: data.active ?? true,
@@ -86,6 +93,11 @@ checkoutTemplatesRouter.put("/:id", async (req, res) => {
     return res.status(400).json({ error: "product_required" });
   }
 
+  const tenantId = await getEffectiveTenantId(req);
+  if (tenantId) {
+    const existing = await prisma.publicCheckoutTemplate.findUnique({ where: { id } });
+    if (!existing || (existing.tenantId && existing.tenantId !== tenantId)) return res.status(404).json({ error: "not_found" });
+  }
   const updated = await prisma.publicCheckoutTemplate.update({
     where: { id },
     data: {
@@ -110,6 +122,11 @@ checkoutTemplatesRouter.put("/:id", async (req, res) => {
 checkoutTemplatesRouter.delete("/:id", async (req, res) => {
   const id = String(req.params.id || "").trim();
   if (!id) return res.status(400).json({ error: "invalid_id" });
+  const tenantId = await getEffectiveTenantId(req);
+  if (tenantId) {
+    const existing = await prisma.publicCheckoutTemplate.findUnique({ where: { id } });
+    if (!existing || (existing.tenantId && existing.tenantId !== tenantId)) return res.status(404).json({ error: "not_found" });
+  }
   await prisma.publicCheckoutTemplate.delete({ where: { id } });
   res.json({ ok: true });
 });

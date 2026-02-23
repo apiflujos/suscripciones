@@ -3,6 +3,7 @@ import { LogLevel } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { systemLog } from "../services/systemLog";
 import { redactHeaders } from "../lib/redact";
+import { getDefaultTenantId } from "../services/tenantContext";
 
 function getContactFromPayload(payload: any) {
   if (payload?.contact && typeof payload.contact === "object") return payload.contact;
@@ -92,6 +93,7 @@ export async function chatwootWebhook(req: Request, res: Response) {
       })
       .catch(() => {});
   } else if (contactId || email || phone) {
+    const tenantId = await getDefaultTenantId();
     const merged = {
       chatwoot: {
         contactId: contactId ?? undefined,
@@ -104,6 +106,7 @@ export async function chatwootWebhook(req: Request, res: Response) {
     await prisma.customer
       .create({
         data: {
+          ...(tenantId ? { tenantId } : {}),
           name: name || undefined,
           email: email || undefined,
           phone: phone || undefined,

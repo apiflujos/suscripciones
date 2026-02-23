@@ -1,8 +1,10 @@
 import express from "express";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
-import { PlanIntervalUnit, PlanType } from "@prisma/client";
+import { LogLevel, PlanIntervalUnit, PlanType } from "@prisma/client";
 import { consumeApp } from "../services/superAdminApp";
+import { systemLog } from "../services/systemLog";
+import { getEffectiveTenantId, getEffectiveTenantIds, readTenantIdsFromReq } from "../services/tenantContext";
 
 const createPlanSchema = z.object({
   name: z.string().min(1),
@@ -20,6 +22,7 @@ export const plansRouter = express.Router();
 
 plansRouter.get("/", async (_req, res) => {
   const req = _req as any;
+  const tenantId = await getEffectiveTenantId(req);
   const takeRaw = Number(req?.query?.take ?? 200);
   const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 500) : 200;
   const q = String(req?.query?.q ?? "").trim();
@@ -27,6 +30,10 @@ plansRouter.get("/", async (_req, res) => {
 
   const where: any = { NOT: { metadata: { path: ["kind"], equals: "CATALOG_ITEM" } } } as any;
   const and: any[] = [];
+  if (tenantId) {
+    const tenantFilter = { OR: [{ tenantId }, { tenantLinks: { some: { tenantId } } }] };
+    and.push(tenantFilter);
+  }
   if (q) and.push({ name: { contains: q, mode: "insensitive" } });
   if (mode) and.push({ metadata: { path: ["collectionMode"], equals: mode } } as any);
   if (and.length) where.AND = and;
@@ -34,15 +41,24 @@ plansRouter.get("/", async (_req, res) => {
   const items = await prisma.subscriptionPlan.findMany({
     where,
     orderBy: { createdAt: "desc" },
-    take
+    take,
+    include: { tenantLinks: true }
   });
-  res.json({ items });
+  res.json({
+    items: items.map((p) => ({
+      ...p,
+      tenantIds: Array.from(new Set([p.tenantId, ...(p.tenantLinks || []).map((t) => t.tenantId)].filter(Boolean))) as string[]
+    }))
+  });
 });
 
 plansRouter.post("/", async (req, res) => {
   const parsed = createPlanSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
 
+  const tenantIds = await getEffectiveTenantIds(req);
+  if (!tenantIds.length) return res.status(400).json({ error: "tenant_required" });
+  const primaryTenantId = tenantIds[0];
   const { collectionMode, planType, metadata, ...rest } = parsed.data;
   const mergedMetadata = {
     ...(metadata && typeof metadata === "object" ? (metadata as any) : {}),
@@ -50,7 +66,43 @@ plansRouter.post("/", async (req, res) => {
   };
 
   const computedPlanType: PlanType = planType ?? (collectionMode === "MANUAL_LINK" ? PlanType.manual_link : PlanType.auto_subscription);
-  const plan = await prisma.subscriptionPlan.create({ data: { ...(rest as any), planType: computedPlanType as any, metadata: mergedMetadata as any } });
+  const plan = await prisma.subscriptionPlan.create({
+    data: { ...(rest as any), tenantId: primaryTenantId, planType: computedPlanType as any, metadata: mergedMetadata as any }
+  });
+  await prisma.subscriptionPlanTenant.createMany({
+    data: tenantIds.map((t) => ({ planId: plan.id, tenantId: t })),
+    skipDuplicates: true
+  });
   await consumeApp("plans_created", { amount: 1, source: "api:plans.create", meta: { planId: plan.id, planType: plan.planType } });
   res.status(201).json({ plan });
+});
+
+plansRouter.delete("/:id", async (req, res) => {
+  const id = String(req.params.id || "").trim();
+  if (!id) return res.status(400).json({ error: "invalid_id" });
+
+  const plan = await prisma.subscriptionPlan.findUnique({ where: { id }, include: { tenantLinks: true } });
+  if (!plan) return res.status(404).json({ error: "not_found" });
+  const tenantId = await getEffectiveTenantId(req);
+  if (tenantId) {
+    const allowed = plan.tenantId === tenantId || (plan.tenantLinks || []).some((t) => t.tenantId === tenantId);
+    if (!allowed) return res.status(404).json({ error: "not_found" });
+  }
+  if ((plan.metadata as any)?.kind === "CATALOG_ITEM") return res.status(404).json({ error: "not_found" });
+
+  const [subscriptionsCount, paymentLinksCount] = await Promise.all([
+    prisma.subscription.count({ where: { planId: id } }),
+    prisma.paymentLink.count({ where: { planId: id } })
+  ]);
+
+  if (subscriptionsCount || paymentLinksCount) {
+    return res.status(409).json({
+      error: "plan_has_dependencies",
+      details: { subscriptionsCount, paymentLinksCount }
+    });
+  }
+
+  await prisma.subscriptionPlan.delete({ where: { id } });
+  await systemLog(LogLevel.INFO, "plans.delete", "Plan deleted", { planId: id }).catch(() => {});
+  res.json({ ok: true });
 });

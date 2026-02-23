@@ -1,30 +1,28 @@
 "use client";
 
-import React from "react";
-
-export function DeleteSubscriptionButton({
+export function DeleteProductButton({
   action,
   csrfToken,
-  subscriptionId,
+  productId,
   tenantId
 }: {
   action: (formData: FormData) => void | Promise<void>;
   csrfToken: string;
-  subscriptionId: string;
+  productId: string;
   tenantId?: string;
 }) {
   return (
     <form
       action={action}
       onSubmit={(e) => {
-        if (!confirm("¿Eliminar esta suscripción?")) e.preventDefault();
+        if (!confirm("¿Eliminar este producto?")) e.preventDefault();
       }}
     >
       <input type="hidden" name="csrf" value={csrfToken} />
-      <input type="hidden" name="subscriptionId" value={subscriptionId} />
+      <input type="hidden" name="id" value={productId} />
       {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-      <button className="icon-btn danger" type="submit" aria-label="Eliminar suscripción">
-        🗑
+      <button className="ghost btn-compact btn-red" type="submit" aria-label="Eliminar producto">
+        Eliminar
       </button>
     </form>
   );

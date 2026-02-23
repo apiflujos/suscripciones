@@ -241,6 +241,7 @@ export async function subscriptionReminder(payload: any) {
 
   const created = await prisma.chatwootMessage.create({
     data: {
+      tenantId: subscription?.tenantId ?? customer.tenantId ?? effectivePayment?.tenantId ?? null,
       customerId: customer.id,
       subscriptionId: subscription?.id ?? effectivePayment?.subscriptionId ?? null,
       paymentId: effectivePayment?.id ?? null,

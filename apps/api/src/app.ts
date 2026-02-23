@@ -23,6 +23,7 @@ import { commsRouter } from "./routes/comms";
 import { publicTokenizationRouter } from "./routes/publicTokenization";
 import { publicLinksRouter } from "./routes/publicLinks";
 import { checkoutTemplatesRouter } from "./routes/checkoutTemplates";
+import { tenantsRouter } from "./routes/tenants";
 
 export function createApp() {
   const app = express();
@@ -138,6 +139,7 @@ export function createApp() {
   app.use("/admin/chatwoot", requireAdminToken, chatwootRouter);
   app.use("/admin/comms", requireAdminToken, commsRouter);
   app.use("/admin/checkout-templates", requireAdminToken, checkoutTemplatesRouter);
+  app.use("/admin/tenants", requireAdminToken, tenantsRouter);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

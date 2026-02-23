@@ -26,6 +26,7 @@ export async function createSubscription(formData: FormData) {
   await assertCsrfToken(formData);
   const customerId = String(formData.get("customerId") || "").trim();
   const planId = String(formData.get("planId") || "").trim();
+  const tenantId = String(formData.get("tenantId") || "").trim();
   const startAt = String(formData.get("startAt") || "").trim();
   const firstPeriodEndAt = String(formData.get("firstPeriodEndAt") || "").trim();
   const createPaymentLink = String(formData.get("createPaymentLink") || "") === "on";
@@ -36,6 +37,7 @@ export async function createSubscription(formData: FormData) {
       body: JSON.stringify({
         customerId,
         planId,
+        ...(tenantId ? { tenantId } : {}),
         ...(startAt ? { startAt } : {}),
         ...(firstPeriodEndAt ? { firstPeriodEndAt } : {}),
         createPaymentLink
@@ -44,12 +46,15 @@ export async function createSubscription(formData: FormData) {
 
     const checkoutUrl = json?.checkoutUrl;
     if (checkoutUrl) {
-      redirect(`/billing?created=1&checkoutUrl=${encodeURIComponent(checkoutUrl)}&customerId=${encodeURIComponent(customerId)}`);
+      const qs = new URLSearchParams({ created: "1", checkoutUrl, customerId, ...(tenantId ? { tenantId } : {}) }).toString();
+      redirect(`/billing?${qs}`);
     }
-    redirect(`/billing?created=1`);
+    const qs = new URLSearchParams({ created: "1", ...(tenantId ? { tenantId } : {}) }).toString();
+    redirect(`/billing?${qs}`);
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
-    redirect(`/billing?error=${encodeURIComponent(err?.message || "create_subscription_failed")}`);
+    const qs = new URLSearchParams({ error: String(err?.message || "create_subscription_failed"), ...(tenantId ? { tenantId } : {}) }).toString();
+    redirect(`/billing?${qs}`);
   }
 }
 
@@ -57,8 +62,10 @@ export async function createPaymentLink(formData: FormData) {
   await assertCsrfToken(formData);
   const subscriptionId = String(formData.get("subscriptionId") || "").trim();
   const customerId = String(formData.get("customerId") || "").trim();
+  const tenantId = String(formData.get("tenantId") || "").trim();
   try {
-    const json = await adminFetch(`/admin/subscriptions/${subscriptionId}/payment-link`, {
+    const path = tenantId ? `/admin/subscriptions/${subscriptionId}/payment-link?tenantId=${encodeURIComponent(tenantId)}` : `/admin/subscriptions/${subscriptionId}/payment-link`;
+    const json = await adminFetch(path, {
       method: "POST",
       body: JSON.stringify({})
     });
@@ -66,96 +73,126 @@ export async function createPaymentLink(formData: FormData) {
     qp.set("created", "1");
     if (json.checkoutUrl) qp.set("checkoutUrl", json.checkoutUrl);
     if (customerId) qp.set("customerId", customerId);
+    if (tenantId) qp.set("tenantId", tenantId);
     redirect(`/billing?${qp.toString()}`);
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
-    redirect(`/billing?error=${encodeURIComponent(err?.message || "create_payment_link_failed")}`);
+    const qs = new URLSearchParams({ error: String(err?.message || "create_payment_link_failed"), ...(tenantId ? { tenantId } : {}) }).toString();
+    redirect(`/billing?${qs}`);
   }
 }
 
 export async function suspendSubscription(formData: FormData) {
   await assertCsrfToken(formData);
   const subscriptionId = String(formData.get("subscriptionId") || "").trim();
+  const tenantId = String(formData.get("tenantId") || "").trim();
   if (!subscriptionId) return redirect(`/billing?error=${encodeURIComponent("invalid_subscription_id")}`);
   try {
-    await adminFetch(`/admin/subscriptions/${encodeURIComponent(subscriptionId)}/suspend`, {
+    const path = tenantId ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/suspend?tenantId=${encodeURIComponent(tenantId)}` : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/suspend`;
+    await adminFetch(path, {
       method: "POST",
       body: JSON.stringify({})
     });
-    redirect("/billing?suspended=1");
+    const qs = new URLSearchParams({ suspended: "1", ...(tenantId ? { tenantId } : {}) }).toString();
+    redirect(`/billing?${qs}`);
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
-    redirect(`/billing?error=${encodeURIComponent(err?.message || "suspend_subscription_failed")}`);
+    const qs = new URLSearchParams({ error: String(err?.message || "suspend_subscription_failed"), ...(tenantId ? { tenantId } : {}) }).toString();
+    redirect(`/billing?${qs}`);
   }
 }
 
 export async function cancelSubscription(formData: FormData) {
   await assertCsrfToken(formData);
   const subscriptionId = String(formData.get("subscriptionId") || "").trim();
+  const tenantId = String(formData.get("tenantId") || "").trim();
   if (!subscriptionId) return redirect(`/billing?error=${encodeURIComponent("invalid_subscription_id")}`);
   try {
-    await adminFetch(`/admin/subscriptions/${encodeURIComponent(subscriptionId)}/cancel`, {
+    const path = tenantId ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/cancel?tenantId=${encodeURIComponent(tenantId)}` : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/cancel`;
+    await adminFetch(path, {
       method: "POST",
       body: JSON.stringify({})
     });
-    redirect("/billing?canceled=1");
+    const qs = new URLSearchParams({ canceled: "1", ...(tenantId ? { tenantId } : {}) }).toString();
+    redirect(`/billing?${qs}`);
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
-    redirect(`/billing?error=${encodeURIComponent(err?.message || "cancel_subscription_failed")}`);
+    const qs = new URLSearchParams({ error: String(err?.message || "cancel_subscription_failed"), ...(tenantId ? { tenantId } : {}) }).toString();
+    redirect(`/billing?${qs}`);
   }
 }
 
 export async function resumeSubscription(formData: FormData) {
   await assertCsrfToken(formData);
   const subscriptionId = String(formData.get("subscriptionId") || "").trim();
+  const tenantId = String(formData.get("tenantId") || "").trim();
   if (!subscriptionId) return redirect(`/billing?error=${encodeURIComponent("invalid_subscription_id")}`);
   try {
-    await adminFetch(`/admin/subscriptions/${encodeURIComponent(subscriptionId)}/resume`, {
+    const path = tenantId ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/resume?tenantId=${encodeURIComponent(tenantId)}` : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/resume`;
+    await adminFetch(path, {
       method: "POST",
       body: JSON.stringify({})
     });
-    redirect("/billing?resumed=1");
+    const qs = new URLSearchParams({ resumed: "1", ...(tenantId ? { tenantId } : {}) }).toString();
+    redirect(`/billing?${qs}`);
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
-    redirect(`/billing?error=${encodeURIComponent(err?.message || "resume_subscription_failed")}`);
+    const qs = new URLSearchParams({ error: String(err?.message || "resume_subscription_failed"), ...(tenantId ? { tenantId } : {}) }).toString();
+    redirect(`/billing?${qs}`);
   }
 }
 
 export async function activateSubscription(formData: FormData) {
   await assertCsrfToken(formData);
   const subscriptionId = String(formData.get("subscriptionId") || "").trim();
+  const tenantId = String(formData.get("tenantId") || "").trim();
   if (!subscriptionId) return redirect(`/billing?error=${encodeURIComponent("invalid_subscription_id")}`);
   try {
-    await adminFetch(`/admin/subscriptions/${encodeURIComponent(subscriptionId)}/activate`, {
+    const path = tenantId ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/activate?tenantId=${encodeURIComponent(tenantId)}` : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/activate`;
+    await adminFetch(path, {
       method: "POST",
       body: JSON.stringify({})
     });
-    redirect("/billing?activated=1");
+    const qs = new URLSearchParams({ activated: "1", ...(tenantId ? { tenantId } : {}) }).toString();
+    redirect(`/billing?${qs}`);
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
-    redirect(`/billing?error=${encodeURIComponent(err?.message || "activate_subscription_failed")}`);
+    const qs = new URLSearchParams({ error: String(err?.message || "activate_subscription_failed"), ...(tenantId ? { tenantId } : {}) }).toString();
+    redirect(`/billing?${qs}`);
   }
 }
 
 export async function deleteSubscription(formData: FormData) {
   await assertCsrfToken(formData);
   const subscriptionId = String(formData.get("subscriptionId") || "").trim();
+  const tenantId = String(formData.get("tenantId") || "").trim();
   if (!subscriptionId) return redirect(`/billing?error=${encodeURIComponent("invalid_subscription_id")}`);
   try {
-    await adminFetch(`/admin/subscriptions/${encodeURIComponent(subscriptionId)}`, {
+    const path = tenantId ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}?tenantId=${encodeURIComponent(tenantId)}` : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}`;
+    await adminFetch(path, {
       method: "DELETE"
     });
-    redirect("/billing?deleted=1");
+    const qs = new URLSearchParams({ deleted: "1", ...(tenantId ? { tenantId } : {}) }).toString();
+    redirect(`/billing?${qs}`);
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
     const msg = String(err?.message || "delete_subscription_failed");
     if (msg.includes("subscription_must_be_canceled")) {
-      return redirect(`/billing?error=${encodeURIComponent("Primero cancela la suscripción para poder eliminarla.")}`);
+      const qs = new URLSearchParams({
+        error: "Primero cancela la suscripción para poder eliminarla.",
+        ...(tenantId ? { tenantId } : {})
+      }).toString();
+      return redirect(`/billing?${qs}`);
     }
     if (msg.includes("subscription_has_dependencies")) {
-      return redirect(`/billing?error=${encodeURIComponent("No se puede borrar: tiene pagos o links asociados.")}`);
+      const qs = new URLSearchParams({
+        error: "No se puede borrar: tiene pagos o links asociados.",
+        ...(tenantId ? { tenantId } : {})
+      }).toString();
+      return redirect(`/billing?${qs}`);
     }
-    redirect(`/billing?error=${encodeURIComponent(msg)}`);
+    const qs = new URLSearchParams({ error: msg, ...(tenantId ? { tenantId } : {}) }).toString();
+    redirect(`/billing?${qs}`);
   }
 }
 

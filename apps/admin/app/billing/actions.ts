@@ -44,6 +44,13 @@ function pesosToCents(input: string): number {
   return Math.trunc(pesos) * 100;
 }
 
+function readTenantIds(formData: FormData): string[] {
+  const raw = formData.getAll("tenantIds").map((v) => String(v || "").trim()).filter(Boolean);
+  const single = String(formData.get("tenantId") || "").trim();
+  const out = raw.length ? raw : (single ? [single] : []);
+  return Array.from(new Set(out));
+}
+
 function computeTotalInCents(args: {
   basePriceInCents: number;
   variantDeltaInCents: number;
@@ -73,6 +80,8 @@ export async function createCustomerFromBilling(formData: FormData) {
   const name = String(formData.get("name") || "").trim();
   const email = String(formData.get("email") || "").trim();
   const phone = String(formData.get("phone") || "").trim();
+  const tenantIds = readTenantIds(formData);
+  const tenantId = tenantIds[0] || "";
   const addressLine1 = String(formData.get("addressLine1") || "").trim();
   const dept = String(formData.get("dept") || "").trim();
   const city = String(formData.get("city") || "").trim();
@@ -100,13 +109,13 @@ export async function createCustomerFromBilling(formData: FormData) {
   try {
     const json = await adminFetch("/admin/customers", {
       method: "POST",
-      body: JSON.stringify({ name, email: email || undefined, phone: phone || undefined, metadata })
+      body: JSON.stringify({ name, email: email || undefined, phone: phone || undefined, metadata, tenantId })
     });
     const id = json?.customer?.id ? String(json.customer.id) : "";
-    redirect(mergeQuery(returnTo, { contactCreated: "1", ...(id ? { selectCustomerId: id } : {}) }));
+    redirect(mergeQuery(returnTo, { contactCreated: "1", ...(id ? { selectCustomerId: id } : {}), ...(tenantId ? { tenantId } : {}) }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
-    redirect(mergeQuery(returnTo, { error: String(err?.message || "create_customer_failed") }));
+    redirect(mergeQuery(returnTo, { error: String(err?.message || "create_customer_failed"), ...(tenantId ? { tenantId } : {}) }));
   }
 }
 
@@ -265,6 +274,8 @@ export async function createPlanAndSubscription(formData: FormData) {
   const returnTo = safeReturnTo(formData);
   const customerId = String(formData.get("customerId") || "").trim();
   const productId = String(formData.get("productId") || "").trim();
+  const tenantIds = readTenantIds(formData);
+  const tenantId = tenantIds[0] || "";
   const billingTypeRaw = String(formData.get("billingType") || "SUBSCRIPCION").trim().toUpperCase();
   const billingType = billingTypeRaw === "PLAN" ? "PLAN" : "SUBSCRIPCION";
   const intervalUnit = String(formData.get("intervalUnit") || "MONTH").trim();
@@ -283,7 +294,10 @@ export async function createPlanAndSubscription(formData: FormData) {
   }
 
   try {
-    const product = await adminFetch(`/admin/products/${encodeURIComponent(productId)}`, { method: "GET" });
+    const product = await adminFetch(
+      tenantId ? `/admin/products/${encodeURIComponent(productId)}?tenantId=${encodeURIComponent(tenantId)}` : `/admin/products/${encodeURIComponent(productId)}`,
+      { method: "GET" }
+    );
     const item = product?.item ?? null;
     if (!item) throw new Error("producto_no_encontrado");
 
@@ -306,7 +320,9 @@ export async function createPlanAndSubscription(formData: FormData) {
 
     const collectionMode = billingType === "PLAN" ? "AUTO_LINK" : "AUTO_DEBIT";
 
-    const templatesRes = templateIdRaw ? await adminFetch("/admin/checkout-templates", { method: "GET" }).catch(() => null) : null;
+    const templatesRes = templateIdRaw
+      ? await adminFetch(tenantId ? `/admin/checkout-templates?tenantId=${encodeURIComponent(tenantId)}` : "/admin/checkout-templates", { method: "GET" }).catch(() => null)
+      : null;
     const templateCandidate = templateIdRaw
       ? (templatesRes?.items ?? []).find((t: any) => String(t.id) === String(templateIdRaw)) ?? null
       : null;
@@ -319,6 +335,7 @@ export async function createPlanAndSubscription(formData: FormData) {
     const createdPlan = await adminFetch("/admin/plans", {
       method: "POST",
       body: JSON.stringify({
+        ...(tenantIds.length ? { tenantIds } : {}),
         name: `${billingType === "PLAN" ? "Plan" : "Suscripción"} - ${item.name}`,
         priceInCents: totals.totalInCents,
         currency: item.currency || "COP",
@@ -368,6 +385,7 @@ export async function createPlanAndSubscription(formData: FormData) {
       body: JSON.stringify({
         customerId,
         planId,
+        ...(tenantIds.length ? { tenantIds } : {}),
         ...(template?.id ? { metadata: { templateId: String(template.id) } } : {}),
         ...(startAtValue ? { startAt: startAtValue } : {}),
         ...(endAtValue ? { firstPeriodEndAt: endAtValue } : {}),
@@ -429,7 +447,8 @@ export async function createPlanAndSubscription(formData: FormData) {
         mergeQuery(returnTo, {
           created: "1",
           checkoutUrl: url,
-          customerId
+          customerId,
+          ...(tenantId ? { tenantId } : {})
         })
       );
     }
@@ -445,7 +464,7 @@ export async function createPlanAndSubscription(formData: FormData) {
         meta?.payment_source_id;
       const hasToken = Boolean(paymentSource);
       if (hasToken) {
-        redirect(mergeQuery(returnTo, { created: "1", customerId }));
+        redirect(mergeQuery(returnTo, { created: "1", customerId, ...(tenantId ? { tenantId } : {}) }));
       }
       const base = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
       const token = crypto.randomBytes(18).toString("hex");
@@ -479,7 +498,7 @@ export async function createPlanAndSubscription(formData: FormData) {
         body: JSON.stringify({ customerId, content })
       }).catch(() => {});
 
-      redirect(mergeQuery(returnTo, { created: "1", checkoutUrl: url, customerId }));
+      redirect(mergeQuery(returnTo, { created: "1", checkoutUrl: url, customerId, ...(tenantId ? { tenantId } : {}) }));
     }
 
     if (checkoutUrl) {
@@ -487,14 +506,15 @@ export async function createPlanAndSubscription(formData: FormData) {
         mergeQuery(returnTo, {
           created: "1",
           checkoutUrl,
-          customerId
+          customerId,
+          ...(tenantId ? { tenantId } : {})
         })
       );
     }
-    redirect(mergeQuery(returnTo, { created: "1" }));
+    redirect(mergeQuery(returnTo, { created: "1", ...(tenantId ? { tenantId } : {}) }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
-    redirect(mergeQuery(returnTo, { error: String(err?.message || "create_plan_and_subscription_failed") }));
+    redirect(mergeQuery(returnTo, { error: String(err?.message || "create_plan_and_subscription_failed"), ...(tenantId ? { tenantId } : {}) }));
   }
 }
 
@@ -515,4 +535,44 @@ export async function sendChatwootPaymentLink(formData: FormData) {
   } catch (err: any) {
     redirect(`/billing?error=${encodeURIComponent(err?.message || "chatwoot_send_failed")}`);
   }
+}
+
+export async function deletePlanAndSubscription(formData: FormData) {
+  await assertCsrfToken(formData);
+  const subscriptionId = String(formData.get("subscriptionId") || "").trim();
+  const planId = String(formData.get("planId") || "").trim();
+  const tenantId = String(formData.get("tenantId") || "").trim();
+  if (!subscriptionId || !planId) return redirect("/billing?error=missing_plan_or_subscription");
+
+  try {
+    const path = tenantId ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}?tenantId=${encodeURIComponent(tenantId)}` : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}`;
+    await adminFetch(path, {
+      method: "DELETE"
+    });
+  } catch (err: any) {
+    if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
+    const msg = String(err?.message || "delete_subscription_failed");
+    if (msg.includes("subscription_must_be_canceled")) {
+      return redirect(`/billing?error=${encodeURIComponent("Primero cancela la suscripción para poder eliminarla.")}`);
+    }
+    if (msg.includes("subscription_has_dependencies")) {
+      return redirect(`/billing?error=${encodeURIComponent("No se puede borrar: la suscripción tiene pagos o links asociados.")}`);
+    }
+    return redirect(`/billing?error=${encodeURIComponent(msg)}`);
+  }
+
+  try {
+    const path = tenantId ? `/admin/plans/${encodeURIComponent(planId)}?tenantId=${encodeURIComponent(tenantId)}` : `/admin/plans/${encodeURIComponent(planId)}`;
+    await adminFetch(path, { method: "DELETE" });
+  } catch (err: any) {
+    if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
+    const msg = String(err?.message || "delete_plan_failed");
+    if (msg.includes("plan_has_dependencies")) {
+      return redirect(`/billing?error=${encodeURIComponent("No se puede borrar el plan: tiene dependencias.")}`);
+    }
+    return redirect(`/billing?error=${encodeURIComponent(msg)}`);
+  }
+
+  const qs = new URLSearchParams({ deletedPlan: "1", ...(tenantId ? { tenantId } : {}) }).toString();
+  redirect(`/billing?${qs}`);
 }

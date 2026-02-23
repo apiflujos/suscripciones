@@ -24,6 +24,7 @@ export async function POST(req: Request) {
 
   const customerId = String(body?.customerId || "").trim();
   const customerName = String(body?.customerName || "").trim() || "Cliente";
+  const tenantId = String(body?.tenantId || "").trim();
   const amountInCents = pesosToCents(String(body?.amount || ""));
   if (!customerId || amountInCents <= 0) {
     return NextResponse.json({ ok: false, error: "monto_invalido" }, { status: 400 });
@@ -43,6 +44,7 @@ export async function POST(req: Request) {
       reference,
       currency: "COP",
       lineItems: [{ name: `Pago de ${customerName}`, quantity: 1, unitPriceInCents: amountInCents }],
+      ...(tenantId ? { tenantId } : {}),
       sendChatwoot: true,
       source: "MANUAL"
     })

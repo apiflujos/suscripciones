@@ -1,6 +1,9 @@
 import express from "express";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
+import { LogLevel } from "@prisma/client";
+import { systemLog } from "../services/systemLog";
+import { getEffectiveTenantId, getEffectiveTenantIds, readTenantIdsFromReq } from "../services/tenantContext";
 
 const variantRowSchema = z.object({
   option1: z.string().optional().nullable(),
@@ -36,6 +39,7 @@ export const productsRouter = express.Router();
 
 productsRouter.get("/", async (_req, res) => {
   const req = _req as any;
+  const tenantId = await getEffectiveTenantId(req);
   const takeRaw = Number(req?.query?.take ?? 200);
   const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 1000) : 200;
   const skipRaw = Number(req?.query?.skip ?? 0);
@@ -43,6 +47,10 @@ productsRouter.get("/", async (_req, res) => {
   const q = String(req?.query?.q ?? "").trim();
 
   const where: any = { metadata: { path: ["kind"], equals: "CATALOG_ITEM" } } as any;
+  if (tenantId) {
+    const tenantFilter = { OR: [{ tenantId }, { tenantLinks: { some: { tenantId } } }] };
+    where.AND = Array.isArray(where.AND) ? [...where.AND, tenantFilter] : [tenantFilter];
+  }
   if (q) {
     where.OR = [
       { name: { contains: q, mode: "insensitive" } },
@@ -55,11 +63,14 @@ productsRouter.get("/", async (_req, res) => {
     where,
     orderBy: { createdAt: "desc" },
     take,
-    skip
+    skip,
+    include: { tenantLinks: true }
   });
   res.json({
     items: items.map((p) => ({
       id: p.id,
+      tenantId: p.tenantId || null,
+      tenantIds: Array.from(new Set([p.tenantId, ...(p.tenantLinks || []).map((t) => t.tenantId)].filter(Boolean))) as string[],
       name: (p.metadata as any)?.displayName || p.name,
       sku: (p.metadata as any)?.sku || "",
       kind: (p.metadata as any)?.itemKind || "PRODUCT",
@@ -89,6 +100,13 @@ productsRouter.get("/", async (_req, res) => {
 productsRouter.get("/:id/payments", async (req, res) => {
   const id = String(req.params.id || "").trim();
   if (!id) return res.status(400).json({ error: "invalid_id" });
+  const tenantId = await getEffectiveTenantId(req);
+  if (tenantId) {
+    const plan = await prisma.subscriptionPlan.findUnique({ where: { id }, include: { tenantLinks: true } });
+    if (!plan) return res.status(404).json({ error: "not_found" });
+    const allowed = plan.tenantId === tenantId || (plan.tenantLinks || []).some((t) => t.tenantId === tenantId);
+    if (!allowed) return res.status(404).json({ error: "not_found" });
+  }
   const takeRaw = Number(req?.query?.take ?? 50);
   const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 200) : 50;
   const skipRaw = Number(req?.query?.skip ?? 0);
@@ -121,13 +139,20 @@ productsRouter.get("/:id/payments", async (req, res) => {
 productsRouter.get("/:id", async (req, res) => {
   const id = String(req.params.id || "").trim();
   if (!id) return res.status(400).json({ error: "invalid_id" });
-  const plan = await prisma.subscriptionPlan.findUnique({ where: { id } });
+  const plan = await prisma.subscriptionPlan.findUnique({ where: { id }, include: { tenantLinks: true } });
   if (!plan) return res.status(404).json({ error: "not_found" });
+  const tenantId = await getEffectiveTenantId(req);
+  if (tenantId) {
+    const allowed = plan.tenantId === tenantId || (plan.tenantLinks || []).some((t) => t.tenantId === tenantId);
+    if (!allowed) return res.status(404).json({ error: "not_found" });
+  }
   if ((plan.metadata as any)?.kind !== "CATALOG_ITEM") return res.status(404).json({ error: "not_found" });
 
   res.json({
     item: {
       id: plan.id,
+      tenantId: plan.tenantId || null,
+      tenantIds: Array.from(new Set([plan.tenantId, ...(plan.tenantLinks || []).map((t) => t.tenantId)].filter(Boolean))) as string[],
       name: (plan.metadata as any)?.displayName || plan.name,
       sku: (plan.metadata as any)?.sku || "",
       kind: (plan.metadata as any)?.itemKind || "PRODUCT",
@@ -159,13 +184,18 @@ const updateProductSchema = createProductSchema.extend({});
 productsRouter.put("/:id", async (req, res) => {
   const id = String(req.params.id || "").trim();
   if (!id) return res.status(400).json({ error: "invalid_id" });
+  const tenantId = await getEffectiveTenantId(req);
 
   const parsed = updateProductSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
 
   const data = parsed.data;
-  const existing = await prisma.subscriptionPlan.findUnique({ where: { id } });
+  const existing = await prisma.subscriptionPlan.findUnique({ where: { id }, include: { tenantLinks: true } });
   if (!existing) return res.status(404).json({ error: "not_found" });
+  if (tenantId) {
+    const allowed = existing.tenantId === tenantId || (existing.tenantLinks || []).some((t) => t.tenantId === tenantId);
+    if (!allowed) return res.status(404).json({ error: "not_found" });
+  }
   if ((existing.metadata as any)?.kind !== "CATALOG_ITEM") return res.status(404).json({ error: "not_found" });
 
   const sku = String(data.sku || "").trim();
@@ -199,9 +229,13 @@ productsRouter.put("/:id", async (req, res) => {
     imageUrl: data.imageUrl || null
   };
 
+  const requestedTenantIds = readTenantIdsFromReq(req);
+  const primaryTenantId = requestedTenantIds[0] || existing.tenantId || null;
+
   const updated = await prisma.subscriptionPlan.update({
     where: { id },
     data: {
+      ...(primaryTenantId ? { tenantId: primaryTenantId } : {}),
       name: `[${data.sku}] ${data.name}`,
       currency: data.currency,
       priceInCents: data.basePriceInCents,
@@ -211,6 +245,14 @@ productsRouter.put("/:id", async (req, res) => {
     }
   });
 
+  if (requestedTenantIds.length) {
+    await prisma.subscriptionPlanTenant.deleteMany({ where: { planId: id } });
+    await prisma.subscriptionPlanTenant.createMany({
+      data: requestedTenantIds.map((t) => ({ planId: id, tenantId: t })),
+      skipDuplicates: true
+    });
+  }
+
   res.json({ ok: true, id: updated.id });
 });
 
@@ -219,13 +261,17 @@ productsRouter.post("/", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
 
   const data = parsed.data;
+  const tenantIds = await getEffectiveTenantIds(req);
+  if (!tenantIds.length) return res.status(400).json({ error: "tenant_required" });
+  const primaryTenantId = tenantIds[0];
   const existing = await prisma.subscriptionPlan.findFirst({
-    where: { metadata: { path: ["sku"], equals: data.sku } } as any
+    where: { metadata: { path: ["sku"], equals: data.sku }, ...(primaryTenantId ? { tenantId: primaryTenantId } : {}) } as any
   });
   if (existing) return res.status(409).json({ error: "sku_exists" });
 
   const product = await prisma.subscriptionPlan.create({
     data: {
+      tenantId: primaryTenantId,
       name: `[${data.sku}] ${data.name}`,
       currency: data.currency,
       priceInCents: data.basePriceInCents,
@@ -255,5 +301,39 @@ productsRouter.post("/", async (req, res) => {
       } as any
     }
   });
+  await prisma.subscriptionPlanTenant.createMany({
+    data: tenantIds.map((t) => ({ planId: product.id, tenantId: t })),
+    skipDuplicates: true
+  });
   res.status(201).json({ product: { id: product.id } });
+});
+
+productsRouter.delete("/:id", async (req, res) => {
+  const id = String(req.params.id || "").trim();
+  if (!id) return res.status(400).json({ error: "invalid_id" });
+
+  const plan = await prisma.subscriptionPlan.findUnique({ where: { id }, include: { tenantLinks: true } });
+  if (!plan) return res.status(404).json({ error: "not_found" });
+  const tenantId = await getEffectiveTenantId(req);
+  if (tenantId) {
+    const allowed = plan.tenantId === tenantId || (plan.tenantLinks || []).some((t) => t.tenantId === tenantId);
+    if (!allowed) return res.status(404).json({ error: "not_found" });
+  }
+  if ((plan.metadata as any)?.kind !== "CATALOG_ITEM") return res.status(404).json({ error: "not_found" });
+
+  const [subscriptionsCount, paymentLinksCount] = await Promise.all([
+    prisma.subscription.count({ where: { planId: id } }),
+    prisma.paymentLink.count({ where: { planId: id } })
+  ]);
+
+  if (subscriptionsCount || paymentLinksCount) {
+    return res.status(409).json({
+      error: "product_has_dependencies",
+      details: { subscriptionsCount, paymentLinksCount }
+    });
+  }
+
+  await prisma.subscriptionPlan.delete({ where: { id } });
+  await systemLog(LogLevel.INFO, "products.delete", "Catalog item deleted", { productId: id }).catch(() => {});
+  res.json({ ok: true });
 });

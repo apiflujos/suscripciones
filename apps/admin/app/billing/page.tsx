@@ -1,12 +1,14 @@
 import { activateSubscription, cancelSubscription, createPaymentLink, deleteSubscription, resumeSubscription, suspendSubscription } from "../subscriptions/actions";
 import { DeleteSubscriptionButton } from "./DeleteSubscriptionButton";
-import { createCustomerFromBilling, createPlanAndSubscription, sendChatwootPaymentLink } from "./actions";
+import { DeletePlanButton } from "./DeletePlanButton";
+import { createCustomerFromBilling, createPlanAndSubscription, deletePlanAndSubscription, sendChatwootPaymentLink } from "./actions";
 import { NewBillingAssignmentForm } from "./NewBillingAssignmentForm";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { LocalDateTime } from "../ui/LocalDateTime";
 import { HelpTip } from "../ui/HelpTip";
 import { CopyButton } from "../ui/CopyButton";
 import { getCsrfToken } from "../lib/csrf";
+import { createTenant } from "../tenants/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -150,6 +152,9 @@ export default async function BillingPage({
   const resumed = typeof sp.resumed === "string" ? sp.resumed : "";
   const activated = typeof sp.activated === "string" ? sp.activated : "";
   const deleted = typeof sp.deleted === "string" ? sp.deleted : "";
+  const deletedPlan = typeof sp.deletedPlan === "string" ? sp.deletedPlan : "";
+  const tenantId = typeof sp.tenantId === "string" ? sp.tenantId : "";
+  const tenantCreated = typeof sp.tenantCreated === "string" ? sp.tenantCreated : "";
   const contactCreated = typeof sp.contactCreated === "string" ? sp.contactCreated : "";
   const checkoutUrl = typeof sp.checkoutUrl === "string" ? sp.checkoutUrl : "";
   const checkoutCustomerId = typeof sp.customerId === "string" ? sp.customerId : "";
@@ -172,17 +177,21 @@ export default async function BillingPage({
   if (estado !== "todos") subParams.set("estado", estado);
   if (tipo === "suscripciones") subParams.set("collectionMode", "AUTO_DEBIT");
   if (tipo === "planes") subParams.set("collectionMode", "MANUAL_LINK");
+  if (tenantId) subParams.set("tenantId", tenantId);
 
-  const [subs, customers, products, templates] = await Promise.all([
+  const [subs, customers, products, templates, tenantsRes] = await Promise.all([
     fetchAdmin(`/admin/subscriptions?${subParams.toString()}`),
-    fetchAdmin("/admin/customers?take=200"),
-    fetchAdmin("/admin/products?take=200"),
-    fetchAdmin("/admin/checkout-templates")
+    fetchAdmin(tenantId ? `/admin/customers?take=200&tenantId=${encodeURIComponent(tenantId)}` : "/admin/customers?take=200"),
+    fetchAdmin(tenantId ? `/admin/products?take=200&tenantId=${encodeURIComponent(tenantId)}` : "/admin/products?take=200"),
+    fetchAdmin(tenantId ? `/admin/checkout-templates?tenantId=${encodeURIComponent(tenantId)}` : "/admin/checkout-templates"),
+    fetchAdminCached("/admin/tenants", { ttlMs: 1500 })
   ]);
   const subItems = (subs.json?.items ?? []) as any[];
   const customerItems = (customers.json?.items ?? []) as any[];
   const productItems = (products.json?.items ?? []) as any[];
   const checkoutTemplates = (templates.json?.items ?? []) as any[];
+  const tenants = (tenantsRes.json?.items ?? []) as Array<{ id: string; name: string }>;
+  const tenantById = new Map(tenants.map((t) => [String(t.id), String(t.name)]));
 
   const rows = subItems
     .map((s) => {
@@ -198,8 +207,13 @@ export default async function BillingPage({
         customer?.metadata?.document ||
         "";
 
+      const tenantIds = Array.isArray(s.tenantIds) && s.tenantIds.length ? s.tenantIds : [s.tenantId || plan?.tenantId].filter(Boolean);
+      const tenantNameList = tenantIds.map((id: string) => tenantById.get(String(id))).filter(Boolean) as string[];
       return {
         id: String(s.id),
+        planId: String(plan?.id || ""),
+        tenantId: String(s.tenantId || plan?.tenantId || ""),
+        tenantIds,
         customerId: String(s.customerId || ""),
         customerName: String(customer?.name || customer?.email || s.customerId || "—"),
         customerEmail: String(customer?.email || ""),
@@ -223,7 +237,8 @@ export default async function BillingPage({
         vencimientoAt: s.currentPeriodEndAt || null,
         periodoInicioAt: s.currentPeriodStartAt || null,
         periodoFinAt: s.currentPeriodEndAt || null,
-        mode: String(plan?.metadata?.collectionMode || "MANUAL_LINK")
+        mode: String(plan?.metadata?.collectionMode || "MANUAL_LINK"),
+        tenantName: tenantNameList.length ? tenantNameList.join(", ") : "—"
       };
     })
     .filter((r) => {
@@ -267,6 +282,8 @@ export default async function BillingPage({
       {resumed ? <div className="card cardPad">Suscripción reanudada.</div> : null}
       {activated ? <div className="card cardPad">Suscripción activada.</div> : null}
       {deleted ? <div className="card cardPad">Suscripción eliminada.</div> : null}
+      {deletedPlan ? <div className="card cardPad">Plan eliminado.</div> : null}
+      {tenantCreated ? <div className="card cardPad">Canal creado.</div> : null}
       {chatwoot === "sent" ? <div className="card cardPad">Mensaje enviado por Chatwoot.</div> : null}
       {contactCreated ? <div className="card cardPad">Contacto creado.</div> : null}
       {checkoutUrl ? (
@@ -338,6 +355,17 @@ export default async function BillingPage({
                     </select>
                   </div>
                   <div style={{ display: "grid", gap: 4 }}>
+                    <span className="field-hint">Canal</span>
+                    <select className="select" name="tenantId" defaultValue={tenantId} aria-label="Canal">
+                      <option value="">Todos</option>
+                      {tenants.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ display: "grid", gap: 4 }}>
                     <span className="field-hint">Buscar</span>
                     <input className="input" name="q" defaultValue={q} placeholder="Nombre, email o identificación..." />
                   </div>
@@ -353,6 +381,12 @@ export default async function BillingPage({
                   Crear lista inteligente
                 </a>
               ) : null}
+              <form action={createTenant} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input type="hidden" name="csrf" value={csrfToken} />
+                <input type="hidden" name="returnTo" value={`/billing${tenantId || q || tipo !== "todos" || estado !== "todos" || ordenar !== "vencimiento" ? `?${new URLSearchParams({ ...(tenantId ? { tenantId } : {}), ...(q ? { q } : {}), ...(tipo ? { tipo } : {}), ...(estado ? { estado } : {}), ...(ordenar ? { ordenar } : {}) }).toString()}` : ""}`} />
+                <input className="input" name="name" placeholder="Nuevo canal" />
+                <button className="ghost" type="submit">Crear canal</button>
+              </form>
               <span className="pill">{rows.length} resultados</span>
             </div>
           </div>
@@ -364,6 +398,8 @@ export default async function BillingPage({
             catalogItems={productItems}
             checkoutTemplates={checkoutTemplates}
             csrfToken={csrfToken}
+            tenantId={tenantId}
+            tenants={tenants}
             defaultOpen={Boolean(crear) || Boolean(selectCustomerId) || Boolean(contactCreated)}
             defaultSelectedCustomerId={selectCustomerId}
             createCustomer={createCustomerFromBilling}
@@ -399,6 +435,7 @@ export default async function BillingPage({
                     <span className={`pill ${r.customerTokenized ? "pill-ok" : "pill-bad"}`}>
                       {r.customerTokenized ? "Tokenizada" : "Sin token"}
                     </span>
+                    <span className="pill pill-muted">{r.tenantName}</span>
                   </div>
                   </div>
 
@@ -432,6 +469,7 @@ export default async function BillingPage({
                         <input type="hidden" name="csrf" value={csrfToken} />
                         <input type="hidden" name="subscriptionId" value={r.id} />
                         <input type="hidden" name="customerId" value={r.customerId} />
+                        {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
                         <button className="ghost btn-compact btn-blue" type="submit">
                           Generar link
                         </button>
@@ -442,6 +480,7 @@ export default async function BillingPage({
                           <form action={resumeSubscription}>
                             <input type="hidden" name="csrf" value={csrfToken} />
                             <input type="hidden" name="subscriptionId" value={r.id} />
+                            {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
                             <button className="ghost btn-compact btn-green" type="submit">
                               Reanudar
                             </button>
@@ -450,6 +489,7 @@ export default async function BillingPage({
                           <form action={activateSubscription}>
                             <input type="hidden" name="csrf" value={csrfToken} />
                             <input type="hidden" name="subscriptionId" value={r.id} />
+                            {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
                             <button className="ghost btn-compact btn-green" type="submit">
                               Activar
                             </button>
@@ -459,6 +499,7 @@ export default async function BillingPage({
                             <form action={suspendSubscription}>
                               <input type="hidden" name="csrf" value={csrfToken} />
                               <input type="hidden" name="subscriptionId" value={r.id} />
+                              {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
                               <button className="ghost btn-compact btn-amber" type="submit">
                                 Suspender
                               </button>
@@ -466,6 +507,7 @@ export default async function BillingPage({
                             <form action={cancelSubscription}>
                               <input type="hidden" name="csrf" value={csrfToken} />
                               <input type="hidden" name="subscriptionId" value={r.id} />
+                              {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
                               <button className="ghost btn-compact btn-red" type="submit">
                                 Cancelar
                               </button>
@@ -474,7 +516,10 @@ export default async function BillingPage({
                         )}
                       </>
                     )}
-                    <DeleteSubscriptionButton action={deleteSubscription} csrfToken={csrfToken} subscriptionId={r.id} />
+                    <DeleteSubscriptionButton action={deleteSubscription} csrfToken={csrfToken} subscriptionId={r.id} tenantId={r.tenantId} />
+                    {r.tipoTx === "Plan" && r.status === "CANCELED" && r.planId ? (
+                      <DeletePlanButton action={deletePlanAndSubscription} csrfToken={csrfToken} subscriptionId={r.id} planId={r.planId} tenantId={r.tenantId} />
+                    ) : null}
                   </div>
                 </div>
               );

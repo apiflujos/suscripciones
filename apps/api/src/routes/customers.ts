@@ -5,6 +5,7 @@ import { WompiClient } from "../providers/wompi/client";
 import { getWompiApiBaseUrl, getWompiCheckoutLinkBaseUrl, getWompiPrivateKey, getWompiPublicKey } from "../services/runtimeConfig";
 import { ensureChatwootContactForCustomer, syncChatwootAttributesForCustomer } from "../services/chatwootSync";
 import { consumeApp } from "../services/superAdminApp";
+import { getEffectiveTenantId } from "../services/tenantContext";
 
 const createCustomerSchema = z.object({
   name: z.string().min(1).optional(),
@@ -60,6 +61,7 @@ customersRouter.post("/tokenization-links/:token/consume", async (req, res) => {
 
 customersRouter.get("/", async (_req, res) => {
   const req = _req as any;
+  const tenantId = await getEffectiveTenantId(req);
   const takeRaw = Number(req?.query?.take ?? 50);
   const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 500) : 50;
   const skipRaw = Number(req?.query?.skip ?? 0);
@@ -67,6 +69,7 @@ customersRouter.get("/", async (_req, res) => {
   const q = String(req?.query?.q ?? "").trim();
 
   const where: any = {};
+  if (tenantId) where.tenantId = tenantId;
   if (q) {
     where.OR = [
       { name: { contains: q, mode: "insensitive" } },
@@ -89,19 +92,22 @@ customersRouter.get("/:id", async (req, res) => {
   if (!customerId) return res.status(400).json({ error: "invalid_id" });
   const customer = await prisma.customer.findUnique({ where: { id: customerId } });
   if (!customer) return res.status(404).json({ error: "customer_not_found" });
+  const tenantId = await getEffectiveTenantId(req);
+  if (tenantId && customer.tenantId && customer.tenantId !== tenantId) return res.status(404).json({ error: "customer_not_found" });
   res.json({ customer });
 });
 
 customersRouter.get("/:id/payments", async (req, res) => {
   const customerId = String(req.params.id || "").trim();
   if (!customerId) return res.status(400).json({ error: "invalid_id" });
+  const tenantId = await getEffectiveTenantId(req);
   const takeRaw = Number(req.query.take ?? 50);
   const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 200) : 50;
   const skipRaw = Number(req.query.skip ?? 0);
   const skip = Number.isFinite(skipRaw) ? Math.max(Math.trunc(skipRaw), 0) : 0;
 
   const items = await prisma.payment.findMany({
-    where: { customerId },
+    where: { customerId, ...(tenantId ? { tenantId } : {}) },
     orderBy: { createdAt: "desc" },
     take,
     skip,
@@ -127,7 +133,9 @@ customersRouter.post("/", async (req, res) => {
   const parsed = createCustomerSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
 
-  const customer = await prisma.customer.create({ data: parsed.data as any });
+  const tenantId = await getEffectiveTenantId(req);
+  if (!tenantId) return res.status(400).json({ error: "tenant_required" });
+  const customer = await prisma.customer.create({ data: { ...(parsed.data as any), tenantId } });
   await consumeApp("customers_created", { amount: 1, source: "api:customers.create", meta: { customerId: customer.id } });
   await ensureChatwootContactForCustomer(customer.id).catch(() => {});
   await syncChatwootAttributesForCustomer(customer.id).catch(() => {});
@@ -146,6 +154,11 @@ customersRouter.put("/:id", async (req, res) => {
   if (data.phone === "") data.phone = null;
 
   try {
+    const tenantId = await getEffectiveTenantId(req);
+    if (tenantId) {
+      const existing = await prisma.customer.findUnique({ where: { id: customerId } });
+      if (!existing || (existing.tenantId && existing.tenantId !== tenantId)) return res.status(404).json({ error: "customer_not_found" });
+    }
     const updated = await prisma.customer.update({ where: { id: customerId }, data });
     await ensureChatwootContactForCustomer(updated.id).catch(() => {});
     await syncChatwootAttributesForCustomer(updated.id).catch(() => {});
@@ -160,6 +173,11 @@ customersRouter.delete("/:id", async (req, res) => {
   const customerId = String(req.params.id || "").trim();
   if (!customerId) return res.status(400).json({ error: "invalid_id" });
   try {
+    const tenantId = await getEffectiveTenantId(req);
+    if (tenantId) {
+      const existing = await prisma.customer.findUnique({ where: { id: customerId } });
+      if (!existing || (existing.tenantId && existing.tenantId !== tenantId)) return res.status(404).json({ error: "customer_not_found" });
+    }
     const [subscriptionsCount, paymentsCount, chatwootCount, smartListCount, campaignCount] = await Promise.all([
       prisma.subscription.count({ where: { customerId } }),
       prisma.payment.count({ where: { customerId } }),

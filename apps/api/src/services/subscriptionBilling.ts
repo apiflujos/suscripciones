@@ -60,6 +60,7 @@ export async function createPaymentLinkForSubscription(args: {
   const payment = await prisma.payment.upsert({
     where: { subscriptionCycleKey },
     create: {
+      tenantId: sub.tenantId ?? sub.plan?.tenantId ?? null,
       customerId: sub.customerId,
       subscriptionId: sub.id,
       amountInCents,
@@ -70,6 +71,7 @@ export async function createPaymentLinkForSubscription(args: {
       subscriptionCycleKey
     },
     update: {
+      ...(sub.tenantId || sub.plan?.tenantId ? { tenantId: sub.tenantId ?? sub.plan?.tenantId ?? null } : {}),
       amountInCents,
       currency: sub.plan.currency,
       reference,
@@ -81,7 +83,8 @@ export async function createPaymentLinkForSubscription(args: {
     await prisma.paymentLink
       .upsert({
         where: { paymentId: payment.id },
-        create: {
+    create: {
+          tenantId: sub.tenantId ?? sub.plan?.tenantId ?? null,
           planId: sub.planId,
           subscriptionId: sub.id,
           paymentId: payment.id,
@@ -92,6 +95,7 @@ export async function createPaymentLinkForSubscription(args: {
           paidAt: payment.paidAt ?? null
         },
         update: {
+          ...(sub.tenantId || sub.plan?.tenantId ? { tenantId: sub.tenantId ?? sub.plan?.tenantId ?? null } : {}),
           planId: sub.planId,
           subscriptionId: sub.id,
           wompiPaymentLinkId: payment.wompiPaymentLinkId,
@@ -203,7 +207,8 @@ export async function createPaymentLinkForSubscription(args: {
   await prisma.paymentLink
     .upsert({
       where: { paymentId: updated.id },
-      create: {
+    create: {
+        tenantId: sub.tenantId ?? sub.plan?.tenantId ?? null,
         planId: sub.planId,
         subscriptionId: sub.id,
         paymentId: updated.id,
@@ -213,6 +218,7 @@ export async function createPaymentLinkForSubscription(args: {
         sentAt: new Date()
       },
       update: {
+        ...(sub.tenantId || sub.plan?.tenantId ? { tenantId: sub.tenantId ?? sub.plan?.tenantId ?? null } : {}),
         planId: sub.planId,
         subscriptionId: sub.id,
         wompiPaymentLinkId: created.id,
@@ -278,6 +284,7 @@ export async function createAutoDebitTransactionForSubscription(args: {
   const payment = await prisma.payment.upsert({
     where: { subscriptionCycleKey },
     create: {
+      tenantId: sub.tenantId ?? sub.plan?.tenantId ?? null,
       customerId: sub.customerId,
       subscriptionId: sub.id,
       amountInCents,
@@ -287,7 +294,13 @@ export async function createAutoDebitTransactionForSubscription(args: {
       status: PaymentStatus.PENDING,
       subscriptionCycleKey
     },
-    update: { amountInCents, currency, reference, status: PaymentStatus.PENDING }
+    update: {
+      ...(sub.tenantId || sub.plan?.tenantId ? { tenantId: sub.tenantId ?? sub.plan?.tenantId ?? null } : {}),
+      amountInCents,
+      currency,
+      reference,
+      status: PaymentStatus.PENDING
+    }
   });
 
   if (payment.wompiTransactionId) {

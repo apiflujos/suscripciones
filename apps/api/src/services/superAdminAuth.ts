@@ -9,6 +9,10 @@ function normalize(v: unknown) {
 }
 
 export const SUPER_ADMIN_EMAIL = normalize(process.env.SUPER_ADMIN_EMAIL);
+const SUPER_ADMIN_PASSWORD = normalize(process.env.SUPER_ADMIN_PASSWORD);
+const SUPER_ADMIN_RESET_PASSWORD = normalize(process.env.SUPER_ADMIN_RESET_PASSWORD || "0") === "1";
+const SUPER_ADMIN_TENANT_ID =
+  normalize(process.env.SUPER_ADMIN_TENANT_ID) || normalize(process.env.SA_TENANT_ID) || "";
 
 export function hashPassword(pw: string) {
   const password = String(pw || "");
@@ -36,6 +40,35 @@ export function verifyPassword(pw: string, stored: string) {
   } catch {
     return false;
   }
+}
+
+export async function ensureBootstrapSuperAdmin() {
+  if (!SUPER_ADMIN_EMAIL || !SUPER_ADMIN_PASSWORD) return;
+  const email = SUPER_ADMIN_EMAIL.toLowerCase();
+  const existing = await prisma.saUser.findFirst({ where: { email: { equals: email, mode: "insensitive" } } });
+
+  if (existing) {
+    const updates: any = {};
+    if (existing.role !== SaUserRole.SUPER_ADMIN) updates.role = SaUserRole.SUPER_ADMIN;
+    if (!existing.active) updates.active = true;
+    if (SUPER_ADMIN_RESET_PASSWORD) updates.passwordHash = hashPassword(SUPER_ADMIN_PASSWORD);
+    if (SUPER_ADMIN_TENANT_ID && existing.tenantId !== SUPER_ADMIN_TENANT_ID) updates.tenantId = SUPER_ADMIN_TENANT_ID;
+
+    if (Object.keys(updates).length > 0) {
+      await prisma.saUser.update({ where: { id: existing.id }, data: updates });
+    }
+    return;
+  }
+
+  await prisma.saUser.create({
+    data: {
+      email,
+      passwordHash: hashPassword(SUPER_ADMIN_PASSWORD),
+      role: SaUserRole.SUPER_ADMIN,
+      active: true,
+      tenantId: SUPER_ADMIN_TENANT_ID || null
+    } as any
+  });
 }
 
 export function normalizeSaToken(v: unknown) {

@@ -7,10 +7,12 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const q = String(searchParams.get("q") || "").trim();
+  const tenantId = String(searchParams.get("tenantId") || "").trim();
   const take = String(searchParams.get("take") || "80").trim();
   const qs = new URLSearchParams();
   if (q) qs.set("q", q);
   if (take) qs.set("take", take);
+  if (tenantId) qs.set("tenantId", tenantId);
 
   const res = await fetch(`${apiBase}/admin/plans?${qs.toString()}`, {
     cache: "no-store",

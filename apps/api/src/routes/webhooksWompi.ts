@@ -8,6 +8,7 @@ import { getShopifyForward } from "../services/runtimeConfig";
 import { systemLog } from "../services/systemLog";
 import { LogLevel } from "@prisma/client";
 import { redactHeaders } from "../lib/redact";
+import { getDefaultTenantId } from "../services/tenantContext";
 
 function getChecksumHeader(req: Request): string | undefined {
   const h = req.header("x-event-checksum") || req.header("x-wompi-checksum");
@@ -40,8 +41,10 @@ export async function wompiWebhook(req: Request, res: Response) {
   const checksum = (getChecksumHeader(req) || parsed.data.signature.checksum).trim();
 
   try {
+    const tenantId = await getDefaultTenantId();
     const webhookEvent = await prisma.webhookEvent.create({
       data: {
+        ...(tenantId ? { tenantId } : {}),
         provider: WebhookProvider.WOMPI,
         checksum,
         eventName: parsed.data.event,

@@ -20,6 +20,7 @@ export async function POST(req: Request) {
 
   const customerId = String(body?.customerId || "").trim();
   const customerName = String(body?.customerName || "").trim() || "Cliente";
+  const tenantId = String(body?.tenantId || "").trim();
   if (!customerId) return NextResponse.json({ ok: false, error: "missing_customer_id" }, { status: 400 });
 
   const settingsRes = await fetch(`${API_BASE}/admin/settings`, {
@@ -49,7 +50,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: json?.error || "request_failed" }, { status: res.status });
   }
 
-  const existing = await fetch(`${API_BASE}/admin/customers/${customerId}`, {
+  const existing = await fetch(
+    `${API_BASE}/admin/customers/${customerId}${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""}`,
+    {
     headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
   })
     .then((r) => r.json())
@@ -69,7 +72,9 @@ export async function POST(req: Request) {
       usedAt: null
     }
   };
-  const stored = await fetch(`${API_BASE}/admin/customers/${customerId}`, {
+  const stored = await fetch(
+    `${API_BASE}/admin/customers/${customerId}${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""}`,
+    {
     method: "PUT",
     headers: {
       authorization: `Bearer ${token}`,

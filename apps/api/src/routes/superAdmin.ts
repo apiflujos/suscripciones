@@ -139,6 +139,48 @@ superAdminRouter.put("/tenants/:tenantId", requireSaSession, async (req, res) =>
   res.json({ tenant: t });
 });
 
+// Users + tenant assignments
+const userTenantAssignSchema = z.object({
+  tenantIds: z.array(z.string().uuid()).min(0)
+});
+
+superAdminRouter.get("/users", requireSaSession, async (_req, res) => {
+  const items = await prisma.saUser.findMany({
+    orderBy: { createdAt: "desc" },
+    include: { tenants: true }
+  });
+  res.json({
+    items: items.map((u) => ({
+      id: u.id,
+      email: u.email,
+      role: u.role,
+      active: u.active,
+      tenantId: u.tenantId,
+      tenantIds: Array.from(new Set([u.tenantId, ...(u.tenants || []).map((t) => t.tenantId)].filter(Boolean)))
+    }))
+  });
+});
+
+superAdminRouter.put("/users/:userId/tenants", requireSaSession, async (req, res) => {
+  const userId = String(req.params.userId || "");
+  if (!userId) return res.status(400).json({ error: "invalid_user_id" });
+  const parsed = userTenantAssignSchema.safeParse(req.body ?? {});
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+
+  const user = await prisma.saUser.findUnique({ where: { id: userId } });
+  if (!user) return res.status(404).json({ error: "user_not_found" });
+
+  await prisma.saUserTenant.deleteMany({ where: { userId } });
+  if (parsed.data.tenantIds.length) {
+    await prisma.saUserTenant.createMany({
+      data: parsed.data.tenantIds.map((tenantId) => ({ userId, tenantId })),
+      skipDuplicates: true
+    });
+  }
+
+  res.json({ ok: true });
+});
+
 const moduleUpsertSchema = z.object({
   key: z.string().min(1),
   name: z.string().min(1),

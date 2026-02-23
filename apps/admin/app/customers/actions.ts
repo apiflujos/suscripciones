@@ -35,6 +35,7 @@ export async function createCustomer(formData: FormData) {
   const name = String(formData.get("name") || "").trim();
   const email = String(formData.get("email") || "").trim();
   const phone = String(formData.get("phone") || "").trim();
+  const tenantId = String(formData.get("tenantId") || "").trim();
   const addressLine1 = String(formData.get("addressLine1") || "").trim();
   const dept = String(formData.get("dept") || "").trim();
   const city = String(formData.get("city") || "").trim();
@@ -60,11 +61,13 @@ export async function createCustomer(formData: FormData) {
 
     const metadata = address || idMeta ? { ...(address ? { address } : {}), ...(idMeta ? idMeta : {}) } : undefined;
 
-    await adminFetch("/admin/customers", { method: "POST", body: JSON.stringify({ name, email, phone, metadata }) });
-    redirect("/customers?created=1");
+    await adminFetch("/admin/customers", { method: "POST", body: JSON.stringify({ name, email, phone, metadata, tenantId }) });
+    const qs = new URLSearchParams({ created: "1", ...(tenantId ? { tenantId } : {}) }).toString();
+    redirect(`/customers?${qs}`);
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
-    redirect(`/customers?error=${encodeURIComponent(err?.message || "create_customer_failed")}`);
+    const qs = new URLSearchParams({ error: String(err?.message || "create_customer_failed"), ...(tenantId ? { tenantId } : {}) }).toString();
+    redirect(`/customers?${qs}`);
   }
 }
 
@@ -100,6 +103,7 @@ export async function sendPaymentLinkForCustomer(formData: FormData) {
 export async function updateCustomer(formData: FormData) {
   await assertCsrfToken(formData);
   const id = String(formData.get("id") || "").trim();
+  const tenantId = String(formData.get("tenantId") || "").trim();
   const name = String(formData.get("name") || "").trim();
   const email = String(formData.get("email") || "").trim();
   const phone = String(formData.get("phone") || "").trim();
@@ -133,32 +137,43 @@ export async function updateCustomer(formData: FormData) {
     await adminFetch(`/admin/customers/${encodeURIComponent(id)}`, {
       method: "PUT",
       body: JSON.stringify({
+        ...(tenantId ? { tenantId } : {}),
         name: name || "",
         email: email || "",
         phone: phone || "",
         ...(metadata ? { metadata } : {})
       })
     });
-    redirect("/customers?updated=1");
+    const qs = new URLSearchParams({ updated: "1", ...(tenantId ? { tenantId } : {}) }).toString();
+    redirect(`/customers?${qs}`);
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
-    redirect(`/customers?error=${encodeURIComponent(err?.message || "update_customer_failed")}`);
+    const qs = new URLSearchParams({ error: String(err?.message || "update_customer_failed"), ...(tenantId ? { tenantId } : {}) }).toString();
+    redirect(`/customers?${qs}`);
   }
 }
 
 export async function deleteCustomer(formData: FormData) {
   await assertCsrfToken(formData);
   const id = String(formData.get("id") || "").trim();
+  const tenantId = String(formData.get("tenantId") || "").trim();
   if (!id) return redirect(`/customers?error=${encodeURIComponent("invalid_id")}`);
   try {
-    await adminFetch(`/admin/customers/${encodeURIComponent(id)}`, { method: "DELETE" });
-    redirect("/customers?deleted=1");
+    const path = tenantId ? `/admin/customers/${encodeURIComponent(id)}?tenantId=${encodeURIComponent(tenantId)}` : `/admin/customers/${encodeURIComponent(id)}`;
+    await adminFetch(path, { method: "DELETE" });
+    const qs = new URLSearchParams({ deleted: "1", ...(tenantId ? { tenantId } : {}) }).toString();
+    redirect(`/customers?${qs}`);
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
     const msg = String(err?.message || "delete_customer_failed");
     if (msg.includes("customer_has_dependencies")) {
-      return redirect(`/customers?error=${encodeURIComponent("No se puede borrar: tiene suscripciones o pagos asociados.")}`);
+      const qs = new URLSearchParams({
+        error: "No se puede borrar: tiene suscripciones o pagos asociados.",
+        ...(tenantId ? { tenantId } : {})
+      }).toString();
+      return redirect(`/customers?${qs}`);
     }
-    redirect(`/customers?error=${encodeURIComponent(msg)}`);
+    const qs = new URLSearchParams({ error: msg, ...(tenantId ? { tenantId } : {}) }).toString();
+    redirect(`/customers?${qs}`);
   }
 }

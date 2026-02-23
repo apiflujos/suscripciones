@@ -37,11 +37,15 @@ function formatCopCurrencyInput(input: string): string {
 export function NewPlanOrSubscriptionForm({
   action,
   catalogItems,
-  csrfToken
+  csrfToken,
+  tenantId,
+  tenants
 }: {
   action: (formData: FormData) => void | Promise<void>;
   catalogItems: CatalogItem[];
   csrfToken: string;
+  tenantId?: string;
+  tenants: Array<{ id: string; name: string }>;
 }) {
   const [open, setOpen] = useState(false);
   const tipoRef = useRef<HTMLSelectElement | null>(null);
@@ -122,7 +126,7 @@ export function NewPlanOrSubscriptionForm({
     setCatalogSearching(true);
     setCatalogSearchError("");
     const t = setTimeout(() => {
-      fetch(`/api/search/products?${new URLSearchParams({ q, take: "120" }).toString()}`, { cache: "no-store", signal: ac.signal })
+      fetch(`/api/search/products?${new URLSearchParams({ q, take: "120", ...(tenantId ? { tenantId } : {}) }).toString()}`, { cache: "no-store", signal: ac.signal })
         .then(async (r) => ({ ok: r.ok, status: r.status, json: await r.json().catch(() => null) }))
         .then(({ ok, status, json }) => {
           if (!ok) {
@@ -265,6 +269,17 @@ export function NewPlanOrSubscriptionForm({
       {open ? (
         <form action={action} onKeyDownCapture={enterToNextField} style={{ display: "grid", gap: 10 }}>
           <input type="hidden" name="csrf" value={csrfToken} />
+          <div className="field">
+            <label>Canales de ventas</label>
+            <select className="select" name="tenantIds" multiple defaultValue={tenantId ? [tenantId] : []} required>
+              {tenants.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+            <div className="field-hint">Puedes seleccionar varios canales.</div>
+          </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <div className="field">
               <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
