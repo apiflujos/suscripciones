@@ -3,9 +3,6 @@ import { normalizeToken } from "../../../lib/normalizeToken";
 import crypto from "crypto";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
-const ADMIN_BASE =
-  (process.env.NEXT_PUBLIC_ADMIN_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || "").trim();
-const PUBLIC_CHECKOUT_BASE = (process.env.NEXT_PUBLIC_PUBLIC_CHECKOUT_BASE_URL || "").trim();
 
 export async function POST(req: Request) {
   const token = normalizeToken(process.env.ADMIN_API_TOKEN || "");
@@ -28,8 +25,8 @@ export async function POST(req: Request) {
   }).catch(() => null);
   const settingsJson = settingsRes && "ok" in settingsRes ? await (settingsRes as any).json().catch(() => null) : null;
   const baseFromSettings = String(settingsJson?.checkoutConfig?.subscriptionBaseUrl || "").trim();
-  const base = (baseFromSettings || PUBLIC_CHECKOUT_BASE || ADMIN_BASE).replace(/\/$/, "");
-  if (!base) return NextResponse.json({ ok: false, error: "missing_public_base_url" }, { status: 400 });
+  const base = baseFromSettings.replace(/\/$/, "");
+  if (!base) return NextResponse.json({ ok: false, error: "missing_subscription_base_url" }, { status: 400 });
 
   const linkToken = crypto.randomBytes(18).toString("hex");
   const link = `${base}/public/suscripcion/${linkToken}`;

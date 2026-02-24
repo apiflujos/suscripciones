@@ -8,6 +8,8 @@ type CheckoutConfig = {
   subscriptionBaseUrl?: string | null;
   tokenExpiryHours?: number | null;
   logoUrl?: string | null;
+  supportEmail?: string | null;
+  supportUrl?: string | null;
   planTitle?: string | null;
   planDescription?: string | null;
   subscriptionTitle?: string | null;
@@ -46,6 +48,8 @@ export function CheckoutConfigPanel({
   const [tokenExpiryHours, setTokenExpiryHours] = useState<string>(String(defaults.tokenExpiryHours || 24));
   const [checkoutTitle, setCheckoutTitle] = useState<string>(String(defaults.planTitle || defaults.subscriptionTitle || "Checkout"));
   const [checkoutDescription, setCheckoutDescription] = useState<string>(String(defaults.planDescription || defaults.subscriptionDescription || ""));
+  const [supportEmail, setSupportEmail] = useState<string>(String(defaults.supportEmail || ""));
+  const [supportUrl, setSupportUrl] = useState<string>(String(defaults.supportUrl || ""));
   const [tokenSuccessTitle, setTokenSuccessTitle] = useState<string>(String(defaults.tokenizationSuccessTitle || "Gracias"));
   const [tokenSuccessMessage, setTokenSuccessMessage] = useState<string>(
     String(defaults.tokenizationSuccessMessage || "Tu método de pago quedó guardado correctamente.")
@@ -92,6 +96,8 @@ export function CheckoutConfigPanel({
       <input type="hidden" name="tokenizationSuccessMessage" value={tokenSuccessMessage} />
       <input type="hidden" name="tokenizationErrorMessage" value={tokenErrorMessage} />
       <input type="hidden" name="tokenizationReturnUrl" value={tokenReturnUrl} />
+      <input type="hidden" name="supportEmail" value={supportEmail} />
+      <input type="hidden" name="supportUrl" value={supportUrl} />
       {mode === "PLAN" ? (
         <input type="hidden" name="subscriptionBaseUrl" value={subscriptionBaseUrl} />
       ) : (
@@ -156,6 +162,14 @@ export function CheckoutConfigPanel({
         <div className="field">
           <label>Descripción</label>
           <textarea className="input" rows={3} value={checkoutDescription} onChange={(e) => setCheckoutDescription(e.target.value)} />
+        </div>
+        <div className="field">
+          <label>Email de soporte</label>
+          <input className="input" value={supportEmail} onChange={(e) => setSupportEmail(e.target.value)} placeholder="soporte@tu-dominio.com" />
+        </div>
+        <div className="field">
+          <label>URL de soporte</label>
+          <input className="input" value={supportUrl} onChange={(e) => setSupportUrl(e.target.value)} placeholder="https://wa.me/57..." />
         </div>
       </div>
 

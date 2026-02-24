@@ -60,6 +60,8 @@ const checkoutConfigUpdateSchema = z.object({
   subscriptionBaseUrl: z.string().url().optional().or(z.literal("")),
   tokenExpiryHours: z.coerce.number().int().positive().optional(),
   logoUrl: z.string().optional().or(z.literal("")),
+  supportEmail: z.string().optional().or(z.literal("")),
+  supportUrl: z.string().optional().or(z.literal("")),
   planTitle: z.string().optional().or(z.literal("")),
   planDescription: z.string().optional().or(z.literal("")),
   subscriptionTitle: z.string().optional().or(z.literal("")),
@@ -230,15 +232,17 @@ settingsRouter.get("/", async (_req, res) => {
     checkoutConfig: {
       planBaseUrl: checkoutConfig.planBaseUrl || null,
       subscriptionBaseUrl: checkoutConfig.subscriptionBaseUrl || null,
-      tokenExpiryHours:
-        Number.isFinite(Number(checkoutConfig.tokenExpiryHours)) && Number(checkoutConfig.tokenExpiryHours) > 0
-          ? Math.trunc(Number(checkoutConfig.tokenExpiryHours))
-          : 24,
-      logoUrl: checkoutConfig.logoUrl || null,
-      planTitle: checkoutConfig.planTitle || "Paga tu plan",
-      planDescription: checkoutConfig.planDescription || "",
-      subscriptionTitle: checkoutConfig.subscriptionTitle || "Activa tu suscripción",
-      subscriptionDescription: checkoutConfig.subscriptionDescription || "",
+    tokenExpiryHours:
+      Number.isFinite(Number(checkoutConfig.tokenExpiryHours)) && Number(checkoutConfig.tokenExpiryHours) > 0
+        ? Math.trunc(Number(checkoutConfig.tokenExpiryHours))
+        : 24,
+    logoUrl: checkoutConfig.logoUrl || null,
+    supportEmail: checkoutConfig.supportEmail || null,
+    supportUrl: checkoutConfig.supportUrl || null,
+    planTitle: checkoutConfig.planTitle || "Paga tu plan",
+    planDescription: checkoutConfig.planDescription || "",
+    subscriptionTitle: checkoutConfig.subscriptionTitle || "Activa tu suscripción",
+    subscriptionDescription: checkoutConfig.subscriptionDescription || "",
       planWompiTitle: checkoutConfig.planWompiTitle || "",
       planWompiDescription: checkoutConfig.planWompiDescription || "",
       subscriptionWompiTitle: checkoutConfig.subscriptionWompiTitle || "",
@@ -390,6 +394,8 @@ settingsRouter.put("/checkout-config", async (req, res) => {
     subscriptionBaseUrl: parsed.data.subscriptionBaseUrl || "",
     tokenExpiryHours: parsed.data.tokenExpiryHours || undefined,
     logoUrl: parsed.data.logoUrl || "",
+    supportEmail: parsed.data.supportEmail || "",
+    supportUrl: parsed.data.supportUrl || "",
     planTitle: parsed.data.planTitle || "",
     planDescription: parsed.data.planDescription || "",
     subscriptionTitle: parsed.data.subscriptionTitle || "",

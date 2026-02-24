@@ -32,8 +32,8 @@ export default async function PublicTokenizeSuccessPage({ params }: { params: Pr
     template?.publicDescription ||
     config?.subscriptionDescription ||
     "Desde ahora podremos procesar tu suscripción de forma automática.";
-  const contactEmail = String(process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "").trim();
-  const supportUrl = String(process.env.NEXT_PUBLIC_SUPPORT_URL || "").trim();
+  const contactEmail = String(config?.supportEmail || "").trim();
+  const supportUrl = String(config?.supportUrl || "").trim();
   const logoUrl = template?.logoUrl || config?.logoUrl || "";
   const fontFamily = String(layout?.fontFamily || "").trim();
   const primaryColor = String(layout?.primaryColor || "").trim();

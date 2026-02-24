@@ -32,8 +32,8 @@ export default async function PublicPlanPage({ params }: { params: Promise<{ tok
   const primaryColor = String(layout?.primaryColor || "").trim();
   const fontFamily = String(layout?.fontFamily || "").trim();
   const ctaLabel = String(layout?.ctaLabel || "").trim() || "Pagar";
-  const supportEmail = String(process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "").trim();
-  const supportUrl = String(process.env.NEXT_PUBLIC_SUPPORT_URL || "").trim();
+  const supportEmail = String(config?.supportEmail || "").trim();
+  const supportUrl = String(config?.supportUrl || "").trim();
   const layoutSupportEmail = String(layout?.supportEmail || "").trim();
   const layoutSupportUrl = String(layout?.supportUrl || "").trim();
   const supportHref = (layoutSupportEmail ? `mailto:${layoutSupportEmail}` : layoutSupportUrl) || (supportEmail ? `mailto:${supportEmail}` : supportUrl) || "";

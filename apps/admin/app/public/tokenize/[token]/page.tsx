@@ -50,8 +50,8 @@ export default async function PublicTokenizePage({
     config?.subscriptionDescription ||
     "Usamos Wompi para tokenizar tu tarjeta. No se realizan cargos en este paso.";
   const tokenErrorMessage = String(config?.tokenizationErrorMessage || "").trim();
-  const contactEmail = String(process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "").trim();
-  const supportUrl = String(process.env.NEXT_PUBLIC_SUPPORT_URL || "").trim();
+  const contactEmail = String(config?.supportEmail || "").trim();
+  const supportUrl = String(config?.supportUrl || "").trim();
   const logoUrl = template?.logoUrl || config?.logoUrl || "";
   const fontFamily = String(layout?.fontFamily || "").trim();
   const primaryColor = String(layout?.primaryColor || "").trim();

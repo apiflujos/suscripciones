@@ -16,6 +16,8 @@ publicLinksRouter.get("/checkout-config", async (_req, res) => {
     subscriptionBaseUrl: String(parsed?.subscriptionBaseUrl || "").trim() || null,
     tokenExpiryHours: Number(parsed?.tokenExpiryHours || 24),
     logoUrl: String(parsed?.logoUrl || "").trim() || null,
+    supportEmail: String(parsed?.supportEmail || "").trim() || null,
+    supportUrl: String(parsed?.supportUrl || "").trim() || null,
     planTitle: String(parsed?.planTitle || "").trim() || "Paga tu plan",
     planDescription: String(parsed?.planDescription || "").trim() || "",
     subscriptionTitle: String(parsed?.subscriptionTitle || "").trim() || "Activa tu suscripción",
@@ -23,7 +25,11 @@ publicLinksRouter.get("/checkout-config", async (_req, res) => {
     planWompiTitle: String(parsed?.planWompiTitle || "").trim() || "",
     planWompiDescription: String(parsed?.planWompiDescription || "").trim() || "",
     subscriptionWompiTitle: String(parsed?.subscriptionWompiTitle || "").trim() || "",
-    subscriptionWompiDescription: String(parsed?.subscriptionWompiDescription || "").trim() || ""
+    subscriptionWompiDescription: String(parsed?.subscriptionWompiDescription || "").trim() || "",
+    tokenizationSuccessTitle: String(parsed?.tokenizationSuccessTitle || "").trim() || "",
+    tokenizationSuccessMessage: String(parsed?.tokenizationSuccessMessage || "").trim() || "",
+    tokenizationErrorMessage: String(parsed?.tokenizationErrorMessage || "").trim() || "",
+    tokenizationReturnUrl: String(parsed?.tokenizationReturnUrl || "").trim() || ""
   };
   res.json({ ok: true, config });
 });

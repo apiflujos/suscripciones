@@ -413,8 +413,17 @@ export async function createPlanAndSubscription(formData: FormData) {
       const customerRes = await adminFetch(`/admin/customers/${customerId}`, { method: "GET" }).catch(() => null);
       const customer = customerRes?.customer || {};
       const base = String(checkoutConfig?.planBaseUrl || "").trim();
+      if (!base) {
+        return redirect(
+          mergeQuery(returnTo, {
+            error: "missing_plan_base_url",
+            customerId,
+            ...(tenantId ? { tenantId } : {})
+          })
+        );
+      }
       const token = crypto.randomBytes(18).toString("hex");
-      const baseUrl = base ? `${base.replace(/\/$/, "")}/public/plan/${token}` : `/public/plan/${token}`;
+      const baseUrl = `${base.replace(/\/$/, "")}/public/plan/${token}`;
       const utm = String(template?.utmParams || "").trim();
       const url = utm ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${utm.replace(/^\?+/, "")}` : baseUrl;
       const expiresAt = expiryHours ? new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString() : null;
@@ -469,8 +478,17 @@ export async function createPlanAndSubscription(formData: FormData) {
         redirect(mergeQuery(returnTo, { created: "1", customerId, ...(tenantId ? { tenantId } : {}) }));
       }
       const base = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
+      if (!base) {
+        return redirect(
+          mergeQuery(returnTo, {
+            error: "missing_subscription_base_url",
+            customerId,
+            ...(tenantId ? { tenantId } : {})
+          })
+        );
+      }
       const token = crypto.randomBytes(18).toString("hex");
-      const baseUrl = base ? `${base.replace(/\/$/, "")}/public/suscripcion/${token}` : `/public/suscripcion/${token}`;
+      const baseUrl = `${base.replace(/\/$/, "")}/public/suscripcion/${token}`;
       const utm = String(template?.utmParams || "").trim();
       const url = utm ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${utm.replace(/^\?+/, "")}` : baseUrl;
       const expiresAt = expiryHours ? new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString() : null;
