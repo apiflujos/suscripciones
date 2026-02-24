@@ -40,23 +40,22 @@ function loadEnvFile(envPath, options = {}) {
   }
 }
 
-const defaultEnvPath = path.resolve(__dirname, "../../.env");
-const defaultEnvLocalPath = path.resolve(__dirname, "../../.env.local");
-const lockedKeys = new Set(Object.keys(process.env));
-const envPaths = process.env.API_ENV_PATH ? [process.env.API_ENV_PATH] : [defaultEnvPath, defaultEnvLocalPath];
-let anyEnvLoaded = false;
+const apiEnvPath = path.resolve(process.cwd(), "apps/api/.env");
+const adminEnvLocalPath = path.resolve(process.cwd(), "apps/admin/.env.local");
+const envPaths = process.env.API_ENV_PATH ? [process.env.API_ENV_PATH] : [apiEnvPath, adminEnvLocalPath];
+let missingEnvs = [];
 for (const p of envPaths) {
-  const info = loadEnvFile(p, { allowOverride: p === defaultEnvLocalPath, lockedKeys });
+  const info = loadEnvFile(p, { allowOverride: true });
   logDebug(
     "env",
     info.loaded ? "loaded" : "not_loaded",
     info.path,
     info.loaded ? `keys:${info.loadedCount}` : `error:${info.error?.message || "unknown"}`
   );
-  if (info.loaded) anyEnvLoaded = true;
+  if (!info.loaded) missingEnvs.push(info.path);
 }
-if (!anyEnvLoaded) {
-  console.error(`Missing env file(s): ${envPaths.join(", ")}`);
+if (missingEnvs.length) {
+  console.error(`Missing env file(s): ${missingEnvs.join(", ")}`);
   process.exit(1);
 }
 
