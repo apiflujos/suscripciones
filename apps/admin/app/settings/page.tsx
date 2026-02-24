@@ -174,91 +174,148 @@ export default async function SettingsPage({
               </div>
             </div>
             <div className="settings-group-body">
-              <div className="panel module">
-                <div className="panelHeaderRow">
-                  <strong>Wompi · Producción</strong>
-                  {wompiActiveEnv === "PRODUCTION" ? (
-                    <span className="pill" style={{ background: "#e7f8ee", color: "#0f6b3a", border: "1px solid #8dd9a9" }}>Activa</span>
-                  ) : (
-                    <span className="pill" style={{ opacity: 0.65 }}>Inactiva</span>
-                  )}
-                </div>
-                <div className="panelRowActions" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                  <a className="ghost" href="/settings?tab=connections&open=wompi">Editar</a>
-                  <form action={testWompiConnection}>
-                    <input type="hidden" name="csrf" value={csrfToken} />
-                    <input type="hidden" name="environment" value="PRODUCTION" />
-                    <button className="ghost" type="submit">Probar</button>
-                  </form>
-                  <form action={deleteWompiConnection}>
-                    <input type="hidden" name="csrf" value={csrfToken} />
-                    <input type="hidden" name="environment" value="PRODUCTION" />
-                    <button className="ghost" type="submit">Eliminar</button>
-                  </form>
-                </div>
-                <div className="field-hint">
-                  Llave pública: {wompiProduction?.publicKey || "—"} · Llave privada: {wompiProduction?.privateKey || "—"} · Integridad: {wompiProduction?.integritySecret || "—"} · Eventos: {wompiProduction?.eventsSecret || "—"}
-                  {" · "}API: {wompiProduction?.apiBaseUrl || "—"} · Links: {wompiProduction?.checkoutLinkBaseUrl || "—"} · Redirección: {wompiProduction?.redirectUrl || "—"}
-                </div>
-              </div>
+              <div className="saved-connections-grid">
+                {([
+                  ["PRODUCTION", "Producción", wompiProduction],
+                  ["SANDBOX", "Sandbox", wompiSandbox]
+                ] as const).map(([envKey, envLabel, wompi]) => (
+                  <div className="saved-conn-card" key={`wompi-${envKey}`}>
+                    <div className="saved-conn-header">
+                      <div>
+                        <strong>Wompi · {envLabel}</strong>
+                        <div className="saved-conn-sub">{envKey === wompiActiveEnv ? "Activa" : "Inactiva"}</div>
+                      </div>
+                      <span className={`pill ${envKey === wompiActiveEnv ? "pill-green" : "pill-muted"}`}>
+                        {envKey === wompiActiveEnv ? "Activa" : "Inactiva"}
+                      </span>
+                    </div>
+                    <div className="saved-conn-actions">
+                      <a className="ghost" href="/settings?tab=connections&open=wompi">Editar</a>
+                      <form action={testWompiConnection}>
+                        <input type="hidden" name="csrf" value={csrfToken} />
+                        <input type="hidden" name="environment" value={envKey} />
+                        <button className="ghost" type="submit">Probar</button>
+                      </form>
+                      <form action={deleteWompiConnection}>
+                        <input type="hidden" name="csrf" value={csrfToken} />
+                        <input type="hidden" name="environment" value={envKey} />
+                        <button className="ghost" type="submit">Eliminar</button>
+                      </form>
+                    </div>
+                    <div className="saved-conn-meta">
+                      <div className="saved-conn-meta-item">
+                        <span className="saved-conn-meta-label">Llave pública</span>
+                        <span className="saved-conn-meta-value">{wompi?.publicKey || "—"}</span>
+                      </div>
+                      <div className="saved-conn-meta-item">
+                        <span className="saved-conn-meta-label">Llave privada</span>
+                        <span className="saved-conn-meta-value">{wompi?.privateKey || "—"}</span>
+                      </div>
+                      <div className="saved-conn-meta-item">
+                        <span className="saved-conn-meta-label">Integridad</span>
+                        <span className="saved-conn-meta-value">{wompi?.integritySecret || "—"}</span>
+                      </div>
+                      <div className="saved-conn-meta-item">
+                        <span className="saved-conn-meta-label">Eventos</span>
+                        <span className="saved-conn-meta-value">{wompi?.eventsSecret || "—"}</span>
+                      </div>
+                      <div className="saved-conn-meta-item">
+                        <span className="saved-conn-meta-label">API</span>
+                        <span className="saved-conn-meta-value">{wompi?.apiBaseUrl || "—"}</span>
+                      </div>
+                      <div className="saved-conn-meta-item">
+                        <span className="saved-conn-meta-label">Links</span>
+                        <span className="saved-conn-meta-value">{wompi?.checkoutLinkBaseUrl || "—"}</span>
+                      </div>
+                      <div className="saved-conn-meta-item">
+                        <span className="saved-conn-meta-label">Redirección</span>
+                        <span className="saved-conn-meta-value">{wompi?.redirectUrl || "—"}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
 
-              <div className="panel module">
-                <div className="panelHeaderRow">
-                  <strong>Wompi · Sandbox</strong>
-                  {wompiActiveEnv === "SANDBOX" ? (
-                    <span className="pill" style={{ background: "#e7f8ee", color: "#0f6b3a", border: "1px solid #8dd9a9" }}>Activa</span>
-                  ) : (
-                    <span className="pill" style={{ opacity: 0.65 }}>Inactiva</span>
-                  )}
-                </div>
-                <div className="panelRowActions" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                  <a className="ghost" href="/settings?tab=connections&open=wompi">Editar</a>
-                  <form action={testWompiConnection}>
-                    <input type="hidden" name="csrf" value={csrfToken} />
-                    <input type="hidden" name="environment" value="SANDBOX" />
-                    <button className="ghost" type="submit">Probar</button>
-                  </form>
-                  <form action={deleteWompiConnection}>
-                    <input type="hidden" name="csrf" value={csrfToken} />
-                    <input type="hidden" name="environment" value="SANDBOX" />
-                    <button className="ghost" type="submit">Eliminar</button>
-                  </form>
-                </div>
-                <div className="field-hint">
-                  Llave pública: {wompiSandbox?.publicKey || "—"} · Llave privada: {wompiSandbox?.privateKey || "—"} · Integridad: {wompiSandbox?.integritySecret || "—"} · Eventos: {wompiSandbox?.eventsSecret || "—"}
-                  {" · "}API: {wompiSandbox?.apiBaseUrl || "—"} · Links: {wompiSandbox?.checkoutLinkBaseUrl || "—"} · Redirección: {wompiSandbox?.redirectUrl || "—"}
-                </div>
-              </div>
+                {([
+                  ["PRODUCTION", "Producción", commsProduction],
+                  ["SANDBOX", "Sandbox", commsSandbox]
+                ] as const).map(([envKey, envLabel, comms]) => (
+                  <div className="saved-conn-card" key={`central-${envKey}`}>
+                    <div className="saved-conn-header">
+                      <div>
+                        <strong>Central · {envLabel}</strong>
+                        <div className="saved-conn-sub">{comms?.baseUrl ? "Configurada" : "Sin configurar"}</div>
+                      </div>
+                      <span className={`pill ${comms?.baseUrl ? "pill-green" : "pill-muted"}`}>
+                        {comms?.baseUrl ? "Activa" : "Inactiva"}
+                      </span>
+                    </div>
+                    <div className="saved-conn-actions">
+                      <a className="ghost" href="/settings?tab=connections&open=central">Editar</a>
+                      <form action={testCentralConnection}>
+                        <input type="hidden" name="csrf" value={csrfToken} />
+                        <input type="hidden" name="baseUrl" value={comms?.baseUrl || ""} />
+                        <input type="hidden" name="accountId" value={comms?.accountId || ""} />
+                        <input type="hidden" name="inboxId" value={comms?.inboxId || ""} />
+                        <input type="hidden" name="apiAccessToken" value={comms?.apiAccessToken || ""} />
+                        <button className="ghost" type="submit">Probar</button>
+                      </form>
+                      <form action={deleteCentralConnection}>
+                        <input type="hidden" name="csrf" value={csrfToken} />
+                        <input type="hidden" name="environment" value={envKey} />
+                        <button className="ghost" type="submit">Eliminar</button>
+                      </form>
+                    </div>
+                    <div className="saved-conn-meta">
+                      <div className="saved-conn-meta-item">
+                        <span className="saved-conn-meta-label">Base URL</span>
+                        <span className="saved-conn-meta-value">{comms?.baseUrl || "—"}</span>
+                      </div>
+                      <div className="saved-conn-meta-item">
+                        <span className="saved-conn-meta-label">Cuenta</span>
+                        <span className="saved-conn-meta-value">{comms?.accountId || "—"}</span>
+                      </div>
+                      <div className="saved-conn-meta-item">
+                        <span className="saved-conn-meta-label">Bandeja</span>
+                        <span className="saved-conn-meta-value">{comms?.inboxId || "—"}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
 
-              <div className="panel module">
-                <div className="panelHeaderRow">
-                  <strong>Central de Comunicaciones</strong>
-                  <span className="pill" style={{ background: "#e7f8ee", color: "#0f6b3a", border: "1px solid #8dd9a9" }}>Activa</span>
+                <div className="saved-conn-card">
+                  <div className="saved-conn-header">
+                    <div>
+                      <strong>Shopify</strong>
+                      <div className="saved-conn-sub">{settings?.shopify?.forwardUrl ? "Configurada" : "Sin configurar"}</div>
+                    </div>
+                    <span className={`pill ${settings?.shopify?.forwardUrl ? "pill-green" : "pill-muted"}`}>
+                      {settings?.shopify?.forwardUrl ? "Activa" : "Inactiva"}
+                    </span>
+                  </div>
+                  <div className="saved-conn-actions">
+                    <a className="ghost" href="/settings?tab=connections&open=shopify">Editar</a>
+                    <form action={testShopifyForward}>
+                      <input type="hidden" name="csrf" value={csrfToken} />
+                      <input type="hidden" name="forwardUrl" value={settings?.shopify?.forwardUrl || ""} />
+                      <input type="hidden" name="forwardOrigin" value={settings?.shopify?.forwardOrigin || "shopify"} />
+                      <button className="ghost" type="submit">Probar</button>
+                    </form>
+                    <form action={deleteShopifyConnection}>
+                      <input type="hidden" name="csrf" value={csrfToken} />
+                      <button className="ghost" type="submit">Eliminar</button>
+                    </form>
+                  </div>
+                  <div className="saved-conn-meta">
+                    <div className="saved-conn-meta-item">
+                      <span className="saved-conn-meta-label">URL</span>
+                      <span className="saved-conn-meta-value">{settings?.shopify?.forwardUrl || "—"}</span>
+                    </div>
+                    <div className="saved-conn-meta-item">
+                      <span className="saved-conn-meta-label">Origen</span>
+                      <span className="saved-conn-meta-value">{settings?.shopify?.forwardOrigin || "—"}</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="field-hint">
-                  Base: {commsProduction?.baseUrl || "—"} · cuenta: {commsProduction?.accountId || "—"} · bandeja: {commsProduction?.inboxId || "—"}
-                </div>
-              </div>
-
-              <div className="panel module">
-                <div className="panelHeaderRow">
-                  <strong>Shopify</strong>
-                  <span className="pill" style={{ background: "#e7f8ee", color: "#0f6b3a", border: "1px solid #8dd9a9" }}>Activa</span>
-                </div>
-                <div className="panelRowActions" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                  <a className="ghost" href="/settings?tab=connections&open=shopify">Editar</a>
-                  <form action={testShopifyForward}>
-                    <input type="hidden" name="csrf" value={csrfToken} />
-                    <input type="hidden" name="forwardUrl" value={settings?.shopify?.forwardUrl || ""} />
-                    <input type="hidden" name="forwardOrigin" value={settings?.shopify?.forwardOrigin || "shopify"} />
-                    <button className="ghost" type="submit">Probar</button>
-                  </form>
-                  <form action={deleteShopifyConnection}>
-                    <input type="hidden" name="csrf" value={csrfToken} />
-                    <button className="ghost" type="submit">Eliminar</button>
-                  </form>
-                </div>
-                <div className="field-hint">URL: {settings?.shopify?.forwardUrl || "—"}</div>
               </div>
 
               <form action={updateCheckoutConfig} className="panel module" style={{ display: "grid", gap: 12 }}>
