@@ -1,4 +1,4 @@
-import NextError from "next/error";
+const NextError = require("next/error").default;
 
 function ErrorPage({ statusCode }) {
   return <NextError statusCode={statusCode} />;
@@ -9,4 +9,4 @@ ErrorPage.getInitialProps = ({ res, err }) => {
   return { statusCode };
 };
 
-export default ErrorPage;
+module.exports = ErrorPage;

@@ -1,4 +1,5 @@
-import Document, { Head, Html, Main, NextScript } from "next/document";
+const Document = require("next/document").default;
+const { Head, Html, Main, NextScript } = require("next/document");
 
 class MyDocument extends Document {
   render() {
@@ -14,4 +15,4 @@ class MyDocument extends Document {
   }
 }
 
-export default MyDocument;
+module.exports = MyDocument;
