@@ -185,11 +185,19 @@ export function CheckoutTemplatesPanel({
   const missingKind = !selectedKind;
   const missingName = !name.trim();
   const missingProducts = !isProductsValid;
+  const [localError, setLocalError] = useState<string>("");
 
   const inlineMsg = (key: string) => {
     if (inlineState.action !== key) return null;
     if (inlineState.status === "ok") return <div className="field-hint">Guardado.</div>;
     if (inlineState.status === "fail") {
+      if (inlineState.errorText?.startsWith("invalid_body")) {
+        return (
+          <div className="field-hint" style={{ color: "var(--danger)" }}>
+            Faltan datos obligatorios. Completa los campos requeridos.
+          </div>
+        );
+      }
       return (
         <div className="field-hint" style={{ color: "var(--danger)" }}>
           Error: {inlineState.errorText || "unknown_error"}
@@ -198,6 +206,26 @@ export function CheckoutTemplatesPanel({
     }
     return null;
   };
+
+  function validateAndFocus() {
+    if (!selectedKind) {
+      setStepIndex(0);
+      setLocalError("Selecciona el tipo de plantilla.");
+      return false;
+    }
+    if (!name.trim()) {
+      setStepIndex(1);
+      setLocalError("Debes ingresar el nombre interno.");
+      return false;
+    }
+    if (!isProductsValid) {
+      setStepIndex(3);
+      setLocalError("Debes seleccionar productos o permitir el selector.");
+      return false;
+    }
+    setLocalError("");
+    return true;
+  }
 
   return (
     <div className="panel module">
@@ -288,7 +316,15 @@ export function CheckoutTemplatesPanel({
             </div>
           ) : null}
 
-          <form action={formAction} style={{ display: "grid", gap: 10 }}>
+          <form
+            action={formAction}
+            onSubmit={(e) => {
+              if (!validateAndFocus()) {
+                e.preventDefault();
+              }
+            }}
+            style={{ display: "grid", gap: 10 }}
+          >
             <input type="hidden" name="csrf" value={csrfToken} />
             {editing ? <input type="hidden" name="id" value={editing.id} /> : null}
             <input type="hidden" name="kind" value={selectedKind} />
@@ -427,6 +463,11 @@ export function CheckoutTemplatesPanel({
             {stepIndex === 4 ? (
               <div style={{ display: "grid", gap: 10 }}>
                 <div className="field-hint">Revisa la configuración antes de guardar.</div>
+                {localError ? (
+                  <div className="field-hint" style={{ color: "var(--danger)" }}>
+                    {localError}
+                  </div>
+                ) : null}
                 {(missingKind || missingName || missingProducts) ? (
                   <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
                     Faltan datos obligatorios:
@@ -463,11 +504,36 @@ export function CheckoutTemplatesPanel({
                   Atrás
                 </button>
                 {stepIndex < STEPS.length - 1 ? (
-                  <button className="primary" type="button" onClick={() => setStepIndex(Math.min(STEPS.length - 1, stepIndex + 1))} disabled={stepIndex === 0 && !kind}>
+                  <button
+                    className="primary"
+                    type="button"
+                    onClick={() => {
+                      if (stepIndex === 0 && !kind) {
+                        setLocalError("Selecciona el tipo de plantilla.");
+                        return;
+                      }
+                      if (stepIndex === 1 && !name.trim()) {
+                        setLocalError("Debes ingresar el nombre interno.");
+                        return;
+                      }
+                      if (stepIndex === 3 && !isProductsValid) {
+                        setLocalError("Debes seleccionar productos o permitir el selector.");
+                        return;
+                      }
+                      setLocalError("");
+                      setStepIndex(Math.min(STEPS.length - 1, stepIndex + 1));
+                    }}
+                    disabled={stepIndex === 0 && !kind}
+                  >
                     Siguiente
                   </button>
                 ) : (
-                  <PendingButton className="primary" type="submit" pendingText="Guardando..." disabled={!selectedKind || !name || !isProductsValid}>
+                  <PendingButton
+                    className="primary"
+                    type="submit"
+                    pendingText="Guardando..."
+                    disabled={!selectedKind || !name || !isProductsValid}
+                  >
                     {editing ? "Guardar cambios" : "Guardar plantilla"}
                   </PendingButton>
                 )}
