@@ -4,9 +4,19 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 
-function loadEnvFile(envPath) {
+const DEBUG_IMPORT = String(process.env.IMPORT_APIFLUJOS_DEBUG || "").trim() === "1";
+
+function logDebug(...args) {
+  if (DEBUG_IMPORT) {
+    console.log("[import-apiflujos]", ...args);
+  }
+}
+
+function loadEnvFile(envPath, options = {}) {
+  const { allowOverride = false, lockedKeys = new Set() } = options;
   try {
     const raw = fs.readFileSync(envPath, "utf-8");
+    let loadedCount = 0;
     for (const line of raw.split(/\r?\n/)) {
       const trimmed = line.trim();
       if (!trimmed || trimmed.startsWith("#")) continue;
@@ -15,21 +25,47 @@ function loadEnvFile(envPath) {
       if (eqIdx === -1) continue;
       const key = withoutExport.slice(0, eqIdx).trim();
       let val = withoutExport.slice(eqIdx + 1).trim();
-      if (!key || Object.prototype.hasOwnProperty.call(process.env, key)) continue;
+      if (!key) continue;
+      if (!allowOverride && Object.prototype.hasOwnProperty.call(process.env, key)) continue;
+      if (allowOverride && lockedKeys.has(key)) continue;
       if ((val.startsWith("\"") && val.endsWith("\"")) || (val.startsWith("'") && val.endsWith("'"))) {
         val = val.slice(1, -1);
       }
       process.env[key] = val;
+      loadedCount += 1;
     }
+    return { loaded: true, path: envPath, loadedCount };
   } catch (err) {
-    // ignore missing/unreadable .env
+    return { loaded: false, path: envPath, error: err };
   }
 }
 
 const defaultEnvPath = path.resolve(__dirname, "../../.env");
-loadEnvFile(process.env.API_ENV_PATH || defaultEnvPath);
+const defaultEnvLocalPath = path.resolve(__dirname, "../../.env.local");
+const lockedKeys = new Set(Object.keys(process.env));
+const envPaths = process.env.API_ENV_PATH
+  ? [process.env.API_ENV_PATH]
+  : [defaultEnvPath, defaultEnvLocalPath];
+const envInfos = [];
+for (const p of envPaths) {
+  const info = loadEnvFile(p, { allowOverride: p === defaultEnvLocalPath, lockedKeys });
+  envInfos.push(info);
+}
+for (const envInfo of envInfos) {
+  logDebug(
+    "env",
+    envInfo.loaded ? "loaded" : "not_loaded",
+    envInfo.path,
+    envInfo.loaded ? `keys:${envInfo.loadedCount}` : `error:${envInfo.error?.message || "unknown"}`
+  );
+}
 
-const API_BASE = (process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001").replace(/\/$/, "");
+const API_BASE = (
+  process.env.API_BASE_URL ||
+  process.env.ADMIN_INTERNAL_API_BASE_URL ||
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  "http://localhost:3001"
+).replace(/\/$/, "");
 const ADMIN_TOKEN = String(process.env.ADMIN_API_TOKEN || "").replace(/^Bearer\s+/i, "").trim();
 const CSV_PATH =
   process.env.IMPORT_APIFLUJOS_CSV_PATH ||
@@ -38,6 +74,10 @@ const CSV_PATH =
 const DELETE_CSV = String(process.env.DELETE_CSV || "").trim() === "1";
 const TENANT_NAME = "Mercado de vinos";
 const DEFAULT_EMAIL_FOR_MISSING = "mdvgen@gmail.com";
+
+logDebug("API_BASE", API_BASE);
+logDebug("CSV_PATH", CSV_PATH);
+logDebug("ADMIN_TOKEN length", ADMIN_TOKEN.length);
 
 if (!ADMIN_TOKEN) {
   console.error("Missing ADMIN_API_TOKEN");
@@ -102,15 +142,20 @@ function parseCsv(text) {
 }
 
 async function adminFetch(pathname, init) {
-  const res = await fetch(`${API_BASE}${pathname}`, {
-    ...init,
-    headers: {
-      authorization: `Bearer ${ADMIN_TOKEN}`,
-      "x-admin-token": ADMIN_TOKEN,
-      "content-type": "application/json",
-      ...(init && init.headers ? init.headers : {})
-    }
-  });
+  let res;
+  try {
+    res = await fetch(`${API_BASE}${pathname}`, {
+      ...init,
+      headers: {
+        authorization: `Bearer ${ADMIN_TOKEN}`,
+        "x-admin-token": ADMIN_TOKEN,
+        "content-type": "application/json",
+        ...(init && init.headers ? init.headers : {})
+      }
+    });
+  } catch (err) {
+    throw new Error(`fetch_failed:${err?.message || err}`);
+  }
   const json = await res.json().catch(() => null);
   if (!res.ok) {
     const msg = json?.reason ? `${json?.error || "request_failed"}:${json.reason}` : json?.error || `request_failed_${res.status}`;
@@ -120,6 +165,9 @@ async function adminFetch(pathname, init) {
 }
 
 async function main() {
+  if (!fs.existsSync(CSV_PATH)) {
+    throw new Error(`csv_not_found:${CSV_PATH}`);
+  }
   const raw = fs.readFileSync(CSV_PATH, "utf-8");
   const rows = parseCsv(raw);
   if (!rows.length) throw new Error("csv_empty");
