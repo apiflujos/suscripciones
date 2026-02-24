@@ -277,8 +277,6 @@ export function NewBillingAssignmentForm({
                     setProductId("");
                     setProductQ("");
                     setProductHits([]);
-                    setOption1Value("");
-                    setOption2Value("");
                   }}
                 >
                   Cambiar
