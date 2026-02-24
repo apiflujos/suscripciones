@@ -7,6 +7,7 @@ const crypto = require("crypto");
 const API_BASE = (process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001").replace(/\/$/, "");
 const ADMIN_TOKEN = String(process.env.ADMIN_API_TOKEN || "").replace(/^Bearer\s+/i, "").trim();
 const CSV_PATH = process.env.CSV_PATH || path.resolve(process.cwd(), "Base de datos APIFLUJOS - Sheet1.csv");
+const DELETE_CSV = String(process.env.DELETE_CSV || "").trim() === "1";
 const TENANT_NAME = "Mercado de vinos";
 const DEFAULT_EMAIL_FOR_MISSING = "mdvgen@gmail.com";
 
@@ -360,6 +361,15 @@ async function main() {
     createdSubscriptions,
     createdLinks
   });
+
+  if (DELETE_CSV) {
+    try {
+      fs.unlinkSync(CSV_PATH);
+      console.log("CSV deleted:", CSV_PATH);
+    } catch (err) {
+      console.warn("CSV delete failed:", err?.message || err);
+    }
+  }
 }
 
 main().catch((err) => {
