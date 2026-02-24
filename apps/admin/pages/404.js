@@ -11,8 +11,3 @@ export default function Custom404() {
     </main>
   );
 }
-
-export async function getServerSideProps({ res }) {
-  if (res) res.statusCode = 404;
-  return { props: {} };
-}
