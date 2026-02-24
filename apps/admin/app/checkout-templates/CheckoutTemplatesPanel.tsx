@@ -85,6 +85,8 @@ export function CheckoutTemplatesPanel({
   const [logoUrl, setLogoUrl] = useState("");
   const [publicTitle, setPublicTitle] = useState("");
   const [publicDescription, setPublicDescription] = useState("");
+  const [wompiTitle, setWompiTitle] = useState("");
+  const [wompiDescription, setWompiDescription] = useState("");
   const [utmParams, setUtmParams] = useState("");
 
   const [primaryColor, setPrimaryColor] = useState("");
@@ -138,6 +140,8 @@ export function CheckoutTemplatesPanel({
     setLogoUrl(t.logoUrl || "");
     setPublicTitle(t.publicTitle || "");
     setPublicDescription(t.publicDescription || "");
+    setWompiTitle(t.wompiTitle || t.publicTitle || "");
+    setWompiDescription(t.wompiDescription || t.publicDescription || "");
     setUtmParams(t.utmParams || "");
     const layout = t.layout || {};
     setPrimaryColor(layout.primaryColor || "");
@@ -288,8 +292,8 @@ export function CheckoutTemplatesPanel({
             <input type="hidden" name="logoUrl" value={logoUrl} />
             <input type="hidden" name="productIds" value={productIds.join(",")} />
             <input type="hidden" name="layout" value={JSON.stringify(layoutPayload)} />
-            <input type="hidden" name="wompiTitle" value={publicTitle} />
-            <input type="hidden" name="wompiDescription" value={publicDescription} />
+            <input type="hidden" name="wompiTitle" value={wompiTitle || publicTitle} />
+            <input type="hidden" name="wompiDescription" value={wompiDescription || publicDescription} />
 
             {stepIndex === 1 ? (
               <div style={{ display: "grid", gap: 10 }}>
