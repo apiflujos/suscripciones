@@ -43,34 +43,26 @@ function loadEnvFile(envPath, options = {}) {
 const defaultEnvPath = path.resolve(__dirname, "../../.env");
 const defaultEnvLocalPath = path.resolve(__dirname, "../../.env.local");
 const lockedKeys = new Set(Object.keys(process.env));
-const envPaths = process.env.API_ENV_PATH
-  ? [process.env.API_ENV_PATH]
-  : [defaultEnvPath, defaultEnvLocalPath];
-const envInfos = [];
+const envPaths = process.env.API_ENV_PATH ? [process.env.API_ENV_PATH] : [defaultEnvPath, defaultEnvLocalPath];
+let anyEnvLoaded = false;
 for (const p of envPaths) {
   const info = loadEnvFile(p, { allowOverride: p === defaultEnvLocalPath, lockedKeys });
-  envInfos.push(info);
-}
-for (const envInfo of envInfos) {
   logDebug(
     "env",
-    envInfo.loaded ? "loaded" : "not_loaded",
-    envInfo.path,
-    envInfo.loaded ? `keys:${envInfo.loadedCount}` : `error:${envInfo.error?.message || "unknown"}`
+    info.loaded ? "loaded" : "not_loaded",
+    info.path,
+    info.loaded ? `keys:${info.loadedCount}` : `error:${info.error?.message || "unknown"}`
   );
+  if (info.loaded) anyEnvLoaded = true;
+}
+if (!anyEnvLoaded) {
+  console.error(`Missing env file(s): ${envPaths.join(", ")}`);
+  process.exit(1);
 }
 
-const API_BASE = (
-  process.env.API_BASE_URL ||
-  process.env.ADMIN_INTERNAL_API_BASE_URL ||
-  process.env.NEXT_PUBLIC_API_BASE_URL ||
-  "http://localhost:3001"
-).replace(/\/$/, "");
+const API_BASE = (process.env.ADMIN_INTERNAL_API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(/\/$/, "");
 const ADMIN_TOKEN = String(process.env.ADMIN_API_TOKEN || "").replace(/^Bearer\s+/i, "").trim();
-const CSV_PATH =
-  process.env.IMPORT_APIFLUJOS_CSV_PATH ||
-  process.env.CSV_PATH ||
-  path.resolve(process.cwd(), "Base de datos APIFLUJOS - Sheet1.csv");
+const CSV_PATH = String(process.env.IMPORT_APIFLUJOS_CSV_PATH || "").trim();
 const DELETE_CSV = String(process.env.DELETE_CSV || "").trim() === "1";
 const TENANT_NAME = "Mercado de vinos";
 const DEFAULT_EMAIL_FOR_MISSING = "mdvgen@gmail.com";
@@ -79,11 +71,20 @@ logDebug("API_BASE", API_BASE);
 logDebug("CSV_PATH", CSV_PATH);
 logDebug("ADMIN_TOKEN length", ADMIN_TOKEN.length);
 
+if (!API_BASE) {
+  console.error("Missing ADMIN_INTERNAL_API_BASE_URL or NEXT_PUBLIC_API_BASE_URL");
+  process.exit(1);
+}
+
 if (!ADMIN_TOKEN) {
   console.error("Missing ADMIN_API_TOKEN");
   process.exit(1);
 }
 
+if (!CSV_PATH) {
+  console.error("Missing IMPORT_APIFLUJOS_CSV_PATH");
+  process.exit(1);
+}
 function moneyToCents(raw) {
   const digits = String(raw || "").replace(/[^\d]/g, "");
   if (!digits) return null;
