@@ -232,7 +232,8 @@ export function ConnectionsPanel({
                       </div>
                       <div className="field">
                         <label>Token API</label>
-                        <input className="input" name="apiAccessToken" type="password" defaultValue={comms?.apiAccessToken || ""} />
+                        <input className="input" name="apiAccessToken" type="password" placeholder="••••••••" />
+                        <div className="field-hint">Déjalo vacío para conservar el token actual.</div>
                       </div>
                     </div>
                     <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
@@ -313,7 +314,8 @@ export function ConnectionsPanel({
               </div>
               <div className="field">
                 <label>Secreto de reenvío (opcional)</label>
-                <input className="input" name="forwardSecret" type="password" />
+                <input className="input" name="forwardSecret" type="password" placeholder="••••••••" />
+                <div className="field-hint">Déjalo vacío para conservar el secreto actual.</div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <div className="field">

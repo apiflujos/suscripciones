@@ -45,10 +45,10 @@ const smartListCreateSchema = z.object({
 });
 
 const testConnectionSchema = z.object({
-  baseUrl: z.string().url(),
-  accountId: z.number().int().positive(),
-  inboxId: z.number().int().positive(),
-  apiAccessToken: z.string().min(1)
+  baseUrl: z.string().url().optional(),
+  accountId: z.number().int().positive().optional(),
+  inboxId: z.number().int().positive().optional(),
+  apiAccessToken: z.string().min(1).optional()
 });
 
 commsRouter.get("/smart-lists", async (_req, res) => {
@@ -65,16 +65,26 @@ commsRouter.post("/test-connection", async (req, res) => {
   const parsed = testConnectionSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
 
+  const stored = await getChatwootConfig();
+  const baseUrl = parsed.data.baseUrl || (stored.configured ? stored.baseUrl : "");
+  const accountId = parsed.data.accountId || (stored.configured ? stored.accountId : 0);
+  const inboxId = parsed.data.inboxId || (stored.configured ? stored.inboxId : 0);
+  const apiAccessToken = parsed.data.apiAccessToken || (stored.configured ? stored.apiAccessToken : "");
+
+  if (!baseUrl || !accountId || !inboxId || !apiAccessToken) {
+    return res.status(400).json({ error: "connection_not_configured" });
+  }
+
   try {
     const client = new ChatwootClient({
-      baseUrl: parsed.data.baseUrl,
-      accountId: parsed.data.accountId,
-      apiAccessToken: parsed.data.apiAccessToken,
-      inboxId: parsed.data.inboxId
+      baseUrl,
+      accountId,
+      apiAccessToken,
+      inboxId
     });
 
     const account = await client.getAccount();
-    const inbox = await client.getInbox(parsed.data.inboxId);
+    const inbox = await client.getInbox(inboxId);
     return res.json({
       ok: true,
       account: account.raw?.payload || account.raw || null,

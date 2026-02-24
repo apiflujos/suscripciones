@@ -136,8 +136,8 @@ export async function updateShopify(formData: FormData) {
     await adminFetch("/admin/settings/shopify", {
       method: "PUT",
       body: JSON.stringify({
-        forwardUrl,
-        forwardSecret,
+        ...(forwardUrl ? { forwardUrl } : {}),
+        ...(forwardSecret ? { forwardSecret } : {}),
         ...(forwardOrigin ? { forwardOrigin } : {}),
         ...(forwardRetryEnabled ? { forwardRetryEnabled } : {}),
         ...(forwardRetryMinutes ? { forwardRetryMinutes } : {})
@@ -169,7 +169,11 @@ export async function testShopifyForward(formData: FormData) {
   try {
     await adminFetch("/admin/settings/shopify/test-forward", {
       method: "POST",
-      body: JSON.stringify({ forwardUrl, forwardSecret, ...(forwardOrigin ? { forwardOrigin } : {}) })
+      body: JSON.stringify({
+        ...(forwardUrl ? { forwardUrl } : {}),
+        ...(forwardSecret ? { forwardSecret } : {}),
+        ...(forwardOrigin ? { forwardOrigin } : {})
+      })
     });
     redirectWith("shopify_test", "ok");
   } catch (err) {
@@ -181,7 +185,8 @@ export async function testShopifyForward(formData: FormData) {
 export async function updateChatwoot(formData: FormData) {
   await assertCsrfToken(formData);
   const environment = String(formData.get("environment") || "").trim();
-  const baseUrl = normalizeUrl(String(formData.get("baseUrl") || ""));
+  const baseUrlRaw = String(formData.get("baseUrl") || "").trim();
+  const baseUrl = baseUrlRaw ? normalizeUrl(baseUrlRaw) : "";
   const accountId = String(formData.get("accountId") || "").trim();
   const apiAccessToken = String(formData.get("apiAccessToken") || "").trim();
   const inboxId = String(formData.get("inboxId") || "").trim();
@@ -191,8 +196,8 @@ export async function updateChatwoot(formData: FormData) {
       method: "PUT",
       body: JSON.stringify({
         ...(environment ? { environment } : {}),
-        baseUrl,
-        apiAccessToken,
+        ...(baseUrl ? { baseUrl } : {}),
+        ...(apiAccessToken ? { apiAccessToken } : {}),
         ...(accountId ? { accountId: Number(accountId) } : {}),
         ...(inboxId ? { inboxId: Number(inboxId) } : {})
       })
@@ -298,7 +303,8 @@ export async function syncCentralAttributes(formData: FormData) {
 
 export async function testCentralConnection(formData: FormData) {
   await assertCsrfToken(formData);
-  const baseUrl = normalizeUrl(String(formData.get("baseUrl") || ""));
+  const baseUrlRaw = String(formData.get("baseUrl") || "").trim();
+  const baseUrl = baseUrlRaw ? normalizeUrl(baseUrlRaw) : "";
   const accountId = String(formData.get("accountId") || "").trim();
   const inboxId = String(formData.get("inboxId") || "").trim();
   const apiAccessToken = String(formData.get("apiAccessToken") || "").trim();
@@ -307,10 +313,10 @@ export async function testCentralConnection(formData: FormData) {
     await adminFetch("/admin/comms/test-connection", {
       method: "POST",
       body: JSON.stringify({
-        baseUrl,
-        apiAccessToken,
-        accountId: Number(accountId),
-        inboxId: Number(inboxId)
+        ...(baseUrl ? { baseUrl } : {}),
+        ...(apiAccessToken ? { apiAccessToken } : {}),
+        ...(accountId ? { accountId: Number(accountId) } : {}),
+        ...(inboxId ? { inboxId: Number(inboxId) } : {})
       })
     });
     redirectWith("central_test", "ok");
