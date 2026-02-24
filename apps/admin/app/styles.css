@@ -854,6 +854,13 @@ textarea {
   margin-bottom: 2px;
 }
 
+.contact-value {
+  display: block;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.2;
+}
+
 .contact-right {
   display: grid;
   gap: 2px;
