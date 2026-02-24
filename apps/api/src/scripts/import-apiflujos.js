@@ -4,6 +4,31 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 
+function loadEnvFile(envPath) {
+  try {
+    const raw = fs.readFileSync(envPath, "utf-8");
+    for (const line of raw.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const withoutExport = trimmed.startsWith("export ") ? trimmed.slice(7).trim() : trimmed;
+      const eqIdx = withoutExport.indexOf("=");
+      if (eqIdx === -1) continue;
+      const key = withoutExport.slice(0, eqIdx).trim();
+      let val = withoutExport.slice(eqIdx + 1).trim();
+      if (!key || Object.prototype.hasOwnProperty.call(process.env, key)) continue;
+      if ((val.startsWith("\"") && val.endsWith("\"")) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1);
+      }
+      process.env[key] = val;
+    }
+  } catch (err) {
+    // ignore missing/unreadable .env
+  }
+}
+
+const defaultEnvPath = path.resolve(__dirname, "../../.env");
+loadEnvFile(process.env.API_ENV_PATH || defaultEnvPath);
+
 const API_BASE = (process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001").replace(/\/$/, "");
 const ADMIN_TOKEN = String(process.env.ADMIN_API_TOKEN || "").replace(/^Bearer\s+/i, "").trim();
 const CSV_PATH = process.env.CSV_PATH || path.resolve(process.cwd(), "Base de datos APIFLUJOS - Sheet1.csv");
