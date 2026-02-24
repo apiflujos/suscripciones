@@ -85,8 +85,6 @@ export function CheckoutTemplatesPanel({
   const [logoUrl, setLogoUrl] = useState("");
   const [publicTitle, setPublicTitle] = useState("");
   const [publicDescription, setPublicDescription] = useState("");
-  const [wompiTitle, setWompiTitle] = useState("");
-  const [wompiDescription, setWompiDescription] = useState("");
   const [utmParams, setUtmParams] = useState("");
 
   const [primaryColor, setPrimaryColor] = useState("");
@@ -140,8 +138,6 @@ export function CheckoutTemplatesPanel({
     setLogoUrl(t.logoUrl || "");
     setPublicTitle(t.publicTitle || "");
     setPublicDescription(t.publicDescription || "");
-    setWompiTitle(t.wompiTitle || "");
-    setWompiDescription(t.wompiDescription || "");
     setUtmParams(t.utmParams || "");
     const layout = t.layout || {};
     setPrimaryColor(layout.primaryColor || "");
@@ -292,6 +288,8 @@ export function CheckoutTemplatesPanel({
             <input type="hidden" name="logoUrl" value={logoUrl} />
             <input type="hidden" name="productIds" value={productIds.join(",")} />
             <input type="hidden" name="layout" value={JSON.stringify(layoutPayload)} />
+            <input type="hidden" name="wompiTitle" value={publicTitle} />
+            <input type="hidden" name="wompiDescription" value={publicDescription} />
 
             {stepIndex === 1 ? (
               <div style={{ display: "grid", gap: 10 }}>
@@ -310,14 +308,6 @@ export function CheckoutTemplatesPanel({
                 <div className="field">
                   <label>Descripción pública</label>
                   <textarea className="input" name="publicDescription" rows={2} value={publicDescription} onChange={(e) => setPublicDescription(e.target.value)} placeholder="Descripción corta" />
-                </div>
-                <div className="field">
-                  <label>Wompi Title</label>
-                  <input className="input" name="wompiTitle" value={wompiTitle} onChange={(e) => setWompiTitle(e.target.value)} placeholder="{producto} · {contacto}" />
-                </div>
-                <div className="field">
-                  <label>Wompi Description</label>
-                  <input className="input" name="wompiDescription" value={wompiDescription} onChange={(e) => setWompiDescription(e.target.value)} placeholder="{producto} · {monto}" />
                 </div>
                 <div className="field">
                   <label>UTM (opcional)</label>

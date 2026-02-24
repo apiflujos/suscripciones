@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { NewCustomerForm } from "../customers/NewCustomerForm";
 import { enterToNextField } from "../lib/enterToNext";
-import { HelpTip } from "../ui/HelpTip";
 
 type Customer = {
   id: string;
@@ -31,8 +30,6 @@ type CatalogItem = {
 
 type BillingType = "PLAN" | "SUBSCRIPCION";
 
-type IntervalUnit = "DAY" | "WEEK" | "MONTH";
-
 type CheckoutTemplate = {
   id: string;
   name: string;
@@ -44,29 +41,6 @@ function fmtMoneyFromCents(cents: number, currency = "COP") {
   const major = Math.trunc(Number(cents || 0) / 100);
   if (currency !== "COP") return `${major} ${currency}`;
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(major);
-}
-
-function toDatetimeLocalValue(d: Date) {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-function localToIso(localValue: string) {
-  const v = String(localValue || "").trim();
-  if (!v) return "";
-  const d = new Date(v);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toISOString();
-}
-
-function getOptionValues(item: CatalogItem | null, key: "option1" | "option2") {
-  if (!item) return [] as string[];
-  const values = new Set<string>();
-  for (const v of item.variants ?? []) {
-    const val = key === "option1" ? v.option1 : v.option2;
-    if (val) values.add(String(val));
-  }
-  return Array.from(values).sort((a, b) => a.localeCompare(b, "es"));
 }
 
 export function NewBillingAssignmentForm({
@@ -109,26 +83,14 @@ export function NewBillingAssignmentForm({
   const [selectedCustomerOverride, setSelectedCustomerOverride] = useState<Customer | null>(null);
 
   const [billingType, setBillingType] = useState<BillingType>("SUBSCRIPCION");
-  const [intervalUnit, setIntervalUnit] = useState<IntervalUnit>("MONTH");
-  const [intervalCount, setIntervalCount] = useState(1);
-  const [option1Value, setOption1Value] = useState("");
-  const [option2Value, setOption2Value] = useState("");
+  const intervalUnit = "MONTH";
+  const intervalCount = 1;
+  const option1Value = "";
+  const option2Value = "";
   const [templateId, setTemplateId] = useState("");
 
-  const [startLocal, setStartLocal] = useState("");
-  const [cutoffLocal, setCutoffLocal] = useState("");
-  const [sameCutoff, setSameCutoff] = useState(true);
-
-  useEffect(() => {
-    const now = new Date();
-    const v = toDatetimeLocalValue(now);
-    setStartLocal((x) => x || v);
-    setCutoffLocal((x) => x || v);
-  }, []);
-
-  useEffect(() => {
-    if (sameCutoff) setCutoffLocal(startLocal);
-  }, [sameCutoff, startLocal]);
+  const startAtIso = "";
+  const cutoffAtIso = "";
 
   const selectedProduct = useMemo(() => {
     if (!productId) return null;
@@ -156,8 +118,7 @@ export function NewBillingAssignmentForm({
     return candidates.some((v: any) => (typeof v === "number" && Number.isFinite(v)) || (typeof v === "string" && /^\d+$/.test(v)));
   }, [selectedCustomer]);
 
-  const option1Values = useMemo(() => getOptionValues(selectedProduct, "option1"), [selectedProduct]);
-  const option2Values = useMemo(() => getOptionValues(selectedProduct, "option2"), [selectedProduct]);
+  // Variantes y fechas simplificadas en este flujo.
 
   const templatesForType = useMemo(() => {
     const targetKind = billingType === "PLAN" ? "PLAN" : "SUBSCRIPTION";
@@ -171,15 +132,7 @@ export function NewBillingAssignmentForm({
     }
   }, [templateId, templatesForType]);
 
-  useEffect(() => {
-    if (!selectedProduct) {
-      setOption1Value("");
-      setOption2Value("");
-      return;
-    }
-    if (option1Value && !option1Values.includes(option1Value)) setOption1Value("");
-    if (option2Value && !option2Values.includes(option2Value)) setOption2Value("");
-  }, [selectedProduct, option1Value, option2Value, option1Values, option2Values]);
+  useEffect(() => {}, []);
 
 
   const filteredProducts = useMemo(() => {
@@ -289,10 +242,7 @@ export function NewBillingAssignmentForm({
     };
   }, [customerQ]);
 
-  const startAtIso = useMemo(() => localToIso(startLocal), [startLocal]);
-  const cutoffAtIso = useMemo(() => localToIso(cutoffLocal), [cutoffLocal]);
-
-  const canSubmit = Boolean(productId && customerId && intervalCount > 0);
+  const canSubmit = Boolean(productId && customerId);
 
   return (
     <div className="panel module">
@@ -474,6 +424,7 @@ export function NewBillingAssignmentForm({
               <input type="hidden" name="customerId" value={customerId} />
               <input type="hidden" name="productId" value={productId} />
               <input type="hidden" name="billingType" value={billingType} />
+              {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
               <input type="hidden" name="intervalUnit" value={intervalUnit} />
               <input type="hidden" name="intervalCount" value={intervalCount} />
               <input type="hidden" name="option1Value" value={option1Value} />
@@ -487,39 +438,6 @@ export function NewBillingAssignmentForm({
                   <select className="select" value={billingType} onChange={(e) => setBillingType(e.target.value === "PLAN" ? "PLAN" : "SUBSCRIPCION")} disabled={!productId || !customerId}>
                     <option value="SUBSCRIPCION">Suscripción</option>
                     <option value="PLAN">Plan</option>
-                  </select>
-                </div>
-                <div className="field">
-                  <label>Cobro</label>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                    <input
-                      className="input"
-                      type="number"
-                      min={1}
-                      value={intervalCount}
-                      onChange={(e) => setIntervalCount(Math.max(1, Number(e.target.value || 1)))}
-                      disabled={!productId || !customerId}
-                    />
-                    <select
-                      className="select"
-                      value={intervalUnit}
-                      onChange={(e) => setIntervalUnit((e.target.value || "MONTH") as IntervalUnit)}
-                      disabled={!productId || !customerId}
-                    >
-                      <option value="DAY">Día</option>
-                      <option value="WEEK">Semana</option>
-                      <option value="MONTH">Mes</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="field">
-                  <label>Canales</label>
-                  <select className="select" name="tenantIds" multiple defaultValue={tenantId ? [tenantId] : []} required>
-                    {tenants.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
-                    ))}
                   </select>
                 </div>
               </div>
@@ -543,93 +461,16 @@ export function NewBillingAssignmentForm({
                 {!templatesForType.length ? <div className="field-hint">No hay plantillas {billingType === "PLAN" ? "de plan" : "de suscripción"}.</div> : null}
               </div>
 
-              {selectedProduct?.option1Name ? (
-                <div className="field">
-                  <label>{selectedProduct.option1Name}</label>
-                  <select className="select" value={option1Value} onChange={(e) => setOption1Value(e.target.value)} disabled={!productId || !customerId}>
-                    <option value="">Selecciona…</option>
-                    {option1Values.map((v) => (
-                      <option key={v} value={v}>{v}</option>
-                    ))}
-                  </select>
-                </div>
-              ) : null}
-
-              {selectedProduct?.option2Name ? (
-                <div className="field">
-                  <label>{selectedProduct.option2Name}</label>
-                  <select className="select" value={option2Value} onChange={(e) => setOption2Value(e.target.value)} disabled={!productId || !customerId}>
-                    <option value="">Selecciona…</option>
-                    {option2Values.map((v) => (
-                      <option key={v} value={v}>{v}</option>
-                    ))}
-                  </select>
-                </div>
-              ) : null}
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div className="field">
-                  <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span>Inicio (activación)</span>
-                    <HelpTip text="Fecha/hora en la que inicia la suscripción." />
-                  </label>
-                  <input className="input" type="datetime-local" value={startLocal} onChange={(e) => setStartLocal(e.target.value)} disabled={!productId || !customerId} />
-                </div>
-                <div className="field">
-                  <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span>Corte (cobro)</span>
-                    <HelpTip text="Fecha/hora del primer cobro. Si se deja igual al inicio, se cobra de inmediato." />
-                  </label>
-                  <input
-                    className="input"
-                    type="datetime-local"
-                    value={cutoffLocal}
-                    onChange={(e) => setCutoffLocal(e.target.value)}
-                    disabled={!productId || !customerId || sameCutoff}
-                  />
-                  <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-                    <input type="checkbox" checked={sameCutoff} onChange={(e) => setSameCutoff(e.target.checked)} disabled={!productId || !customerId} />
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                      <span>Corte = inicio</span>
-                      <HelpTip text="Usa la misma fecha/hora de activación." />
-                    </span>
-                  </label>
-                </div>
-              </div>
-
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 10, alignItems: "center" }}>
-                {billingType === "SUBSCRIPCION" && hasToken ? (
-                  <>
-                    <button
-                      className="ghost"
-                      type="submit"
-                      name="submitAction"
-                      value="CREATE"
-                      disabled={!canSubmit}
-                    >
-                      Crear
-                    </button>
-                    <button
-                      className="primary"
-                      type="submit"
-                      name="submitAction"
-                      value="CHARGE_NOW"
-                      disabled={!canSubmit}
-                    >
-                      Crear y cobrar ahora
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    className="primary"
-                    type="submit"
-                    name="submitAction"
-                    value="LINK_NOW"
-                    disabled={!canSubmit}
-                  >
-                    {billingType === "PLAN" ? "Crear y enviar link de pago" : "Crear y enviar link de tokenización"}
-                  </button>
-                )}
+                <button
+                  className="primary"
+                  type="submit"
+                  name="submitAction"
+                  value="LINK_NOW"
+                  disabled={!canSubmit}
+                >
+                  {billingType === "PLAN" ? "Enviar link de pago" : "Enviar link de tokenización"}
+                </button>
               </div>
             </form>
           </div>

@@ -52,8 +52,8 @@ export async function createCheckoutTemplate(formData: FormData) {
       logoUrl: String(formData.get("logoUrl") || "").trim(),
       publicTitle: String(formData.get("publicTitle") || "").trim(),
       publicDescription: String(formData.get("publicDescription") || "").trim(),
-      wompiTitle: String(formData.get("wompiTitle") || "").trim(),
-      wompiDescription: String(formData.get("wompiDescription") || "").trim(),
+      wompiTitle: String(formData.get("publicTitle") || "").trim(),
+      wompiDescription: String(formData.get("publicDescription") || "").trim(),
       utmParams: String(formData.get("utmParams") || "").trim(),
       layout
     };
@@ -88,8 +88,8 @@ export async function updateCheckoutTemplate(formData: FormData) {
       logoUrl: String(formData.get("logoUrl") || "").trim(),
       publicTitle: String(formData.get("publicTitle") || "").trim(),
       publicDescription: String(formData.get("publicDescription") || "").trim(),
-      wompiTitle: String(formData.get("wompiTitle") || "").trim(),
-      wompiDescription: String(formData.get("wompiDescription") || "").trim(),
+      wompiTitle: String(formData.get("publicTitle") || "").trim(),
+      wompiDescription: String(formData.get("publicDescription") || "").trim(),
       utmParams: String(formData.get("utmParams") || "").trim(),
       layout
     };

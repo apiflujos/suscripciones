@@ -21,12 +21,24 @@ const layoutSchema = z
   })
   .optional();
 
+const kindSchema = z.preprocess((v) => {
+  const s = String(v || "").trim().toUpperCase();
+  if (s === "SUBSCRIPCION") return "SUBSCRIPTION";
+  return s;
+}, z.nativeEnum(PublicCheckoutKind));
+
+const productIdsSchema = z.preprocess((v) => {
+  if (Array.isArray(v)) return v;
+  if (typeof v === "string") return v.split(",").map((s) => s.trim()).filter(Boolean);
+  return v;
+}, z.array(z.string()).optional());
+
 const templateSchema = z.object({
   name: z.string().min(1),
-  kind: z.nativeEnum(PublicCheckoutKind),
+  kind: kindSchema,
   active: z.boolean().optional(),
   allowProductSelect: z.boolean().optional(),
-  productIds: z.array(z.string()).optional(),
+  productIds: productIdsSchema,
   expiryHours: z.coerce.number().int().positive().optional(),
   logoUrl: z.string().optional().or(z.literal("")),
   publicTitle: z.string().optional().or(z.literal("")),

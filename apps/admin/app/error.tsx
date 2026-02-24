@@ -11,6 +11,9 @@ export default function Error({
 }) {
   useEffect(() => {
     // Log the error to the console for easier debugging
+    const digest = String(error?.digest || "");
+    const msg = String(error?.message || "");
+    if (digest.startsWith("NEXT_REDIRECT") || msg.includes("NEXT_REDIRECT")) return;
     console.error("Global Error Boundary caught:", error);
   }, [error]);
 

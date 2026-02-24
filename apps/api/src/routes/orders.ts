@@ -133,8 +133,8 @@ ordersRouter.post("/", async (req, res) => {
   try {
     cfg = rawConfig ? JSON.parse(rawConfig) : null;
   } catch {}
-  const templateTitle = String(cfg?.planWompiTitle || "").trim();
-  const templateDesc = String(cfg?.planWompiDescription || "").trim();
+  const templateTitle = String(cfg?.planTitle || "").trim();
+  const templateDesc = String(cfg?.planDescription || "").trim();
   const replaceVars = (input: string) =>
     input
       .replaceAll("{contacto}", customerName)

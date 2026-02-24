@@ -46,8 +46,6 @@ export function CheckoutConfigPanel({
   const [tokenExpiryHours, setTokenExpiryHours] = useState<string>(String(defaults.tokenExpiryHours || 24));
   const [checkoutTitle, setCheckoutTitle] = useState<string>(String(defaults.planTitle || defaults.subscriptionTitle || "Checkout"));
   const [checkoutDescription, setCheckoutDescription] = useState<string>(String(defaults.planDescription || defaults.subscriptionDescription || ""));
-  const [wompiTitle, setWompiTitle] = useState<string>(String(defaults.planWompiTitle || defaults.subscriptionWompiTitle || ""));
-  const [wompiDescription, setWompiDescription] = useState<string>(String(defaults.planWompiDescription || defaults.subscriptionWompiDescription || ""));
   const [tokenSuccessTitle, setTokenSuccessTitle] = useState<string>(String(defaults.tokenizationSuccessTitle || "Gracias"));
   const [tokenSuccessMessage, setTokenSuccessMessage] = useState<string>(
     String(defaults.tokenizationSuccessMessage || "Tu método de pago quedó guardado correctamente.")
@@ -86,10 +84,10 @@ export function CheckoutConfigPanel({
       <input type="hidden" name="planDescription" value={checkoutDescription} />
       <input type="hidden" name="subscriptionTitle" value={checkoutTitle} />
       <input type="hidden" name="subscriptionDescription" value={checkoutDescription} />
-      <input type="hidden" name="planWompiTitle" value={wompiTitle} />
-      <input type="hidden" name="planWompiDescription" value={wompiDescription} />
-      <input type="hidden" name="subscriptionWompiTitle" value={wompiTitle} />
-      <input type="hidden" name="subscriptionWompiDescription" value={wompiDescription} />
+      <input type="hidden" name="planWompiTitle" value={checkoutTitle} />
+      <input type="hidden" name="planWompiDescription" value={checkoutDescription} />
+      <input type="hidden" name="subscriptionWompiTitle" value={checkoutTitle} />
+      <input type="hidden" name="subscriptionWompiDescription" value={checkoutDescription} />
       <input type="hidden" name="tokenizationSuccessTitle" value={tokenSuccessTitle} />
       <input type="hidden" name="tokenizationSuccessMessage" value={tokenSuccessMessage} />
       <input type="hidden" name="tokenizationErrorMessage" value={tokenErrorMessage} />
@@ -158,35 +156,6 @@ export function CheckoutConfigPanel({
         <div className="field">
           <label>Descripción</label>
           <textarea className="input" rows={3} value={checkoutDescription} onChange={(e) => setCheckoutDescription(e.target.value)} />
-        </div>
-      </div>
-
-      <div className="panel module" style={{ margin: 0 }}>
-        <div className="panel-header">
-          <strong>Textos Wompi (opcionales)</strong>
-        </div>
-        <div className="field-hint">
-          Variables disponibles: <span className="pill">{`{contacto}`}</span>{" "}
-          <span className="pill">{`{producto}`}</span>{" "}
-          <span className="pill">{`{monto}`}</span>{" "}
-          <span className="pill">{`{periodicidad}`}</span>{" "}
-          <span className="pill">{`{fecha_expira}`}</span>
-        </div>
-        <div className="field" style={{ marginTop: 10 }}>
-          <label>Title Wompi</label>
-          <input className="input" value={wompiTitle} onChange={(e) => setWompiTitle(e.target.value)} placeholder="{producto} · {contacto}" />
-        </div>
-        <div className="field">
-          <label>Description Wompi</label>
-          <input
-            className="input"
-            value={wompiDescription}
-            onChange={(e) => setWompiDescription(e.target.value)}
-            placeholder="{producto} · {monto}"
-          />
-        </div>
-        <div className="field-hint" style={{ marginTop: 8 }}>
-          Si dejas vacío, se usan textos por defecto.
         </div>
       </div>
 
