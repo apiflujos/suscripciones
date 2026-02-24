@@ -49,7 +49,6 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
 
   return (
     <html lang="es">
-      <head />
       <body className={shouldUseAuthShell ? "authBody" : undefined}>
         {shouldUseAuthShell ? (
           <div className="authShell">{children}</div>
