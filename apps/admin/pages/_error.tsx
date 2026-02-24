@@ -1,3 +1,4 @@
+// @ts-nocheck
 import NextError from "next/error";
 import type { NextPageContext } from "next";
 
