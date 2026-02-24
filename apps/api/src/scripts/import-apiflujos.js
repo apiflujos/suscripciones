@@ -31,7 +31,10 @@ loadEnvFile(process.env.API_ENV_PATH || defaultEnvPath);
 
 const API_BASE = (process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001").replace(/\/$/, "");
 const ADMIN_TOKEN = String(process.env.ADMIN_API_TOKEN || "").replace(/^Bearer\s+/i, "").trim();
-const CSV_PATH = process.env.CSV_PATH || path.resolve(process.cwd(), "Base de datos APIFLUJOS - Sheet1.csv");
+const CSV_PATH =
+  process.env.IMPORT_APIFLUJOS_CSV_PATH ||
+  process.env.CSV_PATH ||
+  path.resolve(process.cwd(), "Base de datos APIFLUJOS - Sheet1.csv");
 const DELETE_CSV = String(process.env.DELETE_CSV || "").trim() === "1";
 const TENANT_NAME = "Mercado de vinos";
 const DEFAULT_EMAIL_FOR_MISSING = "mdvgen@gmail.com";
