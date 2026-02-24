@@ -4,18 +4,86 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 
-const API_BASE = (process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001").replace(/\/$/, "");
+const DEBUG_IMPORT = String(process.env.IMPORT_APIFLUJOS_DEBUG || "").trim() === "1";
+
+function logDebug(...args) {
+  if (DEBUG_IMPORT) {
+    console.log("[import-apiflujos]", ...args);
+  }
+}
+
+function loadEnvFile(envPath, options = {}) {
+  const { allowOverride = false, lockedKeys = new Set() } = options;
+  try {
+    const raw = fs.readFileSync(envPath, "utf-8");
+    let loadedCount = 0;
+    for (const line of raw.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const withoutExport = trimmed.startsWith("export ") ? trimmed.slice(7).trim() : trimmed;
+      const eqIdx = withoutExport.indexOf("=");
+      if (eqIdx === -1) continue;
+      const key = withoutExport.slice(0, eqIdx).trim();
+      let val = withoutExport.slice(eqIdx + 1).trim();
+      if (!key) continue;
+      if (!allowOverride && Object.prototype.hasOwnProperty.call(process.env, key)) continue;
+      if (allowOverride && lockedKeys.has(key)) continue;
+      if ((val.startsWith("\"") && val.endsWith("\"")) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1);
+      }
+      process.env[key] = val;
+      loadedCount += 1;
+    }
+    return { loaded: true, path: envPath, loadedCount };
+  } catch (err) {
+    return { loaded: false, path: envPath, error: err };
+  }
+}
+
+const apiEnvPath = path.resolve(process.cwd(), "apps/api/.env");
+const adminEnvLocalPath = path.resolve(process.cwd(), "apps/admin/.env.local");
+const envPaths = process.env.API_ENV_PATH ? [process.env.API_ENV_PATH] : [apiEnvPath, adminEnvLocalPath];
+let missingEnvs = [];
+for (const p of envPaths) {
+  const info = loadEnvFile(p, { allowOverride: true });
+  logDebug(
+    "env",
+    info.loaded ? "loaded" : "not_loaded",
+    info.path,
+    info.loaded ? `keys:${info.loadedCount}` : `error:${info.error?.message || "unknown"}`
+  );
+  if (!info.loaded) missingEnvs.push(info.path);
+}
+if (missingEnvs.length) {
+  console.error(`Missing env file(s): ${missingEnvs.join(", ")}`);
+  process.exit(1);
+}
+
+const API_BASE = (process.env.ADMIN_INTERNAL_API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(/\/$/, "");
 const ADMIN_TOKEN = String(process.env.ADMIN_API_TOKEN || "").replace(/^Bearer\s+/i, "").trim();
-const CSV_PATH = process.env.CSV_PATH || path.resolve(process.cwd(), "Base de datos APIFLUJOS - Sheet1.csv");
+const CSV_PATH = String(process.env.IMPORT_APIFLUJOS_CSV_PATH || "").trim();
 const DELETE_CSV = String(process.env.DELETE_CSV || "").trim() === "1";
 const TENANT_NAME = "Mercado de vinos";
 const DEFAULT_EMAIL_FOR_MISSING = "mdvgen@gmail.com";
+
+logDebug("API_BASE", API_BASE);
+logDebug("CSV_PATH", CSV_PATH);
+logDebug("ADMIN_TOKEN length", ADMIN_TOKEN.length);
+
+if (!API_BASE) {
+  console.error("Missing ADMIN_INTERNAL_API_BASE_URL or NEXT_PUBLIC_API_BASE_URL");
+  process.exit(1);
+}
 
 if (!ADMIN_TOKEN) {
   console.error("Missing ADMIN_API_TOKEN");
   process.exit(1);
 }
 
+if (!CSV_PATH) {
+  console.error("Missing IMPORT_APIFLUJOS_CSV_PATH");
+  process.exit(1);
+}
 function moneyToCents(raw) {
   const digits = String(raw || "").replace(/[^\d]/g, "");
   if (!digits) return null;
@@ -74,15 +142,20 @@ function parseCsv(text) {
 }
 
 async function adminFetch(pathname, init) {
-  const res = await fetch(`${API_BASE}${pathname}`, {
-    ...init,
-    headers: {
-      authorization: `Bearer ${ADMIN_TOKEN}`,
-      "x-admin-token": ADMIN_TOKEN,
-      "content-type": "application/json",
-      ...(init && init.headers ? init.headers : {})
-    }
-  });
+  let res;
+  try {
+    res = await fetch(`${API_BASE}${pathname}`, {
+      ...init,
+      headers: {
+        authorization: `Bearer ${ADMIN_TOKEN}`,
+        "x-admin-token": ADMIN_TOKEN,
+        "content-type": "application/json",
+        ...(init && init.headers ? init.headers : {})
+      }
+    });
+  } catch (err) {
+    throw new Error(`fetch_failed:${err?.message || err}`);
+  }
   const json = await res.json().catch(() => null);
   if (!res.ok) {
     const msg = json?.reason ? `${json?.error || "request_failed"}:${json.reason}` : json?.error || `request_failed_${res.status}`;
@@ -92,6 +165,9 @@ async function adminFetch(pathname, init) {
 }
 
 async function main() {
+  if (!fs.existsSync(CSV_PATH)) {
+    throw new Error(`csv_not_found:${CSV_PATH}`);
+  }
   const raw = fs.readFileSync(CSV_PATH, "utf-8");
   const rows = parseCsv(raw);
   if (!rows.length) throw new Error("csv_empty");
@@ -300,7 +376,7 @@ async function main() {
       const token = crypto.randomBytes(18).toString("hex");
       const baseUrl = base ? `${base.replace(/\/$/, "")}/public/${isSubscription ? "suscripcion" : "plan"}/${token}` : `/public/${isSubscription ? "suscripcion" : "plan"}/${token}`;
       const utm = String(template?.utmParams || "").trim();
-      const url = utm ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${utm.replace(/^\\?+/, "")}` : baseUrl;
+      const url = utm ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${utm.replace(/^\?+/, "")}` : baseUrl;
       const templateExpiryHours = template?.expiryHours ?? null;
       const configExpiryHours =
         Number.isFinite(Number(checkoutConfig?.tokenExpiryHours)) && Number(checkoutConfig?.tokenExpiryHours) > 0
