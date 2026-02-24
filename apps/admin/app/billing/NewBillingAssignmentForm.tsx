@@ -295,6 +295,24 @@ export function NewBillingAssignmentForm({
                   {productSearching ? <div className="field-hint">Buscando…</div> : null}
                   {productSearchError ? <div className="field-hint" style={{ color: "rgba(217, 83, 79, 0.92)" }}>{productSearchError}</div> : null}
                 </div>
+                {productQ.trim().length >= 2 && filteredProducts.length > 0 ? (
+                  <div style={{ display: "grid", gap: 6 }}>
+                    {filteredProducts.slice(0, 8).map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        className="ghost"
+                        onClick={() => {
+                          setProductId(String(p.id));
+                          setProductQ(String(p.name || ""));
+                        }}
+                        style={{ textAlign: "left" }}
+                      >
+                        {p.sku || "—"} · {p.name} · {p.kind === "SERVICE" ? "Servicio" : "Producto"} · {fmtMoneyFromCents(p.basePriceInCents, p.currency)}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
                 <select
                   className="select"
                   value={productId}
@@ -372,6 +390,33 @@ export function NewBillingAssignmentForm({
                   {customerSearching ? <div className="field-hint">Buscando…</div> : null}
                   {customerSearchError ? <div className="field-hint" style={{ color: "rgba(217, 83, 79, 0.92)" }}>{customerSearchError}</div> : null}
                 </div>
+                {customerQ.trim().length >= 2 && filteredCustomers.length > 0 ? (
+                  <div style={{ display: "grid", gap: 6 }}>
+                    {filteredCustomers.slice(0, 8).map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        className="ghost"
+                        onClick={() => {
+                          setCustomerId(String(c.id));
+                          setSelectedCustomerOverride(c);
+                          setCustomerQ(String(c.name || c.email || ""));
+                          setShowNewCustomer(false);
+                        }}
+                        style={{ textAlign: "left" }}
+                      >
+                        {c.name || c.email || c.id} · {c.metadata?.identificacion || c.email || c.phone || "—"} ·{" "}
+                        {(typeof c.metadata?.wompi?.paymentSourceId === "number" && Number.isFinite(c.metadata?.wompi?.paymentSourceId)) ||
+                        (typeof c.metadata?.wompi?.paymentSourceId === "string" && /^\d+$/.test(c.metadata?.wompi?.paymentSourceId)) ||
+                        (typeof c.metadata?.wompi?.payment_source_id === "string" && /^\d+$/.test(c.metadata?.wompi?.payment_source_id)) ||
+                        (typeof c.metadata?.paymentSourceId === "string" && /^\d+$/.test(c.metadata?.paymentSourceId)) ||
+                        (typeof c.metadata?.payment_source_id === "string" && /^\d+$/.test(c.metadata?.payment_source_id))
+                          ? "Tokenizada"
+                          : "Sin token"}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
                 <select
                   className="select"
                   value={customerId}

@@ -79,7 +79,7 @@ export function CheckoutTemplatesPanel({
 
   const [name, setName] = useState("");
   const [active, setActive] = useState(true);
-  const [allowSelect, setAllowSelect] = useState(false);
+  const [allowSelect, setAllowSelect] = useState(true);
   const [productIds, setProductIds] = useState<string[]>([]);
   const [expiryHours, setExpiryHours] = useState("24");
   const [logoUrl, setLogoUrl] = useState("");
@@ -109,7 +109,7 @@ export function CheckoutTemplatesPanel({
     setKind("");
     setName("");
     setActive(true);
-    setAllowSelect(false);
+    setAllowSelect(true);
     setProductIds([]);
     setExpiryHours("24");
     setLogoUrl("");
@@ -182,6 +182,9 @@ export function CheckoutTemplatesPanel({
   const formAction = editing ? actions.update : actions.create;
   const selectedKind = (editing ? editing.kind : kind) || "";
   const isProductsValid = allowSelect || productIds.length > 0;
+  const missingKind = !selectedKind;
+  const missingName = !name.trim();
+  const missingProducts = !isProductsValid;
 
   const inlineMsg = (key: string) => {
     if (inlineState.action !== key) return null;
@@ -424,6 +427,16 @@ export function CheckoutTemplatesPanel({
             {stepIndex === 4 ? (
               <div style={{ display: "grid", gap: 10 }}>
                 <div className="field-hint">Revisa la configuración antes de guardar.</div>
+                {(missingKind || missingName || missingProducts) ? (
+                  <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
+                    Faltan datos obligatorios:
+                    <ul style={{ margin: "6px 0 0 16px" }}>
+                      {missingKind ? <li>Selecciona tipo (Plan o Suscripción).</li> : null}
+                      {missingName ? <li>Nombre interno.</li> : null}
+                      {missingProducts ? <li>Selecciona productos o activa “El cliente puede elegir producto”.</li> : null}
+                    </ul>
+                  </div>
+                ) : null}
                 <div className="card cardPad">
                   <div style={{ display: "grid", gap: 8 }}>
                     <div><strong>Tipo:</strong> {selectedKind || "—"}</div>
