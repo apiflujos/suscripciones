@@ -300,7 +300,7 @@ async function main() {
       const token = crypto.randomBytes(18).toString("hex");
       const baseUrl = base ? `${base.replace(/\/$/, "")}/public/${isSubscription ? "suscripcion" : "plan"}/${token}` : `/public/${isSubscription ? "suscripcion" : "plan"}/${token}`;
       const utm = String(template?.utmParams || "").trim();
-      const url = utm ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${utm.replace(/^\\?+/, "")}` : baseUrl;
+      const url = utm ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${utm.replace(/^\?+/, "")}` : baseUrl;
       const templateExpiryHours = template?.expiryHours ?? null;
       const configExpiryHours =
         Number.isFinite(Number(checkoutConfig?.tokenExpiryHours)) && Number(checkoutConfig?.tokenExpiryHours) > 0
