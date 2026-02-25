@@ -413,6 +413,7 @@ export async function forwardWompiToShopify(webhookEventId: string) {
   const raw = event.payload as any;
   const data = raw && typeof raw === "object" ? raw.data : undefined;
   const transaction = data && typeof data === "object" ? data.transaction : undefined;
+  const checksum = String(event.checksum || raw?.signature?.checksum || "").trim();
   const origin = cfg.origin === "shopify-native" ? "shopify-native" : "shopify";
   const payload = {
     ...(raw && typeof raw === "object" ? raw : {}),
@@ -433,6 +434,7 @@ export async function forwardWompiToShopify(webhookEventId: string) {
 
   const res = await postJson(cfg.url, payload, {
     "x-forwarded-by": "wompi-subs-api",
+    ...(checksum ? { "x-event-checksum": checksum, "x-wompi-checksum": checksum } : {}),
     ...(cfg.secret ? { "x-forwarded-secret": cfg.secret } : {})
   });
 
