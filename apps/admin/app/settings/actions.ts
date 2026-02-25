@@ -220,7 +220,7 @@ export async function updateCheckoutConfig(formData: FormData) {
   const setNumber = (key: string) => {
     if (!formData.has(key)) return;
     const raw = String(formData.get(key) || "").trim();
-    payload[key] = raw ? Number(raw) : null;
+    if (raw) payload[key] = Number(raw);
   };
 
   setString("planBaseUrl");
@@ -237,6 +237,10 @@ export async function updateCheckoutConfig(formData: FormData) {
   setString("planWompiDescription");
   setString("subscriptionWompiTitle");
   setString("subscriptionWompiDescription");
+  setString("tokenizationSuccessTitle");
+  setString("tokenizationSuccessMessage");
+  setString("tokenizationErrorMessage");
+  setString("tokenizationReturnUrl");
 
   try {
     await adminFetch("/admin/settings/checkout-config", {

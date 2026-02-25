@@ -11,7 +11,8 @@ import {
   updateChatwoot,
   updateShopify,
   updateWompi,
-  deleteWompiConnection
+  deleteWompiConnection,
+  setCentralActiveEnv
 } from "./actions";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { cookies } from "next/headers";
@@ -22,6 +23,7 @@ import { getCsrfToken } from "../lib/csrf";
 import { ConnectionsPanel } from "./ConnectionsPanel";
 import { CheckoutTemplatesPanel } from "../checkout-templates/CheckoutTemplatesPanel";
 import { createCheckoutTemplate, updateCheckoutTemplate, deleteCheckoutTemplate } from "../checkout-templates/actions";
+import { CheckoutConfigPanel } from "./CheckoutConfigPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -82,6 +84,7 @@ export default async function SettingsPage({
   const comms = (settings?.communications || null) as any;
   const commsProduction = (comms?.production || settings?.chatwoot || {}) as any;
   const commsSandbox = (comms?.sandbox || {}) as any;
+  const commsActiveEnv = (comms?.activeEnv || "PRODUCTION") as "PRODUCTION" | "SANDBOX";
   const sp = (await searchParams) ?? {};
   const action = String(sp.a || "");
   const status = String(sp.status || "");
@@ -143,6 +146,7 @@ export default async function SettingsPage({
                 wompiSandbox={wompiSandbox}
                 commsProduction={commsProduction}
                 commsSandbox={commsSandbox}
+                commsActiveEnv={commsActiveEnv}
                 shopify={settings?.shopify || {}}
                 actions={{
                   setWompiActiveEnv,
@@ -150,6 +154,7 @@ export default async function SettingsPage({
                   testWompiConnection,
                   deleteWompiConnection,
                   updateChatwoot,
+                  setCentralActiveEnv,
                   deleteCentralConnection,
                   testCentralConnection,
                   bootstrapCentralAttributes,
@@ -377,6 +382,7 @@ export default async function SettingsPage({
             </div>
           </div>
           <div className="settings-group-body">
+            <CheckoutConfigPanel defaults={settings?.checkoutConfig || {}} csrfToken={csrfToken} onSave={updateCheckoutConfig} inlineState={inlineState} />
             <CheckoutTemplatesPanel
               templates={templates}
               products={products}

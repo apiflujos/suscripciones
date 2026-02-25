@@ -21,6 +21,7 @@ export function ConnectionsPanel({
   wompiSandbox,
   commsProduction,
   commsSandbox,
+  commsActiveEnv,
   shopify,
   actions,
   inlineState,
@@ -32,6 +33,7 @@ export function ConnectionsPanel({
   wompiSandbox: any;
   commsProduction: any;
   commsSandbox: any;
+  commsActiveEnv: "PRODUCTION" | "SANDBOX";
   shopify: any;
   actions: {
     setWompiActiveEnv: (formData: FormData) => void;
@@ -39,6 +41,7 @@ export function ConnectionsPanel({
     testWompiConnection: (formData: FormData) => void;
     deleteWompiConnection: (formData: FormData) => void;
     updateChatwoot: (formData: FormData) => void;
+    setCentralActiveEnv: (formData: FormData) => void;
     deleteCentralConnection: (formData: FormData) => void;
     testCentralConnection: (formData: FormData) => void;
     bootstrapCentralAttributes: (formData: FormData) => void;
@@ -84,7 +87,9 @@ export function ConnectionsPanel({
             <div className="conn-title">Central</div>
             <div className="conn-sub">Comunicaciones</div>
           </div>
-          <div className="conn-status">{commsProduction?.baseUrl ? "Configurada" : "Sin configurar"}</div>
+          <div className="conn-status">
+            {commsActiveEnv === "PRODUCTION" ? "Producción" : "Sandbox"} · {commsActiveEnv === "PRODUCTION" ? (commsProduction?.baseUrl ? "OK" : "Sin configurar") : (commsSandbox?.baseUrl ? "OK" : "Sin configurar")}
+          </div>
         </button>
 
         <button className="conn-card" type="button" onClick={() => setOpen("shopify")}>
@@ -213,6 +218,26 @@ export function ConnectionsPanel({
               <h3 style={{ margin: 0 }}>Central de Comunicaciones</h3>
               <button type="button" className="ghost" onClick={() => setOpen(null)} aria-label="Cerrar">X</button>
             </div>
+
+            <form action={actions.setCentralActiveEnv} style={{ display: "grid", gridTemplateColumns: "1fr auto", alignItems: "end", gap: 10 }}>
+              <input type="hidden" name="csrf" value={csrfToken} />
+              <div className="field">
+                <label>
+                  Entorno activo
+                  <HelpTip text="Define qué entorno usa el sistema para comunicaciones por defecto." />
+                </label>
+                <select className="select" name="activeEnv" defaultValue={commsActiveEnv}>
+                  <option value="PRODUCTION">Producción</option>
+                  <option value="SANDBOX">Sandbox</option>
+                </select>
+              </div>
+              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
+                {inlineMsg("central_env", "Guardado.", "Error guardando", inlineState)}
+                <PendingButton className="primary" type="submit" pendingText="Guardando...">
+                  Guardar
+                </PendingButton>
+              </div>
+            </form>
 
             <div className="modal-split">
               {([
