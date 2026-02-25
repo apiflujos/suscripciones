@@ -250,19 +250,21 @@ export default async function SettingsPage({
                         <strong>Central · {envLabel}</strong>
                         <div className="saved-conn-sub">{comms?.baseUrl ? "Configurada" : "Sin configurar"}</div>
                       </div>
-                      <span className={`pill ${comms?.baseUrl ? "pill-green" : "pill-muted"}`}>
-                        {comms?.baseUrl ? "Activa" : "Inactiva"}
+                      <span className={`pill ${envKey === commsActiveEnv ? "pill-green" : "pill-muted"}`}>
+                        {envKey === commsActiveEnv ? "Activa" : "Inactiva"}
                       </span>
                     </div>
                     <div className="saved-conn-actions">
                       <a className="ghost" href="/settings?tab=connections&open=central">Editar</a>
-                    <form action={testCentralConnection}>
-                      <input type="hidden" name="csrf" value={csrfToken} />
-                      <input type="hidden" name="baseUrl" value={comms?.baseUrl || ""} />
-                      <input type="hidden" name="accountId" value={comms?.accountId || ""} />
-                      <input type="hidden" name="inboxId" value={comms?.inboxId || ""} />
-                      <button className="ghost" type="submit">Probar</button>
-                    </form>
+                      <form action={testCentralConnection}>
+                        <input type="hidden" name="csrf" value={csrfToken} />
+                        <input type="hidden" name="baseUrl" value={comms?.baseUrl || ""} />
+                        <input type="hidden" name="accountId" value={comms?.accountId || ""} />
+                        <input type="hidden" name="inboxId" value={comms?.inboxId || ""} />
+                        <button className="ghost" type="submit" disabled={!comms?.baseUrl || !comms?.accountId || !comms?.inboxId}>
+                          Probar
+                        </button>
+                      </form>
                       <form action={deleteCentralConnection}>
                         <input type="hidden" name="csrf" value={csrfToken} />
                         <input type="hidden" name="environment" value={envKey} />
@@ -302,7 +304,7 @@ export default async function SettingsPage({
                       <input type="hidden" name="csrf" value={csrfToken} />
                       <input type="hidden" name="forwardUrl" value={settings?.shopify?.forwardUrl || ""} />
                       <input type="hidden" name="forwardOrigin" value={settings?.shopify?.forwardOrigin || "shopify"} />
-                      <button className="ghost" type="submit">Probar</button>
+                      <button className="ghost" type="submit" disabled={!settings?.shopify?.forwardUrl}>Probar</button>
                     </form>
                     <form action={deleteShopifyConnection}>
                       <input type="hidden" name="csrf" value={csrfToken} />
