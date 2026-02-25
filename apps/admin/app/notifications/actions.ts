@@ -78,6 +78,25 @@ function paymentTypeLabel(paymentType: string) {
   return "";
 }
 
+function formatOffsetName(offsetsSeconds: number[], atTimeUtc?: string) {
+  if (!offsetsSeconds.length) return "inmediato";
+  const parts = offsetsSeconds.map((sec) => {
+    const s = Number(sec);
+    if (!Number.isFinite(s) || s === 0) return "inmediato";
+    const dir = s < 0 ? "antes" : "después";
+    const abs = Math.abs(s);
+    const minutes = Math.round(abs / 60);
+    if (minutes < 60) return `${minutes} min ${dir}`;
+    const hours = Math.round(minutes / 60);
+    if (hours < 24) return `${hours} h ${dir}`;
+    const days = Math.round(hours / 24);
+    return `${days} d ${dir}`;
+  });
+  const uniq = Array.from(new Set(parts));
+  const base = uniq.join(", ");
+  return atTimeUtc ? `${base} · ${atTimeUtc} UTC` : base;
+}
+
 function toOffsetsSeconds(formData: FormData) {
   const raw = formData.getAll("offsetSeconds");
   const offsets = raw
@@ -127,8 +146,9 @@ export async function createNotification(formData: FormData): Promise<{ ok: true
     const rules = Array.isArray(baseConfig?.rules) ? baseConfig.rules.slice() : [];
 
     const chatwootType = chatwootTypeForTrigger(trigger);
-    const paymentSuffix = paymentType && paymentType !== "ANY" ? ` (${paymentTypeLabel(paymentType)})` : "";
-    const baseName = title || `${triggerLabel(trigger)}${paymentSuffix}`;
+    const paymentSuffix = paymentType && paymentType !== "ANY" ? paymentTypeLabel(paymentType) : "Todos";
+    const offsetName = formatOffsetName(offsetsSeconds, atTimeUtc);
+    const baseName = title || `${triggerLabel(trigger)} · ${offsetName} · ${paymentSuffix}`;
 
     const base = slugifyId(baseName) || "notif";
     let templateId = `tpl_${base}`;
