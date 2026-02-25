@@ -9,3 +9,4 @@ coverage
 *.log
 *.tsbuildinfo
 prisma/dev.db
+mdv_init_data.csv
