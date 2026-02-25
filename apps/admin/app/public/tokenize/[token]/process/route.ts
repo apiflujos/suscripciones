@@ -1,5 +1,16 @@
 import { NextResponse } from "next/server";
 
+function getRedirectBase(req: Request) {
+  const forwardedProto = req.headers.get("x-forwarded-proto");
+  const forwardedHost = req.headers.get("x-forwarded-host");
+  const host = forwardedHost || req.headers.get("host");
+  if (host) {
+    const proto = forwardedProto || "https";
+    return `${proto}://${host}`;
+  }
+  return new URL(req.url).origin;
+}
+
 function getConfig() {
   const raw = String(process.env.ADMIN_API_TOKEN || "");
   const token = raw.replace(/^Bearer\s+/i, "").trim().replace(/^\"|\"$/g, "").replace(/^'|'$/g, "").trim();
@@ -35,6 +46,7 @@ function tokenToType(token: string): "CARD" | "NEQUI" | "PSE" {
 
 export async function POST(req: Request, ctx: { params: Promise<{ token: string }> }) {
   const { token: linkToken } = await ctx.params;
+  const redirectBase = getRedirectBase(req);
   let apiBase = "";
   let token = "";
   try {
@@ -43,15 +55,15 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
     token = cfg.token;
   } catch (err: any) {
     const msg = err?.message ? String(err.message) : "missing_next_public_api_base_url";
-    return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=${encodeURIComponent(msg)}`, req.url));
+    return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=${encodeURIComponent(msg)}`, redirectBase));
   }
-  if (!token) return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=missing_admin_token`, req.url));
+  if (!token) return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=missing_admin_token`, redirectBase));
 
   const tokenRes = await fetch(`${apiBase}/public/tokenization-links/${encodeURIComponent(linkToken)}`, { cache: "no-store" });
   const tokenJson = await tokenRes.json().catch(() => null);
   if (!tokenRes.ok) {
     const msg = tokenJson?.error || `request_failed_${tokenRes.status}`;
-    return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=${encodeURIComponent(msg)}`, req.url));
+    return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=${encodeURIComponent(msg)}`, redirectBase));
   }
 
   const customerId = String(tokenJson?.customer?.id || "").trim();
@@ -59,15 +71,15 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   const linkKind = String(tokenJson?.link?.kind || tokenJson?.template?.kind || "").trim();
   const usedAt = String(tokenJson?.link?.usedAt || "").trim();
   if (usedAt) {
-    return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=token_used`, req.url));
+    return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=token_used`, redirectBase));
   }
-  if (!customerId) return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=customer_not_found`, req.url));
+  if (!customerId) return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=customer_not_found`, redirectBase));
 
   const formData = await req.formData().catch(() => null);
-  if (!formData) return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=invalid_form`, req.url));
+  if (!formData) return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=invalid_form`, redirectBase));
 
   const wompiToken = detectToken(formData);
-  if (!wompiToken) return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=missing_token`, req.url));
+  if (!wompiToken) return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=missing_token`, redirectBase));
 
   const type = tokenToType(wompiToken);
 
@@ -83,7 +95,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
     const consumeJson = await consumeRes.json().catch(() => null);
     if (!consumeRes.ok) {
       const code = String(consumeJson?.error || `request_failed_${consumeRes.status}`);
-      return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=${encodeURIComponent(code)}`, req.url));
+      return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=${encodeURIComponent(code)}`, redirectBase));
     }
 
     const res = await fetch(`${apiBase}/admin/customers/${customerId}/wompi/payment-source`, {
@@ -99,7 +111,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
     const json = await res.json().catch(() => null);
     if (!res.ok) {
       const msg = json?.error || `request_failed_${res.status}`;
-      return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=${encodeURIComponent(msg)}`, req.url));
+      return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=${encodeURIComponent(msg)}`, redirectBase));
     }
 
     const existing = await fetch(`${apiBase}/admin/customers/${customerId}`, {
@@ -161,9 +173,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
       } catch {}
     }
 
-    return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}/success`, req.url));
+    return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}/success`, redirectBase));
   } catch (err: any) {
     const msg = err?.message ? String(err.message) : "request_failed";
-    return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=${encodeURIComponent(msg)}`, req.url));
+    return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=${encodeURIComponent(msg)}`, redirectBase));
   }
 }
