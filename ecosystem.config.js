@@ -5,6 +5,7 @@ module.exports = {
       cwd: './apps/api',
       script: 'npm',
       args: 'run start:migrate',
+      env_file: './apps/api/.env',
       env: {
         NODE_ENV: 'production',
       },
@@ -20,6 +21,7 @@ module.exports = {
       cwd: './apps/api',
       script: 'npm',
       args: 'run jobs:start',
+      env_file: './apps/api/.env',
       env: {
         NODE_ENV: 'production',
       },
@@ -35,9 +37,9 @@ module.exports = {
       cwd: './apps/admin',
       script: 'npm',
       args: 'run start',
+      env_file: './apps/admin/.env.local',
       env: {
         NODE_ENV: 'production',
-        PORT: 3000
       },
       error_file: '../../logs/admin-error.log',
       out_file: '../../logs/admin-out.log',
