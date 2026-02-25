@@ -39,6 +39,29 @@ const createProductSchema = z.object({
 
 export const productsRouter = express.Router();
 
+function computeTotalsForCatalog(args: {
+  basePriceInCents: number;
+  variantDeltaInCents: number;
+  discountType?: string | null;
+  discountValueInCents?: number | null;
+  discountPercent?: number | null;
+  taxPercent?: number | null;
+}) {
+  const base = Number(args.basePriceInCents || 0);
+  const delta = Number(args.variantDeltaInCents || 0);
+  const taxPercent = Number(args.taxPercent || 0);
+  const discountType = String(args.discountType || "NONE");
+  const discountValue = Number(args.discountValueInCents || 0);
+  const discountPercent = Number(args.discountPercent || 0);
+
+  let subtotal = base + delta;
+  if (discountType === "FIXED") subtotal -= discountValue;
+  else if (discountType === "PERCENT") subtotal -= Math.round((subtotal * discountPercent) / 100);
+  if (subtotal < 0) subtotal = 0;
+  const tax = Math.round((subtotal * taxPercent) / 100);
+  return { subtotalInCents: subtotal, taxInCents: tax, totalInCents: subtotal + tax };
+}
+
 productsRouter.get("/", async (_req, res) => {
   const req = _req as any;
   const tenantId = await getEffectiveTenantId(req);
@@ -248,6 +271,57 @@ productsRouter.put("/:id", async (req, res) => {
       metadata: mergedMetadata as any
     }
   });
+
+  // Sync price/interval to plans that depend on this catalog item.
+  const plansToUpdate = await prisma.subscriptionPlan.findMany({
+    where: { metadata: { path: ["catalog", "itemId"], equals: id } as any }
+  });
+  if (plansToUpdate.length) {
+    await Promise.all(
+      plansToUpdate.map((plan) => {
+        const meta: any = plan.metadata && typeof plan.metadata === "object" ? plan.metadata : {};
+        const variantDelta = Number(meta?.catalog?.variantDeltaInCents || 0);
+        const totals = computeTotalsForCatalog({
+          basePriceInCents: data.basePriceInCents,
+          variantDeltaInCents: variantDelta,
+          discountType: data.discountType,
+          discountValueInCents: data.discountValueInCents,
+          discountPercent: data.discountPercent,
+          taxPercent: data.taxPercent
+        });
+        const nextMeta = {
+          ...meta,
+          catalog: {
+            ...(meta.catalog || {}),
+            itemId: id,
+            sku: data.sku,
+            name: data.name,
+            kind: data.kind,
+            option1Name: data.option1Name || null,
+            option2Name: data.option2Name || null
+          },
+          pricing: {
+            ...(meta.pricing || {}),
+            basePriceInCents: data.basePriceInCents,
+            discountType: data.discountType,
+            discountValueInCents: data.discountValueInCents,
+            discountPercent: data.discountPercent,
+            taxPercent: data.taxPercent,
+            totalInCents: totals.totalInCents
+          }
+        };
+        return prisma.subscriptionPlan.update({
+          where: { id: plan.id },
+          data: {
+            priceInCents: totals.totalInCents,
+            intervalUnit: data.intervalUnit ?? PlanIntervalUnit.MONTH,
+            intervalCount: data.intervalCount ?? 1,
+            metadata: nextMeta as any
+          }
+        });
+      })
+    );
+  }
 
   if (requestedTenantIds.length) {
     await prisma.subscriptionPlanTenant.deleteMany({ where: { planId: id } });
