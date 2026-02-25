@@ -46,6 +46,14 @@ function normalizeEnv(value: unknown): "PRODUCTION" | "SANDBOX" {
   return v === "SANDBOX" ? "SANDBOX" : "PRODUCTION";
 }
 
+async function requireCsrf(formData: FormData, environment: "PRODUCTION" | "SANDBOX") {
+  try {
+    await assertCsrfToken(formData);
+  } catch {
+    redirect(`/notifications?env=${environment}&error=csrf_invalid`);
+  }
+}
+
 function slugifyId(input: string) {
   return String(input || "")
     .trim()
@@ -107,8 +115,8 @@ function toOffsetsSeconds(formData: FormData) {
 }
 
 export async function createNotification(formData: FormData): Promise<{ ok: true } | { ok: false; error: string }> {
-  await assertCsrfToken(formData);
   const environment = normalizeEnv(formData.get("environment"));
+  await requireCsrf(formData, environment);
   const trigger = String(formData.get("trigger") || "").trim();
   const title = String(formData.get("title") || "").trim();
   const templateKind = String(formData.get("templateKind") || "").trim();
@@ -204,8 +212,9 @@ export async function createNotification(formData: FormData): Promise<{ ok: true
 }
 
 export async function saveNotificationsConfig(formData: FormData) {
-  await assertCsrfToken(formData);
   const environment = String(formData.get("environment") || "").trim().toUpperCase();
+  const env = environment === "SANDBOX" ? "SANDBOX" : "PRODUCTION";
+  await requireCsrf(formData, env);
   const raw = String(formData.get("configJson") || "").trim();
 
   try {
@@ -217,17 +226,15 @@ export async function saveNotificationsConfig(formData: FormData) {
         config: parsed
       })
     });
-    const env = environment === "SANDBOX" ? "SANDBOX" : "PRODUCTION";
     redirect(`/notifications?env=${env}&saved=1`);
   } catch (err) {
-    const env = environment === "SANDBOX" ? "SANDBOX" : "PRODUCTION";
     redirect(`/notifications?env=${env}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
 
 export async function addTextTemplate(formData: FormData) {
-  await assertCsrfToken(formData);
   const environment = normalizeEnv(formData.get("environment"));
+  await requireCsrf(formData, environment);
   const name = String(formData.get("name") || "").trim();
   const chatwootType = String(formData.get("chatwootType") || "").trim();
   const content = String(formData.get("content") || "").trim();
@@ -258,8 +265,8 @@ export async function addTextTemplate(formData: FormData) {
 }
 
 export async function addWhatsAppTemplate(formData: FormData) {
-  await assertCsrfToken(formData);
   const environment = normalizeEnv(formData.get("environment"));
+  await requireCsrf(formData, environment);
   const name = String(formData.get("name") || "").trim();
   const chatwootType = String(formData.get("chatwootType") || "").trim();
   const templateName = String(formData.get("templateName") || "").trim();
@@ -299,8 +306,8 @@ export async function addWhatsAppTemplate(formData: FormData) {
 }
 
 export async function deleteTemplate(formData: FormData) {
-  await assertCsrfToken(formData);
   const environment = normalizeEnv(formData.get("environment"));
+  await requireCsrf(formData, environment);
   const templateId = String(formData.get("templateId") || "").trim();
   if (!templateId) return redirect(`/notifications?env=${environment}&error=missing_template_id`);
   try {
@@ -331,8 +338,8 @@ function offsetSecondsFromForm(formData: FormData) {
 }
 
 export async function addRule(formData: FormData) {
-  await assertCsrfToken(formData);
   const environment = normalizeEnv(formData.get("environment"));
+  await requireCsrf(formData, environment);
   const name = String(formData.get("name") || "").trim();
   const trigger = String(formData.get("trigger") || "").trim();
   const templateId = String(formData.get("templateId") || "").trim();
@@ -345,6 +352,14 @@ export async function addRule(formData: FormData) {
     const config = await getNotificationsConfig(environment);
     const rules = Array.isArray(config?.rules) ? config.rules.slice() : [];
     const id = `rule_${Date.now()}`;
+    const normalizedTrigger = String(trigger || "").trim();
+    if (enabled && normalizedTrigger) {
+      for (let i = 0; i < rules.length; i++) {
+        if (String(rules[i]?.trigger || "") === normalizedTrigger) {
+          rules[i] = { ...rules[i], enabled: false };
+        }
+      }
+    }
     rules.push({
       id,
       name,
@@ -363,16 +378,25 @@ export async function addRule(formData: FormData) {
 }
 
 export async function toggleRule(formData: FormData) {
-  await assertCsrfToken(formData);
   const environment = normalizeEnv(formData.get("environment"));
+  await requireCsrf(formData, environment);
   const ruleId = String(formData.get("ruleId") || "").trim();
   const enabled = String(formData.get("enabled") || "").trim() === "1";
   if (!ruleId) return redirect(`/notifications?env=${environment}&error=missing_rule_id`);
   try {
     const config = await getNotificationsConfig(environment);
-    const rules = Array.isArray(config?.rules)
-      ? config.rules.map((r: any) => (String(r.id) === ruleId ? { ...r, enabled } : r))
-      : [];
+    const rules = Array.isArray(config?.rules) ? config.rules.slice() : [];
+    const idx = rules.findIndex((r: any) => String(r.id) === ruleId);
+    if (idx === -1) return redirect(`/notifications?env=${environment}&error=rule_not_found`);
+    const trigger = String(rules[idx]?.trigger || "");
+    if (enabled && trigger) {
+      for (let i = 0; i < rules.length; i++) {
+        if (i !== idx && String(rules[i]?.trigger || "") === trigger) {
+          rules[i] = { ...rules[i], enabled: false };
+        }
+      }
+    }
+    rules[idx] = { ...rules[idx], enabled };
     const next = { ...(config || {}), rules };
     await putNotificationsConfig(environment, next);
     redirect(`/notifications?env=${environment}&saved=1`);
@@ -382,8 +406,8 @@ export async function toggleRule(formData: FormData) {
 }
 
 export async function deleteRule(formData: FormData) {
-  await assertCsrfToken(formData);
   const environment = normalizeEnv(formData.get("environment"));
+  await requireCsrf(formData, environment);
   const ruleId = String(formData.get("ruleId") || "").trim();
   if (!ruleId) return redirect(`/notifications?env=${environment}&error=missing_rule_id`);
   try {
@@ -398,8 +422,8 @@ export async function deleteRule(formData: FormData) {
 }
 
 export async function updateTemplate(formData: FormData) {
-  await assertCsrfToken(formData);
   const environment = normalizeEnv(formData.get("environment"));
+  await requireCsrf(formData, environment);
   const templateId = String(formData.get("templateId") || "").trim();
   if (!templateId) return redirect(`/notifications?env=${environment}&error=missing_template_id`);
 
@@ -476,8 +500,8 @@ export async function updateTemplate(formData: FormData) {
 }
 
 export async function updateRule(formData: FormData) {
-  await assertCsrfToken(formData);
   const environment = normalizeEnv(formData.get("environment"));
+  await requireCsrf(formData, environment);
   const ruleId = String(formData.get("ruleId") || "").trim();
   if (!ruleId) return redirect(`/notifications?env=${environment}&error=missing_rule_id`);
 
@@ -516,6 +540,13 @@ export async function updateRule(formData: FormData) {
       next.conditions = Object.keys(rest).length ? rest : undefined;
     }
 
+    if (enabled && trigger) {
+      for (let i = 0; i < rules.length; i++) {
+        if (i !== idx && String(rules[i]?.trigger || "") === String(trigger)) {
+          rules[i] = { ...rules[i], enabled: false };
+        }
+      }
+    }
     rules[idx] = next;
     const updated = { ...(config || {}), rules };
     await putNotificationsConfig(environment, updated);
@@ -526,10 +557,10 @@ export async function updateRule(formData: FormData) {
 }
 
 export async function scheduleSubscription(formData: FormData) {
-  await assertCsrfToken(formData);
+  const environment = normalizeEnv(formData.get("environment"));
+  await requireCsrf(formData, environment);
   const subscriptionId = String(formData.get("subscriptionId") || "").trim();
   const forceNow = String(formData.get("forceNow") || "").trim() === "1";
-  const environment = normalizeEnv(formData.get("environment"));
   if (!subscriptionId) return redirect(`/notifications?env=${environment}&error=missing_subscription_id`);
 
   try {
