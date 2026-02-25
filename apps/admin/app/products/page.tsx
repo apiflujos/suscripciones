@@ -1,5 +1,6 @@
-import { createPlanTemplate, deleteProduct } from "./actions";
+import { createPlanTemplate, createProduct, deleteProduct } from "./actions";
 import { NewPlanOrSubscriptionForm } from "./NewPlanOrSubscriptionForm";
+import { NewProductForm } from "./NewProductForm";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { HelpTip } from "../ui/HelpTip";
 import { ProductsTable } from "./ProductsTable";
@@ -109,7 +110,10 @@ export default async function ProductsPage({
 
         <div className="settings-group-body">
           <div style={{ display: "grid", gap: 14 }}>
-            <NewPlanOrSubscriptionForm action={createPlanTemplate} catalogItems={productItems} csrfToken={csrfToken} tenantId={tenantId} tenants={tenants} />
+            <div style={{ display: "grid", gap: 14 }}>
+              <NewProductForm action={createProduct} csrfToken={csrfToken} />
+              <NewPlanOrSubscriptionForm action={createPlanTemplate} catalogItems={productItems} csrfToken={csrfToken} tenantId={tenantId} tenants={tenants} />
+            </div>
 
             <ProductsTable
               items={productItems.map((p) => {
