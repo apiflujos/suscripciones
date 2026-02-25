@@ -13,6 +13,11 @@ function toShortErrorMessage(err: unknown) {
   return raw.replace(/\s+/g, " ").trim().slice(0, 220) || "unknown_error";
 }
 
+function isNextRedirect(err: unknown) {
+  const digest = (err as any)?.digest;
+  return typeof digest === "string" && digest.startsWith("NEXT_REDIRECT");
+}
+
 async function adminFetch(path: string, init: RequestInit) {
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
@@ -228,6 +233,7 @@ export async function saveNotificationsConfig(formData: FormData) {
     });
     redirect(`/notifications?env=${env}&saved=1`);
   } catch (err) {
+    if (isNextRedirect(err)) throw err;
     redirect(`/notifications?env=${env}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
@@ -260,6 +266,7 @@ export async function addTextTemplate(formData: FormData) {
     await putNotificationsConfig(environment, next);
     redirect(`/notifications?env=${environment}&saved=1`);
   } catch (err) {
+    if (isNextRedirect(err)) throw err;
     redirect(`/notifications?env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
@@ -301,6 +308,7 @@ export async function addWhatsAppTemplate(formData: FormData) {
     await putNotificationsConfig(environment, next);
     redirect(`/notifications?env=${environment}&saved=1`);
   } catch (err) {
+    if (isNextRedirect(err)) throw err;
     redirect(`/notifications?env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
@@ -318,6 +326,7 @@ export async function deleteTemplate(formData: FormData) {
     await putNotificationsConfig(environment, next);
     redirect(`/notifications?env=${environment}&saved=1`);
   } catch (err) {
+    if (isNextRedirect(err)) throw err;
     redirect(`/notifications?env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
@@ -373,6 +382,7 @@ export async function addRule(formData: FormData) {
     await putNotificationsConfig(environment, next);
     redirect(`/notifications?env=${environment}&saved=1`);
   } catch (err) {
+    if (isNextRedirect(err)) throw err;
     redirect(`/notifications?env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
@@ -401,6 +411,7 @@ export async function toggleRule(formData: FormData) {
     await putNotificationsConfig(environment, next);
     redirect(`/notifications?env=${environment}&saved=1`);
   } catch (err) {
+    if (isNextRedirect(err)) throw err;
     redirect(`/notifications?env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
@@ -417,6 +428,7 @@ export async function deleteRule(formData: FormData) {
     await putNotificationsConfig(environment, next);
     redirect(`/notifications?env=${environment}&saved=1`);
   } catch (err) {
+    if (isNextRedirect(err)) throw err;
     redirect(`/notifications?env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
@@ -495,6 +507,7 @@ export async function updateTemplate(formData: FormData) {
     await putNotificationsConfig(environment, updated);
     redirect(`/notifications?env=${environment}&saved=1`);
   } catch (err) {
+    if (isNextRedirect(err)) throw err;
     redirect(`/notifications?env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
@@ -552,6 +565,7 @@ export async function updateRule(formData: FormData) {
     await putNotificationsConfig(environment, updated);
     redirect(`/notifications?env=${environment}&saved=1`);
   } catch (err) {
+    if (isNextRedirect(err)) throw err;
     redirect(`/notifications?env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
@@ -568,6 +582,7 @@ export async function scheduleSubscription(formData: FormData) {
     const result = await adminFetch(`/admin/notifications/schedule/subscription/${encodeURIComponent(subscriptionId)}${qs}`, { method: "POST" });
     redirect(`/notifications?env=${environment}&scheduled=${encodeURIComponent(String(result?.scheduled ?? 0))}`);
   } catch (err) {
+    if (isNextRedirect(err)) throw err;
     redirect(`/notifications?env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
