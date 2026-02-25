@@ -23,6 +23,31 @@ export class ChatwootClient {
     }
   ) {}
 
+  private normalizePhoneNumber(raw?: string) {
+    const value = String(raw ?? "").trim();
+    if (!value) return undefined;
+
+    const digits = value.replace(/\D/g, "");
+    if (!digits) return undefined;
+
+    let e164 = "";
+    if (value.startsWith("+")) {
+      e164 = `+${digits}`;
+    } else if (value.startsWith("00")) {
+      e164 = `+${digits.slice(2)}`;
+    } else {
+      const defaultCode = String(
+        process.env.CHATWOOT_DEFAULT_COUNTRY_CODE || process.env.DEFAULT_PHONE_COUNTRY_CODE || ""
+      ).replace(/\D/g, "");
+      if (!defaultCode) return undefined;
+      e164 = `+${defaultCode}${digits}`;
+    }
+
+    const len = e164.replace(/\D/g, "").length;
+    if (len < 7 || len > 15) return undefined;
+    return e164;
+  }
+
   private async request(path: string, init: RequestInit) {
     const url = `${this.opts.baseUrl.replace(/\/$/, "")}${path}`;
     const res = await fetch(url, {
@@ -38,12 +63,14 @@ export class ChatwootClient {
   }
 
   async createContact(input: { name?: string; email?: string; phoneNumber?: string }) {
+    const phoneNumber = this.normalizePhoneNumber(input.phoneNumber);
     const body: any = {
       inbox_id: this.opts.inboxId,
       name: input.name,
       email: input.email,
-      phone_number: input.phoneNumber
+      phone_number: phoneNumber
     };
+    if (!phoneNumber) delete body.phone_number;
     const res = await this.request(`/api/v1/accounts/${this.opts.accountId}/contacts`, {
       method: "POST",
       body: JSON.stringify(body)
@@ -79,14 +106,16 @@ export class ChatwootClient {
       customAttributes?: Record<string, any>;
     }
   ) {
+    const phoneNumber = this.normalizePhoneNumber(input.phoneNumber);
     const body: any = {
       name: input.name,
       email: input.email,
-      phone_number: input.phoneNumber,
+      phone_number: phoneNumber,
       identifier: input.identifier,
       additional_attributes: input.additionalAttributes,
       custom_attributes: input.customAttributes
     };
+    if (!phoneNumber) delete body.phone_number;
     const res = await this.request(`/api/v1/accounts/${this.opts.accountId}/contacts/${contactId}`, {
       method: "PUT",
       body: JSON.stringify(body)
