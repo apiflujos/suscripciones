@@ -109,18 +109,31 @@ const UNITS = [
   { value: "days", label: "días" }
 ];
 
-function uid() {
+type InitCtx = {
+  idFactory?: () => string;
+  nowIso?: string;
+};
+
+function randomId() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
   return Math.random().toString(36).slice(2);
 }
 
-function makeRule(field: string, op: RuleOp, value?: any): RuleNode {
-  return { id: uid(), type: "rule", field, op, value };
+function uid(ctx?: InitCtx) {
+  return ctx?.idFactory ? ctx.idFactory() : randomId();
 }
 
-function presetToRoot(preset?: string): GroupNode | null {
+function defaultDateValue(ctx?: InitCtx) {
+  return ctx?.nowIso || new Date().toISOString();
+}
+
+function makeRule(field: string, op: RuleOp, value?: any, ctx?: InitCtx): RuleNode {
+  return { id: uid(ctx), type: "rule", field, op, value };
+}
+
+function presetToRoot(preset?: string, ctx?: InitCtx): GroupNode | null {
   if (preset === "past_due") {
-    return { id: uid(), type: "group", op: "and", children: [makeRule("subscriptionStatus", "equals", "PAST_DUE")] };
+    return { id: uid(ctx), type: "group", op: "and", children: [makeRule("subscriptionStatus", "equals", "PAST_DUE", ctx)] };
   }
   return null;
 }
@@ -129,19 +142,19 @@ function fieldByValue(value: string) {
   return FIELDS.find((f) => f.value === value) || FIELDS[0];
 }
 
-function defaultRule(field = "subscriptionStatus"): RuleNode {
+function defaultRule(field = "subscriptionStatus", ctx?: InitCtx): RuleNode {
   const f = fieldByValue(field);
   const op = OPS_BY_TYPE[f.type][0].value;
   let value: any = "";
   if (f.type === "boolean") value = true;
   if (f.type === "enum" && f.enumValues?.length) value = f.enumValues[0];
   if (f.type === "number") value = 0;
-  if (f.type === "date") value = new Date().toISOString();
-  return { id: uid(), type: "rule", field: f.value, op, value };
+  if (f.type === "date") value = defaultDateValue(ctx);
+  return { id: uid(ctx), type: "rule", field: f.value, op, value };
 }
 
-function defaultGroup(): GroupNode {
-  return { id: uid(), type: "group", op: "and", children: [defaultRule()] };
+function defaultGroup(ctx?: InitCtx): GroupNode {
+  return { id: uid(ctx), type: "group", op: "and", children: [defaultRule(undefined, ctx)] };
 }
 
 function serializeNode(node: Node): any {
@@ -177,12 +190,12 @@ function RuleEditor({ node, onChange, onRemove }: { node: RuleNode; onChange: (n
   function setField(val: string) {
     const f = fieldByValue(val);
     const op = OPS_BY_TYPE[f.type][0].value;
-    const next = { ...node, field: f.value, op };
-    if (f.type === "boolean") next.value = true;
-    else if (f.type === "enum" && f.enumValues?.length) next.value = f.enumValues[0];
-    else if (f.type === "number") next.value = 0;
-    else if (f.type === "date") next.value = new Date().toISOString();
-    else next.value = "";
+      const next = { ...node, field: f.value, op };
+      if (f.type === "boolean") next.value = true;
+      else if (f.type === "enum" && f.enumValues?.length) next.value = f.enumValues[0];
+      else if (f.type === "number") next.value = 0;
+      else if (f.type === "date") next.value = defaultDateValue();
+      else next.value = "";
     onChange(next);
   }
 
@@ -319,22 +332,22 @@ function GroupEditor({
   );
 }
 
-function coerceRoot(input?: any): GroupNode | null {
+function coerceRoot(input?: any, ctx?: InitCtx): GroupNode | null {
   if (!input || typeof input !== "object") return null;
   if (input.op !== "and" && input.op !== "or") return null;
   if (!Array.isArray(input.rules)) return null;
   return {
-    id: uid(),
+    id: uid(ctx),
     type: "group",
     op: input.op,
     children: input.rules.map((r: any) => {
       if (r?.op && Array.isArray(r?.rules)) {
         return {
-          id: uid(),
+          id: uid(ctx),
           type: "group",
           op: r.op === "or" ? "or" : "and",
           children: r.rules.map((child: any) => ({
-            id: uid(),
+            id: uid(ctx),
             type: "rule",
             field: String(child?.field || "name"),
             op: (child?.op as RuleOp) || "equals",
@@ -343,7 +356,7 @@ function coerceRoot(input?: any): GroupNode | null {
         };
       }
       return {
-        id: uid(),
+        id: uid(ctx),
         type: "rule",
         field: String(r?.field || "name"),
         op: (r?.op as RuleOp) || "equals",
@@ -353,8 +366,33 @@ function coerceRoot(input?: any): GroupNode | null {
   };
 }
 
-export function SmartListBuilder({ preset, initialRules }: { preset?: string; initialRules?: any }) {
-  const [root, setRoot] = useState<GroupNode>(() => coerceRoot(initialRules) || presetToRoot(preset) || defaultGroup());
+function hashSeed(seed: string) {
+  let h = 0;
+  for (let i = 0; i < seed.length; i += 1) h = (h * 31 + seed.charCodeAt(i)) | 0;
+  return Math.abs(h).toString(36);
+}
+
+function createInitCtx(seed: string, nowIso?: string): InitCtx {
+  const prefix = hashSeed(seed || "smartlist");
+  let seq = 0;
+  return {
+    nowIso,
+    idFactory: () => `${prefix}_${seq++}`
+  };
+}
+
+export function SmartListBuilder({
+  preset,
+  initialRules,
+  nowIso
+}: {
+  preset?: string;
+  initialRules?: any;
+  nowIso?: string;
+}) {
+  const seed = useMemo(() => JSON.stringify({ preset: preset || "", rules: initialRules || null }), [preset, initialRules]);
+  const initCtx = useMemo(() => createInitCtx(seed, nowIso), [seed, nowIso]);
+  const [root, setRoot] = useState<GroupNode>(() => coerceRoot(initialRules, initCtx) || presetToRoot(preset, initCtx) || defaultGroup(initCtx));
   const json = useMemo(() => JSON.stringify(serializeNode(root), null, 0), [root]);
 
   return (

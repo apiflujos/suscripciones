@@ -45,6 +45,7 @@ export default async function SmartListsPage({
   const preset = String(sp.preset || "").trim();
   const prefillName = String(sp.name || "").trim();
   const prefillDescription = String(sp.description || "").trim();
+  const nowIso = new Date().toISOString();
   const rulesRaw = String(sp.rules || "").trim();
   let initialRules: any = null;
   if (rulesRaw) {
@@ -86,7 +87,7 @@ export default async function SmartListsPage({
             </label>
             <input className="input" name="description" defaultValue={prefillDescription} />
           </div>
-          <SmartListBuilder preset={preset || undefined} initialRules={initialRules || undefined} />
+          <SmartListBuilder preset={preset || undefined} initialRules={initialRules || undefined} nowIso={nowIso} />
           <label className="checkbox" style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <input type="checkbox" name="enabled" value="1" defaultChecked />
             <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
