@@ -1,7 +1,7 @@
 import { activateSubscription, cancelSubscription, createPaymentLink, deleteSubscription, resumeSubscription, suspendSubscription } from "../subscriptions/actions";
 import { DeleteSubscriptionButton } from "./DeleteSubscriptionButton";
 import { DeletePlanButton } from "./DeletePlanButton";
-import { createCustomerFromBilling, createPlanAndSubscription, deletePlanAndSubscription, sendChatwootPaymentLink } from "./actions";
+import { createCustomerFromBilling, createPlanAndSubscription, deletePlanAndSubscription, sendChatwootPaymentLink, updatePlanRecurrence } from "./actions";
 import { NewBillingAssignmentForm } from "./NewBillingAssignmentForm";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { LocalDateTime } from "../ui/LocalDateTime";
@@ -9,6 +9,7 @@ import { HelpTip } from "../ui/HelpTip";
 import { CopyButton } from "../ui/CopyButton";
 import { getCsrfToken } from "../lib/csrf";
 import { createTenant } from "../tenants/actions";
+import { PlanRecurrenceEditor } from "./PlanRecurrenceEditor";
 
 export const dynamic = "force-dynamic";
 
@@ -153,6 +154,7 @@ export default async function BillingPage({
   const activated = typeof sp.activated === "string" ? sp.activated : "";
   const deleted = typeof sp.deleted === "string" ? sp.deleted : "";
   const deletedPlan = typeof sp.deletedPlan === "string" ? sp.deletedPlan : "";
+  const planUpdated = typeof sp.planUpdated === "string" ? sp.planUpdated : "";
   const tenantId = typeof sp.tenantId === "string" ? sp.tenantId : "";
   const tenantCreated = typeof sp.tenantCreated === "string" ? sp.tenantCreated : "";
   const contactCreated = typeof sp.contactCreated === "string" ? sp.contactCreated : "";
@@ -170,6 +172,7 @@ export default async function BillingPage({
   const smartListRules = buildSmartListRules({ tipo, estado, q });
   const smartListRulesParam = encodeURIComponent(JSON.stringify(smartListRules));
   const hasFiltersApplied = tipo !== "todos" || estado !== "todos" || Boolean(q.trim());
+  const returnTo = `/billing${tenantId || q || tipo !== "todos" || estado !== "todos" || ordenar !== "vencimiento" ? `?${new URLSearchParams({ ...(tenantId ? { tenantId } : {}), ...(q ? { q } : {}), ...(tipo ? { tipo } : {}), ...(estado ? { estado } : {}), ...(ordenar ? { ordenar } : {}) }).toString()}` : ""}`;
 
   const subParams = new URLSearchParams();
   subParams.set("take", "300");
@@ -212,6 +215,8 @@ export default async function BillingPage({
       return {
         id: String(s.id),
         planId: String(plan?.id || ""),
+        intervalUnit: String(plan?.intervalUnit || "MONTH"),
+        intervalCount: Number(plan?.intervalCount || 1),
         tenantId: String(s.tenantId || plan?.tenantId || ""),
         tenantIds,
         customerId: String(s.customerId || ""),
@@ -283,6 +288,7 @@ export default async function BillingPage({
       {activated ? <div className="card cardPad">Suscripción activada.</div> : null}
       {deleted ? <div className="card cardPad">Suscripción eliminada.</div> : null}
       {deletedPlan ? <div className="card cardPad">Plan eliminado.</div> : null}
+      {planUpdated ? <div className="card cardPad">Recurrencia actualizada.</div> : null}
       {tenantCreated ? <div className="card cardPad">Canal creado.</div> : null}
       {chatwoot === "sent" ? <div className="card cardPad">Mensaje enviado por Chatwoot.</div> : null}
       {contactCreated ? <div className="card cardPad">Contacto creado.</div> : null}
@@ -383,7 +389,7 @@ export default async function BillingPage({
               ) : null}
               <form action={createTenant} style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <input type="hidden" name="csrf" value={csrfToken} />
-                <input type="hidden" name="returnTo" value={`/billing${tenantId || q || tipo !== "todos" || estado !== "todos" || ordenar !== "vencimiento" ? `?${new URLSearchParams({ ...(tenantId ? { tenantId } : {}), ...(q ? { q } : {}), ...(tipo ? { tipo } : {}), ...(estado ? { estado } : {}), ...(ordenar ? { ordenar } : {}) }).toString()}` : ""}`} />
+                <input type="hidden" name="returnTo" value={returnTo} />
                 <input className="input" name="name" placeholder="Nuevo canal" />
                 <button className="ghost" type="submit">Crear canal</button>
               </form>
@@ -464,6 +470,17 @@ export default async function BillingPage({
                   </div>
 
                   <div className="billing-actions">
+                    {r.planId ? (
+                      <PlanRecurrenceEditor
+                        planId={r.planId}
+                        intervalUnit={String(r.intervalUnit || "MONTH") as any}
+                        intervalCount={Number(r.intervalCount || 1)}
+                        csrfToken={csrfToken}
+                        returnTo={returnTo}
+                        tenantId={r.tenantId}
+                        action={updatePlanRecurrence}
+                      />
+                    ) : null}
                     {r.mode !== "AUTO_DEBIT" ? (
                       <form action={createPaymentLink}>
                         <input type="hidden" name="csrf" value={csrfToken} />

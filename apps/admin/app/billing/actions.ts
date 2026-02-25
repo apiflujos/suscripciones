@@ -269,6 +269,30 @@ export async function createPlanTemplate(formData: FormData) {
   }
 }
 
+export async function updatePlanRecurrence(formData: FormData) {
+  await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
+  const planId = String(formData.get("planId") || "").trim();
+  const intervalUnit = String(formData.get("intervalUnit") || "MONTH").trim();
+  const intervalCountRaw = Number(String(formData.get("intervalCount") || "1"));
+  const intervalCount = Number.isFinite(intervalCountRaw) && intervalCountRaw > 0 ? Math.trunc(intervalCountRaw) : 1;
+  const tenantIds = readTenantIds(formData);
+  const tenantId = tenantIds[0] || "";
+
+  if (!planId) return redirect(mergeQuery(returnTo, { error: "missing_plan_id", ...(tenantId ? { tenantId } : {}) }));
+
+  try {
+    await adminFetch(`/admin/plans/${encodeURIComponent(planId)}`, {
+      method: "PUT",
+      body: JSON.stringify({ intervalUnit, intervalCount })
+    });
+    redirect(mergeQuery(returnTo, { planUpdated: "1", ...(tenantId ? { tenantId } : {}) }));
+  } catch (err: any) {
+    if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
+    redirect(mergeQuery(returnTo, { error: String(err?.message || "update_plan_failed"), ...(tenantId ? { tenantId } : {}) }));
+  }
+}
+
 export async function createPlanAndSubscription(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);

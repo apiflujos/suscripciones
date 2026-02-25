@@ -18,6 +18,11 @@ const createPlanSchema = z.object({
   metadata: z.any().optional()
 });
 
+const updatePlanSchema = z.object({
+  intervalUnit: z.nativeEnum(PlanIntervalUnit).optional(),
+  intervalCount: z.number().int().positive().optional()
+});
+
 export const plansRouter = express.Router();
 
 plansRouter.get("/", async (_req, res) => {
@@ -123,4 +128,30 @@ plansRouter.delete("/:id", async (req, res) => {
   await prisma.subscriptionPlan.delete({ where: { id } });
   await systemLog(LogLevel.INFO, "plans.delete", "Plan deleted", { planId: id }).catch(() => {});
   res.json({ ok: true });
+});
+
+plansRouter.put("/:id", async (req, res) => {
+  const id = String(req.params.id || "").trim();
+  if (!id) return res.status(400).json({ error: "invalid_id" });
+
+  const parsed = updatePlanSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+
+  const plan = await prisma.subscriptionPlan.findUnique({ where: { id }, include: { tenantLinks: true } });
+  if (!plan) return res.status(404).json({ error: "not_found" });
+  const tenantId = await getEffectiveTenantId(req);
+  if (tenantId) {
+    const allowed = plan.tenantId === tenantId || (plan.tenantLinks || []).some((t) => t.tenantId === tenantId);
+    if (!allowed) return res.status(404).json({ error: "not_found" });
+  }
+
+  const data: any = {};
+  if (parsed.data.intervalUnit) data.intervalUnit = parsed.data.intervalUnit;
+  if (parsed.data.intervalCount) data.intervalCount = parsed.data.intervalCount;
+
+  if (!Object.keys(data).length) return res.json({ ok: true, plan });
+
+  const updated = await prisma.subscriptionPlan.update({ where: { id }, data });
+  await systemLog(LogLevel.INFO, "plans.update", "Plan updated", { planId: id }).catch(() => {});
+  res.json({ plan: updated });
 });
