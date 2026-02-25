@@ -30,6 +30,8 @@ type ProductRow = {
   tenantIds?: string[];
   kind: "PRODUCT" | "SERVICE";
   basePriceInCents: number;
+  intervalUnit?: "DAY" | "WEEK" | "MONTH" | "CUSTOM";
+  intervalCount?: number;
   taxPercent?: number;
   discountType?: "NONE" | "FIXED" | "PERCENT";
   discountValueInCents?: number;
@@ -73,6 +75,8 @@ export function ProductsTable({
   const [unit, setUnit] = useState("");
   const [priceCop, setPriceCop] = useState("");
   const [taxPercent, setTaxPercent] = useState("0");
+  const [intervalUnit, setIntervalUnit] = useState<"DAY" | "WEEK" | "MONTH" | "CUSTOM">("MONTH");
+  const [intervalCount, setIntervalCount] = useState("1");
   const [discountType, setDiscountType] = useState<"NONE" | "FIXED" | "PERCENT">("NONE");
   const [discountCop, setDiscountCop] = useState("");
   const [discountPercent, setDiscountPercent] = useState("0");
@@ -105,6 +109,8 @@ export function ProductsTable({
     setDiscountType((item.discountType as any) || "NONE");
     setDiscountCop(formatCopFromCents(Number(item.discountValueInCents || 0)));
     setDiscountPercent(String(item.discountPercent ?? 0));
+    setIntervalUnit((item.intervalUnit as any) || "MONTH");
+    setIntervalCount(String(item.intervalCount || 1));
     setRequiresShipping(Boolean(item.requiresShipping));
     setOption1Name(item.option1Name || "");
     setOption2Name(item.option2Name || "");
@@ -253,6 +259,12 @@ export function ProductsTable({
                 <span>Variantes</span>
                 <strong>{(p.variants || []).length ? `${(p.variants || []).length}` : "—"}</strong>
               </div>
+              <div>
+                <span>Recurrencia</span>
+                <strong>
+                  {p.intervalUnit ? `${p.intervalCount || 1} ${String(p.intervalUnit).toLowerCase()}` : "—"}
+                </strong>
+              </div>
             </div>
           </div>
         ))}
@@ -294,6 +306,8 @@ export function ProductsTable({
               <input type="hidden" name="currency" value="COP" />
               <input type="hidden" name="tenantId" value={editing.tenantId || ""} />
               <input type="hidden" name="imageUrl" value={imageUrl} />
+              <input type="hidden" name="intervalUnit" value={intervalUnit} />
+              <input type="hidden" name="intervalCount" value={intervalCount} />
 
               <div className="field">
                 <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -353,6 +367,28 @@ export function ProductsTable({
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                <div className="field">
+                  <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span>Unidad de recurrencia</span>
+                    <HelpTip text="Cada cuánto se cobra este plan/producto." />
+                  </label>
+                  <select className="select" value={intervalUnit} onChange={(e) => setIntervalUnit(e.target.value as any)}>
+                    <option value="DAY">Día</option>
+                    <option value="WEEK">Semana</option>
+                    <option value="MONTH">Mes</option>
+                    <option value="CUSTOM">Personalizado</option>
+                  </select>
+                </div>
+                <div className="field">
+                  <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span>Cada</span>
+                    <HelpTip text="Cantidad de unidades entre cobros." />
+                  </label>
+                  <input className="input" value={intervalCount} onChange={(e) => setIntervalCount(e.target.value)} inputMode="numeric" />
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <div className="field">
                   <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span>Unidad</span>

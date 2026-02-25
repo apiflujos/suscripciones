@@ -68,6 +68,9 @@ export async function createProduct(formData: FormData) {
   const kind = String(formData.get("kind") || "PRODUCT").trim();
   const currency = String(formData.get("currency") || "COP").trim();
   const basePriceInCents = pesosToCents(String(formData.get("basePricePesos") || ""));
+  const intervalUnit = String(formData.get("intervalUnit") || "MONTH").trim();
+  const intervalCountRaw = Number(String(formData.get("intervalCount") || "1"));
+  const intervalCount = Number.isFinite(intervalCountRaw) && intervalCountRaw > 0 ? Math.trunc(intervalCountRaw) : 1;
   const taxPercent = Number(String(formData.get("taxPercent") || "0"));
   const discountType = String(formData.get("discountType") || "NONE").trim();
   const discountValueInCents = pesosToCents(String(formData.get("discountValuePesos") || ""));
@@ -101,6 +104,8 @@ export async function createProduct(formData: FormData) {
         kind,
         currency,
         basePriceInCents,
+        intervalUnit,
+        intervalCount,
         taxPercent,
         discountType,
         discountValueInCents,
@@ -135,6 +140,9 @@ export async function updateProduct(formData: FormData) {
   const kind = String(formData.get("kind") || "PRODUCT").trim();
   const currency = String(formData.get("currency") || "COP").trim();
   const basePriceInCents = pesosToCents(String(formData.get("basePricePesos") || ""));
+  const intervalUnit = String(formData.get("intervalUnit") || "MONTH").trim();
+  const intervalCountRaw = Number(String(formData.get("intervalCount") || "1"));
+  const intervalCount = Number.isFinite(intervalCountRaw) && intervalCountRaw > 0 ? Math.trunc(intervalCountRaw) : 1;
   const taxPercent = Number(String(formData.get("taxPercent") || "0"));
   const discountType = String(formData.get("discountType") || "NONE").trim();
   const discountValueInCents = pesosToCents(String(formData.get("discountValuePesos") || ""));
@@ -171,6 +179,8 @@ export async function updateProduct(formData: FormData) {
         kind,
         currency,
         basePriceInCents,
+        intervalUnit,
+        intervalCount,
         taxPercent,
         discountType,
         discountValueInCents,

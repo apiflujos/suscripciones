@@ -9,13 +9,18 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const isRedirect = String(error?.digest || "").startsWith("NEXT_REDIRECT") || String(error?.message || "").includes("NEXT_REDIRECT");
   useEffect(() => {
     // Log the error to the console for easier debugging
-    const digest = String(error?.digest || "");
-    const msg = String(error?.message || "");
-    if (digest.startsWith("NEXT_REDIRECT") || msg.includes("NEXT_REDIRECT")) return;
+    if (isRedirect) {
+      // Avoid showing the error UI for redirects
+      reset();
+      return;
+    }
     console.error("Global Error Boundary caught:", error);
-  }, [error]);
+  }, [error, isRedirect, reset]);
+
+  if (isRedirect) return null;
 
   return (
     <div style={{

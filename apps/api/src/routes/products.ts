@@ -1,7 +1,7 @@
 import express from "express";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
-import { LogLevel } from "@prisma/client";
+import { LogLevel, PlanIntervalUnit } from "@prisma/client";
 import { systemLog } from "../services/systemLog";
 import { getEffectiveTenantId, getEffectiveTenantIds, readTenantIdsFromReq } from "../services/tenantContext";
 
@@ -17,6 +17,8 @@ const createProductSchema = z.object({
   kind: z.enum(["PRODUCT", "SERVICE"]).optional().default("PRODUCT"),
   currency: z.string().min(3).max(3).optional().default("COP"),
   basePriceInCents: z.number().int().nonnegative(),
+  intervalUnit: z.nativeEnum(PlanIntervalUnit).optional().default(PlanIntervalUnit.MONTH),
+  intervalCount: z.number().int().positive().optional().default(1),
   taxPercent: z.number().int().min(0).max(100).optional().default(0),
   discountType: z.enum(["NONE", "FIXED", "PERCENT"]).optional().default("NONE"),
   discountValueInCents: z.number().int().nonnegative().optional().default(0),
@@ -83,6 +85,8 @@ productsRouter.get("/", async (_req, res) => {
       requiresShipping: (p.metadata as any)?.requiresShipping ?? false,
       currency: p.currency,
       basePriceInCents: p.priceInCents,
+      intervalUnit: p.intervalUnit,
+      intervalCount: p.intervalCount,
       taxPercent: (p.metadata as any)?.taxPercent || 0,
       discountType: (p.metadata as any)?.discountType || "NONE",
       discountValueInCents: (p.metadata as any)?.discountValueInCents || 0,
@@ -239,8 +243,8 @@ productsRouter.put("/:id", async (req, res) => {
       name: `[${data.sku}] ${data.name}`,
       currency: data.currency,
       priceInCents: data.basePriceInCents,
-      intervalUnit: "CUSTOM" as any,
-      intervalCount: 1,
+      intervalUnit: data.intervalUnit ?? PlanIntervalUnit.MONTH,
+      intervalCount: data.intervalCount ?? 1,
       metadata: mergedMetadata as any
     }
   });
@@ -275,8 +279,8 @@ productsRouter.post("/", async (req, res) => {
       name: `[${data.sku}] ${data.name}`,
       currency: data.currency,
       priceInCents: data.basePriceInCents,
-      intervalUnit: "CUSTOM" as any,
-      intervalCount: 1,
+      intervalUnit: data.intervalUnit ?? PlanIntervalUnit.MONTH,
+      intervalCount: data.intervalCount ?? 1,
       metadata: {
         ...(data.metadata && typeof data.metadata === "object" ? (data.metadata as any) : {}),
         kind: "CATALOG_ITEM",
