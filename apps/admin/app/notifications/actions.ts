@@ -397,6 +397,134 @@ export async function deleteRule(formData: FormData) {
   }
 }
 
+export async function updateTemplate(formData: FormData) {
+  await assertCsrfToken(formData);
+  const environment = normalizeEnv(formData.get("environment"));
+  const templateId = String(formData.get("templateId") || "").trim();
+  if (!templateId) return redirect(`/notifications?env=${environment}&error=missing_template_id`);
+
+  const name = String(formData.get("name") || "").trim();
+  const channel = String(formData.get("channel") || "CHATWOOT").trim().toUpperCase();
+  const chatwootType = String(formData.get("chatwootType") || "").trim();
+  const content = String(formData.get("content") || "").trim();
+  const waTemplateName = String(formData.get("waTemplateName") || "").trim();
+  const waLanguage = String(formData.get("waLanguage") || "").trim();
+  const waParamsRaw = String(formData.get("waParams") || "").trim();
+  const waParams = waParamsRaw ? waParamsRaw.split("|").map((v) => v.trim()).filter(Boolean) : [];
+  const metaTemplateName = String(formData.get("metaTemplateName") || "").trim();
+  const metaLanguage = String(formData.get("metaLanguage") || "").trim();
+  const metaComponentsRaw = String(formData.get("metaComponents") || "").trim();
+
+  if (!name) return redirect(`/notifications?env=${environment}&error=missing_name`);
+
+  try {
+    const config = await getNotificationsConfig(environment);
+    const templates = Array.isArray(config?.templates) ? config.templates.slice() : [];
+    const idx = templates.findIndex((t: any) => String(t.id) === templateId);
+    if (idx === -1) return redirect(`/notifications?env=${environment}&error=template_not_found`);
+
+    const next: any = { ...templates[idx] };
+    next.name = name;
+    next.channel = channel === "META" ? "META" : "CHATWOOT";
+
+    if (next.channel === "META") {
+      if (!metaTemplateName || !metaLanguage) {
+        return redirect(`/notifications?env=${environment}&error=missing_meta_fields`);
+      }
+      let components: any = undefined;
+      if (metaComponentsRaw) {
+        try {
+          components = JSON.parse(metaComponentsRaw);
+        } catch {
+          return redirect(`/notifications?env=${environment}&error=invalid_meta_components`);
+        }
+      }
+      next.meta = {
+        templateName: metaTemplateName,
+        language: metaLanguage,
+        components
+      };
+      next.chatwootType = undefined;
+      next.content = undefined;
+      next.chatwootTemplate = undefined;
+    } else {
+      next.chatwootType = chatwootType || next.chatwootType || "PAYMENT_LINK";
+      if (waTemplateName) {
+        next.content = "(template)";
+        next.chatwootTemplate = {
+          name: waTemplateName,
+          language: waLanguage || "es",
+          processed_params: waParams.length ? { body: waParams.map((v, idx2) => ({ key: String(idx2 + 1), value: v })) } : undefined
+        };
+      } else {
+        if (!content) {
+          return redirect(`/notifications?env=${environment}&error=missing_message`);
+        }
+        next.content = content;
+        next.chatwootTemplate = undefined;
+      }
+      next.meta = undefined;
+    }
+
+    templates[idx] = next;
+    const updated = { ...(config || {}), templates };
+    await putNotificationsConfig(environment, updated);
+    redirect(`/notifications?env=${environment}&saved=1`);
+  } catch (err) {
+    redirect(`/notifications?env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
+  }
+}
+
+export async function updateRule(formData: FormData) {
+  await assertCsrfToken(formData);
+  const environment = normalizeEnv(formData.get("environment"));
+  const ruleId = String(formData.get("ruleId") || "").trim();
+  if (!ruleId) return redirect(`/notifications?env=${environment}&error=missing_rule_id`);
+
+  const name = String(formData.get("name") || "").trim();
+  const trigger = String(formData.get("trigger") || "").trim();
+  const templateId = String(formData.get("templateId") || "").trim();
+  const enabled = String(formData.get("enabled") || "").trim() === "1";
+  const paymentType = String(formData.get("paymentType") || "ANY").trim().toUpperCase();
+  const ensurePaymentLink = String(formData.get("ensurePaymentLink") || "").trim() === "1";
+  const atTimeUtc = String(formData.get("atTimeUtc") || "").trim();
+  const offsetsSeconds = toOffsetsSeconds(formData);
+
+  if (!name || !trigger || !templateId) return redirect(`/notifications?env=${environment}&error=missing_fields`);
+
+  try {
+    const config = await getNotificationsConfig(environment);
+    const rules = Array.isArray(config?.rules) ? config.rules.slice() : [];
+    const idx = rules.findIndex((r: any) => String(r.id) === ruleId);
+    if (idx === -1) return redirect(`/notifications?env=${environment}&error=rule_not_found`);
+
+    const next: any = { ...rules[idx] };
+    next.name = name;
+    next.trigger = trigger;
+    next.templateId = templateId;
+    next.enabled = enabled;
+    next.offsetsSeconds = offsetsSeconds;
+    next.atTimeUtc = atTimeUtc || undefined;
+    if (trigger === "SUBSCRIPTION_DUE") {
+      next.ensurePaymentLink = ensurePaymentLink;
+      next.conditions = { ...(next.conditions || {}), skipIfSubscriptionStatusIn: ["CANCELED"] };
+    }
+    if (paymentType && paymentType !== "ANY") {
+      next.conditions = { ...(next.conditions || {}), requirePaymentTypeIn: [paymentType] };
+    } else if (next.conditions) {
+      const { requirePaymentTypeIn, ...rest } = next.conditions;
+      next.conditions = Object.keys(rest).length ? rest : undefined;
+    }
+
+    rules[idx] = next;
+    const updated = { ...(config || {}), rules };
+    await putNotificationsConfig(environment, updated);
+    redirect(`/notifications?env=${environment}&saved=1`);
+  } catch (err) {
+    redirect(`/notifications?env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
+  }
+}
+
 export async function scheduleSubscription(formData: FormData) {
   await assertCsrfToken(formData);
   const subscriptionId = String(formData.get("subscriptionId") || "").trim();
