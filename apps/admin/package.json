@@ -2,9 +2,9 @@
   "name": "@suscripciones/admin",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3000",
+    "dev": "sh -c 'test -n \"$PORT\" || { echo \"PORT requerido. Definelo en .env o en el entorno.\" >&2; exit 1; }; next dev -p \"$PORT\"'",
     "build": "NODE_OPTIONS=\"--require ./lib/force-next-document.cjs\" __NEXT_DOCUMENT__=true NEXT_IGNORE_INCORRECT_LOCKFILE=1 next build",
-    "start": "next start -p $PORT",
+    "start": "sh -c 'test -n \"$PORT\" || { echo \"PORT requerido. Definelo en .env o en el entorno.\" >&2; exit 1; }; next start -p \"$PORT\"'",
     "start:standalone": "node .next/standalone/apps/admin/server.js",
     "lint": "next lint"
   },

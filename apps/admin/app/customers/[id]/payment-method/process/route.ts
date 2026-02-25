@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getRequiredApiBase } from "../../../lib/adminApi";
+import { getRequiredApiBase } from "../../../../lib/adminApi";
 
 function getConfig() {
   const raw = String(process.env.ADMIN_API_TOKEN || "");
