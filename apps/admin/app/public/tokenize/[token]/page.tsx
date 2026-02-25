@@ -8,14 +8,16 @@ import { PUBLIC_COPY } from "../../_components/publicCopy";
 export const dynamic = "force-dynamic";
 
 async function fetchPublicToken(token: string) {
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+  if (!apiBase) return { ok: false, status: 500, json: { error: "missing_next_public_api_base_url" } };
   const res = await fetch(`${apiBase}/public/tokenization-links/${encodeURIComponent(token)}`, { cache: "no-store" });
   const json = await res.json().catch(() => null);
   return { ok: res.ok, status: res.status, json };
 }
 
 async function fetchCheckoutConfig() {
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+  if (!apiBase) return { ok: false, json: { error: "missing_next_public_api_base_url" } };
   const res = await fetch(`${apiBase}/public/checkout-config`, { cache: "no-store" });
   const json = await res.json().catch(() => null);
   return { ok: res.ok, json };
@@ -36,8 +38,8 @@ export default async function PublicTokenizePage({
   const template = tokenRes.ok ? tokenRes.json?.template || null : null;
   const layout = (template?.layout || {}) as any;
   const { token: adminToken } = getAdminApiConfig();
-  const settingsRes = adminToken
-    ? await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001"}/admin/settings`, {
+  const settingsRes = adminToken && process.env.NEXT_PUBLIC_API_BASE_URL
+    ? await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/settings`, {
         cache: "no-store",
         headers: { authorization: `Bearer ${adminToken}`, "x-admin-token": adminToken }
       })

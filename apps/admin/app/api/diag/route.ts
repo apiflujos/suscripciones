@@ -3,7 +3,10 @@ import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+  if (!apiBase) {
+    return Response.json({ ok: false, error: "missing_next_public_api_base_url" }, { status: 500 });
+  }
   const token = (process.env.ADMIN_API_TOKEN || "").trim();
 
   const startedAt = Date.now();

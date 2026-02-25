@@ -6,14 +6,16 @@ import { PUBLIC_COPY } from "../../_components/publicCopy";
 export const dynamic = "force-dynamic";
 
 async function fetchPaymentLink(token: string) {
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+  if (!apiBase) return { ok: false, status: 500, json: { error: "missing_next_public_api_base_url" } };
   const res = await fetch(`${apiBase}/public/payment-links/${encodeURIComponent(token)}`, { cache: "no-store" });
   const json = await res.json().catch(() => null);
   return { ok: res.ok, status: res.status, json };
 }
 
 async function fetchCheckoutConfig() {
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+  if (!apiBase) return { ok: false, json: { error: "missing_next_public_api_base_url" } };
   const res = await fetch(`${apiBase}/public/checkout-config`, { cache: "no-store" });
   const json = await res.json().catch(() => null);
   return { ok: res.ok, json };

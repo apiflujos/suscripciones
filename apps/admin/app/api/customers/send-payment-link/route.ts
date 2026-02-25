@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { normalizeToken } from "../../../lib/normalizeToken";
+import { getRequiredApiBase } from "../../../lib/adminApi";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
+const API_BASE = getRequiredApiBase();
 
 function pesosToCents(input: string): number {
   const digits = String(input || "").replace(/[^\d-]/g, "");

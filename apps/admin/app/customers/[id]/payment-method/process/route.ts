@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
+import { getRequiredApiBase } from "../../../lib/adminApi";
 
 function getConfig() {
   const raw = String(process.env.ADMIN_API_TOKEN || "");
   const token = raw.replace(/^Bearer\\s+/i, "").trim().replace(/^\"|\"$/g, "").replace(/^'|'$/g, "").trim();
   return {
-    apiBase: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001",
+    apiBase: getRequiredApiBase(),
     token
   };
 }
@@ -33,7 +34,16 @@ function tokenToType(token: string): "CARD" | "NEQUI" | "PSE" {
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
-  const { apiBase, token } = getConfig();
+  let apiBase = "";
+  let token = "";
+  try {
+    const cfg = getConfig();
+    apiBase = cfg.apiBase;
+    token = cfg.token;
+  } catch (err: any) {
+    const msg = err?.message ? String(err.message) : "missing_next_public_api_base_url";
+    return NextResponse.redirect(new URL(`/customers/${id}/payment-method?error=${encodeURIComponent(msg)}`, req.url));
+  }
   if (!token) return NextResponse.redirect(new URL(`/customers/${id}/payment-method?error=missing_admin_token`, req.url));
 
   const formData = await req.formData().catch(() => null);

@@ -15,10 +15,19 @@ function pruneCache() {
 }
 
 export function getAdminApiConfig() {
-  const internalBase = process.env.ADMIN_INTERNAL_API_BASE_URL || process.env.INTERNAL_API_BASE_URL || "";
-  const apiBase = internalBase || process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
+  const apiBase = getRequiredApiBase();
   const token = normalizeToken(process.env.ADMIN_API_TOKEN || "");
   return { apiBase, token };
+}
+
+export function getRequiredApiBase() {
+  const internalBase = process.env.ADMIN_INTERNAL_API_BASE_URL || process.env.INTERNAL_API_BASE_URL || "";
+  const publicBase = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+  const apiBase = (internalBase || publicBase).trim();
+  if (!apiBase) {
+    throw new Error("missing_next_public_api_base_url");
+  }
+  return apiBase;
 }
 
 function cacheKey(url: string, token: string) {
@@ -45,7 +54,7 @@ function waitMs(ms: number) {
 }
 
 export async function fetchPublicCached(path: string, opts?: { ttlMs?: number }): Promise<FetchResult> {
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
+  const apiBase = getRequiredApiBase();
   const url = `${apiBase}${path}`;
   const ttlMs = Math.max(0, Number(opts?.ttlMs ?? 1500));
   if (ttlMs === 0) return fetchJson(url, { cache: "no-store" });

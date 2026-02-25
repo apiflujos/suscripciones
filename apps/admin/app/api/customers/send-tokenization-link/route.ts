@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { normalizeToken } from "../../../lib/normalizeToken";
+import { getRequiredApiBase } from "../../../lib/adminApi";
 import crypto from "crypto";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
+const API_BASE = getRequiredApiBase();
 
 export async function POST(req: Request) {
   const token = normalizeToken(process.env.ADMIN_API_TOKEN || "");
