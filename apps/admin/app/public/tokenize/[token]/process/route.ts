@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 
 function getRedirectBase(req: Request) {
+  const envBase =
+    String(process.env.NEXT_PUBLIC_PUBLIC_BASE_URL || "").trim() ||
+    String(process.env.NEXT_PUBLIC_REDIRECT_BASE_URL || "").trim();
+  if (envBase) return envBase.replace(/\/+$/, "");
   const forwardedProto = req.headers.get("x-forwarded-proto");
   const forwardedHost = req.headers.get("x-forwarded-host");
   const host = forwardedHost || req.headers.get("host");
