@@ -47,7 +47,7 @@ export async function createSubscription(formData: FormData) {
 
     const checkoutUrl = json?.checkoutUrl;
     if (checkoutUrl) {
-      const qs = new URLSearchParams({ created: "1", checkoutUrl, customerId, ...(tenantId ? { tenantId } : {}) }).toString();
+      const qs = new URLSearchParams({ created: "1", linkSent: "1", checkoutUrl, customerId, ...(tenantId ? { tenantId } : {}) }).toString();
       redirect(`/billing?${qs}`);
     }
     const qs = new URLSearchParams({ created: "1", ...(tenantId ? { tenantId } : {}) }).toString();
@@ -72,6 +72,7 @@ export async function createPaymentLink(formData: FormData) {
     });
     const qp = new URLSearchParams();
     qp.set("created", "1");
+    qp.set("linkSent", "1");
     if (json.checkoutUrl) qp.set("checkoutUrl", json.checkoutUrl);
     if (customerId) qp.set("customerId", customerId);
     if (tenantId) qp.set("tenantId", tenantId);

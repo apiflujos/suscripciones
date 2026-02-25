@@ -81,7 +81,8 @@ subscriptionsRouter.get("/", async (_req, res) => {
       tenantIds: Array.from(
         new Set([s.tenantId, ...(s.tenantLinks || []).map((t) => t.tenantId)].filter(Boolean))
       ) as string[],
-      lastPayment: lastPaymentBySub.get(s.id) ?? null
+      lastPayment: lastPaymentBySub.get(s.id) ?? null,
+      lastPaymentLink: lastLinkBySub.get(s.id) ?? null
     }))
   });
 });
@@ -362,3 +363,15 @@ subscriptionsRouter.delete("/:id", async (req, res) => {
   await systemLog(LogLevel.INFO, "subscriptions.delete", "Subscription deleted", { subscriptionId }).catch(() => {});
   res.json({ ok: true });
 });
+  const latestLinks = await prisma.paymentLink.findMany({
+    where: { subscriptionId: { in: subscriptionIds } },
+    orderBy: { sentAt: "desc" },
+    select: { subscriptionId: true, sentAt: true, paidAt: true, status: true, checkoutUrl: true }
+  });
+  const lastLinkBySub = new Map<string, { sentAt: Date | null; paidAt: Date | null; status: string; checkoutUrl?: string | null }>();
+  for (const l of latestLinks) {
+    if (!l.subscriptionId) continue;
+    if (!lastLinkBySub.has(l.subscriptionId)) {
+      lastLinkBySub.set(l.subscriptionId, { sentAt: l.sentAt || null, paidAt: l.paidAt || null, status: l.status || "SENT", checkoutUrl: l.checkoutUrl || null });
+    }
+  }

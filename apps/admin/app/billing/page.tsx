@@ -89,6 +89,17 @@ function getPaymentStatusLabel(args: {
   return "Pendiente";
 }
 
+function getPlanLinkStatus(link: any, lastPaidAt: any) {
+  if (lastPaidAt) return "Pagado";
+  if (!link?.sentAt) return "Pendiente";
+  const sentAt = new Date(link.sentAt).getTime();
+  if (Number.isFinite(sentAt)) {
+    const oneDay = 24 * 60 * 60 * 1000;
+    if (Date.now() - sentAt >= oneDay) return "En mora";
+  }
+  return "Link enviado";
+}
+
 function buildSmartListRules({
   tipo,
   estado,
@@ -154,6 +165,7 @@ export default async function BillingPage({
   const activated = typeof sp.activated === "string" ? sp.activated : "";
   const deleted = typeof sp.deleted === "string" ? sp.deleted : "";
   const deletedPlan = typeof sp.deletedPlan === "string" ? sp.deletedPlan : "";
+  const linkSent = typeof sp.linkSent === "string" ? sp.linkSent : "";
   const planUpdated = typeof sp.planUpdated === "string" ? sp.planUpdated : "";
   const tenantId = typeof sp.tenantId === "string" ? sp.tenantId : "";
   const tenantCreated = typeof sp.tenantCreated === "string" ? sp.tenantCreated : "";
@@ -239,6 +251,7 @@ export default async function BillingPage({
         moneda: String(plan?.currency || "COP"),
         cada: fmtEvery(plan?.intervalUnit, plan?.intervalCount),
         pagoAt: s.lastPayment?.paidAt || null,
+        lastPaymentLink: s.lastPaymentLink || null,
         vencimientoAt: s.currentPeriodEndAt || null,
         periodoInicioAt: s.currentPeriodStartAt || null,
         periodoFinAt: s.currentPeriodEndAt || null,
@@ -288,6 +301,7 @@ export default async function BillingPage({
       {activated ? <div className="card cardPad">Suscripción activada.</div> : null}
       {deleted ? <div className="card cardPad">Suscripción eliminada.</div> : null}
       {deletedPlan ? <div className="card cardPad">Plan eliminado.</div> : null}
+      {linkSent ? <div className="card cardPad">Link de pago enviado.</div> : null}
       {planUpdated ? <div className="card cardPad">Recurrencia actualizada.</div> : null}
       {tenantCreated ? <div className="card cardPad">Canal creado.</div> : null}
       {chatwoot === "sent" ? <div className="card cardPad">Mensaje enviado por Chatwoot.</div> : null}
@@ -414,6 +428,7 @@ export default async function BillingPage({
 
           <div className="billing-grid">
             {rows.map((r) => {
+              const isPlan = r.mode !== "AUTO_DEBIT";
               const paymentStatus = getPaymentStatusLabel({
                 status: r.status,
                 paidAt: r.pagoAt,
@@ -422,6 +437,7 @@ export default async function BillingPage({
               });
               const subscriptionStatus = getSubscriptionStatusLabel(r.status);
               const subscriptionBadge = `Suscripción ${subscriptionStatus.toLowerCase()}`;
+              const planLinkStatus = getPlanLinkStatus(r.lastPaymentLink, r.pagoAt);
               return (
                 <div className="billing-card" key={r.id}>
                   <div className="billing-header">
@@ -432,12 +448,20 @@ export default async function BillingPage({
                       </div>
                     </div>
                   <div className="billing-badges">
-                    <span className={`pill ${subscriptionStatus === "Activa" ? "pill-ok" : subscriptionStatus === "En mora" ? "pill-warn" : subscriptionStatus === "Suspendida" ? "pill-warn" : subscriptionStatus === "Cancelada" ? "pill-bad" : "pill-muted"}`}>
-                      {subscriptionBadge}
-                    </span>
-                    <span className={`pill ${paymentStatus === "Pagado" ? "pill-ok" : paymentStatus === "En mora" ? "pill-warn" : "pill-muted"}`}>
-                      Pago {paymentStatus.toLowerCase()}
-                    </span>
+                    {isPlan ? (
+                      <span className={`pill ${planLinkStatus === "Pagado" ? "pill-ok" : planLinkStatus === "En mora" ? "pill-warn" : "pill-muted"}`}>
+                        {planLinkStatus === "Link enviado" ? "Link enviado" : planLinkStatus}
+                      </span>
+                    ) : (
+                      <>
+                        <span className={`pill ${subscriptionStatus === "Activa" ? "pill-ok" : subscriptionStatus === "En mora" ? "pill-warn" : subscriptionStatus === "Suspendida" ? "pill-warn" : subscriptionStatus === "Cancelada" ? "pill-bad" : "pill-muted"}`}>
+                          {subscriptionBadge}
+                        </span>
+                        <span className={`pill ${paymentStatus === "Pagado" ? "pill-ok" : paymentStatus === "En mora" ? "pill-warn" : "pill-muted"}`}>
+                          Pago {paymentStatus.toLowerCase()}
+                        </span>
+                      </>
+                    )}
                     <span className={`pill ${r.customerTokenized ? "pill-ok" : "pill-bad"}`}>
                       {r.customerTokenized ? "Tokenizada" : "Sin token"}
                     </span>
