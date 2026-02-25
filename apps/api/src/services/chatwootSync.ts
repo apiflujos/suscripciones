@@ -4,20 +4,61 @@ import { ChatwootClient } from "../providers/chatwoot/client";
 import { getChatwootConfig } from "./runtimeConfig";
 import { systemLog } from "./systemLog";
 
-const CUSTOM_ATTR_DEFS: Array<{
+export const CHATWOOT_CUSTOM_ATTR_DEFS: Array<{
   key: string;
   displayName: string;
   displayType: "text" | "number" | "currency" | "boolean" | "url" | "date" | "list" | "percent" | "checkbox";
   values?: string[];
 }> = [
+  { key: "customer_id", displayName: "Customer ID", displayType: "text" },
+  { key: "tenant_id", displayName: "Tenant ID", displayType: "text" },
+  { key: "tenant_name", displayName: "Tenant Name", displayType: "text" },
+  { key: "customer_name", displayName: "Customer Name", displayType: "text" },
+  { key: "customer_email", displayName: "Customer Email", displayType: "text" },
+  { key: "customer_phone", displayName: "Customer Phone", displayType: "text" },
+  { key: "customer_created_at", displayName: "Customer Created", displayType: "date" },
+  { key: "customer_updated_at", displayName: "Customer Updated", displayType: "date" },
+  { key: "customer_metadata", displayName: "Customer Metadata", displayType: "text" },
+
+  { key: "subscription_id", displayName: "Subscription ID", displayType: "text" },
   { key: "subscription_status", displayName: "Subscription Status", displayType: "list", values: ["ACTIVE", "PAST_DUE", "EXPIRED", "CANCELED", "SUSPENDED"] },
+  { key: "subscription_start_at", displayName: "Subscription Start", displayType: "date" },
+  { key: "subscription_period_start", displayName: "Period Start", displayType: "date" },
+  { key: "subscription_period_end", displayName: "Period End", displayType: "date" },
+  { key: "subscription_cycle", displayName: "Subscription Cycle", displayType: "number" },
+  { key: "subscription_retry_count", displayName: "Retry Count", displayType: "number" },
+  { key: "subscription_max_retries", displayName: "Max Retries", displayType: "number" },
+  { key: "subscription_canceled_at", displayName: "Canceled At", displayType: "date" },
+  { key: "subscription_suspended_at", displayName: "Suspended At", displayType: "date" },
+  { key: "subscription_metadata", displayName: "Subscription Metadata", displayType: "text" },
+
+  { key: "plan_id", displayName: "Plan ID", displayType: "text" },
   { key: "plan_name", displayName: "Plan Name", displayType: "text" },
   { key: "plan_price", displayName: "Plan Price (cents)", displayType: "number" },
+  { key: "plan_currency", displayName: "Plan Currency", displayType: "text" },
+  { key: "plan_interval_unit", displayName: "Plan Interval Unit", displayType: "text" },
+  { key: "plan_interval_count", displayName: "Plan Interval Count", displayType: "number" },
+  { key: "plan_type", displayName: "Plan Type", displayType: "text" },
+  { key: "plan_active", displayName: "Plan Active", displayType: "boolean" },
+  { key: "plan_metadata", displayName: "Plan Metadata", displayType: "text" },
+
+  { key: "has_subscription", displayName: "Has Subscription", displayType: "boolean" },
+  { key: "has_active_subscription", displayName: "Has Active Subscription", displayType: "boolean" },
   { key: "next_billing_date", displayName: "Next Billing Date", displayType: "date" },
-  { key: "last_payment_status", displayName: "Last Payment Status", displayType: "list", values: ["PENDING", "APPROVED", "DECLINED", "ERROR", "VOIDED"] },
-  { key: "last_payment_date", displayName: "Last Payment Date", displayType: "date" },
   { key: "days_past_due", displayName: "Days Past Due", displayType: "number" },
-  { key: "in_mora", displayName: "In Mora", displayType: "boolean" }
+  { key: "in_mora", displayName: "In Mora", displayType: "boolean" },
+
+  { key: "last_payment_id", displayName: "Last Payment ID", displayType: "text" },
+  { key: "last_payment_status", displayName: "Last Payment Status", displayType: "list", values: ["PENDING", "APPROVED", "DECLINED", "ERROR", "VOIDED"] },
+  { key: "last_payment_amount", displayName: "Last Payment Amount (cents)", displayType: "number" },
+  { key: "last_payment_currency", displayName: "Last Payment Currency", displayType: "text" },
+  { key: "last_payment_reference", displayName: "Last Payment Reference", displayType: "text" },
+  { key: "last_payment_wompi_transaction_id", displayName: "Last Payment Wompi Tx", displayType: "text" },
+  { key: "last_payment_checkout_url", displayName: "Last Payment Checkout Url", displayType: "url" },
+  { key: "last_payment_paid_at", displayName: "Last Payment Paid At", displayType: "date" },
+  { key: "last_payment_failed_at", displayName: "Last Payment Failed At", displayType: "date" },
+  { key: "last_payment_created_at", displayName: "Last Payment Created At", displayType: "date" },
+  { key: "last_payment_metadata", displayName: "Last Payment Provider Resp", displayType: "text" }
 ];
 
 let lastEnsureAt = 0;
@@ -35,7 +76,7 @@ async function ensureCustomAttributes(client: ChatwootClient) {
         ? (list.raw.payload as any[]).map((a) => String(a?.attribute_key || a?.attributeKey || ""))
         : []
     );
-    for (const def of CUSTOM_ATTR_DEFS) {
+    for (const def of CHATWOOT_CUSTOM_ATTR_DEFS) {
       if (existing.has(def.key)) continue;
       await client.createCustomAttribute({ ...def, model: "contact" });
     }
@@ -138,6 +179,7 @@ export async function syncChatwootAttributesForCustomer(customerId: string) {
   const customer = await prisma.customer.findUnique({
     where: { id },
     include: {
+      tenant: true,
       subscriptions: {
         include: { plan: true, payments: { orderBy: { createdAt: "desc" }, take: 1 } },
         orderBy: { createdAt: "desc" }
@@ -162,16 +204,68 @@ export async function syncChatwootAttributesForCustomer(customerId: string) {
       ? Math.floor((now - currentPeriodEndAt.getTime()) / 86_400_000)
       : 0;
 
+  const safeJson = (value: any) => {
+    if (!value || typeof value !== "object") return null;
+    try {
+      const json = JSON.stringify(value);
+      if (json.length <= 1000) return json;
+      return json.slice(0, 1000);
+    } catch {
+      return null;
+    }
+  };
+
   const customAttributes = {
+    customer_id: customer.id,
+    tenant_id: customer.tenantId ?? null,
+    tenant_name: customer.tenant?.name ?? null,
+    customer_name: customer.name ?? null,
+    customer_email: customer.email ?? null,
+    customer_phone: customer.phone ?? null,
+    customer_created_at: customer.createdAt ? new Date(customer.createdAt).toISOString() : null,
+    customer_updated_at: customer.updatedAt ? new Date(customer.updatedAt).toISOString() : null,
+    customer_metadata: safeJson(customer.metadata),
+
+    subscription_id: sub?.id ?? null,
     subscription_status: sub?.status ?? null,
+    subscription_start_at: sub?.startAt ? new Date(sub.startAt).toISOString() : null,
+    subscription_period_start: sub?.currentPeriodStartAt ? new Date(sub.currentPeriodStartAt).toISOString() : null,
+    subscription_period_end: currentPeriodEndAt ? currentPeriodEndAt.toISOString() : null,
+    subscription_cycle: sub?.currentCycle ?? null,
+    subscription_retry_count: sub?.retryCount ?? null,
+    subscription_max_retries: sub?.maxRetries ?? null,
+    subscription_canceled_at: sub?.canceledAt ? new Date(sub.canceledAt).toISOString() : null,
+    subscription_suspended_at: sub?.suspendedAt ? new Date(sub.suspendedAt).toISOString() : null,
+    subscription_metadata: safeJson(sub?.metadata ?? null),
+
+    plan_id: sub?.plan?.id ?? null,
     plan_name: sub?.plan?.name ?? null,
     plan_price: sub?.plan?.priceInCents ?? null,
+    plan_currency: sub?.plan?.currency ?? null,
+    plan_interval_unit: sub?.plan?.intervalUnit ?? null,
+    plan_interval_count: sub?.plan?.intervalCount ?? null,
+    plan_type: sub?.plan?.planType ?? null,
+    plan_active: typeof sub?.plan?.active === "boolean" ? sub?.plan?.active : null,
+    plan_metadata: safeJson(sub?.plan?.metadata ?? null),
+
+    has_subscription: Boolean(sub),
+    has_active_subscription: sub?.status === "ACTIVE",
     next_billing_date: currentPeriodEndAt ? currentPeriodEndAt.toISOString() : null,
-    last_payment_status: latestPayment?.status ?? null,
-    last_payment_date: latestPayment?.createdAt ? new Date(latestPayment.createdAt).toISOString() : null,
     days_past_due: daysPastDue,
-    in_mora: sub?.status === "PAST_DUE" || daysPastDue > 0
-  } as any;
+    in_mora: sub?.status === "PAST_DUE" || daysPastDue > 0,
+
+    last_payment_id: latestPayment?.id ?? null,
+    last_payment_status: latestPayment?.status ?? null,
+    last_payment_amount: latestPayment?.amountInCents ?? null,
+    last_payment_currency: latestPayment?.currency ?? null,
+    last_payment_reference: latestPayment?.reference ?? null,
+    last_payment_wompi_transaction_id: latestPayment?.wompiTransactionId ?? null,
+    last_payment_checkout_url: latestPayment?.checkoutUrl ?? null,
+    last_payment_paid_at: latestPayment?.paidAt ? new Date(latestPayment.paidAt).toISOString() : null,
+    last_payment_failed_at: latestPayment?.failedAt ? new Date(latestPayment.failedAt).toISOString() : null,
+    last_payment_created_at: latestPayment?.createdAt ? new Date(latestPayment.createdAt).toISOString() : null,
+    last_payment_metadata: safeJson(latestPayment?.providerResponse ?? null)
+  } as const;
 
   const client = new ChatwootClient({
     baseUrl: cfg.baseUrl,

@@ -2,7 +2,7 @@ import express from "express";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
 import { computeSmartListRecipients, SmartListRule } from "../services/smartList";
-import { ensureChatwootCustomAttributes, syncChatwootAttributesForCustomer } from "../services/chatwootSync";
+import { CHATWOOT_CUSTOM_ATTR_DEFS, ensureChatwootCustomAttributes, syncChatwootAttributesForCustomer } from "../services/chatwootSync";
 import { syncSmartListById } from "../services/smartListSync";
 import { ChatwootClient } from "../providers/chatwoot/client";
 import { getChatwootConfig } from "../services/runtimeConfig";
@@ -126,21 +126,7 @@ commsRouter.post("/bootstrap-attributes", async (_req, res) => {
     return res.status(400).json({ error: err?.message || "chatwoot_not_configured" });
   }
 
-  const defs: Array<{
-    key: string;
-    displayName: string;
-    displayType: "text" | "number" | "currency" | "boolean" | "url" | "date" | "list" | "percent" | "checkbox";
-    values?: string[];
-  }> = [
-    { key: "subscription_status", displayName: "Subscription Status", displayType: "list", values: ["ACTIVE", "PAST_DUE", "EXPIRED", "CANCELED", "SUSPENDED"] },
-    { key: "plan_name", displayName: "Plan Name", displayType: "text" },
-    { key: "plan_price", displayName: "Plan Price (cents)", displayType: "number" },
-    { key: "next_billing_date", displayName: "Next Billing Date", displayType: "date" },
-    { key: "last_payment_status", displayName: "Last Payment Status", displayType: "list", values: ["PENDING", "APPROVED", "DECLINED", "ERROR", "VOIDED"] },
-    { key: "last_payment_date", displayName: "Last Payment Date", displayType: "date" },
-    { key: "days_past_due", displayName: "Days Past Due", displayType: "number" },
-    { key: "in_mora", displayName: "In Mora", displayType: "boolean" }
-  ];
+  const defs = CHATWOOT_CUSTOM_ATTR_DEFS;
 
   const results: Array<{ key: string; ok: boolean; error?: string }> = [];
   for (const def of defs) {
