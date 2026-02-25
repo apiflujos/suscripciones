@@ -2,7 +2,7 @@ import express from "express";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
 import { computeSmartListRecipients, SmartListRule } from "../services/smartList";
-import { syncChatwootAttributesForCustomer } from "../services/chatwootSync";
+import { ensureChatwootCustomAttributes, syncChatwootAttributesForCustomer } from "../services/chatwootSync";
 import { syncSmartListById } from "../services/smartListSync";
 import { ChatwootClient } from "../providers/chatwoot/client";
 import { getChatwootConfig } from "../services/runtimeConfig";
@@ -99,13 +99,23 @@ commsRouter.post("/sync-attributes", async (req, res) => {
   const limitRaw = Number((req as any)?.query?.limit ?? 200);
   const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.trunc(limitRaw), 1), 2000) : 200;
 
+  await ensureChatwootCustomAttributes().catch(() => {});
+
   const customers = await prisma.customer.findMany({ orderBy: { createdAt: "desc" }, take: limit });
   let synced = 0;
+  let failed = 0;
+  const errors: Array<{ customerId: string; error: string }> = [];
   for (const c of customers) {
-    const out = await syncChatwootAttributesForCustomer(c.id).catch(() => null);
+    const out = await syncChatwootAttributesForCustomer(c.id).catch((err) => ({ ok: false, reason: err?.message ? String(err.message) : "sync_failed" } as any));
     if (out?.ok) synced += 1;
+    else {
+      failed += 1;
+      if (errors.length < 20) {
+        errors.push({ customerId: c.id, error: String(out?.reason || "sync_failed") });
+      }
+    }
   }
-  res.json({ ok: true, synced, limit });
+  res.json({ ok: true, synced, failed, limit, errors });
 });
 
 commsRouter.post("/bootstrap-attributes", async (_req, res) => {

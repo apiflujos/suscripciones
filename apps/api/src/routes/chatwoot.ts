@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "../db/prisma";
 import { ChatwootClient } from "../providers/chatwoot/client";
 import { getChatwootConfig } from "../services/runtimeConfig";
-import { ensureChatwootContactForCustomer } from "../services/chatwootSync";
+import { ensureChatwootContactForCustomer, syncChatwootAttributesForCustomer } from "../services/chatwootSync";
 
 export const chatwootRouter = express.Router();
 
@@ -30,6 +30,7 @@ chatwootRouter.post("/contacts/sync", async (req, res) => {
 
   const result = await ensureChatwootContactForCustomer(parsed.data.customerId);
   if (!result.ok) return res.status(400).json({ error: result.reason });
+  await syncChatwootAttributesForCustomer(parsed.data.customerId).catch(() => {});
   return res.json({ contactId: result.contactId, sourceId: result.sourceId });
 });
 
@@ -176,8 +177,10 @@ chatwootRouter.post("/messages", async (req, res) => {
     if (!knownContactId) {
       const synced = await ensureChatwootContactForCustomer(customer.id);
       if (!synced.ok) return res.status(400).json({ error: synced.reason });
+      await syncChatwootAttributesForCustomer(customer.id).catch(() => {});
       conversationId = (await client.createConversation({ contactId: synced.contactId, sourceId: synced.sourceId })).conversationId;
     } else {
+      await syncChatwootAttributesForCustomer(customer.id).catch(() => {});
       conversationId = (await client.createConversation({ contactId: knownContactId, sourceId: knownSourceId })).conversationId;
     }
   }

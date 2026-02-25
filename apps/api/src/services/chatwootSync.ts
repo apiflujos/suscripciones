@@ -4,6 +4,64 @@ import { ChatwootClient } from "../providers/chatwoot/client";
 import { getChatwootConfig } from "./runtimeConfig";
 import { systemLog } from "./systemLog";
 
+const CUSTOM_ATTR_DEFS: Array<{
+  key: string;
+  displayName: string;
+  displayType: "text" | "number" | "currency" | "boolean" | "url" | "date" | "list" | "percent" | "checkbox";
+  values?: string[];
+}> = [
+  { key: "subscription_status", displayName: "Subscription Status", displayType: "list", values: ["ACTIVE", "PAST_DUE", "EXPIRED", "CANCELED", "SUSPENDED"] },
+  { key: "plan_name", displayName: "Plan Name", displayType: "text" },
+  { key: "plan_price", displayName: "Plan Price (cents)", displayType: "number" },
+  { key: "next_billing_date", displayName: "Next Billing Date", displayType: "date" },
+  { key: "last_payment_status", displayName: "Last Payment Status", displayType: "list", values: ["PENDING", "APPROVED", "DECLINED", "ERROR", "VOIDED"] },
+  { key: "last_payment_date", displayName: "Last Payment Date", displayType: "date" },
+  { key: "days_past_due", displayName: "Days Past Due", displayType: "number" },
+  { key: "in_mora", displayName: "In Mora", displayType: "boolean" }
+];
+
+let lastEnsureAt = 0;
+let lastEnsureOk = false;
+
+async function ensureCustomAttributes(client: ChatwootClient) {
+  const now = Date.now();
+  if (lastEnsureOk && now - lastEnsureAt < 10 * 60 * 1000) return { ok: true as const };
+  lastEnsureAt = now;
+
+  try {
+    const list = await client.listCustomAttributes("contact");
+    const existing = new Set(
+      Array.isArray(list.raw?.payload)
+        ? (list.raw.payload as any[]).map((a) => String(a?.attribute_key || a?.attributeKey || ""))
+        : []
+    );
+    for (const def of CUSTOM_ATTR_DEFS) {
+      if (existing.has(def.key)) continue;
+      await client.createCustomAttribute({ ...def, model: "contact" });
+    }
+    lastEnsureOk = true;
+    return { ok: true as const };
+  } catch (err: any) {
+    lastEnsureOk = false;
+    await systemLog(LogLevel.WARN, "chatwoot.sync", "No se pudieron asegurar atributos", {
+      err: err?.message ? String(err.message) : "unknown_error"
+    }).catch(() => {});
+    return { ok: false as const };
+  }
+}
+
+export async function ensureChatwootCustomAttributes() {
+  const cfg = await getChatwootConfig();
+  if (!cfg.configured) return { ok: false as const, reason: "chatwoot_not_configured" as const };
+  const client = new ChatwootClient({
+    baseUrl: cfg.baseUrl,
+    accountId: cfg.accountId,
+    apiAccessToken: cfg.apiAccessToken,
+    inboxId: cfg.inboxId
+  });
+  return ensureCustomAttributes(client);
+}
+
 export async function ensureChatwootContactForCustomer(customerId: string) {
   const id = String(customerId || "").trim();
   if (!id) return { ok: false as const, reason: "missing_customer_id" as const };
@@ -31,6 +89,8 @@ export async function ensureChatwootContactForCustomer(customerId: string) {
     apiAccessToken: cfg.apiAccessToken,
     inboxId: cfg.inboxId
   });
+
+  await ensureCustomAttributes(client);
 
   let created: Awaited<ReturnType<ChatwootClient["createContact"]>> | null = null;
   try {
@@ -119,6 +179,8 @@ export async function syncChatwootAttributesForCustomer(customerId: string) {
     apiAccessToken: cfg.apiAccessToken,
     inboxId: cfg.inboxId
   });
+
+  await ensureCustomAttributes(client);
 
   await client.updateContact(ensured.contactId, {
     name: customer.name || undefined,

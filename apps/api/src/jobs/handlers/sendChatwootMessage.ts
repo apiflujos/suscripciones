@@ -4,6 +4,7 @@ import { ChatwootClient } from "../../providers/chatwoot/client";
 import { getChatwootConfig } from "../../services/runtimeConfig";
 import { consumeApp } from "../../services/superAdminApp";
 import { systemLog } from "../../services/systemLog";
+import { syncChatwootAttributesForCustomer } from "../../services/chatwootSync";
 
 export async function sendChatwootMessage(chatwootMessageId: string) {
   const msg = await prisma.chatwootMessage.findUnique({
@@ -93,6 +94,8 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
     }).catch(() => {});
     return;
   }
+
+  await syncChatwootAttributesForCustomer(msg.customerId).catch(() => {});
 
   const meta: any = (msg.subscription?.metadata ?? {}) as any;
   const existingConversationId = meta?.chatwoot?.conversationId;

@@ -55,10 +55,12 @@ export function ConnectionsPanel({
   const [syncState, setSyncState] = useState<{
     running: boolean;
     synced: number;
+    failed: number;
     limit: number;
+    errors: Array<{ customerId: string; error: string }>;
     error?: string;
     lastAt?: string;
-  }>({ running: false, synced: 0, limit: 0 });
+  }>({ running: false, synced: 0, failed: 0, limit: 0, errors: [] });
 
   return (
     <>
@@ -299,7 +301,7 @@ export function ConnectionsPanel({
                     onClick={async () => {
                       const input = document.getElementById("centralSyncLimit") as HTMLInputElement | null;
                       const limit = Number(input?.value || 200);
-                      setSyncState({ running: true, synced: 0, limit: Number.isFinite(limit) ? limit : 200 });
+                      setSyncState({ running: true, synced: 0, failed: 0, limit: Number.isFinite(limit) ? limit : 200, errors: [] });
                       try {
                         const res = await fetch("/api/comms/sync-contacts", {
                           method: "POST",
@@ -311,14 +313,18 @@ export function ConnectionsPanel({
                         setSyncState({
                           running: false,
                           synced: Number(json?.synced || 0),
+                          failed: Number(json?.failed || 0),
                           limit: Number(json?.limit || limit || 0),
+                          errors: Array.isArray(json?.errors) ? json.errors : [],
                           lastAt: new Date().toISOString()
                         });
                       } catch (err: any) {
                         setSyncState({
                           running: false,
                           synced: 0,
+                          failed: 0,
                           limit: Number.isFinite(limit) ? limit : 200,
+                          errors: [],
                           error: String(err?.message || "sync_failed"),
                           lastAt: new Date().toISOString()
                         });
@@ -338,9 +344,14 @@ export function ConnectionsPanel({
                     />
                   </div>
                   <div className="progress-meta">
-                    <span>{syncState.synced} / {syncState.limit || 0} sincronizados</span>
+                    <span>{syncState.synced} ok · {syncState.failed} fallidos · {syncState.limit || 0} total</span>
                     {syncState.lastAt ? <span>Última: {new Date(syncState.lastAt).toLocaleString()}</span> : null}
                   </div>
+                  {syncState.errors.length ? (
+                    <div className="field-hint">
+                      Errores recientes: {syncState.errors.map((e) => `${e.customerId.slice(0, 6)}…`).join(", ")}
+                    </div>
+                  ) : null}
                   {syncState.error ? (
                     <div className="field-hint" style={{ color: "var(--danger)" }}>
                       Error: {syncState.error}

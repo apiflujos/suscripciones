@@ -25,5 +25,11 @@ export async function POST(req: Request) {
   if (!res.ok) {
     return NextResponse.json({ ok: false, error: json?.error || "sync_failed" }, { status: res.status });
   }
-  return NextResponse.json({ ok: true, synced: Number(json?.synced || 0), limit: Number(json?.limit || safeLimit) });
+  return NextResponse.json({
+    ok: true,
+    synced: Number(json?.synced || 0),
+    failed: Number(json?.failed || 0),
+    limit: Number(json?.limit || safeLimit),
+    errors: Array.isArray(json?.errors) ? json.errors : []
+  });
 }
