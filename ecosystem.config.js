@@ -32,21 +32,5 @@ module.exports = {
       watch: false,
       max_memory_restart: '300M'
     },
-    {
-      name: 'wompi-subs-admin',
-      cwd: './apps/admin',
-      script: 'npm',
-      args: 'run start',
-      env_file: './apps/admin/.env.local',
-      env: {
-        NODE_ENV: 'production',
-      },
-      error_file: '../../logs/admin-error.log',
-      out_file: '../../logs/admin-out.log',
-      log_date_format: 'YYYY-MM-DD HH:mm:ss',
-      autorestart: true,
-      watch: false,
-      max_memory_restart: '300M'
-    }
   ]
 };
