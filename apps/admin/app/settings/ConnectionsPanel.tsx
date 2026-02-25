@@ -52,6 +52,13 @@ export function ConnectionsPanel({
 }) {
   const initial = initialOpen === "wompi" || initialOpen === "central" || initialOpen === "shopify" ? initialOpen : null;
   const [open, setOpen] = useState<null | "wompi" | "central" | "shopify">(initial);
+  const [syncState, setSyncState] = useState<{
+    running: boolean;
+    synced: number;
+    limit: number;
+    error?: string;
+    lastAt?: string;
+  }>({ running: false, synced: 0, limit: 0 });
 
   return (
     <>
@@ -273,18 +280,74 @@ export function ConnectionsPanel({
                   Crear atributos de contacto
                 </PendingButton>
               </form>
-              <form action={actions.syncCentralAttributes} style={{ display: "flex", gap: 8, alignItems: "end" }}>
-                <input type="hidden" name="csrf" value={csrfToken} />
-                <div className="field" style={{ flex: 1 }}>
-                  <label>Límite a sincronizar</label>
-                  <input className="input" name="limit" placeholder="200" />
+              <div className="saved-conn-card" style={{ borderStyle: "dashed" }}>
+                <div className="saved-conn-header">
+                  <div>
+                    <strong>Sincronización masiva</strong>
+                    <div className="saved-conn-sub">Contactos y atributos en Central</div>
+                  </div>
                 </div>
-                {inlineMsg("central_sync", "Sincronización iniciada.", "Error sincronizando", inlineState)}
-                <PendingButton className="ghost" type="submit" pendingText="Sincronizando...">
-                  Sincronizar contactos
-                </PendingButton>
-              </form>
-              <div className="field-hint">Sincroniza atributos de pagos y suscripciones con la Central de Comunicaciones Apiflujos.</div>
+                <div className="saved-conn-actions">
+                  <div className="field" style={{ flex: 1, minWidth: 140 }}>
+                    <label>Límite</label>
+                    <input className="input" id="centralSyncLimit" placeholder="200" defaultValue="200" />
+                  </div>
+                  <button
+                    className="ghost"
+                    type="button"
+                    disabled={syncState.running}
+                    onClick={async () => {
+                      const input = document.getElementById("centralSyncLimit") as HTMLInputElement | null;
+                      const limit = Number(input?.value || 200);
+                      setSyncState({ running: true, synced: 0, limit: Number.isFinite(limit) ? limit : 200 });
+                      try {
+                        const res = await fetch("/api/comms/sync-contacts", {
+                          method: "POST",
+                          headers: { "content-type": "application/json" },
+                          body: JSON.stringify({ limit: Number.isFinite(limit) ? limit : 200 })
+                        });
+                        const json = await res.json().catch(() => null);
+                        if (!res.ok) throw new Error(json?.error || "sync_failed");
+                        setSyncState({
+                          running: false,
+                          synced: Number(json?.synced || 0),
+                          limit: Number(json?.limit || limit || 0),
+                          lastAt: new Date().toISOString()
+                        });
+                      } catch (err: any) {
+                        setSyncState({
+                          running: false,
+                          synced: 0,
+                          limit: Number.isFinite(limit) ? limit : 200,
+                          error: String(err?.message || "sync_failed"),
+                          lastAt: new Date().toISOString()
+                        });
+                      }
+                    }}
+                  >
+                    {syncState.running ? "Sincronizando..." : "Sincronizar"}
+                  </button>
+                </div>
+                <div className="progress-row">
+                  <div className="progress-bar">
+                    <span
+                      className="progress-fill"
+                      style={{
+                        width: syncState.limit ? `${Math.min(100, Math.round((syncState.synced / syncState.limit) * 100))}%` : "0%"
+                      }}
+                    />
+                  </div>
+                  <div className="progress-meta">
+                    <span>{syncState.synced} / {syncState.limit || 0} sincronizados</span>
+                    {syncState.lastAt ? <span>Última: {new Date(syncState.lastAt).toLocaleString()}</span> : null}
+                  </div>
+                  {syncState.error ? (
+                    <div className="field-hint" style={{ color: "var(--danger)" }}>
+                      Error: {syncState.error}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
             </div>
           </div>
         </div>

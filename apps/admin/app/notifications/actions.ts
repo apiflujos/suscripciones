@@ -63,6 +63,21 @@ function chatwootTypeForTrigger(trigger: string) {
   return "EXPIRY_WARNING";
 }
 
+function triggerLabel(trigger: string) {
+  if (trigger === "SUBSCRIPTION_DUE") return "Recordatorio de pago";
+  if (trigger === "PAYMENT_LINK_CREATED") return "Envío de link de pago";
+  if (trigger === "PAYMENT_APPROVED") return "Pago aprobado";
+  if (trigger === "PAYMENT_DECLINED") return "Pago rechazado";
+  return "Notificación";
+}
+
+function paymentTypeLabel(paymentType: string) {
+  if (paymentType === "PLAN") return "Plan";
+  if (paymentType === "SUBSCRIPTION") return "Suscripción";
+  if (paymentType === "LINK") return "Link de pago";
+  return "";
+}
+
 function toOffsetsSeconds(formData: FormData) {
   const raw = formData.getAll("offsetSeconds");
   const offsets = raw
@@ -112,15 +127,8 @@ export async function createNotification(formData: FormData): Promise<{ ok: true
     const rules = Array.isArray(baseConfig?.rules) ? baseConfig.rules.slice() : [];
 
     const chatwootType = chatwootTypeForTrigger(trigger);
-    const baseName =
-      title ||
-      (trigger === "SUBSCRIPTION_DUE"
-        ? "Recordatorio de pago"
-        : trigger === "PAYMENT_LINK_CREATED"
-          ? "Envío de link de pago"
-          : trigger === "PAYMENT_APPROVED"
-            ? "Pago aprobado"
-            : "Pago rechazado");
+    const paymentSuffix = paymentType && paymentType !== "ANY" ? ` (${paymentTypeLabel(paymentType)})` : "";
+    const baseName = title || `${triggerLabel(trigger)}${paymentSuffix}`;
 
     const base = slugifyId(baseName) || "notif";
     let templateId = `tpl_${base}`;
