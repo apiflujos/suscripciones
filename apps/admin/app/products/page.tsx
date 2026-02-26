@@ -144,6 +144,10 @@ export default async function ProductsPage({
               csrfToken={csrfToken}
               deleteProductAction={deleteProduct}
               tenants={tenants}
+              customers={customersRes.json?.items ?? []}
+              checkoutTemplates={templatesRes.json?.items ?? []}
+              createCustomer={createCustomerFromBilling}
+              createPlanAndSubscription={createPlanAndSubscription}
               returnTo={returnTo}
             />
 

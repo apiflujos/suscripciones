@@ -4,6 +4,7 @@ import { useMemo, useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import { deleteCustomer, updateCustomer } from "./actions";
 import { LocalDateTime } from "../ui/LocalDateTime";
+import { NewBillingAssignmentForm } from "../billing/NewBillingAssignmentForm";
 
 function formatCopFromCents(cents: number) {
   const pesos = Math.trunc(Number(cents || 0) / 100);
@@ -44,6 +45,12 @@ export function CustomersTable({
   items,
   latestLinks,
   subscriptionsByCustomer,
+  cartTemplates,
+  products,
+  checkoutTemplates,
+  tenants,
+  createCustomer,
+  createPlanAndSubscription,
   csrfToken,
   returnTo,
   initialTxCustomerId
@@ -51,6 +58,12 @@ export function CustomersTable({
   items: CustomerRow[];
   latestLinks: Record<string, LatestLink>;
   subscriptionsByCustomer: Record<string, { hasPlan: boolean }>;
+  cartTemplates: Array<{ id: string; name: string }>;
+  products: any[];
+  checkoutTemplates: any[];
+  tenants: Array<{ id: string; name: string }>;
+  createCustomer: (formData: FormData) => Promise<void>;
+  createPlanAndSubscription: (formData: FormData) => void | Promise<void>;
   csrfToken: string;
   returnTo?: string;
   initialTxCustomerId?: string;
@@ -68,6 +81,9 @@ export function CustomersTable({
   const [sendError, setSendError] = useState<Record<string, string>>({});
   const [sendOk, setSendOk] = useState<Record<string, string>>({});
   const [linkOverrides, setLinkOverrides] = useState<Record<string, { payment?: string; token?: string; cart?: string }>>({});
+  const [cartTemplateByCustomer, setCartTemplateByCustomer] = useState<Record<string, string>>({});
+  const [planModalOpen, setPlanModalOpen] = useState(false);
+  const [planModalCustomer, setPlanModalCustomer] = useState<CustomerRow | null>(null);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -118,6 +134,12 @@ export function CustomersTable({
     return customer.metadata?.cartLink?.url || "";
   }
 
+  function resolveCartTemplate(customerId: string) {
+    const chosen = cartTemplateByCustomer[customerId];
+    if (chosen) return chosen;
+    return cartTemplates[0]?.id || "";
+  }
+
   function maskUrl(raw: string) {
     if (!raw) return "";
     try {
@@ -162,6 +184,18 @@ export function CustomersTable({
   function closeDetails() {
     setDetailsOpen(false);
     setDetailsCustomer(null);
+    setTimeout(() => lastActiveRef.current?.focus(), 0);
+  }
+
+  function openPlanModal(customer: CustomerRow) {
+    lastActiveRef.current = document.activeElement as HTMLElement | null;
+    setPlanModalCustomer(customer);
+    setPlanModalOpen(true);
+  }
+
+  function closePlanModal() {
+    setPlanModalOpen(false);
+    setPlanModalCustomer(null);
     setTimeout(() => lastActiveRef.current?.focus(), 0);
   }
 
@@ -433,7 +467,8 @@ export function CustomersTable({
                           body: JSON.stringify({
                             customerId: c.id,
                             customerName: c.name || "",
-                            tenantId: c.tenantId || ""
+                            tenantId: c.tenantId || "",
+                            templateId: resolveCartTemplate(c.id)
                           })
                         });
                         const contentType = res.headers.get("content-type") || "";
@@ -455,6 +490,25 @@ export function CustomersTable({
                       }
                     }}
                   >
+                    {cartTemplates.length > 1 ? (
+                      <select
+                        className="select"
+                        value={resolveCartTemplate(c.id)}
+                        onChange={(e) =>
+                          setCartTemplateByCustomer((prev) => ({
+                            ...prev,
+                            [c.id]: e.target.value
+                          }))
+                        }
+                        aria-label="Plantilla de carrito"
+                      >
+                        {cartTemplates.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : null}
                     <button className="primary btn-compact" type="submit" disabled={sendingId === c.id}>
                       {sendingId === c.id ? "Enviando..." : "Enviar carrito"}
                     </button>
@@ -495,20 +549,48 @@ export function CustomersTable({
                   })()}
                   {sendOk[c.id] ? <div className="paylink-success">Link enviado.</div> : null}
                 </div>
-                <div className="contact-secondary-actions">
-                  <button className="ghost btn-compact btn-blue" type="button" onClick={() => openDetails(c)}>
-                    Ver detalles
-                  </button>
-                  <Link className="ghost btn-compact btn-green" href={`/billing?crear=1&selectCustomerId=${encodeURIComponent(String(c.id))}`}>
-                    Crear plan / suscripción
-                  </Link>
-                </div>
+              <div className="contact-secondary-actions">
+                <button className="ghost btn-compact btn-blue" type="button" onClick={() => openDetails(c)}>
+                  Ver detalles
+                </button>
+                <button className="ghost btn-compact btn-green" type="button" onClick={() => openPlanModal(c)}>
+                  Crear plan / suscripción
+                </button>
               </div>
             </div>
-          );
-        })}
+          </div>
+        );
+      })}
         {items.length === 0 ? <div className="contact-empty">Sin contactos.</div> : null}
       </div>
+
+      {planModalOpen && planModalCustomer ? (
+        <div className="modal-backdrop">
+          <div className="modal-panel" style={{ maxWidth: 980 }}>
+            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <strong>Crear plan o suscripción</strong>
+              <button className="ghost" type="button" onClick={closePlanModal} aria-label="Cerrar">
+                X
+              </button>
+            </div>
+            <NewBillingAssignmentForm
+              customers={items}
+              catalogItems={products}
+              checkoutTemplates={checkoutTemplates}
+              csrfToken={csrfToken}
+              tenantId={planModalCustomer?.tenantId || ""}
+              tenants={tenants}
+              defaultOpen
+              forceOpen
+              hideHeader
+              returnTo={returnTo || "/customers"}
+              defaultSelectedCustomerId={String(planModalCustomer.id)}
+              createCustomer={createCustomer}
+              createPlanAndSubscription={createPlanAndSubscription}
+            />
+          </div>
+        </div>
+      ) : null}
 
       {detailsOpen && detailsCustomer ? (
         <div

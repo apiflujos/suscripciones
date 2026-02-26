@@ -220,6 +220,11 @@ export default async function CustomersPage({
             latestLinks={latestLinksObj}
             subscriptionsByCustomer={subscriptionsByCustomer}
             cartTemplates={cartTemplates}
+            products={productsRes?.items ?? []}
+            checkoutTemplates={templatesRes?.items ?? []}
+            tenants={tenants}
+            createCustomer={createCustomer}
+            createPlanAndSubscription={createPlanAndSubscription}
             csrfToken={csrfToken}
             returnTo={returnTo}
             initialTxCustomerId={txCustomerId}

@@ -6,6 +6,7 @@ import { HelpTip } from "../ui/HelpTip";
 import { VariantsEditor } from "./VariantsEditor";
 import { LocalDateTime } from "../ui/LocalDateTime";
 import { DeleteProductButton } from "./DeleteProductButton";
+import { NewBillingAssignmentForm } from "../billing/NewBillingAssignmentForm";
 
 function formatCopCurrency(input: string): string {
   const digits = String(input || "").replace(/[^\d]/g, "");
@@ -53,12 +54,20 @@ export function ProductsTable({
   csrfToken,
   deleteProductAction,
   tenants,
+  customers,
+  checkoutTemplates,
+  createCustomer,
+  createPlanAndSubscription,
   returnTo
 }: {
   items: ProductRow[];
   csrfToken: string;
   deleteProductAction: (formData: FormData) => void | Promise<void>;
   tenants: Array<{ id: string; name: string }>;
+  customers: any[];
+  checkoutTemplates: any[];
+  createCustomer: (formData: FormData) => Promise<void>;
+  createPlanAndSubscription: (formData: FormData) => void | Promise<void>;
   returnTo?: string;
 }) {
   const [editing, setEditing] = useState<ProductRow | null>(null);
@@ -68,6 +77,8 @@ export function ProductsTable({
   const [txItems, setTxItems] = useState<any[]>([]);
   const [txLoading, setTxLoading] = useState(false);
   const [txError, setTxError] = useState("");
+  const [planModalOpen, setPlanModalOpen] = useState(false);
+  const [planModalProduct, setPlanModalProduct] = useState<ProductRow | null>(null);
 
   const [kind, setKind] = useState<"PRODUCT" | "SERVICE">("PRODUCT");
   const [name, setName] = useState("");
@@ -164,6 +175,18 @@ export function ProductsTable({
     setTimeout(() => lastActiveRef.current?.focus(), 0);
   }
 
+  function openPlanModal(item: ProductRow) {
+    lastActiveRef.current = document.activeElement as HTMLElement | null;
+    setPlanModalProduct(item);
+    setPlanModalOpen(true);
+  }
+
+  function closePlanModal() {
+    setPlanModalOpen(false);
+    setPlanModalProduct(null);
+    setTimeout(() => lastActiveRef.current?.focus(), 0);
+  }
+
   useEffect(() => {
     if (!open) return;
     const el = modalRef.current;
@@ -237,6 +260,9 @@ export function ProductsTable({
                 <button className="ghost btn-compact btn-blue" type="button" onClick={() => openTransactions(p)}>
                   🧾 Transacciones
                 </button>
+                <button className="ghost btn-compact btn-green" type="button" onClick={() => openPlanModal(p)}>
+                  Crear plan / suscripción
+                </button>
                 <button className="ghost btn-compact btn-blue" type="button" onClick={() => openEditor(p)}>
                   Editar
                 </button>
@@ -277,6 +303,34 @@ export function ProductsTable({
         ))}
         {items.length === 0 ? <div className="contact-empty">Sin productos/servicios.</div> : null}
       </div>
+
+      {planModalOpen && planModalProduct ? (
+        <div className="modal-backdrop">
+          <div className="modal-panel" style={{ maxWidth: 980 }}>
+            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <strong>Crear plan o suscripción</strong>
+              <button className="ghost" type="button" onClick={closePlanModal} aria-label="Cerrar">
+                X
+              </button>
+            </div>
+            <NewBillingAssignmentForm
+              customers={customers}
+              catalogItems={items}
+              checkoutTemplates={checkoutTemplates}
+              csrfToken={csrfToken}
+              tenantId={planModalProduct?.tenantId || ""}
+              tenants={tenants}
+              defaultOpen
+              forceOpen
+              hideHeader
+              returnTo={returnTo || "/products"}
+              defaultSelectedProductId={String(planModalProduct.id)}
+              createCustomer={createCustomer}
+              createPlanAndSubscription={createPlanAndSubscription}
+            />
+          </div>
+        </div>
+      ) : null}
 
       {open && editing ? (
         <div

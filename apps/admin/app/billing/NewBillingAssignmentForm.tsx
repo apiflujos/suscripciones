@@ -54,6 +54,7 @@ export function NewBillingAssignmentForm({
   forceOpen = false,
   hideHeader = false,
   returnTo = "/billing",
+  defaultSelectedProductId = "",
   defaultSelectedCustomerId = "",
   createCustomer,
   createPlanAndSubscription
@@ -68,6 +69,7 @@ export function NewBillingAssignmentForm({
   forceOpen?: boolean;
   hideHeader?: boolean;
   returnTo?: string;
+  defaultSelectedProductId?: string;
   defaultSelectedCustomerId?: string;
   createCustomer: (formData: FormData) => Promise<void>;
   createPlanAndSubscription: (formData: FormData) => void | Promise<void>;
@@ -76,7 +78,7 @@ export function NewBillingAssignmentForm({
   const [showNewCustomer, setShowNewCustomer] = useState(false);
 
   const [productQ, setProductQ] = useState("");
-  const [productId, setProductId] = useState("");
+  const [productId, setProductId] = useState(defaultSelectedProductId || "");
   const [productHits, setProductHits] = useState<CatalogItem[]>([]);
   const [productSearching, setProductSearching] = useState(false);
   const [productSearchError, setProductSearchError] = useState("");
@@ -102,6 +104,14 @@ export function NewBillingAssignmentForm({
     if (!productId) return null;
     return catalogItems.find((p) => String(p.id) === String(productId)) || productHits.find((p) => String(p.id) === String(productId)) || null;
   }, [catalogItems, productHits, productId]);
+
+  useEffect(() => {
+    if (!defaultSelectedProductId) return;
+    if (productId && String(productId) === String(defaultSelectedProductId)) return;
+    setProductId(defaultSelectedProductId);
+    const found = catalogItems.find((p) => String(p.id) === String(defaultSelectedProductId));
+    if (found) setProductQ(String(found.name || ""));
+  }, [defaultSelectedProductId, catalogItems, productId]);
 
   const selectedCustomer = useMemo(() => {
     if (!customerId) return null;
