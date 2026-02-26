@@ -323,7 +323,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     data: { processStatus: WebhookProcessStatus.PROCESSED, processedAt: new Date() }
   });
 
-  await schedulePaymentStatusNotifications({ paymentId: paymentRecord.id }).catch(() => {});
+  await schedulePaymentStatusNotifications({ paymentId: paymentRecord.id, forceNow: true }).catch(() => {});
   await syncChatwootAttributesForCustomer(paymentRecord.customerId).catch(() => {});
 
   const becameApproved = !wasApproved && paymentStatus === PaymentStatus.APPROVED;

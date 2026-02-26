@@ -233,7 +233,7 @@ export async function createPaymentLinkForSubscription(args: {
     wompiPaymentLinkId: created.id
   }).catch(() => {});
 
-  await schedulePaymentLinkNotifications({ paymentId: updated.id }).catch(() => {});
+  await schedulePaymentLinkNotifications({ paymentId: updated.id, forceNow: true }).catch(() => {});
 
   const chatwoot = await getChatwootConfig();
   if (chatwoot.configured) {
