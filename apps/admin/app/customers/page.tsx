@@ -116,6 +116,12 @@ export default async function CustomersPage({
   ]);
   const latestLinksObj = Object.fromEntries(latestLinks.entries());
 
+  const created = typeof sp.created === "string" ? sp.created : "";
+  const updated = typeof sp.updated === "string" ? sp.updated : "";
+  const deleted = typeof sp.deleted === "string" ? sp.deleted : "";
+  const paymentSource = typeof sp.paymentSource === "string" ? sp.paymentSource : "";
+  const paymentLink = typeof sp.paymentLink === "string" ? sp.paymentLink : "";
+
   return (
     <main className="page" style={{ maxWidth: "100%" }}>
       {sp.error ? (
@@ -123,11 +129,11 @@ export default async function CustomersPage({
           Error: {sp.error}
         </div>
       ) : null}
-      {sp.created ? <div className="card cardPad">Contacto creado.</div> : null}
-      {sp.updated ? <div className="card cardPad">Contacto actualizado.</div> : null}
-      {sp.deleted ? <div className="card cardPad">Contacto eliminado.</div> : null}
-      {sp.paymentSource ? <div className="card cardPad">Método de pago guardado.</div> : null}
-      {sp.paymentLink ? <div className="card cardPad">Link de pago enviado.</div> : null}
+      {created ? <div className="card cardPad">Contacto creado.</div> : null}
+      {updated ? <div className="card cardPad">Contacto actualizado.</div> : null}
+      {deleted ? <div className="card cardPad">Contacto eliminado.</div> : null}
+      {paymentSource ? <div className="card cardPad">Método de pago guardado.</div> : null}
+      {paymentLink ? <div className="card cardPad">Link de pago enviado.</div> : null}
       {tenantCreated ? <div className="card cardPad">Canal creado.</div> : null}
 
       <section className="settings-group">
@@ -169,7 +175,14 @@ export default async function CustomersPage({
         </div>
 
         <div className="settings-group-body">
-          <NewCustomerForm createCustomer={createCustomer} csrfToken={csrfToken} tenantId={tenantId} tenants={tenants} returnTo={returnTo} />
+          <NewCustomerForm
+            createCustomer={createCustomer}
+            csrfToken={csrfToken}
+            tenantId={tenantId}
+            tenants={tenants}
+            returnTo={returnTo}
+            defaultOpen={Boolean(created)}
+          />
 
           <CustomersTable
             items={items.map((c) => ({ ...c, tenantName: tenantById.get(String(c.tenantId || "")) || "—" }))}

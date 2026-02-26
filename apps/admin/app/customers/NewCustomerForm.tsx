@@ -74,6 +74,11 @@ export function NewCustomerForm({
     return () => clearTimeout(t);
   }, [open]);
 
+  useEffect(() => {
+    if (alwaysOpen) return;
+    if (defaultOpen === false) setOpen(false);
+  }, [defaultOpen, alwaysOpen]);
+
   const depts = useMemo(() => {
     const set = new Set<string>();
     for (const it of items) if (it?.dept) set.add(String(it.dept));
