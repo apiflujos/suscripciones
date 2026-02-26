@@ -206,7 +206,7 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
         offsetSeconds,
         paymentId: payment.id,
         customerId: payment.customerId,
-        subscriptionId: payment.subscriptionId ?? null,
+        ...(payment.subscriptionId ? { subscriptionId: payment.subscriptionId } : {}),
         anchorAt: anchorIso
       } as any;
       await prisma.retryJob.create({

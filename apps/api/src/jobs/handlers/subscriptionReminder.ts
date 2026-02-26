@@ -11,9 +11,21 @@ const payloadSchema = z.object({
   ruleId: z.string().min(1),
   offsetSeconds: z.number().int().optional(),
   anchorAt: z.string().datetime().optional(),
-  customerId: z.string().uuid().optional(),
-  subscriptionId: z.string().uuid().optional(),
-  paymentId: z.string().uuid().optional(),
+  customerId: z.preprocess((v) => {
+    if (v == null) return undefined;
+    const s = String(v || "").trim();
+    return s ? s : undefined;
+  }, z.string().uuid().optional()),
+  subscriptionId: z.preprocess((v) => {
+    if (v == null) return undefined;
+    const s = String(v || "").trim();
+    return s ? s : undefined;
+  }, z.string().uuid().optional()),
+  paymentId: z.preprocess((v) => {
+    if (v == null) return undefined;
+    const s = String(v || "").trim();
+    return s ? s : undefined;
+  }, z.string().uuid().optional()),
   cycleNumber: z.number().int().positive().optional(),
   paymentStatus: z.enum(["PENDING", "APPROVED", "DECLINED", "ERROR", "VOIDED"]).optional()
 });

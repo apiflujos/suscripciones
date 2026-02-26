@@ -78,7 +78,15 @@ async function ensureCustomAttributes(client: ChatwootClient) {
     );
     for (const def of CHATWOOT_CUSTOM_ATTR_DEFS) {
       if (existing.has(def.key)) continue;
-      await client.createCustomAttribute({ ...def, model: "contact" });
+      try {
+        await client.createCustomAttribute({ ...def, model: "contact" });
+      } catch (err: any) {
+        const msg = String(err?.message || "");
+        if (msg.includes("already been taken") || msg.includes("Attribute key has already been taken")) {
+          continue;
+        }
+        throw err;
+      }
     }
     lastEnsureOk = true;
     return { ok: true as const };
