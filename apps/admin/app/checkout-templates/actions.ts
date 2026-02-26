@@ -33,6 +33,11 @@ function redirectWith(action: string, status: "ok" | "fail", error?: string) {
   redirect(`/settings?${qp.toString()}`);
 }
 
+function isNextRedirect(err: unknown) {
+  const digest = (err as any)?.digest;
+  return typeof digest === "string" && digest.startsWith("NEXT_REDIRECT");
+}
+
 export async function createCheckoutTemplate(formData: FormData) {
   await assertCsrfToken(formData);
   try {
@@ -77,6 +82,7 @@ export async function createCheckoutTemplate(formData: FormData) {
     await adminFetch("/admin/checkout-templates", { method: "POST", body: JSON.stringify(payload) });
     redirectWith("checkout_template_create", "ok");
   } catch (err: any) {
+    if (isNextRedirect(err)) throw err;
     redirectWith("checkout_template_create", "fail", String(err?.message || "create_failed"));
   }
 }
@@ -127,6 +133,7 @@ export async function updateCheckoutTemplate(formData: FormData) {
     await adminFetch(`/admin/checkout-templates/${id}`, { method: "PUT", body: JSON.stringify(payload) });
     redirectWith("checkout_template_update", "ok");
   } catch (err: any) {
+    if (isNextRedirect(err)) throw err;
     redirectWith("checkout_template_update", "fail", String(err?.message || "update_failed"));
   }
 }
@@ -139,6 +146,7 @@ export async function deleteCheckoutTemplate(formData: FormData) {
     await adminFetch(`/admin/checkout-templates/${id}`, { method: "DELETE" });
     redirectWith("checkout_template_delete", "ok");
   } catch (err: any) {
+    if (isNextRedirect(err)) throw err;
     redirectWith("checkout_template_delete", "fail", String(err?.message || "delete_failed"));
   }
 }
@@ -171,6 +179,7 @@ export async function duplicateCheckoutTemplate(formData: FormData) {
     await adminFetch("/admin/checkout-templates", { method: "POST", body: JSON.stringify(payload) });
     redirectWith("checkout_template_duplicate", "ok");
   } catch (err: any) {
+    if (isNextRedirect(err)) throw err;
     redirectWith("checkout_template_duplicate", "fail", String(err?.message || "duplicate_failed"));
   }
 }
