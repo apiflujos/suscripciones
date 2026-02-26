@@ -21,6 +21,7 @@ import { chatwootRouter } from "./routes/chatwoot";
 import { chatwootWebhook } from "./routes/webhooksChatwoot";
 import { commsRouter } from "./routes/comms";
 import { publicTokenizationRouter } from "./routes/publicTokenization";
+import { publicCartRouter } from "./routes/publicCart";
 import { publicLinksRouter } from "./routes/publicLinks";
 import { checkoutTemplatesRouter } from "./routes/checkoutTemplates";
 import { tenantsRouter } from "./routes/tenants";
@@ -122,6 +123,7 @@ export function createApp() {
   app.post("/webhooks/wompi", wompiWebhook);
   app.post("/webhooks/chatwoot", chatwootWebhook);
   app.use("/public", publicTokenizationRouter);
+  app.use("/public", publicCartRouter);
   app.use("/public", publicLinksRouter);
 
   app.get("/admin/webhook-events", requireAdminToken, listWebhookEvents);

@@ -67,7 +67,7 @@ export function CustomersTable({
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [sendError, setSendError] = useState<Record<string, string>>({});
   const [sendOk, setSendOk] = useState<Record<string, string>>({});
-  const [linkOverrides, setLinkOverrides] = useState<Record<string, { payment?: string; token?: string }>>({});
+  const [linkOverrides, setLinkOverrides] = useState<Record<string, { payment?: string; token?: string; cart?: string }>>({});
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -112,6 +112,10 @@ export function CustomersTable({
       customer.metadata?.wompi?.tokenizationLink?.url ||
       ""
     );
+  }
+
+  function getCartLink(customer: CustomerRow) {
+    return customer.metadata?.cartLink?.url || "";
   }
 
   function maskUrl(raw: string) {
@@ -414,6 +418,47 @@ export function CustomersTable({
                       </form>
                     </>
                   )}
+                  <div className="paylink-title">Carrito público</div>
+                  <form
+                    className="paylink-form"
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      setSendingId(c.id);
+                      setSendError((prev) => ({ ...prev, [c.id]: "" }));
+                      setSendOk((prev) => ({ ...prev, [c.id]: "" }));
+                      try {
+                        const res = await fetch("/api/customers/send-cart-link", {
+                          method: "POST",
+                          headers: { "content-type": "application/json" },
+                          body: JSON.stringify({
+                            customerId: c.id,
+                            customerName: c.name || "",
+                            tenantId: c.tenantId || ""
+                          })
+                        });
+                        const contentType = res.headers.get("content-type") || "";
+                        if (!contentType.includes("application/json")) {
+                          setSendError((prev) => ({ ...prev, [c.id]: "auth_required" }));
+                          return;
+                        }
+                        const json = await res.json().catch(() => ({}));
+                        if (!res.ok || !json?.ok) {
+                          setSendError((prev) => ({ ...prev, [c.id]: json?.error || "send_failed" }));
+                          return;
+                        }
+                        if (json?.link) {
+                          setLinkOverrides((prev) => ({ ...prev, [c.id]: { ...(prev[c.id] || {}), cart: json.link } }));
+                        }
+                        setSendOk((prev) => ({ ...prev, [c.id]: "sent" }));
+                      } finally {
+                        setSendingId(null);
+                      }
+                    }}
+                  >
+                    <button className="primary btn-compact" type="submit" disabled={sendingId === c.id}>
+                      {sendingId === c.id ? "Enviando..." : "Enviar carrito"}
+                    </button>
+                  </form>
                   {sendError[c.id] === "auth_required" ? (
                     <div className="paylink-error">Sesión vencida. Vuelve a iniciar sesión.</div>
                   ) : null}
@@ -427,6 +472,7 @@ export function CustomersTable({
                     const override = linkOverrides[c.id] || {};
                     const paymentLink = override.payment || latestLinks[String(c.id)]?.checkoutUrl || "";
                     const tokenLink = override.token || getTokenLink(c);
+                    const cartLink = override.cart || getCartLink(c);
                     return (
                       <div className="paylink-links">
                         {paymentLink ? (
@@ -437,6 +483,11 @@ export function CustomersTable({
                         {tokenLink ? (
                           <a className="ghost btn-compact btn-amber btn-link" href={tokenLink} target="_blank" rel="noreferrer" title={maskUrl(tokenLink)}>
                             Link de tokenización
+                          </a>
+                        ) : null}
+                        {cartLink ? (
+                          <a className="ghost btn-compact btn-green btn-link" href={cartLink} target="_blank" rel="noreferrer" title={maskUrl(cartLink)}>
+                            Link de carrito
                           </a>
                         ) : null}
                       </div>

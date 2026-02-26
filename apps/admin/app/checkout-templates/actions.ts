@@ -55,10 +55,10 @@ export async function createCheckoutTemplate(formData: FormData) {
       .map((s) => s.trim())
       .filter(Boolean);
     const tenantId = String(formData.get("tenantId") || "").trim();
-    if (!name || (kind !== "PLAN" && kind !== "SUBSCRIPTION")) {
+    if (!name || (kind !== "PLAN" && kind !== "SUBSCRIPTION" && kind !== "CART")) {
       return redirectWith("checkout_template_create", "fail", "invalid_body");
     }
-    if (!allowProductSelect && productIds.length === 0) {
+    if ((kind === "CART" && productIds.length === 0) || (!allowProductSelect && productIds.length === 0)) {
       return redirectWith("checkout_template_create", "fail", "invalid_body");
     }
     const expiryHoursRaw = String(formData.get("expiryHours") || "").trim();
@@ -106,10 +106,10 @@ export async function updateCheckoutTemplate(formData: FormData) {
       .map((s) => s.trim())
       .filter(Boolean);
     const tenantId = String(formData.get("tenantId") || "").trim();
-    if (!name || (kind !== "PLAN" && kind !== "SUBSCRIPTION")) {
+    if (!name || (kind !== "PLAN" && kind !== "SUBSCRIPTION" && kind !== "CART")) {
       return redirectWith("checkout_template_update", "fail", "invalid_body");
     }
-    if (!allowProductSelect && productIds.length === 0) {
+    if ((kind === "CART" && productIds.length === 0) || (!allowProductSelect && productIds.length === 0)) {
       return redirectWith("checkout_template_update", "fail", "invalid_body");
     }
     const expiryHoursRaw = String(formData.get("expiryHours") || "").trim();

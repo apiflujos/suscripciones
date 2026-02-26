@@ -21,7 +21,7 @@ type Layout = {
 type Template = {
   id: string;
   name: string;
-  kind: "PLAN" | "SUBSCRIPTION";
+  kind: "PLAN" | "SUBSCRIPTION" | "CART";
   active: boolean;
   tenantId?: string | null;
   allowProductSelect: boolean;
@@ -79,7 +79,7 @@ export function CheckoutTemplatesPanel({
   const [stepIndex, setStepIndex] = useState<number>(initialStep === "form" ? 1 : 0);
   const [editing, setEditing] = useState<Template | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
-  const [kind, setKind] = useState<"PLAN" | "SUBSCRIPTION" | "">(
+  const [kind, setKind] = useState<"PLAN" | "SUBSCRIPTION" | "CART" | "">(
     initialKind === "PLAN" ? "PLAN" : initialKind === "SUBSCRIPTION" ? "SUBSCRIPTION" : ""
   );
 
@@ -192,7 +192,8 @@ export function CheckoutTemplatesPanel({
 
   const formAction = editing ? actions.update : actions.create;
   const selectedKind = (editing ? editing.kind : kind) || "";
-  const isProductsValid = allowSelect || productIds.length > 0;
+  const isCart = selectedKind === "CART";
+  const isProductsValid = isCart ? productIds.length > 0 : allowSelect || productIds.length > 0;
   const missingKind = !selectedKind;
   const missingName = !name.trim();
   const requireTenant = Array.isArray(tenants) && tenants.length > 0;
@@ -201,7 +202,7 @@ export function CheckoutTemplatesPanel({
   const [localError, setLocalError] = useState<string>("");
 
   const filteredProducts = useMemo(() => {
-    if (!selectedKind) return products;
+    if (!selectedKind || selectedKind === "CART") return products;
     const mode = selectedKind === "SUBSCRIPTION" ? "AUTO_DEBIT" : "AUTO_LINK";
     const filtered = products.filter((p) => !p.collectionMode || p.collectionMode === mode);
     return filtered.length ? filtered : products;
@@ -212,6 +213,12 @@ export function CheckoutTemplatesPanel({
       setTenantId(tenants[0].id);
     }
   }, [requireTenant, tenants, tenantId]);
+
+  useEffect(() => {
+    if (selectedKind === "CART" && !allowSelect) {
+      setAllowSelect(true);
+    }
+  }, [selectedKind, allowSelect]);
 
   const inlineMsg = (key: string) => {
     if (inlineState.action !== key) return null;
@@ -301,7 +308,7 @@ export function CheckoutTemplatesPanel({
           {stepIndex === 0 ? (
             <div style={{ display: "grid", gap: 12 }}>
               <div className="field-hint">Selecciona el tipo de plantilla.</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
                 <label
                   className={`card cardPad ${kind === "PLAN" ? "is-active" : ""}`}
                   style={{
@@ -349,6 +356,30 @@ export function CheckoutTemplatesPanel({
                   />
                   <strong>Suscripción</strong>
                   <div className="field-hint">Checkout de tokenización.</div>
+                </label>
+                <label
+                  className={`card cardPad ${kind === "CART" ? "is-active" : ""}`}
+                  style={{
+                    textAlign: "left",
+                    cursor: "pointer",
+                    borderColor: kind === "CART" ? "var(--primary)" : "var(--stroke)",
+                    background: kind === "CART" ? "rgba(14, 165, 233, 0.08)" : "transparent",
+                    boxShadow: kind === "CART" ? "0 0 0 2px rgba(14, 165, 233, 0.25)" : "none"
+                  }}
+                  onClick={() => setKind("CART")}
+                  role="button"
+                  aria-pressed={kind === "CART"}
+                >
+                  <input
+                    type="radio"
+                    name="templateKind"
+                    value="CART"
+                    checked={kind === "CART"}
+                    onChange={() => setKind("CART")}
+                    style={{ display: "none" }}
+                  />
+                  <strong>Carrito</strong>
+                  <div className="field-hint">Checkout con selección de productos.</div>
                 </label>
               </div>
             </div>
@@ -475,10 +506,14 @@ export function CheckoutTemplatesPanel({
 
             {stepIndex === 3 ? (
               <div style={{ display: "grid", gap: 10 }}>
-                <div className="field row">
-                  <label>El cliente puede elegir producto</label>
-                  <input type="checkbox" name="allowProductSelect" checked={allowSelect} onChange={(e) => setAllowSelect(e.target.checked)} />
-                </div>
+                {selectedKind !== "CART" ? (
+                  <div className="field row">
+                    <label>El cliente puede elegir producto</label>
+                    <input type="checkbox" name="allowProductSelect" checked={allowSelect} onChange={(e) => setAllowSelect(e.target.checked)} />
+                  </div>
+                ) : (
+                  <div className="field-hint">Selecciona los productos que aparecerán en el carrito.</div>
+                )}
                 <div className="field">
                   <label>Productos disponibles</label>
                   <div style={{ display: "grid", gap: 8 }}>
@@ -561,7 +596,10 @@ export function CheckoutTemplatesPanel({
                     <div><strong>Tipo:</strong> {selectedKind || "—"}</div>
                     <div><strong>Nombre:</strong> {name || "—"}</div>
                     <div><strong>Activa:</strong> {active ? "Sí" : "No"}</div>
-                    <div><strong>Productos:</strong> {allowSelect ? "Selector habilitado" : productIds.map((id) => productById.get(id)?.name || "—").join(", ") || "—"}</div>
+                    <div>
+                      <strong>Productos:</strong>{" "}
+                      {isCart ? productIds.map((id) => productById.get(id)?.name || "—").join(", ") || "—" : allowSelect ? "Selector habilitado" : productIds.map((id) => productById.get(id)?.name || "—").join(", ") || "—"}
+                    </div>
                     <div><strong>Expiración:</strong> {expiryHours ? `${expiryHours}h` : "Nunca"}</div>
                     <div><strong>Soporte:</strong> {supportEmail || supportUrl || "—"}</div>
                     <div><strong>Color:</strong> {primaryColor || "—"}</div>
@@ -666,7 +704,7 @@ export function CheckoutTemplatesPanel({
                   {t.logoUrl ? <img src={t.logoUrl} alt={t.name} style={{ height: 26, width: "auto", borderRadius: 6, border: "1px solid var(--stroke)" }} /> : null}
                   <div className="template-title">{t.name}</div>
                 </div>
-                <div className="field-hint">{t.kind === "PLAN" ? "Plan" : "Suscripción"}</div>
+                <div className="field-hint">{t.kind === "PLAN" ? "Plan" : t.kind === "CART" ? "Carrito" : "Suscripción"}</div>
               </div>
               <div style={{ display: "grid", gap: 6, justifyItems: "end" }}>
                 <span className={`pill ${t.active ? "pill-green" : ""}`}>{t.active ? "Activa" : "Inactiva"}</span>
