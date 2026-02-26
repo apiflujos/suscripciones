@@ -77,7 +77,9 @@ async function fetchCartTemplates(tenantId?: string) {
   if (tenantId) sp.set("tenantId", tenantId);
   const res = await fetchAdminCached(`/admin/checkout-templates?${sp.toString()}`, { ttlMs: 1500 });
   const data = res.json || { items: [] as any[] };
-  const items = Array.isArray(data.items) ? data.items : [];
+  const items = Array.isArray(data.items)
+    ? (data.items as Array<{ kind?: string; active?: boolean }>)
+    : [];
   return items.filter((t) => String(t?.kind || "") === "CART" && Boolean(t?.active));
 }
 
