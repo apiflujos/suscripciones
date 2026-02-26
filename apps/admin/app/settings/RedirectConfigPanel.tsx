@@ -81,18 +81,21 @@ export function RedirectConfigPanel({
     const base = normalizeBaseUrl(publicBaseUrl);
     if (!base) return;
     setPlanBaseUrl(`${base}/public/plan`);
+    if (!defaultUtmParams) setDefaultUtmParams("utm_source=apiflujos&utm_medium=checkout&utm_campaign=mdv");
   }
 
   function generateSubscriptionUrl() {
     const base = normalizeBaseUrl(publicBaseUrl);
     if (!base) return;
     setSubscriptionBaseUrl(`${base}/public/suscripcion`);
+    if (!defaultUtmParams) setDefaultUtmParams("utm_source=apiflujos&utm_medium=checkout&utm_campaign=mdv");
   }
 
   function generateReturnUrl() {
     const base = normalizeBaseUrl(publicBaseUrl);
     if (!base) return;
     setTokenReturnUrl(`${base}/public/return`);
+    if (!defaultUtmParams) setDefaultUtmParams("utm_source=apiflujos&utm_medium=checkout&utm_campaign=mdv");
   }
 
   return (
