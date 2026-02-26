@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PendingButton } from "../ui/PendingButton";
 
 type CheckoutConfig = {
@@ -36,6 +36,7 @@ export function RedirectConfigPanel({
   inlineState: { action: string; status: string; errorText: string };
   returnTo?: string;
 }) {
+  const formRef = useRef<HTMLFormElement | null>(null);
   const [publicBaseUrl, setPublicBaseUrl] = useState<string>(() => {
     const existing = String(defaults.planBaseUrl || defaults.subscriptionBaseUrl || "").trim();
     if (!existing) return "";
@@ -59,17 +60,26 @@ export function RedirectConfigPanel({
     return `${base}/public/plan/{token} · ${base}/public/suscripcion/{token}`;
   }, [publicBaseUrl]);
 
-  function generateUrls() {
+  const [pendingAutoSave, setPendingAutoSave] = useState(false);
+
+  function generateUrlsAndSave() {
     const base = normalizeBaseUrl(publicBaseUrl);
     if (!base) return;
     setPlanBaseUrl(`${base}/public/plan`);
     setSubscriptionBaseUrl(`${base}/public/suscripcion`);
     if (!tokenReturnUrl) setTokenReturnUrl(base);
     if (!defaultUtmParams) setDefaultUtmParams("utm_source=apiflujos&utm_medium=checkout&utm_campaign=mdv");
+    setPendingAutoSave(true);
   }
 
+  useEffect(() => {
+    if (!pendingAutoSave) return;
+    setPendingAutoSave(false);
+    formRef.current?.requestSubmit();
+  }, [pendingAutoSave, planBaseUrl, subscriptionBaseUrl, tokenReturnUrl, defaultUtmParams]);
+
   return (
-    <form action={onSave} className="panel module" style={{ display: "grid", gap: 14 }}>
+    <form ref={formRef} action={onSave} className="panel module" style={{ display: "grid", gap: 14 }}>
       <input type="hidden" name="csrf" value={csrfToken} />
       {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
       <input type="hidden" name="planBaseUrl" value={planBaseUrl} />
@@ -89,8 +99,8 @@ export function RedirectConfigPanel({
           <strong>Redirecciones y Mensajes</strong>
           <div className="field-hint">URLs públicas + mensajes que aparecen en Wompi.</div>
         </div>
-        <button className="ghost" type="button" onClick={generateUrls}>
-          Generar URLs
+        <button className="ghost" type="button" onClick={generateUrlsAndSave}>
+          Generar y guardar
         </button>
       </div>
 
@@ -100,6 +110,12 @@ export function RedirectConfigPanel({
           className="input"
           value={publicBaseUrl}
           onChange={(e) => setPublicBaseUrl(e.target.value)}
+          onBlur={(e) => {
+            const next = normalizeBaseUrl(e.target.value);
+            if (next && !/^https?:\/\//i.test(next)) {
+              setPublicBaseUrl(`https://${next}`);
+            }
+          }}
           placeholder="https://mdv.sus.apiflujos.com"
         />
         {baseHint ? <div className="field-hint">Se generarán: {baseHint}</div> : null}
