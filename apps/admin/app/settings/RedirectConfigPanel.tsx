@@ -48,10 +48,10 @@ export function RedirectConfigPanel({
   const [tokenSuccessTitle, setTokenSuccessTitle] = useState<string>(String(defaults.tokenizationSuccessTitle || "Gracias"));
   const [tokenSuccessMessage, setTokenSuccessMessage] = useState<string>(String(defaults.tokenizationSuccessMessage || "Tu método de pago quedó guardado correctamente."));
   const [tokenErrorMessage, setTokenErrorMessage] = useState<string>(String(defaults.tokenizationErrorMessage || "No pudimos guardar tu método de pago. Intenta nuevamente."));
-  const [planWompiTitle, setPlanWompiTitle] = useState<string>(String(defaults.planWompiTitle || ""));
-  const [planWompiDescription, setPlanWompiDescription] = useState<string>(String(defaults.planWompiDescription || ""));
-  const [subscriptionWompiTitle, setSubscriptionWompiTitle] = useState<string>(String(defaults.subscriptionWompiTitle || ""));
-  const [subscriptionWompiDescription, setSubscriptionWompiDescription] = useState<string>(String(defaults.subscriptionWompiDescription || ""));
+  const [planWompiTitle] = useState<string>(String(defaults.planWompiTitle || ""));
+  const [planWompiDescription] = useState<string>(String(defaults.planWompiDescription || ""));
+  const [subscriptionWompiTitle] = useState<string>(String(defaults.subscriptionWompiTitle || ""));
+  const [subscriptionWompiDescription] = useState<string>(String(defaults.subscriptionWompiDescription || ""));
   const [defaultUtmParams, setDefaultUtmParams] = useState<string>(String(defaults.defaultUtmParams || ""));
   const hasConfig = Boolean(String(defaults.planBaseUrl || defaults.subscriptionBaseUrl || defaults.tokenizationReturnUrl || "").trim());
   const [isEditing, setIsEditing] = useState(!hasConfig);
@@ -108,10 +108,6 @@ export function RedirectConfigPanel({
       <input type="hidden" name="tokenizationSuccessTitle" value={tokenSuccessTitle} />
       <input type="hidden" name="tokenizationSuccessMessage" value={tokenSuccessMessage} />
       <input type="hidden" name="tokenizationErrorMessage" value={tokenErrorMessage} />
-      <input type="hidden" name="planWompiTitle" value={planWompiTitle} />
-      <input type="hidden" name="planWompiDescription" value={planWompiDescription} />
-      <input type="hidden" name="subscriptionWompiTitle" value={subscriptionWompiTitle} />
-      <input type="hidden" name="subscriptionWompiDescription" value={subscriptionWompiDescription} />
       <input type="hidden" name="defaultUtmParams" value={defaultUtmParams} />
 
       <div className="panelHeaderRow" style={{ justifyContent: "space-between" }}>
@@ -209,30 +205,6 @@ export function RedirectConfigPanel({
         <div className="field">
           <label>Mensaje error</label>
           <textarea className="input" rows={2} value={tokenErrorMessage} onChange={(e) => setTokenErrorMessage(e.target.value)} disabled={!isEditing} />
-        </div>
-      </div>
-
-      <div className="panel module" style={{ margin: 0 }}>
-        <div className="panel-header">
-          <strong>Mensajes Wompi</strong>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <div className="field">
-            <label>Título plan</label>
-            <input className="input" value={planWompiTitle} onChange={(e) => setPlanWompiTitle(e.target.value)} disabled={!isEditing} />
-          </div>
-          <div className="field">
-            <label>Descripción plan</label>
-            <input className="input" value={planWompiDescription} onChange={(e) => setPlanWompiDescription(e.target.value)} disabled={!isEditing} />
-          </div>
-          <div className="field">
-            <label>Título suscripción</label>
-            <input className="input" value={subscriptionWompiTitle} onChange={(e) => setSubscriptionWompiTitle(e.target.value)} disabled={!isEditing} />
-          </div>
-          <div className="field">
-            <label>Descripción suscripción</label>
-            <input className="input" value={subscriptionWompiDescription} onChange={(e) => setSubscriptionWompiDescription(e.target.value)} disabled={!isEditing} />
-          </div>
         </div>
       </div>
 

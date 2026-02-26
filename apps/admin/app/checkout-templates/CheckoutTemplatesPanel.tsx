@@ -347,6 +347,8 @@ export function CheckoutTemplatesPanel({
             <input type="hidden" name="logoUrl" value={logoUrl} />
             <input type="hidden" name="productIds" value={productIds.join(",")} />
             <input type="hidden" name="layout" value={JSON.stringify(layoutPayload)} />
+            <input type="hidden" name="publicTitle" value={wompiTitle || publicTitle} />
+            <input type="hidden" name="publicDescription" value={wompiDescription || publicDescription} />
             <input type="hidden" name="wompiTitle" value={wompiTitle || publicTitle} />
             <input type="hidden" name="wompiDescription" value={wompiDescription || publicDescription} />
 
@@ -373,13 +375,18 @@ export function CheckoutTemplatesPanel({
                   <label>Activa</label>
                   <input type="checkbox" name="active" checked={active} onChange={(e) => setActive(e.target.checked)} />
                 </div>
-                <div className="field">
-                  <label>Título público</label>
-                  <input className="input" name="publicTitle" value={publicTitle} onChange={(e) => setPublicTitle(e.target.value)} placeholder="Checkout" />
-                </div>
-                <div className="field">
-                  <label>Descripción pública</label>
-                  <textarea className="input" name="publicDescription" rows={2} value={publicDescription} onChange={(e) => setPublicDescription(e.target.value)} placeholder="Descripción corta" />
+                <div className="panel module" style={{ margin: 0 }}>
+                  <div className="panel-header">
+                    <strong>Mensajes Wompi</strong>
+                  </div>
+                  <div className="field">
+                    <label>{selectedKind === "SUBSCRIPTION" ? "Título suscripción" : "Título plan"}</label>
+                    <input className="input" value={wompiTitle} onChange={(e) => setWompiTitle(e.target.value)} placeholder="Título" />
+                  </div>
+                  <div className="field">
+                    <label>{selectedKind === "SUBSCRIPTION" ? "Descripción suscripción" : "Descripción plan"}</label>
+                    <textarea className="input" rows={2} value={wompiDescription} onChange={(e) => setWompiDescription(e.target.value)} placeholder="Descripción corta" />
+                  </div>
                 </div>
                 <div className="field">
                   <label>UTM (opcional)</label>
