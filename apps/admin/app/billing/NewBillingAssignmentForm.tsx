@@ -51,6 +51,9 @@ export function NewBillingAssignmentForm({
   tenantId,
   tenants,
   defaultOpen = false,
+  forceOpen = false,
+  hideHeader = false,
+  returnTo = "/billing",
   defaultSelectedCustomerId = "",
   createCustomer,
   createPlanAndSubscription
@@ -62,11 +65,14 @@ export function NewBillingAssignmentForm({
   tenantId?: string;
   tenants: Array<{ id: string; name: string }>;
   defaultOpen?: boolean;
+  forceOpen?: boolean;
+  hideHeader?: boolean;
+  returnTo?: string;
   defaultSelectedCustomerId?: string;
   createCustomer: (formData: FormData) => Promise<void>;
   createPlanAndSubscription: (formData: FormData) => void | Promise<void>;
 }) {
-  const [open, setOpen] = useState(Boolean(defaultOpen));
+  const [open, setOpen] = useState(Boolean(defaultOpen || forceOpen));
   const [showNewCustomer, setShowNewCustomer] = useState(false);
 
   const [productQ, setProductQ] = useState("");
@@ -244,18 +250,24 @@ export function NewBillingAssignmentForm({
   const mustPickTenant = tenants.length > 0;
   const canSubmit = Boolean(productId && customerId && (!mustPickTenant || selectedTenantIds.length > 0));
 
+  const isOpen = forceOpen ? true : open;
+
   return (
     <div className="panel module">
-      <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-        <div style={{ display: "grid" }}>
-          <h3 style={{ margin: 0 }}>Crear plan o suscripción para un contacto</h3>
+      {!hideHeader ? (
+        <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <div style={{ display: "grid" }}>
+            <h3 style={{ margin: 0 }}>Crear plan o suscripción para un contacto</h3>
+          </div>
+          {!forceOpen ? (
+            <button className={open ? "ghost" : "primary"} type="button" onClick={() => setOpen((v) => !v)}>
+              {open ? "Cerrar" : "Crear plan / suscripción"}
+            </button>
+          ) : null}
         </div>
-        <button className={open ? "ghost" : "primary"} type="button" onClick={() => setOpen((v) => !v)}>
-          {open ? "Cerrar" : "Crear plan / suscripción"}
-        </button>
-      </div>
+      ) : null}
 
-      {open ? (
+      {isOpen ? (
         <div style={{ display: "grid", gap: 12 }}>
           <div className="panel module" style={{ margin: 0 }}>
             <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
@@ -452,7 +464,16 @@ export function NewBillingAssignmentForm({
 
             {showNewCustomer ? (
               <div style={{ marginTop: 10 }}>
-                <NewCustomerForm createCustomer={createCustomer} defaultOpen mode="always_open" hidePanelHeader returnTo="/billing?crear=1" csrfToken={csrfToken} tenantId={tenantId} tenants={tenants} />
+                <NewCustomerForm
+                  createCustomer={createCustomer}
+                  defaultOpen
+                  mode="always_open"
+                  hidePanelHeader
+                  returnTo={`${returnTo}${returnTo.includes("?") ? "&" : "?"}crear=1`}
+                  csrfToken={csrfToken}
+                  tenantId={tenantId}
+                  tenants={tenants}
+                />
               </div>
             ) : null}
           </div>
@@ -464,6 +485,7 @@ export function NewBillingAssignmentForm({
 
             <form action={createPlanAndSubscription} onKeyDownCapture={enterToNextField} style={{ display: "grid", gap: 10 }}>
               <input type="hidden" name="csrf" value={csrfToken} />
+              <input type="hidden" name="returnTo" value={returnTo} />
               <input type="hidden" name="customerId" value={customerId} />
               <input type="hidden" name="productId" value={productId} />
               <input type="hidden" name="billingType" value={billingType} />

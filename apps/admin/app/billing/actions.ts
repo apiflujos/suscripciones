@@ -7,7 +7,8 @@ import { assertCsrfToken } from "../lib/csrf";
 
 function safeReturnTo(formData: FormData) {
   const raw = String(formData.get("returnTo") || "").trim();
-  return raw.startsWith("/billing") ? raw : "/billing";
+  if (raw.startsWith("/billing") || raw.startsWith("/customers") || raw.startsWith("/products")) return raw;
+  return "/billing";
 }
 
 function mergeQuery(path: string, extra: Record<string, string | undefined>) {

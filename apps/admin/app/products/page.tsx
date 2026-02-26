@@ -1,11 +1,11 @@
-import { createPlanTemplate, createProduct, deleteProduct } from "./actions";
-import { NewPlanOrSubscriptionForm } from "./NewPlanOrSubscriptionForm";
-import { NewProductForm } from "./NewProductForm";
+import { createProduct, deleteProduct } from "./actions";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { HelpTip } from "../ui/HelpTip";
 import { ProductsTable } from "./ProductsTable";
 import { getCsrfToken } from "../lib/csrf";
 import { createTenant } from "../tenants/actions";
+import { ProductsModals } from "./ProductsModals";
+import { createCustomerFromBilling, createPlanAndSubscription } from "../billing/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -54,9 +54,11 @@ export default async function ProductsPage({
   const take = 200;
   sp.set("take", String(take));
   if (Number.isFinite(page) && page > 1) sp.set("skip", String((Math.trunc(page) - 1) * take));
-  const [products, tenantsRes] = await Promise.all([
+  const [products, tenantsRes, customersRes, templatesRes] = await Promise.all([
     fetchAdmin(`/admin/products?${sp.toString()}`),
-    fetchAdminCached("/admin/tenants", { ttlMs: 1500 })
+    fetchAdminCached("/admin/tenants", { ttlMs: 1500 }),
+    fetchAdminCached(tenantId ? `/admin/customers?take=200&tenantId=${encodeURIComponent(tenantId)}` : "/admin/customers?take=200", { ttlMs: 1500 }),
+    fetchAdminCached(tenantId ? `/admin/checkout-templates?tenantId=${encodeURIComponent(tenantId)}` : "/admin/checkout-templates", { ttlMs: 1500 })
   ]);
 
   const productItems = (products.json?.items ?? []) as any[];
@@ -80,7 +82,7 @@ export default async function ProductsPage({
           <div className="panelHeaderRow">
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <h3>Productos y Servicios</h3>
-              <HelpTip text="Aquí se crean planes y suscripciones (sin contacto) y se amarra el producto/servicio." />
+              <HelpTip text="Aquí gestionas productos/servicios y puedes asociarlos a contactos para crear planes o suscripciones." />
             </div>
             <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
               <form action="/products" method="GET" style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -115,10 +117,18 @@ export default async function ProductsPage({
 
         <div className="settings-group-body">
           <div style={{ display: "grid", gap: 14 }}>
-            <div style={{ display: "grid", gap: 14 }}>
-              <NewProductForm action={createProduct} csrfToken={csrfToken} tenantId={tenantId} tenants={tenants} returnTo={returnTo} />
-              <NewPlanOrSubscriptionForm action={createPlanTemplate} catalogItems={productItems} csrfToken={csrfToken} tenantId={tenantId} tenants={tenants} />
-            </div>
+            <ProductsModals
+              customers={customersRes.json?.items ?? []}
+              products={productItems}
+              checkoutTemplates={templatesRes.json?.items ?? []}
+              csrfToken={csrfToken}
+              tenants={tenants}
+              tenantId={tenantId}
+              createProduct={createProduct}
+              createCustomer={createCustomerFromBilling}
+              createPlanAndSubscription={createPlanAndSubscription}
+              returnTo={returnTo}
+            />
 
             <ProductsTable
               items={productItems.map((p) => {

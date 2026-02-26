@@ -1,10 +1,11 @@
 import { createCustomer } from "./actions";
-import { NewCustomerForm } from "./NewCustomerForm";
+import { CustomersModals } from "./CustomersModals";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { HelpTip } from "../ui/HelpTip";
 import { CustomersTable } from "./CustomersTable";
 import { getCsrfToken } from "../lib/csrf";
 import { createTenant } from "../tenants/actions";
+import { createPlanAndSubscription } from "../billing/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -71,6 +72,30 @@ async function fetchCustomerSubscriptions(tenantId?: string) {
   return map;
 }
 
+async function fetchCartTemplates(tenantId?: string) {
+  const sp = new URLSearchParams();
+  if (tenantId) sp.set("tenantId", tenantId);
+  const res = await fetchAdminCached(`/admin/checkout-templates?${sp.toString()}`, { ttlMs: 1500 });
+  const data = res.json || { items: [] as any[] };
+  const items = Array.isArray(data.items) ? data.items : [];
+  return items.filter((t) => String(t?.kind || "") === "CART" && Boolean(t?.active));
+}
+
+async function fetchProducts(tenantId?: string) {
+  const sp = new URLSearchParams();
+  sp.set("take", "300");
+  if (tenantId) sp.set("tenantId", tenantId);
+  const res = await fetchAdminCached(`/admin/products?${sp.toString()}`, { ttlMs: 1500 });
+  return res.json || { items: [] as any[] };
+}
+
+async function fetchCheckoutTemplates(tenantId?: string) {
+  const sp = new URLSearchParams();
+  if (tenantId) sp.set("tenantId", tenantId);
+  const res = await fetchAdminCached(`/admin/checkout-templates?${sp.toString()}`, { ttlMs: 1500 });
+  return res.json || { items: [] as any[] };
+}
+
 async function fetchCustomerById(id: string) {
   if (!id) return null;
   const res = await fetchAdminCached(`/admin/customers/${encodeURIComponent(id)}`, { ttlMs: 1500 });
@@ -99,10 +124,12 @@ export default async function CustomersPage({
   }).toString()}`;
   const tenantCreated = typeof sp.tenantCreated === "string" ? sp.tenantCreated : "";
   const take = 200;
-  const [data, tenantsRes, txCustomer] = await Promise.all([
+  const [data, tenantsRes, txCustomer, productsRes, templatesRes] = await Promise.all([
     fetchCustomers({ q, take, page, tenantId }),
     fetchAdminCached("/admin/tenants", { ttlMs: 1500 }),
-    txCustomerId ? fetchCustomerById(txCustomerId) : Promise.resolve(null)
+    txCustomerId ? fetchCustomerById(txCustomerId) : Promise.resolve(null),
+    fetchProducts(tenantId),
+    fetchCheckoutTemplates(tenantId)
   ]);
   const items = (data.items ?? []) as any[];
   if (txCustomer && !items.some((c) => String(c.id) === String(txCustomer.id))) {
@@ -110,9 +137,10 @@ export default async function CustomersPage({
   }
   const tenants = (tenantsRes.json?.items ?? []) as Array<{ id: string; name: string }>;
   const tenantById = new Map(tenants.map((t) => [String(t.id), String(t.name)]));
-  const [latestLinks, subscriptionsByCustomer] = await Promise.all([
+  const [latestLinks, subscriptionsByCustomer, cartTemplates] = await Promise.all([
     fetchPaymentLinks(q, tenantId),
-    fetchCustomerSubscriptions(tenantId)
+    fetchCustomerSubscriptions(tenantId),
+    fetchCartTemplates(tenantId)
   ]);
   const latestLinksObj = Object.fromEntries(latestLinks.entries());
 
@@ -175,19 +203,23 @@ export default async function CustomersPage({
         </div>
 
         <div className="settings-group-body">
-          <NewCustomerForm
-            createCustomer={createCustomer}
+          <CustomersModals
+            customers={items}
+            products={productsRes?.items ?? []}
+            checkoutTemplates={templatesRes?.items ?? []}
             csrfToken={csrfToken}
-            tenantId={tenantId}
             tenants={tenants}
+            tenantId={tenantId}
+            createCustomer={createCustomer}
+            createPlanAndSubscription={createPlanAndSubscription}
             returnTo={returnTo}
-            defaultOpen={Boolean(created)}
           />
 
           <CustomersTable
             items={items.map((c) => ({ ...c, tenantName: tenantById.get(String(c.tenantId || "")) || "—" }))}
             latestLinks={latestLinksObj}
             subscriptionsByCustomer={subscriptionsByCustomer}
+            cartTemplates={cartTemplates}
             csrfToken={csrfToken}
             returnTo={returnTo}
             initialTxCustomerId={txCustomerId}

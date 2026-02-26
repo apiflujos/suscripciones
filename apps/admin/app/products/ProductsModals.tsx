@@ -1,0 +1,86 @@
+"use client";
+
+import { useState } from "react";
+import { NewProductForm } from "./NewProductForm";
+import { NewBillingAssignmentForm } from "../billing/NewBillingAssignmentForm";
+
+export function ProductsModals({
+  customers,
+  products,
+  checkoutTemplates,
+  csrfToken,
+  tenants,
+  tenantId,
+  createProduct,
+  createCustomer,
+  createPlanAndSubscription,
+  returnTo
+}: {
+  customers: any[];
+  products: any[];
+  checkoutTemplates: any[];
+  csrfToken: string;
+  tenants: Array<{ id: string; name: string }>;
+  tenantId?: string;
+  createProduct: (formData: FormData) => void | Promise<void>;
+  createCustomer: (formData: FormData) => Promise<void>;
+  createPlanAndSubscription: (formData: FormData) => void | Promise<void>;
+  returnTo: string;
+}) {
+  const [openProduct, setOpenProduct] = useState(false);
+  const [openPlan, setOpenPlan] = useState(false);
+
+  return (
+    <>
+      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+        <button className="primary" type="button" onClick={() => setOpenProduct(true)}>
+          Crear producto
+        </button>
+        <button className="primary" type="button" onClick={() => setOpenPlan(true)}>
+          Crear plan / suscripción
+        </button>
+      </div>
+
+      {openProduct ? (
+        <div className="modal-backdrop">
+          <div className="modal-panel" style={{ maxWidth: 980 }}>
+            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <strong>Crear producto / servicio</strong>
+              <button className="ghost" type="button" onClick={() => setOpenProduct(false)} aria-label="Cerrar">
+                X
+              </button>
+            </div>
+            <NewProductForm action={createProduct} csrfToken={csrfToken} tenantId={tenantId} tenants={tenants} returnTo={returnTo} />
+          </div>
+        </div>
+      ) : null}
+
+      {openPlan ? (
+        <div className="modal-backdrop">
+          <div className="modal-panel" style={{ maxWidth: 980 }}>
+            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <strong>Crear plan o suscripción</strong>
+              <button className="ghost" type="button" onClick={() => setOpenPlan(false)} aria-label="Cerrar">
+                X
+              </button>
+            </div>
+            <NewBillingAssignmentForm
+              customers={customers}
+              catalogItems={products}
+              checkoutTemplates={checkoutTemplates}
+              csrfToken={csrfToken}
+              tenantId={tenantId}
+              tenants={tenants}
+              defaultOpen
+              forceOpen
+              hideHeader
+              returnTo={returnTo}
+              createCustomer={createCustomer}
+              createPlanAndSubscription={createPlanAndSubscription}
+            />
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+}

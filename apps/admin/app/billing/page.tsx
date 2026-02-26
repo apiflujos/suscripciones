@@ -421,6 +421,7 @@ export default async function BillingPage({
             csrfToken={csrfToken}
             tenantId={tenantId}
             tenants={tenants}
+            returnTo={returnTo}
             defaultOpen={Boolean(crear) || Boolean(selectCustomerId) || Boolean(contactCreated)}
             defaultSelectedCustomerId={selectCustomerId}
             createCustomer={createCustomerFromBilling}

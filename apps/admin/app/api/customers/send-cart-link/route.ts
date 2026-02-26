@@ -25,6 +25,7 @@ export async function POST(req: Request) {
   const customerId = String(body?.customerId || "").trim();
   const customerName = String(body?.customerName || "").trim() || "Cliente";
   const tenantId = String(body?.tenantId || "").trim();
+  const templateIdInput = String(body?.templateId || "").trim();
   if (!customerId) return NextResponse.json({ ok: false, error: "missing_customer_id" }, { status: 400 });
 
   const settingsRes = await fetch(`${API_BASE}/admin/settings`, {
@@ -49,7 +50,10 @@ export async function POST(req: Request) {
   }
   const items = Array.isArray(templatesJson?.items) ? templatesJson.items : [];
   const cartTemplates = items.filter((t: any) => String(t?.kind || "") === "CART" && Boolean(t?.active));
-  const selectedTemplate = cartTemplates[0] || null;
+  const selectedTemplate =
+    (templateIdInput ? cartTemplates.find((t: any) => String(t?.id || "") === templateIdInput) : null) ||
+    cartTemplates[0] ||
+    null;
   if (!selectedTemplate) {
     return NextResponse.json({ ok: false, error: "missing_cart_template" }, { status: 400 });
   }
