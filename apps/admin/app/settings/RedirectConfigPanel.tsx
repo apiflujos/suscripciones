@@ -80,6 +80,7 @@ export function RedirectConfigPanel({
   function generatePlanUrl() {
     const base = normalizeBaseUrl(publicBaseUrl);
     if (!base) return;
+    if (!isEditing) setIsEditing(true);
     setPlanBaseUrl(`${base}/public/plan`);
     if (!defaultUtmParams) setDefaultUtmParams("utm_source=apiflujos&utm_medium=checkout&utm_campaign=mdv");
   }
@@ -87,6 +88,7 @@ export function RedirectConfigPanel({
   function generateSubscriptionUrl() {
     const base = normalizeBaseUrl(publicBaseUrl);
     if (!base) return;
+    if (!isEditing) setIsEditing(true);
     setSubscriptionBaseUrl(`${base}/public/suscripcion`);
     if (!defaultUtmParams) setDefaultUtmParams("utm_source=apiflujos&utm_medium=checkout&utm_campaign=mdv");
   }
@@ -94,6 +96,7 @@ export function RedirectConfigPanel({
   function generateReturnUrl() {
     const base = normalizeBaseUrl(publicBaseUrl);
     if (!base) return;
+    if (!isEditing) setIsEditing(true);
     setTokenReturnUrl(`${base}/public/return`);
     if (!defaultUtmParams) setDefaultUtmParams("utm_source=apiflujos&utm_medium=checkout&utm_campaign=mdv");
   }
@@ -143,24 +146,20 @@ export function RedirectConfigPanel({
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <div className="field">
           <label>Base URL Plan</label>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <input className="input" value={planBaseUrl} onChange={(e) => setPlanBaseUrl(e.target.value)} placeholder="https://.../public/plan" disabled={!isEditing} />
-            {isEditing ? (
-              <button className="ghost" type="button" onClick={generatePlanUrl}>
-                Generar
-              </button>
-            ) : null}
+            <button className="ghost" type="button" onClick={generatePlanUrl}>
+              Generar
+            </button>
           </div>
         </div>
         <div className="field">
           <label>Base URL Suscripción</label>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <input className="input" value={subscriptionBaseUrl} onChange={(e) => setSubscriptionBaseUrl(e.target.value)} placeholder="https://.../public/suscripcion" disabled={!isEditing} />
-            {isEditing ? (
-              <button className="ghost" type="button" onClick={generateSubscriptionUrl}>
-                Generar
-              </button>
-            ) : null}
+            <button className="ghost" type="button" onClick={generateSubscriptionUrl}>
+              Generar
+            </button>
           </div>
         </div>
       </div>
@@ -179,13 +178,11 @@ export function RedirectConfigPanel({
 
       <div className="field">
         <label>URL retorno tokenización</label>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <input className="input" value={tokenReturnUrl} onChange={(e) => setTokenReturnUrl(e.target.value)} placeholder="https://tu-sitio.com" disabled={!isEditing} />
-          {isEditing ? (
-            <button className="ghost" type="button" onClick={generateReturnUrl}>
-              Generar
-            </button>
-          ) : null}
+          <button className="ghost" type="button" onClick={generateReturnUrl}>
+            Generar
+          </button>
         </div>
         <div className="field-hint">Este link se usa en el botón “Volver”.</div>
       </div>
