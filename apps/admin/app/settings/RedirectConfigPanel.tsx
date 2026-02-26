@@ -53,6 +53,8 @@ export function RedirectConfigPanel({
   const [subscriptionWompiTitle, setSubscriptionWompiTitle] = useState<string>(String(defaults.subscriptionWompiTitle || ""));
   const [subscriptionWompiDescription, setSubscriptionWompiDescription] = useState<string>(String(defaults.subscriptionWompiDescription || ""));
   const [defaultUtmParams, setDefaultUtmParams] = useState<string>(String(defaults.defaultUtmParams || ""));
+  const hasConfig = Boolean(String(defaults.planBaseUrl || defaults.subscriptionBaseUrl || defaults.tokenizationReturnUrl || "").trim());
+  const [isEditing, setIsEditing] = useState(!hasConfig);
 
   const baseHint = useMemo(() => {
     if (!publicBaseUrl) return "";
@@ -60,23 +62,20 @@ export function RedirectConfigPanel({
     return `${base}/public/plan/{token} · ${base}/public/suscripcion/{token}`;
   }, [publicBaseUrl]);
 
-  const [pendingAutoSave, setPendingAutoSave] = useState(false);
+  useEffect(() => {
+    if (inlineState.action === "checkout_config" && inlineState.status === "ok") {
+      setIsEditing(false);
+    }
+  }, [inlineState.action, inlineState.status]);
 
-  function generateUrlsAndSave() {
+  function generateUrls() {
     const base = normalizeBaseUrl(publicBaseUrl);
     if (!base) return;
     setPlanBaseUrl(`${base}/public/plan`);
     setSubscriptionBaseUrl(`${base}/public/suscripcion`);
-    if (!tokenReturnUrl) setTokenReturnUrl(base);
+    if (!tokenReturnUrl) setTokenReturnUrl(`${base}/public/return`);
     if (!defaultUtmParams) setDefaultUtmParams("utm_source=apiflujos&utm_medium=checkout&utm_campaign=mdv");
-    setPendingAutoSave(true);
   }
-
-  useEffect(() => {
-    if (!pendingAutoSave) return;
-    setPendingAutoSave(false);
-    formRef.current?.requestSubmit();
-  }, [pendingAutoSave, planBaseUrl, subscriptionBaseUrl, tokenReturnUrl, defaultUtmParams]);
 
   return (
     <form ref={formRef} action={onSave} className="panel module" style={{ display: "grid", gap: 14 }}>
@@ -99,9 +98,11 @@ export function RedirectConfigPanel({
           <strong>Redirecciones y Mensajes</strong>
           <div className="field-hint">URLs públicas + mensajes que aparecen en Wompi.</div>
         </div>
-        <button className="ghost" type="button" onClick={generateUrlsAndSave}>
-          Generar y guardar
-        </button>
+        {isEditing ? (
+          <button className="ghost" type="button" onClick={generateUrls}>
+            Generar
+          </button>
+        ) : null}
       </div>
 
       <div className="field">
@@ -117,6 +118,7 @@ export function RedirectConfigPanel({
             }
           }}
           placeholder="https://mdv.sus.apiflujos.com"
+          disabled={!isEditing}
         />
         {baseHint ? <div className="field-hint">Se generarán: {baseHint}</div> : null}
       </div>
@@ -124,11 +126,11 @@ export function RedirectConfigPanel({
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <div className="field">
           <label>Base URL Plan</label>
-          <input className="input" value={planBaseUrl} onChange={(e) => setPlanBaseUrl(e.target.value)} placeholder="https://.../public/plan" />
+          <input className="input" value={planBaseUrl} onChange={(e) => setPlanBaseUrl(e.target.value)} placeholder="https://.../public/plan" disabled={!isEditing} />
         </div>
         <div className="field">
           <label>Base URL Suscripción</label>
-          <input className="input" value={subscriptionBaseUrl} onChange={(e) => setSubscriptionBaseUrl(e.target.value)} placeholder="https://.../public/suscripcion" />
+          <input className="input" value={subscriptionBaseUrl} onChange={(e) => setSubscriptionBaseUrl(e.target.value)} placeholder="https://.../public/suscripcion" disabled={!isEditing} />
         </div>
       </div>
 
@@ -139,13 +141,14 @@ export function RedirectConfigPanel({
           value={defaultUtmParams}
           onChange={(e) => setDefaultUtmParams(e.target.value)}
           placeholder="utm_source=apiflujos&utm_medium=checkout&utm_campaign=mdv"
+          disabled={!isEditing}
         />
         <div className="field-hint">Se aplica si la plantilla no tiene UTM.</div>
       </div>
 
       <div className="field">
         <label>URL retorno tokenización</label>
-        <input className="input" value={tokenReturnUrl} onChange={(e) => setTokenReturnUrl(e.target.value)} placeholder="https://tu-sitio.com" />
+        <input className="input" value={tokenReturnUrl} onChange={(e) => setTokenReturnUrl(e.target.value)} placeholder="https://tu-sitio.com" disabled={!isEditing} />
         <div className="field-hint">Este link se usa en el botón “Volver”.</div>
       </div>
 
@@ -155,15 +158,15 @@ export function RedirectConfigPanel({
         </div>
         <div className="field">
           <label>Título éxito</label>
-          <input className="input" value={tokenSuccessTitle} onChange={(e) => setTokenSuccessTitle(e.target.value)} />
+          <input className="input" value={tokenSuccessTitle} onChange={(e) => setTokenSuccessTitle(e.target.value)} disabled={!isEditing} />
         </div>
         <div className="field">
           <label>Mensaje éxito</label>
-          <textarea className="input" rows={2} value={tokenSuccessMessage} onChange={(e) => setTokenSuccessMessage(e.target.value)} />
+          <textarea className="input" rows={2} value={tokenSuccessMessage} onChange={(e) => setTokenSuccessMessage(e.target.value)} disabled={!isEditing} />
         </div>
         <div className="field">
           <label>Mensaje error</label>
-          <textarea className="input" rows={2} value={tokenErrorMessage} onChange={(e) => setTokenErrorMessage(e.target.value)} />
+          <textarea className="input" rows={2} value={tokenErrorMessage} onChange={(e) => setTokenErrorMessage(e.target.value)} disabled={!isEditing} />
         </div>
       </div>
 
@@ -174,19 +177,19 @@ export function RedirectConfigPanel({
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <div className="field">
             <label>Título plan</label>
-            <input className="input" value={planWompiTitle} onChange={(e) => setPlanWompiTitle(e.target.value)} />
+            <input className="input" value={planWompiTitle} onChange={(e) => setPlanWompiTitle(e.target.value)} disabled={!isEditing} />
           </div>
           <div className="field">
             <label>Descripción plan</label>
-            <input className="input" value={planWompiDescription} onChange={(e) => setPlanWompiDescription(e.target.value)} />
+            <input className="input" value={planWompiDescription} onChange={(e) => setPlanWompiDescription(e.target.value)} disabled={!isEditing} />
           </div>
           <div className="field">
             <label>Título suscripción</label>
-            <input className="input" value={subscriptionWompiTitle} onChange={(e) => setSubscriptionWompiTitle(e.target.value)} />
+            <input className="input" value={subscriptionWompiTitle} onChange={(e) => setSubscriptionWompiTitle(e.target.value)} disabled={!isEditing} />
           </div>
           <div className="field">
             <label>Descripción suscripción</label>
-            <input className="input" value={subscriptionWompiDescription} onChange={(e) => setSubscriptionWompiDescription(e.target.value)} />
+            <input className="input" value={subscriptionWompiDescription} onChange={(e) => setSubscriptionWompiDescription(e.target.value)} disabled={!isEditing} />
           </div>
         </div>
       </div>
@@ -200,9 +203,15 @@ export function RedirectConfigPanel({
             </div>
           ) : null}
         </div>
-        <PendingButton className="primary" type="submit" pendingText="Guardando...">
-          Guardar
-        </PendingButton>
+        {isEditing ? (
+          <PendingButton className="primary" type="submit" pendingText="Guardando...">
+            Guardar
+          </PendingButton>
+        ) : (
+          <button className="ghost" type="button" onClick={() => setIsEditing(true)}>
+            Editar
+          </button>
+        )}
       </div>
     </form>
   );
