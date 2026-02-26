@@ -5,9 +5,6 @@ import { normalizeToken } from "../lib/normalizeToken";
 import { getRequiredApiBase } from "../lib/adminApi";
 import { assertCsrfToken } from "../lib/csrf";
 
-const API_BASE = getRequiredApiBase();
-const TOKEN = normalizeToken(process.env.ADMIN_API_TOKEN || "");
-
 function toShortErrorMessage(err: unknown) {
   const raw = err instanceof Error ? err.message : String(err);
   return raw.replace(/\s+/g, " ").trim().slice(0, 220) || "unknown_error";
@@ -40,6 +37,8 @@ function normalizeUrl(input: string) {
 }
 
 async function adminFetch(path: string, init: RequestInit) {
+  const API_BASE = getRequiredApiBase();
+  const TOKEN = normalizeToken(process.env.ADMIN_API_TOKEN || "");
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {

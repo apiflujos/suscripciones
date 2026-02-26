@@ -53,7 +53,7 @@ export async function chatwootWebhook(req: Request, res: Response) {
 
   const conversationId = getConversationIdFromPayload(payload);
 
-  let customer = null;
+  let customer: any = null;
 
   if (contactId && Number.isFinite(contactId)) {
     customer = await prisma.customer.findFirst({

@@ -3,9 +3,8 @@ import { normalizeToken } from "../../../lib/normalizeToken";
 import { getRequiredApiBase } from "../../../lib/adminApi";
 import crypto from "crypto";
 
-const API_BASE = getRequiredApiBase();
-
 export async function POST(req: Request) {
+  const API_BASE = getRequiredApiBase();
   const token = normalizeToken(process.env.ADMIN_API_TOKEN || "");
   if (!token) return NextResponse.json({ ok: false, error: "missing_admin_token" }, { status: 401 });
 

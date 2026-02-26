@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { normalizeToken } from "../../../lib/normalizeToken";
 import { getRequiredApiBase } from "../../../lib/adminApi";
 
-const API_BASE = getRequiredApiBase();
-
 function pesosToCents(input: string): number {
   const digits = String(input || "").replace(/[^\d-]/g, "");
   if (!digits) return 0;
@@ -13,6 +11,7 @@ function pesosToCents(input: string): number {
 }
 
 export async function POST(req: Request) {
+  const API_BASE = getRequiredApiBase();
   const token = normalizeToken(process.env.ADMIN_API_TOKEN || "");
   if (!token) return NextResponse.json({ ok: false, error: "missing_admin_token" }, { status: 401 });
 

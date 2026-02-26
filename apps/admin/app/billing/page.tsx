@@ -145,6 +145,7 @@ export default async function BillingPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  try {
   const csrfToken = await getCsrfToken();
   const { token } = getConfig();
   if (!token) {
@@ -572,4 +573,12 @@ export default async function BillingPage({
       </section>
     </main>
   );
+  } catch (err) {
+    return (
+      <main className="page">
+        <h1 style={{ marginTop: 0 }}>Planes y Suscripciones</h1>
+        <p>No pudimos cargar esta sección. Detalle: {String((err as any)?.message || err)}</p>
+      </main>
+    );
+  }
 }

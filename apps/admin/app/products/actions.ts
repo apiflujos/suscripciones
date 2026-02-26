@@ -5,10 +5,9 @@ import { normalizeToken } from "../lib/normalizeToken";
 import { getRequiredApiBase } from "../lib/adminApi";
 import { assertCsrfToken } from "../lib/csrf";
 
-const API_BASE = getRequiredApiBase();
-const TOKEN = normalizeToken(process.env.ADMIN_API_TOKEN || "");
-
 async function adminFetch(path: string, init: RequestInit) {
+  const API_BASE = getRequiredApiBase();
+  const TOKEN = normalizeToken(process.env.ADMIN_API_TOKEN || "");
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {

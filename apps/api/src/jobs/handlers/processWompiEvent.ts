@@ -97,7 +97,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     }
 
     const defaultTenantId = await getDefaultTenantId();
-    let plan = null;
+    let plan: any = null;
     if (referenceClassification.kind === "order" && referenceClassification.planId) {
       plan = await db.subscriptionPlan.findUnique({ where: { id: referenceClassification.planId } });
       if (plan && plan.priceInCents !== amountInCents) {
@@ -160,13 +160,14 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     }
 
     const startAt = new Date();
-    const periodEnd = addIntervalUtc(startAt, plan.intervalUnit, plan.intervalCount);
+    const planResolved = plan as any;
+    const periodEnd = addIntervalUtc(startAt, planResolved.intervalUnit, planResolved.intervalCount);
 
     inferredSubscription = await db.subscription.create({
       data: {
-        tenantId: plan?.tenantId ?? defaultTenantId ?? null,
+        tenantId: planResolved?.tenantId ?? defaultTenantId ?? null,
         customerId: customer.id,
-        planId: plan.id,
+        planId: planResolved.id,
         status: SubscriptionStatus.PAST_DUE,
         startAt,
         currentPeriodStartAt: startAt,
@@ -174,7 +175,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         currentCycle: 1
       }
     });
-    const linkTenantId = plan?.tenantId ?? defaultTenantId ?? null;
+    const linkTenantId = planResolved?.tenantId ?? defaultTenantId ?? null;
     if (linkTenantId) {
       await db.subscriptionTenant
         .createMany({

@@ -72,7 +72,7 @@ async function main() {
     data: (await prisma.saUser.findMany({ where: { tenantId: { not: null } }, select: { id: true, tenantId: true } })).map((u) => ({
       userId: u.id,
       tenantId: u.tenantId as string
-    })),
+    })) as any,
     skipDuplicates: true
   });
 
@@ -80,11 +80,11 @@ async function main() {
   const allTenants = await prisma.saTenant.findMany({ select: { id: true } });
   const superAdmins = await prisma.saUser.findMany({ where: { role: "SUPER_ADMIN", active: true }, select: { id: true } });
   if (allTenants.length && superAdmins.length) {
-    const rows = [];
+    const rows: any[] = [];
     for (const u of superAdmins) {
       for (const t of allTenants) rows.push({ userId: u.id, tenantId: t.id });
     }
-    await prisma.saUserTenant.createMany({ data: rows, skipDuplicates: true });
+    await prisma.saUserTenant.createMany({ data: rows as any, skipDuplicates: true });
   }
 
   const counts = {

@@ -131,7 +131,7 @@ export async function consumeLimitOrBlock(
   const kind = normalizeKind(snapshot.kind) ?? SaPlanKind.MASTER;
   const rule = ruleFromSnapshot(kind, serviceKey, snapshot);
 
-  const res = await prisma.$transaction(async (tx) => {
+  const res = (await prisma.$transaction(async (tx) => {
     const existing = await tx.saUsageCounter.findUnique({
       where: { tenantId_serviceKey_periodKey: { tenantId: args.tenantId, serviceKey, periodKey } }
     });
@@ -208,7 +208,7 @@ export async function consumeLimitOrBlock(
     }
 
     return { nextTotal, billed };
-  });
+  })) as any;
 
   return {
     blocked: false,

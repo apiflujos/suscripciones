@@ -5,9 +5,6 @@ import { normalizeToken } from "../lib/normalizeToken";
 import { assertCsrfToken } from "../lib/csrf";
 import { getRequiredApiBase } from "../lib/adminApi";
 
-const API_BASE = getRequiredApiBase();
-const TOKEN = normalizeToken(process.env.ADMIN_API_TOKEN || "");
-
 function mergeQuery(path: string, extra: Record<string, string | undefined>) {
   const url = new URL(path || "/", "http://localhost");
   for (const [key, value] of Object.entries(extra)) {
@@ -17,6 +14,8 @@ function mergeQuery(path: string, extra: Record<string, string | undefined>) {
 }
 
 async function adminFetch(path: string, init: RequestInit) {
+  const API_BASE = getRequiredApiBase();
+  const TOKEN = normalizeToken(process.env.ADMIN_API_TOKEN || "");
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {
