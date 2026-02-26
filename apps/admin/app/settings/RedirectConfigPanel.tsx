@@ -39,6 +39,7 @@ export function RedirectConfigPanel({
   returnTo?: string;
 }) {
   const formRef = useRef<HTMLFormElement | null>(null);
+  const autoSavedRef = useRef(false);
   const [publicBaseUrl, setPublicBaseUrl] = useState<string>(() => {
     const existing = String(defaults.planBaseUrl || defaults.subscriptionBaseUrl || "").trim();
     if (existing) return existing.replace(/\/public\/(plan|suscripcion).*/i, "");
@@ -85,6 +86,14 @@ export function RedirectConfigPanel({
     if (!tokenReturnUrl) setTokenReturnUrl(`${base}/public/return`);
     if (!defaultUtmParams) setDefaultUtmParams("utm_source=apiflujos&utm_medium=checkout&utm_campaign=mdv");
   }, [publicBaseUrl, appPublicBaseUrl]);
+
+  useEffect(() => {
+    if (hasConfig || autoSavedRef.current) return;
+    const base = normalizeBaseUrl(publicBaseUrl || appPublicBaseUrl || "");
+    if (!base || !planBaseUrl || !subscriptionBaseUrl || !tokenReturnUrl) return;
+    autoSavedRef.current = true;
+    formRef.current?.requestSubmit();
+  }, [hasConfig, publicBaseUrl, appPublicBaseUrl, planBaseUrl, subscriptionBaseUrl, tokenReturnUrl]);
 
   function generateUrls() {
     const base = normalizeBaseUrl(publicBaseUrl || appPublicBaseUrl || "");
