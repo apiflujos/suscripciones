@@ -380,12 +380,24 @@ export function CheckoutTemplatesPanel({
               <div style={{ display: "grid", gap: 10 }}>
                 <div className="field">
                   <label>Nombre interno</label>
-                  <input className="input" name="name" value={name} onChange={(e) => setName(e.target.value)} required />
+                  <input
+                    className="input"
+                    name="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    style={missingName && stepIndex === 1 ? { borderColor: "var(--danger)" } : undefined}
+                  />
                 </div>
                 {requireTenant ? (
                   <div className="field">
                     <label>Canal de ventas</label>
-                  <select className="select" value={tenantId} onChange={(e) => setTenantId(e.target.value)}>
+                  <select
+                    className="select"
+                    value={tenantId}
+                    onChange={(e) => setTenantId(e.target.value)}
+                    style={missingTenant && stepIndex === 1 ? { borderColor: "var(--danger)" } : undefined}
+                  >
                     <option value="">Selecciona un canal</option>
                     {tenants.map((t) => (
                       <option key={t.id} value={t.id}>
@@ -474,6 +486,7 @@ export function CheckoutTemplatesPanel({
                           key={p.id}
                           type="button"
                           className={`ghost ${activeItem ? "is-active" : ""}`}
+                          style={missingProducts && stepIndex === 3 ? { borderColor: "var(--danger)" } : undefined}
                           onClick={() => {
                             if (activeItem) setProductIds(productIds.filter((id) => id !== p.id));
                             else setProductIds([...productIds, p.id]);
