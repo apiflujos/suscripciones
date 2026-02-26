@@ -58,11 +58,16 @@ export function RedirectConfigPanel({
   const [subscriptionWompiDescription] = useState<string>(String(defaults.subscriptionWompiDescription || ""));
   const [defaultUtmParams, setDefaultUtmParams] = useState<string>(String(defaults.defaultUtmParams || ""));
   const hasConfig = Boolean(String(defaults.planBaseUrl || defaults.subscriptionBaseUrl || defaults.tokenizationReturnUrl || "").trim());
-  const [modalOpen, setModalOpen] = useState(!hasConfig);
+  const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
-    if (!publicBaseUrl && appPublicBaseUrl) {
+    if (publicBaseUrl) return;
+    if (appPublicBaseUrl) {
       setPublicBaseUrl(appPublicBaseUrl);
+      return;
+    }
+    if (typeof window !== "undefined" && window.location?.origin) {
+      setPublicBaseUrl(window.location.origin);
     }
   }, [appPublicBaseUrl, publicBaseUrl]);
 
