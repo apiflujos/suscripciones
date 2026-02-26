@@ -204,7 +204,7 @@ export default async function SettingsPage({
               </div>
             </div>
             <div className="settings-group-body">
-              <div className="saved-connections-grid">
+              <div className="saved-connections-grid" style={{ gridTemplateColumns: "1fr" }}>
                 {([
                   ["PRODUCTION", "Producción", wompiProduction],
                   ["SANDBOX", "Sandbox", wompiSandbox]
