@@ -1,7 +1,7 @@
 import express from "express";
 import { z } from "zod";
 import { getNotificationsConfig, getNotificationsConfigForEnv, notificationsConfigSchema, setNotificationsConfig } from "../services/notificationsConfig";
-import { schedulePaymentStatusNotifications, scheduleSubscriptionDueNotifications } from "../services/notificationsScheduler";
+import { scheduleCatalogLinkNotifications, schedulePaymentStatusNotifications, scheduleSubscriptionDueNotifications } from "../services/notificationsScheduler";
 
 export const notificationsRouter = express.Router();
 
@@ -44,5 +44,14 @@ notificationsRouter.post("/schedule/payment/:id", async (req, res) => {
   if (!paymentId) return res.status(400).json({ error: "invalid_payment_id" });
   const forceNow = String((req.query.forceNow ?? "") as any).trim() === "1";
   const result = await schedulePaymentStatusNotifications({ paymentId, forceNow });
+  res.json({ ok: true, ...result });
+});
+
+notificationsRouter.post("/schedule/catalog", async (req, res) => {
+  const customerId = String(req?.body?.customerId || "").trim();
+  const catalogUrl = String(req?.body?.catalogUrl || "").trim();
+  if (!customerId || !catalogUrl) return res.status(400).json({ error: "invalid_payload" });
+  const forceNow = String((req.query.forceNow ?? "") as any).trim() === "1";
+  const result = await scheduleCatalogLinkNotifications({ customerId, catalogUrl, forceNow });
   res.json({ ok: true, ...result });
 });

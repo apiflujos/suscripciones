@@ -209,25 +209,91 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
         ...(payment.subscriptionId ? { subscriptionId: payment.subscriptionId } : {}),
         anchorAt: anchorIso
       } as any;
-      await prisma.retryJob.create({
-        data: {
-          type: RetryJobType.SUBSCRIPTION_REMINDER,
-          runAt,
-          payload: jobPayload
-        }
-      });
-      scheduled++;
+      if (!args.forceNow) {
+        await prisma.retryJob.create({
+          data: {
+            type: RetryJobType.SUBSCRIPTION_REMINDER,
+            runAt,
+            payload: jobPayload
+          }
+        });
+        scheduled++;
+      }
       if (args.forceNow || runAt.getTime() <= now.getTime()) {
-        await subscriptionReminder(jobPayload).catch(() => {});
+        await subscriptionReminder({ ...jobPayload, immediateSend: true }).catch(() => {});
       }
     }
   }
 
-  await systemLog(LogLevel.INFO, "notifications.schedule", "Notificaciones programadas", {
+  await systemLog(LogLevel.INFO, "notifications.schedule", args.forceNow ? "Notificaciones enviadas" : "Notificaciones programadas", {
     trigger: "PAYMENT_LINK_CREATED",
     environment: await getNotificationsActiveEnv(),
     paymentId: payment.id,
     customerId: payment.customerId,
+    scheduled
+  }).catch(() => {});
+
+  return { scheduled };
+}
+
+export async function scheduleCatalogLinkNotifications(args: { customerId: string; catalogUrl: string; forceNow?: boolean }) {
+  const customerId = String(args.customerId || "").trim();
+  const catalogUrl = String(args.catalogUrl || "").trim();
+  if (!customerId || !catalogUrl) return { scheduled: 0 };
+
+  const cfg = await getNotificationsConfig();
+  const rules = cfg.rules.filter((r) => r.enabled && r.trigger === "CATALOG_LINK_CREATED");
+  if (!rules.length) {
+    const env = await getNotificationsActiveEnv();
+    await systemLog(LogLevel.WARN, "notifications.schedule", "No hay reglas activas para notificaciones", {
+      trigger: "CATALOG_LINK_CREATED",
+      environment: env,
+      customerId
+    }).catch(() => {});
+    return { scheduled: 0 };
+  }
+
+  const now = new Date();
+  const anchorAt = now;
+  const anchorIso = anchorAt.toISOString();
+  let scheduled = 0;
+
+  for (const rule of rules) {
+    const offsetsSeconds = (rule as any).offsetsSeconds?.length
+      ? (rule as any).offsetsSeconds
+      : ((rule as any).offsetsMinutes?.length ? (rule as any).offsetsMinutes.map((m: number) => m * 60) : [0]);
+    for (const offsetSeconds of offsetsSeconds) {
+      const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
+      const runAtRaw = (rule as any).atTimeUtc ? applyAtTimeUtc(runAtBase, String((rule as any).atTimeUtc)) : runAtBase;
+      const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
+      const jobPayload = {
+        trigger: "CATALOG_LINK_CREATED" satisfies NotificationTrigger,
+        ruleId: rule.id,
+        offsetSeconds,
+        customerId,
+        catalogUrl,
+        anchorAt: anchorIso
+      } as any;
+      if (!args.forceNow) {
+        await prisma.retryJob.create({
+          data: {
+            type: RetryJobType.SUBSCRIPTION_REMINDER,
+            runAt,
+            payload: jobPayload
+          }
+        });
+        scheduled++;
+      }
+      if (args.forceNow || runAt.getTime() <= now.getTime()) {
+        await subscriptionReminder({ ...jobPayload, immediateSend: true }).catch(() => {});
+      }
+    }
+  }
+
+  await systemLog(LogLevel.INFO, "notifications.schedule", args.forceNow ? "Notificaciones enviadas" : "Notificaciones programadas", {
+    trigger: "CATALOG_LINK_CREATED",
+    environment: await getNotificationsActiveEnv(),
+    customerId,
     scheduled
   }).catch(() => {});
 

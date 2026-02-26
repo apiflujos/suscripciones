@@ -26,7 +26,7 @@ type Rule = {
   id: string;
   name: string;
   enabled: boolean;
-  trigger: "SUBSCRIPTION_DUE" | "PAYMENT_LINK_CREATED" | "PAYMENT_APPROVED" | "PAYMENT_DECLINED";
+  trigger: "SUBSCRIPTION_DUE" | "PAYMENT_LINK_CREATED" | "CATALOG_LINK_CREATED" | "PAYMENT_APPROVED" | "PAYMENT_DECLINED";
   templateId: string;
   offsetsSeconds?: number[];
   atTimeUtc?: string | null;
@@ -59,6 +59,7 @@ function formatOffsets(offsets?: number[], atTimeUtc?: string) {
 function triggerLabel(trigger: string) {
   if (trigger === "SUBSCRIPTION_DUE") return "Suscripción: fecha de pago";
   if (trigger === "PAYMENT_LINK_CREATED") return "Pago: link creado";
+  if (trigger === "CATALOG_LINK_CREATED") return "Catálogo enviado";
   if (trigger === "PAYMENT_APPROVED") return "Pago: aprobado";
   if (trigger === "PAYMENT_DECLINED") return "Pago: fallido";
   return trigger || "—";
@@ -446,6 +447,7 @@ export function NotificationsManager({
                 <select className="select" value={ruleTrigger} onChange={(e) => setRuleTrigger(e.target.value as any)}>
                   <option value="SUBSCRIPTION_DUE">SUBSCRIPTION_DUE</option>
                   <option value="PAYMENT_LINK_CREATED">PAYMENT_LINK_CREATED</option>
+                  <option value="CATALOG_LINK_CREATED">CATALOG_LINK_CREATED</option>
                   <option value="PAYMENT_APPROVED">PAYMENT_APPROVED</option>
                   <option value="PAYMENT_DECLINED">PAYMENT_DECLINED</option>
                 </select>

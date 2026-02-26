@@ -66,20 +66,18 @@ export async function POST(req: Request) {
   const hasCartPath = /\/public\/cart$/i.test(normalized);
   const link = buildPublicUrl(normalized, `${hasCartPath ? "" : "/public/cart"}/${linkToken}`, utm);
 
-  const content = `Hola ${customerName}, aquí puedes elegir tu plan o suscripción en el catálogo: ${link}`;
-
-  const sendRes = await fetch(`${API_BASE}/admin/chatwoot/messages`, {
+  const scheduleRes = await fetch(`${API_BASE}/admin/notifications/schedule/catalog?forceNow=1`, {
     method: "POST",
     headers: {
       authorization: `Bearer ${token}`,
       "x-admin-token": token,
       "content-type": "application/json"
     },
-    body: JSON.stringify({ customerId, content })
+    body: JSON.stringify({ customerId, catalogUrl: link })
   });
-  const sendJson = await sendRes.json().catch(() => null);
-  if (!sendRes.ok) {
-    return NextResponse.json({ ok: false, error: sendJson?.error || "request_failed" }, { status: sendRes.status });
+  const scheduleJson = await scheduleRes.json().catch(() => null);
+  if (!scheduleRes.ok) {
+    return NextResponse.json({ ok: false, error: scheduleJson?.error || "request_failed" }, { status: scheduleRes.status });
   }
 
   const existing = await fetch(
@@ -122,5 +120,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "store_failed" }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, link });
+  return NextResponse.json({ ok: true, link, notificationsScheduled: scheduleJson?.scheduled ?? 0 });
 }

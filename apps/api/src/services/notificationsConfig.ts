@@ -17,7 +17,13 @@ async function getCommsActiveEnv(): Promise<ActiveEnv> {
   return normalizeActiveEnv(process.env.CHATWOOT_ACTIVE_ENV);
 }
 
-export const notificationTriggerSchema = z.enum(["SUBSCRIPTION_DUE", "PAYMENT_LINK_CREATED", "PAYMENT_APPROVED", "PAYMENT_DECLINED"]);
+export const notificationTriggerSchema = z.enum([
+  "SUBSCRIPTION_DUE",
+  "PAYMENT_LINK_CREATED",
+  "PAYMENT_APPROVED",
+  "PAYMENT_DECLINED",
+  "CATALOG_LINK_CREATED"
+]);
 export type NotificationTrigger = z.infer<typeof notificationTriggerSchema>;
 
 export const notificationChannelSchema = z.enum(["CHATWOOT", "META"]);

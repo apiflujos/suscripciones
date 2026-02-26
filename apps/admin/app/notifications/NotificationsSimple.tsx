@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PendingButton } from "../ui/PendingButton";
 import { HelpTip } from "../ui/HelpTip";
 
@@ -23,7 +23,7 @@ type Rule = {
   id: string;
   name: string;
   enabled: boolean;
-  trigger: "SUBSCRIPTION_DUE" | "PAYMENT_LINK_CREATED" | "PAYMENT_APPROVED" | "PAYMENT_DECLINED";
+  trigger: "SUBSCRIPTION_DUE" | "PAYMENT_LINK_CREATED" | "CATALOG_LINK_CREATED" | "PAYMENT_APPROVED" | "PAYMENT_DECLINED";
   templateId: string;
   offsetsSeconds?: number[];
   atTimeUtc?: string | null;
@@ -34,6 +34,7 @@ type Rule = {
 };
 
 type RealtimeKey =
+  | "catalog_link_created"
   | "payment_link_created"
   | "payment_success_subscription"
   | "payment_success_plan"
@@ -49,6 +50,7 @@ const REALTIME_TYPES: Array<{
   chatwootType: Template["chatwootType"];
   paymentType?: "PLAN" | "SUBSCRIPTION" | "LINK";
 }> = [
+  { key: "catalog_link_created", label: "Catálogo enviado", trigger: "CATALOG_LINK_CREATED", chatwootType: "PAYMENT_LINK" },
   { key: "payment_link_created", label: "Link de pago creado", trigger: "PAYMENT_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "LINK" },
   { key: "payment_success_subscription", label: "Pago exitoso (suscripción)", trigger: "PAYMENT_APPROVED", chatwootType: "PAYMENT_CONFIRMED", paymentType: "SUBSCRIPTION" },
   { key: "payment_success_plan", label: "Pago exitoso (plan)", trigger: "PAYMENT_APPROVED", chatwootType: "PAYMENT_CONFIRMED", paymentType: "PLAN" },
@@ -62,6 +64,35 @@ const REMINDER_TPL_DUE = "tpl_reminder_due";
 const REMINDER_TPL_MORA = "tpl_reminder_mora";
 
 type OffsetItem = { amount: string; unit: "minutes" | "hours" | "days" };
+
+const MESSAGE_VARIABLES = [
+  { label: "Nombre completo", value: "{{customer.name}}" },
+  { label: "Email", value: "{{customer.email}}" },
+  { label: "Teléfono", value: "{{customer.phone}}" },
+  { label: "Dirección", value: "{{customer.metadata.address}}" },
+  { label: "Plan", value: "{{plan.name}}" },
+  { label: "Fecha corte", value: "{{subscription.currentPeriodEndAt}}" },
+  { label: "Fecha pago", value: "{{payment.paidAt}}" },
+  { label: "Referencia", value: "{{payment.reference}}" },
+  { label: "Link pago", value: "{{payment.checkoutUrl}}" },
+  { label: "Link tokenización", value: "{{tokenization.url}}" },
+  { label: "Link catálogo", value: "{{catalog.url}}" },
+  { label: "Tipo de pago", value: "{{paymentType}}" }
+];
+
+const MESSAGE_EMOJIS = ["✅", "❌", "⏰", "💳", "⚠️", "📌", "📅", "🙏", "🔗", "🧾", "✨"];
+
+function insertAtCursor(el: HTMLInputElement | HTMLTextAreaElement, text: string) {
+  const start = el.selectionStart ?? el.value.length;
+  const end = el.selectionEnd ?? el.value.length;
+  const before = el.value.slice(0, start);
+  const after = el.value.slice(end);
+  el.value = `${before}${text}${after}`;
+  const nextPos = start + text.length;
+  el.setSelectionRange(nextPos, nextPos);
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  el.focus();
+}
 
 function secondsFromOffset(item: OffsetItem, sign: 1 | -1) {
   const amount = Number(item.amount || 0);
@@ -145,6 +176,8 @@ export function NotificationsSimple({
     setRealtimeKinds(initialRealtimeKinds);
   }, [initialRealtimeKinds]);
   const [realtimeEdit, setRealtimeEdit] = useState<Record<string, boolean>>({});
+  const lastFieldRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
+  const [pickerOpen, setPickerOpen] = useState<null | "vars" | "emoji">(null);
 
   const [dueOffsets, setDueOffsets] = useState<OffsetItem[]>(offsetsToItems(reminderDue?.offsetsSeconds, -1));
   const [moraOffsets, setMoraOffsets] = useState<OffsetItem[]>(offsetsToItems(reminderMora?.offsetsSeconds, 1));
@@ -161,8 +194,36 @@ export function NotificationsSimple({
     setMoraKind(reminderMoraTemplate?.chatwootTemplate?.name ? "WHATSAPP_TEMPLATE" : "TEXT");
   }, [reminderMoraTemplate?.chatwootTemplate?.name]);
 
+  function onPickValue(value: string) {
+    if (lastFieldRef.current) insertAtCursor(lastFieldRef.current, value);
+    setPickerOpen(null);
+  }
+
   return (
     <div style={{ display: "grid", gap: 16 }}>
+      {pickerOpen ? (
+        <div className="modal-backdrop">
+          <div className="modal-panel" style={{ maxWidth: 640 }}>
+            <div className="panel-header">
+              <h3 style={{ margin: 0 }}>{pickerOpen === "vars" ? "Variables" : "Emojis"}</h3>
+              <button type="button" className="ghost" onClick={() => setPickerOpen(null)} aria-label="Cerrar">X</button>
+            </div>
+            <div className="panel module" style={{ display: "grid", gap: 8 }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {(pickerOpen === "vars" ? MESSAGE_VARIABLES : MESSAGE_EMOJIS).map((item) => {
+                  const label = typeof item === "string" ? item : item.label;
+                  const value = typeof item === "string" ? item : item.value;
+                  return (
+                    <button key={value} type="button" className="ghost" onClick={() => onPickValue(value)} style={{ minHeight: 32 }}>
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <section className="settings-group">
         <div className="settings-group-header">
           <div className="panelHeaderRow">
@@ -220,10 +281,25 @@ export function NotificationsSimple({
                         <div className="field">
                           <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             <span>Mensaje</span>
-                            <HelpTip text="Puedes usar variables del sistema, por ejemplo: {{customer.name}}, {{customer.email}}, {{plan.name}}, {{payment.amountInCents}}, {{payment.checkoutUrl}}, {{subscription.currentPeriodEndAt}}." />
+                            <HelpTip text="Puedes usar variables del sistema, por ejemplo: {{customer.name}}, {{customer.email}}, {{plan.name}}, {{payment.checkoutUrl}}, {{tokenization.url}}, {{catalog.url}}, {{subscription.currentPeriodEndAt}}." />
                           </label>
-                          <textarea className="input" name="content" rows={4} defaultValue={content} placeholder="Escribe el mensaje..." />
+                          <textarea
+                            className="input"
+                            name="content"
+                            rows={4}
+                            defaultValue={content}
+                            placeholder="Escribe el mensaje..."
+                            onFocus={(e) => (lastFieldRef.current = e.target)}
+                          />
                           <div className="field-hint">Se reemplazan variables del sistema automáticamente.</div>
+                          <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                            <button type="button" className="ghost" onClick={() => setPickerOpen("vars")} aria-label="Variables">
+                              {`{ }`}
+                            </button>
+                            <button type="button" className="ghost" onClick={() => setPickerOpen("emoji")} aria-label="Emojis">
+                              🙂
+                            </button>
+                          </div>
                         </div>
                       ) : null}
                       {kind === "WHATSAPP_TEMPLATE" ? (
@@ -327,10 +403,24 @@ export function NotificationsSimple({
                   <div className="field">
                     <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <span>Mensaje</span>
-                      <HelpTip text="Puedes usar variables del sistema, por ejemplo: {{customer.name}}, {{customer.email}}, {{plan.name}}, {{payment.amountInCents}}, {{payment.checkoutUrl}}, {{subscription.currentPeriodEndAt}}." />
+                      <HelpTip text="Puedes usar variables del sistema, por ejemplo: {{customer.name}}, {{customer.email}}, {{plan.name}}, {{payment.checkoutUrl}}, {{tokenization.url}}, {{catalog.url}}, {{subscription.currentPeriodEndAt}}." />
                     </label>
-                    <textarea className="input" name="content" rows={2} defaultValue={reminderDueTemplate?.content && reminderDueTemplate.content !== "(template)" ? reminderDueTemplate.content : ""} />
+                    <textarea
+                      className="input"
+                      name="content"
+                      rows={2}
+                      defaultValue={reminderDueTemplate?.content && reminderDueTemplate.content !== "(template)" ? reminderDueTemplate.content : ""}
+                      onFocus={(e) => (lastFieldRef.current = e.target)}
+                    />
                     <div className="field-hint">Se reemplazan variables del sistema automáticamente.</div>
+                    <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                      <button type="button" className="ghost" onClick={() => setPickerOpen("vars")} aria-label="Variables">
+                        {`{ }`}
+                      </button>
+                      <button type="button" className="ghost" onClick={() => setPickerOpen("emoji")} aria-label="Emojis">
+                        🙂
+                      </button>
+                    </div>
                   </div>
                 ) : null}
                 {dueKind === "WHATSAPP_TEMPLATE" ? (
@@ -470,10 +560,24 @@ export function NotificationsSimple({
                   <div className="field">
                     <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <span>Mensaje</span>
-                      <HelpTip text="Puedes usar variables del sistema, por ejemplo: {{customer.name}}, {{customer.email}}, {{plan.name}}, {{payment.amountInCents}}, {{payment.checkoutUrl}}, {{subscription.currentPeriodEndAt}}." />
+                      <HelpTip text="Puedes usar variables del sistema, por ejemplo: {{customer.name}}, {{customer.email}}, {{plan.name}}, {{payment.checkoutUrl}}, {{tokenization.url}}, {{catalog.url}}, {{subscription.currentPeriodEndAt}}." />
                     </label>
-                    <textarea className="input" name="content" rows={2} defaultValue={reminderMoraTemplate?.content && reminderMoraTemplate.content !== "(template)" ? reminderMoraTemplate.content : ""} />
+                    <textarea
+                      className="input"
+                      name="content"
+                      rows={2}
+                      defaultValue={reminderMoraTemplate?.content && reminderMoraTemplate.content !== "(template)" ? reminderMoraTemplate.content : ""}
+                      onFocus={(e) => (lastFieldRef.current = e.target)}
+                    />
                     <div className="field-hint">Se reemplazan variables del sistema automáticamente.</div>
+                    <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                      <button type="button" className="ghost" onClick={() => setPickerOpen("vars")} aria-label="Variables">
+                        {`{ }`}
+                      </button>
+                      <button type="button" className="ghost" onClick={() => setPickerOpen("emoji")} aria-label="Emojis">
+                        🙂
+                      </button>
+                    </div>
                   </div>
                 ) : null}
                 {moraKind === "WHATSAPP_TEMPLATE" ? (

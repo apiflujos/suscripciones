@@ -5,6 +5,7 @@ import { getNotificationsConfig, notificationTriggerSchema } from "../../service
 import { createPaymentLinkForSubscription } from "../../services/subscriptionBilling";
 import { ensureChatwootContactForCustomer, syncChatwootAttributesForCustomer } from "../../services/chatwootSync";
 import { systemLog } from "../../services/systemLog";
+import { sendChatwootMessage } from "./sendChatwootMessage";
 
 const payloadSchema = z.object({
   trigger: notificationTriggerSchema,
@@ -26,6 +27,8 @@ const payloadSchema = z.object({
     const s = String(v || "").trim();
     return s ? s : undefined;
   }, z.string().uuid().optional()),
+  catalogUrl: z.string().url().optional(),
+  immediateSend: z.boolean().optional(),
   cycleNumber: z.number().int().positive().optional(),
   paymentStatus: z.enum(["PENDING", "APPROVED", "DECLINED", "ERROR", "VOIDED"]).optional()
 });
@@ -309,6 +312,8 @@ export async function subscriptionReminder(payload: any) {
     subscription,
     plan: subscription?.plan || null,
     payment: effectivePayment,
+    tokenization: customer?.metadata?.tokenizationLink?.url ? { url: customer.metadata.tokenizationLink.url } : null,
+    catalog: parsed.data.catalogUrl ? { url: parsed.data.catalogUrl } : null,
     paymentType
   };
 
@@ -378,20 +383,42 @@ export async function subscriptionReminder(payload: any) {
     }
   });
 
-  await prisma.retryJob.create({
-    data: {
-      type: RetryJobType.SEND_CHATWOOT_MESSAGE,
-      payload: { chatwootMessageId: created.id }
+  if (parsed.data.immediateSend) {
+    try {
+      await sendChatwootMessage(created.id);
+      await systemLog(LogLevel.INFO, "notifications.dispatch", "Mensaje enviado", {
+        trigger: parsed.data.trigger,
+        ruleId: parsed.data.ruleId,
+        chatwootMessageId: created.id,
+        customerId: customer.id,
+        paymentId: effectivePayment?.id ?? null
+      }).catch(() => {});
+    } catch (err: any) {
+      await systemLog(LogLevel.WARN, "notifications.dispatch", "Mensaje fallido", {
+        trigger: parsed.data.trigger,
+        ruleId: parsed.data.ruleId,
+        chatwootMessageId: created.id,
+        customerId: customer.id,
+        paymentId: effectivePayment?.id ?? null,
+        err: err?.message ? String(err.message) : "unknown_error"
+      }).catch(() => {});
     }
-  });
+  } else {
+    await prisma.retryJob.create({
+      data: {
+        type: RetryJobType.SEND_CHATWOOT_MESSAGE,
+        payload: { chatwootMessageId: created.id }
+      }
+    });
 
-  await systemLog(LogLevel.INFO, "notifications.dispatch", "Mensaje en cola para envio", {
-    trigger: parsed.data.trigger,
-    ruleId: parsed.data.ruleId,
-    chatwootMessageId: created.id,
-    customerId: customer.id,
-    paymentId: effectivePayment?.id ?? null
-  }).catch(() => {});
+    await systemLog(LogLevel.INFO, "notifications.dispatch", "Mensaje en cola para envio", {
+      trigger: parsed.data.trigger,
+      ruleId: parsed.data.ruleId,
+      chatwootMessageId: created.id,
+      customerId: customer.id,
+      paymentId: effectivePayment?.id ?? null
+    }).catch(() => {});
+  }
 
   if (parsed.data.trigger === "PAYMENT_DECLINED" && subscription) {
     // Optional: mark past-due for visibility (best-effort).
