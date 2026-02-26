@@ -48,11 +48,18 @@ export function ChangePlanButton({
   const initialCutoff = useMemo(() => toLocalInput(currentEndAt), [currentEndAt]);
   const [planId, setPlanId] = useState(currentPlanId);
   const [cutoffAt, setCutoffAt] = useState(initialCutoff);
+  const [query, setQuery] = useState("");
+
+  const filteredPlans = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return plans;
+    return plans.filter((p) => String(p.name || "").toLowerCase().includes(q));
+  }, [plans, query]);
 
   return (
     <>
       <button className="ghost btn-compact btn-blue" type="button" onClick={() => setOpen(true)}>
-        Cambiar plan
+        Cambiar producto
       </button>
 
       {open ? (
@@ -70,7 +77,7 @@ export function ChangePlanButton({
         >
           <div className="panel module" style={{ width: "min(560px, 96vw)" }}>
             <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 style={{ margin: 0 }}>Cambiar plan del contacto</h3>
+              <h3 style={{ margin: 0 }}>Cambiar producto del contacto</h3>
               <button type="button" className="ghost" onClick={() => setOpen(false)} aria-label="Cerrar">
                 X
               </button>
@@ -84,11 +91,18 @@ export function ChangePlanButton({
 
               <div className="field">
                 <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span>Nuevo plan</span>
-                  <HelpTip text="Puedes elegir cualquier plan/suscripción existente o crear uno nuevo en Productos." />
+                  <span>Nuevo producto</span>
+                  <HelpTip text="Puedes elegir cualquier producto/plan existente o crear uno nuevo en Productos." />
                 </label>
+                <input
+                  className="input"
+                  placeholder="Buscar producto..."
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  style={{ marginBottom: 8 }}
+                />
                 <select className="select" name="planId" value={planId} onChange={(e) => setPlanId(e.target.value)}>
-                  {plans.map((p) => (
+                  {filteredPlans.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name}
                     </option>
