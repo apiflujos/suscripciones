@@ -263,16 +263,32 @@ export function CheckoutTemplatesPanel({
 
         <div style={{ display: "grid", gap: 12 }}>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {STEPS.map((s, idx) => (
-              <button
-                key={s.id}
-                type="button"
-                className={idx === stepIndex ? "primary" : "ghost"}
-                onClick={() => setStepIndex(idx)}
-              >
-                {idx + 1}. {s.label}
-              </button>
-            ))}
+            {STEPS.map((s, idx) => {
+              const blockKind = idx > 0 && !selectedKind;
+              const blockName = idx > 1 && !name.trim();
+              const blockProducts = idx > 3 && !isProductsValid;
+              const blocked = blockKind || blockName || blockProducts;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  className={idx === stepIndex ? "primary" : "ghost"}
+                  onClick={() => {
+                    if (blocked) {
+                      if (blockKind) setLocalError("Selecciona el tipo de plantilla.");
+                      else if (blockName) setLocalError("Debes ingresar el nombre interno.");
+                      else if (blockProducts) setLocalError("Debes seleccionar productos o permitir el selector.");
+                      return;
+                    }
+                    setLocalError("");
+                    setStepIndex(idx);
+                  }}
+                  disabled={blocked}
+                >
+                  {idx + 1}. {s.label}
+                </button>
+              );
+            })}
           </div>
 
           {stepIndex === 0 ? (
@@ -388,11 +404,7 @@ export function CheckoutTemplatesPanel({
                     <textarea className="input" rows={2} value={wompiDescription} onChange={(e) => setWompiDescription(e.target.value)} placeholder="Descripción corta" />
                   </div>
                 </div>
-                <div className="field">
-                  <label>UTM (opcional)</label>
-                  <input className="input" name="utmParams" value={utmParams} onChange={(e) => setUtmParams(e.target.value)} placeholder="utm_source=apiflujos&utm_campaign=plan" />
-                  <div className="field-hint">Se agrega al final del link. No incluyas el signo ?</div>
-                </div>
+                <input type="hidden" name="utmParams" value={utmParams} />
               </div>
             ) : null}
 
