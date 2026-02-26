@@ -394,7 +394,7 @@ export function CheckoutTemplatesPanel({
                     onChange={() => setKind("CART")}
                     style={{ display: "none" }}
                   />
-                  <strong>Carrito</strong>
+                  <strong>Catálogo</strong>
                   <div className="field-hint">Checkout con selección de productos.</div>
                 </label>
               </div>
@@ -530,7 +530,7 @@ export function CheckoutTemplatesPanel({
                     <input type="checkbox" name="allowProductSelect" checked={allowSelect} onChange={(e) => setAllowSelect(e.target.checked)} />
                   </div>
                 ) : (
-                  <div className="field-hint">Selecciona los productos que aparecerán en el carrito.</div>
+                  <div className="field-hint">Selecciona los productos que aparecerán en el catálogo.</div>
                 )}
                 <div className="field" ref={productsRef}>
                   <label>Productos disponibles</label>
@@ -739,7 +739,7 @@ export function CheckoutTemplatesPanel({
                   {t.logoUrl ? <img src={t.logoUrl} alt={t.name} style={{ height: 26, width: "auto", borderRadius: 6, border: "1px solid var(--stroke)" }} /> : null}
                   <div className="template-title">{t.name}</div>
                 </div>
-                <div className="field-hint">{t.kind === "PLAN" ? "Plan" : t.kind === "CART" ? "Carrito" : "Suscripción"}</div>
+                <div className="field-hint">{t.kind === "PLAN" ? "Plan" : t.kind === "CART" ? "Catálogo" : "Suscripción"}</div>
               </div>
               <div style={{ display: "grid", gap: 6, justifyItems: "end" }}>
                 <span className={`pill ${t.active ? "pill-green" : ""}`}>{t.active ? "Activa" : "Inactiva"}</span>

@@ -66,7 +66,7 @@ export async function POST(req: Request) {
   const hasCartPath = /\/public\/cart$/i.test(normalized);
   const link = buildPublicUrl(normalized, `${hasCartPath ? "" : "/public/cart"}/${linkToken}`, utm);
 
-  const content = `Hola ${customerName}, aquí puedes elegir tu plan o suscripción: ${link}`;
+  const content = `Hola ${customerName}, aquí puedes elegir tu plan o suscripción en el catálogo: ${link}`;
 
   const sendRes = await fetch(`${API_BASE}/admin/chatwoot/messages`, {
     method: "POST",

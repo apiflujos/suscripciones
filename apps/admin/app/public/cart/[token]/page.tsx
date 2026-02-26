@@ -104,7 +104,7 @@ export default async function PublicCartPage({
       ) : null}
       {errorMsg ? <PublicAlert>{errorMsg}</PublicAlert> : null}
       {!products.length ? (
-        <PublicAlert>No hay productos disponibles para este carrito.</PublicAlert>
+        <PublicAlert>No hay productos disponibles en este catálogo.</PublicAlert>
       ) : (
         <div style={{ display: "grid", gap: 12 }}>
           {products.map((p: any) => {

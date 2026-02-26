@@ -423,7 +423,7 @@ export function CustomersTable({
                       type="button"
                       onClick={() => openCartModal(c)}
                     >
-                      Enviar carrito
+                      Enviar catálogo
                     </button>
                   </div>
                   {sendError[c.id] === "auth_required" ? (
@@ -454,7 +454,7 @@ export function CustomersTable({
                         ) : null}
                         {cartLink ? (
                           <a className="ghost btn-compact btn-green btn-link" href={cartLink} target="_blank" rel="noreferrer" title={maskUrl(cartLink)}>
-                            Link de carrito
+                            Link de catálogo
                           </a>
                         ) : null}
                       </div>
@@ -586,7 +586,7 @@ export function CustomersTable({
         <div className="modal-backdrop">
           <div className="modal-panel" style={{ maxWidth: 520 }}>
             <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <strong>Enviar carrito</strong>
+              <strong>Enviar catálogo</strong>
               <button className="ghost" type="button" onClick={closeCartModal} aria-label="Cerrar">
                 X
               </button>
@@ -632,7 +632,7 @@ export function CustomersTable({
               }}
             >
               <div className="field">
-                <label>Plantilla de carrito</label>
+                <label>Plantilla de catálogo</label>
                 <select
                   className="select"
                   value={resolveCartTemplate(cartModalCustomer.id)}
