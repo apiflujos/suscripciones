@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PendingButton } from "../ui/PendingButton";
 
 type LayoutFields = {
@@ -79,6 +79,7 @@ export function CheckoutTemplatesPanel({
   const [stepIndex, setStepIndex] = useState<number>(initialStep === "form" ? 1 : 0);
   const [editing, setEditing] = useState<Template | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
   const [kind, setKind] = useState<"PLAN" | "SUBSCRIPTION" | "CART" | "">(
     initialKind === "PLAN" ? "PLAN" : initialKind === "SUBSCRIPTION" ? "SUBSCRIPTION" : ""
   );
@@ -104,6 +105,10 @@ export function CheckoutTemplatesPanel({
   const [showName, setShowName] = useState(true);
   const [showPhone, setShowPhone] = useState(true);
   const [showEmail, setShowEmail] = useState(false);
+  const nameRef = useRef<HTMLInputElement | null>(null);
+  const tenantRef = useRef<HTMLSelectElement | null>(null);
+  const productsRef = useRef<HTMLDivElement | null>(null);
+  const typeRef = useRef<HTMLButtonElement | null>(null);
 
   const productById = useMemo(() => {
     const map = new Map<string, Product>();
@@ -114,6 +119,7 @@ export function CheckoutTemplatesPanel({
   function resetWizard() {
     setEditing(null);
     setEditModalOpen(false);
+    setCreateModalOpen(false);
     setKind("");
     setName("");
     setActive(true);
@@ -164,6 +170,11 @@ export function CheckoutTemplatesPanel({
     setShowPhone(layout.fields?.showPhone !== false);
     setShowEmail(Boolean(layout.fields?.showEmail));
     setStepIndex(1);
+  }
+
+  function openCreate() {
+    resetWizard();
+    setCreateModalOpen(true);
   }
 
   function onLogoFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -244,21 +255,25 @@ export function CheckoutTemplatesPanel({
     if (!selectedKind) {
       setStepIndex(0);
       setLocalError("Selecciona el tipo de plantilla.");
+      setTimeout(() => typeRef.current?.focus(), 0);
       return false;
     }
     if (!name.trim()) {
       setStepIndex(1);
       setLocalError("Debes ingresar el nombre interno.");
+      setTimeout(() => nameRef.current?.focus(), 0);
       return false;
     }
     if (missingTenant) {
       setStepIndex(1);
       setLocalError("Selecciona el canal de ventas.");
+      setTimeout(() => tenantRef.current?.focus(), 0);
       return false;
     }
     if (!isProductsValid) {
       setStepIndex(3);
       setLocalError("Debes seleccionar productos o permitir el selector.");
+      setTimeout(() => productsRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 0);
       return false;
     }
     setLocalError("");
@@ -314,13 +329,14 @@ export function CheckoutTemplatesPanel({
                   style={{
                     textAlign: "left",
                     cursor: "pointer",
-                    borderColor: kind === "PLAN" ? "var(--primary)" : "var(--stroke)",
+                    borderColor: kind === "PLAN" ? "var(--primary)" : missingKind ? "var(--danger)" : "var(--stroke)",
                     background: kind === "PLAN" ? "rgba(14, 165, 233, 0.08)" : "transparent",
                     boxShadow: kind === "PLAN" ? "0 0 0 2px rgba(14, 165, 233, 0.25)" : "none"
                   }}
                   onClick={() => setKind("PLAN")}
                   role="button"
                   aria-pressed={kind === "PLAN"}
+                  ref={typeRef}
                 >
                   <input
                     type="radio"
@@ -338,7 +354,7 @@ export function CheckoutTemplatesPanel({
                   style={{
                     textAlign: "left",
                     cursor: "pointer",
-                    borderColor: kind === "SUBSCRIPTION" ? "var(--primary)" : "var(--stroke)",
+                    borderColor: kind === "SUBSCRIPTION" ? "var(--primary)" : missingKind ? "var(--danger)" : "var(--stroke)",
                     background: kind === "SUBSCRIPTION" ? "rgba(14, 165, 233, 0.08)" : "transparent",
                     boxShadow: kind === "SUBSCRIPTION" ? "0 0 0 2px rgba(14, 165, 233, 0.25)" : "none"
                   }}
@@ -362,7 +378,7 @@ export function CheckoutTemplatesPanel({
                   style={{
                     textAlign: "left",
                     cursor: "pointer",
-                    borderColor: kind === "CART" ? "var(--primary)" : "var(--stroke)",
+                    borderColor: kind === "CART" ? "var(--primary)" : missingKind ? "var(--danger)" : "var(--stroke)",
                     background: kind === "CART" ? "rgba(14, 165, 233, 0.08)" : "transparent",
                     boxShadow: kind === "CART" ? "0 0 0 2px rgba(14, 165, 233, 0.25)" : "none"
                   }}
@@ -421,6 +437,7 @@ export function CheckoutTemplatesPanel({
                     onChange={(e) => setName(e.target.value)}
                     required
                     style={missingName && stepIndex === 1 ? { borderColor: "var(--danger)" } : undefined}
+                    ref={nameRef}
                   />
                 </div>
                 {requireTenant ? (
@@ -431,6 +448,7 @@ export function CheckoutTemplatesPanel({
                     value={tenantId}
                     onChange={(e) => setTenantId(e.target.value)}
                     style={missingTenant && stepIndex === 1 ? { borderColor: "var(--danger)" } : undefined}
+                    ref={tenantRef}
                   >
                     <option value="">Selecciona un canal</option>
                     {tenants.map((t) => (
@@ -514,7 +532,7 @@ export function CheckoutTemplatesPanel({
                 ) : (
                   <div className="field-hint">Selecciona los productos que aparecerán en el carrito.</div>
                 )}
-                <div className="field">
+                <div className="field" ref={productsRef}>
                   <label>Productos disponibles</label>
                   <div style={{ display: "grid", gap: 8 }}>
                     {filteredProducts.map((p) => {
@@ -671,11 +689,16 @@ export function CheckoutTemplatesPanel({
           <strong>Plantillas</strong>
           <div className="field-hint">Wizard para crear plantillas de checkout público.</div>
         </div>
-        {editing ? (
-          <button className="ghost" type="button" onClick={resetWizard}>
-            Cancelar edición
+        <div style={{ display: "flex", gap: 8 }}>
+          {editing ? (
+            <button className="ghost" type="button" onClick={resetWizard}>
+              Cancelar edición
+            </button>
+          ) : null}
+          <button className="primary" type="button" onClick={openCreate}>
+            Nueva plantilla
           </button>
-        ) : null}
+        </div>
       </div>
 
       {editing && editModalOpen ? (
@@ -690,9 +713,21 @@ export function CheckoutTemplatesPanel({
             {wizardBody}
           </div>
         </div>
-      ) : (
-        wizardBody
-      )}
+      ) : null}
+
+      {createModalOpen ? (
+        <div className="modal-backdrop">
+          <div className="modal-panel" style={{ maxWidth: 900 }}>
+            <div className="panel-header">
+              <strong>Nueva plantilla</strong>
+              <button className="ghost" type="button" onClick={resetWizard} aria-label="Cerrar">
+                X
+              </button>
+            </div>
+            {wizardBody}
+          </div>
+        </div>
+      ) : null}
 
       {!templates.length ? <div className="field-hint">Aún no hay plantillas.</div> : null}
       <div className="template-grid">
