@@ -49,11 +49,16 @@ export function ChangePlanButton({
   const [planId, setPlanId] = useState(currentPlanId);
   const [cutoffAt, setCutoffAt] = useState(initialCutoff);
   const [query, setQuery] = useState("");
+  const hasChange = planId && planId !== currentPlanId;
 
   const filteredPlans = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return plans;
-    return plans.filter((p) => String(p.name || "").toLowerCase().includes(q));
+    return plans.filter((p) => {
+      const name = String(p.name || "").toLowerCase();
+      const id = String(p.id || "").toLowerCase();
+      return name.includes(q) || id.includes(q);
+    });
   }, [plans, query]);
 
   return (
@@ -108,6 +113,16 @@ export function ChangePlanButton({
                     </option>
                   ))}
                 </select>
+                {!filteredPlans.length ? (
+                  <div className="field-hint" style={{ color: "var(--danger)" }}>
+                    No hay resultados con esa búsqueda.
+                  </div>
+                ) : null}
+                {!hasChange ? (
+                  <div className="field-hint" style={{ color: "var(--danger)" }}>
+                    Debes seleccionar un producto diferente.
+                  </div>
+                ) : null}
                 <div className="field-hint" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                   <span>Si necesitas otro plan, créalo aquí mismo.</span>
                   <a className="ghost btn-compact" href="/products" target="_blank" rel="noreferrer">
@@ -135,7 +150,7 @@ export function ChangePlanButton({
                 <button className="ghost" type="button" onClick={() => setOpen(false)}>
                   Cancelar
                 </button>
-                <PendingButton className="primary" type="submit" pendingText="Guardando...">
+                <PendingButton className="primary" type="submit" pendingText="Guardando..." disabled={!hasChange || !cutoffAt}>
                   Guardar
                 </PendingButton>
               </div>
