@@ -144,11 +144,14 @@ export function NotificationsSimple({
   useEffect(() => {
     setRealtimeKinds(initialRealtimeKinds);
   }, [initialRealtimeKinds]);
+  const [realtimeEdit, setRealtimeEdit] = useState<Record<string, boolean>>({});
 
   const [dueOffsets, setDueOffsets] = useState<OffsetItem[]>(offsetsToItems(reminderDue?.offsetsSeconds, -1));
   const [moraOffsets, setMoraOffsets] = useState<OffsetItem[]>(offsetsToItems(reminderMora?.offsetsSeconds, 1));
   const [dueKind, setDueKind] = useState<"TEXT" | "WHATSAPP_TEMPLATE">(reminderDueTemplate?.chatwootTemplate?.name ? "WHATSAPP_TEMPLATE" : "TEXT");
   const [moraKind, setMoraKind] = useState<"TEXT" | "WHATSAPP_TEMPLATE">(reminderMoraTemplate?.chatwootTemplate?.name ? "WHATSAPP_TEMPLATE" : "TEXT");
+  const [dueEdit, setDueEdit] = useState(false);
+  const [moraEdit, setMoraEdit] = useState(false);
 
   useEffect(() => {
     setDueKind(reminderDueTemplate?.chatwootTemplate?.name ? "WHATSAPP_TEMPLATE" : "TEXT");
@@ -177,6 +180,7 @@ export function NotificationsSimple({
               const waLang = tpl?.chatwootTemplate?.language || "es";
               const waParams = tpl?.chatwootTemplate?.processed_params?.body || [];
               const kind = realtimeKinds[rt.key] || (hasWa ? "WHATSAPP_TEMPLATE" : "TEXT");
+              const isEditing = Boolean(realtimeEdit[rt.key] || !rule);
               return (
                 <div key={rt.key} className="saved-conn-card">
                   <div className="saved-conn-header">
@@ -186,66 +190,100 @@ export function NotificationsSimple({
                     </div>
                     <span className={`pill ${rule?.enabled ? "pill-green" : "pill-muted"}`}>{rule?.enabled ? "Activa" : "Inactiva"}</span>
                   </div>
-                  <form action={actions.saveRealtime} style={{ display: "grid", gap: 8 }}>
-                    <input type="hidden" name="csrf" value={csrfToken} />
-                    <input type="hidden" name="environment" value={env} />
-                    <input type="hidden" name="key" value={rt.key} />
-                    <input type="hidden" name="chatwootType" value={rt.chatwootType || ""} />
-                    <input type="hidden" name="paymentType" value={rt.paymentType || ""} />
-                    <div className="field row" style={{ justifyContent: "space-between" }}>
-                      <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span>Activa</span>
-                        <HelpTip text="Solo una notificación activa por tipo." />
-                      </label>
-                      <input type="checkbox" name="enabled" defaultChecked={rule?.enabled ?? true} />
-                    </div>
-                    <div className="field">
-                      <label>Tipo de mensaje</label>
-                      <select
-                        className="select"
-                        name="templateKind"
-                        value={kind}
-                        onChange={(e) => setRealtimeKinds({ ...realtimeKinds, [rt.key]: e.target.value as any })}
-                      >
-                        <option value="TEXT">Texto</option>
-                        <option value="WHATSAPP_TEMPLATE">Plantilla WhatsApp</option>
-                      </select>
-                    </div>
-                    {kind === "TEXT" ? (
-                      <div className="field">
+                  {isEditing ? (
+                    <form action={actions.saveRealtime} style={{ display: "grid", gap: 8 }}>
+                      <input type="hidden" name="csrf" value={csrfToken} />
+                      <input type="hidden" name="environment" value={env} />
+                      <input type="hidden" name="key" value={rt.key} />
+                      <input type="hidden" name="chatwootType" value={rt.chatwootType || ""} />
+                      <input type="hidden" name="paymentType" value={rt.paymentType || ""} />
+                      <div className="field row" style={{ justifyContent: "space-between" }}>
                         <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <span>Mensaje</span>
-                          <HelpTip text="Puedes usar variables del sistema, por ejemplo: {{customer.name}}, {{customer.email}}, {{plan.name}}, {{payment.amountInCents}}, {{payment.checkoutUrl}}, {{subscription.currentPeriodEndAt}}." />
+                          <span>Activa</span>
+                          <HelpTip text="Solo una notificación activa por tipo." />
                         </label>
-                        <textarea className="input" name="content" rows={2} defaultValue={content} placeholder="Escribe el mensaje..." />
-                        <div className="field-hint">Se reemplazan variables del sistema automáticamente.</div>
+                        <input type="checkbox" name="enabled" defaultChecked={rule?.enabled ?? true} />
                       </div>
-                    ) : null}
-                    {kind === "WHATSAPP_TEMPLATE" ? (
-                      <>
-                        <div className="field">
-                          <label>Template WhatsApp</label>
-                          <input className="input" name="waTemplateName" defaultValue={waName} placeholder="nombre_template" />
-                        </div>
-                        <div className="field">
-                          <label>Idioma</label>
-                          <input className="input" name="waLanguage" defaultValue={waLang} placeholder="es" />
-                        </div>
+                      <div className="field">
+                        <label>Tipo de mensaje</label>
+                        <select
+                          className="select"
+                          name="templateKind"
+                          value={kind}
+                          onChange={(e) => setRealtimeKinds({ ...realtimeKinds, [rt.key]: e.target.value as any })}
+                        >
+                          <option value="TEXT">Texto</option>
+                          <option value="WHATSAPP_TEMPLATE">Plantilla WhatsApp</option>
+                        </select>
+                      </div>
+                      {kind === "TEXT" ? (
                         <div className="field">
                           <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <span>Parámetros (separados por |)</span>
-                            <HelpTip text="Son los valores que reemplazan {{1}}, {{2}}, {{3}} en tu plantilla. Ej: 'Hola {{1}}, recibimos {{2}}' → Juan|$10.000" />
+                            <span>Mensaje</span>
+                            <HelpTip text="Puedes usar variables del sistema, por ejemplo: {{customer.name}}, {{customer.email}}, {{plan.name}}, {{payment.amountInCents}}, {{payment.checkoutUrl}}, {{subscription.currentPeriodEndAt}}." />
                           </label>
-                          <input className="input" name="waParams" defaultValue={waParams.map((p) => p.value).join("|")} placeholder="Juan|$10000" />
+                          <textarea className="input" name="content" rows={4} defaultValue={content} placeholder="Escribe el mensaje..." />
+                          <div className="field-hint">Se reemplazan variables del sistema automáticamente.</div>
                         </div>
-                      </>
-                    ) : null}
-                    <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-                      <PendingButton className="primary" type="submit" pendingText="Guardando...">
-                        Guardar
-                      </PendingButton>
+                      ) : null}
+                      {kind === "WHATSAPP_TEMPLATE" ? (
+                        <>
+                          <div className="field">
+                            <label>Template WhatsApp</label>
+                            <input className="input" name="waTemplateName" defaultValue={waName} placeholder="nombre_template" />
+                          </div>
+                          <div className="field">
+                            <label>Idioma</label>
+                            <input className="input" name="waLanguage" defaultValue={waLang} placeholder="es" />
+                          </div>
+                          <div className="field">
+                            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <span>Parámetros (separados por |)</span>
+                              <HelpTip text="Son los valores que reemplazan {{1}}, {{2}}, {{3}} en tu plantilla. Ej: 'Hola {{1}}, recibimos {{2}}' → Juan|$10.000" />
+                            </label>
+                            <input className="input" name="waParams" defaultValue={waParams.map((p) => p.value).join("|")} placeholder="Juan|$10000" />
+                          </div>
+                        </>
+                      ) : null}
+                      <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                        {rule ? (
+                          <button className="ghost" type="button" onClick={() => setRealtimeEdit((prev) => ({ ...prev, [rt.key]: false }))}>
+                            Cancelar
+                          </button>
+                        ) : null}
+                        <PendingButton className="primary" type="submit" pendingText="Guardando...">
+                          Guardar
+                        </PendingButton>
+                      </div>
+                    </form>
+                  ) : (
+                    <div style={{ display: "grid", gap: 8 }}>
+                      <div className="saved-conn-meta">
+                        <div className="saved-conn-meta-item">
+                          <span className="saved-conn-meta-label">Tipo de mensaje</span>
+                          <span className="saved-conn-meta-value">{kind === "TEXT" ? "Texto" : "Plantilla WhatsApp"}</span>
+                        </div>
+                        <div className="saved-conn-meta-item" style={{ gridColumn: "1 / -1" }}>
+                          <span className="saved-conn-meta-label">Detalle</span>
+                          {kind === "TEXT" ? (
+                            <span className="saved-conn-meta-value" style={{ whiteSpace: "pre-wrap" }}>
+                              {content || "—"}
+                            </span>
+                          ) : (
+                            <span className="saved-conn-meta-value" style={{ whiteSpace: "pre-wrap" }}>
+                              {waName ? `${waName} (${waLang})` : "—"}
+                              {waParams.length ? ` · ${waParams.map((p) => p.value).join(" | ")}` : ""}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
+                        <button className="ghost" type="button" onClick={() => setRealtimeEdit((prev) => ({ ...prev, [rt.key]: true }))}>
+                          Editar
+                        </button>
+                      </div>
                     </div>
-                  </form>
+                  )}
                 </div>
               );
             })}
@@ -268,7 +306,8 @@ export function NotificationsSimple({
                   <div className="saved-conn-sub">Antes del vencimiento</div>
                 </div>
               </div>
-              <form action={actions.saveReminder} style={{ display: "grid", gap: 8 }}>
+              {dueEdit || !reminderDue ? (
+                <form action={actions.saveReminder} style={{ display: "grid", gap: 8 }}>
                 <input type="hidden" name="csrf" value={csrfToken} />
                 <input type="hidden" name="environment" value={env} />
                 <input type="hidden" name="kind" value="DUE" />
@@ -364,11 +403,43 @@ export function NotificationsSimple({
                   + Agregar recordatorio
                 </button>
                 <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
+                  {reminderDue ? (
+                    <button className="ghost" type="button" onClick={() => setDueEdit(false)}>
+                      Cancelar
+                    </button>
+                  ) : null}
                   <PendingButton className="primary" type="submit" pendingText="Guardando...">
                     Guardar
                   </PendingButton>
                 </div>
               </form>
+              ) : (
+                <div style={{ display: "grid", gap: 8 }}>
+                  <div className="saved-conn-meta">
+                    <div className="saved-conn-meta-item">
+                      <span className="saved-conn-meta-label">Tipo de mensaje</span>
+                      <span className="saved-conn-meta-value">{dueKind === "TEXT" ? "Texto" : "Plantilla WhatsApp"}</span>
+                    </div>
+                    <div className="saved-conn-meta-item" style={{ gridColumn: "1 / -1" }}>
+                      <span className="saved-conn-meta-label">Detalle</span>
+                      {dueKind === "TEXT" ? (
+                        <span className="saved-conn-meta-value" style={{ whiteSpace: "pre-wrap" }}>
+                          {reminderDueTemplate?.content && reminderDueTemplate.content !== "(template)" ? reminderDueTemplate.content : "—"}
+                        </span>
+                      ) : (
+                        <span className="saved-conn-meta-value" style={{ whiteSpace: "pre-wrap" }}>
+                          {reminderDueTemplate?.chatwootTemplate?.name || "—"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
+                    <button className="ghost" type="button" onClick={() => setDueEdit(true)}>
+                      Editar
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="saved-conn-card">
@@ -378,7 +449,8 @@ export function NotificationsSimple({
                   <div className="saved-conn-sub">Después del vencimiento</div>
                 </div>
               </div>
-              <form action={actions.saveReminder} style={{ display: "grid", gap: 8 }}>
+              {moraEdit || !reminderMora ? (
+                <form action={actions.saveReminder} style={{ display: "grid", gap: 8 }}>
                 <input type="hidden" name="csrf" value={csrfToken} />
                 <input type="hidden" name="environment" value={env} />
                 <input type="hidden" name="kind" value="MORA" />
@@ -474,11 +546,43 @@ export function NotificationsSimple({
                   + Agregar recordatorio
                 </button>
                 <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
+                  {reminderMora ? (
+                    <button className="ghost" type="button" onClick={() => setMoraEdit(false)}>
+                      Cancelar
+                    </button>
+                  ) : null}
                   <PendingButton className="primary" type="submit" pendingText="Guardando...">
                     Guardar
                   </PendingButton>
                 </div>
               </form>
+              ) : (
+                <div style={{ display: "grid", gap: 8 }}>
+                  <div className="saved-conn-meta">
+                    <div className="saved-conn-meta-item">
+                      <span className="saved-conn-meta-label">Tipo de mensaje</span>
+                      <span className="saved-conn-meta-value">{moraKind === "TEXT" ? "Texto" : "Plantilla WhatsApp"}</span>
+                    </div>
+                    <div className="saved-conn-meta-item" style={{ gridColumn: "1 / -1" }}>
+                      <span className="saved-conn-meta-label">Detalle</span>
+                      {moraKind === "TEXT" ? (
+                        <span className="saved-conn-meta-value" style={{ whiteSpace: "pre-wrap" }}>
+                          {reminderMoraTemplate?.content && reminderMoraTemplate.content !== "(template)" ? reminderMoraTemplate.content : "—"}
+                        </span>
+                      ) : (
+                        <span className="saved-conn-meta-value" style={{ whiteSpace: "pre-wrap" }}>
+                          {reminderMoraTemplate?.chatwootTemplate?.name || "—"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
+                    <button className="ghost" type="button" onClick={() => setMoraEdit(true)}>
+                      Editar
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
