@@ -306,10 +306,31 @@ export async function chargeSubscriptionNow(formData: FormData) {
       ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/charge-now?tenantId=${encodeURIComponent(tenantId)}`
       : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/charge-now`;
     await adminFetch(path, { method: "POST", body: JSON.stringify({}) });
-    redirect(mergeQuery(returnTo, { charged: "1", ...(tenantId ? { tenantId } : {}) }));
+    redirect(mergeQuery(returnTo, { charged: "1", subscriptionId, ...(tenantId ? { tenantId } : {}) }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
     redirect(mergeQuery(returnTo, { error: String(err?.message || "charge_now_failed"), ...(tenantId ? { tenantId } : {}) }));
+  }
+}
+
+export async function scheduleCutoff(formData: FormData) {
+  await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
+  const subscriptionId = String(formData.get("subscriptionId") || "").trim();
+  const cutoffAt = String(formData.get("cutoffAt") || "").trim();
+  const tenantIds = readTenantIds(formData);
+  const tenantId = tenantIds[0] || "";
+  if (!subscriptionId || !cutoffAt) return redirect(mergeQuery(returnTo, { error: "missing_cutoff_date", ...(tenantId ? { tenantId } : {}) }));
+
+  try {
+    const path = tenantId
+      ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/schedule-cutoff?tenantId=${encodeURIComponent(tenantId)}`
+      : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/schedule-cutoff`;
+    await adminFetch(path, { method: "POST", body: JSON.stringify({ cutoffAt }) });
+    redirect(mergeQuery(returnTo, { cutoffScheduled: "1", subscriptionId, ...(tenantId ? { tenantId } : {}) }));
+  } catch (err: any) {
+    if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
+    redirect(mergeQuery(returnTo, { error: String(err?.message || "schedule_cutoff_failed"), ...(tenantId ? { tenantId } : {}) }));
   }
 }
 
@@ -598,9 +619,110 @@ export async function sendChatwootPaymentLink(formData: FormData) {
       method: "POST",
       body: JSON.stringify({ customerId, content })
     });
-    redirect(mergeQuery(returnTo, { created: "1", chatwoot: "sent" }));
+    redirect(mergeQuery(returnTo, { created: "1", central: "sent", customerId, checkoutUrl }));
   } catch (err: any) {
     redirect(mergeQuery(returnTo, { error: String(err?.message || "chatwoot_send_failed") }));
+  }
+}
+
+export async function sendCentralComPaymentLink(formData: FormData) {
+  await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
+  const subscriptionId = String(formData.get("subscriptionId") || "").trim();
+  const customerId = String(formData.get("customerId") || "").trim();
+  const tenantIds = readTenantIds(formData);
+  const tenantId = tenantIds[0] || "";
+  if (!subscriptionId || !customerId) {
+    return redirect(mergeQuery(returnTo, { error: "missing_subscription_or_customer", ...(tenantId ? { tenantId } : {}) }));
+  }
+
+  try {
+    const path = tenantId
+      ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/payment-link?tenantId=${encodeURIComponent(tenantId)}`
+      : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/payment-link`;
+    const json = await adminFetch(path, { method: "POST", body: JSON.stringify({}) });
+    const checkoutUrl = String(json?.checkoutUrl || "").trim();
+    if (!checkoutUrl) return redirect(mergeQuery(returnTo, { error: "checkout_url_missing", ...(tenantId ? { tenantId } : {}) }));
+
+    const content = `Link de pago: ${checkoutUrl}`;
+    await adminFetch("/admin/chatwoot/messages", {
+      method: "POST",
+      body: JSON.stringify({ customerId, content })
+    });
+
+    redirect(
+      mergeQuery(returnTo, {
+        central: "sent",
+        checkoutUrl,
+        customerId,
+        ...(tenantId ? { tenantId } : {})
+      })
+    );
+  } catch (err: any) {
+    if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
+    redirect(mergeQuery(returnTo, { error: String(err?.message || "centralcom_send_failed"), ...(tenantId ? { tenantId } : {}) }));
+  }
+}
+
+export async function sendCentralComTokenizationLink(formData: FormData) {
+  await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
+  const customerId = String(formData.get("customerId") || "").trim();
+  const planId = String(formData.get("planId") || "").trim();
+  const tenantIds = readTenantIds(formData);
+  const tenantId = tenantIds[0] || "";
+  if (!customerId) return redirect(mergeQuery(returnTo, { error: "missing_customer_id", ...(tenantId ? { tenantId } : {}) }));
+
+  try {
+    const [settings, customerRes] = await Promise.all([
+      adminFetch("/admin/settings", { method: "GET" }).catch(() => null),
+      adminFetch(`/admin/customers/${encodeURIComponent(customerId)}`, { method: "GET" }).catch(() => null)
+    ]);
+    const checkoutConfig = settings?.checkoutConfig || {};
+    const base = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
+    if (!base) {
+      return redirect(mergeQuery(returnTo, { error: "missing_subscription_base_url", ...(tenantId ? { tenantId } : {}) }));
+    }
+
+    const token = crypto.randomBytes(18).toString("hex");
+    const baseUrl = `${base.replace(/\/$/, "")}/public/suscripcion/${token}`;
+    const utm = String(checkoutConfig?.defaultUtmParams || "").trim();
+    const url = utm ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${utm.replace(/^\?+/, "")}` : baseUrl;
+    const expiryHours =
+      Number.isFinite(Number(checkoutConfig?.tokenExpiryHours)) && Number(checkoutConfig?.tokenExpiryHours) > 0
+        ? Math.min(Math.max(Math.trunc(Number(checkoutConfig?.tokenExpiryHours)), 1), 168)
+        : null;
+    const expiresAt = expiryHours ? new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString() : null;
+
+    const customer = customerRes?.customer || {};
+    const prevMeta = customer?.metadata ?? {};
+    const nextMeta = {
+      ...prevMeta,
+      tokenizationLink: {
+        url,
+        token,
+        planId: planId || prevMeta?.tokenizationLink?.planId || null,
+        kind: "SUBSCRIPTION",
+        createdAt: new Date().toISOString(),
+        expiresAt,
+        usedAt: null
+      }
+    };
+    await adminFetch(`/admin/customers/${encodeURIComponent(customerId)}`, {
+      method: "PUT",
+      body: JSON.stringify({ metadata: nextMeta })
+    }).catch(() => {});
+
+    const content = `Hola ${customer?.name || "Cliente"}, activa tu suscripción guardando tu método de pago aquí: ${url}`;
+    await adminFetch("/admin/chatwoot/messages", {
+      method: "POST",
+      body: JSON.stringify({ customerId, content })
+    });
+
+    redirect(mergeQuery(returnTo, { central: "sent", tokenUrl: url, customerId, ...(tenantId ? { tenantId } : {}) }));
+  } catch (err: any) {
+    if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
+    redirect(mergeQuery(returnTo, { error: String(err?.message || "centralcom_send_failed"), ...(tenantId ? { tenantId } : {}) }));
   }
 }
 

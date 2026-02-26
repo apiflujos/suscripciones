@@ -1,7 +1,7 @@
-import { activateSubscription, cancelSubscription, createPaymentLink, deleteSubscription, resumeSubscription, suspendSubscription } from "../subscriptions/actions";
+import { activateSubscription, cancelSubscription, deleteSubscription, resumeSubscription, suspendSubscription } from "../subscriptions/actions";
 import { DeleteSubscriptionButton } from "./DeleteSubscriptionButton";
 import { DeletePlanButton } from "./DeletePlanButton";
-import { chargeSubscriptionNow, createCustomerFromBilling, createPlanAndSubscription, deletePlanAndSubscription, sendChatwootPaymentLink, updatePlanRecurrence } from "./actions";
+import { chargeSubscriptionNow, createCustomerFromBilling, createPlanAndSubscription, deletePlanAndSubscription, scheduleCutoff, sendCentralComPaymentLink, sendCentralComTokenizationLink, updatePlanRecurrence } from "./actions";
 import { NewBillingAssignmentForm } from "./NewBillingAssignmentForm";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { LocalDateTime } from "../ui/LocalDateTime";
@@ -10,6 +10,7 @@ import { CopyButton } from "../ui/CopyButton";
 import { getCsrfToken } from "../lib/csrf";
 import { createTenant } from "../tenants/actions";
 import { PlanRecurrenceEditor } from "./PlanRecurrenceEditor";
+import { ScheduleCutoffButton } from "./ScheduleCutoffButton";
 
 export const dynamic = "force-dynamic";
 
@@ -159,23 +160,16 @@ export default async function BillingPage({
 
   const sp = (await searchParams) ?? {};
 
-  const created = typeof sp.created === "string" ? sp.created : "";
-  const suspended = typeof sp.suspended === "string" ? sp.suspended : "";
-  const canceled = typeof sp.canceled === "string" ? sp.canceled : "";
-  const resumed = typeof sp.resumed === "string" ? sp.resumed : "";
-  const activated = typeof sp.activated === "string" ? sp.activated : "";
-  const deleted = typeof sp.deleted === "string" ? sp.deleted : "";
-  const deletedPlan = typeof sp.deletedPlan === "string" ? sp.deletedPlan : "";
-  const charged = typeof sp.charged === "string" ? sp.charged : "";
-  const linkSent = typeof sp.linkSent === "string" ? sp.linkSent : "";
-  const planUpdated = typeof sp.planUpdated === "string" ? sp.planUpdated : "";
   const tenantId = typeof sp.tenantId === "string" ? sp.tenantId : "";
-  const tenantCreated = typeof sp.tenantCreated === "string" ? sp.tenantCreated : "";
   const contactCreated = typeof sp.contactCreated === "string" ? sp.contactCreated : "";
   const checkoutUrl = typeof sp.checkoutUrl === "string" ? sp.checkoutUrl : "";
   const checkoutCustomerId = typeof sp.customerId === "string" ? sp.customerId : "";
+  const tokenUrl = typeof sp.tokenUrl === "string" ? sp.tokenUrl : "";
+  const charged = typeof sp.charged === "string" ? sp.charged : "";
+  const actionSubscriptionId = typeof sp.subscriptionId === "string" ? sp.subscriptionId : "";
+  const cutoffScheduled = typeof sp.cutoffScheduled === "string" ? sp.cutoffScheduled : "";
   const error = typeof sp.error === "string" ? sp.error : "";
-  const chatwoot = typeof sp.chatwoot === "string" ? sp.chatwoot : "";
+  const central = typeof sp.central === "string" ? sp.central : "";
   const crear = typeof sp.crear === "string" ? sp.crear : "";
   const selectCustomerId = typeof sp.selectCustomerId === "string" ? sp.selectCustomerId : "";
 
@@ -196,12 +190,13 @@ export default async function BillingPage({
   if (tipo === "planes") subParams.set("collectionMode", "MANUAL_LINK");
   if (tenantId) subParams.set("tenantId", tenantId);
 
-  const [subs, customers, products, templates, tenantsRes] = await Promise.all([
+  const [subs, customers, products, templates, tenantsRes, settingsRes] = await Promise.all([
     fetchAdmin(`/admin/subscriptions?${subParams.toString()}`),
     fetchAdmin(tenantId ? `/admin/customers?take=200&tenantId=${encodeURIComponent(tenantId)}` : "/admin/customers?take=200"),
     fetchAdmin(tenantId ? `/admin/products?take=200&tenantId=${encodeURIComponent(tenantId)}` : "/admin/products?take=200"),
     fetchAdmin(tenantId ? `/admin/checkout-templates?tenantId=${encodeURIComponent(tenantId)}` : "/admin/checkout-templates"),
-    fetchAdminCached("/admin/tenants", { ttlMs: 1500 })
+    fetchAdminCached("/admin/tenants", { ttlMs: 1500 }),
+    fetchAdminCached("/admin/settings", { ttlMs: 1500 })
   ]);
   const subItems = (subs.json?.items ?? []) as any[];
   const customerItems = (customers.json?.items ?? []) as any[];
@@ -209,6 +204,9 @@ export default async function BillingPage({
   const checkoutTemplates = (templates.json?.items ?? []) as any[];
   const tenants = (tenantsRes.json?.items ?? []) as Array<{ id: string; name: string }>;
   const tenantById = new Map(tenants.map((t) => [String(t.id), String(t.name)]));
+  const settings = settingsRes.ok ? settingsRes.json : null;
+  const checkoutConfig = settings?.checkoutConfig || {};
+  const subscriptionBaseUrl = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
 
   const rows = subItems
     .map((s) => {
@@ -294,41 +292,6 @@ export default async function BillingPage({
       {error ? (
         <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
           Error: {error}
-        </div>
-      ) : null}
-      {created ? <div className="card cardPad">Guardado.</div> : null}
-      {suspended ? <div className="card cardPad">Suscripción suspendida.</div> : null}
-      {canceled ? <div className="card cardPad">Suscripción cancelada.</div> : null}
-      {resumed ? <div className="card cardPad">Suscripción reanudada.</div> : null}
-      {activated ? <div className="card cardPad">Suscripción activada.</div> : null}
-      {deleted ? <div className="card cardPad">Suscripción eliminada.</div> : null}
-      {deletedPlan ? <div className="card cardPad">Plan eliminado.</div> : null}
-      {charged ? <div className="card cardPad">Cobro manual enviado.</div> : null}
-      {linkSent ? <div className="card cardPad">Link de pago enviado.</div> : null}
-      {planUpdated ? <div className="card cardPad">Recurrencia actualizada.</div> : null}
-      {tenantCreated ? <div className="card cardPad">Canal creado.</div> : null}
-      {chatwoot === "sent" ? <div className="card cardPad">Mensaje enviado por Chatwoot.</div> : null}
-      {contactCreated ? <div className="card cardPad">Contacto creado.</div> : null}
-      {checkoutUrl ? (
-        <div className="card cardPad" style={{ display: "grid", gap: 8 }}>
-          <div>
-            Checkout:{" "}
-            <a href={checkoutUrl} target="_blank" rel="noreferrer" style={{ textDecoration: "underline" }}>
-              abrir link
-            </a>
-          </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <CopyButton text={checkoutUrl} />
-            <form action={sendChatwootPaymentLink}>
-              <input type="hidden" name="csrf" value={csrfToken} />
-              <input type="hidden" name="checkoutUrl" value={checkoutUrl} />
-              <input type="hidden" name="customerId" value={checkoutCustomerId} />
-              <input type="hidden" name="returnTo" value={returnTo} />
-              <button className="ghost" type="submit" disabled={!checkoutCustomerId}>
-                Enviar por Chatwoot
-              </button>
-            </form>
-          </div>
         </div>
       ) : null}
 
@@ -442,6 +405,13 @@ export default async function BillingPage({
               const subscriptionStatus = getSubscriptionStatusLabel(r.status);
               const subscriptionBadge = `Suscripción ${subscriptionStatus.toLowerCase()}`;
               const planLinkStatus = getPlanLinkStatus(r.lastPaymentLink, r.pagoAt);
+              const rowCheckoutUrl = checkoutCustomerId && checkoutCustomerId === r.customerId ? checkoutUrl : "";
+              const rowTokenUrl = checkoutCustomerId && checkoutCustomerId === r.customerId ? tokenUrl : "";
+              const sentForRow = central === "sent" && checkoutCustomerId && checkoutCustomerId === r.customerId;
+              const chargedForRow = charged && actionSubscriptionId === r.id;
+              const cutoffForRow = cutoffScheduled && actionSubscriptionId === r.id;
+              const needsToken = r.mode === "AUTO_DEBIT" && !r.customerTokenized;
+              const canSendToken = needsToken && Boolean(subscriptionBaseUrl);
               return (
                 <div className="billing-card" key={r.id}>
                   <div className="billing-header">
@@ -510,26 +480,55 @@ export default async function BillingPage({
                       />
                     ) : null}
                     {r.mode !== "AUTO_DEBIT" ? (
-                      <form action={createPaymentLink}>
+                      <form action={sendCentralComPaymentLink}>
                         <input type="hidden" name="csrf" value={csrfToken} />
                         <input type="hidden" name="subscriptionId" value={r.id} />
                         <input type="hidden" name="customerId" value={r.customerId} />
+                        <input type="hidden" name="returnTo" value={returnTo} />
                         {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                        <button className="ghost btn-compact btn-blue" type="submit">
-                          Generar link
+                        <button className="ghost btn-compact btn-blue" type="submit" title="Enviar por CentralCom">
+                          Enviar
                         </button>
                       </form>
                     ) : (
                       <>
+                        {needsToken ? (
+                          canSendToken ? (
+                            <form action={sendCentralComTokenizationLink}>
+                              <input type="hidden" name="csrf" value={csrfToken} />
+                              <input type="hidden" name="customerId" value={r.customerId} />
+                              <input type="hidden" name="planId" value={r.planId} />
+                              <input type="hidden" name="returnTo" value={returnTo} />
+                              {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
+                              <button className="ghost btn-compact btn-blue" type="submit" title="Enviar por CentralCom">
+                                Enviar
+                              </button>
+                            </form>
+                          ) : (
+                            <a className="ghost btn-compact btn-amber" href="/settings?tab=checkout-publico">
+                              Crear checkout
+                            </a>
+                          )
+                        ) : null}
                         {r.customerTokenized && r.status !== "CANCELED" ? (
-                          <form action={chargeSubscriptionNow}>
-                            <input type="hidden" name="csrf" value={csrfToken} />
-                            <input type="hidden" name="subscriptionId" value={r.id} />
-                            {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                            <button className="ghost btn-compact btn-blue" type="submit">
-                              Cobrar ahora
-                            </button>
-                          </form>
+                          <>
+                            <form action={chargeSubscriptionNow}>
+                              <input type="hidden" name="csrf" value={csrfToken} />
+                              <input type="hidden" name="subscriptionId" value={r.id} />
+                              {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
+                              <button className="ghost btn-compact btn-blue" type="submit">
+                                Cobrar ahora
+                              </button>
+                            </form>
+                            <ScheduleCutoffButton
+                              subscriptionId={r.id}
+                              csrfToken={csrfToken}
+                              returnTo={returnTo}
+                              tenantId={r.tenantId}
+                              currentEndAt={r.vencimientoAt}
+                              action={scheduleCutoff}
+                            />
+                          </>
                         ) : null}
                         {r.status === "SUSPENDED" ? (
                           <form action={resumeSubscription}>
@@ -574,6 +573,29 @@ export default async function BillingPage({
                     <DeleteSubscriptionButton action={deleteSubscription} csrfToken={csrfToken} subscriptionId={r.id} tenantId={r.tenantId} />
                     {r.tipoTx === "Plan" && r.status === "CANCELED" && r.planId ? (
                       <DeletePlanButton action={deletePlanAndSubscription} csrfToken={csrfToken} subscriptionId={r.id} planId={r.planId} tenantId={r.tenantId} />
+                    ) : null}
+                    {(sentForRow || rowCheckoutUrl || rowTokenUrl || chargedForRow || cutoffForRow) ? (
+                      <div className="field-hint" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        {sentForRow ? <span>Enviado.</span> : null}
+                        {chargedForRow ? <span>Cobro manual enviado.</span> : null}
+                        {cutoffForRow ? <span>Fecha de corte actualizada.</span> : null}
+                        {rowTokenUrl ? (
+                          <>
+                            <a href={rowTokenUrl} target="_blank" rel="noreferrer" style={{ textDecoration: "underline" }}>
+                              Abrir checkout
+                            </a>
+                            <CopyButton text={rowTokenUrl} />
+                          </>
+                        ) : null}
+                        {rowCheckoutUrl ? (
+                          <>
+                            <a href={rowCheckoutUrl} target="_blank" rel="noreferrer" style={{ textDecoration: "underline" }}>
+                              Abrir link
+                            </a>
+                            <CopyButton text={rowCheckoutUrl} />
+                          </>
+                        ) : null}
+                      </div>
                     ) : null}
                   </div>
                 </div>

@@ -2,7 +2,7 @@ import express from "express";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
 import { addIntervalUtc } from "../lib/dates";
-import { LogLevel, PaymentStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
+import { LogLevel, PaymentStatus, RetryJobStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
 import { systemLog } from "../services/systemLog";
 import { createAutoDebitTransactionForSubscription, createPaymentLinkForSubscription } from "../services/subscriptionBilling";
 import { scheduleSubscriptionDueNotifications } from "../services/notificationsScheduler";
@@ -234,6 +234,10 @@ const chargeNowSchema = z.object({
   amountInCents: z.number().int().positive().optional()
 });
 
+const scheduleCutoffSchema = z.object({
+  cutoffAt: z.string().min(1)
+});
+
 subscriptionsRouter.post("/:id/payment-link", async (req, res) => {
   const subscriptionId = req.params.id;
 
@@ -314,6 +318,57 @@ subscriptionsRouter.post("/:id/charge-now", async (req, res) => {
     }).catch(() => {});
     res.status(502).json({ error: err?.message || "charge_now_failed" });
   }
+});
+
+subscriptionsRouter.post("/:id/schedule-cutoff", async (req, res) => {
+  const subscriptionId = req.params.id;
+  const parsed = scheduleCutoffSchema.safeParse(req.body ?? {});
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+
+  const cutoffAtRaw = String(parsed.data.cutoffAt || "").trim();
+  const cutoffAt = new Date(cutoffAtRaw);
+  if (!cutoffAtRaw || Number.isNaN(cutoffAt.getTime())) return res.status(400).json({ error: "invalid_cutoff_date" });
+
+  const tenantId = await getEffectiveTenantId(req);
+  const subscription = await prisma.subscription.findUnique({
+    where: { id: subscriptionId },
+    include: { plan: true, tenantLinks: true }
+  });
+  if (!subscription) return res.status(404).json({ error: "subscription_not_found" });
+  if (tenantId) {
+    const allowed = subscription.tenantId === tenantId || (subscription.tenantLinks || []).some((t: any) => t.tenantId === tenantId);
+    if (!allowed) return res.status(404).json({ error: "subscription_not_found" });
+  }
+
+  const collectionMode = String((subscription.plan?.metadata as any)?.collectionMode || "MANUAL_LINK");
+  if (collectionMode !== "AUTO_DEBIT") return res.status(409).json({ error: "schedule_cutoff_not_allowed" });
+
+  const updated = await prisma.subscription.update({
+    where: { id: subscriptionId },
+    data: { currentPeriodEndAt: cutoffAt }
+  });
+
+  await prisma.retryJob.deleteMany({
+    where: {
+      type: RetryJobType.PAYMENT_RETRY,
+      status: RetryJobStatus.PENDING,
+      payload: { path: ["subscriptionId"], equals: subscriptionId } as any
+    } as any
+  });
+
+  await prisma.retryJob
+    .create({
+      data: {
+        type: RetryJobType.PAYMENT_RETRY,
+        runAt: cutoffAt <= new Date(Date.now() + 5_000) ? new Date() : cutoffAt,
+        payload: { subscriptionId }
+      }
+    })
+    .catch(() => {});
+
+  await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});
+
+  res.status(200).json({ ok: true, subscription: updated, scheduledAt: cutoffAt.toISOString() });
 });
 
 subscriptionsRouter.post("/:id/suspend", async (req, res) => {
