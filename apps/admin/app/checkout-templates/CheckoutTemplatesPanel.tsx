@@ -36,7 +36,7 @@ type Template = {
   layout?: Layout | null;
 };
 
-type Product = { id: string; name: string; sku?: string };
+type Product = { id: string; name: string; sku?: string; collectionMode?: string | null };
 type Tenant = { id: string; name: string };
 
 type WizardStep = {
@@ -78,6 +78,7 @@ export function CheckoutTemplatesPanel({
 }) {
   const [stepIndex, setStepIndex] = useState<number>(initialStep === "form" ? 1 : 0);
   const [editing, setEditing] = useState<Template | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
   const [kind, setKind] = useState<"PLAN" | "SUBSCRIPTION" | "">(
     initialKind === "PLAN" ? "PLAN" : initialKind === "SUBSCRIPTION" ? "SUBSCRIPTION" : ""
   );
@@ -112,6 +113,7 @@ export function CheckoutTemplatesPanel({
 
   function resetWizard() {
     setEditing(null);
+    setEditModalOpen(false);
     setKind("");
     setName("");
     setActive(true);
@@ -138,6 +140,7 @@ export function CheckoutTemplatesPanel({
 
   function openEdit(t: Template) {
     setEditing(t);
+    setEditModalOpen(true);
     setKind(t.kind);
     setName(t.name || "");
     setActive(Boolean(t.active));
@@ -197,6 +200,13 @@ export function CheckoutTemplatesPanel({
   const missingProducts = !isProductsValid;
   const [localError, setLocalError] = useState<string>("");
 
+  const filteredProducts = useMemo(() => {
+    if (!selectedKind) return products;
+    const mode = selectedKind === "SUBSCRIPTION" ? "AUTO_DEBIT" : "AUTO_LINK";
+    const filtered = products.filter((p) => !p.collectionMode || p.collectionMode === mode);
+    return filtered.length ? filtered : products;
+  }, [products, selectedKind]);
+
   useEffect(() => {
     if (requireTenant && tenants.length === 1 && !tenantId) {
       setTenantId(tenants[0].id);
@@ -248,56 +258,45 @@ export function CheckoutTemplatesPanel({
     return true;
   }
 
-  return (
-    <div className="panel module">
-      <div className="panelHeaderRow" style={{ justifyContent: "space-between" }}>
-        <div>
-          <strong>Plantillas</strong>
-          <div className="field-hint">Wizard para crear plantillas de checkout público.</div>
-        </div>
-        {editing ? (
-          <button className="ghost" type="button" onClick={resetWizard}>
-            Cancelar edición
-          </button>
-        ) : null}
-      </div>
-
-      <div className="panel module" style={{ marginTop: 12 }}>
+  const wizardBody = (
+    <div className="panel module" style={{ marginTop: 12 }}>
+      {!(editing && editModalOpen) ? (
         <div className="panel-header">
           <strong>{editing ? "Editar plantilla" : "Nueva plantilla"}</strong>
         </div>
+      ) : null}
 
-        <div style={{ display: "grid", gap: 12 }}>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {STEPS.map((s, idx) => {
-              const blockKind = idx > 0 && !selectedKind;
-              const blockName = idx > 1 && !name.trim();
-              const blockTenant = idx > 1 && missingTenant;
-              const blockProducts = idx > 3 && !isProductsValid;
-              const blocked = blockKind || blockName || blockTenant || blockProducts;
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  className={idx === stepIndex ? "primary" : "ghost"}
-                  onClick={() => {
-                    if (blocked) {
-                      if (blockKind) setLocalError("Selecciona el tipo de plantilla.");
-                      else if (blockName) setLocalError("Debes ingresar el nombre interno.");
-                      else if (blockTenant) setLocalError("Selecciona el canal de ventas.");
-                      else if (blockProducts) setLocalError("Debes seleccionar productos o permitir el selector.");
-                      return;
-                    }
-                    setLocalError("");
-                    setStepIndex(idx);
-                  }}
-                  disabled={blocked}
-                >
-                  {idx + 1}. {s.label}
-                </button>
-              );
-            })}
-          </div>
+      <div style={{ display: "grid", gap: 12 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {STEPS.map((s, idx) => {
+            const blockKind = idx > 0 && !selectedKind;
+            const blockName = idx > 1 && !name.trim();
+            const blockTenant = idx > 1 && missingTenant;
+            const blockProducts = idx > 3 && !isProductsValid;
+            const blocked = blockKind || blockName || blockTenant || blockProducts;
+            return (
+              <button
+                key={s.id}
+                type="button"
+                className={idx === stepIndex ? "primary" : "ghost"}
+                onClick={() => {
+                  if (blocked) {
+                    if (blockKind) setLocalError("Selecciona el tipo de plantilla.");
+                    else if (blockName) setLocalError("Debes ingresar el nombre interno.");
+                    else if (blockTenant) setLocalError("Selecciona el canal de ventas.");
+                    else if (blockProducts) setLocalError("Debes seleccionar productos o permitir el selector.");
+                    return;
+                  }
+                  setLocalError("");
+                  setStepIndex(idx);
+                }}
+                disabled={blocked}
+              >
+                {idx + 1}. {s.label}
+              </button>
+            );
+          })}
+        </div>
 
           {stepIndex === 0 ? (
             <div style={{ display: "grid", gap: 12 }}>
@@ -482,22 +481,22 @@ export function CheckoutTemplatesPanel({
                 </div>
                 <div className="field">
                   <label>Productos disponibles</label>
-                  <div className="field-add">
-                    {products.map((p) => {
+                  <div style={{ display: "grid", gap: 8 }}>
+                    {filteredProducts.map((p) => {
                       const activeItem = productIds.includes(p.id);
                       return (
                         <button
                           key={p.id}
                           type="button"
                           className={`ghost ${activeItem ? "is-active" : ""}`}
-                          style={missingProducts && stepIndex === 3 ? { borderColor: "var(--danger)" } : undefined}
+                          style={{ justifyContent: "space-between", width: "100%", ...(missingProducts && stepIndex === 3 ? { borderColor: "var(--danger)" } : {}) }}
                           onClick={() => {
                             if (activeItem) setProductIds(productIds.filter((id) => id !== p.id));
                             else setProductIds([...productIds, p.id]);
                           }}
                         >
-                          {activeItem ? "✓ " : "+ "}
-                          {p.name}
+                          <span>{p.name}</span>
+                          <span>{activeItem ? "✓" : "+"}</span>
                         </button>
                       );
                     })}
@@ -622,9 +621,40 @@ export function CheckoutTemplatesPanel({
                 )}
               </div>
             </div>
-          </form>
-        </div>
+        </form>
       </div>
+    </div>
+  );
+
+  return (
+    <div className="panel module">
+      <div className="panelHeaderRow" style={{ justifyContent: "space-between" }}>
+        <div>
+          <strong>Plantillas</strong>
+          <div className="field-hint">Wizard para crear plantillas de checkout público.</div>
+        </div>
+        {editing ? (
+          <button className="ghost" type="button" onClick={resetWizard}>
+            Cancelar edición
+          </button>
+        ) : null}
+      </div>
+
+      {editing && editModalOpen ? (
+        <div className="modal-backdrop">
+          <div className="modal-panel" style={{ maxWidth: 900 }}>
+            <div className="panel-header">
+              <strong>Editar plantilla</strong>
+              <button className="ghost" type="button" onClick={resetWizard} aria-label="Cerrar">
+                X
+              </button>
+            </div>
+            {wizardBody}
+          </div>
+        </div>
+      ) : (
+        wizardBody
+      )}
 
       {!templates.length ? <div className="field-hint">Aún no hay plantillas.</div> : null}
       <div className="template-grid">

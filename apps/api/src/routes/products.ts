@@ -110,6 +110,7 @@ productsRouter.get("/", async (_req, res) => {
       basePriceInCents: p.priceInCents,
       intervalUnit: p.intervalUnit,
       intervalCount: p.intervalCount,
+      collectionMode: (p.metadata as any)?.collectionMode || null,
       taxPercent: (p.metadata as any)?.taxPercent || 0,
       discountType: (p.metadata as any)?.discountType || "NONE",
       discountValueInCents: (p.metadata as any)?.discountValueInCents || 0,
