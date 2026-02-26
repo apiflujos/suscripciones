@@ -58,7 +58,7 @@ export function RedirectConfigPanel({
   const [subscriptionWompiDescription] = useState<string>(String(defaults.subscriptionWompiDescription || ""));
   const [defaultUtmParams, setDefaultUtmParams] = useState<string>(String(defaults.defaultUtmParams || ""));
   const hasConfig = Boolean(String(defaults.planBaseUrl || defaults.subscriptionBaseUrl || defaults.tokenizationReturnUrl || "").trim());
-  const [isEditing, setIsEditing] = useState(!hasConfig);
+  const [modalOpen, setModalOpen] = useState(!hasConfig);
 
   useEffect(() => {
     if (!publicBaseUrl && appPublicBaseUrl) {
@@ -77,7 +77,6 @@ export function RedirectConfigPanel({
 
   useEffect(() => {
     if (inlineState.action === "checkout_config" && inlineState.status === "ok") {
-      setIsEditing(false);
       setModalOpen(false);
     }
   }, [inlineState.action, inlineState.status]);
