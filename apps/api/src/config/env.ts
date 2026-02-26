@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const envSchema = z.object({
   NODE_ENV: z.string().default("development"),
-  PORT: z.coerce.number().int().positive().default(3001),
+  PORT: z.coerce.number().int().positive(),
   DATABASE_URL: z.string().min(1),
   WOMPI_EVENTS_SECRET: z.string().optional().or(z.literal("")),
   WOMPI_PUBLIC_KEY: z.string().optional().or(z.literal("")),
