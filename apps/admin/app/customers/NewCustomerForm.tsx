@@ -111,17 +111,25 @@ export function NewCustomerForm({
             <HelpTip text="Crea un contacto con datos básicos, dirección (DANE) e identificación." />
           </div>
           {alwaysOpen ? null : (
-            <button className={open ? "ghost" : "primary"} type="button" onClick={() => setOpen((v) => !v)}>
-              {open ? "Cerrar" : "Crear contacto"}
+            <button className="primary" type="button" onClick={() => setOpen(true)}>
+              Crear contacto
             </button>
           )}
         </div>
       ) : null}
 
       {open ? (
-        <form action={createCustomer} onKeyDownCapture={enterToNextField} style={{ display: "grid", gap: 10 }}>
-          <input type="hidden" name="csrf" value={csrfToken} />
-          {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
+        <div className="modal-backdrop">
+          <div className="modal-panel">
+            <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+              <h3 style={{ margin: 0 }}>Crear contacto</h3>
+              <button type="button" className="ghost" onClick={() => setOpen(false)} aria-label="Cerrar">
+                X
+              </button>
+            </div>
+            <form action={createCustomer} onKeyDownCapture={enterToNextField} style={{ display: "grid", gap: 10 }}>
+              <input type="hidden" name="csrf" value={csrfToken} />
+              {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
           <div className="field">
             <label>Canal de ventas</label>
             <select className="select" name="tenantId" defaultValue={tenantId || ""} required>
@@ -218,15 +226,15 @@ export function NewCustomerForm({
             </div>
           </div>
 
-          <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-            <button className="primary" type="submit">
-              Guardar
-            </button>
+              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+                <button className="primary" type="submit">
+                  Guardar
+                </button>
+              </div>
+            </form>
           </div>
-        </form>
-      ) : (
-        null
-      )}
+        </div>
+      ) : null}
     </div>
   );
 }
