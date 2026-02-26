@@ -43,6 +43,10 @@ async function fetchProducts() {
   return fetchAdminCached("/admin/products?take=200", { ttlMs: 1500 });
 }
 
+async function fetchTenants() {
+  return fetchAdminCached("/admin/tenants", { ttlMs: 1500 });
+}
+
 export default async function SettingsPage({
   searchParams
 }: {
@@ -62,9 +66,11 @@ export default async function SettingsPage({
   const settingsRes = await fetchSettings();
   const templatesRes = await fetchCheckoutTemplates();
   const productsRes = await fetchProducts();
+  const tenantsRes = await fetchTenants();
   const settings = settingsRes.ok ? settingsRes.json : null;
   const templates = templatesRes.ok ? templatesRes.json?.items || [] : [];
   const products = productsRes.ok ? productsRes.json?.items || [] : [];
+  const tenants = tenantsRes.ok ? tenantsRes.json?.items || [] : [];
   const c = await cookies();
   const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
   const session = await verifyAdminSessionToken(sessionToken);
@@ -419,6 +425,7 @@ export default async function SettingsPage({
             <CheckoutTemplatesPanel
               templates={templates}
               products={products}
+              tenants={tenants}
               csrfToken={csrfToken}
               inlineState={inlineState}
               initialKind={templateKind === "PLAN" || templateKind === "SUBSCRIPTION" ? (templateKind as any) : ""}

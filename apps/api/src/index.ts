@@ -55,7 +55,10 @@ async function maybeRunApiflujosImport(port: number) {
     process.env.IMPORT_APIFLUJOS_CSV_PATH ||
     path.resolve(process.cwd(), "Base de datos APIFLUJOS - Sheet1.csv");
   const scriptPath = path.resolve(process.cwd(), "src", "scripts", "import-apiflujos.js");
-  const apiBase = process.env.API_BASE_URL || `http://localhost:${port}`;
+  const apiBase = String(process.env.API_BASE_URL || "").trim();
+  if (!apiBase) {
+    throw new Error("missing_api_base_url");
+  }
 
   logger.info({ csvPath }, "Starting APIFLUJOS import");
 

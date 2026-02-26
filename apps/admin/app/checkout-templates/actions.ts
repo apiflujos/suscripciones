@@ -49,6 +49,7 @@ export async function createCheckoutTemplate(formData: FormData) {
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
+    const tenantId = String(formData.get("tenantId") || "").trim();
     if (!name || (kind !== "PLAN" && kind !== "SUBSCRIPTION")) {
       return redirectWith("checkout_template_create", "fail", "invalid_body");
     }
@@ -63,6 +64,7 @@ export async function createCheckoutTemplate(formData: FormData) {
       active: String(formData.get("active") || "") === "on",
       allowProductSelect,
       productIds,
+      ...(tenantId ? { tenantId } : {}),
       expiryHours: Number.isFinite(expiryHoursNum) ? expiryHoursNum : undefined,
       logoUrl: String(formData.get("logoUrl") || "").trim(),
       publicTitle: String(formData.get("publicTitle") || "").trim(),
@@ -97,6 +99,7 @@ export async function updateCheckoutTemplate(formData: FormData) {
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
+    const tenantId = String(formData.get("tenantId") || "").trim();
     if (!name || (kind !== "PLAN" && kind !== "SUBSCRIPTION")) {
       return redirectWith("checkout_template_update", "fail", "invalid_body");
     }
@@ -111,6 +114,7 @@ export async function updateCheckoutTemplate(formData: FormData) {
       active: String(formData.get("active") || "") === "on",
       allowProductSelect,
       productIds,
+      ...(tenantId ? { tenantId } : {}),
       expiryHours: Number.isFinite(expiryHoursNum) ? expiryHoursNum : undefined,
       logoUrl: String(formData.get("logoUrl") || "").trim(),
       publicTitle: String(formData.get("publicTitle") || "").trim(),

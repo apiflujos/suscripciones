@@ -50,13 +50,17 @@ function tokenToType(token: string): "CARD" | "NEQUI" | "PSE" {
 
 export async function POST(req: Request, ctx: { params: Promise<{ token: string }> }) {
   const { token: linkToken } = await ctx.params;
-  const redirectBase = getRedirectBase(req);
+  let redirectBase = getRedirectBase(req);
   let apiBase = "";
   let token = "";
   try {
     const cfg = getConfig();
     apiBase = cfg.apiBase;
     token = cfg.token;
+    const configRes = await fetch(`${apiBase}/public/checkout-config`, { cache: "no-store" }).catch(() => null);
+    const configJson = configRes && "ok" in configRes ? await (configRes as any).json().catch(() => null) : null;
+    const configBase = String(configJson?.config?.subscriptionBaseUrl || "").trim();
+    if (configBase) redirectBase = configBase.replace(/\/+$/, "");
   } catch (err: any) {
     const msg = err?.message ? String(err.message) : "missing_next_public_api_base_url";
     return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=${encodeURIComponent(msg)}`, redirectBase));

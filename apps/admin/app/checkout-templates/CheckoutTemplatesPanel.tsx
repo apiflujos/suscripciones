@@ -23,6 +23,7 @@ type Template = {
   name: string;
   kind: "PLAN" | "SUBSCRIPTION";
   active: boolean;
+  tenantId?: string | null;
   allowProductSelect: boolean;
   productIds?: string[] | null;
   expiryHours?: number | null;
@@ -36,6 +37,7 @@ type Template = {
 };
 
 type Product = { id: string; name: string; sku?: string };
+type Tenant = { id: string; name: string };
 
 type WizardStep = {
   id: string;
@@ -53,6 +55,7 @@ const STEPS: WizardStep[] = [
 export function CheckoutTemplatesPanel({
   templates,
   products,
+  tenants,
   csrfToken,
   inlineState,
   initialKind = "",
@@ -61,6 +64,7 @@ export function CheckoutTemplatesPanel({
 }: {
   templates: Template[];
   products: Product[];
+  tenants: Tenant[];
   csrfToken: string;
   inlineState: { action: string; status: string; errorText: string };
   initialKind?: "PLAN" | "SUBSCRIPTION" | "";
@@ -81,6 +85,7 @@ export function CheckoutTemplatesPanel({
   const [active, setActive] = useState(true);
   const [allowSelect, setAllowSelect] = useState(true);
   const [productIds, setProductIds] = useState<string[]>([]);
+  const [tenantId, setTenantId] = useState("");
   const [expiryHours, setExpiryHours] = useState("24");
   const [logoUrl, setLogoUrl] = useState("");
   const [publicTitle, setPublicTitle] = useState("");
@@ -111,6 +116,7 @@ export function CheckoutTemplatesPanel({
     setActive(true);
     setAllowSelect(true);
     setProductIds([]);
+    setTenantId("");
     setExpiryHours("24");
     setLogoUrl("");
     setPublicTitle("");
@@ -136,6 +142,7 @@ export function CheckoutTemplatesPanel({
     setActive(Boolean(t.active));
     setAllowSelect(Boolean(t.allowProductSelect));
     setProductIds(Array.isArray(t.productIds) ? t.productIds : []);
+    setTenantId(String(t.tenantId || ""));
     setExpiryHours(t.expiryHours ? String(t.expiryHours) : "24");
     setLogoUrl(t.logoUrl || "");
     setPublicTitle(t.publicTitle || "");
@@ -184,6 +191,8 @@ export function CheckoutTemplatesPanel({
   const isProductsValid = allowSelect || productIds.length > 0;
   const missingKind = !selectedKind;
   const missingName = !name.trim();
+  const requireTenant = Array.isArray(tenants) && tenants.length > 0;
+  const missingTenant = requireTenant && !tenantId;
   const missingProducts = !isProductsValid;
   const [localError, setLocalError] = useState<string>("");
 
@@ -216,6 +225,11 @@ export function CheckoutTemplatesPanel({
     if (!name.trim()) {
       setStepIndex(1);
       setLocalError("Debes ingresar el nombre interno.");
+      return false;
+    }
+    if (missingTenant) {
+      setStepIndex(1);
+      setLocalError("Selecciona el canal de ventas.");
       return false;
     }
     if (!isProductsValid) {
@@ -327,6 +341,7 @@ export function CheckoutTemplatesPanel({
           >
             <input type="hidden" name="csrf" value={csrfToken} />
             {editing ? <input type="hidden" name="id" value={editing.id} /> : null}
+            {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
             <input type="hidden" name="kind" value={selectedKind} />
             <input type="hidden" name="logoUrl" value={logoUrl} />
             <input type="hidden" name="productIds" value={productIds.join(",")} />
@@ -340,6 +355,19 @@ export function CheckoutTemplatesPanel({
                   <label>Nombre interno</label>
                   <input className="input" name="name" value={name} onChange={(e) => setName(e.target.value)} required />
                 </div>
+                {requireTenant ? (
+                  <div className="field">
+                    <label>Canal de ventas</label>
+                    <select className="select" value={tenantId} onChange={(e) => setTenantId(e.target.value)}>
+                      <option value="">Selecciona un canal</option>
+                      {tenants.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
                 <div className="field row">
                   <label>Activa</label>
                   <input type="checkbox" name="active" checked={active} onChange={(e) => setActive(e.target.checked)} />
