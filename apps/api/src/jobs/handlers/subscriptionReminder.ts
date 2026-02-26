@@ -156,19 +156,67 @@ export async function subscriptionReminder(payload: any) {
     return;
   }
 
-  if (subscription && rule.conditions?.skipIfSubscriptionStatusIn?.includes(subscription.status as any)) return;
+  if (subscription && rule.conditions?.skipIfSubscriptionStatusIn?.includes(subscription.status as any)) {
+    await systemLog(LogLevel.WARN, "notifications.dispatch", "Suscripción omitida por estado", {
+      ruleId: rule.id,
+      templateId: template.id,
+      trigger: parsed.data.trigger,
+      subscriptionId: subscription.id,
+      status: subscription.status
+    }).catch(() => {});
+    return;
+  }
 
   if (payment) {
-    if (rule.conditions?.skipIfPaymentStatusIn?.includes(payment.status as any)) return;
-    if (rule.conditions?.requirePaymentStatusIn && !rule.conditions.requirePaymentStatusIn.includes(payment.status as any)) return;
+    if (rule.conditions?.skipIfPaymentStatusIn?.includes(payment.status as any)) {
+      await systemLog(LogLevel.WARN, "notifications.dispatch", "Pago omitido por estado", {
+        ruleId: rule.id,
+        templateId: template.id,
+        trigger: parsed.data.trigger,
+        paymentId: payment.id,
+        status: payment.status
+      }).catch(() => {});
+      return;
+    }
+    if (rule.conditions?.requirePaymentStatusIn && !rule.conditions.requirePaymentStatusIn.includes(payment.status as any)) {
+      await systemLog(LogLevel.WARN, "notifications.dispatch", "Pago no cumple estado requerido", {
+        ruleId: rule.id,
+        templateId: template.id,
+        trigger: parsed.data.trigger,
+        paymentId: payment.id,
+        status: payment.status,
+        required: rule.conditions.requirePaymentStatusIn
+      }).catch(() => {});
+      return;
+    }
   }
 
   // Guard against old scheduled reminders after renewal: cycle/anchor must still match.
   if (subscription && parsed.data.trigger === "SUBSCRIPTION_DUE") {
-    if (typeof parsed.data.cycleNumber === "number" && subscription.currentCycle !== parsed.data.cycleNumber) return;
+    if (typeof parsed.data.cycleNumber === "number" && subscription.currentCycle !== parsed.data.cycleNumber) {
+      await systemLog(LogLevel.WARN, "notifications.dispatch", "Ciclo desactualizado; notificación omitida", {
+        ruleId: rule.id,
+        templateId: template.id,
+        trigger: parsed.data.trigger,
+        subscriptionId: subscription.id,
+        currentCycle: subscription.currentCycle,
+        payloadCycle: parsed.data.cycleNumber
+      }).catch(() => {});
+      return;
+    }
     if (parsed.data.anchorAt) {
       const anchorIso = new Date(parsed.data.anchorAt).toISOString();
-      if (subscription.currentPeriodEndAt.toISOString() !== anchorIso) return;
+      if (subscription.currentPeriodEndAt.toISOString() !== anchorIso) {
+        await systemLog(LogLevel.WARN, "notifications.dispatch", "Fecha de corte no coincide; notificación omitida", {
+          ruleId: rule.id,
+          templateId: template.id,
+          trigger: parsed.data.trigger,
+          subscriptionId: subscription.id,
+          currentAnchor: subscription.currentPeriodEndAt.toISOString(),
+          payloadAnchor: anchorIso
+        }).catch(() => {});
+        return;
+      }
     }
 
     // Skip reminders if the upcoming cycle payment is already approved.
@@ -177,7 +225,16 @@ export async function subscriptionReminder(payload: any) {
       where: { subscriptionCycleKey: `${subscription.id}:${cycle}` },
       select: { status: true }
     });
-    if (approved?.status === PaymentStatus.APPROVED) return;
+    if (approved?.status === PaymentStatus.APPROVED) {
+      await systemLog(LogLevel.WARN, "notifications.dispatch", "Pago ya aprobado; recordatorio omitido", {
+        ruleId: rule.id,
+        templateId: template.id,
+        trigger: parsed.data.trigger,
+        subscriptionId: subscription.id,
+        paymentStatus: approved.status
+      }).catch(() => {});
+      return;
+    }
   }
 
   if (template.channel === "META") {
@@ -189,7 +246,14 @@ export async function subscriptionReminder(payload: any) {
     return;
   }
 
-  if (!template.chatwootType) return;
+  if (!template.chatwootType) {
+    await systemLog(LogLevel.WARN, "notifications.dispatch", "Tipo de mensaje no definido", {
+      ruleId: rule.id,
+      templateId: template.id,
+      trigger: parsed.data.trigger
+    }).catch(() => {});
+    return;
+  }
 
   await ensureChatwootContactForCustomer(customer.id).catch(() => {});
   await syncChatwootAttributesForCustomer(customer.id).catch(() => {});
@@ -275,7 +339,17 @@ export async function subscriptionReminder(payload: any) {
     },
     select: { id: true }
   });
-  if (existing) return;
+  if (existing) {
+    await systemLog(LogLevel.WARN, "notifications.dispatch", "Mensaje duplicado; omitido", {
+      ruleId: rule.id,
+      templateId: template.id,
+      trigger: parsed.data.trigger,
+      customerId: customer.id,
+      subscriptionId: subscription?.id ?? null,
+      paymentId: effectivePayment?.id ?? null
+    }).catch(() => {});
+    return;
+  }
 
   const created = await prisma.chatwootMessage.create({
     data: {
