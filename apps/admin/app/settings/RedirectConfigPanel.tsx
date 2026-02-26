@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PendingButton } from "../ui/PendingButton";
 
 type CheckoutConfig = {
@@ -52,13 +52,9 @@ export function RedirectConfigPanel({
   const [tokenSuccessTitle, setTokenSuccessTitle] = useState<string>(String(defaults.tokenizationSuccessTitle || "Gracias"));
   const [tokenSuccessMessage, setTokenSuccessMessage] = useState<string>(String(defaults.tokenizationSuccessMessage || "Tu método de pago quedó guardado correctamente."));
   const [tokenErrorMessage, setTokenErrorMessage] = useState<string>(String(defaults.tokenizationErrorMessage || "No pudimos guardar tu método de pago. Intenta nuevamente."));
-  const [planWompiTitle] = useState<string>(String(defaults.planWompiTitle || ""));
-  const [planWompiDescription] = useState<string>(String(defaults.planWompiDescription || ""));
-  const [subscriptionWompiTitle] = useState<string>(String(defaults.subscriptionWompiTitle || ""));
-  const [subscriptionWompiDescription] = useState<string>(String(defaults.subscriptionWompiDescription || ""));
   const [defaultUtmParams, setDefaultUtmParams] = useState<string>(String(defaults.defaultUtmParams || ""));
   const hasConfig = Boolean(String(defaults.planBaseUrl || defaults.subscriptionBaseUrl || defaults.tokenizationReturnUrl || "").trim());
-  const [modalOpen, setModalOpen] = useState(false);
+  const [editMode, setEditMode] = useState(false);
 
   useEffect(() => {
     if (publicBaseUrl) return;
@@ -71,27 +67,21 @@ export function RedirectConfigPanel({
     }
   }, [appPublicBaseUrl, publicBaseUrl]);
 
-  const baseHint = useMemo(() => {
-    if (!publicBaseUrl) return "";
-    const base = normalizeBaseUrl(publicBaseUrl);
-    return `${base}/public/plan/{token} · ${base}/public/suscripcion/{token}`;
-  }, [publicBaseUrl]);
-
   const urlsReady = Boolean(planBaseUrl && subscriptionBaseUrl && tokenReturnUrl);
   const tokenMessagesReady = Boolean(tokenSuccessTitle && tokenSuccessMessage && tokenErrorMessage);
 
   useEffect(() => {
     if (inlineState.action === "checkout_config" && inlineState.status === "ok") {
-      setModalOpen(false);
+      setEditMode(false);
     }
   }, [inlineState.action, inlineState.status]);
 
   useEffect(() => {
     const base = normalizeBaseUrl(publicBaseUrl || appPublicBaseUrl || "");
     if (!base) return;
-    if (!planBaseUrl) setPlanBaseUrl(`${base}/public/plan`);
-    if (!subscriptionBaseUrl) setSubscriptionBaseUrl(`${base}/public/suscripcion`);
-    if (!tokenReturnUrl) setTokenReturnUrl(`${base}/public/return`);
+    setPlanBaseUrl(`${base}/public/plan`);
+    setSubscriptionBaseUrl(`${base}/public/suscripcion`);
+    setTokenReturnUrl(`${base}/public/return`);
     if (!defaultUtmParams) setDefaultUtmParams("utm_source=apiflujos&utm_medium=checkout&utm_campaign=mdv");
   }, [publicBaseUrl, appPublicBaseUrl]);
 
@@ -103,15 +93,6 @@ export function RedirectConfigPanel({
     formRef.current?.requestSubmit();
   }, [hasConfig, publicBaseUrl, appPublicBaseUrl, planBaseUrl, subscriptionBaseUrl, tokenReturnUrl]);
 
-  function generateUrls() {
-    const base = normalizeBaseUrl(publicBaseUrl || appPublicBaseUrl || "");
-    if (!base) return;
-    setPlanBaseUrl(`${base}/public/plan`);
-    setSubscriptionBaseUrl(`${base}/public/suscripcion`);
-    if (!tokenReturnUrl) setTokenReturnUrl(`${base}/public/return`);
-    if (!defaultUtmParams) setDefaultUtmParams("utm_source=apiflujos&utm_medium=checkout&utm_campaign=mdv");
-  }
-
   return (
     <div className="panel module" style={{ display: "grid", gap: 14 }}>
       <div className="panelHeaderRow" style={{ justifyContent: "space-between" }}>
@@ -121,9 +102,11 @@ export function RedirectConfigPanel({
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {urlsReady && tokenMessagesReady ? <span className="pill pill-ok">Listo</span> : null}
-          <button className="ghost" type="button" onClick={() => setModalOpen(true)}>
-            Editar
-          </button>
+          {!editMode ? (
+            <button className="ghost" type="button" onClick={() => setEditMode(true)}>
+              Editar
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -156,93 +139,88 @@ export function RedirectConfigPanel({
         </div>
       </div>
 
-      {modalOpen ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel">
-            <div className="panel-header">
-              <h3 style={{ margin: 0 }}>Editar redirecciones y mensajes</h3>
-              <button type="button" className="ghost" onClick={() => setModalOpen(false)} aria-label="Cerrar">
-                X
-              </button>
-            </div>
+      {editMode ? (
+        <form ref={formRef} action={onSave} className="panel module" style={{ display: "grid", gap: 14 }}>
+          <input type="hidden" name="csrf" value={csrfToken} />
+          {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
+          <input type="hidden" name="planBaseUrl" value={planBaseUrl} />
+          <input type="hidden" name="subscriptionBaseUrl" value={subscriptionBaseUrl} />
+          <input type="hidden" name="tokenizationReturnUrl" value={tokenReturnUrl} />
+          <input type="hidden" name="tokenizationSuccessTitle" value={tokenSuccessTitle} />
+          <input type="hidden" name="tokenizationSuccessMessage" value={tokenSuccessMessage} />
+          <input type="hidden" name="tokenizationErrorMessage" value={tokenErrorMessage} />
+          <input type="hidden" name="defaultUtmParams" value={defaultUtmParams} />
 
-            <form ref={formRef} action={onSave} className="panel module" style={{ display: "grid", gap: 14 }}>
-              <input type="hidden" name="csrf" value={csrfToken} />
-              {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
-              <input type="hidden" name="planBaseUrl" value={planBaseUrl} />
-              <input type="hidden" name="subscriptionBaseUrl" value={subscriptionBaseUrl} />
-              <input type="hidden" name="tokenizationReturnUrl" value={tokenReturnUrl} />
-              <input type="hidden" name="tokenizationSuccessTitle" value={tokenSuccessTitle} />
-              <input type="hidden" name="tokenizationSuccessMessage" value={tokenSuccessMessage} />
-              <input type="hidden" name="tokenizationErrorMessage" value={tokenErrorMessage} />
-              <input type="hidden" name="defaultUtmParams" value={defaultUtmParams} />
-
-              <div className="field">
-                <label>URL pública base</label>
-                <input className="input" value={publicBaseUrl} disabled />
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div className="field">
-                  <label>Base URL Plan</label>
-                  <input className="input" value={planBaseUrl} readOnly />
-                </div>
-                <div className="field">
-                  <label>Base URL Suscripción</label>
-                  <input className="input" value={subscriptionBaseUrl} readOnly />
-                </div>
-              </div>
-
-              <div className="field">
-                <label>UTM por defecto</label>
-                <input
-                  className="input"
-                  value={defaultUtmParams}
-                  onChange={(e) => setDefaultUtmParams(e.target.value)}
-                  placeholder="utm_source=apiflujos&utm_medium=checkout&utm_campaign=mdv"
-                />
-                <div className="field-hint">Se aplica si la plantilla no tiene UTM.</div>
-              </div>
-
-              <div className="field">
-                <label>URL retorno tokenización</label>
-                <input className="input" value={tokenReturnUrl} readOnly />
-              </div>
-
-              <div className="panel module" style={{ margin: 0 }}>
-                <div className="panel-header">
-                  <strong>Mensajes de tokenización</strong>
-                </div>
-                <div className="field">
-                  <label>Título éxito</label>
-                  <input className="input" value={tokenSuccessTitle} onChange={(e) => setTokenSuccessTitle(e.target.value)} />
-                </div>
-                <div className="field">
-                  <label>Mensaje éxito</label>
-                  <textarea className="input" rows={2} value={tokenSuccessMessage} onChange={(e) => setTokenSuccessMessage(e.target.value)} />
-                </div>
-                <div className="field">
-                  <label>Mensaje error</label>
-                  <textarea className="input" rows={2} value={tokenErrorMessage} onChange={(e) => setTokenErrorMessage(e.target.value)} />
-                </div>
-              </div>
-
-              <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  {inlineState.action === "checkout_config" && inlineState.status === "ok" ? <div className="field-hint">Guardado.</div> : null}
-                  {inlineState.action === "checkout_config" && inlineState.status === "fail" ? (
-                    <div className="field-hint" style={{ color: "var(--danger)" }}>
-                      Error: {inlineState.errorText || "unknown_error"}
-                    </div>
-                  ) : null}
-                </div>
-                <PendingButton className="primary" type="submit" pendingText="Guardando...">
-                  Guardar
-                </PendingButton>
-              </div>
-            </form>
+          <div className="field">
+            <label>URL pública base</label>
+            <input className="input" value={publicBaseUrl} onChange={(e) => setPublicBaseUrl(e.target.value)} />
+            <div className="field-hint">Si tienes dominio propio, reemplaza el dominio aquí.</div>
           </div>
-        </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div className="field">
+              <label>Base URL Plan</label>
+              <input className="input" value={planBaseUrl} readOnly />
+            </div>
+            <div className="field">
+              <label>Base URL Suscripción</label>
+              <input className="input" value={subscriptionBaseUrl} readOnly />
+            </div>
+          </div>
+
+          <div className="field">
+            <label>UTM por defecto</label>
+            <input
+              className="input"
+              value={defaultUtmParams}
+              onChange={(e) => setDefaultUtmParams(e.target.value)}
+              placeholder="utm_source=apiflujos&utm_medium=checkout&utm_campaign=mdv"
+            />
+            <div className="field-hint">Se aplica si la plantilla no tiene UTM.</div>
+          </div>
+
+          <div className="field">
+            <label>URL retorno tokenización</label>
+            <input className="input" value={tokenReturnUrl} readOnly />
+          </div>
+
+          <div className="panel module" style={{ margin: 0 }}>
+            <div className="panel-header">
+              <strong>Mensajes de tokenización</strong>
+            </div>
+            <div className="field">
+              <label>Título éxito</label>
+              <input className="input" value={tokenSuccessTitle} onChange={(e) => setTokenSuccessTitle(e.target.value)} />
+            </div>
+            <div className="field">
+              <label>Mensaje éxito</label>
+              <textarea className="input" rows={2} value={tokenSuccessMessage} onChange={(e) => setTokenSuccessMessage(e.target.value)} />
+            </div>
+            <div className="field">
+              <label>Mensaje error</label>
+              <textarea className="input" rows={2} value={tokenErrorMessage} onChange={(e) => setTokenErrorMessage(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              {inlineState.action === "checkout_config" && inlineState.status === "ok" ? <div className="field-hint">Guardado.</div> : null}
+              {inlineState.action === "checkout_config" && inlineState.status === "fail" ? (
+                <div className="field-hint" style={{ color: "var(--danger)" }}>
+                  Error: {inlineState.errorText || "unknown_error"}
+                </div>
+              ) : null}
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button type="button" className="ghost" onClick={() => setEditMode(false)}>
+                Cancelar
+              </button>
+              <PendingButton className="primary" type="submit" pendingText="Guardando...">
+                Guardar
+              </PendingButton>
+            </div>
+          </div>
+        </form>
       ) : null}
     </div>
   );

@@ -10,6 +10,11 @@ function toShortErrorMessage(err: unknown) {
   return msg || "unknown_error";
 }
 
+function isNextRedirect(err: unknown) {
+  const digest = (err as any)?.digest;
+  return typeof digest === "string" && digest.startsWith("NEXT_REDIRECT");
+}
+
 async function adminFetch(path: string, init: RequestInit) {
   const { apiBase, token } = getAdminApiConfig();
   if (!token) throw new Error("missing_admin_token");
@@ -57,6 +62,7 @@ export async function createCampaign(formData: FormData) {
     });
     redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}created=1`);
   } catch (err) {
+    if (isNextRedirect(err)) throw err;
     redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
@@ -70,6 +76,7 @@ export async function runCampaign(formData: FormData) {
     await adminFetch(`/admin/comms/campaigns/${encodeURIComponent(id)}/run`, { method: "POST" });
     redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}running=${encodeURIComponent(id)}`);
   } catch (err) {
+    if (isNextRedirect(err)) throw err;
     redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }

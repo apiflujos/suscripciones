@@ -9,6 +9,11 @@ function toShortErrorMessage(err: unknown) {
   return raw.replace(/\s+/g, " ").trim().slice(0, 220) || "unknown_error";
 }
 
+function isNextRedirect(err: unknown) {
+  const digest = (err as any)?.digest;
+  return typeof digest === "string" && digest.startsWith("NEXT_REDIRECT");
+}
+
 export async function resetCounters(formData: FormData) {
   await assertCsrfToken(formData);
   const tenantId = String(formData.get("tenantId") || "").trim();
@@ -22,6 +27,7 @@ export async function resetCounters(formData: FormData) {
     if (!res.ok) throw new Error(res.json?.error || `request_failed_${res.status}`);
     redirect(`/sa/usage?tenantId=${encodeURIComponent(tenantId)}&periodKey=${encodeURIComponent(periodKey)}&reset=1`);
   } catch (err) {
+    if (isNextRedirect(err)) throw err;
     redirect(`/sa/usage?tenantId=${encodeURIComponent(tenantId)}&periodKey=${encodeURIComponent(periodKey)}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
@@ -42,6 +48,7 @@ export async function consumeTest(formData: FormData) {
     if (!res.ok) throw new Error(res.json?.error || `request_failed_${res.status}`);
     redirect(`/sa/usage?tenantId=${encodeURIComponent(tenantId)}&periodKey=${encodeURIComponent(periodKey)}&consumed=1`);
   } catch (err) {
+    if (isNextRedirect(err)) throw err;
     redirect(
       `/sa/usage?tenantId=${encodeURIComponent(tenantId)}&periodKey=${encodeURIComponent(periodKey)}&error=${encodeURIComponent(toShortErrorMessage(err))}`
     );

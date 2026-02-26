@@ -9,6 +9,11 @@ function toShortErrorMessage(err: unknown) {
   return raw.replace(/\s+/g, " ").trim().slice(0, 220) || "unknown_error";
 }
 
+function isNextRedirect(err: unknown) {
+  const digest = (err as any)?.digest;
+  return typeof digest === "string" && digest.startsWith("NEXT_REDIRECT");
+}
+
 export async function createUser(formData: FormData) {
   await assertCsrfToken(formData);
   const tenantId = String(formData.get("tenantId") || "").trim();
@@ -26,6 +31,7 @@ export async function createUser(formData: FormData) {
     if (!res.ok) throw new Error(res.json?.error || `request_failed_${res.status}`);
     redirect(`/sa/users?tenantId=${encodeURIComponent(tenantId)}&created=1`);
   } catch (err) {
+    if (isNextRedirect(err)) throw err;
     redirect(`/sa/users?tenantId=${encodeURIComponent(tenantId)}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }

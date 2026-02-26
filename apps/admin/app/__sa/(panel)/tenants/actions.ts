@@ -9,6 +9,11 @@ function toShortErrorMessage(err: unknown) {
   return raw.replace(/\s+/g, " ").trim().slice(0, 220) || "unknown_error";
 }
 
+function isNextRedirect(err: unknown) {
+  const digest = (err as any)?.digest;
+  return typeof digest === "string" && digest.startsWith("NEXT_REDIRECT");
+}
+
 export async function createTenant(formData: FormData) {
   await assertCsrfToken(formData);
   const name = String(formData.get("name") || "").trim();
@@ -21,6 +26,7 @@ export async function createTenant(formData: FormData) {
     if (!res.ok) throw new Error(res.json?.error || `request_failed_${res.status}`);
     redirect("/sa/tenants?created=1");
   } catch (err) {
+    if (isNextRedirect(err)) throw err;
     redirect(`/sa/tenants?error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
@@ -38,6 +44,7 @@ export async function setTenantActive(formData: FormData) {
     if (!res.ok) throw new Error(res.json?.error || `request_failed_${res.status}`);
     redirect("/sa/tenants?saved=1");
   } catch (err) {
+    if (isNextRedirect(err)) throw err;
     redirect(`/sa/tenants?error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
@@ -55,6 +62,7 @@ export async function assignPlan(formData: FormData) {
     if (!res.ok) throw new Error(res.json?.error || `request_failed_${res.status}`);
     redirect("/sa/tenants?assigned=1");
   } catch (err) {
+    if (isNextRedirect(err)) throw err;
     redirect(`/sa/tenants?error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }

@@ -10,6 +10,11 @@ function toShortErrorMessage(err: unknown) {
   return msg || "unknown_error";
 }
 
+function isNextRedirect(err: unknown) {
+  const digest = (err as any)?.digest;
+  return typeof digest === "string" && digest.startsWith("NEXT_REDIRECT");
+}
+
 async function adminFetch(path: string, init: RequestInit) {
   const { apiBase, token } = getAdminApiConfig();
   if (!token) throw new Error("missing_admin_token");
@@ -52,6 +57,7 @@ export async function createSmartList(formData: FormData) {
     });
     redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}created=1`);
   } catch (err) {
+    if (isNextRedirect(err)) throw err;
     redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
@@ -75,6 +81,7 @@ export async function syncSmartList(formData: FormData) {
     const msg = `agregados:${json?.added ?? 0},removidos:${json?.removed ?? 0}`;
     redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}synced=${encodeURIComponent(msg)}`);
   } catch (err) {
+    if (isNextRedirect(err)) throw err;
     redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
