@@ -108,7 +108,7 @@ export function CheckoutTemplatesPanel({
   const nameRef = useRef<HTMLInputElement | null>(null);
   const tenantRef = useRef<HTMLSelectElement | null>(null);
   const productsRef = useRef<HTMLDivElement | null>(null);
-  const typeRef = useRef<HTMLButtonElement | null>(null);
+  const typeRef = useRef<HTMLLabelElement | null>(null);
 
   const productById = useMemo(() => {
     const map = new Map<string, Product>();
