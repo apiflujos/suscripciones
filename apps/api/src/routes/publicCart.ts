@@ -4,7 +4,7 @@ import { prisma } from "../db/prisma";
 import { addIntervalUtc } from "../lib/dates";
 import { createPaymentLinkForSubscription } from "../services/subscriptionBilling";
 import { scheduleSubscriptionDueNotifications } from "../services/notificationsScheduler";
-import { CredentialProvider, RetryJobType, SubscriptionStatus } from "@prisma/client";
+import { CredentialProvider, RetryJobType, SubscriptionStatus, PlanIntervalUnit } from "@prisma/client";
 import { getCredential } from "../services/credentials";
 
 function parseCheckoutConfig(raw: string | null) {
@@ -35,7 +35,7 @@ type PlanPublic = {
   name: string;
   priceInCents: number;
   currency: string;
-  intervalUnit: string;
+  intervalUnit: PlanIntervalUnit;
   intervalCount: number;
   metadata?: unknown;
   tenantId?: string | null;
