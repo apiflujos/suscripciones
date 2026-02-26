@@ -4,7 +4,7 @@ import { prisma } from "../db/prisma";
 import { addIntervalUtc } from "../lib/dates";
 import { createPaymentLinkForSubscription } from "../services/subscriptionBilling";
 import { scheduleSubscriptionDueNotifications } from "../services/notificationsScheduler";
-import type { SubscriptionPlan, SubscriptionPlanTenant } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { CredentialProvider, RetryJobType, SubscriptionStatus } from "@prisma/client";
 import { getCredential } from "../services/credentials";
 
@@ -31,6 +31,9 @@ function buildPublicUrl(base: string, path: string, utm: string) {
 
 export const publicCartRouter = express.Router();
 
+type SubscriptionPlanItem = Prisma.SubscriptionPlanGetPayload<{}>;
+type SubscriptionPlanWithLinks = Prisma.SubscriptionPlanGetPayload<{ include: { tenantLinks: true } }>;
+
 publicCartRouter.get("/cart/:token", async (req, res) => {
   const token = String(req.params.token || "").trim();
   if (!token) return res.status(400).json({ error: "missing_token" });
@@ -56,7 +59,7 @@ publicCartRouter.get("/cart/:token", async (req, res) => {
   }
 
   const productIds = Array.isArray(template.productIds) ? template.productIds : [];
-  const plans: SubscriptionPlan[] = productIds.length
+  const plans: SubscriptionPlanItem[] = productIds.length
     ? await prisma.subscriptionPlan.findMany({ where: { id: { in: productIds } } })
     : [];
 
@@ -118,8 +121,10 @@ publicCartRouter.post("/cart/:token/select", async (req, res) => {
     return res.status(400).json({ error: "plan_not_allowed" });
   }
 
-  const plan: (SubscriptionPlan & { tenantLinks: SubscriptionPlanTenant[] }) | null =
-    await prisma.subscriptionPlan.findUnique({ where: { id: planId }, include: { tenantLinks: true } });
+  const plan: SubscriptionPlanWithLinks | null = await prisma.subscriptionPlan.findUnique({
+    where: { id: planId },
+    include: { tenantLinks: true }
+  });
   if (!plan) return res.status(404).json({ error: "plan_not_found" });
 
   const rawConfig = (await getCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG")) || "";
