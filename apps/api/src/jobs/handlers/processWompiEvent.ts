@@ -347,8 +347,23 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         return null;
       }
 
-      const nextStart = sub.currentPeriodEndAt;
+      const meta: any = (sub.metadata ?? {}) as any;
+      const manualCharge = meta?.manualCharge;
+      const manualCycle = manualCharge && typeof manualCharge === "object" ? Number(manualCharge.cycle ?? NaN) : NaN;
+      const manualAtRaw = manualCharge && typeof manualCharge === "object" ? String(manualCharge.at || "") : "";
+      const manualAt = manualAtRaw ? new Date(manualAtRaw) : null;
+      const useManualAnchor = Number.isFinite(manualCycle) && manualCycle === cycle && manualAt && !Number.isNaN(manualAt.getTime());
+
+      const nextStart = useManualAnchor ? (paidAt ?? manualAt!) : sub.currentPeriodEndAt;
       const nextEnd = addIntervalUtc(nextStart, sub.plan.intervalUnit, sub.plan.intervalCount);
+
+      const nextMeta = useManualAnchor
+        ? (() => {
+            const copy: any = meta && typeof meta === "object" ? { ...meta } : {};
+            delete copy.manualCharge;
+            return copy;
+          })()
+        : null;
 
       const updated = await tx.subscription.updateMany({
         where: { id: sub.id, currentCycle: sub.currentCycle },
@@ -357,7 +372,8 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
           retryCount: 0,
           currentCycle: { increment: 1 },
           currentPeriodStartAt: nextStart,
-          currentPeriodEndAt: nextEnd
+          currentPeriodEndAt: nextEnd,
+          ...(useManualAnchor ? { metadata: nextMeta as any } : {})
         }
       });
 

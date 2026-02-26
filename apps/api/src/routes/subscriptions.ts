@@ -230,6 +230,10 @@ const createPaymentLinkSchema = z.object({
   amountInCents: z.number().int().positive().optional()
 });
 
+const chargeNowSchema = z.object({
+  amountInCents: z.number().int().positive().optional()
+});
+
 subscriptionsRouter.post("/:id/payment-link", async (req, res) => {
   const subscriptionId = req.params.id;
 
@@ -254,6 +258,61 @@ subscriptionsRouter.post("/:id/payment-link", async (req, res) => {
       err: err?.message ? String(err.message) : "unknown error"
     }).catch(() => {});
     res.status(502).json({ error: "wompi_payment_link_failed" });
+  }
+});
+
+subscriptionsRouter.post("/:id/charge-now", async (req, res) => {
+  const subscriptionId = req.params.id;
+  const parsed = chargeNowSchema.safeParse(req.body ?? {});
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+
+  const tenantId = await getEffectiveTenantId(req);
+  const subscription = await prisma.subscription.findUnique({
+    where: { id: subscriptionId },
+    include: { plan: true, customer: true, tenantLinks: true }
+  });
+  if (!subscription) return res.status(404).json({ error: "subscription_not_found" });
+  if (tenantId) {
+    const allowed = subscription.tenantId === tenantId || (subscription.tenantLinks || []).some((t) => t.tenantId === tenantId);
+    if (!allowed) return res.status(404).json({ error: "subscription_not_found" });
+  }
+
+  const collectionMode = String((subscription.plan?.metadata as any)?.collectionMode || "MANUAL_LINK");
+  if (collectionMode !== "AUTO_DEBIT") return res.status(409).json({ error: "manual_charge_not_allowed" });
+
+  const meta = (subscription.customer?.metadata as any) ?? {};
+  const paymentSource =
+    meta?.wompi?.paymentSourceId ||
+    meta?.wompi?.payment_source_id ||
+    meta?.paymentSourceId ||
+    meta?.payment_source_id;
+  if (!paymentSource) return res.status(409).json({ error: "customer_payment_source_missing" });
+
+  const manualChargeAt = new Date().toISOString();
+  const nextMeta = {
+    ...(subscription.metadata && typeof subscription.metadata === "object" ? subscription.metadata : {}),
+    manualCharge: {
+      at: manualChargeAt,
+      cycle: subscription.currentCycle ?? 1
+    }
+  };
+  await prisma.subscription.update({
+    where: { id: subscriptionId },
+    data: { metadata: nextMeta as any }
+  });
+
+  try {
+    const result = await createAutoDebitTransactionForSubscription({
+      subscriptionId,
+      amountInCentsOverride: parsed.data.amountInCents
+    });
+    res.status(201).json({ ok: true, ...result, manualChargeAt });
+  } catch (err: any) {
+    await systemLog(LogLevel.ERROR, "subscriptions.charge_now", "Manual charge failed", {
+      subscriptionId,
+      err: err?.message ? String(err.message) : "unknown error"
+    }).catch(() => {});
+    res.status(502).json({ error: err?.message || "charge_now_failed" });
   }
 });
 

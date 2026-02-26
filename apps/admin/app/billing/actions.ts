@@ -293,6 +293,26 @@ export async function updatePlanRecurrence(formData: FormData) {
   }
 }
 
+export async function chargeSubscriptionNow(formData: FormData) {
+  await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
+  const subscriptionId = String(formData.get("subscriptionId") || "").trim();
+  const tenantIds = readTenantIds(formData);
+  const tenantId = tenantIds[0] || "";
+  if (!subscriptionId) return redirect(mergeQuery(returnTo, { error: "missing_subscription_id" }));
+
+  try {
+    const path = tenantId
+      ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/charge-now?tenantId=${encodeURIComponent(tenantId)}`
+      : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/charge-now`;
+    await adminFetch(path, { method: "POST", body: JSON.stringify({}) });
+    redirect(mergeQuery(returnTo, { charged: "1", ...(tenantId ? { tenantId } : {}) }));
+  } catch (err: any) {
+    if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
+    redirect(mergeQuery(returnTo, { error: String(err?.message || "charge_now_failed"), ...(tenantId ? { tenantId } : {}) }));
+  }
+}
+
 export async function createPlanAndSubscription(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);

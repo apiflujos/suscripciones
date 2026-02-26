@@ -1,7 +1,7 @@
 import { activateSubscription, cancelSubscription, createPaymentLink, deleteSubscription, resumeSubscription, suspendSubscription } from "../subscriptions/actions";
 import { DeleteSubscriptionButton } from "./DeleteSubscriptionButton";
 import { DeletePlanButton } from "./DeletePlanButton";
-import { createCustomerFromBilling, createPlanAndSubscription, deletePlanAndSubscription, sendChatwootPaymentLink, updatePlanRecurrence } from "./actions";
+import { chargeSubscriptionNow, createCustomerFromBilling, createPlanAndSubscription, deletePlanAndSubscription, sendChatwootPaymentLink, updatePlanRecurrence } from "./actions";
 import { NewBillingAssignmentForm } from "./NewBillingAssignmentForm";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { LocalDateTime } from "../ui/LocalDateTime";
@@ -166,6 +166,7 @@ export default async function BillingPage({
   const activated = typeof sp.activated === "string" ? sp.activated : "";
   const deleted = typeof sp.deleted === "string" ? sp.deleted : "";
   const deletedPlan = typeof sp.deletedPlan === "string" ? sp.deletedPlan : "";
+  const charged = typeof sp.charged === "string" ? sp.charged : "";
   const linkSent = typeof sp.linkSent === "string" ? sp.linkSent : "";
   const planUpdated = typeof sp.planUpdated === "string" ? sp.planUpdated : "";
   const tenantId = typeof sp.tenantId === "string" ? sp.tenantId : "";
@@ -302,6 +303,7 @@ export default async function BillingPage({
       {activated ? <div className="card cardPad">Suscripción activada.</div> : null}
       {deleted ? <div className="card cardPad">Suscripción eliminada.</div> : null}
       {deletedPlan ? <div className="card cardPad">Plan eliminado.</div> : null}
+      {charged ? <div className="card cardPad">Cobro manual enviado.</div> : null}
       {linkSent ? <div className="card cardPad">Link de pago enviado.</div> : null}
       {planUpdated ? <div className="card cardPad">Recurrencia actualizada.</div> : null}
       {tenantCreated ? <div className="card cardPad">Canal creado.</div> : null}
@@ -519,6 +521,16 @@ export default async function BillingPage({
                       </form>
                     ) : (
                       <>
+                        {r.customerTokenized && r.status !== "CANCELED" ? (
+                          <form action={chargeSubscriptionNow}>
+                            <input type="hidden" name="csrf" value={csrfToken} />
+                            <input type="hidden" name="subscriptionId" value={r.id} />
+                            {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
+                            <button className="ghost btn-compact btn-blue" type="submit">
+                              Cobrar ahora
+                            </button>
+                          </form>
+                        ) : null}
                         {r.status === "SUSPENDED" ? (
                           <form action={resumeSubscription}>
                             <input type="hidden" name="csrf" value={csrfToken} />
