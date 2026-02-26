@@ -23,6 +23,7 @@ import { getCsrfToken } from "../lib/csrf";
 import { ConnectionsPanel } from "./ConnectionsPanel";
 import { CheckoutTemplatesPanel } from "../checkout-templates/CheckoutTemplatesPanel";
 import { createCheckoutTemplate, updateCheckoutTemplate, deleteCheckoutTemplate } from "../checkout-templates/actions";
+import { RedirectConfigPanel } from "./RedirectConfigPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -408,6 +409,13 @@ export default async function SettingsPage({
             </div>
           </div>
           <div className="settings-group-body">
+            <RedirectConfigPanel
+              defaults={settings?.checkoutConfig || {}}
+              csrfToken={csrfToken}
+              onSave={updateCheckoutConfig}
+              inlineState={inlineState}
+              returnTo={returnTo}
+            />
             <CheckoutTemplatesPanel
               templates={templates}
               products={products}
