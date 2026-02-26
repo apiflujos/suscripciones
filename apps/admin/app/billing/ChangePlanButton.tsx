@@ -94,8 +94,11 @@ export function ChangePlanButton({
                     </option>
                   ))}
                 </select>
-                <div className="field-hint">
-                  Si necesitas otro plan, crea uno en <a href="/products">Productos</a>.
+                <div className="field-hint" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <span>Si necesitas otro plan, créalo aquí mismo.</span>
+                  <a className="ghost btn-compact" href="/products" target="_blank" rel="noreferrer">
+                    Crear plan
+                  </a>
                 </div>
               </div>
 
