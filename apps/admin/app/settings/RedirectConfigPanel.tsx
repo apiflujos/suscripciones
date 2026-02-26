@@ -72,6 +72,9 @@ export function RedirectConfigPanel({
     return `${base}/public/plan/{token} · ${base}/public/suscripcion/{token}`;
   }, [publicBaseUrl]);
 
+  const urlsReady = Boolean(planBaseUrl && subscriptionBaseUrl && tokenReturnUrl);
+  const tokenMessagesReady = Boolean(tokenSuccessTitle && tokenSuccessMessage && tokenErrorMessage);
+
   useEffect(() => {
     if (inlineState.action === "checkout_config" && inlineState.status === "ok") {
       setIsEditing(false);
@@ -146,15 +149,21 @@ export function RedirectConfigPanel({
           <strong>Redirecciones y Mensajes</strong>
           <div className="field-hint">URLs públicas + mensajes que aparecen en Wompi.</div>
         </div>
-        {isEditing ? (
-          <button className="ghost" type="button" onClick={generateUrls}>
-            Generar
-          </button>
-        ) : null}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {urlsReady ? <span className="pill pill-ok">Listo</span> : null}
+          {isEditing ? (
+            <button className="ghost" type="button" onClick={generateUrls}>
+              Generar
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="field">
-        <label>URL pública base</label>
+        <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span>URL pública base</span>
+          {publicBaseUrl ? <span className="pill pill-ok pill-sm">Listo</span> : null}
+        </label>
         <input
           className="input"
           value={publicBaseUrl}
@@ -167,7 +176,10 @@ export function RedirectConfigPanel({
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <div className="field">
-          <label>Base URL Plan</label>
+          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span>Base URL Plan</span>
+            {planBaseUrl ? <span className="pill pill-ok pill-sm">Listo</span> : null}
+          </label>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <input className="input" value={planBaseUrl} onChange={(e) => setPlanBaseUrl(e.target.value)} placeholder="https://.../public/plan" disabled={!isEditing} />
             <button className="ghost" type="button" onClick={generatePlanUrl}>
@@ -176,7 +188,10 @@ export function RedirectConfigPanel({
           </div>
         </div>
         <div className="field">
-          <label>Base URL Suscripción</label>
+          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span>Base URL Suscripción</span>
+            {subscriptionBaseUrl ? <span className="pill pill-ok pill-sm">Listo</span> : null}
+          </label>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <input className="input" value={subscriptionBaseUrl} onChange={(e) => setSubscriptionBaseUrl(e.target.value)} placeholder="https://.../public/suscripcion" disabled={!isEditing} />
             <button className="ghost" type="button" onClick={generateSubscriptionUrl}>
@@ -187,7 +202,10 @@ export function RedirectConfigPanel({
       </div>
 
       <div className="field">
-        <label>UTM por defecto</label>
+        <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span>UTM por defecto</span>
+          {defaultUtmParams ? <span className="pill pill-ok pill-sm">Listo</span> : null}
+        </label>
         <input
           className="input"
           value={defaultUtmParams}
@@ -199,7 +217,10 @@ export function RedirectConfigPanel({
       </div>
 
       <div className="field">
-        <label>URL retorno tokenización</label>
+        <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span>URL retorno tokenización</span>
+          {tokenReturnUrl ? <span className="pill pill-ok pill-sm">Listo</span> : null}
+        </label>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <input className="input" value={tokenReturnUrl} onChange={(e) => setTokenReturnUrl(e.target.value)} placeholder="https://tu-sitio.com" disabled={!isEditing} />
           <button className="ghost" type="button" onClick={generateReturnUrl}>
@@ -210,19 +231,29 @@ export function RedirectConfigPanel({
       </div>
 
       <div className="panel module" style={{ margin: 0 }}>
-        <div className="panel-header">
+        <div className="panel-header" style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }}>
           <strong>Mensajes de tokenización</strong>
+          {tokenMessagesReady ? <span className="pill pill-ok">Listo</span> : null}
         </div>
         <div className="field">
-          <label>Título éxito</label>
+          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span>Título éxito</span>
+            {tokenSuccessTitle ? <span className="pill pill-ok pill-sm">Listo</span> : null}
+          </label>
           <input className="input" value={tokenSuccessTitle} onChange={(e) => setTokenSuccessTitle(e.target.value)} disabled={!isEditing} />
         </div>
         <div className="field">
-          <label>Mensaje éxito</label>
+          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span>Mensaje éxito</span>
+            {tokenSuccessMessage ? <span className="pill pill-ok pill-sm">Listo</span> : null}
+          </label>
           <textarea className="input" rows={2} value={tokenSuccessMessage} onChange={(e) => setTokenSuccessMessage(e.target.value)} disabled={!isEditing} />
         </div>
         <div className="field">
-          <label>Mensaje error</label>
+          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span>Mensaje error</span>
+            {tokenErrorMessage ? <span className="pill pill-ok pill-sm">Listo</span> : null}
+          </label>
           <textarea className="input" rows={2} value={tokenErrorMessage} onChange={(e) => setTokenErrorMessage(e.target.value)} disabled={!isEditing} />
         </div>
       </div>
