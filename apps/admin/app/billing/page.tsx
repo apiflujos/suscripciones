@@ -1,7 +1,7 @@
 import { activateSubscription, cancelSubscription, deleteSubscription, resumeSubscription, suspendSubscription } from "../subscriptions/actions";
 import { DeleteSubscriptionButton } from "./DeleteSubscriptionButton";
 import { DeletePlanButton } from "./DeletePlanButton";
-import { chargeSubscriptionNow, createCustomerFromBilling, createPlanAndSubscription, deletePlanAndSubscription, scheduleCutoff, sendCentralComPaymentLink, sendCentralComTokenizationLink, updatePlanRecurrence } from "./actions";
+import { changeSubscriptionPlan, chargeSubscriptionNow, createCustomerFromBilling, createPlanAndSubscription, deletePlanAndSubscription, scheduleCutoff, sendCentralComPaymentLink, sendCentralComTokenizationLink } from "./actions";
 import { NewBillingAssignmentForm } from "./NewBillingAssignmentForm";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { LocalDateTime } from "../ui/LocalDateTime";
@@ -9,8 +9,8 @@ import { HelpTip } from "../ui/HelpTip";
 import { CopyButton } from "../ui/CopyButton";
 import { getCsrfToken } from "../lib/csrf";
 import { createTenant } from "../tenants/actions";
-import { PlanRecurrenceEditor } from "./PlanRecurrenceEditor";
 import { ScheduleCutoffButton } from "./ScheduleCutoffButton";
+import { ChangePlanButton } from "./ChangePlanButton";
 
 export const dynamic = "force-dynamic";
 
@@ -190,13 +190,14 @@ export default async function BillingPage({
   if (tipo === "planes") subParams.set("collectionMode", "MANUAL_LINK");
   if (tenantId) subParams.set("tenantId", tenantId);
 
-  const [subs, customers, products, templates, tenantsRes, settingsRes] = await Promise.all([
+  const [subs, customers, products, templates, tenantsRes, settingsRes, plansRes] = await Promise.all([
     fetchAdmin(`/admin/subscriptions?${subParams.toString()}`),
     fetchAdmin(tenantId ? `/admin/customers?take=200&tenantId=${encodeURIComponent(tenantId)}` : "/admin/customers?take=200"),
     fetchAdmin(tenantId ? `/admin/products?take=200&tenantId=${encodeURIComponent(tenantId)}` : "/admin/products?take=200"),
     fetchAdmin(tenantId ? `/admin/checkout-templates?tenantId=${encodeURIComponent(tenantId)}` : "/admin/checkout-templates"),
     fetchAdminCached("/admin/tenants", { ttlMs: 1500 }),
-    fetchAdminCached("/admin/settings", { ttlMs: 1500 })
+    fetchAdminCached("/admin/settings", { ttlMs: 1500 }),
+    fetchAdmin(tenantId ? `/admin/plans?take=400&tenantId=${encodeURIComponent(tenantId)}` : "/admin/plans?take=400")
   ]);
   const subItems = (subs.json?.items ?? []) as any[];
   const customerItems = (customers.json?.items ?? []) as any[];
@@ -207,6 +208,14 @@ export default async function BillingPage({
   const settings = settingsRes.ok ? settingsRes.json : null;
   const checkoutConfig = settings?.checkoutConfig || {};
   const subscriptionBaseUrl = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
+  const plans = (plansRes.json?.items ?? []) as any[];
+  const planOptions = plans.map((p: any) => ({
+    id: String(p.id),
+    name: String(p.name || "Plan"),
+    collectionMode: String(p?.metadata?.collectionMode || p.collectionMode || ""),
+    priceInCents: Number(p.priceInCents || 0),
+    currency: String(p.currency || "COP")
+  }));
 
   const rows = subItems
     .map((s) => {
@@ -469,14 +478,15 @@ export default async function BillingPage({
 
                   <div className="billing-actions">
                     {r.planId ? (
-                      <PlanRecurrenceEditor
-                        planId={r.planId}
-                        intervalUnit={String(r.intervalUnit || "MONTH") as any}
-                        intervalCount={Number(r.intervalCount || 1)}
+                      <ChangePlanButton
+                        subscriptionId={r.id}
+                        currentPlanId={r.planId}
+                        currentEndAt={r.vencimientoAt}
+                        plans={planOptions}
                         csrfToken={csrfToken}
                         returnTo={returnTo}
                         tenantId={r.tenantId}
-                        action={updatePlanRecurrence}
+                        action={changeSubscriptionPlan}
                       />
                     ) : null}
                     {r.mode !== "AUTO_DEBIT" ? (

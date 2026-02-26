@@ -238,6 +238,11 @@ const scheduleCutoffSchema = z.object({
   cutoffAt: z.string().min(1)
 });
 
+const changePlanSchema = z.object({
+  planId: z.string().uuid(),
+  cutoffAt: z.string().min(1)
+});
+
 subscriptionsRouter.post("/:id/payment-link", async (req, res) => {
   const subscriptionId = req.params.id;
 
@@ -346,6 +351,63 @@ subscriptionsRouter.post("/:id/schedule-cutoff", async (req, res) => {
   const updated = await prisma.subscription.update({
     where: { id: subscriptionId },
     data: { currentPeriodEndAt: cutoffAt }
+  });
+
+  await prisma.retryJob.deleteMany({
+    where: {
+      type: RetryJobType.PAYMENT_RETRY,
+      status: RetryJobStatus.PENDING,
+      payload: { path: ["subscriptionId"], equals: subscriptionId } as any
+    } as any
+  });
+
+  await prisma.retryJob
+    .create({
+      data: {
+        type: RetryJobType.PAYMENT_RETRY,
+        runAt: cutoffAt <= new Date(Date.now() + 5_000) ? new Date() : cutoffAt,
+        payload: { subscriptionId }
+      }
+    })
+    .catch(() => {});
+
+  await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});
+
+  res.status(200).json({ ok: true, subscription: updated, scheduledAt: cutoffAt.toISOString() });
+});
+
+subscriptionsRouter.post("/:id/change-plan", async (req, res) => {
+  const subscriptionId = req.params.id;
+  const parsed = changePlanSchema.safeParse(req.body ?? {});
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+
+  const cutoffAtRaw = String(parsed.data.cutoffAt || "").trim();
+  const cutoffAt = new Date(cutoffAtRaw);
+  if (!cutoffAtRaw || Number.isNaN(cutoffAt.getTime())) return res.status(400).json({ error: "invalid_cutoff_date" });
+
+  const tenantId = await getEffectiveTenantId(req);
+  const [subscription, plan] = await Promise.all([
+    prisma.subscription.findUnique({ where: { id: subscriptionId }, include: { tenantLinks: true } }),
+    prisma.subscriptionPlan.findUnique({ where: { id: parsed.data.planId }, include: { tenantLinks: true } })
+  ]);
+  if (!subscription) return res.status(404).json({ error: "subscription_not_found" });
+  if (!plan) return res.status(404).json({ error: "plan_not_found" });
+  if (tenantId) {
+    const allowed = subscription.tenantId === tenantId || (subscription.tenantLinks || []).some((t: any) => t.tenantId === tenantId);
+    if (!allowed) return res.status(404).json({ error: "subscription_not_found" });
+    const allowedPlan = plan.tenantId === tenantId || (plan.tenantLinks || []).some((t: any) => t.tenantId === tenantId);
+    if (!allowedPlan) return res.status(404).json({ error: "plan_not_found" });
+  }
+
+  const now = new Date();
+  const updated = await prisma.subscription.update({
+    where: { id: subscriptionId },
+    data: {
+      planId: plan.id,
+      currentCycle: 1,
+      currentPeriodStartAt: now,
+      currentPeriodEndAt: cutoffAt
+    }
   });
 
   await prisma.retryJob.deleteMany({
