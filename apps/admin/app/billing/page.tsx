@@ -165,7 +165,8 @@ export default async function BillingPage({
   const checkoutUrl = typeof sp.checkoutUrl === "string" ? sp.checkoutUrl : "";
   const checkoutCustomerId = typeof sp.customerId === "string" ? sp.customerId : "";
   const tokenUrl = typeof sp.tokenUrl === "string" ? sp.tokenUrl : "";
-  const charged = typeof sp.charged === "string" ? sp.charged : "";
+  const chargeStatus = typeof sp.chargeStatus === "string" ? sp.chargeStatus : "";
+  const chargeError = typeof sp.chargeError === "string" ? sp.chargeError : "";
   const actionSubscriptionId = typeof sp.subscriptionId === "string" ? sp.subscriptionId : "";
   const cutoffScheduled = typeof sp.cutoffScheduled === "string" ? sp.cutoffScheduled : "";
   const error = typeof sp.error === "string" ? sp.error : "";
@@ -303,6 +304,30 @@ export default async function BillingPage({
           Error: {error}
         </div>
       ) : null}
+      {chargeStatus ? (
+        <div className="modal-backdrop">
+          <div className="modal-panel" style={{ maxWidth: 420 }}>
+            <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <h3 style={{ margin: 0 }}>{chargeStatus === "ok" ? "Cobro exitoso" : "Cobro fallido"}</h3>
+              <a className="ghost" href={returnTo} aria-label="Cerrar">X</a>
+            </div>
+            <div
+              className="card cardPad"
+              style={{
+                borderColor: chargeStatus === "ok" ? "rgba(34, 197, 94, 0.25)" : "rgba(217, 83, 79, 0.22)",
+                background: chargeStatus === "ok" ? "rgba(34, 197, 94, 0.08)" : "rgba(217, 83, 79, 0.08)"
+              }}
+            >
+              {chargeStatus === "ok"
+                ? "El cobro se procesó correctamente."
+                : `No se pudo cobrar la suscripción. ${chargeError || ""}`}
+            </div>
+            <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
+              <a className="primary" href={returnTo}>Aceptar</a>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <section className="settings-group">
         <div className="settings-group-header">
@@ -417,7 +442,7 @@ export default async function BillingPage({
               const rowCheckoutUrl = checkoutCustomerId && checkoutCustomerId === r.customerId ? checkoutUrl : "";
               const rowTokenUrl = checkoutCustomerId && checkoutCustomerId === r.customerId ? tokenUrl : "";
               const sentForRow = central === "sent" && checkoutCustomerId && checkoutCustomerId === r.customerId;
-              const chargedForRow = charged && actionSubscriptionId === r.id;
+              const chargedForRow = chargeStatus === "ok" && actionSubscriptionId === r.id;
               const cutoffForRow = cutoffScheduled && actionSubscriptionId === r.id;
               const needsToken = r.mode === "AUTO_DEBIT" && !r.customerTokenized;
               const canSendToken = needsToken && Boolean(subscriptionBaseUrl);
