@@ -89,6 +89,7 @@ export default async function SettingsPage({
 
   const comms = (settings?.communications || null) as any;
   const commsProduction = (comms?.production || settings?.chatwoot || {}) as any;
+  const appPublicBaseUrl = String(process.env.APP_PUBLIC_BASE_URL || "").trim();
   const commsSandbox = (comms?.sandbox || {}) as any;
   const commsActiveEnv = (comms?.activeEnv || "PRODUCTION") as "PRODUCTION" | "SANDBOX";
   const sp = (await searchParams) ?? {};
@@ -420,6 +421,7 @@ export default async function SettingsPage({
           <div className="settings-group-body">
             <RedirectConfigPanel
               defaults={settings?.checkoutConfig || {}}
+              appPublicBaseUrl={appPublicBaseUrl}
               csrfToken={csrfToken}
               onSave={updateCheckoutConfig}
               inlineState={inlineState}

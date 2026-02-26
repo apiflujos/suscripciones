@@ -25,12 +25,14 @@ function normalizeBaseUrl(input: string) {
 
 export function RedirectConfigPanel({
   defaults,
+  appPublicBaseUrl,
   csrfToken,
   onSave,
   inlineState,
   returnTo
 }: {
   defaults: CheckoutConfig;
+  appPublicBaseUrl?: string;
   csrfToken: string;
   onSave: (formData: FormData) => void;
   inlineState: { action: string; status: string; errorText: string };
@@ -39,8 +41,9 @@ export function RedirectConfigPanel({
   const formRef = useRef<HTMLFormElement | null>(null);
   const [publicBaseUrl, setPublicBaseUrl] = useState<string>(() => {
     const existing = String(defaults.planBaseUrl || defaults.subscriptionBaseUrl || "").trim();
-    if (!existing) return "";
-    return existing.replace(/\/public\/(plan|suscripcion).*/i, "");
+    if (existing) return existing.replace(/\/public\/(plan|suscripcion).*/i, "");
+    const base = String(appPublicBaseUrl || "").trim();
+    return base || "";
   });
   const [planBaseUrl, setPlanBaseUrl] = useState<string>(String(defaults.planBaseUrl || ""));
   const [subscriptionBaseUrl, setSubscriptionBaseUrl] = useState<string>(String(defaults.subscriptionBaseUrl || ""));
@@ -56,6 +59,12 @@ export function RedirectConfigPanel({
   const hasConfig = Boolean(String(defaults.planBaseUrl || defaults.subscriptionBaseUrl || defaults.tokenizationReturnUrl || "").trim());
   const [isEditing, setIsEditing] = useState(!hasConfig);
 
+  useEffect(() => {
+    if (!publicBaseUrl && appPublicBaseUrl) {
+      setPublicBaseUrl(appPublicBaseUrl);
+    }
+  }, [appPublicBaseUrl, publicBaseUrl]);
+
   const baseHint = useMemo(() => {
     if (!publicBaseUrl) return "";
     const base = normalizeBaseUrl(publicBaseUrl);
@@ -69,17 +78,18 @@ export function RedirectConfigPanel({
   }, [inlineState.action, inlineState.status]);
 
   useEffect(() => {
-    const base = normalizeBaseUrl(publicBaseUrl);
+    const base = normalizeBaseUrl(publicBaseUrl || appPublicBaseUrl || "");
     if (!base) return;
     if (!planBaseUrl) setPlanBaseUrl(`${base}/public/plan`);
     if (!subscriptionBaseUrl) setSubscriptionBaseUrl(`${base}/public/suscripcion`);
     if (!tokenReturnUrl) setTokenReturnUrl(`${base}/public/return`);
     if (!defaultUtmParams) setDefaultUtmParams("utm_source=apiflujos&utm_medium=checkout&utm_campaign=mdv");
-  }, [publicBaseUrl]);
+  }, [publicBaseUrl, appPublicBaseUrl]);
 
   function generateUrls() {
-    const base = normalizeBaseUrl(publicBaseUrl);
+    const base = normalizeBaseUrl(publicBaseUrl || appPublicBaseUrl || "");
     if (!base) return;
+    if (!isEditing) setIsEditing(true);
     setPlanBaseUrl(`${base}/public/plan`);
     setSubscriptionBaseUrl(`${base}/public/suscripcion`);
     if (!tokenReturnUrl) setTokenReturnUrl(`${base}/public/return`);
@@ -87,7 +97,7 @@ export function RedirectConfigPanel({
   }
 
   function generatePlanUrl() {
-    const base = normalizeBaseUrl(publicBaseUrl);
+    const base = normalizeBaseUrl(publicBaseUrl || appPublicBaseUrl || "");
     if (!base) return;
     if (!isEditing) setIsEditing(true);
     setPlanBaseUrl(`${base}/public/plan`);
@@ -95,7 +105,7 @@ export function RedirectConfigPanel({
   }
 
   function generateSubscriptionUrl() {
-    const base = normalizeBaseUrl(publicBaseUrl);
+    const base = normalizeBaseUrl(publicBaseUrl || appPublicBaseUrl || "");
     if (!base) return;
     if (!isEditing) setIsEditing(true);
     setSubscriptionBaseUrl(`${base}/public/suscripcion`);
@@ -103,7 +113,7 @@ export function RedirectConfigPanel({
   }
 
   function generateReturnUrl() {
-    const base = normalizeBaseUrl(publicBaseUrl);
+    const base = normalizeBaseUrl(publicBaseUrl || appPublicBaseUrl || "");
     if (!base) return;
     if (!isEditing) setIsEditing(true);
     setTokenReturnUrl(`${base}/public/return`);
@@ -140,14 +150,8 @@ export function RedirectConfigPanel({
           className="input"
           value={publicBaseUrl}
           onChange={(e) => setPublicBaseUrl(e.target.value)}
-          onBlur={(e) => {
-            const next = normalizeBaseUrl(e.target.value);
-            if (next && !/^https?:\/\//i.test(next)) {
-              setPublicBaseUrl(`https://${next}`);
-            }
-          }}
           placeholder="https://mdv.sus.apiflujos.com"
-          disabled={!isEditing}
+          disabled
         />
         {baseHint ? <div className="field-hint">Se generarán: {baseHint}</div> : null}
       </div>
