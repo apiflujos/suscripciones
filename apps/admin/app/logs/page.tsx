@@ -92,6 +92,19 @@ function toStatusChip(level: string) {
   return { cls: "is-success", label: "Exitoso" };
 }
 
+function normalizeJobType(type: any) {
+  const v = String(type || "");
+  if (v === "SUBSCRIPTION_REMINDER") return "Notificación programada";
+  if (v === "SEND_CHATWOOT_MESSAGE") return "Mensaje CentralCom";
+  if (v === "FORWARD_WOMPI_TO_SHOPIFY") return "Forward a Shopify";
+  if (v === "PROCESS_WOMPI_EVENT") return "Procesar evento Wompi";
+  if (v === "PAYMENT_RETRY") return "Reintento de pago";
+  if (v === "BILLING_MONTHLY_REPORT") return "Reporte mensual";
+  if (v === "SEND_CAMPAIGN") return "Enviar campaña";
+  if (v === "SYNC_SMART_LISTS") return "Sincronizar listas";
+  return v || "—";
+}
+
 export default async function LogsPage({
   searchParams
 }: {
@@ -373,7 +386,7 @@ export default async function LogsPage({
                     return (
                       <tr key={j.id}>
                         <td><LocalDateTime value={j.updatedAt} /></td>
-                        <td>{j.type || "—"}</td>
+                        <td>{normalizeJobType(j.type)}</td>
                         <td>
                           <span className={`status-chip ${chip.cls}`}>
                             <span className={`status-led ${chip.cls === "is-success" ? "is-ok" : ""}`} />

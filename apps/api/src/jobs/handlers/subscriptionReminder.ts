@@ -94,13 +94,31 @@ function getPaymentType(args: { subscription?: any | null; payment?: any | null 
 
 export async function subscriptionReminder(payload: any) {
   const parsed = payloadSchema.safeParse(payload);
-  if (!parsed.success) return;
+  if (!parsed.success) {
+    await systemLog(LogLevel.WARN, "notifications.dispatch", "Payload inválido para notificación", {
+      errors: parsed.error.flatten()
+    }).catch(() => {});
+    return;
+  }
 
   const cfg = await getNotificationsConfig();
   const rule = cfg.rules.find((r) => r.id === parsed.data.ruleId);
-  if (!rule || !rule.enabled) return;
+  if (!rule || !rule.enabled) {
+    await systemLog(LogLevel.WARN, "notifications.dispatch", "Regla inactiva o no encontrada", {
+      ruleId: parsed.data.ruleId,
+      trigger: parsed.data.trigger
+    }).catch(() => {});
+    return;
+  }
   const template = cfg.templates.find((t) => t.id === rule.templateId);
-  if (!template) return;
+  if (!template) {
+    await systemLog(LogLevel.WARN, "notifications.dispatch", "Plantilla no encontrada", {
+      ruleId: rule.id,
+      templateId: rule.templateId,
+      trigger: parsed.data.trigger
+    }).catch(() => {});
+    return;
+  }
 
   await systemLog(LogLevel.INFO, "notifications.dispatch", "Procesando notificacion", {
     trigger: parsed.data.trigger,
@@ -126,7 +144,17 @@ export async function subscriptionReminder(payload: any) {
     payment?.customer ||
     (parsed.data.customerId ? await prisma.customer.findUnique({ where: { id: parsed.data.customerId } }) : null);
 
-  if (!customer) return;
+  if (!customer) {
+    await systemLog(LogLevel.WARN, "notifications.dispatch", "Contacto no encontrado", {
+      ruleId: rule.id,
+      templateId: template.id,
+      trigger: parsed.data.trigger,
+      customerId: parsed.data.customerId || null,
+      subscriptionId: parsed.data.subscriptionId || null,
+      paymentId: parsed.data.paymentId || null
+    }).catch(() => {});
+    return;
+  }
 
   if (subscription && rule.conditions?.skipIfSubscriptionStatusIn?.includes(subscription.status as any)) return;
 
