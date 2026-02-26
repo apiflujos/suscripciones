@@ -186,7 +186,7 @@ export function NotificationsSimple({
                   <div className="saved-conn-header">
                     <div>
                       <strong>{rt.label}</strong>
-                      <div className="saved-conn-sub">Chatwoot</div>
+                      <div className="saved-conn-sub">CentralCom</div>
                     </div>
                     <span className={`pill ${rule?.enabled ? "pill-green" : "pill-muted"}`}>{rule?.enabled ? "Activa" : "Inactiva"}</span>
                   </div>

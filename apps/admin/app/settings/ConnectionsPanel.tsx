@@ -93,7 +93,7 @@ export function ConnectionsPanel({
             <img src="/brand/conn-apiflujos.png" alt="Apiflujos" />
           </div>
           <div className="conn-body">
-            <div className="conn-title">Central</div>
+            <div className="conn-title">CentralCom</div>
             <div className="conn-sub">Comunicaciones</div>
           </div>
           <div className="conn-status" style={{ display: "grid", gap: 4, justifyItems: "end" }}>
@@ -237,7 +237,7 @@ export function ConnectionsPanel({
         <div className="modal-backdrop">
           <div className="modal-panel">
             <div className="panel-header">
-              <h3 style={{ margin: 0 }}>Central de Comunicaciones</h3>
+              <h3 style={{ margin: 0 }}>CentralCom</h3>
               <button type="button" className="ghost" onClick={() => setOpen(null)} aria-label="Cerrar">X</button>
             </div>
 
@@ -269,7 +269,7 @@ export function ConnectionsPanel({
               ] as const).map(([envKey, envLabel, comms]) => (
                 <div key={envKey} className="panel module">
                   <div className="panelHeaderRow">
-                    <strong>Central ({envLabel})</strong>
+                    <strong>CentralCom ({envLabel})</strong>
                   </div>
                   <form action={actions.updateChatwoot} style={{ display: "grid", gap: 10 }}>
                     <input type="hidden" name="csrf" value={csrfToken} />
@@ -336,7 +336,7 @@ export function ConnectionsPanel({
                 <div className="saved-conn-header">
                   <div>
                     <strong>Sincronización masiva</strong>
-                    <div className="saved-conn-sub">Contactos y atributos en Central</div>
+                    <div className="saved-conn-sub">Contactos y atributos en CentralCom</div>
                   </div>
                 </div>
                 <div className="saved-conn-actions">

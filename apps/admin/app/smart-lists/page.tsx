@@ -65,7 +65,7 @@ export default async function SmartListsPage({
       <div className="pageHeader">
         <div>
           <h1>Listas Inteligentes</h1>
-          <p className="muted">Segmenta por reglas y envía campañas masivas desde la Central de Comunicaciones Apiflujos.</p>
+          <p className="muted">Segmenta por reglas y envía campañas masivas desde CentralCom.</p>
         </div>
       </div>
 
@@ -81,7 +81,7 @@ export default async function SmartListsPage({
           <div className="field">
             <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span>Nombre</span>
-              <HelpTip text="Nombre visible en la Central y en campañas." />
+              <HelpTip text="Nombre visible en CentralCom y en campañas." />
             </label>
             <input className="input" name="name" defaultValue={prefillName} required />
           </div>

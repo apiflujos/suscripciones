@@ -81,7 +81,7 @@ function normalizeLogMessage(message: any) {
   const m = String(message || "");
   if (m === "Shopify settings updated") return "Configuración de reenvío actualizada";
   if (m === "Wompi settings updated") return "Credenciales de Wompi actualizadas";
-  if (m === "Chatwoot settings updated") return "Credenciales de la central de comunicaciones actualizadas";
+  if (m === "Chatwoot settings updated") return "Credenciales de CentralCom actualizadas";
   return m;
 }
 

@@ -343,7 +343,7 @@ export function NotificationsManager({
               {tplChannel === "CHATWOOT" ? (
                 <>
                   <div className="field">
-                    <label>Tipo (Chatwoot)</label>
+                    <label>Tipo (CentralCom)</label>
                     <select className="select" value={tplChatwootType} onChange={(e) => setTplChatwootType(e.target.value as any)}>
                       <option value="PAYMENT_LINK">PAYMENT_LINK</option>
                       <option value="PAYMENT_CONFIRMED">PAYMENT_CONFIRMED</option>
