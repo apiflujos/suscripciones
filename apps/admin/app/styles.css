@@ -1165,7 +1165,7 @@ textarea {
 }
 
 .product-sku {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: inherit;
   font-size: 12px;
 }
 
@@ -1442,9 +1442,20 @@ textarea {
 .saved-conn-meta-value {
   font-size: 12px;
   color: #0f172a;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family: inherit;
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+.modal-panel .panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.modal-panel .panel-header .ghost {
+  margin-left: auto;
 }
 
 .progress-row {
