@@ -92,10 +92,10 @@ productsRouter.get("/", async (_req, res) => {
     include: { tenantLinks: true }
   });
   res.json({
-    items: items.map((p) => ({
+    items: items.map((p: any) => ({
       id: p.id,
       tenantId: p.tenantId || null,
-      tenantIds: Array.from(new Set([p.tenantId, ...(p.tenantLinks || []).map((t) => t.tenantId)].filter(Boolean))) as string[],
+      tenantIds: Array.from(new Set([p.tenantId, ...(p.tenantLinks || []).map((t: any) => t.tenantId)].filter(Boolean))) as string[],
       name: (p.metadata as any)?.displayName || p.name,
       sku: (p.metadata as any)?.sku || "",
       kind: (p.metadata as any)?.itemKind || "PRODUCT",
@@ -131,7 +131,7 @@ productsRouter.get("/:id/payments", async (req, res) => {
   if (tenantId) {
     const plan = await prisma.subscriptionPlan.findUnique({ where: { id }, include: { tenantLinks: true } });
     if (!plan) return res.status(404).json({ error: "not_found" });
-    const allowed = plan.tenantId === tenantId || (plan.tenantLinks || []).some((t) => t.tenantId === tenantId);
+    const allowed = plan.tenantId === tenantId || (plan.tenantLinks || []).some((t: any) => t.tenantId === tenantId);
     if (!allowed) return res.status(404).json({ error: "not_found" });
   }
   const takeRaw = Number(req?.query?.take ?? 50);
@@ -148,7 +148,7 @@ productsRouter.get("/:id/payments", async (req, res) => {
   });
 
   res.json({
-    items: payments.map((p) => ({
+    items: payments.map((p: any) => ({
       id: p.id,
       amountInCents: p.amountInCents,
       currency: p.currency,
@@ -170,7 +170,7 @@ productsRouter.get("/:id", async (req, res) => {
   if (!plan) return res.status(404).json({ error: "not_found" });
   const tenantId = await getEffectiveTenantId(req);
   if (tenantId) {
-    const allowed = plan.tenantId === tenantId || (plan.tenantLinks || []).some((t) => t.tenantId === tenantId);
+    const allowed = plan.tenantId === tenantId || (plan.tenantLinks || []).some((t: any) => t.tenantId === tenantId);
     if (!allowed) return res.status(404).json({ error: "not_found" });
   }
   if ((plan.metadata as any)?.kind !== "CATALOG_ITEM") return res.status(404).json({ error: "not_found" });
@@ -179,7 +179,7 @@ productsRouter.get("/:id", async (req, res) => {
     item: {
       id: plan.id,
       tenantId: plan.tenantId || null,
-      tenantIds: Array.from(new Set([plan.tenantId, ...(plan.tenantLinks || []).map((t) => t.tenantId)].filter(Boolean))) as string[],
+      tenantIds: Array.from(new Set([plan.tenantId, ...(plan.tenantLinks || []).map((t: any) => t.tenantId)].filter(Boolean))) as string[],
       name: (plan.metadata as any)?.displayName || plan.name,
       sku: (plan.metadata as any)?.sku || "",
       kind: (plan.metadata as any)?.itemKind || "PRODUCT",
@@ -220,7 +220,7 @@ productsRouter.put("/:id", async (req, res) => {
   const existing = await prisma.subscriptionPlan.findUnique({ where: { id }, include: { tenantLinks: true } });
   if (!existing) return res.status(404).json({ error: "not_found" });
   if (tenantId) {
-    const allowed = existing.tenantId === tenantId || (existing.tenantLinks || []).some((t) => t.tenantId === tenantId);
+    const allowed = existing.tenantId === tenantId || (existing.tenantLinks || []).some((t: any) => t.tenantId === tenantId);
     if (!allowed) return res.status(404).json({ error: "not_found" });
   }
   if ((existing.metadata as any)?.kind !== "CATALOG_ITEM") return res.status(404).json({ error: "not_found" });
@@ -278,7 +278,7 @@ productsRouter.put("/:id", async (req, res) => {
   });
   if (plansToUpdate.length) {
     await Promise.all(
-      plansToUpdate.map((plan) => {
+      plansToUpdate.map((plan: any) => {
         const meta: any = plan.metadata && typeof plan.metadata === "object" ? plan.metadata : {};
         const variantDelta = Number(meta?.catalog?.variantDeltaInCents || 0);
         const totals = computeTotalsForCatalog({
@@ -394,7 +394,7 @@ productsRouter.delete("/:id", async (req, res) => {
   if (!plan) return res.status(404).json({ error: "not_found" });
   const tenantId = await getEffectiveTenantId(req);
   if (tenantId) {
-    const allowed = plan.tenantId === tenantId || (plan.tenantLinks || []).some((t) => t.tenantId === tenantId);
+    const allowed = plan.tenantId === tenantId || (plan.tenantLinks || []).some((t: any) => t.tenantId === tenantId);
     if (!allowed) return res.status(404).json({ error: "not_found" });
   }
   if ((plan.metadata as any)?.kind !== "CATALOG_ITEM") return res.status(404).json({ error: "not_found" });
@@ -414,9 +414,9 @@ productsRouter.delete("/:id", async (req, res) => {
 
   if (force) {
     const subs = await prisma.subscription.findMany({ where: { planId: id }, select: { id: true } });
-    const subIds = subs.map((s) => s.id);
+    const subIds = subs.map((s: any) => s.id);
     const payments = await prisma.payment.findMany({ where: { subscriptionId: { in: subIds } }, select: { id: true } });
-    const paymentIds = payments.map((p) => p.id);
+    const paymentIds = payments.map((p: any) => p.id);
 
     if (paymentIds.length) {
       await prisma.paymentAttempt.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch(() => {});

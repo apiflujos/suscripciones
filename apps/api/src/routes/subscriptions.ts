@@ -4,7 +4,7 @@ import { prisma } from "../db/prisma";
 import { addIntervalUtc } from "../lib/dates";
 import { LogLevel, PaymentStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
 import { systemLog } from "../services/systemLog";
-import { createPaymentLinkForSubscription } from "../services/subscriptionBilling";
+import { createAutoDebitTransactionForSubscription, createPaymentLinkForSubscription } from "../services/subscriptionBilling";
 import { scheduleSubscriptionDueNotifications } from "../services/notificationsScheduler";
 import { consumeApp } from "../services/superAdminApp";
 import { getEffectiveTenantId, getEffectiveTenantIds, readTenantIdsFromReq } from "../services/tenantContext";
@@ -62,7 +62,7 @@ subscriptionsRouter.get("/", async (_req, res) => {
     take,
     include: { customer: true, plan: { include: { tenantLinks: true } }, tenantLinks: true }
   });
-  const subscriptionIds = items.map((s) => s.id);
+  const subscriptionIds = items.map((s: any) => s.id);
   const approvedPayments = await prisma.payment.findMany({
     where: { subscriptionId: { in: subscriptionIds }, status: PaymentStatus.APPROVED, paidAt: { not: null } },
     orderBy: { paidAt: "desc" },
@@ -89,10 +89,10 @@ subscriptionsRouter.get("/", async (_req, res) => {
   }
 
   res.json({
-    items: items.map((s) => ({
+    items: items.map((s: any) => ({
       ...s,
       tenantIds: Array.from(
-        new Set([s.tenantId, ...(s.tenantLinks || []).map((t) => t.tenantId)].filter(Boolean))
+        new Set([s.tenantId, ...(s.tenantLinks || []).map((t: any) => t.tenantId)].filter(Boolean))
       ) as string[],
       lastPayment: lastPaymentBySub.get(s.id) ?? null,
       lastPaymentLink: lastLinkBySub.get(s.id) ?? null
@@ -109,7 +109,7 @@ subscriptionsRouter.post("/", async (req, res) => {
 
   const customer = await prisma.customer.findUnique({ where: { id: parsed.data.customerId } });
   if (!customer) return res.status(404).json({ error: "customer_not_found" });
-  const planTenantIds = Array.from(new Set([plan.tenantId, ...(plan.tenantLinks || []).map((t) => t.tenantId)].filter(Boolean))) as string[];
+  const planTenantIds = Array.from(new Set([plan.tenantId, ...(plan.tenantLinks || []).map((t: any) => t.tenantId)].filter(Boolean))) as string[];
   const requestedTenantIds = readTenantIdsFromReq(req);
   const fallbackTenantIds = requestedTenantIds.length ? requestedTenantIds : planTenantIds;
   const effectiveTenantIds = fallbackTenantIds.length ? fallbackTenantIds : (await getEffectiveTenantIds(req));
@@ -243,7 +243,7 @@ subscriptionsRouter.post("/:id/payment-link", async (req, res) => {
   if (tenantId) {
     const existing = await prisma.subscription.findUnique({ where: { id: subscriptionId }, include: { tenantLinks: true } });
     if (!existing) return res.status(404).json({ error: "subscription_not_found" });
-    const allowed = existing.tenantId === tenantId || (existing.tenantLinks || []).some((t) => t.tenantId === tenantId);
+    const allowed = existing.tenantId === tenantId || (existing.tenantLinks || []).some((t: any) => t.tenantId === tenantId);
     if (!allowed) return res.status(404).json({ error: "subscription_not_found" });
   }
   try {
@@ -273,7 +273,7 @@ subscriptionsRouter.post("/:id/charge-now", async (req, res) => {
   });
   if (!subscription) return res.status(404).json({ error: "subscription_not_found" });
   if (tenantId) {
-    const allowed = subscription.tenantId === tenantId || (subscription.tenantLinks || []).some((t) => t.tenantId === tenantId);
+    const allowed = subscription.tenantId === tenantId || (subscription.tenantLinks || []).some((t: any) => t.tenantId === tenantId);
     if (!allowed) return res.status(404).json({ error: "subscription_not_found" });
   }
 
@@ -323,7 +323,7 @@ subscriptionsRouter.post("/:id/suspend", async (req, res) => {
   if (!existing) return res.status(404).json({ error: "subscription_not_found" });
   const tenantId = await getEffectiveTenantId(req);
   if (tenantId) {
-    const allowed = existing.tenantId === tenantId || (existing.tenantLinks || []).some((t) => t.tenantId === tenantId);
+    const allowed = existing.tenantId === tenantId || (existing.tenantLinks || []).some((t: any) => t.tenantId === tenantId);
     if (!allowed) return res.status(404).json({ error: "subscription_not_found" });
   }
   if (existing.status === SubscriptionStatus.CANCELED) return res.status(409).json({ error: "subscription_canceled" });
@@ -343,7 +343,7 @@ subscriptionsRouter.post("/:id/cancel", async (req, res) => {
   if (!existing) return res.status(404).json({ error: "subscription_not_found" });
   const tenantId = await getEffectiveTenantId(req);
   if (tenantId) {
-    const allowed = existing.tenantId === tenantId || (existing.tenantLinks || []).some((t) => t.tenantId === tenantId);
+    const allowed = existing.tenantId === tenantId || (existing.tenantLinks || []).some((t: any) => t.tenantId === tenantId);
     if (!allowed) return res.status(404).json({ error: "subscription_not_found" });
   }
 
@@ -362,7 +362,7 @@ subscriptionsRouter.post("/:id/resume", async (req, res) => {
   if (!existing) return res.status(404).json({ error: "subscription_not_found" });
   const tenantId = await getEffectiveTenantId(req);
   if (tenantId) {
-    const allowed = existing.tenantId === tenantId || (existing.tenantLinks || []).some((t) => t.tenantId === tenantId);
+    const allowed = existing.tenantId === tenantId || (existing.tenantLinks || []).some((t: any) => t.tenantId === tenantId);
     if (!allowed) return res.status(404).json({ error: "subscription_not_found" });
   }
 
@@ -381,7 +381,7 @@ subscriptionsRouter.post("/:id/activate", async (req, res) => {
   if (!existing) return res.status(404).json({ error: "subscription_not_found" });
   const tenantId = await getEffectiveTenantId(req);
   if (tenantId) {
-    const allowed = existing.tenantId === tenantId || (existing.tenantLinks || []).some((t) => t.tenantId === tenantId);
+    const allowed = existing.tenantId === tenantId || (existing.tenantLinks || []).some((t: any) => t.tenantId === tenantId);
     if (!allowed) return res.status(404).json({ error: "subscription_not_found" });
   }
 
@@ -400,7 +400,7 @@ subscriptionsRouter.delete("/:id", async (req, res) => {
   if (!existing) return res.status(404).json({ error: "subscription_not_found" });
   const tenantId = await getEffectiveTenantId(req);
   if (tenantId) {
-    const allowed = existing.tenantId === tenantId || (existing.tenantLinks || []).some((t) => t.tenantId === tenantId);
+    const allowed = existing.tenantId === tenantId || (existing.tenantLinks || []).some((t: any) => t.tenantId === tenantId);
     if (!allowed) return res.status(404).json({ error: "subscription_not_found" });
   }
   const force = String((req as any)?.query?.force || "").trim() === "1";
@@ -422,7 +422,7 @@ subscriptionsRouter.delete("/:id", async (req, res) => {
 
   if (force) {
     const payments = await prisma.payment.findMany({ where: { subscriptionId }, select: { id: true } });
-    const paymentIds = payments.map((p) => p.id);
+    const paymentIds = payments.map((p: any) => p.id);
     if (paymentIds.length) {
       await prisma.paymentAttempt.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch(() => {});
     }

@@ -150,13 +150,13 @@ superAdminRouter.get("/users", requireSaSession, async (_req, res) => {
     include: { tenants: true }
   });
   res.json({
-    items: items.map((u) => ({
+    items: items.map((u: any) => ({
       id: u.id,
       email: u.email,
       role: u.role,
       active: u.active,
       tenantId: u.tenantId,
-      tenantIds: Array.from(new Set([u.tenantId, ...(u.tenants || []).map((t) => t.tenantId)].filter(Boolean)))
+      tenantIds: Array.from(new Set([u.tenantId, ...(u.tenants || []).map((t: any) => t.tenantId)].filter(Boolean)))
     }))
   });
 });
@@ -381,7 +381,7 @@ superAdminRouter.post("/tenants/:tenantId/assign-plan", requireSaSession, async 
     return res.status(404).json({ error: err?.message ? String(err.message) : "plan_not_found" });
   }
 
-  const snap = await prisma.$transaction(async (tx) => {
+  const snap = await prisma.$transaction(async (tx: typeof prisma) => {
     await tx.saTenantPlanSnapshot.updateMany({ where: { tenantId, active: true }, data: { active: false } });
     return tx.saTenantPlanSnapshot.create({ data: { tenantId, planId: parsed.data.planId, active: true, snapshot } as any });
   });
@@ -441,7 +441,7 @@ superAdminRouter.get("/usage", requireSaSession, async (req, res) => {
   const billByKey = new Map<string, { q: number; cents: number }>();
   for (const b of billing) billByKey.set(`${b.serviceKey}:${b.periodKey}`, { q: b.totalQuantity, cents: b.totalInCents });
 
-  const items = limitDefs.map((d) => {
+  const items = limitDefs.map((d: any) => {
     const pk = d.periodType === SaPeriodType.total ? "total" : parsed.data.periodKey;
     const b = billByKey.get(`${d.key}:${pk}`);
     return {
@@ -455,7 +455,7 @@ superAdminRouter.get("/usage", requireSaSession, async (req, res) => {
   });
 
   const totals = {
-    billedInCents: items.reduce((acc, x) => acc + x.billedInCents, 0)
+    billedInCents: items.reduce((acc: number, x: any) => acc + x.billedInCents, 0)
   };
   res.json({ items, totals });
 });
@@ -469,7 +469,7 @@ superAdminRouter.post("/usage/reset", requireSaSession, async (req, res) => {
   const parsed = resetSchema.safeParse(req.body ?? {});
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: typeof prisma) => {
     await tx.saUsageCounter.deleteMany({ where: { tenantId: parsed.data.tenantId, periodKey: parsed.data.periodKey } });
     await tx.saBillingCounter.deleteMany({ where: { tenantId: parsed.data.tenantId, periodKey: parsed.data.periodKey } });
   });

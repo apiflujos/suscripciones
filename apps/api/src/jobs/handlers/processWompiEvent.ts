@@ -132,7 +132,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         await systemLog(LogLevel.WARN, "processWompiEvent", "Ambiguous plan inference by price", {
           amountInCents,
           currency,
-          foundPlans: plans.map((p) => ({ id: p.id, name: p.name }))
+          foundPlans: plans.map((p: any) => ({ id: p.id, name: p.name }))
         }).catch(() => {});
       }
       plan = plans[0];
@@ -335,7 +335,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   }
 
   if (!wasApproved && paymentStatus === PaymentStatus.APPROVED && subscription) {
-    const advancedTo = await db.$transaction(async (tx) => {
+    const advancedTo = await db.$transaction(async (tx: typeof db) => {
       const sub = await tx.subscription.findUnique({
         where: { id: subscription.id },
         include: { plan: true }

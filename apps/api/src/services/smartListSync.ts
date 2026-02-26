@@ -6,7 +6,7 @@ export async function syncSmartListById(id: string) {
   if (!smartList || !smartList.enabled) return { ok: false as const, reason: "not_found_or_disabled" as const };
 
   const recipients = await computeSmartListRecipients(smartList.rules as any);
-  const recipientIds = new Set(recipients.map((r) => r.id));
+  const recipientIds = new Set(recipients.map((r: any) => r.id));
 
   let added = 0;
   let removed = 0;

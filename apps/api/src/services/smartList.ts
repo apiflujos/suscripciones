@@ -153,7 +153,7 @@ export async function computeSmartListRecipients(rules: SmartListRule) {
 
   const now = Date.now();
 
-  return customers.filter((customer) => {
+  return customers.filter((customer: any) => {
     const sub = customer.subscriptions?.[0] || null;
     const latestPayment = customer.payments?.[0] || sub?.payments?.[0] || null;
 

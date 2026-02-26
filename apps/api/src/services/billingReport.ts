@@ -26,19 +26,19 @@ export async function buildMonthlyBillingReport(args: { periodKey: string }) {
   const billingBy = new Map<string, { q: number; cents: number }>();
   for (const b of billing) billingBy.set(`${b.tenantId}:${b.serviceKey}:${b.periodKey}`, { q: b.totalQuantity, cents: b.totalInCents });
 
-  const items = tenants.map((t) => {
-    const services = defs.map((d) => {
+  const items = tenants.map((t: any) => {
+    const services = defs.map((d: any) => {
       const pk = d.periodType === SaPeriodType.total ? "total" : periodKey;
       const u = usageBy.get(`${t.id}:${d.key}:${pk}`) ?? 0;
       const b = billingBy.get(`${t.id}:${d.key}:${pk}`) ?? { q: 0, cents: 0 };
       return { key: d.key, name: d.name, periodType: d.periodType, periodKey: pk, usageTotal: u, billedQuantity: b.q, billedInCents: b.cents };
     });
-    const billedInCents = services.reduce((acc, s) => acc + s.billedInCents, 0);
+    const billedInCents = services.reduce((acc: number, s: any) => acc + s.billedInCents, 0);
     return { tenantId: t.id, tenantName: t.name, services, totals: { billedInCents } };
   });
 
   const grand = {
-    billedInCents: items.reduce((acc, x) => acc + x.totals.billedInCents, 0)
+    billedInCents: items.reduce((acc: number, x: any) => acc + x.totals.billedInCents, 0)
   };
 
   const lines: string[] = [];
@@ -64,4 +64,3 @@ export async function buildMonthlyBillingReport(args: { periodKey: string }) {
     text: lines.join("\n")
   };
 }
-

@@ -25,7 +25,7 @@ tenantsRouter.post("/", async (req, res) => {
   const superAdmins = await prisma.saUser.findMany({ where: { role: "SUPER_ADMIN", active: true }, select: { id: true } });
   if (superAdmins.length) {
     await prisma.saUserTenant.createMany({
-      data: superAdmins.map((u) => ({ userId: u.id, tenantId: tenant.id })),
+      data: superAdmins.map((u: any) => ({ userId: u.id, tenantId: tenant.id })),
       skipDuplicates: true
     });
   }

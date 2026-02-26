@@ -50,9 +50,9 @@ plansRouter.get("/", async (_req, res) => {
     include: { tenantLinks: true }
   });
   res.json({
-    items: items.map((p) => ({
+    items: items.map((p: any) => ({
       ...p,
-      tenantIds: Array.from(new Set([p.tenantId, ...(p.tenantLinks || []).map((t) => t.tenantId)].filter(Boolean))) as string[]
+      tenantIds: Array.from(new Set([p.tenantId, ...(p.tenantLinks || []).map((t: any) => t.tenantId)].filter(Boolean))) as string[]
     }))
   });
 });
@@ -90,7 +90,7 @@ plansRouter.delete("/:id", async (req, res) => {
   if (!plan) return res.status(404).json({ error: "not_found" });
   const tenantId = await getEffectiveTenantId(req);
   if (tenantId) {
-    const allowed = plan.tenantId === tenantId || (plan.tenantLinks || []).some((t) => t.tenantId === tenantId);
+    const allowed = plan.tenantId === tenantId || (plan.tenantLinks || []).some((t: any) => t.tenantId === tenantId);
     if (!allowed) return res.status(404).json({ error: "not_found" });
   }
   if ((plan.metadata as any)?.kind === "CATALOG_ITEM") return res.status(404).json({ error: "not_found" });
@@ -110,9 +110,9 @@ plansRouter.delete("/:id", async (req, res) => {
 
   if (force) {
     const subs = await prisma.subscription.findMany({ where: { planId: id }, select: { id: true } });
-    const subIds = subs.map((s) => s.id);
+    const subIds = subs.map((s: any) => s.id);
     const payments = await prisma.payment.findMany({ where: { subscriptionId: { in: subIds } }, select: { id: true } });
-    const paymentIds = payments.map((p) => p.id);
+    const paymentIds = payments.map((p: any) => p.id);
 
     if (paymentIds.length) {
       await prisma.paymentAttempt.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch(() => {});
@@ -141,7 +141,7 @@ plansRouter.put("/:id", async (req, res) => {
   if (!plan) return res.status(404).json({ error: "not_found" });
   const tenantId = await getEffectiveTenantId(req);
   if (tenantId) {
-    const allowed = plan.tenantId === tenantId || (plan.tenantLinks || []).some((t) => t.tenantId === tenantId);
+    const allowed = plan.tenantId === tenantId || (plan.tenantLinks || []).some((t: any) => t.tenantId === tenantId);
     if (!allowed) return res.status(404).json({ error: "not_found" });
   }
 

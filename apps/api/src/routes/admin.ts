@@ -95,7 +95,7 @@ export async function listWebhookEvents(_req: Request, res: Response) {
     return payment?.subscription?.plan?.name || null;
   }
 
-  const normalized = items.map((item) => ({
+  const normalized = items.map((item: any) => ({
     ...item,
     providerTs: item.providerTs != null ? item.providerTs.toString() : null,
     paymentType: paymentTypeFor(item),

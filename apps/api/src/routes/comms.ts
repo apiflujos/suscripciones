@@ -210,7 +210,7 @@ commsRouter.post("/smart-lists/:id/preview", async (req, res) => {
   if (!smartList) return res.status(404).json({ error: "not_found" });
 
   const recipients = await computeSmartListRecipients(smartList.rules as any);
-  const sample = recipients.slice(0, 20).map((c) => ({
+  const sample = recipients.slice(0, 20).map((c: any) => ({
     id: c.id,
     name: c.name,
     email: c.email,
@@ -244,7 +244,7 @@ commsRouter.get("/smart-lists/:id/members", async (req, res) => {
   });
 
   res.json({
-    items: items.map((m) => ({
+    items: items.map((m: any) => ({
       id: m.id,
       active: m.active,
       lastSeenAt: m.lastSeenAt,

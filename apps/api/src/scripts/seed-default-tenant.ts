@@ -55,21 +55,21 @@ async function main() {
 
   // Backfill join tables for multi-tenant mappings.
   await prisma.subscriptionPlanTenant.createMany({
-    data: (await prisma.subscriptionPlan.findMany({ where: { tenantId: { not: null } }, select: { id: true, tenantId: true } })).map((p) => ({
+    data: (await prisma.subscriptionPlan.findMany({ where: { tenantId: { not: null } }, select: { id: true, tenantId: true } })).map((p: any) => ({
       planId: p.id,
       tenantId: p.tenantId as string
     })),
     skipDuplicates: true
   });
   await prisma.subscriptionTenant.createMany({
-    data: (await prisma.subscription.findMany({ where: { tenantId: { not: null } }, select: { id: true, tenantId: true } })).map((s) => ({
+    data: (await prisma.subscription.findMany({ where: { tenantId: { not: null } }, select: { id: true, tenantId: true } })).map((s: any) => ({
       subscriptionId: s.id,
       tenantId: s.tenantId as string
     })),
     skipDuplicates: true
   });
   await prisma.saUserTenant.createMany({
-    data: (await prisma.saUser.findMany({ where: { tenantId: { not: null } }, select: { id: true, tenantId: true } })).map((u) => ({
+    data: (await prisma.saUser.findMany({ where: { tenantId: { not: null } }, select: { id: true, tenantId: true } })).map((u: any) => ({
       userId: u.id,
       tenantId: u.tenantId as string
     })) as any,

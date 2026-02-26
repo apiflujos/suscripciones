@@ -115,7 +115,7 @@ customersRouter.get("/:id/payments", async (req, res) => {
   });
 
   res.json({
-    items: items.map((p) => ({
+    items: items.map((p: any) => ({
       id: p.id,
       amountInCents: p.amountInCents,
       currency: p.currency,

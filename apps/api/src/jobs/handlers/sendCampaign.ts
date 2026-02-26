@@ -36,7 +36,7 @@ export async function sendCampaign(payload: { campaignId: string }) {
   const recipients = await computeSmartListRecipients(campaign.smartList.rules as any);
   if (recipients.length > 0) {
     await prisma.campaignSend.createMany({
-      data: recipients.map((c) => ({ campaignId: campaign.id, customerId: c.id })),
+      data: recipients.map((c: any) => ({ campaignId: campaign.id, customerId: c.id })),
       skipDuplicates: true
     });
   }

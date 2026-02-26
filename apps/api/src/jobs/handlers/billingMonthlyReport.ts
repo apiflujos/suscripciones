@@ -26,7 +26,7 @@ export async function billingMonthlyReport(payload: any) {
       orderBy: { createdAt: "asc" },
       take: 20
     });
-    to = admins.map((x) => x.email).filter(Boolean);
+    to = admins.map((x: any) => x.email).filter(Boolean);
   }
   if (!to.length) {
     await systemLog(LogLevel.WARN, "billing.report", "Monthly report recipients not configured", {
