@@ -5,6 +5,7 @@ import { ChatwootMessageType, MessageStatus, RetryJobType } from "@prisma/client
 import { ChatwootClient } from "../providers/chatwoot/client";
 import { getChatwootConfig } from "../services/runtimeConfig";
 import { ensureChatwootContactForCustomer, syncChatwootAttributesForCustomer } from "../services/chatwootSync";
+import { sendChatwootMessage } from "../jobs/handlers/sendChatwootMessage";
 
 export const chatwootRouter = express.Router();
 
@@ -153,7 +154,8 @@ const messageSchema = z.object({
   customerId: z.string().min(1).optional(),
   content: z.string().min(1),
   templateParams: z.any().optional(),
-  type: z.nativeEnum(ChatwootMessageType).optional()
+  type: z.nativeEnum(ChatwootMessageType).optional(),
+  sendNow: z.boolean().optional()
 });
 
 chatwootRouter.post("/messages", async (req, res) => {
@@ -161,6 +163,7 @@ chatwootRouter.post("/messages", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
 
   const msgType = parsed.data.type || ChatwootMessageType.PAYMENT_LINK;
+  const sendNow = parsed.data.sendNow !== false;
   const client = await getClientOrThrow().catch((err) => {
     res.status(400).json({ error: err?.message || "chatwoot_not_configured" });
     return null;
@@ -194,7 +197,7 @@ chatwootRouter.post("/messages", async (req, res) => {
 
   if (!conversationId) return res.status(400).json({ error: "missing_conversation_or_customer" });
 
-  // If we have a customer, enqueue message for consistent logging + retry flow.
+  // If we have a customer, create message and send immediately (default).
   if (parsed.data.customerId) {
     const created = await prisma.chatwootMessage.create({
       data: {
@@ -206,13 +209,22 @@ chatwootRouter.post("/messages", async (req, res) => {
         providerResp: parsed.data.templateParams ? ({ template_params: parsed.data.templateParams } as any) : null
       }
     });
+    if (sendNow) {
+      try {
+        await sendChatwootMessage(created.id);
+        return res.json({ ok: true, sent: true, messageId: created.id });
+      } catch (err: any) {
+        return res.status(502).json({ ok: false, error: "centralcom_send_failed", messageId: created.id, details: String(err?.message || err) });
+      }
+    }
+
     await prisma.retryJob.create({
       data: {
         type: RetryJobType.SEND_CHATWOOT_MESSAGE,
         payload: { chatwootMessageId: created.id }
       }
     });
-    return res.json({ queued: true, messageId: created.id });
+    return res.json({ ok: true, queued: true, messageId: created.id });
   }
 
   const out = parsed.data.templateParams
