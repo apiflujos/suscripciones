@@ -468,7 +468,7 @@ export async function createPlanAndSubscription(formData: FormData) {
       const base = planBase;
       const token = crypto.randomBytes(18).toString("hex");
       const baseUrl = `${base.replace(/\/$/, "")}/public/plan/${token}`;
-      const utm = String(template?.utmParams || "").trim();
+    const utm = String(template?.utmParams || checkoutConfig?.defaultUtmParams || "").trim();
       const url = utm ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${utm.replace(/^\?+/, "")}` : baseUrl;
       const expiresAt = expiryHours ? new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString() : null;
       const prevMeta = customer?.metadata ?? {};
@@ -515,7 +515,7 @@ export async function createPlanAndSubscription(formData: FormData) {
       const base = subBase;
       const token = crypto.randomBytes(18).toString("hex");
       const baseUrl = `${base.replace(/\/$/, "")}/public/suscripcion/${token}`;
-      const utm = String(template?.utmParams || "").trim();
+      const utm = String(template?.utmParams || checkoutConfig?.defaultUtmParams || "").trim();
       const url = utm ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${utm.replace(/^\?+/, "")}` : baseUrl;
       const expiresAt = expiryHours ? new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString() : null;
       const prevMeta = customer?.metadata ?? {};

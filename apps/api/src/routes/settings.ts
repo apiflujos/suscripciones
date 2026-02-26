@@ -58,6 +58,7 @@ const chatwootUpdateSchema = z.object({
 const checkoutConfigUpdateSchema = z.object({
   planBaseUrl: z.string().url().optional().or(z.literal("")),
   subscriptionBaseUrl: z.string().url().optional().or(z.literal("")),
+  defaultUtmParams: z.string().optional().or(z.literal("")),
   tokenExpiryHours: z.coerce.number().int().positive().optional(),
   logoUrl: z.string().optional().or(z.literal("")),
   supportEmail: z.string().optional().or(z.literal("")),
@@ -232,9 +233,10 @@ settingsRouter.get("/", async (_req, res) => {
     checkoutConfig: {
       planBaseUrl: checkoutConfig.planBaseUrl || null,
       subscriptionBaseUrl: checkoutConfig.subscriptionBaseUrl || null,
-    tokenExpiryHours:
-      Number.isFinite(Number(checkoutConfig.tokenExpiryHours)) && Number(checkoutConfig.tokenExpiryHours) > 0
-        ? Math.trunc(Number(checkoutConfig.tokenExpiryHours))
+      defaultUtmParams: checkoutConfig.defaultUtmParams || "",
+      tokenExpiryHours:
+        Number.isFinite(Number(checkoutConfig.tokenExpiryHours)) && Number(checkoutConfig.tokenExpiryHours) > 0
+          ? Math.trunc(Number(checkoutConfig.tokenExpiryHours))
         : 24,
     logoUrl: checkoutConfig.logoUrl || null,
     supportEmail: checkoutConfig.supportEmail || null,
@@ -392,6 +394,7 @@ settingsRouter.put("/checkout-config", async (req, res) => {
   const payload = {
     planBaseUrl: parsed.data.planBaseUrl || "",
     subscriptionBaseUrl: parsed.data.subscriptionBaseUrl || "",
+    defaultUtmParams: parsed.data.defaultUtmParams || "",
     tokenExpiryHours: parsed.data.tokenExpiryHours || undefined,
     logoUrl: parsed.data.logoUrl || "",
     supportEmail: parsed.data.supportEmail || "",

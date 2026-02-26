@@ -14,6 +14,7 @@ publicLinksRouter.get("/checkout-config", async (_req, res) => {
   const config = {
     planBaseUrl: String(parsed?.planBaseUrl || "").trim() || null,
     subscriptionBaseUrl: String(parsed?.subscriptionBaseUrl || "").trim() || null,
+    defaultUtmParams: String(parsed?.defaultUtmParams || "").trim() || "",
     tokenExpiryHours: Number(parsed?.tokenExpiryHours || 24),
     logoUrl: String(parsed?.logoUrl || "").trim() || null,
     supportEmail: String(parsed?.supportEmail || "").trim() || null,

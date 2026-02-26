@@ -6,6 +6,7 @@ import { PendingButton } from "../ui/PendingButton";
 type CheckoutConfig = {
   planBaseUrl?: string | null;
   subscriptionBaseUrl?: string | null;
+  defaultUtmParams?: string | null;
   planWompiTitle?: string | null;
   planWompiDescription?: string | null;
   subscriptionWompiTitle?: string | null;
@@ -50,6 +51,7 @@ export function RedirectConfigPanel({
   const [planWompiDescription, setPlanWompiDescription] = useState<string>(String(defaults.planWompiDescription || ""));
   const [subscriptionWompiTitle, setSubscriptionWompiTitle] = useState<string>(String(defaults.subscriptionWompiTitle || ""));
   const [subscriptionWompiDescription, setSubscriptionWompiDescription] = useState<string>(String(defaults.subscriptionWompiDescription || ""));
+  const [defaultUtmParams, setDefaultUtmParams] = useState<string>(String(defaults.defaultUtmParams || ""));
 
   const baseHint = useMemo(() => {
     if (!publicBaseUrl) return "";
@@ -63,6 +65,7 @@ export function RedirectConfigPanel({
     setPlanBaseUrl(`${base}/public/plan`);
     setSubscriptionBaseUrl(`${base}/public/suscripcion`);
     if (!tokenReturnUrl) setTokenReturnUrl(base);
+    if (!defaultUtmParams) setDefaultUtmParams("utm_source=apiflujos&utm_medium=checkout&utm_campaign=mdv");
   }
 
   return (
@@ -79,6 +82,7 @@ export function RedirectConfigPanel({
       <input type="hidden" name="planWompiDescription" value={planWompiDescription} />
       <input type="hidden" name="subscriptionWompiTitle" value={subscriptionWompiTitle} />
       <input type="hidden" name="subscriptionWompiDescription" value={subscriptionWompiDescription} />
+      <input type="hidden" name="defaultUtmParams" value={defaultUtmParams} />
 
       <div className="panelHeaderRow" style={{ justifyContent: "space-between" }}>
         <div>
@@ -110,6 +114,17 @@ export function RedirectConfigPanel({
           <label>Base URL Suscripción</label>
           <input className="input" value={subscriptionBaseUrl} onChange={(e) => setSubscriptionBaseUrl(e.target.value)} placeholder="https://.../public/suscripcion" />
         </div>
+      </div>
+
+      <div className="field">
+        <label>UTM por defecto</label>
+        <input
+          className="input"
+          value={defaultUtmParams}
+          onChange={(e) => setDefaultUtmParams(e.target.value)}
+          placeholder="utm_source=apiflujos&utm_medium=checkout&utm_campaign=mdv"
+        />
+        <div className="field-hint">Se aplica si la plantilla no tiene UTM.</div>
       </div>
 
       <div className="field">
