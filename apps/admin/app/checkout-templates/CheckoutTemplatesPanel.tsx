@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PendingButton } from "../ui/PendingButton";
 
 type LayoutFields = {
@@ -197,6 +197,12 @@ export function CheckoutTemplatesPanel({
   const missingProducts = !isProductsValid;
   const [localError, setLocalError] = useState<string>("");
 
+  useEffect(() => {
+    if (requireTenant && tenants.length === 1 && !tenantId) {
+      setTenantId(tenants[0].id);
+    }
+  }, [requireTenant, tenants, tenantId]);
+
   const inlineMsg = (key: string) => {
     if (inlineState.action !== key) return null;
     if (inlineState.status === "ok") return <div className="field-hint">Guardado.</div>;
@@ -266,8 +272,9 @@ export function CheckoutTemplatesPanel({
             {STEPS.map((s, idx) => {
               const blockKind = idx > 0 && !selectedKind;
               const blockName = idx > 1 && !name.trim();
+              const blockTenant = idx > 1 && missingTenant;
               const blockProducts = idx > 3 && !isProductsValid;
-              const blocked = blockKind || blockName || blockProducts;
+              const blocked = blockKind || blockName || blockTenant || blockProducts;
               return (
                 <button
                   key={s.id}
@@ -277,6 +284,7 @@ export function CheckoutTemplatesPanel({
                     if (blocked) {
                       if (blockKind) setLocalError("Selecciona el tipo de plantilla.");
                       else if (blockName) setLocalError("Debes ingresar el nombre interno.");
+                      else if (blockTenant) setLocalError("Selecciona el canal de ventas.");
                       else if (blockProducts) setLocalError("Debes seleccionar productos o permitir el selector.");
                       return;
                     }
@@ -377,16 +385,21 @@ export function CheckoutTemplatesPanel({
                 {requireTenant ? (
                   <div className="field">
                     <label>Canal de ventas</label>
-                    <select className="select" value={tenantId} onChange={(e) => setTenantId(e.target.value)}>
-                      <option value="">Selecciona un canal</option>
-                      {tenants.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ) : null}
+                  <select className="select" value={tenantId} onChange={(e) => setTenantId(e.target.value)}>
+                    <option value="">Selecciona un canal</option>
+                    {tenants.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                  {missingTenant ? (
+                    <div className="field-hint" style={{ color: "var(--danger)" }}>
+                      Selecciona el canal de ventas.
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
                 <div className="field row">
                   <label>Activa</label>
                   <input type="checkbox" name="active" checked={active} onChange={(e) => setActive(e.target.checked)} />
@@ -516,12 +529,13 @@ export function CheckoutTemplatesPanel({
                     {localError}
                   </div>
                 ) : null}
-                {(missingKind || missingName || missingProducts) ? (
+                {(missingKind || missingName || missingTenant || missingProducts) ? (
                   <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
                     Faltan datos obligatorios:
                     <ul style={{ margin: "6px 0 0 16px" }}>
                       {missingKind ? <li>Selecciona tipo (Plan o Suscripción).</li> : null}
                       {missingName ? <li>Nombre interno.</li> : null}
+                      {missingTenant ? <li>Canal de ventas.</li> : null}
                       {missingProducts ? <li>Selecciona productos o activa “El cliente puede elegir producto”.</li> : null}
                     </ul>
                   </div>
@@ -564,6 +578,10 @@ export function CheckoutTemplatesPanel({
                         setLocalError("Debes ingresar el nombre interno.");
                         return;
                       }
+                      if (stepIndex === 1 && missingTenant) {
+                        setLocalError("Selecciona el canal de ventas.");
+                        return;
+                      }
                       if (stepIndex === 3 && !isProductsValid) {
                         setLocalError("Debes seleccionar productos o permitir el selector.");
                         return;
@@ -571,7 +589,7 @@ export function CheckoutTemplatesPanel({
                       setLocalError("");
                       setStepIndex(Math.min(STEPS.length - 1, stepIndex + 1));
                     }}
-                    disabled={stepIndex === 0 && !kind}
+                    disabled={(stepIndex === 0 && !kind) || (stepIndex === 1 && (!name.trim() || missingTenant)) || (stepIndex === 3 && !isProductsValid)}
                   >
                     Siguiente
                   </button>
@@ -580,7 +598,7 @@ export function CheckoutTemplatesPanel({
                     className="primary"
                     type="submit"
                     pendingText="Guardando..."
-                    disabled={!selectedKind || !name || !isProductsValid}
+                    disabled={!selectedKind || !name || missingTenant || !isProductsValid}
                   >
                     {editing ? "Guardar cambios" : "Guardar plantilla"}
                   </PendingButton>
