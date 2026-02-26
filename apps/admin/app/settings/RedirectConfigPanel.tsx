@@ -68,6 +68,15 @@ export function RedirectConfigPanel({
     }
   }, [inlineState.action, inlineState.status]);
 
+  useEffect(() => {
+    const base = normalizeBaseUrl(publicBaseUrl);
+    if (!base) return;
+    if (!planBaseUrl) setPlanBaseUrl(`${base}/public/plan`);
+    if (!subscriptionBaseUrl) setSubscriptionBaseUrl(`${base}/public/suscripcion`);
+    if (!tokenReturnUrl) setTokenReturnUrl(`${base}/public/return`);
+    if (!defaultUtmParams) setDefaultUtmParams("utm_source=apiflujos&utm_medium=checkout&utm_campaign=mdv");
+  }, [publicBaseUrl]);
+
   function generateUrls() {
     const base = normalizeBaseUrl(publicBaseUrl);
     if (!base) return;
