@@ -22,7 +22,7 @@ import { PendingButton } from "../ui/PendingButton";
 import { getCsrfToken } from "../lib/csrf";
 import { ConnectionsPanel } from "./ConnectionsPanel";
 import { CheckoutTemplatesPanel } from "../checkout-templates/CheckoutTemplatesPanel";
-import { createCheckoutTemplate, updateCheckoutTemplate, deleteCheckoutTemplate } from "../checkout-templates/actions";
+import { createCheckoutTemplate, updateCheckoutTemplate, deleteCheckoutTemplate, duplicateCheckoutTemplate } from "../checkout-templates/actions";
 import { RedirectConfigPanel } from "./RedirectConfigPanel";
 
 export const dynamic = "force-dynamic";
@@ -436,7 +436,8 @@ export default async function SettingsPage({
               actions={{
                 create: createCheckoutTemplate,
                 update: updateCheckoutTemplate,
-                remove: deleteCheckoutTemplate
+                remove: deleteCheckoutTemplate,
+                duplicate: duplicateCheckoutTemplate
               }}
             />
           </div>

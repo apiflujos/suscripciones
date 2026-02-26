@@ -73,6 +73,7 @@ export function CheckoutTemplatesPanel({
     create: (formData: FormData) => void;
     update: (formData: FormData) => void;
     remove: (formData: FormData) => void;
+    duplicate: (formData: FormData) => void;
   };
 }) {
   const [stepIndex, setStepIndex] = useState<number>(initialStep === "form" ? 1 : 0);
@@ -599,6 +600,11 @@ export function CheckoutTemplatesPanel({
               <button className="secondary" type="button" onClick={() => openEdit(t)}>
                 Editar
               </button>
+              <form action={actions.duplicate}>
+                <input type="hidden" name="csrf" value={csrfToken} />
+                <input type="hidden" name="id" value={t.id} />
+                <PendingButton className="ghost" type="submit" pendingText="Duplicando...">Duplicar</PendingButton>
+              </form>
               <form
                 action={actions.remove}
                 onSubmit={(e) => {

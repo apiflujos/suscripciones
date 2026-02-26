@@ -142,3 +142,35 @@ export async function deleteCheckoutTemplate(formData: FormData) {
     redirectWith("checkout_template_delete", "fail", String(err?.message || "delete_failed"));
   }
 }
+
+export async function duplicateCheckoutTemplate(formData: FormData) {
+  await assertCsrfToken(formData);
+  const id = String(formData.get("id") || "").trim();
+  if (!id) return redirectWith("checkout_template_duplicate", "fail", "missing_id");
+  try {
+    const existing = await adminFetch(`/admin/checkout-templates/${id}`, { method: "GET" });
+    const template = existing?.item;
+    if (!template) return redirectWith("checkout_template_duplicate", "fail", "not_found");
+
+    const payload = {
+      name: `Copia - ${template.name || "Plantilla"}`,
+      kind: template.kind,
+      active: template.active,
+      allowProductSelect: template.allowProductSelect,
+      productIds: template.productIds || [],
+      tenantId: template.tenantId || undefined,
+      expiryHours: template.expiryHours ?? undefined,
+      logoUrl: template.logoUrl || "",
+      publicTitle: template.publicTitle || "",
+      publicDescription: template.publicDescription || "",
+      wompiTitle: template.wompiTitle || "",
+      wompiDescription: template.wompiDescription || "",
+      utmParams: template.utmParams || "",
+      layout: template.layout || undefined
+    };
+    await adminFetch("/admin/checkout-templates", { method: "POST", body: JSON.stringify(payload) });
+    redirectWith("checkout_template_duplicate", "ok");
+  } catch (err: any) {
+    redirectWith("checkout_template_duplicate", "fail", String(err?.message || "duplicate_failed"));
+  }
+}
