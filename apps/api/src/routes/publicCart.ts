@@ -4,7 +4,6 @@ import { prisma } from "../db/prisma";
 import { addIntervalUtc } from "../lib/dates";
 import { createPaymentLinkForSubscription } from "../services/subscriptionBilling";
 import { scheduleSubscriptionDueNotifications } from "../services/notificationsScheduler";
-import type { Prisma } from "@prisma/client";
 import { CredentialProvider, RetryJobType, SubscriptionStatus } from "@prisma/client";
 import { getCredential } from "../services/credentials";
 
@@ -31,8 +30,17 @@ function buildPublicUrl(base: string, path: string, utm: string) {
 
 export const publicCartRouter = express.Router();
 
-type SubscriptionPlanItem = Prisma.SubscriptionPlanGetPayload<{}>;
-type SubscriptionPlanWithLinks = Prisma.SubscriptionPlanGetPayload<{ include: { tenantLinks: true } }>;
+type PlanPublic = {
+  id: string;
+  name: string;
+  priceInCents: number;
+  currency: string;
+  intervalUnit: string;
+  intervalCount: number;
+  metadata?: unknown;
+  tenantId?: string | null;
+  tenantLinks?: Array<{ tenantId?: string | null }>;
+};
 
 publicCartRouter.get("/cart/:token", async (req, res) => {
   const token = String(req.params.token || "").trim();
@@ -59,9 +67,10 @@ publicCartRouter.get("/cart/:token", async (req, res) => {
   }
 
   const productIds = Array.isArray(template.productIds) ? template.productIds : [];
-  const plans: SubscriptionPlanItem[] = productIds.length
+  const plans = productIds.length
     ? await prisma.subscriptionPlan.findMany({ where: { id: { in: productIds } } })
     : [];
+  const plansTyped = plans as PlanPublic[];
 
   res.json({
     ok: true,
@@ -82,7 +91,7 @@ publicCartRouter.get("/cart/:token", async (req, res) => {
       wompiDescription: template.wompiDescription || null,
       layout: template.layout || null
     },
-    products: plans.map((p) => ({
+    products: plansTyped.map((p) => ({
       id: p.id,
       name: p.name,
       priceInCents: p.priceInCents,
@@ -121,10 +130,10 @@ publicCartRouter.post("/cart/:token/select", async (req, res) => {
     return res.status(400).json({ error: "plan_not_allowed" });
   }
 
-  const plan: SubscriptionPlanWithLinks | null = await prisma.subscriptionPlan.findUnique({
+  const plan = (await prisma.subscriptionPlan.findUnique({
     where: { id: planId },
     include: { tenantLinks: true }
-  });
+  })) as PlanPublic | null;
   if (!plan) return res.status(404).json({ error: "plan_not_found" });
 
   const rawConfig = (await getCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG")) || "";
@@ -173,7 +182,10 @@ publicCartRouter.post("/cart/:token/select", async (req, res) => {
 
   const tenantIds = Array.from(
     new Set(
-      [plan.tenantId, ...((plan.tenantLinks || []).map((t) => t.tenantId) as string[])].filter(Boolean) as string[]
+      [
+        plan.tenantId,
+        ...(((plan.tenantLinks || []) as Array<{ tenantId?: string | null }>).map((t) => t.tenantId) as string[])
+      ].filter(Boolean) as string[]
     )
   );
   if (tenantIds.length) {
