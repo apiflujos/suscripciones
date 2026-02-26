@@ -78,9 +78,12 @@ async function fetchCartTemplates(tenantId?: string) {
   const res = await fetchAdminCached(`/admin/checkout-templates?${sp.toString()}`, { ttlMs: 1500 });
   const data = res.json || { items: [] as any[] };
   const items = Array.isArray(data.items)
-    ? (data.items as Array<{ kind?: string; active?: boolean }>)
+    ? (data.items as Array<{ id?: string; name?: string; kind?: string; active?: boolean }>)
     : [];
-  return items.filter((t) => String(t?.kind || "") === "CART" && Boolean(t?.active));
+  return items
+    .filter((t) => String(t?.kind || "") === "CART" && Boolean(t?.active))
+    .map((t) => ({ id: String(t?.id || ""), name: String(t?.name || "") }))
+    .filter((t) => t.id && t.name);
 }
 
 async function fetchProducts(tenantId?: string) {
