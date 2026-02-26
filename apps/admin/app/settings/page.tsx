@@ -358,7 +358,10 @@ export default async function SettingsPage({
                 <input type="hidden" name="csrf" value={csrfToken} />
                 <input type="hidden" name="returnTo" value={returnTo} />
                 <div className="panelHeaderRow">
-                  <strong>Dominio público del checkout</strong>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <strong>Dominio personalizado del checkout</strong>
+                    <HelpTip text="Sirve para reemplazar el dominio genérico de Apiflujos por uno propio. Ej: pagos.tudominio.com en lugar de mdv.sus.apiflujos.com." />
+                  </div>
                   <div className="field-hint">Si lo dejas vacío, usamos el dominio público por defecto.</div>
                 </div>
                 <div className="field-hint">
@@ -394,7 +397,7 @@ export default async function SettingsPage({
                     ) : null}
                   </div>
                   <PendingButton className="primary" type="submit" pendingText="Guardando...">
-                    Guardar dominio
+                    Guardar dominio personalizado
                   </PendingButton>
                 </div>
               </form>
