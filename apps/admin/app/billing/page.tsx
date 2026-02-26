@@ -430,6 +430,12 @@ export default async function BillingPage({
                         {r.customerEmail || "—"} · {r.identificacion || "—"}
                       </div>
                     </div>
+                    <div style={{ display: "grid", gap: 6, justifyItems: "end" }}>
+                      <span className={`pill ${isPlan ? "pill-warn" : "pill-ok"}`} style={{ fontSize: 12 }}>
+                        {isPlan ? "Plan" : "Suscripción"}
+                      </span>
+                    </div>
+                  </div>
                   <div className="billing-badges">
                     {isPlan ? (
                       <span className={`pill ${planLinkStatus === "Pagado" ? "pill-ok" : planLinkStatus === "En mora" ? "pill-warn" : "pill-muted"}`}>
@@ -450,16 +456,11 @@ export default async function BillingPage({
                     </span>
                     <span className="pill pill-muted">{r.tenantName}</span>
                   </div>
-                  </div>
 
                   <div className="billing-grid-info">
                     <div>
                       <span>Plan / Producto</span>
                       <strong>{r.planName}</strong>
-                    </div>
-                    <div>
-                      <span>Tipo de pago</span>
-                      <strong>{r.tipoPago}</strong>
                     </div>
                     <div>
                       <span>Último pago</span>
