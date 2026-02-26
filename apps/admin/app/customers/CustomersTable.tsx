@@ -82,6 +82,7 @@ export function CustomersTable({
   const [sendOk, setSendOk] = useState<Record<string, string>>({});
   const [linkOverrides, setLinkOverrides] = useState<Record<string, { payment?: string; token?: string; cart?: string }>>({});
   const [cartTemplateByCustomer, setCartTemplateByCustomer] = useState<Record<string, string>>({});
+  const [tokenTemplateByCustomer, setTokenTemplateByCustomer] = useState<Record<string, string>>({});
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [planModalCustomer, setPlanModalCustomer] = useState<CustomerRow | null>(null);
   const [cartModalOpen, setCartModalOpen] = useState(false);
@@ -89,6 +90,8 @@ export function CustomersTable({
   const [payModalOpen, setPayModalOpen] = useState(false);
   const [payModalCustomer, setPayModalCustomer] = useState<CustomerRow | null>(null);
   const [payAmount, setPayAmount] = useState("");
+  const [tokenModalOpen, setTokenModalOpen] = useState(false);
+  const [tokenModalCustomer, setTokenModalCustomer] = useState<CustomerRow | null>(null);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -143,6 +146,13 @@ export function CustomersTable({
     const chosen = cartTemplateByCustomer[customerId];
     if (chosen) return chosen;
     return cartTemplates[0]?.id || "";
+  }
+
+  function resolveTokenTemplate(customerId: string) {
+    const chosen = tokenTemplateByCustomer[customerId];
+    if (chosen) return chosen;
+    const first = checkoutTemplates.find((t: any) => String(t?.kind || "") === "SUBSCRIPTION");
+    return first?.id || "";
   }
 
   function maskUrl(raw: string) {
@@ -213,6 +223,18 @@ export function CustomersTable({
   function closeCartModal() {
     setCartModalOpen(false);
     setCartModalCustomer(null);
+    setTimeout(() => lastActiveRef.current?.focus(), 0);
+  }
+
+  function openTokenModal(customer: CustomerRow) {
+    lastActiveRef.current = document.activeElement as HTMLElement | null;
+    setTokenModalCustomer(customer);
+    setTokenModalOpen(true);
+  }
+
+  function closeTokenModal() {
+    setTokenModalOpen(false);
+    setTokenModalCustomer(null);
     setTimeout(() => lastActiveRef.current?.focus(), 0);
   }
 
@@ -384,38 +406,7 @@ export function CustomersTable({
                     <button
                       className="ghost btn-compact btn-amber"
                       type="button"
-                      onClick={async () => {
-                        setSendingId(c.id);
-                        setSendError((prev) => ({ ...prev, [c.id]: "" }));
-                        setSendOk((prev) => ({ ...prev, [c.id]: "" }));
-                        try {
-                          const res = await fetch("/api/customers/send-tokenization-link", {
-                            method: "POST",
-                            headers: { "content-type": "application/json" },
-                            body: JSON.stringify({
-                              customerId: c.id,
-                              customerName: c.name || "",
-                              tenantId: c.tenantId || ""
-                            })
-                          });
-                          const contentType = res.headers.get("content-type") || "";
-                          if (!contentType.includes("application/json")) {
-                            setSendError((prev) => ({ ...prev, [c.id]: "auth_required" }));
-                            return;
-                          }
-                          const json = await res.json().catch(() => ({}));
-                          if (!res.ok || !json?.ok) {
-                            setSendError((prev) => ({ ...prev, [c.id]: json?.error || "send_failed" }));
-                            return;
-                          }
-                          if (json?.link) {
-                            setLinkOverrides((prev) => ({ ...prev, [c.id]: { ...(prev[c.id] || {}), token: json.link } }));
-                          }
-                          setSendOk((prev) => ({ ...prev, [c.id]: "sent" }));
-                        } finally {
-                          setSendingId(null);
-                        }
-                      }}
+                      onClick={() => openTokenModal(c)}
                       disabled={sendingId === c.id}
                     >
                       {sendingId === c.id ? "Enviando..." : "Tokenización"}
@@ -617,7 +608,7 @@ export function CustomersTable({
                       customerId: customer.id,
                       customerName: customer.name || "",
                       tenantId: customer.tenantId || "",
-                      templateId: resolveCartTemplate(customer.id)
+                      templateId: resolveTokenTemplate(customer.id)
                     })
                   });
                   const contentType = res.headers.get("content-type") || "";
@@ -665,6 +656,97 @@ export function CustomersTable({
                   Cancelar
                 </button>
                 <button className="primary" type="submit">
+                  Enviar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {tokenModalOpen && tokenModalCustomer ? (
+        <div className="modal-backdrop">
+          <div className="modal-panel" style={{ maxWidth: 520 }}>
+            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <strong>Enviar tokenización</strong>
+              <button className="ghost" type="button" onClick={closeTokenModal} aria-label="Cerrar">
+                X
+              </button>
+            </div>
+            <form
+              className="panel module"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const customer = tokenModalCustomer;
+                if (!customer) return;
+                const templateId = resolveTokenTemplate(customer.id);
+                if (!templateId) return;
+                setSendingId(customer.id);
+                setSendError((prev) => ({ ...prev, [customer.id]: "" }));
+                setSendOk((prev) => ({ ...prev, [customer.id]: "" }));
+                try {
+                  const res = await fetch("/api/customers/send-tokenization-link", {
+                    method: "POST",
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify({
+                      customerId: customer.id,
+                      customerName: customer.name || "",
+                      tenantId: customer.tenantId || "",
+                      templateId
+                    })
+                  });
+                  const contentType = res.headers.get("content-type") || "";
+                  if (!contentType.includes("application/json")) {
+                    setSendError((prev) => ({ ...prev, [customer.id]: "auth_required" }));
+                    return;
+                  }
+                  const json = await res.json().catch(() => ({}));
+                  if (!res.ok || !json?.ok) {
+                    setSendError((prev) => ({ ...prev, [customer.id]: json?.error || "send_failed" }));
+                    return;
+                  }
+                  if (json?.link) {
+                    setLinkOverrides((prev) => ({ ...prev, [customer.id]: { ...(prev[customer.id] || {}), token: json.link } }));
+                  }
+                  setSendOk((prev) => ({ ...prev, [customer.id]: "sent" }));
+                  closeTokenModal();
+                } finally {
+                  setSendingId(null);
+                }
+              }}
+            >
+              <div className="field">
+                <label>Plantilla de suscripción</label>
+                <select
+                  className="select"
+                  value={resolveTokenTemplate(tokenModalCustomer.id)}
+                  onChange={(e) =>
+                    setTokenTemplateByCustomer((prev) => ({
+                      ...prev,
+                      [tokenModalCustomer.id]: e.target.value
+                    }))
+                  }
+                  required
+                >
+                  {checkoutTemplates
+                    .filter((t: any) => String(t?.kind || "") === "SUBSCRIPTION")
+                    .map((t: any) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                </select>
+                {checkoutTemplates.filter((t: any) => String(t?.kind || "") === "SUBSCRIPTION").length === 0 ? (
+                  <div className="field-hint" style={{ color: "var(--danger)" }}>
+                    No hay plantillas de suscripción configuradas.
+                  </div>
+                ) : null}
+              </div>
+              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                <button className="ghost" type="button" onClick={closeTokenModal}>
+                  Cancelar
+                </button>
+                <button className="primary" type="submit" disabled={!resolveTokenTemplate(tokenModalCustomer.id)}>
                   Enviar
                 </button>
               </div>

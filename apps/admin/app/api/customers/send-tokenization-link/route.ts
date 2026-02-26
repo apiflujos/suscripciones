@@ -18,6 +18,7 @@ export async function POST(req: Request) {
   const customerId = String(body?.customerId || "").trim();
   const customerName = String(body?.customerName || "").trim() || "Cliente";
   const tenantId = String(body?.tenantId || "").trim();
+  const templateId = String(body?.templateId || "").trim();
   if (!customerId) return NextResponse.json({ ok: false, error: "missing_customer_id" }, { status: 400 });
 
   const settingsRes = await fetch(`${API_BASE}/admin/settings`, {
@@ -68,6 +69,7 @@ export async function POST(req: Request) {
     tokenizationLink: {
       url: link,
       token: linkToken,
+      ...(templateId ? { templateId } : {}),
       createdAt: new Date().toISOString(),
       expiresAt,
       usedAt: null
