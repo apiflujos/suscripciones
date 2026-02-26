@@ -77,6 +77,24 @@ export function RedirectConfigPanel({
     if (!defaultUtmParams) setDefaultUtmParams("utm_source=apiflujos&utm_medium=checkout&utm_campaign=mdv");
   }
 
+  function generatePlanUrl() {
+    const base = normalizeBaseUrl(publicBaseUrl);
+    if (!base) return;
+    setPlanBaseUrl(`${base}/public/plan`);
+  }
+
+  function generateSubscriptionUrl() {
+    const base = normalizeBaseUrl(publicBaseUrl);
+    if (!base) return;
+    setSubscriptionBaseUrl(`${base}/public/suscripcion`);
+  }
+
+  function generateReturnUrl() {
+    const base = normalizeBaseUrl(publicBaseUrl);
+    if (!base) return;
+    setTokenReturnUrl(`${base}/public/return`);
+  }
+
   return (
     <form ref={formRef} action={onSave} className="panel module" style={{ display: "grid", gap: 14 }}>
       <input type="hidden" name="csrf" value={csrfToken} />
@@ -126,11 +144,25 @@ export function RedirectConfigPanel({
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <div className="field">
           <label>Base URL Plan</label>
-          <input className="input" value={planBaseUrl} onChange={(e) => setPlanBaseUrl(e.target.value)} placeholder="https://.../public/plan" disabled={!isEditing} />
+          <div style={{ display: "flex", gap: 8 }}>
+            <input className="input" value={planBaseUrl} onChange={(e) => setPlanBaseUrl(e.target.value)} placeholder="https://.../public/plan" disabled={!isEditing} />
+            {isEditing ? (
+              <button className="ghost" type="button" onClick={generatePlanUrl}>
+                Generar
+              </button>
+            ) : null}
+          </div>
         </div>
         <div className="field">
           <label>Base URL Suscripción</label>
-          <input className="input" value={subscriptionBaseUrl} onChange={(e) => setSubscriptionBaseUrl(e.target.value)} placeholder="https://.../public/suscripcion" disabled={!isEditing} />
+          <div style={{ display: "flex", gap: 8 }}>
+            <input className="input" value={subscriptionBaseUrl} onChange={(e) => setSubscriptionBaseUrl(e.target.value)} placeholder="https://.../public/suscripcion" disabled={!isEditing} />
+            {isEditing ? (
+              <button className="ghost" type="button" onClick={generateSubscriptionUrl}>
+                Generar
+              </button>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -148,7 +180,14 @@ export function RedirectConfigPanel({
 
       <div className="field">
         <label>URL retorno tokenización</label>
-        <input className="input" value={tokenReturnUrl} onChange={(e) => setTokenReturnUrl(e.target.value)} placeholder="https://tu-sitio.com" disabled={!isEditing} />
+        <div style={{ display: "flex", gap: 8 }}>
+          <input className="input" value={tokenReturnUrl} onChange={(e) => setTokenReturnUrl(e.target.value)} placeholder="https://tu-sitio.com" disabled={!isEditing} />
+          {isEditing ? (
+            <button className="ghost" type="button" onClick={generateReturnUrl}>
+              Generar
+            </button>
+          ) : null}
+        </div>
         <div className="field-hint">Este link se usa en el botón “Volver”.</div>
       </div>
 
