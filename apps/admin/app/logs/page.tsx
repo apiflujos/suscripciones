@@ -111,17 +111,12 @@ export default async function LogsPage({
   const sp = (await searchParams) ?? {};
   const tab = typeof sp.tab === "string" ? sp.tab : "system";
   const q = typeof sp.q === "string" ? sp.q : "";
-  const viewId = typeof sp.view === "string" ? sp.view : "";
-
-  const [system, jobs, webhooks, messages, payments, selectedRes] = await Promise.all([
+  const [system, jobs, webhooks, messages, payments] = await Promise.all([
     fetchAdmin("/admin/logs/system?take=120"),
     fetchAdmin("/admin/logs/jobs?take=200"),
     fetchAdmin("/admin/webhook-events"),
     fetchAdmin("/admin/logs/messages?take=120"),
-    fetchAdmin("/admin/logs/payments?take=120"),
-    viewId
-      ? fetchAdmin(`/admin/logs/system/${encodeURIComponent(viewId)}`)
-      : Promise.resolve({ ok: false, status: 0, json: null } as any)
+    fetchAdmin("/admin/logs/payments?take=120")
   ]);
 
   const sysItems = (system.json?.items ?? []) as any[];
@@ -140,8 +135,6 @@ export default async function LogsPage({
     source: normalizeLogSource(l.source),
     message: normalizeLogMessage(l.message)
   }));
-
-  const selected = selectedRes?.ok ? (selectedRes.json?.item ?? null) : viewId ? normalized.find((l) => String(l.id) === viewId) : null;
 
   return (
     <main className="page">
@@ -288,12 +281,13 @@ export default async function LogsPage({
                         </td>
                         <td>{l.message}</td>
                         <td style={{ textAlign: "right" }}>
-                          <Link
-                            className="ghost"
-                            href={`/logs?${new URLSearchParams({ tab: "system", ...(q ? { q } : {}), view: String(l.id) })}`}
-                          >
-                            Ver
-                          </Link>
+                          <details className="inline-detail">
+                            <summary className="ghost">Ver</summary>
+                            <div className="inline-detail-body">
+                              <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 6 }}>{l.source}</div>
+                              <pre style={{ margin: 0, whiteSpace: "pre-wrap" }}>{JSON.stringify(l.context ?? l, null, 2)}</pre>
+                            </div>
+                          </details>
                         </td>
                       </tr>
                     );
@@ -484,18 +478,7 @@ export default async function LogsPage({
             </div>
           )}
 
-          {selected ? (
-            <div className="panel" aria-label="Detalle del log">
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                <strong>Detalle</strong>
-                <Link className="btnLink" href={q ? `/logs?${new URLSearchParams({ tab: "system", q })}` : "/logs"} prefetch={false} aria-label="Cerrar">
-                  X
-                </Link>
-              </div>
-              <div style={{ marginTop: 8, color: "var(--muted)" }}>{selected.source}</div>
-              <pre style={{ marginTop: 10, whiteSpace: "pre-wrap" }}>{JSON.stringify(selected, null, 2)}</pre>
-            </div>
-          ) : null}
+          {null}
         </div>
       </section>
     </main>

@@ -2706,3 +2706,27 @@ textarea {
   font-size: 11px;
   color: var(--muted);
 }
+
+.inline-detail {
+  display: inline-block;
+  text-align: left;
+}
+
+.inline-detail summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.inline-detail summary::-webkit-details-marker {
+  display: none;
+}
+
+.inline-detail-body {
+  margin-top: 8px;
+  padding: 10px;
+  background: #f8fafc;
+  border: 1px solid var(--stroke);
+  border-radius: 10px;
+  max-width: 520px;
+  white-space: normal;
+}
