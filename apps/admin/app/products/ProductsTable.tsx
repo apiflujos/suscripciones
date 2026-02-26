@@ -30,6 +30,7 @@ type ProductRow = {
   tenantId?: string | null;
   tenantIds?: string[];
   kind: "PRODUCT" | "SERVICE";
+  currency: string;
   basePriceInCents: number;
   intervalUnit?: "DAY" | "WEEK" | "MONTH" | "CUSTOM";
   intervalCount?: number;

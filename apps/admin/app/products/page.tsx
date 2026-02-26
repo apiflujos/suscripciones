@@ -136,6 +136,7 @@ export default async function ProductsPage({
                 const names = ids.map((id: string) => tenantById.get(String(id))).filter(Boolean) as string[];
                 return {
                   ...p,
+                  currency: String(p.currency || "COP"),
                   tenantId: tenantId || ids[0] || "",
                   tenantName: names.length ? names.join(", ") : "—",
                   tenantIds: ids
