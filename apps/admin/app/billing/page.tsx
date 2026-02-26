@@ -574,6 +574,15 @@ export default async function BillingPage({
                     {r.tipoTx === "Plan" && r.status === "CANCELED" && r.planId ? (
                       <DeletePlanButton action={deletePlanAndSubscription} csrfToken={csrfToken} subscriptionId={r.id} planId={r.planId} tenantId={r.tenantId} />
                     ) : null}
+                    <a
+                      className="ghost btn-compact"
+                      href={`/customers?${new URLSearchParams({
+                        tx: r.customerId,
+                        ...(r.tenantId ? { tenantId: r.tenantId } : {})
+                      }).toString()}`}
+                    >
+                      Historial
+                    </a>
                     {(sentForRow || rowCheckoutUrl || rowTokenUrl || chargedForRow || cutoffForRow) ? (
                       <div className="field-hint" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         {sentForRow ? <span>Enviado.</span> : null}

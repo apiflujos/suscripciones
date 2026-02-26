@@ -45,13 +45,15 @@ export function CustomersTable({
   latestLinks,
   subscriptionsByCustomer,
   csrfToken,
-  returnTo
+  returnTo,
+  initialTxCustomerId
 }: {
   items: CustomerRow[];
   latestLinks: Record<string, LatestLink>;
   subscriptionsByCustomer: Record<string, { hasPlan: boolean }>;
   csrfToken: string;
   returnTo?: string;
+  initialTxCustomerId?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<CustomerRow | null>(null);
@@ -205,6 +207,12 @@ export function CustomersTable({
     first?.focus();
   }, [detailsOpen]);
 
+  useEffect(() => {
+    if (!initialTxCustomerId || txOpen) return;
+    const found = items.find((c) => String(c.id) === String(initialTxCustomerId));
+    if (found) openTransactions(found);
+  }, [initialTxCustomerId, items]);
+
   function onModalKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Escape") {
       e.preventDefault();
@@ -266,7 +274,9 @@ export function CustomersTable({
               <div className="contact-right">
                 <div className="contact-right-top">
                   <div className="contact-actions">
-                    <button className="icon-btn" type="button" onClick={() => openTransactions(c)} aria-label="Transacciones">🧾</button>
+                    <button className="ghost btn-compact" type="button" onClick={() => openTransactions(c)} aria-label="Historial de pagos">
+                      Historial
+                    </button>
                     <button className="icon-btn" type="button" onClick={() => openEditor(c)} aria-label="Editar">✎</button>
                     <form
                       action={deleteCustomer}

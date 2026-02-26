@@ -28,7 +28,7 @@ export function PlanRecurrenceEditor({
   return (
     <>
       <button className="ghost btn-compact btn-blue" type="button" onClick={() => setOpen(true)}>
-        Editar recurrencia
+        Editar plan
       </button>
 
       {open ? (

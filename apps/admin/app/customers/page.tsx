@@ -71,6 +71,13 @@ async function fetchCustomerSubscriptions(tenantId?: string) {
   return map;
 }
 
+async function fetchCustomerById(id: string) {
+  if (!id) return null;
+  const res = await fetchAdminCached(`/admin/customers/${encodeURIComponent(id)}`, { ttlMs: 1500 });
+  if (!res?.ok) return null;
+  return res.json?.customer || null;
+}
+
 export default async function CustomersPage({
   searchParams
 }: {
@@ -83,18 +90,24 @@ export default async function CustomersPage({
   const q = typeof sp.q === "string" ? sp.q : "";
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
   const tenantId = typeof sp.tenantId === "string" ? sp.tenantId : "";
+  const txCustomerId = typeof sp.tx === "string" ? sp.tx : "";
   const returnTo = `/customers?${new URLSearchParams({
     ...(q ? { q } : {}),
     ...(tenantId ? { tenantId } : {}),
+    ...(txCustomerId ? { tx: txCustomerId } : {}),
     ...(Number.isFinite(page) && page > 1 ? { page: String(page) } : {})
   }).toString()}`;
   const tenantCreated = typeof sp.tenantCreated === "string" ? sp.tenantCreated : "";
   const take = 200;
-  const [data, tenantsRes] = await Promise.all([
+  const [data, tenantsRes, txCustomer] = await Promise.all([
     fetchCustomers({ q, take, page, tenantId }),
-    fetchAdminCached("/admin/tenants", { ttlMs: 1500 })
+    fetchAdminCached("/admin/tenants", { ttlMs: 1500 }),
+    txCustomerId ? fetchCustomerById(txCustomerId) : Promise.resolve(null)
   ]);
   const items = (data.items ?? []) as any[];
+  if (txCustomer && !items.some((c) => String(c.id) === String(txCustomer.id))) {
+    items.unshift(txCustomer);
+  }
   const tenants = (tenantsRes.json?.items ?? []) as Array<{ id: string; name: string }>;
   const tenantById = new Map(tenants.map((t) => [String(t.id), String(t.name)]));
   const [latestLinks, subscriptionsByCustomer] = await Promise.all([
@@ -164,6 +177,7 @@ export default async function CustomersPage({
             subscriptionsByCustomer={subscriptionsByCustomer}
             csrfToken={csrfToken}
             returnTo={returnTo}
+            initialTxCustomerId={txCustomerId}
           />
 
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>
