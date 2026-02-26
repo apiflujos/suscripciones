@@ -25,7 +25,8 @@ export function ConnectionsPanel({
   shopify,
   actions,
   inlineState,
-  initialOpen
+  initialOpen,
+  returnTo
 }: {
   csrfToken: string;
   wompiActiveEnv: "PRODUCTION" | "SANDBOX";
@@ -52,6 +53,7 @@ export function ConnectionsPanel({
   };
   inlineState: InlineMsgProps;
   initialOpen?: string;
+  returnTo?: string;
 }) {
   const initial = initialOpen === "wompi" || initialOpen === "central" || initialOpen === "shopify" ? initialOpen : null;
   const [open, setOpen] = useState<null | "wompi" | "central" | "shopify">(initial);
@@ -114,6 +116,7 @@ export function ConnectionsPanel({
 
             <form action={actions.setWompiActiveEnv} style={{ display: "grid", gridTemplateColumns: "1fr auto", alignItems: "end", gap: 10 }}>
               <input type="hidden" name="csrf" value={csrfToken} />
+              {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
               <div className="field">
                 <label>
                   Entorno activo
@@ -143,6 +146,7 @@ export function ConnectionsPanel({
                   </div>
                   <form action={actions.updateWompi} style={{ display: "grid", gap: 10 }}>
                     <input type="hidden" name="csrf" value={csrfToken} />
+                    {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
                     <input type="hidden" name="environment" value={envKey} />
                     <div className="field">
                       <label>Llave pública</label>
@@ -219,8 +223,9 @@ export function ConnectionsPanel({
               <button type="button" className="ghost" onClick={() => setOpen(null)} aria-label="Cerrar">X</button>
             </div>
 
-            <form action={actions.setCentralActiveEnv} style={{ display: "grid", gridTemplateColumns: "1fr auto", alignItems: "end", gap: 10 }}>
-              <input type="hidden" name="csrf" value={csrfToken} />
+              <form action={actions.setCentralActiveEnv} style={{ display: "grid", gridTemplateColumns: "1fr auto", alignItems: "end", gap: 10 }}>
+                <input type="hidden" name="csrf" value={csrfToken} />
+                {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
               <div className="field">
                 <label>
                   Entorno activo
@@ -250,6 +255,7 @@ export function ConnectionsPanel({
                   </div>
                   <form action={actions.updateChatwoot} style={{ display: "grid", gap: 10 }}>
                     <input type="hidden" name="csrf" value={csrfToken} />
+                    {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
                     <input type="hidden" name="environment" value={envKey} />
                     <div className="field">
                       <label>URL base</label>
@@ -302,6 +308,7 @@ export function ConnectionsPanel({
               </div>
               <form action={actions.bootstrapCentralAttributes}>
                 <input type="hidden" name="csrf" value={csrfToken} />
+                {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
                 {inlineMsg("central_bootstrap", "Atributos creados.", "Error creando", inlineState)}
                 <PendingButton className="ghost" type="submit" pendingText="Creando...">
                   Crear atributos de contacto
@@ -399,6 +406,7 @@ export function ConnectionsPanel({
 
             <form action={actions.updateShopify} className="panel module" style={{ display: "grid", gap: 10 }}>
               <input type="hidden" name="csrf" value={csrfToken} />
+              {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
               <div className="field">
                 <label>URL de reenvío</label>
                 <input className="input" name="forwardUrl" defaultValue={shopify?.forwardUrl || ""} />

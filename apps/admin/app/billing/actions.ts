@@ -318,6 +318,39 @@ export async function createPlanAndSubscription(formData: FormData) {
   }
 
   try {
+    const customerRes = await adminFetch(`/admin/customers/${customerId}`, { method: "GET" }).catch(() => null);
+    const customer = customerRes?.customer || {};
+    const meta = customer?.metadata || {};
+    const paymentSource =
+      meta?.wompi?.paymentSourceId ||
+      meta?.wompi?.payment_source_id ||
+      meta?.paymentSourceId ||
+      meta?.payment_source_id;
+    const hasToken = Boolean(paymentSource);
+
+    const settings = await adminFetch("/admin/settings", { method: "GET" }).catch(() => null);
+    const checkoutConfig = settings?.checkoutConfig || {};
+    const planBase = String(checkoutConfig?.planBaseUrl || "").trim();
+    const subBase = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
+    if (billingType === "PLAN" && !planBase) {
+      return redirect(
+        mergeQuery(returnTo, {
+          error: "missing_plan_base_url",
+          customerId,
+          ...(tenantId ? { tenantId } : {})
+        })
+      );
+    }
+    if (billingType === "SUBSCRIPCION" && !hasToken && !subBase) {
+      return redirect(
+        mergeQuery(returnTo, {
+          error: "missing_subscription_base_url",
+          customerId,
+          ...(tenantId ? { tenantId } : {})
+        })
+      );
+    }
+
     const product = await adminFetch(
       tenantId ? `/admin/products/${encodeURIComponent(productId)}?tenantId=${encodeURIComponent(tenantId)}` : `/admin/products/${encodeURIComponent(productId)}`,
       { method: "GET" }
@@ -420,8 +453,6 @@ export async function createPlanAndSubscription(formData: FormData) {
     });
 
     const checkoutUrl = sub?.checkoutUrl ? String(sub.checkoutUrl) : "";
-    const settings = await adminFetch("/admin/settings", { method: "GET" }).catch(() => null);
-    const checkoutConfig = settings?.checkoutConfig || {};
     const templateExpiryHours = template?.expiryHours ?? null;
     const configExpiryHours =
       Number.isFinite(Number(checkoutConfig?.tokenExpiryHours)) && Number(checkoutConfig?.tokenExpiryHours) > 0
@@ -434,18 +465,7 @@ export async function createPlanAndSubscription(formData: FormData) {
       : configExpiryHours;
 
     if (billingType === "PLAN" && checkoutUrl) {
-      const customerRes = await adminFetch(`/admin/customers/${customerId}`, { method: "GET" }).catch(() => null);
-      const customer = customerRes?.customer || {};
-      const base = String(checkoutConfig?.planBaseUrl || "").trim();
-      if (!base) {
-        return redirect(
-          mergeQuery(returnTo, {
-            error: "missing_plan_base_url",
-            customerId,
-            ...(tenantId ? { tenantId } : {})
-          })
-        );
-      }
+      const base = planBase;
       const token = crypto.randomBytes(18).toString("hex");
       const baseUrl = `${base.replace(/\/$/, "")}/public/plan/${token}`;
       const utm = String(template?.utmParams || "").trim();
@@ -489,28 +509,10 @@ export async function createPlanAndSubscription(formData: FormData) {
     }
 
     if (billingType === "SUBSCRIPCION") {
-      const customerRes = await adminFetch(`/admin/customers/${customerId}`, { method: "GET" }).catch(() => null);
-      const customer = customerRes?.customer || {};
-      const meta = customer?.metadata || {};
-      const paymentSource =
-        meta?.wompi?.paymentSourceId ||
-        meta?.wompi?.payment_source_id ||
-        meta?.paymentSourceId ||
-        meta?.payment_source_id;
-      const hasToken = Boolean(paymentSource);
       if (hasToken) {
         redirect(mergeQuery(returnTo, { created: "1", customerId, ...(tenantId ? { tenantId } : {}) }));
       }
-      const base = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
-      if (!base) {
-        return redirect(
-          mergeQuery(returnTo, {
-            error: "missing_subscription_base_url",
-            customerId,
-            ...(tenantId ? { tenantId } : {})
-          })
-        );
-      }
+      const base = subBase;
       const token = crypto.randomBytes(18).toString("hex");
       const baseUrl = `${base.replace(/\/$/, "")}/public/suscripcion/${token}`;
       const utm = String(template?.utmParams || "").trim();
@@ -564,9 +566,10 @@ export async function createPlanAndSubscription(formData: FormData) {
 
 export async function sendChatwootPaymentLink(formData: FormData) {
   await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
   const checkoutUrl = String(formData.get("checkoutUrl") || "").trim();
   const customerId = String(formData.get("customerId") || "").trim();
-  if (!checkoutUrl || !customerId) return redirect("/billing?error=missing_checkout_or_customer");
+  if (!checkoutUrl || !customerId) return redirect(mergeQuery(returnTo, { error: "missing_checkout_or_customer" }));
 
   const content = `Link de pago: ${checkoutUrl}`;
 
@@ -575,9 +578,9 @@ export async function sendChatwootPaymentLink(formData: FormData) {
       method: "POST",
       body: JSON.stringify({ customerId, content })
     });
-    redirect("/billing?created=1&chatwoot=sent");
+    redirect(mergeQuery(returnTo, { created: "1", chatwoot: "sent" }));
   } catch (err: any) {
-    redirect(`/billing?error=${encodeURIComponent(err?.message || "chatwoot_send_failed")}`);
+    redirect(mergeQuery(returnTo, { error: String(err?.message || "chatwoot_send_failed") }));
   }
 }
 

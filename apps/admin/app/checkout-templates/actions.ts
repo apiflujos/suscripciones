@@ -43,21 +43,33 @@ export async function createCheckoutTemplate(formData: FormData) {
     } catch {
       layout = {};
     }
+    const name = String(formData.get("name") || "").trim();
+    const kind = String(formData.get("kind") || "PLAN").trim().toUpperCase();
+    const allowProductSelect = String(formData.get("allowProductSelect") || "") === "on";
+    const productIds = String(formData.get("productIds") || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (!name || (kind !== "PLAN" && kind !== "SUBSCRIPTION")) {
+      return redirectWith("checkout_template_create", "fail", "invalid_body");
+    }
+    if (!allowProductSelect && productIds.length === 0) {
+      return redirectWith("checkout_template_create", "fail", "invalid_body");
+    }
+    const expiryHoursRaw = String(formData.get("expiryHours") || "").trim();
+    const expiryHoursNum = expiryHoursRaw ? Number(expiryHoursRaw) : NaN;
     const payload = {
-      name: String(formData.get("name") || "").trim(),
-      kind: String(formData.get("kind") || "PLAN").trim().toUpperCase(),
+      name,
+      kind,
       active: String(formData.get("active") || "") === "on",
-      allowProductSelect: String(formData.get("allowProductSelect") || "") === "on",
-      productIds: String(formData.get("productIds") || "")
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean),
-      expiryHours: Number(String(formData.get("expiryHours") || "")) || undefined,
+      allowProductSelect,
+      productIds,
+      expiryHours: Number.isFinite(expiryHoursNum) ? expiryHoursNum : undefined,
       logoUrl: String(formData.get("logoUrl") || "").trim(),
       publicTitle: String(formData.get("publicTitle") || "").trim(),
       publicDescription: String(formData.get("publicDescription") || "").trim(),
-      wompiTitle: String(formData.get("publicTitle") || "").trim(),
-      wompiDescription: String(formData.get("publicDescription") || "").trim(),
+      wompiTitle: String(formData.get("wompiTitle") || "").trim(),
+      wompiDescription: String(formData.get("wompiDescription") || "").trim(),
       utmParams: String(formData.get("utmParams") || "").trim(),
       layout
     };
@@ -79,21 +91,33 @@ export async function updateCheckoutTemplate(formData: FormData) {
     } catch {
       layout = {};
     }
+    const name = String(formData.get("name") || "").trim();
+    const kind = String(formData.get("kind") || "PLAN").trim().toUpperCase();
+    const allowProductSelect = String(formData.get("allowProductSelect") || "") === "on";
+    const productIds = String(formData.get("productIds") || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (!name || (kind !== "PLAN" && kind !== "SUBSCRIPTION")) {
+      return redirectWith("checkout_template_update", "fail", "invalid_body");
+    }
+    if (!allowProductSelect && productIds.length === 0) {
+      return redirectWith("checkout_template_update", "fail", "invalid_body");
+    }
+    const expiryHoursRaw = String(formData.get("expiryHours") || "").trim();
+    const expiryHoursNum = expiryHoursRaw ? Number(expiryHoursRaw) : NaN;
     const payload = {
-      name: String(formData.get("name") || "").trim(),
-      kind: String(formData.get("kind") || "PLAN").trim().toUpperCase(),
+      name,
+      kind,
       active: String(formData.get("active") || "") === "on",
-      allowProductSelect: String(formData.get("allowProductSelect") || "") === "on",
-      productIds: String(formData.get("productIds") || "")
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean),
-      expiryHours: Number(String(formData.get("expiryHours") || "")) || undefined,
+      allowProductSelect,
+      productIds,
+      expiryHours: Number.isFinite(expiryHoursNum) ? expiryHoursNum : undefined,
       logoUrl: String(formData.get("logoUrl") || "").trim(),
       publicTitle: String(formData.get("publicTitle") || "").trim(),
       publicDescription: String(formData.get("publicDescription") || "").trim(),
-      wompiTitle: String(formData.get("publicTitle") || "").trim(),
-      wompiDescription: String(formData.get("publicDescription") || "").trim(),
+      wompiTitle: String(formData.get("wompiTitle") || "").trim(),
+      wompiDescription: String(formData.get("wompiDescription") || "").trim(),
       utmParams: String(formData.get("utmParams") || "").trim(),
       layout
     };

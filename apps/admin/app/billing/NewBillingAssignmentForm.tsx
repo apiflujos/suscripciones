@@ -132,8 +132,7 @@ export function NewBillingAssignmentForm({
     }
   }, [templateId, templatesForType]);
 
-  useEffect(() => {}, []);
-
+  const [selectedTenantIds, setSelectedTenantIds] = useState<string[]>(tenantId ? [tenantId] : []);
 
   const filteredProducts = useMemo(() => {
     const q = productQ.trim().toLowerCase();
@@ -242,7 +241,8 @@ export function NewBillingAssignmentForm({
     };
   }, [customerQ]);
 
-  const canSubmit = Boolean(productId && customerId);
+  const mustPickTenant = tenants.length > 0;
+  const canSubmit = Boolean(productId && customerId && (!mustPickTenant || selectedTenantIds.length > 0));
 
   return (
     <div className="panel module">
@@ -467,7 +467,9 @@ export function NewBillingAssignmentForm({
               <input type="hidden" name="customerId" value={customerId} />
               <input type="hidden" name="productId" value={productId} />
               <input type="hidden" name="billingType" value={billingType} />
-              {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+              {selectedTenantIds.map((id) => (
+                <input key={id} type="hidden" name="tenantIds" value={id} />
+              ))}
               <input type="hidden" name="intervalUnit" value={intervalUnit} />
               <input type="hidden" name="intervalCount" value={intervalCount} />
               <input type="hidden" name="option1Value" value={option1Value} />
@@ -504,7 +506,35 @@ export function NewBillingAssignmentForm({
                 {!templatesForType.length ? <div className="field-hint">No hay plantillas {billingType === "PLAN" ? "de plan" : "de suscripción"}.</div> : null}
               </div>
 
+              {tenants.length > 0 ? (
+                <div className="field">
+                  <label>Canal(es)</label>
+                  <select
+                    className="select"
+                    multiple
+                    value={selectedTenantIds}
+                    onChange={(e) => {
+                      const values = Array.from(e.target.selectedOptions).map((opt) => opt.value);
+                      setSelectedTenantIds(values);
+                    }}
+                    disabled={!productId || !customerId}
+                  >
+                    {tenants.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                <div className="field-hint">Puedes seleccionar uno o varios canales.</div>
+              </div>
+              ) : null}
+
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 10, alignItems: "center" }}>
+                {!canSubmit ? (
+                  <span className="field-hint">
+                    Selecciona producto, contacto{mustPickTenant ? " y canal" : ""} para continuar.
+                  </span>
+                ) : null}
                 <button
                   className="primary"
                   type="submit"

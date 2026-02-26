@@ -94,6 +94,23 @@ export default async function SettingsPage({
   const templateKind = String(sp.kind || "").toUpperCase();
   const templateStep = String(sp.step || "choose");
   const inlineState = { action, status, errorText };
+  const returnTo = `/settings?${new URLSearchParams(
+    Object.fromEntries(
+      Object.entries({
+        tab,
+        ...(open ? { open } : {}),
+        ...(templateKind ? { kind: templateKind } : {}),
+        ...(templateStep ? { step: templateStep } : {})
+      }).filter(([, v]) => String(v || "").length > 0)
+    )
+  ).toString()}`;
+
+  const maskSecret = (value: any) => {
+    const raw = String(value || "").trim();
+    if (!raw) return "—";
+    const last4 = raw.slice(-4);
+    return `••••••••${last4}`;
+  };
 
   return (
     <main className="page" style={{ maxWidth: 980 }}>
@@ -165,6 +182,7 @@ export default async function SettingsPage({
                 }}
                 inlineState={inlineState}
                 initialOpen={open}
+                returnTo={returnTo}
               />
             </div>
           </section>
@@ -199,11 +217,13 @@ export default async function SettingsPage({
                       <form action={testWompiConnection}>
                         <input type="hidden" name="csrf" value={csrfToken} />
                         <input type="hidden" name="environment" value={envKey} />
+                        <input type="hidden" name="returnTo" value={returnTo} />
                         <button className="ghost" type="submit">Probar</button>
                       </form>
                       <form action={deleteWompiConnection}>
                         <input type="hidden" name="csrf" value={csrfToken} />
                         <input type="hidden" name="environment" value={envKey} />
+                        <input type="hidden" name="returnTo" value={returnTo} />
                         <button className="ghost" type="submit">Eliminar</button>
                       </form>
                     </div>
@@ -214,15 +234,15 @@ export default async function SettingsPage({
                       </div>
                       <div className="saved-conn-meta-item">
                         <span className="saved-conn-meta-label">Llave privada</span>
-                        <span className="saved-conn-meta-value">{wompi?.privateKey || "—"}</span>
+                        <span className="saved-conn-meta-value">{maskSecret(wompi?.privateKey)}</span>
                       </div>
                       <div className="saved-conn-meta-item">
                         <span className="saved-conn-meta-label">Integridad</span>
-                        <span className="saved-conn-meta-value">{wompi?.integritySecret || "—"}</span>
+                        <span className="saved-conn-meta-value">{maskSecret(wompi?.integritySecret)}</span>
                       </div>
                       <div className="saved-conn-meta-item">
                         <span className="saved-conn-meta-label">Eventos</span>
-                        <span className="saved-conn-meta-value">{wompi?.eventsSecret || "—"}</span>
+                        <span className="saved-conn-meta-value">{maskSecret(wompi?.eventsSecret)}</span>
                       </div>
                       <div className="saved-conn-meta-item">
                         <span className="saved-conn-meta-label">API</span>
@@ -261,6 +281,7 @@ export default async function SettingsPage({
                         <input type="hidden" name="baseUrl" value={comms?.baseUrl || ""} />
                         <input type="hidden" name="accountId" value={comms?.accountId || ""} />
                         <input type="hidden" name="inboxId" value={comms?.inboxId || ""} />
+                        <input type="hidden" name="returnTo" value={returnTo} />
                         <button className="ghost" type="submit" disabled={!comms?.baseUrl || !comms?.accountId || !comms?.inboxId}>
                           Probar
                         </button>
@@ -268,6 +289,7 @@ export default async function SettingsPage({
                       <form action={deleteCentralConnection}>
                         <input type="hidden" name="csrf" value={csrfToken} />
                         <input type="hidden" name="environment" value={envKey} />
+                        <input type="hidden" name="returnTo" value={returnTo} />
                         <button className="ghost" type="submit">Eliminar</button>
                       </form>
                     </div>
@@ -304,10 +326,12 @@ export default async function SettingsPage({
                       <input type="hidden" name="csrf" value={csrfToken} />
                       <input type="hidden" name="forwardUrl" value={settings?.shopify?.forwardUrl || ""} />
                       <input type="hidden" name="forwardOrigin" value={settings?.shopify?.forwardOrigin || "shopify"} />
+                      <input type="hidden" name="returnTo" value={returnTo} />
                       <button className="ghost" type="submit" disabled={!settings?.shopify?.forwardUrl}>Probar</button>
                     </form>
                     <form action={deleteShopifyConnection}>
                       <input type="hidden" name="csrf" value={csrfToken} />
+                      <input type="hidden" name="returnTo" value={returnTo} />
                       <button className="ghost" type="submit">Eliminar</button>
                     </form>
                   </div>
@@ -326,6 +350,7 @@ export default async function SettingsPage({
 
               <form action={updateCheckoutConfig} className="panel module" style={{ display: "grid", gap: 12 }}>
                 <input type="hidden" name="csrf" value={csrfToken} />
+                <input type="hidden" name="returnTo" value={returnTo} />
                 <div className="panelHeaderRow">
                   <strong>Dominio público del checkout</strong>
                   <div className="field-hint">Si lo dejas vacío, usamos el dominio público por defecto.</div>
@@ -384,7 +409,7 @@ export default async function SettingsPage({
             </div>
           </div>
           <div className="settings-group-body">
-            <CheckoutConfigPanel defaults={settings?.checkoutConfig || {}} csrfToken={csrfToken} onSave={updateCheckoutConfig} inlineState={inlineState} />
+            <CheckoutConfigPanel defaults={settings?.checkoutConfig || {}} csrfToken={csrfToken} onSave={updateCheckoutConfig} inlineState={inlineState} returnTo={returnTo} />
             <CheckoutTemplatesPanel
               templates={templates}
               products={products}

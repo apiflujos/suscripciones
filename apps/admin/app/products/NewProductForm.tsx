@@ -14,10 +14,16 @@ function formatCopCurrency(input: string): string {
 
 export function NewProductForm({
   action,
-  csrfToken
+  csrfToken,
+  tenantId,
+  tenants,
+  returnTo
 }: {
   action: (formData: FormData) => void | Promise<void>;
   csrfToken: string;
+  tenantId?: string;
+  tenants: Array<{ id: string; name: string }>;
+  returnTo?: string;
 }) {
   const [kind, setKind] = useState<"PRODUCT" | "SERVICE">("PRODUCT");
   const [name, setName] = useState("");
@@ -27,6 +33,7 @@ export function NewProductForm({
   const [intervalCount, setIntervalCount] = useState("1");
   const [taxPercent, setTaxPercent] = useState("0");
   const [requiresShipping, setRequiresShipping] = useState(false);
+  const [selectedTenantIds, setSelectedTenantIds] = useState<string[]>(tenantId ? [tenantId] : []);
 
   const [vendor, setVendor] = useState("");
   const [productType, setProductType] = useState("");
@@ -37,8 +44,12 @@ export function NewProductForm({
   return (
     <form action={action} className="panel module" style={{ display: "grid", gap: 10 }}>
       <input type="hidden" name="csrf" value={csrfToken} />
+      {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
       <input type="hidden" name="currency" value="COP" />
       <input type="hidden" name="imageUrl" value={imageUrl} />
+      {selectedTenantIds.map((id) => (
+        <input key={id} type="hidden" name="tenantIds" value={id} />
+      ))}
 
       <div className="panelHeaderRow">
         <strong>Crear producto / servicio</strong>
@@ -58,6 +69,28 @@ export function NewProductForm({
           <input className="input" name="name" value={name} onChange={(e) => setName(e.target.value)} required />
         </div>
       </div>
+      {tenants.length > 0 ? (
+        <div className="field">
+          <label>Canal(es)</label>
+          <select
+            className="select"
+            multiple
+            value={selectedTenantIds}
+            onChange={(e) => {
+              const values = Array.from(e.target.selectedOptions).map((opt) => opt.value);
+              setSelectedTenantIds(values);
+            }}
+            required
+          >
+            {tenants.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+          <div className="field-hint">Puedes seleccionar uno o varios canales.</div>
+        </div>
+      ) : null}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         <div className="field">

@@ -33,16 +33,20 @@ async function adminFetch(path: string, init: RequestInit) {
 
 export async function createCampaign(formData: FormData) {
   await assertCsrfToken(formData);
+  const returnTo = String(formData.get("returnTo") || "/campaigns").trim() || "/campaigns";
   const name = String(formData.get("name") || "").trim();
   const smartListId = String(formData.get("smartListId") || "").trim();
   const content = String(formData.get("content") || "").trim();
   const templateParamsRaw = String(formData.get("templateParams") || "").trim();
+  if (!name || !smartListId || !content) {
+    return redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=missing_required_fields`);
+  }
   let templateParams: any = undefined;
   if (templateParamsRaw) {
     try {
       templateParams = JSON.parse(templateParamsRaw);
     } catch {
-      return redirect("/campaigns?error=invalid_template_params");
+      return redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=invalid_template_params`);
     }
   }
 
@@ -51,20 +55,21 @@ export async function createCampaign(formData: FormData) {
       method: "POST",
       body: JSON.stringify({ name, smartListId: smartListId || undefined, content, templateParams })
     });
-    redirect("/campaigns?created=1");
+    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}created=1`);
   } catch (err) {
-    redirect(`/campaigns?error=${encodeURIComponent(toShortErrorMessage(err))}`);
+    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
 
 export async function runCampaign(formData: FormData) {
   await assertCsrfToken(formData);
+  const returnTo = String(formData.get("returnTo") || "/campaigns").trim() || "/campaigns";
   const id = String(formData.get("id") || "").trim();
-  if (!id) return redirect("/campaigns?error=missing_id");
+  if (!id) return redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=missing_id`);
   try {
     await adminFetch(`/admin/comms/campaigns/${encodeURIComponent(id)}/run`, { method: "POST" });
-    redirect(`/campaigns?running=${encodeURIComponent(id)}`);
+    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}running=${encodeURIComponent(id)}`);
   } catch (err) {
-    redirect(`/campaigns?error=${encodeURIComponent(toShortErrorMessage(err))}`);
+    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }

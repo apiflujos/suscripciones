@@ -104,24 +104,7 @@ async function ensureSmartListsSyncJob() {
   if (now - lastEnsureSmartListsAtMs < 5 * 60_000) return;
   lastEnsureSmartListsAtMs = now;
 
-  const existing = await prisma.retryJob.findFirst({
-    where: {
-      type: RetryJobType.SYNC_SMART_LISTS,
-      status: { in: [RetryJobStatus.PENDING, RetryJobStatus.RUNNING] }
-    }
-  });
-  if (existing) return;
-
-  await prisma.retryJob
-    .create({
-      data: {
-        type: RetryJobType.SYNC_SMART_LISTS,
-        runAt: new Date(Date.now() + 60_000),
-        maxAttempts: 3,
-        payload: {}
-      } as any
-    })
-    .catch(() => {});
+  return;
 }
 
 async function ensureLogCleanup() {

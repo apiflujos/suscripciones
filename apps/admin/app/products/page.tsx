@@ -42,6 +42,11 @@ export default async function ProductsPage({
   const error = typeof spParams.error === "string" ? spParams.error : "";
   const q = typeof spParams.q === "string" ? spParams.q : "";
   const page = typeof spParams.page === "string" ? Number(spParams.page) : 1;
+  const returnTo = `/products?${new URLSearchParams({
+    ...(tenantId ? { tenantId } : {}),
+    ...(q ? { q } : {}),
+    ...(Number.isFinite(page) && page > 1 ? { page: String(page) } : {})
+  }).toString()}`;
 
   const sp = new URLSearchParams();
   if (tenantId) sp.set("tenantId", tenantId);
@@ -111,7 +116,7 @@ export default async function ProductsPage({
         <div className="settings-group-body">
           <div style={{ display: "grid", gap: 14 }}>
             <div style={{ display: "grid", gap: 14 }}>
-              <NewProductForm action={createProduct} csrfToken={csrfToken} />
+              <NewProductForm action={createProduct} csrfToken={csrfToken} tenantId={tenantId} tenants={tenants} returnTo={returnTo} />
               <NewPlanOrSubscriptionForm action={createPlanTemplate} catalogItems={productItems} csrfToken={csrfToken} tenantId={tenantId} tenants={tenants} />
             </div>
 
@@ -128,6 +133,8 @@ export default async function ProductsPage({
               })}
               csrfToken={csrfToken}
               deleteProductAction={deleteProduct}
+              tenants={tenants}
+              returnTo={returnTo}
             />
 
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>

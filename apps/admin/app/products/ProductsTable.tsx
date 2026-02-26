@@ -51,11 +51,15 @@ type ProductRow = {
 export function ProductsTable({
   items,
   csrfToken,
-  deleteProductAction
+  deleteProductAction,
+  tenants,
+  returnTo
 }: {
   items: ProductRow[];
   csrfToken: string;
   deleteProductAction: (formData: FormData) => void | Promise<void>;
+  tenants: Array<{ id: string; name: string }>;
+  returnTo?: string;
 }) {
   const [editing, setEditing] = useState<ProductRow | null>(null);
   const [open, setOpen] = useState(false);
@@ -81,6 +85,7 @@ export function ProductsTable({
   const [discountCop, setDiscountCop] = useState("");
   const [discountPercent, setDiscountPercent] = useState("0");
   const [requiresShipping, setRequiresShipping] = useState(false);
+  const [selectedTenantIds, setSelectedTenantIds] = useState<string[]>([]);
   const [option1Name, setOption1Name] = useState("");
   const [option2Name, setOption2Name] = useState("");
   const [variantOptionsCount, setVariantOptionsCount] = useState<0 | 1 | 2>(0);
@@ -115,6 +120,8 @@ export function ProductsTable({
     setOption1Name(item.option1Name || "");
     setOption2Name(item.option2Name || "");
     setImageUrl(item.imageUrl || "");
+    const ids = Array.isArray(item.tenantIds) && item.tenantIds.length ? item.tenantIds : item.tenantId ? [item.tenantId] : [];
+    setSelectedTenantIds(ids as string[]);
     const hasOpt2 = Boolean(item.option2Name) || (item.variants || []).some((v) => v?.option2);
     const hasOpt1 = Boolean(item.option1Name) || (item.variants || []).some((v) => v?.option1);
     setVariantOptionsCount(hasOpt2 ? 2 : hasOpt1 ? 1 : 0);
@@ -233,7 +240,7 @@ export function ProductsTable({
                 <button className="ghost btn-compact btn-blue" type="button" onClick={() => openEditor(p)}>
                   Editar
                 </button>
-                <DeleteProductButton action={deleteProductAction} csrfToken={csrfToken} productId={p.id} tenantId={String(p.tenantId || "")} />
+                <DeleteProductButton action={deleteProductAction} csrfToken={csrfToken} productId={p.id} tenantId={String(p.tenantId || "")} returnTo={returnTo} />
               </div>
             </div>
             <div className="product-info">
@@ -305,6 +312,10 @@ export function ProductsTable({
               <input type="hidden" name="id" value={editing.id} />
               <input type="hidden" name="currency" value="COP" />
               <input type="hidden" name="tenantId" value={editing.tenantId || ""} />
+              {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
+              {selectedTenantIds.map((id) => (
+                <input key={id} type="hidden" name="tenantIds" value={id} />
+              ))}
               <input type="hidden" name="imageUrl" value={imageUrl} />
               <input type="hidden" name="intervalUnit" value={intervalUnit} />
               <input type="hidden" name="intervalCount" value={intervalCount} />
@@ -333,6 +344,27 @@ export function ProductsTable({
                   <input className="input" name="sku" value={sku} onChange={(e) => setSku(e.target.value)} required />
                 </div>
               </div>
+              {tenants.length > 0 ? (
+                <div className="field">
+                  <label>Canal(es)</label>
+                  <select
+                    className="select"
+                    multiple
+                    value={selectedTenantIds}
+                    onChange={(e) => {
+                      const values = Array.from(e.target.selectedOptions).map((opt) => opt.value);
+                      setSelectedTenantIds(values);
+                    }}
+                  >
+                    {tenants.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="field-hint">Puedes seleccionar uno o varios canales.</div>
+                </div>
+              ) : null}
 
               <div className="field">
                 <label>Descripción</label>

@@ -83,6 +83,11 @@ export default async function CustomersPage({
   const q = typeof sp.q === "string" ? sp.q : "";
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
   const tenantId = typeof sp.tenantId === "string" ? sp.tenantId : "";
+  const returnTo = `/customers?${new URLSearchParams({
+    ...(q ? { q } : {}),
+    ...(tenantId ? { tenantId } : {}),
+    ...(Number.isFinite(page) && page > 1 ? { page: String(page) } : {})
+  }).toString()}`;
   const tenantCreated = typeof sp.tenantCreated === "string" ? sp.tenantCreated : "";
   const take = 200;
   const [data, tenantsRes] = await Promise.all([
@@ -151,13 +156,14 @@ export default async function CustomersPage({
         </div>
 
         <div className="settings-group-body">
-          <NewCustomerForm createCustomer={createCustomer} csrfToken={csrfToken} tenantId={tenantId} tenants={tenants} />
+          <NewCustomerForm createCustomer={createCustomer} csrfToken={csrfToken} tenantId={tenantId} tenants={tenants} returnTo={returnTo} />
 
           <CustomersTable
             items={items.map((c) => ({ ...c, tenantName: tenantById.get(String(c.tenantId || "")) || "—" }))}
             latestLinks={latestLinksObj}
             subscriptionsByCustomer={subscriptionsByCustomer}
             csrfToken={csrfToken}
+            returnTo={returnTo}
           />
 
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>

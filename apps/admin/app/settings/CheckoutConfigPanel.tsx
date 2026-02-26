@@ -31,7 +31,8 @@ export function CheckoutConfigPanel({
   inlineState,
   mode = "PLAN",
   showPreview = true,
-  showFullscreen = true
+  showFullscreen = true,
+  returnTo
 }: {
   defaults: CheckoutConfig;
   csrfToken: string;
@@ -40,6 +41,7 @@ export function CheckoutConfigPanel({
   mode?: "PLAN" | "SUBSCRIPTION";
   showPreview?: boolean;
   showFullscreen?: boolean;
+  returnTo?: string;
 }) {
   const [logoData, setLogoData] = useState<string>(defaults.logoUrl || "");
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -83,6 +85,7 @@ export function CheckoutConfigPanel({
   return (
     <form action={onSave} className="panel module" style={{ display: "grid", gap: 16 }}>
       <input type="hidden" name="csrf" value={csrfToken} />
+      {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
       <input type="hidden" name="logoUrl" value={logoData} />
       <input type="hidden" name="planTitle" value={checkoutTitle} />
       <input type="hidden" name="planDescription" value={checkoutDescription} />

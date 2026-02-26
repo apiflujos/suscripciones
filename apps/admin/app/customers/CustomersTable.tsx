@@ -44,12 +44,14 @@ export function CustomersTable({
   items,
   latestLinks,
   subscriptionsByCustomer,
-  csrfToken
+  csrfToken,
+  returnTo
 }: {
   items: CustomerRow[];
   latestLinks: Record<string, LatestLink>;
   subscriptionsByCustomer: Record<string, { hasPlan: boolean }>;
   csrfToken: string;
+  returnTo?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<CustomerRow | null>(null);
@@ -276,6 +278,7 @@ export function CustomersTable({
                       <input type="hidden" name="csrf" value={csrfToken} />
                       <input type="hidden" name="id" value={c.id} />
                       <input type="hidden" name="tenantId" value={c.tenantId || ""} />
+                      {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
                       <button className="icon-btn danger" type="submit" aria-label="Eliminar">🗑</button>
                     </form>
                   </div>
@@ -365,7 +368,8 @@ export function CustomersTable({
                           body: JSON.stringify({
                             customerId: c.id,
                             customerName: c.name || "",
-                            amount
+                            amount,
+                            tenantId: c.tenantId || ""
                           })
                         });
                             const contentType = res.headers.get("content-type") || "";
@@ -586,7 +590,8 @@ export function CustomersTable({
                               headers: { "content-type": "application/json" },
                               body: JSON.stringify({
                                 customerId: detailsCustomer.id,
-                                customerName: detailsCustomer.name || ""
+                                customerName: detailsCustomer.name || "",
+                                tenantId: detailsCustomer.tenantId || ""
                               })
                             });
                             const contentType = res.headers.get("content-type") || "";
@@ -734,6 +739,7 @@ export function CustomersTable({
               <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="id" value={editing.id} />
               <input type="hidden" name="tenantId" value={editing.tenantId || ""} />
+              {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <div className="field">

@@ -38,6 +38,21 @@ function readTenantIds(formData: FormData): string[] {
   return Array.from(new Set(out));
 }
 
+function safeReturnTo(formData: FormData) {
+  const raw = String(formData.get("returnTo") || "").trim();
+  return raw.startsWith("/products") ? raw : "/products";
+}
+
+function mergeQuery(path: string, extra: Record<string, string | undefined>) {
+  const url = new URL(path, "http://localhost");
+  for (const [k, v] of Object.entries(extra)) {
+    if (v === undefined) continue;
+    url.searchParams.set(k, v);
+  }
+  const qs = url.searchParams.toString();
+  return `${url.pathname}${qs ? `?${qs}` : ""}`;
+}
+
 function computeTotalInCents(args: {
   basePriceInCents: number;
   variantDeltaInCents: number;
@@ -63,6 +78,7 @@ function computeTotalInCents(args: {
 
 export async function createProduct(formData: FormData) {
   await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
   const name = String(formData.get("name") || "").trim();
   const sku = String(formData.get("sku") || "").trim();
   const kind = String(formData.get("kind") || "PRODUCT").trim();
@@ -86,6 +102,10 @@ export async function createProduct(formData: FormData) {
   const option2Name = String(formData.get("option2Name") || "").trim();
   const variantsJson = String(formData.get("variantsJson") || "").trim();
   const imageUrl = String(formData.get("imageUrl") || "").trim();
+  const tenantIds = readTenantIds(formData);
+  if (!name || !sku || basePriceInCents <= 0) {
+    return redirect(mergeQuery(returnTo, { error: "invalid_body" }));
+  }
 
   let variants: any[] | undefined;
   if (variantsJson) {
@@ -99,6 +119,7 @@ export async function createProduct(formData: FormData) {
     await adminFetch("/admin/products", {
       method: "POST",
       body: JSON.stringify({
+        ...(tenantIds.length ? { tenantIds } : {}),
         name,
         sku,
         kind,
@@ -123,15 +144,16 @@ export async function createProduct(formData: FormData) {
         imageUrl: imageUrl || null
       })
     });
-    redirect("/products?created=1");
+    redirect(mergeQuery(returnTo, { created: "1" }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
-    redirect(`/products?error=${encodeURIComponent(err?.message || "create_product_failed")}`);
+    redirect(mergeQuery(returnTo, { error: String(err?.message || "create_product_failed") }));
   }
 }
 
 export async function updateProduct(formData: FormData) {
   await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
   const id = String(formData.get("id") || "").trim();
   const tenantIds = readTenantIds(formData);
   const tenantId = tenantIds[0] || "";
@@ -167,13 +189,16 @@ export async function updateProduct(formData: FormData) {
     } catch {}
   }
 
-  if (!id) return redirect("/products?error=missing_id");
+  if (!id) return redirect(mergeQuery(returnTo, { error: "missing_id" }));
+  if (!name || !sku || basePriceInCents <= 0) {
+    return redirect(mergeQuery(returnTo, { error: "invalid_body", ...(tenantId ? { tenantId } : {}) }));
+  }
 
   try {
     await adminFetch(`/admin/products/${encodeURIComponent(id)}`, {
       method: "PUT",
       body: JSON.stringify({
-        ...(tenantId ? { tenantId } : {}),
+        ...(tenantIds.length ? { tenantIds } : tenantId ? { tenantId } : {}),
         name,
         sku,
         kind,
@@ -198,21 +223,20 @@ export async function updateProduct(formData: FormData) {
         imageUrl: imageUrl || null
       })
     });
-    const qs = new URLSearchParams({ updated: "1", ...(tenantId ? { tenantId } : {}) }).toString();
-    redirect(`/products?${qs}`);
+    redirect(mergeQuery(returnTo, { updated: "1", ...(tenantId ? { tenantId } : {}) }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
-    const qs = new URLSearchParams({ error: String(err?.message || "update_product_failed"), ...(tenantId ? { tenantId } : {}) }).toString();
-    redirect(`/products?${qs}`);
+    redirect(mergeQuery(returnTo, { error: String(err?.message || "update_product_failed"), ...(tenantId ? { tenantId } : {}) }));
   }
 }
 
 export async function deleteProduct(formData: FormData) {
   await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
   const id = String(formData.get("id") || "").trim();
   const tenantIds = readTenantIds(formData);
   const tenantId = tenantIds[0] || "";
-  if (!id) return redirect("/products?error=missing_id");
+  if (!id) return redirect(mergeQuery(returnTo, { error: "missing_id" }));
 
   try {
     const path = tenantId
@@ -221,20 +245,14 @@ export async function deleteProduct(formData: FormData) {
     await adminFetch(path, {
       method: "DELETE"
     });
-    const qs = new URLSearchParams({ deleted: "1", ...(tenantId ? { tenantId } : {}) }).toString();
-    redirect(`/products?${qs}`);
+    redirect(mergeQuery(returnTo, { deleted: "1", ...(tenantId ? { tenantId } : {}) }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
     const msg = String(err?.message || "delete_product_failed");
     if (msg.includes("product_has_dependencies")) {
-      const qs = new URLSearchParams({
-        error: "No se puede borrar: tiene suscripciones o links asociados.",
-        ...(tenantId ? { tenantId } : {})
-      }).toString();
-      return redirect(`/products?${qs}`);
+      return redirect(mergeQuery(returnTo, { error: "No se puede borrar: tiene suscripciones o links asociados.", ...(tenantId ? { tenantId } : {}) }));
     }
-    const qs = new URLSearchParams({ error: msg, ...(tenantId ? { tenantId } : {}) }).toString();
-    redirect(`/products?${qs}`);
+    redirect(mergeQuery(returnTo, { error: msg, ...(tenantId ? { tenantId } : {}) }));
   }
 }
 

@@ -846,6 +846,15 @@ textarea {
   color: #111827;
 }
 
+.contact-person-grid > div,
+.contact-plan-grid > div {
+  min-width: 0;
+}
+
+.contact-person-grid strong {
+  max-width: 100%;
+}
+
 .contact-person-grid span,
 .contact-plan-grid span {
   display: block;
@@ -856,6 +865,7 @@ textarea {
 
 .contact-value {
   display: block;
+  max-width: 100%;
   overflow-wrap: anywhere;
   word-break: break-word;
   line-height: 1.2;

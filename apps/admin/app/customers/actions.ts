@@ -31,8 +31,24 @@ function pesosToCents(input: string): number {
   return Math.trunc(pesos) * 100;
 }
 
+function safeReturnTo(formData: FormData) {
+  const raw = String(formData.get("returnTo") || "").trim();
+  return raw.startsWith("/customers") ? raw : "/customers";
+}
+
+function mergeQuery(path: string, extra: Record<string, string | undefined>) {
+  const url = new URL(path, "http://localhost");
+  for (const [k, v] of Object.entries(extra)) {
+    if (v === undefined) continue;
+    url.searchParams.set(k, v);
+  }
+  const qs = url.searchParams.toString();
+  return `${url.pathname}${qs ? `?${qs}` : ""}`;
+}
+
 export async function createCustomer(formData: FormData) {
   await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
   const name = String(formData.get("name") || "").trim();
   const email = String(formData.get("email") || "").trim();
   const phone = String(formData.get("phone") || "").trim();
@@ -63,12 +79,10 @@ export async function createCustomer(formData: FormData) {
     const metadata = address || idMeta ? { ...(address ? { address } : {}), ...(idMeta ? idMeta : {}) } : undefined;
 
     await adminFetch("/admin/customers", { method: "POST", body: JSON.stringify({ name, email, phone, metadata, tenantId }) });
-    const qs = new URLSearchParams({ created: "1", ...(tenantId ? { tenantId } : {}) }).toString();
-    redirect(`/customers?${qs}`);
+    redirect(mergeQuery(returnTo, { created: "1", ...(tenantId ? { tenantId } : {}) }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
-    const qs = new URLSearchParams({ error: String(err?.message || "create_customer_failed"), ...(tenantId ? { tenantId } : {}) }).toString();
-    redirect(`/customers?${qs}`);
+    redirect(mergeQuery(returnTo, { error: String(err?.message || "create_customer_failed"), ...(tenantId ? { tenantId } : {}) }));
   }
 }
 
@@ -103,6 +117,7 @@ export async function sendPaymentLinkForCustomer(formData: FormData) {
 
 export async function updateCustomer(formData: FormData) {
   await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
   const id = String(formData.get("id") || "").trim();
   const tenantId = String(formData.get("tenantId") || "").trim();
   const name = String(formData.get("name") || "").trim();
@@ -116,7 +131,7 @@ export async function updateCustomer(formData: FormData) {
   const idType = String(formData.get("idType") || "").trim();
   const idNumber = String(formData.get("idNumber") || "").trim();
 
-  if (!id) return redirect(`/customers?error=${encodeURIComponent("invalid_id")}`);
+  if (!id) return redirect(mergeQuery(returnTo, { error: "invalid_id" }));
 
   try {
     const address =
@@ -145,36 +160,29 @@ export async function updateCustomer(formData: FormData) {
         ...(metadata ? { metadata } : {})
       })
     });
-    const qs = new URLSearchParams({ updated: "1", ...(tenantId ? { tenantId } : {}) }).toString();
-    redirect(`/customers?${qs}`);
+    redirect(mergeQuery(returnTo, { updated: "1", ...(tenantId ? { tenantId } : {}) }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
-    const qs = new URLSearchParams({ error: String(err?.message || "update_customer_failed"), ...(tenantId ? { tenantId } : {}) }).toString();
-    redirect(`/customers?${qs}`);
+    redirect(mergeQuery(returnTo, { error: String(err?.message || "update_customer_failed"), ...(tenantId ? { tenantId } : {}) }));
   }
 }
 
 export async function deleteCustomer(formData: FormData) {
   await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
   const id = String(formData.get("id") || "").trim();
   const tenantId = String(formData.get("tenantId") || "").trim();
-  if (!id) return redirect(`/customers?error=${encodeURIComponent("invalid_id")}`);
+  if (!id) return redirect(mergeQuery(returnTo, { error: "invalid_id" }));
   try {
     const path = tenantId ? `/admin/customers/${encodeURIComponent(id)}?tenantId=${encodeURIComponent(tenantId)}` : `/admin/customers/${encodeURIComponent(id)}`;
     await adminFetch(path, { method: "DELETE" });
-    const qs = new URLSearchParams({ deleted: "1", ...(tenantId ? { tenantId } : {}) }).toString();
-    redirect(`/customers?${qs}`);
+    redirect(mergeQuery(returnTo, { deleted: "1", ...(tenantId ? { tenantId } : {}) }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
     const msg = String(err?.message || "delete_customer_failed");
     if (msg.includes("customer_has_dependencies")) {
-      const qs = new URLSearchParams({
-        error: "No se puede borrar: tiene suscripciones o pagos asociados.",
-        ...(tenantId ? { tenantId } : {})
-      }).toString();
-      return redirect(`/customers?${qs}`);
+      return redirect(mergeQuery(returnTo, { error: "No se puede borrar: tiene suscripciones o pagos asociados.", ...(tenantId ? { tenantId } : {}) }));
     }
-    const qs = new URLSearchParams({ error: msg, ...(tenantId ? { tenantId } : {}) }).toString();
-    redirect(`/customers?${qs}`);
+    redirect(mergeQuery(returnTo, { error: msg, ...(tenantId ? { tenantId } : {}) }));
   }
 }

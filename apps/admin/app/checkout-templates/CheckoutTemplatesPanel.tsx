@@ -571,7 +571,12 @@ export function CheckoutTemplatesPanel({
               <button className="secondary" type="button" onClick={() => openEdit(t)}>
                 Editar
               </button>
-              <form action={actions.remove}>
+              <form
+                action={actions.remove}
+                onSubmit={(e) => {
+                  if (!confirm("¿Eliminar esta plantilla?")) e.preventDefault();
+                }}
+              >
                 <input type="hidden" name="csrf" value={csrfToken} />
                 <input type="hidden" name="id" value={t.id} />
                 <PendingButton className="ghost" type="submit" pendingText="Eliminando...">Eliminar</PendingButton>

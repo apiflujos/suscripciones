@@ -40,12 +40,12 @@ function fmtEvery(intervalUnit: any, intervalCount: any) {
 }
 
 function getTipo(plan: any) {
-  const mode = String(plan?.metadata?.collectionMode || "MANUAL_LINK");
+  const mode = String(plan?.collectionMode || plan?.metadata?.collectionMode || "MANUAL_LINK");
   return mode === "AUTO_DEBIT" ? "Suscripción" : "Plan";
 }
 
 function getTipoPago(plan: any) {
-  const mode = String(plan?.metadata?.collectionMode || "");
+  const mode = String(plan?.collectionMode || plan?.metadata?.collectionMode || "");
   if (mode === "AUTO_DEBIT") return "Pago suscripción";
   if (mode === "AUTO_LINK") return "Pago del plan";
   return "Pago por link de pago";
@@ -255,7 +255,7 @@ export default async function BillingPage({
         vencimientoAt: s.currentPeriodEndAt || null,
         periodoInicioAt: s.currentPeriodStartAt || null,
         periodoFinAt: s.currentPeriodEndAt || null,
-        mode: String(plan?.metadata?.collectionMode || "MANUAL_LINK"),
+        mode: String(plan?.collectionMode || plan?.metadata?.collectionMode || "MANUAL_LINK"),
         tenantName: tenantNameList.length ? tenantNameList.join(", ") : "—"
       };
     })
@@ -320,6 +320,7 @@ export default async function BillingPage({
               <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="checkoutUrl" value={checkoutUrl} />
               <input type="hidden" name="customerId" value={checkoutCustomerId} />
+              <input type="hidden" name="returnTo" value={returnTo} />
               <button className="ghost" type="submit" disabled={!checkoutCustomerId}>
                 Enviar por Chatwoot
               </button>

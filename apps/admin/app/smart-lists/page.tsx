@@ -47,6 +47,10 @@ export default async function SmartListsPage({
   const prefillDescription = String(sp.description || "").trim();
   const nowIso = new Date().toISOString();
   const rulesRaw = String(sp.rules || "").trim();
+  const returnTo = `/smart-lists?${new URLSearchParams({
+    ...(previewId ? { preview: previewId } : {}),
+    ...(Number.isFinite(page) && page > 1 ? { page: String(page) } : {})
+  }).toString()}`;
   let initialRules: any = null;
   if (rulesRaw) {
     try {
@@ -73,6 +77,7 @@ export default async function SmartListsPage({
         <h3 style={{ marginTop: 0 }}>Nueva lista</h3>
         <form action={createSmartList} style={{ display: "grid", gap: 10 }}>
           <input type="hidden" name="csrf" value={csrfToken} />
+          <input type="hidden" name="returnTo" value={returnTo} />
           <div className="field">
             <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span>Nombre</span>
@@ -111,7 +116,7 @@ export default async function SmartListsPage({
                 <div>
                   <strong>{item.name}</strong>
                   <div className="muted" style={{ fontSize: 12 }}>
-                    Label: {item.chatwootLabel} · {item.enabled ? "Activa" : "Inactiva"}
+                    {item.enabled ? "Activa" : "Inactiva"}
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
@@ -119,12 +124,14 @@ export default async function SmartListsPage({
                   <form action={previewSmartList}>
                     <input type="hidden" name="csrf" value={csrfToken} />
                     <input type="hidden" name="id" value={item.id} />
+                    <input type="hidden" name="returnTo" value={returnTo} />
                     <button className="ghost" type="submit">Preview</button>
                   </form>
                   <form action={syncSmartList}>
                     <input type="hidden" name="csrf" value={csrfToken} />
                     <input type="hidden" name="id" value={item.id} />
-                    <button className="ghost" type="submit">Sincronizar</button>
+                    <input type="hidden" name="returnTo" value={returnTo} />
+                    <button className="ghost" type="submit">Recalcular</button>
                   </form>
                 </div>
               </div>

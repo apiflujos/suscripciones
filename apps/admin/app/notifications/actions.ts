@@ -238,6 +238,158 @@ export async function saveNotificationsConfig(formData: FormData) {
   }
 }
 
+const REALTIME_MAP: Record<string, { trigger: Rule["trigger"]; chatwootType: Template["chatwootType"]; paymentType?: "PLAN" | "SUBSCRIPTION" | "LINK"; label: string }> = {
+  payment_link_created: { trigger: "PAYMENT_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "LINK", label: "Link de pago creado" },
+  payment_success_subscription: { trigger: "PAYMENT_APPROVED", chatwootType: "PAYMENT_CONFIRMED", paymentType: "SUBSCRIPTION", label: "Pago exitoso (suscripción)" },
+  payment_success_plan: { trigger: "PAYMENT_APPROVED", chatwootType: "PAYMENT_CONFIRMED", paymentType: "PLAN", label: "Pago exitoso (plan)" },
+  payment_success_link: { trigger: "PAYMENT_APPROVED", chatwootType: "PAYMENT_CONFIRMED", paymentType: "LINK", label: "Pago recibido por link de pago" },
+  payment_failed_subscription: { trigger: "PAYMENT_DECLINED", chatwootType: "PAYMENT_FAILED", paymentType: "SUBSCRIPTION", label: "Pago fallido (suscripción)" },
+  payment_failed_plan: { trigger: "PAYMENT_DECLINED", chatwootType: "PAYMENT_FAILED", paymentType: "PLAN", label: "Pago fallido (plan)" },
+  payment_failed_link: { trigger: "PAYMENT_DECLINED", chatwootType: "PAYMENT_FAILED", paymentType: "LINK", label: "Pago fallido (link de pago)" }
+};
+
+function parseOffsetsCsv(raw: string, sign: 1 | -1) {
+  const parts = String(raw || "")
+    .split(",")
+    .map((s) => Number(String(s).trim()))
+    .filter((n) => Number.isFinite(n));
+  if (!parts.length) return [sign * 60 * 60 * 24];
+  return parts.map((n) => (sign === -1 ? -Math.abs(n) : Math.abs(n))).map((n) => Math.trunc(n));
+}
+
+function normalizeTemplatePayload(formData: FormData) {
+  const templateKind = String(formData.get("templateKind") || "TEXT").trim().toUpperCase();
+  const content = String(formData.get("content") || "").trim();
+  const waTemplateName = String(formData.get("waTemplateName") || "").trim();
+  const waLanguage = String(formData.get("waLanguage") || "es").trim();
+  const waParamsRaw = String(formData.get("waParams") || "").trim();
+  const waParams = waParamsRaw ? waParamsRaw.split("|").map((v) => v.trim()).filter(Boolean) : [];
+
+  if (templateKind === "TEXT") {
+    if (!content) throw new Error("missing_message");
+    return { kind: "TEXT" as const, content };
+  }
+  if (!waTemplateName || !waLanguage) throw new Error("missing_template_fields");
+  return {
+    kind: "WHATSAPP_TEMPLATE" as const,
+    content: "(template)",
+    chatwootTemplate: {
+      name: waTemplateName,
+      language: waLanguage,
+      processed_params: waParams.length ? { body: waParams.map((v, idx) => ({ key: String(idx + 1), value: v })) } : undefined
+    }
+  };
+}
+
+function samePaymentType(rule: any, paymentType?: string) {
+  const types = rule?.conditions?.requirePaymentTypeIn;
+  if (!paymentType) return !types || !types.length;
+  return Array.isArray(types) && types.includes(paymentType);
+}
+
+export async function saveRealtime(formData: FormData) {
+  const environment = normalizeEnv(formData.get("environment"));
+  await requireCsrf(formData, environment);
+  const key = String(formData.get("key") || "").trim();
+  const meta = REALTIME_MAP[key];
+  if (!meta) return redirect(`/notifications?env=${environment}&error=invalid_key`);
+  const enabled = String(formData.get("enabled") || "") === "on";
+
+  try {
+    const config = await getNotificationsConfig(environment);
+    const baseConfig = config && typeof config === "object" ? config : { version: 1, templates: [], rules: [] };
+    const templates = Array.isArray(baseConfig?.templates) ? baseConfig.templates.slice() : [];
+    const rules = Array.isArray(baseConfig?.rules) ? baseConfig.rules.slice() : [];
+
+    const templateId = `tpl_rt_${key}`;
+    const tplPayload = normalizeTemplatePayload(formData);
+
+    const nextTemplates = templates.filter((t: any) => String(t.id) !== templateId);
+    nextTemplates.push({
+      id: templateId,
+      name: meta.label,
+      channel: "CHATWOOT",
+      chatwootType: meta.chatwootType,
+      ...(tplPayload.kind === "TEXT" ? { content: tplPayload.content } : { content: tplPayload.content, chatwootTemplate: tplPayload.chatwootTemplate })
+    });
+
+    const ruleId = `rule_rt_${key}`;
+    const nextRules = rules.filter((r: any) => {
+      if (String(r.id) === ruleId) return false;
+      if (r.trigger !== meta.trigger) return true;
+      return !samePaymentType(r, meta.paymentType);
+    });
+
+    const rule: any = {
+      id: ruleId,
+      name: meta.label,
+      enabled,
+      trigger: meta.trigger,
+      templateId,
+      offsetsSeconds: [0]
+    };
+    if (meta.paymentType) rule.conditions = { requirePaymentTypeIn: [meta.paymentType] };
+    nextRules.push(rule);
+
+    const next = { version: 1, ...(baseConfig || {}), templates: nextTemplates, rules: nextRules };
+    await putNotificationsConfig(environment, next);
+    redirect(`/notifications?env=${environment}&saved=1`);
+  } catch (err: any) {
+    redirect(`/notifications?env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
+  }
+}
+
+export async function saveReminder(formData: FormData) {
+  const environment = normalizeEnv(formData.get("environment"));
+  await requireCsrf(formData, environment);
+  const kind = String(formData.get("kind") || "").trim().toUpperCase();
+  const enabled = String(formData.get("enabled") || "") === "on";
+  const templateId = String(formData.get("templateId") || "").trim();
+  if (!templateId) return redirect(`/notifications?env=${environment}&error=invalid_template`);
+  const offsetsRaw = String(formData.get("offsetsSeconds") || "");
+  const offsetsSeconds = parseOffsetsCsv(offsetsRaw, kind === "MORA" ? 1 : -1);
+
+  try {
+    const config = await getNotificationsConfig(environment);
+    const baseConfig = config && typeof config === "object" ? config : { version: 1, templates: [], rules: [] };
+    const templates = Array.isArray(baseConfig?.templates) ? baseConfig.templates.slice() : [];
+    const rules = Array.isArray(baseConfig?.rules) ? baseConfig.rules.slice() : [];
+
+    const tplPayload = normalizeTemplatePayload(formData);
+    const tplName = kind === "MORA" ? "Recordatorio en mora" : "Recordatorio de fecha de pago";
+
+    const nextTemplates = templates.filter((t: any) => String(t.id) !== templateId);
+    nextTemplates.push({
+      id: templateId,
+      name: tplName,
+      channel: "CHATWOOT",
+      chatwootType: "EXPIRY_WARNING",
+      ...(tplPayload.kind === "TEXT" ? { content: tplPayload.content } : { content: tplPayload.content, chatwootTemplate: tplPayload.chatwootTemplate })
+    });
+
+    const ruleId = kind === "MORA" ? "rule_reminder_mora" : "rule_reminder_due";
+    const nextRules = rules.filter((r: any) => String(r.id) !== ruleId);
+
+    const rule: any = {
+      id: ruleId,
+      name: tplName,
+      enabled,
+      trigger: "SUBSCRIPTION_DUE",
+      templateId,
+      offsetsSeconds,
+      ensurePaymentLink: true,
+      conditions: { skipIfSubscriptionStatusIn: ["CANCELED"] }
+    };
+    nextRules.push(rule);
+
+    const next = { version: 1, ...(baseConfig || {}), templates: nextTemplates, rules: nextRules };
+    await putNotificationsConfig(environment, next);
+    redirect(`/notifications?env=${environment}&saved=1`);
+  } catch (err: any) {
+    redirect(`/notifications?env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
+  }
+}
+
 export async function addTextTemplate(formData: FormData) {
   const environment = normalizeEnv(formData.get("environment"));
   await requireCsrf(formData, environment);

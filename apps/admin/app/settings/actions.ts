@@ -18,10 +18,18 @@ function isNextRedirect(err: unknown) {
   return typeof digest === "string" && digest.startsWith("NEXT_REDIRECT");
 }
 
-function redirectWith(action: string, status: "ok" | "fail", error?: string) {
+function safeReturnTo(formData: FormData) {
+  const raw = String(formData.get("returnTo") || "").trim();
+  return raw.startsWith("/settings") ? raw : "/settings";
+}
+
+function redirectWith(action: string, status: "ok" | "fail", error: string | undefined, returnTo: string) {
   const qp = new URLSearchParams({ a: action, status });
   if (error) qp.set("error", error);
-  redirect(`/settings?${qp.toString()}`);
+  const base = returnTo || "/settings";
+  const url = new URL(base, "http://localhost");
+  qp.forEach((v, k) => url.searchParams.set(k, v));
+  redirect(`${url.pathname}?${url.searchParams.toString()}`);
 }
 
 function normalizeUrl(input: string) {
@@ -57,6 +65,7 @@ async function adminFetch(path: string, init: RequestInit) {
 
 export async function updateWompi(formData: FormData) {
   await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
   const environment = String(formData.get("environment") || "").trim();
   const publicKey = String(formData.get("publicKey") || "").trim();
   const privateKey = String(formData.get("privateKey") || "").trim();
@@ -80,15 +89,16 @@ export async function updateWompi(formData: FormData) {
         ...(redirectUrl != null ? { redirectUrl } : {})
       })
     });
-    redirectWith("wompi_creds", "ok");
+    redirectWith("wompi_creds", "ok", undefined, returnTo);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
-    redirectWith("wompi_creds", "fail", toShortErrorMessage(err));
+    redirectWith("wompi_creds", "fail", toShortErrorMessage(err), returnTo);
   }
 }
 
 export async function testWompiConnection(formData: FormData) {
   await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
   const environment = String(formData.get("environment") || "").trim();
   const publicKey = String(formData.get("publicKey") || "").trim();
   const apiBaseUrl = String(formData.get("apiBaseUrl") || "").trim();
@@ -102,15 +112,16 @@ export async function testWompiConnection(formData: FormData) {
         ...(apiBaseUrl ? { apiBaseUrl } : {})
       })
     });
-    redirectWith("wompi_test", "ok");
+    redirectWith("wompi_test", "ok", undefined, returnTo);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
-    redirectWith("wompi_test", "fail", toShortErrorMessage(err));
+    redirectWith("wompi_test", "fail", toShortErrorMessage(err), returnTo);
   }
 }
 
 export async function deleteWompiConnection(formData: FormData) {
   await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
   const environment = String(formData.get("environment") || "").trim();
 
   try {
@@ -118,15 +129,16 @@ export async function deleteWompiConnection(formData: FormData) {
       method: "DELETE",
       body: JSON.stringify({ environment: environment || "PRODUCTION" })
     });
-    redirectWith("wompi_delete", "ok");
+    redirectWith("wompi_delete", "ok", undefined, returnTo);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
-    redirectWith("wompi_delete", "fail", toShortErrorMessage(err));
+    redirectWith("wompi_delete", "fail", toShortErrorMessage(err), returnTo);
   }
 }
 
 export async function updateShopify(formData: FormData) {
   await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
   const forwardUrl = String(formData.get("forwardUrl") || "").trim();
   const forwardSecret = String(formData.get("forwardSecret") || "").trim();
   const forwardOrigin = String(formData.get("forwardOrigin") || "").trim();
@@ -144,26 +156,28 @@ export async function updateShopify(formData: FormData) {
         ...(forwardRetryMinutes ? { forwardRetryMinutes } : {})
       })
     });
-    redirectWith("shopify_save", "ok");
+    redirectWith("shopify_save", "ok", undefined, returnTo);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
-    redirectWith("shopify_save", "fail", toShortErrorMessage(err));
+    redirectWith("shopify_save", "fail", toShortErrorMessage(err), returnTo);
   }
 }
 
 export async function deleteShopifyConnection(formData: FormData) {
   await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
   try {
     await adminFetch("/admin/settings/shopify", { method: "DELETE" });
-    redirectWith("shopify_delete", "ok");
+    redirectWith("shopify_delete", "ok", undefined, returnTo);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
-    redirectWith("shopify_delete", "fail", toShortErrorMessage(err));
+    redirectWith("shopify_delete", "fail", toShortErrorMessage(err), returnTo);
   }
 }
 
 export async function testShopifyForward(formData: FormData) {
   await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
   const forwardUrl = String(formData.get("forwardUrl") || "").trim();
   const forwardSecret = String(formData.get("forwardSecret") || "").trim();
   const forwardOrigin = String(formData.get("forwardOrigin") || "").trim();
@@ -176,15 +190,16 @@ export async function testShopifyForward(formData: FormData) {
         ...(forwardOrigin ? { forwardOrigin } : {})
       })
     });
-    redirectWith("shopify_test", "ok");
+    redirectWith("shopify_test", "ok", undefined, returnTo);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
-    redirectWith("shopify_test", "fail", toShortErrorMessage(err));
+    redirectWith("shopify_test", "fail", toShortErrorMessage(err), returnTo);
   }
 }
 
 export async function updateChatwoot(formData: FormData) {
   await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
   const environment = String(formData.get("environment") || "").trim();
   const baseUrlRaw = String(formData.get("baseUrl") || "").trim();
   const baseUrl = baseUrlRaw ? normalizeUrl(baseUrlRaw) : "";
@@ -203,15 +218,16 @@ export async function updateChatwoot(formData: FormData) {
         ...(inboxId ? { inboxId: Number(inboxId) } : {})
       })
     });
-    redirectWith("central_save", "ok");
+    redirectWith("central_save", "ok", undefined, returnTo);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
-    redirectWith("central_save", "fail", toShortErrorMessage(err));
+    redirectWith("central_save", "fail", toShortErrorMessage(err), returnTo);
   }
 }
 
 export async function updateCheckoutConfig(formData: FormData) {
   await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
   const payload: Record<string, unknown> = {};
   const setString = (key: string) => {
     if (!formData.has(key)) return;
@@ -247,69 +263,74 @@ export async function updateCheckoutConfig(formData: FormData) {
       method: "PUT",
       body: JSON.stringify(payload)
     });
-    redirectWith("checkout_config", "ok");
+    redirectWith("checkout_config", "ok", undefined, returnTo);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
-    redirectWith("checkout_config", "fail", toShortErrorMessage(err));
+    redirectWith("checkout_config", "fail", toShortErrorMessage(err), returnTo);
   }
 }
 
 export async function setWompiActiveEnv(formData: FormData) {
   await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
   const activeEnv = String(formData.get("activeEnv") || "").trim().toUpperCase();
   try {
     await adminFetch("/admin/settings/wompi", {
       method: "PUT",
       body: JSON.stringify({ activeEnv })
     });
-    redirectWith("wompi_env", "ok");
+    redirectWith("wompi_env", "ok", undefined, returnTo);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
-    redirectWith("wompi_env", "fail", toShortErrorMessage(err));
+    redirectWith("wompi_env", "fail", toShortErrorMessage(err), returnTo);
   }
 }
 
 export async function setCentralActiveEnv(formData: FormData) {
   await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
   const activeEnv = String(formData.get("activeEnv") || "").trim().toUpperCase();
   try {
     await adminFetch("/admin/settings/chatwoot", {
       method: "PUT",
       body: JSON.stringify({ activeEnv })
     });
-    redirectWith("central_env", "ok");
+    redirectWith("central_env", "ok", undefined, returnTo);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
-    redirectWith("central_env", "fail", toShortErrorMessage(err));
+    redirectWith("central_env", "fail", toShortErrorMessage(err), returnTo);
   }
 }
 
 export async function bootstrapCentralAttributes(formData: FormData) {
   await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
   try {
     await adminFetch("/admin/comms/bootstrap-attributes", { method: "POST" });
-    redirectWith("central_bootstrap", "ok");
+    redirectWith("central_bootstrap", "ok", undefined, returnTo);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
-    redirectWith("central_bootstrap", "fail", toShortErrorMessage(err));
+    redirectWith("central_bootstrap", "fail", toShortErrorMessage(err), returnTo);
   }
 }
 
 export async function syncCentralAttributes(formData: FormData) {
   await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
   const limit = String(formData.get("limit") || "").trim();
   const qp = limit ? `?limit=${encodeURIComponent(limit)}` : "";
   try {
     await adminFetch(`/admin/comms/sync-attributes${qp}`, { method: "POST" });
-    redirectWith("central_sync", "ok");
+    redirectWith("central_sync", "ok", undefined, returnTo);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
-    redirectWith("central_sync", "fail", toShortErrorMessage(err));
+    redirectWith("central_sync", "fail", toShortErrorMessage(err), returnTo);
   }
 }
 
 export async function testCentralConnection(formData: FormData) {
   await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
   const baseUrlRaw = String(formData.get("baseUrl") || "").trim();
   const baseUrl = baseUrlRaw ? normalizeUrl(baseUrlRaw) : "";
   const accountId = String(formData.get("accountId") || "").trim();
@@ -326,24 +347,25 @@ export async function testCentralConnection(formData: FormData) {
         ...(inboxId ? { inboxId: Number(inboxId) } : {})
       })
     });
-    redirectWith("central_test", "ok");
+    redirectWith("central_test", "ok", undefined, returnTo);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
-    redirectWith("central_test", "fail", toShortErrorMessage(err));
+    redirectWith("central_test", "fail", toShortErrorMessage(err), returnTo);
   }
 }
 
 export async function deleteCentralConnection(formData: FormData) {
   await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
   const environment = String(formData.get("environment") || "").trim();
   try {
     await adminFetch("/admin/settings/chatwoot", {
       method: "DELETE",
       body: JSON.stringify({ environment: environment || "PRODUCTION" })
     });
-    redirectWith("central_delete", "ok");
+    redirectWith("central_delete", "ok", undefined, returnTo);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
-    redirectWith("central_delete", "fail", toShortErrorMessage(err));
+    redirectWith("central_delete", "fail", toShortErrorMessage(err), returnTo);
   }
 }

@@ -41,6 +41,34 @@ async function retryShopifyForwards(formData: FormData) {
   revalidatePath("/logs");
 }
 
+async function retryJob(formData: FormData) {
+  "use server";
+  await assertCsrfToken(formData);
+  const { apiBase, token } = getConfig();
+  if (!token) return;
+  const id = String(formData.get("id") || "").trim();
+  if (!id) return;
+  await fetch(`${apiBase}/admin/logs/jobs/${encodeURIComponent(id)}/retry`, {
+    method: "POST",
+    cache: "no-store",
+    headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
+  }).catch(() => {});
+  revalidatePath("/logs");
+}
+
+async function recollectPayments(formData: FormData) {
+  "use server";
+  await assertCsrfToken(formData);
+  const { apiBase, token } = getConfig();
+  if (!token) return;
+  await fetch(`${apiBase}/admin/logs/payments/recollect`, {
+    method: "POST",
+    cache: "no-store",
+    headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
+  }).catch(() => {});
+  revalidatePath("/logs");
+}
+
 function normalizeLogSource(source: any) {
   const s = String(source || "");
   if (s === "settings.shopify") return "configuracion.reenvio";
@@ -85,11 +113,12 @@ export default async function LogsPage({
   const q = typeof sp.q === "string" ? sp.q : "";
   const viewId = typeof sp.view === "string" ? sp.view : "";
 
-  const [system, jobs, webhooks, messages, selectedRes] = await Promise.all([
+  const [system, jobs, webhooks, messages, payments, selectedRes] = await Promise.all([
     fetchAdmin("/admin/logs/system?take=120"),
     fetchAdmin("/admin/logs/jobs?take=200"),
     fetchAdmin("/admin/webhook-events"),
     fetchAdmin("/admin/logs/messages?take=120"),
+    fetchAdmin("/admin/logs/payments?take=120"),
     viewId
       ? fetchAdmin(`/admin/logs/system/${encodeURIComponent(viewId)}`)
       : Promise.resolve({ ok: false, status: 0, json: null } as any)
@@ -99,6 +128,7 @@ export default async function LogsPage({
   const jobItems = (jobs.json?.items ?? []) as any[];
   const webhookItems = (webhooks.json?.items ?? []) as any[];
   const messageItems = (messages.json?.items ?? []) as any[];
+  const paymentItems = (payments.json?.items ?? []) as any[];
   const failedJobsCount = jobItems.filter((j) => String(j.status) === "FAILED").length;
 
   const filtered = q
@@ -138,6 +168,18 @@ export default async function LogsPage({
               >
                 Mensajes
               </Link>
+              <Link
+                className={`ghost ${tab === "jobs" ? "is-active" : ""}`}
+                href={`/logs?${new URLSearchParams({ tab: "jobs" })}`}
+              >
+                Jobs
+              </Link>
+              <Link
+                className={`ghost ${tab === "payments" ? "is-active" : ""}`}
+                href={`/logs?${new URLSearchParams({ tab: "payments" })}`}
+              >
+                Pagos
+              </Link>
             </div>
           </div>
 
@@ -170,6 +212,47 @@ export default async function LogsPage({
                   </PendingButton>
                 </form>
                 <span className={`pill ${failedJobsCount > 0 ? "pillDanger" : ""}`}>{failedJobsCount} fallos</span>
+              </div>
+            </div>
+          ) : tab === "jobs" ? (
+            <div className="filtersRow">
+              <div className="filtersLeft">
+                <div className="filter-group">
+                  <div className="filter-label">Jobs</div>
+                  <div style={{ color: "var(--muted)", fontSize: 13 }}>Reintentos uno a uno o masivos.</div>
+                </div>
+              </div>
+              <div className="filtersRight">
+                <form action={retryFailedJobs}>
+                  <input type="hidden" name="csrf" value={csrfToken} />
+                  <PendingButton className="primary" type="submit" pendingText="Reintentando...">
+                    Reintentar fallidos
+                  </PendingButton>
+                </form>
+                <form action={retryShopifyForwards}>
+                  <input type="hidden" name="csrf" value={csrfToken} />
+                  <PendingButton className="ghost" type="submit" pendingText="Reintentando...">
+                    Reintentar forwards
+                  </PendingButton>
+                </form>
+                <span className={`pill ${failedJobsCount > 0 ? "pillDanger" : ""}`}>{failedJobsCount} fallos</span>
+              </div>
+            </div>
+          ) : tab === "payments" ? (
+            <div className="filtersRow">
+              <div className="filtersLeft">
+                <div className="filter-group">
+                  <div className="filter-label">Pagos</div>
+                  <div style={{ color: "var(--muted)", fontSize: 13 }}>Recolecta pagos faltantes desde Wompi.</div>
+                </div>
+              </div>
+              <div className="filtersRight">
+                <form action={recollectPayments}>
+                  <input type="hidden" name="csrf" value={csrfToken} />
+                  <PendingButton className="primary" type="submit" pendingText="Recolectando...">
+                    Recolectar pagos faltantes
+                  </PendingButton>
+                </form>
               </div>
             </div>
           ) : null}
@@ -265,6 +348,98 @@ export default async function LogsPage({
                     <tr>
                       <td colSpan={5} style={{ color: "var(--muted)" }}>
                         Sin mensajes.
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+          ) : tab === "jobs" ? (
+            <div className="panel module" style={{ padding: 0 }}>
+              <table className="table" aria-label="Tabla de jobs">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Tipo</th>
+                    <th>Estado</th>
+                    <th>Intentos</th>
+                    <th>Detalle</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {jobItems.map((j) => {
+                    const status = String(j.status || "");
+                    const chip =
+                      status === "FAILED"
+                        ? { cls: "is-error", label: "Fallido" }
+                        : status === "PENDING"
+                          ? { cls: "is-warning", label: "Pendiente" }
+                          : { cls: "is-success", label: "Procesado" };
+                    return (
+                      <tr key={j.id}>
+                        <td><LocalDateTime value={j.updatedAt} /></td>
+                        <td>{j.type || "—"}</td>
+                        <td>
+                          <span className={`status-chip ${chip.cls}`}>
+                            <span className={`status-led ${chip.cls === "is-success" ? "is-ok" : ""}`} />
+                            {chip.label}
+                          </span>
+                        </td>
+                        <td>{j.attempts ?? 0} / {j.maxAttempts ?? 0}</td>
+                        <td>{j.lastError || "—"}</td>
+                        <td style={{ textAlign: "right" }}>
+                          {status === "FAILED" ? (
+                            <form action={retryJob}>
+                              <input type="hidden" name="csrf" value={csrfToken} />
+                              <input type="hidden" name="id" value={j.id} />
+                              <PendingButton className="ghost" type="submit" pendingText="Reintentando...">
+                                Reintentar
+                              </PendingButton>
+                            </form>
+                          ) : null}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {jobItems.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} style={{ color: "var(--muted)" }}>
+                        Sin jobs.
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+          ) : tab === "payments" ? (
+            <div className="panel module" style={{ padding: 0 }}>
+              <table className="table" aria-label="Tabla de pagos">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Contacto</th>
+                    <th>Referencia</th>
+                    <th>Estado</th>
+                    <th>Monto</th>
+                    <th>Transacción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paymentItems.map((p) => (
+                    <tr key={p.id}>
+                      <td><LocalDateTime value={p.createdAt} /></td>
+                      <td>{p.customer?.name || p.customer?.email || "—"}</td>
+                      <td>{p.reference || "—"}</td>
+                      <td>{p.status || "—"}</td>
+                      <td>{typeof p.amountInCents === "number" ? `${(p.amountInCents / 100).toFixed(2)} ${p.currency || ""}` : "—"}</td>
+                      <td>{p.wompiTransactionId || p.wompiPaymentLinkId || "—"}</td>
+                    </tr>
+                  ))}
+                  {paymentItems.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} style={{ color: "var(--muted)" }}>
+                        Sin pagos.
                       </td>
                     </tr>
                   ) : null}

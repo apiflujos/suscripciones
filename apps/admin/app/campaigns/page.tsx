@@ -2,6 +2,7 @@ import { fetchAdminCached } from "../lib/adminApi";
 import { HelpTip } from "../ui/HelpTip";
 import { getCsrfToken } from "../lib/csrf";
 import { createCampaign, runCampaign } from "./actions";
+import { RunCampaignButton } from "./RunCampaignButton";
 
 export default async function CampaignsPage({
   searchParams
@@ -12,6 +13,7 @@ export default async function CampaignsPage({
   const listsRes = await fetchAdminCached("/admin/comms/smart-lists?take=200", { ttlMs: 0 });
   const lists = Array.isArray(listsRes?.json?.items) ? listsRes.json.items : [];
   const sp = (await searchParams) ?? {};
+  const returnTo = `/campaigns?${new URLSearchParams(Object.fromEntries(Object.entries(sp).filter(([_, v]) => typeof v === "string" && v))).toString()}`;
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
   const take = 100;
   const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
@@ -35,6 +37,7 @@ export default async function CampaignsPage({
         <h3 style={{ marginTop: 0 }}>Nueva campaña</h3>
         <form action={createCampaign} style={{ display: "grid", gap: 10 }}>
           <input type="hidden" name="csrf" value={csrfToken} />
+          <input type="hidden" name="returnTo" value={returnTo} />
           <div className="field">
             <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span>Nombre</span>
@@ -90,9 +93,20 @@ export default async function CampaignsPage({
                 <form action={runCampaign}>
                   <input type="hidden" name="csrf" value={csrfToken} />
                   <input type="hidden" name="id" value={c.id} />
-                  <button className="ghost" type="submit">Enviar</button>
+                  <input type="hidden" name="returnTo" value={returnTo} />
+                  <RunCampaignButton disabled={c.status === "RUNNING" || c.status === "COMPLETED"} />
                 </form>
               </div>
+              {c.content ? (
+                <div className="muted" style={{ marginTop: 8, whiteSpace: "pre-wrap", fontSize: 13 }}>
+                  {c.content}
+                </div>
+              ) : null}
+              {c.templateParams ? (
+                <pre style={{ marginTop: 8, fontSize: 12, whiteSpace: "pre-wrap" }}>
+                  {JSON.stringify(c.templateParams, null, 2)}
+                </pre>
+              ) : null}
             </div>
           ))}
         </div>

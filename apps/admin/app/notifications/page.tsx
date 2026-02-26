@@ -1,9 +1,8 @@
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { HelpTip } from "../ui/HelpTip";
 import { getCsrfToken } from "../lib/csrf";
-import { NotificationWizard } from "./NotificationWizard";
-import { NotificationsManager } from "./NotificationsManager";
-import { createNotification, deleteRule, deleteTemplate, toggleRule, updateRule, updateTemplate } from "./actions";
+import { NotificationsSimple } from "./NotificationsSimple";
+import { saveReminder, saveRealtime } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -75,16 +74,14 @@ export default async function NotificationsPage({
       ) : null}
 
       {res.ok ? (
-        <NotificationsManager
+        <NotificationsSimple
           env={env}
           csrfToken={csrfToken}
           templates={templates}
           rules={rules}
-          actions={{ deleteRule, deleteTemplate, toggleRule, updateRule, updateTemplate }}
+          actions={{ saveRealtime, saveReminder }}
         />
       ) : null}
-
-      <NotificationWizard envDefault={env} createNotification={createNotification} csrfToken={csrfToken} />
     </main>
   );
 }
