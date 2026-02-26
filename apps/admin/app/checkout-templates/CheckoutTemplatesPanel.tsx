@@ -368,6 +368,7 @@ export function CheckoutTemplatesPanel({
             {editing ? <input type="hidden" name="id" value={editing.id} /> : null}
             {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
             <input type="hidden" name="kind" value={selectedKind} />
+            <input type="hidden" name="allowProductSelect" value={allowSelect ? "on" : ""} />
             <input type="hidden" name="logoUrl" value={logoUrl} />
             <input type="hidden" name="productIds" value={productIds.join(",")} />
             <input type="hidden" name="layout" value={JSON.stringify(layoutPayload)} />
