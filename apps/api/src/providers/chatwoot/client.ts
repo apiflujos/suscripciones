@@ -9,6 +9,25 @@ const contactCreateSchema = z.object({
     .passthrough()
 });
 
+const contactShowSchema = z.object({
+  payload: z
+    .object({
+      contact_inboxes: z
+        .array(
+          z.object({
+            source_id: z.string().min(1),
+            inbox: z.object({ id: z.number().int().positive() }).passthrough()
+          }).passthrough()
+        )
+        .optional()
+    })
+    .passthrough()
+});
+
+const contactInboxCreateSchema = z.object({
+  source_id: z.string().min(1)
+});
+
 const conversationCreateSchema = z.object({
   id: z.number().int().positive()
 });
@@ -93,6 +112,35 @@ export class ChatwootClient {
     const items = (res.json?.payload ?? []) as any[];
     const first = items?.[0];
     return first?.id ? { contactId: Number(first.id), raw: res.json } : null;
+  }
+
+  async getContact(contactId: number) {
+    const res = await this.request(`/api/v1/accounts/${this.opts.accountId}/contacts/${contactId}`, {
+      method: "GET"
+    });
+    if (!res.ok) throw new Error(`Chatwoot get contact failed: ${res.status} ${JSON.stringify(res.json)}`);
+    const parsed = contactShowSchema.safeParse(res.json);
+    if (!parsed.success) throw new Error("Chatwoot get contact: unexpected response");
+    const inboxes = parsed.data.payload.contact_inboxes || [];
+    const match = inboxes.find((i) => Number(i?.inbox?.id) === this.opts.inboxId);
+    return {
+      sourceId: match?.source_id,
+      raw: res.json
+    };
+  }
+
+  async createContactInbox(contactId: number, sourceId?: string) {
+    const res = await this.request(`/api/v1/accounts/${this.opts.accountId}/contacts/${contactId}/contact_inboxes`, {
+      method: "POST",
+      body: JSON.stringify({
+        inbox_id: this.opts.inboxId,
+        ...(sourceId ? { source_id: sourceId } : {})
+      })
+    });
+    if (!res.ok) throw new Error(`Chatwoot create contact inbox failed: ${res.status} ${JSON.stringify(res.json)}`);
+    const parsed = contactInboxCreateSchema.safeParse(res.json);
+    if (!parsed.success) throw new Error("Chatwoot create contact inbox: unexpected response");
+    return { sourceId: parsed.data.source_id, raw: res.json };
   }
 
   async updateContact(

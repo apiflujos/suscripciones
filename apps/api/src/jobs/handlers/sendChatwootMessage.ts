@@ -95,6 +95,31 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
     return;
   }
 
+  if (!sourceId) {
+    try {
+      const contactInfo = await client.getContact(contactId);
+      sourceId = contactInfo.sourceId;
+    } catch {
+      // ignore
+    }
+  }
+  if (!sourceId) {
+    try {
+      const createdInbox = await client.createContactInbox(contactId);
+      sourceId = createdInbox.sourceId;
+      const merged = {
+        ...(customerMeta && typeof customerMeta === "object" ? customerMeta : {}),
+        chatwoot: { ...(customerMeta?.chatwoot || {}), contactId, sourceId }
+      };
+      await prisma.customer.update({
+        where: { id: msg.customerId },
+        data: { metadata: merged as any }
+      }).catch(() => {});
+    } catch {
+      // ignore
+    }
+  }
+
   await syncChatwootAttributesForCustomer(msg.customerId).catch(() => {});
 
   const meta: any = (msg.subscription?.metadata ?? {}) as any;
