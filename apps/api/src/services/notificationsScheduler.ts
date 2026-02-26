@@ -2,6 +2,7 @@ import { LogLevel, PaymentStatus, RetryJobType } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { getNotificationsActiveEnv, getNotificationsConfig, NotificationTrigger } from "./notificationsConfig";
 import { systemLog } from "./systemLog";
+import { subscriptionReminder } from "../jobs/handlers/subscriptionReminder";
 
 function toMsSeconds(seconds: number) {
   return seconds * 1000;
@@ -129,23 +130,27 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
       const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
       const runAtRaw = (rule as any).atTimeUtc ? applyAtTimeUtc(runAtBase, String((rule as any).atTimeUtc)) : runAtBase;
       const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
+      const jobPayload = {
+        trigger,
+        ruleId: rule.id,
+        offsetSeconds,
+        paymentId: payment.id,
+        customerId: payment.customerId,
+        subscriptionId: payment.subscriptionId,
+        paymentStatus: payment.status,
+        anchorAt: anchorIso
+      } as any;
       await prisma.retryJob.create({
         data: {
           type: RetryJobType.SUBSCRIPTION_REMINDER,
           runAt,
-          payload: {
-            trigger,
-            ruleId: rule.id,
-            offsetSeconds,
-            paymentId: payment.id,
-            customerId: payment.customerId,
-            subscriptionId: payment.subscriptionId,
-            paymentStatus: payment.status,
-            anchorAt: anchorIso
-          } as any
+          payload: jobPayload
         }
       });
       scheduled++;
+      if (args.forceNow || runAt.getTime() <= now.getTime()) {
+        await subscriptionReminder(jobPayload).catch(() => {});
+      }
     }
   }
 
@@ -195,22 +200,26 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
       const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
       const runAtRaw = (rule as any).atTimeUtc ? applyAtTimeUtc(runAtBase, String((rule as any).atTimeUtc)) : runAtBase;
       const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
+      const jobPayload = {
+        trigger: "PAYMENT_LINK_CREATED" satisfies NotificationTrigger,
+        ruleId: rule.id,
+        offsetSeconds,
+        paymentId: payment.id,
+        customerId: payment.customerId,
+        subscriptionId: payment.subscriptionId ?? null,
+        anchorAt: anchorIso
+      } as any;
       await prisma.retryJob.create({
         data: {
           type: RetryJobType.SUBSCRIPTION_REMINDER,
           runAt,
-          payload: {
-            trigger: "PAYMENT_LINK_CREATED" satisfies NotificationTrigger,
-            ruleId: rule.id,
-            offsetSeconds,
-            paymentId: payment.id,
-            customerId: payment.customerId,
-            subscriptionId: payment.subscriptionId ?? null,
-            anchorAt: anchorIso
-          } as any
+          payload: jobPayload
         }
       });
       scheduled++;
+      if (args.forceNow || runAt.getTime() <= now.getTime()) {
+        await subscriptionReminder(jobPayload).catch(() => {});
+      }
     }
   }
 
