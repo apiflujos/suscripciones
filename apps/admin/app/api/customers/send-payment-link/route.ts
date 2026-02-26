@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import crypto from "crypto";
 import { normalizeToken } from "../../../lib/normalizeToken";
 import { getRequiredApiBase } from "../../../lib/adminApi";
 
@@ -55,9 +56,73 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: json?.error || "request_failed" }, { status: res.status });
   }
 
+  const checkoutUrl = String(json?.checkoutUrl || "").trim();
+  let publicUrl: string | null = null;
+  try {
+    const settingsRes = await fetch(`${API_BASE}/admin/settings`, {
+      headers: {
+        authorization: `Bearer ${token}`,
+        "x-admin-token": token
+      },
+      cache: "no-store"
+    });
+    const settingsJson = await settingsRes.json().catch(() => null);
+    const checkoutConfig = settingsJson?.checkoutConfig || {};
+    const base = String(checkoutConfig?.planBaseUrl || "").trim();
+    if (base) {
+      const tokenValue = crypto.randomBytes(18).toString("hex");
+      const baseUrl = `${base.replace(/\/$/, "")}/public/plan/${tokenValue}`;
+      const utm = String(checkoutConfig?.defaultUtmParams || "").trim();
+      publicUrl = utm ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${utm.replace(/^\?+/, "")}` : baseUrl;
+
+      const customerRes = await fetch(`${API_BASE}/admin/customers/${encodeURIComponent(customerId)}`, {
+        headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
+      });
+      const customerJson = await customerRes.json().catch(() => null);
+      const prevMeta = customerJson?.customer?.metadata ?? {};
+      const nextMeta = {
+        ...prevMeta,
+        paymentLink: {
+          url: publicUrl,
+          token: tokenValue,
+          checkoutUrl,
+          kind: "PLAN",
+          templateId: null,
+          utmParams: checkoutConfig?.defaultUtmParams || null,
+          createdAt: new Date().toISOString(),
+          expiresAt: null,
+          usedAt: null
+        }
+      };
+      await fetch(`${API_BASE}/admin/customers/${encodeURIComponent(customerId)}`, {
+        method: "PUT",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "x-admin-token": token,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({ metadata: nextMeta })
+      });
+
+      const msg = `Hola ${customerName || "Cliente"}, aquí está tu link de pago: ${publicUrl}`;
+      await fetch(`${API_BASE}/admin/chatwoot/messages`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "x-admin-token": token,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({ customerId, content: msg })
+      }).catch(() => {});
+    }
+  } catch {
+    // ignore best-effort public link
+  }
+
   return NextResponse.json({
     ok: true,
-    checkoutUrl: json?.checkoutUrl || null,
+    checkoutUrl: checkoutUrl || null,
+    publicUrl,
     notificationsScheduled: typeof json?.notificationsScheduled === "number" ? json.notificationsScheduled : null
   });
 }
