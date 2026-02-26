@@ -78,7 +78,14 @@ export function ConnectionsPanel({
             <div className="conn-title">Wompi</div>
             <div className="conn-sub">Pagos y tokenización</div>
           </div>
-          <div className="conn-status">{wompiActiveEnv === "PRODUCTION" ? "Producción" : "Sandbox"}</div>
+          <div className="conn-status" style={{ display: "grid", gap: 4, justifyItems: "end" }}>
+            <span>{wompiActiveEnv === "PRODUCTION" ? "Producción" : "Sandbox"}</span>
+            {(() => {
+              const env = wompiActiveEnv === "PRODUCTION" ? wompiProduction : wompiSandbox;
+              const ready = Boolean(env?.publicKey && env?.apiBaseUrl);
+              return ready ? <span className="pill pill-ok pill-sm">Listo</span> : null;
+            })()}
+          </div>
         </button>
 
         <button className="conn-card" type="button" onClick={() => setOpen("central")}>
@@ -89,8 +96,16 @@ export function ConnectionsPanel({
             <div className="conn-title">Central</div>
             <div className="conn-sub">Comunicaciones</div>
           </div>
-          <div className="conn-status">
-            {commsActiveEnv === "PRODUCTION" ? "Producción" : "Sandbox"} · {commsActiveEnv === "PRODUCTION" ? (commsProduction?.baseUrl ? "OK" : "Sin configurar") : (commsSandbox?.baseUrl ? "OK" : "Sin configurar")}
+          <div className="conn-status" style={{ display: "grid", gap: 4, justifyItems: "end" }}>
+            <span>
+              {commsActiveEnv === "PRODUCTION" ? "Producción" : "Sandbox"} ·{" "}
+              {commsActiveEnv === "PRODUCTION" ? (commsProduction?.baseUrl ? "OK" : "Sin configurar") : (commsSandbox?.baseUrl ? "OK" : "Sin configurar")}
+            </span>
+            {(() => {
+              const env = commsActiveEnv === "PRODUCTION" ? commsProduction : commsSandbox;
+              const ready = Boolean(env?.baseUrl);
+              return ready ? <span className="pill pill-ok pill-sm">Listo</span> : null;
+            })()}
           </div>
         </button>
 
@@ -102,7 +117,10 @@ export function ConnectionsPanel({
             <div className="conn-title">Shopify</div>
             <div className="conn-sub">Reenvío de eventos</div>
           </div>
-          <div className="conn-status">{shopify?.forwardUrl ? "Configurada" : "Sin configurar"}</div>
+          <div className="conn-status" style={{ display: "grid", gap: 4, justifyItems: "end" }}>
+            <span>{shopify?.forwardUrl ? "Configurada" : "Sin configurar"}</span>
+            {shopify?.forwardUrl ? <span className="pill pill-ok pill-sm">Listo</span> : null}
+          </div>
         </button>
       </div>
 

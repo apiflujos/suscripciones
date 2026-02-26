@@ -591,7 +591,15 @@ export function CheckoutTemplatesPanel({
                 </div>
                 <div className="field-hint">{t.kind === "PLAN" ? "Plan" : "Suscripción"}</div>
               </div>
-              <span className={`pill ${t.active ? "pill-green" : ""}`}>{t.active ? "Activa" : "Inactiva"}</span>
+              <div style={{ display: "grid", gap: 6, justifyItems: "end" }}>
+                <span className={`pill ${t.active ? "pill-green" : ""}`}>{t.active ? "Activa" : "Inactiva"}</span>
+                {(() => {
+                  const hasProducts = t.allowProductSelect || (t.productIds || []).length > 0;
+                  const hasWompi = Boolean(t.wompiTitle || t.publicTitle) && Boolean(t.wompiDescription || t.publicDescription);
+                  const ready = hasProducts && hasWompi;
+                  return ready ? <span className="pill pill-ok pill-sm">Listo</span> : null;
+                })()}
+              </div>
             </div>
             <div className="template-meta">
               <div>
