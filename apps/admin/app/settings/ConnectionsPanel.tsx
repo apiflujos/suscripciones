@@ -69,7 +69,7 @@ export function ConnectionsPanel({
 
   return (
     <>
-      <div className="conn-grid">
+      <div className="conn-grid" style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
         <button className="conn-card" type="button" onClick={() => setOpen("wompi")}>
           <div className="conn-icon conn-icon-wompi">
             <img src="/brand/conn-wompi.png" alt="Wompi" />
