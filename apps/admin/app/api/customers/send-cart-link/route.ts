@@ -34,7 +34,9 @@ export async function POST(req: Request) {
   const settingsJson = settingsRes && "ok" in settingsRes ? await (settingsRes as any).json().catch(() => null) : null;
   const checkoutConfig = settingsJson?.checkoutConfig || {};
   const baseFromSettings = String(checkoutConfig?.planBaseUrl || checkoutConfig?.subscriptionBaseUrl || "").trim();
-  const base = baseFromSettings.replace(/\/$/, "");
+  const appBase = String(process.env.APP_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_PUBLIC_BASE_URL || "").trim();
+  const fallbackBase = appBase ? `${appBase.replace(/\/$/, "")}/public/cart` : "";
+  const base = (baseFromSettings || fallbackBase).replace(/\/$/, "");
   if (!base) return NextResponse.json({ ok: false, error: "missing_public_base_url" }, { status: 400 });
 
   const templatesRes = await fetch(
@@ -60,7 +62,9 @@ export async function POST(req: Request) {
 
   const linkToken = crypto.randomBytes(18).toString("hex");
   const utm = String(checkoutConfig?.defaultUtmParams || "").trim();
-  const link = buildPublicUrl(base, `/public/cart/${linkToken}`, utm);
+  const normalized = base.replace(/\/$/, "");
+  const hasCartPath = /\/public\/cart$/i.test(normalized);
+  const link = buildPublicUrl(normalized, `${hasCartPath ? "" : "/public/cart"}/${linkToken}`, utm);
 
   const content = `Hola ${customerName}, aquí puedes elegir tu plan o suscripción: ${link}`;
 

@@ -68,10 +68,14 @@ export async function POST(req: Request) {
     });
     const settingsJson = await settingsRes.json().catch(() => null);
     const checkoutConfig = settingsJson?.checkoutConfig || {};
-    const base = String(checkoutConfig?.planBaseUrl || "").trim();
+    const baseFromSettings = String(checkoutConfig?.planBaseUrl || "").trim();
+    const appBase = String(process.env.APP_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_PUBLIC_BASE_URL || "").trim();
+    const base = baseFromSettings || (appBase ? `${appBase.replace(/\/$/, "")}/public/plan` : "");
     if (base) {
       const tokenValue = crypto.randomBytes(18).toString("hex");
-      const baseUrl = `${base.replace(/\/$/, "")}/public/plan/${tokenValue}`;
+      const normalized = base.replace(/\/$/, "");
+      const hasPlanPath = /\/public\/plan$/i.test(normalized);
+      const baseUrl = `${normalized}${hasPlanPath ? "" : "/public/plan"}/${tokenValue}`;
       const utm = String(checkoutConfig?.defaultUtmParams || "").trim();
       publicUrl = utm ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${utm.replace(/^\?+/, "")}` : baseUrl;
 

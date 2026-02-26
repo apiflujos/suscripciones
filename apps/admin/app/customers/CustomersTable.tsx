@@ -84,6 +84,11 @@ export function CustomersTable({
   const [cartTemplateByCustomer, setCartTemplateByCustomer] = useState<Record<string, string>>({});
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [planModalCustomer, setPlanModalCustomer] = useState<CustomerRow | null>(null);
+  const [cartModalOpen, setCartModalOpen] = useState(false);
+  const [cartModalCustomer, setCartModalCustomer] = useState<CustomerRow | null>(null);
+  const [payModalOpen, setPayModalOpen] = useState(false);
+  const [payModalCustomer, setPayModalCustomer] = useState<CustomerRow | null>(null);
+  const [payAmount, setPayAmount] = useState("");
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -196,6 +201,32 @@ export function CustomersTable({
   function closePlanModal() {
     setPlanModalOpen(false);
     setPlanModalCustomer(null);
+    setTimeout(() => lastActiveRef.current?.focus(), 0);
+  }
+
+  function openCartModal(customer: CustomerRow) {
+    lastActiveRef.current = document.activeElement as HTMLElement | null;
+    setCartModalCustomer(customer);
+    setCartModalOpen(true);
+  }
+
+  function closeCartModal() {
+    setCartModalOpen(false);
+    setCartModalCustomer(null);
+    setTimeout(() => lastActiveRef.current?.focus(), 0);
+  }
+
+  function openPayModal(customer: CustomerRow) {
+    lastActiveRef.current = document.activeElement as HTMLElement | null;
+    setPayModalCustomer(customer);
+    setPayAmount("");
+    setPayModalOpen(true);
+  }
+
+  function closePayModal() {
+    setPayModalOpen(false);
+    setPayModalCustomer(null);
+    setPayAmount("");
     setTimeout(() => lastActiveRef.current?.focus(), 0);
   }
 
@@ -349,170 +380,61 @@ export function CustomersTable({
                   ) : null}
                 </div>
                 <div className="contact-paylink">
-                  {hasPlan && !hasToken(c) ? (
-                    <>
-                      <div className="paylink-title">Link de tokenización</div>
-                      <form
-                        id={formId}
-                        className="paylink-form"
-                        onSubmit={async (e) => {
-                          e.preventDefault();
-                          setSendingId(c.id);
-                          setSendError((prev) => ({ ...prev, [c.id]: "" }));
-                          setSendOk((prev) => ({ ...prev, [c.id]: "" }));
-                          try {
-                        const res = await fetch("/api/customers/send-tokenization-link", {
-                          method: "POST",
-                          headers: { "content-type": "application/json" },
-                          body: JSON.stringify({
-                            customerId: c.id,
-                            customerName: c.name || "",
-                            tenantId: c.tenantId || ""
-                          })
-                        });
-                            const contentType = res.headers.get("content-type") || "";
-                            if (!contentType.includes("application/json")) {
-                              setSendError((prev) => ({ ...prev, [c.id]: "auth_required" }));
-                              return;
-                            }
-                            const json = await res.json().catch(() => ({}));
-                        if (!res.ok || !json?.ok) {
-                          setSendError((prev) => ({ ...prev, [c.id]: json?.error || "send_failed" }));
-                          return;
-                        }
-                        if (json?.link) {
-                          setLinkOverrides((prev) => ({ ...prev, [c.id]: { ...(prev[c.id] || {}), token: json.link } }));
-                        }
-                        setSendOk((prev) => ({ ...prev, [c.id]: "sent" }));
-                          } finally {
-                            setSendingId(null);
+                  <div className="paylink-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button
+                      className="ghost btn-compact btn-amber"
+                      type="button"
+                      onClick={async () => {
+                        setSendingId(c.id);
+                        setSendError((prev) => ({ ...prev, [c.id]: "" }));
+                        setSendOk((prev) => ({ ...prev, [c.id]: "" }));
+                        try {
+                          const res = await fetch("/api/customers/send-tokenization-link", {
+                            method: "POST",
+                            headers: { "content-type": "application/json" },
+                            body: JSON.stringify({
+                              customerId: c.id,
+                              customerName: c.name || "",
+                              tenantId: c.tenantId || ""
+                            })
+                          });
+                          const contentType = res.headers.get("content-type") || "";
+                          if (!contentType.includes("application/json")) {
+                            setSendError((prev) => ({ ...prev, [c.id]: "auth_required" }));
+                            return;
                           }
-                        }}
-                      >
-                        <input type="hidden" name="customerId" value={c.id} />
-                        <input type="hidden" name="customerName" value={c.name || ""} />
-                        <button className="primary btn-compact" type="submit" disabled={sendingId === c.id}>
-                          {sendingId === c.id ? "Enviando..." : "Enviar"}
-                        </button>
-                      </form>
-                    </>
-                  ) : (
-                    <>
-                      <div className="paylink-title">Link de pago</div>
-                      <form
-                        id={formId}
-                        className="paylink-form"
-                        onSubmit={async (e) => {
-                          e.preventDefault();
-                          const form = e.currentTarget;
-                          const amount = (form.elements.namedItem("amount") as HTMLInputElement | null)?.value || "";
-                          setSendingId(c.id);
-                          setSendError((prev) => ({ ...prev, [c.id]: "" }));
-                          setSendOk((prev) => ({ ...prev, [c.id]: "" }));
-                          try {
-                        const res = await fetch("/api/customers/send-payment-link", {
-                          method: "POST",
-                          headers: { "content-type": "application/json" },
-                          body: JSON.stringify({
-                            customerId: c.id,
-                            customerName: c.name || "",
-                            amount,
-                            tenantId: c.tenantId || ""
-                          })
-                        });
-                            const contentType = res.headers.get("content-type") || "";
-                            if (!contentType.includes("application/json")) {
-                              setSendError((prev) => ({ ...prev, [c.id]: "auth_required" }));
-                              return;
-                            }
-                            const json = await res.json().catch(() => ({}));
-                        if (!res.ok || !json?.ok) {
-                          setSendError((prev) => ({ ...prev, [c.id]: json?.error || "send_failed" }));
-                          return;
-                        }
-                        if (typeof json?.notificationsScheduled === "number" && json.notificationsScheduled === 0) {
-                          setSendError((prev) => ({ ...prev, [c.id]: "no_rules" }));
-                          return;
-                        }
-                        if (json?.checkoutUrl) {
-                          setLinkOverrides((prev) => ({ ...prev, [c.id]: { ...(prev[c.id] || {}), payment: json.checkoutUrl } }));
-                        }
-                        setSendOk((prev) => ({ ...prev, [c.id]: "sent" }));
-                          } finally {
-                            setSendingId(null);
+                          const json = await res.json().catch(() => ({}));
+                          if (!res.ok || !json?.ok) {
+                            setSendError((prev) => ({ ...prev, [c.id]: json?.error || "send_failed" }));
+                            return;
                           }
-                        }}
-                      >
-                        <input type="hidden" name="customerId" value={c.id} />
-                        <input type="hidden" name="customerName" value={c.name || ""} />
-                        <input className="input" name="amount" placeholder="$ 10000" inputMode="numeric" aria-label="Monto" />
-                        <button className="primary btn-compact" type="submit" disabled={sendingId === c.id}>
-                          {sendingId === c.id ? "Enviando..." : "Enviar"}
-                        </button>
-                      </form>
-                    </>
-                  )}
-                  <div className="paylink-title">Carrito público</div>
-                  <form
-                    className="paylink-form"
-                    onSubmit={async (e) => {
-                      e.preventDefault();
-                      setSendingId(c.id);
-                      setSendError((prev) => ({ ...prev, [c.id]: "" }));
-                      setSendOk((prev) => ({ ...prev, [c.id]: "" }));
-                      try {
-                        const res = await fetch("/api/customers/send-cart-link", {
-                          method: "POST",
-                          headers: { "content-type": "application/json" },
-                          body: JSON.stringify({
-                            customerId: c.id,
-                            customerName: c.name || "",
-                            tenantId: c.tenantId || "",
-                            templateId: resolveCartTemplate(c.id)
-                          })
-                        });
-                        const contentType = res.headers.get("content-type") || "";
-                        if (!contentType.includes("application/json")) {
-                          setSendError((prev) => ({ ...prev, [c.id]: "auth_required" }));
-                          return;
+                          if (json?.link) {
+                            setLinkOverrides((prev) => ({ ...prev, [c.id]: { ...(prev[c.id] || {}), token: json.link } }));
+                          }
+                          setSendOk((prev) => ({ ...prev, [c.id]: "sent" }));
+                        } finally {
+                          setSendingId(null);
                         }
-                        const json = await res.json().catch(() => ({}));
-                        if (!res.ok || !json?.ok) {
-                          setSendError((prev) => ({ ...prev, [c.id]: json?.error || "send_failed" }));
-                          return;
-                        }
-                        if (json?.link) {
-                          setLinkOverrides((prev) => ({ ...prev, [c.id]: { ...(prev[c.id] || {}), cart: json.link } }));
-                        }
-                        setSendOk((prev) => ({ ...prev, [c.id]: "sent" }));
-                      } finally {
-                        setSendingId(null);
-                      }
-                    }}
-                  >
-                    {cartTemplates.length > 1 ? (
-                      <select
-                        className="select"
-                        value={resolveCartTemplate(c.id)}
-                        onChange={(e) =>
-                          setCartTemplateByCustomer((prev) => ({
-                            ...prev,
-                            [c.id]: e.target.value
-                          }))
-                        }
-                        aria-label="Plantilla de carrito"
-                      >
-                        {cartTemplates.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.name}
-                          </option>
-                        ))}
-                      </select>
-                    ) : null}
-                    <button className="primary btn-compact" type="submit" disabled={sendingId === c.id}>
-                      {sendingId === c.id ? "Enviando..." : "Enviar carrito"}
+                      }}
+                      disabled={sendingId === c.id}
+                    >
+                      {sendingId === c.id ? "Enviando..." : "Tokenización"}
                     </button>
-                  </form>
+                    <button
+                      className="ghost btn-compact btn-blue"
+                      type="button"
+                      onClick={() => openPayModal(c)}
+                    >
+                      Link de pago
+                    </button>
+                    <button
+                      className="ghost btn-compact btn-green"
+                      type="button"
+                      onClick={() => openCartModal(c)}
+                    >
+                      Enviar carrito
+                    </button>
+                  </div>
                   {sendError[c.id] === "auth_required" ? (
                     <div className="paylink-error">Sesión vencida. Vuelve a iniciar sesión.</div>
                   ) : null}
@@ -588,6 +510,165 @@ export function CustomersTable({
               createCustomer={createCustomer}
               createPlanAndSubscription={createPlanAndSubscription}
             />
+          </div>
+        </div>
+      ) : null}
+
+      {payModalOpen && payModalCustomer ? (
+        <div className="modal-backdrop">
+          <div className="modal-panel" style={{ maxWidth: 520 }}>
+            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <strong>Enviar link de pago</strong>
+              <button className="ghost" type="button" onClick={closePayModal} aria-label="Cerrar">
+                X
+              </button>
+            </div>
+            <form
+              className="panel module"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const customer = payModalCustomer;
+                if (!customer) return;
+                setSendingId(customer.id);
+                setSendError((prev) => ({ ...prev, [customer.id]: "" }));
+                setSendOk((prev) => ({ ...prev, [customer.id]: "" }));
+                try {
+                  const res = await fetch("/api/customers/send-payment-link", {
+                    method: "POST",
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify({
+                      customerId: customer.id,
+                      customerName: customer.name || "",
+                      amount: payAmount,
+                      tenantId: customer.tenantId || ""
+                    })
+                  });
+                  const contentType = res.headers.get("content-type") || "";
+                  if (!contentType.includes("application/json")) {
+                    setSendError((prev) => ({ ...prev, [customer.id]: "auth_required" }));
+                    return;
+                  }
+                  const json = await res.json().catch(() => ({}));
+                  if (!res.ok || !json?.ok) {
+                    setSendError((prev) => ({ ...prev, [customer.id]: json?.error || "send_failed" }));
+                    return;
+                  }
+                  if (typeof json?.notificationsScheduled === "number" && json.notificationsScheduled === 0) {
+                    setSendError((prev) => ({ ...prev, [customer.id]: "no_rules" }));
+                    return;
+                  }
+                  if (json?.checkoutUrl) {
+                    setLinkOverrides((prev) => ({ ...prev, [customer.id]: { ...(prev[customer.id] || {}), payment: json.checkoutUrl } }));
+                  }
+                  setSendOk((prev) => ({ ...prev, [customer.id]: "sent" }));
+                  closePayModal();
+                } finally {
+                  setSendingId(null);
+                }
+              }}
+            >
+              <div className="field">
+                <label>Monto</label>
+                <input
+                  className="input"
+                  value={payAmount}
+                  onChange={(e) => setPayAmount(e.target.value)}
+                  placeholder="$ 10000"
+                  inputMode="numeric"
+                  required
+                />
+              </div>
+              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                <button className="ghost" type="button" onClick={closePayModal}>
+                  Cancelar
+                </button>
+                <button className="primary" type="submit" disabled={!payAmount}>
+                  Enviar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {cartModalOpen && cartModalCustomer ? (
+        <div className="modal-backdrop">
+          <div className="modal-panel" style={{ maxWidth: 520 }}>
+            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <strong>Enviar carrito</strong>
+              <button className="ghost" type="button" onClick={closeCartModal} aria-label="Cerrar">
+                X
+              </button>
+            </div>
+            <form
+              className="panel module"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const customer = cartModalCustomer;
+                if (!customer) return;
+                setSendingId(customer.id);
+                setSendError((prev) => ({ ...prev, [customer.id]: "" }));
+                setSendOk((prev) => ({ ...prev, [customer.id]: "" }));
+                try {
+                  const res = await fetch("/api/customers/send-cart-link", {
+                    method: "POST",
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify({
+                      customerId: customer.id,
+                      customerName: customer.name || "",
+                      tenantId: customer.tenantId || "",
+                      templateId: resolveCartTemplate(customer.id)
+                    })
+                  });
+                  const contentType = res.headers.get("content-type") || "";
+                  if (!contentType.includes("application/json")) {
+                    setSendError((prev) => ({ ...prev, [customer.id]: "auth_required" }));
+                    return;
+                  }
+                  const json = await res.json().catch(() => ({}));
+                  if (!res.ok || !json?.ok) {
+                    setSendError((prev) => ({ ...prev, [customer.id]: json?.error || "send_failed" }));
+                    return;
+                  }
+                  if (json?.link) {
+                    setLinkOverrides((prev) => ({ ...prev, [customer.id]: { ...(prev[customer.id] || {}), cart: json.link } }));
+                  }
+                  setSendOk((prev) => ({ ...prev, [customer.id]: "sent" }));
+                  closeCartModal();
+                } finally {
+                  setSendingId(null);
+                }
+              }}
+            >
+              <div className="field">
+                <label>Plantilla de carrito</label>
+                <select
+                  className="select"
+                  value={resolveCartTemplate(cartModalCustomer.id)}
+                  onChange={(e) =>
+                    setCartTemplateByCustomer((prev) => ({
+                      ...prev,
+                      [cartModalCustomer.id]: e.target.value
+                    }))
+                  }
+                  required
+                >
+                  {cartTemplates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                <button className="ghost" type="button" onClick={closeCartModal}>
+                  Cancelar
+                </button>
+                <button className="primary" type="submit">
+                  Enviar
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       ) : null}

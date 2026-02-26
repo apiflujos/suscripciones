@@ -25,11 +25,15 @@ export async function POST(req: Request) {
   }).catch(() => null);
   const settingsJson = settingsRes && "ok" in settingsRes ? await (settingsRes as any).json().catch(() => null) : null;
   const baseFromSettings = String(settingsJson?.checkoutConfig?.subscriptionBaseUrl || "").trim();
-  const base = baseFromSettings.replace(/\/$/, "");
+  const appBase = String(process.env.APP_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_PUBLIC_BASE_URL || "").trim();
+  const fallbackBase = appBase ? `${appBase.replace(/\/$/, "")}/public/suscripcion` : "";
+  const base = (baseFromSettings || fallbackBase).replace(/\/$/, "");
   if (!base) return NextResponse.json({ ok: false, error: "missing_subscription_base_url" }, { status: 400 });
 
   const linkToken = crypto.randomBytes(18).toString("hex");
-  const link = `${base}/public/suscripcion/${linkToken}`;
+  const normalized = base.replace(/\/$/, "");
+  const hasSubPath = /\/public\/suscripcion$/i.test(normalized);
+  const link = `${normalized}${hasSubPath ? "" : "/public/suscripcion"}/${linkToken}`;
   const content = `Hola ${customerName}, para activar tu suscripción guarda tu método de pago aquí: ${link}`;
 
   const res = await fetch(`${API_BASE}/admin/chatwoot/messages`, {
