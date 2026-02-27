@@ -41,7 +41,11 @@ export default async function CustomerPaymentMethodPage({
   const activeEnv = String(settings.json?.wompi?.activeEnv || "PRODUCTION").toUpperCase();
   const wompiEnv =
     activeEnv === "SANDBOX" ? settings.json?.wompi?.sandbox : settings.json?.wompi?.production;
-  const publicKey = String(wompiEnv?.publicKey || "").trim();
+  const publicKey = (() => {
+    const raw = String(wompiEnv?.publicKey || "").trim();
+    if (!raw || raw.toLowerCase() === "undefined" || raw.toLowerCase() === "null") return "";
+    return raw;
+  })();
   const apiBaseUrl =
     String(wompiEnv?.apiBaseUrl || "").trim() ||
     (activeEnv === "SANDBOX" ? "https://sandbox.wompi.co/v1" : "https://production.wompi.co/v1");

@@ -76,7 +76,9 @@ export default async function PublicTokenizePage({
     const activeEnv = String(settings?.wompi?.activeEnv || "PRODUCTION").toUpperCase();
     const wompiEnv =
       activeEnv === "SANDBOX" ? settings?.wompi?.sandbox : settings?.wompi?.production;
-    return String(wompiEnv?.publicKey || "").trim();
+    const raw = String(wompiEnv?.publicKey || "").trim();
+    if (!raw || raw.toLowerCase() === "undefined" || raw.toLowerCase() === "null") return "";
+    return raw;
   })();
   const apiBaseUrl = (() => {
     const activeEnv = String(settings?.wompi?.activeEnv || "PRODUCTION").toUpperCase();
