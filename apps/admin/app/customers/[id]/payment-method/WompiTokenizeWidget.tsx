@@ -40,8 +40,15 @@ export function WompiTokenizeWidget({
     }
 
     const cleanup = () => {
-      const prevScript = form.querySelector('script[data-wompi-widget="tokenize"]');
-      if (prevScript) prevScript.remove();
+      const prevScripts = Array.from(form.querySelectorAll("script")).filter((s) => {
+        const src = String(s.getAttribute("src") || "");
+        return (
+          s.getAttribute("data-wompi-widget") === "tokenize" ||
+          s.getAttribute("data-public-key") ||
+          src.includes("wompi")
+        );
+      });
+      for (const s of prevScripts) s.remove();
       const prevButton = form.querySelector(".waybox-button");
       if (prevButton) prevButton.remove();
     };
@@ -50,12 +57,13 @@ export function WompiTokenizeWidget({
     if (!publicKey || !canTokenize) return;
 
     const script = document.createElement("script");
-    script.src = "https://checkout.wompi.co/widget.js";
     // Wompi widget is a classic script (not ESM). Using module breaks currentScript.
     script.setAttribute("data-render", "button");
     script.setAttribute("data-widget-operation", "tokenize");
     script.setAttribute("data-public-key", publicKey);
+    script.dataset.publicKey = publicKey;
     script.setAttribute("data-wompi-widget", "tokenize");
+    script.src = "https://checkout.wompi.co/widget.js";
     form.appendChild(script);
 
     const onSubmit = () => {
