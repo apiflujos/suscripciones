@@ -132,7 +132,14 @@ export function NewCustomerForm({
                 X
               </button>
             </div>
-            <form action={createCustomer} onKeyDownCapture={enterToNextField} style={{ display: "grid", gap: 10 }}>
+            <form
+              action={createCustomer}
+              onKeyDownCapture={enterToNextField}
+              onSubmit={(e) => {
+                e.currentTarget.classList.add("was-validated");
+              }}
+              style={{ display: "grid", gap: 10 }}
+            >
               <input type="hidden" name="csrf" value={csrfToken} />
               {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
           <div className="field">
@@ -157,8 +164,8 @@ export function NewCustomerForm({
             <input className="input" name="phone" placeholder="+57..." />
           </div>
           <div className="field">
-            <label>Email (opcional)</label>
-            <input className="input" name="email" placeholder="correo@empresa.com" />
+            <label>Email</label>
+            <input className="input" name="email" type="email" placeholder="correo@empresa.com" required />
           </div>
 
           <div className="panel module" style={{ margin: 0 }}>
