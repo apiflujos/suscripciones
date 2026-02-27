@@ -498,7 +498,6 @@ export function CustomersTable({
                   {sendOk[c.id] ? <div className="paylink-success">Link enviado.</div> : null}
               </div>
             </div>
-          </div>
         );
       })}
         {items.length === 0 ? <div className="contact-empty">Sin contactos.</div> : null}
