@@ -1,10 +1,5 @@
 export function getPublicBaseUrlFromEnv(): string {
-  const raw =
-    process.env.APP_PUBLIC_BASE_URL ||
-    process.env.NEXT_PUBLIC_PUBLIC_BASE_URL ||
-    process.env.PUBLIC_BASE_URL ||
-    process.env.APP_HOST ||
-    "";
+  const raw = process.env.APP_PUBLIC_BASE_URL || "";
   return String(raw || "").trim().replace(/\/+$/g, "");
 }
 
