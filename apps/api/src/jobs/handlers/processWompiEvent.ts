@@ -208,11 +208,13 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
       ? PaymentStatus.APPROVED
       : normalizedStatus === "DECLINED"
         ? PaymentStatus.DECLINED
-        : normalizedStatus === "VOIDED"
-          ? PaymentStatus.VOIDED
-          : normalizedStatus === "PENDING" || normalizedStatus === "PROCESSING"
-            ? PaymentStatus.PENDING
-            : null;
+        : normalizedStatus === "ERROR"
+          ? PaymentStatus.ERROR
+          : normalizedStatus === "VOIDED"
+            ? PaymentStatus.VOIDED
+            : normalizedStatus === "PENDING" || normalizedStatus === "PROCESSING"
+              ? PaymentStatus.PENDING
+              : null;
 
   const prevByTx = transactionId != null ? await db.payment.findUnique({ where: { wompiTransactionId: transactionId } }) : null;
   const prevStatus = prevByTx?.status ?? paymentByLink?.status ?? null;
@@ -290,8 +292,8 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
             paymentStatus === PaymentStatus.APPROVED
               ? null
               : paymentStatus === PaymentStatus.PENDING
-                ? paymentByLink?.failedAt ?? null
-                : computedFailedAt,
+                ? prevByTx?.failedAt ?? null
+                : prevByTx?.failedAt ?? computedFailedAt,
           providerResponse: { webhook: payload } as any,
           reference: reference ?? undefined,
           wompiPaymentLinkId: paymentLinkId ?? undefined
