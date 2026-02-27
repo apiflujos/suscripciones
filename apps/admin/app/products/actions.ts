@@ -101,6 +101,7 @@ export async function createProduct(formData: FormData) {
   const option2Name = String(formData.get("option2Name") || "").trim();
   const variantsJson = String(formData.get("variantsJson") || "").trim();
   const imageUrl = String(formData.get("imageUrl") || "").trim();
+  const collectionMode = String(formData.get("collectionMode") || "AUTO_LINK").trim();
   const tenantIds = readTenantIds(formData);
   if (!name || !sku || basePriceInCents <= 0) {
     return redirect(mergeQuery(returnTo, { error: "invalid_body" }));
@@ -140,7 +141,10 @@ export async function createProduct(formData: FormData) {
         option1Name: option1Name || null,
         option2Name: option2Name || null,
         variants: variants || null,
-        imageUrl: imageUrl || null
+        imageUrl: imageUrl || null,
+        metadata: {
+          collectionMode
+        }
       })
     });
     redirect(mergeQuery(returnTo, { created: "1" }));
@@ -179,6 +183,7 @@ export async function updateProduct(formData: FormData) {
   const option2Name = String(formData.get("option2Name") || "").trim();
   const variantsJson = String(formData.get("variantsJson") || "").trim();
   const imageUrl = String(formData.get("imageUrl") || "").trim();
+  const collectionMode = String(formData.get("collectionMode") || "AUTO_LINK").trim();
 
   let variants: any[] | undefined;
   if (variantsJson) {
@@ -219,7 +224,10 @@ export async function updateProduct(formData: FormData) {
         option1Name: option1Name || null,
         option2Name: option2Name || null,
         variants: variants || null,
-        imageUrl: imageUrl || null
+        imageUrl: imageUrl || null,
+        metadata: {
+          collectionMode
+        }
       })
     });
     redirect(mergeQuery(returnTo, { updated: "1", ...(tenantId ? { tenantId } : {}) }));
@@ -315,7 +323,10 @@ export async function createPlanTemplate(formData: FormData) {
           option1Name: option1Name || null,
           option2Name: option2Name || null,
           variants: variants || null,
-          imageUrl: imageUrl || null
+          imageUrl: imageUrl || null,
+          metadata: {
+            collectionMode: billingType === "PLAN" ? "AUTO_LINK" : "AUTO_DEBIT"
+          }
         })
       });
       const createdItemId = created?.product?.id ? String(created.product.id) : "";
