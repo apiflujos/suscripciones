@@ -96,7 +96,7 @@ export default async function SettingsPage({
   const sp = (await searchParams) ?? {};
   const action = String(sp.a || "");
   const status = String(sp.status || "");
-  const errorText = normalizeErrorParam(sp.error);
+  const errorText = normalizeErrorParam(typeof sp.error === "string" ? sp.error : undefined);
   const tab = String(sp.tab || "connections");
   const open = String(sp.open || "");
   const templateKind = String(sp.kind || "").toUpperCase();
