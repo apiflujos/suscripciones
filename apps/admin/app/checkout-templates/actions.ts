@@ -39,8 +39,8 @@ function isNextRedirect(err: unknown) {
 }
 
 export async function createCheckoutTemplate(formData: FormData) {
-  await assertCsrfToken(formData);
   try {
+    await assertCsrfToken(formData);
     let layout: any = {};
     try {
       layout = JSON.parse(String(formData.get("layout") || "{}"));
@@ -88,10 +88,10 @@ export async function createCheckoutTemplate(formData: FormData) {
 }
 
 export async function updateCheckoutTemplate(formData: FormData) {
-  await assertCsrfToken(formData);
-  const id = String(formData.get("id") || "").trim();
-  if (!id) return redirectWith("checkout_template_update", "fail", "missing_id");
   try {
+    await assertCsrfToken(formData);
+    const id = String(formData.get("id") || "").trim();
+    if (!id) return redirectWith("checkout_template_update", "fail", "missing_id");
     let layout: any = {};
     try {
       layout = JSON.parse(String(formData.get("layout") || "{}"));
@@ -139,10 +139,10 @@ export async function updateCheckoutTemplate(formData: FormData) {
 }
 
 export async function deleteCheckoutTemplate(formData: FormData) {
-  await assertCsrfToken(formData);
-  const id = String(formData.get("id") || "").trim();
-  if (!id) return redirectWith("checkout_template_delete", "fail", "missing_id");
   try {
+    await assertCsrfToken(formData);
+    const id = String(formData.get("id") || "").trim();
+    if (!id) return redirectWith("checkout_template_delete", "fail", "missing_id");
     await adminFetch(`/admin/checkout-templates/${id}`, { method: "DELETE" });
     redirectWith("checkout_template_delete", "ok");
   } catch (err: any) {
@@ -152,10 +152,10 @@ export async function deleteCheckoutTemplate(formData: FormData) {
 }
 
 export async function duplicateCheckoutTemplate(formData: FormData) {
-  await assertCsrfToken(formData);
-  const id = String(formData.get("id") || "").trim();
-  if (!id) return redirectWith("checkout_template_duplicate", "fail", "missing_id");
   try {
+    await assertCsrfToken(formData);
+    const id = String(formData.get("id") || "").trim();
+    if (!id) return redirectWith("checkout_template_duplicate", "fail", "missing_id");
     const existing = await adminFetch(`/admin/checkout-templates/${id}`, { method: "GET" });
     const template = existing?.item;
     if (!template) return redirectWith("checkout_template_duplicate", "fail", "not_found");

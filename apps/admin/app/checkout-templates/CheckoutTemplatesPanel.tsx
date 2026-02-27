@@ -92,7 +92,7 @@ export function CheckoutTemplatesPanel({
   const [name, setName] = useState("");
   const [active, setActive] = useState(true);
   const [allowSelect, setAllowSelect] = useState(true);
-  const [catalogMode, setCatalogMode] = useState<"PLAN" | "SUBSCRIPTION">("PLAN");
+  const [catalogMode, setCatalogMode] = useState<"" | "PLAN" | "SUBSCRIPTION">("");
   const [productIds, setProductIds] = useState<string[]>([]);
   const [tenantId, setTenantId] = useState("");
   const [expiryHours, setExpiryHours] = useState("24");
@@ -130,7 +130,7 @@ export function CheckoutTemplatesPanel({
     setName("");
     setActive(true);
     setAllowSelect(true);
-    setCatalogMode("PLAN");
+    setCatalogMode("");
     setProductIds([]);
     setTenantId("");
     setExpiryHours("24");
@@ -158,7 +158,7 @@ export function CheckoutTemplatesPanel({
     setName(t.name || "");
     setActive(Boolean(t.active));
     setAllowSelect(Boolean(t.allowProductSelect));
-    setCatalogMode("PLAN");
+    setCatalogMode("");
     setProductIds(Array.isArray(t.productIds) ? t.productIds : []);
     setTenantId(String(t.tenantId || ""));
     setExpiryHours(t.expiryHours ? String(t.expiryHours) : "24");
@@ -213,6 +213,7 @@ export function CheckoutTemplatesPanel({
   const selectedKind = (editing ? editing.kind : kind) || "";
   const isCart = selectedKind === "CART";
   const isProductsValid = isCart ? productIds.length > 0 : allowSelect || productIds.length > 0;
+  const missingCatalogMode = isCart && !catalogMode;
   const missingKind = !selectedKind;
   const missingName = !name.trim();
   const requireTenant = Array.isArray(tenants) && tenants.length > 0;
@@ -295,6 +296,12 @@ export function CheckoutTemplatesPanel({
       setStepIndex(1);
       setLocalError("Selecciona el canal de ventas.");
       setTimeout(() => tenantRef.current?.focus(), 0);
+      return false;
+    }
+    if (missingCatalogMode) {
+      setStepIndex(3);
+      setLocalError("Selecciona si el catálogo es Plan o Suscripción.");
+      setTimeout(() => productsRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 0);
       return false;
     }
     if (!isProductsValid) {
@@ -567,7 +574,13 @@ export function CheckoutTemplatesPanel({
                   <div style={{ display: "grid", gap: 6 }}>
                     <div className="field">
                       <label>Tipo de catálogo</label>
-                      <select className="select" value={catalogMode} onChange={(e) => setCatalogMode(e.target.value as any)}>
+                      <select
+                        className="select"
+                        value={catalogMode}
+                        onChange={(e) => setCatalogMode(e.target.value as any)}
+                        style={missingCatalogMode ? { borderColor: "var(--danger)" } : undefined}
+                      >
+                        <option value="">Selecciona un tipo</option>
                         <option value="PLAN">Plan (link de pago)</option>
                         <option value="SUBSCRIPTION">Suscripción (tokenización)</option>
                       </select>
@@ -575,6 +588,11 @@ export function CheckoutTemplatesPanel({
                     <div className="field-hint">
                       Plan: el cliente paga con un link. Suscripción: el cliente tokeniza tarjeta para cobros automáticos.
                     </div>
+                    {missingCatalogMode ? (
+                      <div className="field-hint" style={{ color: "var(--danger)" }}>
+                        Selecciona el tipo de catálogo.
+                      </div>
+                    ) : null}
                   </div>
                 )}
                 <div className="field" ref={productsRef}>
@@ -643,13 +661,14 @@ export function CheckoutTemplatesPanel({
                     {localError}
                   </div>
                 ) : null}
-                {(missingKind || missingName || missingTenant || missingProducts) ? (
+                {(missingKind || missingName || missingTenant || missingProducts || missingCatalogMode) ? (
                   <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
                     Faltan datos obligatorios:
                     <ul style={{ margin: "6px 0 0 16px" }}>
                       {missingKind ? <li>Selecciona tipo (Plan o Suscripción).</li> : null}
                       {missingName ? <li>Nombre interno.</li> : null}
                       {missingTenant ? <li>Canal de ventas.</li> : null}
+                      {missingCatalogMode ? <li>Selecciona si el catálogo es Plan o Suscripción.</li> : null}
                       {missingProducts ? <li>Selecciona productos o activa “El cliente puede elegir producto”.</li> : null}
                     </ul>
                   </div>
@@ -699,14 +718,18 @@ export function CheckoutTemplatesPanel({
                         setLocalError("Selecciona el canal de ventas.");
                         return;
                       }
-                      if (stepIndex === 3 && !isProductsValid) {
-                        setLocalError("Debes seleccionar productos o permitir el selector.");
-                        return;
-                      }
+                    if (stepIndex === 3 && missingCatalogMode) {
+                      setLocalError("Selecciona si el catálogo es Plan o Suscripción.");
+                      return;
+                    }
+                    if (stepIndex === 3 && !isProductsValid) {
+                      setLocalError("Debes seleccionar productos o permitir el selector.");
+                      return;
+                    }
                       setLocalError("");
                       setStepIndex(Math.min(STEPS.length - 1, stepIndex + 1));
                     }}
-                    disabled={(stepIndex === 0 && !kind) || (stepIndex === 1 && (!name.trim() || missingTenant)) || (stepIndex === 3 && !isProductsValid)}
+                    disabled={(stepIndex === 0 && !kind) || (stepIndex === 1 && (!name.trim() || missingTenant)) || (stepIndex === 3 && (!isProductsValid || missingCatalogMode))}
                   >
                     Siguiente
                   </button>
@@ -715,7 +738,7 @@ export function CheckoutTemplatesPanel({
                     className="primary"
                     type="submit"
                     pendingText="Guardando..."
-                    disabled={!selectedKind || !name || missingTenant || !isProductsValid}
+                    disabled={!selectedKind || !name || missingTenant || !isProductsValid || missingCatalogMode}
                   >
                     {editing ? "Guardar cambios" : "Guardar plantilla"}
                   </PendingButton>

@@ -963,6 +963,11 @@ textarea {
   gap: 2px;
 }
 
+.contact-paylink .paylink-actions {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+
 .contact-paylink .delete-row {
   display: inline-flex;
 }
