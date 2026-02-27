@@ -1,4 +1,3 @@
-import { WompiTokenizeWidget } from "../../../customers/[id]/payment-method/WompiTokenizeWidget";
 import { normalizeErrorParam } from "../../../lib/errorParam";
 import { fetchWompiAcceptanceLinks } from "../../../lib/wompiMerchant";
 import { PublicCheckoutLayout } from "../../_components/PublicCheckoutLayout";
@@ -79,6 +78,38 @@ export default async function PublicTokenizePage({
     return activeEnv === "SANDBOX" ? "https://sandbox.wompi.co/v1" : "https://production.wompi.co/v1";
   })();
   const acceptanceLinks = publicKey ? await fetchWompiAcceptanceLinks({ apiBaseUrl, publicKey }) : null;
+  const inlineScript = `(() => {
+  const script = document.currentScript;
+  if (!script) return;
+  const form = script.closest("form");
+  if (!form) return;
+  const terms = form.querySelector('[data-accept="terms"]');
+  const personal = form.querySelector('[data-accept="personal"]');
+  const hint = form.querySelector('[data-accept-hint]');
+  const hiddenTerms = form.querySelector('input[name="accept_terms"]');
+  const hiddenPersonal = form.querySelector('input[name="accept_personal_data"]');
+  const update = () => {
+    const termsOk = terms ? terms.checked : true;
+    const personalOk = personal ? personal.checked : true;
+    if (hiddenTerms) hiddenTerms.value = termsOk ? "1" : "0";
+    if (hiddenPersonal) hiddenPersonal.value = personalOk ? "1" : "0";
+    const button = form.querySelector(".waybox-button, button[type='submit'], button");
+    if (!button) return;
+    const lock = !(termsOk && personalOk);
+    button.disabled = lock;
+    button.setAttribute("aria-disabled", lock ? "true" : "false");
+    button.style.pointerEvents = lock ? "none" : "";
+    button.style.opacity = lock ? "0.6" : "";
+    if (lock) button.setAttribute("data-locked", "true");
+    else button.removeAttribute("data-locked");
+    if (hint) hint.style.display = lock ? "" : "none";
+  };
+  update();
+  if (terms) terms.addEventListener("change", update);
+  if (personal) personal.addEventListener("change", update);
+  const observer = new MutationObserver(update);
+  observer.observe(form, { childList: true, subtree: true });
+})();`;
 
   if (!tokenRes.ok) {
     const msg = "Este link no existe o ya no es válido. Solicita uno nuevo.";
@@ -128,7 +159,45 @@ export default async function PublicTokenizePage({
         <PublicAlert>No pudimos cargar los terminos de Wompi. Intenta mas tarde.</PublicAlert>
       ) : (
         <form method="POST" action={`/public/tokenize/${encodeURIComponent(token)}/process`} style={{ display: "grid", gap: 10 }}>
-          <WompiTokenizeWidget publicKey={publicKey} acceptance={acceptanceLinks} />
+          <div className="field" style={{ display: "grid", gap: 6 }}>
+            {acceptanceLinks.termsUrl ? (
+              <label style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                <input type="checkbox" data-accept="terms" aria-required="true" />
+                <span style={{ fontSize: 14 }}>
+                  Acepto los terminos y condiciones de Wompi.{" "}
+                  <a href={acceptanceLinks.termsUrl} target="_blank" rel="noreferrer">
+                    Ver terminos
+                  </a>
+                  .
+                </span>
+              </label>
+            ) : null}
+            {acceptanceLinks.personalDataUrl ? (
+              <label style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                <input type="checkbox" data-accept="personal" aria-required="true" />
+                <span style={{ fontSize: 14 }}>
+                  Autorizo el tratamiento de mis datos personales.{" "}
+                  <a href={acceptanceLinks.personalDataUrl} target="_blank" rel="noreferrer">
+                    Ver autorizacion
+                  </a>
+                  .
+                </span>
+              </label>
+            ) : null}
+            <div className="field-hint" data-accept-hint>
+              Debes aceptar para continuar.
+            </div>
+          </div>
+          <input type="hidden" name="accept_terms" value="0" />
+          <input type="hidden" name="accept_personal_data" value="0" />
+          <script
+            src="https://checkout.wompi.co/widget.js"
+            data-render="button"
+            data-widget-operation="tokenize"
+            data-public-key={publicKey}
+            data-wompi-widget="tokenize"
+          />
+          <script dangerouslySetInnerHTML={{ __html: inlineScript }} />
         </form>
       )}
     </PublicCheckoutLayout>
