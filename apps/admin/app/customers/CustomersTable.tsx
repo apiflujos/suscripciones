@@ -387,27 +387,6 @@ export function CustomersTable({
               </div>
 
               <div className="contact-right">
-                <div className="contact-right-top">
-                  <div className="contact-actions">
-                    <button className="ghost btn-compact" type="button" onClick={() => openTransactions(c)} aria-label="Historial de pagos">
-                      Historial
-                    </button>
-                    <button className="icon-btn" type="button" onClick={() => openEditor(c)} aria-label="Editar">✎</button>
-                    <form
-                      action={deleteCustomer}
-                      className="delete-row"
-                      onSubmit={(e) => {
-                        if (!confirm("¿Eliminar contacto?")) e.preventDefault();
-                      }}
-                    >
-                      <input type="hidden" name="csrf" value={csrfToken} />
-                      <input type="hidden" name="id" value={c.id} />
-                      <input type="hidden" name="tenantId" value={c.tenantId || ""} />
-                      {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
-                      <button className="icon-btn danger" type="submit" aria-label="Eliminar">🗑</button>
-                    </form>
-                  </div>
-                </div>
                 <div className="contact-plan-grid" style={{ gridTemplateColumns: "1fr" }}>
                   <div>
                     <span>Plan / Suscripción</span>
@@ -427,6 +406,27 @@ export function CustomersTable({
                 </div>
                 <div className="contact-paylink contact-footer">
                   <div className="paylink-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-start" }}>
+                    <button className="ghost btn-compact" type="button" onClick={() => openTransactions(c)} aria-label="Historial de pagos">
+                      Historial
+                    </button>
+                    <button className="ghost btn-compact" type="button" onClick={() => openEditor(c)} aria-label="Editar">
+                      Editar
+                    </button>
+                    <form
+                      action={deleteCustomer}
+                      className="delete-row"
+                      onSubmit={(e) => {
+                        if (!confirm("¿Eliminar contacto?")) e.preventDefault();
+                      }}
+                    >
+                      <input type="hidden" name="csrf" value={csrfToken} />
+                      <input type="hidden" name="id" value={c.id} />
+                      <input type="hidden" name="tenantId" value={c.tenantId || ""} />
+                      {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
+                      <button className="ghost btn-compact btn-red" type="submit" aria-label="Eliminar">
+                        Eliminar
+                      </button>
+                    </form>
                     <button
                       className="ghost btn-compact btn-amber"
                       type="button"
@@ -448,6 +448,12 @@ export function CustomersTable({
                       onClick={() => openCartModal(c)}
                     >
                       Enviar catálogo
+                    </button>
+                    <button className="ghost btn-compact btn-blue" type="button" onClick={() => openDetails(c)}>
+                      Ver detalles
+                    </button>
+                    <button className="ghost btn-compact btn-green" type="button" onClick={() => openPlanModal(c)}>
+                      Crear plan / suscripción
                     </button>
                   </div>
                   {sendError[c.id] === "auth_required" ? (
@@ -485,14 +491,6 @@ export function CustomersTable({
                     );
                   })()}
                   {sendOk[c.id] ? <div className="paylink-success">Link enviado.</div> : null}
-                  <div className="contact-secondary-actions">
-                    <button className="ghost btn-compact btn-blue" type="button" onClick={() => openDetails(c)}>
-                      Ver detalles
-                    </button>
-                    <button className="ghost btn-compact btn-green" type="button" onClick={() => openPlanModal(c)}>
-                      Crear plan / suscripción
-                    </button>
-                  </div>
                 </div>
             </div>
           </div>

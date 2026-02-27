@@ -950,6 +950,18 @@ textarea {
   gap: 2px;
 }
 
+.contact-paylink .delete-row {
+  display: inline-flex;
+}
+
+.contact-paylink .btn-compact {
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  min-width: 130px;
+  justify-content: center;
+}
+
 .contact-footer {
   grid-column: 1 / -1;
   justify-items: start;
