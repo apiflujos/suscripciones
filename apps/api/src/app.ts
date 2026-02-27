@@ -61,7 +61,9 @@ export function createApp() {
         "script-src": ["'self'", "'unsafe-inline'"],
         "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         "style-src-elem": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-        "font-src": ["'self'", "data:", "https://fonts.gstatic.com"]
+        "font-src": ["'self'", "data:", "https://fonts.gstatic.com"],
+        "frame-src": ["'self'", "https://checkout.wompi.co"],
+        "child-src": ["'self'", "https://checkout.wompi.co"]
       }
     }
   });
