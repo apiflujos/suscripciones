@@ -802,6 +802,19 @@ textarea {
   align-items: start;
 }
 
+.contact-card-top {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px 6px 0;
+}
+
+.contact-card-top-actions {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .contact-left {
   display: grid;
   gap: 6px;

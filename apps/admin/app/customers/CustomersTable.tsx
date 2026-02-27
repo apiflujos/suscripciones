@@ -361,6 +361,31 @@ export function CustomersTable({
           const hasPlan = subscriptionsByCustomer[String(c.id)]?.hasPlan ?? false;
           return (
             <div className="contact-card" key={c.id}>
+              <div className="contact-card-top">
+                <div className="contact-card-top-actions">
+                  <button className="ghost btn-compact" type="button" onClick={() => openTransactions(c)} aria-label="Historial de pagos">
+                    Historial
+                  </button>
+                  <button className="ghost btn-compact" type="button" onClick={() => openEditor(c)} aria-label="Editar">
+                    Editar
+                  </button>
+                  <form
+                    action={deleteCustomer}
+                    className="delete-row"
+                    onSubmit={(e) => {
+                      if (!confirm("¿Eliminar contacto?")) e.preventDefault();
+                    }}
+                  >
+                    <input type="hidden" name="csrf" value={csrfToken} />
+                    <input type="hidden" name="id" value={c.id} />
+                    <input type="hidden" name="tenantId" value={c.tenantId || ""} />
+                    {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
+                    <button className="icon-btn danger" type="submit" aria-label="Eliminar">
+                      🗑
+                    </button>
+                  </form>
+                </div>
+              </div>
               <div className="contact-left">
                 <div className="contact-section-title">Información personal</div>
                 <div className="contact-person-grid" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
@@ -404,29 +429,9 @@ export function CustomersTable({
                     </div>
                   ) : null}
                 </div>
-                <div className="contact-paylink contact-footer">
+              </div>
+              <div className="contact-paylink contact-footer">
                   <div className="paylink-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-start" }}>
-                    <button className="ghost btn-compact" type="button" onClick={() => openTransactions(c)} aria-label="Historial de pagos">
-                      Historial
-                    </button>
-                    <button className="ghost btn-compact" type="button" onClick={() => openEditor(c)} aria-label="Editar">
-                      Editar
-                    </button>
-                    <form
-                      action={deleteCustomer}
-                      className="delete-row"
-                      onSubmit={(e) => {
-                        if (!confirm("¿Eliminar contacto?")) e.preventDefault();
-                      }}
-                    >
-                      <input type="hidden" name="csrf" value={csrfToken} />
-                      <input type="hidden" name="id" value={c.id} />
-                      <input type="hidden" name="tenantId" value={c.tenantId || ""} />
-                      {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
-                      <button className="ghost btn-compact btn-red" type="submit" aria-label="Eliminar">
-                        Eliminar
-                      </button>
-                    </form>
                     <button
                       className="ghost btn-compact btn-amber"
                       type="button"
@@ -491,7 +496,7 @@ export function CustomersTable({
                     );
                   })()}
                   {sendOk[c.id] ? <div className="paylink-success">Link enviado.</div> : null}
-                </div>
+              </div>
             </div>
           </div>
         );
