@@ -15,6 +15,7 @@ import {
   setCentralActiveEnv
 } from "./actions";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
+import { normalizeErrorParam } from "../lib/errorParam";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
 import { HelpTip } from "../ui/HelpTip";
@@ -95,7 +96,7 @@ export default async function SettingsPage({
   const sp = (await searchParams) ?? {};
   const action = String(sp.a || "");
   const status = String(sp.status || "");
-  const errorText = sp.error ? String(sp.error) : "";
+  const errorText = normalizeErrorParam(sp.error);
   const tab = String(sp.tab || "connections");
   const open = String(sp.open || "");
   const templateKind = String(sp.kind || "").toUpperCase();

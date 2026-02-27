@@ -1,6 +1,7 @@
 import { createCustomer } from "./actions";
 import { CustomersModals } from "./CustomersModals";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
+import { normalizeErrorParam } from "../lib/errorParam";
 import { HelpTip } from "../ui/HelpTip";
 import { CustomersTable } from "./CustomersTable";
 import { getCsrfToken } from "../lib/csrf";
@@ -157,9 +158,9 @@ export default async function CustomersPage({
 
   return (
     <main className="page" style={{ maxWidth: "100%" }}>
-      {sp.error ? (
+      {normalizeErrorParam(sp.error) ? (
         <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
-          Error: {sp.error}
+          Error: {normalizeErrorParam(sp.error)}
         </div>
       ) : null}
       {created ? <div className="card cardPad">Contacto creado.</div> : null}

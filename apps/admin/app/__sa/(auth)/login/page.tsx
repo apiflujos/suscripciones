@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { saLogin } from "./actions";
 import { getCsrfToken } from "../../../lib/csrf";
+import { normalizeErrorParam } from "../../../lib/errorParam";
 
 export default async function SaLoginPage({
   searchParams
@@ -9,7 +10,7 @@ export default async function SaLoginPage({
 }) {
   const csrfToken = await getCsrfToken();
   const sp = (await searchParams) ?? {};
-  const error = String(sp.error || "").trim();
+  const error = normalizeErrorParam(sp.error);
   const loggedOut = String(sp.loggedOut || "").trim() === "1";
 
   return (

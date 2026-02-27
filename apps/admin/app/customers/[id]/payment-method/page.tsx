@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { WompiTokenizeWidget } from "./WompiTokenizeWidget";
 import { fetchAdminCached, getAdminApiConfig } from "../../../lib/adminApi";
+import { normalizeErrorParam } from "../../../lib/errorParam";
 import { HelpTip } from "../../../ui/HelpTip";
 
 export const dynamic = "force-dynamic";
@@ -66,9 +67,9 @@ export default async function CustomerPaymentMethodPage({
 
   return (
     <main className="page" style={{ maxWidth: 980 }}>
-      {sp.error ? (
+      {normalizeErrorParam(sp.error) ? (
         <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
-          Error: {sp.error}
+          Error: {normalizeErrorParam(sp.error)}
         </div>
       ) : null}
 

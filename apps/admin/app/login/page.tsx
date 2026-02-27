@@ -2,6 +2,7 @@ import { adminLogin } from "./actions";
 import { getAdminApiConfig } from "../lib/adminApi";
 import { LoginForm } from "./LoginForm";
 import { getCsrfToken } from "../lib/csrf";
+import { normalizeErrorParam } from "../lib/errorParam";
 
 export default async function LoginPage({
   searchParams
@@ -10,7 +11,7 @@ export default async function LoginPage({
 }) {
   const csrfToken = await getCsrfToken();
   const sp = (await searchParams) ?? {};
-  const error = String(sp.error || "").trim();
+  const error = normalizeErrorParam(sp.error);
   const next = String(sp.next || "").trim();
   const loggedOut = String(sp.loggedOut || "").trim() === "1";
 

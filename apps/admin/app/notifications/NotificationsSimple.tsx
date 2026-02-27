@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import { PendingButton } from "../ui/PendingButton";
 import { HelpTip } from "../ui/HelpTip";
 
@@ -64,6 +65,13 @@ const REMINDER_TPL_DUE = "tpl_reminder_due";
 const REMINDER_TPL_MORA = "tpl_reminder_mora";
 
 type OffsetItem = { amount: string; unit: "minutes" | "hours" | "days" };
+const CLAMP_STYLE: CSSProperties = {
+  display: "-webkit-box",
+  WebkitLineClamp: 2,
+  WebkitBoxOrient: "vertical",
+  overflow: "hidden",
+  whiteSpace: "pre-wrap"
+};
 
 const MESSAGE_VARIABLES = [
   { label: "Nombre completo", value: "{{customer.name}}" },
@@ -342,11 +350,11 @@ export function NotificationsSimple({
                         <div className="saved-conn-meta-item" style={{ gridColumn: "1 / -1" }}>
                           <span className="saved-conn-meta-label">Detalle</span>
                           {kind === "TEXT" ? (
-                            <span className="saved-conn-meta-value" style={{ whiteSpace: "pre-wrap" }}>
+                            <span className="saved-conn-meta-value" style={CLAMP_STYLE}>
                               {content || "—"}
                             </span>
                           ) : (
-                            <span className="saved-conn-meta-value" style={{ whiteSpace: "pre-wrap" }}>
+                            <span className="saved-conn-meta-value" style={CLAMP_STYLE}>
                               {waName ? `${waName} (${waLang})` : "—"}
                               {waParams.length ? ` · ${waParams.map((p) => p.value).join(" | ")}` : ""}
                             </span>

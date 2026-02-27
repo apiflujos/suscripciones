@@ -3,6 +3,7 @@ import { HelpTip } from "../ui/HelpTip";
 import { getCsrfToken } from "../lib/csrf";
 import { NotificationsSimple } from "./NotificationsSimple";
 import { saveReminder, saveRealtime } from "./actions";
+import { normalizeErrorParam } from "../lib/errorParam";
 
 export const dynamic = "force-dynamic";
 
@@ -60,9 +61,9 @@ export default async function NotificationsPage({
 
       {sp.saved ? <div className="card cardPad">Guardado.</div> : null}
       {typeof sp.scheduled === "string" ? <div className="card cardPad">Jobs programados: {sp.scheduled}.</div> : null}
-      {sp.error ? (
+      {normalizeErrorParam(sp.error) ? (
         <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>
-          Error: {String(sp.error)}
+          Error: {String(normalizeErrorParam(sp.error))}
         </div>
       ) : null}
 

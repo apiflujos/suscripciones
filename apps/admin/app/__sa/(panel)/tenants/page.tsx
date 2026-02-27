@@ -2,6 +2,7 @@ import Link from "next/link";
 import { saAdminFetch } from "../../saApi";
 import { assignPlan, createTenant, setTenantActive } from "./actions";
 import { getCsrfToken } from "../../../lib/csrf";
+import { normalizeErrorParam } from "../../../lib/errorParam";
 
 export default async function SaTenantsPage({
   searchParams
@@ -10,7 +11,7 @@ export default async function SaTenantsPage({
 }) {
   const csrfToken = await getCsrfToken();
   const sp = (await searchParams) ?? {};
-  const error = String(sp.error || "").trim();
+  const error = normalizeErrorParam(sp.error);
 
   const tenantsRes = await saAdminFetch("/admin/sa/tenants", { method: "GET" });
   const plansRes = await saAdminFetch("/admin/sa/plans", { method: "GET" });

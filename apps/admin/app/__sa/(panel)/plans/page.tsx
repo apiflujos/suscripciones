@@ -1,6 +1,7 @@
 import { saAdminFetch } from "../../saApi";
 import { createPlan, setPlanServiceLimit } from "./actions";
 import { getCsrfToken } from "../../../lib/csrf";
+import { normalizeErrorParam } from "../../../lib/errorParam";
 
 function fmtMoneyCop(cents: number) {
   const v = (Number(cents || 0) / 100).toFixed(0);
@@ -14,7 +15,7 @@ export default async function SaPlansPage({
 }) {
   const csrfToken = await getCsrfToken();
   const sp = (await searchParams) ?? {};
-  const error = String(sp.error || "").trim();
+  const error = normalizeErrorParam(sp.error);
 
   const plansRes = await saAdminFetch("/admin/sa/plans", { method: "GET" });
   const limitsRes = await saAdminFetch("/admin/sa/limits", { method: "GET" });

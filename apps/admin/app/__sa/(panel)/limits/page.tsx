@@ -1,6 +1,7 @@
 import { saAdminFetch } from "../../saApi";
 import { upsertLimit } from "./actions";
 import { getCsrfToken } from "../../../lib/csrf";
+import { normalizeErrorParam } from "../../../lib/errorParam";
 
 export default async function SaLimitsPage({
   searchParams
@@ -9,7 +10,7 @@ export default async function SaLimitsPage({
 }) {
   const csrfToken = await getCsrfToken();
   const sp = (await searchParams) ?? {};
-  const error = String(sp.error || "").trim();
+  const error = normalizeErrorParam(sp.error);
 
   const limitsRes = await saAdminFetch("/admin/sa/limits", { method: "GET" });
   const modulesRes = await saAdminFetch("/admin/sa/modules", { method: "GET" });

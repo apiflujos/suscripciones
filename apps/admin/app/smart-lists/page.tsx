@@ -1,4 +1,5 @@
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
+import { normalizeErrorParam } from "../lib/errorParam";
 import { HelpTip } from "../ui/HelpTip";
 import { getCsrfToken } from "../lib/csrf";
 import { createSmartList, previewSmartList, syncSmartList } from "./actions";
@@ -69,7 +70,7 @@ export default async function SmartListsPage({
         </div>
       </div>
 
-      {sp.error ? <div className="panel module">Error: {sp.error}</div> : null}
+      {normalizeErrorParam(sp.error) ? <div className="panel module">Error: {normalizeErrorParam(sp.error)}</div> : null}
       {sp.created ? <div className="panel module">Lista creada.</div> : null}
       {sp.synced ? <div className="panel module">Sync: {sp.synced}</div> : null}
 

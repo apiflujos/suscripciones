@@ -1,5 +1,6 @@
 import { WompiTokenizeWidget } from "../../../customers/[id]/payment-method/WompiTokenizeWidget";
 import { getAdminApiConfig } from "../../../lib/adminApi";
+import { normalizeErrorParam } from "../../../lib/errorParam";
 import { PublicCheckoutLayout } from "../../_components/PublicCheckoutLayout";
 import { PublicAlert } from "../../_components/PublicAlert";
 import { PublicErrorPage } from "../../_components/PublicErrorPage";
@@ -108,10 +109,10 @@ export default async function PublicTokenizePage({
       primaryColor={primaryColor}
       fontFamily={fontFamily}
     >
-      {sp.error ? (
+      {normalizeErrorParam(sp.error) ? (
         <PublicAlert>
           {tokenErrorMessage || "Ocurrió un error al guardar tu método de pago."}{" "}
-          <span style={{ opacity: 0.8 }}>({sp.error})</span> {PUBLIC_COPY.errorGenericHelp}
+          <span style={{ opacity: 0.8 }}>({normalizeErrorParam(sp.error)})</span> {PUBLIC_COPY.errorGenericHelp}
         </PublicAlert>
       ) : null}
 

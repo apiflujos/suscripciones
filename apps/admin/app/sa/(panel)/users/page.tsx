@@ -1,6 +1,7 @@
 import { saAdminFetch } from "../../saApi";
 import { createUser } from "./actions";
 import { getCsrfToken } from "../../../lib/csrf";
+import { normalizeErrorParam } from "../../../lib/errorParam";
 
 export default async function SaUsersPage({
   searchParams
@@ -9,7 +10,7 @@ export default async function SaUsersPage({
 }) {
   const csrfToken = await getCsrfToken();
   const sp = (await searchParams) ?? {};
-  const error = String(sp.error || "").trim();
+  const error = normalizeErrorParam(sp.error);
   const tenantId = String(sp.tenantId || "").trim();
   const created = String(sp.created || "").trim() === "1";
 

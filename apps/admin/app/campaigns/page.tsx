@@ -1,4 +1,5 @@
 import { fetchAdminCached } from "../lib/adminApi";
+import { normalizeErrorParam } from "../lib/errorParam";
 import { HelpTip } from "../ui/HelpTip";
 import { getCsrfToken } from "../lib/csrf";
 import { createCampaign, runCampaign } from "./actions";
@@ -29,7 +30,7 @@ export default async function CampaignsPage({
         </div>
       </div>
 
-      {sp.error ? <div className="panel module">Error: {sp.error}</div> : null}
+      {normalizeErrorParam(sp.error) ? <div className="panel module">Error: {normalizeErrorParam(sp.error)}</div> : null}
       {sp.created ? <div className="panel module">Campaña creada.</div> : null}
       {sp.running ? <div className="panel module">Campaña en cola.</div> : null}
 

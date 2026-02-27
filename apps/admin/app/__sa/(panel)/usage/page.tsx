@@ -1,6 +1,7 @@
 import { saAdminFetch } from "../../saApi";
 import { consumeTest, resetCounters } from "./actions";
 import { getCsrfToken } from "../../../lib/csrf";
+import { normalizeErrorParam } from "../../../lib/errorParam";
 
 function monthKeyUtc(d: Date) {
   const y = d.getUTCFullYear();
@@ -20,7 +21,7 @@ export default async function SaUsagePage({
 }) {
   const csrfToken = await getCsrfToken();
   const sp = (await searchParams) ?? {};
-  const error = String(sp.error || "").trim();
+  const error = normalizeErrorParam(sp.error);
   const tenantId = String(sp.tenantId || "").trim();
   const periodKey = String(sp.periodKey || "").trim() || monthKeyUtc(new Date());
 
