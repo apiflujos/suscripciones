@@ -5,21 +5,42 @@ import { PublicCheckoutLayout } from "../../_components/PublicCheckoutLayout";
 import { PublicAlert } from "../../_components/PublicAlert";
 import { PublicErrorPage } from "../../_components/PublicErrorPage";
 import { PUBLIC_COPY } from "../../_components/publicCopy";
+import { headers } from "next/headers";
 
 export const dynamic = "force-dynamic";
 
-async function fetchPublicToken(token: string) {
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-  if (!apiBase) return { ok: false, status: 500, json: { error: "missing_next_public_api_base_url" } };
-  const res = await fetch(`${apiBase}/public/tokenization-links/${encodeURIComponent(token)}`, { cache: "no-store" });
+function getRequestBase() {
+  const headerStore = headers();
+  const forwardedProto = headerStore.get("x-forwarded-proto") || "https";
+  const forwardedHost = headerStore.get("x-forwarded-host") || headerStore.get("host");
+  if (!forwardedHost) return "";
+  return `${forwardedProto}://${forwardedHost}`;
+}
+
+async function fetchPublicToken(token: string, bases: string[]) {
+  const uniqueBases = Array.from(new Set(bases.map((base) => String(base || "").trim()).filter(Boolean)));
+  if (!uniqueBases.length) return { ok: false, status: 500, json: { error: "missing_next_public_api_base_url" } };
+  for (const apiBase of uniqueBases) {
+    const res = await fetch(`${apiBase}/public/tokenization-links/${encodeURIComponent(token)}`, { cache: "no-store" });
+    const json = await res.json().catch(() => null);
+    if (res.ok) return { ok: true, status: res.status, json, apiBase };
+  }
+  const lastBase = uniqueBases[uniqueBases.length - 1];
+  const res = await fetch(`${lastBase}/public/tokenization-links/${encodeURIComponent(token)}`, { cache: "no-store" });
   const json = await res.json().catch(() => null);
   return { ok: res.ok, status: res.status, json };
 }
 
-async function fetchCheckoutConfig() {
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-  if (!apiBase) return { ok: false, json: { error: "missing_next_public_api_base_url" } };
-  const res = await fetch(`${apiBase}/public/checkout-config`, { cache: "no-store" });
+async function fetchCheckoutConfig(bases: string[]) {
+  const uniqueBases = Array.from(new Set(bases.map((base) => String(base || "").trim()).filter(Boolean)));
+  if (!uniqueBases.length) return { ok: false, json: { error: "missing_next_public_api_base_url" } };
+  for (const apiBase of uniqueBases) {
+    const res = await fetch(`${apiBase}/public/checkout-config`, { cache: "no-store" });
+    const json = await res.json().catch(() => null);
+    if (res.ok && json?.config) return { ok: true, json, apiBase };
+  }
+  const lastBase = uniqueBases[uniqueBases.length - 1];
+  const res = await fetch(`${lastBase}/public/checkout-config`, { cache: "no-store" });
   const json = await res.json().catch(() => null);
   return { ok: res.ok, json };
 }
@@ -33,8 +54,10 @@ export default async function PublicTokenizePage({
 }) {
   const { token } = await params;
   const sp = (await searchParams) ?? {};
-  const tokenRes = await fetchPublicToken(token);
-  const configRes = await fetchCheckoutConfig();
+  const requestBase = getRequestBase();
+  const apiBases = [process.env.NEXT_PUBLIC_API_BASE_URL || "", requestBase];
+  const tokenRes = await fetchPublicToken(token, apiBases);
+  const configRes = await fetchCheckoutConfig(apiBases);
   const config = configRes.ok ? configRes.json?.config || {} : {};
   const template = tokenRes.ok ? tokenRes.json?.template || null : null;
   const layout = (template?.layout || {}) as any;
