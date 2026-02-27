@@ -87,6 +87,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   }
 
   const customerId = String(tokenJson?.customer?.id || "").trim();
+  const customerEmail = String(tokenJson?.customer?.email || "").trim();
   const linkPlanId = String(tokenJson?.link?.planId || tokenJson?.template?.planId || "").trim();
   const linkKind = String(tokenJson?.link?.kind || tokenJson?.template?.kind || "").trim();
   const usedAt = String(tokenJson?.link?.usedAt || "").trim();
@@ -94,6 +95,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
     return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=token_used`, redirectBase));
   }
   if (!customerId) return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=customer_not_found`, redirectBase));
+  if (!customerEmail) {
+    return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=customer_email_required`, redirectBase));
+  }
 
   const formData = await req.formData().catch(() => null);
   if (!formData) return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=invalid_form`, redirectBase));
@@ -109,20 +113,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   const type = tokenToType(wompiToken);
 
   try {
-    const consumeRes = await fetch(`${apiBase}/admin/customers/tokenization-links/${encodeURIComponent(linkToken)}/consume`, {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${token}`,
-        "x-admin-token": token
-      },
-      cache: "no-store"
-    });
-    const consumeJson = await consumeRes.json().catch(() => null);
-    if (!consumeRes.ok) {
-      const code = String(consumeJson?.error || `request_failed_${consumeRes.status}`);
-      return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=${encodeURIComponent(code)}`, redirectBase));
-    }
-
     const res = await fetch(`${apiBase}/admin/customers/${customerId}/wompi/payment-source`, {
       method: "POST",
       headers: {
@@ -138,6 +128,15 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
       const msg = json?.error || `request_failed_${res.status}`;
       return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=${encodeURIComponent(msg)}`, redirectBase));
     }
+
+    await fetch(`${apiBase}/admin/customers/tokenization-links/${encodeURIComponent(linkToken)}/consume`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "x-admin-token": token
+      },
+      cache: "no-store"
+    }).catch(() => null);
 
     const existing = await fetch(`${apiBase}/admin/customers/${customerId}`, {
       headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
