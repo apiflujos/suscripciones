@@ -29,8 +29,14 @@ export async function POST(req: Request) {
   const base = baseFromSettings.replace(/\/$/, "");
   if (!base) return NextResponse.json({ ok: false, error: "missing_subscription_base_url" }, { status: 400 });
 
+  const ensureHttps = (value: string) => {
+    if (!value) return value;
+    if (/^https?:\/\//i.test(value)) return value;
+    return `https://${value.replace(/^\/+/, "")}`;
+  };
+
   const linkToken = crypto.randomBytes(18).toString("hex");
-  const normalized = base.replace(/\/$/, "");
+  const normalized = ensureHttps(base).replace(/\/$/, "");
   const hasSubPath = /\/public\/suscripcion$/i.test(normalized);
   const link = `${normalized}${hasSubPath ? "" : "/public/suscripcion"}/${linkToken}`;
   const scheduleRes = await fetch(`${API_BASE}/admin/notifications/schedule/tokenization?forceNow=1`, {

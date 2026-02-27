@@ -3,8 +3,14 @@ import crypto from "crypto";
 import { normalizeToken } from "../../../lib/normalizeToken";
 import { getRequiredApiBase } from "../../../lib/adminApi";
 
+function ensureHttps(value: string) {
+  if (!value) return value;
+  if (/^https?:\/\//i.test(value)) return value;
+  return `https://${value.replace(/^\/+/, "")}`;
+}
+
 function buildPublicUrl(base: string, path: string, utm: string) {
-  const normalized = base.replace(/\/$/, "");
+  const normalized = ensureHttps(base).replace(/\/$/, "");
   const url = `${normalized}${path.startsWith("/") ? "" : "/"}${path}`;
   if (!utm) return url;
   return `${url}${url.includes("?") ? "&" : "?"}${utm.replace(/^\?+/, "")}`;
@@ -60,7 +66,7 @@ export async function POST(req: Request) {
 
   const linkToken = crypto.randomBytes(18).toString("hex");
   const utm = String(checkoutConfig?.defaultUtmParams || "").trim();
-  const normalized = base.replace(/\/$/, "");
+  const normalized = ensureHttps(base).replace(/\/$/, "");
   const hasCartPath = /\/public\/cart$/i.test(normalized);
   const link = buildPublicUrl(normalized, `${hasCartPath ? "" : "/public/cart"}/${linkToken}`, utm);
 

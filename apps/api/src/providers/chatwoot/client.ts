@@ -67,6 +67,17 @@ export class ChatwootClient {
     return e164;
   }
 
+  public buildSearchQueries(input: { email?: string; phoneNumber?: string }) {
+    const out: string[] = [];
+    const email = String(input.email ?? "").trim();
+    if (email) out.push(email);
+    const rawPhone = String(input.phoneNumber ?? "").trim();
+    const normalized = this.normalizePhoneNumber(rawPhone);
+    if (normalized) out.push(normalized);
+    if (rawPhone && rawPhone !== normalized) out.push(rawPhone);
+    return Array.from(new Set(out.filter((q) => q)));
+  }
+
   private async request(path: string, init: RequestInit) {
     const url = `${this.opts.baseUrl.replace(/\/$/, "")}${path}`;
     const res = await fetch(url, {

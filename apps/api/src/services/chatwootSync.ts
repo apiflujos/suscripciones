@@ -194,31 +194,49 @@ export async function ensureChatwootContactForCustomer(customerId: string) {
       phoneNumber: customer.phone || undefined
     });
   } catch (err: any) {
-    // If contact exists already, we can at least try to search by email/phone.
-    const q = customer.email || customer.phone || "";
-    if (q) {
+    // If contact exists already, try to search by normalized phone/email.
+    const queries = client.buildSearchQueries({ email: customer.email || undefined, phoneNumber: customer.phone || undefined });
+    for (const q of queries) {
       const found = await client.searchContact(q).catch(() => null);
-      if (found?.contactId) {
-        await client
-          .updateContact(found.contactId, {
-            name: customer.name || undefined,
-            email: customer.email || undefined,
-            phoneNumber: customer.phone || undefined
-          })
-          .then(() =>
-            systemLog(LogLevel.INFO, "chatwoot.sync", "Contacto actualizado", {
-              customerId: customer.id,
-              contactId: found.contactId
-            }).catch(() => {})
-          )
-          .catch(() => {});
-        const merged = {
-          ...(meta && typeof meta === "object" ? meta : {}),
-          chatwoot: { ...(meta?.chatwoot || {}), contactId: found.contactId }
-        };
-        await prisma.customer.update({ where: { id: customer.id }, data: { metadata: merged as any } }).catch(() => {});
-        return { ok: true as const, contactId: found.contactId, sourceId: existingSourceId };
+      if (!found?.contactId) continue;
+      await client
+        .updateContact(found.contactId, {
+          name: customer.name || undefined,
+          email: customer.email || undefined,
+          phoneNumber: customer.phone || undefined
+        })
+        .then(() =>
+          systemLog(LogLevel.INFO, "chatwoot.sync", "Contacto actualizado", {
+            customerId: customer.id,
+            contactId: found.contactId
+          }).catch(() => {})
+        )
+        .catch(() => {});
+
+      let sourceId = existingSourceId;
+      if (!sourceId) {
+        try {
+          const contactInfo = await client.getContact(found.contactId);
+          sourceId = contactInfo.sourceId;
+        } catch {
+          // ignore
+        }
       }
+      if (!sourceId) {
+        try {
+          const createdInbox = await client.createContactInbox(found.contactId);
+          sourceId = createdInbox.sourceId;
+        } catch {
+          // ignore
+        }
+      }
+
+      const merged = {
+        ...(meta && typeof meta === "object" ? meta : {}),
+        chatwoot: { ...(meta?.chatwoot || {}), contactId: found.contactId, sourceId }
+      };
+      await prisma.customer.update({ where: { id: customer.id }, data: { metadata: merged as any } }).catch(() => {});
+      return { ok: true as const, contactId: found.contactId, sourceId };
     }
     await systemLog(LogLevel.WARN, "chatwoot.sync", "Could not create/search contact for customer", {
       customerId: customer.id,

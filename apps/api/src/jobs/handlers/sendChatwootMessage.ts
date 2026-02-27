@@ -71,20 +71,39 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
       }).catch(() => {});
     }
   } catch {
-    const q = msg.customer.email || msg.customer.phone || "";
-    if (q) {
-      const found = await client.searchContact(q);
+    const queries = client.buildSearchQueries({
+      email: msg.customer.email || undefined,
+      phoneNumber: msg.customer.phone || undefined
+    });
+    for (const q of queries) {
+      const found = await client.searchContact(q).catch(() => null);
       contactId = found?.contactId;
-      if (contactId) {
-        const merged = {
-          ...(customerMeta && typeof customerMeta === "object" ? customerMeta : {}),
-          chatwoot: { ...(customerMeta?.chatwoot || {}), contactId }
-        };
-        await prisma.customer.update({
-          where: { id: msg.customerId },
-          data: { metadata: merged as any }
-        }).catch(() => {});
+      if (!contactId) continue;
+      let fetchedSourceId: string | undefined;
+      try {
+        const contactInfo = await client.getContact(contactId);
+        fetchedSourceId = contactInfo.sourceId;
+      } catch {
+        // ignore
       }
+      if (!fetchedSourceId) {
+        try {
+          const createdInbox = await client.createContactInbox(contactId);
+          fetchedSourceId = createdInbox.sourceId;
+        } catch {
+          // ignore
+        }
+      }
+      sourceId = fetchedSourceId || sourceId;
+      const merged = {
+        ...(customerMeta && typeof customerMeta === "object" ? customerMeta : {}),
+        chatwoot: { ...(customerMeta?.chatwoot || {}), contactId, sourceId }
+      };
+      await prisma.customer.update({
+        where: { id: msg.customerId },
+        data: { metadata: merged as any }
+      }).catch(() => {});
+      break;
     }
   }
 
