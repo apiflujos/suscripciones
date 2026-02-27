@@ -25,7 +25,11 @@ export async function POST(req: Request) {
     headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
   }).catch(() => null);
   const settingsJson = settingsRes && "ok" in settingsRes ? await (settingsRes as any).json().catch(() => null) : null;
-  const baseFromSettings = String(settingsJson?.checkoutConfig?.subscriptionBaseUrl || "").trim();
+  const baseFromSettings = String(
+    settingsJson?.checkoutConfig?.subscriptionBaseUrl ||
+    settingsJson?.checkoutConfig?.planBaseUrl ||
+    ""
+  ).trim();
   const appBase = String(process.env.APP_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_PUBLIC_BASE_URL || "").trim();
   const fallbackBase = appBase ? `${appBase.replace(/\/$/, "")}/public/suscripcion` : "";
   const base = (baseFromSettings || fallbackBase).replace(/\/$/, "");

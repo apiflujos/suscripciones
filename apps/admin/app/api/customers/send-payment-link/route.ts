@@ -26,6 +26,7 @@ export async function POST(req: Request) {
   const customerId = String(body?.customerId || "").trim();
   const customerName = String(body?.customerName || "").trim() || "Cliente";
   const tenantId = String(body?.tenantId || "").trim();
+  const templateId = String(body?.templateId || "").trim();
   const amountInCents = pesosToCents(String(body?.amount || ""));
   if (!customerId || amountInCents <= 0) {
     return NextResponse.json({ ok: false, error: "monto_invalido" }, { status: 400 });
@@ -91,7 +92,7 @@ export async function POST(req: Request) {
           token: tokenValue,
           checkoutUrl,
           kind: "PLAN",
-          templateId: null,
+          templateId: templateId || null,
           utmParams: checkoutConfig?.defaultUtmParams || null,
           createdAt: new Date().toISOString(),
           expiresAt: null,

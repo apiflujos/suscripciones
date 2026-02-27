@@ -90,6 +90,7 @@ export function CustomersTable({
   const [payModalOpen, setPayModalOpen] = useState(false);
   const [payModalCustomer, setPayModalCustomer] = useState<CustomerRow | null>(null);
   const [payAmount, setPayAmount] = useState("");
+  const [payTemplateByCustomer, setPayTemplateByCustomer] = useState<Record<string, string>>({});
   const [tokenModalOpen, setTokenModalOpen] = useState(false);
   const [tokenModalCustomer, setTokenModalCustomer] = useState<CustomerRow | null>(null);
 
@@ -152,6 +153,13 @@ export function CustomersTable({
     const chosen = tokenTemplateByCustomer[customerId];
     if (chosen) return chosen;
     const first = checkoutTemplates.find((t: any) => String(t?.kind || "") === "SUBSCRIPTION");
+    return first?.id || "";
+  }
+
+  function resolvePayTemplate(customerId: string) {
+    const chosen = payTemplateByCustomer[customerId];
+    if (chosen) return chosen;
+    const first = checkoutTemplates.find((t: any) => String(t?.kind || "") === "PLAN");
     return first?.id || "";
   }
 
@@ -520,6 +528,8 @@ export function CustomersTable({
                 e.preventDefault();
                 const customer = payModalCustomer;
                 if (!customer) return;
+                const templateId = resolvePayTemplate(customer.id);
+                if (!templateId) return;
                 setSendingId(customer.id);
                 setSendError((prev) => ({ ...prev, [customer.id]: "" }));
                 setSendOk((prev) => ({ ...prev, [customer.id]: "" }));
@@ -531,7 +541,8 @@ export function CustomersTable({
                       customerId: customer.id,
                       customerName: customer.name || "",
                       amount: payAmount,
-                      tenantId: customer.tenantId || ""
+                      tenantId: customer.tenantId || "",
+                      templateId
                     })
                   });
                   const contentType = res.headers.get("content-type") || "";
@@ -559,6 +570,33 @@ export function CustomersTable({
               }}
             >
               <div className="field">
+                <label>Plantilla de plan</label>
+                <select
+                  className="select"
+                  value={resolvePayTemplate(payModalCustomer.id)}
+                  onChange={(e) =>
+                    setPayTemplateByCustomer((prev) => ({
+                      ...prev,
+                      [payModalCustomer.id]: e.target.value
+                    }))
+                  }
+                  required
+                >
+                  {checkoutTemplates
+                    .filter((t: any) => String(t?.kind || "") === "PLAN")
+                    .map((t: any) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                </select>
+                {checkoutTemplates.filter((t: any) => String(t?.kind || "") === "PLAN").length === 0 ? (
+                  <div className="field-hint" style={{ color: "var(--danger)" }}>
+                    No hay plantillas de plan configuradas.
+                  </div>
+                ) : null}
+              </div>
+              <div className="field">
                 <label>Monto</label>
                 <input
                   className="input"
@@ -573,7 +611,7 @@ export function CustomersTable({
                 <button className="ghost" type="button" onClick={closePayModal}>
                   Cancelar
                 </button>
-                <button className="primary" type="submit" disabled={!payAmount}>
+                <button className="primary" type="submit" disabled={!payAmount || !resolvePayTemplate(payModalCustomer.id)}>
                   Enviar
                 </button>
               </div>
@@ -608,7 +646,7 @@ export function CustomersTable({
                       customerId: customer.id,
                       customerName: customer.name || "",
                       tenantId: customer.tenantId || "",
-                      templateId: resolveTokenTemplate(customer.id)
+                      templateId: resolveCartTemplate(customer.id)
                     })
                   });
                   const contentType = res.headers.get("content-type") || "";
