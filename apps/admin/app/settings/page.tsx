@@ -423,10 +423,6 @@ export default async function SettingsPage({
             <RedirectConfigPanel
               defaults={settings?.checkoutConfig || {}}
               appPublicBaseUrl={appPublicBaseUrl}
-              csrfToken={csrfToken}
-              onSave={updateCheckoutConfig}
-              inlineState={inlineState}
-              returnTo={returnTo}
             />
             <CheckoutTemplatesPanel
               templates={templates}
