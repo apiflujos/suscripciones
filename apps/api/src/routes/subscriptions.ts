@@ -171,35 +171,25 @@ subscriptionsRouter.post("/", async (req, res) => {
 
   const runAt = periodEnd <= new Date(Date.now() + 5_000) ? new Date() : periodEnd;
 
-  // AUTO_* modes schedule work to happen at the cutoff/charge time.
+  // AUTO_* modes: do not auto-enqueue payment retries (manual only).
   if (collectionMode === "AUTO_LINK" || collectionMode === "AUTO_DEBIT") {
-    await prisma.retryJob
-      .create({
-        data: {
-          type: RetryJobType.PAYMENT_RETRY,
-          runAt,
-          payload: { subscriptionId: subscription.id }
-        }
-      })
-      .catch(() => {});
-
     // If requested, generate a link right away (useful for first charge or missing token).
     const isDueNow = runAt.getTime() <= Date.now() + 5_000;
     const shouldCreateLinkNow =
       (collectionMode === "AUTO_LINK" ? parsed.data.createPaymentLink && isDueNow : false) ||
       (collectionMode === "AUTO_DEBIT" && (!hasPaymentSource || !hasCustomerEmail));
 
-    if (!shouldCreateLinkNow) return res.status(201).json({ subscription, scheduled: true });
+    if (!shouldCreateLinkNow) return res.status(201).json({ subscription, scheduled: false });
 
     try {
       const link = await createPaymentLinkForSubscription({ subscriptionId: subscription.id });
-      return res.status(201).json({ subscription, scheduled: true, ...link, paymentSourceMissing: collectionMode === "AUTO_DEBIT" && !hasPaymentSource });
+      return res.status(201).json({ subscription, scheduled: false, ...link, paymentSourceMissing: collectionMode === "AUTO_DEBIT" && !hasPaymentSource });
     } catch (err: any) {
       await systemLog(LogLevel.ERROR, "subscriptions.create", "Subscription created but payment link failed", {
         subscriptionId: subscription.id,
         err: err?.message ? String(err.message) : "unknown error"
       }).catch(() => {});
-      return res.status(201).json({ subscription, scheduled: true, paymentLinkError: "wompi_payment_link_failed" });
+      return res.status(201).json({ subscription, scheduled: false, paymentLinkError: "wompi_payment_link_failed" });
     }
   }
 
@@ -213,14 +203,6 @@ subscriptionsRouter.post("/", async (req, res) => {
       subscriptionId: subscription.id,
       err: err?.message ? String(err.message) : "unknown error"
     }).catch(() => {});
-    await prisma.retryJob
-      .create({
-        data: {
-          type: RetryJobType.PAYMENT_RETRY,
-          payload: { subscriptionId: subscription.id }
-        }
-      })
-      .catch(() => {});
     return res.status(201).json({ subscription, paymentLinkError: "wompi_payment_link_failed" });
   }
 });
@@ -361,19 +343,9 @@ subscriptionsRouter.post("/:id/schedule-cutoff", async (req, res) => {
     } as any
   });
 
-  await prisma.retryJob
-    .create({
-      data: {
-        type: RetryJobType.PAYMENT_RETRY,
-        runAt: cutoffAt <= new Date(Date.now() + 5_000) ? new Date() : cutoffAt,
-        payload: { subscriptionId }
-      }
-    })
-    .catch(() => {});
-
   await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});
 
-  res.status(200).json({ ok: true, subscription: updated, scheduledAt: cutoffAt.toISOString() });
+  res.status(200).json({ ok: true, subscription: updated, scheduledAt: cutoffAt.toISOString(), scheduled: false });
 });
 
 subscriptionsRouter.post("/:id/change-plan", async (req, res) => {
@@ -418,19 +390,9 @@ subscriptionsRouter.post("/:id/change-plan", async (req, res) => {
     } as any
   });
 
-  await prisma.retryJob
-    .create({
-      data: {
-        type: RetryJobType.PAYMENT_RETRY,
-        runAt: cutoffAt <= new Date(Date.now() + 5_000) ? new Date() : cutoffAt,
-        payload: { subscriptionId }
-      }
-    })
-    .catch(() => {});
-
   await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});
 
-  res.status(200).json({ ok: true, subscription: updated, scheduledAt: cutoffAt.toISOString() });
+  res.status(200).json({ ok: true, subscription: updated, scheduledAt: cutoffAt.toISOString(), scheduled: false });
 });
 
 subscriptionsRouter.post("/:id/suspend", async (req, res) => {
