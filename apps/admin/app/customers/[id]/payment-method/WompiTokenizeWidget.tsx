@@ -18,6 +18,14 @@ export function WompiTokenizeWidget({
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [acceptedPersonal, setAcceptedPersonal] = useState(false);
 
+  const normalizedPublicKey = useMemo(() => {
+    const raw = String(publicKey || "").trim();
+    if (!raw) return "";
+    const lowered = raw.toLowerCase();
+    if (lowered === "undefined" || lowered === "null") return "";
+    return raw;
+  }, [publicKey]);
+
   const requiresAcceptance = useMemo(() => Boolean(acceptance?.termsUrl || acceptance?.personalDataUrl), [acceptance]);
   const canTokenize = useMemo(() => {
     if (!requiresAcceptance) return true;
@@ -38,51 +46,7 @@ export function WompiTokenizeWidget({
       const path = window.location.pathname;
       form.setAttribute("action", path);
     }
-
-    const cleanup = () => {
-      const prevScripts = Array.from(form.querySelectorAll("script")).filter((s) => {
-        const src = String(s.getAttribute("src") || "");
-        return (
-          s.getAttribute("data-wompi-widget") === "tokenize" ||
-          s.getAttribute("data-public-key") ||
-          src.includes("wompi")
-        );
-      });
-      for (const s of prevScripts) s.remove();
-      const prevButton = form.querySelector(".waybox-button");
-      if (prevButton) prevButton.remove();
-    };
-
-    cleanup();
-    if (!publicKey) return;
-
-    const script = document.createElement("script");
-    // Wompi widget is a classic script (not ESM). Using module breaks currentScript.
-    script.setAttribute("data-render", "button");
-    script.setAttribute("data-widget-operation", "tokenize");
-    script.setAttribute("data-public-key", publicKey);
-    script.dataset.publicKey = publicKey;
-    script.setAttribute("data-wompi-widget", "tokenize");
-    script.async = false;
-    script.defer = false;
-    script.src = "https://checkout.wompi.co/widget.js";
-    form.appendChild(script);
-
-    const onSubmit = () => {
-      const button = form.querySelector<HTMLButtonElement>(".waybox-button, button[type='submit']");
-      if (button) {
-        button.disabled = true;
-        button.setAttribute("aria-disabled", "true");
-      }
-      form.setAttribute("data-submitting", "true");
-    };
-    form.addEventListener("submit", onSubmit);
-
-    return () => {
-      cleanup();
-      form.removeEventListener("submit", onSubmit);
-    };
-  }, [publicKey]);
+  }, []);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -90,41 +54,20 @@ export function WompiTokenizeWidget({
     const form = host.closest("form");
     if (!form) return;
 
-    const toggleButton = () => {
-      const button = form.querySelector<HTMLButtonElement>(".waybox-button");
-      if (!button) return;
-      const shouldDisable = !canTokenize;
-      button.disabled = shouldDisable;
-      button.setAttribute("aria-disabled", shouldDisable ? "true" : "false");
-      button.style.pointerEvents = shouldDisable ? "none" : "";
-      button.style.opacity = shouldDisable ? "0.6" : "";
-      if (shouldDisable) {
-        button.setAttribute("data-locked", "true");
-      } else {
-        button.removeAttribute("data-locked");
-      }
-    };
+    if (normalizedPublicKey && canTokenize) return;
 
-    toggleButton();
-    const observer = new MutationObserver(() => toggleButton());
-    observer.observe(form, { childList: true, subtree: true });
-
-    const onClickCapture = (event: MouseEvent) => {
-      if (canTokenize) return;
-      const target = event.target as HTMLElement | null;
-      const button = target?.closest?.(".waybox-button");
-      if (button) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-    };
-    form.addEventListener("click", onClickCapture, true);
-
-    return () => {
-      observer.disconnect();
-      form.removeEventListener("click", onClickCapture, true);
-    };
-  }, [canTokenize]);
+    const prevScripts = Array.from(form.querySelectorAll("script")).filter((s) => {
+      const src = String(s.getAttribute("src") || "");
+      return (
+        s.getAttribute("data-wompi-widget") === "tokenize" ||
+        s.getAttribute("data-public-key") ||
+        src.includes("wompi")
+      );
+    });
+    for (const s of prevScripts) s.remove();
+    const prevButton = form.querySelector(".waybox-button");
+    if (prevButton) prevButton.remove();
+  }, [normalizedPublicKey, canTokenize]);
 
   return (
     <div style={{ display: "grid", gap: 10 }}>
@@ -169,6 +112,16 @@ export function WompiTokenizeWidget({
       ) : null}
       <input type="hidden" name="accept_terms" value={acceptedTerms ? "1" : "0"} />
       <input type="hidden" name="accept_personal_data" value={acceptedPersonal ? "1" : "0"} />
+      {normalizedPublicKey && canTokenize ? (
+        <script
+          key={`wompi-tokenize-${normalizedPublicKey}`}
+          src="https://checkout.wompi.co/widget.js"
+          data-render="button"
+          data-widget-operation="tokenize"
+          data-public-key={normalizedPublicKey}
+          data-wompi-widget="tokenize"
+        ></script>
+      ) : null}
       <div ref={hostRef} />
     </div>
   );

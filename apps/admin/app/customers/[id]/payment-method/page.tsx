@@ -48,7 +48,7 @@ export default async function CustomerPaymentMethodPage({
   })();
   const apiBaseUrl =
     String(wompiEnv?.apiBaseUrl || "").trim() ||
-    (activeEnv === "SANDBOX" ? "https://sandbox.wompi.co/v1" : "https://api.wompi.co/v1");
+    (activeEnv === "SANDBOX" ? "https://sandbox.wompi.co/v1" : "https://production.wompi.co/v1");
   const acceptanceLinks = publicKey ? await fetchWompiAcceptanceLinks({ apiBaseUrl, publicKey }) : null;
   const customer = customerRes.ok ? (customerRes.json?.customer ?? null) : null;
 
