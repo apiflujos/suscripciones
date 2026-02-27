@@ -326,7 +326,18 @@ export default async function BillingPage({
                 ? "El cobro se procesó correctamente."
                 : `No se pudo cobrar la suscripción. ${chargeError || ""}`}
             </div>
-            <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
+            <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              {chargeStatus === "fail" && actionSubscriptionId ? (
+                <form action={chargeSubscriptionNow}>
+                  <input type="hidden" name="csrf" value={csrfToken} />
+                  <input type="hidden" name="subscriptionId" value={actionSubscriptionId} />
+                  <input type="hidden" name="returnTo" value={returnTo} />
+                  {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+                  <button className="ghost btn-compact btn-blue" type="submit">
+                    Reintentar cobro
+                  </button>
+                </form>
+              ) : null}
               <a className="primary" href={returnTo}>Aceptar</a>
             </div>
           </div>
