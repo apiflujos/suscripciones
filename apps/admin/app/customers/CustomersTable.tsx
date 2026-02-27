@@ -807,11 +807,6 @@ export function CustomersTable({
                 const customer = tokenModalCustomer;
                 if (!customer) return;
                 const templateId = resolveTokenTemplate(customer.id);
-                if (!templateId) {
-                  closeTokenModal();
-                  openNotify("fail", "No hay plantilla de suscripción configurada.");
-                  return;
-                }
                 setSendingTokenId(customer.id);
                 setSendError((prev) => ({ ...prev, [customer.id]: "" }));
                 setSendOk((prev) => ({ ...prev, [customer.id]: "" }));
@@ -823,7 +818,7 @@ export function CustomersTable({
                       customerId: customer.id,
                       customerName: customer.name || "",
                       tenantId: customer.tenantId || "",
-                      templateId
+                      ...(templateId ? { templateId } : {})
                     })
                   });
                   const contentType = res.headers.get("content-type") || "";
@@ -863,8 +858,8 @@ export function CustomersTable({
                       [tokenModalCustomer.id]: e.target.value
                     }))
                   }
-                  required
                 >
+                  <option value="">Sin plantilla</option>
                   {checkoutTemplates
                     .filter((t: any) => String(t?.kind || "") === "SUBSCRIPTION")
                     .map((t: any) => (
