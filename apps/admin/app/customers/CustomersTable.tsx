@@ -261,7 +261,7 @@ export function CustomersTable({
     let hasSub = false;
     for (const id of ids) {
       const p = productById.get(String(id));
-      const mode = String(p?.collectionMode || "");
+      const mode = String(p?.collectionMode || p?.metadata?.collectionMode || "");
       if (!mode || mode === "AUTO_LINK") hasPlan = true;
       if (mode === "AUTO_DEBIT") hasSub = true;
       if (hasPlan && hasSub) return "MIXED";
