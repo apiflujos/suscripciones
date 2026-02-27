@@ -187,7 +187,7 @@ export function ConnectionsPanel({
                       <input
                         className="input"
                         name="apiBaseUrl"
-                        placeholder={envKey === "SANDBOX" ? "https://sandbox.wompi.co/v1" : "https://production.wompi.co/v1"}
+                        placeholder={envKey === "SANDBOX" ? "https://sandbox.wompi.co/v1" : "https://api.wompi.co/v1"}
                         defaultValue={(envKey === "PRODUCTION" ? wompiProduction : wompiSandbox)?.apiBaseUrl || ""}
                       />
                     </div>

@@ -59,7 +59,7 @@ export async function getWompiApiBaseUrl(): Promise<string> {
   const fromDb = await getCredentialForEnv(CredentialProvider.WOMPI, "API_BASE_URL", activeEnv);
   if (fromDb) return fromDb;
   if (activeEnv === "SANDBOX") return "https://sandbox.wompi.co/v1";
-  return "https://production.wompi.co/v1";
+  return "https://api.wompi.co/v1";
 }
 
 export async function getWompiCheckoutLinkBaseUrl(): Promise<string> {

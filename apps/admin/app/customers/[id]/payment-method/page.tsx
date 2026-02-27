@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { WompiTokenizeWidget } from "./WompiTokenizeWidget";
 import { fetchAdminCached, getAdminApiConfig } from "../../../lib/adminApi";
 import { normalizeErrorParam } from "../../../lib/errorParam";
 import { fetchWompiAcceptanceLinks } from "../../../lib/wompiMerchant";
 import { HelpTip } from "../../../ui/HelpTip";
+import { WompiCardTokenizeForm } from "../../../ui/WompiCardTokenizeForm";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +48,7 @@ export default async function CustomerPaymentMethodPage({
   })();
   const apiBaseUrl =
     String(wompiEnv?.apiBaseUrl || "").trim() ||
-    (activeEnv === "SANDBOX" ? "https://sandbox.wompi.co/v1" : "https://production.wompi.co/v1");
+    (activeEnv === "SANDBOX" ? "https://sandbox.wompi.co/v1" : "https://api.wompi.co/v1");
   const acceptanceLinks = publicKey ? await fetchWompiAcceptanceLinks({ apiBaseUrl, publicKey }) : null;
   const customer = customerRes.ok ? (customerRes.json?.customer ?? null) : null;
 
@@ -127,12 +127,17 @@ export default async function CustomerPaymentMethodPage({
                 Este contacto no tiene email. Wompi requiere `customer_email`.
               </div>
             ) : (
-              <form method="POST" action={`/customers/${customer.id}/payment-method/process`} style={{ display: "grid", gap: 10 }}>
+              <div style={{ display: "grid", gap: 10 }}>
                 <div className="field-hint">
                   Al tokenizar, Wompi devolverá un `token` que se registrará como `paymentSourceId` en este contacto.
                 </div>
-                <WompiTokenizeWidget publicKey={publicKey} acceptance={acceptanceLinks} />
-              </form>
+                <WompiCardTokenizeForm
+                  publicKey={publicKey}
+                  apiBaseUrl={apiBaseUrl}
+                  action={`/customers/${customer.id}/payment-method/process`}
+                  acceptance={acceptanceLinks}
+                />
+              </div>
             )}
           </div>
         </div>

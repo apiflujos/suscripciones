@@ -8,7 +8,7 @@ const envSchema = z.object({
   WOMPI_PUBLIC_KEY: z.string().optional().or(z.literal("")),
   WOMPI_PRIVATE_KEY: z.string().optional().or(z.literal("")),
   WOMPI_INTEGRITY_SECRET: z.string().optional().or(z.literal("")),
-  WOMPI_API_BASE_URL: z.string().url().default("https://production.wompi.co/v1"),
+  WOMPI_API_BASE_URL: z.string().url().default("https://api.wompi.co/v1"),
   WOMPI_CHECKOUT_LINK_BASE_URL: z.string().url().default("https://checkout.wompi.co/l/"),
   WOMPI_REDIRECT_URL: z.string().url().optional().or(z.literal("")),
   ADMIN_API_TOKEN: z.string().min(12),

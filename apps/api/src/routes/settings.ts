@@ -299,7 +299,7 @@ settingsRouter.post("/wompi/test", async (req, res) => {
     apiBaseInput ||
     (await getCredential(CredentialProvider.WOMPI, `API_BASE_URL_${env}`)) ||
     (await getCredential(CredentialProvider.WOMPI, "API_BASE_URL")) ||
-    (env === "SANDBOX" ? "https://sandbox.wompi.co/v1" : "https://production.wompi.co/v1");
+    (env === "SANDBOX" ? "https://sandbox.wompi.co/v1" : "https://api.wompi.co/v1");
 
   if (!publicKey) return res.status(400).json({ error: "wompi_public_key_not_configured" });
 

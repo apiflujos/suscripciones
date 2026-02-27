@@ -1,10 +1,10 @@
-import { WompiTokenizeWidget } from "../../../customers/[id]/payment-method/WompiTokenizeWidget";
 import { normalizeErrorParam } from "../../../lib/errorParam";
 import { fetchWompiAcceptanceLinks } from "../../../lib/wompiMerchant";
 import { PublicCheckoutLayout } from "../../_components/PublicCheckoutLayout";
 import { PublicAlert } from "../../_components/PublicAlert";
 import { PublicErrorPage } from "../../_components/PublicErrorPage";
 import { PUBLIC_COPY } from "../../_components/publicCopy";
+import { WompiCardTokenizeForm } from "../../../ui/WompiCardTokenizeForm";
 
 export const dynamic = "force-dynamic";
 
@@ -72,7 +72,7 @@ export default async function PublicTokenizePage({
     const configured = String(config?.wompiApiBaseUrl || "").trim();
     if (configured) return configured;
     const activeEnv = String(config?.wompiActiveEnv || "PRODUCTION").toUpperCase();
-    return activeEnv === "SANDBOX" ? "https://sandbox.wompi.co/v1" : "https://production.wompi.co/v1";
+    return activeEnv === "SANDBOX" ? "https://sandbox.wompi.co/v1" : "https://api.wompi.co/v1";
   })();
   const acceptanceLinks = publicKey ? await fetchWompiAcceptanceLinks({ apiBaseUrl, publicKey }) : null;
 
@@ -118,9 +118,12 @@ export default async function PublicTokenizePage({
       ) : !acceptanceLinks ? (
         <PublicAlert>No pudimos cargar los terminos de Wompi. Intenta mas tarde.</PublicAlert>
       ) : (
-        <form method="POST" action={`/public/tokenize/${encodeURIComponent(token)}/process`} style={{ display: "grid", gap: 10 }}>
-          <WompiTokenizeWidget publicKey={publicKey} acceptance={acceptanceLinks} />
-        </form>
+        <WompiCardTokenizeForm
+          publicKey={publicKey}
+          apiBaseUrl={apiBaseUrl}
+          action={`/public/tokenize/${encodeURIComponent(token)}/process`}
+          acceptance={acceptanceLinks}
+        />
       )}
     </PublicCheckoutLayout>
   );
