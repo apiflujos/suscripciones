@@ -142,6 +142,12 @@ export async function ensureChatwootContactForCustomer(customerId: string) {
         email: customer.email || undefined,
         phoneNumber: customer.phone || undefined
       })
+      .then(() =>
+        systemLog(LogLevel.INFO, "chatwoot.sync", "Contacto actualizado", {
+          customerId: customer.id,
+          contactId: existingContactId
+        }).catch(() => {})
+      )
       .catch(() => {});
     // Ensure we have a sourceId tied to the inbox.
     let sourceId = existingSourceId;
@@ -199,6 +205,12 @@ export async function ensureChatwootContactForCustomer(customerId: string) {
             email: customer.email || undefined,
             phoneNumber: customer.phone || undefined
           })
+          .then(() =>
+            systemLog(LogLevel.INFO, "chatwoot.sync", "Contacto actualizado", {
+              customerId: customer.id,
+              contactId: found.contactId
+            }).catch(() => {})
+          )
           .catch(() => {});
         const merged = {
           ...(meta && typeof meta === "object" ? meta : {}),
