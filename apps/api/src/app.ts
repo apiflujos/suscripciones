@@ -48,7 +48,30 @@ export function createApp() {
       }
     }
   });
-  app.use((req, res, next) => (isApiPath(req.path) ? helmetMw(req, res, next) : next()));
+
+  const publicHelmetMw = helmet({
+    contentSecurityPolicy: {
+      useDefaults: true,
+      directives: {
+        "default-src": ["'self'"],
+        "base-uri": ["'self'"],
+        "object-src": ["'none'"],
+        "frame-ancestors": ["'none'"],
+        "img-src": ["'self'", "data:", "https:"],
+        "script-src": ["'self'", "'unsafe-inline'"],
+        "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        "style-src-elem": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        "font-src": ["'self'", "data:", "https://fonts.gstatic.com"]
+      }
+    }
+  });
+  app.use((req, res, next) => {
+    if (!isApiPath(req.path)) return next();
+    if (req.path === "/public" || req.path.startsWith("/public/")) {
+      return publicHelmetMw(req, res, next);
+    }
+    return helmetMw(req, res, next);
+  });
 
   const corsOriginsRaw = process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || "";
   const corsOrigins = corsOriginsRaw
