@@ -48,9 +48,9 @@ function mergeQuery(path: string, extra: Record<string, string | undefined>) {
 export async function createCustomer(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);
-  const name = String(formData.get("name") || "").trim();
-  const email = String(formData.get("email") || "").trim();
-  const phone = String(formData.get("phone") || "").trim();
+  const nameRaw = String(formData.get("name") || "").trim();
+  const emailRaw = String(formData.get("email") || "").trim();
+  const phoneRaw = String(formData.get("phone") || "").trim();
   const tenantId = String(formData.get("tenantId") || "").trim();
   const addressLine1 = String(formData.get("addressLine1") || "").trim();
   const dept = String(formData.get("dept") || "").trim();
@@ -77,6 +77,9 @@ export async function createCustomer(formData: FormData) {
 
     const metadata = address || idMeta ? { ...(address ? { address } : {}), ...(idMeta ? idMeta : {}) } : undefined;
 
+    const name = nameRaw || undefined;
+    const email = emailRaw || undefined;
+    const phone = phoneRaw || undefined;
     await adminFetch("/admin/customers", { method: "POST", body: JSON.stringify({ name, email, phone, metadata, tenantId }) });
     redirect(mergeQuery(returnTo, { created: "1", ...(tenantId ? { tenantId } : {}) }));
   } catch (err: any) {

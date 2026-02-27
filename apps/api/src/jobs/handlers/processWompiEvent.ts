@@ -335,7 +335,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   }
 
   if (!wasApproved && paymentStatus === PaymentStatus.APPROVED && subscription) {
-    const advancedTo = await db.$transaction(async (tx: typeof db) => {
+    const advancedTo = await db.$transaction(async (tx) => {
       const sub = await tx.subscription.findUnique({
         where: { id: subscription.id },
         include: { plan: true }

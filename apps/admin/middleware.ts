@@ -30,6 +30,9 @@ export async function middleware(req: NextRequest) {
     pathname === "/sa/logout" ||
     pathname === "/__sa/login" ||
     pathname === "/__sa/logout" ||
+    pathname === "/public" ||
+    pathname.startsWith("/public/") ||
+    pathname === "/wompi/widget" ||
     pathname === "/404" ||
     pathname === "/500" ||
     pathname === "/_error";
