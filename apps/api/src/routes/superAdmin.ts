@@ -381,7 +381,7 @@ superAdminRouter.post("/tenants/:tenantId/assign-plan", requireSaSession, async 
     return res.status(404).json({ error: err?.message ? String(err.message) : "plan_not_found" });
   }
 
-  const snap = await prisma.$transaction(async (tx: typeof prisma) => {
+  const snap = await prisma.$transaction(async (tx) => {
     await tx.saTenantPlanSnapshot.updateMany({ where: { tenantId, active: true }, data: { active: false } });
     return tx.saTenantPlanSnapshot.create({ data: { tenantId, planId: parsed.data.planId, active: true, snapshot } as any });
   });
@@ -469,7 +469,7 @@ superAdminRouter.post("/usage/reset", requireSaSession, async (req, res) => {
   const parsed = resetSchema.safeParse(req.body ?? {});
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
 
-  await prisma.$transaction(async (tx: typeof prisma) => {
+  await prisma.$transaction(async (tx) => {
     await tx.saUsageCounter.deleteMany({ where: { tenantId: parsed.data.tenantId, periodKey: parsed.data.periodKey } });
     await tx.saBillingCounter.deleteMany({ where: { tenantId: parsed.data.tenantId, periodKey: parsed.data.periodKey } });
   });

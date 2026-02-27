@@ -76,7 +76,9 @@ publicCartRouter.get("/cart/:token", async (req, res) => {
     return res.status(404).json({ error: "template_not_found" });
   }
 
-  const productIds = Array.isArray(template.productIds) ? template.productIds : [];
+  const productIds = Array.isArray(template.productIds)
+    ? template.productIds.filter((id): id is string => typeof id === "string" && id.trim().length > 0)
+    : [];
   const plans = productIds.length
     ? await prisma.subscriptionPlan.findMany({ where: { id: { in: productIds } } })
     : [];

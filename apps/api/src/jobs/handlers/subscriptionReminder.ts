@@ -308,16 +308,14 @@ export async function subscriptionReminder(payload: any) {
     }
   }
 
+  const meta: any = customer?.metadata && typeof customer.metadata === "object" ? (customer.metadata as any) : {};
+  const tokenizationUrl = parsed.data.tokenUrl || meta?.tokenizationLink?.url || "";
   const ctx = {
     customer,
     subscription,
     plan: subscription?.plan || null,
     payment: effectivePayment,
-    tokenization: parsed.data.tokenUrl
-      ? { url: parsed.data.tokenUrl }
-      : customer?.metadata?.tokenizationLink?.url
-        ? { url: customer.metadata.tokenizationLink.url }
-        : null,
+    tokenization: tokenizationUrl ? { url: tokenizationUrl } : null,
     catalog: parsed.data.catalogUrl ? { url: parsed.data.catalogUrl } : null,
     paymentType
   };
