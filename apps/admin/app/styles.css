@@ -1152,6 +1152,14 @@ textarea {
   justify-content: flex-end;
 }
 
+.billing-actions .btn-compact {
+  height: 32px;
+  min-width: 130px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .billing-legend {
   display: flex;
   gap: 6px;

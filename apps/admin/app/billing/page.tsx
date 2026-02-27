@@ -532,7 +532,7 @@ export default async function BillingPage({
                         <input type="hidden" name="returnTo" value={returnTo} />
                         {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
                         <button className="ghost btn-compact btn-blue" type="submit" title="Enviar por CentralCom">
-                          Enviar
+                          Enviar link de pago
                         </button>
                       </form>
                     ) : (
@@ -546,7 +546,7 @@ export default async function BillingPage({
                               <input type="hidden" name="returnTo" value={returnTo} />
                               {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
                               <button className="ghost btn-compact btn-blue" type="submit" title="Enviar por CentralCom">
-                                Enviar
+                                Enviar tokenización
                               </button>
                             </form>
                           ) : (

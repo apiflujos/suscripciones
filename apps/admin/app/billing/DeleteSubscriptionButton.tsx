@@ -23,8 +23,8 @@ export function DeleteSubscriptionButton({
       <input type="hidden" name="csrf" value={csrfToken} />
       <input type="hidden" name="subscriptionId" value={subscriptionId} />
       {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-      <button className="icon-btn danger" type="submit" aria-label="Eliminar suscripción">
-        🗑
+      <button className="ghost btn-compact btn-red" type="submit" aria-label="Eliminar suscripción">
+        Eliminar
       </button>
     </form>
   );
