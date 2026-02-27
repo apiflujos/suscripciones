@@ -1541,13 +1541,13 @@ textarea {
 }
 .publicCheckoutLayout {
   display: grid;
-  grid-template-columns: minmax(0, 0.58fr) minmax(0, 0.42fr);
-  gap: 22px;
+  grid-template-columns: minmax(0, 0.56fr) minmax(0, 0.44fr);
+  gap: 18px;
   align-items: start;
 }
 .publicCheckoutIntro {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   animation: publicCheckoutLift 520ms ease both;
 }
 .publicCheckoutIntroTop {
@@ -1556,16 +1556,16 @@ textarea {
 }
 .publicCheckoutIntroMeta {
   display: grid;
-  gap: 4px;
+  gap: 2px;
 }
 .publicCheckoutHeader {
   display: flex;
   align-items: flex-start;
-  gap: 14px;
+  gap: 12px;
 }
 .publicCheckoutHeaderText {
   display: grid;
-  gap: 4px;
+  gap: 2px;
 }
 .publicCheckoutSide {
   display: grid;
@@ -1583,16 +1583,16 @@ textarea {
   }
 }
 .publicCheckoutIntro h1 {
-  font-size: clamp(20px, 2.1vw, 28px);
-  line-height: 1.05;
+  font-size: clamp(18px, 2vw, 24px);
+  line-height: 1.15;
   letter-spacing: -0.02em;
   margin: 0;
 }
 .publicCheckoutIntro p { margin: 0; }
 .publicCheckoutIntro p,
 .publicCheckoutSupport {
-  font-size: 14px;
-  line-height: 1.3;
+  font-size: 13.5px;
+  line-height: 1.25;
   color: rgba(15, 23, 42, 0.72);
 }
 .publicCheckoutIntro .field-hint {
@@ -1600,34 +1600,67 @@ textarea {
   color: rgba(15, 23, 42, 0.58);
 }
 .publicCheckoutSubtitle {
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
-  line-height: 1.3;
+  line-height: 1.25;
   color: rgba(15, 23, 42, 0.82);
 }
 .publicCheckoutDescription {
-  font-size: 14px;
+  font-size: 13.5px;
+  line-height: 1.25;
   color: rgba(15, 23, 42, 0.7);
 }
 .publicCheckoutTrust {
-  font-size: 13px;
+  font-size: 12.5px;
+  line-height: 1.2;
   color: rgba(15, 23, 42, 0.55);
 }
 .publicCheckoutSecurity {
   display: grid;
   gap: 2px;
-  margin: 4px 0 0;
+  margin: 2px 0 0;
   padding-left: 18px;
-  font-size: 12.5px;
+  font-size: 12px;
   color: rgba(15, 23, 42, 0.58);
 }
 .publicCheckoutSecurity li {
   margin: 0;
-  line-height: 1.25;
+  line-height: 1.2;
 }
 .publicCheckoutSupport {
-  font-size: 13px;
+  font-size: 12.5px;
   color: rgba(15, 23, 42, 0.6);
+}
+.publicCheckoutAcceptance {
+  display: grid;
+  gap: 6px;
+}
+.publicCheckoutCheckbox {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.publicCheckoutCheckbox input {
+  margin-top: 2px;
+}
+.publicCheckoutCheckboxText {
+  font-size: 13.5px;
+  line-height: 1.25;
+  color: rgba(15, 23, 42, 0.72);
+}
+.publicCheckoutPlaceholderButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px dashed rgba(15, 23, 42, 0.2);
+  background: rgba(15, 23, 42, 0.04);
+  color: rgba(15, 23, 42, 0.6);
+  font-weight: 600;
+  font-size: 14px;
 }
 .publicCheckoutSide .field {
   gap: 4px;
@@ -1642,7 +1675,8 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  line-height: 1.1;
+  line-height: 1;
+  min-height: 44px;
   width: 100%;
   padding: 12px 16px;
   border-radius: 12px;
@@ -3331,13 +3365,13 @@ textarea {
 }
 .publicCheckoutLayout {
   display: grid;
-  grid-template-columns: minmax(0, 0.58fr) minmax(0, 0.42fr);
-  gap: 22px;
+  grid-template-columns: minmax(0, 0.56fr) minmax(0, 0.44fr);
+  gap: 18px;
   align-items: start;
 }
 .publicCheckoutIntro {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   animation: publicCheckoutLift 520ms ease both;
 }
 .publicCheckoutIntroTop {
@@ -3346,16 +3380,16 @@ textarea {
 }
 .publicCheckoutIntroMeta {
   display: grid;
-  gap: 4px;
+  gap: 2px;
 }
 .publicCheckoutHeader {
   display: flex;
   align-items: flex-start;
-  gap: 14px;
+  gap: 12px;
 }
 .publicCheckoutHeaderText {
   display: grid;
-  gap: 4px;
+  gap: 2px;
 }
 .publicCheckoutSide {
   display: grid;
@@ -3373,16 +3407,16 @@ textarea {
   }
 }
 .publicCheckoutIntro h1 {
-  font-size: clamp(20px, 2.1vw, 28px);
-  line-height: 1.05;
+  font-size: clamp(18px, 2vw, 24px);
+  line-height: 1.15;
   letter-spacing: -0.02em;
   margin: 0;
 }
 .publicCheckoutIntro p { margin: 0; }
 .publicCheckoutIntro p,
 .publicCheckoutSupport {
-  font-size: 14px;
-  line-height: 1.3;
+  font-size: 13.5px;
+  line-height: 1.25;
   color: rgba(15, 23, 42, 0.72);
 }
 .publicCheckoutIntro .field-hint {
@@ -3390,21 +3424,55 @@ textarea {
   color: rgba(15, 23, 42, 0.58);
 }
 .publicCheckoutSubtitle {
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
+  line-height: 1.25;
   color: rgba(15, 23, 42, 0.82);
 }
 .publicCheckoutDescription {
-  font-size: 14px;
+  font-size: 13.5px;
+  line-height: 1.25;
   color: rgba(15, 23, 42, 0.7);
 }
 .publicCheckoutTrust {
-  font-size: 13px;
+  font-size: 12.5px;
+  line-height: 1.2;
   color: rgba(15, 23, 42, 0.55);
 }
 .publicCheckoutSupport {
-  font-size: 13px;
+  font-size: 12.5px;
   color: rgba(15, 23, 42, 0.6);
+}
+.publicCheckoutAcceptance {
+  display: grid;
+  gap: 6px;
+}
+.publicCheckoutCheckbox {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.publicCheckoutCheckbox input {
+  margin-top: 2px;
+}
+.publicCheckoutCheckboxText {
+  font-size: 13.5px;
+  line-height: 1.25;
+  color: rgba(15, 23, 42, 0.72);
+}
+.publicCheckoutPlaceholderButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px dashed rgba(15, 23, 42, 0.2);
+  background: rgba(15, 23, 42, 0.04);
+  color: rgba(15, 23, 42, 0.6);
+  font-weight: 600;
+  font-size: 14px;
 }
 .publicCheckoutSide .field {
   gap: 4px;
@@ -3419,7 +3487,8 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  line-height: 1.1;
+  line-height: 1;
+  min-height: 44px;
   width: 100%;
   padding: 12px 16px;
   border-radius: 12px;

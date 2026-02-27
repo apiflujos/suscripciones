@@ -3,7 +3,7 @@ import type { CSSProperties, ReactNode } from "react";
 type PublicCheckoutLayoutProps = {
   title: string;
   subtitle?: string;
-  description?: string;
+  description?: string | string[];
   logoUrl?: string;
   trustText?: string;
   securityBullets?: string[];
@@ -31,6 +31,10 @@ export function PublicCheckoutLayout({
 }: PublicCheckoutLayoutProps) {
   const styleVars = primaryColor ? ({ ["--primary" as any]: primaryColor } as CSSProperties) : {};
 
+  const descriptionLines = (Array.isArray(description) ? description : description ? [description] : [])
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+
   return (
     <main className="page publicCheckoutShell" style={{ maxWidth, ...(fontFamily ? { fontFamily } : {}), ...styleVars }}>
       <div className="card cardPad publicCheckoutCard" style={{ ...(primaryColor ? { borderColor: primaryColor } : {}) }}>
@@ -46,7 +50,13 @@ export function PublicCheckoutLayout({
             </div>
             <div className="publicCheckoutIntroMeta">
               {subtitle ? <p className="publicCheckoutSubtitle">{subtitle}</p> : null}
-              {description ? <p className="publicCheckoutDescription">{description}</p> : null}
+              {descriptionLines.length
+                ? descriptionLines.map((line, index) => (
+                    <p className="publicCheckoutDescription" key={`${line}-${index}`}>
+                      {line}
+                    </p>
+                  ))
+                : null}
               {trustText ? <p className="publicCheckoutTrust">{trustText}</p> : null}
               {securityBullets && securityBullets.length ? (
                 <ul className="publicCheckoutSecurity">

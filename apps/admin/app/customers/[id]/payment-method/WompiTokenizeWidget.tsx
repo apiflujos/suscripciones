@@ -27,6 +27,7 @@ export function WompiTokenizeWidget({
   }, [publicKey]);
 
   const requiresAcceptance = useMemo(() => Boolean(acceptance?.termsUrl || acceptance?.personalDataUrl), [acceptance]);
+  const showPlaceholder = useMemo(() => requiresAcceptance && !canTokenize, [requiresAcceptance, canTokenize]);
   const canTokenize = useMemo(() => {
     if (!requiresAcceptance) return true;
     const termsOk = acceptance?.termsUrl ? acceptedTerms : true;
@@ -135,16 +136,16 @@ export function WompiTokenizeWidget({
   return (
     <>
       {requiresAcceptance ? (
-        <div className="field" style={{ display: "grid", gap: 6 }}>
+        <div className="field publicCheckoutAcceptance">
           {acceptance?.termsUrl ? (
-            <label style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+            <label className="publicCheckoutCheckbox">
               <input
                 type="checkbox"
                 checked={acceptedTerms}
                 onChange={(e) => setAcceptedTerms(e.target.checked)}
                 aria-required="true"
               />
-              <span style={{ fontSize: 14 }}>
+              <span className="publicCheckoutCheckboxText">
                 Acepto los terminos y condiciones de Wompi.{" "}
                 <a href={acceptance.termsUrl} target="_blank" rel="noreferrer">
                   Ver terminos
@@ -154,14 +155,14 @@ export function WompiTokenizeWidget({
             </label>
           ) : null}
           {acceptance?.personalDataUrl ? (
-            <label style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+            <label className="publicCheckoutCheckbox">
               <input
                 type="checkbox"
                 checked={acceptedPersonal}
                 onChange={(e) => setAcceptedPersonal(e.target.checked)}
                 aria-required="true"
               />
-              <span style={{ fontSize: 14 }}>
+              <span className="publicCheckoutCheckboxText">
                 Autorizo el tratamiento de mis datos personales.{" "}
                 <a href={acceptance.personalDataUrl} target="_blank" rel="noreferrer">
                   Ver autorizacion
@@ -172,6 +173,11 @@ export function WompiTokenizeWidget({
           ) : null}
           {!canTokenize ? <div className="field-hint">Debes aceptar para continuar.</div> : null}
         </div>
+      ) : null}
+      {showPlaceholder ? (
+        <button type="button" className="publicCheckoutPlaceholderButton" disabled aria-disabled="true">
+          Guardar método de pago
+        </button>
       ) : null}
       <input type="hidden" name="accept_terms" value={acceptedTerms ? "1" : "0"} />
       <input type="hidden" name="accept_personal_data" value={acceptedPersonal ? "1" : "0"} />
