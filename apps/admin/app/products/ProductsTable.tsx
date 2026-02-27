@@ -48,6 +48,7 @@ type ProductRow = {
   option2Name?: string | null;
   variants?: Array<{ option1?: string | null; option2?: string | null; priceDeltaInCents: number }> | null;
   imageUrl?: string | null;
+  collectionMode?: string | null;
 };
 
 export function ProductsTable({
@@ -96,6 +97,7 @@ export function ProductsTable({
   const [discountType, setDiscountType] = useState<"NONE" | "FIXED" | "PERCENT">("NONE");
   const [discountCop, setDiscountCop] = useState("");
   const [discountPercent, setDiscountPercent] = useState("0");
+  const [collectionMode, setCollectionMode] = useState<"AUTO_LINK" | "AUTO_DEBIT">("AUTO_LINK");
   const [requiresShipping, setRequiresShipping] = useState(false);
   const [selectedTenantIds, setSelectedTenantIds] = useState<string[]>([]);
   const [option1Name, setOption1Name] = useState("");
@@ -126,6 +128,7 @@ export function ProductsTable({
     setDiscountType((item.discountType as any) || "NONE");
     setDiscountCop(formatCopFromCents(Number(item.discountValueInCents || 0)));
     setDiscountPercent(String(item.discountPercent ?? 0));
+    setCollectionMode(String(item.collectionMode || "AUTO_LINK") as any);
     setIntervalUnit((item.intervalUnit as any) || "MONTH");
     setIntervalCount(String(item.intervalCount || 1));
     setRequiresShipping(Boolean(item.requiresShipping));
@@ -384,6 +387,14 @@ export function ProductsTable({
                   <option value="PRODUCT">Producto</option>
                   <option value="SERVICE">Servicio</option>
                 </select>
+              </div>
+              <div className="field">
+                <label>Tipo de cobro</label>
+                <select className="select" name="collectionMode" value={collectionMode} onChange={(e) => setCollectionMode(e.target.value as any)}>
+                  <option value="AUTO_LINK">Plan (link de pago)</option>
+                  <option value="AUTO_DEBIT">Suscripción (tokenización)</option>
+                </select>
+                <div className="field-hint">Define si este producto se cobra por link o por tokenización.</div>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 10 }}>

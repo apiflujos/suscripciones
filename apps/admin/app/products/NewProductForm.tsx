@@ -34,6 +34,7 @@ export function NewProductForm({
   const [taxPercent, setTaxPercent] = useState("0");
   const [requiresShipping, setRequiresShipping] = useState(false);
   const [selectedTenantIds, setSelectedTenantIds] = useState<string[]>(tenantId ? [tenantId] : []);
+  const [collectionMode, setCollectionMode] = useState<"AUTO_LINK" | "AUTO_DEBIT">("AUTO_LINK");
 
   const [vendor, setVendor] = useState("");
   const [productType, setProductType] = useState("");
@@ -56,13 +57,21 @@ export function NewProductForm({
         <div className="field-hint">Define el ítem recurrente. Luego lo puedes usar en planes y suscripciones.</div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
         <div className="field">
           <label>Tipo</label>
           <select className="select" name="kind" value={kind} onChange={(e) => setKind(e.target.value as any)}>
             <option value="PRODUCT">Producto</option>
             <option value="SERVICE">Servicio</option>
           </select>
+        </div>
+        <div className="field">
+          <label>Tipo de cobro</label>
+          <select className="select" name="collectionMode" value={collectionMode} onChange={(e) => setCollectionMode(e.target.value as any)}>
+            <option value="AUTO_LINK">Plan (link de pago)</option>
+            <option value="AUTO_DEBIT">Suscripción (tokenización)</option>
+          </select>
+          <div className="field-hint">Define si este producto se cobra por link o por tokenización.</div>
         </div>
         <div className="field">
           <label>Nombre</label>
