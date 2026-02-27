@@ -70,8 +70,10 @@ export async function POST(req: Request) {
     const settingsJson = await settingsRes.json().catch(() => null);
     const checkoutConfig = settingsJson?.checkoutConfig || {};
     const baseFromSettings = String(checkoutConfig?.planBaseUrl || "").trim();
-    const appBase = String(process.env.APP_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_PUBLIC_BASE_URL || "").trim();
-    const base = baseFromSettings || (appBase ? `${appBase.replace(/\/$/, "")}/public/plan` : "");
+    if (!baseFromSettings) {
+      return NextResponse.json({ ok: false, error: "missing_plan_base_url" }, { status: 400 });
+    }
+    const base = baseFromSettings;
     if (base) {
       const tokenValue = crypto.randomBytes(18).toString("hex");
       const normalized = base.replace(/\/$/, "");

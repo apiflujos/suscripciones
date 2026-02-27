@@ -34,9 +34,7 @@ export async function POST(req: Request) {
   const settingsJson = settingsRes && "ok" in settingsRes ? await (settingsRes as any).json().catch(() => null) : null;
   const checkoutConfig = settingsJson?.checkoutConfig || {};
   const baseFromSettings = String(checkoutConfig?.planBaseUrl || checkoutConfig?.subscriptionBaseUrl || "").trim();
-  const appBase = String(process.env.APP_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_PUBLIC_BASE_URL || "").trim();
-  const fallbackBase = appBase ? `${appBase.replace(/\/$/, "")}/public/cart` : "";
-  const base = (baseFromSettings || fallbackBase).replace(/\/$/, "");
+  const base = baseFromSettings.replace(/\/$/, "");
   if (!base) return NextResponse.json({ ok: false, error: "missing_public_base_url" }, { status: 400 });
 
   const templatesRes = await fetch(
