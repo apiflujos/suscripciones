@@ -39,11 +39,15 @@ export default async function PublicTokenizePage({
   const template = tokenRes.ok ? tokenRes.json?.template || null : null;
   const layout = (template?.layout || {}) as any;
   const title = template?.publicTitle || config?.subscriptionTitle || "Activa tu suscripción";
-  const subtitle = "Guarda tu método de pago en un paso seguro.";
-  const description =
+  const subtitle = "";
+  const baseDescription =
     template?.publicDescription ||
     config?.subscriptionDescription ||
     "Usamos Wompi para tokenizar tu tarjeta. No se realizan cargos en este paso.";
+  const description = ["Guarda tu método de pago en un paso seguro.", baseDescription]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .join(" ");
   const tokenErrorMessage = String(config?.tokenizationErrorMessage || "").trim();
   const contactEmail = String(config?.supportEmail || "").trim();
   const supportUrl = String(config?.supportUrl || "").trim();
@@ -102,6 +106,11 @@ export default async function PublicTokenizePage({
       description={description}
       logoUrl={logoUrl}
       trustText={PUBLIC_COPY.trustTokenize}
+      securityBullets={[
+        "Tus datos de tarjeta se tokenizan con Wompi.",
+        "Conexión cifrada (HTTPS/TLS).",
+        "No hay cargos en este paso."
+      ]}
       supportHref={supportHref || undefined}
       supportLabel={supportLabel || undefined}
       primaryColor={primaryColor}
