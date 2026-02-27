@@ -21,6 +21,14 @@ function mergeQuery(path: string, extra: Record<string, string | undefined>) {
   return `${url.pathname}${qs ? `?${qs}` : ""}`;
 }
 
+function normalizeCheckoutBase(raw: string, kind: "plan" | "suscripcion") {
+  const base = String(raw || "").trim().replace(/\/+$/g, "");
+  if (!base) return "";
+  const suffix = kind === "plan" ? "/public/plan" : "/public/suscripcion";
+  if (base.toLowerCase().endsWith(suffix)) return base.slice(0, -suffix.length);
+  return base;
+}
+
 async function adminFetch(path: string, init: RequestInit) {
   const { apiBase, token } = getAdminApiConfig();
   const res = await fetch(`${apiBase}${path}`, {
@@ -396,8 +404,8 @@ export async function createPlanAndSubscription(formData: FormData) {
 
     const settings = await adminFetch("/admin/settings", { method: "GET" }).catch(() => null);
     const checkoutConfig = settings?.checkoutConfig || {};
-    const planBase = String(checkoutConfig?.planBaseUrl || "").trim();
-    const subBase = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
+    const planBase = normalizeCheckoutBase(String(checkoutConfig?.planBaseUrl || "").trim(), "plan");
+    const subBase = normalizeCheckoutBase(String(checkoutConfig?.subscriptionBaseUrl || "").trim(), "suscripcion");
     if (billingType === "PLAN" && !planBase) {
       return redirect(
         mergeQuery(returnTo, {
@@ -704,7 +712,7 @@ export async function sendCentralComTokenizationLink(formData: FormData) {
       adminFetch(`/admin/customers/${encodeURIComponent(customerId)}`, { method: "GET" }).catch(() => null)
     ]);
     const checkoutConfig = settings?.checkoutConfig || {};
-    const base = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
+    const base = normalizeCheckoutBase(String(checkoutConfig?.subscriptionBaseUrl || "").trim(), "suscripcion");
     if (!base) {
       return redirect(mergeQuery(returnTo, { error: "missing_subscription_base_url", ...(tenantId ? { tenantId } : {}) }));
     }

@@ -21,6 +21,14 @@ function parseCheckoutConfig(raw: string | null) {
   return { planBaseUrl, subscriptionBaseUrl, defaultUtmParams, tokenExpiryHours };
 }
 
+function normalizeCheckoutBase(raw: string, kind: "plan" | "suscripcion") {
+  const base = String(raw || "").trim().replace(/\/+$/g, "");
+  if (!base) return "";
+  const suffix = kind === "plan" ? "/public/plan" : "/public/suscripcion";
+  if (base.toLowerCase().endsWith(suffix)) return base.slice(0, -suffix.length);
+  return base;
+}
+
 function buildPublicUrl(base: string, path: string, utm: string) {
   const normalized = base.replace(/\/$/, "");
   const url = `${normalized}${path.startsWith("/") ? "" : "/"}${path}`;
@@ -141,7 +149,7 @@ publicCartRouter.post("/cart/:token/select", async (req, res) => {
   const collectionMode = String((plan.metadata as any)?.collectionMode || "MANUAL_LINK");
 
   if (collectionMode === "AUTO_DEBIT") {
-    const base = cfg.subscriptionBaseUrl.replace(/\/$/, "");
+    const base = normalizeCheckoutBase(cfg.subscriptionBaseUrl, "suscripcion");
     if (!base) return res.status(400).json({ error: "missing_subscription_base_url" });
     const linkToken = crypto.randomBytes(18).toString("hex");
     const nextUrl = buildPublicUrl(base, `/public/suscripcion/${linkToken}`, cfg.defaultUtmParams);
@@ -209,7 +217,7 @@ publicCartRouter.post("/cart/:token/select", async (req, res) => {
     .catch(() => {});
 
   const linkCreated = await createPaymentLinkForSubscription({ subscriptionId: subscription.id });
-  const base = cfg.planBaseUrl.replace(/\/$/, "");
+  const base = normalizeCheckoutBase(cfg.planBaseUrl, "plan");
   if (!base) return res.status(400).json({ error: "missing_plan_base_url" });
   const linkToken = crypto.randomBytes(18).toString("hex");
   const publicUrl = buildPublicUrl(base, `/public/plan/${linkToken}`, cfg.defaultUtmParams);

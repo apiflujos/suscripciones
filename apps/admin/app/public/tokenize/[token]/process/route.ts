@@ -15,6 +15,17 @@ function getRedirectBase(req: Request) {
   return new URL(req.url).origin;
 }
 
+function normalizeRedirectBase(raw: string) {
+  const input = String(raw || "").trim().replace(/\/+$/g, "");
+  if (!input) return "";
+  try {
+    const parsed = new URL(input);
+    return parsed.origin;
+  } catch {
+    return input.replace(/\/public\/(plan|suscripcion)(\/.*)?$/i, "");
+  }
+}
+
 function getConfig() {
   const raw = String(process.env.ADMIN_API_TOKEN || "");
   const token = raw.replace(/^Bearer\s+/i, "").trim().replace(/^\"|\"$/g, "").replace(/^'|'$/g, "").trim();
@@ -60,7 +71,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
     const configRes = await fetch(`${apiBase}/public/checkout-config`, { cache: "no-store" }).catch(() => null);
     const configJson = configRes && "ok" in configRes ? await (configRes as any).json().catch(() => null) : null;
     const configBase = String(configJson?.config?.subscriptionBaseUrl || "").trim();
-    if (configBase) redirectBase = configBase.replace(/\/+$/, "");
+    const normalized = normalizeRedirectBase(configBase);
+    if (normalized) redirectBase = normalized;
   } catch (err: any) {
     const msg = err?.message ? String(err.message) : "missing_next_public_api_base_url";
     return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=${encodeURIComponent(msg)}`, redirectBase));
@@ -85,6 +97,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
 
   const formData = await req.formData().catch(() => null);
   if (!formData) return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=invalid_form`, redirectBase));
+  const acceptTerms = String(formData.get("accept_terms") || "").trim();
+  const acceptPersonal = String(formData.get("accept_personal_data") || "").trim();
+  if (acceptTerms !== "1" || acceptPersonal !== "1") {
+    return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=missing_acceptance`, redirectBase));
+  }
 
   const wompiToken = detectToken(formData);
   if (!wompiToken) return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=missing_token`, redirectBase));

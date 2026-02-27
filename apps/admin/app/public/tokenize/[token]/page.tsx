@@ -1,6 +1,7 @@
 import { WompiTokenizeWidget } from "../../../customers/[id]/payment-method/WompiTokenizeWidget";
 import { getAdminApiConfig } from "../../../lib/adminApi";
 import { normalizeErrorParam } from "../../../lib/errorParam";
+import { fetchWompiAcceptanceLinks } from "../../../lib/wompiMerchant";
 import { PublicCheckoutLayout } from "../../_components/PublicCheckoutLayout";
 import { PublicAlert } from "../../_components/PublicAlert";
 import { PublicErrorPage } from "../../_components/PublicErrorPage";
@@ -77,6 +78,15 @@ export default async function PublicTokenizePage({
       activeEnv === "SANDBOX" ? settings?.wompi?.sandbox : settings?.wompi?.production;
     return String(wompiEnv?.publicKey || "").trim();
   })();
+  const apiBaseUrl = (() => {
+    const activeEnv = String(settings?.wompi?.activeEnv || "PRODUCTION").toUpperCase();
+    const wompiEnv =
+      activeEnv === "SANDBOX" ? settings?.wompi?.sandbox : settings?.wompi?.production;
+    const configured = String(wompiEnv?.apiBaseUrl || "").trim();
+    if (configured) return configured;
+    return activeEnv === "SANDBOX" ? "https://sandbox.wompi.co/v1" : "https://production.wompi.co/v1";
+  })();
+  const acceptanceLinks = publicKey ? await fetchWompiAcceptanceLinks({ apiBaseUrl, publicKey }) : null;
 
   if (!tokenRes.ok) {
     const msg = tokenRes.status === 410 ? PUBLIC_COPY.errorUsedLink : PUBLIC_COPY.errorInvalidLink;
@@ -118,9 +128,11 @@ export default async function PublicTokenizePage({
 
       {!publicKey ? (
         <PublicAlert>Servicio temporalmente no disponible. Solicita un nuevo link o intenta más tarde.</PublicAlert>
+      ) : !acceptanceLinks ? (
+        <PublicAlert>No pudimos cargar los terminos de Wompi. Intenta mas tarde.</PublicAlert>
       ) : (
         <form method="POST" action={`/public/tokenize/${encodeURIComponent(token)}/process`} style={{ display: "grid", gap: 10 }}>
-          <WompiTokenizeWidget publicKey={publicKey} />
+          <WompiTokenizeWidget publicKey={publicKey} acceptance={acceptanceLinks} />
         </form>
       )}
     </PublicCheckoutLayout>

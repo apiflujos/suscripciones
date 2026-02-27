@@ -1,14 +1,34 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-export function WompiTokenizeWidget({ publicKey }: { publicKey: string }) {
+type AcceptanceLinks = {
+  termsUrl: string;
+  personalDataUrl: string;
+};
+
+export function WompiTokenizeWidget({
+  publicKey,
+  acceptance
+}: {
+  publicKey: string;
+  acceptance?: AcceptanceLinks | null;
+}) {
   const hostRef = useRef<HTMLDivElement | null>(null);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [acceptedPersonal, setAcceptedPersonal] = useState(false);
+
+  const requiresAcceptance = useMemo(() => Boolean(acceptance?.termsUrl || acceptance?.personalDataUrl), [acceptance]);
+  const canTokenize = useMemo(() => {
+    if (!requiresAcceptance) return true;
+    const termsOk = acceptance?.termsUrl ? acceptedTerms : true;
+    const personalOk = acceptance?.personalDataUrl ? acceptedPersonal : true;
+    return termsOk && personalOk;
+  }, [requiresAcceptance, acceptance, acceptedTerms, acceptedPersonal]);
 
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
-    host.innerHTML = "";
 
     // Wompi widget expects the script to be a direct child of a POST form.
     const form = host.closest("form");
@@ -19,10 +39,15 @@ export function WompiTokenizeWidget({ publicKey }: { publicKey: string }) {
       form.setAttribute("action", path);
     }
 
-    const prevScript = form.querySelector('script[data-wompi-widget="tokenize"]');
-    if (prevScript) prevScript.remove();
-    const prevButton = form.querySelector(".waybox-button");
-    if (prevButton) prevButton.remove();
+    const cleanup = () => {
+      const prevScript = form.querySelector('script[data-wompi-widget="tokenize"]');
+      if (prevScript) prevScript.remove();
+      const prevButton = form.querySelector(".waybox-button");
+      if (prevButton) prevButton.remove();
+    };
+
+    cleanup();
+    if (!publicKey || !canTokenize) return;
 
     const script = document.createElement("script");
     script.src = "/wompi/widget";
@@ -44,13 +69,55 @@ export function WompiTokenizeWidget({ publicKey }: { publicKey: string }) {
     form.addEventListener("submit", onSubmit);
 
     return () => {
-      try {
-        const currentScript = form.querySelector('script[data-wompi-widget="tokenize"]');
-        if (currentScript) currentScript.remove();
-      } catch {}
+      cleanup();
       form.removeEventListener("submit", onSubmit);
     };
-  }, [publicKey]);
+  }, [publicKey, canTokenize]);
 
-  return <div ref={hostRef} />;
+  return (
+    <div style={{ display: "grid", gap: 10 }}>
+      {requiresAcceptance ? (
+        <div className="field" style={{ display: "grid", gap: 8 }}>
+          {acceptance?.termsUrl ? (
+            <label style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+              <input
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                aria-required="true"
+              />
+              <span style={{ fontSize: 14 }}>
+                Acepto los terminos y condiciones de Wompi.{" "}
+                <a href={acceptance.termsUrl} target="_blank" rel="noreferrer">
+                  Ver terminos
+                </a>
+                .
+              </span>
+            </label>
+          ) : null}
+          {acceptance?.personalDataUrl ? (
+            <label style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+              <input
+                type="checkbox"
+                checked={acceptedPersonal}
+                onChange={(e) => setAcceptedPersonal(e.target.checked)}
+                aria-required="true"
+              />
+              <span style={{ fontSize: 14 }}>
+                Autorizo el tratamiento de mis datos personales.{" "}
+                <a href={acceptance.personalDataUrl} target="_blank" rel="noreferrer">
+                  Ver autorizacion
+                </a>
+                .
+              </span>
+            </label>
+          ) : null}
+          {!canTokenize ? <div className="field-hint">Debes aceptar para continuar.</div> : null}
+        </div>
+      ) : null}
+      <input type="hidden" name="accept_terms" value={acceptedTerms ? "1" : "0"} />
+      <input type="hidden" name="accept_personal_data" value={acceptedPersonal ? "1" : "0"} />
+      <div ref={hostRef} />
+    </div>
+  );
 }

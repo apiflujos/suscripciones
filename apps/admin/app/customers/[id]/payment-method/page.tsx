@@ -2,6 +2,7 @@ import Link from "next/link";
 import { WompiTokenizeWidget } from "./WompiTokenizeWidget";
 import { fetchAdminCached, getAdminApiConfig } from "../../../lib/adminApi";
 import { normalizeErrorParam } from "../../../lib/errorParam";
+import { fetchWompiAcceptanceLinks } from "../../../lib/wompiMerchant";
 import { HelpTip } from "../../../ui/HelpTip";
 
 export const dynamic = "force-dynamic";
@@ -41,6 +42,10 @@ export default async function CustomerPaymentMethodPage({
   const wompiEnv =
     activeEnv === "SANDBOX" ? settings.json?.wompi?.sandbox : settings.json?.wompi?.production;
   const publicKey = String(wompiEnv?.publicKey || "").trim();
+  const apiBaseUrl =
+    String(wompiEnv?.apiBaseUrl || "").trim() ||
+    (activeEnv === "SANDBOX" ? "https://sandbox.wompi.co/v1" : "https://production.wompi.co/v1");
+  const acceptanceLinks = publicKey ? await fetchWompiAcceptanceLinks({ apiBaseUrl, publicKey }) : null;
   const customer = customerRes.ok ? (customerRes.json?.customer ?? null) : null;
 
   if (!customer) {
@@ -109,6 +114,10 @@ export default async function CustomerPaymentMethodPage({
               <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
                 Falta `Public key` de Wompi en Configuración.
               </div>
+            ) : !acceptanceLinks ? (
+              <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
+                No pudimos cargar los terminos de Wompi. Intenta mas tarde.
+              </div>
             ) : !customer.email ? (
               <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
                 Este contacto no tiene email. Wompi requiere `customer_email`.
@@ -118,7 +127,7 @@ export default async function CustomerPaymentMethodPage({
                 <div className="field-hint">
                   Al tokenizar, Wompi devolverá un `token` que se registrará como `paymentSourceId` en este contacto.
                 </div>
-                <WompiTokenizeWidget publicKey={publicKey} />
+                <WompiTokenizeWidget publicKey={publicKey} acceptance={acceptanceLinks} />
               </form>
             )}
           </div>

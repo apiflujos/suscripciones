@@ -48,6 +48,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   const formData = await req.formData().catch(() => null);
   if (!formData) return NextResponse.redirect(new URL(`/customers/${id}/payment-method?error=invalid_form`, req.url));
+  const acceptTerms = String(formData.get("accept_terms") || "").trim();
+  const acceptPersonal = String(formData.get("accept_personal_data") || "").trim();
+  if (acceptTerms !== "1" || acceptPersonal !== "1") {
+    return NextResponse.redirect(new URL(`/customers/${id}/payment-method?error=missing_acceptance`, req.url));
+  }
 
   const wompiToken = detectToken(formData);
   if (!wompiToken) return NextResponse.redirect(new URL(`/customers/${id}/payment-method?error=missing_token`, req.url));
