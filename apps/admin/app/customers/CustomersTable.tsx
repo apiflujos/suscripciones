@@ -807,7 +807,11 @@ export function CustomersTable({
                 const customer = tokenModalCustomer;
                 if (!customer) return;
                 const templateId = resolveTokenTemplate(customer.id);
-                if (!templateId) return;
+                if (!templateId) {
+                  closeTokenModal();
+                  openNotify("fail", "No hay plantilla de suscripción configurada.");
+                  return;
+                }
                 setSendingTokenId(customer.id);
                 setSendError((prev) => ({ ...prev, [customer.id]: "" }));
                 setSendOk((prev) => ({ ...prev, [customer.id]: "" }));
@@ -825,6 +829,8 @@ export function CustomersTable({
                   const contentType = res.headers.get("content-type") || "";
                   if (!contentType.includes("application/json")) {
                     setSendError((prev) => ({ ...prev, [customer.id]: "auth_required" }));
+                    closeTokenModal();
+                    openNotify("fail", mapSendError("auth_required"));
                     return;
                   }
                   const json = await res.json().catch(() => ({}));
@@ -840,6 +846,7 @@ export function CustomersTable({
                   }
                   setSendOk((prev) => ({ ...prev, [customer.id]: "sent" }));
                   closeTokenModal();
+                  openNotify("ok", "El link de tokenización fue enviado correctamente.");
                 } finally {
                   setSendingTokenId(null);
                 }
@@ -1033,15 +1040,19 @@ export function CustomersTable({
                             const contentType = res.headers.get("content-type") || "";
                             if (!contentType.includes("application/json")) {
                               setSendError((prev) => ({ ...prev, [detailsCustomer.id]: "auth_required" }));
+                              openNotify("fail", mapSendError("auth_required"));
                               return;
                             }
                             const json = await res.json().catch(() => ({}));
                             if (!res.ok || !json?.ok) {
-                              setSendError((prev) => ({ ...prev, [detailsCustomer.id]: json?.error || "send_failed" }));
+                              const msg = json?.error || "send_failed";
+                              setSendError((prev) => ({ ...prev, [detailsCustomer.id]: msg }));
+                              openNotify("fail", mapSendError(msg));
                               return;
                             }
                             setSendOk((prev) => ({ ...prev, [detailsCustomer.id]: "sent" }));
                             closeDetails();
+                            openNotify("ok", "El link de tokenización fue enviado correctamente.");
                           } finally {
                           setSendingTokenId(null);
                           }
@@ -1081,19 +1092,24 @@ export function CustomersTable({
                             const contentType = res.headers.get("content-type") || "";
                             if (!contentType.includes("application/json")) {
                               setSendError((prev) => ({ ...prev, [detailsCustomer.id]: "auth_required" }));
+                              openNotify("fail", mapSendError("auth_required"));
                               return;
                             }
                             const json = await res.json().catch(() => ({}));
                             if (!res.ok || !json?.ok) {
-                              setSendError((prev) => ({ ...prev, [detailsCustomer.id]: json?.error || "send_failed" }));
+                              const msg = json?.error || "send_failed";
+                              setSendError((prev) => ({ ...prev, [detailsCustomer.id]: msg }));
+                              openNotify("fail", mapSendError(msg));
                               return;
                             }
                             if (typeof json?.notificationsScheduled === "number" && json.notificationsScheduled === 0) {
                               setSendError((prev) => ({ ...prev, [detailsCustomer.id]: "no_rules" }));
+                              openNotify("fail", "No hay notificaciones activas para enviar el link.");
                               return;
                             }
                             setSendOk((prev) => ({ ...prev, [detailsCustomer.id]: "sent" }));
                             closeDetails();
+                            openNotify("ok", "El link de pago fue enviado correctamente.");
                           } finally {
                           setSendingPaymentId(null);
                           }
