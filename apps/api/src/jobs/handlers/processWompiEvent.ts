@@ -334,7 +334,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     await consumeApp("payments_failed", { amount: 1, source: "wompi:webhook", meta: { paymentId: paymentRecord.id } });
   }
 
-  if (!wasApproved && paymentStatus === PaymentStatus.APPROVED && subscription) {
+  if (paymentStatus === PaymentStatus.APPROVED && subscription) {
     const advancedTo = await db.$transaction(async (tx) => {
       const sub = await tx.subscription.findUnique({
         where: { id: subscription.id },
@@ -382,27 +382,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         return null;
       } else {
         logger.info({ subscriptionId: sub.id, nextEnd }, "Subscription advanced after payment approval");
-        const collectionMode = (sub.plan.metadata as any)?.collectionMode;
-        if (collectionMode === "AUTO_LINK") {
-          await tx.retryJob
-            .create({
-              data: {
-                type: RetryJobType.PAYMENT_RETRY,
-                payload: { subscriptionId: sub.id }
-              }
-            })
-            .catch(() => {});
-        } else if (collectionMode === "AUTO_DEBIT") {
-          await tx.retryJob
-            .create({
-              data: {
-                type: RetryJobType.PAYMENT_RETRY,
-                runAt: nextEnd,
-                payload: { subscriptionId: sub.id }
-              }
-            })
-            .catch(() => {});
-        }
+        // No auto-enqueue of payment retries (manual only).
         return nextEnd;
       }
     });
