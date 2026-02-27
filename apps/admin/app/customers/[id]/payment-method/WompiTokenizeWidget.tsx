@@ -26,14 +26,13 @@ export function WompiTokenizeWidget({
     return raw;
   }, [publicKey]);
 
-  const requiresAcceptance = useMemo(() => Boolean(acceptance?.termsUrl || acceptance?.personalDataUrl), [acceptance]);
-  const showPlaceholder = useMemo(() => requiresAcceptance && !canTokenize, [requiresAcceptance, canTokenize]);
   const canTokenize = useMemo(() => {
     if (!requiresAcceptance) return true;
     const termsOk = acceptance?.termsUrl ? acceptedTerms : true;
     const personalOk = acceptance?.personalDataUrl ? acceptedPersonal : true;
     return termsOk && personalOk;
   }, [requiresAcceptance, acceptance, acceptedTerms, acceptedPersonal]);
+  const showPlaceholder = useMemo(() => requiresAcceptance && !canTokenize, [requiresAcceptance, canTokenize]);
 
   useEffect(() => {
     const host = hostRef.current;
