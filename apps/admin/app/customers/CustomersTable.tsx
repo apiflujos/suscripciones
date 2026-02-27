@@ -77,7 +77,9 @@ export function CustomersTable({
   const [txItems, setTxItems] = useState<TransactionRow[]>([]);
   const [txLoading, setTxLoading] = useState(false);
   const [txError, setTxError] = useState("");
-  const [sendingId, setSendingId] = useState<string | null>(null);
+  const [sendingPaymentId, setSendingPaymentId] = useState<string | null>(null);
+  const [sendingTokenId, setSendingTokenId] = useState<string | null>(null);
+  const [sendingCartId, setSendingCartId] = useState<string | null>(null);
   const [sendError, setSendError] = useState<Record<string, string>>({});
   const [sendOk, setSendOk] = useState<Record<string, string>>({});
   const [notify, setNotify] = useState<{ open: boolean; title: string; message: string; status: "ok" | "fail" }>({
@@ -488,9 +490,9 @@ export function CustomersTable({
                       className="ghost btn-compact btn-amber"
                       type="button"
                       onClick={() => openTokenModal(c)}
-                      disabled={sendingId === c.id}
+                      disabled={sendingTokenId === c.id}
                     >
-                      {sendingId === c.id ? "Enviando..." : "Enviar tokenización"}
+                      {sendingTokenId === c.id ? "Enviando..." : "Enviar tokenización"}
                     </button>
                     <button
                       className="ghost btn-compact btn-blue"
@@ -598,7 +600,7 @@ export function CustomersTable({
                 e.preventDefault();
                 const customer = payModalCustomer;
                 if (!customer) return;
-                setSendingId(customer.id);
+                setSendingPaymentId(customer.id);
                 setSendError((prev) => ({ ...prev, [customer.id]: "" }));
                 setSendOk((prev) => ({ ...prev, [customer.id]: "" }));
                 try {
@@ -641,7 +643,7 @@ export function CustomersTable({
                   closePayModal();
                   openNotify("ok", "El link de pago fue enviado correctamente.");
                 } finally {
-                  setSendingId(null);
+                  setSendingPaymentId(null);
                 }
               }}
             >
@@ -690,7 +692,7 @@ export function CustomersTable({
                   openNotify("fail", "No hay plantillas de catálogo para enviar.");
                   return;
                 }
-                setSendingId(customer.id);
+                setSendingCartId(customer.id);
                 setSendError((prev) => ({ ...prev, [customer.id]: "" }));
                 setSendOk((prev) => ({ ...prev, [customer.id]: "" }));
                 try {
@@ -726,7 +728,7 @@ export function CustomersTable({
                   closeCartModal();
                   openNotify("ok", "El catálogo fue enviado correctamente.");
                 } finally {
-                  setSendingId(null);
+                  setSendingCartId(null);
                 }
               }}
             >
@@ -806,7 +808,7 @@ export function CustomersTable({
                 if (!customer) return;
                 const templateId = resolveTokenTemplate(customer.id);
                 if (!templateId) return;
-                setSendingId(customer.id);
+                setSendingTokenId(customer.id);
                 setSendError((prev) => ({ ...prev, [customer.id]: "" }));
                 setSendOk((prev) => ({ ...prev, [customer.id]: "" }));
                 try {
@@ -839,7 +841,7 @@ export function CustomersTable({
                   setSendOk((prev) => ({ ...prev, [customer.id]: "sent" }));
                   closeTokenModal();
                 } finally {
-                  setSendingId(null);
+                  setSendingTokenId(null);
                 }
               }}
             >
@@ -1015,7 +1017,7 @@ export function CustomersTable({
                         className="paylink-form"
                         onSubmit={async (e) => {
                           e.preventDefault();
-                          setSendingId(detailsCustomer.id);
+                          setSendingTokenId(detailsCustomer.id);
                           setSendError((prev) => ({ ...prev, [detailsCustomer.id]: "" }));
                           setSendOk((prev) => ({ ...prev, [detailsCustomer.id]: "" }));
                           try {
@@ -1041,14 +1043,14 @@ export function CustomersTable({
                             setSendOk((prev) => ({ ...prev, [detailsCustomer.id]: "sent" }));
                             closeDetails();
                           } finally {
-                            setSendingId(null);
+                          setSendingTokenId(null);
                           }
                         }}
                       >
                         <input type="hidden" name="customerId" value={detailsCustomer.id} />
                         <input type="hidden" name="customerName" value={detailsCustomer.name || ""} />
-                        <button className="primary btn-compact" type="submit" disabled={sendingId === detailsCustomer.id}>
-                          {sendingId === detailsCustomer.id ? "Enviando..." : "Enviar tokenización"}
+                        <button className="primary btn-compact" type="submit" disabled={sendingTokenId === detailsCustomer.id}>
+                          {sendingTokenId === detailsCustomer.id ? "Enviando..." : "Enviar tokenización"}
                         </button>
                       </form>
                     </>
@@ -1062,7 +1064,7 @@ export function CustomersTable({
                           e.preventDefault();
                           const form = e.currentTarget;
                           const amount = (form.elements.namedItem("amount") as HTMLInputElement | null)?.value || "";
-                          setSendingId(detailsCustomer.id);
+                          setSendingPaymentId(detailsCustomer.id);
                           setSendError((prev) => ({ ...prev, [detailsCustomer.id]: "" }));
                           setSendOk((prev) => ({ ...prev, [detailsCustomer.id]: "" }));
                           try {
@@ -1093,15 +1095,15 @@ export function CustomersTable({
                             setSendOk((prev) => ({ ...prev, [detailsCustomer.id]: "sent" }));
                             closeDetails();
                           } finally {
-                            setSendingId(null);
+                          setSendingPaymentId(null);
                           }
                         }}
                       >
                         <input type="hidden" name="customerId" value={detailsCustomer.id} />
                         <input type="hidden" name="customerName" value={detailsCustomer.name || ""} />
                         <input className="input" name="amount" placeholder="$ 10000" inputMode="numeric" aria-label="Monto" />
-                        <button className="primary btn-compact" type="submit" disabled={sendingId === detailsCustomer.id}>
-                          {sendingId === detailsCustomer.id ? "Enviando..." : "Enviar link de pago"}
+                        <button className="primary btn-compact" type="submit" disabled={sendingPaymentId === detailsCustomer.id}>
+                          {sendingPaymentId === detailsCustomer.id ? "Enviando..." : "Enviar link de pago"}
                         </button>
                       </form>
                     </>
