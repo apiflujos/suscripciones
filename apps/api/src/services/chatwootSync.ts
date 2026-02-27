@@ -129,7 +129,46 @@ export async function ensureChatwootContactForCustomer(customerId: string) {
   const existingSourceId = meta?.chatwoot?.sourceId;
 
   if (typeof existingContactId === "number" && Number.isFinite(existingContactId)) {
-    return { ok: true as const, contactId: existingContactId, sourceId: existingSourceId };
+    const client = new ChatwootClient({
+      baseUrl: cfg.baseUrl,
+      accountId: cfg.accountId,
+      apiAccessToken: cfg.apiAccessToken,
+      inboxId: cfg.inboxId
+    });
+    // Ensure latest data always wins.
+    await client
+      .updateContact(existingContactId, {
+        name: customer.name || undefined,
+        email: customer.email || undefined,
+        phoneNumber: customer.phone || undefined
+      })
+      .catch(() => {});
+    // Ensure we have a sourceId tied to the inbox.
+    let sourceId = existingSourceId;
+    if (!sourceId) {
+      try {
+        const contactInfo = await client.getContact(existingContactId);
+        sourceId = contactInfo.sourceId;
+      } catch {
+        // ignore
+      }
+      if (!sourceId) {
+        try {
+          const createdInbox = await client.createContactInbox(existingContactId);
+          sourceId = createdInbox.sourceId;
+        } catch {
+          // ignore
+        }
+      }
+    }
+    if (sourceId && sourceId !== existingSourceId) {
+      const merged = {
+        ...(meta && typeof meta === "object" ? meta : {}),
+        chatwoot: { ...(meta?.chatwoot || {}), contactId: existingContactId, sourceId }
+      };
+      await prisma.customer.update({ where: { id: customer.id }, data: { metadata: merged as any } }).catch(() => {});
+    }
+    return { ok: true as const, contactId: existingContactId, sourceId };
   }
 
   const client = new ChatwootClient({
@@ -154,6 +193,13 @@ export async function ensureChatwootContactForCustomer(customerId: string) {
     if (q) {
       const found = await client.searchContact(q).catch(() => null);
       if (found?.contactId) {
+        await client
+          .updateContact(found.contactId, {
+            name: customer.name || undefined,
+            email: customer.email || undefined,
+            phoneNumber: customer.phone || undefined
+          })
+          .catch(() => {});
         const merged = {
           ...(meta && typeof meta === "object" ? meta : {}),
           chatwoot: { ...(meta?.chatwoot || {}), contactId: found.contactId }
