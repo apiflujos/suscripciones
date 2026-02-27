@@ -24,6 +24,8 @@ publicLinksRouter.get("/checkout-config", async (_req, res) => {
     parsed = raw ? JSON.parse(raw) : null;
   } catch {}
   const envBases = getCheckoutBaseUrlsFromEnv();
+  const storedPlanBaseUrl = String(parsed?.planBaseUrl || "").trim();
+  const storedSubscriptionBaseUrl = String(parsed?.subscriptionBaseUrl || "").trim();
   const wompiActiveEnv = (() => {
     const fromDb = wompiCreds.get("ACTIVE_ENV");
     const normalized = String(fromDb || "PRODUCTION")
@@ -36,8 +38,8 @@ publicLinksRouter.get("/checkout-config", async (_req, res) => {
   const wompiPublicKey = String(getWompi("PUBLIC_KEY", wompiActiveEnv as any) || "").trim();
   const wompiApiBaseUrl = String(getWompi("API_BASE_URL", wompiActiveEnv as any) || "").trim();
   const config = {
-    planBaseUrl: envBases.planBaseUrl,
-    subscriptionBaseUrl: envBases.subscriptionBaseUrl,
+    planBaseUrl: storedPlanBaseUrl || envBases.planBaseUrl,
+    subscriptionBaseUrl: storedSubscriptionBaseUrl || envBases.subscriptionBaseUrl,
     defaultUtmParams: String(parsed?.defaultUtmParams || "").trim() || "",
     tokenExpiryHours: Number(parsed?.tokenExpiryHours || 24),
     logoUrl: String(parsed?.logoUrl || "").trim() || null,

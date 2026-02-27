@@ -16,8 +16,8 @@ function parseCheckoutConfig(raw: string | null) {
     parsed = null;
   }
   const envBases = getCheckoutBaseUrlsFromEnv();
-  const planBaseUrl = String(envBases.planBaseUrl || "").trim();
-  const subscriptionBaseUrl = String(envBases.subscriptionBaseUrl || "").trim();
+  const planBaseUrl = String(parsed?.planBaseUrl || envBases.planBaseUrl || "").trim();
+  const subscriptionBaseUrl = String(parsed?.subscriptionBaseUrl || envBases.subscriptionBaseUrl || "").trim();
   const defaultUtmParams = String(parsed?.defaultUtmParams || "").trim();
   const tokenExpiryHours = Number(parsed?.tokenExpiryHours || 24);
   return { planBaseUrl, subscriptionBaseUrl, defaultUtmParams, tokenExpiryHours };

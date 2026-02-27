@@ -206,6 +206,8 @@ settingsRouter.get("/", async (_req, res) => {
     checkoutConfig = {};
   }
   const envBases = getCheckoutBaseUrlsFromEnv();
+  const storedPlanBaseUrl = String(checkoutConfig?.planBaseUrl || "").trim();
+  const storedSubscriptionBaseUrl = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
 
   res.json({
     encryptionKeyConfigured,
@@ -233,8 +235,8 @@ settingsRouter.get("/", async (_req, res) => {
       inboxId: (chatwootActiveEnv === "SANDBOX" ? commsSandbox.inboxId : commsProd.inboxId) ?? null
     },
     checkoutConfig: {
-      planBaseUrl: envBases.planBaseUrl,
-      subscriptionBaseUrl: envBases.subscriptionBaseUrl,
+      planBaseUrl: storedPlanBaseUrl || envBases.planBaseUrl,
+      subscriptionBaseUrl: storedSubscriptionBaseUrl || envBases.subscriptionBaseUrl,
       defaultUtmParams: checkoutConfig.defaultUtmParams || "",
       tokenExpiryHours:
         Number.isFinite(Number(checkoutConfig.tokenExpiryHours)) && Number(checkoutConfig.tokenExpiryHours) > 0
@@ -394,8 +396,8 @@ settingsRouter.put("/checkout-config", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
 
   const payload = {
-    planBaseUrl: "",
-    subscriptionBaseUrl: "",
+    planBaseUrl: parsed.data.planBaseUrl || "",
+    subscriptionBaseUrl: parsed.data.subscriptionBaseUrl || "",
     defaultUtmParams: parsed.data.defaultUtmParams || "",
     tokenExpiryHours: parsed.data.tokenExpiryHours || undefined,
     logoUrl: parsed.data.logoUrl || "",

@@ -111,16 +111,33 @@ export async function POST(req: Request) {
         body: JSON.stringify({ metadata: nextMeta })
       });
 
+      let chatwootError: string | null = null;
       const msg = `Hola ${customerName || "Cliente"}, aquí está tu link de pago: ${publicUrl}`;
-      await fetch(`${API_BASE}/admin/chatwoot/messages`, {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${token}`,
-          "x-admin-token": token,
-          "content-type": "application/json"
-        },
-        body: JSON.stringify({ customerId, content: msg })
-      }).catch(() => {});
+      try {
+        const chatRes = await fetch(`${API_BASE}/admin/chatwoot/messages`, {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${token}`,
+            "x-admin-token": token,
+            "content-type": "application/json"
+          },
+          body: JSON.stringify({ customerId, content: msg })
+        });
+        if (!chatRes.ok) {
+          const chatJson = await chatRes.json().catch(() => null);
+          chatwootError = String(chatJson?.error || chatJson?.message || `chatwoot_error_${chatRes.status}`);
+        }
+      } catch (err: any) {
+        chatwootError = String(err?.message || "chatwoot_request_failed");
+      }
+
+      return NextResponse.json({
+        ok: true,
+        checkoutUrl: checkoutUrl || null,
+        publicUrl,
+        notificationsScheduled: typeof json?.notificationsScheduled === "number" ? json.notificationsScheduled : null,
+        chatwootError
+      });
     }
   } catch {
     // ignore best-effort public link
@@ -130,6 +147,7 @@ export async function POST(req: Request) {
     ok: true,
     checkoutUrl: checkoutUrl || null,
     publicUrl,
-    notificationsScheduled: typeof json?.notificationsScheduled === "number" ? json.notificationsScheduled : null
+    notificationsScheduled: typeof json?.notificationsScheduled === "number" ? json.notificationsScheduled : null,
+    chatwootError: null
   });
 }

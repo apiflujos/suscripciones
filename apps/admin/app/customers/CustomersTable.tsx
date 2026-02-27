@@ -166,8 +166,7 @@ export function CustomersTable({
   function resolveTokenTemplate(customerId: string) {
     const chosen = tokenTemplateByCustomer[customerId];
     if (chosen) return chosen;
-    const first = checkoutTemplates.find((t: any) => String(t?.kind || "") === "SUBSCRIPTION");
-    return first?.id || "";
+    return "";
   }
 
 
@@ -320,6 +319,8 @@ export function CustomersTable({
         return "Sesión vencida. Vuelve a iniciar sesión.";
       case "store_failed":
         return "No se pudo guardar el link en el contacto.";
+      case "centralcom_failed":
+        return "CentralCom no pudo enviar el mensaje. Revisa la configuración de conexiones.";
       case "request_failed":
       case "send_failed":
         return "No se pudo enviar el mensaje. Intenta nuevamente.";
@@ -643,6 +644,13 @@ export function CustomersTable({
                     const nextUrl = String(json?.publicUrl || json?.checkoutUrl || "");
                     setLinkOverrides((prev) => ({ ...prev, [customer.id]: { ...(prev[customer.id] || {}), payment: nextUrl } }));
                   }
+                  const chatErr = String(json?.chatwootError || "").trim();
+                  if (chatErr) {
+                    setSendError((prev) => ({ ...prev, [customer.id]: "centralcom_failed" }));
+                    closePayModal();
+                    openNotify("fail", `CentralCom no pudo enviar el mensaje: ${chatErr}`);
+                    return;
+                  }
                   setSendOk((prev) => ({ ...prev, [customer.id]: "sent" }));
                   closePayModal();
                   openNotify("ok", "El link de pago fue enviado correctamente.");
@@ -871,7 +879,7 @@ export function CustomersTable({
                     }))
                   }
                 >
-                  <option value="">Sin plantilla</option>
+                  <option value="">Selecciona una plantilla</option>
                   {checkoutTemplates
                     .filter((t: any) => String(t?.kind || "") === "SUBSCRIPTION")
                     .map((t: any) => (
@@ -1120,6 +1128,12 @@ export function CustomersTable({
                             if (typeof json?.notificationsScheduled === "number" && json.notificationsScheduled === 0) {
                               setSendError((prev) => ({ ...prev, [detailsCustomer.id]: "no_rules" }));
                               openNotify("fail", "No hay notificaciones activas para enviar el link.");
+                              return;
+                            }
+                            const chatErr = String(json?.chatwootError || "").trim();
+                            if (chatErr) {
+                              setSendError((prev) => ({ ...prev, [detailsCustomer.id]: "centralcom_failed" }));
+                              openNotify("fail", `CentralCom no pudo enviar el mensaje: ${chatErr}`);
                               return;
                             }
                             setSendOk((prev) => ({ ...prev, [detailsCustomer.id]: "sent" }));
