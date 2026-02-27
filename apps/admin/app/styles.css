@@ -1952,6 +1952,15 @@ textarea {
   gap: 6px;
   animation: publicCheckoutLift 520ms ease both;
 }
+.publicCheckoutHeader {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.publicCheckoutHeaderText {
+  display: grid;
+  gap: 4px;
+}
 .publicCheckoutSide {
   display: grid;
   gap: 8px;
@@ -1968,14 +1977,16 @@ textarea {
   }
 }
 .publicCheckoutIntro h1 {
-  font-size: clamp(22px, 2.4vw, 30px);
-  line-height: 1.1;
+  font-size: clamp(20px, 2.1vw, 28px);
+  line-height: 1.05;
   letter-spacing: -0.02em;
-  margin-bottom: 2px;
+  margin: 0;
 }
-.publicCheckoutIntro p {
-  font-size: 15px;
-  line-height: 1.5;
+.publicCheckoutIntro p { margin: 0; }
+.publicCheckoutIntro p,
+.publicCheckoutSupport {
+  font-size: 14px;
+  line-height: 1.3;
   color: rgba(15, 23, 42, 0.72);
 }
 .publicCheckoutIntro .field-hint {
@@ -1983,10 +1994,9 @@ textarea {
   color: rgba(15, 23, 42, 0.58);
 }
 .publicCheckoutSubtitle {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: rgba(15, 23, 42, 0.82);
-  margin-top: 2px;
 }
 .publicCheckoutDescription {
   font-size: 14px;
@@ -2001,15 +2011,19 @@ textarea {
   color: rgba(15, 23, 42, 0.6);
 }
 .publicCheckoutSide .field {
-  gap: 6px;
+  gap: 4px;
 }
 .publicCheckoutSide label {
   font-size: 13px;
 }
 .publicCheckoutSide .field-hint {
-  margin-top: 2px;
+  margin-top: 0;
 }
 .publicCheckoutSide .waybox-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.1;
   width: 100%;
   padding: 12px 16px;
   border-radius: 12px;
@@ -2072,6 +2086,12 @@ textarea {
   }
   .publicCheckoutSide {
     padding: 12px;
+  }
+  .publicCheckoutHeader {
+    align-items: flex-start;
+  }
+  .publicCheckoutHeaderText h1 {
+    line-height: 1.1;
   }
 }
 .publicCheckoutMiniForm {

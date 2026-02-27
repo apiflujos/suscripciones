@@ -34,9 +34,13 @@ export function PublicCheckoutLayout({
       <div className="card cardPad publicCheckoutCard" style={{ ...(primaryColor ? { borderColor: primaryColor } : {}) }}>
         <div className="publicCheckoutLayout">
           <div className="publicCheckoutIntro">
-            {logoUrl ? <img src={logoUrl} alt={title} className="publicCheckoutLogo" referrerPolicy="no-referrer" /> : null}
-            <h1 style={{ marginTop: 0 }}>{title}</h1>
-            {subtitle ? <p className="publicCheckoutSubtitle">{subtitle}</p> : null}
+            <div className="publicCheckoutHeader">
+              {logoUrl ? <img src={logoUrl} alt={title} className="publicCheckoutLogo" referrerPolicy="no-referrer" /> : null}
+              <div className="publicCheckoutHeaderText">
+                <h1>{title}</h1>
+                {subtitle ? <p className="publicCheckoutSubtitle">{subtitle}</p> : null}
+              </div>
+            </div>
             {description ? <p className="publicCheckoutDescription">{description}</p> : null}
             {trustText ? <p className="publicCheckoutTrust">{trustText}</p> : null}
             {supportHref ? (
