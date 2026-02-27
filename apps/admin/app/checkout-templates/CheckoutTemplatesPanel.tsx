@@ -255,6 +255,13 @@ export function CheckoutTemplatesPanel({
     if (inlineState.action !== key) return null;
     if (inlineState.status === "ok") return <div className="field-hint">Guardado.</div>;
     if (inlineState.status === "fail") {
+      if (inlineState.errorText?.startsWith("cart_mixed_collection")) {
+        return (
+          <div className="field-hint" style={{ color: "var(--danger)" }}>
+            El catálogo no puede mezclar planes y suscripciones. Elige solo un tipo.
+          </div>
+        );
+      }
       if (inlineState.errorText?.startsWith("invalid_body")) {
         return (
           <div className="field-hint" style={{ color: "var(--danger)" }}>
