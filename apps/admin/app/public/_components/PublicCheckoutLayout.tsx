@@ -36,11 +36,11 @@ export function PublicCheckoutLayout({
           <div className="publicCheckoutIntro">
             {logoUrl ? <img src={logoUrl} alt={title} className="publicCheckoutLogo" referrerPolicy="no-referrer" /> : null}
             <h1 style={{ marginTop: 0 }}>{title}</h1>
-            {subtitle ? <p style={{ marginTop: 6 }}>{subtitle}</p> : null}
-            {description ? <p className="field-hint">{description}</p> : null}
-            {trustText ? <p className="field-hint">{trustText}</p> : null}
+            {subtitle ? <p className="publicCheckoutSubtitle">{subtitle}</p> : null}
+            {description ? <p className="publicCheckoutDescription">{description}</p> : null}
+            {trustText ? <p className="publicCheckoutTrust">{trustText}</p> : null}
             {supportHref ? (
-              <div className="field-hint">
+              <div className="publicCheckoutSupport">
                 ¿Necesitas ayuda?{" "}
                 <a href={supportHref} referrerPolicy="no-referrer">
                   {supportLabel || "Contáctanos"}

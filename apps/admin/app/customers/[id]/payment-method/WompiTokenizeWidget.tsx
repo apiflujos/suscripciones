@@ -46,7 +46,51 @@ export function WompiTokenizeWidget({
       const path = window.location.pathname;
       form.setAttribute("action", path);
     }
-  }, []);
+
+    const cleanup = () => {
+      const prevScripts = Array.from(form.querySelectorAll("script")).filter((s) => {
+        const src = String(s.getAttribute("src") || "");
+        return (
+          s.getAttribute("data-wompi-widget") === "tokenize" ||
+          s.getAttribute("data-public-key") ||
+          src.includes("wompi")
+        );
+      });
+      for (const s of prevScripts) s.remove();
+      const prevButton = form.querySelector(".waybox-button");
+      if (prevButton) prevButton.remove();
+    };
+
+    cleanup();
+    if (!normalizedPublicKey) return;
+
+    const script = document.createElement("script");
+    // Wompi widget is a classic script (not ESM). Using module breaks currentScript.
+    script.setAttribute("data-render", "button");
+    script.setAttribute("data-widget-operation", "tokenize");
+    script.setAttribute("data-public-key", normalizedPublicKey);
+    script.dataset.publicKey = normalizedPublicKey;
+    script.setAttribute("data-wompi-widget", "tokenize");
+    script.async = false;
+    script.defer = false;
+    script.src = "https://checkout.wompi.co/widget.js";
+    form.appendChild(script);
+
+    const onSubmit = () => {
+      const button = form.querySelector<HTMLButtonElement>(".waybox-button, button[type='submit'], button");
+      if (button) {
+        button.disabled = true;
+        button.setAttribute("aria-disabled", "true");
+      }
+      form.setAttribute("data-submitting", "true");
+    };
+    form.addEventListener("submit", onSubmit);
+
+    return () => {
+      cleanup();
+      form.removeEventListener("submit", onSubmit);
+    };
+  }, [normalizedPublicKey]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -54,20 +98,42 @@ export function WompiTokenizeWidget({
     const form = host.closest("form");
     if (!form) return;
 
-    if (normalizedPublicKey && canTokenize) return;
+    const toggleButton = () => {
+      const button = form.querySelector<HTMLButtonElement>(".waybox-button, button[type='submit'], button");
+      if (!button) return;
+      const shouldDisable = !canTokenize;
+      button.disabled = shouldDisable;
+      button.setAttribute("aria-disabled", shouldDisable ? "true" : "false");
+      button.style.pointerEvents = shouldDisable ? "none" : "";
+      button.style.opacity = shouldDisable ? "0.6" : "";
+      form.setAttribute("data-locked", shouldDisable ? "true" : "false");
+      if (shouldDisable) {
+        button.setAttribute("data-locked", "true");
+      } else {
+        button.removeAttribute("data-locked");
+      }
+    };
 
-    const prevScripts = Array.from(form.querySelectorAll("script")).filter((s) => {
-      const src = String(s.getAttribute("src") || "");
-      return (
-        s.getAttribute("data-wompi-widget") === "tokenize" ||
-        s.getAttribute("data-public-key") ||
-        src.includes("wompi")
-      );
-    });
-    for (const s of prevScripts) s.remove();
-    const prevButton = form.querySelector(".waybox-button");
-    if (prevButton) prevButton.remove();
-  }, [normalizedPublicKey, canTokenize]);
+    toggleButton();
+    const observer = new MutationObserver(() => toggleButton());
+    observer.observe(form, { childList: true, subtree: true });
+
+    const onClickCapture = (event: MouseEvent) => {
+      if (canTokenize) return;
+      const target = event.target as HTMLElement | null;
+      const button = target?.closest?.(".waybox-button, button");
+      if (button) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+    form.addEventListener("click", onClickCapture, true);
+
+    return () => {
+      observer.disconnect();
+      form.removeEventListener("click", onClickCapture, true);
+    };
+  }, [canTokenize]);
 
   return (
     <div style={{ display: "grid", gap: 10 }}>
@@ -112,16 +178,6 @@ export function WompiTokenizeWidget({
       ) : null}
       <input type="hidden" name="accept_terms" value={acceptedTerms ? "1" : "0"} />
       <input type="hidden" name="accept_personal_data" value={acceptedPersonal ? "1" : "0"} />
-      {normalizedPublicKey && canTokenize ? (
-        <script
-          key={`wompi-tokenize-${normalizedPublicKey}`}
-          src="https://checkout.wompi.co/widget.js"
-          data-render="button"
-          data-widget-operation="tokenize"
-          data-public-key={normalizedPublicKey}
-          data-wompi-widget="tokenize"
-        ></script>
-      ) : null}
       <div ref={hostRef} />
     </div>
   );
