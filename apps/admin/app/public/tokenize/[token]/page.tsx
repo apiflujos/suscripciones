@@ -1,4 +1,3 @@
-import { WompiTokenizeWidget } from "../../../customers/[id]/payment-method/WompiTokenizeWidget";
 import { normalizeErrorParam } from "../../../lib/errorParam";
 import { fetchWompiAcceptanceLinks } from "../../../lib/wompiMerchant";
 import { PublicCheckoutLayout } from "../../_components/PublicCheckoutLayout";
@@ -119,7 +118,36 @@ export default async function PublicTokenizePage({
         <PublicAlert>No pudimos cargar los terminos de Wompi. Intenta mas tarde.</PublicAlert>
       ) : (
         <form method="POST" action={`/public/tokenize/${encodeURIComponent(token)}/process`} style={{ display: "grid", gap: 10 }}>
-          <WompiTokenizeWidget publicKey={publicKey} acceptance={acceptanceLinks} />
+          {acceptanceLinks?.termsUrl ? (
+            <label style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+              <input type="checkbox" name="accept_terms" value="1" required />
+              <span style={{ fontSize: 14 }}>
+                Acepto los terminos y condiciones de Wompi.{" "}
+                <a href={acceptanceLinks.termsUrl} target="_blank" rel="noreferrer">
+                  Ver terminos
+                </a>
+                .
+              </span>
+            </label>
+          ) : null}
+          {acceptanceLinks?.personalDataUrl ? (
+            <label style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+              <input type="checkbox" name="accept_personal_data" value="1" required />
+              <span style={{ fontSize: 14 }}>
+                Autorizo el tratamiento de mis datos personales.{" "}
+                <a href={acceptanceLinks.personalDataUrl} target="_blank" rel="noreferrer">
+                  Ver autorizacion
+                </a>
+                .
+              </span>
+            </label>
+          ) : null}
+          <script
+            src="https://checkout.wompi.co/widget.js"
+            data-render="button"
+            data-widget-operation="tokenize"
+            data-public-key={publicKey}
+          ></script>
         </form>
       )}
     </PublicCheckoutLayout>
