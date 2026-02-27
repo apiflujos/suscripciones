@@ -9,8 +9,8 @@ import { headers } from "next/headers";
 
 export const dynamic = "force-dynamic";
 
-function getRequestBase() {
-  const headerStore = headers();
+async function getRequestBase() {
+  const headerStore = await headers();
   const forwardedProto = headerStore.get("x-forwarded-proto") || "https";
   const forwardedHost = headerStore.get("x-forwarded-host") || headerStore.get("host");
   if (!forwardedHost) return "";
@@ -54,7 +54,7 @@ export default async function PublicTokenizePage({
 }) {
   const { token } = await params;
   const sp = (await searchParams) ?? {};
-  const requestBase = getRequestBase();
+  const requestBase = await getRequestBase();
   const apiBases = [process.env.NEXT_PUBLIC_API_BASE_URL || "", requestBase];
   const tokenRes = await fetchPublicToken(token, apiBases);
   const configRes = await fetchCheckoutConfig(apiBases);
