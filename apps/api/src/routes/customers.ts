@@ -230,12 +230,19 @@ customersRouter.post("/:id/wompi/payment-source", async (req, res) => {
   });
 
   const existing = (customer.metadata ?? {}) as any;
+  const existingWompi = existing?.wompi && typeof existing.wompi === "object" ? existing.wompi : {};
+  const existingSources = Array.isArray(existingWompi?.paymentSources) ? existingWompi.paymentSources : [];
+  const nextSources = [
+    ...existingSources.filter((s: any) => Number(s?.id) !== created.id),
+    { id: created.id, type: parsed.data.type, createdAt: new Date().toISOString() }
+  ];
   const merged = {
     ...(existing && typeof existing === "object" ? existing : {}),
     wompi: {
-      ...(existing?.wompi && typeof existing.wompi === "object" ? existing.wompi : {}),
+      ...(existingWompi || {}),
       paymentSourceId: created.id,
       paymentSourceType: parsed.data.type,
+      paymentSources: nextSources,
       acceptancePermalink: merchant.acceptancePermalink,
       personalDataPermalink: merchant.personalDataPermalink,
       createdAt: new Date().toISOString()
@@ -248,4 +255,42 @@ customersRouter.post("/:id/wompi/payment-source", async (req, res) => {
   });
 
   res.status(201).json({ customer: updated, paymentSourceId: created.id });
+});
+
+customersRouter.post("/:id/wompi/payment-source/clear", async (req, res) => {
+  const customerId = String(req.params.id || "").trim();
+  if (!customerId) return res.status(400).json({ error: "missing_customer_id" });
+
+  const customer = await prisma.customer.findUnique({ where: { id: customerId } });
+  if (!customer) return res.status(404).json({ error: "customer_not_found" });
+
+  const sourceIdRaw = Number(req.body?.sourceId ?? 0);
+  const existing = (customer.metadata ?? {}) as any;
+  const existingWompi = existing?.wompi && typeof existing.wompi === "object" ? existing.wompi : {};
+  const existingSources = Array.isArray(existingWompi?.paymentSources) ? existingWompi.paymentSources : [];
+  const activeId = existingWompi?.paymentSourceId;
+  const targetId =
+    Number.isFinite(sourceIdRaw) && sourceIdRaw > 0 ? sourceIdRaw : Number(activeId || 0) || 0;
+
+  const nextSources = targetId
+    ? existingSources.filter((s: any) => Number(s?.id) !== targetId)
+    : existingSources;
+  const nextActive = nextSources.length ? nextSources[nextSources.length - 1] : null;
+
+  const merged = {
+    ...(existing && typeof existing === "object" ? existing : {}),
+    wompi: {
+      ...(existingWompi || {}),
+      paymentSourceId: nextActive?.id ?? null,
+      paymentSourceType: nextActive?.type ?? null,
+      paymentSources: nextSources
+    }
+  };
+
+  const updated = await prisma.customer.update({
+    where: { id: customer.id },
+    data: { metadata: merged as any }
+  });
+
+  res.status(200).json({ ok: true, customer: updated, paymentSourceId: nextActive?.id ?? null });
 });

@@ -101,6 +101,7 @@ export function CustomersTable({
   const [payAmount, setPayAmount] = useState("");
   const [tokenModalOpen, setTokenModalOpen] = useState(false);
   const [tokenModalCustomer, setTokenModalCustomer] = useState<CustomerRow | null>(null);
+  const [clearingTokenId, setClearingTokenId] = useState<string | null>(null);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -127,7 +128,12 @@ export function CustomersTable({
       meta?.paymentSourceId,
       meta?.payment_source_id
     ];
-    return candidates.some((v: any) => (typeof v === "number" && Number.isFinite(v)) || (typeof v === "string" && /^\d+$/.test(v)));
+    const hasPrimary = candidates.some(
+      (v: any) => (typeof v === "number" && Number.isFinite(v)) || (typeof v === "string" && /^\d+$/.test(v))
+    );
+    if (hasPrimary) return true;
+    const sources = meta?.wompi?.paymentSources;
+    return Array.isArray(sources) && sources.length > 0;
   }
 
   function initialsFor(customer: CustomerRow) {
@@ -503,11 +509,9 @@ export function CustomersTable({
               </div>
               <div className="contact-paylink contact-footer">
                   <div className="paylink-actions" style={{ display: "flex", gap: 8, flexWrap: "nowrap", justifyContent: "flex-start", overflowX: "auto" }}>
-                    {!hasToken(c) ? (
-                      <Link className="ghost btn-compact btn-amber" href={`/customers/${c.id}/payment-method`}>
-                        Tokenizar
-                      </Link>
-                    ) : null}
+                    <Link className="ghost btn-compact btn-amber" href={`/customers/${c.id}/payment-method`}>
+                      {hasToken(c) ? "Tokenizar otra tarjeta" : "Tokenizar"}
+                    </Link>
                     <button
                       className="ghost btn-compact btn-amber"
                       type="button"
@@ -516,6 +520,34 @@ export function CustomersTable({
                     >
                       {sendingTokenId === c.id ? "Enviando..." : "Enviar tokenización"}
                     </button>
+                    {hasToken(c) ? (
+                      <button
+                        className="ghost btn-compact btn-red"
+                        type="button"
+                        onClick={async () => {
+                          if (!window.confirm("¿Quitar el método de pago guardado?")) return;
+                          setClearingTokenId(c.id);
+                          try {
+                            const res = await fetch("/api/customers/clear-payment-source", {
+                              method: "POST",
+                              headers: { "content-type": "application/json" },
+                              body: JSON.stringify({ customerId: c.id })
+                            });
+                            const json = await res.json().catch(() => ({}));
+                            if (!res.ok || !json?.ok) {
+                              openNotify("fail", mapSendError(json?.error || "request_failed"));
+                              return;
+                            }
+                            openNotify("ok", "Método de pago removido.");
+                          } finally {
+                            setClearingTokenId(null);
+                          }
+                        }}
+                        disabled={clearingTokenId === c.id}
+                      >
+                        {clearingTokenId === c.id ? "Quitando..." : "Quitar token"}
+                      </button>
+                    ) : null}
                     <button
                       className="ghost btn-compact btn-blue"
                       type="button"
@@ -1043,16 +1075,14 @@ export function CustomersTable({
                       return link?.createdAt ? <LocalDateTime value={link.createdAt} /> : "—";
                     })()}
                   </div>
-                  {!hasToken(detailsCustomer) ? (
-                    <div>
-                      <Link href={`/customers/${detailsCustomer.id}/payment-method`} style={{ textDecoration: "underline" }}>
-                        Tokenizar método
-                      </Link>
-                    </div>
-                  ) : null}
+                  <div>
+                    <Link href={`/customers/${detailsCustomer.id}/payment-method`} style={{ textDecoration: "underline" }}>
+                      {hasToken(detailsCustomer) ? "Tokenizar otra tarjeta" : "Tokenizar método"}
+                    </Link>
+                  </div>
                 </div>
                 <div className="contact-paylink" style={{ marginTop: 10 }}>
-                  {detailsHasPlan && !hasToken(detailsCustomer) ? (
+                  {detailsHasPlan ? (
                     <>
                       <div className="paylink-title">Enviar tokenización</div>
                       <form
@@ -1104,6 +1134,35 @@ export function CustomersTable({
                           {sendingTokenId === detailsCustomer.id ? "Enviando..." : "Enviar tokenización"}
                         </button>
                       </form>
+                      {hasToken(detailsCustomer) ? (
+                        <button
+                          className="ghost btn-compact btn-red"
+                          type="button"
+                          onClick={async () => {
+                            if (!window.confirm("¿Quitar el método de pago guardado?")) return;
+                            setClearingTokenId(detailsCustomer.id);
+                            try {
+                              const res = await fetch("/api/customers/clear-payment-source", {
+                                method: "POST",
+                                headers: { "content-type": "application/json" },
+                                body: JSON.stringify({ customerId: detailsCustomer.id })
+                              });
+                              const json = await res.json().catch(() => ({}));
+                              if (!res.ok || !json?.ok) {
+                                openNotify("fail", mapSendError(json?.error || "request_failed"));
+                                return;
+                              }
+                              openNotify("ok", "Método de pago removido.");
+                              closeDetails();
+                            } finally {
+                              setClearingTokenId(null);
+                            }
+                          }}
+                          disabled={clearingTokenId === detailsCustomer.id}
+                        >
+                          {clearingTokenId === detailsCustomer.id ? "Quitando..." : "Quitar token"}
+                        </button>
+                      ) : null}
                     </>
                   ) : (
                     <>

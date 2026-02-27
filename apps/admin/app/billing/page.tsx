@@ -251,7 +251,8 @@ export default async function BillingPage({
           (typeof customer?.metadata?.wompi?.paymentSourceId === "string" && /^\d+$/.test(customer?.metadata?.wompi?.paymentSourceId)) ||
           (typeof customer?.metadata?.wompi?.payment_source_id === "string" && /^\d+$/.test(customer?.metadata?.wompi?.payment_source_id)) ||
           (typeof customer?.metadata?.paymentSourceId === "string" && /^\d+$/.test(customer?.metadata?.paymentSourceId)) ||
-          (typeof customer?.metadata?.payment_source_id === "string" && /^\d+$/.test(customer?.metadata?.payment_source_id)),
+          (typeof customer?.metadata?.payment_source_id === "string" && /^\d+$/.test(customer?.metadata?.payment_source_id)) ||
+          (Array.isArray(customer?.metadata?.wompi?.paymentSources) && customer?.metadata?.wompi?.paymentSources.length > 0),
         identificacion: String(ident || "—"),
         tipoTx,
         tipoPago: getTipoPago(plan),

@@ -71,7 +71,12 @@ export default async function CustomerPaymentMethodPage({
       meta?.paymentSourceId,
       meta?.payment_source_id
     ];
-    return candidates.some((v: any) => (typeof v === "number" && Number.isFinite(v)) || (typeof v === "string" && /^\d+$/.test(v)));
+    const hasPrimary = candidates.some(
+      (v: any) => (typeof v === "number" && Number.isFinite(v)) || (typeof v === "string" && /^\d+$/.test(v))
+    );
+    if (hasPrimary) return true;
+    const sources = meta?.wompi?.paymentSources;
+    return Array.isArray(sources) && sources.length > 0;
   })();
 
   return (
