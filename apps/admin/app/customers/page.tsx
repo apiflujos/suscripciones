@@ -155,12 +155,13 @@ export default async function CustomersPage({
   const deleted = typeof sp.deleted === "string" ? sp.deleted : "";
   const paymentSource = typeof sp.paymentSource === "string" ? sp.paymentSource : "";
   const paymentLink = typeof sp.paymentLink === "string" ? sp.paymentLink : "";
+  const error = normalizeErrorParam(typeof sp.error === "string" ? sp.error : undefined);
 
   return (
     <main className="page" style={{ maxWidth: "100%" }}>
-      {normalizeErrorParam(sp.error) ? (
+      {error ? (
         <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
-          Error: {normalizeErrorParam(sp.error)}
+          Error: {error}
         </div>
       ) : null}
       {created ? <div className="card cardPad">Contacto creado.</div> : null}
