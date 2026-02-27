@@ -33,21 +33,18 @@ export async function POST(req: Request) {
   const normalized = base.replace(/\/$/, "");
   const hasSubPath = /\/public\/suscripcion$/i.test(normalized);
   const link = `${normalized}${hasSubPath ? "" : "/public/suscripcion"}/${linkToken}`;
-  const content = `Hola ${customerName}, para activar tu suscripción guarda tu método de pago aquí: ${link}`;
-
-  const res = await fetch(`${API_BASE}/admin/chatwoot/messages`, {
+  const scheduleRes = await fetch(`${API_BASE}/admin/notifications/schedule/tokenization?forceNow=1`, {
     method: "POST",
     headers: {
       authorization: `Bearer ${token}`,
       "x-admin-token": token,
       "content-type": "application/json"
     },
-    body: JSON.stringify({ customerId, content })
+    body: JSON.stringify({ customerId, tokenUrl: link })
   });
-
-  const json = await res.json().catch(() => null);
-  if (!res.ok) {
-    return NextResponse.json({ ok: false, error: json?.error || "request_failed" }, { status: res.status });
+  const scheduleJson = await scheduleRes.json().catch(() => null);
+  if (!scheduleRes.ok) {
+    return NextResponse.json({ ok: false, error: scheduleJson?.error || "request_failed" }, { status: scheduleRes.status });
   }
 
   const existing = await fetch(
@@ -88,5 +85,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "store_failed" }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, link });
+  return NextResponse.json({ ok: true, link, notificationsScheduled: scheduleJson?.scheduled ?? 0 });
 }

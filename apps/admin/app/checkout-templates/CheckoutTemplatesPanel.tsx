@@ -52,6 +52,11 @@ const STEPS: WizardStep[] = [
   { id: "review", label: "Revisión" }
 ];
 
+function autoResizeTextarea(el: HTMLTextAreaElement) {
+  el.style.height = "auto";
+  el.style.height = `${el.scrollHeight}px`;
+}
+
 export function CheckoutTemplatesPanel({
   templates,
   products,
@@ -478,7 +483,14 @@ export function CheckoutTemplatesPanel({
                   </div>
                   <div className="field">
                     <label>{selectedKind === "SUBSCRIPTION" ? "Descripción suscripción" : "Descripción plan"}</label>
-                    <textarea className="input" rows={2} value={wompiDescription} onChange={(e) => setWompiDescription(e.target.value)} placeholder="Descripción corta" />
+                    <textarea
+                      className="input"
+                      rows={1}
+                      value={wompiDescription}
+                      onChange={(e) => setWompiDescription(e.target.value)}
+                      onInput={(e) => autoResizeTextarea(e.currentTarget)}
+                      placeholder="Descripción corta"
+                    />
                   </div>
                 </div>
                 <input type="hidden" name="utmParams" value={utmParams} />

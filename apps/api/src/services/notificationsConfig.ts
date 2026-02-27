@@ -22,7 +22,8 @@ export const notificationTriggerSchema = z.enum([
   "PAYMENT_LINK_CREATED",
   "PAYMENT_APPROVED",
   "PAYMENT_DECLINED",
-  "CATALOG_LINK_CREATED"
+  "CATALOG_LINK_CREATED",
+  "TOKENIZATION_LINK_CREATED"
 ]);
 export type NotificationTrigger = z.infer<typeof notificationTriggerSchema>;
 

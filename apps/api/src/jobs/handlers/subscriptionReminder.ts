@@ -28,6 +28,7 @@ const payloadSchema = z.object({
     return s ? s : undefined;
   }, z.string().uuid().optional()),
   catalogUrl: z.string().url().optional(),
+  tokenUrl: z.string().url().optional(),
   immediateSend: z.boolean().optional(),
   cycleNumber: z.number().int().positive().optional(),
   paymentStatus: z.enum(["PENDING", "APPROVED", "DECLINED", "ERROR", "VOIDED"]).optional()
@@ -312,7 +313,11 @@ export async function subscriptionReminder(payload: any) {
     subscription,
     plan: subscription?.plan || null,
     payment: effectivePayment,
-    tokenization: customer?.metadata?.tokenizationLink?.url ? { url: customer.metadata.tokenizationLink.url } : null,
+    tokenization: parsed.data.tokenUrl
+      ? { url: parsed.data.tokenUrl }
+      : customer?.metadata?.tokenizationLink?.url
+        ? { url: customer.metadata.tokenizationLink.url }
+        : null,
     catalog: parsed.data.catalogUrl ? { url: parsed.data.catalogUrl } : null,
     paymentType
   };

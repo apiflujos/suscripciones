@@ -43,6 +43,10 @@ export function CheckoutConfigPanel({
   showFullscreen?: boolean;
   returnTo?: string;
 }) {
+  function autoResizeTextarea(el: HTMLTextAreaElement) {
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }
   const [logoData, setLogoData] = useState<string>(defaults.logoUrl || "");
   const [previewOpen, setPreviewOpen] = useState(false);
   const [planBaseUrl, setPlanBaseUrl] = useState<string>(String(defaults.planBaseUrl || ""));
@@ -164,7 +168,13 @@ export function CheckoutConfigPanel({
         </div>
         <div className="field">
           <label>Descripción</label>
-          <textarea className="input" rows={3} value={checkoutDescription} onChange={(e) => setCheckoutDescription(e.target.value)} />
+          <textarea
+            className="input"
+            rows={1}
+            value={checkoutDescription}
+            onChange={(e) => setCheckoutDescription(e.target.value)}
+            onInput={(e) => autoResizeTextarea(e.currentTarget)}
+          />
         </div>
         <div className="field">
           <label>Email de soporte</label>
@@ -186,11 +196,23 @@ export function CheckoutConfigPanel({
         </div>
         <div className="field">
           <label>Mensaje éxito</label>
-          <textarea className="input" rows={2} value={tokenSuccessMessage} onChange={(e) => setTokenSuccessMessage(e.target.value)} />
+          <textarea
+            className="input"
+            rows={1}
+            value={tokenSuccessMessage}
+            onChange={(e) => setTokenSuccessMessage(e.target.value)}
+            onInput={(e) => autoResizeTextarea(e.currentTarget)}
+          />
         </div>
         <div className="field">
           <label>Mensaje error</label>
-          <textarea className="input" rows={2} value={tokenErrorMessage} onChange={(e) => setTokenErrorMessage(e.target.value)} />
+          <textarea
+            className="input"
+            rows={1}
+            value={tokenErrorMessage}
+            onChange={(e) => setTokenErrorMessage(e.target.value)}
+            onInput={(e) => autoResizeTextarea(e.currentTarget)}
+          />
         </div>
         <div className="field">
           <label>URL de retorno (botón)</label>

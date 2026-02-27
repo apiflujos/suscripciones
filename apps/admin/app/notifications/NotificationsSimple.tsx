@@ -24,7 +24,7 @@ type Rule = {
   id: string;
   name: string;
   enabled: boolean;
-  trigger: "SUBSCRIPTION_DUE" | "PAYMENT_LINK_CREATED" | "CATALOG_LINK_CREATED" | "PAYMENT_APPROVED" | "PAYMENT_DECLINED";
+  trigger: "SUBSCRIPTION_DUE" | "PAYMENT_LINK_CREATED" | "CATALOG_LINK_CREATED" | "TOKENIZATION_LINK_CREATED" | "PAYMENT_APPROVED" | "PAYMENT_DECLINED";
   templateId: string;
   offsetsSeconds?: number[];
   atTimeUtc?: string | null;
@@ -36,6 +36,7 @@ type Rule = {
 
 type RealtimeKey =
   | "catalog_link_created"
+  | "tokenization_link_created"
   | "payment_link_created"
   | "payment_success_subscription"
   | "payment_success_plan"
@@ -52,6 +53,7 @@ const REALTIME_TYPES: Array<{
   paymentType?: "PLAN" | "SUBSCRIPTION" | "LINK";
 }> = [
   { key: "catalog_link_created", label: "Catálogo enviado", trigger: "CATALOG_LINK_CREATED", chatwootType: "PAYMENT_LINK" },
+  { key: "tokenization_link_created", label: "Tokenización enviada", trigger: "TOKENIZATION_LINK_CREATED", chatwootType: "PAYMENT_LINK" },
   { key: "payment_link_created", label: "Link de pago creado", trigger: "PAYMENT_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "LINK" },
   { key: "payment_success_subscription", label: "Pago exitoso (suscripción)", trigger: "PAYMENT_APPROVED", chatwootType: "PAYMENT_CONFIRMED", paymentType: "SUBSCRIPTION" },
   { key: "payment_success_plan", label: "Pago exitoso (plan)", trigger: "PAYMENT_APPROVED", chatwootType: "PAYMENT_CONFIRMED", paymentType: "PLAN" },
@@ -100,6 +102,11 @@ function insertAtCursor(el: HTMLInputElement | HTMLTextAreaElement, text: string
   el.setSelectionRange(nextPos, nextPos);
   el.dispatchEvent(new Event("input", { bubbles: true }));
   el.focus();
+}
+
+function autoResizeTextarea(el: HTMLTextAreaElement) {
+  el.style.height = "auto";
+  el.style.height = `${el.scrollHeight}px`;
 }
 
 function secondsFromOffset(item: OffsetItem, sign: 1 | -1) {
@@ -294,10 +301,11 @@ export function NotificationsSimple({
                           <textarea
                             className="input"
                             name="content"
-                            rows={4}
+                            rows={1}
                             defaultValue={content}
                             placeholder="Escribe el mensaje..."
                             onFocus={(e) => (lastFieldRef.current = e.target)}
+                            onInput={(e) => autoResizeTextarea(e.currentTarget)}
                           />
                           <div className="field-hint">Se reemplazan variables del sistema automáticamente.</div>
                           <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
@@ -416,9 +424,10 @@ export function NotificationsSimple({
                     <textarea
                       className="input"
                       name="content"
-                      rows={2}
+                      rows={1}
                       defaultValue={reminderDueTemplate?.content && reminderDueTemplate.content !== "(template)" ? reminderDueTemplate.content : ""}
                       onFocus={(e) => (lastFieldRef.current = e.target)}
+                      onInput={(e) => autoResizeTextarea(e.currentTarget)}
                     />
                     <div className="field-hint">Se reemplazan variables del sistema automáticamente.</div>
                     <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
@@ -573,9 +582,10 @@ export function NotificationsSimple({
                     <textarea
                       className="input"
                       name="content"
-                      rows={2}
+                      rows={1}
                       defaultValue={reminderMoraTemplate?.content && reminderMoraTemplate.content !== "(template)" ? reminderMoraTemplate.content : ""}
                       onFocus={(e) => (lastFieldRef.current = e.target)}
+                      onInput={(e) => autoResizeTextarea(e.currentTarget)}
                     />
                     <div className="field-hint">Se reemplazan variables del sistema automáticamente.</div>
                     <div style={{ display: "flex", gap: 8, marginTop: 6 }}>

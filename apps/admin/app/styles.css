@@ -950,6 +950,15 @@ textarea {
   gap: 2px;
 }
 
+.contact-footer {
+  grid-column: 1 / -1;
+  justify-items: start;
+}
+
+.contact-footer .contact-secondary-actions {
+  justify-content: flex-start;
+}
+
 .paylink-title {
   font-size: 10px;
   text-transform: uppercase;

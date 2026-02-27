@@ -22,6 +22,11 @@ function normalizeBaseUrl(input: string) {
   return raw.replace(/\/+$/g, "");
 }
 
+function autoResizeTextarea(el: HTMLTextAreaElement) {
+  el.style.height = "auto";
+  el.style.height = `${el.scrollHeight}px`;
+}
+
 export function RedirectConfigPanel({
   defaults,
   appPublicBaseUrl

@@ -80,6 +80,12 @@ export function CustomersTable({
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [sendError, setSendError] = useState<Record<string, string>>({});
   const [sendOk, setSendOk] = useState<Record<string, string>>({});
+  const [notify, setNotify] = useState<{ open: boolean; title: string; message: string; status: "ok" | "fail" }>({
+    open: false,
+    title: "",
+    message: "",
+    status: "ok"
+  });
   const [linkOverrides, setLinkOverrides] = useState<Record<string, { payment?: string; token?: string; cart?: string }>>({});
   const [cartTemplateByCustomer, setCartTemplateByCustomer] = useState<Record<string, string>>({});
   const [tokenTemplateByCustomer, setTokenTemplateByCustomer] = useState<Record<string, string>>({});
@@ -146,7 +152,8 @@ export function CustomersTable({
   function resolveCartTemplate(customerId: string) {
     const chosen = cartTemplateByCustomer[customerId];
     if (chosen) return chosen;
-    return cartTemplates[0]?.id || "";
+    const first = checkoutTemplates.find((t: any) => String(t?.kind || "") === "CART");
+    return first?.id || "";
   }
 
   function resolveTokenTemplate(customerId: string) {
@@ -258,6 +265,15 @@ export function CustomersTable({
     setPayModalCustomer(null);
     setPayAmount("");
     setTimeout(() => lastActiveRef.current?.focus(), 0);
+  }
+
+  function openNotify(status: "ok" | "fail", message: string) {
+    setNotify({
+      open: true,
+      title: status === "ok" ? "Mensaje enviado" : "Mensaje fallido",
+      message,
+      status
+    });
   }
 
   async function openTransactions(item: CustomerRow) {
@@ -409,7 +425,7 @@ export function CustomersTable({
                     </div>
                   ) : null}
                 </div>
-                <div className="contact-paylink">
+                <div className="contact-paylink contact-footer">
                   <div className="paylink-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-start" }}>
                     <button
                       className="ghost btn-compact btn-amber"
@@ -469,15 +485,15 @@ export function CustomersTable({
                     );
                   })()}
                   {sendOk[c.id] ? <div className="paylink-success">Link enviado.</div> : null}
+                  <div className="contact-secondary-actions">
+                    <button className="ghost btn-compact btn-blue" type="button" onClick={() => openDetails(c)}>
+                      Ver detalles
+                    </button>
+                    <button className="ghost btn-compact btn-green" type="button" onClick={() => openPlanModal(c)}>
+                      Crear plan / suscripción
+                    </button>
+                  </div>
                 </div>
-              <div className="contact-secondary-actions">
-                <button className="ghost btn-compact btn-blue" type="button" onClick={() => openDetails(c)}>
-                  Ver detalles
-                </button>
-                <button className="ghost btn-compact btn-green" type="button" onClick={() => openPlanModal(c)}>
-                  Crear plan / suscripción
-                </button>
-              </div>
             </div>
           </div>
         );
@@ -548,15 +564,22 @@ export function CustomersTable({
                   const contentType = res.headers.get("content-type") || "";
                   if (!contentType.includes("application/json")) {
                     setSendError((prev) => ({ ...prev, [customer.id]: "auth_required" }));
+                    closePayModal();
+                    openNotify("fail", "Sesión vencida. Vuelve a iniciar sesión.");
                     return;
                   }
                   const json = await res.json().catch(() => ({}));
                   if (!res.ok || !json?.ok) {
-                    setSendError((prev) => ({ ...prev, [customer.id]: json?.error || "send_failed" }));
+                    const msg = json?.error || "send_failed";
+                    setSendError((prev) => ({ ...prev, [customer.id]: msg }));
+                    closePayModal();
+                    openNotify("fail", msg);
                     return;
                   }
                   if (typeof json?.notificationsScheduled === "number" && json.notificationsScheduled === 0) {
                     setSendError((prev) => ({ ...prev, [customer.id]: "no_rules" }));
+                    closePayModal();
+                    openNotify("fail", "No hay notificaciones activas para enviar el link.");
                     return;
                   }
                   if (json?.publicUrl || json?.checkoutUrl) {
@@ -565,6 +588,7 @@ export function CustomersTable({
                   }
                   setSendOk((prev) => ({ ...prev, [customer.id]: "sent" }));
                   closePayModal();
+                  openNotify("ok", "El link de pago fue enviado correctamente.");
                 } finally {
                   setSendingId(null);
                 }
@@ -653,11 +677,16 @@ export function CustomersTable({
                   const contentType = res.headers.get("content-type") || "";
                   if (!contentType.includes("application/json")) {
                     setSendError((prev) => ({ ...prev, [customer.id]: "auth_required" }));
+                    closeCartModal();
+                    openNotify("fail", "Sesión vencida. Vuelve a iniciar sesión.");
                     return;
                   }
                   const json = await res.json().catch(() => ({}));
                   if (!res.ok || !json?.ok) {
-                    setSendError((prev) => ({ ...prev, [customer.id]: json?.error || "send_failed" }));
+                    const msg = json?.error || "send_failed";
+                    setSendError((prev) => ({ ...prev, [customer.id]: msg }));
+                    closeCartModal();
+                    openNotify("fail", msg);
                     return;
                   }
                   if (json?.link) {
@@ -665,6 +694,7 @@ export function CustomersTable({
                   }
                   setSendOk((prev) => ({ ...prev, [customer.id]: "sent" }));
                   closeCartModal();
+                  openNotify("ok", "El catálogo fue enviado correctamente.");
                 } finally {
                   setSendingId(null);
                 }
@@ -683,12 +713,19 @@ export function CustomersTable({
                   }
                   required
                 >
-                  {cartTemplates.map((t) => (
+                  {checkoutTemplates
+                    .filter((t: any) => String(t?.kind || "") === "CART")
+                    .map((t: any) => (
                     <option key={t.id} value={t.id}>
                       {t.name}
                     </option>
                   ))}
                 </select>
+                {checkoutTemplates.filter((t: any) => String(t?.kind || "") === "CART").length === 0 ? (
+                  <div className="field-hint" style={{ color: "var(--danger)" }}>
+                    No hay plantillas de catálogo configuradas.
+                  </div>
+                ) : null}
               </div>
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
                 <button className="ghost" type="button" onClick={closeCartModal}>

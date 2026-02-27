@@ -30,6 +30,7 @@ enum PlanType {
 enum PublicCheckoutKind {
   PLAN
   SUBSCRIPTION
+  CART
 }
 
 enum PaymentStatus {
