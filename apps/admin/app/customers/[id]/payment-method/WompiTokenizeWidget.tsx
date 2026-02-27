@@ -26,6 +26,11 @@ export function WompiTokenizeWidget({
     return raw;
   }, [publicKey]);
 
+  const requiresAcceptance = useMemo(
+    () => Boolean(acceptance?.termsUrl || acceptance?.personalDataUrl),
+    [acceptance]
+  );
+
   const canTokenize = useMemo(() => {
     if (!requiresAcceptance) return true;
     const termsOk = acceptance?.termsUrl ? acceptedTerms : true;
