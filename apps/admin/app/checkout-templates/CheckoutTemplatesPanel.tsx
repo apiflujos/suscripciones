@@ -795,6 +795,40 @@ export function CheckoutTemplatesPanel({
                 <strong>{t.expiryHours ? `${t.expiryHours}h` : "Nunca"}</strong>
               </div>
             </div>
+            <div className="panel module" style={{ margin: 0 }}>
+              <div className="panel-header">
+                <strong>Preview</strong>
+              </div>
+              <div className="preview-grid">
+                {[
+                  { label: "Desktop", cta: t.kind === "SUBSCRIPTION" ? "Guardar método" : "Pagar" },
+                  { label: "Mobile", cta: t.kind === "SUBSCRIPTION" ? "Guardar método" : "Pagar", mobile: true }
+                ].map((item) => (
+                  <div key={item.label} className={`preview-card ${item.mobile ? "preview-mobile" : ""}`}>
+                    <div className="preview-device">{item.label}</div>
+                    <div className={`preview-layout ${item.mobile ? "preview-layout-mobile" : ""}`} style={{ borderColor: t.layout?.primaryColor || undefined }}>
+                      <div className="preview-intro">
+                        {t.logoUrl ? <img src={t.logoUrl} alt="Logo" className="logo-preview" /> : null}
+                        <div className="canvas-title">{t.publicTitle || t.wompiTitle || (t.kind === "SUBSCRIPTION" ? "Activa tu suscripción" : "Paga tu plan")}</div>
+                        {(t.publicDescription || t.wompiDescription) ? (
+                          <div className="canvas-muted">{t.publicDescription || t.wompiDescription}</div>
+                        ) : null}
+                      </div>
+                      <div className="preview-form">
+                        <div className="canvas-form-preview">
+                          {t.layout?.fields?.showName ? <div className="canvas-input"><span>Nombre completo</span></div> : null}
+                          {t.layout?.fields?.showPhone ? <div className="canvas-input"><span>Teléfono</span></div> : null}
+                          {t.layout?.fields?.showEmail ? <div className="canvas-input"><span>Email</span></div> : null}
+                        </div>
+                        <button type="button" className="canvas-cta" style={{ background: t.layout?.primaryColor || undefined }}>
+                          {t.layout?.ctaLabel || item.cta}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
             <div className="template-actions">
               <button className="secondary" type="button" onClick={() => openEdit(t)}>
                 Editar
