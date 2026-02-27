@@ -22,16 +22,16 @@ export default async function PublicPlanMissingPage() {
 
   return (
     <PublicCheckoutLayout
-      title="Link incompleto"
-      subtitle="Falta el token del plan."
-      description="Verifica el enlace o solicita un nuevo link."
+      title="Link no válido"
+      subtitle="Este link no existe o ya no es válido."
+      description="Solicita un nuevo link."
       logoUrl={logoUrl}
       trustText="Pago seguro con Wompi."
       supportHref={supportHref || undefined}
       supportLabel={supportLabel || undefined}
       maxWidth={680}
     >
-      <PublicAlert>Este enlace no es valido sin el token.</PublicAlert>
+      <PublicAlert>Este link no existe o ya no es válido. Solicita uno nuevo.</PublicAlert>
     </PublicCheckoutLayout>
   );
 }
