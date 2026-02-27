@@ -1952,9 +1952,17 @@ textarea {
   gap: 6px;
   animation: publicCheckoutLift 520ms ease both;
 }
+.publicCheckoutIntroTop {
+  display: grid;
+  gap: 6px;
+}
+.publicCheckoutIntroMeta {
+  display: grid;
+  gap: 4px;
+}
 .publicCheckoutHeader {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 14px;
 }
 .publicCheckoutHeaderText {
