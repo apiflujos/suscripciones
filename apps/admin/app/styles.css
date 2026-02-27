@@ -1908,14 +1908,25 @@ textarea {
 }
 
 .publicCheckoutShell {
+  position: relative;
   display: grid;
-  gap: 16px;
+  gap: 18px;
+  padding: 24px;
+  border-radius: 24px;
+  background:
+    radial-gradient(900px 420px at 6% -12%, rgba(239, 68, 68, 0.12), rgba(239, 68, 68, 0)),
+    radial-gradient(760px 420px at 96% 8%, rgba(14, 116, 144, 0.14), rgba(14, 116, 144, 0)),
+    linear-gradient(160deg, #f8fafc 0%, #eef2f7 45%, #f6f1ea 100%);
+  overflow: hidden;
 }
 
 .publicCheckoutCard {
-  border-radius: 16px;
-  border: 1px solid var(--stroke);
-  box-shadow: var(--shadow);
+  border-radius: 20px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 22px 60px rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(10px);
+  animation: publicCheckoutLift 420ms ease both;
 }
 
 .publicCheckoutLogo {
@@ -1933,20 +1944,107 @@ textarea {
 .publicCheckoutLayout {
   display: grid;
   grid-template-columns: minmax(0, 0.58fr) minmax(0, 0.42fr);
-  gap: 18px;
+  gap: 22px;
   align-items: start;
 }
 .publicCheckoutIntro {
   display: grid;
-  gap: 8px;
+  gap: 10px;
+  animation: publicCheckoutLift 520ms ease both;
 }
 .publicCheckoutSide {
   display: grid;
-  gap: 10px;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(248, 250, 252, 0.9);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  animation: publicCheckoutLift 620ms ease both;
 }
 @media (max-width: 860px) {
   .publicCheckoutLayout {
     grid-template-columns: 1fr;
+  }
+}
+.publicCheckoutIntro h1 {
+  font-size: clamp(28px, 3.2vw, 38px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin-bottom: 6px;
+}
+.publicCheckoutIntro p {
+  font-size: 15px;
+  line-height: 1.5;
+  color: rgba(15, 23, 42, 0.72);
+}
+.publicCheckoutIntro .field-hint {
+  font-size: 13px;
+  color: rgba(15, 23, 42, 0.58);
+}
+.publicCheckoutSide .waybox-button {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: none;
+  color: #fff;
+  font-weight: 600;
+  font-size: 15px;
+  background: linear-gradient(135deg, var(--primary, #0f766e) 0%, #0b4f5b 100%);
+  box-shadow: 0 12px 24px rgba(15, 118, 110, 0.25);
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
+}
+.publicCheckoutSide .waybox-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 26px rgba(15, 118, 110, 0.3);
+}
+.publicCheckoutSide .waybox-button[aria-disabled="true"],
+.publicCheckoutSide .waybox-button[disabled],
+.publicCheckoutSide .waybox-button[data-locked="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+.publicCheckoutShell::before,
+.publicCheckoutShell::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+}
+.publicCheckoutShell::before {
+  width: 320px;
+  height: 320px;
+  top: -140px;
+  right: -120px;
+  background: radial-gradient(circle, rgba(14, 116, 144, 0.18), rgba(14, 116, 144, 0));
+}
+.publicCheckoutShell::after {
+  width: 260px;
+  height: 260px;
+  bottom: -120px;
+  left: -100px;
+  background: radial-gradient(circle, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0));
+}
+@keyframes publicCheckoutLift {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (max-width: 720px) {
+  .publicCheckoutShell {
+    padding: 16px;
+    border-radius: 18px;
+  }
+  .publicCheckoutSide {
+    padding: 14px;
   }
 }
 .publicCheckoutMiniForm {
