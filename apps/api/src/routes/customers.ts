@@ -9,7 +9,7 @@ import { getEffectiveTenantId } from "../services/tenantContext";
 
 const createCustomerSchema = z.object({
   name: z.string().min(1).optional(),
-  email: z.string().email().optional(),
+  email: z.string().email(),
   phone: z.string().min(6).optional(),
   metadata: z.any().optional()
 });

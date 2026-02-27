@@ -1208,7 +1208,13 @@ export function CustomersTable({
               </button>
             </div>
 
-            <form action={updateCustomer} style={{ display: "grid", gap: 10 }}>
+            <form
+              action={updateCustomer}
+              onSubmit={(e) => {
+                e.currentTarget.classList.add("was-validated");
+              }}
+              style={{ display: "grid", gap: 10 }}
+            >
               <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="id" value={editing.id} />
               <input type="hidden" name="tenantId" value={editing.tenantId || ""} />
@@ -1221,7 +1227,7 @@ export function CustomersTable({
                 </div>
                 <div className="field">
                   <label>Email</label>
-                  <input className="input" name="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                  <input className="input" type="email" name="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
                 </div>
               </div>
 

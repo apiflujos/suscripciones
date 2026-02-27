@@ -954,6 +954,12 @@ textarea {
   color: #b91c1c;
 }
 
+.was-validated .input:invalid,
+.was-validated .select:invalid,
+.was-validated textarea:invalid {
+  border-color: var(--danger);
+}
+
 .contact-paylink {
   background: #f8fafc;
   border: 1px solid rgba(15, 23, 42, 0.08);
