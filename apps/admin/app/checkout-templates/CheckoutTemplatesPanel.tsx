@@ -623,6 +623,40 @@ export function CheckoutTemplatesPanel({
                     <div><strong>Color:</strong> {primaryColor || "—"}</div>
                   </div>
                 </div>
+                <div className="panel module" style={{ margin: 0 }}>
+                  <div className="panel-header">
+                    <strong>Preview</strong>
+                  </div>
+                  <div className="preview-grid">
+                    {[
+                      { label: "Desktop", cta: selectedKind === "SUBSCRIPTION" ? "Guardar método" : "Pagar" },
+                      { label: "Mobile", cta: selectedKind === "SUBSCRIPTION" ? "Guardar método" : "Pagar", mobile: true }
+                    ].map((item) => (
+                      <div key={item.label} className={`preview-card ${item.mobile ? "preview-mobile" : ""}`}>
+                        <div className="preview-device">{item.label}</div>
+                        <div className={`preview-layout ${item.mobile ? "preview-layout-mobile" : ""}`} style={{ borderColor: primaryColor || undefined }}>
+                          <div className="preview-intro">
+                            {logoUrl ? <img src={logoUrl} alt="Logo" className="logo-preview" /> : null}
+                            <div className="canvas-title">{publicTitle || wompiTitle || (selectedKind === "SUBSCRIPTION" ? "Activa tu suscripción" : "Paga tu plan")}</div>
+                            {(publicDescription || wompiDescription) ? (
+                              <div className="canvas-muted">{publicDescription || wompiDescription}</div>
+                            ) : null}
+                          </div>
+                          <div className="preview-form">
+                            <div className="canvas-form-preview">
+                              {showName ? <div className="canvas-input"><span>Nombre completo</span></div> : null}
+                              {showPhone ? <div className="canvas-input"><span>Teléfono</span></div> : null}
+                              {showEmail ? <div className="canvas-input"><span>Email</span></div> : null}
+                            </div>
+                            <button type="button" className="canvas-cta" style={{ background: primaryColor || undefined }}>
+                              {ctaLabel || item.cta}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
                 {!isProductsValid ? (
                   <div className="field-hint" style={{ color: "var(--danger)" }}>
                     Debes seleccionar productos o permitir el selector.
