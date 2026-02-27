@@ -409,14 +409,14 @@ export function CustomersTable({
                       onClick={() => openTokenModal(c)}
                       disabled={sendingId === c.id}
                     >
-                      {sendingId === c.id ? "Enviando..." : "Tokenización"}
+                      {sendingId === c.id ? "Enviando..." : "Enviar tokenización"}
                     </button>
                     <button
                       className="ghost btn-compact btn-blue"
                       type="button"
                       onClick={() => openPayModal(c)}
                     >
-                      Link de pago
+                      Enviar link de pago
                     </button>
                     <button
                       className="ghost btn-compact btn-green"
@@ -881,7 +881,7 @@ export function CustomersTable({
                 <div className="contact-paylink" style={{ marginTop: 10 }}>
                   {detailsHasPlan && !hasToken(detailsCustomer) ? (
                     <>
-                      <div className="paylink-title">Link de tokenización</div>
+                      <div className="paylink-title">Enviar tokenización</div>
                       <form
                         id={`details-token-${detailsCustomer.id}`}
                         className="paylink-form"
@@ -919,13 +919,13 @@ export function CustomersTable({
                         <input type="hidden" name="customerId" value={detailsCustomer.id} />
                         <input type="hidden" name="customerName" value={detailsCustomer.name || ""} />
                         <button className="primary btn-compact" type="submit" disabled={sendingId === detailsCustomer.id}>
-                          {sendingId === detailsCustomer.id ? "Enviando..." : "Enviar link"}
+                          {sendingId === detailsCustomer.id ? "Enviando..." : "Enviar tokenización"}
                         </button>
                       </form>
                     </>
                   ) : (
                     <>
-                      <div className="paylink-title">Crear link de pago</div>
+                      <div className="paylink-title">Enviar link de pago</div>
                       <form
                         id={`details-paylink-${detailsCustomer.id}`}
                         className="paylink-form"
@@ -971,7 +971,7 @@ export function CustomersTable({
                         <input type="hidden" name="customerName" value={detailsCustomer.name || ""} />
                         <input className="input" name="amount" placeholder="$ 10000" inputMode="numeric" aria-label="Monto" />
                         <button className="primary btn-compact" type="submit" disabled={sendingId === detailsCustomer.id}>
-                          {sendingId === detailsCustomer.id ? "Enviando..." : "Enviar link"}
+                          {sendingId === detailsCustomer.id ? "Enviando..." : "Enviar link de pago"}
                         </button>
                       </form>
                     </>
