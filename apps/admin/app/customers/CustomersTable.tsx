@@ -488,7 +488,7 @@ export function CustomersTable({
                 </div>
               </div>
               <div className="contact-paylink contact-footer">
-                  <div className="paylink-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-start" }}>
+                  <div className="paylink-actions" style={{ display: "flex", gap: 8, flexWrap: "nowrap", justifyContent: "flex-start", overflowX: "auto" }}>
                     <button
                       className="ghost btn-compact btn-amber"
                       type="button"
@@ -517,6 +517,31 @@ export function CustomersTable({
                     <button className="ghost btn-compact btn-green" type="button" onClick={() => openPlanModal(c)}>
                       Crear plan / suscripción
                     </button>
+                    {(() => {
+                      const override = linkOverrides[c.id] || {};
+                      const paymentLink = override.payment || c.metadata?.paymentLink?.url || latestLinks[String(c.id)]?.checkoutUrl || "";
+                      const tokenLink = override.token || getTokenLink(c);
+                      const cartLink = override.cart || getCartLink(c);
+                      return (
+                        <>
+                          {paymentLink ? (
+                            <a className="ghost btn-compact btn-blue btn-link" href={paymentLink} target="_blank" rel="noreferrer" title={maskUrl(paymentLink)}>
+                              Link de pago
+                            </a>
+                          ) : null}
+                          {tokenLink ? (
+                            <a className="ghost btn-compact btn-amber btn-link" href={tokenLink} target="_blank" rel="noreferrer" title={maskUrl(tokenLink)}>
+                              Link de tokenización
+                            </a>
+                          ) : null}
+                          {cartLink ? (
+                            <a className="ghost btn-compact btn-green btn-link" href={cartLink} target="_blank" rel="noreferrer" title={maskUrl(cartLink)}>
+                              Link de catálogo
+                            </a>
+                          ) : null}
+                        </>
+                      );
+                    })()}
                   </div>
                   {sendError[c.id] === "auth_required" ? (
                     <div className="paylink-error">Sesión vencida. Vuelve a iniciar sesión.</div>
@@ -527,31 +552,6 @@ export function CustomersTable({
                   {sendError[c.id] && sendError[c.id] !== "auth_required" && sendError[c.id] !== "no_rules" ? (
                     <div className="paylink-error">{sendError[c.id]}</div>
                   ) : null}
-                  {(() => {
-                    const override = linkOverrides[c.id] || {};
-                    const paymentLink = override.payment || c.metadata?.paymentLink?.url || latestLinks[String(c.id)]?.checkoutUrl || "";
-                    const tokenLink = override.token || getTokenLink(c);
-                    const cartLink = override.cart || getCartLink(c);
-                    return (
-                      <div className="paylink-links">
-                        {paymentLink ? (
-                          <a className="ghost btn-compact btn-blue btn-link" href={paymentLink} target="_blank" rel="noreferrer" title={maskUrl(paymentLink)}>
-                            Link de pago
-                          </a>
-                        ) : null}
-                        {tokenLink ? (
-                          <a className="ghost btn-compact btn-amber btn-link" href={tokenLink} target="_blank" rel="noreferrer" title={maskUrl(tokenLink)}>
-                            Link de tokenización
-                          </a>
-                        ) : null}
-                        {cartLink ? (
-                          <a className="ghost btn-compact btn-green btn-link" href={cartLink} target="_blank" rel="noreferrer" title={maskUrl(cartLink)}>
-                            Link de catálogo
-                          </a>
-                        ) : null}
-                      </div>
-                    );
-                  })()}
                   {sendOk[c.id] ? <div className="paylink-success">Link enviado.</div> : null}
               </div>
             </div>
