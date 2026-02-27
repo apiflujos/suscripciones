@@ -47,35 +47,6 @@ export function WompiTokenizeWidget({
       form.setAttribute("action", path);
     }
 
-    const cleanup = () => {
-      const prevScripts = Array.from(form.querySelectorAll("script")).filter((s) => {
-        const src = String(s.getAttribute("src") || "");
-        return (
-          s.getAttribute("data-wompi-widget") === "tokenize" ||
-          s.getAttribute("data-public-key") ||
-          src.includes("wompi")
-        );
-      });
-      for (const s of prevScripts) s.remove();
-      const prevButton = form.querySelector(".waybox-button");
-      if (prevButton) prevButton.remove();
-    };
-
-    cleanup();
-    if (!normalizedPublicKey) return;
-
-    const script = document.createElement("script");
-    // Wompi widget is a classic script (not ESM). Using module breaks currentScript.
-    script.setAttribute("data-render", "button");
-    script.setAttribute("data-widget-operation", "tokenize");
-    script.setAttribute("data-public-key", normalizedPublicKey);
-    script.dataset.publicKey = normalizedPublicKey;
-    script.setAttribute("data-wompi-widget", "tokenize");
-    script.async = false;
-    script.defer = false;
-    script.src = "https://checkout.wompi.co/widget.js";
-    form.appendChild(script);
-
     const onSubmit = () => {
       const button = form.querySelector<HTMLButtonElement>(".waybox-button, button[type='submit'], button");
       if (button) {
@@ -87,10 +58,9 @@ export function WompiTokenizeWidget({
     form.addEventListener("submit", onSubmit);
 
     return () => {
-      cleanup();
       form.removeEventListener("submit", onSubmit);
     };
-  }, [normalizedPublicKey]);
+  }, []);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -136,9 +106,9 @@ export function WompiTokenizeWidget({
   }, [canTokenize]);
 
   return (
-    <div style={{ display: "grid", gap: 10 }}>
+    <>
       {requiresAcceptance ? (
-        <div className="field" style={{ display: "grid", gap: 8 }}>
+        <div className="field" style={{ display: "grid", gap: 6 }}>
           {acceptance?.termsUrl ? (
             <label style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
               <input
@@ -178,7 +148,16 @@ export function WompiTokenizeWidget({
       ) : null}
       <input type="hidden" name="accept_terms" value={acceptedTerms ? "1" : "0"} />
       <input type="hidden" name="accept_personal_data" value={acceptedPersonal ? "1" : "0"} />
+      {normalizedPublicKey ? (
+        <script
+          src="https://checkout.wompi.co/widget.js"
+          data-render="button"
+          data-widget-operation="tokenize"
+          data-public-key={normalizedPublicKey}
+          data-wompi-widget="tokenize"
+        ></script>
+      ) : null}
       <div ref={hostRef} />
-    </div>
+    </>
   );
 }
