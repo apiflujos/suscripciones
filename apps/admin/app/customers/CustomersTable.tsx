@@ -57,7 +57,7 @@ export function CustomersTable({
 }: {
   items: CustomerRow[];
   latestLinks: Record<string, LatestLink>;
-  subscriptionsByCustomer: Record<string, { hasPlan: boolean }>;
+  subscriptionsByCustomer: Record<string, { hasPlan: boolean; planName?: string; status?: string; collectionMode?: string }>;
   cartTemplates: Array<{ id: string; name: string }>;
   products: any[];
   checkoutTemplates: any[];
@@ -411,7 +411,19 @@ export function CustomersTable({
         {items.map((c) => {
           const link = latestLinks[String(c.id)];
           const formId = `send-link-${c.id}`;
-          const hasPlan = subscriptionsByCustomer[String(c.id)]?.hasPlan ?? false;
+          const subInfo = subscriptionsByCustomer[String(c.id)];
+          const hasPlan = subInfo?.hasPlan ?? false;
+          const planName = subInfo?.planName || "";
+          const status = String(subInfo?.status || "");
+          const collectionMode = String(subInfo?.collectionMode || "");
+          const kindLabel =
+            collectionMode === "AUTO_DEBIT"
+              ? "Suscripción"
+              : collectionMode === "AUTO_LINK" || collectionMode === "MANUAL_LINK"
+                ? "Plan"
+                : "Suscripción";
+          const statusLabel =
+            status === "ACTIVE" ? "Activa" : status === "PAST_DUE" ? "En mora" : status ? "Inactiva" : "";
           return (
             <div className="contact-card" key={c.id}>
               <div className="contact-card-top">
@@ -469,7 +481,16 @@ export function CustomersTable({
                   <div>
                     <span>Plan / Suscripción</span>
                     <div className="contact-plan-row">
-                      {hasPlan ? <span className="pill pill-ok pill-sm">Sí</span> : <span className="pill pill-muted pill-sm">No</span>}
+                      {hasPlan ? (
+                        <>
+                          <span className="pill pill-ok pill-sm">{kindLabel}</span>
+                          <span className="contact-value" style={{ fontSize: 13 }}>
+                            {planName ? `${planName}${statusLabel ? ` · ${statusLabel}` : ""}` : statusLabel || "Activa"}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="pill pill-muted pill-sm">Sin plan</span>
+                      )}
                     </div>
                   </div>
                   {!hasToken(c) ? (

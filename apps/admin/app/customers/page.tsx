@@ -61,14 +61,19 @@ async function fetchCustomerSubscriptions(tenantId?: string) {
   const res = await fetchAdminCached(`/admin/subscriptions?${sp.toString()}`, { ttlMs: 1500 });
   const data = res.json || { items: [] as any[] };
   const items = Array.isArray(data.items) ? data.items : [];
-  const map: Record<string, { hasPlan: boolean }> = {};
+  const map: Record<
+    string,
+    { hasPlan: boolean; planName?: string; status?: string; collectionMode?: string }
+  > = {};
   for (const item of items) {
     const customerId = String(item?.customerId || item?.customer?.id || "");
     if (!customerId) continue;
     const status = String(item?.status || "");
-    if (status && status !== "CANCELED") {
-      map[customerId] = { hasPlan: true };
-    }
+    if (!status || status === "CANCELED") continue;
+    if (map[customerId]) continue;
+    const planName = String(item?.plan?.name || "");
+    const collectionMode = String(item?.plan?.metadata?.collectionMode || "");
+    map[customerId] = { hasPlan: true, planName, status, collectionMode };
   }
   return map;
 }
