@@ -76,7 +76,7 @@ export default async function PublicTokenizePage({
     const configured = String(config?.wompiApiBaseUrl || "").trim();
     if (configured) return configured;
     const activeEnv = String(config?.wompiActiveEnv || "PRODUCTION").toUpperCase();
-    return activeEnv === "SANDBOX" ? "https://sandbox.wompi.co/v1" : "https://production.wompi.co/v1";
+    return activeEnv === "SANDBOX" ? "https://sandbox.wompi.co/v1" : "https://api.wompi.co/v1";
   })();
   const acceptanceLinks = publicKey ? await fetchWompiAcceptanceLinks({ apiBaseUrl, publicKey }) : null;
 
