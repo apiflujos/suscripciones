@@ -43,9 +43,12 @@ export function createApp() {
         "object-src": ["'none'"],
         "frame-ancestors": ["'none'"],
         "img-src": ["'self'", "data:", "https:"],
-        "script-src": ["'self'", "'unsafe-inline'"],
+        "script-src": ["'self'", "'unsafe-inline'", "https://checkout.wompi.co"],
         "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-        "font-src": ["'self'", "https://fonts.gstatic.com", "data:"]
+        "font-src": ["'self'", "https://fonts.gstatic.com", "data:"],
+        "frame-src": ["'self'", "https://checkout.wompi.co"],
+        "child-src": ["'self'", "https://checkout.wompi.co"],
+        "connect-src": ["'self'", "https://api.wompi.co", "https://sandbox.wompi.co", "https://production.wompi.co"]
       }
     }
   });
@@ -59,12 +62,13 @@ export function createApp() {
         "object-src": ["'none'"],
         "frame-ancestors": ["'none'"],
         "img-src": ["'self'", "data:", "https:"],
-        "script-src": ["'self'", "'unsafe-inline'"],
+        "script-src": ["'self'", "'unsafe-inline'", "https://checkout.wompi.co"],
         "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         "style-src-elem": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         "font-src": ["'self'", "data:", "https://fonts.gstatic.com"],
         "frame-src": ["'self'", "https://checkout.wompi.co"],
-        "child-src": ["'self'", "https://checkout.wompi.co"]
+        "child-src": ["'self'", "https://checkout.wompi.co"],
+        "connect-src": ["'self'", "https://api.wompi.co", "https://sandbox.wompi.co", "https://production.wompi.co"]
       }
     }
   });
