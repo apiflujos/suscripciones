@@ -53,7 +53,9 @@ export const checkoutTemplatesRouter = express.Router();
 
 checkoutTemplatesRouter.get("/", async (_req, res) => {
   const req = _req as any;
-  const tenantId = await getEffectiveTenantId(req);
+  const rawTenant = String(req?.query?.tenantId || req?.body?.tenantId || req?.headers?.["x-tenant-id"] || "").trim();
+  const wantsAll = rawTenant.toLowerCase() === "all";
+  const tenantId = wantsAll ? null : await getEffectiveTenantId(req);
   const items = await prisma.publicCheckoutTemplate.findMany({
     where: tenantId ? { tenantId } : undefined,
     orderBy: { createdAt: "desc" }

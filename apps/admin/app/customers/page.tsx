@@ -98,6 +98,7 @@ async function fetchProducts(tenantId?: string) {
 async function fetchCheckoutTemplates(tenantId?: string) {
   const sp = new URLSearchParams();
   if (tenantId) sp.set("tenantId", tenantId);
+  else sp.set("tenantId", "all");
   const res = await fetchAdminCached(`/admin/checkout-templates?${sp.toString()}`, { ttlMs: 1500 });
   return res.json || { items: [] as any[] };
 }
