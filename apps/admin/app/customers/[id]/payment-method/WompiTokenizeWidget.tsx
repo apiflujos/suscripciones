@@ -105,6 +105,33 @@ export function WompiTokenizeWidget({
     };
   }, [canTokenize]);
 
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    const form = host.closest("form");
+    if (!form) return;
+
+    const cleanup = () => {
+      form.querySelectorAll('script[data-wompi-widget="tokenize"]').forEach((node) => node.remove());
+      form.querySelectorAll(".waybox-button").forEach((node) => node.remove());
+    };
+
+    cleanup();
+    if (!normalizedPublicKey || !canTokenize) return;
+
+    const script = document.createElement("script");
+    script.src = "https://checkout.wompi.co/widget.js";
+    script.setAttribute("data-render", "button");
+    script.setAttribute("data-widget-operation", "tokenize");
+    script.setAttribute("data-public-key", normalizedPublicKey);
+    script.setAttribute("data-wompi-widget", "tokenize");
+    form.appendChild(script);
+
+    return () => {
+      cleanup();
+    };
+  }, [normalizedPublicKey, canTokenize]);
+
   return (
     <>
       {requiresAcceptance ? (
@@ -148,15 +175,6 @@ export function WompiTokenizeWidget({
       ) : null}
       <input type="hidden" name="accept_terms" value={acceptedTerms ? "1" : "0"} />
       <input type="hidden" name="accept_personal_data" value={acceptedPersonal ? "1" : "0"} />
-      {normalizedPublicKey ? (
-        <script
-          src="https://checkout.wompi.co/widget.js"
-          data-render="button"
-          data-widget-operation="tokenize"
-          data-public-key={normalizedPublicKey}
-          data-wompi-widget="tokenize"
-        ></script>
-      ) : null}
       <div ref={hostRef} />
     </>
   );
