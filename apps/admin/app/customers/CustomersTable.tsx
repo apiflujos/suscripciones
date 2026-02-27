@@ -93,6 +93,7 @@ export function CustomersTable({
   const [planModalCustomer, setPlanModalCustomer] = useState<CustomerRow | null>(null);
   const [cartModalOpen, setCartModalOpen] = useState(false);
   const [cartModalCustomer, setCartModalCustomer] = useState<CustomerRow | null>(null);
+  const [cartModalMode, setCartModalMode] = useState<"PLAN" | "SUBSCRIPTION">("PLAN");
   const [payModalOpen, setPayModalOpen] = useState(false);
   const [payModalCustomer, setPayModalCustomer] = useState<CustomerRow | null>(null);
   const [payAmount, setPayAmount] = useState("");
@@ -149,10 +150,15 @@ export function CustomersTable({
     return customer.metadata?.cartLink?.url || "";
   }
 
-  function resolveCartTemplate(customerId: string) {
+  function resolveCartTemplate(customerId: string, mode?: "PLAN" | "SUBSCRIPTION") {
     const chosen = cartTemplateByCustomer[customerId];
     if (chosen) return chosen;
-    const first = checkoutTemplates.find((t: any) => String(t?.kind || "") === "CART");
+    const first = checkoutTemplates.find((t: any) => {
+      if (String(t?.kind || "") !== "CART") return false;
+      if (!mode) return true;
+      const inferred = inferTemplateMode(t);
+      return inferred !== "MIXED" && inferred === mode;
+    });
     return first?.id || "";
   }
 
@@ -232,13 +238,35 @@ export function CustomersTable({
   function openCartModal(customer: CustomerRow) {
     lastActiveRef.current = document.activeElement as HTMLElement | null;
     setCartModalCustomer(customer);
+    setCartModalMode("PLAN");
     setCartModalOpen(true);
   }
 
   function closeCartModal() {
     setCartModalOpen(false);
     setCartModalCustomer(null);
+    setCartModalMode("PLAN");
     setTimeout(() => lastActiveRef.current?.focus(), 0);
+  }
+
+  const productById = useMemo(() => {
+    const map = new Map<string, any>();
+    (products || []).forEach((p: any) => map.set(String(p.id), p));
+    return map;
+  }, [products]);
+
+  function inferTemplateMode(t: any): "PLAN" | "SUBSCRIPTION" | "MIXED" {
+    const ids = Array.isArray(t?.productIds) ? t.productIds : [];
+    let hasPlan = false;
+    let hasSub = false;
+    for (const id of ids) {
+      const p = productById.get(String(id));
+      const mode = String(p?.collectionMode || "");
+      if (!mode || mode === "AUTO_LINK") hasPlan = true;
+      if (mode === "AUTO_DEBIT") hasSub = true;
+      if (hasPlan && hasSub) return "MIXED";
+    }
+    return hasSub ? "SUBSCRIPTION" : "PLAN";
   }
 
   function openTokenModal(customer: CustomerRow) {
@@ -274,6 +302,35 @@ export function CustomersTable({
       message,
       status
     });
+  }
+
+  function mapSendError(code: string) {
+    const normalized = String(code || "").trim();
+    switch (normalized) {
+      case "missing_public_base_url":
+        return "Falta configurar la URL pública base en Checkout público.";
+      case "missing_subscription_base_url":
+        return "Falta configurar la URL base de suscripción en Checkout público.";
+      case "missing_plan_base_url":
+        return "Falta configurar la URL base de plan en Checkout público.";
+      case "missing_cart_template":
+        return "No hay plantillas de catálogo activas. Crea una en Checkout público.";
+      case "missing_template":
+        return "Selecciona una plantilla antes de enviar.";
+      case "invalid_body":
+        return "Faltan datos obligatorios. Revisa la configuración.";
+      case "invalid_payload":
+        return "No se pudo preparar el link. Revisa la configuración del checkout.";
+      case "auth_required":
+        return "Sesión vencida. Vuelve a iniciar sesión.";
+      case "store_failed":
+        return "No se pudo guardar el link en el contacto.";
+      case "request_failed":
+      case "send_failed":
+        return "No se pudo enviar el mensaje. Intenta nuevamente.";
+      default:
+        return normalized || "No se pudo enviar el mensaje.";
+    }
   }
 
   async function openTransactions(item: CustomerRow) {
@@ -575,7 +632,7 @@ export function CustomersTable({
                     const msg = json?.error || "send_failed";
                     setSendError((prev) => ({ ...prev, [customer.id]: msg }));
                     closePayModal();
-                    openNotify("fail", msg);
+                    openNotify("fail", mapSendError(msg));
                     return;
                   }
                   if (typeof json?.notificationsScheduled === "number" && json.notificationsScheduled === 0) {
@@ -662,6 +719,12 @@ export function CustomersTable({
                 e.preventDefault();
                 const customer = cartModalCustomer;
                 if (!customer) return;
+                const templateId = resolveCartTemplate(customer.id, cartModalMode);
+                if (!templateId) {
+                  closeCartModal();
+                  openNotify("fail", "No hay plantillas de catálogo para enviar.");
+                  return;
+                }
                 setSendingId(customer.id);
                 setSendError((prev) => ({ ...prev, [customer.id]: "" }));
                 setSendOk((prev) => ({ ...prev, [customer.id]: "" }));
@@ -673,7 +736,7 @@ export function CustomersTable({
                       customerId: customer.id,
                       customerName: customer.name || "",
                       tenantId: customer.tenantId || "",
-                      templateId: resolveCartTemplate(customer.id)
+                      templateId
                     })
                   });
                   const contentType = res.headers.get("content-type") || "";
@@ -688,7 +751,7 @@ export function CustomersTable({
                     const msg = json?.error || "send_failed";
                     setSendError((prev) => ({ ...prev, [customer.id]: msg }));
                     closeCartModal();
-                    openNotify("fail", msg);
+                    openNotify("fail", mapSendError(msg));
                     return;
                   }
                   if (json?.link) {
@@ -703,10 +766,20 @@ export function CustomersTable({
               }}
             >
               <div className="field">
+                <label>Tipo de catálogo</label>
+                <select className="select" value={cartModalMode} onChange={(e) => setCartModalMode(e.target.value as any)}>
+                  <option value="PLAN">Plan (link de pago)</option>
+                  <option value="SUBSCRIPTION">Suscripción (tokenización)</option>
+                </select>
+                <div className="field-hint">
+                  Plan: el cliente paga con un link. Suscripción: el cliente tokeniza tarjeta para cobros automáticos.
+                </div>
+              </div>
+              <div className="field">
                 <label>Plantilla de catálogo</label>
                 <select
                   className="select"
-                  value={resolveCartTemplate(cartModalCustomer.id)}
+                  value={resolveCartTemplate(cartModalCustomer.id, cartModalMode)}
                   onChange={(e) =>
                     setCartTemplateByCustomer((prev) => ({
                       ...prev,
@@ -716,16 +789,25 @@ export function CustomersTable({
                   required
                 >
                   {checkoutTemplates
-                    .filter((t: any) => String(t?.kind || "") === "CART")
+                    .filter((t: any) => {
+                      if (String(t?.kind || "") !== "CART") return false;
+                      const mode = inferTemplateMode(t);
+                      return mode === "MIXED" ? false : mode === cartModalMode;
+                    })
                     .map((t: any) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
                 </select>
                 {checkoutTemplates.filter((t: any) => String(t?.kind || "") === "CART").length === 0 ? (
                   <div className="field-hint" style={{ color: "var(--danger)" }}>
                     No hay plantillas de catálogo configuradas.
+                  </div>
+                ) : null}
+                {checkoutTemplates.filter((t: any) => String(t?.kind || "") === "CART" && inferTemplateMode(t) === cartModalMode).length === 0 ? (
+                  <div className="field-hint" style={{ color: "var(--danger)" }}>
+                    No hay plantillas de catálogo para {cartModalMode === "PLAN" ? "planes" : "suscripciones"}.
                   </div>
                 ) : null}
               </div>
@@ -780,7 +862,10 @@ export function CustomersTable({
                   }
                   const json = await res.json().catch(() => ({}));
                   if (!res.ok || !json?.ok) {
-                    setSendError((prev) => ({ ...prev, [customer.id]: json?.error || "send_failed" }));
+                    const msg = json?.error || "send_failed";
+                    setSendError((prev) => ({ ...prev, [customer.id]: msg }));
+                    closeTokenModal();
+                    openNotify("fail", mapSendError(msg));
                     return;
                   }
                   if (json?.link) {

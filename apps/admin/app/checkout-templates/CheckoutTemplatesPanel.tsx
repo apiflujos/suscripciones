@@ -92,6 +92,7 @@ export function CheckoutTemplatesPanel({
   const [name, setName] = useState("");
   const [active, setActive] = useState(true);
   const [allowSelect, setAllowSelect] = useState(true);
+  const [catalogMode, setCatalogMode] = useState<"PLAN" | "SUBSCRIPTION">("PLAN");
   const [productIds, setProductIds] = useState<string[]>([]);
   const [tenantId, setTenantId] = useState("");
   const [expiryHours, setExpiryHours] = useState("24");
@@ -129,6 +130,7 @@ export function CheckoutTemplatesPanel({
     setName("");
     setActive(true);
     setAllowSelect(true);
+    setCatalogMode("PLAN");
     setProductIds([]);
     setTenantId("");
     setExpiryHours("24");
@@ -156,6 +158,7 @@ export function CheckoutTemplatesPanel({
     setName(t.name || "");
     setActive(Boolean(t.active));
     setAllowSelect(Boolean(t.allowProductSelect));
+    setCatalogMode("PLAN");
     setProductIds(Array.isArray(t.productIds) ? t.productIds : []);
     setTenantId(String(t.tenantId || ""));
     setExpiryHours(t.expiryHours ? String(t.expiryHours) : "24");
@@ -224,6 +227,13 @@ export function CheckoutTemplatesPanel({
     return filtered.length ? filtered : products;
   }, [products, selectedKind]);
 
+  const filteredCatalogProducts = useMemo(() => {
+    if (selectedKind !== "CART") return products;
+    const mode = catalogMode === "SUBSCRIPTION" ? "AUTO_DEBIT" : "AUTO_LINK";
+    const filtered = products.filter((p) => !p.collectionMode || p.collectionMode === mode);
+    return filtered.length ? filtered : products;
+  }, [products, selectedKind, catalogMode]);
+
   useEffect(() => {
     if (requireTenant && tenants.length === 1 && !tenantId) {
       setTenantId(tenants[0].id);
@@ -235,6 +245,11 @@ export function CheckoutTemplatesPanel({
       setAllowSelect(true);
     }
   }, [selectedKind, allowSelect]);
+
+  useEffect(() => {
+    if (selectedKind !== "CART") return;
+    setProductIds([]);
+  }, [selectedKind, catalogMode]);
 
   const inlineMsg = (key: string) => {
     if (inlineState.action !== key) return null;
@@ -542,12 +557,23 @@ export function CheckoutTemplatesPanel({
                     <input type="checkbox" name="allowProductSelect" checked={allowSelect} onChange={(e) => setAllowSelect(e.target.checked)} />
                   </div>
                 ) : (
-                  <div className="field-hint">Selecciona los productos que aparecerán en el catálogo.</div>
+                  <div style={{ display: "grid", gap: 6 }}>
+                    <div className="field">
+                      <label>Tipo de catálogo</label>
+                      <select className="select" value={catalogMode} onChange={(e) => setCatalogMode(e.target.value as any)}>
+                        <option value="PLAN">Plan (link de pago)</option>
+                        <option value="SUBSCRIPTION">Suscripción (tokenización)</option>
+                      </select>
+                    </div>
+                    <div className="field-hint">
+                      Plan: el cliente paga con un link. Suscripción: el cliente tokeniza tarjeta para cobros automáticos.
+                    </div>
+                  </div>
                 )}
                 <div className="field" ref={productsRef}>
                   <label>Productos disponibles</label>
                   <div style={{ display: "grid", gap: 8 }}>
-                    {filteredProducts.map((p) => {
+                    {(selectedKind === "CART" ? filteredCatalogProducts : filteredProducts).map((p) => {
                       const activeItem = productIds.includes(p.id);
                       return (
                         <button
