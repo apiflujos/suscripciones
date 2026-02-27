@@ -479,9 +479,6 @@ export function CustomersTable({
                   {!hasToken(c) ? (
                     <div>
                       <span>Método de pago</span>
-                      <Link className="ghost btn-compact btn-amber" href={`/customers/${c.id}/payment-method`}>
-                        Abrir tokenización
-                      </Link>
                       <div className="field-hint">Envía el link de tokenización para que el cliente guarde su tarjeta.</div>
                     </div>
                   ) : null}
@@ -489,6 +486,11 @@ export function CustomersTable({
               </div>
               <div className="contact-paylink contact-footer">
                   <div className="paylink-actions" style={{ display: "flex", gap: 8, flexWrap: "nowrap", justifyContent: "flex-start", overflowX: "auto" }}>
+                    {!hasToken(c) ? (
+                      <Link className="ghost btn-compact btn-amber" href={`/customers/${c.id}/payment-method`}>
+                        Tokenizar
+                      </Link>
+                    ) : null}
                     <button
                       className="ghost btn-compact btn-amber"
                       type="button"
