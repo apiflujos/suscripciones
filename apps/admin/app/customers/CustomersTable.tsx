@@ -410,7 +410,7 @@ export function CustomersTable({
                   ) : null}
                 </div>
                 <div className="contact-paylink">
-                  <div className="paylink-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <div className="paylink-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-start" }}>
                     <button
                       className="ghost btn-compact btn-amber"
                       type="button"
@@ -445,7 +445,7 @@ export function CustomersTable({
                   ) : null}
                   {(() => {
                     const override = linkOverrides[c.id] || {};
-                    const paymentLink = override.payment || latestLinks[String(c.id)]?.checkoutUrl || "";
+                    const paymentLink = override.payment || c.metadata?.paymentLink?.url || latestLinks[String(c.id)]?.checkoutUrl || "";
                     const tokenLink = override.token || getTokenLink(c);
                     const cartLink = override.cart || getCartLink(c);
                     return (
@@ -559,8 +559,9 @@ export function CustomersTable({
                     setSendError((prev) => ({ ...prev, [customer.id]: "no_rules" }));
                     return;
                   }
-                  if (json?.checkoutUrl) {
-                    setLinkOverrides((prev) => ({ ...prev, [customer.id]: { ...(prev[customer.id] || {}), payment: json.checkoutUrl } }));
+                  if (json?.publicUrl || json?.checkoutUrl) {
+                    const nextUrl = String(json?.publicUrl || json?.checkoutUrl || "");
+                    setLinkOverrides((prev) => ({ ...prev, [customer.id]: { ...(prev[customer.id] || {}), payment: nextUrl } }));
                   }
                   setSendOk((prev) => ({ ...prev, [customer.id]: "sent" }));
                   closePayModal();
@@ -949,6 +950,7 @@ export function CustomersTable({
                               return;
                             }
                             setSendOk((prev) => ({ ...prev, [detailsCustomer.id]: "sent" }));
+                            closeDetails();
                           } finally {
                             setSendingId(null);
                           }
@@ -1000,6 +1002,7 @@ export function CustomersTable({
                               return;
                             }
                             setSendOk((prev) => ({ ...prev, [detailsCustomer.id]: "sent" }));
+                            closeDetails();
                           } finally {
                             setSendingId(null);
                           }
@@ -1025,7 +1028,7 @@ export function CustomersTable({
                   ) : null}
                   {(() => {
                     const override = linkOverrides[detailsCustomer.id] || {};
-                    const paymentLink = override.payment || latestLinks[String(detailsCustomer.id)]?.checkoutUrl || "";
+                    const paymentLink = override.payment || detailsCustomer.metadata?.paymentLink?.url || latestLinks[String(detailsCustomer.id)]?.checkoutUrl || "";
                     const tokenLink = override.token || getTokenLink(detailsCustomer);
                     return (
                       <div className="paylink-links">

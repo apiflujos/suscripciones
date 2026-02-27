@@ -204,6 +204,7 @@ export default async function BillingPage({
   const subItems = (subs.json?.items ?? []) as any[];
   const customerItems = (customers.json?.items ?? []) as any[];
   const productItems = (products.json?.items ?? []) as any[];
+  const productById = new Map(productItems.map((p: any) => [String(p.id), p]));
   const checkoutTemplates = (templates.json?.items ?? []) as any[];
   const tenants = (tenantsRes.json?.items ?? []) as Array<{ id: string; name: string }>;
   const tenantById = new Map(tenants.map((t) => [String(t.id), String(t.name)]));
@@ -258,7 +259,7 @@ export default async function BillingPage({
         status: String(s.status || "—"),
         estadoInfo,
         planName: String(plan?.name || "—"),
-        planImageUrl: String((plan?.metadata as any)?.imageUrl || ""),
+        planImageUrl: String((plan?.metadata as any)?.imageUrl || (productById.get(String((plan?.metadata as any)?.catalog?.itemId || ""))?.imageUrl ?? "")),
         montoInCents: Number(plan?.priceInCents || 0),
         moneda: String(plan?.currency || "COP"),
         cada: fmtEvery(plan?.intervalUnit, plan?.intervalCount),
