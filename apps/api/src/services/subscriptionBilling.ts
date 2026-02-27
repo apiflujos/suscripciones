@@ -16,6 +16,23 @@ import {
 } from "./runtimeConfig";
 import { schedulePaymentLinkNotifications } from "./notificationsScheduler";
 
+const PAYMENT_LINK_LOCK_PREFIX = "payment-link";
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function tryAcquirePaymentLinkLock(key: string) {
+  const rows = await prisma.$queryRaw<{ locked: boolean }[]>`
+    SELECT pg_try_advisory_lock(hashtext(${key})) as locked
+  `;
+  return Boolean(rows?.[0]?.locked);
+}
+
+async function releasePaymentLinkLock(key: string) {
+  await prisma.$queryRaw`
+    SELECT pg_advisory_unlock(hashtext(${key}))
+  `;
+}
+
 function formatCop(amountInCents: number) {
   const pesos = Math.trunc(Number(amountInCents || 0) / 100);
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(pesos);
@@ -112,126 +129,179 @@ export async function createPaymentLinkForSubscription(args: {
     };
   }
 
-  const privateKey = await getWompiPrivateKey();
-  if (!privateKey) throw new Error("wompi_private_key_not_configured");
+  const lockKey = `${PAYMENT_LINK_LOCK_PREFIX}:${subscriptionCycleKey}`;
+  const locked = await tryAcquirePaymentLinkLock(lockKey);
+  if (!locked) {
+    for (let attempt = 0; attempt < 4; attempt++) {
+      await delay(250);
+      const existing = await prisma.payment.findUnique({
+        where: { id: payment.id },
+        select: { checkoutUrl: true, wompiPaymentLinkId: true }
+      });
+      if (existing?.checkoutUrl && existing?.wompiPaymentLinkId) {
+        return {
+          paymentId: payment.id,
+          wompiPaymentLinkId: existing.wompiPaymentLinkId,
+          checkoutUrl: existing.checkoutUrl
+        };
+      }
+    }
+    await systemLog(LogLevel.WARN, "subscriptions.payment_link", "Payment link creation already in progress", {
+      subscriptionId: sub.id,
+      paymentId: payment.id
+    }).catch(() => {});
+    throw new Error("payment_link_in_progress");
+  }
 
-  const wompi = new WompiClient({
-    apiBaseUrl: await getWompiApiBaseUrl(),
-    privateKey,
-    checkoutLinkBaseUrl: await getWompiCheckoutLinkBaseUrl()
-  });
+  let lockReleased = false;
+  const releaseLock = async () => {
+    if (lockReleased) return;
+    lockReleased = true;
+    await releasePaymentLinkLock(lockKey).catch(() => {});
+  };
 
   let created: Awaited<ReturnType<WompiClient["createPaymentLink"]>>;
+  let updated: { id: string; checkoutUrl: string | null; wompiPaymentLinkId: string | null } | null = null;
   try {
-    const redirectUrl = await getWompiRedirectUrl();
-    const periodicidad = formatPeriodicity(sub.plan.intervalUnit, sub.plan.intervalCount);
-    const monto = formatCop(amountInCents);
-    const cliente = sub.customer?.name || sub.customer?.email || "Cliente";
-    const producto = sub.plan?.name || "Suscripción";
-    const rawConfig = (await getCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG")) || "";
-    let cfg: any = null;
-    try {
-      cfg = rawConfig ? JSON.parse(rawConfig) : null;
-    } catch {}
-    const collectionMode = String((sub.plan.metadata as any)?.collectionMode || "MANUAL_LINK");
-    const isPlan = collectionMode === "AUTO_LINK";
-    const baseTitle = String(isPlan ? cfg?.planTitle : cfg?.subscriptionTitle || "").trim();
-    const baseDesc = String(isPlan ? cfg?.planDescription : cfg?.subscriptionDescription || "").trim();
-    const templateId = String((sub.metadata as any)?.templateId || "").trim();
-    const template =
-      templateId
-        ? await prisma.publicCheckoutTemplate.findUnique({ where: { id: templateId } })
-        : null;
-    const templateOk =
-      template &&
-      String(template.kind || "").toUpperCase() === (isPlan ? "PLAN" : "SUBSCRIPTION")
-        ? template
-        : null;
-    const templateTitle = String(templateOk?.publicTitle || templateOk?.wompiTitle || baseTitle || "").trim();
-    const templateDesc = String(templateOk?.publicDescription || templateOk?.wompiDescription || baseDesc || "").trim();
-    const vars = {
-      contacto: cliente,
-      producto,
-      monto,
-      periodicidad,
-      fecha_expira: ""
-    };
-    const wompiTitle = templateTitle ? replaceVars(templateTitle, vars) : `${producto} · ${cliente}`;
-    const wompiDescription = templateDesc ? replaceVars(templateDesc, vars) : `${producto} (${periodicidad}) · ${monto} · ciclo ${cycle}`;
-    created = await wompi.createPaymentLink({
-      name: wompiTitle,
-      description: wompiDescription,
-      single_use: true,
-      collect_shipping: false,
-      currency: sub.plan.currency,
-      amount_in_cents: amountInCents,
-      redirect_url: redirectUrl,
-      sku: payment.id
+    const existing = await prisma.payment.findUnique({
+      where: { id: payment.id },
+      select: { checkoutUrl: true, wompiPaymentLinkId: true }
     });
-  } catch (err: any) {
+    if (existing?.checkoutUrl && existing?.wompiPaymentLinkId) {
+      await releaseLock();
+      return {
+        paymentId: payment.id,
+        wompiPaymentLinkId: existing.wompiPaymentLinkId,
+        checkoutUrl: existing.checkoutUrl
+      };
+    }
+
+    const privateKey = await getWompiPrivateKey();
+    if (!privateKey) throw new Error("wompi_private_key_not_configured");
+
+    const wompi = new WompiClient({
+      apiBaseUrl: await getWompiApiBaseUrl(),
+      privateKey,
+      checkoutLinkBaseUrl: await getWompiCheckoutLinkBaseUrl()
+    });
+
+    try {
+      const redirectUrl = await getWompiRedirectUrl();
+      const periodicidad = formatPeriodicity(sub.plan.intervalUnit, sub.plan.intervalCount);
+      const monto = formatCop(amountInCents);
+      const cliente = sub.customer?.name || sub.customer?.email || "Cliente";
+      const producto = sub.plan?.name || "Suscripción";
+      const rawConfig = (await getCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG")) || "";
+      let cfg: any = null;
+      try {
+        cfg = rawConfig ? JSON.parse(rawConfig) : null;
+      } catch {}
+      const collectionMode = String((sub.plan.metadata as any)?.collectionMode || "MANUAL_LINK");
+      const isPlan = collectionMode === "AUTO_LINK";
+      const baseTitle = String(isPlan ? cfg?.planTitle : cfg?.subscriptionTitle || "").trim();
+      const baseDesc = String(isPlan ? cfg?.planDescription : cfg?.subscriptionDescription || "").trim();
+      const templateId = String((sub.metadata as any)?.templateId || "").trim();
+      const template =
+        templateId
+          ? await prisma.publicCheckoutTemplate.findUnique({ where: { id: templateId } })
+          : null;
+      const templateOk =
+        template &&
+        String(template.kind || "").toUpperCase() === (isPlan ? "PLAN" : "SUBSCRIPTION")
+          ? template
+          : null;
+      const templateTitle = String(templateOk?.publicTitle || templateOk?.wompiTitle || baseTitle || "").trim();
+      const templateDesc = String(templateOk?.publicDescription || templateOk?.wompiDescription || baseDesc || "").trim();
+      const vars = {
+        contacto: cliente,
+        producto,
+        monto,
+        periodicidad,
+        fecha_expira: ""
+      };
+      const wompiTitle = templateTitle ? replaceVars(templateTitle, vars) : `${producto} · ${cliente}`;
+      const wompiDescription = templateDesc ? replaceVars(templateDesc, vars) : `${producto} (${periodicidad}) · ${monto} · ciclo ${cycle}`;
+      created = await wompi.createPaymentLink({
+        name: wompiTitle,
+        description: wompiDescription,
+        single_use: true,
+        collect_shipping: false,
+        currency: sub.plan.currency,
+        amount_in_cents: amountInCents,
+        redirect_url: redirectUrl,
+        sku: payment.id
+      });
+    } catch (err: any) {
+      await prisma.paymentAttempt.create({
+        data: {
+          paymentId: payment.id,
+          attemptNo: 0,
+          status: "PAYMENT_LINK_CREATE_FAILED",
+          provider: "wompi",
+          errorMessage: err?.message ? String(err.message) : "unknown error"
+        }
+      });
+      await systemLog(LogLevel.ERROR, "subscriptions.payment_link", "Payment link create failed", {
+        subscriptionId: sub.id,
+        paymentId: payment.id,
+        err: err?.message ? String(err.message) : "unknown error"
+      }).catch(() => {});
+      throw err;
+    }
+
     await prisma.paymentAttempt.create({
       data: {
         paymentId: payment.id,
         attemptNo: 0,
-        status: "PAYMENT_LINK_CREATE_FAILED",
+        status: "PAYMENT_LINK_CREATED",
         provider: "wompi",
-        errorMessage: err?.message ? String(err.message) : "unknown error"
+        response: created.raw as any
       }
     });
-    await systemLog(LogLevel.ERROR, "subscriptions.payment_link", "Payment link create failed", {
+
+    updated = await prisma.payment.update({
+      where: { id: payment.id },
+      data: {
+        wompiPaymentLinkId: created.id,
+        checkoutUrl: created.checkoutUrl
+      }
+    });
+
+    await prisma.paymentLink
+      .upsert({
+        where: { paymentId: updated.id },
+      create: {
+          tenantId: sub.tenantId ?? sub.plan?.tenantId ?? null,
+          planId: sub.planId,
+          subscriptionId: sub.id,
+          paymentId: updated.id,
+          wompiPaymentLinkId: created.id,
+          checkoutUrl: updated.checkoutUrl || created.checkoutUrl,
+          status: "SENT",
+          sentAt: new Date()
+        },
+        update: {
+          ...(sub.tenantId || sub.plan?.tenantId ? { tenantId: sub.tenantId ?? sub.plan?.tenantId ?? null } : {}),
+          planId: sub.planId,
+          subscriptionId: sub.id,
+          wompiPaymentLinkId: created.id,
+          checkoutUrl: updated.checkoutUrl || created.checkoutUrl
+        }
+      })
+      .catch(() => {});
+
+    await systemLog(LogLevel.INFO, "subscriptions.payment_link", "Payment link created", {
       subscriptionId: sub.id,
-      paymentId: payment.id,
-      err: err?.message ? String(err.message) : "unknown error"
+      paymentId: updated.id,
+      wompiPaymentLinkId: created.id
     }).catch(() => {});
-    throw err;
+  } finally {
+    await releaseLock();
   }
 
-  await prisma.paymentAttempt.create({
-    data: {
-      paymentId: payment.id,
-      attemptNo: 0,
-      status: "PAYMENT_LINK_CREATED",
-      provider: "wompi",
-      response: created.raw as any
-    }
-  });
-
-  const updated = await prisma.payment.update({
-    where: { id: payment.id },
-    data: {
-      wompiPaymentLinkId: created.id,
-      checkoutUrl: created.checkoutUrl
-    }
-  });
-
-  await prisma.paymentLink
-    .upsert({
-      where: { paymentId: updated.id },
-    create: {
-        tenantId: sub.tenantId ?? sub.plan?.tenantId ?? null,
-        planId: sub.planId,
-        subscriptionId: sub.id,
-        paymentId: updated.id,
-        wompiPaymentLinkId: created.id,
-        checkoutUrl: updated.checkoutUrl || created.checkoutUrl,
-        status: "SENT",
-        sentAt: new Date()
-      },
-      update: {
-        ...(sub.tenantId || sub.plan?.tenantId ? { tenantId: sub.tenantId ?? sub.plan?.tenantId ?? null } : {}),
-        planId: sub.planId,
-        subscriptionId: sub.id,
-        wompiPaymentLinkId: created.id,
-        checkoutUrl: updated.checkoutUrl || created.checkoutUrl
-      }
-    })
-    .catch(() => {});
-
-  await systemLog(LogLevel.INFO, "subscriptions.payment_link", "Payment link created", {
-    subscriptionId: sub.id,
-    paymentId: updated.id,
-    wompiPaymentLinkId: created.id
-  }).catch(() => {});
+  if (!updated || !created) {
+    throw new Error("payment_link_not_created");
+  }
 
   await schedulePaymentLinkNotifications({ paymentId: updated.id, forceNow: true }).catch(() => {});
 

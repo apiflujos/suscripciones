@@ -1538,6 +1538,7 @@ textarea {
 .publicCheckoutForm {
   display: grid;
   gap: 12px;
+  min-width: 0;
 }
 .publicCheckoutLayout {
   display: grid;
@@ -1576,6 +1577,24 @@ textarea {
   background: rgba(248, 250, 252, 0.9);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
   animation: publicCheckoutLift 620ms ease both;
+  min-width: 0;
+  overflow: hidden;
+}
+.publicCheckoutSide .field,
+.publicCheckoutSide .input,
+.publicCheckoutSide .select,
+.publicCheckoutSide .primary,
+.publicCheckoutSide a.primary {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.publicCheckoutSide .field {
+  min-width: 0;
+}
+.publicCheckoutSide a.primary {
+  display: inline-flex;
+  justify-content: center;
 }
 @media (max-width: 860px) {
   .publicCheckoutLayout {
@@ -3362,6 +3381,7 @@ textarea {
 .publicCheckoutForm {
   display: grid;
   gap: 12px;
+  min-width: 0;
 }
 .publicCheckoutLayout {
   display: grid;
@@ -3400,6 +3420,24 @@ textarea {
   background: rgba(248, 250, 252, 0.9);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
   animation: publicCheckoutLift 620ms ease both;
+  min-width: 0;
+  overflow: hidden;
+}
+.publicCheckoutSide .field,
+.publicCheckoutSide .input,
+.publicCheckoutSide .select,
+.publicCheckoutSide .primary,
+.publicCheckoutSide a.primary {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.publicCheckoutSide .field {
+  min-width: 0;
+}
+.publicCheckoutSide a.primary {
+  display: inline-flex;
+  justify-content: center;
 }
 @media (max-width: 860px) {
   .publicCheckoutLayout {
