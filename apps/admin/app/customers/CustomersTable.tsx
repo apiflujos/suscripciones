@@ -604,6 +604,8 @@ export function CustomersTable({
                 setSendError((prev) => ({ ...prev, [customer.id]: "" }));
                 setSendOk((prev) => ({ ...prev, [customer.id]: "" }));
                 try {
+                  const controller = new AbortController();
+                  const timeout = setTimeout(() => controller.abort(), 15000);
                   const res = await fetch("/api/customers/send-payment-link", {
                     method: "POST",
                     headers: { "content-type": "application/json" },
@@ -612,8 +614,10 @@ export function CustomersTable({
                       customerName: customer.name || "",
                       amount: payAmount,
                       tenantId: customer.tenantId || ""
-                    })
+                    }),
+                    signal: controller.signal
                   });
+                  clearTimeout(timeout);
                   const contentType = res.headers.get("content-type") || "";
                   if (!contentType.includes("application/json")) {
                     setSendError((prev) => ({ ...prev, [customer.id]: "auth_required" }));
@@ -696,6 +700,8 @@ export function CustomersTable({
                 setSendError((prev) => ({ ...prev, [customer.id]: "" }));
                 setSendOk((prev) => ({ ...prev, [customer.id]: "" }));
                 try {
+                  const controller = new AbortController();
+                  const timeout = setTimeout(() => controller.abort(), 15000);
                   const res = await fetch("/api/customers/send-cart-link", {
                     method: "POST",
                     headers: { "content-type": "application/json" },
@@ -704,8 +710,10 @@ export function CustomersTable({
                       customerName: customer.name || "",
                       tenantId: customer.tenantId || "",
                       templateId
-                    })
+                    }),
+                    signal: controller.signal
                   });
+                  clearTimeout(timeout);
                   const contentType = res.headers.get("content-type") || "";
                   if (!contentType.includes("application/json")) {
                     setSendError((prev) => ({ ...prev, [customer.id]: "auth_required" }));
@@ -811,6 +819,8 @@ export function CustomersTable({
                 setSendError((prev) => ({ ...prev, [customer.id]: "" }));
                 setSendOk((prev) => ({ ...prev, [customer.id]: "" }));
                 try {
+                  const controller = new AbortController();
+                  const timeout = setTimeout(() => controller.abort(), 15000);
                   const res = await fetch("/api/customers/send-tokenization-link", {
                     method: "POST",
                     headers: { "content-type": "application/json" },
@@ -819,8 +829,10 @@ export function CustomersTable({
                       customerName: customer.name || "",
                       tenantId: customer.tenantId || "",
                       ...(templateId ? { templateId } : {})
-                    })
+                    }),
+                    signal: controller.signal
                   });
+                  clearTimeout(timeout);
                   const contentType = res.headers.get("content-type") || "";
                   if (!contentType.includes("application/json")) {
                     setSendError((prev) => ({ ...prev, [customer.id]: "auth_required" }));
@@ -1023,6 +1035,8 @@ export function CustomersTable({
                           setSendError((prev) => ({ ...prev, [detailsCustomer.id]: "" }));
                           setSendOk((prev) => ({ ...prev, [detailsCustomer.id]: "" }));
                           try {
+                            const controller = new AbortController();
+                            const timeout = setTimeout(() => controller.abort(), 15000);
                             const res = await fetch("/api/customers/send-tokenization-link", {
                               method: "POST",
                               headers: { "content-type": "application/json" },
@@ -1030,8 +1044,10 @@ export function CustomersTable({
                                 customerId: detailsCustomer.id,
                                 customerName: detailsCustomer.name || "",
                                 tenantId: detailsCustomer.tenantId || ""
-                              })
+                              }),
+                              signal: controller.signal
                             });
+                            clearTimeout(timeout);
                             const contentType = res.headers.get("content-type") || "";
                             if (!contentType.includes("application/json")) {
                               setSendError((prev) => ({ ...prev, [detailsCustomer.id]: "auth_required" }));
@@ -1074,6 +1090,8 @@ export function CustomersTable({
                           setSendError((prev) => ({ ...prev, [detailsCustomer.id]: "" }));
                           setSendOk((prev) => ({ ...prev, [detailsCustomer.id]: "" }));
                           try {
+                            const controller = new AbortController();
+                            const timeout = setTimeout(() => controller.abort(), 15000);
                             const res = await fetch("/api/customers/send-payment-link", {
                               method: "POST",
                               headers: { "content-type": "application/json" },
@@ -1082,8 +1100,10 @@ export function CustomersTable({
                                 customerName: detailsCustomer.name || "",
                                 amount,
                                 tenantId: detailsCustomer.tenantId || ""
-                              })
+                              }),
+                              signal: controller.signal
                             });
+                            clearTimeout(timeout);
                             const contentType = res.headers.get("content-type") || "";
                             if (!contentType.includes("application/json")) {
                               setSendError((prev) => ({ ...prev, [detailsCustomer.id]: "auth_required" }));
