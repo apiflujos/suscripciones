@@ -89,7 +89,7 @@ export default async function PublicTokenizePage({
   const acceptanceLinks = publicKey ? await fetchWompiAcceptanceLinks({ apiBaseUrl, publicKey }) : null;
 
   if (!tokenRes.ok) {
-    const msg = tokenRes.status === 410 ? PUBLIC_COPY.errorUsedLink : PUBLIC_COPY.errorInvalidLink;
+    const msg = "Este link no existe o ya no es válido. Solicita uno nuevo.";
     console.info("public_tokenize_error", {
       status: tokenRes.status,
       token,
@@ -121,8 +121,7 @@ export default async function PublicTokenizePage({
     >
       {normalizeErrorParam(sp.error) ? (
         <PublicAlert>
-          {tokenErrorMessage || "Ocurrió un error al guardar tu método de pago."}{" "}
-          <span style={{ opacity: 0.8 }}>({normalizeErrorParam(sp.error)})</span> {PUBLIC_COPY.errorGenericHelp}
+          {tokenErrorMessage || "Ocurrió un error al guardar tu método de pago."} {PUBLIC_COPY.errorGenericHelp}
         </PublicAlert>
       ) : null}
 
