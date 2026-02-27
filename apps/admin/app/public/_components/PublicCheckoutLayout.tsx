@@ -6,6 +6,7 @@ type PublicCheckoutLayoutProps = {
   description?: string;
   logoUrl?: string;
   trustText?: string;
+  securityBullets?: string[];
   supportHref?: string;
   supportLabel?: string;
   maxWidth?: number;
@@ -20,6 +21,7 @@ export function PublicCheckoutLayout({
   description,
   logoUrl,
   trustText,
+  securityBullets,
   supportHref,
   supportLabel,
   maxWidth = 860,
@@ -39,13 +41,20 @@ export function PublicCheckoutLayout({
                 {logoUrl ? <img src={logoUrl} alt={title} className="publicCheckoutLogo" referrerPolicy="no-referrer" /> : null}
                 <div className="publicCheckoutHeaderText">
                   <h1>{title}</h1>
-                  {subtitle ? <p className="publicCheckoutSubtitle">{subtitle}</p> : null}
                 </div>
               </div>
             </div>
             <div className="publicCheckoutIntroMeta">
+              {subtitle ? <p className="publicCheckoutSubtitle">{subtitle}</p> : null}
               {description ? <p className="publicCheckoutDescription">{description}</p> : null}
               {trustText ? <p className="publicCheckoutTrust">{trustText}</p> : null}
+              {securityBullets && securityBullets.length ? (
+                <ul className="publicCheckoutSecurity">
+                  {securityBullets.map((item, index) => (
+                    <li key={`${item}-${index}`}>{item}</li>
+                  ))}
+                </ul>
+              ) : null}
               {supportHref ? (
                 <div className="publicCheckoutSupport">
                   ¿Necesitas ayuda?{" "}
