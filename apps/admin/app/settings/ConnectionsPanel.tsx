@@ -55,8 +55,17 @@ export function ConnectionsPanel({
   initialOpen?: string;
   returnTo?: string;
 }) {
-  const initial = initialOpen === "wompi" || initialOpen === "central" || initialOpen === "shopify" ? initialOpen : null;
-  const [open, setOpen] = useState<null | "wompi" | "central" | "shopify">(initial);
+  const initial =
+    initialOpen === "wompi_sandbox"
+      ? "wompi_sandbox"
+      : initialOpen === "wompi"
+        ? "wompi_prod"
+        : initialOpen === "wompi_prod"
+          ? "wompi_prod"
+          : initialOpen === "central" || initialOpen === "shopify"
+            ? initialOpen
+            : null;
+  const [open, setOpen] = useState<null | "wompi_prod" | "wompi_sandbox" | "central" | "shopify">(initial);
   const [syncState, setSyncState] = useState<{
     running: boolean;
     synced: number;
@@ -70,19 +79,35 @@ export function ConnectionsPanel({
   return (
     <>
       <div className="conn-grid">
-        <button className="conn-card" type="button" onClick={() => setOpen("wompi")}>
+        <button className="conn-card" type="button" onClick={() => setOpen("wompi_prod")}>
           <div className="conn-icon conn-icon-wompi">
             <img src="/brand/conn-wompi.png" alt="Wompi" />
           </div>
           <div className="conn-body">
-            <div className="conn-title">Wompi</div>
+            <div className="conn-title">Wompi · Producción</div>
             <div className="conn-sub">Pagos y tokenización</div>
           </div>
           <div className="conn-status" style={{ display: "grid", gap: 4, justifyItems: "end" }}>
-            <span>{wompiActiveEnv === "PRODUCTION" ? "Producción" : "Sandbox"}</span>
+            <span>Producción</span>
             {(() => {
-              const env = wompiActiveEnv === "PRODUCTION" ? wompiProduction : wompiSandbox;
-              const ready = Boolean(env?.publicKey && env?.apiBaseUrl);
+              const ready = Boolean(wompiProduction?.publicKey && wompiProduction?.apiBaseUrl);
+              return ready ? <span className="pill pill-ok pill-sm">Listo</span> : null;
+            })()}
+          </div>
+        </button>
+
+        <button className="conn-card" type="button" onClick={() => setOpen("wompi_sandbox")}>
+          <div className="conn-icon conn-icon-wompi">
+            <img src="/brand/conn-wompi.png" alt="Wompi" />
+          </div>
+          <div className="conn-body">
+            <div className="conn-title">Wompi · Sandbox</div>
+            <div className="conn-sub">Pagos y tokenización</div>
+          </div>
+          <div className="conn-status" style={{ display: "grid", gap: 4, justifyItems: "end" }}>
+            <span>Sandbox</span>
+            {(() => {
+              const ready = Boolean(wompiSandbox?.publicKey && wompiSandbox?.apiBaseUrl);
               return ready ? <span className="pill pill-ok pill-sm">Listo</span> : null;
             })()}
           </div>
@@ -124,11 +149,11 @@ export function ConnectionsPanel({
         </button>
       </div>
 
-      {open === "wompi" ? (
+      {open === "wompi_prod" || open === "wompi_sandbox" ? (
         <div className="modal-backdrop">
           <div className="modal-panel">
             <div className="panel-header">
-              <h3 style={{ margin: 0 }}>Wompi</h3>
+              <h3 style={{ margin: 0 }}>{open === "wompi_prod" ? "Wompi · Producción" : "Wompi · Sandbox"}</h3>
               <button type="button" className="ghost" onClick={() => setOpen(null)} aria-label="Cerrar">X</button>
             </div>
 
@@ -153,81 +178,79 @@ export function ConnectionsPanel({
               </div>
             </form>
 
-            <div className="modal-split">
-              {([
-                ["PRODUCTION", "Producción"],
-                ["SANDBOX", "Sandbox"]
-              ] as const).map(([envKey, envLabel]) => (
-                <div key={envKey} className="panel module">
-                  <div className="panelHeaderRow">
-                    <strong>Nueva conexión ({envLabel})</strong>
-                  </div>
-                  <form action={actions.updateWompi} style={{ display: "grid", gap: 10 }}>
-                    <input type="hidden" name="csrf" value={csrfToken} />
-                    {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
-                    <input type="hidden" name="environment" value={envKey} />
-                    <div className="field">
-                      <label>Llave pública</label>
-                      <input className="input" name="publicKey" placeholder="pub_..." defaultValue={(envKey === "PRODUCTION" ? wompiProduction : wompiSandbox)?.publicKey || ""} />
-                    </div>
-                    <div className="field">
-                      <label>Llave privada</label>
-                      <input className="input" name="privateKey" type="password" />
-                    </div>
-                    <div className="field">
-                      <label>Secreto de integridad</label>
-                      <input className="input" name="integritySecret" type="password" />
-                    </div>
-                    <div className="field">
-                      <label>Secreto de eventos</label>
-                      <input className="input" name="eventsSecret" type="password" />
-                    </div>
-                    <div className="field">
-                      <label>URL base del API</label>
-                      <input
-                        className="input"
-                        name="apiBaseUrl"
-                        placeholder={envKey === "SANDBOX" ? "https://sandbox.wompi.co/v1" : "https://api.wompi.co/v1"}
-                        defaultValue={(envKey === "PRODUCTION" ? wompiProduction : wompiSandbox)?.apiBaseUrl || ""}
-                      />
-                    </div>
-                    <div className="field">
-                      <label>URL base de links de pago</label>
-                      <input
-                        className="input"
-                        name="checkoutLinkBaseUrl"
-                        placeholder="https://checkout.wompi.co/l/"
-                        defaultValue={(envKey === "PRODUCTION" ? wompiProduction : wompiSandbox)?.checkoutLinkBaseUrl || ""}
-                      />
-                    </div>
-                    <div className="field">
-                      <label>URL de redirección (opcional)</label>
-                      <input className="input" name="redirectUrl" defaultValue={(envKey === "PRODUCTION" ? wompiProduction : wompiSandbox)?.redirectUrl || ""} />
-                    </div>
-                    <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                        {inlineMsg("wompi_delete", "Eliminado.", "Error eliminando", inlineState)}
-                        <button className="ghost" type="submit" formAction={actions.deleteWompiConnection}>
-                          Eliminar conexión
-                        </button>
-                      </div>
-                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                        {inlineMsg("wompi_creds", "Guardado.", "Error guardando", inlineState)}
-                        {inlineMsg("wompi_test", "Conexión exitosa.", "Error conectando", inlineState)}
-                        <DualActionButtons
-                          primaryLabel="Guardar"
-                          primaryPendingLabel="Guardando..."
-                          primaryClassName="primary"
-                          secondaryLabel="Probar conexión"
-                          secondaryPendingLabel="Conectando..."
-                          secondaryClassName="ghost"
-                          secondaryFormAction={actions.testWompiConnection}
-                        />
-                      </div>
-                    </div>
-                  </form>
+            <div className="panel module">
+              <div className="panelHeaderRow">
+                <strong>Nueva conexión ({open === "wompi_prod" ? "Producción" : "Sandbox"})</strong>
+              </div>
+              <form action={actions.updateWompi} style={{ display: "grid", gap: 10 }}>
+                <input type="hidden" name="csrf" value={csrfToken} />
+                {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
+                <input type="hidden" name="environment" value={open === "wompi_prod" ? "PRODUCTION" : "SANDBOX"} />
+                <div className="field">
+                  <label>Llave pública</label>
+                  <input
+                    className="input"
+                    name="publicKey"
+                    placeholder="pub_..."
+                    defaultValue={(open === "wompi_prod" ? wompiProduction : wompiSandbox)?.publicKey || ""}
+                  />
                 </div>
-              ))}
+                <div className="field">
+                  <label>Llave privada</label>
+                  <input className="input" name="privateKey" type="password" />
+                </div>
+                <div className="field">
+                  <label>Secreto de integridad</label>
+                  <input className="input" name="integritySecret" type="password" />
+                </div>
+                <div className="field">
+                  <label>Secreto de eventos</label>
+                  <input className="input" name="eventsSecret" type="password" />
+                </div>
+                <div className="field">
+                  <label>URL base del API</label>
+                  <input
+                    className="input"
+                    name="apiBaseUrl"
+                    placeholder={open === "wompi_sandbox" ? "https://sandbox.wompi.co/v1" : "https://production.wompi.co/v1"}
+                    defaultValue={(open === "wompi_prod" ? wompiProduction : wompiSandbox)?.apiBaseUrl || ""}
+                  />
+                </div>
+                <div className="field">
+                  <label>URL base de links de pago</label>
+                  <input
+                    className="input"
+                    name="checkoutLinkBaseUrl"
+                    placeholder="https://checkout.wompi.co/l/"
+                    defaultValue={(open === "wompi_prod" ? wompiProduction : wompiSandbox)?.checkoutLinkBaseUrl || ""}
+                  />
+                </div>
+                <div className="field">
+                  <label>URL de redirección (opcional)</label>
+                  <input className="input" name="redirectUrl" defaultValue={(open === "wompi_prod" ? wompiProduction : wompiSandbox)?.redirectUrl || ""} />
+                </div>
+                <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    {inlineMsg("wompi_delete", "Eliminado.", "Error eliminando", inlineState)}
+                    <button className="ghost" type="submit" formAction={actions.deleteWompiConnection}>
+                      Eliminar conexión
+                    </button>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    {inlineMsg("wompi_creds", "Guardado.", "Error guardando", inlineState)}
+                    {inlineMsg("wompi_test", "Conexión exitosa.", "Error conectando", inlineState)}
+                    <DualActionButtons
+                      primaryLabel="Guardar"
+                      primaryPendingLabel="Guardando..."
+                      primaryClassName="primary"
+                      secondaryLabel="Probar conexión"
+                      secondaryPendingLabel="Conectando..."
+                      secondaryClassName="ghost"
+                      secondaryFormAction={actions.testWompiConnection}
+                    />
+                  </div>
+                </div>
+              </form>
             </div>
           </div>
         </div>
