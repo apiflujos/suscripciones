@@ -258,6 +258,7 @@ export default async function BillingPage({
         status: String(s.status || "—"),
         estadoInfo,
         planName: String(plan?.name || "—"),
+        planImageUrl: String((plan?.metadata as any)?.imageUrl || ""),
         montoInCents: Number(plan?.priceInCents || 0),
         moneda: String(plan?.currency || "COP"),
         cada: fmtEvery(plan?.intervalUnit, plan?.intervalCount),
@@ -484,21 +485,26 @@ export default async function BillingPage({
                     <span className="pill pill-muted">{r.tenantName}</span>
                   </div>
 
-                  <div className="billing-grid-info">
-                    <div>
-                      <span>Plan / Producto</span>
-                      <strong>{r.planName}</strong>
+                  <div className="billing-grid-info" style={{ gridTemplateColumns: "1.6fr 1fr 1fr 1fr", alignItems: "center" }}>
+                    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                      <div className="product-thumb" style={{ width: 36, height: 36 }}>
+                        {r.planImageUrl ? <img src={r.planImageUrl} alt={r.planName} /> : <span>📦</span>}
+                      </div>
+                      <div style={{ display: "grid", gap: 2 }}>
+                        <span>Producto</span>
+                        <strong>{r.planName}</strong>
+                      </div>
                     </div>
                     <div>
-                      <span>Último pago</span>
-                      {r.pagoAt ? <LocalDateTime value={r.pagoAt} /> : "—"}
+                      <span>Fecha de pago</span>
+                      <div>{r.pagoAt ? <LocalDateTime value={r.pagoAt} /> : "—"}</div>
                     </div>
                     <div>
                       <span>Próximo pago</span>
-                      {r.vencimientoAt ? <LocalDateTime value={r.vencimientoAt} /> : "—"}
+                      <div>{r.vencimientoAt ? <LocalDateTime value={r.vencimientoAt} /> : "—"}</div>
                     </div>
                     <div>
-                      <span>Monto</span>
+                      <span>Valor</span>
                       <strong>{fmtMoney(r.montoInCents, r.moneda)}</strong>
                       <div className="field-hint">{r.cada}</div>
                     </div>
