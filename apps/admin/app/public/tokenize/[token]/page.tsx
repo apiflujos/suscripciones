@@ -1,5 +1,4 @@
 import { WompiTokenizeWidget } from "../../../customers/[id]/payment-method/WompiTokenizeWidget";
-import { getAdminApiConfig } from "../../../lib/adminApi";
 import { normalizeErrorParam } from "../../../lib/errorParam";
 import { fetchWompiAcceptanceLinks } from "../../../lib/wompiMerchant";
 import { PublicCheckoutLayout } from "../../_components/PublicCheckoutLayout";
@@ -39,14 +38,6 @@ export default async function PublicTokenizePage({
   const config = configRes.ok ? configRes.json?.config || {} : {};
   const template = tokenRes.ok ? tokenRes.json?.template || null : null;
   const layout = (template?.layout || {}) as any;
-  const { token: adminToken } = getAdminApiConfig();
-  const settingsRes = adminToken && process.env.NEXT_PUBLIC_API_BASE_URL
-    ? await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/settings`, {
-        cache: "no-store",
-        headers: { authorization: `Bearer ${adminToken}`, "x-admin-token": adminToken }
-      })
-    : null;
-  const settings = settingsRes && "ok" in settingsRes ? await (settingsRes as any).json().catch(() => null) : null;
   const title = template?.publicTitle || config?.subscriptionTitle || "Activa tu suscripción";
   const subtitle = "Guarda tu método de pago en un paso seguro.";
   const description =
@@ -73,19 +64,14 @@ export default async function PublicTokenizePage({
     "";
 
   const publicKey = (() => {
-    const activeEnv = String(settings?.wompi?.activeEnv || "PRODUCTION").toUpperCase();
-    const wompiEnv =
-      activeEnv === "SANDBOX" ? settings?.wompi?.sandbox : settings?.wompi?.production;
-    const raw = String(wompiEnv?.publicKey || "").trim();
+    const raw = String(config?.wompiPublicKey || "").trim();
     if (!raw || raw.toLowerCase() === "undefined" || raw.toLowerCase() === "null") return "";
     return raw;
   })();
   const apiBaseUrl = (() => {
-    const activeEnv = String(settings?.wompi?.activeEnv || "PRODUCTION").toUpperCase();
-    const wompiEnv =
-      activeEnv === "SANDBOX" ? settings?.wompi?.sandbox : settings?.wompi?.production;
-    const configured = String(wompiEnv?.apiBaseUrl || "").trim();
+    const configured = String(config?.wompiApiBaseUrl || "").trim();
     if (configured) return configured;
+    const activeEnv = String(config?.wompiActiveEnv || "PRODUCTION").toUpperCase();
     return activeEnv === "SANDBOX" ? "https://sandbox.wompi.co/v1" : "https://production.wompi.co/v1";
   })();
   const acceptanceLinks = publicKey ? await fetchWompiAcceptanceLinks({ apiBaseUrl, publicKey }) : null;

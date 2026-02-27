@@ -1,18 +1,40 @@
 import express from "express";
 import { prisma } from "../db/prisma";
-import { getCredential } from "../services/credentials";
+import { getCredential, getCredentialsBulk } from "../services/credentials";
 import { CredentialProvider } from "@prisma/client";
 import { getCheckoutBaseUrlsFromEnv } from "../services/publicBase";
 
 export const publicLinksRouter = express.Router();
 
 publicLinksRouter.get("/checkout-config", async (_req, res) => {
-  const raw = (await getCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG")) || "";
+  const [raw, wompiCreds] = await Promise.all([
+    getCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG"),
+    getCredentialsBulk(CredentialProvider.WOMPI, [
+      "ACTIVE_ENV",
+      "PUBLIC_KEY",
+      "PUBLIC_KEY_PRODUCTION",
+      "PUBLIC_KEY_SANDBOX",
+      "API_BASE_URL",
+      "API_BASE_URL_PRODUCTION",
+      "API_BASE_URL_SANDBOX"
+    ])
+  ]);
   let parsed: any = null;
   try {
     parsed = raw ? JSON.parse(raw) : null;
   } catch {}
   const envBases = getCheckoutBaseUrlsFromEnv();
+  const wompiActiveEnv = (() => {
+    const fromDb = wompiCreds.get("ACTIVE_ENV");
+    const normalized = String(fromDb || "PRODUCTION")
+      .trim()
+      .toUpperCase();
+    return normalized === "SANDBOX" ? "SANDBOX" : "PRODUCTION";
+  })();
+  const getWompi = (key: string, env: "SANDBOX" | "PRODUCTION") =>
+    wompiCreds.get(`${key}_${env}`) || wompiCreds.get(key) || "";
+  const wompiPublicKey = String(getWompi("PUBLIC_KEY", wompiActiveEnv as any) || "").trim();
+  const wompiApiBaseUrl = String(getWompi("API_BASE_URL", wompiActiveEnv as any) || "").trim();
   const config = {
     planBaseUrl: envBases.planBaseUrl,
     subscriptionBaseUrl: envBases.subscriptionBaseUrl,
@@ -32,7 +54,10 @@ publicLinksRouter.get("/checkout-config", async (_req, res) => {
     tokenizationSuccessTitle: String(parsed?.tokenizationSuccessTitle || "").trim() || "",
     tokenizationSuccessMessage: String(parsed?.tokenizationSuccessMessage || "").trim() || "",
     tokenizationErrorMessage: String(parsed?.tokenizationErrorMessage || "").trim() || "",
-    tokenizationReturnUrl: String(parsed?.tokenizationReturnUrl || "").trim() || ""
+    tokenizationReturnUrl: String(parsed?.tokenizationReturnUrl || "").trim() || "",
+    wompiActiveEnv,
+    wompiPublicKey: wompiPublicKey || null,
+    wompiApiBaseUrl: wompiApiBaseUrl || null
   };
   res.json({ ok: true, config });
 });
