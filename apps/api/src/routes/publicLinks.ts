@@ -2,6 +2,7 @@ import express from "express";
 import { prisma } from "../db/prisma";
 import { getCredential } from "../services/credentials";
 import { CredentialProvider } from "@prisma/client";
+import { getCheckoutBaseUrlsFromEnv } from "../services/publicBase";
 
 export const publicLinksRouter = express.Router();
 
@@ -11,9 +12,10 @@ publicLinksRouter.get("/checkout-config", async (_req, res) => {
   try {
     parsed = raw ? JSON.parse(raw) : null;
   } catch {}
+  const envBases = getCheckoutBaseUrlsFromEnv();
   const config = {
-    planBaseUrl: String(parsed?.planBaseUrl || "").trim() || null,
-    subscriptionBaseUrl: String(parsed?.subscriptionBaseUrl || "").trim() || null,
+    planBaseUrl: envBases.planBaseUrl,
+    subscriptionBaseUrl: envBases.subscriptionBaseUrl,
     defaultUtmParams: String(parsed?.defaultUtmParams || "").trim() || "",
     tokenExpiryHours: Number(parsed?.tokenExpiryHours || 24),
     logoUrl: String(parsed?.logoUrl || "").trim() || null,

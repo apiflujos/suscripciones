@@ -6,6 +6,7 @@ import { createPaymentLinkForSubscription } from "../services/subscriptionBillin
 import { scheduleSubscriptionDueNotifications } from "../services/notificationsScheduler";
 import { CredentialProvider, RetryJobType, SubscriptionStatus, PlanIntervalUnit } from "@prisma/client";
 import { getCredential } from "../services/credentials";
+import { getCheckoutBaseUrlsFromEnv } from "../services/publicBase";
 
 function parseCheckoutConfig(raw: string | null) {
   let parsed: any = null;
@@ -14,8 +15,9 @@ function parseCheckoutConfig(raw: string | null) {
   } catch {
     parsed = null;
   }
-  const planBaseUrl = String(parsed?.planBaseUrl || "").trim();
-  const subscriptionBaseUrl = String(parsed?.subscriptionBaseUrl || "").trim();
+  const envBases = getCheckoutBaseUrlsFromEnv();
+  const planBaseUrl = String(envBases.planBaseUrl || "").trim();
+  const subscriptionBaseUrl = String(envBases.subscriptionBaseUrl || "").trim();
   const defaultUtmParams = String(parsed?.defaultUtmParams || "").trim();
   const tokenExpiryHours = Number(parsed?.tokenExpiryHours || 24);
   return { planBaseUrl, subscriptionBaseUrl, defaultUtmParams, tokenExpiryHours };

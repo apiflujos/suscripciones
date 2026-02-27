@@ -5,6 +5,7 @@ import { clearCredential, getCredential, getCredentialsBulk, setCredential } fro
 import { systemLog } from "../services/systemLog";
 import { testShopifyForward } from "./shopifyForwardTest";
 import { WompiClient } from "../providers/wompi/client";
+import { getCheckoutBaseUrlsFromEnv } from "../services/publicBase";
 
 const envSchema = z.enum(["PRODUCTION", "SANDBOX"]);
 type ActiveEnv = z.infer<typeof envSchema>;
@@ -204,6 +205,7 @@ settingsRouter.get("/", async (_req, res) => {
   } catch {
     checkoutConfig = {};
   }
+  const envBases = getCheckoutBaseUrlsFromEnv();
 
   res.json({
     encryptionKeyConfigured,
@@ -231,20 +233,20 @@ settingsRouter.get("/", async (_req, res) => {
       inboxId: (chatwootActiveEnv === "SANDBOX" ? commsSandbox.inboxId : commsProd.inboxId) ?? null
     },
     checkoutConfig: {
-      planBaseUrl: checkoutConfig.planBaseUrl || null,
-      subscriptionBaseUrl: checkoutConfig.subscriptionBaseUrl || null,
+      planBaseUrl: envBases.planBaseUrl,
+      subscriptionBaseUrl: envBases.subscriptionBaseUrl,
       defaultUtmParams: checkoutConfig.defaultUtmParams || "",
       tokenExpiryHours:
         Number.isFinite(Number(checkoutConfig.tokenExpiryHours)) && Number(checkoutConfig.tokenExpiryHours) > 0
           ? Math.trunc(Number(checkoutConfig.tokenExpiryHours))
         : 24,
-    logoUrl: checkoutConfig.logoUrl || null,
-    supportEmail: checkoutConfig.supportEmail || null,
-    supportUrl: checkoutConfig.supportUrl || null,
-    planTitle: checkoutConfig.planTitle || "Paga tu plan",
-    planDescription: checkoutConfig.planDescription || "",
-    subscriptionTitle: checkoutConfig.subscriptionTitle || "Activa tu suscripción",
-    subscriptionDescription: checkoutConfig.subscriptionDescription || "",
+      logoUrl: checkoutConfig.logoUrl || null,
+      supportEmail: checkoutConfig.supportEmail || null,
+      supportUrl: checkoutConfig.supportUrl || null,
+      planTitle: checkoutConfig.planTitle || "Paga tu plan",
+      planDescription: checkoutConfig.planDescription || "",
+      subscriptionTitle: checkoutConfig.subscriptionTitle || "Activa tu suscripción",
+      subscriptionDescription: checkoutConfig.subscriptionDescription || "",
       planWompiTitle: checkoutConfig.planWompiTitle || "",
       planWompiDescription: checkoutConfig.planWompiDescription || "",
       subscriptionWompiTitle: checkoutConfig.subscriptionWompiTitle || "",
@@ -392,8 +394,8 @@ settingsRouter.put("/checkout-config", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
 
   const payload = {
-    planBaseUrl: parsed.data.planBaseUrl || "",
-    subscriptionBaseUrl: parsed.data.subscriptionBaseUrl || "",
+    planBaseUrl: "",
+    subscriptionBaseUrl: "",
     defaultUtmParams: parsed.data.defaultUtmParams || "",
     tokenExpiryHours: parsed.data.tokenExpiryHours || undefined,
     logoUrl: parsed.data.logoUrl || "",

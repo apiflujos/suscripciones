@@ -40,6 +40,7 @@ export function RedirectConfigPanel({
 }) {
   const formRef = useRef<HTMLFormElement | null>(null);
   const autoSavedRef = useRef(false);
+  const isFixedBase = Boolean(String(appPublicBaseUrl || "").trim());
   const [publicBaseUrl, setPublicBaseUrl] = useState<string>(() => {
     const existing = String(defaults.planBaseUrl || defaults.subscriptionBaseUrl || "").trim();
     if (existing) return existing.replace(/\/public\/(plan|suscripcion).*/i, "");
@@ -57,6 +58,11 @@ export function RedirectConfigPanel({
   const [editMode, setEditMode] = useState(false);
 
   useEffect(() => {
+    if (isFixedBase) {
+      const fixed = String(appPublicBaseUrl || "").trim();
+      if (fixed) setPublicBaseUrl(fixed);
+      return;
+    }
     if (publicBaseUrl) return;
     if (appPublicBaseUrl) {
       setPublicBaseUrl(appPublicBaseUrl);
@@ -153,8 +159,17 @@ export function RedirectConfigPanel({
 
           <div className="field">
             <label>URL pública base</label>
-            <input className="input" value={publicBaseUrl} onChange={(e) => setPublicBaseUrl(e.target.value)} />
-            <div className="field-hint">Si tienes dominio propio, reemplaza el dominio aquí.</div>
+            <input
+              className="input"
+              value={publicBaseUrl}
+              onChange={(e) => setPublicBaseUrl(e.target.value)}
+              readOnly={isFixedBase}
+            />
+            <div className="field-hint">
+              {isFixedBase
+                ? "Definido por ENV. No se permite editar."
+                : "Si tienes dominio propio, reemplaza el dominio aquí."}
+            </div>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
