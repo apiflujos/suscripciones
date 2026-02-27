@@ -54,7 +54,7 @@ export function WompiTokenizeWidget({
     };
 
     cleanup();
-    if (!publicKey || !canTokenize) return;
+    if (!publicKey) return;
 
     const script = document.createElement("script");
     // Wompi widget is a classic script (not ESM). Using module breaks currentScript.
@@ -63,6 +63,8 @@ export function WompiTokenizeWidget({
     script.setAttribute("data-public-key", publicKey);
     script.dataset.publicKey = publicKey;
     script.setAttribute("data-wompi-widget", "tokenize");
+    script.async = false;
+    script.defer = false;
     script.src = "https://checkout.wompi.co/widget.js";
     form.appendChild(script);
 
@@ -80,7 +82,49 @@ export function WompiTokenizeWidget({
       cleanup();
       form.removeEventListener("submit", onSubmit);
     };
-  }, [publicKey, canTokenize]);
+  }, [publicKey]);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    const form = host.closest("form");
+    if (!form) return;
+
+    const toggleButton = () => {
+      const button = form.querySelector<HTMLButtonElement>(".waybox-button");
+      if (!button) return;
+      const shouldDisable = !canTokenize;
+      button.disabled = shouldDisable;
+      button.setAttribute("aria-disabled", shouldDisable ? "true" : "false");
+      button.style.pointerEvents = shouldDisable ? "none" : "";
+      button.style.opacity = shouldDisable ? "0.6" : "";
+      if (shouldDisable) {
+        button.setAttribute("data-locked", "true");
+      } else {
+        button.removeAttribute("data-locked");
+      }
+    };
+
+    toggleButton();
+    const observer = new MutationObserver(() => toggleButton());
+    observer.observe(form, { childList: true, subtree: true });
+
+    const onClickCapture = (event: MouseEvent) => {
+      if (canTokenize) return;
+      const target = event.target as HTMLElement | null;
+      const button = target?.closest?.(".waybox-button");
+      if (button) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+    form.addEventListener("click", onClickCapture, true);
+
+    return () => {
+      observer.disconnect();
+      form.removeEventListener("click", onClickCapture, true);
+    };
+  }, [canTokenize]);
 
   return (
     <div style={{ display: "grid", gap: 10 }}>

@@ -3,7 +3,7 @@ import { fetchAdminCached, getAdminApiConfig } from "../../../lib/adminApi";
 import { normalizeErrorParam } from "../../../lib/errorParam";
 import { fetchWompiAcceptanceLinks } from "../../../lib/wompiMerchant";
 import { HelpTip } from "../../../ui/HelpTip";
-import { WompiCardTokenizeForm } from "../../../ui/WompiCardTokenizeForm";
+import { WompiTokenizeWidget } from "./WompiTokenizeWidget";
 
 export const dynamic = "force-dynamic";
 
@@ -131,12 +131,13 @@ export default async function CustomerPaymentMethodPage({
                 <div className="field-hint">
                   Al tokenizar, Wompi devolverá un `token` que se registrará como `paymentSourceId` en este contacto.
                 </div>
-                <WompiCardTokenizeForm
-                  publicKey={publicKey}
-                  apiBaseUrl={apiBaseUrl}
+                <form
+                  method="POST"
                   action={`/customers/${customer.id}/payment-method/process`}
-                  acceptance={acceptanceLinks}
-                />
+                  style={{ display: "grid", gap: 10 }}
+                >
+                  <WompiTokenizeWidget publicKey={publicKey} acceptance={acceptanceLinks} />
+                </form>
               </div>
             )}
           </div>
