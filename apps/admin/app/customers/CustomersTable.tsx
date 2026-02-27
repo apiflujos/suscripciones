@@ -261,7 +261,7 @@ export function CustomersTable({
     let hasSub = false;
     for (const id of ids) {
       const p = productById.get(String(id));
-      const mode = String(p?.collectionMode || "");
+      const mode = String(p?.collectionMode || p?.metadata?.collectionMode || "");
       if (!mode || mode === "AUTO_LINK") hasPlan = true;
       if (mode === "AUTO_DEBIT") hasSub = true;
       if (hasPlan && hasSub) return "MIXED";
@@ -479,9 +479,6 @@ export function CustomersTable({
                   {!hasToken(c) ? (
                     <div>
                       <span>Método de pago</span>
-                      <Link className="ghost btn-compact btn-amber" href={`/customers/${c.id}/payment-method`}>
-                        Abrir tokenización
-                      </Link>
                       <div className="field-hint">Envía el link de tokenización para que el cliente guarde su tarjeta.</div>
                     </div>
                   ) : null}
@@ -489,6 +486,11 @@ export function CustomersTable({
               </div>
               <div className="contact-paylink contact-footer">
                   <div className="paylink-actions" style={{ display: "flex", gap: 8, flexWrap: "nowrap", justifyContent: "flex-start", overflowX: "auto" }}>
+                    {!hasToken(c) ? (
+                      <Link className="ghost btn-compact btn-amber" href={`/customers/${c.id}/payment-method`}>
+                        Tokenizar
+                      </Link>
+                    ) : null}
                     <button
                       className="ghost btn-compact btn-amber"
                       type="button"

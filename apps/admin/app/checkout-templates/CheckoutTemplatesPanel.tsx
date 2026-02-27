@@ -36,7 +36,7 @@ type Template = {
   layout?: Layout | null;
 };
 
-type Product = { id: string; name: string; sku?: string; collectionMode?: string | null };
+type Product = { id: string; name: string; sku?: string; collectionMode?: string | null; metadata?: any };
 type Tenant = { id: string; name: string };
 
 type WizardStep = {
@@ -121,6 +121,11 @@ export function CheckoutTemplatesPanel({
     products.forEach((p) => map.set(p.id, p));
     return map;
   }, [products]);
+
+  const getCollectionMode = (p: Product) => {
+    const raw = String(p?.collectionMode || p?.metadata?.collectionMode || "").trim();
+    return raw || "AUTO_LINK";
+  };
 
   function resetWizard() {
     setEditing(null);
@@ -224,14 +229,14 @@ export function CheckoutTemplatesPanel({
   const filteredProducts = useMemo(() => {
     if (!selectedKind || selectedKind === "CART") return products;
     const mode = selectedKind === "SUBSCRIPTION" ? "AUTO_DEBIT" : "AUTO_LINK";
-    const filtered = products.filter((p) => !p.collectionMode || p.collectionMode === mode);
+    const filtered = products.filter((p) => getCollectionMode(p) === mode);
     return filtered.length ? filtered : products;
   }, [products, selectedKind]);
 
   const filteredCatalogProducts = useMemo(() => {
     if (selectedKind !== "CART") return products;
     const mode = catalogMode === "SUBSCRIPTION" ? "AUTO_DEBIT" : "AUTO_LINK";
-    const filtered = products.filter((p) => !p.collectionMode || p.collectionMode === mode);
+    const filtered = products.filter((p) => getCollectionMode(p) === mode);
     return filtered.length ? filtered : products;
   }, [products, selectedKind, catalogMode]);
 
@@ -595,34 +600,36 @@ export function CheckoutTemplatesPanel({
                     ) : null}
                   </div>
                 )}
-                <div className="field" ref={productsRef}>
-                  <label>Productos disponibles</label>
-                  <div style={{ display: "grid", gap: 8 }}>
-                    {(selectedKind === "CART" ? filteredCatalogProducts : filteredProducts).map((p) => {
-                      const activeItem = productIds.includes(p.id);
-                      return (
-                        <button
-                          key={p.id}
-                          type="button"
-                          className={`ghost ${activeItem ? "is-active" : ""}`}
-                          style={{ justifyContent: "space-between", width: "100%", ...(missingProducts && stepIndex === 3 ? { borderColor: "var(--danger)" } : {}) }}
-                          onClick={() => {
-                            if (activeItem) setProductIds(productIds.filter((id) => id !== p.id));
-                            else setProductIds([...productIds, p.id]);
-                          }}
-                        >
-                          <span>{p.name}</span>
-                          <span>{activeItem ? "✓" : "+"}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {!isProductsValid ? (
-                    <div className="field-hint" style={{ color: "var(--danger)" }}>
-                      Debes seleccionar productos o permitir el selector.
+                {selectedKind !== "CART" || catalogMode ? (
+                  <div className="field" ref={productsRef}>
+                    <label>Productos disponibles</label>
+                    <div style={{ display: "grid", gap: 8 }}>
+                      {(selectedKind === "CART" ? filteredCatalogProducts : filteredProducts).map((p) => {
+                        const activeItem = productIds.includes(p.id);
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            className={`ghost ${activeItem ? "is-active" : ""}`}
+                            style={{ justifyContent: "space-between", width: "100%", ...(missingProducts && stepIndex === 3 ? { borderColor: "var(--danger)" } : {}) }}
+                            onClick={() => {
+                              if (activeItem) setProductIds(productIds.filter((id) => id !== p.id));
+                              else setProductIds([...productIds, p.id]);
+                            }}
+                          >
+                            <span>{p.name}</span>
+                            <span>{activeItem ? "✓" : "+"}</span>
+                          </button>
+                        );
+                      })}
                     </div>
-                  ) : null}
-                </div>
+                    {!isProductsValid ? (
+                      <div className="field-hint" style={{ color: "var(--danger)" }}>
+                        Debes seleccionar productos o permitir el selector.
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
                 <div className="field">
                   <label>Expiración</label>
                   <select className="select" name="expiryHours" value={expiryHours} onChange={(e) => setExpiryHours(e.target.value)}>
