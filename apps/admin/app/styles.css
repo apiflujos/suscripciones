@@ -796,6 +796,11 @@ a {
   line-height: 1.1;
 }
 
+.filtersForm .primary {
+  min-height: 34px;
+  padding: 0 14px;
+}
+
 .filtersPanel .ghost,
 .filtersPanel .primary {
   min-width: 0;
@@ -1966,7 +1971,7 @@ textarea.input {
   display: grid;
   gap: 6px;
   border-left: 3px solid var(--metric-accent, var(--primary));
-  background: var(--panel);
+  background: linear-gradient(90deg, var(--metric-accent-soft, rgba(0, 0, 0, 0)) 0%, rgba(0, 0, 0, 0) 55%), var(--panel);
   box-shadow: var(--shadow);
 }
 
@@ -1989,11 +1994,11 @@ textarea.input {
   color: var(--text-soft);
 }
 
-.metric-card.tone-primary { --metric-accent: var(--primary); }
-.metric-card.tone-success { --metric-accent: var(--status-success); }
-.metric-card.tone-warning { --metric-accent: var(--status-warning); }
-.metric-card.tone-danger { --metric-accent: var(--status-danger); }
-.metric-card.tone-info { --metric-accent: var(--status-info); }
+.metric-card.tone-primary { --metric-accent: var(--primary); --metric-accent-soft: var(--primary-soft); }
+.metric-card.tone-success { --metric-accent: var(--status-success); --metric-accent-soft: var(--status-success-bg); }
+.metric-card.tone-warning { --metric-accent: var(--status-warning); --metric-accent-soft: var(--status-warning-bg); }
+.metric-card.tone-danger { --metric-accent: var(--status-danger); --metric-accent-soft: var(--status-danger-bg); }
+.metric-card.tone-info { --metric-accent: var(--status-info); --metric-accent-soft: var(--status-info-bg); }
 
 .chart-card {
   display: grid;

@@ -26,9 +26,8 @@ export default async function CustomerPaymentMethodPage({
   const { token } = getConfig();
   if (!token) {
     return (
-      <main>
-        <h1 style={{ marginTop: 0 }}>Método de pago</h1>
-        <p>Configura `ADMIN_API_TOKEN` en el Admin para poder consultar el API.</p>
+      <main className="page">
+        <div className="card cardPad">Configura `ADMIN_API_TOKEN` en el Admin para poder consultar el API.</div>
       </main>
     );
   }

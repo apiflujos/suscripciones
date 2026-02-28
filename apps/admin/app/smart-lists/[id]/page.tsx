@@ -27,8 +27,13 @@ export default async function SmartListDetail({
   if (!list) {
     return (
       <div className="page">
-        <h1>Lista no encontrada</h1>
-        <Link href="/smart-lists" className="ghost">Volver</Link>
+        <div className="panel module">
+          <div className="pageTitle">Lista no encontrada</div>
+          <div className="pageSub">No pudimos cargar esta lista.</div>
+          <Link href="/smart-lists" className="ghost no-icon" style={{ marginTop: 8 }}>
+            Volver
+          </Link>
+        </div>
       </div>
     );
   }

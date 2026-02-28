@@ -122,7 +122,13 @@ export default async function CustomersPage({
 }) {
   const csrfToken = await getCsrfToken();
   const { token } = getConfig();
-  if (!token) return <main><h1 style={{ marginTop: 0 }}>Contactos</h1><p>Configura `ADMIN_API_TOKEN`.</p></main>;
+  if (!token) {
+    return (
+      <main className="page">
+        <div className="card cardPad">Configura `ADMIN_API_TOKEN` para consultar contactos.</div>
+      </main>
+    );
+  }
   const sp = (await searchParams) ?? {};
   const q = typeof sp.q === "string" ? sp.q : "";
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
