@@ -17,6 +17,7 @@ export default async function SmartListDetail({
   const { id } = await params;
   const sp = (await searchParams) ?? {};
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
+  const take = 20;
   const listRes = await fetchAdminCached(`/admin/comms/smart-lists/${encodeURIComponent(id)}`, { ttlMs: 0 });
   const list = listRes.ok ? listRes.json?.smartList : null;
 
