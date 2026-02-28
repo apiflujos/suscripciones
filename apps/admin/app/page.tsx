@@ -12,6 +12,18 @@ function fmtPct(v: number | null | undefined) {
   return `${Number(v).toFixed(1)}%`;
 }
 
+function fmtDelta(v: number | null | undefined) {
+  if (v == null || !Number.isFinite(Number(v))) return "—";
+  const sign = v > 0 ? "+" : v < 0 ? "-" : "";
+  return `${sign}${Math.abs(v).toFixed(1)}%`;
+}
+
+function fmtDeltaPp(v: number | null | undefined) {
+  if (v == null || !Number.isFinite(Number(v))) return "—";
+  const sign = v > 0 ? "+" : v < 0 ? "-" : "";
+  return `${sign}${Math.abs(v).toFixed(1)} pp`;
+}
+
 function fmtShortDate(dateStr: string) {
   const d = new Date(`${dateStr}T00:00:00Z`);
   if (Number.isNaN(d.getTime())) return dateStr;
@@ -34,6 +46,11 @@ function avg(values: number[]) {
   return sum(values) / values.length;
 }
 
+function pctChange(current: number, prev: number) {
+  if (!Number.isFinite(current) || !Number.isFinite(prev) || prev === 0) return null;
+  return ((current - prev) / Math.abs(prev)) * 100;
+}
+
 function toUtcIsoStart(dateStr: string) {
   const [y, m, d] = String(dateStr || "").split("-").map((x) => Number(x));
   if (!y || !m || !d) return null;
@@ -53,10 +70,12 @@ function isoDateUtc(d: Date) {
 function ChartLine({
   values,
   labels,
+  tooltipLabel,
   height = 120
 }: {
   values: number[];
   labels?: string[];
+  tooltipLabel?: (value: number, index: number) => string;
   height?: number;
 }) {
   const w = 520;
@@ -69,10 +88,23 @@ function ChartLine({
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   });
   const labelIdxs = values.length > 1 ? Array.from(new Set([0, Math.floor((values.length - 1) / 2), values.length - 1])) : [0];
+  const step = Math.max(1, Math.ceil(values.length / 12));
   return (
     <svg viewBox={`0 0 ${w} ${h}`} width="100%" height={h} aria-hidden="true">
       <polyline points={pts.join(" ")} fill="none" stroke="var(--primary)" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
       <line x1="0" y1={h - 0.5} x2={w} y2={h - 0.5} stroke="var(--chart-axis)" />
+      {values.map((v, i) => {
+        if (i % step !== 0 && i !== values.length - 1) return null;
+        const x = pad + (i * (w - pad * 2)) / Math.max(1, values.length - 1);
+        const y = h - pad - (Math.max(0, v) * (h - pad * 2)) / max;
+        const tip = tooltipLabel ? tooltipLabel(v, i) : `${labels?.[i] || ""} · ${v}`;
+        return (
+          <g key={`pt-${i}`}>
+            <circle cx={x} cy={y} r="3" fill="var(--primary)" />
+            <title>{tip}</title>
+          </g>
+        );
+      })}
       {labels
         ? labelIdxs.map((i) => {
             const x = pad + (i * (w - pad * 2)) / Math.max(1, values.length - 1);
@@ -100,12 +132,14 @@ function ChartBars({
   b,
   aLabel,
   bLabel,
+  labels,
   height = 120
 }: {
   a: number[];
   b: number[];
   aLabel: string;
   bLabel: string;
+  labels?: string[];
   height?: number;
 }) {
   const w = 520;
@@ -127,8 +161,12 @@ function ChartBars({
           const hb = (Math.max(0, vb) * (h - pad * 2)) / max;
           return (
             <g key={i}>
-              <rect x={x0} y={h - pad - ha} width={barW} height={ha} fill="var(--chart-a)" rx="3" />
-              <rect x={x0 + barW + gap} y={h - pad - hb} width={barW} height={hb} fill="var(--chart-b)" rx="3" />
+              <rect x={x0} y={h - pad - ha} width={barW} height={ha} fill="var(--chart-a)" rx="3">
+                <title>{`${labels?.[i] || ""} · ${aLabel}: ${va}`}</title>
+              </rect>
+              <rect x={x0 + barW + gap} y={h - pad - hb} width={barW} height={hb} fill="var(--chart-b)" rx="3">
+                <title>{`${labels?.[i] || ""} · ${bLabel}: ${vb}`}</title>
+              </rect>
             </g>
           );
         })}
@@ -214,6 +252,16 @@ export default async function Home({
       )
     : { ok: false, status: 401, json: { error: "missing_admin_token" } };
 
+  const periodMs = Math.max(24 * 60 * 60 * 1000, new Date(toIso).getTime() - new Date(fromIso).getTime());
+  const prevFromIso = new Date(new Date(fromIso).getTime() - periodMs).toISOString();
+  const prevToIso = new Date(fromIso).toISOString();
+  const prevMetrics = hasToken
+    ? await fetchAdminCached(
+        `/admin/metrics/overview?from=${encodeURIComponent(prevFromIso)}&to=${encodeURIComponent(prevToIso)}&granularity=${encodeURIComponent(g)}`,
+        { ttlMs: 1500 }
+      )
+    : { ok: false, status: 401, json: { error: "missing_admin_token" } };
+
   const series: any[] = metrics.ok ? metrics.json?.series || [] : [];
   const revenueSeries = series.map((p) => Number(p?.revenueInCents ?? 0));
   const okSeries = series.map((p) => Number(p?.paymentsSuccess ?? 0));
@@ -254,6 +302,20 @@ export default async function Home({
   const revenueByTypeTotal = revenueLink + revenueAuto;
   const revenueLinkPct = revenueByTypeTotal > 0 ? (revenueLink / revenueByTypeTotal) * 100 : 0;
   const revenueAutoPct = revenueByTypeTotal > 0 ? (revenueAuto / revenueByTypeTotal) * 100 : 0;
+
+  const prevTotals = prevMetrics.ok ? prevMetrics.json?.totals || {} : {};
+  const prevRevenue = Number(prevTotals?.totalRevenueInCents || 0);
+  const prevPaymentsOk = Number(prevTotals?.totalPaymentsSuccessful || 0);
+  const prevPaymentsFail = Number(prevTotals?.totalPaymentsFailed || 0);
+  const prevPaymentsTotal = prevPaymentsOk + prevPaymentsFail;
+  const prevApprovalPct = prevPaymentsTotal > 0 ? (prevPaymentsOk / prevPaymentsTotal) * 100 : 0;
+  const prevLinkConversion = Number(prevTotals?.link?.conversionLinkToPayPct || 0);
+  const prevPlansSold = Number(prevTotals?.totalPlansSold || 0);
+
+  const revenueDeltaPct = pctChange(totalRevenue, prevRevenue);
+  const approvalDeltaPp = approvalPct - prevApprovalPct;
+  const linkConversionDeltaPp = linkConversionPct - prevLinkConversion;
+  const plansDeltaPct = pctChange(metrics.json?.totals?.totalPlansSold || 0, prevPlansSold);
 
   return (
     <main className="page pageWide">
@@ -309,21 +371,61 @@ export default async function Home({
             </div>
           ) : (
             <>
+              <div className="insights-card">
+                <div className="insights-title">Insights clave</div>
+                <div className="insights-grid">
+                  <div className="insight-item">
+                    Ingresos vs periodo anterior:
+                    <span className={`delta ${revenueDeltaPct == null ? "flat" : revenueDeltaPct >= 0 ? "up" : "down"}`}>
+                      {fmtDelta(revenueDeltaPct)}
+                    </span>
+                  </div>
+                  <div className="insight-item">
+                    Aprobación de pagos:
+                    <span className={`delta ${approvalDeltaPp >= 0 ? "up" : "down"}`}>{fmtDeltaPp(approvalDeltaPp)}</span>
+                  </div>
+                  <div className="insight-item">
+                    Conversión de links:
+                    <span className={`delta ${linkConversionDeltaPp >= 0 ? "up" : "down"}`}>{fmtDeltaPp(linkConversionDeltaPp)}</span>
+                  </div>
+                  <div className="insight-item">
+                    Planes vendidos:
+                    <span className={`delta ${plansDeltaPct == null ? "flat" : plansDeltaPct >= 0 ? "up" : "down"}`}>
+                      {fmtDelta(plansDeltaPct)}
+                    </span>
+                  </div>
+                </div>
+                <div className="insights-foot">
+                  Comparativo: {fmtShortDate(prevFromIso.slice(0, 10))} → {fmtShortDate(prevToIso.slice(0, 10))}
+                </div>
+              </div>
+
               <div className="grid3">
                 <div className="card cardPad metric-card">
                   <div className="metric-label">Ingresos totales</div>
                   <div className="metric-value">${fmtMoneyCop(totalRevenue)} COP</div>
-                  <div className="metric-sub">Ticket promedio: ${fmtMoneyCop(avgTicket)} COP</div>
+                  <div className="metric-sub">
+                    Ticket promedio: ${fmtMoneyCop(avgTicket)} COP ·
+                    <span className={`delta ${revenueDeltaPct == null ? "flat" : revenueDeltaPct >= 0 ? "up" : "down"}`}>
+                      {fmtDelta(revenueDeltaPct)}
+                    </span>
+                  </div>
                 </div>
                 <div className="card cardPad metric-card">
                   <div className="metric-label">Tasa de aprobación</div>
                   <div className="metric-value">{fmtPct(approvalPct)}</div>
-                  <div className="metric-sub">{totalPaymentsOk} OK · {totalPaymentsFail} fallidos</div>
+                  <div className="metric-sub">
+                    {totalPaymentsOk} OK · {totalPaymentsFail} fallidos ·
+                    <span className={`delta ${approvalDeltaPp >= 0 ? "up" : "down"}`}>{fmtDeltaPp(approvalDeltaPp)}</span>
+                  </div>
                 </div>
                 <div className="card cardPad metric-card">
                   <div className="metric-label">Conversión link → pago</div>
                   <div className="metric-value">{fmtPct(linkConversionPct)}</div>
-                  <div className="metric-sub">{linksSentTotal} enviados · {linksPaidTotal} pagados</div>
+                  <div className="metric-sub">
+                    {linksSentTotal} enviados · {linksPaidTotal} pagados ·
+                    <span className={`delta ${linkConversionDeltaPp >= 0 ? "up" : "down"}`}>{fmtDeltaPp(linkConversionDeltaPp)}</span>
+                  </div>
                 </div>
                 <div className="card cardPad metric-card">
                   <div className="metric-label">Suscripciones activas</div>
@@ -338,7 +440,12 @@ export default async function Home({
                 <div className="card cardPad metric-card">
                   <div className="metric-label">Planes vendidos</div>
                   <div className="metric-value">{metrics.json?.totals?.totalPlansSold || 0}</div>
-                  <div className="metric-sub">Rango: {rangeLabel}</div>
+                  <div className="metric-sub">
+                    Rango: {rangeLabel} ·
+                    <span className={`delta ${plansDeltaPct == null ? "flat" : plansDeltaPct >= 0 ? "up" : "down"}`}>
+                      {fmtDelta(plansDeltaPct)}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -351,7 +458,11 @@ export default async function Home({
                     </div>
                     <div className="chart-range">{rangeLabel} · {periodLabel}</div>
                   </div>
-                  <ChartLine values={revenueSeries} labels={bucketLabels} />
+                  <ChartLine
+                    values={revenueSeries}
+                    labels={bucketLabels}
+                    tooltipLabel={(v, i) => `${bucketLabels[i] || ""} · $${fmtMoneyCop(v)} COP`}
+                  />
                   <div className="chart-kpis">
                     <span className="chart-kpi">Total <strong>${fmtMoneyCop(revenueTotalSeries)} COP</strong></span>
                     <span className="chart-kpi">Promedio <strong>${fmtMoneyCop(Math.round(revenueAvgSeries))} COP</strong></span>
@@ -368,7 +479,7 @@ export default async function Home({
                     </div>
                     <div className="chart-range">{rangeLabel} · {periodLabel}</div>
                   </div>
-                  <ChartBars a={okSeries} b={failSeries} aLabel="Aprobados" bLabel="Fallidos" />
+                  <ChartBars a={okSeries} b={failSeries} aLabel="Aprobados" bLabel="Fallidos" labels={bucketLabels} />
                   <div className="chart-kpis">
                     <span className="chart-kpi">Aprobados <strong>{okTotalSeries}</strong></span>
                     <span className="chart-kpi">Fallidos <strong>{failTotalSeries}</strong></span>
@@ -386,7 +497,7 @@ export default async function Home({
                     </div>
                     <div className="chart-range">{rangeLabel} · {periodLabel}</div>
                   </div>
-                  <ChartBars a={linksSent} b={linksPaid} aLabel="Enviados" bLabel="Pagados" />
+                  <ChartBars a={linksSent} b={linksPaid} aLabel="Enviados" bLabel="Pagados" labels={bucketLabels} />
                   <div className="chart-kpis">
                     <span className="chart-kpi">Conversión <strong>{fmtPct(metrics.json?.totals?.link?.conversionLinkToPayPct)}</strong></span>
                     <span className="chart-kpi">Ingresos <strong>${fmtMoneyCop(metrics.json?.totals?.link?.revenueInCents || 0)} COP</strong></span>
@@ -427,7 +538,11 @@ export default async function Home({
                     </div>
                     <div className="chart-range">{rangeLabel} · {periodLabel}</div>
                   </div>
-                  <ChartLine values={activeSubs} labels={bucketLabels} />
+                  <ChartLine
+                    values={activeSubs}
+                    labels={bucketLabels}
+                    tooltipLabel={(v, i) => `${bucketLabels[i] || ""} · ${v} activas`}
+                  />
                   <div className="chart-kpis">
                     <span className="chart-kpi">Inicio <strong>{activeStart}</strong></span>
                     <span className="chart-kpi">Fin <strong>{activeEnd}</strong></span>
@@ -469,7 +584,11 @@ export default async function Home({
                   {mrrSeries.some((v) => v != null) ? (
                     <div style={{ marginTop: 10 }}>
                       <div style={{ color: "var(--muted)", fontSize: 12, marginBottom: 6 }}>Evolución MRR (mes)</div>
-                      <ChartLine values={mrrSeries.map((v) => Number(v ?? 0))} labels={bucketLabels} />
+                      <ChartLine
+                        values={mrrSeries.map((v) => Number(v ?? 0))}
+                        labels={bucketLabels}
+                        tooltipLabel={(v, i) => `${bucketLabels[i] || ""} · $${fmtMoneyCop(v)} COP`}
+                      />
                     </div>
                   ) : null}
                 </div>
