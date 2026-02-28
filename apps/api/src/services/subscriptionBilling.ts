@@ -404,6 +404,15 @@ export async function createAutoDebitTransactionForSubscription(args: {
       payment_method: { installments: 1 }
     });
   } catch (err: any) {
+    await systemLog(LogLevel.ERROR, "subscriptions.auto_debit", "Transaction create failed (signature details)", {
+      subscriptionId: sub.id,
+      paymentId: payment.id,
+      reference,
+      amountInCents,
+      currency,
+      signature,
+      err: err?.message ? String(err.message) : "unknown error"
+    }).catch(() => {});
     await prisma.paymentAttempt.create({
       data: {
         paymentId: payment.id,
