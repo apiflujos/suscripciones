@@ -24,8 +24,18 @@ function getMessage(el: FieldInput) {
     return "Formato inválido.";
   }
   if (v.patternMismatch) return "Formato inválido.";
-  if (v.tooShort) return `Mínimo ${el.minLength} caracteres.`;
-  if (v.tooLong) return `Máximo ${el.maxLength} caracteres.`;
+  if (v.tooShort) {
+    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+      return `Mínimo ${el.minLength} caracteres.`;
+    }
+    return "Valor demasiado corto.";
+  }
+  if (v.tooLong) {
+    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+      return `Máximo ${el.maxLength} caracteres.`;
+    }
+    return "Valor demasiado largo.";
+  }
   if (v.rangeUnderflow) return `Mínimo ${el.getAttribute("min") || ""}.`;
   if (v.rangeOverflow) return `Máximo ${el.getAttribute("max") || ""}.`;
   if (v.stepMismatch) return "Valor inválido.";
