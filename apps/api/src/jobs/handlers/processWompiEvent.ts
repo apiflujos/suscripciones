@@ -6,7 +6,7 @@ import { classifyReference } from "../../webhooks/wompi/classifyReference";
 import { postJson } from "../../lib/http";
 import { PaymentStatus, RetryJobType, SubscriptionStatus, WebhookProcessStatus } from "@prisma/client";
 import { addIntervalUtc } from "../../lib/dates";
-import { getShopifyForward } from "../../services/runtimeConfig";
+import { getShopifyForward, getWompiCheckoutLinkBaseUrl } from "../../services/runtimeConfig";
 import { schedulePaymentStatusNotifications, scheduleSubscriptionDueNotifications } from "../../services/notificationsScheduler";
 import { consumeApp } from "../../services/superAdminApp";
 import { syncChatwootAttributesForCustomer } from "../../services/chatwootSync";
@@ -56,6 +56,15 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   const status: string | undefined = tx?.status;
   const amountInCents: number | undefined = tx?.amount_in_cents ?? tx?.amountInCents;
   const currency: string | undefined = tx?.currency;
+  const checkoutUrlFromLink = paymentLinkId
+    ? (() => {
+        const rawBase = getWompiCheckoutLinkBaseUrl();
+        return rawBase.then((base) => {
+          const normalized = base.endsWith("/") ? base : `${base}/`;
+          return `${normalized}${paymentLinkId}`;
+        });
+      })()
+    : Promise.resolve<string | undefined>(undefined);
 
   // Prefer mapping by payment_link_id (subscriptions created via API payment links)
   const paymentByLink = paymentLinkId
@@ -240,6 +249,12 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   const tenantIdForPayment =
     subscription?.tenantId ?? paymentByLink?.tenantId ?? (await getDefaultTenantId());
 
+  const checkoutUrlResolved = await checkoutUrlFromLink;
+  const resolvedCheckoutUrl =
+    paymentByLink?.checkoutUrl ||
+    prevByTx?.checkoutUrl ||
+    checkoutUrlResolved;
+
   const paymentRecord = paymentByLink
     ? await db.payment.update({
         where: { id: paymentByLink.id },
@@ -261,6 +276,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
           amountInCents: amountInCents ?? paymentByLink.amountInCents,
           currency: currency ?? paymentByLink.currency,
           reference: reference ?? paymentByLink.reference,
+          ...(resolvedCheckoutUrl ? { checkoutUrl: resolvedCheckoutUrl } : {}),
           cycleNumber: paymentByLink.cycleNumber ?? cycle,
           subscriptionCycleKey: paymentByLink.subscriptionId ? subscriptionCycleKey : paymentByLink.subscriptionCycleKey
         }
@@ -277,6 +293,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
           reference: reference ?? `SUB_${subscription!.id}_${cycle}`,
           wompiTransactionId: transactionId,
           wompiPaymentLinkId: paymentLinkId,
+          ...(resolvedCheckoutUrl ? { checkoutUrl: resolvedCheckoutUrl } : {}),
           ...(paymentStatus ? { status: paymentStatus } : {}),
           paidAt,
           failedAt: computedFailedAt,
@@ -296,6 +313,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
                 : prevByTx?.failedAt ?? computedFailedAt,
           providerResponse: { webhook: payload } as any,
           reference: reference ?? undefined,
+          ...(resolvedCheckoutUrl ? { checkoutUrl: resolvedCheckoutUrl } : {}),
           wompiPaymentLinkId: paymentLinkId ?? undefined
         }
       });
