@@ -151,12 +151,13 @@ export function ConnectionsPanel({
 
       {open === "wompi_prod" || open === "wompi_sandbox" ? (
         <div className="modal-backdrop">
-          <div className="modal-panel">
+          <div className="modal-panel modal-panel-fixed">
             <div className="panel-header">
               <h3 style={{ margin: 0 }}>{open === "wompi_prod" ? "Wompi · Producción" : "Wompi · Sandbox"}</h3>
               <button type="button" className="ghost" onClick={() => setOpen(null)} aria-label="Cerrar">X</button>
             </div>
 
+            <div className="modal-body">
             <form action={actions.setWompiActiveEnv} style={{ display: "grid", gridTemplateColumns: "1fr auto", alignItems: "end", gap: 10 }}>
               <input type="hidden" name="csrf" value={csrfToken} />
               {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
@@ -252,18 +253,20 @@ export function ConnectionsPanel({
                 </div>
               </form>
             </div>
+            </div>
           </div>
         </div>
       ) : null}
 
       {open === "central" ? (
         <div className="modal-backdrop">
-          <div className="modal-panel">
+          <div className="modal-panel modal-panel-fixed">
             <div className="panel-header">
               <h3 style={{ margin: 0 }}>CentralCom</h3>
               <button type="button" className="ghost" onClick={() => setOpen(null)} aria-label="Cerrar">X</button>
             </div>
 
+            <div className="modal-body">
               <form action={actions.setCentralActiveEnv} style={{ display: "grid", gridTemplateColumns: "1fr auto", alignItems: "end", gap: 10 }}>
                 <input type="hidden" name="csrf" value={csrfToken} />
                 {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
@@ -433,18 +436,20 @@ export function ConnectionsPanel({
                 </div>
               </div>
             </div>
+            </div>
           </div>
         </div>
       ) : null}
 
       {open === "shopify" ? (
         <div className="modal-backdrop">
-          <div className="modal-panel">
+          <div className="modal-panel modal-panel-fixed">
             <div className="panel-header">
               <h3 style={{ margin: 0 }}>Shopify</h3>
               <button type="button" className="ghost" onClick={() => setOpen(null)} aria-label="Cerrar">X</button>
             </div>
 
+            <div className="modal-body">
             <form action={actions.updateShopify} className="panel module" style={{ display: "grid", gap: 10 }}>
               <input type="hidden" name="csrf" value={csrfToken} />
               {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
@@ -500,6 +505,7 @@ export function ConnectionsPanel({
                 </div>
               </div>
             </form>
+            </div>
           </div>
         </div>
       ) : null}

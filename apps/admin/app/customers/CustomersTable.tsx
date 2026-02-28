@@ -707,6 +707,11 @@ export function CustomersTable({
                   setSendOk((prev) => ({ ...prev, [customer.id]: "sent" }));
                   closePayModal();
                   openNotify("ok", "El link de pago fue enviado correctamente.");
+                } catch (err: any) {
+                  const msg = String(err?.message || "send_failed");
+                  setSendError((prev) => ({ ...prev, [customer.id]: msg }));
+                  closePayModal();
+                  openNotify("fail", mapSendError(msg));
                 } finally {
                   setSendingPaymentId(null);
                 }
@@ -1219,8 +1224,12 @@ export function CustomersTable({
                             setSendOk((prev) => ({ ...prev, [detailsCustomer.id]: "sent" }));
                             closeDetails();
                             openNotify("ok", "El link de pago fue enviado correctamente.");
+                          } catch (err: any) {
+                            const msg = String(err?.message || "send_failed");
+                            setSendError((prev) => ({ ...prev, [detailsCustomer.id]: msg }));
+                            openNotify("fail", mapSendError(msg));
                           } finally {
-                          setSendingPaymentId(null);
+                            setSendingPaymentId(null);
                           }
                         }}
                       >
