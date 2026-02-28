@@ -1050,6 +1050,7 @@ a {
   align-items: center;
   flex-wrap: wrap;
   flex: 1 1 240px;
+  width: 100%;
 }
 
 .filtersForm .input,
@@ -1078,10 +1079,21 @@ a {
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
+  margin-left: auto;
 }
 
 .filtersActions .primary {
   min-width: 0;
+}
+
+.primary:disabled,
+.ghost:disabled,
+.btn:disabled,
+.btnLink:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
 .no-icon::before {

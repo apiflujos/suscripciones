@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { fetchAdminCached, fetchPublicCached, getAdminApiConfig } from "./lib/adminApi";
-import { HelpTip } from "./ui/HelpTip";
+import { MetricsFilters } from "./ui/MetricsFilters";
 
 function fmtMoneyCop(cents: number) {
   const v = (Number(cents || 0) / 100).toFixed(0);
@@ -72,6 +72,13 @@ function toUtcIsoEndExclusive(dateStr: string) {
 
 function isoDateUtc(d: Date) {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0)).toISOString().slice(0, 10);
+}
+
+function isoDateFromTimestamp(value?: string | null) {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toISOString().slice(0, 10);
 }
 
 function ChartLine({
@@ -505,6 +512,9 @@ export default async function Home({
   const autoChurnDeltaPp =
     hasPrev && autoChurn != null && prevAutoChurn != null ? Number(autoChurn) - Number(prevAutoChurn) : null;
 
+  const firstDataAt = metrics.ok ? isoDateFromTimestamp(metrics.json?.meta?.firstDataAt || null) : "";
+  const maxDate = defaultTo;
+
   const revenueLineSeries = hasPrev
     ? [
         { label: "Actual", values: revenueSeries },
@@ -532,50 +542,15 @@ export default async function Home({
           <div className="filtersRow">
             <div className="filtersLeft">
               <div className="filtersPanel">
-                <form method="get" className="filtersForm">
-                  <div className="field" style={{ margin: 0 }}>
-                    <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span>Desde (UTC)</span>
-                      <HelpTip text="Fecha de inicio del rango en UTC." />
-                    </label>
-                    <input className="input" type="date" name="from" defaultValue={fromDate} />
-                  </div>
-                  <div className="field" style={{ margin: 0 }}>
-                    <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span>Hasta (UTC)</span>
-                      <HelpTip text="Fecha de cierre del rango en UTC (incluye todo el día)." />
-                    </label>
-                    <input className="input" type="date" name="to" defaultValue={toDate} />
-                  </div>
-                  <div className="field" style={{ margin: 0 }}>
-                    <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span>Periodo</span>
-                      <HelpTip text="Agrupación de datos: día, semana o mes." />
-                    </label>
-                    <select className="select" name="g" defaultValue={g}>
-                      <option value="day">Día</option>
-                      <option value="week">Semana</option>
-                      <option value="month">Mes</option>
-                    </select>
-                  </div>
-                  <div className="field" style={{ margin: 0 }}>
-                    <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span>Canal</span>
-                      <HelpTip text="Segmenta métricas por canal específico." />
-                    </label>
-                    <select className="select" name="tenantId" defaultValue={tenantId}>
-                      <option value="">Todos</option>
-                      {tenants.map((t: any) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <button className="primary btn-eye" type="submit" style={{ height: 38 }}>
-                    Ver
-                  </button>
-                </form>
+                <MetricsFilters
+                  from={fromDate}
+                  to={toDate}
+                  g={g}
+                  tenantId={tenantId}
+                  tenants={tenants}
+                  minDate={firstDataAt || undefined}
+                  maxDate={maxDate}
+                />
               </div>
             </div>
           </div>

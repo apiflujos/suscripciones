@@ -411,6 +411,28 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
   const revenueByPlanTypeInCents: Record<string, number> = { manual_link: 0, auto_subscription: 0 };
   for (const r of revenueByPlanType) revenueByPlanTypeInCents[String(r.plan_type)] = num(r.revenue_cents);
 
+  const firstDataRow = await prisma.$queryRawUnsafe<Array<{ first_at: Date | null }>>(
+    `SELECT MIN(first_at) AS first_at
+     FROM (
+       SELECT MIN(p."paidAt") AS first_at
+       FROM "Payment" p
+       WHERE p."paidAt" IS NOT NULL
+       ${hasTenant ? 'AND p."tenantId" = $1' : ""}
+       UNION ALL
+       SELECT MIN(pl."sentAt") AS first_at
+       FROM "PaymentLink" pl
+       WHERE pl."sentAt" IS NOT NULL
+       ${hasTenant ? 'AND pl."tenantId" = $1' : ""}
+       UNION ALL
+       SELECT MIN(s."startAt") AS first_at
+       FROM "Subscription" s
+       WHERE s."startAt" IS NOT NULL
+       ${hasTenant ? 'AND s."tenantId" = $1' : ""}
+     ) t`,
+    ...(hasTenant ? [tenantId] : [])
+  );
+  const firstDataAt = firstDataRow[0]?.first_at ? iso(firstDataRow[0].first_at) : null;
+
   // Optional: month-only series for auto subs MRR + churn.
   if (args.granularity === "month" && buckets.length) {
     const initialMrrRow = await prisma.$queryRawUnsafe<Array<{ v: number | null }>>(
@@ -569,6 +591,9 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
     },
     breakdown: {
       revenueByPlanTypeInCents
+    },
+    meta: {
+      firstDataAt
     },
     series
   };
