@@ -53,6 +53,22 @@ function pesosToCents(input: string): number {
   return Math.trunc(pesos) * 100;
 }
 
+function escapeHtml(value: string) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function buildChatwootLinkMessage(args: { name?: string; lead: string; url: string }) {
+  const safeName = escapeHtml(args.name || "Cliente");
+  const safeLead = escapeHtml(args.lead);
+  const safeUrl = escapeHtml(args.url);
+  return `<p>Hola ${safeName},</p><p>${safeLead}</p><p><a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${safeUrl}</a></p>`;
+}
+
 function readTenantIds(formData: FormData): string[] {
   const raw = formData.getAll("tenantIds").map((v) => String(v || "").trim()).filter(Boolean);
   const single = String(formData.get("tenantId") || "").trim();
@@ -566,7 +582,11 @@ export async function createPlanAndSubscription(formData: FormData) {
         body: JSON.stringify({ metadata: nextMeta })
       }).catch(() => {});
 
-      const content = `Hola ${customer?.name || "Cliente"}, aquí está tu link de pago: ${url}`;
+      const content = buildChatwootLinkMessage({
+        name: customer?.name || "Cliente",
+        lead: "Aquí está tu link de pago:",
+        url
+      });
       await adminFetch("/admin/chatwoot/messages", {
         method: "POST",
         body: JSON.stringify({ customerId, content })
@@ -612,7 +632,11 @@ export async function createPlanAndSubscription(formData: FormData) {
         body: JSON.stringify({ metadata: nextMeta })
       }).catch(() => {});
 
-      const content = `Hola ${customer?.name || "Cliente"}, activa tu suscripción guardando tu método de pago aquí: ${url}`;
+      const content = buildChatwootLinkMessage({
+        name: customer?.name || "Cliente",
+        lead: "Activa tu suscripción guardando tu método de pago aquí:",
+        url
+      });
       await adminFetch("/admin/chatwoot/messages", {
         method: "POST",
         body: JSON.stringify({ customerId, content })
@@ -645,7 +669,11 @@ export async function sendChatwootPaymentLink(formData: FormData) {
   const customerId = String(formData.get("customerId") || "").trim();
   if (!checkoutUrl || !customerId) return redirect(mergeQuery(returnTo, { error: "missing_checkout_or_customer" }));
 
-  const content = `Link de pago: ${checkoutUrl}`;
+  const content = buildChatwootLinkMessage({
+    name: "Cliente",
+    lead: "Aquí está tu link de pago:",
+    url: checkoutUrl
+  });
 
   try {
     await adminFetch("/admin/chatwoot/messages", {
@@ -677,7 +705,11 @@ export async function sendCentralComPaymentLink(formData: FormData) {
     const checkoutUrl = String(json?.checkoutUrl || "").trim();
     if (!checkoutUrl) return redirect(mergeQuery(returnTo, { error: "checkout_url_missing", ...(tenantId ? { tenantId } : {}) }));
 
-    const content = `Link de pago: ${checkoutUrl}`;
+    const content = buildChatwootLinkMessage({
+      name: "Cliente",
+      lead: "Aquí está tu link de pago:",
+      url: checkoutUrl
+    });
     await adminFetch("/admin/chatwoot/messages", {
       method: "POST",
       body: JSON.stringify({ customerId, content })
@@ -746,7 +778,11 @@ export async function sendCentralComTokenizationLink(formData: FormData) {
       body: JSON.stringify({ metadata: nextMeta })
     }).catch(() => {});
 
-    const content = `Hola ${customer?.name || "Cliente"}, activa tu suscripción guardando tu método de pago aquí: ${url}`;
+    const content = buildChatwootLinkMessage({
+      name: customer?.name || "Cliente",
+      lead: "Activa tu suscripción guardando tu método de pago aquí:",
+      url
+    });
     await adminFetch("/admin/chatwoot/messages", {
       method: "POST",
       body: JSON.stringify({ customerId, content })

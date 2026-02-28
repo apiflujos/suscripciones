@@ -254,7 +254,7 @@ export function NotificationsManager({
                       </div>
                     </div>
                     <div className="saved-conn-actions">
-                      <button className="ghost" type="button" onClick={() => openRuleModal(rule)}>Editar</button>
+                      <button className="ghost" type="button" data-modal="true" onClick={() => openRuleModal(rule)}>Editar</button>
                       <form action={actions.toggleRule}>
                         <input type="hidden" name="csrf" value={csrfToken} />
                         <input type="hidden" name="environment" value={env} />
@@ -303,7 +303,7 @@ export function NotificationsManager({
                     </div>
                   </div>
                   <div className="saved-conn-actions">
-                    <button className="ghost" type="button" onClick={() => openTemplateModal(tpl)}>Editar</button>
+                    <button className="ghost" type="button" data-modal="true" onClick={() => openTemplateModal(tpl)}>Editar</button>
                     <form action={actions.deleteTemplate}>
                       <input type="hidden" name="csrf" value={csrfToken} />
                       <input type="hidden" name="environment" value={env} />

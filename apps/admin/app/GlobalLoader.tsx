@@ -4,10 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 const AUTO_HIDE_MS = 15000;
+const MODAL_SELECTOR = ".modal-backdrop, .modal-panel, [role='dialog'][aria-modal='true']";
 
 function shouldTriggerLoader(target: EventTarget | null) {
   if (!(target instanceof Element)) return false;
   if (target.closest('[data-loader="off"]')) return false;
+  if (target.closest('[aria-haspopup="dialog"], [data-modal="true"], [data-modal-trigger="true"]')) return false;
 
   const anchor = target.closest("a[href]");
   if (anchor) {
@@ -31,6 +33,7 @@ export function GlobalLoader() {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const timeoutRef = useRef<number | null>(null);
+  const modalObserverRef = useRef<MutationObserver | null>(null);
   const loadingRef = useRef(false);
 
   const clearTimer = () => {
@@ -40,17 +43,49 @@ export function GlobalLoader() {
     }
   };
 
+  const stopModalObserver = () => {
+    if (modalObserverRef.current) {
+      modalObserverRef.current.disconnect();
+      modalObserverRef.current = null;
+    }
+  };
+
+  const isModalOpen = () => Boolean(document.querySelector(MODAL_SELECTOR));
+
   const hide = () => {
     clearTimer();
+    stopModalObserver();
     loadingRef.current = false;
     setLoading(false);
   };
 
+  const startModalObserver = () => {
+    if (modalObserverRef.current) return;
+    const observer = new MutationObserver(() => {
+      if (!loadingRef.current) {
+        stopModalObserver();
+        return;
+      }
+      if (isModalOpen()) {
+        hide();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    modalObserverRef.current = observer;
+  };
+
   const show = () => {
     if (loadingRef.current) return;
+    if (isModalOpen()) return;
     loadingRef.current = true;
     setLoading(true);
     clearTimer();
+    startModalObserver();
+    requestAnimationFrame(() => {
+      if (loadingRef.current && isModalOpen()) {
+        hide();
+      }
+    });
     timeoutRef.current = window.setTimeout(() => {
       loadingRef.current = false;
       setLoading(false);
@@ -106,7 +141,7 @@ export function GlobalLoader() {
     <div className="global-loader" role="status" aria-live="polite" aria-busy="true">
       <div className="global-loader-backdrop" />
       <div className="global-loader-card">
-        <div className="global-spinner" aria-hidden="true" />
+        <img className="global-loader-gif" src="/brand/loader.gif" alt="" aria-hidden="true" />
         <div className="global-loader-text">Procesando…</div>
       </div>
     </div>

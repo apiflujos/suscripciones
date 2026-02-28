@@ -770,7 +770,7 @@ export function CheckoutTemplatesPanel({
               Cancelar edición
             </button>
           ) : null}
-          <button className="primary" type="button" onClick={openCreate}>
+          <button className="primary" type="button" data-modal="true" onClick={openCreate}>
             Nueva plantilla
           </button>
         </div>
@@ -837,7 +837,7 @@ export function CheckoutTemplatesPanel({
               </div>
             </div>
             <div className="template-actions">
-              <button className="secondary" type="button" onClick={() => openEdit(t)}>
+              <button className="secondary" type="button" data-modal="true" onClick={() => openEdit(t)}>
                 Editar
               </button>
               <form action={actions.duplicate}>

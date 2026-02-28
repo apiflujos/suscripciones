@@ -31,10 +31,10 @@ export function CustomersModals({
   return (
     <>
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-        <button className="primary" type="button" onClick={() => setOpenCustomer(true)}>
+        <button className="primary" type="button" data-modal="true" onClick={() => setOpenCustomer(true)}>
           Crear contacto
         </button>
-        <button className="primary" type="button" onClick={() => setOpenPlan(true)}>
+        <button className="primary" type="button" data-modal="true" onClick={() => setOpenPlan(true)}>
           Crear plan / suscripción
         </button>
       </div>

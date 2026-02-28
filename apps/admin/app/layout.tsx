@@ -2,25 +2,49 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { headers } from "next/headers";
 import { cookies } from "next/headers";
+import Script from "next/script";
 
 import "./globals.css";
 import "./styles.css";
 import { SideNav } from "./SideNav";
 import { TopBar } from "./TopBar";
 import { GlobalLoader } from "./GlobalLoader";
+import { ThemeClient } from "./ThemeClient";
+import { fetchAdminCached } from "./lib/adminApi";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../lib/session";
 
-export const metadata: Metadata = {
-  title: "Wompi Subs – Admin",
-  icons: {
-    icon: [
-      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" }
-    ],
-    shortcut: [{ url: "/favicon.ico" }],
-    apple: [{ url: "/favicon.png" }]
-  }
+const APP_ICONS: Metadata["icons"] = {
+  icon: [
+    { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+    { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+    { url: "/android-chrome-192x192.png", sizes: "192x192", type: "image/png" },
+    { url: "/android-chrome-512x512.png", sizes: "512x512", type: "image/png" }
+  ],
+  shortcut: [{ url: "/favicon.ico" }],
+  apple: [{ url: "/apple-touch-icon.png" }]
 };
+
+async function resolveTenantName(tenantId: string | null) {
+  if (!tenantId) return "";
+  const tenantsRes = await fetchAdminCached("/admin/tenants", { ttlMs: 1500 });
+  if (!tenantsRes.ok) return "";
+  const tenants = Array.isArray(tenantsRes.json?.items) ? tenantsRes.json.items : [];
+  const match = tenants.find((tenant: any) => String(tenant?.id || "") === String(tenantId));
+  return String(match?.name || "").trim();
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const c = await cookies();
+  const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
+  const session = await verifyAdminSessionToken(sessionToken);
+  const tenantName = await resolveTenantName(session?.tenantId ?? null);
+  const title = tenantName ? `CRM ${tenantName}` : "CRM";
+
+  return {
+    title,
+    icons: APP_ICONS
+  };
+}
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -58,6 +82,20 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html lang="es">
       <body className={shouldUseAuthShell ? "authBody" : undefined}>
+        <Script id="apiflujos-theme-init" strategy="beforeInteractive">{`
+(() => {
+  try {
+    const root = document.documentElement;
+    const theme = localStorage.getItem("apiflujos-theme") || "";
+    const contrast = localStorage.getItem("apiflujos-contrast") || "";
+    const vision = localStorage.getItem("apiflujos-vision") || "";
+    const resolvedTheme = theme || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    root.dataset.theme = resolvedTheme;
+    if (contrast) root.dataset.contrast = contrast; else delete root.dataset.contrast;
+    if (vision) root.dataset.vision = vision; else delete root.dataset.vision;
+  } catch (_) {}
+})();
+        `}</Script>
         {shouldUseAuthShell ? (
           <div className="authShell">{children}</div>
         ) : (
@@ -74,6 +112,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           </div>
         )}
         <GlobalLoader />
+        <ThemeClient />
       </body>
     </html>
   );

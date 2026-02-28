@@ -35,8 +35,8 @@ export default async function PublicPlanPage({ params }: { params: Promise<{ tok
     .filter(Boolean);
   const logoUrl = (() => {
     const raw = String(template?.logoUrl || config?.logoUrl || "").trim();
-    if (!raw || raw.toLowerCase() === "undefined" || raw.toLowerCase() === "null") return "";
-    return raw;
+    if (raw && raw.toLowerCase() !== "undefined" && raw.toLowerCase() !== "null") return raw;
+    return "/brand/logo.png";
   })();
   const primaryColor = String(layout?.primaryColor || "").trim();
   const fontFamily = String(layout?.fontFamily || "").trim();

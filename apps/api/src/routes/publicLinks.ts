@@ -81,9 +81,19 @@ publicLinksRouter.get("/payment-links/:token", async (req, res) => {
   }
 
   const templateId = String(link?.templateId || "").trim();
-  const template = templateId
+  let template = templateId
     ? await prisma.publicCheckoutTemplate.findUnique({ where: { id: templateId } })
     : null;
+  if (!template && customer.tenantId) {
+    template = await prisma.publicCheckoutTemplate.findFirst({
+      where: {
+        tenantId: customer.tenantId,
+        active: true,
+        kind: "PLAN"
+      },
+      orderBy: { updatedAt: "desc" }
+    });
+  }
 
   res.json({
     ok: true,

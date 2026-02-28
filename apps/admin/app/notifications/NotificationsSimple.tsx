@@ -309,10 +309,10 @@ export function NotificationsSimple({
                           />
                           <div className="field-hint">Se reemplazan variables del sistema automáticamente.</div>
                           <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-                            <button type="button" className="ghost" onClick={() => setPickerOpen("vars")} aria-label="Variables">
+                            <button type="button" className="ghost" data-modal="true" onClick={() => setPickerOpen("vars")} aria-label="Variables">
                               {`{ }`}
                             </button>
-                            <button type="button" className="ghost" onClick={() => setPickerOpen("emoji")} aria-label="Emojis">
+                            <button type="button" className="ghost" data-modal="true" onClick={() => setPickerOpen("emoji")} aria-label="Emojis">
                               🙂
                             </button>
                           </div>
@@ -431,10 +431,10 @@ export function NotificationsSimple({
                     />
                     <div className="field-hint">Se reemplazan variables del sistema automáticamente.</div>
                     <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-                      <button type="button" className="ghost" onClick={() => setPickerOpen("vars")} aria-label="Variables">
+                      <button type="button" className="ghost" data-modal="true" onClick={() => setPickerOpen("vars")} aria-label="Variables">
                         {`{ }`}
                       </button>
-                      <button type="button" className="ghost" onClick={() => setPickerOpen("emoji")} aria-label="Emojis">
+                      <button type="button" className="ghost" data-modal="true" onClick={() => setPickerOpen("emoji")} aria-label="Emojis">
                         🙂
                       </button>
                     </div>
@@ -589,10 +589,10 @@ export function NotificationsSimple({
                     />
                     <div className="field-hint">Se reemplazan variables del sistema automáticamente.</div>
                     <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-                      <button type="button" className="ghost" onClick={() => setPickerOpen("vars")} aria-label="Variables">
+                      <button type="button" className="ghost" data-modal="true" onClick={() => setPickerOpen("vars")} aria-label="Variables">
                         {`{ }`}
                       </button>
-                      <button type="button" className="ghost" onClick={() => setPickerOpen("emoji")} aria-label="Emojis">
+                      <button type="button" className="ghost" data-modal="true" onClick={() => setPickerOpen("emoji")} aria-label="Emojis">
                         🙂
                       </button>
                     </div>

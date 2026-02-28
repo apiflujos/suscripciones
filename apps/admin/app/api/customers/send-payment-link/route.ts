@@ -11,6 +11,14 @@ function pesosToCents(input: string): number {
   return Math.trunc(pesos) * 100;
 }
 
+function buildChatwootLinkMessage(args: { name?: string; lead: string; url: string }) {
+  const safeName = String(args.name || "Cliente").trim() || "Cliente";
+  const safeLead = String(args.lead || "").trim();
+  const safeUrl = String(args.url || "").trim();
+  const leadLine = safeLead ? `**${safeLead}**` : "";
+  return [`Hola ${safeName},`, "", leadLine, safeUrl].filter((line) => line !== "").join("\n");
+}
+
 export async function POST(req: Request) {
   const API_BASE = getRequiredApiBase();
   const token = normalizeToken(process.env.ADMIN_API_TOKEN || "");
@@ -26,7 +34,7 @@ export async function POST(req: Request) {
   const customerId = String(body?.customerId || "").trim();
   const customerName = String(body?.customerName || "").trim() || "Cliente";
   const tenantId = String(body?.tenantId || "").trim();
-  const templateId = String(body?.templateId || "").trim();
+  const templateIdInput = String(body?.templateId || "").trim();
   const amountInCents = pesosToCents(String(body?.amount || ""));
   if (!customerId || amountInCents <= 0) {
     return NextResponse.json({ ok: false, error: "monto_invalido" }, { status: 400 });
@@ -47,7 +55,7 @@ export async function POST(req: Request) {
       currency: "COP",
       lineItems: [{ name: `Pago de ${customerName}`, quantity: 1, unitPriceInCents: amountInCents }],
       ...(tenantId ? { tenantId } : {}),
-      sendChatwoot: true,
+      sendChatwoot: false,
       source: "MANUAL"
     })
   });
@@ -59,6 +67,7 @@ export async function POST(req: Request) {
 
   const checkoutUrl = String(json?.checkoutUrl || "").trim();
   let publicUrl: string | null = null;
+  let resolvedTemplateId = templateIdInput || "";
   try {
     const settingsRes = await fetch(`${API_BASE}/admin/settings`, {
       headers: {
@@ -75,6 +84,23 @@ export async function POST(req: Request) {
     }
     const base = baseFromSettings;
     if (base) {
+      if (!resolvedTemplateId) {
+        const templatesRes = await fetch(
+          `${API_BASE}/admin/checkout-templates${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""}`,
+          {
+            headers: { authorization: `Bearer ${token}`, "x-admin-token": token },
+            cache: "no-store"
+          }
+        );
+        const templatesJson = await templatesRes.json().catch(() => null);
+        if (templatesRes.ok) {
+          const items = Array.isArray(templatesJson?.items) ? templatesJson.items : [];
+          const planTemplates = items.filter((t: any) => String(t?.kind || "") === "PLAN" && Boolean(t?.active));
+          const selected = planTemplates[0] || null;
+          resolvedTemplateId = selected ? String(selected.id || "") : "";
+        }
+      }
+
       const tokenValue = crypto.randomBytes(18).toString("hex");
       const normalized = base.replace(/\/$/, "");
       const hasPlanPath = /\/public\/plan$/i.test(normalized);
@@ -94,7 +120,7 @@ export async function POST(req: Request) {
           token: tokenValue,
           checkoutUrl,
           kind: "PLAN",
-          templateId: templateId || null,
+          templateId: resolvedTemplateId || null,
           utmParams: checkoutConfig?.defaultUtmParams || null,
           createdAt: new Date().toISOString(),
           expiresAt: null,
@@ -112,7 +138,11 @@ export async function POST(req: Request) {
       });
 
       let chatwootError: string | null = null;
-      const msg = `Hola ${customerName || "Cliente"}, aquí está tu link de pago: ${publicUrl}`;
+      const msg = buildChatwootLinkMessage({
+        name: customerName || "Cliente",
+        lead: "Aquí está tu link de pago:",
+        url: publicUrl
+      });
       try {
         const chatRes = await fetch(`${API_BASE}/admin/chatwoot/messages`, {
           method: "POST",

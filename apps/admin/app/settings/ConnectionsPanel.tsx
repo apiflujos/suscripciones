@@ -79,7 +79,7 @@ export function ConnectionsPanel({
   return (
     <>
       <div className="conn-grid">
-        <button className="conn-card" type="button" onClick={() => setOpen("wompi_prod")}>
+        <button className="conn-card" type="button" data-modal="true" onClick={() => setOpen("wompi_prod")}>
           <div className="conn-icon conn-icon-wompi">
             <img src="/brand/conn-wompi.png" alt="Wompi" />
           </div>
@@ -96,7 +96,7 @@ export function ConnectionsPanel({
           </div>
         </button>
 
-        <button className="conn-card" type="button" onClick={() => setOpen("wompi_sandbox")}>
+        <button className="conn-card" type="button" data-modal="true" onClick={() => setOpen("wompi_sandbox")}>
           <div className="conn-icon conn-icon-wompi">
             <img src="/brand/conn-wompi.png" alt="Wompi" />
           </div>
@@ -113,7 +113,7 @@ export function ConnectionsPanel({
           </div>
         </button>
 
-        <button className="conn-card" type="button" onClick={() => setOpen("central")}>
+        <button className="conn-card" type="button" data-modal="true" onClick={() => setOpen("central")}>
           <div className="conn-icon conn-icon-apiflujos">
             <img src="/brand/logo_vertical.png" alt="Logo" />
           </div>
@@ -134,7 +134,7 @@ export function ConnectionsPanel({
           </div>
         </button>
 
-        <button className="conn-card" type="button" onClick={() => setOpen("shopify")}>
+        <button className="conn-card" type="button" data-modal="true" onClick={() => setOpen("shopify")}>
           <div className="conn-icon conn-icon-shopify">
             <img src="/brand/conn-shopify.png" alt="Shopify" />
           </div>
