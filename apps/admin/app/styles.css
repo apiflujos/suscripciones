@@ -761,6 +761,34 @@ a {
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
+  flex: 1 1 240px;
+}
+
+.filtersForm .input,
+.filtersForm .select {
+  min-height: 34px;
+}
+
+.filtersForm .ghost {
+  min-width: 0;
+  padding: 0 12px;
+  line-height: 1;
+}
+
+.filtersPanel .ghost,
+.filtersPanel .primary {
+  min-width: 0;
+}
+
+.filtersActions {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.filtersActions .primary {
+  min-width: 0;
 }
 
 html[data-theme="dark"] .filtersPanel,
@@ -1151,6 +1179,11 @@ textarea.input {
   flex-wrap: wrap;
 }
 
+.customer-actions,
+.contact-card-top-actions {
+  align-items: center;
+}
+
 .contact-left {
   display: grid;
   gap: 6px;
@@ -1181,7 +1214,24 @@ textarea.input {
 .contact-section-title {
   font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  font-weight: 700;
+}
+
+.contact-block {
+  background: rgba(15, 23, 42, 0.02);
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  padding: 8px 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.contact-block-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   color: var(--text-faint);
   font-weight: 700;
 }
@@ -1189,10 +1239,18 @@ textarea.input {
 .contact-person-grid,
 .contact-plan-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 2px 6px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 6px 10px;
   font-size: 13.5px;
   color: var(--text);
+}
+
+.contact-plan-grid {
+  grid-template-columns: 1fr;
+}
+
+.contact-grid-compact {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .contact-person-grid > div,
@@ -3183,13 +3241,13 @@ body.is-global-loading {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(10, 12, 18, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 10020;
   padding: 16px;
-  backdrop-filter: blur(2px);
+  backdrop-filter: blur(8px);
 }
 
 .modal-panel {
@@ -3286,6 +3344,33 @@ body.is-global-loading {
 
 .icon-btn.danger:hover {
   background: rgba(220, 38, 38, 0.08);
+}
+
+html[data-theme="dark"] .icon-btn,
+html[data-theme="pink-dark"] .icon-btn,
+html[data-contrast="high"] .icon-btn {
+  background: var(--panel);
+  border-color: var(--stroke);
+  color: var(--text);
+}
+
+html[data-theme="dark"] .icon-btn:hover,
+html[data-theme="pink-dark"] .icon-btn:hover,
+html[data-contrast="high"] .icon-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+html[data-theme="dark"] .icon-btn.danger,
+html[data-theme="pink-dark"] .icon-btn.danger,
+html[data-contrast="high"] .icon-btn.danger {
+  border-color: rgba(248, 113, 113, 0.4);
+  color: #f87171;
+}
+
+html[data-theme="dark"] .icon-btn.danger:hover,
+html[data-theme="pink-dark"] .icon-btn.danger:hover,
+html[data-contrast="high"] .icon-btn.danger:hover {
+  background: rgba(248, 113, 113, 0.18);
 }
 
 .delete-row {
@@ -3526,6 +3611,13 @@ html[data-contrast="high"] .contact-card {
   background: var(--panel);
   border-color: var(--stroke);
   box-shadow: var(--shadow);
+}
+
+html[data-theme="dark"] .contact-block,
+html[data-theme="pink-dark"] .contact-block,
+html[data-contrast="high"] .contact-block {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: var(--stroke);
 }
 
 html[data-theme="dark"] .panel,

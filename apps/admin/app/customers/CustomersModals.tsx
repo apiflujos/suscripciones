@@ -13,7 +13,8 @@ export function CustomersModals({
   tenantId,
   createCustomer,
   createPlanAndSubscription,
-  returnTo
+  returnTo,
+  actionsClassName
 }: {
   customers: any[];
   products: any[];
@@ -24,13 +25,14 @@ export function CustomersModals({
   createCustomer: (formData: FormData) => Promise<void>;
   createPlanAndSubscription: (formData: FormData) => void | Promise<void>;
   returnTo: string;
+  actionsClassName?: string;
 }) {
   const [openCustomer, setOpenCustomer] = useState(false);
   const [openPlan, setOpenPlan] = useState(false);
 
   return (
     <>
-      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+      <div className={actionsClassName || "customer-actions"}>
         <button className="primary" type="button" data-modal="true" onClick={() => setOpenCustomer(true)}>
           Crear contacto
         </button>

@@ -463,9 +463,9 @@ export function CustomersTable({
                   </form>
                 </div>
               </div>
-              <div className="contact-left">
-                <div className="contact-section-title">Información personal</div>
-                <div className="contact-person-grid" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
+              <div className="contact-left contact-block">
+                <div className="contact-block-title">Información personal</div>
+                <div className="contact-person-grid">
                   <div>
                     <span>Nombre</span>
                     <strong style={{ display: "inline-flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
@@ -487,8 +487,9 @@ export function CustomersTable({
                 </div>
               </div>
 
-              <div className="contact-right">
-                <div className="contact-plan-grid" style={{ gridTemplateColumns: "1fr" }}>
+              <div className="contact-right contact-block">
+                <div className="contact-block-title">Plan / suscripción</div>
+                <div className="contact-plan-grid">
                   <div>
                     <span>Plan / Suscripción</span>
                     <div className="contact-plan-row">

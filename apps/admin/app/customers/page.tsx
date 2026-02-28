@@ -211,24 +211,24 @@ export default async function CustomersPage({
               </div>
             </div>
             <div className="filtersRight">
+              <CustomersModals
+                customers={items}
+                products={productsRes?.items ?? []}
+                checkoutTemplates={templatesRes?.items ?? []}
+                csrfToken={csrfToken}
+                tenants={tenants}
+                tenantId={tenantId}
+                createCustomer={createCustomer}
+                createPlanAndSubscription={createPlanAndSubscription}
+                returnTo={returnTo}
+                actionsClassName="filtersActions"
+              />
               <span className="pill">{items.length} resultados</span>
             </div>
           </div>
         </div>
 
         <div className="settings-group-body">
-          <CustomersModals
-            customers={items}
-            products={productsRes?.items ?? []}
-            checkoutTemplates={templatesRes?.items ?? []}
-            csrfToken={csrfToken}
-            tenants={tenants}
-            tenantId={tenantId}
-            createCustomer={createCustomer}
-            createPlanAndSubscription={createPlanAndSubscription}
-            returnTo={returnTo}
-          />
-
           <CustomersTable
             items={items.map((c) => ({ ...c, tenantName: tenantById.get(String(c.tenantId || "")) || "—" }))}
             latestLinks={latestLinksObj}
