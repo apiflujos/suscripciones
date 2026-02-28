@@ -2,6 +2,7 @@ import { activateSubscription, cancelSubscription, deleteSubscription, resumeSub
 import { DeleteSubscriptionButton } from "./DeleteSubscriptionButton";
 import { DeletePlanButton } from "./DeletePlanButton";
 import { changeSubscriptionPlan, chargeSubscriptionNow, createCustomerFromBilling, createPlanAndSubscription, deletePlanAndSubscription, scheduleCutoff, sendCentralComPaymentLink, sendCentralComTokenizationLink } from "./actions";
+import { ChargeStatusModal } from "./ChargeStatusModal";
 import { NewBillingAssignmentForm } from "./NewBillingAssignmentForm";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { normalizeErrorParam } from "../lib/errorParam";
@@ -167,6 +168,7 @@ export default async function BillingPage({
   const tokenUrl = typeof sp.tokenUrl === "string" ? sp.tokenUrl : "";
   const chargeStatus = typeof sp.chargeStatus === "string" ? sp.chargeStatus : "";
   const chargeError = typeof sp.chargeError === "string" ? sp.chargeError : "";
+  const paymentId = typeof sp.paymentId === "string" ? sp.paymentId : "";
   const actionSubscriptionId = typeof sp.subscriptionId === "string" ? sp.subscriptionId : "";
   const cutoffScheduled = typeof sp.cutoffScheduled === "string" ? sp.cutoffScheduled : "";
   const error = normalizeErrorParam(typeof sp.error === "string" ? sp.error : undefined);
@@ -319,49 +321,16 @@ export default async function BillingPage({
         </div>
       ) : null}
       {chargeStatus ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel" style={{ maxWidth: 420 }}>
-            <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <h3 style={{ margin: 0 }}>
-                {chargeStatus === "sent" ? "Cobro enviado" : chargeStatus === "ok" ? "Cobro exitoso" : "Cobro fallido"}
-              </h3>
-              <a className="ghost modal-close" href={returnTo} aria-label="Cerrar" data-modal-close="true" data-loader="off">X</a>
-            </div>
-            <div
-              className="card cardPad"
-              style={{
-                borderColor:
-                  chargeStatus === "sent" || chargeStatus === "ok"
-                    ? "rgba(34, 197, 94, 0.25)"
-                    : "rgba(217, 83, 79, 0.22)",
-                background:
-                  chargeStatus === "sent" || chargeStatus === "ok"
-                    ? "rgba(34, 197, 94, 0.08)"
-                    : "rgba(217, 83, 79, 0.08)"
-              }}
-            >
-              {chargeStatus === "sent"
-                ? "El cobro fue enviado a Wompi. Espera la confirmación del pago."
-                : chargeStatus === "ok"
-                  ? "El cobro se procesó correctamente."
-                  : `No se pudo cobrar la suscripción. ${chargeError || ""}`}
-            </div>
-            <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              {chargeStatus === "fail" && actionSubscriptionId ? (
-                <form action={chargeSubscriptionNow}>
-                  <input type="hidden" name="csrf" value={csrfToken} />
-                  <input type="hidden" name="subscriptionId" value={actionSubscriptionId} />
-                  <input type="hidden" name="returnTo" value={returnTo} />
-                  {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-                  <button className="ghost btn-compact btn-blue" type="submit">
-                    Reintentar cobro
-                  </button>
-                </form>
-              ) : null}
-              <a className="primary" href={returnTo}>Aceptar</a>
-            </div>
-          </div>
-        </div>
+        <ChargeStatusModal
+          initialStatus={chargeStatus === "processing" ? "processing" : chargeStatus === "ok" ? "ok" : "fail"}
+          paymentId={paymentId}
+          chargeError={chargeError}
+          returnTo={returnTo}
+          subscriptionId={actionSubscriptionId}
+          tenantId={tenantId}
+          csrfToken={csrfToken}
+          retryAction={chargeSubscriptionNow}
+        />
       ) : null}
 
       <section className="settings-group">

@@ -25,6 +25,7 @@ import { publicCartRouter } from "./routes/publicCart";
 import { publicLinksRouter } from "./routes/publicLinks";
 import { checkoutTemplatesRouter } from "./routes/checkoutTemplates";
 import { tenantsRouter } from "./routes/tenants";
+import { paymentsRouter } from "./routes/payments";
 
 export function createApp() {
   const app = express();
@@ -162,6 +163,7 @@ export function createApp() {
   app.use("/admin/plans", requireAdminToken, plansRouter);
   app.use("/admin/customers", requireAdminToken, customersRouter);
   app.use("/admin/subscriptions", requireAdminToken, subscriptionsRouter);
+  app.use("/admin/payments", requireAdminToken, paymentsRouter);
   app.use("/admin/settings", requireAdminToken, settingsRouter);
   app.use("/admin/logs", requireAdminToken, logsRouter);
   app.use("/admin/notifications", requireAdminToken, notificationsRouter);

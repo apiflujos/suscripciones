@@ -351,8 +351,16 @@ export async function chargeSubscriptionNow(formData: FormData) {
     const path = tenantId
       ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/charge-now?tenantId=${encodeURIComponent(tenantId)}`
       : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/charge-now`;
-    await adminFetch(path, { method: "POST", body: JSON.stringify({}) });
-    redirect(mergeQuery(returnTo, { chargeStatus: "sent", subscriptionId, ...(tenantId ? { tenantId } : {}) }));
+    const res = await adminFetch(path, { method: "POST", body: JSON.stringify({}) });
+    const paymentId = res?.paymentId ? String(res.paymentId) : "";
+    redirect(
+      mergeQuery(returnTo, {
+        chargeStatus: "processing",
+        subscriptionId,
+        ...(paymentId ? { paymentId } : {}),
+        ...(tenantId ? { tenantId } : {})
+      })
+    );
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
     redirect(mergeQuery(returnTo, { chargeStatus: "fail", chargeError: String(err?.message || "charge_now_failed"), subscriptionId, ...(tenantId ? { tenantId } : {}) }));
