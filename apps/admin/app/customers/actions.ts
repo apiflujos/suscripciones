@@ -60,6 +60,10 @@ export async function createCustomer(formData: FormData) {
   const idType = String(formData.get("idType") || "").trim();
   const idNumber = String(formData.get("idNumber") || "").trim();
 
+  if (!phoneRaw) {
+    return redirect(mergeQuery(returnTo, { error: "telefono_requerido", ...(tenantId ? { tenantId } : {}) }));
+  }
+
   try {
     const address =
       addressLine1 || dept || city || code5 || dane8
@@ -134,6 +138,7 @@ export async function updateCustomer(formData: FormData) {
   const idNumber = String(formData.get("idNumber") || "").trim();
 
   if (!id) return redirect(mergeQuery(returnTo, { error: "invalid_id" }));
+  if (!phone) return redirect(mergeQuery(returnTo, { error: "telefono_requerido", ...(tenantId ? { tenantId } : {}) }));
 
   try {
     const address =

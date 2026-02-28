@@ -173,7 +173,7 @@ export function NewCustomerForm({
           </div>
           <div className="field">
             <label>Teléfono</label>
-            <input className="input" name="phone" placeholder="+57..." />
+            <input className="input" name="phone" placeholder="+57..." required />
           </div>
           <div className="field">
             <label>Email</label>

@@ -1355,7 +1355,7 @@ export function CustomersTable({
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <div className="field">
                   <label>Teléfono</label>
-                  <input className="input" name="phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                  <input className="input" name="phone" value={phone} onChange={(e) => setPhone(e.target.value)} required />
                 </div>
                 <div className="field">
                   <label>Identificación</label>
