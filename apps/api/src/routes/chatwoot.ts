@@ -145,8 +145,12 @@ chatwootRouter.post("/conversations", async (req, res) => {
   });
   if (!client) return;
 
-  const created = await client.createConversation(parsed.data);
-  res.status(201).json(created);
+  try {
+    const created = await client.createConversation(parsed.data);
+    res.status(201).json(created);
+  } catch (err: any) {
+    res.status(502).json({ error: "chatwoot_create_conversation_failed", details: err?.message || "unknown_error" });
+  }
 });
 
 const messageSchema = z.object({
@@ -184,14 +188,18 @@ chatwootRouter.post("/messages", async (req, res) => {
     const knownContactId = meta?.chatwoot?.contactId;
     const knownSourceId = meta?.chatwoot?.sourceId;
 
-    if (!knownContactId) {
-      const synced = await ensureChatwootContactForCustomer(customer.id);
-      if (!synced.ok) return res.status(400).json({ error: synced.reason });
-      await syncChatwootAttributesForCustomer(customer.id).catch(() => {});
-      conversationId = (await client.createConversation({ contactId: synced.contactId, sourceId: synced.sourceId })).conversationId;
-    } else {
-      await syncChatwootAttributesForCustomer(customer.id).catch(() => {});
-      conversationId = (await client.createConversation({ contactId: knownContactId, sourceId: knownSourceId })).conversationId;
+    try {
+      if (!knownContactId) {
+        const synced = await ensureChatwootContactForCustomer(customer.id);
+        if (!synced.ok) return res.status(400).json({ error: synced.reason });
+        await syncChatwootAttributesForCustomer(customer.id).catch(() => {});
+        conversationId = (await client.createConversation({ contactId: synced.contactId, sourceId: synced.sourceId })).conversationId;
+      } else {
+        await syncChatwootAttributesForCustomer(customer.id).catch(() => {});
+        conversationId = (await client.createConversation({ contactId: knownContactId, sourceId: knownSourceId })).conversationId;
+      }
+    } catch (err: any) {
+      return res.status(502).json({ error: "chatwoot_create_conversation_failed", details: err?.message || "unknown_error" });
     }
   }
 
