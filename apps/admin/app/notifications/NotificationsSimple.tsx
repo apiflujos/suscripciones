@@ -221,7 +221,7 @@ export function NotificationsSimple({
           <div className="modal-panel" style={{ maxWidth: 640 }}>
             <div className="panel-header">
               <h3 style={{ margin: 0 }}>{pickerOpen === "vars" ? "Variables" : "Emojis"}</h3>
-              <button type="button" className="ghost" onClick={() => setPickerOpen(null)} aria-label="Cerrar">X</button>
+              <button type="button" className="ghost modal-close" onClick={() => setPickerOpen(null)} aria-label="Cerrar" data-modal-close="true" data-loader="off">X</button>
             </div>
             <div className="panel module" style={{ display: "grid", gap: 8 }}>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>

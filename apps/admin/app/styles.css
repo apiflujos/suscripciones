@@ -1212,8 +1212,8 @@ textarea.input {
 }
 
 .contact-paylink .paylink-actions {
-  flex-wrap: nowrap;
-  overflow-x: auto;
+  flex-wrap: wrap;
+  overflow: visible;
 }
 
 .contact-paylink .delete-row {
@@ -3062,6 +3062,7 @@ body.is-global-loading {
   justify-content: center;
   z-index: 10020;
   padding: 16px;
+  backdrop-filter: blur(2px);
 }
 
 .modal-panel {
@@ -3069,10 +3070,10 @@ body.is-global-loading {
   max-height: 90vh;
   overflow: auto;
   background: var(--panel);
-  border-radius: 14px;
+  border-radius: 16px;
   border: 1px solid var(--stroke);
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.2);
-  padding: 12px;
+  padding: 16px;
   position: relative;
   z-index: 10030;
 }
@@ -3205,6 +3206,14 @@ body.is-global-loading {
   box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
 }
 
+html[data-theme="dark"] .module-footer .ghost,
+html[data-theme="pink-dark"] .module-footer .ghost,
+html[data-contrast="high"] .module-footer .ghost {
+  background: var(--panel);
+  border-color: var(--stroke);
+  color: var(--text);
+}
+
 /* Saved connections */
 .saved-connections-grid {
   display: grid;
@@ -3269,10 +3278,36 @@ body.is-global-loading {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--stroke);
 }
 
 .modal-panel .panel-header .ghost {
   margin-left: auto;
+}
+
+.modal-close {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  min-width: 36px;
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: var(--panel);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+}
+
+.modal-close::before {
+  content: none;
+}
+
+.modal-close:hover {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
 .progress-row {
@@ -3315,6 +3350,75 @@ html[data-contrast="high"] .contact-card {
   background: var(--panel);
   border-color: var(--stroke);
   box-shadow: var(--shadow);
+}
+
+html[data-theme="dark"] .panel,
+html[data-theme="pink-dark"] .panel,
+html[data-contrast="high"] .panel {
+  border-color: var(--stroke);
+}
+
+html[data-theme="dark"] .panel.module,
+html[data-theme="pink-dark"] .panel.module,
+html[data-contrast="high"] .panel.module {
+  border-color: var(--stroke);
+}
+
+html[data-theme="dark"] .product-card,
+html[data-theme="pink-dark"] .product-card,
+html[data-contrast="high"] .product-card {
+  background: var(--panel);
+  border-color: var(--stroke);
+  box-shadow: var(--shadow);
+}
+
+html[data-theme="dark"] .product-name,
+html[data-theme="pink-dark"] .product-name,
+html[data-contrast="high"] .product-name {
+  color: var(--text-strong);
+}
+
+html[data-theme="dark"] .product-sub,
+html[data-theme="pink-dark"] .product-sub,
+html[data-contrast="high"] .product-sub {
+  color: var(--text-soft);
+}
+
+html[data-theme="dark"] .product-info,
+html[data-theme="pink-dark"] .product-info,
+html[data-contrast="high"] .product-info {
+  color: var(--text);
+}
+
+html[data-theme="dark"] .product-info span,
+html[data-theme="pink-dark"] .product-info span,
+html[data-contrast="high"] .product-info span {
+  color: var(--text-faint);
+}
+
+html[data-theme="dark"] .contact-paylink,
+html[data-theme="pink-dark"] .contact-paylink,
+html[data-contrast="high"] .contact-paylink {
+  background: var(--panel);
+  border-color: var(--stroke);
+}
+
+html[data-theme="dark"] .paylink-title,
+html[data-theme="pink-dark"] .paylink-title,
+html[data-contrast="high"] .paylink-title {
+  color: var(--text-faint);
+}
+
+html[data-theme="dark"] .paylink-error,
+html[data-theme="pink-dark"] .paylink-error,
+html[data-contrast="high"] .paylink-error {
+  color: var(--status-danger);
+}
+
+html[data-theme="dark"] .paylink-success,
+html[data-theme="pink-dark"] .paylink-success,
+html[data-contrast="high"] .paylink-success {
+  color: var(--status-success);
 }
 
 html[data-theme="dark"] .contact-title,

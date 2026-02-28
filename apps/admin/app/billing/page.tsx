@@ -312,7 +312,7 @@ export default async function BillingPage({
           <div className="modal-panel" style={{ maxWidth: 420 }}>
             <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <h3 style={{ margin: 0 }}>{chargeStatus === "ok" ? "Cobro exitoso" : "Cobro fallido"}</h3>
-              <a className="ghost" href={returnTo} aria-label="Cerrar">X</a>
+              <a className="ghost modal-close" href={returnTo} aria-label="Cerrar" data-modal-close="true" data-loader="off">X</a>
             </div>
             <div
               className="card cardPad"

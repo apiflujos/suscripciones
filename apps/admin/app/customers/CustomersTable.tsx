@@ -508,7 +508,7 @@ export function CustomersTable({
                 </div>
               </div>
               <div className="contact-paylink contact-footer">
-                  <div className="paylink-actions" style={{ display: "flex", gap: 8, flexWrap: "nowrap", justifyContent: "flex-start", overflowX: "auto" }}>
+                  <div className="paylink-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-start" }}>
                     <Link className="ghost btn-compact btn-amber" href={`/customers/${c.id}/payment-method`}>
                       {hasToken(c) ? "Tokenizar otra tarjeta" : "Tokenizar"}
                     </Link>
@@ -619,7 +619,7 @@ export function CustomersTable({
           <div className="modal-panel" style={{ maxWidth: 980 }}>
             <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <strong>Crear plan o suscripción</strong>
-              <button className="ghost" type="button" onClick={closePlanModal} aria-label="Cerrar">
+              <button className="ghost modal-close" type="button" onClick={closePlanModal} aria-label="Cerrar" data-modal-close="true" data-loader="off">
                 X
               </button>
             </div>
@@ -647,7 +647,7 @@ export function CustomersTable({
           <div className="modal-panel" style={{ maxWidth: 520 }}>
             <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <strong>Enviar link de pago</strong>
-              <button className="ghost" type="button" onClick={closePayModal} aria-label="Cerrar">
+              <button className="ghost modal-close" type="button" onClick={closePayModal} aria-label="Cerrar" data-modal-close="true" data-loader="off">
                 X
               </button>
             </div>
@@ -732,7 +732,7 @@ export function CustomersTable({
                 />
               </div>
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                <button className="ghost" type="button" onClick={closePayModal}>
+                <button className="ghost" type="button" onClick={closePayModal} data-modal-close="true" data-loader="off">
                   Cancelar
                 </button>
                 <button className="primary" type="submit" disabled={!payAmount}>
@@ -749,7 +749,7 @@ export function CustomersTable({
           <div className="modal-panel" style={{ maxWidth: 520 }}>
             <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <strong>Enviar catálogo</strong>
-              <button className="ghost" type="button" onClick={closeCartModal} aria-label="Cerrar">
+              <button className="ghost modal-close" type="button" onClick={closeCartModal} aria-label="Cerrar" data-modal-close="true" data-loader="off">
                 X
               </button>
             </div>
@@ -856,7 +856,7 @@ export function CustomersTable({
                 ) : null}
               </div>
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                <button className="ghost" type="button" onClick={closeCartModal}>
+                <button className="ghost" type="button" onClick={closeCartModal} data-modal-close="true" data-loader="off">
                   Cancelar
                 </button>
                 <button className="primary" type="submit">
@@ -873,7 +873,7 @@ export function CustomersTable({
           <div className="modal-panel" style={{ maxWidth: 520 }}>
             <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <strong>Enviar tokenización</strong>
-              <button className="ghost" type="button" onClick={closeTokenModal} aria-label="Cerrar">
+              <button className="ghost modal-close" type="button" onClick={closeTokenModal} aria-label="Cerrar" data-modal-close="true" data-loader="off">
                 X
               </button>
             </div>
@@ -956,7 +956,7 @@ export function CustomersTable({
                 ) : null}
               </div>
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                <button className="ghost" type="button" onClick={closeTokenModal}>
+                <button className="ghost" type="button" onClick={closeTokenModal} data-modal-close="true" data-loader="off">
                   Cancelar
                 </button>
                 <button className="primary" type="submit" disabled={!resolveTokenTemplate(tokenModalCustomer.id)}>
@@ -994,7 +994,7 @@ export function CustomersTable({
               <h3 id="customer-details-title" style={{ margin: 0 }}>
                 Detalles: {detailsCustomer.name || detailsCustomer.email || detailsCustomer.id}
               </h3>
-              <button type="button" className="ghost" onClick={closeDetails} aria-label="Cerrar">
+              <button type="button" className="ghost modal-close" onClick={closeDetails} aria-label="Cerrar" data-modal-close="true" data-loader="off">
                 X
               </button>
             </div>
@@ -1305,7 +1305,7 @@ export function CustomersTable({
           >
             <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h3 id="customer-edit-title" style={{ margin: 0 }}>{modalTitle}</h3>
-              <button type="button" className="ghost" onClick={closeEditor} aria-label="Cerrar">
+              <button type="button" className="ghost modal-close" onClick={closeEditor} aria-label="Cerrar" data-modal-close="true" data-loader="off">
                 X
               </button>
             </div>
@@ -1372,7 +1372,7 @@ export function CustomersTable({
               </div>
 
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-                <button className="ghost" type="button" onClick={closeEditor}>
+                <button className="ghost" type="button" onClick={closeEditor} data-modal-close="true" data-loader="off">
                   Cancelar
                 </button>
                 <button className="primary" type="submit">
@@ -1409,7 +1409,7 @@ export function CustomersTable({
               <h3 id="customer-tx-title" style={{ margin: 0 }}>
                 Transacciones: {txCustomer.name || txCustomer.email || txCustomer.id}
               </h3>
-              <button type="button" className="ghost" onClick={closeTransactions} aria-label="Cerrar">
+              <button type="button" className="ghost modal-close" onClick={closeTransactions} aria-label="Cerrar" data-modal-close="true" data-loader="off">
                 X
               </button>
             </div>

@@ -128,7 +128,7 @@ export function NewCustomerForm({
           <div className="modal-panel">
             <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
               <h3 style={{ margin: 0 }}>Crear contacto</h3>
-              <button type="button" className="ghost" onClick={() => setOpen(false)} aria-label="Cerrar">
+              <button type="button" className="ghost modal-close" onClick={() => setOpen(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">
                 X
               </button>
             </div>

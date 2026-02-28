@@ -313,7 +313,7 @@ export function ProductsTable({
           <div className="modal-panel" style={{ maxWidth: 980 }}>
             <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <strong>Crear plan o suscripción</strong>
-              <button className="ghost" type="button" onClick={closePlanModal} aria-label="Cerrar">
+              <button className="ghost modal-close" type="button" onClick={closePlanModal} aria-label="Cerrar" data-modal-close="true" data-loader="off">
                 X
               </button>
             </div>
@@ -360,7 +360,7 @@ export function ProductsTable({
           >
             <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h3 id="product-edit-title" style={{ margin: 0 }}>{modalTitle}</h3>
-              <button type="button" className="ghost" onClick={closeEditor} aria-label="Cerrar">
+              <button type="button" className="ghost modal-close" onClick={closeEditor} aria-label="Cerrar" data-modal-close="true" data-loader="off">
                 X
               </button>
             </div>
@@ -674,7 +674,7 @@ export function ProductsTable({
               <h3 id="product-tx-title" style={{ margin: 0 }}>
                 Transacciones: {txProduct.name}
               </h3>
-              <button type="button" className="ghost" onClick={closeTransactions} aria-label="Cerrar">
+              <button type="button" className="ghost modal-close" onClick={closeTransactions} aria-label="Cerrar" data-modal-close="true" data-loader="off">
                 X
               </button>
             </div>

@@ -323,7 +323,7 @@ export function NotificationsManager({
           <div className="modal-panel" style={{ maxWidth: 720 }}>
             <div className="panel-header">
               <h3 style={{ margin: 0 }}>Editar plantilla</h3>
-              <button type="button" className="ghost" onClick={closeModals} aria-label="Cerrar">X</button>
+              <button type="button" className="ghost modal-close" onClick={closeModals} aria-label="Cerrar" data-modal-close="true" data-loader="off">X</button>
             </div>
             <form action={actions.updateTemplate} className="panel module" style={{ display: "grid", gap: 10 }}>
               <input type="hidden" name="csrf" value={csrfToken} />
@@ -418,7 +418,7 @@ export function NotificationsManager({
               <input type="hidden" name="metaComponents" value={tplMetaComponents} />
 
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                <button className="ghost" type="button" onClick={closeModals}>Cancelar</button>
+                <button className="ghost" type="button" onClick={closeModals} data-modal-close="true" data-loader="off">Cancelar</button>
                 <button className="primary" type="submit">Guardar cambios</button>
               </div>
             </form>
@@ -431,7 +431,7 @@ export function NotificationsManager({
           <div className="modal-panel" style={{ maxWidth: 760 }}>
             <div className="panel-header">
               <h3 style={{ margin: 0 }}>Editar regla</h3>
-              <button type="button" className="ghost" onClick={closeModals} aria-label="Cerrar">X</button>
+              <button type="button" className="ghost modal-close" onClick={closeModals} aria-label="Cerrar" data-modal-close="true" data-loader="off">X</button>
             </div>
             <form action={actions.updateRule} className="panel module" style={{ display: "grid", gap: 10 }}>
               <input type="hidden" name="csrf" value={csrfToken} />
@@ -529,7 +529,7 @@ export function NotificationsManager({
               ))}
 
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                <button className="ghost" type="button" onClick={closeModals}>Cancelar</button>
+                <button className="ghost" type="button" onClick={closeModals} data-modal-close="true" data-loader="off">Cancelar</button>
                 <button className="primary" type="submit">Guardar cambios</button>
               </div>
             </form>

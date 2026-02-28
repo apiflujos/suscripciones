@@ -154,7 +154,7 @@ export function ConnectionsPanel({
           <div className="modal-panel modal-panel-fixed">
             <div className="panel-header">
               <h3 style={{ margin: 0 }}>{open === "wompi_prod" ? "Wompi · Producción" : "Wompi · Sandbox"}</h3>
-              <button type="button" className="ghost" onClick={() => setOpen(null)} aria-label="Cerrar">X</button>
+              <button type="button" className="ghost modal-close" onClick={() => setOpen(null)} aria-label="Cerrar" data-modal-close="true" data-loader="off">X</button>
             </div>
 
             <div className="modal-body">
@@ -263,7 +263,7 @@ export function ConnectionsPanel({
           <div className="modal-panel modal-panel-fixed">
             <div className="panel-header">
               <h3 style={{ margin: 0 }}>CentralCom</h3>
-              <button type="button" className="ghost" onClick={() => setOpen(null)} aria-label="Cerrar">X</button>
+              <button type="button" className="ghost modal-close" onClick={() => setOpen(null)} aria-label="Cerrar" data-modal-close="true" data-loader="off">X</button>
             </div>
 
             <div className="modal-body">
@@ -446,7 +446,7 @@ export function ConnectionsPanel({
           <div className="modal-panel modal-panel-fixed">
             <div className="panel-header">
               <h3 style={{ margin: 0 }}>Shopify</h3>
-              <button type="button" className="ghost" onClick={() => setOpen(null)} aria-label="Cerrar">X</button>
+              <button type="button" className="ghost modal-close" onClick={() => setOpen(null)} aria-label="Cerrar" data-modal-close="true" data-loader="off">X</button>
             </div>
 
             <div className="modal-body">

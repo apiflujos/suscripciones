@@ -44,7 +44,7 @@ export function CustomersModals({
           <div className="modal-panel" style={{ maxWidth: 860 }}>
             <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <strong>Crear contacto</strong>
-              <button className="ghost" type="button" onClick={() => setOpenCustomer(false)} aria-label="Cerrar">
+              <button className="ghost modal-close" type="button" onClick={() => setOpenCustomer(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">
                 X
               </button>
             </div>
@@ -67,7 +67,7 @@ export function CustomersModals({
           <div className="modal-panel" style={{ maxWidth: 980 }}>
             <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <strong>Crear plan o suscripción</strong>
-              <button className="ghost" type="button" onClick={() => setOpenPlan(false)} aria-label="Cerrar">
+              <button className="ghost modal-close" type="button" onClick={() => setOpenPlan(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">
                 X
               </button>
             </div>

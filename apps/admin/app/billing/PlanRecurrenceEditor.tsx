@@ -47,7 +47,7 @@ export function PlanRecurrenceEditor({
           <div className="panel module" style={{ width: "min(520px, 96vw)" }}>
             <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h3 style={{ margin: 0 }}>Recurrencia del plan</h3>
-              <button type="button" className="ghost" onClick={() => setOpen(false)} aria-label="Cerrar">
+              <button type="button" className="ghost modal-close" onClick={() => setOpen(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">
                 X
               </button>
             </div>

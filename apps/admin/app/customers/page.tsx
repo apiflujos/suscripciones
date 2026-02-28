@@ -179,37 +179,38 @@ export default async function CustomersPage({
 
       <section className="settings-group">
         <div className="settings-group-header">
-          <div className="panelHeaderRow">
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <h3>Contactos</h3>
-              <HelpTip text="Clientes y datos de contacto (email / teléfono). También permite guardar método de pago para cobros automáticos." />
+          <div className="filtersRow">
+            <div className="filtersLeft">
+              <div className="filtersNote">Administra contactos, métodos de pago y envíos rápidos de links o catálogos.</div>
+              <div className="filtersPanel">
+                <form action="/customers" method="GET" className="filtersForm">
+                  {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+                  <input className="input" name="q" defaultValue={q} placeholder="Buscar..." aria-label="Buscar contactos" />
+                  <button className="ghost" type="submit">
+                    Buscar
+                  </button>
+                </form>
+                <form action="/customers" method="GET" className="filtersForm">
+                  {q ? <input type="hidden" name="q" value={q} /> : null}
+                  <select className="select" name="tenantId" defaultValue={tenantId}>
+                    <option value="">Canal: (todos)</option>
+                    {tenants.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button className="ghost" type="submit">Aplicar</button>
+                </form>
+                <form action={createTenant} className="filtersForm">
+                  <input type="hidden" name="csrf" value={csrfToken} />
+                  <input type="hidden" name="returnTo" value={`/customers${tenantId || q ? `?${new URLSearchParams({ ...(tenantId ? { tenantId } : {}), ...(q ? { q } : {}) }).toString()}` : ""}`} />
+                  <input className="input" name="name" placeholder="Nuevo canal" />
+                  <button className="ghost" type="submit">Crear canal</button>
+                </form>
+              </div>
             </div>
-            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-              <form action="/customers" method="GET" style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-                <input className="input" name="q" defaultValue={q} placeholder="Buscar..." aria-label="Buscar contactos" />
-                <button className="ghost" type="submit">
-                  Buscar
-                </button>
-              </form>
-              <form action="/customers" method="GET" style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                {q ? <input type="hidden" name="q" value={q} /> : null}
-                <select className="select" name="tenantId" defaultValue={tenantId}>
-                  <option value="">Canal: (todos)</option>
-                  {tenants.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
-                <button className="ghost" type="submit">Aplicar</button>
-              </form>
-              <form action={createTenant} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <input type="hidden" name="csrf" value={csrfToken} />
-                <input type="hidden" name="returnTo" value={`/customers${tenantId || q ? `?${new URLSearchParams({ ...(tenantId ? { tenantId } : {}), ...(q ? { q } : {}) }).toString()}` : ""}`} />
-                <input className="input" name="name" placeholder="Nuevo canal" />
-                <button className="ghost" type="submit">Crear canal</button>
-              </form>
+            <div className="filtersRight">
               <span className="pill">{items.length} resultados</span>
             </div>
           </div>

@@ -10,6 +10,7 @@ const MODAL_SELECTOR =
 function shouldTriggerLoader(target: EventTarget | null) {
   if (!(target instanceof Element)) return false;
   if (target.closest('[data-loader="off"]')) return false;
+  if (target.closest('[data-modal-close="true"], .modal-close')) return false;
   if (target.closest('[aria-haspopup="dialog"], [data-modal="true"], [data-modal-trigger="true"]')) return false;
   if (target.closest('[aria-haspopup="menu"], [role="menu"], .userMenuPopover')) return false;
 

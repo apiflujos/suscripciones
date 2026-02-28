@@ -766,7 +766,7 @@ export function CheckoutTemplatesPanel({
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           {editing ? (
-            <button className="ghost" type="button" onClick={resetWizard}>
+            <button className="ghost" type="button" onClick={resetWizard} data-loader="off">
               Cancelar edición
             </button>
           ) : null}
@@ -781,7 +781,7 @@ export function CheckoutTemplatesPanel({
           <div className="modal-panel" style={{ maxWidth: 900 }}>
             <div className="panel-header">
               <strong>Editar plantilla</strong>
-              <button className="ghost" type="button" onClick={resetWizard} aria-label="Cerrar">
+              <button className="ghost modal-close" type="button" onClick={resetWizard} aria-label="Cerrar" data-modal-close="true" data-loader="off">
                 X
               </button>
             </div>
@@ -795,7 +795,7 @@ export function CheckoutTemplatesPanel({
           <div className="modal-panel" style={{ maxWidth: 900 }}>
             <div className="panel-header">
               <strong>Nueva plantilla</strong>
-              <button className="ghost" type="button" onClick={resetWizard} aria-label="Cerrar">
+              <button className="ghost modal-close" type="button" onClick={resetWizard} aria-label="Cerrar" data-modal-close="true" data-loader="off">
                 X
               </button>
             </div>

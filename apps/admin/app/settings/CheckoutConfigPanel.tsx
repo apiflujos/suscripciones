@@ -286,7 +286,7 @@ export function CheckoutConfigPanel({
           >
             <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <strong>Preview fullscreen</strong>
-              <button className="ghost" type="button" onClick={() => setPreviewOpen(false)} aria-label="Cerrar">
+              <button className="ghost modal-close" type="button" onClick={() => setPreviewOpen(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">
                 X
               </button>
             </div>
