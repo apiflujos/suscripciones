@@ -39,6 +39,12 @@ type TransactionRow = {
   paidAt?: string | null;
   reference?: string | null;
   planName?: string | null;
+  lastAttempt?: {
+    status?: string | null;
+    errorMessage?: string | null;
+    provider?: string | null;
+    createdAt?: string | null;
+  } | null;
 };
 
 export function CustomersTable({
@@ -1429,6 +1435,7 @@ export function CustomersTable({
                       <th>Fecha</th>
                       <th>Monto</th>
                       <th>Estado</th>
+                      <th>Último intento</th>
                       <th>Producto/Plan</th>
                       <th>Referencia</th>
                     </tr>
@@ -1439,6 +1446,20 @@ export function CustomersTable({
                         <td><LocalDateTime value={t.createdAt} /></td>
                         <td>{formatCopFromCents(t.amountInCents)}</td>
                         <td>{t.status}</td>
+                        <td>
+                          {t.lastAttempt ? (
+                            <div style={{ display: "grid", gap: 2 }}>
+                              <span>{t.lastAttempt.status || "—"}</span>
+                              {t.lastAttempt.errorMessage ? (
+                                <span className="field-hint" style={{ color: "var(--danger)" }}>
+                                  {t.lastAttempt.errorMessage}
+                                </span>
+                              ) : null}
+                            </div>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
                         <td>{t.planName || "—"}</td>
                         <td style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{t.reference || "—"}</td>
                       </tr>

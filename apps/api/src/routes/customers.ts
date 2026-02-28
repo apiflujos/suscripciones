@@ -111,7 +111,10 @@ customersRouter.get("/:id/payments", async (req, res) => {
     orderBy: { createdAt: "desc" },
     take,
     skip,
-    include: { subscription: { include: { plan: true } } }
+    include: {
+      subscription: { include: { plan: true } },
+      attempts: { orderBy: { createdAt: "desc" }, take: 1 }
+    }
   });
 
   res.json({
@@ -124,7 +127,15 @@ customersRouter.get("/:id/payments", async (req, res) => {
       paidAt: p.paidAt,
       reference: p.reference,
       planId: p.subscription?.planId || null,
-      planName: p.subscription?.plan?.name || null
+      planName: p.subscription?.plan?.name || null,
+      lastAttempt: p.attempts?.[0]
+        ? {
+            status: p.attempts[0].status,
+            errorMessage: p.attempts[0].errorMessage,
+            provider: p.attempts[0].provider,
+            createdAt: p.attempts[0].createdAt
+          }
+        : null
     }))
   });
 });
