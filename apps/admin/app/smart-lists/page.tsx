@@ -37,7 +37,7 @@ export default async function SmartListsPage({
   const csrfToken = await getCsrfToken();
   const sp = (await searchParams) ?? {};
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
-  const take = 100;
+  const take = 20;
   const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
   const listsRes = await fetchAdminCached(`/admin/comms/smart-lists?take=${take}&skip=${skip}`, { ttlMs: 0 });
   const items = Array.isArray(listsRes?.json?.items) ? listsRes.json.items : [];

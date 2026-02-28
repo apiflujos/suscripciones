@@ -2,7 +2,7 @@ import { fetchAdminCached } from "../../lib/adminApi";
 import Link from "next/link";
 
 async function fetchMembers(id: string, page = 1) {
-  const take = 200;
+  const take = 20;
   const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
   return fetchAdminCached(`/admin/comms/smart-lists/${encodeURIComponent(id)}/members?active=1&take=${take}&skip=${skip}`, { ttlMs: 0 });
 }
@@ -59,7 +59,7 @@ export default async function SmartListDetail({
           <a className="ghost" href={`/smart-lists/${id}?page=${Math.max(1, (Number(page) || 1) - 1)}`} aria-disabled={Number(page) <= 1}>
             Anterior
           </a>
-          <a className="ghost" href={`/smart-lists/${id}?page=${(Number(page) || 1) + 1}`} aria-disabled={items.length < 200}>
+          <a className="ghost" href={`/smart-lists/${id}?page=${(Number(page) || 1) + 1}`} aria-disabled={items.length < take}>
             Siguiente
           </a>
         </div>

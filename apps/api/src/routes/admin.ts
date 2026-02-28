@@ -46,10 +46,13 @@ export function requireAdminToken(req: Request, res: Response, next: NextFunctio
   next();
 }
 
-export async function listWebhookEvents(_req: Request, res: Response) {
+export async function listWebhookEvents(req: Request, res: Response) {
+  const take = Math.min(200, Math.max(1, Number(req.query.take ?? 50)));
+  const skip = Math.max(0, Number(req.query.skip ?? 0));
   const items = await prisma.webhookEvent.findMany({
     orderBy: { receivedAt: "desc" },
-    take: 50
+    take,
+    skip
   });
   const paymentLinkIds = new Set<string>();
   const references = new Set<string>();

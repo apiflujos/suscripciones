@@ -17,7 +17,7 @@ function getConfig() {
 async function fetchCustomers(opts?: { q?: string; take?: number; page?: number; tenantId?: string }) {
   const sp = new URLSearchParams();
   const q = String(opts?.q || "").trim();
-  const take = Number(opts?.take ?? 200);
+  const take = Number(opts?.take ?? 20);
   const page = Number(opts?.page ?? 1);
   const tenantId = String(opts?.tenantId || "").trim();
   if (q) sp.set("q", q);
@@ -135,7 +135,7 @@ export default async function CustomersPage({
     ...(Number.isFinite(page) && page > 1 ? { page: String(page) } : {})
   }).toString()}`;
   const tenantCreated = typeof sp.tenantCreated === "string" ? sp.tenantCreated : "";
-  const take = 200;
+  const take = 20;
   const [data, tenantsRes, txCustomer, productsRes, templatesRes] = await Promise.all([
     fetchCustomers({ q, take, page, tenantId }),
     fetchAdminCached("/admin/tenants", { ttlMs: 1500 }),

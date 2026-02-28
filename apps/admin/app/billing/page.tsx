@@ -173,6 +173,7 @@ export default async function BillingPage({
   const central = typeof sp.central === "string" ? sp.central : "";
   const crear = typeof sp.crear === "string" ? sp.crear : "";
   const selectCustomerId = typeof sp.selectCustomerId === "string" ? sp.selectCustomerId : "";
+  const page = typeof sp.page === "string" ? Number(sp.page) : 1;
 
   const tipo = typeof sp.tipo === "string" ? sp.tipo : "todos";
   const estado = typeof sp.estado === "string" ? sp.estado : "todos";
@@ -181,10 +182,12 @@ export default async function BillingPage({
   const smartListRules = buildSmartListRules({ tipo, estado, q });
   const smartListRulesParam = encodeURIComponent(JSON.stringify(smartListRules));
   const hasFiltersApplied = tipo !== "todos" || estado !== "todos" || Boolean(q.trim());
-  const returnTo = `/billing${tenantId || q || tipo !== "todos" || estado !== "todos" || ordenar !== "vencimiento" ? `?${new URLSearchParams({ ...(tenantId ? { tenantId } : {}), ...(q ? { q } : {}), ...(tipo ? { tipo } : {}), ...(estado ? { estado } : {}), ...(ordenar ? { ordenar } : {}) }).toString()}` : ""}`;
+  const returnTo = `/billing${tenantId || q || tipo !== "todos" || estado !== "todos" || ordenar !== "vencimiento" || (Number.isFinite(page) && page > 1) ? `?${new URLSearchParams({ ...(tenantId ? { tenantId } : {}), ...(q ? { q } : {}), ...(tipo ? { tipo } : {}), ...(estado ? { estado } : {}), ...(ordenar ? { ordenar } : {}), ...(Number.isFinite(page) && page > 1 ? { page: String(page) } : {}) }).toString()}` : ""}`;
 
   const subParams = new URLSearchParams();
-  subParams.set("take", "300");
+  const take = 20;
+  subParams.set("take", String(take));
+  if (Number.isFinite(page) && page > 1) subParams.set("skip", String((Math.trunc(page) - 1) * take));
   if (q.trim()) subParams.set("q", q.trim());
   if (estado !== "todos") subParams.set("estado", estado);
   if (tipo === "suscripciones") subParams.set("collectionMode", "AUTO_DEBIT");
@@ -299,6 +302,14 @@ export default async function BillingPage({
       const bd = b.vencimientoAt ? new Date(b.vencimientoAt).getTime() : Number.POSITIVE_INFINITY;
       return ad - bd;
     });
+
+  const paginationBase = {
+    ...(tenantId ? { tenantId } : {}),
+    ...(q ? { q } : {}),
+    ...(tipo ? { tipo } : {}),
+    ...(estado ? { estado } : {}),
+    ...(ordenar ? { ordenar } : {})
+  };
 
   return (
     <main className="page pageWide">
@@ -674,6 +685,29 @@ export default async function BillingPage({
               );
             })}
             {rows.length === 0 ? <div className="contact-empty">Sin resultados.</div> : null}
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>
+            <a
+              className="ghost"
+              href={`/billing?${new URLSearchParams({
+                ...paginationBase,
+                page: String(Math.max(1, (Number(page) || 1) - 1))
+              })}`}
+              aria-disabled={Number(page) <= 1}
+            >
+              Anterior
+            </a>
+            <a
+              className="ghost"
+              href={`/billing?${new URLSearchParams({
+                ...paginationBase,
+                page: String((Number(page) || 1) + 1)
+              })}`}
+              aria-disabled={rows.length < take}
+            >
+              Siguiente
+            </a>
           </div>
         </div>
       </section>

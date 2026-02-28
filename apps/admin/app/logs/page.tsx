@@ -2,6 +2,7 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { LocalDateTime } from "../ui/LocalDateTime";
+import { LogsSystemTable } from "./LogsSystemTable";
 import { getCsrfToken, assertCsrfToken } from "../lib/csrf";
 import { PendingButton } from "../ui/PendingButton";
 
@@ -85,13 +86,6 @@ function normalizeLogMessage(message: any) {
   return m;
 }
 
-function toStatusChip(level: string) {
-  const v = String(level || "").toUpperCase();
-  if (v === "ERROR") return { cls: "is-error", label: "Error" };
-  if (v === "WARN") return { cls: "is-warning", label: "Advertencia" };
-  return { cls: "is-success", label: "Exitoso" };
-}
-
 function normalizeJobType(type: any) {
   const v = String(type || "");
   if (v === "SUBSCRIPTION_REMINDER") return "Notificación programada";
@@ -114,8 +108,7 @@ export default async function LogsPage({
   const { token } = getConfig();
   if (!token) {
     return (
-      <main>
-        <h1 style={{ marginTop: 0 }}>Logs de API</h1>
+      <main className="page">
         <p>Configura `ADMIN_API_TOKEN`.</p>
       </main>
     );
@@ -124,12 +117,24 @@ export default async function LogsPage({
   const sp = (await searchParams) ?? {};
   const tab = typeof sp.tab === "string" ? sp.tab : "system";
   const q = typeof sp.q === "string" ? sp.q : "";
+  const page = typeof sp.page === "string" ? Number(sp.page) : 1;
+  const take = 20;
+  const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
+  const baseParams = new URLSearchParams({
+    take: String(take),
+    ...(Number.isFinite(skip) && skip > 0 ? { skip: String(skip) } : {})
+  });
+  const systemParams = new URLSearchParams({
+    take: String(take),
+    ...(Number.isFinite(skip) && skip > 0 ? { skip: String(skip) } : {}),
+    ...(q ? { q } : {})
+  });
   const [system, jobs, webhooks, messages, payments] = await Promise.all([
-    fetchAdmin("/admin/logs/system?take=120"),
-    fetchAdmin("/admin/logs/jobs?take=200"),
-    fetchAdmin("/admin/webhook-events"),
-    fetchAdmin("/admin/logs/messages?take=120"),
-    fetchAdmin("/admin/logs/payments?take=120")
+    fetchAdmin(`/admin/logs/system?${systemParams.toString()}`),
+    fetchAdmin(`/admin/logs/jobs?${baseParams.toString()}`),
+    fetchAdmin(`/admin/webhook-events?${baseParams.toString()}`),
+    fetchAdmin(`/admin/logs/messages?${baseParams.toString()}`),
+    fetchAdmin(`/admin/logs/payments?${baseParams.toString()}`)
   ]);
 
   const sysItems = (system.json?.items ?? []) as any[];
@@ -154,7 +159,7 @@ export default async function LogsPage({
       <section className="settings-group">
         <div className="settings-group-header">
           <div className="panelHeaderRow">
-            <h3>Logs de API</h3>
+            <div className="filtersNote">Seguimiento de procesos, mensajes y fallos operativos.</div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <Link
                 className={`ghost ${tab === "system" ? "is-active" : ""}`}
@@ -266,55 +271,7 @@ export default async function LogsPage({
 
         <div className="settings-group-body">
           {tab === "system" ? (
-            <div className="panel module" style={{ padding: 0 }}>
-              <table className="table" aria-label="Tabla de logs">
-                <thead>
-                  <tr>
-                    <th>Fecha</th>
-                    <th>Entidad</th>
-                    <th>Dirección</th>
-                    <th>Estado</th>
-                    <th>Detalle</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {normalized.map((l) => {
-                    const chip = toStatusChip(l.level);
-                    return (
-                      <tr key={l.id}>
-                        <td><LocalDateTime value={l.createdAt} /></td>
-                        <td>{l.source}</td>
-                        <td>—</td>
-                        <td>
-                          <span className={`status-chip ${chip.cls}`}>
-                            <span className={`status-led ${chip.cls === "is-success" ? "is-ok" : ""}`} />
-                            {chip.label}
-                          </span>
-                        </td>
-                        <td>{l.message}</td>
-                        <td style={{ textAlign: "right" }}>
-                          <details className="inline-detail">
-                            <summary className="ghost">Ver</summary>
-                            <div className="inline-detail-body">
-                              <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 6 }}>{l.source}</div>
-                              <pre style={{ margin: 0, whiteSpace: "pre-wrap" }}>{JSON.stringify(l.context ?? l, null, 2)}</pre>
-                            </div>
-                          </details>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {normalized.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} style={{ color: "var(--muted)" }}>
-                        Sin logs.
-                      </td>
-                    </tr>
-                  ) : null}
-                </tbody>
-              </table>
-            </div>
+            <LogsSystemTable items={normalized} />
           ) : tab === "messages" ? (
             <div className="panel module" style={{ padding: 0 }}>
               <table className="table" aria-label="Tabla de mensajes">
@@ -491,7 +448,32 @@ export default async function LogsPage({
             </div>
           )}
 
-          {null}
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>
+            <a
+              className="ghost"
+              href={`/logs?${new URLSearchParams({
+                tab,
+                ...(tab === "system" && q ? { q } : {}),
+                page: String(Math.max(1, (Number(page) || 1) - 1))
+              })}`}
+              aria-disabled={Number(page) <= 1}
+            >
+              Anterior
+            </a>
+            <a
+              className="ghost"
+              href={`/logs?${new URLSearchParams({
+                tab,
+                ...(tab === "system" && q ? { q } : {}),
+                page: String((Number(page) || 1) + 1)
+              })}`}
+              aria-disabled={
+                (tab === "system" ? normalized.length : tab === "messages" ? messageItems.length : tab === "jobs" ? jobItems.length : tab === "payments" ? paymentItems.length : webhookItems.length) < take
+              }
+            >
+              Siguiente
+            </a>
+          </div>
         </div>
       </section>
     </main>

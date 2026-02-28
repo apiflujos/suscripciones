@@ -77,6 +77,7 @@
   --icon-number: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 9h16'/><path d='M4 15h16'/><path d='M10 3L8 21'/><path d='M16 3l-2 18'/></svg>");
   --icon-lock: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='10' width='16' height='10' rx='2'/><path d='M8 10V7a4 4 0 0 1 8 0v3'/></svg>");
   --icon-select: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
+  --icon-eye: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z'/><circle cx='12' cy='12' r='3'/></svg>");
   --input-icon: var(--icon-text);
   --btn-icon: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3l2.2 5.2L20 10l-5.2 2.2L12 18l-2.2-5.8L4 10l5.8-1.8L12 3z'/></svg>");
 }
@@ -116,6 +117,7 @@ html[data-theme="dark"] {
   --icon-number: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c7c3d3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 9h16'/><path d='M4 15h16'/><path d='M10 3L8 21'/><path d='M16 3l-2 18'/></svg>");
   --icon-lock: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c7c3d3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='10' width='16' height='10' rx='2'/><path d='M8 10V7a4 4 0 0 1 8 0v3'/></svg>");
   --icon-select: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c7c3d3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
+  --icon-eye: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c7c3d3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z'/><circle cx='12' cy='12' r='3'/></svg>");
   --input-icon: var(--icon-text);
 }
 
@@ -154,6 +156,7 @@ html[data-theme="pink-dark"] {
   --icon-number: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f6c1d6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 9h16'/><path d='M4 15h16'/><path d='M10 3L8 21'/><path d='M16 3l-2 18'/></svg>");
   --icon-lock: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f6c1d6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='10' width='16' height='10' rx='2'/><path d='M8 10V7a4 4 0 0 1 8 0v3'/></svg>");
   --icon-select: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f6c1d6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
+  --icon-eye: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f6c1d6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z'/><circle cx='12' cy='12' r='3'/></svg>");
   --input-icon: var(--icon-text);
 }
 
@@ -199,6 +202,7 @@ html[data-contrast="high"] {
   --icon-number: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffd400' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 9h16'/><path d='M4 15h16'/><path d='M10 3L8 21'/><path d='M16 3l-2 18'/></svg>");
   --icon-lock: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffd400' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='10' width='16' height='10' rx='2'/><path d='M8 10V7a4 4 0 0 1 8 0v3'/></svg>");
   --icon-select: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffd400' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
+  --icon-eye: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffd400' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z'/><circle cx='12' cy='12' r='3'/></svg>");
   --input-icon: var(--icon-text);
 }
 
@@ -1095,6 +1099,10 @@ textarea.input {
 .iconBtn::before,
 .icon-btn::before {
   content: none;
+}
+
+.btn-eye {
+  --btn-icon: var(--icon-eye);
 }
 
 .primary,
@@ -3037,6 +3045,13 @@ textarea.input {
   border-radius: 10px;
   max-width: 520px;
   white-space: normal;
+  color: var(--text);
+}
+
+.inline-detail-pre {
+  margin: 0;
+  white-space: pre-wrap;
+  color: var(--text);
 }
 
 body.is-global-loading {
@@ -3618,6 +3633,17 @@ html[data-theme="pink-dark"] .contact-block,
 html[data-contrast="high"] .contact-block {
   background: rgba(255, 255, 255, 0.03);
   border-color: var(--stroke);
+}
+
+html[data-theme="dark"] .inline-detail-body,
+html[data-theme="pink-dark"] .inline-detail-body {
+  background: #121427;
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+html[data-contrast="high"] .inline-detail-body {
+  background: #0b0b0b;
+  border-color: #ffffff;
 }
 
 html[data-theme="dark"] .panel,
@@ -5319,4 +5345,5 @@ html[data-contrast="high"] .toggle::after {
   border-radius: 10px;
   max-width: 520px;
   white-space: normal;
+  color: var(--text);
 }

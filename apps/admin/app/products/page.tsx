@@ -49,7 +49,7 @@ export default async function ProductsPage({
   const sp = new URLSearchParams();
   if (tenantId) sp.set("tenantId", tenantId);
   if (q.trim()) sp.set("q", q.trim());
-  const take = 200;
+  const take = 20;
   sp.set("take", String(take));
   if (Number.isFinite(page) && page > 1) sp.set("skip", String((Math.trunc(page) - 1) * take));
   const [products, tenantsRes, customersRes, templatesRes] = await Promise.all([

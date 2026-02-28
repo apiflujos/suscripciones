@@ -10,7 +10,16 @@ export const logsRouter = express.Router();
 logsRouter.get("/system", async (req, res) => {
   const take = Math.min(200, Math.max(1, Number(req.query.take ?? 100)));
   const skip = Math.max(0, Number(req.query.skip ?? 0));
-  const items = await prisma.systemLog.findMany({ orderBy: { createdAt: "desc" }, take, skip });
+  const q = String(req.query.q ?? "").trim();
+  const where = q
+    ? {
+        OR: [
+          { message: { contains: q, mode: "insensitive" } },
+          { source: { contains: q, mode: "insensitive" } }
+        ]
+      }
+    : undefined;
+  const items = await prisma.systemLog.findMany({ where, orderBy: { createdAt: "desc" }, take, skip });
   res.json({ items });
 });
 

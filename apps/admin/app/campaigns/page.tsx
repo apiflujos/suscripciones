@@ -16,7 +16,7 @@ export default async function CampaignsPage({
   const sp = (await searchParams) ?? {};
   const returnTo = `/campaigns?${new URLSearchParams(Object.fromEntries(Object.entries(sp).filter(([_, v]) => typeof v === "string" && v))).toString()}`;
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
-  const take = 100;
+  const take = 20;
   const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
   const campaignsRes = await fetchAdminCached(`/admin/comms/campaigns?take=${take}&skip=${skip}`, { ttlMs: 0 });
   const items = Array.isArray(campaignsRes?.json?.items) ? campaignsRes.json.items : [];
