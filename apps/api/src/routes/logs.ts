@@ -11,6 +11,11 @@ logsRouter.get("/system", async (req, res) => {
   const take = Math.min(200, Math.max(1, Number(req.query.take ?? 100)));
   const skip = Math.max(0, Number(req.query.skip ?? 0));
   const q = String(req.query.q ?? "").trim();
+  const level = String(req.query.level ?? "").trim().toUpperCase();
+  const fromRaw = String(req.query.from ?? "").trim();
+  const toRaw = String(req.query.to ?? "").trim();
+  const fromDate = fromRaw ? new Date(fromRaw) : null;
+  const toDate = toRaw ? new Date(toRaw) : null;
   const where: Prisma.SystemLogWhereInput | undefined = q
     ? {
         OR: [
@@ -19,7 +24,22 @@ logsRouter.get("/system", async (req, res) => {
         ]
       }
     : undefined;
-  const items = await prisma.systemLog.findMany({ where, orderBy: { createdAt: "desc" }, take, skip });
+  const dateFilter =
+    fromDate || toDate
+      ? {
+          createdAt: {
+            ...(fromDate ? { gte: fromDate } : {}),
+            ...(toDate ? { lt: toDate } : {})
+          }
+        }
+      : null;
+  const levelFilter = level ? { level } : null;
+  const finalWhere = {
+    ...(where || {}),
+    ...(dateFilter || {}),
+    ...(levelFilter || {})
+  } as Prisma.SystemLogWhereInput;
+  const items = await prisma.systemLog.findMany({ where: finalWhere, orderBy: { createdAt: "desc" }, take, skip });
   res.json({ items });
 });
 

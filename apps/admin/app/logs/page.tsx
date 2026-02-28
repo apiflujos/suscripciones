@@ -146,6 +146,7 @@ export default async function LogsPage({
   const tab = typeof sp.tab === "string" ? sp.tab : "system";
   const q = typeof sp.q === "string" ? sp.q : "";
   const status = typeof sp.status === "string" ? sp.status : "";
+  const level = typeof sp.level === "string" ? sp.level : "";
   const processStatus = typeof sp.processStatus === "string" ? sp.processStatus : "";
   const from = typeof sp.from === "string" ? sp.from : "";
   const to = typeof sp.to === "string" ? sp.to : "";
@@ -160,7 +161,10 @@ export default async function LogsPage({
   const systemParams = new URLSearchParams({
     take: String(take),
     ...(Number.isFinite(skip) && skip > 0 ? { skip: String(skip) } : {}),
-    ...(q ? { q } : {})
+    ...(q ? { q } : {}),
+    ...(level ? { level } : {}),
+    ...(from ? { from } : {}),
+    ...(to ? { to } : {})
   });
   const paymentsParams = new URLSearchParams({
     take: String(take),
@@ -269,11 +273,19 @@ export default async function LogsPage({
           {tab === "system" ? (
             <div className="filtersRow">
               <div className="filtersLeft">
-                <div className="filter-group">
-                  <div className="filter-label">Búsqueda</div>
-                  <form action="/logs" method="GET" style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <div className="filtersNote">Busca por evento, fuente o fecha.</div>
+                <div className="filtersPanel">
+                  <form action="/logs" method="GET" className="filtersForm">
                     <input type="hidden" name="tab" value="system" />
                     <input className="input" name="q" defaultValue={q} placeholder="Buscar en logs..." aria-label="Buscar en logs" />
+                    <select className="select" name="level" defaultValue={level}>
+                      <option value="">Estado: todos</option>
+                      <option value="INFO">Exitoso</option>
+                      <option value="WARN">Advertencia</option>
+                      <option value="ERROR">Error</option>
+                    </select>
+                    <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" />
+                    <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" />
                     <button className="ghost" type="submit">
                       Filtrar
                     </button>
@@ -615,6 +627,7 @@ export default async function LogsPage({
             const baseParams = {
               tab,
               ...(q ? { q } : {}),
+              ...(tab === "system" && level ? { level } : {}),
               ...(tab === "payments" && status ? { status } : {}),
               ...(tab === "webhooks" && processStatus ? { processStatus } : {}),
               ...(from ? { from } : {}),
