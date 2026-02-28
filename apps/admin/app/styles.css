@@ -1171,6 +1171,38 @@ a {
   pointer-events: none;
 }
 
+.pagination-indicator .page-link {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-faint);
+  padding: 0 6px;
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  min-height: 24px;
+}
+
+.pagination-indicator .page-link:hover {
+  color: var(--text);
+  border-bottom-color: var(--primary-soft);
+}
+
+.pagination-indicator .page-link.is-active {
+  background: transparent;
+  color: var(--text);
+  border-bottom-color: var(--primary);
+}
+
+.pagination-indicator .page-link.page-nav {
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.pagination-indicator .page-link.page-nav[aria-disabled="true"] {
+  color: var(--text-faint);
+}
+
 html[data-theme="dark"] .filtersPanel,
 html[data-theme="pink-dark"] .filtersPanel {
   border-color: var(--form-border);

@@ -17,7 +17,7 @@ function getConfig() {
 async function fetchCustomers(opts?: { q?: string; take?: number; page?: number; tenantId?: string }) {
   const sp = new URLSearchParams();
   const q = String(opts?.q || "").trim();
-  const take = Number(opts?.take ?? 20);
+  const take = Number(opts?.take ?? 10);
   const page = Number(opts?.page ?? 1);
   const tenantId = String(opts?.tenantId || "").trim();
   if (q) sp.set("q", q);
@@ -141,7 +141,7 @@ export default async function CustomersPage({
     ...(Number.isFinite(page) && page > 1 ? { page: String(page) } : {})
   }).toString()}`;
   const tenantCreated = typeof sp.tenantCreated === "string" ? sp.tenantCreated : "";
-  const take = 20;
+  const take = 10;
   const [data, tenantsRes, txCustomer, productsRes, templatesRes] = await Promise.all([
     fetchCustomers({ q, take, page, tenantId }),
     fetchAdminCached("/admin/tenants", { ttlMs: 1500 }),
@@ -169,6 +169,55 @@ export default async function CustomersPage({
   const paymentLink = typeof sp.paymentLink === "string" ? sp.paymentLink : "";
   const error = normalizeErrorParam(typeof sp.error === "string" ? sp.error : undefined);
 
+  const renderPagination = () => {
+    const currentPage = Math.max(1, Number(page) || 1);
+    const hasNext = items.length >= take;
+    const start = Math.max(1, currentPage - 2);
+    const end = hasNext ? currentPage + 2 : currentPage;
+    const pages = [];
+    for (let i = start; i <= end; i += 1) pages.push(i);
+    const baseParams = {
+      ...(q ? { q } : {}),
+      ...(tenantId ? { tenantId } : {})
+    };
+    return (
+      <div className="pagination pagination-indicator">
+        <a
+          className="page-link page-nav"
+          href={`/customers?${new URLSearchParams({
+            ...baseParams,
+            page: String(Math.max(1, currentPage - 1))
+          })}`}
+          aria-disabled={currentPage <= 1}
+        >
+          Anterior
+        </a>
+        <div className="pagination-pages">
+          {pages.map((p) => (
+            <a
+              key={`customers-page-${p}`}
+              className={`page-link ${p === currentPage ? "is-active" : ""}`}
+              href={`/customers?${new URLSearchParams({ ...baseParams, page: String(p) })}`}
+              aria-current={p === currentPage ? "page" : undefined}
+            >
+              {p}
+            </a>
+          ))}
+        </div>
+        <a
+          className="page-link page-nav"
+          href={`/customers?${new URLSearchParams({
+            ...baseParams,
+            page: String(currentPage + 1)
+          })}`}
+          aria-disabled={!hasNext}
+        >
+          Siguiente
+        </a>
+      </div>
+    );
+  };
+
   return (
     <main className="page" style={{ maxWidth: "100%" }}>
       {error ? (
@@ -191,7 +240,7 @@ export default async function CustomersPage({
               <div className="filtersPanel">
                 <form action="/customers" method="GET" className="filtersForm">
                   {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-                  <input className="input" name="q" defaultValue={q} placeholder="Buscar..." aria-label="Buscar contactos" />
+                  <input className="input" name="q" defaultValue={q} placeholder="Nombre, email, teléfono o identificación..." aria-label="Buscar contactos" />
                   <button className="ghost" type="submit">
                     Buscar
                   </button>
@@ -229,12 +278,14 @@ export default async function CustomersPage({
                 returnTo={returnTo}
                 actionsClassName="filtersActions"
               />
-              <span className="pill">{items.length} resultados</span>
+              <span className="pill">{items.length} resultados · 10 por página</span>
             </div>
           </div>
         </div>
 
         <div className="settings-group-body">
+          {renderPagination()}
+
           <CustomersTable
             items={items.map((c) => ({ ...c, tenantName: tenantById.get(String(c.tenantId || "")) || "—" }))}
             latestLinks={latestLinksObj}
@@ -250,54 +301,7 @@ export default async function CustomersPage({
             initialTxCustomerId={txCustomerId}
           />
 
-          {(() => {
-            const currentPage = Math.max(1, Number(page) || 1);
-            const hasNext = items.length >= take;
-            const start = Math.max(1, currentPage - 2);
-            const end = hasNext ? currentPage + 2 : currentPage;
-            const pages = [];
-            for (let i = start; i <= end; i += 1) pages.push(i);
-            const baseParams = {
-              ...(q ? { q } : {}),
-              ...(tenantId ? { tenantId } : {})
-            };
-            return (
-              <div className="pagination">
-                <a
-                  className="ghost no-icon page-link page-nav"
-                  href={`/customers?${new URLSearchParams({
-                    ...baseParams,
-                    page: String(Math.max(1, currentPage - 1))
-                  })}`}
-                  aria-disabled={currentPage <= 1}
-                >
-                  Anterior
-                </a>
-                <div className="pagination-pages">
-                  {pages.map((p) => (
-                    <a
-                      key={`customers-page-${p}`}
-                      className={`ghost no-icon page-link ${p === currentPage ? "is-active" : ""}`}
-                      href={`/customers?${new URLSearchParams({ ...baseParams, page: String(p) })}`}
-                      aria-current={p === currentPage ? "page" : undefined}
-                    >
-                      {p}
-                    </a>
-                  ))}
-                </div>
-                <a
-                  className="ghost no-icon page-link page-nav"
-                  href={`/customers?${new URLSearchParams({
-                    ...baseParams,
-                    page: String(currentPage + 1)
-                  })}`}
-                  aria-disabled={!hasNext}
-                >
-                  Siguiente
-                </a>
-              </div>
-            );
-          })()}
+          {renderPagination()}
         </div>
       </section>
     </main>

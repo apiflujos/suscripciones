@@ -71,16 +71,27 @@ customersRouter.get("/", async (_req, res) => {
   const where: any = {};
   if (tenantId) where.tenantId = tenantId;
   if (q) {
-    where.OR = [
-      { name: { contains: q, mode: "insensitive" } },
-      { email: { contains: q, mode: "insensitive" } },
-      { phone: { contains: q, mode: "insensitive" } },
-      { metadata: { path: ["identificacion"], string_contains: q } } as any,
-      { metadata: { path: ["identificacionNumero"], string_contains: q } } as any,
-      { metadata: { path: ["identificationNumber"], string_contains: q } } as any,
-      { metadata: { path: ["documentNumber"], string_contains: q } } as any,
-      { metadata: { path: ["document"], string_contains: q } } as any
-    ];
+    const or: any[] = [];
+    const qLower = q.toLowerCase();
+    const digits = q.replace(/[^\d]/g, "");
+    const isUuid = /^[0-9a-fA-F-]{36}$/.test(q);
+    const isEmail = q.includes("@");
+    if (isUuid) or.push({ id: q });
+    if (isEmail) or.push({ email: { equals: qLower, mode: "insensitive" } });
+    or.push({ name: { contains: q, mode: "insensitive" } });
+    or.push({ email: { contains: q, mode: "insensitive" } });
+    if (digits.length >= 4) {
+      or.push({ phone: { contains: digits } });
+      or.push({ phone: { contains: q } });
+    } else {
+      or.push({ phone: { contains: q, mode: "insensitive" } });
+    }
+    or.push({ metadata: { path: ["identificacion"], string_contains: q } } as any);
+    or.push({ metadata: { path: ["identificacionNumero"], string_contains: q } } as any);
+    or.push({ metadata: { path: ["identificationNumber"], string_contains: q } } as any);
+    or.push({ metadata: { path: ["documentNumber"], string_contains: q } } as any);
+    or.push({ metadata: { path: ["document"], string_contains: q } } as any);
+    where.OR = or;
   }
 
   const items = await prisma.customer.findMany({ where, orderBy: { createdAt: "desc" }, take, skip });
