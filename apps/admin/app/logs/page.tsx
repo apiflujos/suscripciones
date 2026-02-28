@@ -99,6 +99,34 @@ function normalizeJobType(type: any) {
   return v || "—";
 }
 
+function formatAmount(amountInCents?: number | null, currency?: string | null) {
+  if (typeof amountInCents !== "number") return "—";
+  const value = Math.round(amountInCents);
+  const formatted = new Intl.NumberFormat("es-CO").format(Math.max(0, Math.round(value / 100)));
+  return `${formatted} ${currency || "COP"}`;
+}
+
+function renderContactBlock(item: any) {
+  const name = item?.customer?.name || item?.customerName || "—";
+  const email = item?.customer?.email || item?.customerEmail || "";
+  const phone = item?.customer?.phone || item?.customerPhone || "";
+  const meta = [email, phone].filter(Boolean).join(" · ");
+  return (
+    <div style={{ display: "grid", gap: 2 }}>
+      <span>{name || "—"}</span>
+      {meta ? <span className="muted" style={{ fontSize: 12 }}>{meta}</span> : null}
+    </div>
+  );
+}
+
+function paymentStatusChip(raw: any) {
+  const status = String(raw || "").toUpperCase();
+  if (status === "APPROVED" || status === "PAID") return { cls: "is-success", label: "Pagado" };
+  if (status === "PENDING" || status === "PROCESSING") return { cls: "is-warning", label: "Pendiente" };
+  if (status === "DECLINED" || status === "ERROR" || status === "VOIDED" || status === "FAILED") return { cls: "is-error", label: "Fallido" };
+  return { cls: "is-warning", label: status || "—" };
+}
+
 export default async function LogsPage({
   searchParams
 }: {
@@ -384,27 +412,38 @@ export default async function LogsPage({
                 <thead>
                   <tr>
                     <th>Fecha</th>
-                    <th>Contacto</th>
-                    <th>Referencia</th>
+                    <th>Cliente</th>
+                    <th>Plan</th>
                     <th>Estado</th>
                     <th>Monto</th>
+                    <th>Referencia</th>
                     <th>Transacción</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {paymentItems.map((p) => (
-                    <tr key={p.id}>
-                      <td><LocalDateTime value={p.createdAt} /></td>
-                      <td>{p.customer?.name || p.customer?.email || "—"}</td>
-                      <td>{p.reference || "—"}</td>
-                      <td>{p.status || "—"}</td>
-                      <td>{typeof p.amountInCents === "number" ? `${(p.amountInCents / 100).toFixed(2)} ${p.currency || ""}` : "—"}</td>
-                      <td>{p.wompiTransactionId || p.wompiPaymentLinkId || "—"}</td>
-                    </tr>
-                  ))}
+                  {paymentItems.map((p) => {
+                    const chip = paymentStatusChip(p.status);
+                    const planName = p.subscription?.plan?.name || "—";
+                    return (
+                      <tr key={p.id}>
+                        <td><LocalDateTime value={p.createdAt} /></td>
+                        <td>{renderContactBlock(p)}</td>
+                        <td>{planName}</td>
+                        <td>
+                          <span className={`status-chip ${chip.cls}`}>
+                            <span className={`status-led ${chip.cls === "is-success" ? "is-ok" : ""}`} />
+                            {chip.label}
+                          </span>
+                        </td>
+                        <td>{formatAmount(p.amountInCents, p.currency)}</td>
+                        <td>{p.reference || "—"}</td>
+                        <td>{p.wompiTransactionId || p.wompiPaymentLinkId || "—"}</td>
+                      </tr>
+                    );
+                  })}
                   {paymentItems.length === 0 ? (
                     <tr>
-                      <td colSpan={6} style={{ color: "var(--muted)" }}>
+                      <td colSpan={7} style={{ color: "var(--muted)" }}>
                         Sin pagos.
                       </td>
                     </tr>
@@ -418,29 +457,37 @@ export default async function LogsPage({
                 <thead>
                   <tr>
                     <th>Fecha</th>
-                    <th>Evento</th>
+                    <th>Cliente</th>
+                    <th>Monto</th>
+                    <th>Referencia</th>
                     <th>Tipo</th>
                     <th>Plan</th>
                     <th>Estado</th>
-                    <th>Checksum</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {webhookItems.map((e) => (
-                    <tr key={e.id}>
-                      <td><LocalDateTime value={e.receivedAt} /></td>
-                      <td>{e.eventName || "—"}</td>
-                      <td>{e.paymentType || "—"}</td>
-                      <td>{e.planName || "—"}</td>
-                      <td>{e.processStatus || "—"}</td>
-                      <td style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>
-                        {e.checksum || "—"}
-                      </td>
-                    </tr>
-                  ))}
+                  {webhookItems.map((e) => {
+                    const chip = paymentStatusChip(e.paymentStatus);
+                    return (
+                      <tr key={e.id}>
+                        <td><LocalDateTime value={e.receivedAt} /></td>
+                        <td>{renderContactBlock(e)}</td>
+                        <td>{formatAmount(e.amountInCents, e.currency)}</td>
+                        <td>{e.reference || "—"}</td>
+                        <td>{e.paymentType || e.eventName || "—"}</td>
+                        <td>{e.planName || "—"}</td>
+                        <td>
+                          <span className={`status-chip ${chip.cls}`}>
+                            <span className={`status-led ${chip.cls === "is-success" ? "is-ok" : ""}`} />
+                            {chip.label}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                   {webhookItems.length === 0 ? (
                     <tr>
-                      <td colSpan={6} style={{ color: "var(--muted)" }}>
+                      <td colSpan={7} style={{ color: "var(--muted)" }}>
                         Sin eventos.
                       </td>
                     </tr>

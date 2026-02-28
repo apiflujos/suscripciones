@@ -38,7 +38,7 @@ logsRouter.get("/payments", async (req, res) => {
     orderBy: { createdAt: "desc" },
     take,
     skip,
-    include: { subscription: true, customer: true, attempts: { orderBy: { createdAt: "desc" }, take: 5 } }
+    include: { subscription: { include: { plan: true } }, customer: true, attempts: { orderBy: { createdAt: "desc" }, take: 5 } }
   });
   res.json({ items });
 });
