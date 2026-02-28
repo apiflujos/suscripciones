@@ -1203,6 +1203,12 @@ a {
   color: var(--text-faint);
 }
 
+@media (max-width: 720px) {
+  .page-desktop-only {
+    display: none;
+  }
+}
+
 html[data-theme="dark"] .filtersPanel,
 html[data-theme="pink-dark"] .filtersPanel {
   border-color: var(--form-border);

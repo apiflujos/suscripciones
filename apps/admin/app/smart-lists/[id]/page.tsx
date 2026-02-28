@@ -68,28 +68,36 @@ export default async function SmartListDetail({
         {(() => {
           const currentPage = Math.max(1, Number(page) || 1);
           const hasNext = items.length >= take;
-          const start = Math.max(1, currentPage - 2);
-          const end = hasNext ? currentPage + 2 : currentPage;
+          const maxForward = hasNext ? 1 : 0;
+          const desktopWindow = 10;
+          const end = currentPage + maxForward;
+          const start = Math.max(1, end - (desktopWindow - 1));
           const pages = [];
           for (let i = start; i <= end; i += 1) pages.push(i);
+          const mobileWindow = 5;
+          const mobileStart = Math.max(start, Math.min(currentPage - 2, end - (mobileWindow - 1)));
+          const mobileEnd = Math.min(end, mobileStart + (mobileWindow - 1));
           return (
-            <div className="pagination">
-              <a className="ghost no-icon page-link page-nav" href={`/smart-lists/${id}?page=${Math.max(1, currentPage - 1)}`} aria-disabled={currentPage <= 1}>
+            <div className="pagination pagination-indicator">
+              <a className="page-link page-nav" href={`/smart-lists/${id}?page=${Math.max(1, currentPage - 1)}`} aria-disabled={currentPage <= 1}>
                 Anterior
               </a>
               <div className="pagination-pages">
-                {pages.map((p) => (
-                  <a
-                    key={`smartlist-detail-${p}`}
-                    className={`ghost no-icon page-link ${p === currentPage ? "is-active" : ""}`}
-                    href={`/smart-lists/${id}?page=${p}`}
-                    aria-current={p === currentPage ? "page" : undefined}
-                  >
-                    {p}
-                  </a>
-                ))}
+                {pages.map((p) => {
+                  const isDesktopOnly = p < mobileStart || p > mobileEnd;
+                  return (
+                    <a
+                      key={`smartlist-detail-${p}`}
+                      className={`page-link ${p === currentPage ? "is-active" : ""} ${isDesktopOnly ? "page-desktop-only" : ""}`}
+                      href={`/smart-lists/${id}?page=${p}`}
+                      aria-current={p === currentPage ? "page" : undefined}
+                    >
+                      {p}
+                    </a>
+                  );
+                })}
               </div>
-              <a className="ghost no-icon page-link page-nav" href={`/smart-lists/${id}?page=${currentPage + 1}`} aria-disabled={!hasNext}>
+              <a className="page-link page-nav" href={`/smart-lists/${id}?page=${currentPage + 1}`} aria-disabled={!hasNext}>
                 Siguiente
               </a>
             </div>

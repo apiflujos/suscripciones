@@ -620,10 +620,15 @@ export default async function LogsPage({
             const currentPage = Math.max(1, Number(page) || 1);
             const count = tab === "system" ? normalized.length : tab === "messages" ? messageItems.length : tab === "jobs" ? jobItems.length : tab === "payments" ? paymentItems.length : webhookItems.length;
             const hasNext = count >= take;
-            const start = Math.max(1, currentPage - 2);
-            const end = hasNext ? currentPage + 2 : currentPage;
+            const maxForward = hasNext ? 1 : 0;
+            const desktopWindow = 10;
+            const end = currentPage + maxForward;
+            const start = Math.max(1, end - (desktopWindow - 1));
             const pages = [];
             for (let i = start; i <= end; i += 1) pages.push(i);
+            const mobileWindow = 5;
+            const mobileStart = Math.max(start, Math.min(currentPage - 2, end - (mobileWindow - 1)));
+            const mobileEnd = Math.min(end, mobileStart + (mobileWindow - 1));
             const baseParams = {
               tab,
               ...(q ? { q } : {}),
@@ -635,9 +640,9 @@ export default async function LogsPage({
               ...(tenantId ? { tenantId } : {})
             };
             return (
-              <div className="pagination">
+              <div className="pagination pagination-indicator">
                 <a
-                  className="ghost no-icon page-link page-nav"
+                  className="page-link page-nav"
                   href={`/logs?${new URLSearchParams({
                     ...baseParams,
                     page: String(Math.max(1, currentPage - 1))
@@ -647,19 +652,22 @@ export default async function LogsPage({
                   Anterior
                 </a>
                 <div className="pagination-pages">
-                  {pages.map((p) => (
-                    <a
-                      key={`logs-page-${p}`}
-                      className={`ghost no-icon page-link ${p === currentPage ? "is-active" : ""}`}
-                      href={`/logs?${new URLSearchParams({ ...baseParams, page: String(p) })}`}
-                      aria-current={p === currentPage ? "page" : undefined}
-                    >
-                      {p}
-                    </a>
-                  ))}
+                  {pages.map((p) => {
+                    const isDesktopOnly = p < mobileStart || p > mobileEnd;
+                    return (
+                      <a
+                        key={`logs-page-${p}`}
+                        className={`page-link ${p === currentPage ? "is-active" : ""} ${isDesktopOnly ? "page-desktop-only" : ""}`}
+                        href={`/logs?${new URLSearchParams({ ...baseParams, page: String(p) })}`}
+                        aria-current={p === currentPage ? "page" : undefined}
+                      >
+                        {p}
+                      </a>
+                    );
+                  })}
                 </div>
                 <a
-                  className="ghost no-icon page-link page-nav"
+                  className="page-link page-nav"
                   href={`/logs?${new URLSearchParams({
                     ...baseParams,
                     page: String(currentPage + 1)
