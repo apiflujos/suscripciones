@@ -3,6 +3,14 @@ import crypto from "crypto";
 import { normalizeToken } from "../../../lib/normalizeToken";
 import { getRequiredApiBase } from "../../../lib/adminApi";
 
+function buildChatwootLinkMessage(args: { name?: string; lead: string; url: string }) {
+  const safeName = String(args.name || "Cliente").trim() || "Cliente";
+  const safeLead = String(args.lead || "").trim();
+  const safeUrl = String(args.url || "").trim();
+  const leadLine = safeLead ? `**${safeLead}**` : "";
+  return [`Hola ${safeName},`, "", leadLine, safeUrl].filter((line) => line !== "").join("\n");
+}
+
 function pesosToCents(input: string): number {
   const digits = String(input || "").replace(/[^\d-]/g, "");
   if (!digits) return 0;
@@ -58,6 +66,7 @@ export async function POST(req: Request) {
   }
 
   const checkoutUrl = String(json?.checkoutUrl || "").trim();
+  const rulesActive = Boolean(json?.notificationsRulesActive);
   let publicUrl: string | null = null;
   let resolvedTemplateId = templateIdInput || "";
   try {
@@ -129,12 +138,44 @@ export async function POST(req: Request) {
         body: JSON.stringify({ metadata: nextMeta })
       });
 
+      let chatwootError: string | null = null;
+      let fallbackSent = false;
+      if (!rulesActive && publicUrl) {
+        const msg = buildChatwootLinkMessage({
+          name: customerName || "Cliente",
+          lead: "Aquí está tu link de pago:",
+          url: publicUrl
+        });
+        try {
+          const chatRes = await fetch(`${API_BASE}/admin/chatwoot/messages`, {
+            method: "POST",
+            headers: {
+              authorization: `Bearer ${token}`,
+              "x-admin-token": token,
+              "content-type": "application/json"
+            },
+            body: JSON.stringify({ customerId, content: msg })
+          });
+          if (!chatRes.ok) {
+            const chatJson = await chatRes.json().catch(() => null);
+            chatwootError = String(chatJson?.error || chatJson?.message || `chatwoot_error_${chatRes.status}`);
+          } else {
+            fallbackSent = true;
+          }
+        } catch (err: any) {
+          chatwootError = String(err?.message || "chatwoot_request_failed");
+        }
+      }
+
       return NextResponse.json({
         ok: true,
         checkoutUrl: checkoutUrl || null,
         publicUrl,
         notificationsScheduled: typeof json?.notificationsScheduled === "number" ? json.notificationsScheduled : null,
-        chatwootError: null
+        notificationsSent: typeof json?.notificationsSent === "number" ? json.notificationsSent : null,
+        notificationsRulesActive: rulesActive,
+        chatwootError,
+        fallbackSent
       });
     }
   } catch {
@@ -146,6 +187,9 @@ export async function POST(req: Request) {
     checkoutUrl: checkoutUrl || null,
     publicUrl,
     notificationsScheduled: typeof json?.notificationsScheduled === "number" ? json.notificationsScheduled : null,
-    chatwootError: null
+    notificationsSent: typeof json?.notificationsSent === "number" ? json.notificationsSent : null,
+    notificationsRulesActive: rulesActive,
+    chatwootError: null,
+    fallbackSent: false
   });
 }

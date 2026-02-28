@@ -168,13 +168,13 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
 
 export async function schedulePaymentLinkNotifications(args: { paymentId: string; forceNow?: boolean }) {
   const paymentId = String(args.paymentId || "").trim();
-  if (!paymentId) return { scheduled: 0 };
+  if (!paymentId) return { scheduled: 0, sentNow: 0, rulesActive: false };
 
   const payment = await prisma.payment.findUnique({
     where: { id: paymentId },
     select: { id: true, customerId: true, subscriptionId: true }
   });
-  if (!payment) return { scheduled: 0 };
+  if (!payment) return { scheduled: 0, sentNow: 0, rulesActive: false };
 
   const cfg = await getNotificationsConfig();
   const rules = cfg.rules.filter((r) => r.enabled && r.trigger === "PAYMENT_LINK_CREATED");
@@ -186,7 +186,7 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
       paymentId: payment.id,
       customerId: payment.customerId
     }).catch(() => {});
-    return { scheduled: 0 };
+    return { scheduled: 0, sentNow: 0, rulesActive: false };
   }
 
   const now = new Date();
@@ -194,6 +194,7 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
   const anchorIso = anchorAt.toISOString();
 
   let scheduled = 0;
+  let sentNow = 0;
   for (const rule of rules) {
     const offsetsSecondsBase = (rule as any).offsetsSeconds?.length
       ? (rule as any).offsetsSeconds
@@ -224,6 +225,7 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
       }
       if (args.forceNow || runAt.getTime() <= now.getTime()) {
         await subscriptionReminder({ ...jobPayload, immediateSend: true }).catch(() => {});
+        sentNow++;
       }
     }
   }
@@ -236,13 +238,13 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
     scheduled
   }).catch(() => {});
 
-  return { scheduled };
+  return { scheduled, sentNow, rulesActive: true };
 }
 
 export async function scheduleCatalogLinkNotifications(args: { customerId: string; catalogUrl: string; forceNow?: boolean }) {
   const customerId = String(args.customerId || "").trim();
   const catalogUrl = String(args.catalogUrl || "").trim();
-  if (!customerId || !catalogUrl) return { scheduled: 0 };
+  if (!customerId || !catalogUrl) return { scheduled: 0, sentNow: 0, rulesActive: false };
 
   const cfg = await getNotificationsConfig();
   const rules = cfg.rules.filter((r) => r.enabled && r.trigger === "CATALOG_LINK_CREATED");
@@ -253,13 +255,14 @@ export async function scheduleCatalogLinkNotifications(args: { customerId: strin
       environment: env,
       customerId
     }).catch(() => {});
-    return { scheduled: 0 };
+    return { scheduled: 0, sentNow: 0, rulesActive: false };
   }
 
   const now = new Date();
   const anchorAt = now;
   const anchorIso = anchorAt.toISOString();
   let scheduled = 0;
+  let sentNow = 0;
 
   for (const rule of rules) {
     const offsetsSeconds = (rule as any).offsetsSeconds?.length
@@ -289,6 +292,7 @@ export async function scheduleCatalogLinkNotifications(args: { customerId: strin
       }
       if (args.forceNow || runAt.getTime() <= now.getTime()) {
         await subscriptionReminder({ ...jobPayload, immediateSend: true }).catch(() => {});
+        sentNow++;
       }
     }
   }
@@ -300,13 +304,13 @@ export async function scheduleCatalogLinkNotifications(args: { customerId: strin
     scheduled
   }).catch(() => {});
 
-  return { scheduled };
+  return { scheduled, sentNow, rulesActive: true };
 }
 
 export async function scheduleTokenizationLinkNotifications(args: { customerId: string; tokenUrl: string; forceNow?: boolean }) {
   const customerId = String(args.customerId || "").trim();
   const tokenUrl = String(args.tokenUrl || "").trim();
-  if (!customerId || !tokenUrl) return { scheduled: 0 };
+  if (!customerId || !tokenUrl) return { scheduled: 0, sentNow: 0, rulesActive: false };
 
   const cfg = await getNotificationsConfig();
   const rules = cfg.rules.filter((r) => r.enabled && r.trigger === "TOKENIZATION_LINK_CREATED");
@@ -317,13 +321,14 @@ export async function scheduleTokenizationLinkNotifications(args: { customerId: 
       environment: env,
       customerId
     }).catch(() => {});
-    return { scheduled: 0 };
+    return { scheduled: 0, sentNow: 0, rulesActive: false };
   }
 
   const now = new Date();
   const anchorAt = now;
   const anchorIso = anchorAt.toISOString();
   let scheduled = 0;
+  let sentNow = 0;
 
   for (const rule of rules) {
     const offsetsSecondsBase = (rule as any).offsetsSeconds?.length
@@ -354,6 +359,7 @@ export async function scheduleTokenizationLinkNotifications(args: { customerId: 
       }
       if (args.forceNow || runAt.getTime() <= now.getTime()) {
         await subscriptionReminder({ ...jobPayload, immediateSend: true }).catch(() => {});
+        sentNow++;
       }
     }
   }
@@ -365,5 +371,5 @@ export async function scheduleTokenizationLinkNotifications(args: { customerId: 
     scheduled
   }).catch(() => {});
 
-  return { scheduled };
+  return { scheduled, sentNow, rulesActive: true };
 }

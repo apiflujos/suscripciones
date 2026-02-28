@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "../db/prisma";
 import { WompiClient } from "../providers/wompi/client";
 import { getWompiApiBaseUrl, getWompiCheckoutLinkBaseUrl, getWompiPrivateKey, getWompiPublicKey } from "../services/runtimeConfig";
-import { ensureChatwootContactForCustomer, syncChatwootAttributesForCustomer } from "../services/chatwootSync";
+import { syncChatwootAttributesForCustomer } from "../services/chatwootSync";
 import { consumeApp } from "../services/superAdminApp";
 import { getEffectiveTenantId } from "../services/tenantContext";
 
@@ -137,7 +137,6 @@ customersRouter.post("/", async (req, res) => {
   if (!tenantId) return res.status(400).json({ error: "tenant_required" });
   const customer = await prisma.customer.create({ data: { ...(parsed.data as any), tenantId } });
   await consumeApp("customers_created", { amount: 1, source: "api:customers.create", meta: { customerId: customer.id } });
-  await ensureChatwootContactForCustomer(customer.id).catch(() => {});
   await syncChatwootAttributesForCustomer(customer.id).catch(() => {});
   res.status(201).json({ customer });
 });
@@ -160,7 +159,6 @@ customersRouter.put("/:id", async (req, res) => {
       if (!existing || (existing.tenantId && existing.tenantId !== tenantId)) return res.status(404).json({ error: "customer_not_found" });
     }
     const updated = await prisma.customer.update({ where: { id: customerId }, data });
-    await ensureChatwootContactForCustomer(updated.id).catch(() => {});
     await syncChatwootAttributesForCustomer(updated.id).catch(() => {});
     res.json({ customer: updated });
   } catch (err: any) {

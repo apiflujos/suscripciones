@@ -690,7 +690,7 @@ export function CustomersTable({
                     openNotify("fail", mapSendError(msg));
                     return;
                   }
-                  if (typeof json?.notificationsScheduled === "number" && json.notificationsScheduled === 0) {
+                  if (json?.notificationsRulesActive === false && !json?.fallbackSent) {
                     setSendError((prev) => ({ ...prev, [customer.id]: "no_rules" }));
                     closePayModal();
                     openNotify("fail", "No hay notificaciones activas para enviar el link.");
@@ -1213,7 +1213,7 @@ export function CustomersTable({
                               openNotify("fail", mapSendError(msg));
                               return;
                             }
-                            if (typeof json?.notificationsScheduled === "number" && json.notificationsScheduled === 0) {
+                            if (json?.notificationsRulesActive === false && !json?.fallbackSent) {
                               setSendError((prev) => ({ ...prev, [detailsCustomer.id]: "no_rules" }));
                               openNotify("fail", "No hay notificaciones activas para enviar el link.");
                               return;

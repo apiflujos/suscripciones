@@ -377,7 +377,7 @@ export async function syncChatwootAttributesForCustomer(customerId: string) {
   const nextHash = createHash("sha1").update(customJson).digest("hex");
   const prevHash = meta?.chatwoot?.attributesHash;
   if (prevHash && prevHash === nextHash) {
-    return { ok: true as const, skipped: true as const };
+    return { ok: true as const, skipped: true as const, contactId: ensured.contactId, sourceId: ensured.sourceId };
   }
 
   const client = new ChatwootClient({
@@ -409,5 +409,5 @@ export async function syncChatwootAttributesForCustomer(customerId: string) {
   };
   await prisma.customer.update({ where: { id: customer.id }, data: { metadata: merged as any } }).catch(() => {});
 
-  return { ok: true as const };
+  return { ok: true as const, contactId: ensured.contactId, sourceId: ensured.sourceId };
 }

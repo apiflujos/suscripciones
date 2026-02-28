@@ -3,7 +3,7 @@ import { prisma } from "../db/prisma";
 import { WompiClient } from "../providers/wompi/client";
 import { systemLog } from "./systemLog";
 import { sha256Hex } from "../lib/crypto";
-import { ensureChatwootContactForCustomer, syncChatwootAttributesForCustomer } from "./chatwootSync";
+import { syncChatwootAttributesForCustomer } from "./chatwootSync";
 import { getCredential } from "./credentials";
 import {
   getChatwootConfig,
@@ -307,7 +307,6 @@ export async function createPaymentLinkForSubscription(args: {
 
   const chatwoot = await getChatwootConfig();
   if (chatwoot.configured) {
-    await ensureChatwootContactForCustomer(sub.customerId).catch(() => {});
     await syncChatwootAttributesForCustomer(sub.customerId).catch(() => {});
   }
 

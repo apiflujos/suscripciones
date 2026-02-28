@@ -3,6 +3,14 @@ import { normalizeToken } from "../../../lib/normalizeToken";
 import { getRequiredApiBase } from "../../../lib/adminApi";
 import crypto from "crypto";
 
+function buildChatwootLinkMessage(args: { name?: string; lead: string; url: string }) {
+  const safeName = String(args.name || "Cliente").trim() || "Cliente";
+  const safeLead = String(args.lead || "").trim();
+  const safeUrl = String(args.url || "").trim();
+  const leadLine = safeLead ? `**${safeLead}**` : "";
+  return [`Hola ${safeName},`, "", leadLine, safeUrl].filter((line) => line !== "").join("\n");
+}
+
 export async function POST(req: Request) {
   const API_BASE = getRequiredApiBase();
   const token = normalizeToken(process.env.ADMIN_API_TOKEN || "");
@@ -52,6 +60,36 @@ export async function POST(req: Request) {
   if (!scheduleRes.ok) {
     return NextResponse.json({ ok: false, error: scheduleJson?.error || "request_failed" }, { status: scheduleRes.status });
   }
+  const rulesActive = Boolean(scheduleJson?.rulesActive);
+
+  let chatwootError: string | null = null;
+  let fallbackSent = false;
+  if (!rulesActive) {
+    const msg = buildChatwootLinkMessage({
+      name: customerName || "Cliente",
+      lead: "Activa tu suscripción guardando tu método de pago aquí:",
+      url: link
+    });
+    try {
+      const chatRes = await fetch(`${API_BASE}/admin/chatwoot/messages`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "x-admin-token": token,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({ customerId, content: msg })
+      });
+      if (!chatRes.ok) {
+        const chatJson = await chatRes.json().catch(() => null);
+        chatwootError = String(chatJson?.error || chatJson?.message || `chatwoot_error_${chatRes.status}`);
+      } else {
+        fallbackSent = true;
+      }
+    } catch (err: any) {
+      chatwootError = String(err?.message || "chatwoot_request_failed");
+    }
+  }
 
   const existing = await fetch(
     `${API_BASE}/admin/customers/${customerId}${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""}`,
@@ -91,5 +129,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "store_failed" }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, link, notificationsScheduled: scheduleJson?.scheduled ?? 0 });
+  return NextResponse.json({
+    ok: true,
+    link,
+    notificationsScheduled: scheduleJson?.scheduled ?? 0,
+    notificationsSent: scheduleJson?.sentNow ?? 0,
+    notificationsRulesActive: rulesActive,
+    chatwootError,
+    fallbackSent
+  });
 }

@@ -4,7 +4,7 @@ import { prisma } from "../db/prisma";
 import { ChatwootMessageType, MessageStatus, RetryJobType } from "@prisma/client";
 import { ChatwootClient } from "../providers/chatwoot/client";
 import { getChatwootConfig } from "../services/runtimeConfig";
-import { ensureChatwootContactForCustomer, syncChatwootAttributesForCustomer } from "../services/chatwootSync";
+import { syncChatwootAttributesForCustomer } from "../services/chatwootSync";
 import { sendChatwootMessage } from "../jobs/handlers/sendChatwootMessage";
 
 export const chatwootRouter = express.Router();
@@ -30,10 +30,9 @@ chatwootRouter.post("/contacts/sync", async (req, res) => {
   const parsed = syncSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
 
-  const result = await ensureChatwootContactForCustomer(parsed.data.customerId);
+  const result = await syncChatwootAttributesForCustomer(parsed.data.customerId);
   if (!result.ok) return res.status(400).json({ error: result.reason });
-  await syncChatwootAttributesForCustomer(parsed.data.customerId).catch(() => {});
-  return res.json({ contactId: result.contactId, sourceId: result.sourceId });
+  return res.json({ contactId: result.contactId, sourceId: result.sourceId, skipped: result.skipped ?? false });
 });
 
 const createContactSchema = z.object({
@@ -190,9 +189,8 @@ chatwootRouter.post("/messages", async (req, res) => {
 
     try {
       if (!knownContactId) {
-        const synced = await ensureChatwootContactForCustomer(customer.id);
+        const synced = await syncChatwootAttributesForCustomer(customer.id);
         if (!synced.ok) return res.status(400).json({ error: synced.reason });
-        await syncChatwootAttributesForCustomer(customer.id).catch(() => {});
         conversationId = (await client.createConversation({ contactId: synced.contactId, sourceId: synced.sourceId })).conversationId;
       } else {
         await syncChatwootAttributesForCustomer(customer.id).catch(() => {});

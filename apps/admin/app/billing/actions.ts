@@ -69,6 +69,27 @@ function buildChatwootLinkMessage(args: { name?: string; lead: string; url: stri
   return `<p>Hola ${safeName},</p><p>${safeLead}</p><p><a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${safeUrl}</a></p>`;
 }
 
+async function hasNotificationRule(trigger: string): Promise<boolean | null> {
+  try {
+    const cfg = await adminFetch("/admin/notifications/config", { method: "GET" });
+    const rules = Array.isArray(cfg?.config?.rules) ? cfg.config.rules : [];
+    return rules.some((r: any) => r?.enabled && r?.trigger === trigger);
+  } catch {
+    return null;
+  }
+}
+
+async function sendChatwootMessageSafe(args: { customerId: string; content: string }) {
+  try {
+    await adminFetch("/admin/chatwoot/messages", {
+      method: "POST",
+      body: JSON.stringify({ customerId: args.customerId, content: args.content })
+    });
+  } catch {
+    // best effort
+  }
+}
+
 function readTenantIds(formData: FormData): string[] {
   const raw = formData.getAll("tenantIds").map((v) => String(v || "").trim()).filter(Boolean);
   const single = String(formData.get("tenantId") || "").trim();
@@ -582,15 +603,15 @@ export async function createPlanAndSubscription(formData: FormData) {
         body: JSON.stringify({ metadata: nextMeta })
       }).catch(() => {});
 
-      const content = buildChatwootLinkMessage({
-        name: customer?.name || "Cliente",
-        lead: "Aquí está tu link de pago:",
-        url
-      });
-      await adminFetch("/admin/chatwoot/messages", {
-        method: "POST",
-        body: JSON.stringify({ customerId, content })
-      }).catch(() => {});
+      const rulesActive = await hasNotificationRule("PAYMENT_LINK_CREATED");
+      if (rulesActive === false) {
+        const content = buildChatwootLinkMessage({
+          name: customer?.name || "Cliente",
+          lead: "Aquí está tu link de pago:",
+          url
+        });
+        await sendChatwootMessageSafe({ customerId, content });
+      }
 
       redirect(
         mergeQuery(returnTo, {
@@ -632,15 +653,24 @@ export async function createPlanAndSubscription(formData: FormData) {
         body: JSON.stringify({ metadata: nextMeta })
       }).catch(() => {});
 
-      const content = buildChatwootLinkMessage({
-        name: customer?.name || "Cliente",
-        lead: "Activa tu suscripción guardando tu método de pago aquí:",
-        url
-      });
-      await adminFetch("/admin/chatwoot/messages", {
-        method: "POST",
-        body: JSON.stringify({ customerId, content })
-      }).catch(() => {});
+      let rulesActive: boolean | null = null;
+      try {
+        const scheduled = await adminFetch("/admin/notifications/schedule/tokenization?forceNow=1", {
+          method: "POST",
+          body: JSON.stringify({ customerId, tokenUrl: url })
+        });
+        rulesActive = Boolean(scheduled?.rulesActive);
+      } catch {
+        rulesActive = null;
+      }
+      if (rulesActive === false) {
+        const content = buildChatwootLinkMessage({
+          name: customer?.name || "Cliente",
+          lead: "Activa tu suscripción guardando tu método de pago aquí:",
+          url
+        });
+        await sendChatwootMessageSafe({ customerId, content });
+      }
 
       redirect(mergeQuery(returnTo, { created: "1", checkoutUrl: url, customerId, ...(tenantId ? { tenantId } : {}) }));
     }
@@ -705,15 +735,15 @@ export async function sendCentralComPaymentLink(formData: FormData) {
     const checkoutUrl = String(json?.checkoutUrl || "").trim();
     if (!checkoutUrl) return redirect(mergeQuery(returnTo, { error: "checkout_url_missing", ...(tenantId ? { tenantId } : {}) }));
 
-    const content = buildChatwootLinkMessage({
-      name: "Cliente",
-      lead: "Aquí está tu link de pago:",
-      url: checkoutUrl
-    });
-    await adminFetch("/admin/chatwoot/messages", {
-      method: "POST",
-      body: JSON.stringify({ customerId, content })
-    });
+    const rulesActive = await hasNotificationRule("PAYMENT_LINK_CREATED");
+    if (rulesActive === false) {
+      const content = buildChatwootLinkMessage({
+        name: "Cliente",
+        lead: "Aquí está tu link de pago:",
+        url: checkoutUrl
+      });
+      await sendChatwootMessageSafe({ customerId, content });
+    }
 
     redirect(
       mergeQuery(returnTo, {
@@ -778,15 +808,24 @@ export async function sendCentralComTokenizationLink(formData: FormData) {
       body: JSON.stringify({ metadata: nextMeta })
     }).catch(() => {});
 
-    const content = buildChatwootLinkMessage({
-      name: customer?.name || "Cliente",
-      lead: "Activa tu suscripción guardando tu método de pago aquí:",
-      url
-    });
-    await adminFetch("/admin/chatwoot/messages", {
-      method: "POST",
-      body: JSON.stringify({ customerId, content })
-    });
+    let rulesActive: boolean | null = null;
+    try {
+      const scheduled = await adminFetch("/admin/notifications/schedule/tokenization?forceNow=1", {
+        method: "POST",
+        body: JSON.stringify({ customerId, tokenUrl: url })
+      });
+      rulesActive = Boolean(scheduled?.rulesActive);
+    } catch {
+      rulesActive = null;
+    }
+    if (rulesActive === false) {
+      const content = buildChatwootLinkMessage({
+        name: customer?.name || "Cliente",
+        lead: "Activa tu suscripción guardando tu método de pago aquí:",
+        url
+      });
+      await sendChatwootMessageSafe({ customerId, content });
+    }
 
     redirect(mergeQuery(returnTo, { central: "sent", tokenUrl: url, customerId, ...(tenantId ? { tenantId } : {}) }));
   } catch (err: any) {
