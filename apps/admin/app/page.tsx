@@ -330,21 +330,21 @@ export default async function Home({
   const linkConversionDeltaPp = hasPrev ? linkConversionPct - prevLinkConversion : null;
   const plansDeltaPct = hasPrev ? pctChange(metrics.json?.totals?.totalPlansSold || 0, prevPlansSold) : null;
 
-  const alerts: Array<{ title: string; detail: string }> = [];
+  const alerts: Array<{ title: string; detail: string; level: "warning" | "danger" }> = [];
   if (totalPayments >= 10 && approvalPct < 80) {
-    alerts.push({ title: "Baja tasa de aprobación", detail: `Solo ${fmtPct(approvalPct)} de pagos aprobados.` });
+    alerts.push({ title: "Baja tasa de aprobación", detail: `Solo ${fmtPct(approvalPct)} de pagos aprobados.`, level: "danger" });
   }
   if (linksSentTotal >= 10 && linkConversionPct < 10) {
-    alerts.push({ title: "Conversión de links baja", detail: `Conversión actual: ${fmtPct(linkConversionPct)}.` });
+    alerts.push({ title: "Conversión de links baja", detail: `Conversión actual: ${fmtPct(linkConversionPct)}.`, level: "warning" });
   }
   if (revenueDeltaPct != null && revenueDeltaPct <= -10) {
-    alerts.push({ title: "Ingresos en descenso", detail: `Variación: ${fmtDelta(revenueDeltaPct)} vs periodo anterior.` });
+    alerts.push({ title: "Ingresos en descenso", detail: `Variación: ${fmtDelta(revenueDeltaPct)} vs periodo anterior.`, level: "warning" });
   }
   if (activeDelta < 0) {
-    alerts.push({ title: "Menos suscripciones activas", detail: `Se perdieron ${Math.abs(activeDelta)} suscriptores en el periodo.` });
+    alerts.push({ title: "Menos suscripciones activas", detail: `Se perdieron ${Math.abs(activeDelta)} suscriptores en el periodo.`, level: "warning" });
   }
   if (metrics.json?.totals?.auto?.churnMonthlyPct != null && Number(metrics.json.totals.auto.churnMonthlyPct) > 5) {
-    alerts.push({ title: "Churn mensual alto", detail: `Churn: ${fmtPct(metrics.json.totals.auto.churnMonthlyPct)}.` });
+    alerts.push({ title: "Churn mensual alto", detail: `Churn: ${fmtPct(metrics.json.totals.auto.churnMonthlyPct)}.`, level: "danger" });
   }
 
   return (
@@ -353,7 +353,7 @@ export default async function Home({
         <div className="settings-group-header">
           <div className="filtersRow">
             <div className="filtersLeft">
-              <div className="filtersNote">Ajusta rango y granularidad para leer la evolución de las métricas.</div>
+              <div className="filtersNote">Filtros de análisis</div>
               <div className="filtersPanel">
                 <form method="get" className="filtersForm">
                   <div className="field" style={{ margin: 0 }}>
@@ -449,7 +449,7 @@ export default async function Home({
                 {alerts.length ? (
                   <div className="alerts-grid">
                     {alerts.map((a, idx) => (
-                      <div key={`alert-${idx}`} className="alert-item">
+                      <div key={`alert-${idx}`} className={`alert-item ${a.level === "danger" ? "is-danger" : "is-warning"}`}>
                         <div className="alert-title">{a.title}</div>
                         <div className="alert-detail">{a.detail}</div>
                       </div>
@@ -461,7 +461,7 @@ export default async function Home({
               </div>
 
               <div className="grid3">
-                <div className="card cardPad metric-card">
+                <div className="card cardPad metric-card tone-primary">
                   <div className="metric-label">Ingresos totales</div>
                   <div className="metric-value">${fmtMoneyCop(totalRevenue)} COP</div>
                   <div className="metric-sub">
@@ -471,7 +471,7 @@ export default async function Home({
                     </span>
                   </div>
                 </div>
-                <div className="card cardPad metric-card">
+                <div className="card cardPad metric-card tone-success">
                   <div className="metric-label">Tasa de aprobación</div>
                   <div className="metric-value">{fmtPct(approvalPct)}</div>
                   <div className="metric-sub">
@@ -479,7 +479,7 @@ export default async function Home({
                     <span className={`delta ${approvalDeltaPp == null ? "flat" : approvalDeltaPp >= 0 ? "up" : "down"}`}>{fmtDeltaPp(approvalDeltaPp)}</span>
                   </div>
                 </div>
-                <div className="card cardPad metric-card">
+                <div className="card cardPad metric-card tone-warning">
                   <div className="metric-label">Conversión link → pago</div>
                   <div className="metric-value">{fmtPct(linkConversionPct)}</div>
                   <div className="metric-sub">
@@ -487,17 +487,17 @@ export default async function Home({
                     <span className={`delta ${linkConversionDeltaPp == null ? "flat" : linkConversionDeltaPp >= 0 ? "up" : "down"}`}>{fmtDeltaPp(linkConversionDeltaPp)}</span>
                   </div>
                 </div>
-                <div className="card cardPad metric-card">
+                <div className="card cardPad metric-card tone-info">
                   <div className="metric-label">Suscripciones activas</div>
                   <div className="metric-value">{totalActiveSubscriptions}</div>
                   <div className="metric-sub">Δ {activeDelta >= 0 ? "+" : ""}{activeDelta} ({fmtPct(activeDeltaPct)})</div>
                 </div>
-                <div className="card cardPad metric-card">
+                <div className="card cardPad metric-card tone-primary">
                   <div className="metric-label">MRR automático</div>
                   <div className="metric-value">${fmtMoneyCop(autoMrr)} COP</div>
                   <div className="metric-sub">Churn mensual: {fmtPct(metrics.json?.totals?.auto?.churnMonthlyPct)}</div>
                 </div>
-                <div className="card cardPad metric-card">
+                <div className="card cardPad metric-card tone-warning">
                   <div className="metric-label">Planes vendidos</div>
                   <div className="metric-value">{metrics.json?.totals?.totalPlansSold || 0}</div>
                   <div className="metric-sub">

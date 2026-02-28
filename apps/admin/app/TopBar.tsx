@@ -8,7 +8,7 @@ import type { AdminSession } from "../lib/session";
 type Header = { title: string; subtitle: string };
 
 function getHeader(pathname: string): Header {
-  if (pathname === "/") return { title: "Métricas", subtitle: "Visibilidad operativa en tiempo real." };
+  if (pathname === "/") return { title: "Métricas", subtitle: "Ajusta rango y granularidad para leer la evolución de las métricas." };
   if (pathname.startsWith("/logs")) return { title: "Logs de API", subtitle: "Seguimiento de procesos y sincronizaciones." };
   if (pathname.startsWith("/customers")) return { title: "Contactos", subtitle: "Clientes y datos de contacto." };
   if (pathname.startsWith("/products")) return { title: "Productos y Servicios", subtitle: "Catálogo para cobranza recurrente." };
@@ -71,9 +71,9 @@ export function TopBar({ session }: { session: AdminSession | null }) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/brand/logo.png" alt="Logo" className="topbarLogo" />
           </Link>
-          <div style={{ display: "grid" }}>
-            <h1>{header.title}</h1>
-            <div className="subtitle">{header.subtitle}</div>
+          <div className="topbarTitleGroup">
+            <h1 className="topbarTitle">{header.title}</h1>
+            <div className="topbarSubtitle">{header.subtitle}</div>
           </div>
         </div>
       </div>
