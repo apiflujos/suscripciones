@@ -13,7 +13,7 @@ export default async function SaLayout({ children }: { children: React.ReactNode
     redirect("/login?error=forbidden&next=%2Fsa");
   }
 
-  const h = headers();
+  const h = await headers();
   const pathname = h.get("x-app-pathname") || "";
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
