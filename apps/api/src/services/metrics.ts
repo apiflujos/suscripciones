@@ -56,9 +56,13 @@ function monthBoundsUtc(d: Date) {
   return { start, end };
 }
 
-export async function getMetricsOverview(args: { from: Date; to: Date; granularity: Granularity }) {
+export async function getMetricsOverview(args: { from: Date; to: Date; granularity: Granularity; tenantId?: string | null }) {
   const { from, to } = clampRange(args.from, args.to);
   const { trunc, step } = granularityConfig(args.granularity);
+  const tenantId = String(args.tenantId || "").trim();
+  const hasTenant = Boolean(tenantId);
+  const tenantFilter = (alias: string, idx: number) => (hasTenant ? ` AND ${alias}."tenantId" = $${idx}` : "");
+  const tenantArgs = hasTenant ? [tenantId] : [];
 
   const buckets = (await prisma.$queryRawUnsafe<BucketRow[]>(
     `SELECT bucket::timestamptz AS bucket
@@ -92,10 +96,12 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
        AND p."paidAt" IS NOT NULL
        AND p."paidAt" >= $1::timestamptz
        AND p."paidAt" < $2::timestamptz
+       ${tenantFilter("p", 3)}
      GROUP BY 1
      ORDER BY 1 ASC`,
     from,
-    to
+    to,
+    ...tenantArgs
   );
 
   for (const r of paymentsAgg) {
@@ -113,10 +119,12 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
      WHERE p."status" IN ('DECLINED', 'ERROR', 'VOIDED')
        AND COALESCE(p."failedAt", p."updatedAt") >= $1::timestamptz
        AND COALESCE(p."failedAt", p."updatedAt") < $2::timestamptz
+       ${tenantFilter("p", 3)}
      GROUP BY 1
      ORDER BY 1 ASC`,
     from,
-    to
+    to,
+    ...tenantArgs
   );
 
   for (const r of failedAgg) {
@@ -134,10 +142,12 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
      WHERE sp."planType" = 'manual_link'
        AND pl."sentAt" >= $1::timestamptz
        AND pl."sentAt" < $2::timestamptz
+       ${tenantFilter("pl", 3)}
      GROUP BY 1
      ORDER BY 1 ASC`,
     from,
-    to
+    to,
+    ...tenantArgs
   );
 
   for (const r of linksSentAgg) {
@@ -156,10 +166,12 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
        AND pl."paidAt" IS NOT NULL
        AND pl."paidAt" >= $1::timestamptz
        AND pl."paidAt" < $2::timestamptz
+       ${tenantFilter("pl", 3)}
      GROUP BY 1
      ORDER BY 1 ASC`,
     from,
-    to
+    to,
+    ...tenantArgs
   );
 
   for (const r of linksPaidAgg) {
@@ -176,8 +188,10 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
      FROM "Subscription" s
      WHERE s."status" IN ('ACTIVE', 'PAST_DUE', 'SUSPENDED')
        AND s."startAt" < $1::timestamptz
-       AND (s."canceledAt" IS NULL OR s."canceledAt" >= $1::timestamptz)`,
-    firstBucket
+       AND (s."canceledAt" IS NULL OR s."canceledAt" >= $1::timestamptz)
+       ${tenantFilter("s", 2)}`,
+    firstBucket,
+    ...tenantArgs
   );
   let activeSoFar = num(initialActiveRow[0]?.c ?? 0);
 
@@ -187,10 +201,12 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
      FROM "Subscription" s
      WHERE s."startAt" >= $1::timestamptz
        AND s."startAt" < $2::timestamptz
+       ${tenantFilter("s", 3)}
      GROUP BY 1
      ORDER BY 1 ASC`,
     from,
-    to
+    to,
+    ...tenantArgs
   );
 
   const cancelsAgg = await prisma.$queryRawUnsafe<Array<{ bucket: Date; cancels: bigint }>>(
@@ -200,10 +216,12 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
      WHERE s."canceledAt" IS NOT NULL
        AND s."canceledAt" >= $1::timestamptz
        AND s."canceledAt" < $2::timestamptz
+       ${tenantFilter("s", 3)}
      GROUP BY 1
      ORDER BY 1 ASC`,
     from,
-    to
+    to,
+    ...tenantArgs
   );
 
   const startsByBucket = new Map<string, number>();
@@ -227,9 +245,12 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
         COUNT(*) FILTER (WHERE p."status" = 'APPROVED' AND p."paidAt" IS NOT NULL AND p."paidAt" >= $1::timestamptz AND p."paidAt" < $2::timestamptz)::bigint AS payments_success,
         COUNT(*) FILTER (WHERE p."status" IN ('DECLINED','ERROR','VOIDED') AND COALESCE(p."failedAt", p."updatedAt") >= $1::timestamptz AND COALESCE(p."failedAt", p."updatedAt") < $2::timestamptz)::bigint AS payments_failed,
         COALESCE(SUM(p."amountInCents") FILTER (WHERE p."status" = 'APPROVED' AND p."paidAt" IS NOT NULL AND p."paidAt" >= $1::timestamptz AND p."paidAt" < $2::timestamptz), 0)::bigint AS revenue_cents
-      FROM "Payment" p`,
+      FROM "Payment" p
+      WHERE 1=1
+      ${tenantFilter("p", 3)}`,
     from,
-    to
+    to,
+    ...tenantArgs
   );
 
   const totalsPlansSoldRow = await prisma.$queryRawUnsafe<Array<{ plans_sold: bigint }>>(
@@ -239,17 +260,24 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
        WHERE p."subscriptionId" IS NOT NULL
          AND p."status" = 'APPROVED'
          AND p."paidAt" IS NOT NULL
+         ${tenantFilter("p", 3)}
        GROUP BY p."subscriptionId"
      )
      SELECT COUNT(*)::bigint AS plans_sold
      FROM first_paid
      WHERE first_paid_at >= $1::timestamptz AND first_paid_at < $2::timestamptz`,
     from,
-    to
+    to,
+    ...tenantArgs
   );
 
   const activeSubsRow = await prisma.subscription.count({
-    where: { status: { in: ACTIVE_SUBSCRIPTION_STATUSES } }
+    where: {
+      status: { in: ACTIVE_SUBSCRIPTION_STATUSES },
+      startAt: { lt: to },
+      OR: [{ canceledAt: null }, { canceledAt: { gte: to } }],
+      ...(hasTenant ? { tenantId } : {})
+    }
   });
 
   const linksTotalsRow = await prisma.$queryRawUnsafe<
@@ -262,6 +290,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
        WHERE sp."planType" = 'manual_link'
          AND pl."sentAt" >= $1::timestamptz
          AND pl."sentAt" < $2::timestamptz
+         ${tenantFilter("pl", 3)}
      )
      SELECT
        COUNT(*)::bigint AS links_sent,
@@ -272,22 +301,37 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
      FROM sent_in_range pl
      LEFT JOIN "Payment" p ON p."id" = pl."paymentId"`,
     from,
-    to
+    to,
+    ...tenantArgs
   ).catch((err) => {
     console.error("Error in linksTotalsRow:", err);
     return [{ links_sent: 0n, links_paid_any: 0n, links_paid_in_range: 0n, link_revenue_cents: 0n, avg_time_to_pay_sec: null }];
   });
 
   const autoSubsSnapshot = await prisma.subscription.count({
-    where: { status: { in: ACTIVE_SUBSCRIPTION_STATUSES }, plan: { planType: PlanType.auto_subscription } }
+    where: {
+      status: { in: ACTIVE_SUBSCRIPTION_STATUSES },
+      plan: { planType: PlanType.auto_subscription },
+      startAt: { lt: to },
+      OR: [{ canceledAt: null }, { canceledAt: { gte: to } }],
+      ...(hasTenant ? { tenantId } : {})
+    }
   });
 
   const newAutoSubsRow = await prisma.subscription.count({
-    where: { plan: { planType: PlanType.auto_subscription }, createdAt: { gte: from, lt: to } }
+    where: {
+      plan: { planType: PlanType.auto_subscription },
+      createdAt: { gte: from, lt: to },
+      ...(hasTenant ? { tenantId } : {})
+    }
   });
 
   const canceledAutoSubsRow = await prisma.subscription.count({
-    where: { plan: { planType: PlanType.auto_subscription }, canceledAt: { gte: from, lt: to } }
+    where: {
+      plan: { planType: PlanType.auto_subscription },
+      canceledAt: { gte: from, lt: to },
+      ...(hasTenant ? { tenantId } : {})
+    }
   });
 
   const autoChargesRow = await prisma.$queryRawUnsafe<Array<{ ok: bigint; failed: bigint }>>(
@@ -298,9 +342,11 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
       JOIN "Subscription" s ON s."id" = p."subscriptionId"
       JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
       WHERE sp."planType" = 'auto_subscription'
-        AND p."wompiTransactionId" IS NOT NULL`,
+        AND p."wompiTransactionId" IS NOT NULL
+        ${tenantFilter("p", 3)}`,
     from,
-    to
+    to,
+    ...tenantArgs
   );
 
   const mrrRow = await prisma.$queryRawUnsafe<Array<{ mrr_cents: number | null }>>(
@@ -317,7 +363,12 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
       FROM "Subscription" s
       JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
       WHERE sp."planType" = 'auto_subscription'
-        AND s."status" IN ('ACTIVE','PAST_DUE','SUSPENDED')`
+        AND s."status" IN ('ACTIVE','PAST_DUE','SUSPENDED')
+        AND s."startAt" < $1::timestamptz
+        AND (s."canceledAt" IS NULL OR s."canceledAt" >= $1::timestamptz)
+        ${tenantFilter("s", 2)}`,
+    to,
+    ...tenantArgs
   );
 
   const { start: churnStart, end: churnEnd } = monthBoundsUtc(new Date(to.getTime() - 1));
@@ -330,9 +381,11 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
         )::bigint AS active_start
       FROM "Subscription" s
       JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
-      WHERE sp."planType" = 'auto_subscription'`,
+      WHERE sp."planType" = 'auto_subscription'
+      ${tenantFilter("s", 3)}`,
     churnStart,
-    churnEnd
+    churnEnd,
+    ...tenantArgs
   );
 
   const cancels = num(churnRow[0]?.cancels ?? 0);
@@ -349,9 +402,11 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
        AND p."paidAt" IS NOT NULL
        AND p."paidAt" >= $1::timestamptz
        AND p."paidAt" < $2::timestamptz
+       ${tenantFilter("p", 3)}
      GROUP BY 1`,
     from,
-    to
+    to,
+    ...tenantArgs
   );
   const revenueByPlanTypeInCents: Record<string, number> = { manual_link: 0, auto_subscription: 0 };
   for (const r of revenueByPlanType) revenueByPlanTypeInCents[String(r.plan_type)] = num(r.revenue_cents);
@@ -374,8 +429,10 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
         WHERE sp."planType" = 'auto_subscription'
           AND s."status" IN ('ACTIVE','PAST_DUE','SUSPENDED')
           AND s."startAt" < $1::timestamptz
-          AND (s."canceledAt" IS NULL OR s."canceledAt" >= $1::timestamptz)`,
-      firstBucket
+          AND (s."canceledAt" IS NULL OR s."canceledAt" >= $1::timestamptz)
+          ${tenantFilter("s", 2)}`,
+      firstBucket,
+      ...tenantArgs
     );
     let mrrSoFar = Math.round(num(initialMrrRow[0]?.v ?? 0));
 
@@ -395,10 +452,12 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
         WHERE sp."planType" = 'auto_subscription'
           AND s."startAt" >= $1::timestamptz
           AND s."startAt" < $2::timestamptz
+          ${tenantFilter("s", 3)}
         GROUP BY 1
         ORDER BY 1 ASC`,
       from,
-      to
+      to,
+      ...tenantArgs
     );
 
     const mrrCancelsAgg = await prisma.$queryRawUnsafe<Array<{ bucket: Date; subs: number | null }>>(
@@ -418,10 +477,12 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
           AND s."canceledAt" IS NOT NULL
           AND s."canceledAt" >= $1::timestamptz
           AND s."canceledAt" < $2::timestamptz
+          ${tenantFilter("s", 3)}
         GROUP BY 1
         ORDER BY 1 ASC`,
       from,
-      to
+      to,
+      ...tenantArgs
     );
 
     const mrrAddsByBucket = new Map<string, number>();
@@ -452,6 +513,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
              AND s."canceledAt" IS NOT NULL
              AND s."canceledAt" >= m.bucket
              AND s."canceledAt" < (m.bucket + interval '1 month')
+             ${tenantFilter("s", 3)}
          ) AS cancels,
          (
            SELECT COUNT(*)::bigint
@@ -460,11 +522,13 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
            WHERE sp."planType"='auto_subscription'
              AND s."startAt" < m.bucket
              AND (s."canceledAt" IS NULL OR s."canceledAt" >= m.bucket)
+             ${tenantFilter("s", 3)}
          ) AS active_start
        FROM months m
        ORDER BY m.bucket ASC`,
       from,
-      to
+      to,
+      ...tenantArgs
     );
 
     for (const r of churnAgg) {

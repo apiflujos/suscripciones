@@ -5,7 +5,8 @@ import { getMetricsOverview } from "../services/metrics";
 const querySchema = z.object({
   from: z.string().datetime().optional(),
   to: z.string().datetime().optional(),
-  granularity: z.enum(["day", "week", "month"]).optional().default("day")
+  granularity: z.enum(["day", "week", "month"]).optional().default("day"),
+  tenantId: z.string().optional()
 });
 
 function defaultRange() {
@@ -25,10 +26,9 @@ metricsRouter.get("/overview", async (req, res) => {
   const to = parsed.data.to ? new Date(parsed.data.to) : d.to;
 
   try {
-    const data = await getMetricsOverview({ from, to, granularity: parsed.data.granularity });
+    const data = await getMetricsOverview({ from, to, granularity: parsed.data.granularity, tenantId: parsed.data.tenantId });
     res.json(data);
   } catch (err: any) {
     res.status(400).json({ error: "invalid_range", message: err?.message ? String(err.message) : "invalid_range" });
   }
 });
-

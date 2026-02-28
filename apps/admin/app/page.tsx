@@ -225,7 +225,7 @@ function Pie({ a, b, aLabel, bLabel }: { a: number; b: number; aLabel: string; b
 export default async function Home({
   searchParams
 }: {
-  searchParams?: Promise<{ from?: string; to?: string; g?: string }>;
+  searchParams?: Promise<{ from?: string; to?: string; g?: string; tenantId?: string }>;
 }) {
   const health = await fetchPublicCached("/health", { ttlMs: 3000 });
 
@@ -240,26 +240,38 @@ export default async function Home({
   const g = (sp.g === "week" || sp.g === "month" ? sp.g : "day") as "day" | "week" | "month";
   const fromDate = sp.from || defaultFrom;
   const toDate = sp.to || defaultTo;
+  const tenantId = typeof sp.tenantId === "string" ? sp.tenantId : "";
   const fromIso = toUtcIsoStart(fromDate) || toUtcIsoStart(defaultFrom)!;
   const toIso = toUtcIsoEndExclusive(toDate) || toUtcIsoEndExclusive(defaultTo)!;
   const periodLabel = g === "day" ? "Diario" : g === "week" ? "Semanal" : "Mensual";
   const rangeLabel = `${fmtShortDate(fromDate)} → ${fmtShortDate(toDate)}`;
 
+  const tenantsRes = hasToken ? await fetchAdminCached("/admin/tenants", { ttlMs: 1500 }) : { ok: false, json: { items: [] } };
+  const tenants = Array.isArray(tenantsRes?.json?.items) ? tenantsRes.json.items : [];
+  const tenantLabel = tenantId ? (tenants.find((t: any) => String(t.id) === String(tenantId))?.name || "Canal") : "Todos";
+
+  const metricsQuery = new URLSearchParams({
+    from: fromIso,
+    to: toIso,
+    granularity: g,
+    ...(tenantId ? { tenantId } : {})
+  });
+
   const metrics = hasToken
-    ? await fetchAdminCached(
-        `/admin/metrics/overview?from=${encodeURIComponent(fromIso)}&to=${encodeURIComponent(toIso)}&granularity=${encodeURIComponent(g)}`,
-        { ttlMs: 1500 }
-      )
+    ? await fetchAdminCached(`/admin/metrics/overview?${metricsQuery.toString()}`, { ttlMs: 1500 })
     : { ok: false, status: 401, json: { error: "missing_admin_token" } };
 
   const periodMs = Math.max(24 * 60 * 60 * 1000, new Date(toIso).getTime() - new Date(fromIso).getTime());
   const prevFromIso = new Date(new Date(fromIso).getTime() - periodMs).toISOString();
   const prevToIso = new Date(fromIso).toISOString();
+  const prevMetricsQuery = new URLSearchParams({
+    from: prevFromIso,
+    to: prevToIso,
+    granularity: g,
+    ...(tenantId ? { tenantId } : {})
+  });
   const prevMetrics = hasToken
-    ? await fetchAdminCached(
-        `/admin/metrics/overview?from=${encodeURIComponent(prevFromIso)}&to=${encodeURIComponent(prevToIso)}&granularity=${encodeURIComponent(g)}`,
-        { ttlMs: 1500 }
-      )
+    ? await fetchAdminCached(`/admin/metrics/overview?${prevMetricsQuery.toString()}`, { ttlMs: 1500 })
     : { ok: false, status: 401, json: { error: "missing_admin_token" } };
 
   const series: any[] = metrics.ok ? metrics.json?.series || [] : [];
@@ -304,6 +316,7 @@ export default async function Home({
   const revenueAutoPct = revenueByTypeTotal > 0 ? (revenueAuto / revenueByTypeTotal) * 100 : 0;
 
   const prevTotals = prevMetrics.ok ? prevMetrics.json?.totals || {} : {};
+  const hasPrev = prevMetrics.ok;
   const prevRevenue = Number(prevTotals?.totalRevenueInCents || 0);
   const prevPaymentsOk = Number(prevTotals?.totalPaymentsSuccessful || 0);
   const prevPaymentsFail = Number(prevTotals?.totalPaymentsFailed || 0);
@@ -312,10 +325,27 @@ export default async function Home({
   const prevLinkConversion = Number(prevTotals?.link?.conversionLinkToPayPct || 0);
   const prevPlansSold = Number(prevTotals?.totalPlansSold || 0);
 
-  const revenueDeltaPct = pctChange(totalRevenue, prevRevenue);
-  const approvalDeltaPp = approvalPct - prevApprovalPct;
-  const linkConversionDeltaPp = linkConversionPct - prevLinkConversion;
-  const plansDeltaPct = pctChange(metrics.json?.totals?.totalPlansSold || 0, prevPlansSold);
+  const revenueDeltaPct = hasPrev ? pctChange(totalRevenue, prevRevenue) : null;
+  const approvalDeltaPp = hasPrev ? approvalPct - prevApprovalPct : null;
+  const linkConversionDeltaPp = hasPrev ? linkConversionPct - prevLinkConversion : null;
+  const plansDeltaPct = hasPrev ? pctChange(metrics.json?.totals?.totalPlansSold || 0, prevPlansSold) : null;
+
+  const alerts: Array<{ title: string; detail: string }> = [];
+  if (totalPayments >= 10 && approvalPct < 80) {
+    alerts.push({ title: "Baja tasa de aprobación", detail: `Solo ${fmtPct(approvalPct)} de pagos aprobados.` });
+  }
+  if (linksSentTotal >= 10 && linkConversionPct < 10) {
+    alerts.push({ title: "Conversión de links baja", detail: `Conversión actual: ${fmtPct(linkConversionPct)}.` });
+  }
+  if (revenueDeltaPct != null && revenueDeltaPct <= -10) {
+    alerts.push({ title: "Ingresos en descenso", detail: `Variación: ${fmtDelta(revenueDeltaPct)} vs periodo anterior.` });
+  }
+  if (activeDelta < 0) {
+    alerts.push({ title: "Menos suscripciones activas", detail: `Se perdieron ${Math.abs(activeDelta)} suscriptores en el periodo.` });
+  }
+  if (metrics.json?.totals?.auto?.churnMonthlyPct != null && Number(metrics.json.totals.auto.churnMonthlyPct) > 5) {
+    alerts.push({ title: "Churn mensual alto", detail: `Churn: ${fmtPct(metrics.json.totals.auto.churnMonthlyPct)}.` });
+  }
 
   return (
     <main className="page pageWide">
@@ -351,6 +381,20 @@ export default async function Home({
                       <option value="month">Mes</option>
                     </select>
                   </div>
+                  <div className="field" style={{ margin: 0 }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span>Canal</span>
+                      <HelpTip text="Segmenta métricas por canal específico." />
+                    </label>
+                    <select className="select" name="tenantId" defaultValue={tenantId}>
+                      <option value="">Todos</option>
+                      {tenants.map((t: any) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   <button className="primary" type="submit" style={{ height: 38 }}>
                     Ver
                   </button>
@@ -382,11 +426,11 @@ export default async function Home({
                   </div>
                   <div className="insight-item">
                     Aprobación de pagos:
-                    <span className={`delta ${approvalDeltaPp >= 0 ? "up" : "down"}`}>{fmtDeltaPp(approvalDeltaPp)}</span>
+                    <span className={`delta ${approvalDeltaPp == null ? "flat" : approvalDeltaPp >= 0 ? "up" : "down"}`}>{fmtDeltaPp(approvalDeltaPp)}</span>
                   </div>
                   <div className="insight-item">
                     Conversión de links:
-                    <span className={`delta ${linkConversionDeltaPp >= 0 ? "up" : "down"}`}>{fmtDeltaPp(linkConversionDeltaPp)}</span>
+                    <span className={`delta ${linkConversionDeltaPp == null ? "flat" : linkConversionDeltaPp >= 0 ? "up" : "down"}`}>{fmtDeltaPp(linkConversionDeltaPp)}</span>
                   </div>
                   <div className="insight-item">
                     Planes vendidos:
@@ -396,8 +440,24 @@ export default async function Home({
                   </div>
                 </div>
                 <div className="insights-foot">
-                  Comparativo: {fmtShortDate(prevFromIso.slice(0, 10))} → {fmtShortDate(prevToIso.slice(0, 10))}
+                  Comparativo: {fmtShortDate(prevFromIso.slice(0, 10))} → {fmtShortDate(prevToIso.slice(0, 10))} · Canal: {tenantLabel}
                 </div>
+              </div>
+
+              <div className="alerts-card">
+                <div className="alerts-title">Alertas operativas</div>
+                {alerts.length ? (
+                  <div className="alerts-grid">
+                    {alerts.map((a, idx) => (
+                      <div key={`alert-${idx}`} className="alert-item">
+                        <div className="alert-title">{a.title}</div>
+                        <div className="alert-detail">{a.detail}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="alert-empty">Sin alertas críticas en este rango.</div>
+                )}
               </div>
 
               <div className="grid3">
@@ -416,7 +476,7 @@ export default async function Home({
                   <div className="metric-value">{fmtPct(approvalPct)}</div>
                   <div className="metric-sub">
                     {totalPaymentsOk} OK · {totalPaymentsFail} fallidos ·
-                    <span className={`delta ${approvalDeltaPp >= 0 ? "up" : "down"}`}>{fmtDeltaPp(approvalDeltaPp)}</span>
+                    <span className={`delta ${approvalDeltaPp == null ? "flat" : approvalDeltaPp >= 0 ? "up" : "down"}`}>{fmtDeltaPp(approvalDeltaPp)}</span>
                   </div>
                 </div>
                 <div className="card cardPad metric-card">
@@ -424,7 +484,7 @@ export default async function Home({
                   <div className="metric-value">{fmtPct(linkConversionPct)}</div>
                   <div className="metric-sub">
                     {linksSentTotal} enviados · {linksPaidTotal} pagados ·
-                    <span className={`delta ${linkConversionDeltaPp >= 0 ? "up" : "down"}`}>{fmtDeltaPp(linkConversionDeltaPp)}</span>
+                    <span className={`delta ${linkConversionDeltaPp == null ? "flat" : linkConversionDeltaPp >= 0 ? "up" : "down"}`}>{fmtDeltaPp(linkConversionDeltaPp)}</span>
                   </div>
                 </div>
                 <div className="card cardPad metric-card">
