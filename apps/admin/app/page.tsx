@@ -12,6 +12,28 @@ function fmtPct(v: number | null | undefined) {
   return `${Number(v).toFixed(1)}%`;
 }
 
+function fmtShortDate(dateStr: string) {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function fmtBucketLabel(isoStr: string, g: "day" | "week" | "month") {
+  const d = new Date(isoStr);
+  if (Number.isNaN(d.getTime())) return "";
+  if (g === "month") return d.toLocaleDateString("es-CO", { month: "short", year: "2-digit" });
+  return d.toLocaleDateString("es-CO", { day: "2-digit", month: "short" });
+}
+
+function sum(values: number[]) {
+  return values.reduce((acc, v) => acc + (Number.isFinite(v) ? v : 0), 0);
+}
+
+function avg(values: number[]) {
+  if (!values.length) return 0;
+  return sum(values) / values.length;
+}
+
 function toUtcIsoStart(dateStr: string) {
   const [y, m, d] = String(dateStr || "").split("-").map((x) => Number(x));
   if (!y || !m || !d) return null;
@@ -28,7 +50,15 @@ function isoDateUtc(d: Date) {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0)).toISOString().slice(0, 10);
 }
 
-function ChartLine({ values, height = 120 }: { values: number[]; height?: number }) {
+function ChartLine({
+  values,
+  labels,
+  height = 120
+}: {
+  values: number[];
+  labels?: string[];
+  height?: number;
+}) {
   const w = 520;
   const h = height;
   const pad = 10;
@@ -38,10 +68,29 @@ function ChartLine({ values, height = 120 }: { values: number[]; height?: number
     const y = h - pad - (Math.max(0, v) * (h - pad * 2)) / max;
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   });
+  const labelIdxs = values.length > 1 ? Array.from(new Set([0, Math.floor((values.length - 1) / 2), values.length - 1])) : [0];
   return (
     <svg viewBox={`0 0 ${w} ${h}`} width="100%" height={h} aria-hidden="true">
       <polyline points={pts.join(" ")} fill="none" stroke="var(--primary)" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
       <line x1="0" y1={h - 0.5} x2={w} y2={h - 0.5} stroke="var(--chart-axis)" />
+      {labels
+        ? labelIdxs.map((i) => {
+            const x = pad + (i * (w - pad * 2)) / Math.max(1, values.length - 1);
+            const textAnchor = i === 0 ? "start" : i === values.length - 1 ? "end" : "middle";
+            return (
+              <text
+                key={`label-${i}`}
+                x={x}
+                y={h - 2}
+                textAnchor={textAnchor}
+                fontSize="10"
+                fill="var(--text-faint)"
+              >
+                {labels[i] || ""}
+              </text>
+            );
+          })
+        : null}
     </svg>
   );
 }
@@ -155,6 +204,8 @@ export default async function Home({
   const toDate = sp.to || defaultTo;
   const fromIso = toUtcIsoStart(fromDate) || toUtcIsoStart(defaultFrom)!;
   const toIso = toUtcIsoEndExclusive(toDate) || toUtcIsoEndExclusive(defaultTo)!;
+  const periodLabel = g === "day" ? "Diario" : g === "week" ? "Semanal" : "Mensual";
+  const rangeLabel = `${fmtShortDate(fromDate)} → ${fmtShortDate(toDate)}`;
 
   const metrics = hasToken
     ? await fetchAdminCached(
@@ -171,6 +222,38 @@ export default async function Home({
   const linksPaid = series.map((p) => Number(p?.linksPaid ?? 0));
   const activeSubs = series.map((p) => Number(p?.activeSubscriptions ?? 0));
   const mrrSeries = series.map((p) => (p?.mrrInCents == null ? null : Number(p.mrrInCents)));
+  const bucketLabels = series.map((p) => fmtBucketLabel(String(p?.at || ""), g));
+
+  const totalRevenue = Number(metrics.json?.totals?.totalRevenueInCents || 0);
+  const totalPaymentsOk = Number(metrics.json?.totals?.totalPaymentsSuccessful || 0);
+  const totalPaymentsFail = Number(metrics.json?.totals?.totalPaymentsFailed || 0);
+  const totalPayments = totalPaymentsOk + totalPaymentsFail;
+  const approvalPct = totalPayments > 0 ? (totalPaymentsOk / totalPayments) * 100 : 0;
+  const avgTicket = totalPaymentsOk > 0 ? Math.round(totalRevenue / totalPaymentsOk) : 0;
+  const totalActiveSubscriptions = Number(metrics.json?.totals?.totalActiveSubscriptions || 0);
+  const linkConversionPct = Number(metrics.json?.totals?.link?.conversionLinkToPayPct || 0);
+  const autoMrr = Number(metrics.json?.totals?.auto?.mrrInCents || 0);
+
+  const revenueTotalSeries = sum(revenueSeries);
+  const revenueAvgSeries = avg(revenueSeries);
+  const revenueLast = revenueSeries[revenueSeries.length - 1] ?? 0;
+  const revenueMax = Math.max(0, ...revenueSeries);
+
+  const okTotalSeries = sum(okSeries);
+  const failTotalSeries = sum(failSeries);
+  const successRateSeries = okTotalSeries + failTotalSeries > 0 ? (okTotalSeries / (okTotalSeries + failTotalSeries)) * 100 : 0;
+  const linksSentTotal = sum(linksSent);
+  const linksPaidTotal = sum(linksPaid);
+  const activeStart = activeSubs[0] ?? 0;
+  const activeEnd = activeSubs[activeSubs.length - 1] ?? 0;
+  const activeDelta = activeEnd - activeStart;
+  const activeDeltaPct = activeStart > 0 ? (activeDelta / activeStart) * 100 : null;
+
+  const revenueLink = Number(metrics.json?.breakdown?.revenueByPlanTypeInCents?.manual_link || 0);
+  const revenueAuto = Number(metrics.json?.breakdown?.revenueByPlanTypeInCents?.auto_subscription || 0);
+  const revenueByTypeTotal = revenueLink + revenueAuto;
+  const revenueLinkPct = revenueByTypeTotal > 0 ? (revenueLink / revenueByTypeTotal) * 100 : 0;
+  const revenueAutoPct = revenueByTypeTotal > 0 ? (revenueAuto / revenueByTypeTotal) * 100 : 0;
 
   return (
     <main className="page pageWide">
@@ -226,84 +309,141 @@ export default async function Home({
             </div>
           ) : (
             <>
-              <div className="grid4">
-                <div className="card cardPad">
-                  <div style={{ color: "var(--muted)", fontSize: 12 }}>Ingresos</div>
-                  <div style={{ fontSize: 22, fontWeight: 900 }}>${fmtMoneyCop(metrics.json?.totals?.totalRevenueInCents || 0)} COP</div>
+              <div className="grid3">
+                <div className="card cardPad metric-card">
+                  <div className="metric-label">Ingresos totales</div>
+                  <div className="metric-value">${fmtMoneyCop(totalRevenue)} COP</div>
+                  <div className="metric-sub">Ticket promedio: ${fmtMoneyCop(avgTicket)} COP</div>
                 </div>
-                <div className="card cardPad">
-                  <div style={{ color: "var(--muted)", fontSize: 12 }}>Pagos OK / Fallidos</div>
-                  <div style={{ fontSize: 22, fontWeight: 900 }}>
-                    {metrics.json?.totals?.totalPaymentsSuccessful || 0} / {metrics.json?.totals?.totalPaymentsFailed || 0}
+                <div className="card cardPad metric-card">
+                  <div className="metric-label">Tasa de aprobación</div>
+                  <div className="metric-value">{fmtPct(approvalPct)}</div>
+                  <div className="metric-sub">{totalPaymentsOk} OK · {totalPaymentsFail} fallidos</div>
+                </div>
+                <div className="card cardPad metric-card">
+                  <div className="metric-label">Conversión link → pago</div>
+                  <div className="metric-value">{fmtPct(linkConversionPct)}</div>
+                  <div className="metric-sub">{linksSentTotal} enviados · {linksPaidTotal} pagados</div>
+                </div>
+                <div className="card cardPad metric-card">
+                  <div className="metric-label">Suscripciones activas</div>
+                  <div className="metric-value">{totalActiveSubscriptions}</div>
+                  <div className="metric-sub">Δ {activeDelta >= 0 ? "+" : ""}{activeDelta} ({fmtPct(activeDeltaPct)})</div>
+                </div>
+                <div className="card cardPad metric-card">
+                  <div className="metric-label">MRR automático</div>
+                  <div className="metric-value">${fmtMoneyCop(autoMrr)} COP</div>
+                  <div className="metric-sub">Churn mensual: {fmtPct(metrics.json?.totals?.auto?.churnMonthlyPct)}</div>
+                </div>
+                <div className="card cardPad metric-card">
+                  <div className="metric-label">Planes vendidos</div>
+                  <div className="metric-value">{metrics.json?.totals?.totalPlansSold || 0}</div>
+                  <div className="metric-sub">Rango: {rangeLabel}</div>
+                </div>
+              </div>
+
+              <div className="grid2">
+                <div className="card cardPad chart-card">
+                  <div className="chart-header">
+                    <div>
+                      <div className="chart-title">Ingresos por período</div>
+                      <div className="chart-sub">Suma de pagos aprobados por {periodLabel.toLowerCase()}.</div>
+                    </div>
+                    <div className="chart-range">{rangeLabel} · {periodLabel}</div>
+                  </div>
+                  <ChartLine values={revenueSeries} labels={bucketLabels} />
+                  <div className="chart-kpis">
+                    <span className="chart-kpi">Total <strong>${fmtMoneyCop(revenueTotalSeries)} COP</strong></span>
+                    <span className="chart-kpi">Promedio <strong>${fmtMoneyCop(Math.round(revenueAvgSeries))} COP</strong></span>
+                    <span className="chart-kpi">Último <strong>${fmtMoneyCop(revenueLast)} COP</strong></span>
+                    <span className="chart-kpi">Máximo <strong>${fmtMoneyCop(revenueMax)} COP</strong></span>
                   </div>
                 </div>
-                <div className="card cardPad">
-                  <div style={{ color: "var(--muted)", fontSize: 12 }}>Planes vendidos</div>
-                  <div style={{ fontSize: 22, fontWeight: 900 }}>{metrics.json?.totals?.totalPlansSold || 0}</div>
-                </div>
-                <div className="card cardPad">
-                  <div style={{ color: "var(--muted)", fontSize: 12 }}>Suscripciones activas</div>
-                  <div style={{ fontSize: 22, fontWeight: 900 }}>{metrics.json?.totals?.totalActiveSubscriptions || 0}</div>
+
+                <div className="card cardPad chart-card">
+                  <div className="chart-header">
+                    <div>
+                      <div className="chart-title">Pagos aprobados vs fallidos</div>
+                      <div className="chart-sub">Comparación de intentos por {periodLabel.toLowerCase()}.</div>
+                    </div>
+                    <div className="chart-range">{rangeLabel} · {periodLabel}</div>
+                  </div>
+                  <ChartBars a={okSeries} b={failSeries} aLabel="Aprobados" bLabel="Fallidos" />
+                  <div className="chart-kpis">
+                    <span className="chart-kpi">Aprobados <strong>{okTotalSeries}</strong></span>
+                    <span className="chart-kpi">Fallidos <strong>{failTotalSeries}</strong></span>
+                    <span className="chart-kpi">Tasa OK <strong>{fmtPct(successRateSeries)}</strong></span>
+                  </div>
                 </div>
               </div>
 
               <div className="grid2">
-                <div className="card cardPad" style={{ display: "grid", gap: 8 }}>
-                  <strong>Ingresos totales (línea)</strong>
-                  <ChartLine values={revenueSeries} />
-                </div>
-
-                <div className="card cardPad" style={{ display: "grid", gap: 8 }}>
-                  <strong>Pagos OK vs Fallidos (barras)</strong>
-                  <ChartBars a={okSeries} b={failSeries} aLabel="OK" bLabel="Fallidos" />
-                </div>
-              </div>
-
-              <div className="grid2">
-                <div className="card cardPad" style={{ display: "grid", gap: 10 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-                    <strong>Links enviados vs pagados</strong>
-                    <span style={{ color: "var(--muted)", fontSize: 12 }}>Conversión: {fmtPct(metrics.json?.totals?.link?.conversionLinkToPayPct)}</span>
+                <div className="card cardPad chart-card">
+                  <div className="chart-header">
+                    <div>
+                      <div className="chart-title">Links de pago: enviados vs pagados</div>
+                      <div className="chart-sub">Salud de los links manuales en el período.</div>
+                    </div>
+                    <div className="chart-range">{rangeLabel} · {periodLabel}</div>
                   </div>
                   <ChartBars a={linksSent} b={linksPaid} aLabel="Enviados" bLabel="Pagados" />
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, color: "var(--muted)", fontSize: 12 }}>
-                    <span>Ingresos por link: ${fmtMoneyCop(metrics.json?.totals?.link?.revenueInCents || 0)} COP</span>
-                    <span>
-                      Tiempo prom.:{" "}
-                      {metrics.json?.totals?.link?.avgTimeToPaySec == null ? "—" : `${Math.round(Number(metrics.json.totals.link.avgTimeToPaySec) / 60)} min`}
+                  <div className="chart-kpis">
+                    <span className="chart-kpi">Conversión <strong>{fmtPct(metrics.json?.totals?.link?.conversionLinkToPayPct)}</strong></span>
+                    <span className="chart-kpi">Ingresos <strong>${fmtMoneyCop(metrics.json?.totals?.link?.revenueInCents || 0)} COP</strong></span>
+                    <span className="chart-kpi">
+                      Tiempo prom. <strong>{metrics.json?.totals?.link?.avgTimeToPaySec == null ? "—" : `${Math.round(Number(metrics.json.totals.link.avgTimeToPaySec) / 60)} min`}</strong>
                     </span>
                   </div>
                 </div>
 
-                <div className="card cardPad" style={{ display: "grid", gap: 10 }}>
-                  <strong>Ingresos por tipo de plan</strong>
+                <div className="card cardPad chart-card">
+                  <div className="chart-header">
+                    <div>
+                      <div className="chart-title">Ingresos por tipo de plan</div>
+                      <div className="chart-sub">Distribución entre manuales y automáticos.</div>
+                    </div>
+                    <div className="chart-range">{rangeLabel}</div>
+                  </div>
                   <Pie
-                    a={metrics.json?.breakdown?.revenueByPlanTypeInCents?.manual_link || 0}
-                    b={metrics.json?.breakdown?.revenueByPlanTypeInCents?.auto_subscription || 0}
+                    a={revenueLink}
+                    b={revenueAuto}
                     aLabel="Link"
                     bLabel="Auto"
                   />
-                  <div className="grid2" style={{ gap: 8 }}>
-                    <div className="card cardPad" style={{ padding: 10 }}>
-                      <div style={{ color: "var(--muted)", fontSize: 12 }}>MRR (auto)</div>
-                      <div style={{ fontSize: 18, fontWeight: 900 }}>${fmtMoneyCop(metrics.json?.totals?.auto?.mrrInCents || 0)} COP</div>
-                    </div>
-                    <div className="card cardPad" style={{ padding: 10 }}>
-                      <div style={{ color: "var(--muted)", fontSize: 12 }}>Churn mensual (auto)</div>
-                      <div style={{ fontSize: 18, fontWeight: 900 }}>{fmtPct(metrics.json?.totals?.auto?.churnMonthlyPct)}</div>
-                    </div>
+                  <div className="chart-kpis">
+                    <span className="chart-kpi">Manual <strong>{fmtPct(revenueLinkPct)}</strong></span>
+                    <span className="chart-kpi">Auto <strong>{fmtPct(revenueAutoPct)}</strong></span>
+                    <span className="chart-kpi">Total <strong>${fmtMoneyCop(revenueByTypeTotal)} COP</strong></span>
                   </div>
                 </div>
               </div>
 
               <div className="grid2">
-                <div className="card cardPad" style={{ display: "grid", gap: 8 }}>
-                  <strong>Suscripciones activas (línea)</strong>
-                  <ChartLine values={activeSubs} />
+                <div className="card cardPad chart-card">
+                  <div className="chart-header">
+                    <div>
+                      <div className="chart-title">Suscripciones activas</div>
+                      <div className="chart-sub">Evolución del total de suscriptores activos.</div>
+                    </div>
+                    <div className="chart-range">{rangeLabel} · {periodLabel}</div>
+                  </div>
+                  <ChartLine values={activeSubs} labels={bucketLabels} />
+                  <div className="chart-kpis">
+                    <span className="chart-kpi">Inicio <strong>{activeStart}</strong></span>
+                    <span className="chart-kpi">Fin <strong>{activeEnd}</strong></span>
+                    <span className="chart-kpi">Δ <strong>{activeDelta >= 0 ? "+" : ""}{activeDelta}</strong></span>
+                    <span className="chart-kpi">Δ% <strong>{fmtPct(activeDeltaPct)}</strong></span>
+                  </div>
                 </div>
 
-                <div className="card cardPad" style={{ display: "grid", gap: 10 }}>
-                  <strong>Suscripción automática</strong>
+                <div className="card cardPad chart-card">
+                  <div className="chart-header">
+                    <div>
+                      <div className="chart-title">Suscripción automática</div>
+                      <div className="chart-sub">Estado y desempeño de cobros recurrentes.</div>
+                    </div>
+                    <div className="chart-range">{rangeLabel}</div>
+                  </div>
                   <div className="grid2" style={{ gap: 10 }}>
                     <div className="card cardPad" style={{ padding: 10 }}>
                       <div style={{ color: "var(--muted)", fontSize: 12 }}>Activas</div>
@@ -329,7 +469,7 @@ export default async function Home({
                   {mrrSeries.some((v) => v != null) ? (
                     <div style={{ marginTop: 10 }}>
                       <div style={{ color: "var(--muted)", fontSize: 12, marginBottom: 6 }}>Evolución MRR (mes)</div>
-                      <ChartLine values={mrrSeries.map((v) => Number(v ?? 0))} />
+                      <ChartLine values={mrrSeries.map((v) => Number(v ?? 0))} labels={bucketLabels} />
                     </div>
                   ) : null}
                 </div>
