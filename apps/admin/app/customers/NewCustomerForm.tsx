@@ -38,6 +38,9 @@ export function NewCustomerForm({
   const [city, setCity] = useState("");
   const [idType, setIdType] = useState("CC");
   const [idNumber, setIdNumber] = useState("");
+  const [selectedTenant, setSelectedTenant] = useState<string>(tenantId || "");
+  const selectedTenantName =
+    tenants.find((t) => String(t.id) === String(selectedTenant))?.name || "";
 
   useEffect(() => {
     let cancelled = false;
@@ -144,7 +147,13 @@ export function NewCustomerForm({
               {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
           <div className="field">
             <label>Canal de ventas</label>
-            <select className="select" name="tenantId" defaultValue={tenantId || ""} required>
+            <select
+              className="select select-compact"
+              name="tenantId"
+              value={selectedTenant}
+              onChange={(e) => setSelectedTenant(e.target.value)}
+              required
+            >
               <option value="" disabled>
                 Selecciona un canal
               </option>
@@ -154,6 +163,9 @@ export function NewCustomerForm({
                 </option>
               ))}
             </select>
+            <div className="field-hint">
+              {selectedTenantName ? `Seleccionado: ${selectedTenantName}` : "Selecciona un canal para continuar."}
+            </div>
           </div>
           <div className="field">
             <label>Nombre</label>
