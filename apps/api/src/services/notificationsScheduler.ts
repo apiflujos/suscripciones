@@ -55,9 +55,10 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
 
   let scheduled = 0;
   for (const rule of rules) {
-    const offsetsSeconds = (rule as any).offsetsSeconds?.length
+    const offsetsSecondsBase = (rule as any).offsetsSeconds?.length
       ? (rule as any).offsetsSeconds
       : ((rule as any).offsetsMinutes?.length ? (rule as any).offsetsMinutes.map((m: number) => m * 60) : [0]);
+    const offsetsSeconds = args.forceNow ? [0] : offsetsSecondsBase;
     for (const offsetSeconds of offsetsSeconds) {
       const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
       const runAtRaw = (rule as any).atTimeUtc ? applyAtTimeUtc(runAtBase, String((rule as any).atTimeUtc)) : runAtBase;
@@ -123,9 +124,10 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
 
   let scheduled = 0;
   for (const rule of rules) {
-    const offsetsSeconds = (rule as any).offsetsSeconds?.length
+    const offsetsSecondsBase = (rule as any).offsetsSeconds?.length
       ? (rule as any).offsetsSeconds
       : ((rule as any).offsetsMinutes?.length ? (rule as any).offsetsMinutes.map((m: number) => m * 60) : [0]);
+    const offsetsSeconds = args.forceNow ? [0] : offsetsSecondsBase;
     for (const offsetSeconds of offsetsSeconds) {
       const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
       const runAtRaw = (rule as any).atTimeUtc ? applyAtTimeUtc(runAtBase, String((rule as any).atTimeUtc)) : runAtBase;
@@ -193,9 +195,10 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
 
   let scheduled = 0;
   for (const rule of rules) {
-    const offsetsSeconds = (rule as any).offsetsSeconds?.length
+    const offsetsSecondsBase = (rule as any).offsetsSeconds?.length
       ? (rule as any).offsetsSeconds
       : ((rule as any).offsetsMinutes?.length ? (rule as any).offsetsMinutes.map((m: number) => m * 60) : [0]);
+    const offsetsSeconds = args.forceNow ? [0] : offsetsSecondsBase;
     for (const offsetSeconds of offsetsSeconds) {
       const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
       const runAtRaw = (rule as any).atTimeUtc ? applyAtTimeUtc(runAtBase, String((rule as any).atTimeUtc)) : runAtBase;
@@ -323,9 +326,10 @@ export async function scheduleTokenizationLinkNotifications(args: { customerId: 
   let scheduled = 0;
 
   for (const rule of rules) {
-    const offsetsSeconds = (rule as any).offsetsSeconds?.length
+    const offsetsSecondsBase = (rule as any).offsetsSeconds?.length
       ? (rule as any).offsetsSeconds
       : ((rule as any).offsetsMinutes?.length ? (rule as any).offsetsMinutes.map((m: number) => m * 60) : [0]);
+    const offsetsSeconds = args.forceNow ? [0] : offsetsSecondsBase;
     for (const offsetSeconds of offsetsSeconds) {
       const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
       const runAtRaw = (rule as any).atTimeUtc ? applyAtTimeUtc(runAtBase, String((rule as any).atTimeUtc)) : runAtBase;

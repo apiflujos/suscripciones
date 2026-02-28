@@ -67,6 +67,47 @@ export class ChatwootClient {
     return e164;
   }
 
+  private escapeHtml(raw: string) {
+    return raw
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll("\"", "&quot;")
+      .replaceAll("'", "&#39;");
+  }
+
+  private looksLikeHtml(raw: string) {
+    return /<\s*\/?\s*[a-z][^>]*>/i.test(raw);
+  }
+
+  private linkify(raw: string) {
+    const urlPattern = /((https?:\/\/|www\.)[^\s<]+)/gi;
+    return raw.replace(urlPattern, (match) => {
+      let url = match;
+      let suffix = "";
+      while (/[)\].,!?:;]$/.test(url)) {
+        suffix = url.slice(-1) + suffix;
+        url = url.slice(0, -1);
+      }
+      if (!url) return match;
+      const href = url.startsWith("http") ? url : `https://${url}`;
+      return `<a href="${href}" target="_blank" rel="noopener noreferrer">${url}</a>${suffix}`;
+    });
+  }
+
+  private formatChatwootHtml(content: string) {
+    const raw = String(content ?? "");
+    if (!raw) return "";
+    if (this.looksLikeHtml(raw)) return raw;
+    const normalized = raw.replace(/\r\n?/g, "\n");
+    let html = this.escapeHtml(normalized);
+    html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    html = html.replace(/__([^_]+)__/g, "<strong>$1</strong>");
+    html = this.linkify(html);
+    html = html.replace(/\n/g, "<br />");
+    return html;
+  }
+
   public buildSearchQueries(input: { email?: string; phoneNumber?: string }) {
     const out: string[] = [];
     const email = String(input.email ?? "").trim();
@@ -216,7 +257,9 @@ export class ChatwootClient {
       inbox_id: this.opts.inboxId,
       contact_id: input.contactId,
       ...(input.sourceId ? { source_id: input.sourceId } : {}),
-      ...(input.message ? { message: { content: input.message } } : {})
+      ...(input.message
+        ? { message: { content: this.formatChatwootHtml(input.message), content_type: "html" } }
+        : {})
     };
     const res = await this.request(`/api/v1/accounts/${this.opts.accountId}/conversations`, {
       method: "POST",
@@ -255,7 +298,7 @@ export class ChatwootClient {
   }
 
   async sendMessage(conversationId: number, content: string) {
-    const body = { content, message_type: "outgoing", content_type: "text" };
+    const body = { content: this.formatChatwootHtml(content), message_type: "outgoing", content_type: "html" };
     const res = await this.request(
       `/api/v1/accounts/${this.opts.accountId}/conversations/${conversationId}/messages`,
       { method: "POST", body: JSON.stringify(body) }
@@ -266,9 +309,9 @@ export class ChatwootClient {
 
   async sendTemplate(conversationId: number, args: { content: string; templateParams: any }) {
     const body = {
-      content: args.content,
+      content: this.formatChatwootHtml(args.content),
       message_type: "outgoing",
-      content_type: "text",
+      content_type: "html",
       template_params: args.templateParams
     };
     const res = await this.request(
