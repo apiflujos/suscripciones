@@ -95,7 +95,7 @@ function ChartBars({
           {bLabel}
         </span>
       </div>
-    </main>
+    </div>
   );
 }
 
@@ -338,6 +338,6 @@ export default async function Home({
           )}
         </div>
       </section>
-    </div>
+    </main>
   );
 }
