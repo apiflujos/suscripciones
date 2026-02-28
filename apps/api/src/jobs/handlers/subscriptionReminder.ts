@@ -310,13 +310,14 @@ export async function subscriptionReminder(payload: any) {
 
   const meta: any = customer?.metadata && typeof customer.metadata === "object" ? (customer.metadata as any) : {};
   const tokenizationUrl = parsed.data.tokenUrl || meta?.tokenizationLink?.url || "";
+  const catalogUrl = parsed.data.catalogUrl || meta?.cartLink?.url || "";
   const ctx = {
     customer,
     subscription,
     plan: subscription?.plan || null,
     payment: effectivePayment,
     tokenization: tokenizationUrl ? { url: tokenizationUrl } : null,
-    catalog: parsed.data.catalogUrl ? { url: parsed.data.catalogUrl } : null,
+    catalog: catalogUrl ? { url: catalogUrl } : null,
     paymentType
   };
 
