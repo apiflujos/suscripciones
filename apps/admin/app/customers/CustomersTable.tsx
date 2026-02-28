@@ -1289,24 +1289,13 @@ export function CustomersTable({
       ) : null}
 
       {open && editing ? (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(2, 6, 23, 0.55)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 50,
-            padding: 16
-          }}
-        >
+        <div className="modal-backdrop">
           <div
             ref={modalRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby="customer-edit-title"
-            className="panel module"
+            className="modal-panel"
             style={{ width: "min(860px, 96vw)", maxHeight: "90vh", overflow: "auto" }}
             onKeyDown={onModalKeyDown}
           >
@@ -1392,23 +1381,12 @@ export function CustomersTable({
       ) : null}
 
       {txOpen && txCustomer ? (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(2, 6, 23, 0.55)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 50,
-            padding: 16
-          }}
-        >
+        <div className="modal-backdrop">
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="customer-tx-title"
-            className="panel module"
+            className="modal-panel"
             style={{ width: "min(900px, 96vw)", maxHeight: "90vh", overflow: "auto" }}
             onKeyDown={onModalKeyDown}
           >

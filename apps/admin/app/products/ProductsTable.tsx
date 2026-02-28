@@ -337,24 +337,13 @@ export function ProductsTable({
       ) : null}
 
       {open && editing ? (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(2, 6, 23, 0.55)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 50,
-            padding: 16
-          }}
-        >
+        <div className="modal-backdrop">
           <div
             ref={modalRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby="product-edit-title"
-            className="panel module"
+            className="modal-panel"
             style={{ width: "min(980px, 96vw)", maxHeight: "90vh", overflow: "auto" }}
             onKeyDown={onModalKeyDown}
           >
@@ -651,23 +640,12 @@ export function ProductsTable({
       ) : null}
 
       {txOpen && txProduct ? (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(2, 6, 23, 0.55)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 50,
-            padding: 16
-          }}
-        >
+        <div className="modal-backdrop">
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="product-tx-title"
-            className="panel module"
+            className="modal-panel"
             style={{ width: "min(900px, 96vw)", maxHeight: "90vh", overflow: "auto" }}
           >
             <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
