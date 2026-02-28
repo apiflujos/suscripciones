@@ -11,14 +11,6 @@ function pesosToCents(input: string): number {
   return Math.trunc(pesos) * 100;
 }
 
-function buildChatwootLinkMessage(args: { name?: string; lead: string; url: string }) {
-  const safeName = String(args.name || "Cliente").trim() || "Cliente";
-  const safeLead = String(args.lead || "").trim();
-  const safeUrl = String(args.url || "").trim();
-  const leadLine = safeLead ? `**${safeLead}**` : "";
-  return [`Hola ${safeName},`, "", leadLine, safeUrl].filter((line) => line !== "").join("\n");
-}
-
 export async function POST(req: Request) {
   const API_BASE = getRequiredApiBase();
   const token = normalizeToken(process.env.ADMIN_API_TOKEN || "");
@@ -137,36 +129,12 @@ export async function POST(req: Request) {
         body: JSON.stringify({ metadata: nextMeta })
       });
 
-      let chatwootError: string | null = null;
-      const msg = buildChatwootLinkMessage({
-        name: customerName || "Cliente",
-        lead: "Aquí está tu link de pago:",
-        url: publicUrl
-      });
-      try {
-        const chatRes = await fetch(`${API_BASE}/admin/chatwoot/messages`, {
-          method: "POST",
-          headers: {
-            authorization: `Bearer ${token}`,
-            "x-admin-token": token,
-            "content-type": "application/json"
-          },
-          body: JSON.stringify({ customerId, content: msg })
-        });
-        if (!chatRes.ok) {
-          const chatJson = await chatRes.json().catch(() => null);
-          chatwootError = String(chatJson?.error || chatJson?.message || `chatwoot_error_${chatRes.status}`);
-        }
-      } catch (err: any) {
-        chatwootError = String(err?.message || "chatwoot_request_failed");
-      }
-
       return NextResponse.json({
         ok: true,
         checkoutUrl: checkoutUrl || null,
         publicUrl,
         notificationsScheduled: typeof json?.notificationsScheduled === "number" ? json.notificationsScheduled : null,
-        chatwootError
+        chatwootError: null
       });
     }
   } catch {

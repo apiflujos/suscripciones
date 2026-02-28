@@ -3,7 +3,6 @@ import { z } from "zod";
 import { prisma } from "../../db/prisma";
 import { getNotificationsConfig, notificationTriggerSchema } from "../../services/notificationsConfig";
 import { createPaymentLinkForSubscription } from "../../services/subscriptionBilling";
-import { ensureChatwootContactForCustomer, syncChatwootAttributesForCustomer } from "../../services/chatwootSync";
 import { systemLog } from "../../services/systemLog";
 import { sendChatwootMessage } from "./sendChatwootMessage";
 
@@ -270,9 +269,6 @@ export async function subscriptionReminder(payload: any) {
     }).catch(() => {});
     return;
   }
-
-  await ensureChatwootContactForCustomer(customer.id).catch(() => {});
-  await syncChatwootAttributesForCustomer(customer.id).catch(() => {});
 
   let effectivePayment: any = payment;
   if (rule.ensurePaymentLink && subscription && parsed.data.trigger === "SUBSCRIPTION_DUE") {

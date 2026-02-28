@@ -1,4 +1,5 @@
 import { LogLevel } from "@prisma/client";
+import { createHash } from "crypto";
 import { prisma } from "../db/prisma";
 import { ChatwootClient } from "../providers/chatwoot/client";
 import { getChatwootConfig } from "./runtimeConfig";
@@ -111,7 +112,7 @@ export async function ensureChatwootCustomAttributes() {
   return ensureCustomAttributes(client);
 }
 
-export async function ensureChatwootContactForCustomer(customerId: string) {
+export async function ensureChatwootContactForCustomer(customerId: string, opts?: { skipUpdate?: boolean }) {
   const id = String(customerId || "").trim();
   if (!id) return { ok: false as const, reason: "missing_customer_id" as const };
 
@@ -127,6 +128,17 @@ export async function ensureChatwootContactForCustomer(customerId: string) {
   const meta: any = (customer.metadata ?? {}) as any;
   const existingContactId = meta?.chatwoot?.contactId;
   const existingSourceId = meta?.chatwoot?.sourceId;
+  const nextSnapshot = {
+    name: customer.name ?? null,
+    email: customer.email ?? null,
+    phone: customer.phone ?? null
+  };
+  const prevSnapshot = meta?.chatwoot?.contactSnapshot;
+  const snapshotEqual =
+    prevSnapshot &&
+    prevSnapshot.name === nextSnapshot.name &&
+    prevSnapshot.email === nextSnapshot.email &&
+    prevSnapshot.phone === nextSnapshot.phone;
 
   if (typeof existingContactId === "number" && Number.isFinite(existingContactId)) {
     const client = new ChatwootClient({
@@ -135,20 +147,22 @@ export async function ensureChatwootContactForCustomer(customerId: string) {
       apiAccessToken: cfg.apiAccessToken,
       inboxId: cfg.inboxId
     });
-    // Ensure latest data always wins.
-    await client
-      .updateContact(existingContactId, {
-        name: customer.name || undefined,
-        email: customer.email || undefined,
-        phoneNumber: customer.phone || undefined
-      })
-      .then(() =>
-        systemLog(LogLevel.INFO, "chatwoot.sync", "Contacto actualizado", {
-          customerId: customer.id,
-          contactId: existingContactId
-        }).catch(() => {})
-      )
-      .catch(() => {});
+    if (!opts?.skipUpdate && !snapshotEqual) {
+      // Ensure latest data always wins.
+      await client
+        .updateContact(existingContactId, {
+          name: customer.name || undefined,
+          email: customer.email || undefined,
+          phoneNumber: customer.phone || undefined
+        })
+        .then(() =>
+          systemLog(LogLevel.INFO, "chatwoot.sync", "Contacto actualizado", {
+            customerId: customer.id,
+            contactId: existingContactId
+          }).catch(() => {})
+        )
+        .catch(() => {});
+    }
     // Ensure we have a sourceId tied to the inbox.
     let sourceId = existingSourceId;
     if (!sourceId) {
@@ -167,10 +181,16 @@ export async function ensureChatwootContactForCustomer(customerId: string) {
         }
       }
     }
-    if (sourceId && sourceId !== existingSourceId) {
+    if (sourceId && (sourceId !== existingSourceId || !snapshotEqual)) {
       const merged = {
         ...(meta && typeof meta === "object" ? meta : {}),
-        chatwoot: { ...(meta?.chatwoot || {}), contactId: existingContactId, sourceId }
+        chatwoot: { ...(meta?.chatwoot || {}), contactId: existingContactId, sourceId, contactSnapshot: nextSnapshot }
+      };
+      await prisma.customer.update({ where: { id: customer.id }, data: { metadata: merged as any } }).catch(() => {});
+    } else if (!snapshotEqual) {
+      const merged = {
+        ...(meta && typeof meta === "object" ? meta : {}),
+        chatwoot: { ...(meta?.chatwoot || {}), contactId: existingContactId, sourceId: existingSourceId, contactSnapshot: nextSnapshot }
       };
       await prisma.customer.update({ where: { id: customer.id }, data: { metadata: merged as any } }).catch(() => {});
     }
@@ -199,19 +219,21 @@ export async function ensureChatwootContactForCustomer(customerId: string) {
     for (const q of queries) {
       const found = await client.searchContact(q).catch(() => null);
       if (!found?.contactId) continue;
-      await client
-        .updateContact(found.contactId, {
-          name: customer.name || undefined,
-          email: customer.email || undefined,
-          phoneNumber: customer.phone || undefined
-        })
-        .then(() =>
-          systemLog(LogLevel.INFO, "chatwoot.sync", "Contacto actualizado", {
-            customerId: customer.id,
-            contactId: found.contactId
-          }).catch(() => {})
-        )
-        .catch(() => {});
+      if (!opts?.skipUpdate && !snapshotEqual) {
+        await client
+          .updateContact(found.contactId, {
+            name: customer.name || undefined,
+            email: customer.email || undefined,
+            phoneNumber: customer.phone || undefined
+          })
+          .then(() =>
+            systemLog(LogLevel.INFO, "chatwoot.sync", "Contacto actualizado", {
+              customerId: customer.id,
+              contactId: found.contactId
+            }).catch(() => {})
+          )
+          .catch(() => {});
+      }
 
       let sourceId = existingSourceId;
       if (!sourceId) {
@@ -233,7 +255,7 @@ export async function ensureChatwootContactForCustomer(customerId: string) {
 
       const merged = {
         ...(meta && typeof meta === "object" ? meta : {}),
-        chatwoot: { ...(meta?.chatwoot || {}), contactId: found.contactId, sourceId }
+        chatwoot: { ...(meta?.chatwoot || {}), contactId: found.contactId, sourceId, contactSnapshot: nextSnapshot }
       };
       await prisma.customer.update({ where: { id: customer.id }, data: { metadata: merged as any } }).catch(() => {});
       return { ok: true as const, contactId: found.contactId, sourceId };
@@ -249,7 +271,7 @@ export async function ensureChatwootContactForCustomer(customerId: string) {
 
   const merged = {
     ...(meta && typeof meta === "object" ? meta : {}),
-    chatwoot: { ...(meta?.chatwoot || {}), contactId: created.contactId, sourceId: created.sourceId }
+    chatwoot: { ...(meta?.chatwoot || {}), contactId: created.contactId, sourceId: created.sourceId, contactSnapshot: nextSnapshot }
   };
   await prisma.customer.update({ where: { id: customer.id }, data: { metadata: merged as any } }).catch(() => {});
 
@@ -276,7 +298,7 @@ export async function syncChatwootAttributesForCustomer(customerId: string) {
   const cfg = await getChatwootConfig();
   if (!cfg.configured) return { ok: false as const, reason: "chatwoot_not_configured" as const };
 
-  const ensured = await ensureChatwootContactForCustomer(customer.id);
+  const ensured = await ensureChatwootContactForCustomer(customer.id, { skipUpdate: true });
   if (!ensured.ok) return ensured;
 
   const sub = customer.subscriptions?.[0] || null;
@@ -351,6 +373,13 @@ export async function syncChatwootAttributesForCustomer(customerId: string) {
     last_payment_metadata: safeJson(latestPayment?.providerResponse ?? null)
   } as const;
 
+  const customJson = JSON.stringify(customAttributes);
+  const nextHash = createHash("sha1").update(customJson).digest("hex");
+  const prevHash = meta?.chatwoot?.attributesHash;
+  if (prevHash && prevHash === nextHash) {
+    return { ok: true as const, skipped: true as const };
+  }
+
   const client = new ChatwootClient({
     baseUrl: cfg.baseUrl,
     accountId: cfg.accountId,
@@ -366,6 +395,19 @@ export async function syncChatwootAttributesForCustomer(customerId: string) {
     phoneNumber: customer.phone || undefined,
     customAttributes
   });
+
+  const merged = {
+    ...(customer.metadata && typeof customer.metadata === "object" ? customer.metadata : {}),
+    chatwoot: {
+      ...(meta?.chatwoot || {}),
+      contactId: ensured.contactId,
+      ...(ensured.sourceId ? { sourceId: ensured.sourceId } : {}),
+      contactSnapshot: { name: customer.name ?? null, email: customer.email ?? null, phone: customer.phone ?? null },
+      attributesHash: nextHash,
+      attributesSyncedAt: new Date().toISOString()
+    }
+  };
+  await prisma.customer.update({ where: { id: customer.id }, data: { metadata: merged as any } }).catch(() => {});
 
   return { ok: true as const };
 }

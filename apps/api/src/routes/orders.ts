@@ -3,9 +3,8 @@ import { z } from "zod";
 import { prisma } from "../db/prisma";
 import { LogLevel, PaymentStatus, RetryJobType, CredentialProvider } from "@prisma/client";
 import { WompiClient } from "../providers/wompi/client";
-import { getChatwootConfig, getWompiApiBaseUrl, getWompiCheckoutLinkBaseUrl, getWompiPrivateKey, getWompiRedirectUrl } from "../services/runtimeConfig";
+import { getWompiApiBaseUrl, getWompiCheckoutLinkBaseUrl, getWompiPrivateKey, getWompiRedirectUrl } from "../services/runtimeConfig";
 import { getCredential } from "../services/credentials";
-import { ensureChatwootContactForCustomer, syncChatwootAttributesForCustomer } from "../services/chatwootSync";
 import { schedulePaymentLinkNotifications } from "../services/notificationsScheduler";
 import { systemLog } from "../services/systemLog";
 import { getEffectiveTenantId } from "../services/tenantContext";
@@ -183,19 +182,6 @@ ordersRouter.post("/", async (req, res) => {
   });
 
   const scheduledInfo = await schedulePaymentLinkNotifications({ paymentId: updated.id, forceNow: true }).catch(() => ({ scheduled: 0 }));
-
-  if (parsed.data.sendChatwoot) {
-    const chatwoot = await getChatwootConfig();
-    if (chatwoot.configured) {
-      await ensureChatwootContactForCustomer(customer.id).catch(() => {});
-      await syncChatwootAttributesForCustomer(customer.id).catch(() => {});
-    } else {
-      await systemLog(LogLevel.WARN, "chatwoot.sync", "Chatwoot no configurado para envio de link", {
-        customerId: customer.id,
-        paymentId: updated.id
-      }).catch(() => {});
-    }
-  }
 
   res.status(201).json({ payment: updated, checkoutUrl: updated.checkoutUrl, notificationsScheduled: scheduledInfo?.scheduled ?? 0 });
 });

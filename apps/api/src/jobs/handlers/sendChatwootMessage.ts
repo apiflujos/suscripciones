@@ -63,7 +63,12 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
 
       const merged = {
         ...(customerMeta && typeof customerMeta === "object" ? customerMeta : {}),
-        chatwoot: { ...(customerMeta?.chatwoot || {}), contactId, sourceId }
+        chatwoot: {
+          ...(customerMeta?.chatwoot || {}),
+          contactId,
+          sourceId,
+          contactSnapshot: { name: msg.customer.name ?? null, email: msg.customer.email ?? null, phone: msg.customer.phone ?? null }
+        }
       };
       await prisma.customer.update({
         where: { id: msg.customerId },
@@ -97,7 +102,12 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
       sourceId = fetchedSourceId || sourceId;
       const merged = {
         ...(customerMeta && typeof customerMeta === "object" ? customerMeta : {}),
-        chatwoot: { ...(customerMeta?.chatwoot || {}), contactId, sourceId }
+        chatwoot: {
+          ...(customerMeta?.chatwoot || {}),
+          contactId,
+          sourceId,
+          contactSnapshot: { name: msg.customer.name ?? null, email: msg.customer.email ?? null, phone: msg.customer.phone ?? null }
+        }
       };
       await prisma.customer.update({
         where: { id: msg.customerId },
@@ -138,7 +148,12 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
       sourceId = createdInbox.sourceId;
       const merged = {
         ...(customerMeta && typeof customerMeta === "object" ? customerMeta : {}),
-        chatwoot: { ...(customerMeta?.chatwoot || {}), contactId, sourceId }
+        chatwoot: {
+          ...(customerMeta?.chatwoot || {}),
+          contactId,
+          sourceId,
+          contactSnapshot: { name: msg.customer.name ?? null, email: msg.customer.email ?? null, phone: msg.customer.phone ?? null }
+        }
       };
       await prisma.customer.update({
         where: { id: msg.customerId },
