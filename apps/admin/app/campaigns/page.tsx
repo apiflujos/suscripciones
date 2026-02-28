@@ -114,7 +114,7 @@ export default async function CampaignsPage({
           for (let i = start; i <= end; i += 1) pages.push(i);
           return (
             <div className="pagination">
-              <a className="ghost no-icon page-link" href={`/campaigns?page=${Math.max(1, currentPage - 1)}`} aria-disabled={currentPage <= 1}>
+              <a className="ghost no-icon page-link page-nav" href={`/campaigns?page=${Math.max(1, currentPage - 1)}`} aria-disabled={currentPage <= 1}>
                 Anterior
               </a>
               <div className="pagination-pages">
@@ -129,7 +129,7 @@ export default async function CampaignsPage({
                   </a>
                 ))}
               </div>
-              <a className="ghost no-icon page-link" href={`/campaigns?page=${currentPage + 1}`} aria-disabled={!hasNext}>
+              <a className="ghost no-icon page-link page-nav" href={`/campaigns?page=${currentPage + 1}`} aria-disabled={!hasNext}>
                 Siguiente
               </a>
             </div>

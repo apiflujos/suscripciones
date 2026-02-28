@@ -462,7 +462,7 @@ export default async function LogsPage({
             return (
               <div className="pagination">
                 <a
-                  className="ghost no-icon page-link"
+                  className="ghost no-icon page-link page-nav"
                   href={`/logs?${new URLSearchParams({
                     ...baseParams,
                     page: String(Math.max(1, currentPage - 1))
@@ -484,7 +484,7 @@ export default async function LogsPage({
                   ))}
                 </div>
                 <a
-                  className="ghost no-icon page-link"
+                  className="ghost no-icon page-link page-nav"
                   href={`/logs?${new URLSearchParams({
                     ...baseParams,
                     page: String(currentPage + 1)

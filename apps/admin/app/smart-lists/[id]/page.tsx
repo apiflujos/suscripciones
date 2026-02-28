@@ -65,7 +65,7 @@ export default async function SmartListDetail({
           for (let i = start; i <= end; i += 1) pages.push(i);
           return (
             <div className="pagination">
-              <a className="ghost no-icon page-link" href={`/smart-lists/${id}?page=${Math.max(1, currentPage - 1)}`} aria-disabled={currentPage <= 1}>
+              <a className="ghost no-icon page-link page-nav" href={`/smart-lists/${id}?page=${Math.max(1, currentPage - 1)}`} aria-disabled={currentPage <= 1}>
                 Anterior
               </a>
               <div className="pagination-pages">
@@ -80,7 +80,7 @@ export default async function SmartListDetail({
                   </a>
                 ))}
               </div>
-              <a className="ghost no-icon page-link" href={`/smart-lists/${id}?page=${currentPage + 1}`} aria-disabled={!hasNext}>
+              <a className="ghost no-icon page-link page-nav" href={`/smart-lists/${id}?page=${currentPage + 1}`} aria-disabled={!hasNext}>
                 Siguiente
               </a>
             </div>

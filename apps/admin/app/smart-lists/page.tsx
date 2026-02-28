@@ -160,7 +160,7 @@ export default async function SmartListsPage({
           return (
             <div className="pagination">
               <a
-                className="ghost no-icon page-link"
+                className="ghost no-icon page-link page-nav"
                 href={`/smart-lists?${new URLSearchParams({ ...baseParams, page: String(Math.max(1, currentPage - 1)) })}`}
                 aria-disabled={currentPage <= 1}
               >
@@ -179,7 +179,7 @@ export default async function SmartListsPage({
                 ))}
               </div>
               <a
-                className="ghost no-icon page-link"
+                className="ghost no-icon page-link page-nav"
                 href={`/smart-lists?${new URLSearchParams({ ...baseParams, page: String(currentPage + 1) })}`}
                 aria-disabled={!hasNext}
               >
