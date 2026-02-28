@@ -1167,11 +1167,17 @@ textarea.input {
 
 .contact-card-top {
   grid-column: 1 / -1;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
   gap: 8px;
   padding: 4px 6px 0;
+}
+
+.contact-head {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
 }
 
 .contact-tags {
@@ -1185,6 +1191,7 @@ textarea.input {
   display: inline-flex;
   gap: 8px;
   flex-wrap: wrap;
+  justify-self: end;
 }
 
 .customer-actions,
@@ -3509,6 +3516,7 @@ html[data-contrast="high"] .module-footer .ghost {
   padding: 6px 8px;
   border-radius: 12px;
   gap: 4px;
+  align-content: start;
 }
 
 .notificationsPage .saved-conn-header {
@@ -3524,7 +3532,7 @@ html[data-contrast="high"] .module-footer .ghost {
 }
 
 .notificationsPage .saved-conn-meta {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 4px 8px;
 }
 
@@ -3721,6 +3729,12 @@ html[data-contrast="high"] .saved-conn-card {
   background: var(--panel);
   border-color: var(--stroke);
   box-shadow: var(--shadow);
+}
+
+html[data-theme="dark"] .notificationsPage .saved-conn-card,
+html[data-theme="pink-dark"] .notificationsPage .saved-conn-card {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.14);
 }
 
 html[data-theme="dark"] .saved-conn-sub,

@@ -424,6 +424,12 @@ export function CustomersTable({
           const link = latestLinks[String(c.id)];
           const formId = `send-link-${c.id}`;
           const subInfo = subscriptionsByCustomer[String(c.id)];
+          const ident =
+            c?.metadata?.identificacion ||
+            c?.metadata?.identificationNumber ||
+            c?.metadata?.documentNumber ||
+            c?.metadata?.document ||
+            "";
           const hasPlan = subInfo?.hasPlan ?? false;
           const planName = subInfo?.planName || "";
           const status = String(subInfo?.status || "");
@@ -440,10 +446,14 @@ export function CustomersTable({
           return (
             <div className="contact-card" key={c.id}>
               <div className="contact-card-top">
-                <div className="contact-tags">
-                  {hasToken(c) ? <span className="pill pill-ok pill-sm">Tokenizada</span> : <span className="pill pill-bad pill-sm">Sin token</span>}
-                  {hasPlan ? <span className="pill pill-muted pill-sm">{kindLabel}</span> : <span className="pill pill-muted pill-sm">Sin plan</span>}
-                  {statusLabel && statusPillClass ? <span className={`pill ${statusPillClass} pill-sm`}>{statusLabel}</span> : null}
+                <div className="contact-head">
+                  <div className="contact-title">{c.name || "—"}</div>
+                  <div className="contact-subline">{c.email || "—"} · {c.phone || "—"}</div>
+                  <div className="contact-tags">
+                    {hasToken(c) ? <span className="pill pill-ok pill-sm">Tokenizada</span> : <span className="pill pill-bad pill-sm">Sin token</span>}
+                    {hasPlan ? <span className="pill pill-muted pill-sm">{kindLabel}</span> : <span className="pill pill-muted pill-sm">Sin plan</span>}
+                    {statusLabel && statusPillClass ? <span className={`pill ${statusPillClass} pill-sm`}>{statusLabel}</span> : null}
+                  </div>
                 </div>
                 <div className="contact-card-top-actions">
                   <button className="ghost btn-compact" type="button" onClick={() => openTransactions(c)} aria-label="Historial de pagos">
@@ -473,12 +483,6 @@ export function CustomersTable({
                 <div className="contact-block-title">Información personal</div>
                 <div className="contact-person-grid">
                   <div>
-                    <span>Nombre</span>
-                    <strong style={{ display: "inline-flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                      <span className="contact-value contact-value-strong">{c.name || "—"}</span>
-                    </strong>
-                  </div>
-                  <div>
                     <span>Email</span>
                     <div className="contact-value">{c.email || "—"}</div>
                   </div>
@@ -489,6 +493,10 @@ export function CustomersTable({
                   <div>
                     <span>Canal</span>
                     <div className="contact-value">{c.tenantName || "—"}</div>
+                  </div>
+                  <div>
+                    <span>Identificación</span>
+                    <div className="contact-value">{ident || "—"}</div>
                   </div>
                 </div>
               </div>
@@ -501,12 +509,12 @@ export function CustomersTable({
                     <div className="contact-plan-row">
                       {hasPlan ? (
                         <>
-                          <span className="contact-value" style={{ fontSize: 13 }}>
+                          <span className="contact-value contact-value-strong" style={{ fontSize: 13 }}>
                             {planName ? `${planName}${statusLabel ? ` · ${statusLabel}` : ""}` : statusLabel || "Activa"}
                           </span>
                         </>
                       ) : (
-                        <span className="contact-value" style={{ fontSize: 13 }}>—</span>
+                        <span className="contact-value contact-value-strong" style={{ fontSize: 13 }}>—</span>
                       )}
                     </div>
                   </div>
