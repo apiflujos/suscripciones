@@ -76,7 +76,34 @@ export async function deleteTenant(formData: FormData) {
   if (!tenantId) return redirect(mergeQuery(returnTo, { error: "missing_tenant_id" }));
 
   try {
-    await adminFetch(`/admin/tenants/${encodeURIComponent(tenantId)}`, { method: "DELETE" });
+    const API_BASE = getRequiredApiBase();
+    const TOKEN = normalizeToken(process.env.ADMIN_API_TOKEN || "");
+    const res = await fetch(`${API_BASE}/admin/tenants/${encodeURIComponent(tenantId)}`, {
+      method: "DELETE",
+      headers: {
+        ...(TOKEN ? { authorization: `Bearer ${TOKEN}`, "x-admin-token": TOKEN } : {}),
+        "content-type": "application/json"
+      },
+      cache: "no-store"
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok) {
+      if (res.status === 409 && json?.error === "tenant_has_data") {
+        const details = json?.details || {};
+        return redirect(
+          mergeQuery(returnTo, {
+            tenantDeleteBlocked: "1",
+            tenantCustomers: details.customers ? String(details.customers) : undefined,
+            tenantPlans: details.plans ? String(details.plans) : undefined,
+            tenantSubscriptions: details.subscriptions ? String(details.subscriptions) : undefined,
+            tenantPayments: details.payments ? String(details.payments) : undefined,
+            tenantPaymentLinks: details.paymentLinks ? String(details.paymentLinks) : undefined,
+            tenantCheckoutTemplates: details.checkoutTemplates ? String(details.checkoutTemplates) : undefined
+          })
+        );
+      }
+      throw new Error(json?.reason ? `${json?.error || "request_failed"}:${json.reason}` : json?.error || `request_failed_${res.status}`);
+    }
     redirect(mergeQuery(returnTo, { deleted: "1" }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;

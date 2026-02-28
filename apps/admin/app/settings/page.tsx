@@ -103,6 +103,15 @@ export default async function SettingsPage({
   const open = String(sp.open || "");
   const templateKind = String(sp.kind || "").toUpperCase();
   const templateStep = String(sp.step || "choose");
+  const tenantDeleteBlocked = String(sp.tenantDeleteBlocked || "") === "1";
+  const tenantDeleteStats = {
+    customers: Number(sp.tenantCustomers || 0),
+    plans: Number(sp.tenantPlans || 0),
+    subscriptions: Number(sp.tenantSubscriptions || 0),
+    payments: Number(sp.tenantPayments || 0),
+    paymentLinks: Number(sp.tenantPaymentLinks || 0),
+    checkoutTemplates: Number(sp.tenantCheckoutTemplates || 0)
+  };
   const inlineState = { action, status, errorText };
   const returnTo = `/settings?${new URLSearchParams(
     Object.fromEntries(
@@ -474,6 +483,23 @@ export default async function SettingsPage({
             </div>
           </div>
           <div className="settings-group-body">
+            {tenantDeleteBlocked ? (
+              <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
+                No se puede eliminar el canal porque tiene datos asociados.
+                <div style={{ marginTop: 6, color: "#666" }}>
+                  {[
+                    tenantDeleteStats.customers ? `Clientes: ${tenantDeleteStats.customers}` : null,
+                    tenantDeleteStats.plans ? `Planes: ${tenantDeleteStats.plans}` : null,
+                    tenantDeleteStats.subscriptions ? `Suscripciones: ${tenantDeleteStats.subscriptions}` : null,
+                    tenantDeleteStats.payments ? `Pagos: ${tenantDeleteStats.payments}` : null,
+                    tenantDeleteStats.paymentLinks ? `Links de pago: ${tenantDeleteStats.paymentLinks}` : null,
+                    tenantDeleteStats.checkoutTemplates ? `Plantillas checkout: ${tenantDeleteStats.checkoutTemplates}` : null
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </div>
+              </div>
+            ) : null}
             <div className="card cardPad" style={{ marginBottom: 16 }}>
               <form action={createTenant} className="row" style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
                 <input type="hidden" name="csrfToken" value={csrfToken} />
