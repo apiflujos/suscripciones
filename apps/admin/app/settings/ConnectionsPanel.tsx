@@ -115,7 +115,7 @@ export function ConnectionsPanel({
 
         <button className="conn-card" type="button" onClick={() => setOpen("central")}>
           <div className="conn-icon conn-icon-apiflujos">
-            <img src="/brand/conn-apiflujos.png" alt="Apiflujos" />
+            <img src="/brand/logo_vertical.png" alt="Logo" />
           </div>
           <div className="conn-body">
             <div className="conn-title">CentralCom</div>

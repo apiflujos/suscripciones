@@ -2596,6 +2596,63 @@ textarea {
   white-space: normal;
 }
 
+body.is-global-loading {
+  overflow: hidden;
+  cursor: progress;
+}
+
+.global-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: all;
+}
+
+.global-loader-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+.global-loader-card {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: #0f172a;
+  color: #f8fafc;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.35);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.global-spinner {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 3px solid rgba(255, 255, 255, 0.25);
+  border-top-color: #ffffff;
+  animation: spin 1s linear infinite;
+}
+
+.global-loader-text {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .billing-legend {
   display: flex;
   gap: 6px;

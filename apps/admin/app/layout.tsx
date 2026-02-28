@@ -7,11 +7,19 @@ import "./globals.css";
 import "./styles.css";
 import { SideNav } from "./SideNav";
 import { TopBar } from "./TopBar";
+import { GlobalLoader } from "./GlobalLoader";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../lib/session";
 
 export const metadata: Metadata = {
   title: "Wompi Subs – Admin",
-  icons: [{ rel: "icon", url: "/favicon.png" }]
+  icons: {
+    icon: [
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" }
+    ],
+    shortcut: [{ url: "/favicon.ico" }],
+    apple: [{ url: "/favicon.png" }]
+  }
 };
 
 export const dynamic = "force-dynamic";
@@ -65,6 +73,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             </div>
           </div>
         )}
+        <GlobalLoader />
       </body>
     </html>
   );

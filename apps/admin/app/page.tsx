@@ -179,7 +179,7 @@ export default async function Home({
           <h1 className="pageTitle">Métricas</h1>
           <p className="pageSub">Link de pago vs suscripción automática.</p>
         </div>
-        <img src="/brand/logo-horizontal.png" alt="ApiFlujos" style={{ height: 40, width: "auto" }} />
+        <img src="/brand/logo.png" alt="Logo" style={{ height: 40, width: "auto" }} />
       </div>
 
       <section className="settings-group">

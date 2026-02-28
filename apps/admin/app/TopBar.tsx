@@ -66,7 +66,7 @@ export function TopBar({ session }: { session: AdminSession | null }) {
         <div className="topbarLeftRow">
           <Link href="/" className="topbarLogoLink" prefetch={false} aria-label="Ir al home">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/logo-horizontal.png" alt="Suscripciones" className="topbarLogo" />
+            <img src="/brand/logo.png" alt="Logo" className="topbarLogo" />
           </Link>
           <div style={{ display: "grid" }}>
             <h1>{header.title}</h1>
