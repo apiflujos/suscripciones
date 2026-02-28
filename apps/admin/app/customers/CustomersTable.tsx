@@ -430,9 +430,15 @@ export function CustomersTable({
                 : "Suscripción";
           const statusLabel =
             status === "ACTIVE" ? "Activa" : status === "PAST_DUE" ? "En mora" : status ? "Inactiva" : "";
+          const statusPillClass = status === "ACTIVE" ? "pill-ok" : status === "PAST_DUE" ? "pill-bad" : status ? "pill-muted" : "";
           return (
             <div className="contact-card" key={c.id}>
               <div className="contact-card-top">
+                <div className="contact-tags">
+                  {hasToken(c) ? <span className="pill pill-ok pill-sm">Tokenizada</span> : <span className="pill pill-bad pill-sm">Sin token</span>}
+                  {hasPlan ? <span className="pill pill-muted pill-sm">{kindLabel}</span> : <span className="pill pill-muted pill-sm">Sin plan</span>}
+                  {statusLabel && statusPillClass ? <span className={`pill ${statusPillClass} pill-sm`}>{statusLabel}</span> : null}
+                </div>
                 <div className="contact-card-top-actions">
                   <button className="ghost btn-compact" type="button" onClick={() => openTransactions(c)} aria-label="Historial de pagos">
                     Historial
@@ -463,8 +469,7 @@ export function CustomersTable({
                   <div>
                     <span>Nombre</span>
                     <strong style={{ display: "inline-flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                      <span className="contact-value">{c.name || "—"}</span>
-                      {hasToken(c) ? <span className="pill pill-ok">Tokenizada</span> : <span className="pill pill-bad">Sin token</span>}
+                      <span className="contact-value contact-value-strong">{c.name || "—"}</span>
                     </strong>
                   </div>
                   <div>
@@ -489,13 +494,12 @@ export function CustomersTable({
                     <div className="contact-plan-row">
                       {hasPlan ? (
                         <>
-                          <span className="pill pill-ok pill-sm">{kindLabel}</span>
                           <span className="contact-value" style={{ fontSize: 13 }}>
                             {planName ? `${planName}${statusLabel ? ` · ${statusLabel}` : ""}` : statusLabel || "Activa"}
                           </span>
                         </>
                       ) : (
-                        <span className="pill pill-muted pill-sm">Sin plan</span>
+                        <span className="contact-value" style={{ fontSize: 13 }}>—</span>
                       )}
                     </div>
                   </div>
