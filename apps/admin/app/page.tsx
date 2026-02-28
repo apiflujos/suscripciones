@@ -95,7 +95,7 @@ function ChartBars({
           {bLabel}
         </span>
       </div>
-    </main>
+    </div>
   );
 }
 
