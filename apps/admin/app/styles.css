@@ -94,6 +94,7 @@
   --chart-track: rgba(15, 23, 42, 0.12);
   --chart-a: var(--apf-24);
   --chart-b: var(--apf-25);
+  --chart-c: var(--apf-20);
 
   --status-success: var(--apf-26);
   --status-success-bg: rgba(34, 136, 51, 0.16);
@@ -164,6 +165,7 @@ html[data-theme="dark"] {
   --chart-track: rgba(255, 255, 255, 0.12);
   --chart-a: var(--apf-18);
   --chart-b: var(--apf-25);
+  --chart-c: var(--apf-21);
   --topbar-title: var(--apf-10);
 
   --status-success: var(--apf-26);
@@ -218,6 +220,7 @@ html[data-theme="pink-dark"] {
   --chart-track: rgba(255, 255, 255, 0.14);
   --chart-a: #ff9ac2;
   --chart-b: #ff6b6b;
+  --chart-c: var(--apf-17);
 
   --form-bg: #2e0b18;
   --form-border: var(--stroke-strong);
@@ -254,6 +257,7 @@ html[data-vision="safe"] {
   --status-info-bg: rgba(86, 180, 233, 0.22);
   --chart-a: var(--apf-21);
   --chart-b: var(--apf-22);
+  --chart-c: var(--apf-19);
   --row-hover: rgba(0, 114, 178, 0.18);
 }
 
@@ -294,6 +298,7 @@ html[data-contrast="high"] {
   --chart-track: rgba(255, 255, 255, 0.25);
   --chart-a: #00e5ff;
   --chart-b: #ff2e2e;
+  --chart-c: #ffd400;
   --topbar-title: #ffd400;
 
   --form-bg: #0b0b0b;

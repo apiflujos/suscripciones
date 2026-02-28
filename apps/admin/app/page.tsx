@@ -46,6 +46,13 @@ function avg(values: number[]) {
   return sum(values) / values.length;
 }
 
+function alignSeries(values: number[], targetLength: number) {
+  if (values.length === targetLength) return values;
+  if (values.length > targetLength) return values.slice(values.length - targetLength);
+  const pad = Array.from({ length: Math.max(0, targetLength - values.length) }, () => 0);
+  return [...pad, ...values];
+}
+
 function pctChange(current: number, prev: number) {
   if (!Number.isFinite(current) || !Number.isFinite(prev) || prev === 0) return null;
   return ((current - prev) / Math.abs(prev)) * 100;
@@ -141,6 +148,110 @@ function ChartLine({
           })
         : null}
     </svg>
+  );
+}
+
+function ChartLines({
+  series,
+  labels,
+  tooltipLabel,
+  height = 120
+}: {
+  series: Array<{ values: number[]; label: string; color?: string; dashed?: boolean }>;
+  labels?: string[];
+  tooltipLabel?: (value: number, index: number, seriesLabel: string) => string;
+  height?: number;
+}) {
+  const w = 520;
+  const h = height;
+  const pad = 10;
+  const colors = ["var(--chart-a)", "var(--chart-b)", "var(--chart-c)"];
+  const allValues = series.flatMap((s) => s.values.map((v) => (Number.isFinite(v) ? v : 0)));
+  const max = Math.max(1, ...allValues);
+  const gridCount = 4;
+  const fmtAxis = (v: number) => new Intl.NumberFormat("es-CO").format(Math.round(v));
+  const labelIdxs = labels?.length
+    ? labels.length > 1
+      ? Array.from(new Set([0, Math.floor((labels.length - 1) / 2), labels.length - 1]))
+      : [0]
+    : [];
+  const step = labels?.length ? Math.max(1, Math.ceil(labels.length / 12)) : 1;
+
+  return (
+    <div style={{ display: "grid", gap: 8 }}>
+      <svg viewBox={`0 0 ${w} ${h}`} width="100%" height={h} aria-hidden="true">
+        {Array.from({ length: gridCount + 1 }).map((_, i) => {
+          const y = pad + (i * (h - pad * 2)) / gridCount;
+          const value = max - (i * max) / gridCount;
+          const showLabel = i === 0 || i === Math.floor(gridCount / 2) || i === gridCount;
+          return (
+            <g key={`grid-${i}`}>
+              <line x1="0" y1={y} x2={w} y2={y} stroke="var(--chart-track)" />
+              {showLabel ? (
+                <text x={2} y={y - 2} fontSize="9" fill="var(--text-faint)">
+                  {fmtAxis(value)}
+                </text>
+              ) : null}
+            </g>
+          );
+        })}
+        {series.map((s, si) => {
+          const color = s.color || colors[si % colors.length];
+          const pts = s.values.map((v, i) => {
+            const x = pad + (i * (w - pad * 2)) / Math.max(1, s.values.length - 1);
+            const y = h - pad - (Math.max(0, v) * (h - pad * 2)) / max;
+            return `${x.toFixed(1)},${y.toFixed(1)}`;
+          });
+          return (
+            <g key={`series-${s.label}-${si}`}>
+              <polyline
+                points={pts.join(" ")}
+                fill="none"
+                stroke={color}
+                strokeWidth="2.4"
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                strokeDasharray={s.dashed ? "6 4" : undefined}
+              />
+              {s.values.map((v, i) => {
+                if (i % step !== 0 && i !== s.values.length - 1) return null;
+                const x = pad + (i * (w - pad * 2)) / Math.max(1, s.values.length - 1);
+                const y = h - pad - (Math.max(0, v) * (h - pad * 2)) / max;
+                const tip = tooltipLabel ? tooltipLabel(v, i, s.label) : `${labels?.[i] || ""} · ${s.label}: ${v}`;
+                return (
+                  <g key={`pt-${si}-${i}`}>
+                    <circle cx={x} cy={y} r="2.5" fill={color} />
+                    <title>{tip}</title>
+                  </g>
+                );
+              })}
+            </g>
+          );
+        })}
+        <line x1="0" y1={h - 0.5} x2={w} y2={h - 0.5} stroke="var(--chart-axis)" />
+        {labels
+          ? labelIdxs.map((i) => {
+              const x = pad + (i * (w - pad * 2)) / Math.max(1, labels.length - 1);
+              const textAnchor = i === 0 ? "start" : i === labels.length - 1 ? "end" : "middle";
+              return (
+                <text key={`label-${i}`} x={x} y={h - 2} textAnchor={textAnchor} fontSize="10" fill="var(--text-faint)">
+                  {labels[i] || ""}
+                </text>
+              );
+            })
+          : null}
+      </svg>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", color: "var(--muted)", fontSize: 12 }}>
+        {series.map((s, i) => {
+          const color = s.color || colors[i % colors.length];
+          return (
+            <span key={`legend-${s.label}-${i}`}>
+              <span style={{ display: "inline-block", width: 10, height: 10, background: color, borderRadius: 3, marginRight: 6 }} /> {s.label}
+            </span>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -309,13 +420,17 @@ export default async function Home({
     : { ok: false, status: 401, json: { error: "missing_admin_token" } };
 
   const series: any[] = metrics.ok ? metrics.json?.series || [] : [];
+  const prevSeries: any[] = prevMetrics.ok ? prevMetrics.json?.series || [] : [];
   const revenueSeries = series.map((p) => Number(p?.revenueInCents ?? 0));
+  const prevRevenueSeries = alignSeries(prevSeries.map((p) => Number(p?.revenueInCents ?? 0)), revenueSeries.length);
   const okSeries = series.map((p) => Number(p?.paymentsSuccess ?? 0));
   const failSeries = series.map((p) => Number(p?.paymentsFailed ?? 0));
   const linksSent = series.map((p) => Number(p?.linksSent ?? 0));
   const linksPaid = series.map((p) => Number(p?.linksPaid ?? 0));
   const activeSubs = series.map((p) => Number(p?.activeSubscriptions ?? 0));
+  const prevActiveSubs = alignSeries(prevSeries.map((p) => Number(p?.activeSubscriptions ?? 0)), activeSubs.length);
   const mrrSeries = series.map((p) => (p?.mrrInCents == null ? null : Number(p.mrrInCents)));
+  const prevMrrSeries = alignSeries(prevSeries.map((p) => Number(p?.mrrInCents ?? 0)), mrrSeries.length);
   const bucketLabels = series.map((p) => fmtBucketLabel(String(p?.at || ""), g));
 
   const totalRevenue = Number(metrics.json?.totals?.totalRevenueInCents || 0);
@@ -327,6 +442,15 @@ export default async function Home({
   const totalActiveSubscriptions = Number(metrics.json?.totals?.totalActiveSubscriptions || 0);
   const linkConversionPct = Number(metrics.json?.totals?.link?.conversionLinkToPayPct || 0);
   const autoMrr = Number(metrics.json?.totals?.auto?.mrrInCents || 0);
+  const autoActive = Number(metrics.json?.totals?.auto?.activeSubscriptions || 0);
+  const autoNew = Number(metrics.json?.totals?.auto?.newSubscriptions || 0);
+  const autoCancels = Number(metrics.json?.totals?.auto?.cancellations || 0);
+  const autoNet = autoNew - autoCancels;
+  const autoOk = Number(metrics.json?.totals?.auto?.autoChargesSuccessful || 0);
+  const autoFail = Number(metrics.json?.totals?.auto?.autoChargesFailed || 0);
+  const autoTotal = autoOk + autoFail;
+  const autoApprovalPct = autoTotal > 0 ? (autoOk / autoTotal) * 100 : 0;
+  const autoChurn = metrics.json?.totals?.auto?.churnMonthlyPct ?? null;
 
   const revenueTotalSeries = sum(revenueSeries);
   const revenueAvgSeries = avg(revenueSeries);
@@ -358,11 +482,48 @@ export default async function Home({
   const prevApprovalPct = prevPaymentsTotal > 0 ? (prevPaymentsOk / prevPaymentsTotal) * 100 : 0;
   const prevLinkConversion = Number(prevTotals?.link?.conversionLinkToPayPct || 0);
   const prevPlansSold = Number(prevTotals?.totalPlansSold || 0);
+  const prevAutoActive = Number(prevTotals?.auto?.activeSubscriptions || 0);
+  const prevAutoNew = Number(prevTotals?.auto?.newSubscriptions || 0);
+  const prevAutoCancels = Number(prevTotals?.auto?.cancellations || 0);
+  const prevAutoNet = prevAutoNew - prevAutoCancels;
+  const prevAutoOk = Number(prevTotals?.auto?.autoChargesSuccessful || 0);
+  const prevAutoFail = Number(prevTotals?.auto?.autoChargesFailed || 0);
+  const prevAutoTotal = prevAutoOk + prevAutoFail;
+  const prevAutoApprovalPct = prevAutoTotal > 0 ? (prevAutoOk / prevAutoTotal) * 100 : 0;
+  const prevAutoMrr = Number(prevTotals?.auto?.mrrInCents || 0);
+  const prevAutoChurn = prevTotals?.auto?.churnMonthlyPct ?? null;
 
   const revenueDeltaPct = hasPrev ? pctChange(totalRevenue, prevRevenue) : null;
   const approvalDeltaPp = hasPrev ? approvalPct - prevApprovalPct : null;
   const linkConversionDeltaPp = hasPrev ? linkConversionPct - prevLinkConversion : null;
   const plansDeltaPct = hasPrev ? pctChange(metrics.json?.totals?.totalPlansSold || 0, prevPlansSold) : null;
+  const autoActiveDelta = hasPrev ? autoActive - prevAutoActive : null;
+  const autoActiveDeltaPct = hasPrev ? pctChange(autoActive, prevAutoActive) : null;
+  const autoNetDelta = hasPrev ? autoNet - prevAutoNet : null;
+  const autoApprovalDeltaPp = hasPrev ? autoApprovalPct - prevAutoApprovalPct : null;
+  const autoMrrDeltaPct = hasPrev ? pctChange(autoMrr, prevAutoMrr) : null;
+  const autoChurnDeltaPp =
+    hasPrev && autoChurn != null && prevAutoChurn != null ? Number(autoChurn) - Number(prevAutoChurn) : null;
+
+  const revenueLineSeries = hasPrev
+    ? [
+        { label: "Actual", values: revenueSeries },
+        { label: "Periodo anterior", values: prevRevenueSeries, dashed: true }
+      ]
+    : [{ label: "Actual", values: revenueSeries }];
+  const activeLineSeries = hasPrev
+    ? [
+        { label: "Actual", values: activeSubs },
+        { label: "Periodo anterior", values: prevActiveSubs, dashed: true, color: "var(--chart-b)" }
+      ]
+    : [{ label: "Actual", values: activeSubs }];
+  const mrrLineSeries =
+    hasPrev && prevSeries.length
+      ? [
+          { label: "Actual", values: mrrSeries.map((v) => Number(v ?? 0)), color: "var(--chart-a)" },
+          { label: "Periodo anterior", values: prevMrrSeries, color: "var(--chart-c)", dashed: true }
+        ]
+      : [{ label: "Actual", values: mrrSeries.map((v) => Number(v ?? 0)), color: "var(--chart-a)" }];
 
   return (
     <main className="page pageWide">
@@ -529,10 +690,10 @@ export default async function Home({
                     </div>
                     <div className="chart-range">{rangeLabel} · {periodLabel}</div>
                   </div>
-                  <ChartLine
-                    values={revenueSeries}
+                  <ChartLines
+                    series={revenueLineSeries}
                     labels={bucketLabels}
-                    tooltipLabel={(v, i) => `${bucketLabels[i] || ""} · $${fmtMoneyCop(v)} COP`}
+                    tooltipLabel={(v, i, label) => `${bucketLabels[i] || ""} · ${label}: $${fmtMoneyCop(v)} COP`}
                   />
                   <div className="chart-kpis">
                     <span className="chart-kpi">Total <strong>${fmtMoneyCop(revenueTotalSeries)} COP</strong></span>
@@ -610,10 +771,10 @@ export default async function Home({
                     </div>
                     <div className="chart-range">{rangeLabel} · {periodLabel}</div>
                   </div>
-                  <ChartLine
-                    values={activeSubs}
+                  <ChartLines
+                    series={activeLineSeries}
                     labels={bucketLabels}
-                    tooltipLabel={(v, i) => `${bucketLabels[i] || ""} · ${v} activas`}
+                    tooltipLabel={(v, i, label) => `${bucketLabels[i] || ""} · ${label}: ${v} activas`}
                   />
                   <div className="chart-kpis">
                     <span className="chart-kpi">Inicio <strong>{activeStart}</strong></span>
@@ -634,32 +795,60 @@ export default async function Home({
                   <div className="grid2" style={{ gap: 10 }}>
                     <div className="card cardPad" style={{ padding: 10 }}>
                       <div style={{ color: "var(--muted)", fontSize: 12 }}>Activas</div>
-                      <div style={{ fontSize: 18, fontWeight: 900 }}>{metrics.json?.totals?.auto?.activeSubscriptions || 0}</div>
+                      <div style={{ fontSize: 18, fontWeight: 900 }}>{autoActive}</div>
+                      <div style={{ fontSize: 12, color: "var(--text-faint)" }}>
+                        Δ {autoActiveDelta ?? "—"} ·
+                        <span className={`delta ${autoActiveDeltaPct == null ? "flat" : autoActiveDeltaPct >= 0 ? "up" : "down"}`}>
+                          {fmtDelta(autoActiveDeltaPct)}
+                        </span>
+                      </div>
                     </div>
                     <div className="card cardPad" style={{ padding: 10 }}>
                       <div style={{ color: "var(--muted)", fontSize: 12 }}>Nuevas / Cancelaciones</div>
                       <div style={{ fontSize: 18, fontWeight: 900 }}>
-                        {metrics.json?.totals?.auto?.newSubscriptions || 0} / {metrics.json?.totals?.auto?.cancellations || 0}
+                        {autoNew} / {autoCancels}
+                      </div>
+                      <div style={{ fontSize: 12, color: "var(--text-faint)" }}>
+                        Netas {autoNet >= 0 ? "+" : ""}{autoNet} ·
+                        <span className={`delta ${autoNetDelta == null ? "flat" : autoNetDelta >= 0 ? "up" : "down"}`}>
+                          {autoNetDelta == null ? "—" : autoNetDelta >= 0 ? `+${autoNetDelta}` : autoNetDelta}
+                        </span>
                       </div>
                     </div>
                     <div className="card cardPad" style={{ padding: 10 }}>
                       <div style={{ color: "var(--muted)", fontSize: 12 }}>Cobros OK / Fallidos</div>
                       <div style={{ fontSize: 18, fontWeight: 900 }}>
-                        {metrics.json?.totals?.auto?.autoChargesSuccessful || 0} / {metrics.json?.totals?.auto?.autoChargesFailed || 0}
+                        {autoOk} / {autoFail}
+                      </div>
+                      <div style={{ fontSize: 12, color: "var(--text-faint)" }}>
+                        Tasa OK {fmtPct(autoApprovalPct)} ·
+                        <span className={`delta ${autoApprovalDeltaPp == null ? "flat" : autoApprovalDeltaPp >= 0 ? "up" : "down"}`}>
+                          {fmtDeltaPp(autoApprovalDeltaPp)}
+                        </span>
                       </div>
                     </div>
                     <div className="card cardPad" style={{ padding: 10 }}>
                       <div style={{ color: "var(--muted)", fontSize: 12 }}>MRR (auto)</div>
-                      <div style={{ fontSize: 18, fontWeight: 900 }}>${fmtMoneyCop(metrics.json?.totals?.auto?.mrrInCents || 0)} COP</div>
+                      <div style={{ fontSize: 18, fontWeight: 900 }}>${fmtMoneyCop(autoMrr)} COP</div>
+                      <div style={{ fontSize: 12, color: "var(--text-faint)" }}>
+                        Δ
+                        <span className={`delta ${autoMrrDeltaPct == null ? "flat" : autoMrrDeltaPct >= 0 ? "up" : "down"}`}>
+                          {fmtDelta(autoMrrDeltaPct)}
+                        </span>
+                        · Churn {fmtPct(autoChurn)} ·
+                        <span className={`delta ${autoChurnDeltaPp == null ? "flat" : autoChurnDeltaPp <= 0 ? "up" : "down"}`}>
+                          {fmtDeltaPp(autoChurnDeltaPp)}
+                        </span>
+                      </div>
                     </div>
                   </div>
                   {mrrSeries.some((v) => v != null) ? (
                     <div style={{ marginTop: 10 }}>
                       <div style={{ color: "var(--muted)", fontSize: 12, marginBottom: 6 }}>Evolución MRR (mes)</div>
-                      <ChartLine
-                        values={mrrSeries.map((v) => Number(v ?? 0))}
+                      <ChartLines
+                        series={mrrLineSeries}
                         labels={bucketLabels}
-                        tooltipLabel={(v, i) => `${bucketLabels[i] || ""} · $${fmtMoneyCop(v)} COP`}
+                        tooltipLabel={(v, i, label) => `${bucketLabels[i] || ""} · ${label}: $${fmtMoneyCop(v)} COP`}
                       />
                     </div>
                   ) : null}
