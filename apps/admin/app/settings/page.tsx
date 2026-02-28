@@ -25,6 +25,8 @@ import { ConnectionsPanel } from "./ConnectionsPanel";
 import { CheckoutTemplatesPanel } from "../checkout-templates/CheckoutTemplatesPanel";
 import { createCheckoutTemplate, updateCheckoutTemplate, deleteCheckoutTemplate, duplicateCheckoutTemplate } from "../checkout-templates/actions";
 import { RedirectConfigPanel } from "./RedirectConfigPanel";
+import { createTenant, deleteTenant, updateTenant } from "../tenants/actions";
+import { DeleteTenantButton } from "./DeleteTenantButton";
 
 export const dynamic = "force-dynamic";
 
@@ -127,6 +129,9 @@ export default async function SettingsPage({
         </a>
         <a className={`settings-tab ${tab === "checkout-publico" ? "is-active" : ""}`} href="/settings?tab=checkout-publico">
           Checkout público
+        </a>
+        <a className={`settings-tab ${tab === "canales" ? "is-active" : ""}`} href="/settings?tab=canales">
+          Canales de venta
         </a>
       </div>
 
@@ -437,6 +442,60 @@ export default async function SettingsPage({
                 duplicate: duplicateCheckoutTemplate
               }}
             />
+          </div>
+        </section>
+      ) : null}
+
+      {tab === "canales" ? (
+        <section className="settings-group">
+          <div className="settings-group-header">
+            <div className="panelHeaderRow">
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <h3>Canales de venta</h3>
+                <HelpTip text="Gestiona los canales (tenants) disponibles en la app." />
+              </div>
+            </div>
+          </div>
+          <div className="settings-group-body">
+            <div className="card cardPad" style={{ marginBottom: 16 }}>
+              <form action={createTenant} className="row" style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
+                <input type="hidden" name="csrfToken" value={csrfToken} />
+                <input type="hidden" name="returnTo" value={returnTo} />
+                <div className="field" style={{ minWidth: 240, flex: 1 }}>
+                  <label>Nuevo canal</label>
+                  <input className="input" name="name" placeholder="Nombre del canal" />
+                </div>
+                <PendingButton className="primary" type="submit" pendingText="Creando...">
+                  Crear canal
+                </PendingButton>
+              </form>
+            </div>
+
+            {tenants.length ? (
+              <div className="stack">
+                {tenants.map((tenant: any) => (
+                  <div key={tenant.id} className="card cardPad">
+                    <form action={updateTenant} className="row" style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
+                      <input type="hidden" name="csrfToken" value={csrfToken} />
+                      <input type="hidden" name="tenantId" value={tenant.id} />
+                      <input type="hidden" name="returnTo" value={returnTo} />
+                      <div className="field" style={{ minWidth: 240, flex: 1 }}>
+                        <label>Nombre</label>
+                        <input className="input" name="name" defaultValue={tenant.name || ""} />
+                      </div>
+                      <PendingButton className="ghost" type="submit" pendingText="Guardando...">
+                        Guardar
+                      </PendingButton>
+                    </form>
+                    <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end" }}>
+                      <DeleteTenantButton action={deleteTenant} csrfToken={csrfToken} tenantId={tenant.id} returnTo={returnTo} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="card cardPad">No hay canales creados.</div>
+            )}
           </div>
         </section>
       ) : null}

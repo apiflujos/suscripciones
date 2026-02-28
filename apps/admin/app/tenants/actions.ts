@@ -48,3 +48,38 @@ export async function createTenant(formData: FormData) {
     redirect(mergeQuery(returnTo, { error: String(err?.message || "create_tenant_failed") }));
   }
 }
+
+export async function updateTenant(formData: FormData) {
+  await assertCsrfToken(formData);
+  const tenantId = String(formData.get("tenantId") || "").trim();
+  const name = String(formData.get("name") || "").trim();
+  const returnTo = String(formData.get("returnTo") || "").trim() || "/";
+  if (!tenantId) return redirect(mergeQuery(returnTo, { error: "missing_tenant_id" }));
+  if (!name) return redirect(mergeQuery(returnTo, { error: "tenant_name_required" }));
+
+  try {
+    await adminFetch(`/admin/tenants/${encodeURIComponent(tenantId)}`, {
+      method: "PUT",
+      body: JSON.stringify({ name })
+    });
+    redirect(mergeQuery(returnTo, { saved: "1" }));
+  } catch (err: any) {
+    if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
+    redirect(mergeQuery(returnTo, { error: String(err?.message || "update_tenant_failed") }));
+  }
+}
+
+export async function deleteTenant(formData: FormData) {
+  await assertCsrfToken(formData);
+  const tenantId = String(formData.get("tenantId") || "").trim();
+  const returnTo = String(formData.get("returnTo") || "").trim() || "/";
+  if (!tenantId) return redirect(mergeQuery(returnTo, { error: "missing_tenant_id" }));
+
+  try {
+    await adminFetch(`/admin/tenants/${encodeURIComponent(tenantId)}`, { method: "DELETE" });
+    redirect(mergeQuery(returnTo, { deleted: "1" }));
+  } catch (err: any) {
+    if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
+    redirect(mergeQuery(returnTo, { error: String(err?.message || "delete_tenant_failed") }));
+  }
+}

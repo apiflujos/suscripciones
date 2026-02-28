@@ -5,6 +5,9 @@ import { prisma } from "../db/prisma";
 const createTenantSchema = z.object({
   name: z.string().min(1)
 });
+const updateTenantSchema = z.object({
+  name: z.string().min(1)
+});
 
 export const tenantsRouter = express.Router();
 
@@ -30,4 +33,54 @@ tenantsRouter.post("/", async (req, res) => {
     });
   }
   res.status(201).json({ tenant, created: true });
+});
+
+tenantsRouter.put("/:tenantId", async (req, res) => {
+  const tenantId = String(req.params.tenantId || "").trim();
+  if (!tenantId) return res.status(400).json({ error: "missing_tenant_id" });
+  const parsed = updateTenantSchema.safeParse(req.body ?? {});
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+  const name = parsed.data.name.trim();
+  const existing = await prisma.saTenant.findUnique({ where: { id: tenantId } });
+  if (!existing) return res.status(404).json({ error: "tenant_not_found" });
+  const updated = await prisma.saTenant.update({ where: { id: tenantId }, data: { name } });
+  res.json({ tenant: updated });
+});
+
+tenantsRouter.delete("/:tenantId", async (req, res) => {
+  const tenantId = String(req.params.tenantId || "").trim();
+  if (!tenantId) return res.status(400).json({ error: "missing_tenant_id" });
+  const existing = await prisma.saTenant.findUnique({ where: { id: tenantId } });
+  if (!existing) return res.status(404).json({ error: "tenant_not_found" });
+
+  const [
+    customers,
+    plans,
+    subscriptions,
+    payments,
+    paymentLinks,
+    checkoutTemplates,
+    webhookEvents,
+    chatwootMessages
+  ] = await prisma.$transaction([
+    prisma.customer.count({ where: { tenantId } }),
+    prisma.subscriptionPlan.count({ where: { tenantId } }),
+    prisma.subscription.count({ where: { tenantId } }),
+    prisma.payment.count({ where: { tenantId } }),
+    prisma.paymentLink.count({ where: { tenantId } }),
+    prisma.publicCheckoutTemplate.count({ where: { tenantId } }),
+    prisma.webhookEvent.count({ where: { tenantId } }),
+    prisma.chatwootMessage.count({ where: { tenantId } })
+  ]);
+
+  const blocking = customers + plans + subscriptions + payments + paymentLinks + checkoutTemplates + webhookEvents + chatwootMessages;
+  if (blocking > 0) {
+    return res.status(409).json({
+      error: "tenant_has_data",
+      details: { customers, plans, subscriptions, payments, paymentLinks, checkoutTemplates, webhookEvents, chatwootMessages }
+    });
+  }
+
+  await prisma.saTenant.delete({ where: { id: tenantId } });
+  res.json({ deleted: true });
 });
