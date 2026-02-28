@@ -35,16 +35,20 @@ export default async function SmartListDetail({
 
   return (
     <div className="page">
-      <div className="pageHeader">
-        <div>
-          <h1>{list.name}</h1>
-          <p className="muted">Label: {list.chatwootLabel}</p>
+      <div className="panel module" style={{ marginBottom: 12 }}>
+        <div className="panelHeaderRow">
+          <div>
+            <div className="pageTitle">{list.name}</div>
+            <div className="pageSub">Label: {list.chatwootLabel}</div>
+          </div>
+          <Link href="/smart-lists" className="ghost no-icon">Volver</Link>
         </div>
-        <Link href="/smart-lists" className="ghost">Volver</Link>
       </div>
 
       <div className="panel module">
-        <h3 style={{ marginTop: 0 }}>Contactos (activos)</h3>
+        <div className="panelHeaderRow" style={{ marginBottom: 8 }}>
+          <div className="pageTitle">Contactos activos</div>
+        </div>
         {items.length === 0 ? <div className="muted">Sin contactos.</div> : null}
         <div style={{ display: "grid", gap: 8 }}>
           {items.map((m: any) => (

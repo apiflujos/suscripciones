@@ -63,13 +63,6 @@ export default async function SmartListsPage({
 
   return (
     <div className="page">
-      <div className="pageHeader">
-        <div>
-          <h1>Listas Inteligentes</h1>
-          <p className="muted">Segmenta por reglas y envía campañas masivas desde CentralCom.</p>
-        </div>
-      </div>
-
       {normalizeErrorParam(sp.error) ? <div className="panel module">Error: {normalizeErrorParam(sp.error)}</div> : null}
       {sp.created ? <div className="panel module">Lista creada.</div> : null}
       {sp.synced ? <div className="panel module">Sync: {sp.synced}</div> : null}
