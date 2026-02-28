@@ -298,6 +298,7 @@ export async function syncChatwootAttributesForCustomer(customerId: string) {
   const cfg = await getChatwootConfig();
   if (!cfg.configured) return { ok: false as const, reason: "chatwoot_not_configured" as const };
 
+  const meta: any = (customer.metadata ?? {}) as any;
   const ensured = await ensureChatwootContactForCustomer(customer.id, { skipUpdate: true });
   if (!ensured.ok) return ensured;
 
