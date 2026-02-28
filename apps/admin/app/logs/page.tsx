@@ -339,6 +339,9 @@ export default async function LogsPage({
                         : status === "PENDING"
                           ? { cls: "is-warning", label: "Pendiente" }
                           : { cls: "is-success", label: "Procesado" };
+                    const attemptsRaw = Number(j.attempts ?? 0);
+                    const maxAttempts = Number(j.maxAttempts ?? 0);
+                    const attemptsShown = status === "SUCCEEDED" && attemptsRaw === 0 ? 1 : attemptsRaw;
                     return (
                       <tr key={j.id}>
                         <td><LocalDateTime value={j.updatedAt} /></td>
@@ -349,7 +352,7 @@ export default async function LogsPage({
                             {chip.label}
                           </span>
                         </td>
-                        <td>{j.attempts ?? 0} / {j.maxAttempts ?? 0}</td>
+                        <td>{attemptsShown} / {maxAttempts}</td>
                         <td>{j.lastError || "—"}</td>
                         <td style={{ textAlign: "right" }}>
                           {status === "FAILED" ? (
