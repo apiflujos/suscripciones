@@ -376,7 +376,7 @@ export async function syncChatwootAttributesForCustomer(customerId: string) {
 
   const customJson = JSON.stringify(customAttributes);
   const nextHash = createHash("sha1").update(customJson).digest("hex");
-  const prevHash = meta?.chatwoot?.attributesHash;
+  const prevHash = meta?.chatwoot?.attributesHash || null;
   if (prevHash && prevHash === nextHash) {
     return { ok: true as const, skipped: true as const, contactId: ensured.contactId, sourceId: ensured.sourceId };
   }
