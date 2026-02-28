@@ -223,8 +223,8 @@ export function NotificationsSimple({
               <h3 style={{ margin: 0 }}>{pickerOpen === "vars" ? "Variables" : "Emojis"}</h3>
               <button type="button" className="ghost modal-close" onClick={() => setPickerOpen(null)} aria-label="Cerrar" data-modal-close="true" data-loader="off">X</button>
             </div>
-            <div className="panel module" style={{ display: "grid", gap: 8 }}>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            <div className="panel module" style={{ display: "grid", gap: 6 }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {(pickerOpen === "vars" ? MESSAGE_VARIABLES : MESSAGE_EMOJIS).map((item) => {
                   const label = typeof item === "string" ? item : item.label;
                   const value = typeof item === "string" ? item : item.value;
@@ -246,7 +246,7 @@ export function NotificationsSimple({
           </div>
         </div>
         <div className="settings-group-body">
-          <div className="saved-connections-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
+          <div className="saved-connections-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
             {REALTIME_TYPES.map((rt) => {
               const tpl = templateForKey(rt.key, rt.chatwootType, rt.label);
               const rule = rulesByKey.get(rt.key);
@@ -267,14 +267,14 @@ export function NotificationsSimple({
                     <span className={`pill ${rule?.enabled ? "pill-green" : "pill-muted"}`}>{rule?.enabled ? "Activa" : "Inactiva"}</span>
                   </div>
                   {isEditing ? (
-                    <form action={actions.saveRealtime} style={{ display: "grid", gap: 8 }}>
+                    <form action={actions.saveRealtime} style={{ display: "grid", gap: 6 }}>
                       <input type="hidden" name="csrf" value={csrfToken} />
                       <input type="hidden" name="environment" value={env} />
                       <input type="hidden" name="key" value={rt.key} />
                       <input type="hidden" name="chatwootType" value={rt.chatwootType || ""} />
                       <input type="hidden" name="paymentType" value={rt.paymentType || ""} />
                       <div className="field row" style={{ justifyContent: "space-between" }}>
-                        <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           <span>Activa</span>
                           <HelpTip text="Solo una notificación activa por tipo." />
                         </label>
@@ -294,7 +294,7 @@ export function NotificationsSimple({
                       </div>
                       {kind === "TEXT" ? (
                         <div className="field">
-                          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
                             <span>Mensaje</span>
                             <HelpTip text="Puedes usar variables del sistema, por ejemplo: {{customer.name}}, {{customer.email}}, {{plan.name}}, {{payment.checkoutUrl}}, {{tokenization.url}}, {{catalog.url}}, {{subscription.currentPeriodEndAt}}." />
                           </label>
@@ -308,7 +308,7 @@ export function NotificationsSimple({
                             onInput={(e) => autoResizeTextarea(e.currentTarget)}
                           />
                           <div className="field-hint">Se reemplazan variables del sistema automáticamente.</div>
-                          <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                          <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
                             <button type="button" className="ghost" data-modal="true" onClick={() => setPickerOpen("vars")} aria-label="Variables">
                               {`{ }`}
                             </button>
@@ -329,7 +329,7 @@ export function NotificationsSimple({
                             <input className="input" name="waLanguage" defaultValue={waLang} placeholder="es" />
                           </div>
                           <div className="field">
-                            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
                               <span>Parámetros (separados por |)</span>
                               <HelpTip text="Son los valores que reemplazan {{1}}, {{2}}, {{3}} en tu plantilla. Ej: 'Hola {{1}}, recibimos {{2}}' → Juan|$10.000" />
                             </label>
@@ -337,7 +337,7 @@ export function NotificationsSimple({
                           </div>
                         </>
                       ) : null}
-                      <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                      <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
                         {rule ? (
                           <button className="ghost" type="button" onClick={() => setRealtimeEdit((prev) => ({ ...prev, [rt.key]: false }))}>
                             Cancelar
@@ -349,7 +349,7 @@ export function NotificationsSimple({
                       </div>
                     </form>
                   ) : (
-                    <div style={{ display: "grid", gap: 8 }}>
+                    <div style={{ display: "grid", gap: 6 }}>
                       <div className="saved-conn-meta">
                         <div className="saved-conn-meta-item">
                           <span className="saved-conn-meta-label">Tipo de mensaje</span>
@@ -390,7 +390,7 @@ export function NotificationsSimple({
           </div>
         </div>
         <div className="settings-group-body">
-          <div className="saved-connections-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
+          <div className="saved-connections-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
             <div className="saved-conn-card">
               <div className="saved-conn-header">
                 <div>
@@ -399,7 +399,7 @@ export function NotificationsSimple({
                 </div>
               </div>
               {dueEdit || !reminderDue ? (
-                <form action={actions.saveReminder} style={{ display: "grid", gap: 8 }}>
+                <form action={actions.saveReminder} style={{ display: "grid", gap: 6 }}>
                 <input type="hidden" name="csrf" value={csrfToken} />
                 <input type="hidden" name="environment" value={env} />
                 <input type="hidden" name="kind" value="DUE" />
@@ -417,7 +417,7 @@ export function NotificationsSimple({
                 </div>
                 {dueKind === "TEXT" ? (
                   <div className="field">
-                    <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <span>Mensaje</span>
                       <HelpTip text="Puedes usar variables del sistema, por ejemplo: {{customer.name}}, {{customer.email}}, {{plan.name}}, {{payment.checkoutUrl}}, {{tokenization.url}}, {{catalog.url}}, {{subscription.currentPeriodEndAt}}." />
                     </label>
@@ -430,7 +430,7 @@ export function NotificationsSimple({
                       onInput={(e) => autoResizeTextarea(e.currentTarget)}
                     />
                     <div className="field-hint">Se reemplazan variables del sistema automáticamente.</div>
-                    <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                    <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
                       <button type="button" className="ghost" data-modal="true" onClick={() => setPickerOpen("vars")} aria-label="Variables">
                         {`{ }`}
                       </button>
@@ -451,7 +451,7 @@ export function NotificationsSimple({
                       <input className="input" name="waLanguage" defaultValue={reminderDueTemplate?.chatwootTemplate?.language || "es"} placeholder="es" />
                     </div>
                     <div className="field">
-                      <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <span>Parámetros (separados por |)</span>
                         <HelpTip text="Son los valores que reemplazan {{1}}, {{2}}, {{3}} en tu plantilla. Ej: 'Hola {{1}}, recibimos {{2}}' → Juan|$10.000" />
                       </label>
@@ -465,7 +465,7 @@ export function NotificationsSimple({
                   </>
                 ) : null}
                 {dueOffsets.map((item, idx) => (
-                  <div key={`due-${idx}`} style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 8, alignItems: "end" }}>
+                  <div key={`due-${idx}`} style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 6, alignItems: "end" }}>
                     <div className="field">
                       <label>Cada</label>
                       <input
@@ -521,7 +521,7 @@ export function NotificationsSimple({
                 </div>
               </form>
               ) : (
-                <div style={{ display: "grid", gap: 8 }}>
+                <div style={{ display: "grid", gap: 6 }}>
                   <div className="saved-conn-meta">
                     <div className="saved-conn-meta-item">
                       <span className="saved-conn-meta-label">Tipo de mensaje</span>
@@ -557,7 +557,7 @@ export function NotificationsSimple({
                 </div>
               </div>
               {moraEdit || !reminderMora ? (
-                <form action={actions.saveReminder} style={{ display: "grid", gap: 8 }}>
+                <form action={actions.saveReminder} style={{ display: "grid", gap: 6 }}>
                 <input type="hidden" name="csrf" value={csrfToken} />
                 <input type="hidden" name="environment" value={env} />
                 <input type="hidden" name="kind" value="MORA" />
@@ -575,7 +575,7 @@ export function NotificationsSimple({
                 </div>
                 {moraKind === "TEXT" ? (
                   <div className="field">
-                    <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <span>Mensaje</span>
                       <HelpTip text="Puedes usar variables del sistema, por ejemplo: {{customer.name}}, {{customer.email}}, {{plan.name}}, {{payment.checkoutUrl}}, {{tokenization.url}}, {{catalog.url}}, {{subscription.currentPeriodEndAt}}." />
                     </label>
@@ -588,7 +588,7 @@ export function NotificationsSimple({
                       onInput={(e) => autoResizeTextarea(e.currentTarget)}
                     />
                     <div className="field-hint">Se reemplazan variables del sistema automáticamente.</div>
-                    <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                    <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
                       <button type="button" className="ghost" data-modal="true" onClick={() => setPickerOpen("vars")} aria-label="Variables">
                         {`{ }`}
                       </button>
@@ -609,7 +609,7 @@ export function NotificationsSimple({
                       <input className="input" name="waLanguage" defaultValue={reminderMoraTemplate?.chatwootTemplate?.language || "es"} placeholder="es" />
                     </div>
                     <div className="field">
-                      <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <span>Parámetros (separados por |)</span>
                         <HelpTip text="Son los valores que reemplazan {{1}}, {{2}}, {{3}} en tu plantilla. Ej: 'Hola {{1}}, recibimos {{2}}' → Juan|$10.000" />
                       </label>
@@ -623,7 +623,7 @@ export function NotificationsSimple({
                   </>
                 ) : null}
                 {moraOffsets.map((item, idx) => (
-                  <div key={`mora-${idx}`} style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 8, alignItems: "end" }}>
+                  <div key={`mora-${idx}`} style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 6, alignItems: "end" }}>
                     <div className="field">
                       <label>Cada</label>
                       <input
@@ -679,7 +679,7 @@ export function NotificationsSimple({
                 </div>
               </form>
               ) : (
-                <div style={{ display: "grid", gap: 8 }}>
+                <div style={{ display: "grid", gap: 6 }}>
                   <div className="saved-conn-meta">
                     <div className="saved-conn-meta-item">
                       <span className="saved-conn-meta-label">Tipo de mensaje</span>

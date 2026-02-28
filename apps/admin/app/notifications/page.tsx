@@ -45,7 +45,7 @@ export default async function NotificationsPage({
           <div className="filtersPanel">
             <form action="/notifications" method="GET" className="filtersForm">
               <div className="field" style={{ margin: 0, minWidth: 220 }}>
-                <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span>Entorno</span>
                   <HelpTip text="Selecciona Producción o Sandbox para ver y crear reglas." />
                 </label>

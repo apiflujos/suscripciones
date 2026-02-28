@@ -236,7 +236,7 @@ export function NotificationWizard({
             <h3>Crear notificación / recordatorio</h3>
             <span className="pill">Paso {step}/3</span>
           </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <div className="field" style={{ margin: 0, minWidth: 220 }}>
               <label>Entorno</label>
               <select className="select" value={env} onChange={(e) => setEnv((e.target.value as Env) || "PRODUCTION")}>
@@ -321,7 +321,7 @@ export function NotificationWizard({
               </div>
 
               <div className="field">
-                <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
                   <span>Aplica a</span>
                   <HelpTip text="Se configura automáticamente según el tipo de notificación." />
                 </label>
@@ -336,7 +336,7 @@ export function NotificationWizard({
                 <div className="card cardPad">Se envía inmediatamente cuando ocurre el evento.</div>
               ) : (
                 <div className="field">
-                  <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
                     <span>¿Cuándo se envía?</span>
                     <HelpTip text="Puedes agregar varios tiempos (antes/después) en segundos, minutos, horas o días." />
                   </label>
@@ -401,9 +401,9 @@ export function NotificationWizard({
 
                   {trigger === "SUBSCRIPTION_DUE" ? (
                     <div style={{ marginTop: 10 }}>
-                      <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
                         <input type="checkbox" checked={ensurePaymentLink} onChange={(e) => setEnsurePaymentLink(e.target.checked)} />
-                        <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
+                        <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
                           Si falta link de pago, generarlo automáticamente
                           <HelpTip text="Si no existe link, el sistema intenta crearlo antes de enviar el recordatorio." />
                         </span>
@@ -412,9 +412,9 @@ export function NotificationWizard({
                   ) : null}
 
                   <div style={{ marginTop: 10 }}>
-                    <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
                       <input type="checkbox" checked={atTimeEnabled} onChange={(e) => setAtTimeEnabled(e.target.checked)} />
-                      <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
+                      <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
                         Enviar a hora exacta (UTC)
                         <HelpTip text="Si activas esto, el envío se hace a la hora exacta (UTC) en la fecha calculada.\nEj: 1 día antes a las 09:00 UTC." />
                       </span>
@@ -433,7 +433,7 @@ export function NotificationWizard({
           {step === 3 ? (
             <>
               <div className="field">
-                <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
                   <span>Plantilla / mensaje</span>
                   <HelpTip text="Mensaje normal: escribes el texto.\nTemplate WhatsApp: envías una plantilla aprobada por Meta (vía CentralCom)." />
                 </label>
@@ -444,11 +444,11 @@ export function NotificationWizard({
               </div>
 
               <div className="panel module" style={{ display: "grid", gap: 10 }}>
-                <div className="field-hint" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <div className="field-hint" style={{ display: "flex", gap: 6, alignItems: "center" }}>
                   <span>Variables (clic para insertar):</span>
                   <HelpTip text="Estas variables se reemplazan con datos reales al enviar.\nSi algún dato no existe, se deja vacío." />
                 </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                   {VARIABLES.map((v) => (
                     <button key={v.value} type="button" className="ghost" onClick={() => onVarClick(v.value)} style={{ minHeight: 30 }}>
                       {v.label}
@@ -458,11 +458,11 @@ export function NotificationWizard({
               </div>
 
               <div className="panel module" style={{ display: "grid", gap: 10 }}>
-                <div className="field-hint" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <div className="field-hint" style={{ display: "flex", gap: 6, alignItems: "center" }}>
                   <span>Emojis</span>
                   <HelpTip text="Clic para insertar un emoji en el campo activo." />
                 </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                   {["✅", "❌", "⏰", "💳", "⚠️", "📌", "📅", "🙏"].map((e) => (
                     <button key={e} type="button" className="ghost" onClick={() => onVarClick(e)} style={{ minHeight: 30, minWidth: 42 }}>
                       {e}
@@ -499,11 +499,11 @@ export function NotificationWizard({
                   </div>
 
                   <div className="field">
-                    <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
                       <span>Variables de la plantilla (opcional)</span>
                       <HelpTip text="Si tu plantilla tiene variables en el body ({{1}}, {{2}}, ...), agrégalas aquí en orden.\nSi no tiene variables, deja esto vacío." />
                     </label>
-                    <div style={{ display: "grid", gap: 8 }}>
+                    <div style={{ display: "grid", gap: 6 }}>
                       {waParams.map((v, idx) => (
                         <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "end" } as any}>
                           <div className="field" style={{ margin: 0 }}>

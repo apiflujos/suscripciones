@@ -3385,13 +3385,13 @@ html[data-contrast="high"] .module-footer .ghost {
 
 /* Notifications density */
 .notificationsPage .saved-connections-grid {
-  gap: 8px;
+  gap: 10px;
 }
 
 .notificationsPage .saved-conn-card {
-  padding: 8px 10px;
+  padding: 6px 8px;
   border-radius: 12px;
-  gap: 6px;
+  gap: 4px;
 }
 
 .notificationsPage .saved-conn-header {
@@ -3408,7 +3408,7 @@ html[data-contrast="high"] .module-footer .ghost {
 
 .notificationsPage .saved-conn-meta {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 6px 10px;
+  gap: 4px 8px;
 }
 
 .notificationsPage .saved-conn-meta-item {
@@ -3420,8 +3420,8 @@ html[data-contrast="high"] .module-footer .ghost {
 }
 
 .notificationsPage .panel.module {
-  padding: 8px;
-  gap: 5px;
+  padding: 6px;
+  gap: 4px;
 }
 
 .notificationsPage .field {

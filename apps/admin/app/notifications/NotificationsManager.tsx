@@ -376,9 +376,9 @@ export function NotificationsManager({
                       </div>
                       <div className="field">
                         <label>Parámetros (body)</label>
-                        <div style={{ display: "grid", gap: 8 }}>
+                        <div style={{ display: "grid", gap: 6 }}>
                           {tplWaParams.map((v, idx) => (
-                            <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8 }}>
+                            <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 6 }}>
                               <input className="input" value={v} onChange={(e) => setTplWaParams((prev) => prev.map((x, i) => (i === idx ? e.target.value : x)))} />
                               <button type="button" className="ghost" onClick={() => setTplWaParams((prev) => prev.filter((_, i) => i !== idx))}>Quitar</button>
                             </div>
@@ -417,7 +417,7 @@ export function NotificationsManager({
               <input type="hidden" name="metaLanguage" value={tplMetaLang} />
               <input type="hidden" name="metaComponents" value={tplMetaComponents} />
 
-              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
                 <button className="ghost" type="button" onClick={closeModals} data-modal-close="true" data-loader="off">Cancelar</button>
                 <button className="primary" type="submit">Guardar cambios</button>
               </div>
@@ -476,9 +476,9 @@ export function NotificationsManager({
 
               <div className="field">
                 <label>Offsets</label>
-                <div style={{ display: "grid", gap: 8 }}>
+                <div style={{ display: "grid", gap: 6 }}>
                   {ruleOffsets.map((o, idx) => (
-                    <div key={idx} style={{ display: "grid", gridTemplateColumns: "140px 1fr 180px auto", gap: 8, alignItems: "end" } as any}>
+                    <div key={idx} style={{ display: "grid", gridTemplateColumns: "140px 1fr 180px auto", gap: 6, alignItems: "end" } as any}>
                       <select className="select" value={o.direction} onChange={(e) => setRuleOffsets((prev) => prev.map((x, i) => (i === idx ? { ...x, direction: e.target.value as any } : x)))}>
                         <option value="before">Antes</option>
                         <option value="after">Después</option>
@@ -528,7 +528,7 @@ export function NotificationsManager({
                 <input key={idx} type="hidden" name="offsetSeconds" value={String(offsetItemToSeconds(o))} />
               ))}
 
-              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
                 <button className="ghost" type="button" onClick={closeModals} data-modal-close="true" data-loader="off">Cancelar</button>
                 <button className="primary" type="submit">Guardar cambios</button>
               </div>
