@@ -81,23 +81,29 @@ export function NewProductForm({
       {tenants.length > 0 ? (
         <div className="field">
           <label>Canal(es)</label>
-          <select
-            className="select"
-            multiple
-            value={selectedTenantIds}
-            onChange={(e) => {
-              const values = Array.from(e.target.selectedOptions).map((opt) => opt.value);
-              setSelectedTenantIds(values);
-            }}
-            required
-          >
-            {tenants.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-          <div className="field-hint">Puedes seleccionar uno o varios canales.</div>
+          <div className="tenant-list">
+            {tenants.map((t) => {
+              const checked = selectedTenantIds.includes(t.id);
+              return (
+                <label key={t.id} className="tenant-item">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(e) => {
+                      const next = e.target.checked
+                        ? Array.from(new Set([...selectedTenantIds, t.id]))
+                        : selectedTenantIds.filter((id) => id !== t.id);
+                      setSelectedTenantIds(next);
+                    }}
+                  />
+                  <span>{t.name}</span>
+                </label>
+              );
+            })}
+          </div>
+          <div className="field-hint">
+            {selectedTenantIds.length ? `${selectedTenantIds.length} canal(es) seleccionado(s).` : "Selecciona uno o varios canales."}
+          </div>
         </div>
       ) : null}
 
@@ -172,6 +178,7 @@ export function NewProductForm({
         <div className="field">
           <label>Imagen (URL)</label>
           <input className="input" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://..." />
+          <div className="field-hint">Opcional. Pega una URL pública de imagen.</div>
         </div>
       </div>
 
