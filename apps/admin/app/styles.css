@@ -3594,14 +3594,14 @@ html[data-contrast="high"] .module-footer .ghost {
 .progress-bar {
   height: 8px;
   border-radius: 999px;
-  background: rgba(15, 23, 42, 0.08);
+  background: var(--chart-track);
   overflow: hidden;
 }
 
 .progress-fill {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, #0ea5e9, #22c55e);
+  background: linear-gradient(90deg, var(--chart-a), var(--accent));
   width: 0%;
   transition: width 0.2s ease;
 }
@@ -5340,7 +5340,7 @@ html[data-contrast="high"] .toggle::after {
 .inline-detail-body {
   margin-top: 8px;
   padding: 10px;
-  background: #f8fafc;
+  background: var(--bg);
   border: 1px solid var(--stroke);
   border-radius: 10px;
   max-width: 520px;
