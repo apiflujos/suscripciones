@@ -250,6 +250,7 @@ export function SideNav({ session }: { session: AdminSession | null }) {
         onClick={toggleSidebar}
         aria-label={mobileOpen ? "Cerrar menú" : collapsed ? "Desplegar menú" : "Plegar menú"}
         title={mobileOpen ? "Cerrar menú" : collapsed ? "Desplegar menú" : "Plegar menú"}
+        data-loader="off"
       >
         {isMobile ? (
           mobileOpen ? (
