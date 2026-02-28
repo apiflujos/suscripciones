@@ -176,27 +176,12 @@ export class ChatwootClient {
     });
   }
 
-  private ensureTextPrefix(raw: string) {
-    const trimmed = String(raw || "").trim();
-    if (!trimmed) return raw;
-    const firstLine = trimmed.split("\n")[0]?.trim().toUpperCase() || "";
-    if (
-      firstLine.startsWith("TEXTO") ||
-      firstLine.startsWith("TIPO TEXTO") ||
-      firstLine.startsWith("TYPE TEXT") ||
-      firstLine === "TEXT"
-    ) {
-      return trimmed;
-    }
-    return `TEXTO\n\n${trimmed}`;
-  }
-
   private formatChatwootText(content: string) {
     const raw = String(content ?? "");
     if (!raw) return "";
     const normalized = raw.replace(/\r\n?/g, "\n");
     const prepared = this.looksLikeHtml(normalized) ? this.htmlToMarkdown(normalized) : normalized.trim();
-    return this.linkifyMarkdown(this.ensureTextPrefix(prepared));
+    return this.linkifyMarkdown(prepared);
   }
 
   private sanitizeTemplateParams(input: any): any {
