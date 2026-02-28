@@ -176,12 +176,23 @@ export class ChatwootClient {
     });
   }
 
+  private normalizePlainText(raw: string) {
+    const input = String(raw ?? "");
+    if (!input) return "";
+    const normalized = input.replace(/\r\n?/g, "\n");
+    let text = this.looksLikeHtml(normalized) ? this.htmlToMarkdown(normalized) : normalized;
+    // Convert markdown links to "label url" so URLs stay clickable in WhatsApp.
+    text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, "$1 $2");
+    text = text.replace(/\[([^\]]+)\]\((www\.[^)\s]+)\)/g, "$1 https://$2");
+    text = text.replace(/[ \t]+\n/g, "\n");
+    text = text.replace(/\n{3,}/g, "\n\n");
+    return text.trim();
+  }
+
   private formatChatwootText(content: string) {
     const raw = String(content ?? "");
     if (!raw) return "";
-    const normalized = raw.replace(/\r\n?/g, "\n");
-    const prepared = this.looksLikeHtml(normalized) ? this.htmlToMarkdown(normalized) : normalized.trim();
-    return this.linkifyMarkdown(prepared);
+    return this.normalizePlainText(raw);
   }
 
   private sanitizeTemplateParams(input: any): any {
@@ -190,7 +201,11 @@ export class ChatwootClient {
     const out: Record<string, any> = {};
     for (const [key, value] of Object.entries(input)) {
       if (key === "content_type") continue;
-      out[key] = this.sanitizeTemplateParams(value);
+      if (typeof value === "string") {
+        out[key] = this.normalizePlainText(value);
+      } else {
+        out[key] = this.sanitizeTemplateParams(value);
+      }
     }
     return out;
   }
