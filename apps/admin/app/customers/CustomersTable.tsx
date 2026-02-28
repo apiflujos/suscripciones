@@ -448,7 +448,6 @@ export function CustomersTable({
               <div className="contact-card-top">
                 <div className="contact-head">
                   <div className="contact-title">{c.name || "—"}</div>
-                  <div className="contact-subline">{c.email || "—"} · {c.phone || "—"}</div>
                   <div className="contact-tags">
                     {hasToken(c) ? <span className="pill pill-ok pill-sm">Tokenizada</span> : <span className="pill pill-bad pill-sm">Sin token</span>}
                     {hasPlan ? <span className="pill pill-muted pill-sm">{kindLabel}</span> : <span className="pill pill-muted pill-sm">Sin plan</span>}
@@ -994,7 +993,7 @@ export function CustomersTable({
             role="dialog"
             aria-modal="true"
             aria-labelledby="customer-details-title"
-            className="panel module"
+            className="modal-panel"
             style={{ width: "min(820px, 96vw)", maxHeight: "90vh", overflow: "auto" }}
             onKeyDown={onModalKeyDown}
           >
