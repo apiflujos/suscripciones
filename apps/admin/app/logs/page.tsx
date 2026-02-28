@@ -145,6 +145,11 @@ export default async function LogsPage({
   const sp = (await searchParams) ?? {};
   const tab = typeof sp.tab === "string" ? sp.tab : "system";
   const q = typeof sp.q === "string" ? sp.q : "";
+  const status = typeof sp.status === "string" ? sp.status : "";
+  const processStatus = typeof sp.processStatus === "string" ? sp.processStatus : "";
+  const from = typeof sp.from === "string" ? sp.from : "";
+  const to = typeof sp.to === "string" ? sp.to : "";
+  const tenantId = typeof sp.tenantId === "string" ? sp.tenantId : "";
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
   const take = 20;
   const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
@@ -157,12 +162,30 @@ export default async function LogsPage({
     ...(Number.isFinite(skip) && skip > 0 ? { skip: String(skip) } : {}),
     ...(q ? { q } : {})
   });
+  const paymentsParams = new URLSearchParams({
+    take: String(take),
+    ...(Number.isFinite(skip) && skip > 0 ? { skip: String(skip) } : {}),
+    ...(q ? { q } : {}),
+    ...(status ? { status } : {}),
+    ...(from ? { from } : {}),
+    ...(to ? { to } : {}),
+    ...(tenantId ? { tenantId } : {})
+  });
+  const webhooksParams = new URLSearchParams({
+    take: String(take),
+    ...(Number.isFinite(skip) && skip > 0 ? { skip: String(skip) } : {}),
+    ...(q ? { q } : {}),
+    ...(processStatus ? { processStatus } : {}),
+    ...(from ? { from } : {}),
+    ...(to ? { to } : {}),
+    ...(tenantId ? { tenantId } : {})
+  });
   const [system, jobs, webhooks, messages, payments] = await Promise.all([
     fetchAdmin(`/admin/logs/system?${systemParams.toString()}`),
     fetchAdmin(`/admin/logs/jobs?${baseParams.toString()}`),
-    fetchAdmin(`/admin/webhook-events?${baseParams.toString()}`),
+    fetchAdmin(`/admin/webhook-events?${webhooksParams.toString()}`),
     fetchAdmin(`/admin/logs/messages?${baseParams.toString()}`),
-    fetchAdmin(`/admin/logs/payments?${baseParams.toString()}`)
+    fetchAdmin(`/admin/logs/payments?${paymentsParams.toString()}`)
   ]);
 
   const sysItems = (system.json?.items ?? []) as any[];
@@ -171,6 +194,28 @@ export default async function LogsPage({
   const messageItems = (messages.json?.items ?? []) as any[];
   const paymentItems = (payments.json?.items ?? []) as any[];
   const failedJobsCount = jobItems.filter((j) => String(j.status) === "FAILED").length;
+  const paymentsSummary = paymentItems.reduce(
+    (acc: { approved: number; pending: number; failed: number; total: number }, p: any) => {
+      const s = String(p.status || "").toUpperCase();
+      if (s === "APPROVED") acc.approved += 1;
+      else if (s === "PENDING" || s === "PROCESSING") acc.pending += 1;
+      else acc.failed += 1;
+      acc.total += 1;
+      return acc;
+    },
+    { approved: 0, pending: 0, failed: 0, total: 0 }
+  );
+  const webhooksSummary = webhookItems.reduce(
+    (acc: { processed: number; failed: number; skipped: number; total: number }, e: any) => {
+      const s = String(e.processStatus || "").toUpperCase();
+      if (s === "PROCESSED") acc.processed += 1;
+      else if (s === "FAILED") acc.failed += 1;
+      else if (s === "SKIPPED") acc.skipped += 1;
+      acc.total += 1;
+      return acc;
+    },
+    { processed: 0, failed: 0, skipped: 0, total: 0 }
+  );
 
   const filtered = q
     ? sysItems.filter((l) => String(l.message || "").toLowerCase().includes(q.toLowerCase()) || String(l.source || "").toLowerCase().includes(q.toLowerCase()))
@@ -279,12 +324,29 @@ export default async function LogsPage({
           ) : tab === "payments" ? (
             <div className="filtersRow">
               <div className="filtersLeft">
-                <div className="filter-group">
-                  <div className="filter-label">Pagos</div>
-                  <div style={{ color: "var(--muted)", fontSize: 13 }}>Recolecta pagos faltantes desde Wompi.</div>
+                <div className="filtersNote">Consulta pagos por cliente, referencia, link o estado.</div>
+                <div className="filtersPanel">
+                  <form action="/logs" method="GET" className="filtersForm">
+                    <input type="hidden" name="tab" value="payments" />
+                    <input className="input" name="q" defaultValue={q} placeholder="Buscar cliente, referencia, tx o link..." aria-label="Buscar pagos" />
+                    <select className="select" name="status" defaultValue={status}>
+                      <option value="">Estado: todos</option>
+                      <option value="APPROVED">Pagado</option>
+                      <option value="PENDING">Pendiente</option>
+                      <option value="FAILED">Fallido</option>
+                    </select>
+                    <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" />
+                    <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" />
+                    <button className="ghost" type="submit">Filtrar</button>
+                  </form>
                 </div>
               </div>
               <div className="filtersRight">
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                  <span className="pill pill-ok">Pagados {paymentsSummary.approved}</span>
+                  <span className="pill pill-warn">Pendientes {paymentsSummary.pending}</span>
+                  <span className="pill pill-bad">Fallidos {paymentsSummary.failed}</span>
+                </div>
                 <form action={recollectPayments}>
                   <input type="hidden" name="csrf" value={csrfToken} />
                   <PendingButton className="primary btn-retry" type="submit" pendingText="Recolectando...">
@@ -418,12 +480,14 @@ export default async function LogsPage({
                     <th>Monto</th>
                     <th>Referencia</th>
                     <th>Transacción</th>
+                    <th />
                   </tr>
                 </thead>
                 <tbody>
                   {paymentItems.map((p) => {
                     const chip = paymentStatusChip(p.status);
                     const planName = p.subscription?.plan?.name || "—";
+                    const contactQuery = p.customer?.email || p.customer?.phone || p.customer?.name;
                     return (
                       <tr key={p.id}>
                         <td><LocalDateTime value={p.createdAt} /></td>
@@ -438,12 +502,19 @@ export default async function LogsPage({
                         <td>{formatAmount(p.amountInCents, p.currency)}</td>
                         <td>{p.reference || "—"}</td>
                         <td>{p.wompiTransactionId || p.wompiPaymentLinkId || "—"}</td>
+                        <td style={{ textAlign: "right" }}>
+                          {contactQuery ? (
+                            <Link className="ghost btn-compact btn-view" href={`/customers?q=${encodeURIComponent(String(contactQuery))}`}>
+                              Ver cliente
+                            </Link>
+                          ) : null}
+                        </td>
                       </tr>
                     );
                   })}
                   {paymentItems.length === 0 ? (
                     <tr>
-                      <td colSpan={7} style={{ color: "var(--muted)" }}>
+                      <td colSpan={8} style={{ color: "var(--muted)" }}>
                         Sin pagos.
                       </td>
                     </tr>
@@ -453,6 +524,33 @@ export default async function LogsPage({
             </div>
           ) : (
             <div className="panel module" style={{ padding: 0 }}>
+              <div className="filtersRow" style={{ padding: "12px 16px 0" }}>
+                <div className="filtersLeft">
+                  <div className="filtersNote">Webhooks con trazabilidad de cliente y pago.</div>
+                  <div className="filtersPanel">
+                    <form action="/logs" method="GET" className="filtersForm">
+                      <input type="hidden" name="tab" value="webhooks" />
+                      <input className="input" name="q" defaultValue={q} placeholder="Buscar cliente, referencia o tx..." aria-label="Buscar webhooks" />
+                      <select className="select" name="processStatus" defaultValue={processStatus}>
+                        <option value="">Procesamiento: todos</option>
+                        <option value="PROCESSED">Procesado</option>
+                        <option value="FAILED">Fallido</option>
+                        <option value="SKIPPED">Omitido</option>
+                      </select>
+                      <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" />
+                      <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" />
+                      <button className="ghost" type="submit">Filtrar</button>
+                    </form>
+                  </div>
+                </div>
+                <div className="filtersRight">
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                    <span className="pill pill-ok">Procesados {webhooksSummary.processed}</span>
+                    <span className="pill pill-warn">Omitidos {webhooksSummary.skipped}</span>
+                    <span className="pill pill-bad">Fallidos {webhooksSummary.failed}</span>
+                  </div>
+                </div>
+              </div>
               <table className="table" aria-label="Tabla de webhooks">
                 <thead>
                   <tr>
@@ -463,11 +561,13 @@ export default async function LogsPage({
                     <th>Tipo</th>
                     <th>Plan</th>
                     <th>Estado</th>
+                    <th />
                   </tr>
                 </thead>
                 <tbody>
                   {webhookItems.map((e) => {
                     const chip = paymentStatusChip(e.paymentStatus);
+                    const contactQuery = e.customerEmail || e.customerPhone || e.customerName;
                     return (
                       <tr key={e.id}>
                         <td><LocalDateTime value={e.receivedAt} /></td>
@@ -482,12 +582,19 @@ export default async function LogsPage({
                             {chip.label}
                           </span>
                         </td>
+                        <td style={{ textAlign: "right" }}>
+                          {contactQuery ? (
+                            <Link className="ghost btn-compact btn-view" href={`/customers?q=${encodeURIComponent(String(contactQuery))}`}>
+                              Ver cliente
+                            </Link>
+                          ) : null}
+                        </td>
                       </tr>
                     );
                   })}
                   {webhookItems.length === 0 ? (
                     <tr>
-                      <td colSpan={7} style={{ color: "var(--muted)" }}>
+                      <td colSpan={8} style={{ color: "var(--muted)" }}>
                         Sin eventos.
                       </td>
                     </tr>
@@ -507,7 +614,12 @@ export default async function LogsPage({
             for (let i = start; i <= end; i += 1) pages.push(i);
             const baseParams = {
               tab,
-              ...(tab === "system" && q ? { q } : {})
+              ...(q ? { q } : {}),
+              ...(tab === "payments" && status ? { status } : {}),
+              ...(tab === "webhooks" && processStatus ? { processStatus } : {}),
+              ...(from ? { from } : {}),
+              ...(to ? { to } : {}),
+              ...(tenantId ? { tenantId } : {})
             };
             return (
               <div className="pagination">

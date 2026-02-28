@@ -34,10 +34,56 @@ logsRouter.get("/system/:id", async (req, res) => {
 logsRouter.get("/payments", async (req, res) => {
   const take = Math.min(200, Math.max(1, Number(req.query.take ?? 50)));
   const skip = Math.max(0, Number(req.query.skip ?? 0));
+  const q = String(req.query.q ?? "").trim();
+  const statusRaw = String(req.query.status ?? "").trim().toUpperCase();
+  const fromRaw = String(req.query.from ?? "").trim();
+  const toRaw = String(req.query.to ?? "").trim();
+  const tenantId = String(req.query.tenantId ?? "").trim();
+  const planId = String(req.query.planId ?? "").trim();
+
+  const statusFilter =
+    statusRaw === "APPROVED"
+      ? ["APPROVED"]
+      : statusRaw === "PENDING"
+        ? ["PENDING"]
+        : statusRaw === "FAILED"
+          ? ["DECLINED", "ERROR", "VOIDED"]
+          : null;
+
+  const fromDate = fromRaw ? new Date(fromRaw) : null;
+  const toDate = toRaw ? new Date(toRaw) : null;
+
+  const where: Prisma.PaymentWhereInput = {
+    ...(statusFilter ? { status: { in: statusFilter as any } } : {}),
+    ...(tenantId ? { tenantId } : {}),
+    ...(planId ? { subscription: { planId } } : {}),
+    ...(fromDate || toDate
+      ? {
+          createdAt: {
+            ...(fromDate ? { gte: fromDate } : {}),
+            ...(toDate ? { lt: toDate } : {})
+          }
+        }
+      : {}),
+    ...(q
+      ? {
+          OR: [
+            { reference: { contains: q, mode: "insensitive" } },
+            { wompiTransactionId: { contains: q, mode: "insensitive" } },
+            { wompiPaymentLinkId: { contains: q, mode: "insensitive" } },
+            { customer: { name: { contains: q, mode: "insensitive" } } },
+            { customer: { email: { contains: q, mode: "insensitive" } } },
+            { customer: { phone: { contains: q, mode: "insensitive" } } },
+            { subscription: { plan: { name: { contains: q, mode: "insensitive" } } } }
+          ]
+        }
+      : {})
+  };
   const items = await prisma.payment.findMany({
     orderBy: { createdAt: "desc" },
     take,
     skip,
+    where,
     include: { subscription: { include: { plan: true } }, customer: true, attempts: { orderBy: { createdAt: "desc" }, take: 5 } }
   });
   res.json({ items });

@@ -49,10 +49,31 @@ export function requireAdminToken(req: Request, res: Response, next: NextFunctio
 export async function listWebhookEvents(req: Request, res: Response) {
   const take = Math.min(200, Math.max(1, Number(req.query.take ?? 50)));
   const skip = Math.max(0, Number(req.query.skip ?? 0));
+  const q = String(req.query.q ?? "").trim();
+  const processStatus = String(req.query.processStatus ?? "").trim();
+  const fromRaw = String(req.query.from ?? "").trim();
+  const toRaw = String(req.query.to ?? "").trim();
+  const tenantId = String(req.query.tenantId ?? "").trim();
+
+  const fromDate = fromRaw ? new Date(fromRaw) : null;
+  const toDate = toRaw ? new Date(toRaw) : null;
+
   const items = await prisma.webhookEvent.findMany({
     orderBy: { receivedAt: "desc" },
     take,
-    skip
+    skip,
+    where: {
+      ...(processStatus ? { processStatus: processStatus as any } : {}),
+      ...(tenantId ? { tenantId } : {}),
+      ...(fromDate || toDate
+        ? {
+            receivedAt: {
+              ...(fromDate ? { gte: fromDate } : {}),
+              ...(toDate ? { lt: toDate } : {})
+            }
+          }
+        : {})
+    }
   });
   const paymentLinkIds = new Set<string>();
   const references = new Set<string>();
@@ -120,65 +141,46 @@ export async function listWebhookEvents(req: Request, res: Response) {
     return payment?.subscription?.plan?.name || null;
   }
 
-  const normalized = items.map((item: any) => ({
-    ...item,
-    providerTs: item.providerTs != null ? item.providerTs.toString() : null,
-    paymentType: paymentTypeFor(item),
-    planName: planNameFor(item),
-    customerName: (() => {
-      const payment = resolvePayment(item);
-      if (payment?.customer?.name) return payment.customer.name;
-      const tx = (item.payload as any)?.data?.transaction || {};
-      return tx?.customer_data?.full_name || tx?.customer_data?.name || tx?.customer_data?.fullName || null;
-    })(),
-    customerEmail: (() => {
-      const payment = resolvePayment(item);
-      if (payment?.customer?.email) return payment.customer.email;
-      const tx = (item.payload as any)?.data?.transaction || {};
-      return tx?.customer_email || tx?.customerEmail || tx?.customer_data?.email || null;
-    })(),
-    customerPhone: (() => {
-      const payment = resolvePayment(item);
-      if (payment?.customer?.phone) return payment.customer.phone;
-      const tx = (item.payload as any)?.data?.transaction || {};
-      return tx?.customer_data?.phone_number || tx?.customer_data?.phoneNumber || null;
-    })(),
-    amountInCents: (() => {
-      const payment = resolvePayment(item);
-      if (payment?.amountInCents != null) return Number(payment.amountInCents);
-      const tx = (item.payload as any)?.data?.transaction || {};
-      return tx?.amount_in_cents ?? tx?.amountInCents ?? null;
-    })(),
-    currency: (() => {
-      const payment = resolvePayment(item);
-      if (payment?.currency) return payment.currency;
-      const tx = (item.payload as any)?.data?.transaction || {};
-      return tx?.currency || null;
-    })(),
-    reference: (() => {
-      const payment = resolvePayment(item);
-      if (payment?.reference) return payment.reference;
-      const tx = (item.payload as any)?.data?.transaction || {};
-      return tx?.reference || null;
-    })(),
-    paymentStatus: (() => {
-      const payment = resolvePayment(item);
-      if (payment?.status) return payment.status;
-      const tx = (item.payload as any)?.data?.transaction || {};
-      return tx?.status || null;
-    })(),
-    wompiTransactionId: (() => {
-      const payment = resolvePayment(item);
-      if (payment?.wompiTransactionId) return payment.wompiTransactionId;
-      const tx = (item.payload as any)?.data?.transaction || {};
-      return tx?.id || null;
-    })(),
-    wompiPaymentLinkId: (() => {
-      const payment = resolvePayment(item);
-      if (payment?.wompiPaymentLinkId) return payment.wompiPaymentLinkId;
-      const tx = (item.payload as any)?.data?.transaction || {};
-      return tx?.payment_link_id || tx?.paymentLinkId || null;
-    })()
-  }));
-  res.json({ items: normalized });
+  const normalized = items.map((item: any) => {
+    const tx = (item.payload as any)?.data?.transaction || {};
+    const payment = resolvePayment(item);
+    return {
+      ...item,
+      providerTs: item.providerTs != null ? item.providerTs.toString() : null,
+      paymentType: paymentTypeFor(item),
+      planName: planNameFor(item),
+      customerName: payment?.customer?.name || tx?.customer_data?.full_name || tx?.customer_data?.name || tx?.customer_data?.fullName || null,
+      customerEmail: payment?.customer?.email || tx?.customer_email || tx?.customerEmail || tx?.customer_data?.email || null,
+      customerPhone: payment?.customer?.phone || tx?.customer_data?.phone_number || tx?.customer_data?.phoneNumber || null,
+      amountInCents: payment?.amountInCents != null ? Number(payment.amountInCents) : tx?.amount_in_cents ?? tx?.amountInCents ?? null,
+      currency: payment?.currency || tx?.currency || null,
+      reference: payment?.reference || tx?.reference || null,
+      paymentStatus: payment?.status || tx?.status || null,
+      wompiTransactionId: payment?.wompiTransactionId || tx?.id || null,
+      wompiPaymentLinkId: payment?.wompiPaymentLinkId || tx?.payment_link_id || tx?.paymentLinkId || null
+    };
+  });
+
+  const filtered = q
+    ? normalized.filter((item: any) => {
+        const haystack = [
+          item.customerName,
+          item.customerEmail,
+          item.customerPhone,
+          item.reference,
+          item.wompiTransactionId,
+          item.wompiPaymentLinkId,
+          item.eventName,
+          item.paymentType,
+          item.planName,
+          item.paymentStatus,
+          item.processStatus
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(q.toLowerCase());
+      })
+    : normalized;
+  res.json({ items: filtered });
 }
