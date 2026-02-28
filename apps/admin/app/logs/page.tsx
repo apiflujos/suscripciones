@@ -159,34 +159,33 @@ export default async function LogsPage({
       <section className="settings-group">
         <div className="settings-group-header">
           <div className="panelHeaderRow">
-            <div className="filtersNote">Seguimiento de procesos, mensajes y fallos operativos.</div>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div className="panel-tabs">
               <Link
-                className={`ghost ${tab === "system" ? "is-active" : ""}`}
+                className={`ghost no-icon panel-tab ${tab === "system" ? "is-active" : ""}`}
                 href={`/logs?${new URLSearchParams({ tab: "system" })}`}
               >
                 Sistema
               </Link>
               <Link
-                className={`ghost ${tab === "webhooks" ? "is-active" : ""}`}
+                className={`ghost no-icon panel-tab ${tab === "webhooks" ? "is-active" : ""}`}
                 href={`/logs?${new URLSearchParams({ tab: "webhooks" })}`}
               >
                 Webhooks
               </Link>
               <Link
-                className={`ghost ${tab === "messages" ? "is-active" : ""}`}
+                className={`ghost no-icon panel-tab ${tab === "messages" ? "is-active" : ""}`}
                 href={`/logs?${new URLSearchParams({ tab: "messages" })}`}
               >
                 Mensajes
               </Link>
               <Link
-                className={`ghost ${tab === "jobs" ? "is-active" : ""}`}
+                className={`ghost no-icon panel-tab ${tab === "jobs" ? "is-active" : ""}`}
                 href={`/logs?${new URLSearchParams({ tab: "jobs" })}`}
               >
                 Jobs
               </Link>
               <Link
-                className={`ghost ${tab === "payments" ? "is-active" : ""}`}
+                className={`ghost no-icon panel-tab ${tab === "payments" ? "is-active" : ""}`}
                 href={`/logs?${new URLSearchParams({ tab: "payments" })}`}
               >
                 Pagos
@@ -448,32 +447,55 @@ export default async function LogsPage({
             </div>
           )}
 
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>
-            <a
-              className="ghost"
-              href={`/logs?${new URLSearchParams({
-                tab,
-                ...(tab === "system" && q ? { q } : {}),
-                page: String(Math.max(1, (Number(page) || 1) - 1))
-              })}`}
-              aria-disabled={Number(page) <= 1}
-            >
-              Anterior
-            </a>
-            <a
-              className="ghost"
-              href={`/logs?${new URLSearchParams({
-                tab,
-                ...(tab === "system" && q ? { q } : {}),
-                page: String((Number(page) || 1) + 1)
-              })}`}
-              aria-disabled={
-                (tab === "system" ? normalized.length : tab === "messages" ? messageItems.length : tab === "jobs" ? jobItems.length : tab === "payments" ? paymentItems.length : webhookItems.length) < take
-              }
-            >
-              Siguiente
-            </a>
-          </div>
+          {(() => {
+            const currentPage = Math.max(1, Number(page) || 1);
+            const count = tab === "system" ? normalized.length : tab === "messages" ? messageItems.length : tab === "jobs" ? jobItems.length : tab === "payments" ? paymentItems.length : webhookItems.length;
+            const hasNext = count >= take;
+            const start = Math.max(1, currentPage - 2);
+            const end = hasNext ? currentPage + 2 : currentPage;
+            const pages = [];
+            for (let i = start; i <= end; i += 1) pages.push(i);
+            const baseParams = {
+              tab,
+              ...(tab === "system" && q ? { q } : {})
+            };
+            return (
+              <div className="pagination">
+                <a
+                  className="ghost no-icon page-link"
+                  href={`/logs?${new URLSearchParams({
+                    ...baseParams,
+                    page: String(Math.max(1, currentPage - 1))
+                  })}`}
+                  aria-disabled={currentPage <= 1}
+                >
+                  Anterior
+                </a>
+                <div className="pagination-pages">
+                  {pages.map((p) => (
+                    <a
+                      key={`logs-page-${p}`}
+                      className={`ghost no-icon page-link ${p === currentPage ? "is-active" : ""}`}
+                      href={`/logs?${new URLSearchParams({ ...baseParams, page: String(p) })}`}
+                      aria-current={p === currentPage ? "page" : undefined}
+                    >
+                      {p}
+                    </a>
+                  ))}
+                </div>
+                <a
+                  className="ghost no-icon page-link"
+                  href={`/logs?${new URLSearchParams({
+                    ...baseParams,
+                    page: String(currentPage + 1)
+                  })}`}
+                  aria-disabled={!hasNext}
+                >
+                  Siguiente
+                </a>
+              </div>
+            );
+          })()}
         </div>
       </section>
     </main>

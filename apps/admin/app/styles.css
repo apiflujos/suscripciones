@@ -776,7 +776,7 @@ a {
 .filtersForm .ghost {
   min-width: 0;
   padding: 0 12px;
-  line-height: 1;
+  line-height: 1.1;
 }
 
 .filtersPanel .ghost,
@@ -793,6 +793,68 @@ a {
 
 .filtersActions .primary {
   min-width: 0;
+}
+
+.no-icon::before {
+  content: none !important;
+}
+
+.panel-tabs {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.panel-tab {
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: 6px 2px;
+  color: var(--text-faint);
+  background: transparent;
+  font-weight: 600;
+}
+
+.panel-tab.is-active {
+  color: var(--text);
+  border-bottom-color: var(--primary);
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.pagination-pages {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+  flex: 1 1 auto;
+}
+
+.page-link {
+  min-width: 0;
+  min-height: 30px;
+  padding: 0 10px;
+  line-height: 1.1;
+}
+
+.page-link.is-active {
+  background: var(--primary);
+  color: #fff;
+  border-color: transparent;
+}
+
+.page-link[aria-disabled="true"] {
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 html[data-theme="dark"] .filtersPanel,

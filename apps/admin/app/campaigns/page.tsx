@@ -105,14 +105,36 @@ export default async function CampaignsPage({
             </div>
           ))}
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>
-          <a className="ghost" href={`/campaigns?page=${Math.max(1, (Number(page) || 1) - 1)}`} aria-disabled={Number(page) <= 1}>
-            Anterior
-          </a>
-          <a className="ghost" href={`/campaigns?page=${(Number(page) || 1) + 1}`} aria-disabled={items.length < take}>
-            Siguiente
-          </a>
-        </div>
+        {(() => {
+          const currentPage = Math.max(1, Number(page) || 1);
+          const hasNext = items.length >= take;
+          const start = Math.max(1, currentPage - 2);
+          const end = hasNext ? currentPage + 2 : currentPage;
+          const pages = [];
+          for (let i = start; i <= end; i += 1) pages.push(i);
+          return (
+            <div className="pagination">
+              <a className="ghost no-icon page-link" href={`/campaigns?page=${Math.max(1, currentPage - 1)}`} aria-disabled={currentPage <= 1}>
+                Anterior
+              </a>
+              <div className="pagination-pages">
+                {pages.map((p) => (
+                  <a
+                    key={`campaigns-page-${p}`}
+                    className={`ghost no-icon page-link ${p === currentPage ? "is-active" : ""}`}
+                    href={`/campaigns?page=${p}`}
+                    aria-current={p === currentPage ? "page" : undefined}
+                  >
+                    {p}
+                  </a>
+                ))}
+              </div>
+              <a className="ghost no-icon page-link" href={`/campaigns?page=${currentPage + 1}`} aria-disabled={!hasNext}>
+                Siguiente
+              </a>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

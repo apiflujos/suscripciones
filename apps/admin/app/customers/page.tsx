@@ -244,30 +244,54 @@ export default async function CustomersPage({
             initialTxCustomerId={txCustomerId}
           />
 
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>
-            <a
-              className="ghost"
-              href={`/customers?${new URLSearchParams({
-                ...(q ? { q } : {}),
-                ...(tenantId ? { tenantId } : {}),
-                page: String(Math.max(1, (Number(page) || 1) - 1))
-              })}`}
-              aria-disabled={Number(page) <= 1}
-            >
-              Anterior
-            </a>
-            <a
-              className="ghost"
-              href={`/customers?${new URLSearchParams({
-                ...(q ? { q } : {}),
-                ...(tenantId ? { tenantId } : {}),
-                page: String((Number(page) || 1) + 1)
-              })}`}
-              aria-disabled={items.length < take}
-            >
-              Siguiente
-            </a>
-          </div>
+          {(() => {
+            const currentPage = Math.max(1, Number(page) || 1);
+            const hasNext = items.length >= take;
+            const start = Math.max(1, currentPage - 2);
+            const end = hasNext ? currentPage + 2 : currentPage;
+            const pages = [];
+            for (let i = start; i <= end; i += 1) pages.push(i);
+            const baseParams = {
+              ...(q ? { q } : {}),
+              ...(tenantId ? { tenantId } : {})
+            };
+            return (
+              <div className="pagination">
+                <a
+                  className="ghost no-icon page-link"
+                  href={`/customers?${new URLSearchParams({
+                    ...baseParams,
+                    page: String(Math.max(1, currentPage - 1))
+                  })}`}
+                  aria-disabled={currentPage <= 1}
+                >
+                  Anterior
+                </a>
+                <div className="pagination-pages">
+                  {pages.map((p) => (
+                    <a
+                      key={`customers-page-${p}`}
+                      className={`ghost no-icon page-link ${p === currentPage ? "is-active" : ""}`}
+                      href={`/customers?${new URLSearchParams({ ...baseParams, page: String(p) })}`}
+                      aria-current={p === currentPage ? "page" : undefined}
+                    >
+                      {p}
+                    </a>
+                  ))}
+                </div>
+                <a
+                  className="ghost no-icon page-link"
+                  href={`/customers?${new URLSearchParams({
+                    ...baseParams,
+                    page: String(currentPage + 1)
+                  })}`}
+                  aria-disabled={!hasNext}
+                >
+                  Siguiente
+                </a>
+              </div>
+            );
+          })()}
         </div>
       </section>
     </main>
