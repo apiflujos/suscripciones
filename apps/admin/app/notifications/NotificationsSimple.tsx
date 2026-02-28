@@ -246,7 +246,7 @@ export function NotificationsSimple({
           </div>
         </div>
         <div className="settings-group-body">
-          <div className="saved-connections-grid" style={{ gridTemplateColumns: "1fr" }}>
+          <div className="saved-connections-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
             {REALTIME_TYPES.map((rt) => {
               const tpl = templateForKey(rt.key, rt.chatwootType, rt.label);
               const rule = rulesByKey.get(rt.key);
@@ -390,7 +390,7 @@ export function NotificationsSimple({
           </div>
         </div>
         <div className="settings-group-body">
-          <div className="saved-connections-grid" style={{ gridTemplateColumns: "1fr" }}>
+          <div className="saved-connections-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
             <div className="saved-conn-card">
               <div className="saved-conn-header">
                 <div>

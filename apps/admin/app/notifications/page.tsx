@@ -38,7 +38,7 @@ export default async function NotificationsPage({
   const rules = Array.isArray(config?.rules) ? config.rules : [];
 
   return (
-    <main className="page pageWide">
+    <main className="page pageWide notificationsPage">
       <div className="filtersRow">
         <div className="filtersLeft">
           <div className="filtersNote">Configura reglas y recordatorios para notificaciones en producción o sandbox.</div>

@@ -3383,6 +3383,55 @@ html[data-contrast="high"] .module-footer .ghost {
   word-break: break-word;
 }
 
+/* Notifications density */
+.notificationsPage .saved-connections-grid {
+  gap: 8px;
+}
+
+.notificationsPage .saved-conn-card {
+  padding: 8px 10px;
+  border-radius: 12px;
+  gap: 6px;
+}
+
+.notificationsPage .saved-conn-header {
+  align-items: center;
+}
+
+.notificationsPage .saved-conn-sub {
+  margin-top: 0;
+}
+
+.notificationsPage .saved-conn-actions {
+  gap: 4px;
+}
+
+.notificationsPage .saved-conn-meta {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6px 10px;
+}
+
+.notificationsPage .saved-conn-meta-item {
+  gap: 1px;
+}
+
+.notificationsPage .saved-conn-meta-value {
+  line-height: 1.35;
+}
+
+.notificationsPage .panel.module {
+  padding: 8px;
+  gap: 5px;
+}
+
+.notificationsPage .field {
+  gap: 4px;
+}
+
+.notificationsPage .module-footer {
+  margin-top: 2px;
+}
+
 .modal-panel .panel-header {
   display: flex;
   align-items: center;
