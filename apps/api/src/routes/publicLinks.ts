@@ -3,6 +3,7 @@ import { prisma } from "../db/prisma";
 import { getCredential, getCredentialsBulk } from "../services/credentials";
 import { CredentialProvider } from "@prisma/client";
 import { getCheckoutBaseUrlsFromEnv } from "../services/publicBase";
+import { getTenantBrand } from "../services/tenantBrand";
 
 export const publicLinksRouter = express.Router();
 
@@ -95,6 +96,8 @@ publicLinksRouter.get("/payment-links/:token", async (req, res) => {
     });
   }
 
+  const tenant = await getTenantBrand(customer.tenantId || template?.tenantId || null);
+
   res.json({
     ok: true,
     checkoutUrl: String(link?.checkoutUrl || ""),
@@ -104,6 +107,7 @@ publicLinksRouter.get("/payment-links/:token", async (req, res) => {
       email: customer.email || "",
       phone: customer.phone || ""
     },
+    tenant,
     template: template
       ? {
           id: template.id,

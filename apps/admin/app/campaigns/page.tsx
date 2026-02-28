@@ -22,13 +22,7 @@ export default async function CampaignsPage({
   const items = Array.isArray(campaignsRes?.json?.items) ? campaignsRes.json.items : [];
 
   return (
-    <div className="page">
-      <div className="pageHeader">
-        <div>
-          <h1>Campañas</h1>
-          <p className="muted">Envía mensajes masivos a contactos filtrados por Listas Inteligentes.</p>
-        </div>
-      </div>
+    <div className="page pageWide">
 
       {normalizeErrorParam(sp.error) ? <div className="panel module">Error: {normalizeErrorParam(sp.error)}</div> : null}
       {sp.created ? <div className="panel module">Campaña creada.</div> : null}

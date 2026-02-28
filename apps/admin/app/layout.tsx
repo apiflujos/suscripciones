@@ -10,6 +10,7 @@ import { SideNav } from "./SideNav";
 import { TopBar } from "./TopBar";
 import { GlobalLoader } from "./GlobalLoader";
 import { ThemeClient } from "./ThemeClient";
+import { FormValidation } from "./FormValidation";
 import { fetchAdminCached } from "./lib/adminApi";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../lib/session";
 
@@ -38,7 +39,9 @@ export async function generateMetadata(): Promise<Metadata> {
   const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
   const session = await verifyAdminSessionToken(sessionToken);
   const tenantName = await resolveTenantName(session?.tenantId ?? null);
-  const title = tenantName ? `CRM ${tenantName}` : "CRM";
+  const fallbackTenantName = String(process.env.SA_DEFAULT_TENANT_NAME || process.env.DEFAULT_TENANT_NAME || "").trim();
+  const resolvedName = tenantName || fallbackTenantName;
+  const title = resolvedName ? `CRM ${resolvedName}` : "CRM";
 
   return {
     title,
@@ -112,6 +115,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           </div>
         )}
         <GlobalLoader />
+        <FormValidation />
         <ThemeClient />
       </body>
     </html>

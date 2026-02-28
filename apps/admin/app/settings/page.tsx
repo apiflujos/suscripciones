@@ -57,8 +57,7 @@ export default async function SettingsPage({
   const { token } = getConfig();
   if (!token) {
     return (
-      <main>
-        <h1 style={{ marginTop: 0 }}>Credenciales</h1>
+      <main className="page pageWide">
         <p>Configura `ADMIN_API_TOKEN` en el Admin para poder guardar credenciales.</p>
       </main>
     );
@@ -121,8 +120,7 @@ export default async function SettingsPage({
   };
 
   return (
-    <main className="page" style={{ maxWidth: 980 }}>
-      <h1 style={{ marginTop: 0 }}>Configuraciones</h1>
+    <main className="page pageWide">
       <div className="settings-tabs">
         <a className={`settings-tab ${tab === "connections" ? "is-active" : ""}`} href="/settings?tab=connections">
           Conexiones

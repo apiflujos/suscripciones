@@ -27,16 +27,20 @@ export default async function PublicPlanPage({ params }: { params: Promise<{ tok
   const configRes = await fetchCheckoutConfig();
   const config = configRes.ok ? configRes.json?.config || {} : {};
   const template = linkRes.ok ? linkRes.json?.template || null : null;
+  const tenant = linkRes.ok ? linkRes.json?.tenant || null : null;
   const layout = (template?.layout || {}) as any;
   const title = template?.publicTitle || config?.planTitle || "Paga tu plan";
   const baseDescription = template?.publicDescription || config?.planDescription || "";
-  const descriptionLines = ["Completa el pago de tu plan en un paso seguro.", baseDescription]
+  const descriptionLines = ["Pago seguro con Wompi.", baseDescription]
     .map((value) => String(value || "").trim())
     .filter(Boolean);
   const logoUrl = (() => {
-    const raw = String(template?.logoUrl || config?.logoUrl || "").trim();
-    if (raw && raw.toLowerCase() !== "undefined" && raw.toLowerCase() !== "null") return raw;
-    return "/brand/logo.png";
+    const candidates = [template?.logoUrl, tenant?.logoUrl, config?.logoUrl];
+    for (const candidate of candidates) {
+      const raw = String(candidate || "").trim();
+      if (raw && raw.toLowerCase() !== "undefined" && raw.toLowerCase() !== "null") return raw;
+    }
+    return "";
   })();
   const primaryColor = String(layout?.primaryColor || "").trim();
   const fontFamily = String(layout?.fontFamily || "").trim();

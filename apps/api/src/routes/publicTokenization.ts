@@ -1,5 +1,6 @@
 import express from "express";
 import { prisma } from "../db/prisma";
+import { getTenantBrand } from "../services/tenantBrand";
 
 export const publicTokenizationRouter = express.Router();
 
@@ -28,6 +29,8 @@ publicTokenizationRouter.get("/tokenization-links/:token", async (req, res) => {
     ? await prisma.publicCheckoutTemplate.findUnique({ where: { id: templateId } })
     : null;
 
+  const tenant = await getTenantBrand(customer.tenantId || template?.tenantId || null);
+
   res.json({
     ok: true,
     customer: {
@@ -35,6 +38,7 @@ publicTokenizationRouter.get("/tokenization-links/:token", async (req, res) => {
       name: customer.name,
       email: customer.email
     },
+    tenant,
     link: {
       planId: link?.planId || null,
       kind: link?.kind || null,

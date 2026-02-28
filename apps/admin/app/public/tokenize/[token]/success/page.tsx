@@ -25,6 +25,7 @@ export default async function PublicTokenizeSuccessPage({ params }: { params: Pr
   const config = configRes.ok ? configRes.json?.config || {} : {};
   const tokenRes = await fetchPublicToken(linkToken);
   const template = tokenRes.ok ? tokenRes.json?.template || null : null;
+  const tenant = tokenRes.ok ? tokenRes.json?.tenant || null : null;
   const layout = (template?.layout || {}) as any;
 
   const title = String(config?.tokenizationSuccessTitle || "Gracias");
@@ -36,7 +37,14 @@ export default async function PublicTokenizeSuccessPage({ params }: { params: Pr
     "Desde ahora podremos procesar tu suscripción de forma automática.";
   const contactEmail = String(config?.supportEmail || "").trim();
   const supportUrl = String(config?.supportUrl || "").trim();
-  const logoUrl = template?.logoUrl || config?.logoUrl || "";
+  const logoUrl = (() => {
+    const candidates = [template?.logoUrl, tenant?.logoUrl, config?.logoUrl];
+    for (const candidate of candidates) {
+      const raw = String(candidate || "").trim();
+      if (raw && raw.toLowerCase() !== "undefined" && raw.toLowerCase() !== "null") return raw;
+    }
+    return "";
+  })();
   const fontFamily = String(layout?.fontFamily || "").trim();
   const primaryColor = String(layout?.primaryColor || "").trim();
   const layoutSupportEmail = String(layout?.supportEmail || "").trim();

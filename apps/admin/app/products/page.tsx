@@ -1,6 +1,5 @@
 import { createProduct, deleteProduct } from "./actions";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
-import { HelpTip } from "../ui/HelpTip";
 import { ProductsTable } from "./ProductsTable";
 import { getCsrfToken } from "../lib/csrf";
 import { createTenant } from "../tenants/actions";
@@ -26,8 +25,7 @@ export default async function ProductsPage({
   const { token } = getConfig();
   if (!token) {
     return (
-      <main>
-        <h1 style={{ marginTop: 0 }}>Productos y Servicios</h1>
+      <main className="page pageWide">
         <p>Configura `ADMIN_API_TOKEN` en el Admin para poder consultar el API.</p>
       </main>
     );
@@ -66,7 +64,7 @@ export default async function ProductsPage({
   const tenantById = new Map(tenants.map((t) => [String(t.id), String(t.name)]));
 
   return (
-    <main className="page" style={{ maxWidth: 1100 }}>
+    <main className="page pageWide">
       {error ? (
         <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
           Error: {error}
@@ -79,37 +77,38 @@ export default async function ProductsPage({
 
       <section className="settings-group">
         <div className="settings-group-header">
-          <div className="panelHeaderRow">
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <h3>Productos y Servicios</h3>
-              <HelpTip text="Aquí gestionas productos/servicios y puedes asociarlos a contactos para crear planes o suscripciones." />
+          <div className="filtersRow">
+            <div className="filtersLeft">
+              <div className="filtersNote">Gestiona productos y servicios y asócialos a contactos para crear planes o suscripciones.</div>
+              <div className="filtersPanel">
+                <form action="/products" method="GET" className="filtersForm">
+                  {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+                  <input className="input" name="q" defaultValue={q} placeholder="Buscar..." aria-label="Buscar productos" />
+                  <button className="ghost" type="submit">
+                    Buscar
+                  </button>
+                </form>
+                <form action="/products" method="GET" className="filtersForm">
+                  {q ? <input type="hidden" name="q" value={q} /> : null}
+                  <select className="select" name="tenantId" defaultValue={tenantId}>
+                    <option value="">Canal: (todos)</option>
+                    {tenants.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button className="ghost" type="submit">Aplicar</button>
+                </form>
+                <form action={createTenant} className="filtersForm">
+                  <input type="hidden" name="csrf" value={csrfToken} />
+                  <input type="hidden" name="returnTo" value={`/products${tenantId || q ? `?${new URLSearchParams({ ...(tenantId ? { tenantId } : {}), ...(q ? { q } : {}) }).toString()}` : ""}`} />
+                  <input className="input" name="name" placeholder="Nuevo canal" />
+                  <button className="ghost" type="submit">Crear canal</button>
+                </form>
+              </div>
             </div>
-            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-              <form action="/products" method="GET" style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-                <input className="input" name="q" defaultValue={q} placeholder="Buscar..." aria-label="Buscar productos" />
-                <button className="ghost" type="submit">
-                  Buscar
-                </button>
-              </form>
-              <form action="/products" method="GET" style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                {q ? <input type="hidden" name="q" value={q} /> : null}
-                <select className="select" name="tenantId" defaultValue={tenantId}>
-                  <option value="">Canal: (todos)</option>
-                  {tenants.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
-                <button className="ghost" type="submit">Aplicar</button>
-              </form>
-              <form action={createTenant} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <input type="hidden" name="csrf" value={csrfToken} />
-                <input type="hidden" name="returnTo" value={`/products${tenantId || q ? `?${new URLSearchParams({ ...(tenantId ? { tenantId } : {}), ...(q ? { q } : {}) }).toString()}` : ""}`} />
-                <input className="input" name="name" placeholder="Nuevo canal" />
-                <button className="ghost" type="submit">Crear canal</button>
-              </form>
+            <div className="filtersRight">
               <span className="pill">{productItems.length} resultados</span>
             </div>
           </div>

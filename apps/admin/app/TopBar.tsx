@@ -15,6 +15,9 @@ function getHeader(pathname: string): Header {
   if (pathname.startsWith("/billing")) return { title: "Planes y Suscripciones", subtitle: "Cobranza recurrente y ciclos." };
   if (pathname.startsWith("/subscriptions")) return { title: "Suscripciones", subtitle: "Cobros, ciclos y links de pago." };
   if (pathname.startsWith("/plans")) return { title: "Planes", subtitle: "Tipos de suscripción: precio y periodicidad." };
+  if (pathname.startsWith("/notifications")) return { title: "Notificaciones", subtitle: "Reglas, recordatorios y plantillas." };
+  if (pathname.startsWith("/campaigns")) return { title: "Campañas", subtitle: "Mensajes masivos a listas inteligentes." };
+  if (pathname.startsWith("/smart-lists")) return { title: "Listas inteligentes", subtitle: "Segmentación dinámica de contactos." };
   if (pathname.startsWith("/webhooks")) return { title: "Webhooks", subtitle: "Eventos entrantes y su estado." };
   if (pathname.startsWith("/settings")) return { title: "Configuración", subtitle: "Credenciales y conexiones." };
   if (pathname.startsWith("/sa") || pathname.startsWith("/__sa")) return { title: "Super Admin", subtitle: "Planes, módulos, usuarios y consumos." };
@@ -80,8 +83,10 @@ export function TopBar({ session }: { session: AdminSession | null }) {
           <button
             type="button"
             className="userMenuBtn"
+            data-loader="off"
             onClick={() => setMenuOpen((v) => !v)}
             aria-label="Abrir menú de usuario"
+            aria-haspopup="menu"
             aria-expanded={menuOpen ? "true" : "false"}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}

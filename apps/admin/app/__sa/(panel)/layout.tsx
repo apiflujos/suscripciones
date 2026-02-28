@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { SA_COOKIE, saAdminFetch } from "../saApi";
 
@@ -13,34 +13,29 @@ export default async function SaLayout({ children }: { children: React.ReactNode
     redirect("/login?error=forbidden&next=%2Fsa");
   }
 
+  const h = headers();
+  const pathname = h.get("x-app-pathname") || "";
+  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+
   return (
     <div style={{ display: "grid", gap: 12 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "end" }}>
-          <div style={{ display: "grid", gap: 2 }}>
-          <div className="settings-group-title">/sa</div>
-          <h1 className="pageTitle" style={{ margin: 0 }}>
-            Super Admin
-          </h1>
-        </div>
-      </div>
-
       <nav className="toolbar" aria-label="Super Admin tabs">
-        <Link className="btn" href="/sa/tenants" prefetch={false}>
+        <Link className={`btn ${isActive("/sa/tenants") ? "is-active" : ""}`} href="/sa/tenants" prefetch={false} aria-current={isActive("/sa/tenants") ? "page" : undefined}>
           Tenants
         </Link>
-        <Link className="btn" href="/sa/modules" prefetch={false}>
+        <Link className={`btn ${isActive("/sa/modules") ? "is-active" : ""}`} href="/sa/modules" prefetch={false} aria-current={isActive("/sa/modules") ? "page" : undefined}>
           Módulos
         </Link>
-        <Link className="btn" href="/sa/users" prefetch={false}>
+        <Link className={`btn ${isActive("/sa/users") ? "is-active" : ""}`} href="/sa/users" prefetch={false} aria-current={isActive("/sa/users") ? "page" : undefined}>
           Usuarios
         </Link>
-        <Link className="btn" href="/sa/limits" prefetch={false}>
+        <Link className={`btn ${isActive("/sa/limits") ? "is-active" : ""}`} href="/sa/limits" prefetch={false} aria-current={isActive("/sa/limits") ? "page" : undefined}>
           Servicios
         </Link>
-        <Link className="btn" href="/sa/plans" prefetch={false}>
+        <Link className={`btn ${isActive("/sa/plans") ? "is-active" : ""}`} href="/sa/plans" prefetch={false} aria-current={isActive("/sa/plans") ? "page" : undefined}>
           Planes
         </Link>
-        <Link className="btn" href="/sa/usage" prefetch={false}>
+        <Link className={`btn ${isActive("/sa/usage") ? "is-active" : ""}`} href="/sa/usage" prefetch={false} aria-current={isActive("/sa/usage") ? "page" : undefined}>
           Consumos
         </Link>
       </nav>

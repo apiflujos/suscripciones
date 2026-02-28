@@ -152,8 +152,7 @@ export default async function BillingPage({
   const { token } = getConfig();
   if (!token) {
     return (
-      <main>
-        <h1 style={{ marginTop: 0 }}>Planes y Suscripciones</h1>
+      <main className="page pageWide">
         <p>Configura `ADMIN_API_TOKEN` en el Admin para poder consultar el API.</p>
       </main>
     );
@@ -302,7 +301,7 @@ export default async function BillingPage({
     });
 
   return (
-    <main className="page" style={{ maxWidth: 1100 }}>
+    <main className="page pageWide">
       {error ? (
         <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
           Error: {error}
@@ -346,19 +345,16 @@ export default async function BillingPage({
 
       <section className="settings-group">
         <div className="settings-group-header">
-          <div className="panelHeaderRow" style={{ justifyContent: "space-between" }}>
-            <h3>Planes y Suscripciones</h3>
-          </div>
-          <div className="billing-legend">
-            <span className="pill pill-muted">Suscripción = estado del plan</span>
-            <span className="pill pill-muted">Pago = estado del último cobro del periodo</span>
-            <span className="pill pill-muted">En mora = periodo vencido sin pago</span>
-          </div>
           <div className="filtersRow">
             <div className="filtersLeft">
-              <div className="filter-group">
-                <div className="filter-label">Filtros</div>
-                <form action="/billing" method="GET" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+              <div className="filtersNote">Filtra planes y suscripciones, y prioriza rápidamente lo que necesitas atender.</div>
+              <div className="billing-legend">
+                <span className="pill pill-muted">Suscripción = estado del plan</span>
+                <span className="pill pill-muted">Pago = estado del último cobro del periodo</span>
+                <span className="pill pill-muted">En mora = periodo vencido sin pago</span>
+              </div>
+              <div className="filtersPanel">
+                <form action="/billing" method="GET" className="filtersForm">
                   <div style={{ display: "grid", gap: 4 }}>
                     <span className="field-hint" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                       Tipo
@@ -417,7 +413,7 @@ export default async function BillingPage({
                   Crear lista inteligente
                 </a>
               ) : null}
-              <form action={createTenant} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <form action={createTenant} className="filtersForm">
                 <input type="hidden" name="csrf" value={csrfToken} />
                 <input type="hidden" name="returnTo" value={returnTo} />
                 <input className="input" name="name" placeholder="Nuevo canal" />
@@ -675,8 +671,7 @@ export default async function BillingPage({
   );
   } catch (err) {
     return (
-      <main className="page">
-        <h1 style={{ marginTop: 0 }}>Planes y Suscripciones</h1>
+      <main className="page pageWide">
         <p>No pudimos cargar esta sección. Detalle: {String((err as any)?.message || err)}</p>
       </main>
     );

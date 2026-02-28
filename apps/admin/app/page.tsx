@@ -41,7 +41,7 @@ function ChartLine({ values, height = 120 }: { values: number[]; height?: number
   return (
     <svg viewBox={`0 0 ${w} ${h}`} width="100%" height={h} aria-hidden="true">
       <polyline points={pts.join(" ")} fill="none" stroke="var(--primary)" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
-      <line x1="0" y1={h - 0.5} x2={w} y2={h - 0.5} stroke="rgba(15, 23, 42, 0.12)" />
+      <line x1="0" y1={h - 0.5} x2={w} y2={h - 0.5} stroke="var(--chart-axis)" />
     </svg>
   );
 }
@@ -78,24 +78,24 @@ function ChartBars({
           const hb = (Math.max(0, vb) * (h - pad * 2)) / max;
           return (
             <g key={i}>
-              <rect x={x0} y={h - pad - ha} width={barW} height={ha} fill="rgba(14, 116, 144, 0.9)" rx="3" />
-              <rect x={x0 + barW + gap} y={h - pad - hb} width={barW} height={hb} fill="rgba(239, 68, 68, 0.85)" rx="3" />
+              <rect x={x0} y={h - pad - ha} width={barW} height={ha} fill="var(--chart-a)" rx="3" />
+              <rect x={x0 + barW + gap} y={h - pad - hb} width={barW} height={hb} fill="var(--chart-b)" rx="3" />
             </g>
           );
         })}
-        <line x1="0" y1={h - 0.5} x2={w} y2={h - 0.5} stroke="rgba(15, 23, 42, 0.12)" />
+        <line x1="0" y1={h - 0.5} x2={w} y2={h - 0.5} stroke="var(--chart-axis)" />
       </svg>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", color: "var(--muted)", fontSize: 12 }}>
         <span>
-          <span style={{ display: "inline-block", width: 10, height: 10, background: "rgba(14, 116, 144, 0.9)", borderRadius: 2, marginRight: 6 }} />{" "}
+          <span style={{ display: "inline-block", width: 10, height: 10, background: "var(--chart-a)", borderRadius: 2, marginRight: 6 }} />{" "}
           {aLabel}
         </span>
         <span>
-          <span style={{ display: "inline-block", width: 10, height: 10, background: "rgba(239, 68, 68, 0.85)", borderRadius: 2, marginRight: 6 }} />{" "}
+          <span style={{ display: "inline-block", width: 10, height: 10, background: "var(--chart-b)", borderRadius: 2, marginRight: 6 }} />{" "}
           {bLabel}
         </span>
       </div>
-    </div>
+    </main>
   );
 }
 
@@ -108,13 +108,13 @@ function Pie({ a, b, aLabel, bLabel }: { a: number; b: number; aLabel: string; b
   return (
     <div style={{ display: "grid", gridTemplateColumns: "96px 1fr", gap: 12, alignItems: "center" }}>
       <svg viewBox="0 0 100 100" width="96" height="96" aria-hidden="true">
-        <circle cx="50" cy="50" r={r} fill="none" stroke="rgba(15, 23, 42, 0.10)" strokeWidth="18" />
+        <circle cx="50" cy="50" r={r} fill="none" stroke="var(--chart-track)" strokeWidth="18" />
         <circle
           cx="50"
           cy="50"
           r={r}
           fill="none"
-          stroke="rgba(14, 116, 144, 0.95)"
+          stroke="var(--chart-a)"
           strokeWidth="18"
           strokeDasharray={`${aLen} ${c - aLen}`}
           transform="rotate(-90 50 50)"
@@ -173,52 +173,46 @@ export default async function Home({
   const mrrSeries = series.map((p) => (p?.mrrInCents == null ? null : Number(p.mrrInCents)));
 
   return (
-    <div style={{ display: "grid", gap: 14 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
-        <div>
-          <h1 className="pageTitle">Métricas</h1>
-          <p className="pageSub">Link de pago vs suscripción automática.</p>
-        </div>
-        <img src="/brand/logo.png" alt="Logo" style={{ height: 40, width: "auto" }} />
-      </div>
-
+    <main className="page pageWide">
       <section className="settings-group">
-        <div className="settings-group-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-          <div style={{ display: "grid", gap: 2 }}>
-            <div className="settings-group-title">Dashboard</div>
-            <h3 style={{ margin: 0 }}>Métricas por periodo</h3>
+        <div className="settings-group-header">
+          <div className="filtersRow">
+            <div className="filtersLeft">
+              <div className="filtersNote">Ajusta rango y granularidad para leer la evolución de las métricas.</div>
+              <div className="filtersPanel">
+                <form method="get" className="filtersForm">
+                  <div className="field" style={{ margin: 0 }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span>Desde (UTC)</span>
+                      <HelpTip text="Fecha de inicio del rango en UTC." />
+                    </label>
+                    <input className="input" type="date" name="from" defaultValue={fromDate} />
+                  </div>
+                  <div className="field" style={{ margin: 0 }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span>Hasta (UTC)</span>
+                      <HelpTip text="Fecha de cierre del rango en UTC (incluye todo el día)." />
+                    </label>
+                    <input className="input" type="date" name="to" defaultValue={toDate} />
+                  </div>
+                  <div className="field" style={{ margin: 0 }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span>Periodo</span>
+                      <HelpTip text="Agrupación de datos: día, semana o mes." />
+                    </label>
+                    <select className="select" name="g" defaultValue={g}>
+                      <option value="day">Día</option>
+                      <option value="week">Semana</option>
+                      <option value="month">Mes</option>
+                    </select>
+                  </div>
+                  <button className="primary" type="submit" style={{ height: 38 }}>
+                    Ver
+                  </button>
+                </form>
+              </div>
+            </div>
           </div>
-
-          <form method="get" style={{ display: "flex", gap: 10, alignItems: "end", flexWrap: "wrap" }}>
-            <div className="field" style={{ margin: 0 }}>
-              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span>Desde (UTC)</span>
-                <HelpTip text="Fecha de inicio del rango en UTC." />
-              </label>
-              <input className="input" type="date" name="from" defaultValue={fromDate} />
-            </div>
-            <div className="field" style={{ margin: 0 }}>
-              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span>Hasta (UTC)</span>
-                <HelpTip text="Fecha de cierre del rango en UTC (incluye todo el día)." />
-              </label>
-              <input className="input" type="date" name="to" defaultValue={toDate} />
-            </div>
-            <div className="field" style={{ margin: 0 }}>
-              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span>Periodo</span>
-                <HelpTip text="Agrupación de datos: día, semana o mes." />
-              </label>
-              <select className="select" name="g" defaultValue={g}>
-                <option value="day">Día</option>
-                <option value="week">Semana</option>
-                <option value="month">Mes</option>
-              </select>
-            </div>
-            <button className="primary" type="submit" style={{ height: 38 }}>
-              Ver
-            </button>
-          </form>
         </div>
 
         <div className="settings-group-body">

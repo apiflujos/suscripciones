@@ -271,6 +271,9 @@ export function SideNav({ session }: { session: AdminSession | null }) {
         href="/"
         prefetch={false}
         aria-current={isActivePath(pathname, "/") ? "page" : undefined}
+        aria-disabled={isActivePath(pathname, "/") ? "true" : undefined}
+        data-loader={isActivePath(pathname, "/") ? "off" : undefined}
+        tabIndex={isActivePath(pathname, "/") ? -1 : undefined}
       >
         <NavIcon name="metrics" className="nav-icon" />
         <span className="nav-label">Métricas</span>
@@ -280,6 +283,9 @@ export function SideNav({ session }: { session: AdminSession | null }) {
         href="/customers"
         prefetch={false}
         aria-current={isActivePath(pathname, "/customers") ? "page" : undefined}
+        aria-disabled={isActivePath(pathname, "/customers") ? "true" : undefined}
+        data-loader={isActivePath(pathname, "/customers") ? "off" : undefined}
+        tabIndex={isActivePath(pathname, "/customers") ? -1 : undefined}
       >
         <NavIcon name="contacts" className="nav-icon" />
         <span className="nav-label">Contactos</span>
@@ -289,6 +295,9 @@ export function SideNav({ session }: { session: AdminSession | null }) {
         href="/products"
         prefetch={false}
         aria-current={isActivePath(pathname, "/products") ? "page" : undefined}
+        aria-disabled={isActivePath(pathname, "/products") ? "true" : undefined}
+        data-loader={isActivePath(pathname, "/products") ? "off" : undefined}
+        tabIndex={isActivePath(pathname, "/products") ? -1 : undefined}
       >
         <NavIcon name="products" className="nav-icon" />
         <span className="nav-label">Productos y Servicios</span>
@@ -298,6 +307,9 @@ export function SideNav({ session }: { session: AdminSession | null }) {
         href="/billing"
         prefetch={false}
         aria-current={isActivePath(pathname, "/billing") ? "page" : undefined}
+        aria-disabled={isActivePath(pathname, "/billing") ? "true" : undefined}
+        data-loader={isActivePath(pathname, "/billing") ? "off" : undefined}
+        tabIndex={isActivePath(pathname, "/billing") ? -1 : undefined}
       >
         <NavIcon name="billing" className="nav-icon" />
         <span className="nav-label">Planes y Suscripciones</span>
@@ -307,6 +319,9 @@ export function SideNav({ session }: { session: AdminSession | null }) {
         href="/notifications"
         prefetch={false}
         aria-current={isActivePath(pathname, "/notifications") ? "page" : undefined}
+        aria-disabled={isActivePath(pathname, "/notifications") ? "true" : undefined}
+        data-loader={isActivePath(pathname, "/notifications") ? "off" : undefined}
+        tabIndex={isActivePath(pathname, "/notifications") ? -1 : undefined}
       >
         <NavIcon name="notifications" className="nav-icon" />
         <span className="nav-label">Notificaciones</span>
@@ -316,6 +331,9 @@ export function SideNav({ session }: { session: AdminSession | null }) {
         href="/smart-lists"
         prefetch={false}
         aria-current={isActivePath(pathname, "/smart-lists") ? "page" : undefined}
+        aria-disabled={isActivePath(pathname, "/smart-lists") ? "true" : undefined}
+        data-loader={isActivePath(pathname, "/smart-lists") ? "off" : undefined}
+        tabIndex={isActivePath(pathname, "/smart-lists") ? -1 : undefined}
       >
         <NavIcon name="lists" className="nav-icon" />
         <span className="nav-label">Listas Inteligentes</span>
@@ -325,6 +343,9 @@ export function SideNav({ session }: { session: AdminSession | null }) {
         href="/campaigns"
         prefetch={false}
         aria-current={isActivePath(pathname, "/campaigns") ? "page" : undefined}
+        aria-disabled={isActivePath(pathname, "/campaigns") ? "true" : undefined}
+        data-loader={isActivePath(pathname, "/campaigns") ? "off" : undefined}
+        tabIndex={isActivePath(pathname, "/campaigns") ? -1 : undefined}
       >
         <NavIcon name="campaigns" className="nav-icon" />
         <span className="nav-label">Campañas</span>
@@ -334,6 +355,9 @@ export function SideNav({ session }: { session: AdminSession | null }) {
         href="/logs"
         prefetch={false}
         aria-current={isActivePath(pathname, "/logs") ? "page" : undefined}
+        aria-disabled={isActivePath(pathname, "/logs") ? "true" : undefined}
+        data-loader={isActivePath(pathname, "/logs") ? "off" : undefined}
+        tabIndex={isActivePath(pathname, "/logs") ? -1 : undefined}
       >
         <NavIcon name="logs" className="nav-icon" />
         <span className="nav-label">Logs de API</span>
@@ -343,11 +367,22 @@ export function SideNav({ session }: { session: AdminSession | null }) {
         href="/settings"
         prefetch={false}
         aria-current={isActivePath(pathname, "/settings") ? "page" : undefined}
+        aria-disabled={isActivePath(pathname, "/settings") ? "true" : undefined}
+        data-loader={isActivePath(pathname, "/settings") ? "off" : undefined}
+        tabIndex={isActivePath(pathname, "/settings") ? -1 : undefined}
       >
         <NavIcon name="settings" className="nav-icon" />
         <span className="nav-label">Configuración</span>
       </Link>
-      <Link className={`nav-item ${isSuperAdminPath ? "is-active" : ""}`} href="/sa" prefetch={false} aria-current={isSuperAdminPath ? "page" : undefined}>
+      <Link
+        className={`nav-item ${isSuperAdminPath ? "is-active" : ""}`}
+        href="/sa"
+        prefetch={false}
+        aria-current={isSuperAdminPath ? "page" : undefined}
+        aria-disabled={isSuperAdminPath ? "true" : undefined}
+        data-loader={isSuperAdminPath ? "off" : undefined}
+        tabIndex={isSuperAdminPath ? -1 : undefined}
+      >
         <ShieldIcon className="nav-icon" />
         <span className="nav-label">Super Admin</span>
       </Link>

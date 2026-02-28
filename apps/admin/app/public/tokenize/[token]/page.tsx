@@ -60,6 +60,7 @@ export default async function PublicTokenizePage({
   const configRes = await fetchCheckoutConfig(apiBases);
   const config = configRes.ok ? configRes.json?.config || {} : {};
   const template = tokenRes.ok ? tokenRes.json?.template || null : null;
+  const tenant = tokenRes.ok ? tokenRes.json?.tenant || null : null;
   const layout = (template?.layout || {}) as any;
   const title = template?.publicTitle || config?.subscriptionTitle || "Activa tu suscripción";
   const subtitle = "";
@@ -73,7 +74,14 @@ export default async function PublicTokenizePage({
   const tokenErrorMessage = String(config?.tokenizationErrorMessage || "").trim();
   const contactEmail = String(config?.supportEmail || "").trim();
   const supportUrl = String(config?.supportUrl || "").trim();
-  const logoUrl = template?.logoUrl || config?.logoUrl || "";
+  const logoUrl = (() => {
+    const candidates = [template?.logoUrl, tenant?.logoUrl, config?.logoUrl];
+    for (const candidate of candidates) {
+      const raw = String(candidate || "").trim();
+      if (raw && raw.toLowerCase() !== "undefined" && raw.toLowerCase() !== "null") return raw;
+    }
+    return "";
+  })();
   const fontFamily = String(layout?.fontFamily || "").trim();
   const primaryColor = String(layout?.primaryColor || "").trim();
   const layoutSupportEmail = String(layout?.supportEmail || "").trim();

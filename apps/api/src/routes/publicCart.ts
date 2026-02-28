@@ -7,6 +7,7 @@ import { scheduleSubscriptionDueNotifications } from "../services/notificationsS
 import { CredentialProvider, RetryJobType, SubscriptionStatus, PlanIntervalUnit } from "@prisma/client";
 import { getCredential } from "../services/credentials";
 import { getCheckoutBaseUrlsFromEnv } from "../services/publicBase";
+import { getTenantBrand } from "../services/tenantBrand";
 
 function parseCheckoutConfig(raw: string | null) {
   let parsed: any = null;
@@ -84,6 +85,8 @@ publicCartRouter.get("/cart/:token", async (req, res) => {
     : [];
   const plansTyped = plans as PlanPublic[];
 
+  const tenant = await getTenantBrand(customer.tenantId || template?.tenantId || null);
+
   res.json({
     ok: true,
     customer: {
@@ -92,6 +95,7 @@ publicCartRouter.get("/cart/:token", async (req, res) => {
       email: customer.email || "",
       phone: customer.phone || ""
     },
+    tenant,
     template: {
       id: template.id,
       name: template.name,

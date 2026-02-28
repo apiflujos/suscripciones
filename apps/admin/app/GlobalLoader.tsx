@@ -4,17 +4,22 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 const AUTO_HIDE_MS = 15000;
-const MODAL_SELECTOR = ".modal-backdrop, .modal-panel, [role='dialog'][aria-modal='true']";
+const MODAL_SELECTOR =
+  ".modal-backdrop, .modal-panel, [role='dialog'][aria-modal='true'], [role='dialog']:not([aria-modal='false'])";
 
 function shouldTriggerLoader(target: EventTarget | null) {
   if (!(target instanceof Element)) return false;
   if (target.closest('[data-loader="off"]')) return false;
   if (target.closest('[aria-haspopup="dialog"], [data-modal="true"], [data-modal-trigger="true"]')) return false;
+  if (target.closest('[aria-haspopup="menu"], [role="menu"], .userMenuPopover')) return false;
 
   const anchor = target.closest("a[href]");
   if (anchor) {
     const href = anchor.getAttribute("href") || "";
     if (!href || href.startsWith("#") || href.startsWith("javascript:")) return false;
+    if (anchor.getAttribute("aria-current") === "page") return false;
+    if (anchor.getAttribute("aria-disabled") === "true") return false;
+    if (anchor.classList.contains("is-active")) return false;
     if (anchor.getAttribute("target") === "_blank") return false;
     return true;
   }
@@ -33,6 +38,7 @@ export function GlobalLoader() {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const timeoutRef = useRef<number | null>(null);
+  const pendingShowRef = useRef<number | null>(null);
   const modalObserverRef = useRef<MutationObserver | null>(null);
   const loadingRef = useRef(false);
 
@@ -40,6 +46,13 @@ export function GlobalLoader() {
     if (timeoutRef.current !== null) {
       window.clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
+    }
+  };
+
+  const clearPendingShow = () => {
+    if (pendingShowRef.current !== null) {
+      window.clearTimeout(pendingShowRef.current);
+      pendingShowRef.current = null;
     }
   };
 
@@ -53,6 +66,7 @@ export function GlobalLoader() {
   const isModalOpen = () => Boolean(document.querySelector(MODAL_SELECTOR));
 
   const hide = () => {
+    clearPendingShow();
     clearTimer();
     stopModalObserver();
     loadingRef.current = false;
@@ -92,6 +106,16 @@ export function GlobalLoader() {
     }, AUTO_HIDE_MS);
   };
 
+  const scheduleShow = () => {
+    if (loadingRef.current) return;
+    clearPendingShow();
+    pendingShowRef.current = window.setTimeout(() => {
+      pendingShowRef.current = null;
+      if (isModalOpen()) return;
+      show();
+    }, 0);
+  };
+
   useEffect(() => {
     hide();
   }, [pathname, searchParams?.toString()]);
@@ -100,7 +124,7 @@ export function GlobalLoader() {
     const onClick = (event: MouseEvent) => {
       if (event.defaultPrevented) return;
       if (!shouldTriggerLoader(event.target)) return;
-      show();
+      scheduleShow();
     };
 
     const onSubmit = () => {
@@ -123,6 +147,7 @@ export function GlobalLoader() {
       window.removeEventListener("global-loader:show", onShow as EventListener);
       window.removeEventListener("global-loader:hide", onHide as EventListener);
       window.removeEventListener("pageshow", onPageShow);
+      clearPendingShow();
       clearTimer();
     };
   }, []);

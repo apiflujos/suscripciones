@@ -49,10 +49,18 @@ export default async function PublicCartPage({
   const configRes = await fetchCheckoutConfig();
   const config = configRes.ok ? configRes.json?.config || {} : {};
   const template = cartRes.ok ? cartRes.json?.template || null : null;
+  const tenant = cartRes.ok ? cartRes.json?.tenant || null : null;
   const layout = (template?.layout || {}) as any;
   const title = template?.publicTitle || config?.planTitle || "Selecciona tu plan";
   const description = template?.publicDescription || config?.planDescription || "";
-  const logoUrl = template?.logoUrl || config?.logoUrl || "";
+  const logoUrl = (() => {
+    const candidates = [template?.logoUrl, tenant?.logoUrl, config?.logoUrl];
+    for (const candidate of candidates) {
+      const raw = String(candidate || "").trim();
+      if (raw && raw.toLowerCase() !== "undefined" && raw.toLowerCase() !== "null") return raw;
+    }
+    return "";
+  })();
   const primaryColor = String(layout?.primaryColor || "").trim();
   const fontFamily = String(layout?.fontFamily || "").trim();
   const supportEmail = String(config?.supportEmail || "").trim();

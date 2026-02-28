@@ -108,12 +108,13 @@ export class ChatwootClient {
     text = text.replace(/<\/?\s*ol[^>]*>/gi, "");
     text = text.replace(/<\/?\s*(strong|b)[^>]*>/gi, "**");
     text = text.replace(/<\/?\s*(em|i)[^>]*>/gi, "*");
+    text = text.replace(/<\/?\s*code[^>]*>/gi, "`");
     text = text.replace(
       /<\s*a[^>]*href\s*=\s*["']([^"']+)["'][^>]*>(.*?)<\/\s*a\s*>/gi,
       (_match, href, label) => {
         const cleanLabel = this.stripHtmlToText(String(label ?? "")).trim();
-        if (cleanLabel && cleanLabel !== href) return `${cleanLabel} (${href})`;
-        return href;
+        if (cleanLabel && cleanLabel !== href) return `[${cleanLabel}](${href})`;
+        return `[${href}](${href})`;
       }
     );
     text = text.replace(/<[^>]+>/g, "");
@@ -130,12 +131,68 @@ export class ChatwootClient {
     return text.trim();
   }
 
+  private htmlToMarkdown(raw: string) {
+    let text = String(raw ?? "");
+    if (!text) return "";
+    text = text.replace(/\r\n?/g, "\n");
+    text = text.replace(/<\s*br\s*\/?>/gi, "\n");
+    text = text.replace(/<\/\s*p\s*>/gi, "\n\n");
+    text = text.replace(/<\s*p[^>]*>/gi, "");
+    text = text.replace(/<\/\s*div\s*>/gi, "\n");
+    text = text.replace(/<\s*div[^>]*>/gi, "");
+    text = text.replace(/<\s*(strong|b)[^>]*>(.*?)<\/\s*\1\s*>/gi, "**$2**");
+    text = text.replace(/<\s*(em|i)[^>]*>(.*?)<\/\s*\1\s*>/gi, "*$2*");
+    text = text.replace(/<\s*a[^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/\s*a\s*>/gi, (_m, href, label) => {
+      const cleanLabel = String(label || "").trim();
+      const cleanHref = String(href || "").trim();
+      if (!cleanHref) return cleanLabel;
+      return cleanLabel ? `${cleanLabel} ${cleanHref}` : cleanHref;
+    });
+    text = text.replace(/<[^>]+>/g, "");
+    text = text
+      .replace(/&nbsp;/gi, " ")
+      .replace(/&amp;/gi, "&")
+      .replace(/&lt;/gi, "<")
+      .replace(/&gt;/gi, ">")
+      .replace(/&quot;/gi, "\"")
+      .replace(/&#39;/gi, "'");
+    text = text.replace(/[ \t]+\n/g, "\n");
+    text = text.replace(/\n{3,}/g, "\n\n");
+    return text.trim();
+  }
+
+  private linkifyMarkdown(raw: string) {
+    const urlPattern = /((https?:\/\/|www\.)[^\s<]+)/gi;
+    return raw.replace(urlPattern, (match) => {
+      let url = match;
+      let suffix = "";
+      while (/[)\].,!?:;]$/.test(url)) {
+        suffix = url.slice(-1) + suffix;
+        url = url.slice(0, -1);
+      }
+      if (!url) return match;
+      const href = url.startsWith("http") ? url : `https://${url}`;
+      return `[${url}](${href})${suffix}`;
+    });
+  }
+
   private formatChatwootText(content: string) {
     const raw = String(content ?? "");
     if (!raw) return "";
     const normalized = raw.replace(/\r\n?/g, "\n");
-    if (this.looksLikeHtml(normalized)) return this.stripHtmlToText(normalized);
-    return normalized.trim();
+    if (this.looksLikeHtml(normalized)) return this.linkifyMarkdown(this.htmlToMarkdown(normalized));
+    return this.linkifyMarkdown(normalized.trim());
+  }
+
+  private sanitizeTemplateParams(input: any): any {
+    if (!input || typeof input !== "object") return input;
+    if (Array.isArray(input)) return input.map((item) => this.sanitizeTemplateParams(item));
+    const out: Record<string, any> = {};
+    for (const [key, value] of Object.entries(input)) {
+      if (key === "content_type") continue;
+      out[key] = this.sanitizeTemplateParams(value);
+    }
+    return out;
   }
 
   public buildSearchQueries(input: { email?: string; phoneNumber?: string }) {
@@ -342,7 +399,7 @@ export class ChatwootClient {
       content: this.formatChatwootText(args.content),
       message_type: "outgoing",
       content_type: "text",
-      template_params: args.templateParams
+      template_params: this.sanitizeTemplateParams(args.templateParams)
     };
     const res = await this.request(
       `/api/v1/accounts/${this.opts.accountId}/conversations/${conversationId}/messages`,
