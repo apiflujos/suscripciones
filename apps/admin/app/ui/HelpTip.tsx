@@ -78,6 +78,7 @@ export function HelpTip({ text, ariaLabel }: { text: string; ariaLabel?: string 
         ref={buttonRef}
         type="button"
         className="helpTip"
+        data-loader="off"
         aria-label={label}
         aria-describedby={isOpen ? id : undefined}
         onMouseEnter={() => setIsOpen(true)}

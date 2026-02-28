@@ -203,7 +203,7 @@ export function NewProductForm({
       </div>
 
       <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-        <PendingButton className="primary" type="submit" pendingText="Guardando...">
+        <PendingButton className="primary btn-create" type="submit" pendingText="Guardando...">
           Crear producto/servicio
         </PendingButton>
       </div>

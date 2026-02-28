@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { AdminSession } from "../lib/session";
+import { AppearanceSelector } from "./ui/AppearanceSelector";
 
 type Header = { title: string; subtitle: string };
 
@@ -44,16 +45,26 @@ export function TopBar({ session }: { session: AdminSession | null }) {
   const header = useMemo(() => getHeader(pathname), [pathname]);
   const isSuperAdmin = session?.role === "SUPER_ADMIN";
   const [menuOpen, setMenuOpen] = useState(false);
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const appearanceRef = useRef<HTMLButtonElement | null>(null);
+  const appearancePopoverRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
       const t = e.target as Node | null;
       if (!t) return;
-      if (menuRef.current && !menuRef.current.contains(t)) setMenuOpen(false);
+      if (menuRef.current && menuRef.current.contains(t)) return;
+      if (appearanceRef.current && appearanceRef.current.contains(t)) return;
+      if (appearancePopoverRef.current && appearancePopoverRef.current.contains(t)) return;
+      setMenuOpen(false);
+      setAppearanceOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMenuOpen(false);
+      if (e.key === "Escape") {
+        setMenuOpen(false);
+        setAppearanceOpen(false);
+      }
     };
     document.addEventListener("click", onDocClick);
     document.addEventListener("keydown", onKey);
@@ -79,6 +90,29 @@ export function TopBar({ session }: { session: AdminSession | null }) {
       </div>
 
       <div className="topbarRight" aria-label="Usuario">
+        <div className="appearanceMenu">
+          <button
+            type="button"
+            className="appearanceTrigger"
+            data-loader="off"
+            onClick={() => setAppearanceOpen((v) => !v)}
+            aria-label="Cambiar apariencia"
+            ref={appearanceRef}
+            aria-expanded={appearanceOpen ? "true" : "false"}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <circle cx="12" cy="12" r="5" />
+              <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+            </svg>
+            <span>Apariencia</span>
+          </button>
+          {appearanceOpen ? (
+            <div className="appearancePopover" ref={appearancePopoverRef} role="dialog" aria-label="Apariencia">
+              <div className="appearanceTitle">Apariencia</div>
+              <AppearanceSelector compact />
+            </div>
+          ) : null}
+        </div>
         <div className="userMenu" ref={menuRef}>
           <button
             type="button"

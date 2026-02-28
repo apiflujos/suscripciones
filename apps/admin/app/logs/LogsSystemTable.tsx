@@ -57,6 +57,7 @@ export function LogsSystemTable({ items }: { items: LogItem[] }) {
                       className="ghost btn-eye btn-compact"
                       type="button"
                       aria-expanded={isOpen}
+                      data-loader="off"
                       onClick={() => setOpenId(isOpen ? null : id)}
                     >
                       {isOpen ? "Ocultar" : "Ver"}

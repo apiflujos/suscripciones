@@ -573,7 +573,7 @@ export function NewBillingAssignmentForm({
                   </span>
                 ) : null}
                 <button
-                  className="primary"
+                  className="primary btn-send"
                   type="submit"
                   name="submitAction"
                   value="LINK_NOW"

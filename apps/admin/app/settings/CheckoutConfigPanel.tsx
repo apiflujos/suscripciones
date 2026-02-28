@@ -229,7 +229,7 @@ export function CheckoutConfigPanel({
             </div>
           ) : null}
         </div>
-        <PendingButton className="primary" type="submit" pendingText="Guardando...">
+        <PendingButton className="primary btn-save" type="submit" pendingText="Guardando...">
           Guardar
         </PendingButton>
       </div>

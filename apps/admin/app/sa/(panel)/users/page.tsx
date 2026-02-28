@@ -104,7 +104,7 @@ export default async function SaUsersPage({
               <span>Activo</span>
             </label>
 
-            <button className="primary" type="submit">
+            <button className="primary btn-create" type="submit">
               Crear usuario
             </button>
           </form>

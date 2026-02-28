@@ -82,6 +82,8 @@ function ChartLine({
   const h = height;
   const pad = 10;
   const max = Math.max(1, ...values);
+  const gridCount = 4;
+  const fmtAxis = (v: number) => new Intl.NumberFormat("es-CO").format(Math.round(v));
   const pts = values.map((v, i) => {
     const x = pad + (i * (w - pad * 2)) / Math.max(1, values.length - 1);
     const y = h - pad - (Math.max(0, v) * (h - pad * 2)) / max;
@@ -91,6 +93,21 @@ function ChartLine({
   const step = Math.max(1, Math.ceil(values.length / 12));
   return (
     <svg viewBox={`0 0 ${w} ${h}`} width="100%" height={h} aria-hidden="true">
+      {Array.from({ length: gridCount + 1 }).map((_, i) => {
+        const y = pad + (i * (h - pad * 2)) / gridCount;
+        const value = max - (i * max) / gridCount;
+        const showLabel = i === 0 || i === Math.floor(gridCount / 2) || i === gridCount;
+        return (
+          <g key={`grid-${i}`}>
+            <line x1="0" y1={y} x2={w} y2={y} stroke="var(--chart-track)" />
+            {showLabel ? (
+              <text x={2} y={y - 2} fontSize="9" fill="var(--text-faint)">
+                {fmtAxis(value)}
+              </text>
+            ) : null}
+          </g>
+        );
+      })}
       <polyline points={pts.join(" ")} fill="none" stroke="var(--primary)" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
       <line x1="0" y1={h - 0.5} x2={w} y2={h - 0.5} stroke="var(--chart-axis)" />
       {values.map((v, i) => {
@@ -146,6 +163,8 @@ function ChartBars({
   const h = height;
   const pad = 10;
   const max = Math.max(1, ...a, ...b);
+  const gridCount = 4;
+  const fmtAxis = (v: number) => new Intl.NumberFormat("es-CO").format(Math.round(v));
   const n = Math.max(a.length, b.length);
   const gap = 6;
   const groupW = (w - pad * 2) / Math.max(1, n);
@@ -153,6 +172,21 @@ function ChartBars({
   return (
     <div style={{ display: "grid", gap: 8 }}>
       <svg viewBox={`0 0 ${w} ${h}`} width="100%" height={h} aria-hidden="true">
+        {Array.from({ length: gridCount + 1 }).map((_, i) => {
+          const y = pad + (i * (h - pad * 2)) / gridCount;
+          const value = max - (i * max) / gridCount;
+          const showLabel = i === 0 || i === Math.floor(gridCount / 2) || i === gridCount;
+          return (
+            <g key={`grid-${i}`}>
+              <line x1="0" y1={y} x2={w} y2={y} stroke="var(--chart-track)" />
+              {showLabel ? (
+                <text x={2} y={y - 2} fontSize="9" fill="var(--text-faint)">
+                  {fmtAxis(value)}
+                </text>
+              ) : null}
+            </g>
+          );
+        })}
         {Array.from({ length: n }).map((_, i) => {
           const x0 = pad + i * groupW;
           const va = a[i] ?? 0;
@@ -330,30 +364,12 @@ export default async function Home({
   const linkConversionDeltaPp = hasPrev ? linkConversionPct - prevLinkConversion : null;
   const plansDeltaPct = hasPrev ? pctChange(metrics.json?.totals?.totalPlansSold || 0, prevPlansSold) : null;
 
-  const alerts: Array<{ title: string; detail: string; level: "warning" | "danger" }> = [];
-  if (totalPayments >= 10 && approvalPct < 80) {
-    alerts.push({ title: "Baja tasa de aprobación", detail: `Solo ${fmtPct(approvalPct)} de pagos aprobados.`, level: "danger" });
-  }
-  if (linksSentTotal >= 10 && linkConversionPct < 10) {
-    alerts.push({ title: "Conversión de links baja", detail: `Conversión actual: ${fmtPct(linkConversionPct)}.`, level: "warning" });
-  }
-  if (revenueDeltaPct != null && revenueDeltaPct <= -10) {
-    alerts.push({ title: "Ingresos en descenso", detail: `Variación: ${fmtDelta(revenueDeltaPct)} vs periodo anterior.`, level: "warning" });
-  }
-  if (activeDelta < 0) {
-    alerts.push({ title: "Menos suscripciones activas", detail: `Se perdieron ${Math.abs(activeDelta)} suscriptores en el periodo.`, level: "warning" });
-  }
-  if (metrics.json?.totals?.auto?.churnMonthlyPct != null && Number(metrics.json.totals.auto.churnMonthlyPct) > 5) {
-    alerts.push({ title: "Churn mensual alto", detail: `Churn: ${fmtPct(metrics.json.totals.auto.churnMonthlyPct)}.`, level: "danger" });
-  }
-
   return (
     <main className="page pageWide">
       <section className="settings-group">
         <div className="settings-group-header">
           <div className="filtersRow">
             <div className="filtersLeft">
-              <div className="filtersNote">Filtros de análisis</div>
               <div className="filtersPanel">
                 <form method="get" className="filtersForm">
                   <div className="field" style={{ margin: 0 }}>
@@ -395,7 +411,7 @@ export default async function Home({
                       ))}
                     </select>
                   </div>
-                  <button className="primary" type="submit" style={{ height: 38 }}>
+                  <button className="primary btn-eye" type="submit" style={{ height: 38 }}>
                     Ver
                   </button>
                 </form>
@@ -415,53 +431,15 @@ export default async function Home({
             </div>
           ) : (
             <>
-              <div className="insights-card">
-                <div className="insights-title">Insights clave</div>
-                <div className="insights-grid">
-                  <div className="insight-item">
-                    Ingresos vs periodo anterior:
-                    <span className={`delta ${revenueDeltaPct == null ? "flat" : revenueDeltaPct >= 0 ? "up" : "down"}`}>
-                      {fmtDelta(revenueDeltaPct)}
-                    </span>
-                  </div>
-                  <div className="insight-item">
-                    Aprobación de pagos:
-                    <span className={`delta ${approvalDeltaPp == null ? "flat" : approvalDeltaPp >= 0 ? "up" : "down"}`}>{fmtDeltaPp(approvalDeltaPp)}</span>
-                  </div>
-                  <div className="insight-item">
-                    Conversión de links:
-                    <span className={`delta ${linkConversionDeltaPp == null ? "flat" : linkConversionDeltaPp >= 0 ? "up" : "down"}`}>{fmtDeltaPp(linkConversionDeltaPp)}</span>
-                  </div>
-                  <div className="insight-item">
-                    Planes vendidos:
-                    <span className={`delta ${plansDeltaPct == null ? "flat" : plansDeltaPct >= 0 ? "up" : "down"}`}>
-                      {fmtDelta(plansDeltaPct)}
-                    </span>
-                  </div>
-                </div>
-                <div className="insights-foot">
-                  Comparativo: {fmtShortDate(prevFromIso.slice(0, 10))} → {fmtShortDate(prevToIso.slice(0, 10))} · Canal: {tenantLabel}
-                </div>
-              </div>
-
-              <div className="alerts-card">
-                <div className="alerts-title">Alertas operativas</div>
-                {alerts.length ? (
-                  <div className="alerts-grid">
-                    {alerts.map((a, idx) => (
-                      <div key={`alert-${idx}`} className={`alert-item ${a.level === "danger" ? "is-danger" : "is-warning"}`}>
-                        <div className="alert-title">{a.title}</div>
-                        <div className="alert-detail">{a.detail}</div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="alert-empty">Sin alertas críticas en este rango.</div>
-                )}
-              </div>
-
               <div className="grid3">
                 <div className="card cardPad metric-card tone-primary">
+                  <span className="metric-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="2" y="5" width="20" height="14" rx="3" />
+                      <circle cx="12" cy="12" r="3" />
+                      <path d="M6 9h.01M18 15h.01" />
+                    </svg>
+                  </span>
                   <div className="metric-label">Ingresos totales</div>
                   <div className="metric-value">${fmtMoneyCop(totalRevenue)} COP</div>
                   <div className="metric-sub">
@@ -472,6 +450,12 @@ export default async function Home({
                   </div>
                 </div>
                 <div className="card cardPad metric-card tone-success">
+                  <span className="metric-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="9" />
+                      <path d="M8 12l3 3 5-6" />
+                    </svg>
+                  </span>
                   <div className="metric-label">Tasa de aprobación</div>
                   <div className="metric-value">{fmtPct(approvalPct)}</div>
                   <div className="metric-sub">
@@ -480,6 +464,12 @@ export default async function Home({
                   </div>
                 </div>
                 <div className="card cardPad metric-card tone-warning">
+                  <span className="metric-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M10 13a5 5 0 0 0 7.1 0l2.1-2.1a5 5 0 0 0-7.1-7.1L10 5" />
+                      <path d="M14 11a5 5 0 0 0-7.1 0L4.8 13.1a5 5 0 0 0 7.1 7.1L14 19" />
+                    </svg>
+                  </span>
                   <div className="metric-label">Conversión link → pago</div>
                   <div className="metric-value">{fmtPct(linkConversionPct)}</div>
                   <div className="metric-sub">
@@ -488,16 +478,37 @@ export default async function Home({
                   </div>
                 </div>
                 <div className="card cardPad metric-card tone-info">
+                  <span className="metric-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
+                      <circle cx="9" cy="7" r="4" />
+                      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                  </span>
                   <div className="metric-label">Suscripciones activas</div>
                   <div className="metric-value">{totalActiveSubscriptions}</div>
                   <div className="metric-sub">Δ {activeDelta >= 0 ? "+" : ""}{activeDelta} ({fmtPct(activeDeltaPct)})</div>
                 </div>
                 <div className="card cardPad metric-card tone-primary">
+                  <span className="metric-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                      <polyline points="21 3 21 9 15 9" />
+                    </svg>
+                  </span>
                   <div className="metric-label">MRR automático</div>
                   <div className="metric-value">${fmtMoneyCop(autoMrr)} COP</div>
                   <div className="metric-sub">Churn mensual: {fmtPct(metrics.json?.totals?.auto?.churnMonthlyPct)}</div>
                 </div>
                 <div className="card cardPad metric-card tone-warning">
+                  <span className="metric-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                      <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                      <line x1="12" y1="22.08" x2="12" y2="12" />
+                    </svg>
+                  </span>
                   <div className="metric-label">Planes vendidos</div>
                   <div className="metric-value">{metrics.json?.totals?.totalPlansSold || 0}</div>
                   <div className="metric-sub">
@@ -588,6 +599,7 @@ export default async function Home({
                   </div>
                 </div>
               </div>
+
 
               <div className="grid2">
                 <div className="card cardPad chart-card">

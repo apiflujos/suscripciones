@@ -9,7 +9,7 @@ export function RunCampaignButton({
 }) {
   return (
     <button
-      className="ghost"
+      className="ghost btn-send"
       type="submit"
       disabled={disabled}
       onClick={(e) => {

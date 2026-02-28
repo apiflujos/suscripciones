@@ -33,10 +33,10 @@ export function CustomersModals({
   return (
     <>
       <div className={actionsClassName || "customer-actions"}>
-        <button className="primary" type="button" data-modal="true" onClick={() => setOpenCustomer(true)}>
+        <button className="primary btn-create" type="button" data-modal="true" onClick={() => setOpenCustomer(true)}>
           Crear contacto
         </button>
-        <button className="primary" type="button" data-modal="true" onClick={() => setOpenPlan(true)}>
+        <button className="primary btn-create" type="button" data-modal="true" onClick={() => setOpenPlan(true)}>
           Crear plan / suscripción
         </button>
       </div>

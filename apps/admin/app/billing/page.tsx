@@ -407,7 +407,7 @@ export default async function BillingPage({
                 <input type="hidden" name="csrf" value={csrfToken} />
                 <input type="hidden" name="returnTo" value={returnTo} />
                 <input className="input" name="name" placeholder="Nuevo canal" />
-                <button className="ghost" type="submit">Crear canal</button>
+                <button className="ghost btn-create" type="submit">Crear canal</button>
               </form>
               <span className="pill">{rows.length} resultados</span>
             </div>
@@ -529,7 +529,7 @@ export default async function BillingPage({
                         <input type="hidden" name="customerId" value={r.customerId} />
                         <input type="hidden" name="returnTo" value={returnTo} />
                         {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                        <button className="ghost btn-compact btn-blue" type="submit" title="Enviar por CentralCom">
+                        <button className="ghost btn-compact btn-blue btn-send" type="submit" title="Enviar por CentralCom">
                           Enviar link de pago
                         </button>
                       </form>
@@ -543,7 +543,7 @@ export default async function BillingPage({
                               <input type="hidden" name="planId" value={r.planId} />
                               <input type="hidden" name="returnTo" value={returnTo} />
                               {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                              <button className="ghost btn-compact btn-blue" type="submit" title="Enviar por CentralCom">
+                              <button className="ghost btn-compact btn-blue btn-send" type="submit" title="Enviar por CentralCom">
                                 Enviar tokenización
                               </button>
                             </form>

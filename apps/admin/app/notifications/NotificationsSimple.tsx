@@ -339,11 +339,11 @@ export function NotificationsSimple({
                       ) : null}
                       <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
                         {rule ? (
-                          <button className="ghost" type="button" onClick={() => setRealtimeEdit((prev) => ({ ...prev, [rt.key]: false }))}>
+                          <button className="ghost btn-cancel" type="button" onClick={() => setRealtimeEdit((prev) => ({ ...prev, [rt.key]: false }))}>
                             Cancelar
                           </button>
                         ) : null}
-                        <PendingButton className="primary" type="submit" pendingText="Guardando...">
+                        <PendingButton className="primary btn-save" type="submit" pendingText="Guardando...">
                           Guardar
                         </PendingButton>
                       </div>
@@ -511,11 +511,11 @@ export function NotificationsSimple({
                 </button>
                 <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
                   {reminderDue ? (
-                    <button className="ghost" type="button" onClick={() => setDueEdit(false)}>
+                    <button className="ghost btn-cancel" type="button" onClick={() => setDueEdit(false)}>
                       Cancelar
                     </button>
                   ) : null}
-                  <PendingButton className="primary" type="submit" pendingText="Guardando...">
+                  <PendingButton className="primary btn-save" type="submit" pendingText="Guardando...">
                     Guardar
                   </PendingButton>
                 </div>
@@ -669,11 +669,11 @@ export function NotificationsSimple({
                 </button>
                 <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
                   {reminderMora ? (
-                    <button className="ghost" type="button" onClick={() => setMoraEdit(false)}>
+                    <button className="ghost btn-cancel" type="button" onClick={() => setMoraEdit(false)}>
                       Cancelar
                     </button>
                   ) : null}
-                  <PendingButton className="primary" type="submit" pendingText="Guardando...">
+                  <PendingButton className="primary btn-save" type="submit" pendingText="Guardando...">
                     Guardar
                   </PendingButton>
                 </div>

@@ -95,7 +95,7 @@ export default async function SmartListsPage({
             </span>
           </label>
           <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-            <button className="primary" type="submit">Crear</button>
+            <button className="primary btn-create" type="submit">Crear</button>
           </div>
         </form>
       </div>
@@ -114,7 +114,7 @@ export default async function SmartListsPage({
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <a className="ghost" href={`/smart-lists/${item.id}`}>Ver contactos</a>
+                  <a className="ghost btn-view" href={`/smart-lists/${item.id}`}>Ver contactos</a>
                   <form action={previewSmartList}>
                     <input type="hidden" name="csrf" value={csrfToken} />
                     <input type="hidden" name="id" value={item.id} />

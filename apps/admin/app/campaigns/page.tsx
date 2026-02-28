@@ -67,7 +67,7 @@ export default async function CampaignsPage({
             <textarea className="input" name="templateParams" rows={3} placeholder='{"name":"Juan","amount":"$49.000"}' />
           </div>
           <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-            <button className="primary" type="submit">Crear</button>
+            <button className="primary btn-create" type="submit">Crear</button>
           </div>
         </form>
       </div>

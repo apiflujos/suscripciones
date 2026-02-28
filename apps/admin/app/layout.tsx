@@ -92,10 +92,15 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     const theme = localStorage.getItem("apiflujos-theme") || "";
     const contrast = localStorage.getItem("apiflujos-contrast") || "";
     const vision = localStorage.getItem("apiflujos-vision") || "";
-    const resolvedTheme = theme || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const prefersContrast = window.matchMedia("(prefers-contrast: more)").matches;
+    const forcedColors = window.matchMedia("(forced-colors: active)").matches;
+    const resolvedTheme = theme && theme !== "auto" ? theme : prefersDark ? "dark" : "light";
+    const resolvedContrast = contrast === "high" ? "high" : contrast === "normal" ? "" : prefersContrast || forcedColors ? "high" : "";
+    const resolvedVision = vision && vision !== "standard" ? vision : "";
     root.dataset.theme = resolvedTheme;
-    if (contrast) root.dataset.contrast = contrast; else delete root.dataset.contrast;
-    if (vision) root.dataset.vision = vision; else delete root.dataset.vision;
+    if (resolvedContrast) root.dataset.contrast = resolvedContrast; else delete root.dataset.contrast;
+    if (resolvedVision) root.dataset.vision = resolvedVision; else delete root.dataset.vision;
   } catch (_) {}
 })();
         `}</Script>

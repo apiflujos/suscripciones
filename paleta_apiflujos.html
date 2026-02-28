@@ -6,21 +6,36 @@
   <title>Paleta Apiflujos</title>
   <style>
     :root {
-      --standard-1: #2B0F3D;
-      --standard-2: #3A1552;
-      --standard-3: #4A1D69;
-      --standard-4: #5B2582;
-      --standard-5: #8A40B9;
-      --standard-6: #9F61C8;
-      --standard-7: #B989D8;
-      --standard-8: #D1B2E7;
-      --standard-9: #E9D8F4;
-      --standard-10: #1B1022;
-      --standard-11: #0C0F1A;
-      --standard-12: #5B6070;
-      --standard-13: #FFFFFF;
-      --standard-14: #F6F2FA;
-      --standard-15: #24A148;
+      --apf-01: #0C0F1A;
+      --apf-02: #1B1022;
+      --apf-03: #2B0F3D;
+      --apf-04: #3A1552;
+      --apf-05: #4A1D69;
+      --apf-06: #5B2582;
+      --apf-07: #6F2F9A;
+      --apf-08: #8A40B9;
+      --apf-09: #9F61C8;
+      --apf-10: #B989D8;
+      --apf-11: #D1B2E7;
+      --apf-12: #E9D8F4;
+      --apf-13: #F6F2FA;
+      --apf-14: #FFFFFF;
+      --apf-15: #5B6070;
+      --apf-16: #94A3B8;
+      --apf-17: #E69F00;
+      --apf-18: #56B4E9;
+      --apf-19: #009E73;
+      --apf-20: #F0E442;
+      --apf-21: #0072B2;
+      --apf-22: #D55E00;
+      --apf-23: #CC79A7;
+      --apf-24: #4477AA;
+      --apf-25: #EE6677;
+      --apf-26: #228833;
+      --apf-27: #CCBB44;
+      --apf-28: #66CCEE;
+      --apf-29: #AA3377;
+      --apf-30: #999999;
 
       --pink-900: #240613;
       --pink-800: #320819;
@@ -32,10 +47,10 @@
       --pink-200: #F0AFC7;
       --pink-100: #F7D6E2;
 
-      --success: #24A148;
-      --warning: #E0A11B;
-      --danger: #E04F7E;
-      --info: #5B6CFF;
+      --success: #228833;
+      --warning: #E69F00;
+      --danger: #D55E00;
+      --info: #56B4E9;
 
       --hc-bg: #000000;
       --hc-text: #FFFFFF;
@@ -54,8 +69,8 @@
       margin: 0;
       padding: 28px;
       font-family: "Poppins", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-      background: var(--standard-14);
-      color: var(--standard-11);
+      background: var(--apf-13);
+      color: var(--apf-01);
     }
     header {
       display: flex;
@@ -121,6 +136,128 @@
       font-size: 12px;
       font-weight: 600;
     }
+
+    .ui-section {
+      margin-top: 26px;
+    }
+    .ui-card {
+      background: #fff;
+      border: 1px solid rgba(15, 23, 42, 0.1);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 10px 24px rgba(30, 18, 52, 0.08);
+      display: grid;
+      gap: 14px;
+    }
+    .ui-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .ui-caption {
+      font-size: 12px;
+      color: #4B5563;
+    }
+    .ui-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #374151;
+      margin: 0;
+    }
+
+    .btn {
+      height: 36px;
+      padding: 0 14px;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12.5px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn svg { width: 16px; height: 16px; }
+    .btn-primary { background: #8A40B9; color: #fff; box-shadow: 0 10px 20px rgba(138, 64, 185, 0.2); }
+    .btn-secondary { background: #F6F2FA; color: #2B0F3D; border-color: rgba(15, 23, 42, 0.1); }
+    .btn-ghost { background: transparent; border-color: rgba(15, 23, 42, 0.18); color: #3A1552; }
+    .btn-success { background: #228833; color: #fff; }
+    .btn-warning { background: #E69F00; color: #1B1022; }
+    .btn-danger { background: #D55E00; color: #fff; }
+    .btn-info { background: #56B4E9; color: #0C0F1A; }
+
+    .control {
+      height: 36px;
+      border-radius: 12px;
+      border: 1px solid rgba(15, 23, 42, 0.18);
+      padding: 0 12px;
+      font-size: 12.5px;
+      background: #fff;
+      color: #0C0F1A;
+      min-width: 220px;
+    }
+    .control:focus { outline: 2px solid rgba(138, 64, 185, 0.2); border-color: #8A40B9; }
+    .select { padding-right: 28px; appearance: none; background-image: linear-gradient(45deg, transparent 50%, #5B6070 50%), linear-gradient(135deg, #5B6070 50%, transparent 50%); background-position: calc(100% - 18px) 50%, calc(100% - 12px) 50%; background-size: 6px 6px, 6px 6px; background-repeat: no-repeat; }
+
+    .list {
+      display: grid;
+      gap: 8px;
+      padding: 0;
+      margin: 0;
+      list-style: none;
+    }
+    .list-item {
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #fff;
+    }
+    .list-badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(86, 180, 233, 0.16);
+      color: #0072B2;
+      font-weight: 700;
+    }
+
+    .calendar {
+      border: 1px solid rgba(15, 23, 42, 0.12);
+      border-radius: 14px;
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: #2B0F3D;
+    }
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+      font-size: 11px;
+      text-align: center;
+    }
+    .calendar-day {
+      border-radius: 10px;
+      padding: 6px 0;
+      background: #F6F2FA;
+      color: #1B1022;
+    }
+    .calendar-day.is-today { border: 1px solid #8A40B9; }
+    .calendar-day.is-selected { background: #8A40B9; color: #fff; }
+    .calendar-day.is-muted { color: #9AA0B4; background: #fff; }
   </style>
 </head>
 <body>
@@ -128,43 +265,58 @@
     <img src="Assets/logo.png" alt="Apiflujos" />
     <div>
       <h1>Paleta Apiflujos</h1>
-      <p>Base de 15 tonos + variantes para claro, oscuro, rosado oscuro, alto contraste y daltónicos.</p>
+      <p>Base de 30 tonos + variantes para claro, oscuro, seguro (CVD-safe) y alto contraste.</p>
     </div>
   </header>
 
-  <h2>1) Paleta estándar (15 tonos)</h2>
+  <h2>1) Paleta estándar (30 tonos)</h2>
   <div class="swatches">
-    <div class="swatch"><div class="color" style="background: var(--standard-1)"></div><div class="meta"><div class="name">Primary 900</div><div>#2B0F3D</div></div></div>
-    <div class="swatch"><div class="color" style="background: var(--standard-2)"></div><div class="meta"><div class="name">Primary 800</div><div>#3A1552</div></div></div>
-    <div class="swatch"><div class="color" style="background: var(--standard-3)"></div><div class="meta"><div class="name">Primary 700</div><div>#4A1D69</div></div></div>
-    <div class="swatch"><div class="color" style="background: var(--standard-4)"></div><div class="meta"><div class="name">Primary 600</div><div>#5B2582</div></div></div>
-    <div class="swatch"><div class="color" style="background: var(--standard-5)"></div><div class="meta"><div class="name">Primary 500</div><div>#8A40B9</div></div></div>
-    <div class="swatch"><div class="color" style="background: var(--standard-6)"></div><div class="meta"><div class="name">Primary 400</div><div>#9F61C8</div></div></div>
-    <div class="swatch"><div class="color" style="background: var(--standard-7)"></div><div class="meta"><div class="name">Primary 300</div><div>#B989D8</div></div></div>
-    <div class="swatch"><div class="color" style="background: var(--standard-8)"></div><div class="meta"><div class="name">Primary 200</div><div>#D1B2E7</div></div></div>
-    <div class="swatch"><div class="color" style="background: var(--standard-9)"></div><div class="meta"><div class="name">Primary 100</div><div>#E9D8F4</div></div></div>
-    <div class="swatch"><div class="color" style="background: var(--standard-10)"></div><div class="meta"><div class="name">Ink</div><div>#1B1022</div></div></div>
-    <div class="swatch"><div class="color" style="background: var(--standard-11)"></div><div class="meta"><div class="name">Text</div><div>#0C0F1A</div></div></div>
-    <div class="swatch"><div class="color" style="background: var(--standard-12)"></div><div class="meta"><div class="name">Muted</div><div>#5B6070</div></div></div>
-    <div class="swatch"><div class="color" style="background: var(--standard-13)"></div><div class="meta"><div class="name">Surface</div><div>#FFFFFF</div></div></div>
-    <div class="swatch"><div class="color" style="background: var(--standard-14)"></div><div class="meta"><div class="name">Background</div><div>#F6F2FA</div></div></div>
-    <div class="swatch"><div class="color" style="background: var(--standard-15)"></div><div class="meta"><div class="name">Accent</div><div>#24A148</div></div></div>
+    <div class="swatch"><div class="color" style="background: var(--apf-01)"></div><div class="meta"><div class="name">Ink 950</div><div>#0C0F1A</div></div></div>
+    <div class="swatch"><div class="color" style="background: var(--apf-02)"></div><div class="meta"><div class="name">Ink 900</div><div>#1B1022</div></div></div>
+    <div class="swatch"><div class="color" style="background: var(--apf-03)"></div><div class="meta"><div class="name">Purple 900</div><div>#2B0F3D</div></div></div>
+    <div class="swatch"><div class="color" style="background: var(--apf-04)"></div><div class="meta"><div class="name">Purple 800</div><div>#3A1552</div></div></div>
+    <div class="swatch"><div class="color" style="background: var(--apf-05)"></div><div class="meta"><div class="name">Purple 700</div><div>#4A1D69</div></div></div>
+    <div class="swatch"><div class="color" style="background: var(--apf-06)"></div><div class="meta"><div class="name">Purple 650</div><div>#5B2582</div></div></div>
+    <div class="swatch"><div class="color" style="background: var(--apf-07)"></div><div class="meta"><div class="name">Purple 600</div><div>#6F2F9A</div></div></div>
+    <div class="swatch"><div class="color" style="background: var(--apf-08)"></div><div class="meta"><div class="name">Purple 500</div><div>#8A40B9</div></div></div>
+    <div class="swatch"><div class="color" style="background: var(--apf-09)"></div><div class="meta"><div class="name">Purple 400</div><div>#9F61C8</div></div></div>
+    <div class="swatch"><div class="color" style="background: var(--apf-10)"></div><div class="meta"><div class="name">Purple 300</div><div>#B989D8</div></div></div>
+    <div class="swatch"><div class="color" style="background: var(--apf-11)"></div><div class="meta"><div class="name">Purple 200</div><div>#D1B2E7</div></div></div>
+    <div class="swatch"><div class="color" style="background: var(--apf-12)"></div><div class="meta"><div class="name">Purple 100</div><div>#E9D8F4</div></div></div>
+    <div class="swatch"><div class="color" style="background: var(--apf-13)"></div><div class="meta"><div class="name">Cloud 50</div><div>#F6F2FA</div></div></div>
+    <div class="swatch"><div class="color" style="background: var(--apf-14)"></div><div class="meta"><div class="name">White</div><div>#FFFFFF</div></div></div>
+    <div class="swatch"><div class="color" style="background: var(--apf-15)"></div><div class="meta"><div class="name">Slate 600</div><div>#5B6070</div></div></div>
+    <div class="swatch"><div class="color" style="background: var(--apf-16)"></div><div class="meta"><div class="name">Slate 400</div><div>#94A3B8</div></div></div>
+    <div class="swatch"><div class="color" style="background: var(--apf-17)"></div><div class="meta"><div class="name">Okabe Orange</div><div>#E69F00</div></div></div>
+    <div class="swatch"><div class="color" style="background: var(--apf-18)"></div><div class="meta"><div class="name">Okabe Sky</div><div>#56B4E9</div></div></div>
+    <div class="swatch"><div class="color" style="background: var(--apf-19)"></div><div class="meta"><div class="name">Okabe Green</div><div>#009E73</div></div></div>
+    <div class="swatch"><div class="color" style="background: var(--apf-20)"></div><div class="meta"><div class="name">Okabe Yellow</div><div>#F0E442</div></div></div>
+    <div class="swatch"><div class="color" style="background: var(--apf-21)"></div><div class="meta"><div class="name">Okabe Blue</div><div>#0072B2</div></div></div>
+    <div class="swatch"><div class="color" style="background: var(--apf-22)"></div><div class="meta"><div class="name">Okabe Vermillion</div><div>#D55E00</div></div></div>
+    <div class="swatch"><div class="color" style="background: var(--apf-23)"></div><div class="meta"><div class="name">Okabe Purple</div><div>#CC79A7</div></div></div>
+    <div class="swatch"><div class="color" style="background: var(--apf-24)"></div><div class="meta"><div class="name">Tol Bright Blue</div><div>#4477AA</div></div></div>
+    <div class="swatch"><div class="color" style="background: var(--apf-25)"></div><div class="meta"><div class="name">Tol Bright Red</div><div>#EE6677</div></div></div>
+    <div class="swatch"><div class="color" style="background: var(--apf-26)"></div><div class="meta"><div class="name">Tol Bright Green</div><div>#228833</div></div></div>
+    <div class="swatch"><div class="color" style="background: var(--apf-27)"></div><div class="meta"><div class="name">Tol Bright Yellow</div><div>#CCBB44</div></div></div>
+    <div class="swatch"><div class="color" style="background: var(--apf-28)"></div><div class="meta"><div class="name">Tol Bright Cyan</div><div>#66CCEE</div></div></div>
+    <div class="swatch"><div class="color" style="background: var(--apf-29)"></div><div class="meta"><div class="name">Tol Bright Purple</div><div>#AA3377</div></div></div>
+    <div class="swatch"><div class="color" style="background: var(--apf-30)"></div><div class="meta"><div class="name">Okabe Grey</div><div>#999999</div></div></div>
   </div>
 
   <h2>2) Tema claro / oscuro (sugerido)</h2>
   <div class="theme-preview">
     <div class="row">
-      <span class="pill" style="background: #F6F2FA; color: #2B0F3D">Claro</span>
+      <span class="pill" style="background: #F6F2FA; color: #1B1022">Claro</span>
       <span class="pill" style="background: #0C0F1A; color: #F6F2FA">Oscuro</span>
     </div>
     <div class="row">
       <span class="pill" style="background: #8A40B9; color: #fff">Primary</span>
-      <span class="pill" style="background: #24A148; color: #fff">Accent</span>
+      <span class="pill" style="background: #009E73; color: #fff">Accent</span>
       <span class="pill" style="background: #5B6070; color: #fff">Muted</span>
     </div>
   </div>
 
-  <h2>3) Tema rosado oscuro (app rosada)</h2>
+  <h2>3) Tema rosado oscuro (opcional)</h2>
   <div class="swatches">
     <div class="swatch"><div class="color" style="background: var(--pink-900)"></div><div class="meta"><div class="name">Pink 900</div><div>#240613</div></div></div>
     <div class="swatch"><div class="color" style="background: var(--pink-800)"></div><div class="meta"><div class="name">Pink 800</div><div>#320819</div></div></div>
@@ -186,7 +338,7 @@
     <div class="swatch"><div class="color" style="background: var(--hc-danger)"></div><div class="meta"><div class="name">Danger</div><div>#FF2E2E</div></div></div>
   </div>
 
-  <h2>5) Daltonismo (paleta Okabe-Ito)</h2>
+  <h2>5) Modo seguro (paleta Okabe-Ito)</h2>
   <div class="swatches">
     <div class="swatch"><div class="color" style="background: var(--cb-success)"></div><div class="meta"><div class="name">Success</div><div>#009E73</div></div></div>
     <div class="swatch"><div class="color" style="background: var(--cb-warning)"></div><div class="meta"><div class="name">Warning</div><div>#E69F00</div></div></div>
@@ -194,92 +346,122 @@
     <div class="swatch"><div class="color" style="background: var(--cb-info)"></div><div class="meta"><div class="name">Info</div><div>#0072B2</div></div></div>
   </div>
 
-  <h2>6) Tokens recomendados (CSS)</h2>
+  <div class="ui-section">
+    <h2>6) Estándares UI Apiflujos</h2>
+    <div class="ui-card">
+      <p class="ui-caption">
+        Fuente: Poppins para todo el sistema. Iconografía: estilo línea, stroke 2, esquinas redondeadas, tamaños 16/20/24.
+      </p>
+      <div>
+        <div class="ui-title">Botones</div>
+        <div class="ui-row" style="margin-top: 8px;">
+          <button class="btn btn-primary" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            Crear
+          </button>
+          <button class="btn btn-secondary" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18"/></svg>
+            Secundario
+          </button>
+          <button class="btn btn-ghost" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>
+            Ghost
+          </button>
+          <button class="btn btn-success" type="button">Éxito</button>
+          <button class="btn btn-warning" type="button">Advertencia</button>
+          <button class="btn btn-danger" type="button">Eliminar</button>
+          <button class="btn btn-info" type="button">Info</button>
+        </div>
+      </div>
+      <div>
+        <div class="ui-title">Inputs y Select</div>
+        <div class="ui-row" style="margin-top: 8px;">
+          <input class="control" type="text" placeholder="Buscar contacto" />
+          <input class="control" type="date" />
+          <select class="control select">
+            <option>Todos los estados</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <div class="ui-title">Listas</div>
+        <ul class="list">
+          <li class="list-item">
+            <div>Notificación de pago</div>
+            <span class="list-badge">Activa</span>
+          </li>
+          <li class="list-item">
+            <div>Recordatorio de vencimiento</div>
+            <span class="list-badge">Programada</span>
+          </li>
+        </ul>
+      </div>
+      <div>
+        <div class="ui-title">Calendario</div>
+        <div class="calendar">
+          <div class="calendar-header">
+            <span>Febrero 2026</span>
+            <span>◀ ▶</span>
+          </div>
+          <div class="calendar-grid">
+            <div class="calendar-day is-muted">27</div>
+            <div class="calendar-day is-muted">28</div>
+            <div class="calendar-day">1</div>
+            <div class="calendar-day">2</div>
+            <div class="calendar-day">3</div>
+            <div class="calendar-day">4</div>
+            <div class="calendar-day">5</div>
+            <div class="calendar-day">6</div>
+            <div class="calendar-day">7</div>
+            <div class="calendar-day is-today">8</div>
+            <div class="calendar-day">9</div>
+            <div class="calendar-day is-selected">10</div>
+            <div class="calendar-day">11</div>
+            <div class="calendar-day">12</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2>7) Tokens recomendados (CSS)</h2>
   <div class="tokens">
 :root {
-  --standard-1: #2B0F3D;
-  --standard-2: #3A1552;
-  --standard-3: #4A1D69;
-  --standard-4: #5B2582;
-  --standard-5: #8A40B9;
-  --standard-6: #9F61C8;
-  --standard-7: #B989D8;
-  --standard-8: #D1B2E7;
-  --standard-9: #E9D8F4;
-  --standard-10: #1B1022;
-  --standard-11: #0C0F1A;
-  --standard-12: #5B6070;
-  --standard-13: #FFFFFF;
-  --standard-14: #F6F2FA;
-  --standard-15: #24A148;
+  --apf-01: #0C0F1A;
+  --apf-08: #8A40B9;
+  --apf-13: #F6F2FA;
+  --apf-14: #FFFFFF;
+  --apf-15: #5B6070;
+  --apf-17: #E69F00;
+  --apf-18: #56B4E9;
+  --apf-19: #009E73;
+  --apf-21: #0072B2;
+  --apf-22: #D55E00;
+  --apf-24: #4477AA;
+  --apf-25: #EE6677;
+  --apf-26: #228833;
+  --apf-27: #CCBB44;
+  --apf-28: #66CCEE;
 
-  --brand-primary: var(--standard-5);
-  --brand-primary-700: var(--standard-3);
-  --brand-primary-300: var(--standard-7);
-  --brand-primary-100: var(--standard-9);
-  --brand-ink: var(--standard-10);
-  --brand-gray: var(--standard-12);
+  --bg: var(--apf-13);
+  --panel: var(--apf-14);
+  --text: var(--apf-01);
+  --muted: var(--apf-15);
+  --primary: var(--apf-08);
+  --accent: var(--apf-19);
 
-  --bg: var(--standard-14);
-  --panel: var(--standard-13);
-  --text: var(--standard-11);
-  --muted: var(--standard-12);
-  --text-strong: #0B1220;
-  --text-soft: #475569;
-  --text-faint: #3F4754;
-  --surface-contrast: #0F172A;
-  --primary: var(--standard-5);
-  --primary-soft: rgba(138, 64, 185, 0.12);
-  --accent: var(--standard-15);
-  --accent-soft: rgba(36, 161, 72, 0.12);
-  --stroke: rgba(27, 16, 34, 0.12);
-  --shadow: 0 12px 26px rgba(30, 18, 52, 0.1);
-  --chart-axis: rgba(15, 23, 42, 0.16);
-  --chart-track: rgba(15, 23, 42, 0.12);
-  --chart-a: #0E7490;
-  --chart-b: #EF4444;
-
-  --status-success: #24A148;
-  --status-success-bg: rgba(36, 161, 72, 0.16);
-  --status-warning: #E0A11B;
-  --status-warning-bg: rgba(224, 161, 27, 0.16);
-  --status-danger: #E04F7E;
-  --status-danger-bg: rgba(224, 79, 126, 0.16);
-  --status-info: #5B6CFF;
-  --status-info-bg: rgba(91, 108, 255, 0.16);
-
-  --form-bg: var(--panel);
-  --form-border: var(--stroke);
-  --form-label: var(--text-strong);
-  --form-hint: var(--text-faint);
-  --form-placeholder: var(--text-faint);
+  --status-success: var(--apf-26);
+  --status-warning: var(--apf-17);
+  --status-danger: var(--apf-22);
+  --status-info: var(--apf-18);
 }
 
 html[data-theme="dark"] {
   --bg: #0C0F1A;
-  --panel: #151629;
+  --panel: #1B1022;
   --text: #F6F2FA;
-  --muted: #B2ABC2;
-  --text-strong: #F8F5FF;
-  --text-soft: #C7C3D3;
-  --text-faint: #9AA0B4;
-  --surface-contrast: #F6F2FA;
-  --primary: var(--standard-6);
-  --primary-soft: rgba(159, 97, 200, 0.2);
-  --accent: #24A148;
-  --accent-soft: rgba(36, 161, 72, 0.2);
-  --stroke: rgba(255, 255, 255, 0.12);
-  --shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
-  --chart-axis: rgba(255, 255, 255, 0.2);
-  --chart-track: rgba(255, 255, 255, 0.12);
-  --chart-a: #58C4D6;
-  --chart-b: #F28B82;
-
-  --form-bg: #121427;
-  --form-border: rgba(255, 255, 255, 0.18);
-  --form-label: #F6F2FA;
-  --form-hint: #B8B1C7;
-  --form-placeholder: #9AA0B4;
+  --primary: #9F61C8;
+  --accent: #009E73;
 }
 
 html[data-theme="pink-dark"] {

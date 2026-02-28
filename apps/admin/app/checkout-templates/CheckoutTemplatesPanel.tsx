@@ -705,12 +705,12 @@ export function CheckoutTemplatesPanel({
             <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>{inlineMsg(editing ? "checkout_template_update" : "checkout_template_create")}</div>
               <div style={{ display: "flex", gap: 8 }}>
-                <button className="ghost" type="button" onClick={() => setStepIndex(Math.max(0, stepIndex - 1))}>
+                <button className="ghost btn-back" type="button" onClick={() => setStepIndex(Math.max(0, stepIndex - 1))}>
                   Atrás
                 </button>
                 {stepIndex < STEPS.length - 1 ? (
                   <button
-                    className="primary"
+                    className="primary btn-next"
                     type="button"
                     onClick={() => {
                       if (stepIndex === 0 && !kind) {
@@ -742,7 +742,7 @@ export function CheckoutTemplatesPanel({
                   </button>
                 ) : (
                   <PendingButton
-                    className="primary"
+                    className="primary btn-save"
                     type="submit"
                     pendingText="Guardando..."
                     disabled={!selectedKind || !name || missingTenant || !isProductsValid || missingCatalogMode}
@@ -766,11 +766,11 @@ export function CheckoutTemplatesPanel({
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           {editing ? (
-            <button className="ghost" type="button" onClick={resetWizard} data-loader="off">
+            <button className="ghost btn-cancel" type="button" onClick={resetWizard} data-loader="off">
               Cancelar edición
             </button>
           ) : null}
-          <button className="primary" type="button" data-modal="true" onClick={openCreate}>
+          <button className="primary btn-create" type="button" data-modal="true" onClick={openCreate}>
             Nueva plantilla
           </button>
         </div>

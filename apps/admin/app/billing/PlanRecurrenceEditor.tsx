@@ -86,10 +86,10 @@ export function PlanRecurrenceEditor({
               </div>
 
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                <button className="ghost" type="button" onClick={() => setOpen(false)}>
+                <button className="ghost btn-cancel" type="button" onClick={() => setOpen(false)}>
                   Cancelar
                 </button>
-                <PendingButton className="primary" type="submit" pendingText="Guardando...">
+                <PendingButton className="primary btn-save" type="submit" pendingText="Guardando...">
                   Guardar
                 </PendingButton>
               </div>

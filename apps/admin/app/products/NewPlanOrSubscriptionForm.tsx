@@ -572,7 +572,7 @@ export function NewPlanOrSubscriptionForm({
           </div>
 
           <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-            <button className="primary" type="submit">
+            <button className="primary btn-save" type="submit">
               Guardar
             </button>
           </div>

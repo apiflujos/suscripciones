@@ -533,18 +533,18 @@ export function NotificationWizard({
 
           <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
             <div style={{ display: "flex", gap: 10 }}>
-              <button className="ghost" type="button" onClick={() => setStep((s) => (s === 1 ? 1 : ((s - 1) as any)))} disabled={step === 1}>
+              <button className="ghost btn-back" type="button" onClick={() => setStep((s) => (s === 1 ? 1 : ((s - 1) as any)))} disabled={step === 1}>
                 Atrás
               </button>
               {step < 3 ? (
-                <button className="primary" type="button" onClick={() => setStep((s) => (s === 3 ? 3 : ((s + 1) as any)))} disabled={!canGoNext() || isPending}>
+                <button className="primary btn-next" type="button" onClick={() => setStep((s) => (s === 3 ? 3 : ((s + 1) as any)))} disabled={!canGoNext() || isPending}>
                   Siguiente
                 </button>
               ) : null}
             </div>
 
             {step === 3 ? (
-              <button className="primary" type="button" onClick={onCreate} disabled={!canGoNext() || isPending}>
+              <button className="primary btn-create" type="button" onClick={onCreate} disabled={!canGoNext() || isPending}>
                 {isPending ? "Creando..." : "Crear"}
               </button>
             ) : (

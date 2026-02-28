@@ -418,8 +418,8 @@ export function NotificationsManager({
               <input type="hidden" name="metaComponents" value={tplMetaComponents} />
 
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
-                <button className="ghost" type="button" onClick={closeModals} data-modal-close="true" data-loader="off">Cancelar</button>
-                <button className="primary" type="submit">Guardar cambios</button>
+                <button className="ghost btn-cancel" type="button" onClick={closeModals} data-modal-close="true" data-loader="off">Cancelar</button>
+                <button className="primary btn-save" type="submit">Guardar cambios</button>
               </div>
             </form>
           </div>
@@ -529,8 +529,8 @@ export function NotificationsManager({
               ))}
 
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
-                <button className="ghost" type="button" onClick={closeModals} data-modal-close="true" data-loader="off">Cancelar</button>
-                <button className="primary" type="submit">Guardar cambios</button>
+                <button className="ghost btn-cancel" type="button" onClick={closeModals} data-modal-close="true" data-loader="off">Cancelar</button>
+                <button className="primary btn-save" type="submit">Guardar cambios</button>
               </div>
             </form>
           </div>

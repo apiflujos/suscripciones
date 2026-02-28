@@ -173,7 +173,7 @@ export function ConnectionsPanel({
               </div>
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
                 {inlineMsg("wompi_env", "Guardado.", "Error guardando", inlineState)}
-                <PendingButton className="primary" type="submit" pendingText="Guardando...">
+                <PendingButton className="primary btn-save" type="submit" pendingText="Guardando...">
                   Guardar
                 </PendingButton>
               </div>
@@ -282,7 +282,7 @@ export function ConnectionsPanel({
               </div>
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
                 {inlineMsg("central_env", "Guardado.", "Error guardando", inlineState)}
-                <PendingButton className="primary" type="submit" pendingText="Guardando...">
+                <PendingButton className="primary btn-save" type="submit" pendingText="Guardando...">
                   Guardar
                 </PendingButton>
               </div>

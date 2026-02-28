@@ -459,7 +459,7 @@ export function CustomersTable({
                   <button className="ghost btn-compact" type="button" onClick={() => openTransactions(c)} aria-label="Historial de pagos">
                     Historial
                   </button>
-                  <button className="ghost btn-compact" type="button" onClick={() => openEditor(c)} aria-label="Editar">
+                  <button className="ghost btn-compact btn-edit" type="button" onClick={() => openEditor(c)} aria-label="Editar">
                     Editar
                   </button>
                   <form
@@ -569,7 +569,7 @@ export function CustomersTable({
                       </button>
                     ) : null}
                     <button
-                      className="ghost btn-compact btn-blue"
+                      className="ghost btn-compact btn-blue btn-send"
                       type="button"
                       data-modal="true"
                       onClick={() => openPayModal(c)}
@@ -577,17 +577,17 @@ export function CustomersTable({
                       Enviar link de pago
                     </button>
                     <button
-                      className="ghost btn-compact btn-green"
+                      className="ghost btn-compact btn-green btn-send"
                       type="button"
                       data-modal="true"
                       onClick={() => openCartModal(c)}
                     >
                       Enviar catálogo
                     </button>
-                    <button className="ghost btn-compact btn-blue" type="button" data-modal="true" onClick={() => openDetails(c)}>
+                    <button className="ghost btn-compact btn-blue btn-view" type="button" data-modal="true" onClick={() => openDetails(c)}>
                       Ver detalles
                     </button>
-                    <button className="ghost btn-compact btn-green" type="button" data-modal="true" onClick={() => openPlanModal(c)}>
+                    <button className="ghost btn-compact btn-green btn-create" type="button" data-modal="true" onClick={() => openPlanModal(c)}>
                       Crear plan / suscripción
                     </button>
                     {(() => {
@@ -751,10 +751,10 @@ export function CustomersTable({
                 />
               </div>
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                <button className="ghost" type="button" onClick={closePayModal} data-modal-close="true" data-loader="off">
+                <button className="ghost btn-cancel" type="button" onClick={closePayModal} data-modal-close="true" data-loader="off">
                   Cancelar
                 </button>
-                <button className="primary" type="submit" disabled={!payAmount}>
+                <button className="primary btn-send" type="submit" disabled={!payAmount}>
                   Enviar
                 </button>
               </div>
@@ -875,10 +875,10 @@ export function CustomersTable({
                 ) : null}
               </div>
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                <button className="ghost" type="button" onClick={closeCartModal} data-modal-close="true" data-loader="off">
+                <button className="ghost btn-cancel" type="button" onClick={closeCartModal} data-modal-close="true" data-loader="off">
                   Cancelar
                 </button>
-                <button className="primary" type="submit">
+                <button className="primary btn-send" type="submit">
                   Enviar
                 </button>
               </div>
@@ -975,10 +975,10 @@ export function CustomersTable({
                 ) : null}
               </div>
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                <button className="ghost" type="button" onClick={closeTokenModal} data-modal-close="true" data-loader="off">
+                <button className="ghost btn-cancel" type="button" onClick={closeTokenModal} data-modal-close="true" data-loader="off">
                   Cancelar
                 </button>
-                <button className="primary" type="submit" disabled={!resolveTokenTemplate(tokenModalCustomer.id)}>
+                <button className="primary btn-send" type="submit" disabled={!resolveTokenTemplate(tokenModalCustomer.id)}>
                   Enviar
                 </button>
               </div>
@@ -988,18 +988,7 @@ export function CustomersTable({
       ) : null}
 
       {detailsOpen && detailsCustomer ? (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(2, 6, 23, 0.55)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 50,
-            padding: 16
-          }}
-        >
+        <div className="modal-backdrop">
           <div
             ref={detailsRef}
             role="dialog"
@@ -1157,7 +1146,7 @@ export function CustomersTable({
                       >
                         <input type="hidden" name="customerId" value={detailsCustomer.id} />
                         <input type="hidden" name="customerName" value={detailsCustomer.name || ""} />
-                        <button className="primary btn-compact" type="submit" disabled={sendingTokenId === detailsCustomer.id}>
+                        <button className="primary btn-compact btn-send" type="submit" disabled={sendingTokenId === detailsCustomer.id}>
                           {sendingTokenId === detailsCustomer.id ? "Enviando..." : "Enviar tokenización"}
                         </button>
                       </form>
@@ -1258,7 +1247,7 @@ export function CustomersTable({
                         <input type="hidden" name="customerId" value={detailsCustomer.id} />
                         <input type="hidden" name="customerName" value={detailsCustomer.name || ""} />
                         <input className="input" name="amount" placeholder="$ 10000" inputMode="numeric" aria-label="Monto" />
-                        <button className="primary btn-compact" type="submit" disabled={sendingPaymentId === detailsCustomer.id}>
+                        <button className="primary btn-compact btn-send" type="submit" disabled={sendingPaymentId === detailsCustomer.id}>
                           {sendingPaymentId === detailsCustomer.id ? "Enviando..." : "Enviar link de pago"}
                         </button>
                       </form>
@@ -1394,7 +1383,7 @@ export function CustomersTable({
                 <button className="ghost" type="button" onClick={closeEditor} data-modal-close="true" data-loader="off">
                   Cancelar
                 </button>
-                <button className="primary" type="submit">
+                <button className="primary btn-save" type="submit">
                   Guardar
                 </button>
               </div>

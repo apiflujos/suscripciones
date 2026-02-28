@@ -119,7 +119,7 @@ export function NewCustomerForm({
             <HelpTip text="Crea un contacto con datos básicos, dirección (DANE) e identificación." />
           </div>
           {alwaysOpen ? null : (
-            <button className="primary" type="button" onClick={() => setOpen(true)}>
+            <button className="primary btn-create" type="button" onClick={() => setOpen(true)}>
               Crear contacto
             </button>
           )}
@@ -251,7 +251,7 @@ export function NewCustomerForm({
           </div>
 
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-                <button className="primary" type="submit">
+                <button className="primary btn-save" type="submit">
                   Guardar
                 </button>
               </div>

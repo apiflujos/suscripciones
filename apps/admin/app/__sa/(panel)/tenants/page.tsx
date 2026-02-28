@@ -41,7 +41,7 @@ export default async function SaTenantsPage({
               <label>Nuevo tenant</label>
               <input name="name" className="input" placeholder="Nombre del tenant" />
             </div>
-            <button className="primary" type="submit">
+            <button className="primary btn-create" type="submit">
               Crear
             </button>
           </form>
@@ -96,7 +96,7 @@ export default async function SaTenantsPage({
                     </button>
                   </form>
 
-                  <Link className="btn" href={`/sa/usage?tenantId=${encodeURIComponent(t.id)}`} prefetch={false}>
+                  <Link className="btn btn-view" href={`/sa/usage?tenantId=${encodeURIComponent(t.id)}`} prefetch={false}>
                     Ver consumos
                   </Link>
                 </div>

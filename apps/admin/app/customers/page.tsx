@@ -212,7 +212,7 @@ export default async function CustomersPage({
                   <input type="hidden" name="csrf" value={csrfToken} />
                   <input type="hidden" name="returnTo" value={`/customers${tenantId || q ? `?${new URLSearchParams({ ...(tenantId ? { tenantId } : {}), ...(q ? { q } : {}) }).toString()}` : ""}`} />
                   <input className="input" name="name" placeholder="Nuevo canal" />
-                  <button className="ghost" type="submit">Crear canal</button>
+                  <button className="ghost btn-create" type="submit">Crear canal</button>
                 </form>
               </div>
             </div>

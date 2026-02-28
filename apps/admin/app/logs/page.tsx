@@ -211,13 +211,13 @@ export default async function LogsPage({
               <div className="filtersRight">
                 <form action={retryFailedJobs}>
                   <input type="hidden" name="csrf" value={csrfToken} />
-                  <PendingButton className="primary" type="submit" pendingText="Reintentando...">
+                  <PendingButton className="primary btn-retry" type="submit" pendingText="Reintentando...">
                     Reintentar fallidos
                   </PendingButton>
                 </form>
                 <form action={retryShopifyForwards}>
                   <input type="hidden" name="csrf" value={csrfToken} />
-                  <PendingButton className="ghost" type="submit" pendingText="Reintentando...">
+                  <PendingButton className="ghost btn-retry" type="submit" pendingText="Reintentando...">
                     Reintentar forwards
                   </PendingButton>
                 </form>
@@ -235,13 +235,13 @@ export default async function LogsPage({
               <div className="filtersRight">
                 <form action={retryFailedJobs}>
                   <input type="hidden" name="csrf" value={csrfToken} />
-                  <PendingButton className="primary" type="submit" pendingText="Reintentando...">
+                  <PendingButton className="primary btn-retry" type="submit" pendingText="Reintentando...">
                     Reintentar fallidos
                   </PendingButton>
                 </form>
                 <form action={retryShopifyForwards}>
                   <input type="hidden" name="csrf" value={csrfToken} />
-                  <PendingButton className="ghost" type="submit" pendingText="Reintentando...">
+                  <PendingButton className="ghost btn-retry" type="submit" pendingText="Reintentando...">
                     Reintentar forwards
                   </PendingButton>
                 </form>
@@ -259,7 +259,7 @@ export default async function LogsPage({
               <div className="filtersRight">
                 <form action={recollectPayments}>
                   <input type="hidden" name="csrf" value={csrfToken} />
-                  <PendingButton className="primary" type="submit" pendingText="Recolectando...">
+                  <PendingButton className="primary btn-retry" type="submit" pendingText="Recolectando...">
                     Recolectar pagos faltantes
                   </PendingButton>
                 </form>
@@ -356,7 +356,7 @@ export default async function LogsPage({
                             <form action={retryJob}>
                               <input type="hidden" name="csrf" value={csrfToken} />
                               <input type="hidden" name="id" value={j.id} />
-                              <PendingButton className="ghost" type="submit" pendingText="Reintentando...">
+                              <PendingButton className="ghost btn-retry" type="submit" pendingText="Reintentando...">
                                 Reintentar
                               </PendingButton>
                             </form>

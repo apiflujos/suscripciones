@@ -64,7 +64,7 @@ export default async function SaUsagePage({
               <label>Mes (UTC)</label>
               <input className="input" type="month" name="periodKey" defaultValue={periodKey} />
             </div>
-            <button className="primary" type="submit" style={{ height: 38 }}>
+            <button className="primary btn-view" type="submit" style={{ height: 38 }}>
               Ver
             </button>
           </form>

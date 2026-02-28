@@ -11,19 +11,21 @@ function applyTheme() {
   const theme = window.localStorage.getItem(THEME_KEY) || "";
   const contrast = window.localStorage.getItem(CONTRAST_KEY) || "";
   const vision = window.localStorage.getItem(VISION_KEY) || "";
+  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const prefersContrast = window.matchMedia("(prefers-contrast: more)").matches;
+  const forcedColors = window.matchMedia("(forced-colors: active)").matches;
 
-  const resolvedTheme = theme || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  const resolvedTheme = theme && theme !== "auto" ? theme : prefersDark ? "dark" : "light";
+  const resolvedContrast = contrast === "high" ? "high" : contrast === "normal" ? "" : prefersContrast || forcedColors ? "high" : "";
+  const resolvedVision = vision && vision !== "standard" ? vision : "";
 
   root.dataset.theme = resolvedTheme;
 
-  if (contrast) {
-    root.dataset.contrast = contrast;
-  } else {
-    delete root.dataset.contrast;
-  }
+  if (resolvedContrast) root.dataset.contrast = resolvedContrast;
+  else delete root.dataset.contrast;
 
-  if (vision) {
-    root.dataset.vision = vision;
+  if (resolvedVision) {
+    root.dataset.vision = resolvedVision;
   } else {
     delete root.dataset.vision;
   }
@@ -45,9 +47,21 @@ export function ThemeClient() {
     window.addEventListener("storage", onStorage);
     window.addEventListener("apiflujos-theme:change", onChange as EventListener);
 
+    const schemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const contrastQuery = window.matchMedia("(prefers-contrast: more)");
+    const forcedQuery = window.matchMedia("(forced-colors: active)");
+    const onMedia = () => applyTheme();
+
+    schemeQuery.addEventListener("change", onMedia);
+    contrastQuery.addEventListener("change", onMedia);
+    forcedQuery.addEventListener("change", onMedia);
+
     return () => {
       window.removeEventListener("storage", onStorage);
       window.removeEventListener("apiflujos-theme:change", onChange as EventListener);
+      schemeQuery.removeEventListener("change", onMedia);
+      contrastQuery.removeEventListener("change", onMedia);
+      forcedQuery.removeEventListener("change", onMedia);
     };
   }, []);
 
