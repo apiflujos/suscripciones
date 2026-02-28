@@ -29,8 +29,17 @@ export default async function PublicPlanPage({ params }: { params: Promise<{ tok
   const template = linkRes.ok ? linkRes.json?.template || null : null;
   const layout = (template?.layout || {}) as any;
   const title = template?.publicTitle || config?.planTitle || "Paga tu plan";
-  const description = template?.publicDescription || config?.planDescription || "";
-  const logoUrl = template?.logoUrl || config?.logoUrl || "";
+  const baseDescription = template?.publicDescription || config?.planDescription || "";
+  const descriptionLines = ["Completa el pago de tu plan en un paso seguro.", baseDescription]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+  const logoUrl = (() => {
+    const raw = String(template?.logoUrl || config?.logoUrl || "").trim();
+    if (!raw || raw.toLowerCase() === "undefined" || raw.toLowerCase() === "null") {
+      return "/brand/logo-horizontal.png";
+    }
+    return raw;
+  })();
   const primaryColor = String(layout?.primaryColor || "").trim();
   const fontFamily = String(layout?.fontFamily || "").trim();
   const ctaLabel = String(layout?.ctaLabel || "").trim() || "Pagar";
@@ -74,9 +83,15 @@ export default async function PublicPlanPage({ params }: { params: Promise<{ tok
   return (
     <PublicCheckoutLayout
       title={title}
-      description={description}
+      subtitle=""
+      description={descriptionLines}
       logoUrl={logoUrl}
       trustText={PUBLIC_COPY.trustPayment}
+      securityBullets={[
+        "Pago procesado por Wompi.",
+        "Conexi\u00f3n cifrada (HTTPS/TLS).",
+        "Tu informaci\u00f3n de tarjeta se maneja en Wompi."
+      ]}
       supportHref={supportHref || undefined}
       supportLabel={supportLabel || undefined}
       primaryColor={primaryColor}
