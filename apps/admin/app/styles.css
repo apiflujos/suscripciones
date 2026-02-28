@@ -2757,6 +2757,17 @@ textarea {
   padding: 12px;
 }
 
+.modal-panel-fixed {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-panel-fixed .modal-body {
+  overflow: auto;
+  padding-right: 4px;
+}
+
 .modal-split {
   display: grid;
   grid-template-columns: 1fr 1fr;
