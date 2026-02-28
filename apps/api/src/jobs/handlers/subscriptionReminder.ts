@@ -99,7 +99,7 @@ function getPaymentType(args: { subscription?: any | null; payment?: any | null 
   const sub = args.subscription;
   if (sub?.plan) {
     const mode = String(sub.plan?.metadata?.collectionMode || "");
-    if (mode === "AUTO_LINK") return "PLAN";
+    if (mode === "AUTO_LINK") return "LINK";
     if (mode === "AUTO_DEBIT") return "SUBSCRIPTION";
     return "SUBSCRIPTION";
   }
