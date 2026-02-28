@@ -40,7 +40,99 @@ logsRouter.get("/system", async (req, res) => {
     ...(levelFilter || {})
   } as Prisma.SystemLogWhereInput;
   const items = await prisma.systemLog.findMany({ where: finalWhere, orderBy: { createdAt: "desc" }, take, skip });
-  res.json({ items });
+
+  const subscriptionIds = new Set<string>();
+  const customerIds = new Set<string>();
+  const planIds = new Set<string>();
+  const paymentIds = new Set<string>();
+  const webhookIds = new Set<string>();
+
+  for (const item of items) {
+    const ctx: any = item.context || {};
+    if (ctx.subscriptionId) subscriptionIds.add(String(ctx.subscriptionId));
+    if (ctx.customerId) customerIds.add(String(ctx.customerId));
+    if (ctx.planId) planIds.add(String(ctx.planId));
+    if (ctx.paymentId) paymentIds.add(String(ctx.paymentId));
+    if (ctx.webhookEventId) webhookIds.add(String(ctx.webhookEventId));
+  }
+
+  const [subscriptions, customers, plans, payments, webhooks] = await Promise.all([
+    subscriptionIds.size
+      ? prisma.subscription.findMany({
+          where: { id: { in: Array.from(subscriptionIds) } },
+          include: { customer: true, plan: true }
+        })
+      : Promise.resolve([]),
+    customerIds.size
+      ? prisma.customer.findMany({ where: { id: { in: Array.from(customerIds) } } })
+      : Promise.resolve([]),
+    planIds.size
+      ? prisma.subscriptionPlan.findMany({ where: { id: { in: Array.from(planIds) } } })
+      : Promise.resolve([]),
+    paymentIds.size
+      ? prisma.payment.findMany({
+          where: { id: { in: Array.from(paymentIds) } },
+          include: { customer: true, subscription: { include: { plan: true } } }
+        })
+      : Promise.resolve([]),
+    webhookIds.size
+      ? prisma.webhookEvent.findMany({ where: { id: { in: Array.from(webhookIds) } } })
+      : Promise.resolve([])
+  ]);
+
+  const subById = new Map(subscriptions.map((s) => [String(s.id), s]));
+  const customerById = new Map(customers.map((c) => [String(c.id), c]));
+  const planById = new Map(plans.map((p) => [String(p.id), p]));
+  const paymentById = new Map(payments.map((p) => [String(p.id), p]));
+  const webhookById = new Map(webhooks.map((w) => [String(w.id), w]));
+
+  function inferActor(item: any) {
+    const ctx: any = item.context || {};
+    const candidate = ctx.actor || ctx.actorEmail || ctx.userEmail || ctx.adminEmail || ctx.user || ctx.email;
+    if (candidate) return String(candidate);
+    const source = String(item.source || "");
+    if (source.startsWith("webhooks.")) return "Webhook";
+    if (source.startsWith("jobs.") || source.startsWith("notifications.") || source.startsWith("process")) return "Sistema";
+    if (source.startsWith("chatwoot.") || source.startsWith("smart_lists.")) return "Sistema";
+    return "Admin API";
+  }
+
+  function formatEntity(item: any) {
+    const ctx: any = item.context || {};
+    if (ctx.paymentId && paymentById.has(String(ctx.paymentId))) {
+      const p = paymentById.get(String(ctx.paymentId)) as any;
+      const customer = p.customer?.name || p.customer?.email || p.customer?.phone || p.customerId;
+      const plan = p.subscription?.plan?.name ? ` · ${p.subscription.plan.name}` : "";
+      return `Pago · ${customer}${plan}`;
+    }
+    if (ctx.subscriptionId && subById.has(String(ctx.subscriptionId))) {
+      const s = subById.get(String(ctx.subscriptionId)) as any;
+      const customer = s.customer?.name || s.customer?.email || s.customer?.phone || s.customerId;
+      const plan = s.plan?.name ? ` · ${s.plan.name}` : "";
+      return `Suscripción · ${customer}${plan}`;
+    }
+    if (ctx.customerId && customerById.has(String(ctx.customerId))) {
+      const c = customerById.get(String(ctx.customerId)) as any;
+      return `Cliente · ${c.name || c.email || c.phone || c.id}`;
+    }
+    if (ctx.planId && planById.has(String(ctx.planId))) {
+      const p = planById.get(String(ctx.planId)) as any;
+      return `Plan · ${p.name || p.id}`;
+    }
+    if (ctx.webhookEventId && webhookById.has(String(ctx.webhookEventId))) {
+      const w = webhookById.get(String(ctx.webhookEventId)) as any;
+      return `Webhook · ${w.eventName || w.id}`;
+    }
+    return null;
+  }
+
+  const enriched = items.map((item: any) => ({
+    ...item,
+    actor: inferActor(item),
+    entity: formatEntity(item)
+  }));
+
+  res.json({ items: enriched });
 });
 
 logsRouter.get("/system/:id", async (req, res) => {

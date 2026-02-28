@@ -27,8 +27,8 @@ export function LogsSystemTable({ items }: { items: LogItem[] }) {
         <thead>
           <tr>
             <th>Fecha</th>
+            <th>Actor</th>
             <th>Entidad</th>
-            <th>Dirección</th>
             <th>Estado</th>
             <th>Detalle</th>
             <th />
@@ -42,8 +42,8 @@ export function LogsSystemTable({ items }: { items: LogItem[] }) {
             return (
               <tr key={id || `${l.createdAt ?? ""}-${l.message ?? ""}-${idx}`}>
                 <td><LocalDateTime value={l.createdAt} /></td>
-                <td>{l.source || "—"}</td>
-                <td>—</td>
+                <td>{(l as any).actor || "—"}</td>
+                <td>{(l as any).entity || l.source || "—"}</td>
                 <td>
                   <span className={`status-chip ${chip.cls}`}>
                     <span className={`status-led ${chip.cls === "is-success" ? "is-ok" : ""}`} />
