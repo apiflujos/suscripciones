@@ -13,6 +13,23 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
   });
   if (!msg) return;
   if (msg.status === MessageStatus.SENT) return;
+  if (!msg.customer?.phone) {
+    const errorMessage = "customer_phone_required";
+    await prisma.chatwootMessage.update({
+      where: { id: chatwootMessageId },
+      data: { status: MessageStatus.FAILED, errorMessage }
+    }).catch(() => {});
+    await systemLog(LogLevel.WARN, "chatwoot.send", "Cliente sin teléfono", {
+      chatwootMessageId,
+      customerId: msg.customerId
+    }).catch(() => {});
+    await systemLog(LogLevel.WARN, "notifications.dispatch", "Mensaje fallido", {
+      chatwootMessageId,
+      customerId: msg.customerId,
+      err: errorMessage
+    }).catch(() => {});
+    return;
+  }
 
   const cfg = await getChatwootConfig();
   if (!cfg.configured) {

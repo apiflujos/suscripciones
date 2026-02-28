@@ -118,6 +118,12 @@ export async function ensureChatwootContactForCustomer(customerId: string, opts?
 
   const customer = await prisma.customer.findUnique({ where: { id } });
   if (!customer) return { ok: false as const, reason: "customer_not_found" as const };
+  if (!customer.phone) {
+    await systemLog(LogLevel.WARN, "chatwoot.sync", "Cliente sin teléfono, se requiere para sincronizar", {
+      customerId: customer.id
+    }).catch(() => {});
+    return { ok: false as const, reason: "customer_phone_required" as const };
+  }
 
   const cfg = await getChatwootConfig();
   if (!cfg.configured) {
