@@ -120,7 +120,7 @@ export default async function SettingsPage({
   };
 
   return (
-    <main className="page pageWide">
+    <main className="page pageWide settingsPage">
       <div className="settings-tabs">
         <a className={`settings-tab ${tab === "connections" ? "is-active" : ""}`} href="/settings?tab=connections">
           Conexiones
@@ -203,7 +203,7 @@ export default async function SettingsPage({
               </div>
             </div>
             <div className="settings-group-body">
-              <div className="saved-connections-grid" style={{ gridTemplateColumns: "1fr" }}>
+              <div className="saved-connections-grid settings-saved-grid">
                 {([
                   ["PRODUCTION", "Producción", wompiProduction],
                   ["SANDBOX", "Sandbox", wompiSandbox]
@@ -219,18 +219,18 @@ export default async function SettingsPage({
                       </span>
                     </div>
                     <div className="saved-conn-actions">
-                      <a className="ghost" href="/settings?tab=connections&open=wompi">Editar</a>
+                      <a className="ghost btn-compact btn-blue" href="/settings?tab=connections&open=wompi">Editar</a>
                       <form action={testWompiConnection}>
                         <input type="hidden" name="csrf" value={csrfToken} />
                         <input type="hidden" name="environment" value={envKey} />
                         <input type="hidden" name="returnTo" value={returnTo} />
-                        <button className="ghost" type="submit">Probar</button>
+                        <button className="ghost btn-compact btn-amber" type="submit">Probar</button>
                       </form>
                       <form action={deleteWompiConnection}>
                         <input type="hidden" name="csrf" value={csrfToken} />
                         <input type="hidden" name="environment" value={envKey} />
                         <input type="hidden" name="returnTo" value={returnTo} />
-                        <button className="ghost" type="submit">Eliminar</button>
+                        <button className="ghost btn-compact btn-red" type="submit">Eliminar</button>
                       </form>
                     </div>
                     <div className="saved-conn-meta">
@@ -281,14 +281,14 @@ export default async function SettingsPage({
                       </span>
                     </div>
                     <div className="saved-conn-actions">
-                      <a className="ghost" href="/settings?tab=connections&open=central">Editar</a>
+                      <a className="ghost btn-compact btn-blue" href="/settings?tab=connections&open=central">Editar</a>
                       <form action={testCentralConnection}>
                         <input type="hidden" name="csrf" value={csrfToken} />
                         <input type="hidden" name="baseUrl" value={comms?.baseUrl || ""} />
                         <input type="hidden" name="accountId" value={comms?.accountId || ""} />
                         <input type="hidden" name="inboxId" value={comms?.inboxId || ""} />
                         <input type="hidden" name="returnTo" value={returnTo} />
-                        <button className="ghost" type="submit" disabled={!comms?.baseUrl || !comms?.accountId || !comms?.inboxId}>
+                        <button className="ghost btn-compact btn-amber" type="submit" disabled={!comms?.baseUrl || !comms?.accountId || !comms?.inboxId}>
                           Probar
                         </button>
                       </form>
@@ -296,7 +296,7 @@ export default async function SettingsPage({
                         <input type="hidden" name="csrf" value={csrfToken} />
                         <input type="hidden" name="environment" value={envKey} />
                         <input type="hidden" name="returnTo" value={returnTo} />
-                        <button className="ghost" type="submit">Eliminar</button>
+                        <button className="ghost btn-compact btn-red" type="submit">Eliminar</button>
                       </form>
                     </div>
                     <div className="saved-conn-meta">
@@ -327,18 +327,18 @@ export default async function SettingsPage({
                     </span>
                   </div>
                   <div className="saved-conn-actions">
-                    <a className="ghost" href="/settings?tab=connections&open=shopify">Editar</a>
+                    <a className="ghost btn-compact btn-blue" href="/settings?tab=connections&open=shopify">Editar</a>
                     <form action={testShopifyForward}>
                       <input type="hidden" name="csrf" value={csrfToken} />
                       <input type="hidden" name="forwardUrl" value={settings?.shopify?.forwardUrl || ""} />
                       <input type="hidden" name="forwardOrigin" value={settings?.shopify?.forwardOrigin || "shopify"} />
                       <input type="hidden" name="returnTo" value={returnTo} />
-                      <button className="ghost" type="submit" disabled={!settings?.shopify?.forwardUrl}>Probar</button>
+                      <button className="ghost btn-compact btn-amber" type="submit" disabled={!settings?.shopify?.forwardUrl}>Probar</button>
                     </form>
                     <form action={deleteShopifyConnection}>
                       <input type="hidden" name="csrf" value={csrfToken} />
                       <input type="hidden" name="returnTo" value={returnTo} />
-                      <button className="ghost" type="submit">Eliminar</button>
+                      <button className="ghost btn-compact btn-red" type="submit">Eliminar</button>
                     </form>
                   </div>
                   <div className="saved-conn-meta">
