@@ -1,6 +1,6 @@
 import express from "express";
 import { prisma } from "../db/prisma";
-import { RetryJobStatus, RetryJobType, WebhookProvider } from "@prisma/client";
+import { Prisma, RetryJobStatus, RetryJobType, WebhookProvider } from "@prisma/client";
 import { classifyReference } from "../webhooks/wompi/classifyReference";
 import { systemLog } from "../services/systemLog";
 import { LogLevel } from "@prisma/client";
@@ -11,7 +11,7 @@ logsRouter.get("/system", async (req, res) => {
   const take = Math.min(200, Math.max(1, Number(req.query.take ?? 100)));
   const skip = Math.max(0, Number(req.query.skip ?? 0));
   const q = String(req.query.q ?? "").trim();
-  const where = q
+  const where: Prisma.SystemLogWhereInput | undefined = q
     ? {
         OR: [
           { message: { contains: q, mode: "insensitive" } },
