@@ -38,7 +38,7 @@ export function LogsSystemTable({ items }: { items: LogItem[] }) {
           {items.map((l, idx) => {
             const id = String(l.id ?? "");
             const chip = toStatusChip(String(l.level || ""));
-            const isOpen = id && openId === id;
+            const isOpen = Boolean(id) && openId === id;
             return (
               <tr key={id || `${l.createdAt ?? ""}-${l.message ?? ""}-${idx}`}>
                 <td><LocalDateTime value={l.createdAt} /></td>
