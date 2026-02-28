@@ -35,9 +35,7 @@ export default async function PublicPlanPage({ params }: { params: Promise<{ tok
     .filter(Boolean);
   const logoUrl = (() => {
     const raw = String(template?.logoUrl || config?.logoUrl || "").trim();
-    if (!raw || raw.toLowerCase() === "undefined" || raw.toLowerCase() === "null") {
-      return "/brand/logo-horizontal.png";
-    }
+    if (!raw || raw.toLowerCase() === "undefined" || raw.toLowerCase() === "null") return "";
     return raw;
   })();
   const primaryColor = String(layout?.primaryColor || "").trim();
