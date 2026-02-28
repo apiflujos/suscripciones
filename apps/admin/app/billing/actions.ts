@@ -352,7 +352,7 @@ export async function chargeSubscriptionNow(formData: FormData) {
       ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/charge-now?tenantId=${encodeURIComponent(tenantId)}`
       : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/charge-now`;
     await adminFetch(path, { method: "POST", body: JSON.stringify({}) });
-    redirect(mergeQuery(returnTo, { chargeStatus: "ok", subscriptionId, ...(tenantId ? { tenantId } : {}) }));
+    redirect(mergeQuery(returnTo, { chargeStatus: "sent", subscriptionId, ...(tenantId ? { tenantId } : {}) }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
     redirect(mergeQuery(returnTo, { chargeStatus: "fail", chargeError: String(err?.message || "charge_now_failed"), subscriptionId, ...(tenantId ? { tenantId } : {}) }));

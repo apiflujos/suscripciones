@@ -397,7 +397,31 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         return null;
       } else {
         logger.info({ subscriptionId: sub.id, nextEnd }, "Subscription advanced after payment approval");
-        // No auto-enqueue of payment retries (manual only).
+        const collectionMode = (sub.plan.metadata as any)?.collectionMode;
+        // Single attempt at next cutoff (no retries).
+        if (collectionMode === "AUTO_LINK") {
+          await tx.retryJob
+            .create({
+              data: {
+                type: RetryJobType.PAYMENT_RETRY,
+                runAt: nextEnd <= new Date(Date.now() + 5_000) ? new Date() : nextEnd,
+                maxAttempts: 1,
+                payload: { subscriptionId: sub.id }
+              }
+            })
+            .catch(() => {});
+        } else if (collectionMode === "AUTO_DEBIT") {
+          await tx.retryJob
+            .create({
+              data: {
+                type: RetryJobType.PAYMENT_RETRY,
+                runAt: nextEnd,
+                maxAttempts: 1,
+                payload: { subscriptionId: sub.id }
+              }
+            })
+            .catch(() => {});
+        }
         return nextEnd;
       }
     });

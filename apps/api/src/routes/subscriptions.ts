@@ -171,25 +171,35 @@ subscriptionsRouter.post("/", async (req, res) => {
 
   const runAt = periodEnd <= new Date(Date.now() + 5_000) ? new Date() : periodEnd;
 
-  // AUTO_* modes: do not auto-enqueue payment retries (manual only).
+  // AUTO_* modes: enqueue a single attempt at the cutoff date (no retries).
   if (collectionMode === "AUTO_LINK" || collectionMode === "AUTO_DEBIT") {
+    await prisma.retryJob
+      .create({
+        data: {
+          type: RetryJobType.PAYMENT_RETRY,
+          runAt,
+          maxAttempts: 1,
+          payload: { subscriptionId: subscription.id }
+        }
+      })
+      .catch(() => {});
     // If requested, generate a link right away (useful for first charge or missing token).
     const isDueNow = runAt.getTime() <= Date.now() + 5_000;
     const shouldCreateLinkNow =
       (collectionMode === "AUTO_LINK" ? parsed.data.createPaymentLink && isDueNow : false) ||
       (collectionMode === "AUTO_DEBIT" && (!hasPaymentSource || !hasCustomerEmail));
 
-    if (!shouldCreateLinkNow) return res.status(201).json({ subscription, scheduled: false });
+    if (!shouldCreateLinkNow) return res.status(201).json({ subscription, scheduled: true });
 
     try {
       const link = await createPaymentLinkForSubscription({ subscriptionId: subscription.id });
-      return res.status(201).json({ subscription, scheduled: false, ...link, paymentSourceMissing: collectionMode === "AUTO_DEBIT" && !hasPaymentSource });
+      return res.status(201).json({ subscription, scheduled: true, ...link, paymentSourceMissing: collectionMode === "AUTO_DEBIT" && !hasPaymentSource });
     } catch (err: any) {
       await systemLog(LogLevel.ERROR, "subscriptions.create", "Subscription created but payment link failed", {
         subscriptionId: subscription.id,
         err: err?.message ? String(err.message) : "unknown error"
       }).catch(() => {});
-      return res.status(201).json({ subscription, scheduled: false, paymentLinkError: "wompi_payment_link_failed" });
+      return res.status(201).json({ subscription, scheduled: true, paymentLinkError: "wompi_payment_link_failed" });
     }
   }
 
@@ -345,7 +355,18 @@ subscriptionsRouter.post("/:id/schedule-cutoff", async (req, res) => {
 
   await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});
 
-  res.status(200).json({ ok: true, subscription: updated, scheduledAt: cutoffAt.toISOString(), scheduled: false });
+  await prisma.retryJob
+    .create({
+      data: {
+        type: RetryJobType.PAYMENT_RETRY,
+        runAt: cutoffAt <= new Date(Date.now() + 5_000) ? new Date() : cutoffAt,
+        maxAttempts: 1,
+        payload: { subscriptionId }
+      }
+    })
+    .catch(() => {});
+
+  res.status(200).json({ ok: true, subscription: updated, scheduledAt: cutoffAt.toISOString(), scheduled: true });
 });
 
 subscriptionsRouter.post("/:id/change-plan", async (req, res) => {
@@ -392,7 +413,18 @@ subscriptionsRouter.post("/:id/change-plan", async (req, res) => {
 
   await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});
 
-  res.status(200).json({ ok: true, subscription: updated, scheduledAt: cutoffAt.toISOString(), scheduled: false });
+  await prisma.retryJob
+    .create({
+      data: {
+        type: RetryJobType.PAYMENT_RETRY,
+        runAt: cutoffAt <= new Date(Date.now() + 5_000) ? new Date() : cutoffAt,
+        maxAttempts: 1,
+        payload: { subscriptionId }
+      }
+    })
+    .catch(() => {});
+
+  res.status(200).json({ ok: true, subscription: updated, scheduledAt: cutoffAt.toISOString(), scheduled: true });
 });
 
 subscriptionsRouter.post("/:id/suspend", async (req, res) => {

@@ -214,6 +214,16 @@ publicCartRouter.post("/cart/:token/select", async (req, res) => {
   }
 
   await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});
+  await prisma.retryJob
+    .create({
+      data: {
+        type: RetryJobType.PAYMENT_RETRY,
+        runAt: periodEnd,
+        maxAttempts: 1,
+        payload: { subscriptionId: subscription.id }
+      }
+    })
+    .catch(() => {});
   const linkCreated = await createPaymentLinkForSubscription({ subscriptionId: subscription.id });
   const base = normalizeCheckoutBase(cfg.planBaseUrl, "plan");
   if (!base) return res.status(400).json({ error: "missing_plan_base_url" });

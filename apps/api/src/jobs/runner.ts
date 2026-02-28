@@ -4,6 +4,7 @@ import { loadEnv } from "../config/env";
 import { LogLevel, RetryJobStatus, RetryJobType } from "@prisma/client";
 import { forwardWompiToShopify, processWompiEvent } from "./handlers/processWompiEvent";
 import { sendChatwootMessage } from "./handlers/sendChatwootMessage";
+import { paymentRetry } from "./handlers/paymentRetry";
 import { subscriptionReminder } from "./handlers/subscriptionReminder";
 import { systemLog } from "../services/systemLog";
 import { getShopifyForward, getShopifyForwardRetryConfig } from "../services/runtimeConfig";
@@ -148,12 +149,7 @@ async function runOnce() {
       } else if (job.type === RetryJobType.SEND_CHATWOOT_MESSAGE) {
         await sendChatwootMessage(payload.chatwootMessageId);
       } else if (job.type === RetryJobType.PAYMENT_RETRY) {
-        await prisma.retryJob.update({
-          where: { id: job.id },
-          data: { status: RetryJobStatus.CANCELED, lockedAt: null, lockedBy: null, lastError: "auto_retry_disabled" }
-        });
-        logger.warn({ jobId: job.id }, "Payment retry skipped (manual only)");
-        continue;
+        await paymentRetry(payload);
       } else if (job.type === RetryJobType.SUBSCRIPTION_REMINDER) {
         await subscriptionReminder(payload);
       } else if (job.type === RetryJobType.BILLING_MONTHLY_REPORT) {

@@ -311,19 +311,29 @@ export default async function BillingPage({
         <div className="modal-backdrop">
           <div className="modal-panel" style={{ maxWidth: 420 }}>
             <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <h3 style={{ margin: 0 }}>{chargeStatus === "ok" ? "Cobro exitoso" : "Cobro fallido"}</h3>
+              <h3 style={{ margin: 0 }}>
+                {chargeStatus === "sent" ? "Cobro enviado" : chargeStatus === "ok" ? "Cobro exitoso" : "Cobro fallido"}
+              </h3>
               <a className="ghost modal-close" href={returnTo} aria-label="Cerrar" data-modal-close="true" data-loader="off">X</a>
             </div>
             <div
               className="card cardPad"
               style={{
-                borderColor: chargeStatus === "ok" ? "rgba(34, 197, 94, 0.25)" : "rgba(217, 83, 79, 0.22)",
-                background: chargeStatus === "ok" ? "rgba(34, 197, 94, 0.08)" : "rgba(217, 83, 79, 0.08)"
+                borderColor:
+                  chargeStatus === "sent" || chargeStatus === "ok"
+                    ? "rgba(34, 197, 94, 0.25)"
+                    : "rgba(217, 83, 79, 0.22)",
+                background:
+                  chargeStatus === "sent" || chargeStatus === "ok"
+                    ? "rgba(34, 197, 94, 0.08)"
+                    : "rgba(217, 83, 79, 0.08)"
               }}
             >
-              {chargeStatus === "ok"
-                ? "El cobro se procesó correctamente."
-                : `No se pudo cobrar la suscripción. ${chargeError || ""}`}
+              {chargeStatus === "sent"
+                ? "El cobro fue enviado a Wompi. Espera la confirmación del pago."
+                : chargeStatus === "ok"
+                  ? "El cobro se procesó correctamente."
+                  : `No se pudo cobrar la suscripción. ${chargeError || ""}`}
             </div>
             <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
               {chargeStatus === "fail" && actionSubscriptionId ? (
