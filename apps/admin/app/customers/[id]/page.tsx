@@ -363,6 +363,27 @@ export default async function CustomerDetailPage({
   const lastPayment = payments[0] || null;
   const activeSub = subscriptions.find((s) => s.status === "ACTIVE" || s.status === "PAST_DUE") || subscriptions[0] || null;
   const activeSubs = subscriptions.filter((s) => s.status === "ACTIVE");
+  const subscriptionStatusCounts = subscriptions.reduce(
+    (acc, s) => {
+      const key = String(s?.status || "UNKNOWN");
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
+  const subsActiveCount = subscriptionStatusCounts.ACTIVE || 0;
+  const subsPastDueCount = subscriptionStatusCounts.PAST_DUE || 0;
+  const subsCanceledCount =
+    (subscriptionStatusCounts.CANCELED || 0) +
+    (subscriptionStatusCounts.CANCELLED || 0) +
+    (subscriptionStatusCounts.ENDED || 0);
+  const subsOtherCount = Math.max(0, subscriptions.length - (subsActiveCount + subsPastDueCount + subsCanceledCount));
+  const subscriptionStatusItems = [
+    { label: "Activas", value: subsActiveCount, color: "var(--status-success)" },
+    { label: "En mora", value: subsPastDueCount, color: "var(--status-warning)" },
+    { label: "Cerradas", value: subsCanceledCount, color: "var(--chart-c)" },
+    { label: "Otras", value: subsOtherCount, color: "var(--chart-b)" }
+  ].filter((item) => item.value > 0);
   const lastPaymentAt = lastPayment?.paidAt || lastPayment?.createdAt || null;
   const meta = customer?.metadata || {};
   const nextPeriodEnd = activeSub?.currentPeriodEndAt || null;
@@ -722,7 +743,30 @@ export default async function CustomerDetailPage({
           </div>
         </div>
 
-        
+        <div className="card cardPad chart-card">
+          <div className="chart-header">
+            <div>
+              <div className="chart-title">Suscripciones por estado</div>
+              <div className="chart-sub">Resumen del estado actual del cliente.</div>
+            </div>
+            <div className="chart-range">{subscriptions.length} total</div>
+          </div>
+          {subscriptionStatusItems.length ? (
+            <>
+              <MiniBars items={subscriptionStatusItems} />
+              <div className="chart-legend">
+                {subscriptionStatusItems.map((item) => (
+                  <span key={item.label}>
+                    <i style={{ background: item.color }} />
+                    {item.label} {item.value}
+                  </span>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="muted">Sin suscripciones registradas.</div>
+          )}
+        </div>
       </section>
 
       <section className="grid2">

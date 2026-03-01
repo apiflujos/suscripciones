@@ -2421,7 +2421,7 @@ textarea.input {
 .hero-right {
   display: inline-flex;
   gap: 10px;
-  align-items: center;
+  align-items: stretch;
   justify-content: flex-end;
   flex-wrap: wrap;
 }
@@ -2440,12 +2440,14 @@ textarea.input {
 
 .hero-id-block {
   display: grid;
+  align-content: center;
   gap: 2px;
   padding: 6px 10px;
   border-radius: 10px;
   border: 1px solid var(--stroke);
   background: var(--surface-2);
   min-width: 160px;
+  min-height: 64px;
   justify-items: end;
   text-align: right;
 }
@@ -2510,16 +2512,17 @@ textarea.input {
   display: inline-flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 14px;
+  padding: 8px 14px;
   border-radius: 14px;
   border: 1px solid var(--stroke);
   background: var(--surface-2);
+  min-height: 64px;
 }
 
 .tier-badge-hero .tier-icon,
 .tier-badge-hero .tier-icon svg {
-  width: 28px;
-  height: 28px;
+  width: 38px;
+  height: 38px;
 }
 
 .tier-text {
@@ -2765,10 +2768,9 @@ textarea.input {
   position: relative;
   display: flex;
   gap: 12px;
-  overflow-x: auto;
+  overflow: visible;
   padding: 18px 48px 10px 8px;
-  scroll-snap-type: x mandatory;
-  scrollbar-width: thin;
+  width: max-content;
 }
 
 .customer-log-list::before {
@@ -2819,9 +2821,8 @@ textarea.input {
 .timeline-track {
   overflow-x: auto;
   overflow-y: visible;
-  scroll-snap-type: x mandatory;
   scrollbar-width: thin;
-  padding: 18px 0 8px;
+  padding: 26px 0 22px;
   cursor: grab;
 }
 
@@ -2843,6 +2844,7 @@ textarea.input {
   line-height: 1;
   z-index: 4;
   position: relative;
+  pointer-events: auto;
 }
 
 .timeline-nav:hover {
@@ -2858,15 +2860,21 @@ textarea.input {
   position: relative;
   min-width: 130px;
   max-width: 170px;
-  scroll-snap-align: start;
   overflow: visible;
+  flex: 0 0 auto;
+  z-index: 0;
+}
+
+.customer-log-item:hover,
+.customer-log-item:focus-visible {
+  z-index: 6;
 }
 
 .customer-log-item::after {
   content: attr(data-tooltip);
   position: absolute;
   left: 50%;
-  bottom: calc(100% + 16px);
+  top: calc(100% + 12px);
   transform: translateX(-50%) translateY(6px);
   background: var(--panel);
   border: 1px solid var(--stroke);
@@ -2881,7 +2889,7 @@ textarea.input {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease, transform 0.2s ease;
-  z-index: 40;
+  z-index: 60;
 }
 
 .customer-log-item:hover::after,

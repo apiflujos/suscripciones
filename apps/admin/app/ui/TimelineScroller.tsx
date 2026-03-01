@@ -42,9 +42,9 @@ export function TimelineScroller({
     let last = performance.now();
     const tick = (now: number) => {
       const el = trackRef.current;
-      if (el && !dragging && !document.hidden) {
+      if (el && !dragging && !document.hidden && el.scrollWidth > el.clientWidth + 4) {
         const dt = now - last;
-        const speed = 0.06;
+        const speed = 0.03;
         el.scrollLeft += speed * dt;
         if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 2) {
           el.scrollLeft = 0;
