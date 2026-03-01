@@ -454,7 +454,6 @@ export function RealtimeNotifier() {
       }
       primeAudio();
       primeCashFile();
-      playCashSound(true);
       const res = await fetch("/api/realtime/test", { method: "POST" });
       if (!res.ok) throw new Error("test_failed");
     } catch {
