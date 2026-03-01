@@ -30,6 +30,13 @@ function fmtShortDate(dateStr: string) {
   return d.toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" });
 }
 
+function fmtDateTimeShort(value?: string | null) {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString("es-CO", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
 function fmtBucketLabel(isoStr: string, g: "day" | "week" | "month") {
   const d = new Date(isoStr);
   if (Number.isNaN(d.getTime())) return "";
@@ -56,6 +63,14 @@ function alignSeries(values: number[], targetLength: number) {
 function pctChange(current: number, prev: number) {
   if (!Number.isFinite(current) || !Number.isFinite(prev) || prev === 0) return null;
   return ((current - prev) / Math.abs(prev)) * 100;
+}
+
+function paymentStatusPill(status: string) {
+  const s = String(status || "").toUpperCase();
+  if (s === "APPROVED") return { cls: "pill-ok", label: "Aprobado" };
+  if (s === "PENDING") return { cls: "pill-warn", label: "Pendiente" };
+  if (["DECLINED", "ERROR", "VOIDED"].includes(s)) return { cls: "pill-bad", label: "Fallido" };
+  return { cls: "pill-muted", label: s || "—" };
 }
 
 function toUtcIsoStart(dateStr: string) {
@@ -377,7 +392,7 @@ function Pie({ a, b, aLabel, bLabel }: { a: number; b: number; aLabel: string; b
 export default async function Home({
   searchParams
 }: {
-  searchParams?: Promise<{ from?: string; to?: string; g?: string; tenantId?: string }>;
+  searchParams?: Promise<{ from?: string; to?: string; g?: string; tenantId?: string; view?: string }>;
 }) {
   const health = await fetchPublicCached("/health", { ttlMs: 3000 });
 
@@ -393,6 +408,8 @@ export default async function Home({
   const fromDate = sp.from || defaultFrom;
   const toDate = sp.to || defaultTo;
   const tenantId = typeof sp.tenantId === "string" ? sp.tenantId : "";
+  const viewRaw = typeof sp.view === "string" ? sp.view : "";
+  const view = ["overview", "revenue", "conversion", "subscriptions", "operations"].includes(viewRaw) ? viewRaw : "overview";
   const fromIso = toUtcIsoStart(fromDate) || toUtcIsoStart(defaultFrom)!;
   const toIso = toUtcIsoEndExclusive(toDate) || toUtcIsoEndExclusive(defaultTo)!;
   const periodLabel = g === "day" ? "Diario" : g === "week" ? "Semanal" : "Mensual";
@@ -401,6 +418,26 @@ export default async function Home({
   const tenantsRes = hasToken ? await fetchAdminCached("/admin/tenants", { ttlMs: 1500 }) : { ok: false, json: { items: [] } };
   const tenants = Array.isArray(tenantsRes?.json?.items) ? tenantsRes.json.items : [];
   const tenantLabel = tenantId ? (tenants.find((t: any) => String(t.id) === String(tenantId))?.name || "Canal") : "Todos";
+
+  const viewTabs = [
+    { id: "overview", label: "Resumen" },
+    { id: "revenue", label: "Ingresos" },
+    { id: "conversion", label: "Conversión" },
+    { id: "subscriptions", label: "Suscripciones" },
+    { id: "operations", label: "Operación" }
+  ];
+
+  const baseParams = new URLSearchParams({
+    from: fromDate,
+    to: toDate,
+    g,
+    ...(tenantId ? { tenantId } : {})
+  });
+  const viewHref = (nextView: string) => {
+    const params = new URLSearchParams(baseParams);
+    params.set("view", nextView);
+    return `/?${params.toString()}`;
+  };
 
   const metricsQuery = new URLSearchParams({
     from: fromIso,
@@ -436,6 +473,12 @@ export default async function Home({
     : { ok: false, status: 401, json: { error: "missing_admin_token" } };
   const chatwootRes = hasToken
     ? await fetchAdminCached(`/admin/reports/chatwoot?${reportsQuery.toString()}`, { ttlMs: 1500 })
+    : { ok: false, status: 401, json: { error: "missing_admin_token" } };
+  const paymentsRes = hasToken
+    ? await fetchAdminCached(
+        `/admin/logs/payments?take=6&status=APPROVED${tenantId ? `&tenantId=${encodeURIComponent(tenantId)}` : ""}`,
+        { ttlMs: 1500 }
+      )
     : { ok: false, status: 401, json: { error: "missing_admin_token" } };
 
   const series: any[] = metrics.ok ? metrics.json?.series || [] : [];
@@ -503,6 +546,7 @@ export default async function Home({
   const autoTotal = autoOk + autoFail;
   const autoApprovalPct = autoTotal > 0 ? (autoOk / autoTotal) * 100 : 0;
   const autoChurn = metrics.json?.totals?.auto?.churnMonthlyPct ?? null;
+  const recentPayments = paymentsRes.ok ? paymentsRes.json?.items || [] : [];
 
   const revenueTotalSeries = sum(revenueSeries);
   const revenueAvgSeries = avg(revenueSeries);
@@ -610,12 +654,28 @@ export default async function Home({
                   to={toDate}
                   g={g}
                   tenantId={tenantId}
+                  view={view}
                   tenants={tenants}
                   minDate={firstDataAt || undefined}
                   maxDate={maxDate}
                 />
               </div>
             </div>
+          </div>
+          <div className="metricsTabsRow">
+            <div className="metricsTabs">
+              {viewTabs.map((tab) => (
+                <Link
+                  key={tab.id}
+                  href={viewHref(tab.id)}
+                  className={`metricsTab ${view === tab.id ? "is-active" : ""}`}
+                  prefetch={false}
+                >
+                  {tab.label}
+                </Link>
+              ))}
+            </div>
+            <div className="metricsTabsMeta">{rangeLabel} · {periodLabel} · {tenantLabel}</div>
           </div>
         </div>
 
@@ -630,409 +690,559 @@ export default async function Home({
             </div>
           ) : (
             <>
-              <div className="grid3">
-                <div className="card cardPad metric-card tone-primary">
-                  <span className="metric-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="2" y="5" width="20" height="14" rx="3" />
-                      <circle cx="12" cy="12" r="3" />
-                      <path d="M6 9h.01M18 15h.01" />
-                    </svg>
-                  </span>
-                  <div className="metric-label">Ingresos totales</div>
-                  <div className="metric-value">${fmtMoneyCop(totalRevenue)} COP</div>
-                  <div className="metric-sub">
-                    Ticket promedio: ${fmtMoneyCop(avgTicket)} COP ·
-                    <span className={`delta ${revenueDeltaPct == null ? "flat" : revenueDeltaPct >= 0 ? "up" : "down"}`}>
-                      {fmtDelta(revenueDeltaPct)}
-                    </span>
-                  </div>
-                </div>
-                <div className="card cardPad metric-card tone-success">
-                  <span className="metric-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="9" />
-                      <path d="M8 12l3 3 5-6" />
-                    </svg>
-                  </span>
-                  <div className="metric-label">Tasa de aprobación</div>
-                  <div className="metric-value">{fmtPct(approvalPct)}</div>
-                  <div className="metric-sub">
-                    {totalPaymentsOk} OK · {totalPaymentsFail} fallidos ·
-                    <span className={`delta ${approvalDeltaPp == null ? "flat" : approvalDeltaPp >= 0 ? "up" : "down"}`}>{fmtDeltaPp(approvalDeltaPp)}</span>
-                  </div>
-                </div>
-                <div className="card cardPad metric-card tone-warning">
-                  <span className="metric-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M10 13a5 5 0 0 0 7.1 0l2.1-2.1a5 5 0 0 0-7.1-7.1L10 5" />
-                      <path d="M14 11a5 5 0 0 0-7.1 0L4.8 13.1a5 5 0 0 0 7.1 7.1L14 19" />
-                    </svg>
-                  </span>
-                  <div className="metric-label">Conversión link → pago</div>
-                  <div className="metric-value">{fmtPct(linkConversionPct)}</div>
-                  <div className="metric-sub">
-                    {linksSentTotal} enviados · {linksPaidTotal} pagados ·
-                    <span className={`delta ${linkConversionDeltaPp == null ? "flat" : linkConversionDeltaPp >= 0 ? "up" : "down"}`}>{fmtDeltaPp(linkConversionDeltaPp)}</span>
-                  </div>
-                </div>
-                <div className="card cardPad metric-card tone-info">
-                  <span className="metric-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
-                      <circle cx="9" cy="7" r="4" />
-                      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                    </svg>
-                  </span>
-                  <div className="metric-label">Suscripciones activas</div>
-                  <div className="metric-value">{totalActiveSubscriptions}</div>
-                  <div className="metric-sub">Δ {activeDelta >= 0 ? "+" : ""}{activeDelta} ({fmtPct(activeDeltaPct)})</div>
-                </div>
-                <div className="card cardPad metric-card tone-primary">
-                  <span className="metric-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 12a9 9 0 1 1-2.64-6.36" />
-                      <polyline points="21 3 21 9 15 9" />
-                    </svg>
-                  </span>
-                  <div className="metric-label">MRR automático</div>
-                  <div className="metric-value">${fmtMoneyCop(autoMrr)} COP</div>
-                  <div className="metric-sub">Churn mensual: {fmtPct(metrics.json?.totals?.auto?.churnMonthlyPct)}</div>
-                </div>
-                <div className="card cardPad metric-card tone-warning">
-                  <span className="metric-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                      <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                      <line x1="12" y1="22.08" x2="12" y2="12" />
-                    </svg>
-                  </span>
-                  <div className="metric-label">Planes vendidos</div>
-                  <div className="metric-value">{metrics.json?.totals?.totalPlansSold || 0}</div>
-                  <div className="metric-sub">
-                    Rango: {rangeLabel} ·
-                    <span className={`delta ${plansDeltaPct == null ? "flat" : plansDeltaPct >= 0 ? "up" : "down"}`}>
-                      {fmtDelta(plansDeltaPct)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid2">
-                <div className="card cardPad chart-card">
-                  <div className="chart-header">
-                    <div>
-                      <div className="chart-title">Ingresos por período</div>
-                      <div className="chart-sub">Suma de pagos aprobados por {periodLabel.toLowerCase()}.</div>
-                    </div>
-                    <div className="chart-range">{rangeLabel} · {periodLabel}</div>
-                  </div>
-                  <ChartLines
-                    series={revenueLineSeries}
-                    labels={bucketLabels}
-                    tooltipLabel={(v, i, label) => `${bucketLabels[i] || ""} · ${label}: $${fmtMoneyCop(v)} COP`}
-                  />
-                  <div className="chart-kpis">
-                    <span className="chart-kpi">Total <strong>${fmtMoneyCop(revenueTotalSeries)} COP</strong></span>
-                    <span className="chart-kpi">Promedio <strong>${fmtMoneyCop(Math.round(revenueAvgSeries))} COP</strong></span>
-                    <span className="chart-kpi">Último <strong>${fmtMoneyCop(revenueLast)} COP</strong></span>
-                    <span className="chart-kpi">Máximo <strong>${fmtMoneyCop(revenueMax)} COP</strong></span>
-                  </div>
-                </div>
-
-                <div className="card cardPad chart-card">
-                  <div className="chart-header">
-                    <div>
-                      <div className="chart-title">Pagos aprobados vs fallidos</div>
-                      <div className="chart-sub">Comparación de intentos por {periodLabel.toLowerCase()}.</div>
-                    </div>
-                    <div className="chart-range">{rangeLabel} · {periodLabel}</div>
-                  </div>
-                  <ChartBars a={okSeries} b={failSeries} aLabel="Aprobados" bLabel="Fallidos" labels={bucketLabels} />
-                  <div className="chart-kpis">
-                    <span className="chart-kpi">Aprobados <strong>{okTotalSeries}</strong></span>
-                    <span className="chart-kpi">Fallidos <strong>{failTotalSeries}</strong></span>
-                    <span className="chart-kpi">Tasa OK <strong>{fmtPct(successRateSeries)}</strong></span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid2">
-                <div className="card cardPad chart-card">
-                  <div className="chart-header">
-                    <div>
-                      <div className="chart-title">Links de pago: enviados vs pagados</div>
-                      <div className="chart-sub">Salud de los links manuales en el período.</div>
-                    </div>
-                    <div className="chart-range">{rangeLabel} · {periodLabel}</div>
-                  </div>
-                  <ChartBars a={linksSent} b={linksPaid} aLabel="Enviados" bLabel="Pagados" labels={bucketLabels} />
-                  <div className="chart-kpis">
-                    <span className="chart-kpi">Conversión <strong>{fmtPct(metrics.json?.totals?.link?.conversionLinkToPayPct)}</strong></span>
-                    <span className="chart-kpi">Ingresos <strong>${fmtMoneyCop(metrics.json?.totals?.link?.revenueInCents || 0)} COP</strong></span>
-                    <span className="chart-kpi">
-                      Tiempo prom. <strong>{metrics.json?.totals?.link?.avgTimeToPaySec == null ? "—" : `${Math.round(Number(metrics.json.totals.link.avgTimeToPaySec) / 60)} min`}</strong>
-                    </span>
-                  </div>
-                </div>
-
-                <div className="card cardPad chart-card">
-                  <div className="chart-header">
-                    <div>
-                      <div className="chart-title">Ingresos por tipo de plan</div>
-                      <div className="chart-sub">Distribución entre manuales y automáticos.</div>
-                    </div>
-                    <div className="chart-range">{rangeLabel}</div>
-                  </div>
-                  <Pie
-                    a={revenueLink}
-                    b={revenueAuto}
-                    aLabel="Link"
-                    bLabel="Auto"
-                  />
-                  <div className="chart-kpis">
-                    <span className="chart-kpi">Manual <strong>{fmtPct(revenueLinkPct)}</strong></span>
-                    <span className="chart-kpi">Auto <strong>{fmtPct(revenueAutoPct)}</strong></span>
-                    <span className="chart-kpi">Total <strong>${fmtMoneyCop(revenueByTypeTotal)} COP</strong></span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid2">
-                <div className="card cardPad chart-card">
-                  <div className="chart-header">
-                    <div>
-                      <div className="chart-title">Tasa de aprobación por período</div>
-                      <div className="chart-sub">Calidad de cobros por {periodLabel.toLowerCase()}.</div>
-                    </div>
-                    <div className="chart-range">{rangeLabel} · {periodLabel}</div>
-                  </div>
-                  <ChartLines
-                    series={approvalRateLineSeries}
-                    labels={bucketLabels}
-                    tooltipLabel={(v, i, label) => `${bucketLabels[i] || ""} · ${label}: ${fmtPct(v)}`}
-                  />
-                  <div className="chart-kpis">
-                    <span className="chart-kpi">Promedio <strong>{fmtPct(approvalRateAvg)}</strong></span>
-                    <span className="chart-kpi">Último <strong>{fmtPct(approvalRateLast)}</strong></span>
-                    <span className="chart-kpi">Máximo <strong>{fmtPct(approvalRateMax)}</strong></span>
-                  </div>
-                </div>
-
-                <div className="card cardPad chart-card">
-                  <div className="chart-header">
-                    <div>
-                      <div className="chart-title">Conversión de links por período</div>
-                      <div className="chart-sub">Eficiencia de links enviados.</div>
-                    </div>
-                    <div className="chart-range">{rangeLabel} · {periodLabel}</div>
-                  </div>
-                  <ChartLines
-                    series={linkConversionLineSeries}
-                    labels={bucketLabels}
-                    tooltipLabel={(v, i, label) => `${bucketLabels[i] || ""} · ${label}: ${fmtPct(v)}`}
-                  />
-                  <div className="chart-kpis">
-                    <span className="chart-kpi">Promedio <strong>{fmtPct(linkConversionAvg)}</strong></span>
-                    <span className="chart-kpi">Último <strong>{fmtPct(linkConversionLast)}</strong></span>
-                    <span className="chart-kpi">Máximo <strong>{fmtPct(linkConversionMax)}</strong></span>
-                  </div>
-                </div>
-              </div>
-
-
-              <div className="grid2">
-                <div className="card cardPad chart-card">
-                  <div className="chart-header">
-                    <div>
-                      <div className="chart-title">Suscripciones activas</div>
-                      <div className="chart-sub">Evolución del total de suscriptores activos.</div>
-                    </div>
-                    <div className="chart-range">{rangeLabel} · {periodLabel}</div>
-                  </div>
-                  <ChartLines
-                    series={activeLineSeries}
-                    labels={bucketLabels}
-                    tooltipLabel={(v, i, label) => `${bucketLabels[i] || ""} · ${label}: ${v} activas`}
-                  />
-                  <div className="chart-kpis">
-                    <span className="chart-kpi">Inicio <strong>{activeStart}</strong></span>
-                    <span className="chart-kpi">Fin <strong>{activeEnd}</strong></span>
-                    <span className="chart-kpi">Δ <strong>{activeDelta >= 0 ? "+" : ""}{activeDelta}</strong></span>
-                    <span className="chart-kpi">Δ% <strong>{fmtPct(activeDeltaPct)}</strong></span>
-                  </div>
-                </div>
-
-                <div className="card cardPad chart-card">
-                  <div className="chart-header">
-                    <div>
-                      <div className="chart-title">Suscripción automática</div>
-                      <div className="chart-sub">Estado y desempeño de cobros recurrentes.</div>
-                    </div>
-                    <div className="chart-range">{rangeLabel}</div>
-                  </div>
-                  <div className="grid2" style={{ gap: 10 }}>
-                    <div className="card cardPad" style={{ padding: 10 }}>
-                      <div style={{ color: "var(--muted)", fontSize: 12 }}>Activas</div>
-                      <div style={{ fontSize: 18, fontWeight: 900 }}>{autoActive}</div>
-                      <div style={{ fontSize: 12, color: "var(--text-faint)" }}>
-                        Δ {autoActiveDelta ?? "—"} ·
-                        <span className={`delta ${autoActiveDeltaPct == null ? "flat" : autoActiveDeltaPct >= 0 ? "up" : "down"}`}>
-                          {fmtDelta(autoActiveDeltaPct)}
+              {view === "overview" ? (
+                <>
+                  <div className="grid3">
+                    <div className="card cardPad metric-card tone-primary">
+                      <span className="metric-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="2" y="5" width="20" height="14" rx="3" />
+                          <circle cx="12" cy="12" r="3" />
+                          <path d="M6 9h.01M18 15h.01" />
+                        </svg>
+                      </span>
+                      <div className="metric-label">Ingresos totales</div>
+                      <div className="metric-value">${fmtMoneyCop(totalRevenue)} COP</div>
+                      <div className="metric-sub">
+                        Ticket promedio: ${fmtMoneyCop(avgTicket)} COP ·
+                        <span className={`delta ${revenueDeltaPct == null ? "flat" : revenueDeltaPct >= 0 ? "up" : "down"}`}>
+                          {fmtDelta(revenueDeltaPct)}
                         </span>
                       </div>
                     </div>
-                    <div className="card cardPad" style={{ padding: 10 }}>
-                      <div style={{ color: "var(--muted)", fontSize: 12 }}>Nuevas / Cancelaciones</div>
-                      <div style={{ fontSize: 18, fontWeight: 900 }}>
-                        {autoNew} / {autoCancels}
-                      </div>
-                      <div style={{ fontSize: 12, color: "var(--text-faint)" }}>
-                        Netas {autoNet >= 0 ? "+" : ""}{autoNet} ·
-                        <span className={`delta ${autoNetDelta == null ? "flat" : autoNetDelta >= 0 ? "up" : "down"}`}>
-                          {autoNetDelta == null ? "—" : autoNetDelta >= 0 ? `+${autoNetDelta}` : autoNetDelta}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="card cardPad" style={{ padding: 10 }}>
-                      <div style={{ color: "var(--muted)", fontSize: 12 }}>Cobros OK / Fallidos</div>
-                      <div style={{ fontSize: 18, fontWeight: 900 }}>
-                        {autoOk} / {autoFail}
-                      </div>
-                      <div style={{ fontSize: 12, color: "var(--text-faint)" }}>
-                        Tasa OK {fmtPct(autoApprovalPct)} ·
-                        <span className={`delta ${autoApprovalDeltaPp == null ? "flat" : autoApprovalDeltaPp >= 0 ? "up" : "down"}`}>
-                          {fmtDeltaPp(autoApprovalDeltaPp)}
-                        </span>
+                    <div className="card cardPad metric-card tone-success">
+                      <span className="metric-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="9" />
+                          <path d="M8 12l3 3 5-6" />
+                        </svg>
+                      </span>
+                      <div className="metric-label">Tasa de aprobación</div>
+                      <div className="metric-value">{fmtPct(approvalPct)}</div>
+                      <div className="metric-sub">
+                        {totalPaymentsOk} OK · {totalPaymentsFail} fallidos ·
+                        <span className={`delta ${approvalDeltaPp == null ? "flat" : approvalDeltaPp >= 0 ? "up" : "down"}`}>{fmtDeltaPp(approvalDeltaPp)}</span>
                       </div>
                     </div>
-                    <div className="card cardPad" style={{ padding: 10 }}>
-                      <div style={{ color: "var(--muted)", fontSize: 12 }}>MRR (auto)</div>
-                      <div style={{ fontSize: 18, fontWeight: 900 }}>${fmtMoneyCop(autoMrr)} COP</div>
-                      <div style={{ fontSize: 12, color: "var(--text-faint)" }}>
-                        Δ
-                        <span className={`delta ${autoMrrDeltaPct == null ? "flat" : autoMrrDeltaPct >= 0 ? "up" : "down"}`}>
-                          {fmtDelta(autoMrrDeltaPct)}
-                        </span>
-                        · Churn {fmtPct(autoChurn)} ·
-                        <span className={`delta ${autoChurnDeltaPp == null ? "flat" : autoChurnDeltaPp <= 0 ? "up" : "down"}`}>
-                          {fmtDeltaPp(autoChurnDeltaPp)}
+                    <div className="card cardPad metric-card tone-warning">
+                      <span className="metric-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M10 13a5 5 0 0 0 7.1 0l2.1-2.1a5 5 0 0 0-7.1-7.1L10 5" />
+                          <path d="M14 11a5 5 0 0 0-7.1 0L4.8 13.1a5 5 0 0 0 7.1 7.1L14 19" />
+                        </svg>
+                      </span>
+                      <div className="metric-label">Conversión link → pago</div>
+                      <div className="metric-value">{fmtPct(linkConversionPct)}</div>
+                      <div className="metric-sub">
+                        {linksSentTotal} enviados · {linksPaidTotal} pagados ·
+                        <span className={`delta ${linkConversionDeltaPp == null ? "flat" : linkConversionDeltaPp >= 0 ? "up" : "down"}`}>{fmtDeltaPp(linkConversionDeltaPp)}</span>
+                      </div>
+                    </div>
+                    <div className="card cardPad metric-card tone-info">
+                      <span className="metric-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
+                          <circle cx="9" cy="7" r="4" />
+                          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                        </svg>
+                      </span>
+                      <div className="metric-label">Suscripciones activas</div>
+                      <div className="metric-value">{totalActiveSubscriptions}</div>
+                      <div className="metric-sub">Δ {activeDelta >= 0 ? "+" : ""}{activeDelta} ({fmtPct(activeDeltaPct)})</div>
+                    </div>
+                    <div className="card cardPad metric-card tone-primary">
+                      <span className="metric-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                          <polyline points="21 3 21 9 15 9" />
+                        </svg>
+                      </span>
+                      <div className="metric-label">MRR automático</div>
+                      <div className="metric-value">${fmtMoneyCop(autoMrr)} COP</div>
+                      <div className="metric-sub">Churn mensual: {fmtPct(metrics.json?.totals?.auto?.churnMonthlyPct)}</div>
+                    </div>
+                    <div className="card cardPad metric-card tone-warning">
+                      <span className="metric-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                          <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                          <line x1="12" y1="22.08" x2="12" y2="12" />
+                        </svg>
+                      </span>
+                      <div className="metric-label">Planes vendidos</div>
+                      <div className="metric-value">{metrics.json?.totals?.totalPlansSold || 0}</div>
+                      <div className="metric-sub">
+                        Rango: {rangeLabel} ·
+                        <span className={`delta ${plansDeltaPct == null ? "flat" : plansDeltaPct >= 0 ? "up" : "down"}`}>
+                          {fmtDelta(plansDeltaPct)}
                         </span>
                       </div>
                     </div>
                   </div>
-                  {mrrSeries.some((v) => v != null) ? (
-                    <div style={{ marginTop: 10 }}>
-                      <div style={{ color: "var(--muted)", fontSize: 12, marginBottom: 6 }}>Evolución MRR (mes)</div>
+
+                  <div className="grid2">
+                    <div className="card cardPad chart-card">
+                      <div className="chart-header">
+                        <div>
+                          <div className="chart-title">Ingresos por período</div>
+                          <div className="chart-sub">Suma de pagos aprobados por {periodLabel.toLowerCase()}.</div>
+                        </div>
+                        <div className="chart-range">{rangeLabel} · {periodLabel}</div>
+                      </div>
                       <ChartLines
-                        series={mrrLineSeries}
+                        series={revenueLineSeries}
                         labels={bucketLabels}
                         tooltipLabel={(v, i, label) => `${bucketLabels[i] || ""} · ${label}: $${fmtMoneyCop(v)} COP`}
                       />
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-
-              <div className="grid2">
-                <div className="card cardPad chart-card">
-                  <div className="chart-header">
-                    <div>
-                      <div className="chart-title">Webhooks: procesados vs fallidos</div>
-                      <div className="chart-sub">Salud operativa por {periodLabel.toLowerCase()}.</div>
-                    </div>
-                    <div className="chart-range">{rangeLabel} · {periodLabel}</div>
-                  </div>
-                  {opsRes.ok ? (
-                    <>
-                      <ChartBars a={webhookProcessed} b={webhookFailed} aLabel="Procesados" bLabel="Fallidos" labels={opsLabels} />
                       <div className="chart-kpis">
-                        <span className="chart-kpi">Procesados <strong>{opsTotals?.webhooks?.processed ?? 0}</strong></span>
-                        <span className="chart-kpi">Fallidos <strong>{opsTotals?.webhooks?.failed ?? 0}</strong></span>
-                        <span className="chart-kpi">Total <strong>{opsTotals?.webhooks?.total ?? 0}</strong></span>
+                        <span className="chart-kpi">Total <strong>${fmtMoneyCop(revenueTotalSeries)} COP</strong></span>
+                        <span className="chart-kpi">Promedio <strong>${fmtMoneyCop(Math.round(revenueAvgSeries))} COP</strong></span>
+                        <span className="chart-kpi">Último <strong>${fmtMoneyCop(revenueLast)} COP</strong></span>
+                        <span className="chart-kpi">Máximo <strong>${fmtMoneyCop(revenueMax)} COP</strong></span>
                       </div>
-                    </>
-                  ) : (
-                    <div className="muted">No pudimos cargar operaciones.</div>
-                  )}
-                </div>
-
-                <div className="card cardPad chart-card">
-                  <div className="chart-header">
-                    <div>
-                      <div className="chart-title">Jobs: creados vs fallidos</div>
-                      <div className="chart-sub">Cola y reintentos en el período.</div>
                     </div>
-                    <div className="chart-range">{rangeLabel} · {periodLabel}</div>
-                  </div>
-                  {opsRes.ok ? (
-                    <>
-                      <ChartBars a={jobsCreated} b={jobsFailed} aLabel="Creados" bLabel="Fallidos" labels={opsLabels} />
+
+                    <div className="card cardPad chart-card">
+                      <div className="chart-header">
+                        <div>
+                          <div className="chart-title">Pagos aprobados vs fallidos</div>
+                          <div className="chart-sub">Comparación de intentos por {periodLabel.toLowerCase()}.</div>
+                        </div>
+                        <div className="chart-range">{rangeLabel} · {periodLabel}</div>
+                      </div>
+                      <ChartBars a={okSeries} b={failSeries} aLabel="Aprobados" bLabel="Fallidos" labels={bucketLabels} />
                       <div className="chart-kpis">
-                        <span className="chart-kpi">Pendientes <strong>{opsTotals?.jobs?.pending ?? 0}</strong></span>
-                        <span className="chart-kpi">Fallidos <strong>{opsTotals?.jobs?.failed ?? 0}</strong></span>
-                        <span className="chart-kpi">Running <strong>{opsTotals?.jobs?.running ?? 0}</strong></span>
+                        <span className="chart-kpi">Aprobados <strong>{okTotalSeries}</strong></span>
+                        <span className="chart-kpi">Fallidos <strong>{failTotalSeries}</strong></span>
+                        <span className="chart-kpi">Tasa OK <strong>{fmtPct(successRateSeries)}</strong></span>
                       </div>
-                    </>
-                  ) : (
-                    <div className="muted">No pudimos cargar operaciones.</div>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid2">
-                <div className="card cardPad chart-card">
-                  <div className="chart-header">
-                    <div>
-                      <div className="chart-title">Chatwoot: enviados vs fallidos</div>
-                      <div className="chart-sub">Mensajes salientes del período.</div>
                     </div>
-                    <div className="chart-range">{rangeLabel} · {periodLabel}</div>
                   </div>
-                  {chatwootRes.ok ? (
-                    <>
-                      <ChartBars a={chatSent} b={chatFailed} aLabel="Enviados" bLabel="Fallidos" labels={chatLabels} />
+
+                  <div className="grid2">
+                    <div className="card cardPad chart-card">
+                      <div className="chart-header">
+                        <div>
+                          <div className="chart-title">Últimos pagos aprobados</div>
+                          <div className="chart-sub">Movimientos recientes del período.</div>
+                        </div>
+                        <Link className="ghost btn-compact" href="/logs?tab=payments" prefetch={false}>
+                          Ver logs
+                        </Link>
+                      </div>
+                      <div className="recent-payments">
+                        {recentPayments.length ? (
+                          recentPayments.slice(0, 5).map((p: any) => {
+                            const customer = p.customer?.name || p.customer?.email || p.customer?.phone || "Cliente";
+                            const plan = p.subscription?.plan?.name || "Pago";
+                            const amount = typeof p.amountInCents === "number" ? fmtMoneyCop(p.amountInCents) : "—";
+                            const status = paymentStatusPill(p.status);
+                            return (
+                              <div className="recent-payment-row" key={p.id}>
+                                <div className="recent-payment-main">
+                                  <div className="recent-payment-title">{customer}</div>
+                                  <div className="recent-payment-sub">
+                                    {plan} · {fmtDateTimeShort(p.createdAt)}
+                                  </div>
+                                </div>
+                                <div className="recent-payment-meta">
+                                  <span className={`pill ${status.cls}`}>{status.label}</span>
+                                  <strong>${amount} COP</strong>
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="muted">Sin pagos recientes.</div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="card cardPad chart-card">
+                      <div className="chart-header">
+                        <div>
+                          <div className="chart-title">Ingresos por tipo de plan</div>
+                          <div className="chart-sub">Distribución entre manuales y automáticos.</div>
+                        </div>
+                        <div className="chart-range">{rangeLabel}</div>
+                      </div>
+                      <Pie a={revenueLink} b={revenueAuto} aLabel="Link" bLabel="Auto" />
                       <div className="chart-kpis">
-                        <span className="chart-kpi">Enviados <strong>{chatTotals?.sent ?? 0}</strong></span>
-                        <span className="chart-kpi">Fallidos <strong>{chatTotals?.failed ?? 0}</strong></span>
-                        <span className="chart-kpi">Pendientes <strong>{chatTotals?.pending ?? 0}</strong></span>
+                        <span className="chart-kpi">Manual <strong>{fmtPct(revenueLinkPct)}</strong></span>
+                        <span className="chart-kpi">Auto <strong>{fmtPct(revenueAutoPct)}</strong></span>
+                        <span className="chart-kpi">Total <strong>${fmtMoneyCop(revenueByTypeTotal)} COP</strong></span>
                       </div>
-                    </>
-                  ) : (
-                    <div className="muted">No pudimos cargar Chatwoot.</div>
-                  )}
-                </div>
-
-                <div className="card cardPad chart-card">
-                  <div className="chart-header">
-                    <div>
-                      <div className="chart-title">Logs críticos</div>
-                      <div className="chart-sub">Errores y alertas recientes.</div>
                     </div>
-                    <div className="chart-range">{rangeLabel} · {periodLabel}</div>
                   </div>
-                  {opsRes.ok ? (
-                    <>
+                </>
+              ) : null}
+
+              {view === "revenue" ? (
+                <>
+                  <div className="grid2">
+                    <div className="card cardPad chart-card">
+                      <div className="chart-header">
+                        <div>
+                          <div className="chart-title">Ingresos por período</div>
+                          <div className="chart-sub">Suma de pagos aprobados por {periodLabel.toLowerCase()}.</div>
+                        </div>
+                        <div className="chart-range">{rangeLabel} · {periodLabel}</div>
+                      </div>
                       <ChartLines
-                        series={[
-                          { label: "Errores", values: opsSeries.map((p) => Number(p?.logs?.error || 0)), color: "var(--status-danger)" },
-                          { label: "Alertas", values: opsSeries.map((p) => Number(p?.logs?.warn || 0)), color: "var(--status-warning)", dashed: true }
-                        ]}
-                        labels={opsLabels}
-                        tooltipLabel={(v, i, label) => `${opsLabels[i] || ""} · ${label}: ${v}`}
+                        series={revenueLineSeries}
+                        labels={bucketLabels}
+                        tooltipLabel={(v, i, label) => `${bucketLabels[i] || ""} · ${label}: $${fmtMoneyCop(v)} COP`}
                       />
                       <div className="chart-kpis">
-                        <span className="chart-kpi">Errores <strong>{opsTotals?.logs?.error ?? 0}</strong></span>
-                        <span className="chart-kpi">Alertas <strong>{opsTotals?.logs?.warn ?? 0}</strong></span>
-                        <span className="chart-kpi">Info <strong>{opsTotals?.logs?.info ?? 0}</strong></span>
+                        <span className="chart-kpi">Total <strong>${fmtMoneyCop(revenueTotalSeries)} COP</strong></span>
+                        <span className="chart-kpi">Promedio <strong>${fmtMoneyCop(Math.round(revenueAvgSeries))} COP</strong></span>
+                        <span className="chart-kpi">Máximo <strong>${fmtMoneyCop(revenueMax)} COP</strong></span>
                       </div>
-                    </>
-                  ) : (
-                    <div className="muted">No pudimos cargar logs.</div>
-                  )}
-                </div>
-              </div>
+                    </div>
+
+                    <div className="card cardPad chart-card">
+                      <div className="chart-header">
+                        <div>
+                          <div className="chart-title">Ingresos por tipo de plan</div>
+                          <div className="chart-sub">Distribución entre manuales y automáticos.</div>
+                        </div>
+                        <div className="chart-range">{rangeLabel}</div>
+                      </div>
+                      <Pie a={revenueLink} b={revenueAuto} aLabel="Link" bLabel="Auto" />
+                      <div className="chart-kpis">
+                        <span className="chart-kpi">Manual <strong>{fmtPct(revenueLinkPct)}</strong></span>
+                        <span className="chart-kpi">Auto <strong>{fmtPct(revenueAutoPct)}</strong></span>
+                        <span className="chart-kpi">Total <strong>${fmtMoneyCop(revenueByTypeTotal)} COP</strong></span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid2">
+                    <div className="card cardPad chart-card">
+                      <div className="chart-header">
+                        <div>
+                          <div className="chart-title">Pagos aprobados vs fallidos</div>
+                          <div className="chart-sub">Comparación de intentos por {periodLabel.toLowerCase()}.</div>
+                        </div>
+                        <div className="chart-range">{rangeLabel} · {periodLabel}</div>
+                      </div>
+                      <ChartBars a={okSeries} b={failSeries} aLabel="Aprobados" bLabel="Fallidos" labels={bucketLabels} />
+                      <div className="chart-kpis">
+                        <span className="chart-kpi">Aprobados <strong>{okTotalSeries}</strong></span>
+                        <span className="chart-kpi">Fallidos <strong>{failTotalSeries}</strong></span>
+                        <span className="chart-kpi">Tasa OK <strong>{fmtPct(successRateSeries)}</strong></span>
+                      </div>
+                    </div>
+
+                    <div className="card cardPad chart-card">
+                      <div className="chart-header">
+                        <div>
+                          <div className="chart-title">MRR automático</div>
+                          <div className="chart-sub">Evolución del ingreso recurrente mensual.</div>
+                        </div>
+                        <div className="chart-range">{rangeLabel}</div>
+                      </div>
+                      {mrrSeries.some((v) => v != null) ? (
+                        <ChartLines
+                          series={mrrLineSeries}
+                          labels={bucketLabels}
+                          tooltipLabel={(v, i, label) => `${bucketLabels[i] || ""} · ${label}: $${fmtMoneyCop(v)} COP`}
+                        />
+                      ) : (
+                        <div className="muted">No hay datos de MRR en este período.</div>
+                      )}
+                      <div className="chart-kpis">
+                        <span className="chart-kpi">MRR <strong>${fmtMoneyCop(autoMrr)} COP</strong></span>
+                        <span className="chart-kpi">Δ <strong>{fmtDelta(autoMrrDeltaPct)}</strong></span>
+                        <span className="chart-kpi">Churn <strong>{fmtPct(autoChurn)}</strong></span>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : null}
+
+              {view === "conversion" ? (
+                <>
+                  <div className="grid2">
+                    <div className="card cardPad chart-card">
+                      <div className="chart-header">
+                        <div>
+                          <div className="chart-title">Links de pago: enviados vs pagados</div>
+                          <div className="chart-sub">Salud de los links manuales en el período.</div>
+                        </div>
+                        <div className="chart-range">{rangeLabel} · {periodLabel}</div>
+                      </div>
+                      <ChartBars a={linksSent} b={linksPaid} aLabel="Enviados" bLabel="Pagados" labels={bucketLabels} />
+                      <div className="chart-kpis">
+                        <span className="chart-kpi">Conversión <strong>{fmtPct(metrics.json?.totals?.link?.conversionLinkToPayPct)}</strong></span>
+                        <span className="chart-kpi">Ingresos <strong>${fmtMoneyCop(metrics.json?.totals?.link?.revenueInCents || 0)} COP</strong></span>
+                        <span className="chart-kpi">
+                          Tiempo prom. <strong>{metrics.json?.totals?.link?.avgTimeToPaySec == null ? "—" : `${Math.round(Number(metrics.json.totals.link.avgTimeToPaySec) / 60)} min`}</strong>
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="card cardPad chart-card">
+                      <div className="chart-header">
+                        <div>
+                          <div className="chart-title">Conversión de links por período</div>
+                          <div className="chart-sub">Eficiencia de links enviados.</div>
+                        </div>
+                        <div className="chart-range">{rangeLabel} · {periodLabel}</div>
+                      </div>
+                      <ChartLines
+                        series={linkConversionLineSeries}
+                        labels={bucketLabels}
+                        tooltipLabel={(v, i, label) => `${bucketLabels[i] || ""} · ${label}: ${fmtPct(v)}`}
+                      />
+                      <div className="chart-kpis">
+                        <span className="chart-kpi">Promedio <strong>{fmtPct(linkConversionAvg)}</strong></span>
+                        <span className="chart-kpi">Último <strong>{fmtPct(linkConversionLast)}</strong></span>
+                        <span className="chart-kpi">Máximo <strong>{fmtPct(linkConversionMax)}</strong></span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid2">
+                    <div className="card cardPad chart-card">
+                      <div className="chart-header">
+                        <div>
+                          <div className="chart-title">Tasa de aprobación por período</div>
+                          <div className="chart-sub">Calidad de cobros por {periodLabel.toLowerCase()}.</div>
+                        </div>
+                        <div className="chart-range">{rangeLabel} · {periodLabel}</div>
+                      </div>
+                      <ChartLines
+                        series={approvalRateLineSeries}
+                        labels={bucketLabels}
+                        tooltipLabel={(v, i, label) => `${bucketLabels[i] || ""} · ${label}: ${fmtPct(v)}`}
+                      />
+                      <div className="chart-kpis">
+                        <span className="chart-kpi">Promedio <strong>{fmtPct(approvalRateAvg)}</strong></span>
+                        <span className="chart-kpi">Último <strong>{fmtPct(approvalRateLast)}</strong></span>
+                        <span className="chart-kpi">Máximo <strong>{fmtPct(approvalRateMax)}</strong></span>
+                      </div>
+                    </div>
+
+                    <div className="card cardPad chart-card">
+                      <div className="chart-header">
+                        <div>
+                          <div className="chart-title">Pagos aprobados vs fallidos</div>
+                          <div className="chart-sub">Comparación de intentos por {periodLabel.toLowerCase()}.</div>
+                        </div>
+                        <div className="chart-range">{rangeLabel} · {periodLabel}</div>
+                      </div>
+                      <ChartBars a={okSeries} b={failSeries} aLabel="Aprobados" bLabel="Fallidos" labels={bucketLabels} />
+                      <div className="chart-kpis">
+                        <span className="chart-kpi">Aprobados <strong>{okTotalSeries}</strong></span>
+                        <span className="chart-kpi">Fallidos <strong>{failTotalSeries}</strong></span>
+                        <span className="chart-kpi">Tasa OK <strong>{fmtPct(successRateSeries)}</strong></span>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : null}
+
+              {view === "subscriptions" ? (
+                <>
+                  <div className="grid2">
+                    <div className="card cardPad chart-card">
+                      <div className="chart-header">
+                        <div>
+                          <div className="chart-title">Suscripciones activas</div>
+                          <div className="chart-sub">Evolución del total de suscriptores activos.</div>
+                        </div>
+                        <div className="chart-range">{rangeLabel} · {periodLabel}</div>
+                      </div>
+                      <ChartLines
+                        series={activeLineSeries}
+                        labels={bucketLabels}
+                        tooltipLabel={(v, i, label) => `${bucketLabels[i] || ""} · ${label}: ${v} activas`}
+                      />
+                      <div className="chart-kpis">
+                        <span className="chart-kpi">Inicio <strong>{activeStart}</strong></span>
+                        <span className="chart-kpi">Fin <strong>{activeEnd}</strong></span>
+                        <span className="chart-kpi">Δ <strong>{activeDelta >= 0 ? "+" : ""}{activeDelta}</strong></span>
+                        <span className="chart-kpi">Δ% <strong>{fmtPct(activeDeltaPct)}</strong></span>
+                      </div>
+                    </div>
+
+                    <div className="card cardPad chart-card">
+                      <div className="chart-header">
+                        <div>
+                          <div className="chart-title">Suscripción automática</div>
+                          <div className="chart-sub">Estado y desempeño de cobros recurrentes.</div>
+                        </div>
+                        <div className="chart-range">{rangeLabel}</div>
+                      </div>
+                      <div className="grid2" style={{ gap: 10 }}>
+                        <div className="card cardPad" style={{ padding: 10 }}>
+                          <div style={{ color: "var(--muted)", fontSize: 12 }}>Activas</div>
+                          <div style={{ fontSize: 18, fontWeight: 900 }}>{autoActive}</div>
+                          <div style={{ fontSize: 12, color: "var(--text-faint)" }}>
+                            Δ {autoActiveDelta ?? "—"} ·
+                            <span className={`delta ${autoActiveDeltaPct == null ? "flat" : autoActiveDeltaPct >= 0 ? "up" : "down"}`}>
+                              {fmtDelta(autoActiveDeltaPct)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="card cardPad" style={{ padding: 10 }}>
+                          <div style={{ color: "var(--muted)", fontSize: 12 }}>Nuevas / Cancelaciones</div>
+                          <div style={{ fontSize: 18, fontWeight: 900 }}>
+                            {autoNew} / {autoCancels}
+                          </div>
+                          <div style={{ fontSize: 12, color: "var(--text-faint)" }}>
+                            Netas {autoNet >= 0 ? "+" : ""}{autoNet} ·
+                            <span className={`delta ${autoNetDelta == null ? "flat" : autoNetDelta >= 0 ? "up" : "down"}`}>
+                              {autoNetDelta == null ? "—" : autoNetDelta >= 0 ? `+${autoNetDelta}` : autoNetDelta}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="card cardPad" style={{ padding: 10 }}>
+                          <div style={{ color: "var(--muted)", fontSize: 12 }}>Cobros OK / Fallidos</div>
+                          <div style={{ fontSize: 18, fontWeight: 900 }}>
+                            {autoOk} / {autoFail}
+                          </div>
+                          <div style={{ fontSize: 12, color: "var(--text-faint)" }}>
+                            Tasa OK {fmtPct(autoApprovalPct)} ·
+                            <span className={`delta ${autoApprovalDeltaPp == null ? "flat" : autoApprovalDeltaPp >= 0 ? "up" : "down"}`}>
+                              {fmtDeltaPp(autoApprovalDeltaPp)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="card cardPad" style={{ padding: 10 }}>
+                          <div style={{ color: "var(--muted)", fontSize: 12 }}>MRR (auto)</div>
+                          <div style={{ fontSize: 18, fontWeight: 900 }}>${fmtMoneyCop(autoMrr)} COP</div>
+                          <div style={{ fontSize: 12, color: "var(--text-faint)" }}>
+                            Δ
+                            <span className={`delta ${autoMrrDeltaPct == null ? "flat" : autoMrrDeltaPct >= 0 ? "up" : "down"}`}>
+                              {fmtDelta(autoMrrDeltaPct)}
+                            </span>
+                            · Churn {fmtPct(autoChurn)} ·
+                            <span className={`delta ${autoChurnDeltaPp == null ? "flat" : autoChurnDeltaPp <= 0 ? "up" : "down"}`}>
+                              {fmtDeltaPp(autoChurnDeltaPp)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      {mrrSeries.some((v) => v != null) ? (
+                        <div style={{ marginTop: 10 }}>
+                          <div style={{ color: "var(--muted)", fontSize: 12, marginBottom: 6 }}>Evolución MRR (mes)</div>
+                          <ChartLines
+                            series={mrrLineSeries}
+                            labels={bucketLabels}
+                            tooltipLabel={(v, i, label) => `${bucketLabels[i] || ""} · ${label}: $${fmtMoneyCop(v)} COP`}
+                          />
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </>
+              ) : null}
+
+              {view === "operations" ? (
+                <>
+                  <div className="grid2">
+                    <div className="card cardPad chart-card">
+                      <div className="chart-header">
+                        <div>
+                          <div className="chart-title">Webhooks: procesados vs fallidos</div>
+                          <div className="chart-sub">Salud operativa por {periodLabel.toLowerCase()}.</div>
+                        </div>
+                        <div className="chart-range">{rangeLabel} · {periodLabel}</div>
+                      </div>
+                      {opsRes.ok ? (
+                        <>
+                          <ChartBars a={webhookProcessed} b={webhookFailed} aLabel="Procesados" bLabel="Fallidos" labels={opsLabels} />
+                          <div className="chart-kpis">
+                            <span className="chart-kpi">Procesados <strong>{opsTotals?.webhooks?.processed ?? 0}</strong></span>
+                            <span className="chart-kpi">Fallidos <strong>{opsTotals?.webhooks?.failed ?? 0}</strong></span>
+                            <span className="chart-kpi">Total <strong>{opsTotals?.webhooks?.total ?? 0}</strong></span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="muted">No pudimos cargar operaciones.</div>
+                      )}
+                    </div>
+
+                    <div className="card cardPad chart-card">
+                      <div className="chart-header">
+                        <div>
+                          <div className="chart-title">Jobs: creados vs fallidos</div>
+                          <div className="chart-sub">Cola y reintentos en el período.</div>
+                        </div>
+                        <div className="chart-range">{rangeLabel} · {periodLabel}</div>
+                      </div>
+                      {opsRes.ok ? (
+                        <>
+                          <ChartBars a={jobsCreated} b={jobsFailed} aLabel="Creados" bLabel="Fallidos" labels={opsLabels} />
+                          <div className="chart-kpis">
+                            <span className="chart-kpi">Pendientes <strong>{opsTotals?.jobs?.pending ?? 0}</strong></span>
+                            <span className="chart-kpi">Fallidos <strong>{opsTotals?.jobs?.failed ?? 0}</strong></span>
+                            <span className="chart-kpi">Running <strong>{opsTotals?.jobs?.running ?? 0}</strong></span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="muted">No pudimos cargar operaciones.</div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid2">
+                    <div className="card cardPad chart-card">
+                      <div className="chart-header">
+                        <div>
+                          <div className="chart-title">Chatwoot: enviados vs fallidos</div>
+                          <div className="chart-sub">Mensajes salientes del período.</div>
+                        </div>
+                        <div className="chart-range">{rangeLabel} · {periodLabel}</div>
+                      </div>
+                      {chatwootRes.ok ? (
+                        <>
+                          <ChartBars a={chatSent} b={chatFailed} aLabel="Enviados" bLabel="Fallidos" labels={chatLabels} />
+                          <div className="chart-kpis">
+                            <span className="chart-kpi">Enviados <strong>{chatTotals?.sent ?? 0}</strong></span>
+                            <span className="chart-kpi">Fallidos <strong>{chatTotals?.failed ?? 0}</strong></span>
+                            <span className="chart-kpi">Pendientes <strong>{chatTotals?.pending ?? 0}</strong></span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="muted">No pudimos cargar Chatwoot.</div>
+                      )}
+                    </div>
+
+                    <div className="card cardPad chart-card">
+                      <div className="chart-header">
+                        <div>
+                          <div className="chart-title">Logs críticos</div>
+                          <div className="chart-sub">Errores y alertas recientes.</div>
+                        </div>
+                        <div className="chart-range">{rangeLabel} · {periodLabel}</div>
+                      </div>
+                      {opsRes.ok ? (
+                        <>
+                          <ChartLines
+                            series={[
+                              { label: "Errores", values: opsSeries.map((p) => Number(p?.logs?.error || 0)), color: "var(--status-danger)" },
+                              { label: "Alertas", values: opsSeries.map((p) => Number(p?.logs?.warn || 0)), color: "var(--status-warning)", dashed: true }
+                            ]}
+                            labels={opsLabels}
+                            tooltipLabel={(v, i, label) => `${opsLabels[i] || ""} · ${label}: ${v}`}
+                          />
+                          <div className="chart-kpis">
+                            <span className="chart-kpi">Errores <strong>{opsTotals?.logs?.error ?? 0}</strong></span>
+                            <span className="chart-kpi">Alertas <strong>{opsTotals?.logs?.warn ?? 0}</strong></span>
+                            <span className="chart-kpi">Info <strong>{opsTotals?.logs?.info ?? 0}</strong></span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="muted">No pudimos cargar logs.</div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              ) : null}
             </>
           )}
         </div>
