@@ -1349,6 +1349,13 @@ a {
   overflow-wrap: anywhere;
 }
 
+.logs-table-payments .log-transaction-cell {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .logs-table-jobs .log-detail-cell {
   max-width: 280px;
   white-space: normal;
@@ -1382,6 +1389,13 @@ a {
   white-space: normal;
   word-break: break-word;
   overflow-wrap: anywhere;
+}
+
+.logs-table-webhooks .log-error-cell {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .logs-ai-wrapper {

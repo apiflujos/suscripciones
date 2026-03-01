@@ -517,9 +517,9 @@ export default async function LogsPage({
               <table className="table logs-table logs-table-messages" aria-label="Tabla de mensajes">
                 <colgroup>
                   <col style={{ width: "120px" }} />
-                  <col style={{ width: "180px" }} />
-                  <col style={{ width: "90px" }} />
-                  <col style={{ width: "110px" }} />
+                  <col style={{ width: "160px" }} />
+                  <col style={{ width: "80px" }} />
+                  <col style={{ width: "100px" }} />
                   <col />
                 </colgroup>
                 <thead>
@@ -653,14 +653,14 @@ export default async function LogsPage({
             <div className="panel module" style={{ padding: 0 }}>
               <table className="table logs-table logs-table-payments" aria-label="Tabla de pagos">
                 <colgroup>
-                  <col style={{ width: "150px" }} />
-                  <col style={{ width: "220px" }} />
-                  <col style={{ width: "200px" }} />
                   <col style={{ width: "120px" }} />
+                  <col style={{ width: "200px" }} />
+                  <col style={{ width: "180px" }} />
+                  <col style={{ width: "100px" }} />
+                  <col style={{ width: "100px" }} />
+                  <col style={{ width: "180px" }} />
+                  <col style={{ width: "150px" }} />
                   <col style={{ width: "110px" }} />
-                  <col style={{ width: "220px" }} />
-                  <col style={{ width: "170px" }} />
-                  <col style={{ width: "130px" }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -739,16 +739,16 @@ export default async function LogsPage({
               </div>
               <table className="table logs-table logs-table-webhooks" aria-label="Tabla de webhooks">
                 <colgroup>
-                  <col style={{ width: "150px" }} />
-                  <col style={{ width: "220px" }} />
-                  <col style={{ width: "110px" }} />
-                  <col style={{ width: "220px" }} />
-                  <col style={{ width: "150px" }} />
-                  <col style={{ width: "190px" }} />
-                  <col style={{ width: "140px" }} />
                   <col style={{ width: "120px" }} />
-                  <col style={{ width: "200px" }} />
-                  <col style={{ width: "130px" }} />
+                  <col style={{ width: "190px" }} />
+                  <col style={{ width: "90px" }} />
+                  <col style={{ width: "180px" }} />
+                  <col style={{ width: "120px" }} />
+                  <col style={{ width: "170px" }} />
+                  <col style={{ width: "110px" }} />
+                  <col style={{ width: "110px" }} />
+                  <col style={{ width: "180px" }} />
+                  <col style={{ width: "110px" }} />
                 </colgroup>
                 <thead>
                   <tr>
