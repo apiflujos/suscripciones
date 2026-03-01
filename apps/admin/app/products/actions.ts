@@ -330,6 +330,7 @@ export async function sendProductToCustomer(formData: FormData) {
   const includeImageSafe = includeImage && Boolean(imageUrl);
   let checkoutUrl = "";
   let templateParams: any = null;
+  const attachmentUrl = includeImageSafe ? imageUrl : "";
   if (includePaymentLink) {
     try {
       const orderRes = await adminFetch("/admin/orders", {
@@ -408,7 +409,8 @@ export async function sendProductToCustomer(formData: FormData) {
         customerId,
         content: message,
         type: "PAYMENT_LINK",
-        ...(templateParams ? { templateParams } : {})
+        ...(templateParams ? { templateParams } : {}),
+        ...(attachmentUrl ? { attachmentUrl } : {})
       })
     });
   } catch (err: any) {

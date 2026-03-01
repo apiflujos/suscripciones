@@ -233,6 +233,19 @@ export class ChatwootClient {
     return { ok: res.ok, status: res.status, json };
   }
 
+  private async requestMultipart(path: string, form: FormData) {
+    const url = `${this.opts.baseUrl.replace(/\/$/, "")}${path}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        api_access_token: this.opts.apiAccessToken
+      },
+      body: form
+    });
+    const json = await res.json().catch(() => null);
+    return { ok: res.ok, status: res.status, json };
+  }
+
   async createContact(input: { name?: string; email?: string; phoneNumber?: string }) {
     const phoneNumber = this.normalizePhoneNumber(input.phoneNumber);
     const body: any = {
@@ -427,6 +440,25 @@ export class ChatwootClient {
       { method: "POST", body: JSON.stringify(body) }
     );
     if (!res.ok) throw new Error(`Chatwoot send template failed: ${res.status} ${JSON.stringify(res.json)}`);
+    return { raw: res.json };
+  }
+
+  async sendMessageWithAttachment(
+    conversationId: number,
+    content: string,
+    attachment: { filename: string; mime: string; buffer: Buffer }
+  ) {
+    const form = new FormData();
+    form.append("content", this.formatChatwootText(content));
+    form.append("message_type", "outgoing");
+    form.append("content_type", "text");
+    const blob = new Blob([attachment.buffer], { type: attachment.mime });
+    form.append("attachments[]", blob, attachment.filename);
+    const res = await this.requestMultipart(
+      `/api/v1/accounts/${this.opts.accountId}/conversations/${conversationId}/messages`,
+      form
+    );
+    if (!res.ok) throw new Error(`Chatwoot send attachment failed: ${res.status} ${JSON.stringify(res.json)}`);
     return { raw: res.json };
   }
 

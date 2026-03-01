@@ -6,6 +6,45 @@ import { consumeApp } from "../../services/superAdminApp";
 import { systemLog } from "../../services/systemLog";
 import { syncChatwootAttributesForCustomer } from "../../services/chatwootSync";
 
+const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024;
+const MIME_EXT: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/jpg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif"
+};
+
+async function downloadAttachment(url: string) {
+  const safeUrl = String(url || "").trim();
+  if (!/^https?:\/\//i.test(safeUrl)) throw new Error("attachment_url_invalid");
+  const res = await fetch(safeUrl);
+  if (!res.ok) throw new Error("attachment_download_failed");
+  const contentType = String(res.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+  const contentLength = Number(res.headers.get("content-length") || 0);
+  if (contentLength && contentLength > MAX_ATTACHMENT_BYTES) throw new Error("attachment_too_large");
+  if (!contentType.startsWith("image/")) throw new Error("attachment_not_image");
+  const buffer = Buffer.from(await res.arrayBuffer());
+  if (buffer.length > MAX_ATTACHMENT_BYTES) throw new Error("attachment_too_large");
+  const ext = MIME_EXT[contentType] || "png";
+  return { buffer, mime: contentType || "application/octet-stream", ext };
+}
+
+function stripAttachmentLine(content: string, url: string) {
+  const safe = String(content || "");
+  const target = String(url || "").trim();
+  if (!target) return safe;
+  const lines = safe.split(/\r?\n/);
+  const filtered = lines.filter((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) return true;
+    if (trimmed.startsWith("Imagen:")) return false;
+    if (trimmed.includes(target)) return false;
+    return true;
+  });
+  return filtered.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
 export async function sendChatwootMessage(chatwootMessageId: string) {
   const msg = await prisma.chatwootMessage.findUnique({
     where: { id: chatwootMessageId },
@@ -203,6 +242,7 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
   }
 
   const templateParams = (msg.providerResp as any)?.template_params;
+  const attachmentUrl = (msg.providerResp as any)?.attachment?.url;
   let allowTemplate = Boolean(templateParams);
   if (templateParams) {
     try {
@@ -227,9 +267,19 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
   }
   let sent: any;
   try {
-    sent = allowTemplate && templateParams
-      ? await client.sendTemplate(conversationId, { content: msg.content, templateParams })
-      : await client.sendMessage(conversationId, msg.content);
+    if (allowTemplate && templateParams) {
+      sent = await client.sendTemplate(conversationId, { content: msg.content, templateParams });
+    } else if (attachmentUrl) {
+      const attachment = await downloadAttachment(attachmentUrl);
+      const content = stripAttachmentLine(msg.content, attachmentUrl);
+      sent = await client.sendMessageWithAttachment(conversationId, content || msg.content, {
+        buffer: attachment.buffer,
+        mime: attachment.mime,
+        filename: `producto.${attachment.ext}`
+      });
+    } else {
+      sent = await client.sendMessage(conversationId, msg.content);
+    }
   } catch (err: any) {
     const message = err?.message ? String(err.message) : "chatwoot_send_failed";
     await prisma.chatwootMessage.update({

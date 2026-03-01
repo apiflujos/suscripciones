@@ -157,6 +157,7 @@ const messageSchema = z.object({
   customerId: z.string().min(1).optional(),
   content: z.string().min(1),
   templateParams: z.any().optional(),
+  attachmentUrl: z.string().url().optional(),
   type: z.nativeEnum(ChatwootMessageType).optional(),
   sendNow: z.boolean().optional()
 });
@@ -205,6 +206,9 @@ chatwootRouter.post("/messages", async (req, res) => {
 
   // If we have a customer, create message and send immediately (default).
   if (parsed.data.customerId) {
+    const providerResp: any = {};
+    if (parsed.data.templateParams) providerResp.template_params = parsed.data.templateParams;
+    if (parsed.data.attachmentUrl) providerResp.attachment = { url: parsed.data.attachmentUrl };
     const created = await prisma.chatwootMessage.create({
       data: {
         tenantId: customer?.tenantId ?? null,
@@ -212,7 +216,7 @@ chatwootRouter.post("/messages", async (req, res) => {
         type: msgType,
         status: MessageStatus.PENDING,
         content: parsed.data.content,
-        providerResp: parsed.data.templateParams ? ({ template_params: parsed.data.templateParams } as any) : null
+        providerResp: Object.keys(providerResp).length ? (providerResp as any) : null
       }
     });
     if (sendNow) {
