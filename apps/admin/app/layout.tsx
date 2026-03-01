@@ -6,6 +6,7 @@ import Script from "next/script";
 
 import "./globals.css";
 import "./styles.css";
+import "leaflet/dist/leaflet.css";
 import { SideNav } from "./SideNav";
 import { TopBar } from "./TopBar";
 import { GlobalLoader } from "./GlobalLoader";

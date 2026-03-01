@@ -970,8 +970,8 @@ export function CustomersTable({
             role="dialog"
             aria-modal="true"
             aria-labelledby="customer-edit-title"
-            className="modal-panel"
-            style={{ width: "min(860px, 96vw)", maxHeight: "90vh", overflow: "auto" }}
+            className="modal-panel contact-edit-modal"
+            style={{ width: "min(860px, 96vw)", maxHeight: "90vh", overflowY: "auto", overflowX: "hidden" }}
             onKeyDown={onModalKeyDown}
           >
             <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -986,14 +986,14 @@ export function CustomersTable({
               onSubmit={(e) => {
                 e.currentTarget.classList.add("was-validated");
               }}
-              style={{ display: "grid", gap: 10 }}
+              className="contact-edit-form"
             >
               <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="id" value={editing.id} />
               <input type="hidden" name="tenantId" value={editing.tenantId || ""} />
               {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div className="contact-edit-grid-2">
                 <div className="field">
                   <label>Nombre</label>
                   <input className="input" name="name" value={name} onChange={(e) => setName(e.target.value)} />
@@ -1004,14 +1004,14 @@ export function CustomersTable({
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div className="contact-edit-grid-2">
                 <div className="field">
                   <label>Teléfono</label>
                   <input className="input" name="phone" value={phone} onChange={(e) => setPhone(e.target.value)} required />
                 </div>
                 <div className="field">
                   <label>Identificación</label>
-                  <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 8 }}>
+                  <div className="contact-edit-id-grid">
                     <input className="input" name="idType" value={idType} onChange={(e) => setIdType(e.target.value)} placeholder="CC" />
                     <input className="input" name="idNumber" value={idNumber} onChange={(e) => setIdNumber(e.target.value)} />
                   </div>
@@ -1023,7 +1023,7 @@ export function CustomersTable({
                 <input className="input" name="addressLine1" value={addressLine1} onChange={(e) => setAddressLine1(e.target.value)} />
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
+              <div className="contact-edit-grid-4">
                 <div className="field">
                   <label>Departamento</label>
                   <input className="input" name="dept" value={dept} onChange={(e) => setDept(e.target.value)} />

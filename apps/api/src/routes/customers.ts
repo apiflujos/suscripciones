@@ -94,8 +94,11 @@ customersRouter.get("/", async (_req, res) => {
     where.OR = or;
   }
 
-  const items = await prisma.customer.findMany({ where, orderBy: { createdAt: "desc" }, take, skip });
-  res.json({ items });
+  const [items, total] = await Promise.all([
+    prisma.customer.findMany({ where, orderBy: { createdAt: "desc" }, take, skip }),
+    prisma.customer.count({ where })
+  ]);
+  res.json({ items, total });
 });
 
 customersRouter.get("/:id", async (req, res) => {

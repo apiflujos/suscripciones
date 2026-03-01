@@ -13,9 +13,11 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "country-telephone-data": "^0.6.3",
+    "leaflet": "^1.9.4",
     "next": "^15.5.10",
     "react": "^19.2.1",
-    "react-dom": "^19.2.1"
+    "react-dom": "^19.2.1",
+    "react-leaflet": "^4.2.1"
   },
   "devDependencies": {
     "@types/node": "^20.11.30",

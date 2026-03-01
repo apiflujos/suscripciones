@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { fetchAdminCached, getAdminApiConfig } from "../../lib/adminApi";
 import { LocalDateTime } from "../../ui/LocalDateTime";
+import { LeafletMap } from "../../ui/LeafletMap";
 
 export const dynamic = "force-dynamic";
 
@@ -50,13 +51,17 @@ function collectionLabel(mode: string) {
   return "Plan";
 }
 
-function MiniLine({ values }: { values: number[] }) {
+function MiniLine({ values, formatValue }: { values: number[]; formatValue?: (value: number) => string }) {
   if (!values.length) return <div className="muted">Sin datos para graficar.</div>;
   const w = 260;
   const h = 90;
   const min = Math.min(...values);
   const max = Math.max(...values);
   const range = max - min || 1;
+  const lastValue = values[values.length - 1] ?? 0;
+  const fmt = formatValue || ((value: number) => String(value));
+  const gridY = [0, 0.25, 0.5, 0.75, 1];
+  const gridX = [0, 0.25, 0.5, 0.75, 1];
   const pts = values.map((v, i) => {
     const x = (i / Math.max(1, values.length - 1)) * w;
     const y = h - ((v - min) / range) * h;
@@ -64,11 +69,19 @@ function MiniLine({ values }: { values: number[] }) {
   });
   return (
     <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: 120 }}>
-      {[0.2, 0.5, 0.8].map((t) => (
-        <line key={t} x1="0" y1={h * t} x2={w} y2={h * t} stroke="var(--chart-track)" />
+      {gridY.map((t) => (
+        <line key={`gy-${t}`} x1="0" y1={h * t} x2={w} y2={h * t} stroke="var(--chart-track)" strokeDasharray="3 4" />
       ))}
-      <polyline points={pts.join(" ")} fill="none" stroke="var(--primary)" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+      {gridX.map((t) => (
+        <line key={`gx-${t}`} x1={w * t} y1="0" x2={w * t} y2={h} stroke="var(--chart-track)" strokeDasharray="3 4" />
+      ))}
+      <polyline points={pts.join(" ")} fill="none" stroke="var(--primary)" strokeWidth="2.75" strokeLinejoin="round" strokeLinecap="round" />
+      {values.length > 1 ? (
+        <circle cx={w} cy={h - ((lastValue - min) / range) * h} r="3.5" fill="var(--primary)" />
+      ) : null}
       <line x1="0" y1={h - 0.5} x2={w} y2={h - 0.5} stroke="var(--chart-axis)" />
+      <text x="2" y="10" fontSize="10" fill="var(--text-faint)">{fmt(max)}</text>
+      <text x="2" y={h - 4} fontSize="10" fill="var(--text-faint)">{fmt(min)}</text>
     </svg>
   );
 }
@@ -78,18 +91,25 @@ function MiniBars({ items }: { items: Array<{ label: string; value: number; colo
   const w = 260;
   const h = 90;
   const max = Math.max(...items.map((i) => i.value)) || 1;
+  const gridY = [0, 0.25, 0.5, 0.75, 1];
   const gap = 12;
   const barW = (w - gap * (items.length - 1)) / items.length;
   return (
     <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: 120 }}>
+      {gridY.map((t) => (
+        <line key={`gby-${t}`} x1="0" y1={h * t} x2={w} y2={h * t} stroke="var(--chart-track)" strokeDasharray="3 4" />
+      ))}
       {items.map((item, idx) => {
-        const barH = (item.value / max) * (h - 10);
+        const barH = (item.value / max) * (h - 18);
         const x = idx * (barW + gap);
         return (
           <g key={item.label}>
-            <rect x={x} y={h - barH} width={barW} height={barH} fill={item.color} rx="4" />
-            <text x={x + barW / 2} y={h - barH - 6} textAnchor="middle" fontSize="10" fill="var(--text-faint)">
+            <rect x={x} y={h - barH - 12} width={barW} height={barH} fill={item.color} rx="4" />
+            <text x={x + barW / 2} y={h - barH - 18} textAnchor="middle" fontSize="10" fill="var(--text-faint)">
               {item.value}
+            </text>
+            <text x={x + barW / 2} y={h - 2} textAnchor="middle" fontSize="10" fill="var(--text-faint)">
+              {item.label}
             </text>
           </g>
         );
@@ -111,8 +131,14 @@ async function fetchSubscriptions(id: string) {
   return fetchAdminCached(`/admin/subscriptions?customerId=${encodeURIComponent(id)}&take=40`, { ttlMs: 1500 });
 }
 
-async function fetchLogs(id: string) {
-  return fetchAdminCached(`/admin/logs/system?customerId=${encodeURIComponent(id)}&take=20`, { ttlMs: 1500 });
+async function fetchLogs(id: string, opts?: { take?: number; from?: string; to?: string }) {
+  const params = new URLSearchParams({
+    customerId: id,
+    take: String(opts?.take ?? 20),
+    ...(opts?.from ? { from: opts.from } : {}),
+    ...(opts?.to ? { to: opts.to } : {})
+  });
+  return fetchAdminCached(`/admin/logs/system?${params.toString()}`, { ttlMs: 1500 });
 }
 
 async function fetchTenants() {
@@ -144,9 +170,11 @@ async function geocodeAddress(address: string) {
 }
 
 export default async function CustomerDetailPage({
-  params
+  params,
+  searchParams
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { token } = getAdminApiConfig();
   if (!token) {
@@ -158,11 +186,19 @@ export default async function CustomerDetailPage({
   }
 
   const { id } = await params;
+  const rawSearch = (await searchParams) || {};
+  const logsPage = Math.max(1, Number(rawSearch.logsPage ?? 1));
+  const logsWindowDays = 30;
+  const logsTo = new Date();
+  logsTo.setDate(logsTo.getDate() - logsWindowDays * (logsPage - 1));
+  const logsFrom = new Date();
+  logsFrom.setDate(logsFrom.getDate() - logsWindowDays * logsPage);
+  const logsTake = 12;
   const [customerRes, paymentsRes, subscriptionsRes, logsRes, tenantsRes] = await Promise.all([
     fetchCustomer(id),
     fetchPayments(id),
     fetchSubscriptions(id),
-    fetchLogs(id),
+    fetchLogs(id, { take: logsTake, from: logsFrom.toISOString(), to: logsTo.toISOString() }),
     fetchTenants()
   ]);
 
@@ -221,15 +257,15 @@ export default async function CustomerDetailPage({
       ? { lat: directLat, lon: directLon, label: addressLabel }
       : await geocodeAddress(addressLabel);
 
-  const mapDelta = 0.01;
-  const mapUrl =
-    geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lon)
-      ? `https://www.openstreetmap.org/export/embed.html?bbox=${geo.lon - mapDelta}%2C${geo.lat - mapDelta}%2C${geo.lon + mapDelta}%2C${geo.lat + mapDelta}&layer=mapnik&marker=${geo.lat}%2C${geo.lon}`
-      : "";
+  const addressDisplay = geo?.label || addressLabel || "";
   const mapLink =
     geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lon)
       ? `https://www.openstreetmap.org/?mlat=${geo.lat}&mlon=${geo.lon}#map=15/${geo.lat}/${geo.lon}`
       : "";
+
+  const recentPayments = payments.slice(0, 5);
+  const formatWindowLabel = (fromDate: Date, toDate: Date) =>
+    `${fromDate.toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" })} - ${toDate.toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" })}`;
 
   return (
     <main className="page">
@@ -368,7 +404,7 @@ export default async function CustomerDetailPage({
             </div>
             <div className="chart-range">{approvedPayments.length} aprobados</div>
           </div>
-          <MiniLine values={amountSeries} />
+          <MiniLine values={amountSeries} formatValue={formatCopFromCents} />
           <div className="chart-kpis">
             <span className="chart-kpi">Total <strong>{formatCopFromCents(totalPaidCents)}</strong></span>
             <span className="chart-kpi">Promedio <strong>{formatCopFromCents(approvedPayments.length ? Math.round(totalPaidCents / approvedPayments.length) : 0)}</strong></span>
@@ -441,7 +477,7 @@ export default async function CustomerDetailPage({
 
         <div className="card cardPad customer-section">
           <div className="contact-section-title">Pagos recientes</div>
-          {payments.length ? (
+          {recentPayments.length ? (
             <div className="table-scroll">
               <table className="table">
                 <thead>
@@ -453,7 +489,7 @@ export default async function CustomerDetailPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {payments.map((p: any) => (
+                  {recentPayments.map((p: any) => (
                     <tr key={p.id}>
                       <td><LocalDateTime value={p.paidAt || p.createdAt} /></td>
                       <td>{formatCopFromCents(Number(p.amountInCents || 0))}</td>
@@ -473,6 +509,17 @@ export default async function CustomerDetailPage({
       <section className="grid2">
         <div className="card cardPad customer-section">
           <div className="contact-section-title">Logs del cliente</div>
+          <div className="customer-log-controls">
+            <span className="muted">{formatWindowLabel(logsFrom, logsTo)}</span>
+            <div className="customer-log-actions">
+              <Link className="ghost btn-compact" href={`/customers/${customer.id}?logsPage=${logsPage + 1}`}>
+                Mes anterior
+              </Link>
+              <Link className="ghost btn-compact" href={`/customers/${customer.id}?logsPage=${Math.max(1, logsPage - 1)}`} aria-disabled={logsPage <= 1}>
+                Más reciente
+              </Link>
+            </div>
+          </div>
           {logs.length ? (
             <div className="customer-log-list">
               {logs.map((l: any) => (
@@ -489,16 +536,28 @@ export default async function CustomerDetailPage({
               ))}
             </div>
           ) : (
-            <div className="muted">Sin logs relacionados.</div>
+            <div className="muted">Sin logs en este periodo.</div>
           )}
         </div>
 
         <div className="card cardPad customer-section">
           <div className="contact-section-title">Ubicación del cliente</div>
-          {addressLabel ? <div className="contact-subline">{addressLabel}</div> : <div className="muted">Sin dirección registrada.</div>}
+          <div className="customer-address">
+            {addressDisplay ? (
+              <div className="customer-address-meta">
+                <div>Dirección registrada</div>
+                <strong>{addressDisplay}</strong>
+                {geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lon) ? (
+                  <span className="muted">Coordenadas: {geo.lat.toFixed(5)}, {geo.lon.toFixed(5)}</span>
+                ) : null}
+              </div>
+            ) : (
+              <div className="muted">Sin dirección registrada.</div>
+            )}
+          </div>
           <div className="customer-map">
-            {mapUrl ? (
-              <iframe title="Mapa del cliente" src={mapUrl} loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
+            {geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lon) ? (
+              <LeafletMap lat={geo.lat} lon={geo.lon} label={addressDisplay || undefined} />
             ) : (
               <div className="muted" style={{ padding: 16 }}>Sin coordenadas disponibles.</div>
             )}

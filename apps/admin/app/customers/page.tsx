@@ -2,11 +2,10 @@ import { createCustomer } from "./actions";
 import { CustomersModals } from "./CustomersModals";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { normalizeErrorParam } from "../lib/errorParam";
-import { HelpTip } from "../ui/HelpTip";
 import { CustomersTable } from "./CustomersTable";
 import { getCsrfToken } from "../lib/csrf";
-import { createTenant } from "../tenants/actions";
 import { createPlanAndSubscription } from "../billing/actions";
+import { CustomersFilters } from "./CustomersFilters";
 
 export const dynamic = "force-dynamic";
 
@@ -140,7 +139,6 @@ export default async function CustomersPage({
     ...(txCustomerId ? { tx: txCustomerId } : {}),
     ...(Number.isFinite(page) && page > 1 ? { page: String(page) } : {})
   }).toString()}`;
-  const tenantCreated = typeof sp.tenantCreated === "string" ? sp.tenantCreated : "";
   const take = 10;
   const [data, tenantsRes, txCustomer, productsRes, templatesRes] = await Promise.all([
     fetchCustomers({ q, take, page, tenantId }),
@@ -150,6 +148,7 @@ export default async function CustomersPage({
     fetchCheckoutTemplates(tenantId)
   ]);
   const items = (data.items ?? []) as any[];
+  const total = Number.isFinite(Number(data.total)) ? Number(data.total) : items.length;
   if (txCustomer && !items.some((c) => String(c.id) === String(txCustomer.id))) {
     items.unshift(txCustomer);
   }
@@ -169,24 +168,39 @@ export default async function CustomersPage({
   const paymentLink = typeof sp.paymentLink === "string" ? sp.paymentLink : "";
   const error = normalizeErrorParam(typeof sp.error === "string" ? sp.error : undefined);
 
-  const renderPagination = () => {
+  const renderPagination = (totalCount: number) => {
     const currentPage = Math.max(1, Number(page) || 1);
-    const hasNext = items.length >= take;
-    const maxForward = hasNext ? 1 : 0;
+    const totalPages = totalCount > 0 ? Math.max(1, Math.ceil(totalCount / take)) : 1;
+    const hasNext = totalCount > 0 ? currentPage < totalPages : items.length >= take;
     const desktopWindow = 10;
-    const end = currentPage + maxForward;
-    const start = Math.max(1, end - (desktopWindow - 1));
+    let start = Math.max(1, currentPage - Math.floor(desktopWindow / 2));
+    let end = start + desktopWindow - 1;
+    if (end > totalPages) {
+      end = totalPages;
+      start = Math.max(1, end - (desktopWindow - 1));
+    }
     const pages = [];
     for (let i = start; i <= end; i += 1) pages.push(i);
     const mobileWindow = 5;
-    const mobileStart = Math.max(start, Math.min(currentPage - 2, end - (mobileWindow - 1)));
-    const mobileEnd = Math.min(end, mobileStart + (mobileWindow - 1));
+    let mobileStart = Math.max(1, currentPage - 2);
+    let mobileEnd = mobileStart + (mobileWindow - 1);
+    if (mobileEnd > totalPages) {
+      mobileEnd = totalPages;
+      mobileStart = Math.max(1, mobileEnd - (mobileWindow - 1));
+    }
     const baseParams = {
       ...(q ? { q } : {}),
       ...(tenantId ? { tenantId } : {})
     };
+    const startIndex = totalCount > 0 ? (currentPage - 1) * take + 1 : 0;
+    const endIndex = items.length ? Math.min(totalCount, startIndex + items.length - 1) : 0;
+    const summaryLabel =
+      items.length > 0
+        ? `Mostrando ${startIndex}-${endIndex} de ${totalCount} · ${take} por página`
+        : "Sin resultados";
     return (
       <div className="pagination pagination-indicator">
+        <div className="pagination-summary">{summaryLabel}</div>
         <a
           className="page-link page-nav"
           href={`/customers?${new URLSearchParams({
@@ -238,61 +252,33 @@ export default async function CustomersPage({
       {deleted ? <div className="card cardPad">Contacto eliminado.</div> : null}
       {paymentSource ? <div className="card cardPad">Método de pago guardado.</div> : null}
       {paymentLink ? <div className="card cardPad">Link de pago enviado.</div> : null}
-      {tenantCreated ? <div className="card cardPad">Canal creado.</div> : null}
-
       <section className="settings-group">
         <div className="settings-group-header">
+          <div className="contacts-toolbar">
+            <CustomersModals
+              customers={items}
+              products={productsRes?.items ?? []}
+              checkoutTemplates={templatesRes?.items ?? []}
+              csrfToken={csrfToken}
+              tenants={tenants}
+              tenantId={tenantId}
+              createCustomer={createCustomer}
+              createPlanAndSubscription={createPlanAndSubscription}
+              returnTo={returnTo}
+              actionsClassName="contacts-toolbar-actions"
+            />
+          </div>
           <div className="filtersRow">
             <div className="filtersLeft">
-              <div className="filtersNote">Administra contactos, métodos de pago y envíos rápidos de links o catálogos.</div>
               <div className="filtersPanel">
-                <form action="/customers" method="GET" className="filtersForm">
-                  {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-                  <input className="input" name="q" defaultValue={q} placeholder="Nombre, email, teléfono o identificación..." aria-label="Buscar contactos" />
-                  <button className="ghost" type="submit">
-                    Buscar
-                  </button>
-                </form>
-                <form action="/customers" method="GET" className="filtersForm">
-                  {q ? <input type="hidden" name="q" value={q} /> : null}
-                  <select className="select" name="tenantId" defaultValue={tenantId}>
-                    <option value="">Canal: (todos)</option>
-                    {tenants.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
-                    ))}
-                  </select>
-                  <button className="ghost" type="submit">Aplicar</button>
-                </form>
-                <form action={createTenant} className="filtersForm">
-                  <input type="hidden" name="csrf" value={csrfToken} />
-                  <input type="hidden" name="returnTo" value={`/customers${tenantId || q ? `?${new URLSearchParams({ ...(tenantId ? { tenantId } : {}), ...(q ? { q } : {}) }).toString()}` : ""}`} />
-                  <input className="input" name="name" placeholder="Nuevo canal" />
-                  <button className="ghost btn-create" type="submit">Crear canal</button>
-                </form>
+                <CustomersFilters q={q} tenantId={tenantId} tenants={tenants} />
               </div>
-            </div>
-            <div className="filtersRight">
-              <CustomersModals
-                customers={items}
-                products={productsRes?.items ?? []}
-                checkoutTemplates={templatesRes?.items ?? []}
-                csrfToken={csrfToken}
-                tenants={tenants}
-                tenantId={tenantId}
-                createCustomer={createCustomer}
-                createPlanAndSubscription={createPlanAndSubscription}
-                returnTo={returnTo}
-                actionsClassName="filtersActions"
-              />
-              <span className="pill">{items.length} resultados · 10 por página</span>
             </div>
           </div>
         </div>
 
         <div className="settings-group-body">
-          {renderPagination()}
+          {renderPagination(total)}
 
           <CustomersTable
             items={items.map((c) => ({ ...c, tenantName: tenantById.get(String(c.tenantId || "")) || "—" }))}
@@ -309,7 +295,7 @@ export default async function CustomersPage({
             initialTxCustomerId={txCustomerId}
           />
 
-          {renderPagination()}
+          {renderPagination(total)}
         </div>
       </section>
     </main>

@@ -1,6 +1,6 @@
 import express from "express";
 import { prisma } from "../db/prisma";
-import { Prisma, RetryJobStatus, RetryJobType, WebhookProvider } from "@prisma/client";
+import { Prisma, RetryJobStatus, RetryJobType, WebhookProvider, WebhookProcessStatus } from "@prisma/client";
 import { classifyReference } from "../webhooks/wompi/classifyReference";
 import { systemLog } from "../services/systemLog";
 import { LogLevel } from "@prisma/client";
@@ -297,7 +297,110 @@ logsRouter.get("/jobs", async (req, res) => {
   const take = Math.min(200, Math.max(1, Number(req.query.take ?? 50)));
   const skip = Math.max(0, Number(req.query.skip ?? 0));
   const items = await prisma.retryJob.findMany({ orderBy: { updatedAt: "desc" }, take, skip });
-  res.json({ items });
+
+  const subscriptionIds = new Set<string>();
+  const paymentIds = new Set<string>();
+  const customerIds = new Set<string>();
+  const webhookIds = new Set<string>();
+  const messageIds = new Set<string>();
+
+  for (const item of items) {
+    const payload: any = item.payload || {};
+    if (payload.subscriptionId) subscriptionIds.add(String(payload.subscriptionId));
+    if (payload.paymentId) paymentIds.add(String(payload.paymentId));
+    if (payload.customerId) customerIds.add(String(payload.customerId));
+    if (payload.webhookEventId) webhookIds.add(String(payload.webhookEventId));
+    if (payload.messageId) messageIds.add(String(payload.messageId));
+  }
+
+  const [subscriptions, payments, customers, webhooks, messages] = await Promise.all([
+    subscriptionIds.size
+      ? prisma.subscription.findMany({
+          where: { id: { in: Array.from(subscriptionIds) } },
+          include: { customer: true, plan: true }
+        })
+      : Promise.resolve([]),
+    paymentIds.size
+      ? prisma.payment.findMany({
+          where: { id: { in: Array.from(paymentIds) } },
+          include: { customer: true, subscription: { include: { plan: true } } }
+        })
+      : Promise.resolve([]),
+    customerIds.size
+      ? prisma.customer.findMany({ where: { id: { in: Array.from(customerIds) } } })
+      : Promise.resolve([]),
+    webhookIds.size
+      ? prisma.webhookEvent.findMany({ where: { id: { in: Array.from(webhookIds) } } })
+      : Promise.resolve([]),
+    messageIds.size
+      ? prisma.chatwootMessage.findMany({
+          where: { id: { in: Array.from(messageIds) } },
+          include: { customer: true, subscription: true, payment: true }
+        })
+      : Promise.resolve([])
+  ]);
+
+  const subById = new Map(subscriptions.map((s) => [String(s.id), s]));
+  const paymentById = new Map(payments.map((p) => [String(p.id), p]));
+  const customerById = new Map(customers.map((c) => [String(c.id), c]));
+  const webhookById = new Map(webhooks.map((w) => [String(w.id), w]));
+  const messageById = new Map(messages.map((m) => [String(m.id), m]));
+
+  function formatTarget(payload: any) {
+    const subscriptionId = payload?.subscriptionId ? String(payload.subscriptionId) : "";
+    const paymentId = payload?.paymentId ? String(payload.paymentId) : "";
+    const customerId = payload?.customerId ? String(payload.customerId) : "";
+    const webhookEventId = payload?.webhookEventId ? String(payload.webhookEventId) : "";
+    const messageId = payload?.messageId ? String(payload.messageId) : "";
+
+    if (paymentId && paymentById.has(paymentId)) {
+      const p: any = paymentById.get(paymentId);
+      const customer = p.customer?.name || p.customer?.email || p.customer?.phone || p.customerId;
+      const plan = p.subscription?.plan?.name ? ` · ${p.subscription.plan.name}` : "";
+      return { label: `Pago · ${customer}${plan}`, id: paymentId };
+    }
+    if (subscriptionId && subById.has(subscriptionId)) {
+      const s: any = subById.get(subscriptionId);
+      const customer = s.customer?.name || s.customer?.email || s.customer?.phone || s.customerId;
+      const plan = s.plan?.name ? ` · ${s.plan.name}` : "";
+      return { label: `Suscripción · ${customer}${plan}`, id: subscriptionId };
+    }
+    if (messageId && messageById.has(messageId)) {
+      const m: any = messageById.get(messageId);
+      const customer = m.customer?.name || m.customer?.email || m.customer?.phone || m.customerId;
+      return { label: `Mensaje · ${customer}`, id: messageId };
+    }
+    if (webhookEventId && webhookById.has(webhookEventId)) {
+      const w: any = webhookById.get(webhookEventId);
+      return { label: `Webhook · ${w.eventName || w.id}`, id: webhookEventId };
+    }
+    if (customerId && customerById.has(customerId)) {
+      const c: any = customerById.get(customerId);
+      return { label: `Cliente · ${c.name || c.email || c.phone || c.id}`, id: customerId };
+    }
+    if (subscriptionId) return { label: `Suscripción · ${subscriptionId}`, id: subscriptionId };
+    if (paymentId) return { label: `Pago · ${paymentId}`, id: paymentId };
+    if (customerId) return { label: `Cliente · ${customerId}`, id: customerId };
+    if (messageId) return { label: `Mensaje · ${messageId}`, id: messageId };
+    if (webhookEventId) return { label: `Webhook · ${webhookEventId}`, id: webhookEventId };
+    return { label: "—", id: null };
+  }
+
+  const enriched = items.map((item) => {
+    const payload: any = item.payload || {};
+    const target = formatTarget(payload);
+    const webhookEventId = payload?.webhookEventId ? String(payload.webhookEventId) : null;
+    const webhook = webhookEventId && webhookById.has(webhookEventId) ? webhookById.get(webhookEventId) : null;
+    return {
+      ...item,
+      targetLabel: target.label,
+      targetId: target.id,
+      webhookProcessStatus: webhook ? (webhook as any).processStatus : null,
+      webhookErrorMessage: webhook ? (webhook as any).errorMessage : null
+    };
+  });
+
+  res.json({ items: enriched });
 });
 
 logsRouter.get("/messages", async (req, res) => {
@@ -340,4 +443,67 @@ logsRouter.post("/jobs/:id/retry", async (req, res) => {
     data: { status: RetryJobStatus.PENDING, runAt: new Date(), lockedAt: null, lockedBy: null }
   });
   res.json({ ok: true });
+});
+
+logsRouter.post("/webhooks/retry-failed", async (_req, res) => {
+  const failed = await prisma.webhookEvent.findMany({
+    where: { provider: WebhookProvider.WOMPI, processStatus: WebhookProcessStatus.FAILED },
+    orderBy: { receivedAt: "desc" },
+    take: 200
+  });
+  if (!failed.length) return res.json({ ok: true, retried: 0 });
+
+  const pendingJobs = await prisma.retryJob.findMany({
+    where: {
+      type: RetryJobType.PROCESS_WOMPI_EVENT,
+      status: { in: [RetryJobStatus.PENDING, RetryJobStatus.RUNNING] }
+    }
+  });
+  const pendingIds = new Set(
+    pendingJobs
+      .map((j: any) => (j.payload as any)?.webhookEventId)
+      .filter((id: any) => typeof id === "string" && id.length)
+  );
+
+  const toRetry = failed.filter((event) => !pendingIds.has(event.id));
+  if (!toRetry.length) return res.json({ ok: true, retried: 0, skipped: failed.length });
+
+  await prisma.webhookEvent.updateMany({
+    where: { id: { in: toRetry.map((e) => e.id) } },
+    data: { processStatus: WebhookProcessStatus.RECEIVED, errorMessage: null, processedAt: null }
+  });
+
+  await prisma.retryJob.createMany({
+    data: toRetry.map((event) => ({
+      type: RetryJobType.PROCESS_WOMPI_EVENT,
+      payload: { webhookEventId: event.id }
+    }))
+  });
+
+  res.json({ ok: true, retried: toRetry.length, skipped: failed.length - toRetry.length });
+});
+
+logsRouter.post("/webhooks/:id/retry", async (req, res) => {
+  const id = String(req.params.id || "").trim();
+  if (!id) return res.status(400).json({ error: "invalid_id" });
+  const event = await prisma.webhookEvent.findUnique({ where: { id } });
+  if (!event) return res.status(404).json({ error: "not_found" });
+
+  const pending = await prisma.retryJob.findFirst({
+    where: {
+      type: RetryJobType.PROCESS_WOMPI_EVENT,
+      status: { in: [RetryJobStatus.PENDING, RetryJobStatus.RUNNING] },
+      payload: { path: ["webhookEventId"], equals: id } as any
+    }
+  });
+  if (pending) return res.json({ ok: true, retried: 0, reason: "already_pending" });
+
+  await prisma.webhookEvent.update({
+    where: { id },
+    data: { processStatus: WebhookProcessStatus.RECEIVED, errorMessage: null, processedAt: null }
+  });
+  await prisma.retryJob.create({
+    data: { type: RetryJobType.PROCESS_WOMPI_EVENT, payload: { webhookEventId: id } }
+  });
+  res.json({ ok: true, retried: 1 });
 });

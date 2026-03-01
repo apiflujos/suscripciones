@@ -70,6 +70,34 @@ async function recollectPayments(formData: FormData) {
   revalidatePath("/logs");
 }
 
+async function retryFailedWebhooks(formData: FormData) {
+  "use server";
+  await assertCsrfToken(formData);
+  const { apiBase, token } = getConfig();
+  if (!token) return;
+  await fetch(`${apiBase}/admin/logs/webhooks/retry-failed`, {
+    method: "POST",
+    cache: "no-store",
+    headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
+  }).catch(() => {});
+  revalidatePath("/logs");
+}
+
+async function retryWebhook(formData: FormData) {
+  "use server";
+  await assertCsrfToken(formData);
+  const { apiBase, token } = getConfig();
+  if (!token) return;
+  const id = String(formData.get("id") || "").trim();
+  if (!id) return;
+  await fetch(`${apiBase}/admin/logs/webhooks/${encodeURIComponent(id)}/retry`, {
+    method: "POST",
+    cache: "no-store",
+    headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
+  }).catch(() => {});
+  revalidatePath("/logs");
+}
+
 function normalizeLogSource(source: any) {
   const s = String(source || "");
   if (s === "settings.shopify") return "configuracion.reenvio";
@@ -124,6 +152,15 @@ function paymentStatusChip(raw: any) {
   if (status === "APPROVED" || status === "PAID") return { cls: "is-success", label: "Pagado" };
   if (status === "PENDING" || status === "PROCESSING") return { cls: "is-warning", label: "Pendiente" };
   if (status === "DECLINED" || status === "ERROR" || status === "VOIDED" || status === "FAILED") return { cls: "is-error", label: "Fallido" };
+  return { cls: "is-warning", label: status || "—" };
+}
+
+function processStatusChip(raw: any) {
+  const status = String(raw || "").toUpperCase();
+  if (status === "PROCESSED") return { cls: "is-success", label: "Procesado" };
+  if (status === "FAILED") return { cls: "is-error", label: "Fallido" };
+  if (status === "SKIPPED") return { cls: "is-warning", label: "Omitido" };
+  if (status === "RECEIVED") return { cls: "is-warning", label: "Recibido" };
   return { cls: "is-warning", label: status || "—" };
 }
 
@@ -428,6 +465,7 @@ export default async function LogsPage({
                     <th>Tipo</th>
                     <th>Estado</th>
                     <th>Intentos</th>
+                    <th>Objetivo</th>
                     <th>Detalle</th>
                     <th />
                   </tr>
@@ -444,6 +482,14 @@ export default async function LogsPage({
                     const attemptsRaw = Number(j.attempts ?? 0);
                     const maxAttempts = Number(j.maxAttempts ?? 0);
                     const attemptsShown = status === "SUCCEEDED" && attemptsRaw === 0 ? 1 : attemptsRaw;
+                    const target = j.targetLabel || j.payload?.subscriptionId || j.payload?.paymentId || j.payload?.customerId || j.payload?.webhookEventId || "—";
+                    const webhookNote =
+                      j.webhookProcessStatus === "FAILED"
+                        ? `Webhook fallido: ${j.webhookErrorMessage || "sin detalle"}`
+                        : j.webhookProcessStatus === "PROCESSED"
+                          ? "Webhook procesado"
+                          : null;
+                    const detail = j.lastError || webhookNote || "—";
                     return (
                       <tr key={j.id}>
                         <td><LocalDateTime value={j.updatedAt} /></td>
@@ -455,7 +501,8 @@ export default async function LogsPage({
                           </span>
                         </td>
                         <td>{attemptsShown} / {maxAttempts}</td>
-                        <td>{j.lastError || "—"}</td>
+                        <td>{target}</td>
+                        <td>{detail}</td>
                         <td style={{ textAlign: "right" }}>
                           {status === "FAILED" ? (
                             <form action={retryJob}>
@@ -472,7 +519,7 @@ export default async function LogsPage({
                   })}
                   {jobItems.length === 0 ? (
                     <tr>
-                      <td colSpan={6} style={{ color: "var(--muted)" }}>
+                      <td colSpan={7} style={{ color: "var(--muted)" }}>
                         Sin jobs.
                       </td>
                     </tr>
@@ -561,6 +608,12 @@ export default async function LogsPage({
                     <span className="pill pill-warn">Omitidos {webhooksSummary.skipped}</span>
                     <span className="pill pill-bad">Fallidos {webhooksSummary.failed}</span>
                   </div>
+                  <form action={retryFailedWebhooks}>
+                    <input type="hidden" name="csrf" value={csrfToken} />
+                    <PendingButton className="ghost btn-retry" type="submit" pendingText="Reprocesando...">
+                      Reprocesar fallidos
+                    </PendingButton>
+                  </form>
                 </div>
               </div>
               <table className="table" aria-label="Tabla de webhooks">
@@ -572,33 +625,60 @@ export default async function LogsPage({
                     <th>Referencia</th>
                     <th>Tipo</th>
                     <th>Plan</th>
-                    <th>Estado</th>
+                    <th>Procesamiento</th>
+                    <th>Pago</th>
+                    <th>Fallo</th>
                     <th />
                   </tr>
                 </thead>
                 <tbody>
                   {webhookItems.map((e) => {
                     const chip = paymentStatusChip(e.paymentStatus);
+                    const processChip = processStatusChip(e.processStatus);
                     const contactQuery = e.customerEmail || e.customerPhone || e.customerName;
+                    const refMeta = [e.wompiTransactionId ? `Tx ${e.wompiTransactionId}` : null, e.wompiPaymentLinkId ? `Link ${e.wompiPaymentLinkId}` : null]
+                      .filter(Boolean)
+                      .join(" · ");
                     return (
                       <tr key={e.id}>
                         <td><LocalDateTime value={e.receivedAt} /></td>
                         <td>{renderContactBlock(e)}</td>
                         <td>{formatAmount(e.amountInCents, e.currency)}</td>
-                        <td>{e.reference || "—"}</td>
+                        <td>
+                          <div style={{ display: "grid", gap: 2 }}>
+                            <span>{e.reference || "—"}</span>
+                            {refMeta ? <span className="muted" style={{ fontSize: 12 }}>{refMeta}</span> : null}
+                          </div>
+                        </td>
                         <td>{e.paymentType || e.eventName || "—"}</td>
                         <td>{e.planName || "—"}</td>
+                        <td>
+                          <span className={`status-chip ${processChip.cls}`}>
+                            <span className={`status-led ${processChip.cls === "is-success" ? "is-ok" : ""}`} />
+                            {processChip.label}
+                          </span>
+                        </td>
                         <td>
                           <span className={`status-chip ${chip.cls}`}>
                             <span className={`status-led ${chip.cls === "is-success" ? "is-ok" : ""}`} />
                             {chip.label}
                           </span>
                         </td>
+                        <td>{e.errorMessage || "—"}</td>
                         <td style={{ textAlign: "right" }}>
                           {contactQuery ? (
                             <Link className="ghost btn-compact btn-view" href={`/customers?q=${encodeURIComponent(String(contactQuery))}`}>
                               Ver cliente
                             </Link>
+                          ) : null}
+                          {String(e.processStatus || "").toUpperCase() === "FAILED" ? (
+                            <form action={retryWebhook} style={{ display: "inline-flex", marginLeft: 8 }}>
+                              <input type="hidden" name="csrf" value={csrfToken} />
+                              <input type="hidden" name="id" value={e.id} />
+                              <PendingButton className="ghost btn-compact btn-retry" type="submit" pendingText="Reintentando...">
+                                Reintentar
+                              </PendingButton>
+                            </form>
                           ) : null}
                         </td>
                       </tr>
@@ -606,7 +686,7 @@ export default async function LogsPage({
                   })}
                   {webhookItems.length === 0 ? (
                     <tr>
-                      <td colSpan={8} style={{ color: "var(--muted)" }}>
+                      <td colSpan={10} style={{ color: "var(--muted)" }}>
                         Sin eventos.
                       </td>
                     </tr>
