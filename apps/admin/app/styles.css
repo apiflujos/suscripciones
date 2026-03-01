@@ -3214,15 +3214,15 @@ textarea.input {
 .realtime-status {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
+  gap: 6px;
+  padding: 0;
   border-radius: 999px;
-  border: 1px solid var(--stroke);
-  background: var(--panel);
+  border: 0;
+  background: transparent;
   color: var(--text);
   font-size: 11px;
   font-weight: 600;
-  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.18);
+  box-shadow: none;
 }
 
 .topbarRealtimeSlot {
@@ -3237,19 +3237,17 @@ textarea.input {
 }
 
 .topbar .realtime-status {
-  padding: 6px 10px;
+  padding: 0;
   border-radius: 999px;
-  background: var(--surface-2);
-  border: 1px solid var(--stroke);
+  background: transparent;
+  border: 0;
   box-shadow: none;
   font-size: 11px;
-  height: 40px;
+  height: auto;
 }
 
 .topbar .realtime-status-text {
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  white-space: nowrap;
+  display: none;
 }
 
 @media (max-width: 980px) {
@@ -3296,6 +3294,7 @@ textarea.input {
   border-radius: 999px;
   background: var(--text-faint);
   display: inline-block;
+  box-shadow: 0 0 0 2px var(--surface-2);
 }
 
 .date-stack {

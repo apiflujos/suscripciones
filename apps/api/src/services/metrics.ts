@@ -575,7 +575,10 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
       link: {
         linksSent: num(linksTotalsRow[0]?.links_sent ?? 0),
         linksPaid: num(linksTotalsRow[0]?.links_paid_in_range ?? 0),
-        conversionLinkToPayPct: num(linksTotalsRow[0]?.links_sent ?? 0) > 0 ? (num(linksTotalsRow[0]?.links_paid_any ?? 0) / num(linksTotalsRow[0]?.links_sent ?? 0)) * 100 : 0,
+        conversionLinkToPayPct:
+          num(linksTotalsRow[0]?.links_sent ?? 0) > 0
+            ? (num(linksTotalsRow[0]?.links_paid_in_range ?? 0) / num(linksTotalsRow[0]?.links_sent ?? 0)) * 100
+            : null,
         revenueInCents: num(linksTotalsRow[0]?.link_revenue_cents ?? 0),
         avgTimeToPaySec: linksTotalsRow[0]?.avg_time_to_pay_sec == null ? null : Number(linksTotalsRow[0]?.avg_time_to_pay_sec)
       },

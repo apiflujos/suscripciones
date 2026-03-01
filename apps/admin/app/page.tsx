@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { fetchAdminCached, fetchPublicCached, getAdminApiConfig } from "./lib/adminApi";
 import { MetricsFilters } from "./ui/MetricsFilters";
+import { HelpTip } from "./ui/HelpTip";
 import { AiAssistant } from "./logs/AiAssistant";
 import {
   alignSeries,
@@ -464,7 +465,7 @@ export default async function Home({
   const approvalPct = totalPayments > 0 ? (totalPaymentsOk / totalPayments) * 100 : 0;
   const avgTicket = totalPaymentsOk > 0 ? Math.round(totalRevenue / totalPaymentsOk) : 0;
   const totalActiveSubscriptions = Number(metrics.json?.totals?.totalActiveSubscriptions || 0);
-  const linkConversionPct = Number(metrics.json?.totals?.link?.conversionLinkToPayPct || 0);
+  const linkConversionPctRaw = metrics.json?.totals?.link?.conversionLinkToPayPct ?? null;
   const autoMrr = Number(metrics.json?.totals?.auto?.mrrInCents || 0);
   const autoActive = Number(metrics.json?.totals?.auto?.activeSubscriptions || 0);
   const autoNew = Number(metrics.json?.totals?.auto?.newSubscriptions || 0);
@@ -487,6 +488,8 @@ export default async function Home({
   const successRateSeries = okTotalSeries + failTotalSeries > 0 ? (okTotalSeries / (okTotalSeries + failTotalSeries)) * 100 : 0;
   const linksSentTotal = sum(linksSent);
   const linksPaidTotal = sum(linksPaid);
+  const hasLinkActivity = linksSentTotal > 0 || linksPaidTotal > 0;
+  const linkConversionPct = hasLinkActivity && linkConversionPctRaw != null ? Number(linkConversionPctRaw) : null;
   const activeStart = activeSubs[0] ?? 0;
   const activeEnd = activeSubs[activeSubs.length - 1] ?? 0;
   const activeDelta = activeEnd - activeStart;
@@ -494,9 +497,9 @@ export default async function Home({
   const approvalRateAvg = avg(approvalRateSeries);
   const approvalRateLast = approvalRateSeries[approvalRateSeries.length - 1] ?? 0;
   const approvalRateMax = Math.max(0, ...approvalRateSeries);
-  const linkConversionAvg = avg(linkConversionSeries);
-  const linkConversionLast = linkConversionSeries[linkConversionSeries.length - 1] ?? 0;
-  const linkConversionMax = Math.max(0, ...linkConversionSeries);
+  const linkConversionAvg = hasLinkActivity ? avg(linkConversionSeries) : null;
+  const linkConversionLast = hasLinkActivity ? (linkConversionSeries[linkConversionSeries.length - 1] ?? 0) : null;
+  const linkConversionMax = hasLinkActivity ? Math.max(0, ...linkConversionSeries) : null;
 
   const revenueLink = Number(metrics.json?.breakdown?.revenueByPlanTypeInCents?.manual_link || 0);
   const revenueAuto = Number(metrics.json?.breakdown?.revenueByPlanTypeInCents?.auto_subscription || 0);
@@ -511,7 +514,10 @@ export default async function Home({
   const prevPaymentsFail = Number(prevTotals?.totalPaymentsFailed || 0);
   const prevPaymentsTotal = prevPaymentsOk + prevPaymentsFail;
   const prevApprovalPct = prevPaymentsTotal > 0 ? (prevPaymentsOk / prevPaymentsTotal) * 100 : 0;
-  const prevLinkConversion = Number(prevTotals?.link?.conversionLinkToPayPct || 0);
+  const prevLinkConversionRaw = prevTotals?.link?.conversionLinkToPayPct ?? null;
+  const prevLinksSentTotal = sum(prevLinksSent);
+  const prevLinksPaidTotal = sum(prevLinksPaid);
+  const prevHasLinkActivity = prevLinksSentTotal > 0 || prevLinksPaidTotal > 0;
   const prevPlansSold = Number(prevTotals?.totalPlansSold || 0);
   const prevAutoActive = Number(prevTotals?.auto?.activeSubscriptions || 0);
   const prevAutoNew = Number(prevTotals?.auto?.newSubscriptions || 0);
@@ -526,15 +532,21 @@ export default async function Home({
 
   const revenueDeltaPct = hasPrev ? pctChange(totalRevenue, prevRevenue) : null;
   const approvalDeltaPp = hasPrev ? approvalPct - prevApprovalPct : null;
-  const linkConversionDeltaPp = hasPrev ? linkConversionPct - prevLinkConversion : null;
+  const linkConversionDeltaPp =
+    hasPrev && linkConversionPct != null && prevLinkConversionRaw != null && prevHasLinkActivity
+      ? linkConversionPct - Number(prevLinkConversionRaw)
+      : null;
   const plansDeltaPct = hasPrev ? pctChange(metrics.json?.totals?.totalPlansSold || 0, prevPlansSold) : null;
   const autoActiveDelta = hasPrev ? autoActive - prevAutoActive : null;
   const autoActiveDeltaPct = hasPrev ? pctChange(autoActive, prevAutoActive) : null;
   const autoNetDelta = hasPrev ? autoNet - prevAutoNet : null;
   const autoApprovalDeltaPp = hasPrev ? autoApprovalPct - prevAutoApprovalPct : null;
-  const autoMrrDeltaPct = hasPrev ? pctChange(autoMrr, prevAutoMrr) : null;
+  const hasAutoActivity = autoActive > 0 || autoMrr > 0 || autoNew > 0 || autoCancels > 0;
+  const autoMrrDisplay = hasAutoActivity ? autoMrr : null;
+  const autoMrrDeltaPct = hasPrev && hasAutoActivity ? pctChange(autoMrr, prevAutoMrr) : null;
+  const autoChurnDisplay = hasAutoActivity ? autoChurn : null;
   const autoChurnDeltaPp =
-    hasPrev && autoChurn != null && prevAutoChurn != null ? Number(autoChurn) - Number(prevAutoChurn) : null;
+    hasPrev && hasAutoActivity && autoChurn != null && prevAutoChurn != null ? Number(autoChurn) - Number(prevAutoChurn) : null;
 
   const firstDataAt = metrics.ok ? isoDateFromTimestamp(metrics.json?.meta?.firstDataAt || null) : "";
   const maxDate = defaultTo;
@@ -630,7 +642,10 @@ export default async function Home({
                           <path d="M6 9h.01M18 15h.01" />
                         </svg>
                       </span>
-                      <div className="metric-label">Ingresos totales</div>
+                      <div className="metric-label">
+                        Ingresos totales
+                        <HelpTip text="Suma de pagos aprobados en el rango. Solo cuenta pagos con fecha de pago confirmada." />
+                      </div>
                       <div className="metric-value">${fmtMoneyCop(totalRevenue)} COP</div>
                       <div className="metric-sub">
                         Ticket promedio: ${fmtMoneyCop(avgTicket)} COP ·
@@ -646,7 +661,10 @@ export default async function Home({
                           <path d="M8 12l3 3 5-6" />
                         </svg>
                       </span>
-                      <div className="metric-label">Tasa de aprobación</div>
+                      <div className="metric-label">
+                        Tasa de aprobación
+                        <HelpTip text="Porcentaje de pagos aprobados vs fallidos en el período. Sirve para medir fricción en cobros." />
+                      </div>
                       <div className="metric-value">{fmtPct(approvalPct)}</div>
                       <div className="metric-sub">
                         {totalPaymentsOk} OK · {totalPaymentsFail} fallidos ·
@@ -660,11 +678,22 @@ export default async function Home({
                           <path d="M14 11a5 5 0 0 0-7.1 0L4.8 13.1a5 5 0 0 0 7.1 7.1L14 19" />
                         </svg>
                       </span>
-                      <div className="metric-label">Conversión link → pago</div>
+                      <div className="metric-label">
+                        Conversión link → pago
+                        <HelpTip text="De los links de pago enviados en el rango, cuántos terminaron pagados. Si no se enviaron links, no se calcula." />
+                      </div>
                       <div className="metric-value">{fmtPct(linkConversionPct)}</div>
                       <div className="metric-sub">
-                        {linksSentTotal} enviados · {linksPaidTotal} pagados ·
-                        <span className={`delta ${linkConversionDeltaPp == null ? "flat" : linkConversionDeltaPp >= 0 ? "up" : "down"}`}>{fmtDeltaPp(linkConversionDeltaPp)}</span>
+                        {hasLinkActivity ? (
+                          <>
+                            {linksSentTotal} enviados · {linksPaidTotal} pagados ·
+                            <span className={`delta ${linkConversionDeltaPp == null ? "flat" : linkConversionDeltaPp >= 0 ? "up" : "down"}`}>
+                              {fmtDeltaPp(linkConversionDeltaPp)}
+                            </span>
+                          </>
+                        ) : (
+                          <>Sin links enviados en el período.</>
+                        )}
                       </div>
                     </div>
                     <div className="card cardPad metric-card tone-info">
@@ -676,7 +705,10 @@ export default async function Home({
                           <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                         </svg>
                       </span>
-                      <div className="metric-label">Suscripciones activas</div>
+                      <div className="metric-label">
+                        Suscripciones activas
+                        <HelpTip text="Cantidad de suscripciones vigentes (activa, en mora o suspendida) al cierre del rango." />
+                      </div>
                       <div className="metric-value">{totalActiveSubscriptions}</div>
                       <div className="metric-sub">Δ {activeDelta >= 0 ? "+" : ""}{activeDelta} ({fmtPct(activeDeltaPct)})</div>
                     </div>
@@ -687,9 +719,14 @@ export default async function Home({
                           <polyline points="21 3 21 9 15 9" />
                         </svg>
                       </span>
-                      <div className="metric-label">MRR automático</div>
-                      <div className="metric-value">${fmtMoneyCop(autoMrr)} COP</div>
-                      <div className="metric-sub">Churn mensual: {fmtPct(metrics.json?.totals?.auto?.churnMonthlyPct)}</div>
+                      <div className="metric-label">
+                        MRR automático
+                        <HelpTip text="Ingreso recurrente mensual estimado de suscripciones automáticas activas. Si no hay autosuscripciones, no aplica." />
+                      </div>
+                      <div className="metric-value">{autoMrrDisplay == null ? "—" : `$${fmtMoneyCop(autoMrr)} COP`}</div>
+                      <div className="metric-sub">
+                        {hasAutoActivity ? <>Churn mensual: {fmtPct(autoChurnDisplay)}</> : <>Sin autosuscripciones activas.</>}
+                      </div>
                     </div>
                     <div className="card cardPad metric-card tone-warning">
                       <span className="metric-icon" aria-hidden="true">
@@ -699,7 +736,10 @@ export default async function Home({
                           <line x1="12" y1="22.08" x2="12" y2="12" />
                         </svg>
                       </span>
-                      <div className="metric-label">Planes vendidos</div>
+                      <div className="metric-label">
+                        Planes vendidos
+                        <HelpTip text="Suscripciones cuyo primer pago aprobado ocurrió en el rango." />
+                      </div>
                       <div className="metric-value">{metrics.json?.totals?.totalPlansSold || 0}</div>
                       <div className="metric-sub">
                         Rango: {rangeLabel} ·
@@ -872,19 +912,23 @@ export default async function Home({
                         </div>
                         <div className="chart-range">{rangeLabel}</div>
                       </div>
-                      {mrrSeries.some((v) => v != null) ? (
-                        <ChartLines
-                          series={mrrLineSeries}
-                          labels={bucketLabels}
-                          tooltipLabel={(v, i, label) => `${bucketLabels[i] || ""} · ${label}: $${fmtMoneyCop(v)} COP`}
-                        />
+                      {hasAutoActivity ? (
+                        mrrSeries.some((v) => Number(v || 0) > 0) ? (
+                          <ChartLines
+                            series={mrrLineSeries}
+                            labels={bucketLabels}
+                            tooltipLabel={(v, i, label) => `${bucketLabels[i] || ""} · ${label}: $${fmtMoneyCop(v)} COP`}
+                          />
+                        ) : (
+                          <div className="muted">No hay datos de MRR en este período.</div>
+                        )
                       ) : (
-                        <div className="muted">No hay datos de MRR en este período.</div>
+                        <div className="muted">Sin autosuscripciones activas en el período.</div>
                       )}
                       <div className="chart-kpis">
-                        <span className="chart-kpi">MRR <strong>${fmtMoneyCop(autoMrr)} COP</strong></span>
+                        <span className="chart-kpi">MRR <strong>{autoMrrDisplay == null ? "—" : `$${fmtMoneyCop(autoMrr)} COP`}</strong></span>
                         <span className="chart-kpi">Δ <strong>{fmtDelta(autoMrrDeltaPct)}</strong></span>
-                        <span className="chart-kpi">Churn <strong>{fmtPct(autoChurn)}</strong></span>
+                        <span className="chart-kpi">Churn <strong>{fmtPct(autoChurnDisplay)}</strong></span>
                       </div>
                     </div>
                   </div>
@@ -902,9 +946,13 @@ export default async function Home({
                         </div>
                         <div className="chart-range">{rangeLabel} · {periodLabel}</div>
                       </div>
-                      <ChartBars a={linksSent} b={linksPaid} aLabel="Enviados" bLabel="Pagados" labels={bucketLabels} />
+                      {hasLinkActivity ? (
+                        <ChartBars a={linksSent} b={linksPaid} aLabel="Enviados" bLabel="Pagados" labels={bucketLabels} />
+                      ) : (
+                        <div className="muted">Sin links enviados en el período.</div>
+                      )}
                       <div className="chart-kpis">
-                        <span className="chart-kpi">Conversión <strong>{fmtPct(metrics.json?.totals?.link?.conversionLinkToPayPct)}</strong></span>
+                        <span className="chart-kpi">Conversión <strong>{fmtPct(linkConversionPct)}</strong></span>
                         <span className="chart-kpi">Ingresos <strong>${fmtMoneyCop(metrics.json?.totals?.link?.revenueInCents || 0)} COP</strong></span>
                         <span className="chart-kpi">
                           Tiempo prom. <strong>{metrics.json?.totals?.link?.avgTimeToPaySec == null ? "—" : `${Math.round(Number(metrics.json.totals.link.avgTimeToPaySec) / 60)} min`}</strong>
@@ -920,11 +968,15 @@ export default async function Home({
                         </div>
                         <div className="chart-range">{rangeLabel} · {periodLabel}</div>
                       </div>
-                      <ChartLines
-                        series={linkConversionLineSeries}
-                        labels={bucketLabels}
-                        tooltipLabel={(v, i, label) => `${bucketLabels[i] || ""} · ${label}: ${fmtPct(v)}`}
-                      />
+                      {hasLinkActivity ? (
+                        <ChartLines
+                          series={linkConversionLineSeries}
+                          labels={bucketLabels}
+                          tooltipLabel={(v, i, label) => `${bucketLabels[i] || ""} · ${label}: ${fmtPct(v)}`}
+                        />
+                      ) : (
+                        <div className="muted">Sin datos de conversión en el período.</div>
+                      )}
                       <div className="chart-kpis">
                         <span className="chart-kpi">Promedio <strong>{fmtPct(linkConversionAvg)}</strong></span>
                         <span className="chart-kpi">Último <strong>{fmtPct(linkConversionLast)}</strong></span>
@@ -1048,7 +1100,7 @@ export default async function Home({
                             <span className={`delta ${autoMrrDeltaPct == null ? "flat" : autoMrrDeltaPct >= 0 ? "up" : "down"}`}>
                               {fmtDelta(autoMrrDeltaPct)}
                             </span>
-                            · Churn {fmtPct(autoChurn)} ·
+                            · Churn {fmtPct(autoChurnDisplay)} ·
                             <span className={`delta ${autoChurnDeltaPp == null ? "flat" : autoChurnDeltaPp <= 0 ? "up" : "down"}`}>
                               {fmtDeltaPp(autoChurnDeltaPp)}
                             </span>
