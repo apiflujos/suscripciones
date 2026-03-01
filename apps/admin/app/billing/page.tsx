@@ -529,7 +529,7 @@ export default async function BillingPage({
                         <input type="hidden" name="customerId" value={r.customerId} />
                         <input type="hidden" name="returnTo" value={returnTo} />
                         {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                        <button className="ghost btn-compact btn-blue btn-send" type="submit" title="Enviar por CentralCom">
+                        <button className="ghost btn-compact btn-blue btn-pay" type="submit" title="Enviar por CentralCom">
                           Enviar link de pago
                         </button>
                       </form>
@@ -543,12 +543,12 @@ export default async function BillingPage({
                               <input type="hidden" name="planId" value={r.planId} />
                               <input type="hidden" name="returnTo" value={returnTo} />
                               {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                              <button className="ghost btn-compact btn-blue btn-send" type="submit" title="Enviar por CentralCom">
+                              <button className="ghost btn-compact btn-blue btn-token" type="submit" title="Enviar por CentralCom">
                                 Enviar tokenización
                               </button>
                             </form>
                           ) : (
-                            <a className="ghost btn-compact btn-amber" href="/settings?tab=checkout-publico">
+                            <a className="ghost btn-compact btn-amber btn-open" href="/settings?tab=checkout-publico">
                               Crear checkout
                             </a>
                           )
@@ -559,7 +559,7 @@ export default async function BillingPage({
                               <input type="hidden" name="csrf" value={csrfToken} />
                               <input type="hidden" name="subscriptionId" value={r.id} />
                               {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                              <button className="ghost btn-compact btn-blue" type="submit">
+                              <button className="ghost btn-compact btn-blue btn-pay" type="submit">
                                 Cobrar ahora
                               </button>
                             </form>
@@ -618,7 +618,7 @@ export default async function BillingPage({
                       <DeletePlanButton action={deletePlanAndSubscription} csrfToken={csrfToken} subscriptionId={r.id} planId={r.planId} tenantId={r.tenantId} />
                     ) : null}
                     <a
-                      className="ghost btn-compact"
+                      className="ghost btn-compact btn-open"
                       href={`/customers?${new URLSearchParams({
                         tx: r.customerId,
                         ...(r.tenantId ? { tenantId: r.tenantId } : {})
@@ -633,7 +633,7 @@ export default async function BillingPage({
                         {cutoffForRow ? <span>Fecha de corte actualizada.</span> : null}
                         {rowTokenUrl ? (
                           <>
-                            <a href={rowTokenUrl} target="_blank" rel="noreferrer" style={{ textDecoration: "underline" }}>
+                            <a className="ghost btn-compact btn-open" href={rowTokenUrl} target="_blank" rel="noreferrer">
                               Abrir checkout
                             </a>
                             <CopyButton text={rowTokenUrl} />
@@ -641,7 +641,7 @@ export default async function BillingPage({
                         ) : null}
                         {rowCheckoutUrl ? (
                           <>
-                            <a href={rowCheckoutUrl} target="_blank" rel="noreferrer" style={{ textDecoration: "underline" }}>
+                            <a className="ghost btn-compact btn-open" href={rowCheckoutUrl} target="_blank" rel="noreferrer">
                               Abrir link
                             </a>
                             <CopyButton text={rowCheckoutUrl} />

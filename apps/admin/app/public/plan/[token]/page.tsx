@@ -117,13 +117,16 @@ export default async function PublicPlanPage({ params }: { params: Promise<{ tok
           <input className="input" readOnly value={customer.email || ""} />
         </div>
       ) : null}
-      {checkoutUrl ? (
-        <a className="primary" href={checkoutUrl} referrerPolicy="no-referrer">
-          {ctaLabel}
-        </a>
-      ) : (
-        <PublicAlert>{PUBLIC_COPY.errorNoCheckout}</PublicAlert>
-      )}
+      <div className="payment-point">
+        <div className="payment-point-title">Punto de pago</div>
+        {checkoutUrl ? (
+          <a className="primary btn-pay" href={checkoutUrl} referrerPolicy="no-referrer">
+            {ctaLabel}
+          </a>
+        ) : (
+          <PublicAlert>{PUBLIC_COPY.errorNoCheckout}</PublicAlert>
+        )}
+      </div>
     </PublicCheckoutLayout>
   );
 }

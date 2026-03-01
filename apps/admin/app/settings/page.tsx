@@ -241,9 +241,12 @@ export default async function SettingsPage({
                 ] as const).map(([envKey, envLabel, wompi]) => (
                   <div className="saved-conn-card" key={`wompi-${envKey}`}>
                     <div className="saved-conn-header">
-                      <div>
-                        <strong>Wompi · {envLabel}</strong>
-                        <div className="saved-conn-sub">{envKey === wompiActiveEnv ? "Activa" : "Inactiva"}</div>
+                      <div className="saved-conn-title-row">
+                        <img className="saved-conn-icon" src="/brand/conn-wompi.png" alt="" />
+                        <div>
+                          <strong>Wompi · {envLabel}</strong>
+                          <div className="saved-conn-sub">{envKey === wompiActiveEnv ? "Activa" : "Inactiva"}</div>
+                        </div>
                       </div>
                       <span className={`pill ${envKey === wompiActiveEnv ? "pill-green" : "pill-muted"}`}>
                         {envKey === wompiActiveEnv ? "Activa" : "Inactiva"}

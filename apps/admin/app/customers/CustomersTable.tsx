@@ -503,11 +503,11 @@ export function CustomersTable({
               </div>
               <div className="contact-paylink contact-footer">
                   <div className="paylink-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-start" }}>
-                    <Link className="ghost btn-compact btn-amber" href={`/customers/${c.id}/payment-method`}>
+                    <Link className="ghost btn-compact btn-amber btn-token" href={`/customers/${c.id}/payment-method`}>
                       {hasToken(c) ? "Tokenizar otra tarjeta" : "Tokenizar"}
                     </Link>
                     <button
-                      className="ghost btn-compact btn-amber"
+                      className="ghost btn-compact btn-amber btn-token"
                       type="button"
                       data-modal="true"
                       onClick={() => openTokenModal(c)}
@@ -544,7 +544,7 @@ export function CustomersTable({
                       </button>
                     ) : null}
                     <button
-                      className="ghost btn-compact btn-blue btn-send"
+                      className="ghost btn-compact btn-blue btn-pay"
                       type="button"
                       data-modal="true"
                       onClick={() => openPayModal(c)}
@@ -573,17 +573,17 @@ export function CustomersTable({
                       return (
                         <>
                           {paymentLink ? (
-                            <a className="ghost btn-compact btn-blue btn-link" href={paymentLink} target="_blank" rel="noreferrer" title={maskUrl(paymentLink)}>
+                            <a className="ghost btn-compact btn-blue btn-open" href={paymentLink} target="_blank" rel="noreferrer" title={maskUrl(paymentLink)}>
                               Link de pago
                             </a>
                           ) : null}
                           {tokenLink ? (
-                            <a className="ghost btn-compact btn-amber btn-link" href={tokenLink} target="_blank" rel="noreferrer" title={maskUrl(tokenLink)}>
+                            <a className="ghost btn-compact btn-amber btn-token" href={tokenLink} target="_blank" rel="noreferrer" title={maskUrl(tokenLink)}>
                               Link de tokenización
                             </a>
                           ) : null}
                           {cartLink ? (
-                            <a className="ghost btn-compact btn-green btn-link" href={cartLink} target="_blank" rel="noreferrer" title={maskUrl(cartLink)}>
+                            <a className="ghost btn-compact btn-green btn-open" href={cartLink} target="_blank" rel="noreferrer" title={maskUrl(cartLink)}>
                               Link de catálogo
                             </a>
                           ) : null}
