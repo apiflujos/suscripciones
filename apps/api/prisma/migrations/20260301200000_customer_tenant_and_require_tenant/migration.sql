@@ -58,10 +58,14 @@ BEGIN
   UPDATE "WebhookEvent" SET "tenantId" = tid WHERE "tenantId" IS NULL;
 
   UPDATE "ChatwootMessage" m
-  SET "tenantId" = COALESCE(m."tenantId", p."tenantId", s."tenantId", c."tenantId", tid)
+  SET "tenantId" = COALESCE(
+    m."tenantId",
+    (SELECT p."tenantId" FROM "Payment" p WHERE p."id" = m."paymentId"),
+    (SELECT s."tenantId" FROM "Subscription" s WHERE s."id" = m."subscriptionId"),
+    c."tenantId",
+    tid
+  )
   FROM "Customer" c
-  LEFT JOIN "Payment" p ON p."id" = m."paymentId"
-  LEFT JOIN "Subscription" s ON s."id" = m."subscriptionId"
   WHERE m."tenantId" IS NULL AND m."customerId" = c."id";
 
   UPDATE "ReportCache" SET "tenantId" = tid WHERE "tenantId" IS NULL;
