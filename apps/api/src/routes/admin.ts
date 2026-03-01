@@ -166,7 +166,11 @@ export async function listWebhookEvents(req: Request, res: Response) {
     const tx = (item.payload as any)?.data?.transaction || {};
     const payment = resolvePayment(item);
     return {
-      ...item,
+      id: item.id,
+      eventName: item.eventName,
+      processStatus: item.processStatus,
+      errorMessage: item.errorMessage,
+      receivedAt: item.receivedAt,
       providerTs: item.providerTs != null ? item.providerTs.toString() : null,
       paymentType: paymentTypeFor(item),
       planName: planNameFor(item),

@@ -53,7 +53,13 @@ logsRouter.get("/system", async (req, res) => {
     ...(levelFilter || {}),
     ...(customerFilter || {})
   } as Prisma.SystemLogWhereInput;
-  const items = await prisma.systemLog.findMany({ where: finalWhere, orderBy: { createdAt: "desc" }, take, skip });
+  const items = await prisma.systemLog.findMany({
+    where: finalWhere,
+    orderBy: { createdAt: "desc" },
+    take,
+    skip,
+    select: { id: true, level: true, source: true, message: true, context: true, createdAt: true }
+  });
 
   const subscriptionIds = new Set<string>();
   const customerIds = new Set<string>();
@@ -74,23 +80,39 @@ logsRouter.get("/system", async (req, res) => {
     subscriptionIds.size
       ? prisma.subscription.findMany({
           where: { id: { in: Array.from(subscriptionIds) } },
-          include: { customer: true, plan: true }
+          select: {
+            id: true,
+            customerId: true,
+            customer: { select: { name: true, email: true, phone: true } },
+            plan: { select: { name: true } }
+          }
         })
       : Promise.resolve([]),
     customerIds.size
-      ? prisma.customer.findMany({ where: { id: { in: Array.from(customerIds) } } })
+      ? prisma.customer.findMany({
+          where: { id: { in: Array.from(customerIds) } },
+          select: { id: true, name: true, email: true, phone: true }
+        })
       : Promise.resolve([]),
     planIds.size
-      ? prisma.subscriptionPlan.findMany({ where: { id: { in: Array.from(planIds) } } })
+      ? prisma.subscriptionPlan.findMany({
+          where: { id: { in: Array.from(planIds) } },
+          select: { id: true, name: true }
+        })
       : Promise.resolve([]),
     paymentIds.size
       ? prisma.payment.findMany({
           where: { id: { in: Array.from(paymentIds) } },
-          include: { customer: true, subscription: { include: { plan: true } } }
+          select: {
+            id: true,
+            customerId: true,
+            customer: { select: { name: true, email: true, phone: true } },
+            subscription: { select: { plan: { select: { name: true } } } }
+          }
         })
       : Promise.resolve([]),
     webhookIds.size
-      ? prisma.webhookEvent.findMany({ where: { id: { in: Array.from(webhookIds) } } })
+      ? prisma.webhookEvent.findMany({ where: { id: { in: Array.from(webhookIds) } }, select: { id: true, eventName: true } })
       : Promise.resolve([])
   ]);
 
@@ -344,7 +366,18 @@ logsRouter.get("/jobs", async (req, res) => {
     },
     orderBy: { updatedAt: "desc" },
     take,
-    skip
+    skip,
+    select: {
+      id: true,
+      type: true,
+      status: true,
+      attempts: true,
+      maxAttempts: true,
+      runAt: true,
+      updatedAt: true,
+      payload: true,
+      lastError: true
+    }
   });
 
   const subscriptionIds = new Set<string>();
