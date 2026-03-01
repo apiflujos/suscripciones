@@ -67,25 +67,34 @@ export async function setReportCache(
   const expiresAt = new Date(now.getTime() + Math.max(0, ttlSeconds) * 1000);
   const staleAt = staleSeconds ? new Date(now.getTime() + Math.max(0, staleSeconds) * 1000) : null;
   const filtersHash = hashFilters(key.filters);
-  await prisma.reportCache.upsert({
+  const existing = await prisma.reportCache.findFirst({
     where: {
-      reportKey_tenantId_from_to_granularity_filtersHash_version: {
-        reportKey: key.reportKey,
-        tenantId: key.tenantId ?? null,
-        from: key.from,
-        to: key.to,
-        granularity: key.granularity ?? null,
-        filtersHash: filtersHash ?? null,
-        version: key.version ?? null
+      reportKey: key.reportKey,
+      tenantId: key.tenantId ?? null,
+      from: key.from,
+      to: key.to,
+      granularity: key.granularity ?? null,
+      filtersHash: filtersHash ?? null,
+      version: key.version ?? null
+    },
+    select: { id: true }
+  });
+
+  if (existing) {
+    await prisma.reportCache.update({
+      where: { id: existing.id },
+      data: {
+        payload,
+        computedAt: now,
+        expiresAt,
+        staleAt
       }
-    },
-    update: {
-      payload,
-      computedAt: now,
-      expiresAt,
-      staleAt
-    },
-    create: {
+    });
+    return;
+  }
+
+  await prisma.reportCache.create({
+    data: {
       reportKey: key.reportKey,
       tenantId: key.tenantId ?? null,
       from: key.from,
