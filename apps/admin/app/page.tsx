@@ -425,6 +425,18 @@ export default async function Home({
   const prevMetrics = hasToken
     ? await fetchAdminCached(`/admin/metrics/overview?${prevMetricsQuery.toString()}`, { ttlMs: 1500 })
     : { ok: false, status: 401, json: { error: "missing_admin_token" } };
+  const reportsQuery = new URLSearchParams({
+    from: fromIso,
+    to: toIso,
+    granularity: g,
+    ...(tenantId ? { tenantId } : {})
+  });
+  const opsRes = hasToken
+    ? await fetchAdminCached(`/admin/reports/operations?${reportsQuery.toString()}`, { ttlMs: 1500 })
+    : { ok: false, status: 401, json: { error: "missing_admin_token" } };
+  const chatwootRes = hasToken
+    ? await fetchAdminCached(`/admin/reports/chatwoot?${reportsQuery.toString()}`, { ttlMs: 1500 })
+    : { ok: false, status: 401, json: { error: "missing_admin_token" } };
 
   const series: any[] = metrics.ok ? metrics.json?.series || [] : [];
   const prevSeries: any[] = prevMetrics.ok ? prevMetrics.json?.series || [] : [];
@@ -443,6 +455,19 @@ export default async function Home({
   const mrrSeries = series.map((p) => (p?.mrrInCents == null ? null : Number(p.mrrInCents)));
   const prevMrrSeries = alignSeries(prevSeries.map((p) => Number(p?.mrrInCents ?? 0)), mrrSeries.length);
   const bucketLabels = series.map((p) => fmtBucketLabel(String(p?.at || ""), g));
+  const opsSeries: any[] = opsRes.ok ? opsRes.json?.series || [] : [];
+  const opsLabels = opsSeries.map((p) => fmtBucketLabel(String(p?.at || ""), g));
+  const webhookProcessed = opsSeries.map((p) => Number(p?.webhooks?.processed || 0));
+  const webhookFailed = opsSeries.map((p) => Number(p?.webhooks?.failed || 0));
+  const jobsCreated = opsSeries.map((p) => Number(p?.jobs?.created || 0));
+  const jobsFailed = opsSeries.map((p) => Number(p?.jobs?.failed || 0));
+  const chatSeries: any[] = chatwootRes.ok ? chatwootRes.json?.series || [] : [];
+  const chatLabels = chatSeries.map((p) => fmtBucketLabel(String(p?.at || ""), g));
+  const chatSent = chatSeries.map((p) => Number(p?.sent || 0));
+  const chatFailed = chatSeries.map((p) => Number(p?.failed || 0));
+  const chatPending = chatSeries.map((p) => Number(p?.pending || 0));
+  const opsTotals = opsRes.ok ? opsRes.json?.totals || null : null;
+  const chatTotals = chatwootRes.ok ? chatwootRes.json?.totals || null : null;
   const approvalRateSeries = okSeries.map((ok, i) => {
     const total = ok + (failSeries[i] ?? 0);
     return total > 0 ? (ok / total) * 100 : 0;
@@ -907,6 +932,105 @@ export default async function Home({
                       />
                     </div>
                   ) : null}
+                </div>
+              </div>
+
+              <div className="grid2">
+                <div className="card cardPad chart-card">
+                  <div className="chart-header">
+                    <div>
+                      <div className="chart-title">Webhooks: procesados vs fallidos</div>
+                      <div className="chart-sub">Salud operativa por {periodLabel.toLowerCase()}.</div>
+                    </div>
+                    <div className="chart-range">{rangeLabel} · {periodLabel}</div>
+                  </div>
+                  {opsRes.ok ? (
+                    <>
+                      <ChartBars a={webhookProcessed} b={webhookFailed} aLabel="Procesados" bLabel="Fallidos" labels={opsLabels} />
+                      <div className="chart-kpis">
+                        <span className="chart-kpi">Procesados <strong>{opsTotals?.webhooks?.processed ?? 0}</strong></span>
+                        <span className="chart-kpi">Fallidos <strong>{opsTotals?.webhooks?.failed ?? 0}</strong></span>
+                        <span className="chart-kpi">Total <strong>{opsTotals?.webhooks?.total ?? 0}</strong></span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="muted">No pudimos cargar operaciones.</div>
+                  )}
+                </div>
+
+                <div className="card cardPad chart-card">
+                  <div className="chart-header">
+                    <div>
+                      <div className="chart-title">Jobs: creados vs fallidos</div>
+                      <div className="chart-sub">Cola y reintentos en el período.</div>
+                    </div>
+                    <div className="chart-range">{rangeLabel} · {periodLabel}</div>
+                  </div>
+                  {opsRes.ok ? (
+                    <>
+                      <ChartBars a={jobsCreated} b={jobsFailed} aLabel="Creados" bLabel="Fallidos" labels={opsLabels} />
+                      <div className="chart-kpis">
+                        <span className="chart-kpi">Pendientes <strong>{opsTotals?.jobs?.pending ?? 0}</strong></span>
+                        <span className="chart-kpi">Fallidos <strong>{opsTotals?.jobs?.failed ?? 0}</strong></span>
+                        <span className="chart-kpi">Running <strong>{opsTotals?.jobs?.running ?? 0}</strong></span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="muted">No pudimos cargar operaciones.</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid2">
+                <div className="card cardPad chart-card">
+                  <div className="chart-header">
+                    <div>
+                      <div className="chart-title">Chatwoot: enviados vs fallidos</div>
+                      <div className="chart-sub">Mensajes salientes del período.</div>
+                    </div>
+                    <div className="chart-range">{rangeLabel} · {periodLabel}</div>
+                  </div>
+                  {chatwootRes.ok ? (
+                    <>
+                      <ChartBars a={chatSent} b={chatFailed} aLabel="Enviados" bLabel="Fallidos" labels={chatLabels} />
+                      <div className="chart-kpis">
+                        <span className="chart-kpi">Enviados <strong>{chatTotals?.sent ?? 0}</strong></span>
+                        <span className="chart-kpi">Fallidos <strong>{chatTotals?.failed ?? 0}</strong></span>
+                        <span className="chart-kpi">Pendientes <strong>{chatTotals?.pending ?? 0}</strong></span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="muted">No pudimos cargar Chatwoot.</div>
+                  )}
+                </div>
+
+                <div className="card cardPad chart-card">
+                  <div className="chart-header">
+                    <div>
+                      <div className="chart-title">Logs críticos</div>
+                      <div className="chart-sub">Errores y alertas recientes.</div>
+                    </div>
+                    <div className="chart-range">{rangeLabel} · {periodLabel}</div>
+                  </div>
+                  {opsRes.ok ? (
+                    <>
+                      <ChartLines
+                        series={[
+                          { label: "Errores", values: opsSeries.map((p) => Number(p?.logs?.error || 0)), color: "var(--status-danger)" },
+                          { label: "Alertas", values: opsSeries.map((p) => Number(p?.logs?.warn || 0)), color: "var(--status-warning)", dashed: true }
+                        ]}
+                        labels={opsLabels}
+                        tooltipLabel={(v, i, label) => `${opsLabels[i] || \"\"} · ${label}: ${v}`}
+                      />
+                      <div className="chart-kpis">
+                        <span className="chart-kpi">Errores <strong>{opsTotals?.logs?.error ?? 0}</strong></span>
+                        <span className="chart-kpi">Alertas <strong>{opsTotals?.logs?.warn ?? 0}</strong></span>
+                        <span className="chart-kpi">Info <strong>{opsTotals?.logs?.info ?? 0}</strong></span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="muted">No pudimos cargar logs.</div>
+                  )}
                 </div>
               </div>
             </>

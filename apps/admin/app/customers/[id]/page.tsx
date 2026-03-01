@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { fetchAdminCached, getAdminApiConfig } from "../../lib/adminApi";
 import { LocalDateTime } from "../../ui/LocalDateTime";
-import { LeafletMap } from "../../ui/LeafletMap";
 import { TimelineScroller } from "../../ui/TimelineScroller";
+import { MapModal } from "../../ui/MapModal";
 
 export const dynamic = "force-dynamic";
 
@@ -463,7 +463,15 @@ export default async function CustomerDetailPage({
         <div className="customer-hero-meta">
           <div className="hero-head">
             <div className="hero-name-block">
-              <div className="contact-title">{customer.name || customer.email || customer.phone || "Contacto"}</div>
+              <div className="hero-name-row">
+                <div className="contact-title">{customer.name || customer.email || customer.phone || "Contacto"}</div>
+                <span className={`pill pill-sm tier-badge level-badge ${tier.cls}`}>
+                  <span className="tier-icon" aria-hidden="true">
+                    {tierIcon(tier.icon)}
+                  </span>
+                  Nivel {tier.label}
+                </span>
+              </div>
               <div className="contact-subline">{customer.email || "—"} · {customer.phone || "—"}</div>
               <div className="contact-subline">ID: <span className="mono">{customer.id}</span></div>
               <div className="contact-tags">
@@ -479,12 +487,6 @@ export default async function CustomerDetailPage({
                 ) : (
                   <span className="pill pill-muted pill-sm">Sin suscripciones</span>
                 )}
-                <span className={`pill pill-sm tier-badge ${tier.cls}`}>
-                  <span className="tier-icon" aria-hidden="true">
-                    {tierIcon(tier.icon)}
-                  </span>
-                  {tier.label}
-                </span>
               </div>
             </div>
             <div className="hero-subs hero-subs-block">
@@ -546,30 +548,35 @@ export default async function CustomerDetailPage({
       <section className="grid2">
         <div className="card cardPad customer-section compact">
           <div className="contact-section-title">Información del cliente</div>
-          <div className="summary-grid">
-            <div className="summary-item">
-              <span className="summary-label">Email</span>
-              <span className="summary-value">{customer.email || "—"}</span>
+          <div className="invoice-header">
+            <div className="invoice-top">
+              <div className="invoice-name">{customer.name || customer.email || customer.phone || "Contacto"}</div>
+              <div className="invoice-id">
+                <span className="invoice-label">NIT / ID</span>
+                <span className="invoice-value mono">{meta?.identificacion || meta?.identificationNumber || meta?.documentNumber || "—"}</span>
+              </div>
             </div>
-            <div className="summary-item">
-              <span className="summary-label">Teléfono</span>
-              <span className="summary-value">{customer.phone || "—"}</span>
+            <div className="invoice-row">
+              <div className="invoice-item">
+                <span className="invoice-label">Email</span>
+                <span className="invoice-value truncate">{customer.email || "—"}</span>
+              </div>
+              <div className="invoice-item">
+                <span className="invoice-label">Teléfono</span>
+                <span className="invoice-value">{customer.phone || "—"}</span>
+              </div>
+              <div className="invoice-item">
+                <span className="invoice-label">Canal</span>
+                <span className="invoice-value">{tenantName || customer.tenantId || "—"}</span>
+              </div>
+              <div className="invoice-item">
+                <span className="invoice-label">Creado</span>
+                <span className="invoice-value"><LocalDateTime value={customer.createdAt} /></span>
+              </div>
             </div>
-            <div className="summary-item">
-              <span className="summary-label">Identificación</span>
-              <span className="summary-value">{meta?.identificacion || meta?.identificationNumber || meta?.documentNumber || "—"}</span>
-            </div>
-            <div className="summary-item">
-              <span className="summary-label">Canal</span>
-              <span className="summary-value">{tenantName || customer.tenantId || "—"}</span>
-            </div>
-            <div className="summary-item">
-              <span className="summary-label">Creado</span>
-              <span className="summary-value"><LocalDateTime value={customer.createdAt} /></span>
-            </div>
-            <div className="summary-item summary-span-3">
-              <span className="summary-label">Dirección</span>
-              <span className="summary-value">{addressDisplay || "—"}</span>
+            <div className="invoice-address">
+              <span className="invoice-label">Dirección</span>
+              <span className="invoice-value">{addressDisplay || "—"}</span>
             </div>
           </div>
         </div>
@@ -609,19 +616,35 @@ export default async function CustomerDetailPage({
         </div>
       </section>
 
-      <section className="grid2">
+      <section className="grid3">
         <div className="card cardPad chart-card">
           <div className="chart-header">
             <div>
-              <div className="chart-title">Pagos aprobados recientes</div>
-              <div className="chart-sub">Últimos 12 movimientos (solo aprobados).</div>
+              <div className="chart-title">Pagos recientes y por mes</div>
+              <div className="chart-sub">Últimos 12 aprobados + últimos 6 meses.</div>
             </div>
             <div className="chart-range">{approvedPayments.length} aprobados</div>
           </div>
-          <MiniLine values={amountSeries} formatValue={formatCopFromCents} />
+          <div className="chart-split">
+            <div>
+              <div className="chart-mini-label">Recientes</div>
+              <MiniLine values={amountSeries} formatValue={formatCopFromCents} />
+            </div>
+            <div>
+              <div className="chart-mini-label">Por mes</div>
+              <MiniBars
+                items={monthLabels.map((label, idx) => ({
+                  label,
+                  value: monthlyCounts[idx],
+                  color: "var(--chart-a)"
+                }))}
+              />
+            </div>
+          </div>
           <div className="chart-kpis">
             <span className="chart-kpi">Total <strong>{formatCopFromCents(totalPaidCents)}</strong></span>
             <span className="chart-kpi">Promedio <strong>{formatCopFromCents(approvedPayments.length ? Math.round(totalPaidCents / approvedPayments.length) : 0)}</strong></span>
+            <span className="chart-kpi">Pagos 6m <strong>{monthlyCounts.reduce((a, b) => a + b, 0)}</strong></span>
           </div>
         </div>
 
@@ -647,25 +670,6 @@ export default async function CustomerDetailPage({
             <span><i style={{ background: "var(--status-warning)" }} />Pendientes {pendingPayments.length}</span>
             <span><i style={{ background: "var(--status-danger)" }} />Fallidos {failedPayments.length}</span>
           </div>
-        </div>
-      </section>
-
-      <section className="grid2">
-        <div className="card cardPad chart-card">
-          <div className="chart-header">
-            <div>
-              <div className="chart-title">Pagos por mes</div>
-              <div className="chart-sub">Últimos 6 meses.</div>
-            </div>
-            <div className="chart-range">{monthlyCounts.reduce((a, b) => a + b, 0)} pagos</div>
-          </div>
-          <MiniBars
-            items={monthLabels.map((label, idx) => ({
-              label,
-              value: monthlyCounts[idx],
-              color: "var(--chart-a)"
-            }))}
-          />
         </div>
 
         <div className="card cardPad chart-card">
@@ -722,12 +726,25 @@ export default async function CustomerDetailPage({
               <span className="summary-value">{payments.length}</span>
             </div>
           </div>
-          {cadenceItems.length ? (
-            <div className="kpi-mini">
-              <div className="kpi-mini-title">Cadencia de pagos (días)</div>
-              <MiniBars items={cadenceItems} />
+          <div className="kpi-mini-grid">
+            <div className="kpi-mini-card">
+              <div className="kpi-mini-title">Estado de pagos</div>
+              <MiniDonut
+                totalLabel="Pagos"
+                items={[
+                  { label: "Aprobados", value: approvedPayments.length, color: "var(--status-success)" },
+                  { label: "Pendientes", value: pendingPayments.length, color: "var(--status-warning)" },
+                  { label: "Fallidos", value: failedPayments.length, color: "var(--status-danger)" }
+                ]}
+              />
             </div>
-          ) : null}
+            {cadenceItems.length ? (
+              <div className="kpi-mini-card">
+                <div className="kpi-mini-title">Cadencia de pagos (días)</div>
+                <MiniBars items={cadenceItems} />
+              </div>
+            ) : null}
+          </div>
         </div>
 
         <div className="card cardPad customer-section">
@@ -801,18 +818,11 @@ export default async function CustomerDetailPage({
               <div className="muted">Sin dirección registrada.</div>
             )}
           </div>
-          <div className="customer-map">
-            {geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lon) ? (
-              <LeafletMap lat={geo.lat} lon={geo.lon} label={addressDisplay || undefined} />
-            ) : (
-              <div className="muted" style={{ padding: 16 }}>Sin coordenadas disponibles.</div>
-            )}
-          </div>
-          {mapLink ? (
-            <a className="ghost btn-compact" href={mapLink} target="_blank" rel="noreferrer">
-              Abrir en OpenStreetMap
-            </a>
-          ) : null}
+          {geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lon) ? (
+            <MapModal lat={geo.lat} lon={geo.lon} label={addressDisplay || undefined} mapLink={mapLink || undefined} />
+          ) : (
+            <div className="muted">Sin coordenadas disponibles.</div>
+          )}
         </div>
 
         <div className="card cardPad customer-section">

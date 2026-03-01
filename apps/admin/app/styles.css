@@ -1964,6 +1964,86 @@ textarea.input {
   overflow-wrap: anywhere;
 }
 
+.invoice-header {
+  display: grid;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: var(--surface-2);
+}
+
+.invoice-top {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.invoice-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.invoice-id {
+  display: grid;
+  gap: 2px;
+  text-align: right;
+}
+
+.invoice-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+.invoice-item {
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--stroke);
+  background: var(--panel);
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.invoice-address {
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--stroke);
+  background: var(--panel);
+  display: grid;
+  gap: 4px;
+}
+
+.invoice-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  font-weight: 700;
+}
+
+.invoice-value {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.invoice-address .invoice-value {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.invoice-value.truncate {
+  max-width: 240px;
+}
+
 .kpi-mini {
   margin-top: 8px;
   display: grid;
@@ -1976,6 +2056,22 @@ textarea.input {
   letter-spacing: 0.08em;
   color: var(--text-faint);
   font-weight: 700;
+}
+
+.kpi-mini-grid {
+  margin-top: 8px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.kpi-mini-card {
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  background: var(--surface-2);
+  padding: 10px;
+  display: grid;
+  gap: 6px;
 }
 
 .table-meta {
@@ -2251,6 +2347,13 @@ textarea.input {
   gap: 6px;
 }
 
+.hero-name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .hero-subs-block {
   display: grid;
   align-content: center;
@@ -2300,6 +2403,19 @@ textarea.input {
   width: 14px;
   height: 14px;
   fill: currentColor;
+}
+
+.level-badge {
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.level-badge .tier-icon,
+.level-badge .tier-icon svg {
+  width: 18px;
+  height: 18px;
 }
 
 .tier-gold {
@@ -2508,6 +2624,7 @@ textarea.input {
 
 .timeline-scroll {
   position: relative;
+  overflow: visible;
 }
 
 .timeline-scroll::before,
@@ -2537,6 +2654,7 @@ textarea.input {
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 8px;
+  overflow: visible;
 }
 
 .timeline-track {
@@ -2596,12 +2714,12 @@ textarea.input {
   font-size: 10px;
   white-space: pre-line;
   width: max-content;
-  max-width: 240px;
+  max-width: 280px;
   box-shadow: 0 10px 20px rgba(15, 23, 42, 0.2);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease, transform 0.2s ease;
-  z-index: 3;
+  z-index: 5;
 }
 
 .customer-log-item:hover::after,
@@ -3273,6 +3391,21 @@ textarea.input {
   color: var(--text);
   font-weight: 700;
   margin-left: 4px;
+}
+
+.chart-split {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.chart-mini-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  font-weight: 700;
+  margin-bottom: 6px;
 }
 
 .delta {
@@ -5107,6 +5240,22 @@ html[data-contrast="high"] .module-footer .ghost {
 
 .modal-panel .panel-header .ghost {
   margin-left: auto;
+}
+
+.panel-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.panel-sub {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.modal-body {
+  display: grid;
+  gap: 12px;
 }
 
 .modal-close {

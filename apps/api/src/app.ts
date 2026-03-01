@@ -15,6 +15,7 @@ import { settingsRouter } from "./routes/settings";
 import { logsRouter } from "./routes/logs";
 import { notificationsRouter } from "./routes/notifications";
 import { metricsRouter } from "./routes/metrics";
+import { reportsRouter } from "./routes/reports";
 import { superAdminRouter } from "./routes/superAdmin";
 import { authRouter } from "./routes/auth";
 import { chatwootRouter } from "./routes/chatwoot";
@@ -168,6 +169,7 @@ export function createApp() {
   app.use("/admin/logs", requireAdminToken, logsRouter);
   app.use("/admin/notifications", requireAdminToken, notificationsRouter);
   app.use("/admin/metrics", requireAdminToken, metricsRouter);
+  app.use("/admin/reports", requireAdminToken, reportsRouter);
   app.use("/admin/auth", requireAdminToken, authRouter);
   app.use("/admin/sa", requireAdminToken, superAdminRouter);
   app.use("/admin/chatwoot", requireAdminToken, chatwootRouter);

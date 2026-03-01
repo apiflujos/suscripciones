@@ -1,6 +1,7 @@
 import express from "express";
 import { z } from "zod";
 import { getMetricsOverview } from "../services/metrics";
+import { getReportCache, setReportCache } from "../services/reportCache";
 
 const querySchema = z.object({
   from: z.string().datetime().optional(),
@@ -24,9 +25,49 @@ metricsRouter.get("/overview", async (req, res) => {
   const d = defaultRange();
   const from = parsed.data.from ? new Date(parsed.data.from) : d.from;
   const to = parsed.data.to ? new Date(parsed.data.to) : d.to;
+  const hasExplicitRange = Boolean(parsed.data.from || parsed.data.to);
+  const cacheTtlSeconds = 300;
+  const staleSeconds = 900;
+
+  let cacheFrom = from;
+  let cacheTo = to;
+  if (!hasExplicitRange) {
+    const bucketMs = cacheTtlSeconds * 1000;
+    const alignedTo = new Date(Math.floor(to.getTime() / bucketMs) * bucketMs);
+    const rangeMs = Math.max(24 * 60 * 60 * 1000, to.getTime() - from.getTime());
+    cacheTo = alignedTo;
+    cacheFrom = new Date(cacheTo.getTime() - rangeMs);
+  }
+
+  const cacheKey = {
+    reportKey: "metrics.overview",
+    tenantId: parsed.data.tenantId ?? null,
+    from: cacheFrom,
+    to: cacheTo,
+    granularity: parsed.data.granularity,
+    version: "v1"
+  };
+
+  const cached = await getReportCache(cacheKey);
+  if (cached.hit && !cached.stale) {
+    res.setHeader("x-report-cache", "HIT");
+    return res.json(cached.payload);
+  }
+  if (cached.hit && cached.stale) {
+    res.setHeader("x-report-cache", "STALE");
+    res.json(cached.payload);
+    setTimeout(() => {
+      getMetricsOverview({ from: cacheFrom, to: cacheTo, granularity: parsed.data.granularity, tenantId: parsed.data.tenantId })
+        .then((data) => setReportCache(cacheKey, data, cacheTtlSeconds, staleSeconds))
+        .catch(() => {});
+    }, 0);
+    return;
+  }
 
   try {
-    const data = await getMetricsOverview({ from, to, granularity: parsed.data.granularity, tenantId: parsed.data.tenantId });
+    const data = await getMetricsOverview({ from: cacheFrom, to: cacheTo, granularity: parsed.data.granularity, tenantId: parsed.data.tenantId });
+    await setReportCache(cacheKey, data, cacheTtlSeconds, staleSeconds);
+    res.setHeader("x-report-cache", "MISS");
     res.json(data);
   } catch (err: any) {
     res.status(400).json({ error: "invalid_range", message: err?.message ? String(err.message) : "invalid_range" });

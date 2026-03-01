@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 
 export function TimelineScroller({
   children,
@@ -11,6 +11,7 @@ export function TimelineScroller({
 }) {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [paused, setPaused] = useState(false);
   const dragStartX = useRef(0);
   const dragStartScroll = useRef(0);
 
@@ -36,6 +37,26 @@ export function TimelineScroller({
     const amount = Math.max(140, el.clientWidth * 0.25);
     smoothScrollBy(dir * amount);
   };
+
+  useEffect(() => {
+    let raf = 0;
+    let last = performance.now();
+    const tick = (now: number) => {
+      const el = trackRef.current;
+      if (el && !dragging && !paused && !document.hidden) {
+        const dt = now - last;
+        const speed = 0.03;
+        el.scrollLeft += speed * dt;
+        if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 2) {
+          el.scrollLeft = 0;
+        }
+      }
+      last = now;
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [dragging, paused]);
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     const el = trackRef.current;
@@ -91,7 +112,19 @@ export function TimelineScroller({
 
   return (
     <div className="timeline-wrap">
-      <button className="timeline-nav" type="button" aria-label="Anterior" onClick={() => scrollBy(-1)} data-loader="off">
+      <button
+        className="timeline-nav"
+        type="button"
+        aria-label="Anterior"
+        data-loader="off"
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          scrollBy(-1);
+        }}
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+      >
         <span aria-hidden="true">‹</span>
       </button>
       <div
@@ -106,10 +139,26 @@ export function TimelineScroller({
         onPointerLeave={handlePointerLeave}
         onWheel={handleWheel}
         onKeyDown={handleKeyDown}
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+        onFocus={() => setPaused(true)}
+        onBlur={() => setPaused(false)}
       >
         {children}
       </div>
-      <button className="timeline-nav" type="button" aria-label="Siguiente" onClick={() => scrollBy(1)} data-loader="off">
+      <button
+        className="timeline-nav"
+        type="button"
+        aria-label="Siguiente"
+        data-loader="off"
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          scrollBy(1);
+        }}
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+      >
         <span aria-hidden="true">›</span>
       </button>
     </div>
