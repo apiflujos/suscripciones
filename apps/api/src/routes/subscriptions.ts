@@ -67,6 +67,7 @@ subscriptionsRouter.get("/", async (_req, res) => {
     take,
     include: { customer: true, plan: { include: { tenantLinks: true } }, tenantLinks: true }
   });
+  const total = await prisma.subscription.count({ where });
   const subscriptionIds = items.map((s: any) => s.id);
   const approvedPayments = await prisma.payment.findMany({
     where: { subscriptionId: { in: subscriptionIds }, status: PaymentStatus.APPROVED, paidAt: { not: null } },
@@ -101,7 +102,8 @@ subscriptionsRouter.get("/", async (_req, res) => {
       ) as string[],
       lastPayment: lastPaymentBySub.get(s.id) ?? null,
       lastPaymentLink: lastLinkBySub.get(s.id) ?? null
-    }))
+    })),
+    total
   });
 });
 

@@ -91,6 +91,7 @@ productsRouter.get("/", async (_req, res) => {
     skip,
     include: { tenantLinks: true }
   });
+  const total = await prisma.subscriptionPlan.count({ where });
   res.json({
     items: items.map((p: any) => ({
       id: p.id,
@@ -121,7 +122,8 @@ productsRouter.get("/", async (_req, res) => {
       imageUrl: (p.metadata as any)?.imageUrl || null,
       createdAt: p.createdAt,
       updatedAt: p.updatedAt
-    }))
+    })),
+    total
   });
 });
 

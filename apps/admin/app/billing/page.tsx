@@ -206,6 +206,7 @@ export default async function BillingPage({
     fetchAdmin(tenantId ? `/admin/plans?take=400&tenantId=${encodeURIComponent(tenantId)}` : "/admin/plans?take=400")
   ]);
   const subItems = (subs.json?.items ?? []) as any[];
+  const total = Number(subs.json?.total ?? 0);
   const customerItems = (customers.json?.items ?? []) as any[];
   const productItems = (products.json?.items ?? []) as any[];
   const productById = new Map(productItems.map((p: any) => [String(p.id), p]));
@@ -662,16 +663,24 @@ export default async function BillingPage({
 
           {(() => {
             const currentPage = Math.max(1, Number(page) || 1);
-            const hasNext = rows.length >= take;
-            const maxForward = hasNext ? 1 : 0;
+            const hasNext = total > 0 ? currentPage < Math.max(1, Math.ceil(total / take)) : rows.length >= take;
+            const totalPages = total > 0 ? Math.max(1, Math.ceil(total / take)) : currentPage + (hasNext ? 1 : 0);
             const desktopWindow = 10;
-            const end = currentPage + maxForward;
-            const start = Math.max(1, end - (desktopWindow - 1));
+            let start = Math.max(1, currentPage - Math.floor(desktopWindow / 2));
+            let end = start + (desktopWindow - 1);
+            if (end > totalPages) {
+              end = totalPages;
+              start = Math.max(1, end - (desktopWindow - 1));
+            }
             const pages = [];
             for (let i = start; i <= end; i += 1) pages.push(i);
             const mobileWindow = 5;
-            const mobileStart = Math.max(start, Math.min(currentPage - 2, end - (mobileWindow - 1)));
-            const mobileEnd = Math.min(end, mobileStart + (mobileWindow - 1));
+            let mobileStart = Math.max(1, currentPage - 2);
+            let mobileEnd = mobileStart + (mobileWindow - 1);
+            if (mobileEnd > totalPages) {
+              mobileEnd = totalPages;
+              mobileStart = Math.max(1, mobileEnd - (mobileWindow - 1));
+            }
             return (
               <div className="pagination pagination-indicator">
                 <a

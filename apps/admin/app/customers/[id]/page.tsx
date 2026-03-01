@@ -883,7 +883,13 @@ export default async function CustomerDetailPage({
           <div className="contact-section-title">Pagos recientes</div>
           {recentPayments.length ? (
             <div className="table-scroll">
-              <table className="table">
+              <table className="table table-fixed">
+                <colgroup>
+                  <col style={{ width: "26%" }} />
+                  <col style={{ width: "18%" }} />
+                  <col style={{ width: "22%" }} />
+                  <col style={{ width: "34%" }} />
+                </colgroup>
                 <thead>
                   <tr>
                     <th>Fecha</th>
@@ -897,8 +903,8 @@ export default async function CustomerDetailPage({
                     <tr key={p.id}>
                       <td><LocalDateTime value={p.paidAt || p.createdAt} /></td>
                       <td>{formatCopFromCents(Number(p.amountInCents || 0))}</td>
-                      <td><span className={`pill pill-sm ${statusPillClass(String(p.status || ""))}`}>{statusLabel(String(p.status || ""))}</span></td>
-                      <td>{p.planName || "—"}</td>
+                      <td className="cell-truncate" title={String(p.status || "—")}><span className={`pill pill-sm ${statusPillClass(String(p.status || ""))}`}>{statusLabel(String(p.status || ""))}</span></td>
+                      <td className="cell-truncate" title={p.planName || "—"}>{p.planName || "—"}</td>
                     </tr>
                   ))}
                 </tbody>

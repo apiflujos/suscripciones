@@ -178,7 +178,7 @@ logsRouter.get("/system", async (req, res) => {
     entity: formatEntity(item)
   }));
 
-  res.json({ items: enriched });
+  res.json({ items: enriched, total });
 });
 
 logsRouter.get("/jobs/health", async (_req, res) => {

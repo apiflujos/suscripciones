@@ -67,6 +67,7 @@ commsRouter.get("/smart-lists", async (_req, res) => {
   const skipRaw = Number(req?.query?.skip ?? 0);
   const skip = Number.isFinite(skipRaw) ? Math.max(Math.trunc(skipRaw), 0) : 0;
   const items = await prisma.smartList.findMany({ orderBy: { createdAt: "desc" }, take, skip });
+  const totalDb = await prisma.smartList.count();
   const systemLists = getSystemSmartLists().map((list) => ({
     id: list.id,
     name: list.name,
@@ -74,7 +75,7 @@ commsRouter.get("/smart-lists", async (_req, res) => {
     category: list.category,
     system: true
   }));
-  res.json({ items: [...systemLists, ...items] });
+  res.json({ items: [...systemLists, ...items], total: totalDb + systemLists.length });
 });
 
 commsRouter.post("/test-connection", async (req, res) => {
@@ -295,7 +296,8 @@ commsRouter.get("/smart-lists/:id/members", async (req, res) => {
           email: c.email,
           phone: c.phone
         }
-      }))
+      })),
+      total: filtered.length
     });
   }
 
@@ -304,21 +306,25 @@ commsRouter.get("/smart-lists/:id/members", async (req, res) => {
 
   const where: any = { smartListId: id };
   if (active !== undefined) where.active = active;
+  if (tenantId) {
+    where.customer = {
+      OR: [{ tenantId }, { tenantLinks: { some: { tenantId } } }]
+    };
+  }
 
-  const items = await prisma.smartListMember.findMany({
-    where,
-    orderBy: { updatedAt: "desc" },
-    take,
-    skip,
-    include: { customer: { include: { tenantLinks: true } } }
-  });
-
-  const filteredItems = tenantId
-    ? items.filter((m: any) => matchesTenant(m?.customer, tenantId))
-    : items;
+  const [total, items] = await Promise.all([
+    prisma.smartListMember.count({ where }),
+    prisma.smartListMember.findMany({
+      where,
+      orderBy: { updatedAt: "desc" },
+      take,
+      skip,
+      include: { customer: { include: { tenantLinks: true } } }
+    })
+  ]);
 
   res.json({
-    items: filteredItems.map((m: any) => ({
+    items: items.map((m: any) => ({
       id: m.id,
       active: m.active,
       lastSeenAt: m.lastSeenAt,
@@ -328,7 +334,8 @@ commsRouter.get("/smart-lists/:id/members", async (req, res) => {
         email: m.customer.email,
         phone: m.customer.phone
       }
-    }))
+    })),
+    total
   });
 });
 
@@ -358,8 +365,11 @@ commsRouter.get("/campaigns", async (_req, res) => {
   const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 500) : 100;
   const skipRaw = Number(req?.query?.skip ?? 0);
   const skip = Number.isFinite(skipRaw) ? Math.max(Math.trunc(skipRaw), 0) : 0;
-  const items = await prisma.campaign.findMany({ orderBy: { createdAt: "desc" }, take, skip });
-  res.json({ items });
+  const [items, total] = await Promise.all([
+    prisma.campaign.findMany({ orderBy: { createdAt: "desc" }, take, skip }),
+    prisma.campaign.count()
+  ]);
+  res.json({ items, total });
 });
 
 commsRouter.post("/campaigns", async (req, res) => {

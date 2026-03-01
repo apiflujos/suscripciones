@@ -1333,7 +1333,7 @@ a {
 }
 
 .logs-table .log-ref-cell {
-  max-width: 80px;
+  max-width: 72px;
   min-width: 0;
 }
 
@@ -1361,7 +1361,7 @@ a {
 }
 
 .logs-table .log-contact-cell {
-  max-width: 140px;
+  max-width: 110px;
   min-width: 0;
 }
 
@@ -1390,8 +1390,12 @@ a {
   white-space: nowrap;
 }
 
+.logs-table .log-status-cell {
+  min-width: 88px;
+}
+
 .logs-table .log-error-cell {
-  max-width: 160px;
+  max-width: 120px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1446,7 +1450,7 @@ a {
 
 .logs-table-jobs .log-target-cell,
 .logs-table-payments .log-transaction-cell {
-  max-width: 160px;
+  max-width: 240px;
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
@@ -1468,15 +1472,15 @@ a {
 }
 
 .logs-table-payments .log-ref-cell {
-  max-width: 64px;
+  max-width: 56px;
 }
 
 .logs-table-payments .log-transaction-cell {
-  max-width: 110px;
+  max-width: 240px;
 }
 
 .logs-table-jobs .log-detail-cell {
-  max-width: 220px;
+  max-width: 260px;
   white-space: normal;
   word-break: break-word;
   overflow-wrap: anywhere;
@@ -1487,7 +1491,7 @@ a {
 
 .logs-table-jobs .log-detail-cell {
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -1503,21 +1507,21 @@ a {
 
 .logs-table-webhooks .log-ref-cell,
 .logs-table-webhooks .log-ref-main {
-  max-width: 64px;
+  max-width: 72px;
 }
 
 .logs-table-webhooks .log-error-cell {
-  max-width: 140px;
+  max-width: 120px;
   white-space: normal;
   word-break: break-word;
   overflow-wrap: anywhere;
+  display: flex;
+  align-items: center;
 }
 
-.logs-table-webhooks .log-error-cell {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+.logs-table-webhooks .log-error-cell .btn-fail {
+  width: 100%;
+  justify-content: center;
 }
 
 .logs-ai-wrapper {
@@ -2803,6 +2807,13 @@ textarea.input {
   padding: 0 9px;
   font-size: 12px;
   border-radius: var(--radius-md);
+}
+
+.btn-xs {
+  min-height: 26px;
+  padding: 0 7px;
+  font-size: 11px;
+  border-radius: var(--radius-sm);
 }
 
 .select-compact {
@@ -4154,6 +4165,23 @@ textarea.input {
   font-size: 11px;
 }
 
+.table-fixed {
+  table-layout: fixed;
+}
+
+.cell-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.cell-wrap {
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
 .table th,
 .table td {
   padding: 8px;
@@ -4225,6 +4253,7 @@ textarea.input {
   gap: 6px;
   border: 1px solid var(--stroke);
   background: var(--surface-2);
+  white-space: nowrap;
 }
 
 .status-chip.is-success {
