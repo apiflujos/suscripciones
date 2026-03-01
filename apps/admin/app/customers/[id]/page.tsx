@@ -483,6 +483,20 @@ export default async function CustomerDetailPage({
                 ) : (
                   <span className="pill pill-muted pill-sm">Sin suscripciones</span>
                 )}
+                {geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lon) ? (
+                  <MapModal
+                    lat={geo.lat}
+                    lon={geo.lon}
+                    label={addressDisplay || undefined}
+                    mapLink={mapLink || undefined}
+                    triggerLabel="Ubicación"
+                    triggerClassName="pill pill-sm pill-muted"
+                  />
+                ) : (
+                  <button type="button" className="pill pill-sm pill-muted" disabled>
+                    Ubicación
+                  </button>
+                )}
               </div>
             </div>
             <div className="hero-right">
@@ -491,20 +505,6 @@ export default async function CustomerDetailPage({
                 <span className="hero-id-value mono">{meta?.identificacion || meta?.identificationNumber || meta?.documentNumber || "—"}</span>
                 <span className="hero-id-sub">{tenantName || customer.tenantId || "—"}</span>
               </div>
-              {geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lon) ? (
-                <MapModal
-                  lat={geo.lat}
-                  lon={geo.lon}
-                  label={addressDisplay || undefined}
-                  mapLink={mapLink || undefined}
-                  triggerLabel="Ubicación"
-                  triggerClassName="ghost btn-compact btn-blue"
-                />
-              ) : (
-                <button type="button" className="ghost btn-compact" disabled>
-                  Ubicación
-                </button>
-              )}
               <div className={`tier-badge tier-badge-hero ${tier.cls}`}>
                 <span className="tier-icon" aria-hidden="true">
                   {tierIcon(tier.icon)}
