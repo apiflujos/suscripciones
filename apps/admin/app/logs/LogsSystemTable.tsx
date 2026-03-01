@@ -25,11 +25,11 @@ export function LogsSystemTable({ items }: { items: LogItem[] }) {
     <div className="panel module" style={{ padding: 0 }}>
       <table className="table logs-table" aria-label="Tabla de logs">
         <colgroup>
-          <col style={{ width: "9%" }} />
+          <col style={{ width: "8%" }} />
+          <col style={{ width: "13%" }} />
+          <col style={{ width: "16%" }} />
           <col style={{ width: "14%" }} />
-          <col style={{ width: "15%" }} />
-          <col style={{ width: "9%" }} />
-          <col style={{ width: "41%" }} />
+          <col style={{ width: "37%" }} />
           <col style={{ width: "12%" }} />
         </colgroup>
         <thead>
@@ -56,7 +56,7 @@ export function LogsSystemTable({ items }: { items: LogItem[] }) {
                 <td className="log-cell log-entity" title={(l as any).entity || l.source || "—"}>
                   <span className="log-truncate">{(l as any).entity || l.source || "—"}</span>
                 </td>
-                <td>
+                <td className="log-status-cell">
                   <span className={`status-chip ${chip.cls}`}>
                     <span className={`status-led ${chip.cls === "is-success" ? "is-ok" : ""}`} />
                     {chip.label}

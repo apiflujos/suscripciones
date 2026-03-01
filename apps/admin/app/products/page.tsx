@@ -120,6 +120,7 @@ export default async function ProductsPage({
   ]);
 
   const productItems = (products.json?.items ?? []) as any[];
+  const total = Number(products.json?.total ?? productItems.length);
   const tenants = (tenantsRes.json?.items ?? []) as Array<{ id: string; name: string }>;
   const tenantById = new Map(tenants.map((t) => [String(t.id), String(t.name)]));
   const filteredCustomers = (customersRes.json?.items ?? []) as any[];
@@ -219,16 +220,24 @@ export default async function ProductsPage({
 
             {(() => {
               const currentPage = Math.max(1, Number(page) || 1);
-              const hasNext = productItems.length >= take;
-              const maxForward = hasNext ? 1 : 0;
+              const hasNext = total > 0 ? currentPage < Math.max(1, Math.ceil(total / take)) : productItems.length >= take;
+              const totalPages = total > 0 ? Math.max(1, Math.ceil(total / take)) : currentPage + (hasNext ? 1 : 0);
               const desktopWindow = 10;
-              const end = currentPage + maxForward;
-              const start = Math.max(1, end - (desktopWindow - 1));
+              let start = Math.max(1, currentPage - Math.floor(desktopWindow / 2));
+              let end = start + (desktopWindow - 1);
+              if (end > totalPages) {
+                end = totalPages;
+                start = Math.max(1, end - (desktopWindow - 1));
+              }
               const pages = [];
               for (let i = start; i <= end; i += 1) pages.push(i);
               const mobileWindow = 5;
-              const mobileStart = Math.max(start, Math.min(currentPage - 2, end - (mobileWindow - 1)));
-              const mobileEnd = Math.min(end, mobileStart + (mobileWindow - 1));
+              let mobileStart = Math.max(1, currentPage - 2);
+              let mobileEnd = mobileStart + (mobileWindow - 1);
+              if (mobileEnd > totalPages) {
+                mobileEnd = totalPages;
+                mobileStart = Math.max(1, mobileEnd - (mobileWindow - 1));
+              }
               const baseParams = {
                 ...(q ? { q } : {}),
                 ...(tenantId ? { tenantId } : {}),

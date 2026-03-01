@@ -41,6 +41,7 @@ export default async function SmartListsPage({
   const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
   const listsRes = await fetchAdminCached(`/admin/comms/smart-lists?take=${take}&skip=${skip}`, { ttlMs: 0 });
   const items = Array.isArray(listsRes?.json?.items) ? listsRes.json.items : [];
+  const total = Number(listsRes?.json?.total ?? items.length);
   const previewId = String(sp.preview || "").trim();
   const preview = previewId ? await fetchPreview(previewId) : null;
   const preset = String(sp.preset || "").trim();
@@ -144,16 +145,24 @@ export default async function SmartListsPage({
         </div>
         {(() => {
           const currentPage = Math.max(1, Number(page) || 1);
-          const hasNext = items.length >= take;
-          const maxForward = hasNext ? 1 : 0;
+          const hasNext = total > 0 ? currentPage < Math.max(1, Math.ceil(total / take)) : items.length >= take;
+          const totalPages = total > 0 ? Math.max(1, Math.ceil(total / take)) : currentPage + (hasNext ? 1 : 0);
           const desktopWindow = 10;
-          const end = currentPage + maxForward;
-          const start = Math.max(1, end - (desktopWindow - 1));
+          let start = Math.max(1, currentPage - Math.floor(desktopWindow / 2));
+          let end = start + (desktopWindow - 1);
+          if (end > totalPages) {
+            end = totalPages;
+            start = Math.max(1, end - (desktopWindow - 1));
+          }
           const pages = [];
           for (let i = start; i <= end; i += 1) pages.push(i);
           const mobileWindow = 5;
-          const mobileStart = Math.max(start, Math.min(currentPage - 2, end - (mobileWindow - 1)));
-          const mobileEnd = Math.min(end, mobileStart + (mobileWindow - 1));
+          let mobileStart = Math.max(1, currentPage - 2);
+          let mobileEnd = mobileStart + (mobileWindow - 1);
+          if (mobileEnd > totalPages) {
+            mobileEnd = totalPages;
+            mobileStart = Math.max(1, mobileEnd - (mobileWindow - 1));
+          }
           const baseParams = { ...(sp.preview ? { preview: String(sp.preview) } : {}) };
           return (
             <div className="pagination pagination-indicator">

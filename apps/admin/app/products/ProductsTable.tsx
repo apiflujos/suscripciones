@@ -1232,7 +1232,14 @@ export function ProductsTable({
             {!txLoading && !txError && txItems.length === 0 ? <div className="field-hint">No hay transacciones.</div> : null}
             {!txLoading && !txError && txItems.length ? (
               <div className="table-scroll">
-                <table className="table">
+                <table className="table table-fixed">
+                  <colgroup>
+                    <col style={{ width: "18%" }} />
+                    <col style={{ width: "14%" }} />
+                    <col style={{ width: "18%" }} />
+                    <col style={{ width: "30%" }} />
+                    <col style={{ width: "20%" }} />
+                  </colgroup>
                   <thead>
                     <tr>
                       <th>Fecha</th>
@@ -1247,9 +1254,9 @@ export function ProductsTable({
                       <tr key={t.id}>
                         <td><LocalDateTime value={t.createdAt} /></td>
                         <td>{formatCopFromCents(t.amountInCents)}</td>
-                        <td>{t.status}</td>
-                        <td>{t.customerName || "—"}</td>
-                        <td style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{t.reference || "—"}</td>
+                        <td className="cell-truncate" title={t.status || "—"}>{t.status || "—"}</td>
+                        <td className="cell-truncate" title={t.customerName || "—"}>{t.customerName || "—"}</td>
+                        <td className="cell-truncate mono" title={t.reference || "—"}>{t.reference || "—"}</td>
                       </tr>
                     ))}
                   </tbody>

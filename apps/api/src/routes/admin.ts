@@ -216,5 +216,6 @@ export async function listWebhookEvents(req: Request, res: Response) {
         return haystack.includes(q.toLowerCase());
       })
     : normalized;
-  res.json({ items: filtered, total });
+  const totalValue = q ? filtered.length : total;
+  res.json({ items: filtered, total: totalValue });
 }

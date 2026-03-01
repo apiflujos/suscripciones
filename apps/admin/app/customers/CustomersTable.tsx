@@ -1085,7 +1085,15 @@ export function CustomersTable({
             {!txLoading && !txError && txItems.length === 0 ? <div className="field-hint">No hay transacciones.</div> : null}
             {!txLoading && !txError && txItems.length ? (
               <div className="table-scroll">
-                <table className="table">
+                <table className="table table-fixed">
+                  <colgroup>
+                    <col style={{ width: "14%" }} />
+                    <col style={{ width: "12%" }} />
+                    <col style={{ width: "16%" }} />
+                    <col style={{ width: "24%" }} />
+                    <col style={{ width: "18%" }} />
+                    <col style={{ width: "16%" }} />
+                  </colgroup>
                   <thead>
                     <tr>
                       <th>Fecha</th>
@@ -1101,13 +1109,13 @@ export function CustomersTable({
                       <tr key={t.id}>
                         <td><LocalDateTime value={t.createdAt} /></td>
                         <td>{formatCopFromCents(t.amountInCents)}</td>
-                        <td>{t.status}</td>
+                        <td className="cell-truncate" title={t.status || "—"}>{t.status || "—"}</td>
                         <td>
                           {t.lastAttempt ? (
                             <div style={{ display: "grid", gap: 2 }}>
-                              <span>{t.lastAttempt.status || "—"}</span>
+                              <span className="cell-truncate" title={t.lastAttempt.status || "—"}>{t.lastAttempt.status || "—"}</span>
                               {t.lastAttempt.errorMessage ? (
-                                <span className="field-hint" style={{ color: "var(--danger)" }}>
+                                <span className="field-hint cell-wrap" style={{ color: "var(--danger)" }}>
                                   {t.lastAttempt.errorMessage}
                                 </span>
                               ) : null}
@@ -1116,8 +1124,8 @@ export function CustomersTable({
                             "—"
                           )}
                         </td>
-                        <td>{t.planName || "—"}</td>
-                        <td style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{t.reference || "—"}</td>
+                        <td className="cell-truncate" title={t.planName || "—"}>{t.planName || "—"}</td>
+                        <td className="cell-truncate mono" title={t.reference || "—"}>{t.reference || "—"}</td>
                       </tr>
                     ))}
                   </tbody>

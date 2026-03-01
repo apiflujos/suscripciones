@@ -1396,16 +1396,16 @@ a {
 }
 
 .logs-table .log-date-cell .date-stack-top {
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .logs-table .log-date-cell .date-stack-middle,
 .logs-table .log-date-cell .date-stack-bottom {
-  font-size: 9px;
+  font-size: 8.5px;
 }
 
 .logs-table .log-ref-cell {
-  max-width: 80px;
+  max-width: 72px;
   min-width: 0;
 }
 
@@ -1424,7 +1424,7 @@ a {
 }
 
 .logs-table .log-ref-meta {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-faint);
   max-width: 100%;
   overflow: hidden;
@@ -1433,7 +1433,7 @@ a {
 }
 
 .logs-table .log-contact-cell {
-  max-width: 140px;
+  max-width: 110px;
   min-width: 0;
 }
 
@@ -1451,7 +1451,7 @@ a {
 }
 
 .logs-table .log-contact-meta {
-  font-size: 9.5px;
+  font-size: 9px;
   max-width: 100%;
 }
 
@@ -1462,16 +1462,20 @@ a {
   white-space: nowrap;
 }
 
-.logs-table .log-error-cell {
-  max-width: 160px;
+.logs-table .log-plan-cell {
+  max-width: 120px;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.logs-table-payments .log-plan-cell {
+.logs-table .log-status-cell {
+  min-width: 88px;
+}
+
+.logs-table .log-error-cell {
   max-width: 120px;
-  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1518,7 +1522,7 @@ a {
 
 .logs-table-jobs .log-target-cell,
 .logs-table-payments .log-transaction-cell {
-  max-width: 160px;
+  max-width: 240px;
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
@@ -1540,15 +1544,15 @@ a {
 }
 
 .logs-table-payments .log-ref-cell {
-  max-width: 64px;
+  max-width: 56px;
 }
 
 .logs-table-payments .log-transaction-cell {
-  max-width: 110px;
+  max-width: 240px;
 }
 
 .logs-table-jobs .log-detail-cell {
-  max-width: 220px;
+  max-width: 260px;
   white-space: normal;
   word-break: break-word;
   overflow-wrap: anywhere;
@@ -1559,7 +1563,7 @@ a {
 
 .logs-table-jobs .log-detail-cell {
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -1575,21 +1579,21 @@ a {
 
 .logs-table-webhooks .log-ref-cell,
 .logs-table-webhooks .log-ref-main {
-  max-width: 64px;
+  max-width: 72px;
 }
 
 .logs-table-webhooks .log-error-cell {
-  max-width: 140px;
+  max-width: 120px;
   white-space: normal;
   word-break: break-word;
   overflow-wrap: anywhere;
+  display: flex;
+  align-items: center;
 }
 
-.logs-table-webhooks .log-error-cell {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+.logs-table-webhooks .log-error-cell .btn-fail {
+  width: 100%;
+  justify-content: center;
 }
 
 .logs-ai-wrapper {
@@ -2025,17 +2029,17 @@ html[data-contrast="high"] .filtersPanel {
   display: grid;
   gap: 5px;
   color: var(--text-soft);
-  font-size: 13px;
+  font-size: 12.5px;
 }
 
 .field label {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 700;
   color: var(--form-label);
 }
 
 .field-hint {
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--form-hint);
 }
 
@@ -2728,7 +2732,8 @@ textarea.input {
 }
 
 .table-meta {
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1.2;
   color: var(--text-faint);
   margin-bottom: 8px;
 }
@@ -2875,6 +2880,13 @@ textarea.input {
   padding: 0 9px;
   font-size: 12px;
   border-radius: var(--radius-md);
+}
+
+.btn-xs {
+  min-height: 26px;
+  padding: 0 7px;
+  font-size: 11px;
+  border-radius: var(--radius-sm);
 }
 
 .select-compact {
@@ -3275,15 +3287,15 @@ textarea.input {
 .realtime-status {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
+  gap: 6px;
+  padding: 0;
   border-radius: 999px;
-  border: 1px solid var(--stroke);
-  background: var(--panel);
+  border: 0;
+  background: transparent;
   color: var(--text);
   font-size: 11px;
   font-weight: 600;
-  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.18);
+  box-shadow: none;
 }
 
 .topbarRealtimeSlot {
@@ -3298,19 +3310,17 @@ textarea.input {
 }
 
 .topbar .realtime-status {
-  padding: 6px 10px;
+  padding: 0;
   border-radius: 999px;
-  background: var(--surface-2);
-  border: 1px solid var(--stroke);
+  background: transparent;
+  border: 0;
   box-shadow: none;
   font-size: 11px;
-  height: 40px;
+  height: auto;
 }
 
 .topbar .realtime-status-text {
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  white-space: nowrap;
+  display: none;
 }
 
 @media (max-width: 980px) {
@@ -3357,6 +3367,7 @@ textarea.input {
   border-radius: 999px;
   background: var(--text-faint);
   display: inline-block;
+  box-shadow: 0 0 0 2px var(--surface-2);
 }
 
 .date-stack {
@@ -4226,6 +4237,23 @@ textarea.input {
   font-size: 11px;
 }
 
+.table-fixed {
+  table-layout: fixed;
+}
+
+.cell-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.cell-wrap {
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
 .table th,
 .table td {
   padding: 8px;
@@ -4297,6 +4325,7 @@ textarea.input {
   gap: 6px;
   border: 1px solid var(--stroke);
   background: var(--surface-2);
+  white-space: nowrap;
 }
 
 .status-chip.is-success {
@@ -4343,7 +4372,8 @@ textarea.input {
 
 .pageSub {
   margin: 2px 0 0;
-  font-size: 11px;
+  font-size: 10px;
+  line-height: 1.2;
   color: var(--muted);
 }
 
@@ -4410,7 +4440,7 @@ textarea.input {
 
 .metric-label {
   grid-area: label;
-  font-size: 11.5px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-faint);
@@ -4427,7 +4457,8 @@ textarea.input {
 
 .metric-sub {
   grid-area: sub;
-  font-size: 12px;
+  font-size: 10px;
+  line-height: 1.2;
   color: var(--text-soft);
 }
 
@@ -4451,19 +4482,20 @@ textarea.input {
 }
 
 .chart-title {
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.02em;
   color: var(--text);
 }
 
 .chart-sub {
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1.2;
   color: var(--text-faint);
 }
 
 .chart-range {
-  font-size: 11.5px;
+  font-size: 10.5px;
   color: var(--text-faint);
   font-weight: 600;
 }
@@ -4472,7 +4504,7 @@ textarea.input {
   display: flex;
   flex-wrap: wrap;
   gap: 10px 16px;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-faint);
 }
 
@@ -4532,7 +4564,7 @@ textarea.input {
 }
 
 .metricsTabsMeta {
-  font-size: 11.5px;
+  font-size: 10.5px;
   color: var(--text-faint);
   font-weight: 600;
 }
@@ -4561,13 +4593,13 @@ textarea.input {
 }
 
 .recent-payment-title {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--text);
 }
 
 .recent-payment-sub {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-faint);
 }
 
@@ -4575,14 +4607,14 @@ textarea.input {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text);
   font-weight: 700;
 }
 
 .delta {
   font-weight: 700;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .delta.up {
