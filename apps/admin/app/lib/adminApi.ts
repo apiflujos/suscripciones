@@ -1,5 +1,7 @@
 import "server-only";
+import { cookies } from "next/headers";
 import { normalizeToken } from "./normalizeToken";
+import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
 
 type FetchResult = { ok: boolean; status: number; json: any };
 
@@ -18,6 +20,18 @@ export function getAdminApiConfig() {
   const apiBase = getOptionalApiBase();
   const token = normalizeToken(process.env.ADMIN_API_TOKEN || "");
   return { apiBase, token };
+}
+
+async function getSessionEmail(): Promise<string | null> {
+  try {
+    const c = await cookies();
+    const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
+    if (!sessionToken) return null;
+    const session = await verifyAdminSessionToken(sessionToken);
+    return session?.email || null;
+  } catch {
+    return null;
+  }
 }
 
 export function getRequiredApiBase() {
@@ -85,12 +99,17 @@ export async function fetchAdminCached(path: string, opts?: { ttlMs?: number }):
   if (!apiBase) return { ok: false, status: 500, json: { error: "missing_api_base" } };
   const url = `${apiBase}${path}`;
   const ttlMs = Math.max(0, Number(opts?.ttlMs ?? 1500));
+  const sessionEmail = await getSessionEmail();
 
   if (!token) return { ok: false, status: 401, json: { error: "missing_admin_token" } };
   if (ttlMs === 0) {
     return fetchJson(url, {
       cache: "no-store",
-      headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
+      headers: {
+        authorization: `Bearer ${token}`,
+        "x-admin-token": token,
+        ...(sessionEmail ? { "x-admin-user-email": sessionEmail } : {})
+      }
     });
   }
 
@@ -100,13 +119,21 @@ export async function fetchAdminCached(path: string, opts?: { ttlMs?: number }):
 
   let result = await fetchJson(url, {
     cache: "no-store",
-    headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
+    headers: {
+      authorization: `Bearer ${token}`,
+      "x-admin-token": token,
+      ...(sessionEmail ? { "x-admin-user-email": sessionEmail } : {})
+    }
   });
   if (!result.ok && shouldRetryStatus(result.status)) {
     await waitMs(1200);
     result = await fetchJson(url, {
       cache: "no-store",
-      headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
+      headers: {
+        authorization: `Bearer ${token}`,
+        "x-admin-token": token,
+        ...(sessionEmail ? { "x-admin-user-email": sessionEmail } : {})
+      }
     });
   }
 

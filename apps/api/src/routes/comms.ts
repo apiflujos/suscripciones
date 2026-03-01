@@ -66,7 +66,13 @@ commsRouter.get("/smart-lists", async (_req, res) => {
   const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 500) : 100;
   const skipRaw = Number(req?.query?.skip ?? 0);
   const skip = Number.isFinite(skipRaw) ? Math.max(Math.trunc(skipRaw), 0) : 0;
-  const items = await prisma.smartList.findMany({ orderBy: { createdAt: "desc" }, take, skip });
+  const tenantId = await getEffectiveTenantId(req);
+  const items = await prisma.smartList.findMany({
+    where: tenantId ? { tenantId } : {},
+    orderBy: { createdAt: "desc" },
+    take,
+    skip
+  });
   const systemLists = getSystemSmartLists().map((list) => ({
     id: list.id,
     name: list.name,
@@ -204,6 +210,8 @@ commsRouter.get("/smart-lists/:id", async (req, res) => {
   }
   const smartList = await prisma.smartList.findUnique({ where: { id } });
   if (!smartList) return res.status(404).json({ error: "not_found" });
+  const tenantId = await getEffectiveTenantId(req);
+  if (tenantId && String(smartList.tenantId) !== tenantId) return res.status(404).json({ error: "not_found" });
   res.json({ smartList });
 });
 
@@ -214,6 +222,8 @@ commsRouter.put("/smart-lists/:id", async (req, res) => {
 
   const existing = await prisma.smartList.findUnique({ where: { id } });
   if (!existing) return res.status(404).json({ error: "not_found" });
+  const tenantId = await getEffectiveTenantId(req);
+  if (tenantId && String(existing.tenantId) !== tenantId) return res.status(404).json({ error: "not_found" });
 
   const rules = parsed.data.rules != null ? parseRules(parsed.data.rules) : undefined;
   const nextLabel = parsed.data.name ? slugifyLabel(parsed.data.name) : undefined;
@@ -233,6 +243,10 @@ commsRouter.put("/smart-lists/:id", async (req, res) => {
 
 commsRouter.delete("/smart-lists/:id", async (req, res) => {
   const id = String(req.params.id || "").trim();
+  const existing = await prisma.smartList.findUnique({ where: { id } });
+  if (!existing) return res.json({ ok: true });
+  const tenantId = await getEffectiveTenantId(req);
+  if (tenantId && String(existing.tenantId) !== tenantId) return res.status(404).json({ error: "not_found" });
   await prisma.smartList.delete({ where: { id } }).catch(() => null);
   res.json({ ok: true });
 });
@@ -358,7 +372,10 @@ commsRouter.get("/campaigns", async (_req, res) => {
   const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 500) : 100;
   const skipRaw = Number(req?.query?.skip ?? 0);
   const skip = Number.isFinite(skipRaw) ? Math.max(Math.trunc(skipRaw), 0) : 0;
-  const items = await prisma.campaign.findMany({ orderBy: { createdAt: "desc" }, take, skip });
+  const idsRaw = String(req?.query?.ids ?? "").trim();
+  const ids = idsRaw ? idsRaw.split(",").map((v) => v.trim()).filter(Boolean) : [];
+  const where = ids.length ? { id: { in: ids } } : undefined;
+  const items = await prisma.campaign.findMany({ where, orderBy: { createdAt: "desc" }, take, skip });
   res.json({ items });
 });
 

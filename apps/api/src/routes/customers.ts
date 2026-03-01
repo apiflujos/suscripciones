@@ -67,6 +67,8 @@ customersRouter.get("/", async (_req, res) => {
   const skipRaw = Number(req?.query?.skip ?? 0);
   const skip = Number.isFinite(skipRaw) ? Math.max(Math.trunc(skipRaw), 0) : 0;
   const q = String(req?.query?.q ?? "").trim();
+  const idsRaw = String(req?.query?.ids ?? "").trim();
+  const ids = idsRaw ? idsRaw.split(",").map((v) => v.trim()).filter(Boolean) : [];
 
   const where: any = {};
   if (tenantId) {
@@ -97,6 +99,11 @@ customersRouter.get("/", async (_req, res) => {
     or.push({ metadata: { path: ["document"], string_contains: q } } as any);
     if (!where.AND) where.AND = [];
     where.AND.push({ OR: or });
+  }
+
+  if (ids.length) {
+    if (!where.AND) where.AND = [];
+    where.AND.push({ id: { in: ids } });
   }
 
   const [items, total] = await Promise.all([

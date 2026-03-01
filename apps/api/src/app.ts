@@ -31,6 +31,7 @@ import { paymentsRouter } from "./routes/payments";
 import { mediaRouter } from "./routes/media";
 import { getMediaDir } from "./services/mediaStorage";
 import { aiRouter } from "./routes/ai";
+import { smartViewsRouter } from "./routes/smartViews";
 
 export function createApp() {
   const app = express();
@@ -232,6 +233,7 @@ export function createApp() {
   app.use("/admin/auth", requireAdminToken, authRouter);
   app.use("/admin/sa", requireAdminToken, superAdminRouter);
   app.use("/admin/chatwoot", requireAdminToken, chatwootRouter);
+  app.use("/admin/smart-views", requireAdminToken, smartViewsRouter);
   app.use("/admin/comms", requireAdminToken, commsRouter);
   app.use("/admin/checkout-templates", requireAdminToken, checkoutTemplatesRouter);
   app.use("/admin/tenants", requireAdminToken, tenantsRouter);

@@ -70,6 +70,8 @@ productsRouter.get("/", async (_req, res) => {
   const skipRaw = Number(req?.query?.skip ?? 0);
   const skip = Number.isFinite(skipRaw) ? Math.max(Math.trunc(skipRaw), 0) : 0;
   const q = String(req?.query?.q ?? "").trim();
+  const idsRaw = String(req?.query?.ids ?? "").trim();
+  const ids = idsRaw ? idsRaw.split(",").map((v) => v.trim()).filter(Boolean) : [];
 
   const where: any = { metadata: { path: ["kind"], equals: "CATALOG_ITEM" } } as any;
   if (tenantId) {
@@ -82,6 +84,10 @@ productsRouter.get("/", async (_req, res) => {
       { metadata: { path: ["displayName"], string_contains: q } } as any,
       { metadata: { path: ["sku"], string_contains: q } } as any
     ];
+  }
+
+  if (ids.length) {
+    where.AND = Array.isArray(where.AND) ? [...where.AND, { id: { in: ids } }] : [{ id: { in: ids } }];
   }
 
   const items = await prisma.subscriptionPlan.findMany({

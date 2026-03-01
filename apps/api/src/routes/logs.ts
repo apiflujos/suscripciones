@@ -36,6 +36,8 @@ logsRouter.get("/system", async (req, res) => {
   const toRaw = String(req.query.to ?? "").trim();
   const fromDate = parseDate(fromRaw) ?? defaultFromDate();
   const toDate = parseDate(toRaw, { end: true });
+  const idsRaw = String(req.query.ids ?? "").trim();
+  const ids = idsRaw ? idsRaw.split(",").map((v) => v.trim()).filter(Boolean) : [];
   const where: Prisma.SystemLogWhereInput | undefined = q
     ? {
         OR: [
@@ -60,6 +62,9 @@ logsRouter.get("/system", async (req, res) => {
     ...(levelFilter || {}),
     ...(customerFilter || {})
   } as Prisma.SystemLogWhereInput;
+  if (ids.length) {
+    (finalWhere as any).id = { in: ids };
+  }
   const [items, total] = await Promise.all([
     prisma.systemLog.findMany({
       where: finalWhere,
@@ -213,6 +218,8 @@ logsRouter.get("/payments", async (req, res) => {
   const take = Math.min(200, Math.max(1, Number(req.query.take ?? 20)));
   const skip = Math.max(0, Number(req.query.skip ?? 0));
   const q = String(req.query.q ?? "").trim();
+  const idsRaw = String(req.query.ids ?? "").trim();
+  const ids = idsRaw ? idsRaw.split(",").map((v) => v.trim()).filter(Boolean) : [];
   const statusRaw = String(req.query.status ?? "").trim().toUpperCase();
   const fromRaw = String(req.query.from ?? "").trim();
   const toRaw = String(req.query.to ?? "").trim();
@@ -258,14 +265,14 @@ logsRouter.get("/payments", async (req, res) => {
       orderBy: { createdAt: "desc" },
       take,
       skip,
-      where,
+      where: ids.length ? { ...where, id: { in: ids } } : where,
       include: {
         subscription: { include: { plan: true } },
         customer: true,
         attempts: { orderBy: { createdAt: "desc" }, take: 1 }
       }
     }),
-    withCount ? prisma.payment.count({ where }) : Promise.resolve(null)
+    withCount ? prisma.payment.count({ where: ids.length ? { ...where, id: { in: ids } } : where }) : Promise.resolve(null)
   ]);
   res.json({ items, total });
 });

@@ -4,6 +4,7 @@ import { HelpTip } from "../ui/HelpTip";
 import { getCsrfToken } from "../lib/csrf";
 import { createCampaign, runCampaign } from "./actions";
 import { RunCampaignButton } from "./RunCampaignButton";
+import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 
 export default async function CampaignsPage({
   searchParams
@@ -16,9 +17,39 @@ export default async function CampaignsPage({
   const sp = (await searchParams) ?? {};
   const returnTo = `/campaigns?${new URLSearchParams(Object.fromEntries(Object.entries(sp).filter(([_, v]) => typeof v === "string" && v))).toString()}`;
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
+  const viewId = typeof sp.viewId === "string" ? sp.viewId : "";
+  const filters = typeof sp.filters === "string" ? sp.filters : "";
   const take = 20;
   const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
-  const campaignsRes = await fetchAdminCached(`/admin/comms/campaigns?take=${take}&skip=${skip}`, { ttlMs: 0 });
+  const params = new URLSearchParams({ take: String(take), skip: String(skip) });
+  if (viewId) {
+    const res = await fetch(`/api/smart-views/campaigns/resolve`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ viewId })
+    });
+    const json = await res.json().catch(() => ({}));
+    const ids = Array.isArray(json?.ids) ? json.ids : [];
+    if (ids.length) params.set("ids", ids.join(","));
+  } else if (filters) {
+    let parsed: any = null;
+    try {
+      parsed = JSON.parse(filters);
+    } catch {
+      parsed = null;
+    }
+    if (parsed) {
+      const res = await fetch(`/api/smart-views/campaigns/resolve`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ filters: parsed })
+      });
+      const json = await res.json().catch(() => ({}));
+      const ids = Array.isArray(json?.ids) ? json.ids : [];
+      if (ids.length) params.set("ids", ids.join(","));
+    }
+  }
+  const campaignsRes = await fetchAdminCached(`/admin/comms/campaigns?${params.toString()}`, { ttlMs: 0 });
   const items = Array.isArray(campaignsRes?.json?.items) ? campaignsRes.json.items : [];
 
   return (
@@ -70,6 +101,17 @@ export default async function CampaignsPage({
             <button className="primary btn-create" type="submit">Crear</button>
           </div>
         </form>
+      </div>
+
+      <div className="panel module" style={{ marginBottom: 16 }}>
+        <div className="filtersGrid">
+          <SmartViewsBar
+            scope="campaigns"
+            initialViewId={viewId}
+            initialFilters={filters}
+            baseParams={{}}
+          />
+        </div>
       </div>
 
       <div className="panel module">

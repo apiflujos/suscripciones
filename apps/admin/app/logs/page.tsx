@@ -7,6 +7,7 @@ import { AiAssistant } from "./AiAssistant";
 import { LogsFiltersAutoSubmit } from "./LogsFiltersAutoSubmit";
 import { getCsrfToken, assertCsrfToken } from "../lib/csrf";
 import { PendingButton } from "../ui/PendingButton";
+import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 
 export const dynamic = "force-dynamic";
 
@@ -136,6 +137,8 @@ export default async function LogsPage({
   const status = typeof sp.status === "string" ? sp.status : "";
   const level = typeof sp.level === "string" ? sp.level : "";
   const processStatus = typeof sp.processStatus === "string" ? sp.processStatus : "";
+  const viewId = typeof sp.viewId === "string" ? sp.viewId : "";
+  const filters = typeof sp.filters === "string" ? sp.filters : "";
   const defaultFrom = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const defaultTo = new Date().toISOString().slice(0, 10);
   const from = typeof sp.from === "string" && sp.from.trim() ? sp.from : defaultFrom;
@@ -180,6 +183,32 @@ export default async function LogsPage({
     ...(to ? { to } : {}),
     ...(tenantId ? { tenantId } : {})
   });
+
+  if ((viewId || filters) && (tab === "system" || tab === "payments")) {
+    const scope = tab === "payments" ? "payments" : "logs";
+    let payload: any = null;
+    if (viewId) payload = { viewId };
+    else if (filters) {
+      try {
+        payload = { filters: JSON.parse(filters) };
+      } catch {
+        payload = null;
+      }
+    }
+    if (payload) {
+      const res = await fetch(`/api/smart-views/${scope}/resolve`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json().catch(() => ({}));
+      const ids = Array.isArray(json?.ids) ? json.ids : [];
+      if (ids.length) {
+        if (tab === "payments") paymentsParams.set("ids", ids.join(","));
+        else systemParams.set("ids", ids.join(","));
+      }
+    }
+  }
   const empty = { ok: true, status: 200, json: { items: [], total: null } } as const;
   const system = tab === "system" ? await fetchAdmin(`/admin/logs/system?${systemParams.toString()}`) : empty;
   const jobs = tab === "jobs" ? await fetchAdmin(`/admin/logs/jobs?${baseParams.toString()}`) : empty;
@@ -296,7 +325,9 @@ export default async function LogsPage({
       ...(tab === "webhooks" && processStatus ? { processStatus } : {}),
       ...(from ? { from } : {}),
       ...(to ? { to } : {}),
-      ...(tenantId ? { tenantId } : {})
+      ...(tenantId ? { tenantId } : {}),
+      ...(viewId ? { viewId } : {}),
+      ...(filters ? { filters } : {})
     };
     const startIndex = countOnPage ? (currentPage - 1) * take + 1 : 0;
     const endIndex = countOnPage ? (currentPage - 1) * take + countOnPage : 0;
@@ -462,21 +493,18 @@ export default async function LogsPage({
               <div className="filtersLeft">
                 <div className="filtersNote">Busca por evento o fuente (por defecto últimos 30 días).</div>
                 <div className="filtersPanel">
-                  <form action="/logs" method="GET" className="filtersForm" data-debounce-form="true">
-                    <input type="hidden" name="tab" value="system" />
-                    <input className="input" name="q" defaultValue={q} placeholder="Buscar en logs..." aria-label="Buscar en logs" />
-                    <select className="select" name="level" defaultValue={level} data-auto-submit="true">
-                      <option value="">Estado: todos</option>
-                      <option value="INFO">Exitoso</option>
-                      <option value="WARN">Advertencia</option>
-                      <option value="ERROR">Error</option>
-                    </select>
-                    <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" data-auto-submit="true" />
-                    <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" data-auto-submit="true" />
-                    <button className="ghost" type="submit">
-                      Filtrar
-                    </button>
-                  </form>
+                  <SmartViewsBar
+                    scope="logs"
+                    initialViewId={viewId}
+                    initialFilters={filters}
+                    baseParams={{
+                      tab: "system",
+                      ...(q ? { q } : {}),
+                      ...(level ? { level } : {}),
+                      ...(from ? { from } : {}),
+                      ...(to ? { to } : {})
+                    }}
+                  />
                 </div>
               </div>
 
@@ -495,19 +523,18 @@ export default async function LogsPage({
               <div className="filtersLeft">
                 <div className="filtersNote">Consulta pagos por cliente, referencia o estado (por defecto últimos 30 días).</div>
                 <div className="filtersPanel">
-                  <form action="/logs" method="GET" className="filtersForm" data-debounce-form="true">
-                    <input type="hidden" name="tab" value="payments" />
-                    <input className="input" name="q" defaultValue={q} placeholder="Buscar cliente, referencia, tx o link..." aria-label="Buscar pagos" />
-                    <select className="select" name="status" defaultValue={status} data-auto-submit="true">
-                      <option value="">Estado: todos</option>
-                      <option value="APPROVED">Pagado</option>
-                      <option value="PENDING">Pendiente</option>
-                      <option value="FAILED">Fallido</option>
-                    </select>
-                    <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" data-auto-submit="true" />
-                    <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" data-auto-submit="true" />
-                    <button className="ghost" type="submit">Filtrar</button>
-                  </form>
+                  <SmartViewsBar
+                    scope="payments"
+                    initialViewId={viewId}
+                    initialFilters={filters}
+                    baseParams={{
+                      tab: "payments",
+                      ...(q ? { q } : {}),
+                      ...(status ? { status } : {}),
+                      ...(from ? { from } : {}),
+                      ...(to ? { to } : {})
+                    }}
+                  />
                 </div>
               </div>
             </div>

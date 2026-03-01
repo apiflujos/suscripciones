@@ -53,6 +53,8 @@ ordersRouter.get("/", async (_req, res) => {
   const takeRaw = Number(req?.query?.take ?? 50);
   const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 500) : 50;
   const q = String(req?.query?.q ?? "").trim();
+  const idsRaw = String(req?.query?.ids ?? "").trim();
+  const ids = idsRaw ? idsRaw.split(",").map((v) => v.trim()).filter(Boolean) : [];
 
   const where: any = { subscriptionId: null, wompiPaymentLinkId: { not: null } };
   if (tenantId) where.tenantId = tenantId;
@@ -63,6 +65,7 @@ ordersRouter.get("/", async (_req, res) => {
       { customer: { email: { contains: q, mode: "insensitive" } } }
     ];
   }
+  if (ids.length) where.id = { in: ids };
 
   const items = await prisma.payment.findMany({
     where,
