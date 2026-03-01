@@ -11,6 +11,10 @@ SET "status" = 'SENT'
 WHERE "status" IS NULL
    OR "status" NOT IN ('SENT', 'PAID', 'FAILED');
 
+-- Drop default before type change (avoids cast error)
+ALTER TABLE "PaymentLink"
+  ALTER COLUMN "status" DROP DEFAULT;
+
 ALTER TABLE "PaymentLink"
   ALTER COLUMN "status" TYPE "PaymentLinkStatus" USING ("status"::"PaymentLinkStatus");
 
