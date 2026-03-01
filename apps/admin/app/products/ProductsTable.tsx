@@ -477,6 +477,31 @@ export function ProductsTable({
                       </div>
                     </div>
                   </div>
+                  <div className="send-product-media">
+                    <div className={`send-product-media-thumb ${isPublicImage(sendProduct.imageUrl) ? "" : "is-muted"}`}>
+                      {isPublicImage(sendProduct.imageUrl) ? (
+                        <img src={sendProduct.imageUrl || ""} alt="Imagen del producto" />
+                      ) : (
+                        <span>🖼️</span>
+                      )}
+                    </div>
+                    <div className="send-product-media-info">
+                      <div className="send-product-media-title">Imagen del producto</div>
+                      <div className="send-product-media-meta">
+                        {isPublicImage(sendProduct.imageUrl) ? (
+                          <>
+                            <span className="pill pill-ok">Lista para WhatsApp</span>
+                            <span>URL pública detectada</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="pill pill-warn">No disponible</span>
+                            <span>Configura una URL https en el producto</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="field">
@@ -539,11 +564,6 @@ export function ProductsTable({
                     </label>
                   </label>
                   <div className="field-hint">La imagen se envía como previsualización del enlace del producto.</div>
-                  {!isPublicImage(sendProduct.imageUrl) && sendProduct.imageUrl ? (
-                    <div className="field-hint" style={{ color: "var(--status-warning)" }}>
-                      La imagen actual no es pública; usa un URL https para enviar imagen en WhatsApp.
-                    </div>
-                  ) : null}
                 </div>
               </div>
 
@@ -553,7 +573,7 @@ export function ProductsTable({
                   <textarea
                     className="input"
                     name="message"
-                    rows={12}
+                    rows={13}
                     value={sendMessage}
                     onChange={(e) => {
                       setSendMessage(e.target.value);
@@ -564,9 +584,11 @@ export function ProductsTable({
                     Variables disponibles: <strong>{"{{cliente}}"}</strong>, <strong>{"{{producto}}"}</strong>, <strong>{"{{precio}}"}</strong>, <strong>{"{{descripcion}}"}</strong>, <strong>{"{{imagen}}"}</strong>, <strong>{"{{link}}"}</strong>.
                   </div>
                 </div>
-                <button className="primary" type="submit" disabled={!sendCustomerId || !sendMessage.trim()}>
-                  📤 Enviar mensaje
-                </button>
+                <div className="send-product-actions">
+                  <button className="primary" type="submit" disabled={!sendCustomerId || !sendMessage.trim()}>
+                    📤 Enviar mensaje
+                  </button>
+                </div>
               </div>
             </form>
           </div>

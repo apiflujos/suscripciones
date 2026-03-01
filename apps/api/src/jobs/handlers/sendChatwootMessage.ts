@@ -45,6 +45,20 @@ function stripAttachmentLine(content: string, url: string) {
   return filtered.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
+function sanitizeInlineImages(content: string) {
+  const safe = String(content || "");
+  const lines = safe.split(/\r?\n/);
+  const filtered = lines.filter((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) return true;
+    if (/^imagen\s*:/i.test(trimmed)) return false;
+    if (/data:image\//i.test(trimmed)) return false;
+    return true;
+  });
+  const out = filtered.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  return out || safe.trim();
+}
+
 export async function sendChatwootMessage(chatwootMessageId: string) {
   const msg = await prisma.chatwootMessage.findUnique({
     where: { id: chatwootMessageId },
@@ -268,12 +282,12 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
   let sent: any;
   try {
     if (allowTemplate && templateParams) {
-      sent = await client.sendTemplate(conversationId, { content: msg.content, templateParams });
+      sent = await client.sendTemplate(conversationId, { content: sanitizeInlineImages(msg.content), templateParams });
     } else if (attachmentUrl) {
       try {
         const attachment = await downloadAttachment(attachmentUrl);
-        const content = stripAttachmentLine(msg.content, attachmentUrl);
-        sent = await client.sendMessageWithAttachment(conversationId, content || msg.content, {
+        const content = sanitizeInlineImages(stripAttachmentLine(msg.content, attachmentUrl));
+        sent = await client.sendMessageWithAttachment(conversationId, content || sanitizeInlineImages(msg.content), {
           buffer: attachment.buffer,
           mime: attachment.mime,
           filename: `producto.${attachment.ext}`
@@ -284,11 +298,11 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
           customerId: msg.customerId,
           err: String(err?.message || err || "attachment_failed")
         }).catch(() => {});
-        const content = stripAttachmentLine(msg.content, attachmentUrl);
-        sent = await client.sendMessage(conversationId, content || msg.content);
+        const content = sanitizeInlineImages(stripAttachmentLine(msg.content, attachmentUrl));
+        sent = await client.sendMessage(conversationId, content || sanitizeInlineImages(msg.content));
       }
     } else {
-      sent = await client.sendMessage(conversationId, msg.content);
+      sent = await client.sendMessage(conversationId, sanitizeInlineImages(msg.content));
     }
   } catch (err: any) {
     const message = err?.message ? String(err.message) : "chatwoot_send_failed";

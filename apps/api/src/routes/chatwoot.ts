@@ -1,12 +1,13 @@
 import express from "express";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
-import { ChatwootMessageType, MessageStatus, RetryJobType } from "@prisma/client";
+import { ChatwootMessageType, LogLevel, MessageStatus, RetryJobType } from "@prisma/client";
 import { ChatwootClient } from "../providers/chatwoot/client";
 import { getChatwootConfig } from "../services/runtimeConfig";
 import { syncChatwootAttributesForCustomer } from "../services/chatwootSync";
 import { sendChatwootMessage } from "../jobs/handlers/sendChatwootMessage";
 import { getDefaultTenantId, getEffectiveTenantId } from "../services/tenantContext";
+import { systemLog } from "../services/systemLog";
 
 export const chatwootRouter = express.Router();
 
@@ -163,12 +164,31 @@ const messageSchema = z.object({
   sendNow: z.boolean().optional()
 });
 
+function sanitizeChatwootContent(content: string, attachmentUrl?: string | null) {
+  const safe = String(content || "");
+  const target = String(attachmentUrl || "").trim();
+  const lines = safe.split(/\r?\n/);
+  const filtered = lines.filter((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) return true;
+    if (/^imagen\s*:/i.test(trimmed)) return false;
+    if (/data:image\//i.test(trimmed)) return false;
+    if (target && trimmed.includes(target)) return false;
+    return true;
+  });
+  const normalized = filtered.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  return normalized || safe.trim();
+}
+
+const DEDUPE_WINDOW_MS = 5 * 60 * 1000;
+
 chatwootRouter.post("/messages", async (req, res) => {
   const parsed = messageSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
 
   const msgType = parsed.data.type || ChatwootMessageType.PAYMENT_LINK;
   const sendNow = parsed.data.sendNow !== false;
+  const cleanContent = sanitizeChatwootContent(parsed.data.content, parsed.data.attachmentUrl);
   const client = await getClientOrThrow().catch((err) => {
     res.status(400).json({ error: err?.message || "chatwoot_not_configured" });
     return null;
@@ -207,6 +227,25 @@ chatwootRouter.post("/messages", async (req, res) => {
 
   // If we have a customer, create message and send immediately (default).
   if (parsed.data.customerId) {
+    const existing = await prisma.chatwootMessage.findFirst({
+      where: {
+        customerId: parsed.data.customerId,
+        type: msgType,
+        content: cleanContent,
+        status: { in: [MessageStatus.PENDING, MessageStatus.SENT] },
+        createdAt: { gt: new Date(Date.now() - DEDUPE_WINDOW_MS) }
+      },
+      select: { id: true }
+    });
+    if (existing) {
+      await systemLog(LogLevel.WARN, "chatwoot.send", "Mensaje duplicado; omitido", {
+        chatwootMessageId: existing.id,
+        customerId: parsed.data.customerId,
+        type: msgType
+      }).catch(() => {});
+      return res.json({ ok: true, duplicated: true, messageId: existing.id });
+    }
+
     const providerResp: any = {};
     if (parsed.data.templateParams) providerResp.template_params = parsed.data.templateParams;
     if (parsed.data.attachmentUrl) providerResp.attachment = { url: parsed.data.attachmentUrl };
@@ -219,7 +258,7 @@ chatwootRouter.post("/messages", async (req, res) => {
         customerId: parsed.data.customerId,
         type: msgType,
         status: MessageStatus.PENDING,
-        content: parsed.data.content,
+        content: cleanContent,
         providerResp: Object.keys(providerResp).length ? (providerResp as any) : null
       }
     });
@@ -242,8 +281,8 @@ chatwootRouter.post("/messages", async (req, res) => {
   }
 
   const out = parsed.data.templateParams
-    ? await client.sendTemplate(conversationId, { content: parsed.data.content, templateParams: parsed.data.templateParams })
-    : await client.sendMessage(conversationId, parsed.data.content);
+    ? await client.sendTemplate(conversationId, { content: cleanContent, templateParams: parsed.data.templateParams })
+    : await client.sendMessage(conversationId, cleanContent);
   return res.json(out.raw);
 });
 
