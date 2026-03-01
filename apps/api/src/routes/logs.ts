@@ -195,18 +195,34 @@ logsRouter.get("/jobs/health", async (_req, res) => {
   const key = String(process.env.JOBS_HEARTBEAT_KEY || "wompi-subs-jobs").trim() || "wompi-subs-jobs";
   const ttlSecondsRaw = Number(process.env.JOBS_HEALTH_TTL_SECONDS || 180);
   const ttlSeconds = Number.isFinite(ttlSecondsRaw) ? Math.max(30, Math.trunc(ttlSecondsRaw)) : 180;
-  const heartbeat = await prisma.serviceHeartbeat.findUnique({ where: { key } });
+  const [heartbeat, pendingCount, runningCount, failedCount, nextJob] = await Promise.all([
+    prisma.serviceHeartbeat.findUnique({ where: { key } }),
+    prisma.retryJob.count({ where: { status: RetryJobStatus.PENDING } }),
+    prisma.retryJob.count({ where: { status: RetryJobStatus.RUNNING } }),
+    prisma.retryJob.count({ where: { status: RetryJobStatus.FAILED } }),
+    prisma.retryJob.findFirst({
+      where: { status: RetryJobStatus.PENDING },
+      orderBy: { runAt: "asc" },
+      select: { type: true, runAt: true }
+    })
+  ]);
   const now = new Date();
   const lastSeenAt = heartbeat?.lastSeenAt || null;
   const ageMs = lastSeenAt ? now.getTime() - lastSeenAt.getTime() : null;
   const healthy = lastSeenAt ? ageMs != null && ageMs <= ttlSeconds * 1000 : false;
+  const nextJobAt = nextJob?.runAt ? nextJob.runAt.toISOString() : null;
   res.json({
     ok: !!lastSeenAt,
     healthy,
     key,
     lastSeenAt: lastSeenAt ? lastSeenAt.toISOString() : null,
     ageMs,
-    ttlSeconds
+    ttlSeconds,
+    pending: pendingCount,
+    running: runningCount,
+    failed: failedCount,
+    nextJobType: nextJob?.type || null,
+    nextJobAt
   });
 });
 
@@ -408,6 +424,8 @@ logsRouter.get("/jobs", async (req, res) => {
         attempts: true,
         maxAttempts: true,
         runAt: true,
+        lockedAt: true,
+        lockedBy: true,
         updatedAt: true,
         payload: true,
         lastError: true
