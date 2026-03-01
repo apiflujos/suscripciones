@@ -1357,8 +1357,8 @@ a {
 }
 
 .logs-table .log-contact-meta {
-  font-size: 10px;
-  max-width: 84px;
+  font-size: 9.5px;
+  max-width: 100%;
 }
 
 .logs-table .log-type-cell {
@@ -1440,14 +1440,17 @@ a {
 
 .logs-table-payments .log-transaction-cell {
   display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .logs-table-payments .log-ref-cell {
-  max-width: 80px;
+  max-width: 72px;
 }
 
 .logs-table-payments .log-transaction-cell {
-  max-width: 78px;
+  max-width: 96px;
 }
 
 .logs-table-jobs .log-detail-cell {
