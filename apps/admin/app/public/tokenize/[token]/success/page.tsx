@@ -69,6 +69,7 @@ export default async function PublicTokenizeSuccessPage({ params }: { params: Pr
       description={description}
       logoUrl={logoUrl}
       trustText={PUBLIC_COPY.trustTokenize}
+      tenantName={tenant?.name || ""}
       supportHref={supportHref || undefined}
       supportLabel={supportLabel || undefined}
       primaryColor={primaryColor}

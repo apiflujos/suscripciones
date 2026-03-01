@@ -123,6 +123,7 @@ export default async function PublicTokenizePage({
         message={msg}
         logoUrl={logoUrl}
         trustText={PUBLIC_COPY.trustTokenize}
+        tenantName={tenant?.name || ""}
         supportHref={supportHref || undefined}
         supportLabel={supportLabel || undefined}
       />
@@ -136,6 +137,7 @@ export default async function PublicTokenizePage({
       description={descriptionLines}
       logoUrl={logoUrl}
       trustText={PUBLIC_COPY.trustTokenize}
+      tenantName={tenant?.name || ""}
       securityBullets={[
         "Tokenización directa con Wompi.",
         "Conexión cifrada (HTTPS/TLS).",
@@ -155,7 +157,7 @@ export default async function PublicTokenizePage({
       <div className="payment-point">
         <div className="payment-point-title">Tokenización de tarjeta</div>
         <div className="payment-point-provider">
-          <img src="/brand/wompi.png" alt="" />
+          <img src="/brand/wompi-icon.svg" alt="" />
           Procesado por Wompi
         </div>
         {!publicKey ? (

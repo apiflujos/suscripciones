@@ -6,6 +6,7 @@ type PublicErrorPageProps = {
   message: string;
   logoUrl?: string;
   trustText?: string;
+  tenantName?: string;
   supportHref?: string;
   supportLabel?: string;
 };
@@ -15,6 +16,7 @@ export function PublicErrorPage({
   message,
   logoUrl,
   trustText,
+  tenantName,
   supportHref,
   supportLabel
 }: PublicErrorPageProps) {
@@ -24,6 +26,7 @@ export function PublicErrorPage({
       description=""
       logoUrl={logoUrl}
       trustText={trustText}
+      tenantName={tenantName}
       supportHref={supportHref}
       supportLabel={supportLabel}
       maxWidth={680}

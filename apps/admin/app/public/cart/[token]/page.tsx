@@ -83,6 +83,7 @@ export default async function PublicCartPage({
         message={msg}
         logoUrl={logoUrl}
         trustText={PUBLIC_COPY.trustPayment}
+        tenantName={tenant?.name || ""}
         supportHref={supportHref || undefined}
         supportLabel={supportLabel || undefined}
       />
@@ -99,6 +100,7 @@ export default async function PublicCartPage({
       description={description}
       logoUrl={logoUrl}
       trustText={PUBLIC_COPY.trustPayment}
+      tenantName={tenant?.name || ""}
       supportHref={supportHref || undefined}
       supportLabel={supportLabel || undefined}
       primaryColor={primaryColor}

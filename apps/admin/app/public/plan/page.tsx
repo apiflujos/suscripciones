@@ -27,6 +27,7 @@ export default async function PublicPlanMissingPage() {
       description="Solicita un nuevo link."
       logoUrl={logoUrl}
       trustText="Pago seguro con Wompi."
+      tenantName=""
       supportHref={supportHref || undefined}
       supportLabel={supportLabel || undefined}
       maxWidth={680}

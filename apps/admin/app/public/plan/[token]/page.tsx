@@ -73,6 +73,7 @@ export default async function PublicPlanPage({ params }: { params: Promise<{ tok
         message={msg}
         logoUrl={logoUrl}
         trustText={PUBLIC_COPY.trustPayment}
+        tenantName={tenant?.name || ""}
         supportHref={supportHref || undefined}
         supportLabel={supportLabel || undefined}
       />
@@ -89,6 +90,7 @@ export default async function PublicPlanPage({ params }: { params: Promise<{ tok
       description={descriptionLines}
       logoUrl={logoUrl}
       trustText={PUBLIC_COPY.trustPayment}
+      tenantName={tenant?.name || ""}
       securityBullets={[
         "Pago procesado por Wompi.",
         "Conexi\u00f3n cifrada (HTTPS/TLS).",
@@ -120,7 +122,7 @@ export default async function PublicPlanPage({ params }: { params: Promise<{ tok
       <div className="payment-point">
         <div className="payment-point-title">Punto de pago</div>
         <div className="payment-point-provider">
-          <img src="/brand/wompi.png" alt="" />
+          <img src="/brand/wompi-icon.svg" alt="" />
           Procesado por Wompi
         </div>
         {checkoutUrl ? (
