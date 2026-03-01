@@ -60,6 +60,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   // Middleware inyecta x-app-pathname y x-auth-user
   const pathname = h.get("x-app-pathname") || "";
   const authUser = h.get("x-auth-user");
+  const isPublicRoute = pathname.startsWith("/public/");
   
   // Rutas de autenticación
   const isAuthScreen =
@@ -91,9 +92,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
 (() => {
   try {
     const root = document.documentElement;
-    const theme = localStorage.getItem("apiflujos-theme") || "";
-    const contrast = localStorage.getItem("apiflujos-contrast") || "";
-    const vision = localStorage.getItem("apiflujos-vision") || "";
+    const forceSystem = ${isPublicRoute ? "true" : "false"};
+    const theme = forceSystem ? "" : (localStorage.getItem("apiflujos-theme") || "");
+    const contrast = forceSystem ? "" : (localStorage.getItem("apiflujos-contrast") || "");
+    const vision = forceSystem ? "" : (localStorage.getItem("apiflujos-vision") || "");
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     const prefersContrast = window.matchMedia("(prefers-contrast: more)").matches;
     const forcedColors = window.matchMedia("(forced-colors: active)").matches;
@@ -124,7 +126,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         )}
         <GlobalLoader />
         <FormValidation />
-        <ThemeClient />
+        {isPublicRoute ? null : <ThemeClient />}
       </body>
     </html>
   );

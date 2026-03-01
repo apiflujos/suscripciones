@@ -1,4 +1,5 @@
 import { PublicCheckoutLayout } from "./PublicCheckoutLayout";
+import { PublicAlert } from "./PublicAlert";
 
 type PublicErrorPageProps = {
   title: string;
@@ -20,13 +21,14 @@ export function PublicErrorPage({
   return (
     <PublicCheckoutLayout
       title={title}
-      description={message}
+      description=""
       logoUrl={logoUrl}
       trustText={trustText}
       supportHref={supportHref}
       supportLabel={supportLabel}
       maxWidth={680}
     >
+      <PublicAlert>{message}</PublicAlert>
       {supportHref ? (
         <a className="primary" href={supportHref} referrerPolicy="no-referrer" style={{ width: "fit-content" }}>
           Solicitar nuevo link
