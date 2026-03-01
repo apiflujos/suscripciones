@@ -465,15 +465,10 @@ export default async function CustomerDetailPage({
             <div className="hero-name-block">
               <div className="hero-name-row">
                 <div className="contact-title">{customer.name || customer.email || customer.phone || "Contacto"}</div>
-                <div className="hero-id-block">
-                  <span className="hero-id-label">NIT / ID</span>
-                  <span className="hero-id-value mono">{meta?.identificacion || meta?.identificationNumber || meta?.documentNumber || "—"}</span>
-                  <span className="hero-id-sub">{tenantName || customer.tenantId || "—"}</span>
-                </div>
               </div>
               <div className="contact-subline">{customer.email || "—"} · {customer.phone || "—"}</div>
               <div className="contact-subline">
-                Cliente desde <LocalDateTime value={customer.createdAt} /> · ID <span className="mono">{customer.id}</span>
+                ID <span className="mono">{customer.id}</span>
               </div>
               <div className="contact-tags">
                 {meta?.wompi?.paymentSourceId || meta?.wompi?.payment_source_id ? (
@@ -490,13 +485,20 @@ export default async function CustomerDetailPage({
                 )}
               </div>
             </div>
-            <div className={`tier-badge tier-badge-hero ${tier.cls}`}>
-              <span className="tier-icon" aria-hidden="true">
-                {tierIcon(tier.icon)}
-              </span>
-              <div className="tier-text">
-                <span className="tier-label">Nivel</span>
-                <span className="tier-value">{tier.label}</span>
+            <div className="hero-right">
+              <div className="hero-id-block">
+                <span className="hero-id-label">NIT / ID</span>
+                <span className="hero-id-value mono">{meta?.identificacion || meta?.identificationNumber || meta?.documentNumber || "—"}</span>
+                <span className="hero-id-sub">{tenantName || customer.tenantId || "—"}</span>
+              </div>
+              <div className={`tier-badge tier-badge-hero ${tier.cls}`}>
+                <span className="tier-icon" aria-hidden="true">
+                  {tierIcon(tier.icon)}
+                </span>
+                <div className="tier-text">
+                  <span className="tier-label">Nivel</span>
+                  <span className="tier-value">{tier.label}</span>
+                </div>
               </div>
             </div>
           </div>

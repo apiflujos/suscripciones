@@ -2346,6 +2346,12 @@ textarea.input {
   gap: 16px;
 }
 
+.hero-right {
+  display: grid;
+  gap: 10px;
+  justify-items: end;
+}
+
 .hero-name-block {
   display: grid;
   gap: 6px;
@@ -2366,6 +2372,8 @@ textarea.input {
   border: 1px solid var(--stroke);
   background: var(--surface-2);
   min-width: 160px;
+  justify-items: end;
+  text-align: right;
 }
 
 .hero-id-label {
@@ -2899,6 +2907,13 @@ textarea.input {
     grid-template-columns: 1fr;
   }
   .customer-hero-actions {
+    justify-items: start;
+  }
+  .hero-right {
+    justify-items: start;
+  }
+  .hero-id-block {
+    text-align: left;
     justify-items: start;
   }
   .hero-subs-actions {
