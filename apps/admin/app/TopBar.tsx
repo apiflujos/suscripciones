@@ -47,6 +47,8 @@ export function TopBar({ session }: { session: AdminSession | null }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [appearanceOpen, setAppearanceOpen] = useState(false);
   const [paymentPulse, setPaymentPulse] = useState(false);
+  const [rtSoundEnabled, setRtSoundEnabled] = useState(false);
+  const [rtVolume, setRtVolume] = useState(0.55);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const appearanceRef = useRef<HTMLButtonElement | null>(null);
   const appearancePopoverRef = useRef<HTMLDivElement | null>(null);
@@ -91,6 +93,37 @@ export function TopBar({ session }: { session: AdminSession | null }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem("apiflujos-realtime-sound");
+    if (stored === "1") setRtSoundEnabled(true);
+    const storedVolume = window.localStorage.getItem("apiflujos-realtime-sound-volume");
+    if (storedVolume) {
+      const v = Number(storedVolume);
+      if (Number.isFinite(v)) setRtVolume(Math.min(1, Math.max(0.1, v)));
+    }
+  }, []);
+
+  const publishRealtimeSettings = (nextEnabled: boolean, nextVolume: number) => {
+    setRtSoundEnabled(nextEnabled);
+    setRtVolume(nextVolume);
+    try {
+      window.localStorage.setItem("apiflujos-realtime-sound", nextEnabled ? "1" : "0");
+      window.localStorage.setItem("apiflujos-realtime-sound-volume", String(nextVolume));
+    } catch {}
+    try {
+      window.dispatchEvent(
+        new CustomEvent("apiflujos:realtime-settings", { detail: { soundEnabled: nextEnabled, volume: nextVolume } })
+      );
+    } catch {}
+  };
+
+  const runRealtimeTest = () => {
+    try {
+      window.dispatchEvent(new CustomEvent("apiflujos:realtime-test"));
+    } catch {}
+  };
+
   return (
     <header className="topbar" aria-label="Topbar">
       <div className="topbarLeft">
@@ -132,6 +165,40 @@ export function TopBar({ session }: { session: AdminSession | null }) {
             <div className="appearancePopover" ref={appearancePopoverRef} role="dialog" aria-label="Apariencia">
               <div className="appearanceTitle">Apariencia</div>
               <AppearanceSelector compact />
+              <div className="appearanceDivider" />
+              <div className="appearanceSection">
+                <div className="appearanceSectionTitle">Tiempo real</div>
+                <div className="appearanceRow">
+                  <label className="appearanceToggle">
+                    <input
+                      type="checkbox"
+                      checked={rtSoundEnabled}
+                      onChange={(e) => publishRealtimeSettings(e.target.checked, rtVolume)}
+                    />
+                    <span>Sonido</span>
+                  </label>
+                  <span className="appearanceValue">{Math.round(rtVolume * 100)}%</span>
+                </div>
+                <input
+                  className="appearanceRange"
+                  type="range"
+                  min="0.1"
+                  max="1"
+                  step="0.05"
+                  value={rtVolume}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    if (!Number.isFinite(v)) return;
+                    publishRealtimeSettings(rtSoundEnabled, v);
+                  }}
+                  aria-label="Volumen tiempo real"
+                />
+                {isSuperAdmin ? (
+                  <button className="ghost btn-compact" type="button" data-loader="off" onClick={runRealtimeTest}>
+                    Probar sonido
+                  </button>
+                ) : null}
+              </div>
             </div>
           ) : null}
         </div>

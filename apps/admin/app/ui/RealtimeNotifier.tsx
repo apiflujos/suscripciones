@@ -99,6 +99,34 @@ export function RealtimeNotifier() {
     return () => document.removeEventListener("pointerdown", enable);
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onSettings = (evt: Event) => {
+      const detail = (evt as CustomEvent)?.detail || {};
+      const nextEnabled = detail.soundEnabled === true;
+      const nextVolume = Number(detail.volume);
+      if (detail.soundEnabled != null) {
+        soundEnabledRef.current = nextEnabled;
+        soundEnabledStateRef.current = nextEnabled;
+        setSoundEnabled(nextEnabled);
+      }
+      if (Number.isFinite(nextVolume)) {
+        const v = Math.min(1, Math.max(0.1, nextVolume));
+        volumeRef.current = v;
+        setVolume(v);
+      }
+    };
+    const onTest = () => {
+      pushTestToast();
+    };
+    window.addEventListener("apiflujos:realtime-settings", onSettings as EventListener);
+    window.addEventListener("apiflujos:realtime-test", onTest);
+    return () => {
+      window.removeEventListener("apiflujos:realtime-settings", onSettings as EventListener);
+      window.removeEventListener("apiflujos:realtime-test", onTest);
+    };
+  }, []);
+
   const playCashSound = () => {
     if (typeof window === "undefined") return;
     if (!soundEnabledRef.current) return;
@@ -316,43 +344,6 @@ export function RealtimeNotifier() {
       <span className="realtime-status-text">
         {status === "connected" ? "Tiempo real" : status === "connecting" ? "Conectando" : "Desconectado"}
       </span>
-      <label className="realtime-sound-toggle">
-        <input
-          type="checkbox"
-          checked={soundEnabled}
-          onChange={(e) => {
-            const next = e.target.checked;
-            soundEnabledRef.current = next;
-            soundEnabledStateRef.current = next;
-            setSoundEnabled(next);
-            try {
-              window.localStorage.setItem("apiflujos-realtime-sound", next ? "1" : "0");
-            } catch {}
-          }}
-        />
-        <span>Sonido</span>
-      </label>
-      <input
-        className="realtime-volume"
-        type="range"
-        min="0.1"
-        max="1"
-        step="0.05"
-        value={volume}
-        onChange={(e) => {
-          const v = Number(e.target.value);
-          if (!Number.isFinite(v)) return;
-          volumeRef.current = v;
-          setVolume(v);
-          try {
-            window.localStorage.setItem("apiflujos-realtime-sound-volume", String(v));
-          } catch {}
-        }}
-        aria-label="Volumen"
-      />
-      <button className="ghost btn-compact" type="button" onClick={pushTestToast} data-loader="off">
-        Probar
-      </button>
     </div>
   );
 
