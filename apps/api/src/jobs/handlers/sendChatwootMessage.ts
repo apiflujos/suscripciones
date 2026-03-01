@@ -59,6 +59,39 @@ function sanitizeInlineImages(content: string) {
   return out || safe.trim();
 }
 
+type ContactableInboxMeta = {
+  inboxId?: number;
+  sourceId?: string;
+  channelType?: string;
+  medium?: string;
+  provider?: string;
+};
+
+function toContactableInboxes(raw: any): ContactableInboxMeta[] {
+  const payload = Array.isArray(raw?.payload) ? raw.payload : Array.isArray(raw) ? raw : [];
+  return payload
+    .map((item: any) => {
+      const inbox = item?.inbox || item?.inbox_meta || item?.inboxMeta || {};
+      const inboxIdRaw = inbox?.id ?? item?.inbox_id ?? item?.inboxId;
+      const inboxId = Number(inboxIdRaw);
+      return {
+        inboxId: Number.isFinite(inboxId) ? inboxId : undefined,
+        sourceId: String(item?.source_id || item?.sourceId || "").trim() || undefined,
+        channelType: String(inbox?.channel_type || item?.channel_type || "").trim() || undefined,
+        medium: String(inbox?.medium || item?.medium || "").trim() || undefined,
+        provider: String(inbox?.provider || item?.provider || "").trim() || undefined
+      };
+    })
+    .filter((item: ContactableInboxMeta) => item.inboxId || item.sourceId);
+}
+
+function isWhatsappChannel(meta: { channelType?: string; medium?: string; provider?: string }) {
+  const channelType = String(meta?.channelType || "");
+  const medium = String(meta?.medium || "");
+  const provider = String(meta?.provider || "");
+  return /whatsapp/i.test(channelType) || /whatsapp/i.test(medium) || /whatsapp/i.test(provider);
+}
+
 export async function sendChatwootMessage(chatwootMessageId: string) {
   const msg = await prisma.chatwootMessage.findUnique({
     where: { id: chatwootMessageId },
@@ -102,6 +135,9 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
   // Ensure contact + conversation
   let contactId: number | undefined;
   let sourceId: string | undefined;
+  let selectedInboxId: number | undefined;
+  let selectedChannel: ContactableInboxMeta | null = null;
+  let contactableInboxes: ContactableInboxMeta[] = [];
 
   const customerMeta: any = (msg.customer.metadata ?? {}) as any;
   const knownContactId = customerMeta?.chatwoot?.contactId;
@@ -189,9 +225,26 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
     return;
   }
 
+  const wantsTemplate = Boolean((msg.providerResp as any)?.template_params);
+  try {
+    const contactable = await client.listContactableInboxes(contactId);
+    contactableInboxes = toContactableInboxes(contactable.raw);
+  } catch {
+    contactableInboxes = [];
+  }
+
+  if (contactableInboxes.length) {
+    const byTemplate = wantsTemplate ? contactableInboxes.find((item) => isWhatsappChannel(item)) : null;
+    const byConfig = contactableInboxes.find((item) => item.inboxId === cfg.inboxId);
+    const prefer = byTemplate || byConfig || contactableInboxes[0];
+    selectedInboxId = prefer?.inboxId;
+    selectedChannel = prefer || null;
+    if (!sourceId && prefer?.sourceId) sourceId = prefer.sourceId;
+  }
+
   if (!sourceId) {
     try {
-      const contactInfo = await client.getContact(contactId);
+      const contactInfo = await client.getContact(contactId, selectedInboxId ?? cfg.inboxId);
       sourceId = contactInfo.sourceId;
     } catch {
       // ignore
@@ -199,7 +252,7 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
   }
   if (!sourceId) {
     try {
-      const createdInbox = await client.createContactInbox(contactId);
+      const createdInbox = await client.createContactInbox(contactId, undefined, selectedInboxId ?? cfg.inboxId);
       sourceId = createdInbox.sourceId;
       const merged = {
         ...(customerMeta && typeof customerMeta === "object" ? customerMeta : {}),
@@ -228,7 +281,9 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
     conversationId = existingConversationId;
   } else {
     try {
-      conversationId = (await client.createConversation({ contactId, sourceId, message: undefined })).conversationId;
+      conversationId = (
+        await client.createConversation({ contactId, sourceId, inboxId: selectedInboxId ?? cfg.inboxId, message: undefined })
+      ).conversationId;
     } catch (err: any) {
       const message = err?.message ? String(err.message) : "chatwoot_create_conversation_failed";
       await prisma.chatwootMessage.update({
@@ -260,11 +315,16 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
   let allowTemplate = Boolean(templateParams);
   if (templateParams) {
     try {
-      const inbox = await client.getInbox(cfg.inboxId);
-      const channelType = String((inbox.raw as any)?.channel_type || "");
-      const medium = String((inbox.raw as any)?.medium || "");
-      const provider = String((inbox.raw as any)?.provider || "");
-      const isWhatsapp = /whatsapp/i.test(channelType) || /whatsapp/i.test(medium) || /whatsapp/i.test(provider);
+      let channelType = selectedChannel?.channelType || "";
+      let medium = selectedChannel?.medium || "";
+      let provider = selectedChannel?.provider || "";
+      if (!channelType && !medium && !provider) {
+        const inbox = await client.getInbox(selectedInboxId ?? cfg.inboxId);
+        channelType = String((inbox.raw as any)?.channel_type || "");
+        medium = String((inbox.raw as any)?.medium || "");
+        provider = String((inbox.raw as any)?.provider || "");
+      }
+      const isWhatsapp = isWhatsappChannel({ channelType, medium, provider });
       allowTemplate = isWhatsapp;
       if (!isWhatsapp) {
         await systemLog(LogLevel.INFO, "chatwoot.send", "Template omitido: canal no WhatsApp", {

@@ -281,7 +281,7 @@ export class ChatwootClient {
     return first?.id ? { contactId: Number(first.id), raw: res.json } : null;
   }
 
-  async getContact(contactId: number) {
+  async getContact(contactId: number, inboxId?: number) {
     const res = await this.request(`/api/v1/accounts/${this.opts.accountId}/contacts/${contactId}`, {
       method: "GET"
     });
@@ -289,18 +289,28 @@ export class ChatwootClient {
     const parsed = contactShowSchema.safeParse(res.json);
     if (!parsed.success) throw new Error("Chatwoot get contact: unexpected response");
     const inboxes = parsed.data.payload.contact_inboxes || [];
-    const match = inboxes.find((i) => Number(i?.inbox?.id) === this.opts.inboxId);
+    const targetInboxId = Number.isFinite(Number(inboxId)) ? Number(inboxId) : this.opts.inboxId;
+    const match = inboxes.find((i) => Number(i?.inbox?.id) === targetInboxId);
     return {
       sourceId: match?.source_id,
       raw: res.json
     };
   }
 
-  async createContactInbox(contactId: number, sourceId?: string) {
+  async listContactableInboxes(contactId: number) {
+    const res = await this.request(
+      `/api/v1/accounts/${this.opts.accountId}/contacts/${contactId}/contactable_inboxes`,
+      { method: "GET" }
+    );
+    if (!res.ok) throw new Error(`Chatwoot list contactable inboxes failed: ${res.status} ${JSON.stringify(res.json)}`);
+    return { raw: res.json };
+  }
+
+  async createContactInbox(contactId: number, sourceId?: string, inboxId?: number) {
     const res = await this.request(`/api/v1/accounts/${this.opts.accountId}/contacts/${contactId}/contact_inboxes`, {
       method: "POST",
       body: JSON.stringify({
-        inbox_id: this.opts.inboxId,
+        inbox_id: inboxId ?? this.opts.inboxId,
         ...(sourceId ? { source_id: sourceId } : {})
       })
     });
@@ -367,9 +377,9 @@ export class ChatwootClient {
     return this.setContactLabels(contactId, next);
   }
 
-  async createConversation(input: { contactId: number; sourceId?: string; message?: string }) {
+  async createConversation(input: { contactId: number; sourceId?: string; message?: string; inboxId?: number }) {
     const body: any = {
-      inbox_id: this.opts.inboxId,
+      inbox_id: input.inboxId ?? this.opts.inboxId,
       contact_id: input.contactId,
       ...(input.sourceId ? { source_id: input.sourceId } : {}),
       ...(input.message
