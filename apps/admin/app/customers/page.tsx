@@ -192,15 +192,8 @@ export default async function CustomersPage({
       ...(q ? { q } : {}),
       ...(tenantId ? { tenantId } : {})
     };
-    const startIndex = totalCount > 0 ? (currentPage - 1) * take + 1 : 0;
-    const endIndex = items.length ? Math.min(totalCount, startIndex + items.length - 1) : 0;
-    const summaryLabel =
-      items.length > 0
-        ? `Mostrando ${startIndex}-${endIndex} de ${totalCount} · ${take} por página`
-        : "Sin resultados";
     return (
       <div className="pagination pagination-indicator">
-        <div className="pagination-summary">{summaryLabel}</div>
         <a
           className="page-link page-nav"
           href={`/customers?${new URLSearchParams({
@@ -240,6 +233,14 @@ export default async function CustomersPage({
     );
   };
 
+  const currentPage = Math.max(1, Number(page) || 1);
+  const startIndex = total > 0 ? (currentPage - 1) * take + 1 : 0;
+  const endIndex = items.length ? Math.min(total, startIndex + items.length - 1) : 0;
+  const summaryLabel =
+    items.length > 0
+      ? `Mostrando ${startIndex}-${endIndex} de ${total} · ${take} por página`
+      : "Sin resultados";
+
   return (
     <main className="page" style={{ maxWidth: "100%" }}>
       {error ? (
@@ -255,6 +256,7 @@ export default async function CustomersPage({
       <section className="settings-group">
         <div className="settings-group-header">
           <div className="contacts-toolbar">
+            <div className="contacts-toolbar-summary">{summaryLabel}</div>
             <CustomersModals
               customers={items}
               products={productsRes?.items ?? []}
