@@ -515,7 +515,16 @@ export default async function LogsPage({
             </div>
           ) : tab === "jobs" ? (
             <div className="panel module" style={{ padding: 0 }}>
-              <table className="table logs-table" aria-label="Tabla de jobs">
+              <table className="table logs-table logs-table-jobs" aria-label="Tabla de jobs">
+                <colgroup>
+                  <col style={{ width: "150px" }} />
+                  <col style={{ width: "140px" }} />
+                  <col style={{ width: "120px" }} />
+                  <col style={{ width: "90px" }} />
+                  <col style={{ width: "240px" }} />
+                  <col />
+                  <col style={{ width: "130px" }} />
+                </colgroup>
                 <thead>
                   <tr>
                     <th>Fecha</th>
@@ -558,8 +567,8 @@ export default async function LogsPage({
                           </span>
                         </td>
                         <td>{attemptsShown} / {maxAttempts}</td>
-                        <td>{target}</td>
-                        <td>{detail}</td>
+                        <td className="log-target-cell">{target}</td>
+                        <td className="log-detail-cell">{detail}</td>
                         <td style={{ textAlign: "right" }}>
                           {status === "FAILED" ? (
                             <form action={retryJob}>
@@ -586,7 +595,17 @@ export default async function LogsPage({
             </div>
           ) : tab === "payments" ? (
             <div className="panel module" style={{ padding: 0 }}>
-              <table className="table logs-table" aria-label="Tabla de pagos">
+              <table className="table logs-table logs-table-payments" aria-label="Tabla de pagos">
+                <colgroup>
+                  <col style={{ width: "150px" }} />
+                  <col style={{ width: "220px" }} />
+                  <col style={{ width: "200px" }} />
+                  <col style={{ width: "120px" }} />
+                  <col style={{ width: "110px" }} />
+                  <col style={{ width: "220px" }} />
+                  <col style={{ width: "170px" }} />
+                  <col style={{ width: "130px" }} />
+                </colgroup>
                 <thead>
                   <tr>
                     <th>Fecha</th>
@@ -619,7 +638,7 @@ export default async function LogsPage({
                         <td className="log-ref-cell">
                           <span className="log-ref-main">{p.reference || "—"}</span>
                         </td>
-                        <td>{p.wompiTransactionId || p.wompiPaymentLinkId || "—"}</td>
+                        <td className="log-transaction-cell">{p.wompiTransactionId || p.wompiPaymentLinkId || "—"}</td>
                         <td style={{ textAlign: "right" }}>
                           {contactQuery ? (
                             <Link className="ghost btn-compact btn-view" href={`/customers?q=${encodeURIComponent(String(contactQuery))}`}>
@@ -663,6 +682,18 @@ export default async function LogsPage({
                 </div>
               </div>
               <table className="table logs-table logs-table-webhooks" aria-label="Tabla de webhooks">
+                <colgroup>
+                  <col style={{ width: "150px" }} />
+                  <col style={{ width: "220px" }} />
+                  <col style={{ width: "110px" }} />
+                  <col style={{ width: "220px" }} />
+                  <col style={{ width: "150px" }} />
+                  <col style={{ width: "190px" }} />
+                  <col style={{ width: "140px" }} />
+                  <col style={{ width: "120px" }} />
+                  <col style={{ width: "200px" }} />
+                  <col style={{ width: "130px" }} />
+                </colgroup>
                 <thead>
                   <tr>
                     <th>Fecha</th>

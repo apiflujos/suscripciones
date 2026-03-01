@@ -1329,6 +1329,40 @@ a {
   overflow: hidden;
 }
 
+.logs-table-jobs,
+.logs-table-payments {
+  table-layout: fixed;
+}
+
+.logs-table-jobs th,
+.logs-table-jobs td,
+.logs-table-payments th,
+.logs-table-payments td {
+  vertical-align: top;
+}
+
+.logs-table-jobs .log-target-cell,
+.logs-table-payments .log-transaction-cell {
+  max-width: 240px;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.logs-table-jobs .log-detail-cell {
+  max-width: 280px;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.logs-table-jobs .log-detail-cell {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .logs-table-webhooks {
   table-layout: fixed;
 }
