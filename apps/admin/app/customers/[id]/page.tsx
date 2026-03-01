@@ -449,48 +449,32 @@ export default async function CustomerDetailPage({
 
       <section className="grid2">
         <div className="card cardPad customer-section">
-          <div className="contact-section-title">Suscripciones y planes</div>
-          {subscriptions.length ? (
-            <div className="table-scroll">
-              {subscriptions.length > 5 ? (
-                <div className="table-meta">Mostrando 5 de {subscriptions.length}</div>
-              ) : null}
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Plan</th>
-                    <th>Tipo</th>
-                    <th>Estado</th>
-                    <th>Periodo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {subscriptions.slice(0, 5).map((s: any) => {
-                    const mode = String(s?.plan?.collectionMode || s?.plan?.metadata?.collectionMode || "MANUAL_LINK");
-                    return (
-                      <tr key={s.id}>
-                        <td>{s.plan?.name || "—"}</td>
-                        <td>{collectionLabel(mode)}</td>
-                        <td><span className={`pill pill-sm ${statusPillClass(String(s.status || ""))}`}>{statusLabel(String(s.status || ""))}</span></td>
-                        <td>
-                          {s.currentPeriodStartAt || s.currentPeriodEndAt ? (
-                            <div className="muted" style={{ display: "grid", gap: 2 }}>
-                              {s.currentPeriodStartAt ? <span>Inicio: <LocalDateTime value={s.currentPeriodStartAt} /></span> : null}
-                              {s.currentPeriodEndAt ? <span>Fin: <LocalDateTime value={s.currentPeriodEndAt} /></span> : null}
-                            </div>
-                          ) : (
-                            "—"
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="muted">Sin suscripciones registradas.</div>
-          )}
+          <div className="contact-section-title">Ubicación del cliente</div>
+          <div className="customer-address">
+            {addressDisplay ? (
+              <div className="customer-address-meta">
+                <div>Dirección registrada</div>
+                <strong>{addressDisplay}</strong>
+                {geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lon) ? (
+                  <span className="muted">Coordenadas: {geo.lat.toFixed(5)}, {geo.lon.toFixed(5)}</span>
+                ) : null}
+              </div>
+            ) : (
+              <div className="muted">Sin dirección registrada.</div>
+            )}
+          </div>
+          <div className="customer-map">
+            {geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lon) ? (
+              <LeafletMap lat={geo.lat} lon={geo.lon} label={addressDisplay || undefined} />
+            ) : (
+              <div className="muted" style={{ padding: 16 }}>Sin coordenadas disponibles.</div>
+            )}
+          </div>
+          {mapLink ? (
+            <a className="ghost btn-compact" href={mapLink} target="_blank" rel="noreferrer">
+              Abrir en OpenStreetMap
+            </a>
+          ) : null}
         </div>
 
         <div className="card cardPad customer-section">
@@ -525,8 +509,8 @@ export default async function CustomerDetailPage({
       </section>
 
       <section className="grid2">
-        <div className="card cardPad customer-section">
-          <div className="contact-section-title">Logs del cliente</div>
+        <div className="card cardPad customer-section timeline-full">
+          <div className="contact-section-title">Línea de tiempo del cliente</div>
           <div className="customer-log-controls">
             <span className="muted">{formatWindowLabel(logsFrom, logsTo)}</span>
             <div className="customer-log-actions">
@@ -539,52 +523,25 @@ export default async function CustomerDetailPage({
             </div>
           </div>
           {logs.length ? (
-            <div className="customer-log-list">
-              {logs.map((l: any) => (
-                <div key={l.id} className="customer-log-item">
-                  <div className="customer-log-title">{l.entity || "Evento del cliente"}</div>
-                  <div className="customer-log-meta">
-                    <span>{l.actor || "Sistema"}</span>
-                    <span><LocalDateTime value={l.createdAt} /></span>
-                    <span className={`pill pill-sm ${logPillClass(String(l.level || ""))}`}>{logLevelLabel(String(l.level || ""))}</span>
-                    {l.source ? <span>{l.source}</span> : null}
+            <div className="timeline-scroll">
+              <div className="customer-log-list">
+                {logs.map((l: any) => (
+                  <div key={l.id} className="customer-log-item">
+                    <div className="customer-log-title">{l.entity || "Evento del cliente"}</div>
+                    <div className="customer-log-meta">
+                      <span>{l.actor || "Sistema"}</span>
+                      <span><LocalDateTime value={l.createdAt} /></span>
+                      <span className={`pill pill-sm ${logPillClass(String(l.level || ""))}`}>{logLevelLabel(String(l.level || ""))}</span>
+                      {l.source ? <span>{l.source}</span> : null}
+                    </div>
+                    <div className="customer-log-message">{l.message}</div>
                   </div>
-                  <div className="muted" style={{ marginTop: 6 }}>{l.message}</div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           ) : (
             <div className="muted">Sin logs en este periodo.</div>
           )}
-        </div>
-
-        <div className="card cardPad customer-section">
-          <div className="contact-section-title">Ubicación del cliente</div>
-          <div className="customer-address">
-            {addressDisplay ? (
-              <div className="customer-address-meta">
-                <div>Dirección registrada</div>
-                <strong>{addressDisplay}</strong>
-                {geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lon) ? (
-                  <span className="muted">Coordenadas: {geo.lat.toFixed(5)}, {geo.lon.toFixed(5)}</span>
-                ) : null}
-              </div>
-            ) : (
-              <div className="muted">Sin dirección registrada.</div>
-            )}
-          </div>
-          <div className="customer-map">
-            {geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lon) ? (
-              <LeafletMap lat={geo.lat} lon={geo.lon} label={addressDisplay || undefined} />
-            ) : (
-              <div className="muted" style={{ padding: 16 }}>Sin coordenadas disponibles.</div>
-            )}
-          </div>
-          {mapLink ? (
-            <a className="ghost btn-compact" href={mapLink} target="_blank" rel="noreferrer">
-              Abrir en OpenStreetMap
-            </a>
-          ) : null}
         </div>
       </section>
     </main>

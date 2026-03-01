@@ -2243,30 +2243,66 @@ textarea.input {
 }
 
 .customer-log-list {
+  position: relative;
   display: flex;
   gap: 12px;
   overflow-x: auto;
-  padding: 16px 6px 8px;
+  padding: 18px 48px 10px 8px;
   scroll-snap-type: x mandatory;
   scrollbar-width: thin;
+}
+
+.customer-log-list::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 14px;
+  height: 1px;
+  background: var(--stroke);
+}
+
+.timeline-scroll {
+  position: relative;
+}
+
+.timeline-scroll::before,
+.timeline-scroll::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 32px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.timeline-scroll::before {
+  left: 0;
+  background: linear-gradient(90deg, var(--panel) 0%, rgba(0, 0, 0, 0) 100%);
+}
+
+.timeline-scroll::after {
+  right: 0;
+  background: linear-gradient(270deg, var(--panel) 0%, rgba(0, 0, 0, 0) 100%);
 }
 
 .customer-log-item {
   border: 1px solid var(--stroke);
   border-radius: 12px;
-  padding: 8px 10px;
+  padding: 12px 12px 10px;
   background: var(--panel);
   position: relative;
-  min-width: 260px;
-  max-width: 320px;
+  min-width: 220px;
+  max-width: 260px;
   scroll-snap-align: start;
 }
 
 .customer-log-item::before {
   content: "";
   position: absolute;
-  left: 14px;
-  top: -8px;
+  left: 16px;
+  top: 10px;
   width: 8px;
   height: 8px;
   border-radius: 999px;
@@ -2275,17 +2311,36 @@ textarea.input {
 }
 
 .customer-log-title {
-  font-weight: 700;
+  font-weight: 600;
+  font-size: 12px;
   color: var(--text);
+  margin-top: 6px;
 }
 
 .customer-log-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 12px;
-  font-size: 11px;
+  gap: 4px 10px;
+  font-size: 10px;
   color: var(--text-faint);
   margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.customer-log-message {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.timeline-full {
+  grid-column: 1 / -1;
 }
 
 @media (max-width: 720px) {
