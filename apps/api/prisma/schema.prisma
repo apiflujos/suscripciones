@@ -501,40 +501,6 @@ model CampaignSend {
   @@index([tenantId])
 }
 
-model SmartView {
-  id          String   @id @default(uuid()) @db.Uuid
-  tenantId    String   @db.Uuid
-  name        String
-  description String?
-  config      Json?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  tenant SaTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  items  SmartViewItem[]
-
-  @@index([tenantId])
-}
-
-model SmartViewItem {
-  id        String   @id @default(uuid()) @db.Uuid
-  tenantId  String   @db.Uuid
-  viewId    String   @db.Uuid
-  label     String
-  value     String?
-  type      String?
-  meta      Json?
-  order     Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  tenant SaTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  view   SmartView @relation(fields: [viewId], references: [id], onDelete: Cascade)
-
-  @@index([tenantId])
-  @@index([viewId, order])
-}
-
 model CustomerTenant {
   id         String   @id @default(uuid()) @db.Uuid
   customerId String   @db.Uuid
