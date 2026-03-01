@@ -1283,13 +1283,15 @@ a {
 .logs-table td {
   overflow: hidden;
   min-width: 0;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .logs-table .log-date-cell {
   white-space: normal;
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--text);
-  max-width: 96px;
+  max-width: 84px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -1307,7 +1309,7 @@ a {
 
 .logs-table .log-ref-main {
   display: block;
-  max-width: 100px;
+  max-width: 90px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1316,14 +1318,14 @@ a {
 .logs-table .log-ref-meta {
   font-size: 11px;
   color: var(--text-faint);
-  max-width: 100px;
+  max-width: 90px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .logs-table .log-contact-cell {
-  max-width: 180px;
+  max-width: 160px;
   min-width: 0;
 }
 
@@ -1342,7 +1344,7 @@ a {
 
 .logs-table .log-contact-meta {
   font-size: 11px;
-  max-width: 150px;
+  max-width: 120px;
 }
 
 .logs-table .log-type-cell {
@@ -1353,7 +1355,7 @@ a {
 }
 
 .logs-table .log-error-cell {
-  max-width: 200px;
+  max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1427,11 +1429,11 @@ a {
 }
 
 .logs-table-payments .log-ref-cell {
-  max-width: 110px;
+  max-width: 100px;
 }
 
 .logs-table-payments .log-transaction-cell {
-  max-width: 110px;
+  max-width: 100px;
 }
 
 .logs-table-jobs .log-detail-cell {
@@ -1462,11 +1464,11 @@ a {
 
 .logs-table-webhooks .log-ref-cell,
 .logs-table-webhooks .log-ref-main {
-  max-width: 130px;
+  max-width: 110px;
 }
 
 .logs-table-webhooks .log-error-cell {
-  max-width: 160px;
+  max-width: 140px;
   white-space: normal;
   word-break: break-word;
   overflow-wrap: anywhere;
@@ -3248,14 +3250,14 @@ textarea.input {
 
 .date-stack-top {
   font-weight: 700;
-  font-size: 12px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.02em;
 }
 
 .date-stack-middle,
 .date-stack-bottom {
-  font-size: 10px;
+  font-size: 9px;
   color: var(--text-muted, var(--text-faint));
   white-space: nowrap;
 }

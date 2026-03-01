@@ -47,7 +47,7 @@ export function readTenantIdFromReq(req: any): string | null {
     normalize(req?.header?.("x-tenant-id")) ||
     normalize(req?.headers?.["x-tenant-id"]);
   if (!raw || raw.toLowerCase() === "all") return null;
-  return raw;
+  return isUuid(raw) ? raw : null;
 }
 
 export function readTenantIdsFromReq(req: any): string[] {
@@ -60,7 +60,7 @@ export function readTenantIdsFromReq(req: any): string[] {
     const s = normalize(v);
     if (!s) return;
     if (s.toLowerCase() === "all") return;
-    out.push(s);
+    if (isUuid(s)) out.push(s);
   };
 
   if (Array.isArray(rawBody)) {
