@@ -203,9 +203,31 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
   }
 
   const templateParams = (msg.providerResp as any)?.template_params;
+  let allowTemplate = Boolean(templateParams);
+  if (templateParams) {
+    try {
+      const inbox = await client.getInbox(cfg.inboxId);
+      const channelType = String((inbox.raw as any)?.channel_type || "");
+      const medium = String((inbox.raw as any)?.medium || "");
+      const provider = String((inbox.raw as any)?.provider || "");
+      const isWhatsapp = /whatsapp/i.test(channelType) || /whatsapp/i.test(medium) || /whatsapp/i.test(provider);
+      allowTemplate = isWhatsapp;
+      if (!isWhatsapp) {
+        await systemLog(LogLevel.INFO, "chatwoot.send", "Template omitido: canal no WhatsApp", {
+          chatwootMessageId,
+          customerId: msg.customerId,
+          channelType,
+          medium,
+          provider
+        }).catch(() => {});
+      }
+    } catch {
+      allowTemplate = false;
+    }
+  }
   let sent: any;
   try {
-    sent = templateParams
+    sent = allowTemplate && templateParams
       ? await client.sendTemplate(conversationId, { content: msg.content, templateParams })
       : await client.sendMessage(conversationId, msg.content);
   } catch (err: any) {

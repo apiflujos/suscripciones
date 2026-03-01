@@ -518,7 +518,7 @@ export function ProductsTable({
                     }}
                   />
                   <div className="field-hint">
-                    Variables disponibles: <strong>{{`{{cliente}}`}}</strong>, <strong>{{`{{producto}}`}}</strong>, <strong>{{`{{precio}}`}}</strong>, <strong>{{`{{descripcion}}`}}</strong>, <strong>{{`{{imagen}}`}}</strong>, <strong>{{`{{link}}`}}</strong>.
+                    Variables disponibles: <strong>{"{{cliente}}"}</strong>, <strong>{"{{producto}}"}</strong>, <strong>{"{{precio}}"}</strong>, <strong>{"{{descripcion}}"}</strong>, <strong>{"{{imagen}}"}</strong>, <strong>{"{{link}}"}</strong>.
                   </div>
                 </div>
                 <button className="primary" type="submit" disabled={!sendCustomerId || !sendMessage.trim()}>
