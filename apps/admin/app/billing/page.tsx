@@ -1,7 +1,7 @@
 import { activateSubscription, cancelSubscription, deleteSubscription, resumeSubscription, suspendSubscription } from "../subscriptions/actions";
 import { DeleteSubscriptionButton } from "./DeleteSubscriptionButton";
 import { DeletePlanButton } from "./DeletePlanButton";
-import { changeSubscriptionPlan, chargeSubscriptionNow, createCustomerFromBilling, createPlanAndSubscription, deletePlanAndSubscription, scheduleCutoff, sendCentralComPaymentLink, sendCentralComTokenizationLink } from "./actions";
+import { changeSubscriptionPlan, chargeSubscriptionNow, createCustomerFromBilling, createPlanAndSubscription, deletePlanAndSubscription, scheduleCutoff, recalcCutoff, sendCentralComPaymentLink, sendCentralComTokenizationLink } from "./actions";
 import { ChargeStatusModal } from "./ChargeStatusModal";
 import { NewBillingAssignmentForm } from "./NewBillingAssignmentForm";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
@@ -172,6 +172,7 @@ export default async function BillingPage({
   const paymentId = typeof sp.paymentId === "string" ? sp.paymentId : "";
   const actionSubscriptionId = typeof sp.subscriptionId === "string" ? sp.subscriptionId : "";
   const cutoffScheduled = typeof sp.cutoffScheduled === "string" ? sp.cutoffScheduled : "";
+  const cutoffRecalc = typeof sp.cutoffRecalc === "string" ? sp.cutoffRecalc : "";
   const error = normalizeErrorParam(typeof sp.error === "string" ? sp.error : undefined);
   const central = typeof sp.central === "string" ? sp.central : "";
   const crear = typeof sp.crear === "string" ? sp.crear : "";
@@ -262,7 +263,8 @@ export default async function BillingPage({
   const plans = (plansRes.json?.items ?? []) as any[];
   const planOptions = plans.map((p: any) => ({
     id: String(p.id),
-    name: String(p.name || "Plan"),
+    name: String(p?.metadata?.displayName || p.name || "Plan"),
+    sku: String(p?.metadata?.sku || ""),
     collectionMode: String(p?.metadata?.collectionMode || p.collectionMode || ""),
     priceInCents: Number(p.priceInCents || 0),
     currency: String(p.currency || "COP")
@@ -448,6 +450,7 @@ export default async function BillingPage({
               const sentForRow = central === "sent" && checkoutCustomerId && checkoutCustomerId === r.customerId;
               const chargedForRow = chargeStatus === "ok" && actionSubscriptionId === r.id;
               const cutoffForRow = cutoffScheduled && actionSubscriptionId === r.id;
+              const recalcForRow = cutoffRecalc && actionSubscriptionId === r.id;
               const needsToken = r.mode === "AUTO_DEBIT" && !r.customerTokenized;
               const canSendToken = needsToken && Boolean(subscriptionBaseUrl);
               return (
@@ -569,6 +572,14 @@ export default async function BillingPage({
                                 Cobrar ahora
                               </button>
                             </form>
+                            <form action={recalcCutoff}>
+                              <input type="hidden" name="csrf" value={csrfToken} />
+                              <input type="hidden" name="subscriptionId" value={r.id} />
+                              {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
+                              <button className="ghost btn-compact btn-amber" type="submit">
+                                Recalcular fecha
+                              </button>
+                            </form>
                             <ScheduleCutoffButton
                               subscriptionId={r.id}
                               csrfToken={csrfToken}
@@ -637,6 +648,7 @@ export default async function BillingPage({
                         {sentForRow ? <span>Enviado.</span> : null}
                         {chargedForRow ? <span>Cobro manual enviado.</span> : null}
                         {cutoffForRow ? <span>Fecha de corte actualizada.</span> : null}
+                        {recalcForRow ? <span>Fecha de corte recalculada.</span> : null}
                         {rowTokenUrl ? (
                           <>
                             <a className="ghost btn-compact btn-open" href={rowTokenUrl} target="_blank" rel="noreferrer">

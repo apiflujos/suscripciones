@@ -457,6 +457,73 @@ subscriptionsRouter.post("/:id/change-plan", async (req, res) => {
   res.status(200).json({ ok: true, subscription: updated, scheduledAt: cutoffAt.toISOString(), scheduled: true });
 });
 
+subscriptionsRouter.post("/:id/recalculate-cutoff", async (req, res) => {
+  const subscriptionId = String(req.params.id || "").trim();
+  if (!subscriptionId) return res.status(400).json({ error: "invalid_id" });
+  const tenantId = await getEffectiveTenantId(req);
+  const subscription = await prisma.subscription.findUnique({
+    where: { id: subscriptionId },
+    include: {
+      plan: true,
+      tenantLinks: true,
+      payments: {
+        where: { status: PaymentStatus.APPROVED, paidAt: { not: null } },
+        orderBy: { paidAt: "desc" },
+        take: 1
+      }
+    }
+  });
+  if (!subscription) return res.status(404).json({ error: "subscription_not_found" });
+  if (tenantId) {
+    const allowed = subscription.tenantId === tenantId || (subscription.tenantLinks || []).some((t: any) => t.tenantId === tenantId);
+    if (!allowed) return res.status(404).json({ error: "subscription_not_found" });
+  }
+  if (!subscription.plan) return res.status(409).json({ error: "plan_not_found" });
+
+  const lastPayment = subscription.payments?.[0];
+  const baseStart = lastPayment?.paidAt || subscription.currentPeriodStartAt || subscription.createdAt;
+  const nextEnd = addIntervalUtc(baseStart, subscription.plan.intervalUnit, subscription.plan.intervalCount);
+
+  const updated = await prisma.subscription.update({
+    where: { id: subscriptionId },
+    data: {
+      currentPeriodStartAt: baseStart,
+      currentPeriodEndAt: nextEnd
+    }
+  });
+
+  await prisma.retryJob.deleteMany({
+    where: {
+      type: RetryJobType.PAYMENT_RETRY,
+      status: RetryJobStatus.PENDING,
+      payload: { path: ["subscriptionId"], equals: subscriptionId } as any
+    } as any
+  });
+
+  const collectionMode = String((subscription.plan?.metadata as any)?.collectionMode || "");
+  if (collectionMode === "AUTO_LINK" || collectionMode === "AUTO_DEBIT") {
+    await prisma.retryJob
+      .create({
+        data: {
+          type: RetryJobType.PAYMENT_RETRY,
+          runAt: nextEnd <= new Date(Date.now() + 5_000) ? new Date() : nextEnd,
+          maxAttempts: 1,
+          payload: { subscriptionId }
+        }
+      })
+      .catch(() => {});
+  }
+
+  await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});
+  await systemLog(LogLevel.INFO, "subscriptions.recalculate_cutoff", "Subscription cutoff recalculated", {
+    subscriptionId,
+    startAt: baseStart?.toISOString?.() || baseStart,
+    endAt: nextEnd?.toISOString?.() || nextEnd
+  }).catch(() => {});
+
+  res.json({ ok: true, subscription: updated, startAt: baseStart, endAt: nextEnd });
+});
+
 subscriptionsRouter.post("/:id/suspend", async (req, res) => {
   const subscriptionId = String(req.params.id || "").trim();
   if (!subscriptionId) return res.status(400).json({ error: "invalid_id" });

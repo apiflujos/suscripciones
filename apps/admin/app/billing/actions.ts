@@ -388,6 +388,26 @@ export async function scheduleCutoff(formData: FormData) {
   }
 }
 
+export async function recalcCutoff(formData: FormData) {
+  await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
+  const subscriptionId = String(formData.get("subscriptionId") || "").trim();
+  const tenantIds = readTenantIds(formData);
+  const tenantId = tenantIds[0] || "";
+  if (!subscriptionId) return redirect(mergeQuery(returnTo, { error: "missing_subscription_id", ...(tenantId ? { tenantId } : {}) }));
+
+  try {
+    const path = tenantId
+      ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/recalculate-cutoff?tenantId=${encodeURIComponent(tenantId)}`
+      : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/recalculate-cutoff`;
+    await adminFetch(path, { method: "POST", body: JSON.stringify({}) });
+    redirect(mergeQuery(returnTo, { cutoffRecalc: "1", subscriptionId, ...(tenantId ? { tenantId } : {}) }));
+  } catch (err: any) {
+    if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
+    redirect(mergeQuery(returnTo, { error: String(err?.message || "recalc_cutoff_failed"), ...(tenantId ? { tenantId } : {}) }));
+  }
+}
+
 export async function changeSubscriptionPlan(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);
