@@ -491,6 +491,20 @@ export default async function CustomerDetailPage({
                 <span className="hero-id-value mono">{meta?.identificacion || meta?.identificationNumber || meta?.documentNumber || "—"}</span>
                 <span className="hero-id-sub">{tenantName || customer.tenantId || "—"}</span>
               </div>
+              {geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lon) ? (
+                <MapModal
+                  lat={geo.lat}
+                  lon={geo.lon}
+                  label={addressDisplay || undefined}
+                  mapLink={mapLink || undefined}
+                  triggerLabel="Ubicación"
+                  triggerClassName="ghost btn-compact btn-blue"
+                />
+              ) : (
+                <button type="button" className="ghost btn-compact" disabled>
+                  Ubicación
+                </button>
+              )}
               <div className={`tier-badge tier-badge-hero ${tier.cls}`}>
                 <span className="tier-icon" aria-hidden="true">
                   {tierIcon(tier.icon)}
@@ -560,71 +574,75 @@ export default async function CustomerDetailPage({
       </section>
 
       <section className="grid2">
-        <div className="card cardPad customer-section compact">
-          <div className="contact-section-title">Información del cliente</div>
-          <div className="invoice-header">
-            <div className="invoice-top">
-              <div className="invoice-title">Datos de facturación</div>
-              <div className="invoice-id">
-                <span className="invoice-label">NIT / ID</span>
-                <span className="invoice-value mono">{meta?.identificacion || meta?.identificationNumber || meta?.documentNumber || "—"}</span>
+        <div className="card cardPad customer-section customer-dual-card">
+          <div className="customer-dual">
+            <div className="customer-pane">
+              <div className="contact-section-title">Información del cliente</div>
+              <div className="invoice-header invoice-compact">
+                <div className="invoice-top">
+                  <div className="invoice-title">Datos de facturación</div>
+                  <div className="invoice-id">
+                    <span className="invoice-label">NIT / ID</span>
+                    <span className="invoice-value mono">{meta?.identificacion || meta?.identificationNumber || meta?.documentNumber || "—"}</span>
+                  </div>
+                </div>
+                <div className="invoice-row compact">
+                  <div className="invoice-kv">
+                    <span className="invoice-label">Email</span>
+                    <span className="invoice-value truncate">{customer.email || "—"}</span>
+                  </div>
+                  <div className="invoice-kv">
+                    <span className="invoice-label">Teléfono</span>
+                    <span className="invoice-value">{customer.phone || "—"}</span>
+                  </div>
+                  <div className="invoice-kv">
+                    <span className="invoice-label">Canal</span>
+                    <span className="invoice-value">{tenantName || customer.tenantId || "—"}</span>
+                  </div>
+                  <div className="invoice-kv">
+                    <span className="invoice-label">Creado</span>
+                    <span className="invoice-value"><LocalDateTime value={customer.createdAt} /></span>
+                  </div>
+                </div>
+                <div className="invoice-address">
+                  <span className="invoice-label">Dirección</span>
+                  <span className="invoice-value">{addressDisplay || "—"}</span>
+                </div>
               </div>
             </div>
-            <div className="invoice-row compact">
-              <div className="invoice-kv">
-                <span className="invoice-label">Email</span>
-                <span className="invoice-value truncate">{customer.email || "—"}</span>
-              </div>
-              <div className="invoice-kv">
-                <span className="invoice-label">Teléfono</span>
-                <span className="invoice-value">{customer.phone || "—"}</span>
-              </div>
-              <div className="invoice-kv">
-                <span className="invoice-label">Canal</span>
-                <span className="invoice-value">{tenantName || customer.tenantId || "—"}</span>
-              </div>
-              <div className="invoice-kv">
-                <span className="invoice-label">Creado</span>
-                <span className="invoice-value"><LocalDateTime value={customer.createdAt} /></span>
-              </div>
-            </div>
-            <div className="invoice-address">
-              <span className="invoice-label">Dirección</span>
-              <span className="invoice-value">{addressDisplay || "—"}</span>
-            </div>
-          </div>
-        </div>
 
-        <div className="card cardPad customer-section compact">
-          <div className="contact-section-title">Estado comercial</div>
-          <div className="summary-grid">
-            <div className="summary-item summary-span-2">
-              <span className="summary-label">Plan activo</span>
-              <span className="summary-value">{activeSub?.plan?.name || "Sin plan activo"}</span>
-            </div>
-            <div className="summary-item">
-              <span className="summary-label">Tipo</span>
-              <span className="summary-value">{activeSub ? collectionLabel(String(activeSub?.plan?.collectionMode || activeSub?.plan?.metadata?.collectionMode || "")) : "—"}</span>
-            </div>
-            <div className="summary-item">
-              <span className="summary-label">Estado</span>
-              <span className="summary-value">{activeSub ? statusLabel(String(activeSub.status || "")) : "—"}</span>
-            </div>
-            <div className="summary-item">
-              <span className="summary-label">Último pago</span>
-              <span className="summary-value">{lastPaymentAt ? <LocalDateTime value={lastPaymentAt} /> : "—"}</span>
-            </div>
-            <div className="summary-item">
-              <span className="summary-label">Próximo corte</span>
-              <span className="summary-value">{nextPeriodEnd ? <LocalDateTime value={nextPeriodEnd} /> : "—"}</span>
-            </div>
-            <div className="summary-item">
-              <span className="summary-label">Método</span>
-              <span className="summary-value">{paymentSourceId ? "Tokenizado" : "Sin token"}</span>
-            </div>
-            <div className="summary-item summary-span-2">
-              <span className="summary-label">ID token</span>
-              <span className="summary-value mono">{paymentSourceId ? String(paymentSourceId) : "—"}</span>
+            <div className="customer-pane">
+              <div className="contact-section-title">Estado comercial</div>
+              <div className="summary-grid plain">
+                <div className="summary-item summary-span-2">
+                  <span className="summary-label">Plan activo</span>
+                  <span className="summary-value">{activeSub?.plan?.name || "Sin plan activo"}</span>
+                </div>
+                <div className="summary-item">
+                  <span className="summary-label">Tipo</span>
+                  <span className="summary-value">{activeSub ? collectionLabel(String(activeSub?.plan?.collectionMode || activeSub?.plan?.metadata?.collectionMode || "")) : "—"}</span>
+                </div>
+                <div className="summary-item">
+                  <span className="summary-label">Estado</span>
+                  <span className="summary-value">{activeSub ? statusLabel(String(activeSub.status || "")) : "—"}</span>
+                </div>
+                <div className="summary-item">
+                  <span className="summary-label">Último pago</span>
+                  <span className="summary-value">{lastPaymentAt ? <LocalDateTime value={lastPaymentAt} /> : "—"}</span>
+                </div>
+                <div className="summary-item">
+                  <span className="summary-label">Próximo corte</span>
+                  <span className="summary-value">{nextPeriodEnd ? <LocalDateTime value={nextPeriodEnd} /> : "—"}</span>
+                </div>
+                <div className="summary-item">
+                  <span className="summary-label">Método</span>
+                  <span className="summary-value">{paymentSourceId ? "Tokenizado" : "Sin token"}</span>
+                </div>
+                <div className="summary-item summary-span-2">
+                  <span className="summary-label">ID token</span>
+                  <span className="summary-value mono">{paymentSourceId ? String(paymentSourceId) : "—"}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -817,29 +835,7 @@ export default async function CustomerDetailPage({
       </section>
 
       <section className="grid2">
-        <div className="card cardPad customer-section">
-          <div className="contact-section-title">Ubicación del cliente</div>
-          <div className="customer-address">
-            {addressDisplay ? (
-              <div className="customer-address-meta">
-                <div>Dirección registrada</div>
-                <strong>{addressDisplay}</strong>
-                {geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lon) ? (
-                  <span className="muted">Coordenadas: {geo.lat.toFixed(5)}, {geo.lon.toFixed(5)}</span>
-                ) : null}
-              </div>
-            ) : (
-              <div className="muted">Sin dirección registrada.</div>
-            )}
-          </div>
-          {geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lon) ? (
-            <MapModal lat={geo.lat} lon={geo.lon} label={addressDisplay || undefined} mapLink={mapLink || undefined} />
-          ) : (
-            <div className="muted">Sin coordenadas disponibles.</div>
-          )}
-        </div>
-
-        <div className="card cardPad customer-section">
+        <div className="card cardPad customer-section timeline-full">
           <div className="contact-section-title">Pagos recientes</div>
           {recentPayments.length ? (
             <div className="table-scroll">

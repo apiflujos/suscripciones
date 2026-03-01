@@ -7,12 +7,16 @@ export function MapModal({
   lat,
   lon,
   label,
-  mapLink
+  mapLink,
+  triggerLabel = "Ver mapa",
+  triggerClassName
 }: {
   lat: number;
   lon: number;
   label?: string;
   mapLink?: string;
+  triggerLabel?: string;
+  triggerClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -27,8 +31,8 @@ export function MapModal({
 
   return (
     <>
-      <button type="button" className="ghost btn-compact" onClick={() => setOpen(true)} data-loader="off">
-        Ver mapa
+      <button type="button" className={triggerClassName || "ghost btn-compact"} onClick={() => setOpen(true)} data-loader="off">
+        {triggerLabel}
       </button>
       {open ? (
         <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={() => setOpen(false)}>

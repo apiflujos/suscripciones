@@ -1928,6 +1928,16 @@ textarea.input {
   padding: 5px 6px;
 }
 
+.summary-grid.plain {
+  gap: 6px;
+}
+
+.summary-grid.plain .summary-item {
+  background: transparent;
+  border: 0;
+  padding: 4px 0;
+}
+
 .summary-item {
   padding: 6px 8px;
   border-radius: 10px;
@@ -1973,6 +1983,18 @@ textarea.input {
   background: var(--surface-2);
 }
 
+.invoice-compact {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.invoice-compact .invoice-address {
+  background: transparent;
+  border: 0;
+  padding: 4px 0 0;
+}
+
 .invoice-top {
   display: flex;
   align-items: flex-end;
@@ -2011,6 +2033,26 @@ textarea.input {
   gap: 2px;
   min-width: 0;
   padding: 4px 2px;
+}
+
+.customer-dual {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.customer-dual-card {
+  grid-column: 1 / -1;
+}
+
+.customer-pane {
+  display: grid;
+  gap: 10px;
+}
+
+.customer-pane + .customer-pane {
+  border-left: 1px solid var(--stroke);
+  padding-left: 16px;
 }
 
 .invoice-address {
@@ -2347,9 +2389,11 @@ textarea.input {
 }
 
 .hero-right {
-  display: grid;
+  display: inline-flex;
   gap: 10px;
-  justify-items: end;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 .hero-name-block {
@@ -2910,7 +2954,7 @@ textarea.input {
     justify-items: start;
   }
   .hero-right {
-    justify-items: start;
+    justify-content: flex-start;
   }
   .hero-id-block {
     text-align: left;
@@ -2919,6 +2963,15 @@ textarea.input {
   .hero-subs-actions {
     min-width: 0;
     width: 100%;
+  }
+  .customer-dual {
+    grid-template-columns: 1fr;
+  }
+  .customer-pane + .customer-pane {
+    border-left: 0;
+    border-top: 1px solid var(--stroke);
+    padding-left: 0;
+    padding-top: 12px;
   }
 }
 
