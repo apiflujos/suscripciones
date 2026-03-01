@@ -10,32 +10,32 @@ export type SystemSmartList = {
 
 const gamificationLists: SystemSmartList[] = [
   {
+    id: "system:tier:leyenda",
+    name: "Gamificación: Leyenda",
+    category: "Gamificación",
+    description: "Leyenda / Maestro / Elite / Diamante",
+    rules: { field: "gamificationLevelName", op: "in", value: ["Leyenda", "Maestro", "Elite", "Diamante"] }
+  },
+  {
     id: "system:tier:oro",
     name: "Gamificación: Oro",
     category: "Gamificación",
-    description: "Niveles Oro I / Oro II",
-    rules: { field: "gamificationLevelName", op: "in", value: ["Oro I", "Oro II"] }
+    description: "Oro / Platino",
+    rules: { field: "gamificationLevelName", op: "in", value: ["Oro", "Platino"] }
   },
   {
     id: "system:tier:plata",
     name: "Gamificación: Plata",
     category: "Gamificación",
-    description: "Niveles Plata I / Plata II",
-    rules: { field: "gamificationLevelName", op: "in", value: ["Plata I", "Plata II"] }
-  },
-  {
-    id: "system:tier:bronce",
-    name: "Gamificación: Bronce",
-    category: "Gamificación",
-    description: "Niveles Bronce I / Bronce II",
-    rules: { field: "gamificationLevelName", op: "in", value: ["Bronce I", "Bronce II"] }
+    description: "Plata / Bronce",
+    rules: { field: "gamificationLevelName", op: "in", value: ["Plata", "Bronce"] }
   },
   {
     id: "system:tier:rookie",
     name: "Gamificación: Rookie",
     category: "Gamificación",
-    description: "Rookie / Aprendiz",
-    rules: { field: "gamificationLevelName", op: "in", value: ["Rookie", "Aprendiz"] }
+    description: "Rookie / Explorador",
+    rules: { field: "gamificationLevelName", op: "in", value: ["Rookie", "Explorador"] }
   }
 ];
 

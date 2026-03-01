@@ -35,8 +35,8 @@ function tierForCustomer(approvedCount: number, gamification?: { level?: number;
   const levelName = String(gamification?.levelName || "").trim();
   if (level > 0) {
     const label = levelName || `Nivel ${level}`;
-    if (level >= 11) return { label, cls: "tier-gold", icon: "crown" };
-    if (level >= 7) return { label, cls: "tier-silver", icon: "medal" };
+    if (level >= 9) return { label, cls: "tier-gold", icon: "crown" };
+    if (level >= 6) return { label, cls: "tier-silver", icon: "medal" };
     if (level >= 3) return { label, cls: "tier-bronze", icon: "badge" };
     return { label, cls: "tier-rookie", icon: "spark" };
   }
@@ -587,20 +587,6 @@ export default async function CustomerDetailPage({
             <Link className="ghost btn-compact btn-blue" href="/customers">Volver</Link>
             <Link className="ghost btn-compact btn-amber" href={`/customers/${customer.id}/payment-method`}>Método de pago</Link>
           </div>
-          <div className="hero-subs-block hero-subs-compact hero-subs-under">
-            <span className="hero-subs-label">Suscripciones activas</span>
-            <div className="hero-subs-list">
-              {activeSubs.length ? (
-                activeSubs.slice(0, 3).map((s: any) => (
-                  <span key={s.id} className={`pill pill-sm ${statusPillClass(String(s.status || ""))}`}>
-                    {s.plan?.name || "Plan"} · {statusLabel(String(s.status || ""))}
-                  </span>
-                ))
-              ) : (
-                <span className="pill pill-muted pill-sm">Sin suscripciones activas</span>
-              )}
-            </div>
-          </div>
         </div>
       </section>
 
@@ -643,58 +629,70 @@ export default async function CustomerDetailPage({
           <div className="customer-dual">
             <div className="customer-pane">
               <div className="contact-section-title">Información del cliente</div>
-              <div className="invoice-header invoice-compact">
-                <div className="invoice-row compact">
-                  <div className="invoice-kv">
-                    <span className="invoice-label">Email</span>
-                    <span className="invoice-value truncate">{customer.email || "—"}</span>
+              <div className="customer-info-grid">
+                <div className="customer-info-card">
+                  <div className="customer-info-row">
+                    <span className="customer-info-label">Email</span>
+                    <span className="customer-info-value truncate">{customer.email || "—"}</span>
                   </div>
-                  <div className="invoice-kv">
-                    <span className="invoice-label">Teléfono</span>
-                    <span className="invoice-value">{customer.phone || "—"}</span>
+                  <div className="customer-info-row">
+                    <span className="customer-info-label">Teléfono</span>
+                    <span className="customer-info-value">{customer.phone || "—"}</span>
                   </div>
-                  <div className="invoice-kv">
-                    <span className="invoice-label">Canal</span>
-                    <span className="invoice-value">{tenantName || customer.tenantId || "—"}</span>
-                  </div>
-                  <div className="invoice-kv">
-                    <span className="invoice-label">Creado</span>
-                    <span className="invoice-value"><LocalDateTime value={customer.createdAt} /></span>
+                  <div className="customer-info-row">
+                    <span className="customer-info-label">Documento</span>
+                    <span className="customer-info-value mono">{meta?.identificacion || meta?.identificationNumber || meta?.documentNumber || "—"}</span>
                   </div>
                 </div>
-                <div className="invoice-address">
-                  <span className="invoice-label">Dirección</span>
-                  <span className="invoice-value">{addressDisplay || "—"}</span>
+                <div className="customer-info-card">
+                  <div className="customer-info-row">
+                    <span className="customer-info-label">Canal</span>
+                    <span className="customer-info-value">{tenantName || customer.tenantId || "—"}</span>
+                  </div>
+                  <div className="customer-info-row">
+                    <span className="customer-info-label">Creado</span>
+                    <span className="customer-info-value"><LocalDateTime value={customer.createdAt} /></span>
+                  </div>
+                  <div className="customer-info-row">
+                    <span className="customer-info-label">Dirección</span>
+                    <span className="customer-info-value">{addressDisplay || "—"}</span>
+                  </div>
                 </div>
               </div>
             </div>
 
             <div className="customer-pane">
               <div className="contact-section-title">Estado comercial</div>
-              <div className="summary-grid plain">
-                <div className="summary-item">
-                  <span className="summary-label">Plan activo</span>
-                  <span className="summary-value">{activeSub?.plan?.name || "Sin plan activo"}</span>
+              <div className="commercial-grid">
+                <div className="commercial-card">
+                  <span className="commercial-label">Plan activo</span>
+                  <span className="commercial-value">{activeSub?.plan?.name || "Sin plan activo"}</span>
+                  <span className="commercial-meta">{activeSub ? collectionLabel(String(activeSub?.plan?.collectionMode || activeSub?.plan?.metadata?.collectionMode || "")) : "—"}</span>
                 </div>
-                <div className="summary-item">
-                  <span className="summary-label">Tipo</span>
-                  <span className="summary-value">{activeSub ? collectionLabel(String(activeSub?.plan?.collectionMode || activeSub?.plan?.metadata?.collectionMode || "")) : "—"}</span>
+                <div className="commercial-card">
+                  <span className="commercial-label">Estado</span>
+                  <span className="commercial-value">{activeSub ? statusLabel(String(activeSub.status || "")) : "—"}</span>
+                  <span className="commercial-meta">{activeSubs.length ? `${activeSubs.length} suscripción${activeSubs.length > 1 ? "es" : ""}` : "Sin suscripciones activas"}</span>
                 </div>
-                <div className="summary-item">
-                  <span className="summary-label">Estado</span>
-                  <span className="summary-value">{activeSub ? statusLabel(String(activeSub.status || "")) : "—"}</span>
+                <div className="commercial-card">
+                  <span className="commercial-label">Último pago</span>
+                  <span className="commercial-value">{lastPaymentAt ? <LocalDateTime value={lastPaymentAt} /> : "—"}</span>
+                  <span className="commercial-meta">{lastPayment ? `Estado ${statusLabel(lastPayment.status)}` : "Sin pagos aún"}</span>
                 </div>
-                <div className="summary-item">
-                  <span className="summary-label">Último pago</span>
-                  <span className="summary-value">{lastPaymentAt ? <LocalDateTime value={lastPaymentAt} /> : "—"}</span>
+                <div className="commercial-card">
+                  <span className="commercial-label">Próximo corte</span>
+                  <span className="commercial-value">{nextPeriodEnd ? <LocalDateTime value={nextPeriodEnd} /> : "—"}</span>
+                  <span className="commercial-meta">{activeSub ? "Ciclo activo" : "Sin ciclo"}</span>
                 </div>
-                <div className="summary-item">
-                  <span className="summary-label">Próximo corte</span>
-                  <span className="summary-value">{nextPeriodEnd ? <LocalDateTime value={nextPeriodEnd} /> : "—"}</span>
+                <div className="commercial-card">
+                  <span className="commercial-label">Método</span>
+                  <span className="commercial-value">{paymentSourceId ? "Tokenizado" : "Sin token"}</span>
+                  <span className="commercial-meta">{paymentSourceId ? "Pago recurrente habilitado" : "Requiere tokenización"}</span>
                 </div>
-                <div className="summary-item">
-                  <span className="summary-label">Método</span>
-                  <span className="summary-value">{paymentSourceId ? "Tokenizado" : "Sin token"}</span>
+                <div className="commercial-card">
+                  <span className="commercial-label">Recencia</span>
+                  <span className="commercial-value">{daysSinceLast == null ? "—" : `${daysSinceLast} días`}</span>
+                  <span className="commercial-meta">{approvedLast30 ? `${approvedLast30} pagos 30d` : "Sin pagos 30d"}</span>
                 </div>
               </div>
             </div>

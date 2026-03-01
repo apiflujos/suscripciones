@@ -41,6 +41,12 @@ async function fetchChatwootInboxes() {
   }
 }
 
+async function fetchTrending(scope: "customers" | "products", hours: number, tenantId?: string) {
+  const sp = new URLSearchParams({ scope, windowHours: String(hours) });
+  if (tenantId) sp.set("tenantId", tenantId);
+  return fetchAdminCached(`/admin/gamification/trending?${sp.toString()}`, { ttlMs: 1500 });
+}
+
 export default async function ProductsPage({
   searchParams
 }: {
@@ -115,12 +121,13 @@ export default async function ProductsPage({
 
   if (resolvedIds.length) sp.set("ids", resolvedIds.join(","));
 
-  const [products, tenantsRes, customersRes, templatesRes, chatwootInboxesRes] = await Promise.all([
+  const [products, tenantsRes, customersRes, templatesRes, chatwootInboxesRes, trendingRes] = await Promise.all([
     fetchAdmin(`/admin/products?${sp.toString()}`),
     fetchAdminCached("/admin/tenants", { ttlMs: 1500 }),
     fetchAdminCached(tenantId ? `/admin/customers?take=200&tenantId=${encodeURIComponent(tenantId)}` : "/admin/customers?take=200", { ttlMs: 1500 }),
     fetchAdminCached(tenantId ? `/admin/checkout-templates?tenantId=${encodeURIComponent(tenantId)}` : "/admin/checkout-templates", { ttlMs: 1500 }),
-    fetchChatwootInboxes()
+    fetchChatwootInboxes(),
+    fetchTrending("products", 24, tenantId)
   ]);
 
   const productItems = (products.json?.items ?? []) as any[];
@@ -129,6 +136,74 @@ export default async function ProductsPage({
   const tenantById = new Map(tenants.map((t) => [String(t.id), String(t.name)]));
   const filteredCustomers = (customersRes.json?.items ?? []) as any[];
   const chatwootInboxes = (chatwootInboxesRes.items ?? chatwootInboxesRes.json?.items ?? []) as any[];
+  const trendingProducts = trendingRes?.ok ? trendingRes.json?.items ?? [] : [];
+
+  const quickFilters = [
+    {
+      id: "gamification-legend",
+      name: "Gamificación: Leyenda",
+      category: "Gamificación",
+      filters: { op: "and", rules: [{ field: "gamification.levelName", op: "in", value: ["Leyenda", "Maestro", "Elite", "Diamante"] }] }
+    },
+    {
+      id: "gamification-oro",
+      name: "Gamificación: Oro",
+      category: "Gamificación",
+      filters: { op: "and", rules: [{ field: "gamification.levelName", op: "in", value: ["Oro", "Platino"] }] }
+    },
+    {
+      id: "gamification-plata",
+      name: "Gamificación: Plata",
+      category: "Gamificación",
+      filters: { op: "and", rules: [{ field: "gamification.levelName", op: "in", value: ["Plata", "Bronce"] }] }
+    },
+    {
+      id: "gamification-rookie",
+      name: "Gamificación: Rookie",
+      category: "Gamificación",
+      filters: { op: "and", rules: [{ field: "gamification.levelName", op: "in", value: ["Rookie", "Explorador"] }] }
+    }
+  ];
+
+  let activeFiltersKey = "";
+  if (filters) {
+    try {
+      activeFiltersKey = JSON.stringify(JSON.parse(filters));
+    } catch {
+      activeFiltersKey = "";
+    }
+  }
+
+  const iconForCategory = (category?: string) => {
+    const key = String(category || "").toLowerCase();
+    if (key.includes("gam")) {
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 2l2.4 6.4L21 9l-5 4 1.8 6-5.8-3.6L6.2 19 8 13 3 9l6.6-.6z" />
+        </svg>
+      );
+    }
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M9 12l2 2 4-4M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z" />
+      </svg>
+    );
+  };
+
+  const toneForCategory = (category?: string) => {
+    const key = String(category || "").toLowerCase();
+    if (key.includes("gam")) return "gamification";
+    return "default";
+  };
+
+  const buildQuickHref = (filtersObj: any) => {
+    const sp = new URLSearchParams({
+      ...(tenantId ? { tenantId } : {}),
+      ...(q ? { q } : {}),
+      filters: JSON.stringify(filtersObj)
+    });
+    return `/products?${sp.toString()}`;
+  };
 
   return (
     <main className="page pageWide">
@@ -149,6 +224,27 @@ export default async function ProductsPage({
             <div className="filtersLeft">
               <div className="filtersNote">Gestiona productos y servicios y asócialos a contactos para crear planes o suscripciones.</div>
               <div className="filtersPanel">
+                <div className="filtersQuickRow">
+                  <div className="filtersQuick">
+                    {quickFilters.map((filter) => {
+                      const key = JSON.stringify(filter.filters);
+                      const isActive = activeFiltersKey === key;
+                      return (
+                        <a
+                          key={filter.id}
+                          className={`pill quick-pill ${isActive ? "is-active" : ""}`}
+                          href={buildQuickHref(filter.filters)}
+                          data-tone={toneForCategory(filter.category)}
+                        >
+                          <span className="quick-pill-icon" aria-hidden="true">
+                            {iconForCategory(filter.category)}
+                          </span>
+                          {filter.name}
+                        </a>
+                      );
+                    })}
+                  </div>
+                </div>
                 <SmartViewsBar
                   scope="products"
                   initialViewId={viewId}
@@ -178,6 +274,21 @@ export default async function ProductsPage({
               </div>
             </div>
             <div className="filtersRight">
+              <div className="trend-card">
+                <div className="trend-title">Top 3 tendencia (24h)</div>
+                <ul className="mini-list">
+                  {trendingProducts.length ? (
+                    trendingProducts.map((item: any) => (
+                      <li key={`trend-p-${item.id}`}>
+                        <span>{item.name || "Producto"}</span>
+                        <span className="trend-score">{item.score}</span>
+                      </li>
+                    ))
+                  ) : (
+                    <li className="muted">Sin datos</li>
+                  )}
+                </ul>
+              </div>
               <span className="pill">{productItems.length} resultados</span>
               <span className="pill">Contactos: {filteredCustomers.length}</span>
             </div>

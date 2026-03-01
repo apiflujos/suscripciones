@@ -7,7 +7,7 @@ Objetivo
 --------
 Construir un sistema de gamificacion con ranking GLOBAL y por CANAL (tenant),
 con actualizacion realtime, que sea sostenible 15-20 anos, sin techo de puntos,
-pero con niveles (20 max) que pueden subir o bajar segun constancia.
+pero con niveles (10 max) que pueden subir o bajar segun constancia.
 
 Principios
 ----------
@@ -17,6 +17,14 @@ Principios
   agregar reglas adicionales.
 - Realtime primero: pagos y acciones clave actualizan score en tiempo real.
 - Transparencia: cada cambio queda en el timeline de eventos.
+
+Frecuencia de calculo recomendada
+---------------------------------
+- Realtime (eventos): pagos, mensajes, suscripciones y cambios criticos
+  actualizan el score inmediatamente via sockets.
+- Ventanas mixtas: 24h / 7d / 30d para recencia y tendencias.
+- Batch corto: cada 15-60 min recalcular degradacion e inactividad.
+- Batch diario: recalculo total y auditoria de consistencia.
 
 Entidades con ranking
 ---------------------
@@ -35,7 +43,7 @@ Modelos propuestos (nuevas tablas)
    - id, entityType, entityId, tenantId (nullable para global)
    - lifetimePoints (solo suma)
    - statusScore (sube/baja)
-   - level (1..20)
+   - level (1..10)
    - lastActivityAt, lastPaymentAt
    - streaks (consistencia)
    - dataQualityScore
@@ -57,7 +65,7 @@ Scoring sin techo (modelo dual)
 2) statusScore (nivel actual)
    - Sube con actividad y valor economico.
    - Baja por inactividad o acciones negativas.
-   - Determina el nivel (1..20).
+- Determina el nivel (1..10).
 
 Formula por canal (requerida)
 -----------------------------
@@ -68,29 +76,19 @@ Donde:
 - factor_canal: ponderador del canal (ej. 0.8 - 1.2).
 - bonus_canal: reglas adicionales del canal (eventos locales).
 
-Niveles (20 max, sin techo de puntos)
+Niveles (10 max, sin techo de puntos)
 -------------------------------------
 Propuesta de nombres (ajustables):
   1. Rookie
-  2. Aprendiz
-  3. Bronce I
-  4. Bronce II
-  5. Plata I
-  6. Plata II
-  7. Oro I
-  8. Oro II
-  9. Platino I
- 10. Platino II
- 11. Diamante I
- 12. Diamante II
- 13. Elite I
- 14. Elite II
- 15. Maestro I
- 16. Maestro II
- 17. Legendario I
- 18. Legendario II
- 19. Icono
- 20. Icono Supremo
+  2. Explorador
+  3. Bronce
+  4. Plata
+  5. Oro
+  6. Platino
+  7. Diamante
+  8. Elite
+  9. Maestro
+ 10. Leyenda
 
 Regla clave:
 - lifetimePoints no baja.
@@ -202,4 +200,3 @@ Notas de implementacion (sin cambios aun)
 - Todo cambio debe ser incremental y no destructivo.
 - No se elimina data historica.
 - El timeline de eventos es obligatorio para auditoria.
-

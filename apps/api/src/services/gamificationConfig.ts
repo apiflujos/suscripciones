@@ -1,28 +1,18 @@
 export const GAMIFICATION_LEVEL_NAMES = [
   "Rookie",
-  "Aprendiz",
-  "Bronce I",
-  "Bronce II",
-  "Plata I",
-  "Plata II",
-  "Oro I",
-  "Oro II",
-  "Platino I",
-  "Platino II",
-  "Diamante I",
-  "Diamante II",
-  "Elite I",
-  "Elite II",
-  "Maestro I",
-  "Maestro II",
-  "Legendario I",
-  "Legendario II",
-  "Icono",
-  "Icono Supremo"
+  "Explorador",
+  "Bronce",
+  "Plata",
+  "Oro",
+  "Platino",
+  "Diamante",
+  "Elite",
+  "Maestro",
+  "Leyenda"
 ];
 
-const LEVEL_BASE = 250;
-const LEVEL_GROWTH = 1.35;
+const LEVEL_BASE = 300;
+const LEVEL_GROWTH = 1.55;
 
 export const GAMIFICATION_LEVEL_THRESHOLDS = Array.from({ length: GAMIFICATION_LEVEL_NAMES.length }, (_, idx) => {
   if (idx === 0) return 0;

@@ -59,8 +59,8 @@ const FIELDS: FieldOption[] = [
   { value: "paymentsCount", label: "Pagos totales", type: "number" },
   { value: "approvedPaymentsCount", label: "Pagos aprobados", type: "number" },
   { value: "tier", label: "Nivel gamificación", type: "enum", enumValues: ["Rookie", "Bronce", "Plata", "Oro"] },
-  { value: "gamificationLevel", label: "Nivel gamificación (1-20)", type: "number" },
-  { value: "gamificationLevelName", label: "Nivel gamificación (nombre)", type: "enum", enumValues: ["Rookie", "Aprendiz", "Bronce I", "Bronce II", "Plata I", "Plata II", "Oro I", "Oro II", "Platino I", "Platino II", "Diamante I", "Diamante II", "Elite I", "Elite II", "Maestro I", "Maestro II", "Legendario I", "Legendario II", "Icono", "Icono Supremo"] },
+  { value: "gamificationLevel", label: "Nivel gamificación (1-10)", type: "number" },
+  { value: "gamificationLevelName", label: "Nivel gamificación (nombre)", type: "enum", enumValues: ["Rookie", "Explorador", "Bronce", "Plata", "Oro", "Platino", "Diamante", "Elite", "Maestro", "Leyenda"] },
   { value: "gamificationScore", label: "Score gamificación", type: "number" },
   { value: "gamificationLifetime", label: "Puntos históricos", type: "number" },
   { value: "daysPastDue", label: "Días en mora", type: "number" },
@@ -413,7 +413,7 @@ export function SmartListBuilder({
       <div className="field-hint">
         Fechas relativas soportan segundos, minutos, horas, días. Para listas usa coma.
         <br />
-        Nivel gamificación: usa `gamificationLevel` (1-20) o `gamificationLevelName` para los nuevos niveles. `tier` es legado.
+        Nivel gamificación: usa `gamificationLevel` (1-10) o `gamificationLevelName` para los nuevos niveles. `tier` es legado.
       </div>
     </div>
   );

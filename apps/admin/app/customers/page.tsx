@@ -80,6 +80,12 @@ async function fetchCustomerSubscriptions(tenantId?: string) {
   return map;
 }
 
+async function fetchTrending(scope: "customers" | "products", hours: number, tenantId?: string) {
+  const sp = new URLSearchParams({ scope, windowHours: String(hours) });
+  if (tenantId) sp.set("tenantId", tenantId);
+  return fetchAdminCached(`/admin/gamification/trending?${sp.toString()}`, { ttlMs: 1500 });
+}
+
 async function fetchCartTemplates(tenantId?: string) {
   const sp = new URLSearchParams();
   if (tenantId) sp.set("tenantId", tenantId);
@@ -183,13 +189,14 @@ export default async function CustomersPage({
     resolvedIds = ["__none__"];
   }
 
-  const [data, tenantsRes, txCustomer, productsRes, templatesRes, settingsRes] = await Promise.all([
+  const [data, tenantsRes, txCustomer, productsRes, templatesRes, settingsRes, trendingRes] = await Promise.all([
     fetchCustomers({ q, take, page, tenantId, ids: resolvedIds }),
     fetchAdminCached("/admin/tenants", { ttlMs: 1500 }),
     txCustomerId ? fetchCustomerById(txCustomerId) : Promise.resolve(null),
     fetchProducts(tenantId),
     fetchCheckoutTemplates(tenantId),
-    fetchSettings()
+    fetchSettings(),
+    fetchTrending("customers", 24, tenantId)
   ]);
   const items = (data.items ?? []) as any[];
   const total = Number.isFinite(Number((data as any)?.total)) ? Number((data as any).total) : items.length;
@@ -198,6 +205,7 @@ export default async function CustomersPage({
   }
   const tenants = (tenantsRes.json?.items ?? []) as Array<{ id: string; name: string }>;
   const checkoutConfig = settingsRes?.checkoutConfig || {};
+  const trendingCustomers = trendingRes?.ok ? trendingRes.json?.items ?? [] : [];
   const tenantById = new Map(tenants.map((t) => [String(t.id), String(t.name)]));
   const [latestLinks, subscriptionsByCustomer, cartTemplates] = await Promise.all([
     fetchPaymentLinks(q, tenantId),
@@ -288,6 +296,118 @@ export default async function CustomersPage({
       ? `Mostrando ${startIndex}-${endIndex} de ${total} · ${take} por página`
       : "Sin resultados";
 
+  const quickFilters = [
+    {
+      id: "gamification-legend",
+      name: "Gamificación: Leyenda",
+      category: "Gamificación",
+      filters: { op: "and", rules: [{ field: "gamification.levelName", op: "in", value: ["Leyenda", "Maestro", "Elite", "Diamante"] }] }
+    },
+    {
+      id: "gamification-oro",
+      name: "Gamificación: Oro",
+      category: "Gamificación",
+      filters: { op: "and", rules: [{ field: "gamification.levelName", op: "in", value: ["Oro", "Platino"] }] }
+    },
+    {
+      id: "gamification-plata",
+      name: "Gamificación: Plata",
+      category: "Gamificación",
+      filters: { op: "and", rules: [{ field: "gamification.levelName", op: "in", value: ["Plata", "Bronce"] }] }
+    },
+    {
+      id: "gamification-rookie",
+      name: "Gamificación: Rookie",
+      category: "Gamificación",
+      filters: { op: "and", rules: [{ field: "gamification.levelName", op: "in", value: ["Rookie", "Explorador"] }] }
+    },
+    {
+      id: "ranking-top",
+      name: "Ranking: Top",
+      category: "Ranking",
+      filters: { op: "and", rules: [{ field: "payments.approvedCount", op: "gte", value: 6 }] }
+    },
+    {
+      id: "ranking-recurrente",
+      name: "Ranking: Recurrente",
+      category: "Ranking",
+      filters: { op: "and", rules: [{ field: "payments.approvedCount", op: "between", value: { from: 3, to: 5 } }] }
+    },
+    {
+      id: "ranking-nuevo",
+      name: "Ranking: Nuevo",
+      category: "Ranking",
+      filters: { op: "and", rules: [{ field: "payments.approvedCount", op: "lt", value: 3 }] }
+    },
+    {
+      id: "status-mora",
+      name: "Estado: En mora",
+      category: "Estado",
+      filters: { op: "and", rules: [{ field: "subscription.inMora", op: "equals", value: true }] }
+    },
+    {
+      id: "status-con-suscripcion",
+      name: "Estado: Con suscripción",
+      category: "Estado",
+      filters: { op: "and", rules: [{ field: "subscription.status", op: "equals", value: "ACTIVE" }] }
+    },
+    {
+      id: "status-sin-suscripcion",
+      name: "Estado: Sin suscripción",
+      category: "Estado",
+      filters: { op: "and", rules: [{ field: "subscription.status", op: "isEmpty" }] }
+    }
+  ];
+
+  let activeFiltersKey = "";
+  if (filters) {
+    try {
+      activeFiltersKey = JSON.stringify(JSON.parse(filters));
+    } catch {
+      activeFiltersKey = "";
+    }
+  }
+
+  const iconForCategory = (category?: string) => {
+    const key = String(category || "").toLowerCase();
+    if (key.includes("gam")) {
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 2l2.4 6.4L21 9l-5 4 1.8 6-5.8-3.6L6.2 19 8 13 3 9l6.6-.6z" />
+        </svg>
+      );
+    }
+    if (key.includes("rank")) {
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M6 4h12v4a6 6 0 0 1-12 0V4zm3 9h6v7H9z" />
+        </svg>
+      );
+    }
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M9 12l2 2 4-4M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z" />
+      </svg>
+    );
+  };
+
+  const toneForCategory = (category?: string) => {
+    const key = String(category || "").toLowerCase();
+    if (key.includes("gam")) return "gamification";
+    if (key.includes("rank")) return "ranking";
+    if (key.includes("estado") || key.includes("status")) return "status";
+    return "default";
+  };
+
+  const buildQuickHref = (filtersObj: any) => {
+    const sp = new URLSearchParams({
+      ...(q ? { q } : {}),
+      ...(tenantId ? { tenantId } : {}),
+      filters: JSON.stringify(filtersObj)
+    });
+    return `/customers?${sp.toString()}`;
+  };
+
   return (
     <main className="page" style={{ maxWidth: "100%" }}>
       {error ? (
@@ -317,21 +437,59 @@ export default async function CustomersPage({
               actionsClassName="contacts-toolbar-actions"
             />
           </div>
-      <div className="filtersRow">
-        <div className="filtersLeft">
-          <div className="filtersPanel">
-            <SmartViewsBar
-              scope="customers"
-              initialViewId={viewId}
-              initialFilters={filters}
-              baseParams={{
-                ...(q ? { q } : {}),
-                ...(tenantId ? { tenantId } : {})
-              }}
-            />
+          <div className="filtersRow">
+            <div className="filtersLeft">
+              <div className="filtersPanel">
+                <div className="filtersQuickRow">
+                  <div className="filtersQuick">
+                    {quickFilters.map((filter) => {
+                      const key = JSON.stringify(filter.filters);
+                      const isActive = activeFiltersKey === key;
+                      return (
+                        <a
+                          key={filter.id}
+                          className={`pill quick-pill ${isActive ? "is-active" : ""}`}
+                          href={buildQuickHref(filter.filters)}
+                          data-tone={toneForCategory(filter.category)}
+                        >
+                          <span className="quick-pill-icon" aria-hidden="true">
+                            {iconForCategory(filter.category)}
+                          </span>
+                          {filter.name}
+                        </a>
+                      );
+                    })}
+                  </div>
+                </div>
+                <SmartViewsBar
+                  scope="customers"
+                  initialViewId={viewId}
+                  initialFilters={filters}
+                  baseParams={{
+                    ...(q ? { q } : {}),
+                    ...(tenantId ? { tenantId } : {})
+                  }}
+                />
+              </div>
+            </div>
+            <div className="filtersRight">
+              <div className="trend-card">
+                <div className="trend-title">Top 3 tendencia (24h)</div>
+                <ul className="mini-list">
+                  {trendingCustomers.length ? (
+                    trendingCustomers.map((item: any) => (
+                      <li key={`trend-c-${item.id}`}>
+                        <span>{item.name || "Contacto"}</span>
+                        <span className="trend-score">{item.score}</span>
+                      </li>
+                    ))
+                  ) : (
+                    <li className="muted">Sin datos</li>
+                  )}
+                </ul>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
         </div>
 
         <div className="settings-group-body">

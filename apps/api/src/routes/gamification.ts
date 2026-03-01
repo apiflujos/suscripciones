@@ -92,3 +92,50 @@ gamificationRouter.get("/trending", async (req, res) => {
   const items = await loadTrending(entityType, tenantId, hours);
   res.json({ items, hours, scope: entityType === GamificationEntityType.PRODUCT ? "products" : "customers" });
 });
+
+gamificationRouter.get("/customers/:id/events", async (req, res) => {
+  const id = String(req.params.id || "").trim();
+  if (!id) return res.status(400).json({ error: "invalid_id" });
+  const takeRaw = Number(req.query.take ?? 30);
+  const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 200) : 30;
+  const tenantId = String(req.query.tenantId || "").trim() || null;
+  const includeGlobal = String(req.query.includeGlobal || "1") !== "0";
+
+  const where: any = { entityType: GamificationEntityType.CUSTOMER, entityId: id };
+  if (tenantId) {
+    where.OR = includeGlobal ? [{ tenantId }, { tenantId: null }] : [{ tenantId }];
+  }
+
+  const items = await prisma.gamificationEvent.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take
+  });
+  res.json({ items });
+});
+
+gamificationRouter.get("/customers/:id/rewards", async (req, res) => {
+  const id = String(req.params.id || "").trim();
+  if (!id) return res.status(400).json({ error: "invalid_id" });
+  const rows = await prisma.gamificationRewardLedger.findMany({
+    where: { customerId: id },
+    orderBy: { createdAt: "desc" },
+    take: 200
+  });
+
+  const byTenant = new Map<string, any>();
+  for (const row of rows) {
+    const key = row.tenantId ? String(row.tenantId) : "global";
+    if (!byTenant.has(key)) {
+      byTenant.set(key, {
+        tenantId: row.tenantId || null,
+        balance: row.balance,
+        lastAt: row.createdAt
+      });
+    }
+  }
+
+  const global = byTenant.get("global") || null;
+  const tenants = Array.from(byTenant.values()).filter((r) => r.tenantId);
+  res.json({ global, byTenant: tenants });
+});

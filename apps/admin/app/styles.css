@@ -1411,12 +1411,58 @@ a {
   align-items: center;
 }
 
+.filtersQuickRow {
+  flex: 1 1 100%;
+  width: 100%;
+}
+
 .quick-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   text-decoration: none;
   border-color: var(--stroke-strong);
   color: var(--text);
   background: var(--surface-2);
   font-weight: 600;
+}
+
+.quick-pill .quick-pill-icon {
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.quick-pill .quick-pill-icon svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
+.quick-pill[data-tone="gamification"] {
+  color: color-mix(in srgb, var(--status-warning) 85%, var(--text));
+  border-color: color-mix(in srgb, var(--status-warning) 35%, var(--stroke-strong));
+  background: color-mix(in srgb, var(--status-warning) 12%, var(--surface-2));
+}
+
+.quick-pill[data-tone="ranking"] {
+  color: color-mix(in srgb, var(--primary) 85%, var(--text));
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--stroke-strong));
+  background: color-mix(in srgb, var(--primary) 12%, var(--surface-2));
+}
+
+.quick-pill[data-tone="status"] {
+  color: color-mix(in srgb, var(--status-info) 85%, var(--text));
+  border-color: color-mix(in srgb, var(--status-info) 35%, var(--stroke-strong));
+  background: color-mix(in srgb, var(--status-info) 12%, var(--surface-2));
+}
+
+.quick-pill[data-tone="trend"] {
+  color: color-mix(in srgb, var(--status-success) 85%, var(--text));
+  border-color: color-mix(in srgb, var(--status-success) 35%, var(--stroke-strong));
+  background: color-mix(in srgb, var(--status-success) 12%, var(--surface-2));
 }
 
 .quick-pill.is-active {
@@ -3308,6 +3354,107 @@ textarea.input {
   gap: 4px;
 }
 
+.customer-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.customer-info-card {
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: var(--surface-2);
+  padding: 10px 12px;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.customer-info-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.customer-info-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  font-weight: 700;
+}
+
+.customer-info-value {
+  font-weight: 600;
+  color: var(--text);
+  text-align: right;
+  max-width: 240px;
+}
+
+.commercial-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+}
+
+.commercial-card {
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: var(--surface-2);
+  padding: 10px 12px;
+  display: grid;
+  gap: 4px;
+  min-height: 84px;
+}
+
+.commercial-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  font-weight: 700;
+}
+
+.commercial-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.commercial-meta {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.trend-card {
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: var(--surface-2);
+  padding: 10px 12px;
+  min-width: 200px;
+}
+
+.trend-title {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  font-weight: 700;
+}
+
+.trend-card .mini-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.trend-score {
+  font-weight: 700;
+  color: var(--text);
+}
+
 .tier-badge {
   display: inline-flex;
   align-items: center;
@@ -3466,10 +3613,10 @@ textarea.input {
 .topbarRealtimeSlot {
   display: flex;
   align-items: center;
-  margin-right: 10px;
+  margin-left: 6px;
   min-height: 40px;
   min-width: 0;
-  justify-content: flex-start;
+  justify-content: center;
   align-self: stretch;
   overflow: visible;
 }

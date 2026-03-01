@@ -294,8 +294,8 @@ export function getSmartViewFields(scope: SmartViewScope): SmartField[] {
       { key: "payments.lastPaidAt", label: "Fecha último pago", group: "Pagos", type: "date", operators: ["before", "after", "between", "within_last", "within_next", "older_than", "newer_than"] },
       { key: "payments.approvedCount", label: "Pagos aprobados", group: "Pagos", type: "number", operators: ["equals", "gt", "gte", "lt", "lte"] },
       { key: "payments.totalCount", label: "Pagos totales", group: "Pagos", type: "number", operators: ["equals", "gt", "gte", "lt", "lte"] },
-      { key: "gamification.level", label: "Nivel gamificación (1-20)", group: "Gamificación", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] },
-      { key: "gamification.levelName", label: "Nivel gamificación (nombre)", group: "Gamificación", type: "enum", operators: ["equals", "in"], options: ["Rookie", "Aprendiz", "Bronce I", "Bronce II", "Plata I", "Plata II", "Oro I", "Oro II", "Platino I", "Platino II", "Diamante I", "Diamante II", "Elite I", "Elite II", "Maestro I", "Maestro II", "Legendario I", "Legendario II", "Icono", "Icono Supremo"].map((v) => ({ value: v, label: v })) },
+      { key: "gamification.level", label: "Nivel gamificación (1-10)", group: "Gamificación", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] },
+      { key: "gamification.levelName", label: "Nivel gamificación (nombre)", group: "Gamificación", type: "enum", operators: ["equals", "in"], options: ["Rookie", "Explorador", "Bronce", "Plata", "Oro", "Platino", "Diamante", "Elite", "Maestro", "Leyenda"].map((v) => ({ value: v, label: v })) },
       { key: "gamification.statusScore", label: "Score gamificación", group: "Gamificación", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] },
       { key: "gamification.lifetimePoints", label: "Puntos históricos", group: "Gamificación", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] }
     ];
@@ -314,8 +314,8 @@ export function getSmartViewFields(scope: SmartViewScope): SmartField[] {
       { key: "product.vendor", label: "Marca", group: "Producto", type: "enum", operators: ["equals", "in"], optionsSource: "product_vendor" },
       { key: "product.requiresShipping", label: "Requiere envío", group: "Producto", type: "boolean", operators: ["equals"] },
       { key: "product.taxable", label: "Aplica impuestos", group: "Producto", type: "boolean", operators: ["equals"] },
-      { key: "gamification.level", label: "Nivel gamificación (1-20)", group: "Gamificación", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] },
-      { key: "gamification.levelName", label: "Nivel gamificación (nombre)", group: "Gamificación", type: "enum", operators: ["equals", "in"], options: ["Rookie", "Aprendiz", "Bronce I", "Bronce II", "Plata I", "Plata II", "Oro I", "Oro II", "Platino I", "Platino II", "Diamante I", "Diamante II", "Elite I", "Elite II", "Maestro I", "Maestro II", "Legendario I", "Legendario II", "Icono", "Icono Supremo"].map((v) => ({ value: v, label: v })) },
+      { key: "gamification.level", label: "Nivel gamificación (1-10)", group: "Gamificación", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] },
+      { key: "gamification.levelName", label: "Nivel gamificación (nombre)", group: "Gamificación", type: "enum", operators: ["equals", "in"], options: ["Rookie", "Explorador", "Bronce", "Plata", "Oro", "Platino", "Diamante", "Elite", "Maestro", "Leyenda"].map((v) => ({ value: v, label: v })) },
       { key: "gamification.statusScore", label: "Score gamificación", group: "Gamificación", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] },
       { key: "gamification.lifetimePoints", label: "Puntos históricos", group: "Gamificación", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] }
     ];
