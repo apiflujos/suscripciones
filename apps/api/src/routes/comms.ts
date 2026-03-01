@@ -2,6 +2,7 @@ import express from "express";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
 import { computeSmartListRecipients, SmartListRule } from "../services/smartList";
+import { getSystemSmartList, getSystemSmartLists } from "../services/systemSmartLists";
 import { CHATWOOT_CUSTOM_ATTR_DEFS, ensureChatwootCustomAttributes, syncChatwootAttributesForCustomer } from "../services/chatwootSync";
 import { syncSmartListById } from "../services/smartListSync";
 import { ChatwootClient } from "../providers/chatwoot/client";
@@ -25,6 +26,13 @@ function parseRules(input: any): SmartListRule {
     return { op: "and", rules: [] };
   }
   return input as SmartListRule;
+}
+
+function matchesTenant(customer: any, tenantId: string) {
+  if (!tenantId) return true;
+  if (String(customer?.tenantId || "") === tenantId) return true;
+  const links = Array.isArray(customer?.tenantLinks) ? customer.tenantLinks : [];
+  return links.some((link: any) => String(link?.tenantId || "") === tenantId);
 }
 
 async function getChatwootClient() {
@@ -59,7 +67,14 @@ commsRouter.get("/smart-lists", async (_req, res) => {
   const skipRaw = Number(req?.query?.skip ?? 0);
   const skip = Number.isFinite(skipRaw) ? Math.max(Math.trunc(skipRaw), 0) : 0;
   const items = await prisma.smartList.findMany({ orderBy: { createdAt: "desc" }, take, skip });
-  res.json({ items });
+  const systemLists = getSystemSmartLists().map((list) => ({
+    id: list.id,
+    name: list.name,
+    description: list.description,
+    category: list.category,
+    system: true
+  }));
+  res.json({ items: [...systemLists, ...items] });
 });
 
 commsRouter.post("/test-connection", async (req, res) => {
@@ -174,6 +189,19 @@ const smartListUpdateSchema = z.object({
 
 commsRouter.get("/smart-lists/:id", async (req, res) => {
   const id = String(req.params.id || "").trim();
+  const systemList = getSystemSmartList(id);
+  if (systemList) {
+    return res.json({
+      smartList: {
+        id: systemList.id,
+        name: systemList.name,
+        description: systemList.description,
+        category: systemList.category,
+        system: true,
+        rules: systemList.rules
+      }
+    });
+  }
   const smartList = await prisma.smartList.findUnique({ where: { id } });
   if (!smartList) return res.status(404).json({ error: "not_found" });
   res.json({ smartList });
@@ -211,18 +239,33 @@ commsRouter.delete("/smart-lists/:id", async (req, res) => {
 
 commsRouter.post("/smart-lists/:id/preview", async (req, res) => {
   const id = String(req.params.id || "").trim();
+  const tenantId = String((req as any)?.query?.tenantId ?? "").trim();
+  const systemList = getSystemSmartList(id);
+  if (systemList) {
+    const recipients = await computeSmartListRecipients(systemList.rules as any);
+    const filtered = tenantId ? recipients.filter((c: any) => matchesTenant(c, tenantId)) : recipients;
+    const sample = filtered.slice(0, 20).map((c: any) => ({
+      id: c.id,
+      name: c.name,
+      email: c.email,
+      phone: c.phone
+    }));
+    return res.json({ count: filtered.length, sample });
+  }
+
   const smartList = await prisma.smartList.findUnique({ where: { id } });
   if (!smartList) return res.status(404).json({ error: "not_found" });
 
   const recipients = await computeSmartListRecipients(smartList.rules as any);
-  const sample = recipients.slice(0, 20).map((c: any) => ({
+  const filtered = tenantId ? recipients.filter((c: any) => matchesTenant(c, tenantId)) : recipients;
+  const sample = filtered.slice(0, 20).map((c: any) => ({
     id: c.id,
     name: c.name,
     email: c.email,
     phone: c.phone
   }));
 
-  res.json({ count: recipients.length, sample });
+  res.json({ count: filtered.length, sample });
 });
 
 commsRouter.get("/smart-lists/:id/members", async (req, res) => {
@@ -233,6 +276,28 @@ commsRouter.get("/smart-lists/:id/members", async (req, res) => {
   const skip = Number.isFinite(skipRaw) ? Math.max(Math.trunc(skipRaw), 0) : 0;
   const activeParam = String((req as any)?.query?.active ?? "").trim();
   const active = activeParam ? activeParam === "1" || activeParam.toLowerCase() === "true" : undefined;
+  const tenantId = String((req as any)?.query?.tenantId ?? "").trim();
+
+  const systemList = getSystemSmartList(id);
+  if (systemList) {
+    if (active === false) return res.json({ items: [] });
+    const recipients = await computeSmartListRecipients(systemList.rules as any);
+    const filtered = tenantId ? recipients.filter((c: any) => matchesTenant(c, tenantId)) : recipients;
+    const slice = filtered.slice(skip, skip + take);
+    return res.json({
+      items: slice.map((c: any) => ({
+        id: `system-${c.id}`,
+        active: true,
+        lastSeenAt: null,
+        customer: {
+          id: c.id,
+          name: c.name,
+          email: c.email,
+          phone: c.phone
+        }
+      }))
+    });
+  }
 
   const list = await prisma.smartList.findUnique({ where: { id } });
   if (!list) return res.status(404).json({ error: "not_found" });
@@ -245,11 +310,15 @@ commsRouter.get("/smart-lists/:id/members", async (req, res) => {
     orderBy: { updatedAt: "desc" },
     take,
     skip,
-    include: { customer: true }
+    include: { customer: { include: { tenantLinks: true } } }
   });
 
+  const filteredItems = tenantId
+    ? items.filter((m: any) => matchesTenant(m?.customer, tenantId))
+    : items;
+
   res.json({
-    items: items.map((m: any) => ({
+    items: filteredItems.map((m: any) => ({
       id: m.id,
       active: m.active,
       lastSeenAt: m.lastSeenAt,

@@ -1172,6 +1172,28 @@ a {
   width: 100%;
 }
 
+.filtersQuick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.quick-pill {
+  text-decoration: none;
+  border-color: var(--stroke-strong);
+  color: var(--text);
+  background: var(--surface-2);
+  font-weight: 600;
+}
+
+.quick-pill.is-active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary);
+  pointer-events: none;
+}
+
 .filtersForm {
   display: flex;
   gap: 8px;

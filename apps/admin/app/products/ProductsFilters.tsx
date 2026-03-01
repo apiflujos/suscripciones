@@ -13,7 +13,7 @@ export function ProductsFilters({
   tenantId: string;
   smartListId: string;
   tenants: Array<{ id: string; name: string }>;
-  smartLists: Array<{ id: string; name: string }>;
+  smartLists: Array<{ id: string; name: string; system?: boolean; category?: string }>;
 }) {
   const [searchValue, setSearchValue] = useState(q);
   const canSearch = searchValue.trim().length > 0;
@@ -21,9 +21,30 @@ export function ProductsFilters({
   const listFormRef = useRef<HTMLFormElement | null>(null);
 
   const trimmed = useMemo(() => searchValue.trim(), [searchValue]);
+  const systemLists = useMemo(() => smartLists.filter((list) => Boolean(list.system)), [smartLists]);
+  const buildListHref = (listId: string) => {
+    const sp = new URLSearchParams();
+    if (trimmed) sp.set("q", trimmed);
+    if (tenantId) sp.set("tenantId", tenantId);
+    if (listId) sp.set("list", listId);
+    return `/products?${sp.toString()}`;
+  };
 
   return (
     <>
+      {systemLists.length ? (
+        <div className="filtersQuick">
+          {systemLists.map((list) => (
+            <a
+              key={list.id}
+              className={`pill quick-pill ${smartListId === list.id ? "is-active" : ""}`}
+              href={buildListHref(list.id)}
+            >
+              {list.name}
+            </a>
+          ))}
+        </div>
+      ) : null}
       <form
         action="/products"
         method="GET"

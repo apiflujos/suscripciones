@@ -34,15 +34,17 @@ async function fetchSmartLists() {
   return res.json || { items: [] as any[] };
 }
 
-async function fetchSmartListMembers(id: string, opts: { take: number; page: number }) {
+async function fetchSmartListMembers(id: string, opts: { take: number; page: number; tenantId?: string }) {
   if (!id) return { items: [] as any[] };
   const take = Number(opts.take || 10);
   const page = Number(opts.page || 1);
+  const tenantId = String(opts.tenantId || "").trim();
   const skip = Math.max(0, Math.trunc(page) - 1) * Math.max(1, Math.trunc(take));
+  const tenantParam = tenantId ? `&tenantId=${encodeURIComponent(tenantId)}` : "";
   const res = await fetchAdminCached(
     `/admin/comms/smart-lists/${encodeURIComponent(id)}/members?active=1&take=${encodeURIComponent(
       String(Math.min(take, 200))
-    )}&skip=${encodeURIComponent(String(skip))}`,
+    )}&skip=${encodeURIComponent(String(skip))}${tenantParam}`,
     { ttlMs: 1500 }
   );
   return res.json || { items: [] as any[] };
@@ -162,7 +164,7 @@ export default async function CustomersPage({
   }).toString()}`;
   const take = 10;
   const [data, tenantsRes, txCustomer, productsRes, templatesRes, smartListsRes] = await Promise.all([
-    smartListId ? fetchSmartListMembers(smartListId, { take, page }) : fetchCustomers({ q, take, page, tenantId }),
+    smartListId ? fetchSmartListMembers(smartListId, { take, page, tenantId }) : fetchCustomers({ q, take, page, tenantId }),
     fetchAdminCached("/admin/tenants", { ttlMs: 1500 }),
     txCustomerId ? fetchCustomerById(txCustomerId) : Promise.resolve(null),
     fetchProducts(tenantId),

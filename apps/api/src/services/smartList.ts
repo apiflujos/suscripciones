@@ -148,7 +148,8 @@ export async function computeSmartListRecipients(rules: SmartListRule) {
           include: { plan: true, payments: { orderBy: { createdAt: "desc" }, take: 1 } },
           orderBy: { createdAt: "desc" }
         },
-        payments: { orderBy: { createdAt: "desc" }, take: 1 }
+        payments: { orderBy: { createdAt: "desc" }, take: 1 },
+        tenantLinks: true
       }
     }),
     prisma.payment.groupBy({

@@ -22,10 +22,11 @@ async function fetchSmartLists() {
   return res.json || { items: [] as any[] };
 }
 
-async function fetchSmartListMembers(id: string) {
+async function fetchSmartListMembers(id: string, tenantId?: string) {
   if (!id) return { items: [] as any[] };
+  const tenantParam = tenantId ? `&tenantId=${encodeURIComponent(tenantId)}` : "";
   const res = await fetchAdminCached(
-    `/admin/comms/smart-lists/${encodeURIComponent(id)}/members?active=1&take=200`,
+    `/admin/comms/smart-lists/${encodeURIComponent(id)}/members?active=1&take=200${tenantParam}`,
     { ttlMs: 1500 }
   );
   return res.json || { items: [] as any[] };
@@ -85,7 +86,7 @@ export default async function ProductsPage({
     fetchAdminCached(tenantId ? `/admin/customers?take=200&tenantId=${encodeURIComponent(tenantId)}` : "/admin/customers?take=200", { ttlMs: 1500 }),
     fetchAdminCached(tenantId ? `/admin/checkout-templates?tenantId=${encodeURIComponent(tenantId)}` : "/admin/checkout-templates", { ttlMs: 1500 }),
     fetchSmartLists(),
-    smartListId ? fetchSmartListMembers(smartListId) : Promise.resolve({ items: [] as any[] }),
+    smartListId ? fetchSmartListMembers(smartListId, tenantId) : Promise.resolve({ items: [] as any[] }),
     fetchChatwootInboxes()
   ]);
 
