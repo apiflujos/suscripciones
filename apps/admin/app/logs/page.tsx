@@ -145,10 +145,12 @@ export default async function LogsPage({
   const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
   const baseParams = new URLSearchParams({
     take: String(take),
+    count: "1",
     ...(Number.isFinite(skip) && skip > 0 ? { skip: String(skip) } : {})
   });
   const systemParams = new URLSearchParams({
     take: String(take),
+    count: "1",
     ...(Number.isFinite(skip) && skip > 0 ? { skip: String(skip) } : {}),
     ...(q ? { q } : {}),
     ...(level ? { level } : {}),
@@ -157,6 +159,7 @@ export default async function LogsPage({
   });
   const paymentsParams = new URLSearchParams({
     take: String(take),
+    count: "1",
     ...(Number.isFinite(skip) && skip > 0 ? { skip: String(skip) } : {}),
     ...(q ? { q } : {}),
     ...(status ? { status } : {}),
@@ -166,6 +169,7 @@ export default async function LogsPage({
   });
   const webhooksParams = new URLSearchParams({
     take: String(take),
+    count: "1",
     ...(Number.isFinite(skip) && skip > 0 ? { skip: String(skip) } : {}),
     ...(q ? { q } : {}),
     ...(processStatus ? { processStatus } : {}),
@@ -186,6 +190,101 @@ export default async function LogsPage({
   const webhookItems = (webhooks.json?.items ?? []) as any[];
   const messageItems = (messages.json?.items ?? []) as any[];
   const paymentItems = (payments.json?.items ?? []) as any[];
+  const totals = {
+    system: typeof system.json?.total === "number" ? system.json.total : null,
+    jobs: typeof jobs.json?.total === "number" ? jobs.json.total : null,
+    webhooks: typeof webhooks.json?.total === "number" ? webhooks.json.total : null,
+    messages: typeof messages.json?.total === "number" ? messages.json.total : null,
+    payments: typeof payments.json?.total === "number" ? payments.json.total : null
+  };
+  const pagination = (() => {
+    const currentPage = Math.max(1, Number(page) || 1);
+    const countOnPage =
+      tab === "system"
+        ? normalized.length
+        : tab === "messages"
+          ? messageItems.length
+          : tab === "jobs"
+            ? jobItems.length
+            : tab === "payments"
+              ? paymentItems.length
+              : webhookItems.length;
+    const totalCount =
+      tab === "system"
+        ? totals.system
+        : tab === "messages"
+          ? totals.messages
+          : tab === "jobs"
+            ? totals.jobs
+            : tab === "payments"
+              ? totals.payments
+              : totals.webhooks;
+    const hasNext = totalCount != null ? (currentPage - 1) * take + countOnPage < totalCount : countOnPage >= take;
+    const maxForward = hasNext ? 1 : 0;
+    const desktopWindow = 10;
+    const end = currentPage + maxForward;
+    const start = Math.max(1, end - (desktopWindow - 1));
+    const pages = [];
+    for (let i = start; i <= end; i += 1) pages.push(i);
+    const mobileWindow = 5;
+    const mobileStart = Math.max(start, Math.min(currentPage - 2, end - (mobileWindow - 1)));
+    const mobileEnd = Math.min(end, mobileStart + (mobileWindow - 1));
+    const baseParams = {
+      tab,
+      ...(q ? { q } : {}),
+      ...(tab === "system" && level ? { level } : {}),
+      ...(tab === "payments" && status ? { status } : {}),
+      ...(tab === "webhooks" && processStatus ? { processStatus } : {}),
+      ...(from ? { from } : {}),
+      ...(to ? { to } : {}),
+      ...(tenantId ? { tenantId } : {})
+    };
+    const startIndex = countOnPage ? (currentPage - 1) * take + 1 : 0;
+    const endIndex = countOnPage ? (currentPage - 1) * take + countOnPage : 0;
+    const totalLabel = totalCount != null ? ` de ${totalCount}` : "";
+    return (
+      <div className="pagination pagination-indicator">
+        <div className="pagination-summary">
+          Mostrando {countOnPage ? `${startIndex}-${endIndex}${totalLabel}` : "0"} · {take} por página
+        </div>
+        <a
+          className="page-link page-nav"
+          href={`/logs?${new URLSearchParams({
+            ...baseParams,
+            page: String(Math.max(1, currentPage - 1))
+          })}`}
+          aria-disabled={currentPage <= 1}
+        >
+          Anterior
+        </a>
+        <div className="pagination-pages">
+          {pages.map((p) => {
+            const isDesktopOnly = p < mobileStart || p > mobileEnd;
+            return (
+              <a
+                key={`logs-page-${p}`}
+                className={`page-link ${p === currentPage ? "is-active" : ""} ${isDesktopOnly ? "page-desktop-only" : ""}`}
+                href={`/logs?${new URLSearchParams({ ...baseParams, page: String(p) })}`}
+                aria-current={p === currentPage ? "page" : undefined}
+              >
+                {p}
+              </a>
+            );
+          })}
+        </div>
+        <a
+          className="page-link page-nav"
+          href={`/logs?${new URLSearchParams({
+            ...baseParams,
+            page: String(currentPage + 1)
+          })}`}
+          aria-disabled={!hasNext}
+        >
+          Siguiente
+        </a>
+      </div>
+    );
+  })();
   const failedJobsCount = jobItems.filter((j) => String(j.status) === "FAILED").length;
   const paymentsSummary = paymentItems.reduce(
     (acc: { approved: number; pending: number; failed: number; total: number }, p: any) => {
@@ -354,6 +453,7 @@ export default async function LogsPage({
           <div className="logs-ai-wrapper">
             <AiAssistant from={from} to={to} tenantId={tenantId} />
           </div>
+          {pagination}
           {tab === "system" ? (
             <LogsSystemTable items={normalized} />
           ) : tab === "messages" ? (
@@ -637,74 +737,7 @@ export default async function LogsPage({
             </div>
           )}
 
-          {(() => {
-            const currentPage = Math.max(1, Number(page) || 1);
-            const count = tab === "system" ? normalized.length : tab === "messages" ? messageItems.length : tab === "jobs" ? jobItems.length : tab === "payments" ? paymentItems.length : webhookItems.length;
-            const hasNext = count >= take;
-            const maxForward = hasNext ? 1 : 0;
-            const desktopWindow = 10;
-            const end = currentPage + maxForward;
-            const start = Math.max(1, end - (desktopWindow - 1));
-            const pages = [];
-            for (let i = start; i <= end; i += 1) pages.push(i);
-            const mobileWindow = 5;
-            const mobileStart = Math.max(start, Math.min(currentPage - 2, end - (mobileWindow - 1)));
-            const mobileEnd = Math.min(end, mobileStart + (mobileWindow - 1));
-            const baseParams = {
-              tab,
-              ...(q ? { q } : {}),
-              ...(tab === "system" && level ? { level } : {}),
-              ...(tab === "payments" && status ? { status } : {}),
-              ...(tab === "webhooks" && processStatus ? { processStatus } : {}),
-              ...(from ? { from } : {}),
-              ...(to ? { to } : {}),
-              ...(tenantId ? { tenantId } : {})
-            };
-            const startIndex = (currentPage - 1) * take + 1;
-            const endIndex = (currentPage - 1) * take + Math.max(0, count);
-            return (
-              <div className="pagination pagination-indicator">
-                <div className="pagination-summary">
-                  Mostrando {count ? `${startIndex}-${endIndex}` : "0"} · {take} por página
-                </div>
-                <a
-                  className="page-link page-nav"
-                  href={`/logs?${new URLSearchParams({
-                    ...baseParams,
-                    page: String(Math.max(1, currentPage - 1))
-                  })}`}
-                  aria-disabled={currentPage <= 1}
-                >
-                  Anterior
-                </a>
-                <div className="pagination-pages">
-                  {pages.map((p) => {
-                    const isDesktopOnly = p < mobileStart || p > mobileEnd;
-                    return (
-                      <a
-                        key={`logs-page-${p}`}
-                        className={`page-link ${p === currentPage ? "is-active" : ""} ${isDesktopOnly ? "page-desktop-only" : ""}`}
-                        href={`/logs?${new URLSearchParams({ ...baseParams, page: String(p) })}`}
-                        aria-current={p === currentPage ? "page" : undefined}
-                      >
-                        {p}
-                      </a>
-                    );
-                  })}
-                </div>
-                <a
-                  className="page-link page-nav"
-                  href={`/logs?${new URLSearchParams({
-                    ...baseParams,
-                    page: String(currentPage + 1)
-                  })}`}
-                  aria-disabled={!hasNext}
-                >
-                  Siguiente
-                </a>
-              </div>
-            );
-          })()}
+          {pagination}
         </div>
       </section>
     </main>

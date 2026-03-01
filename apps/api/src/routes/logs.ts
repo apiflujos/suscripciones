@@ -20,6 +20,7 @@ function defaultFromDate() {
 }
 
 logsRouter.get("/system", async (req, res) => {
+  const withCount = String(req.query.count ?? "") === "1";
   const take = Math.min(200, Math.max(1, Number(req.query.take ?? 20)));
   const skip = Math.max(0, Number(req.query.skip ?? 0));
   const q = String(req.query.q ?? "").trim();
@@ -53,13 +54,16 @@ logsRouter.get("/system", async (req, res) => {
     ...(levelFilter || {}),
     ...(customerFilter || {})
   } as Prisma.SystemLogWhereInput;
-  const items = await prisma.systemLog.findMany({
-    where: finalWhere,
-    orderBy: { createdAt: "desc" },
-    take,
-    skip,
-    select: { id: true, level: true, source: true, message: true, context: true, createdAt: true }
-  });
+  const [items, total] = await Promise.all([
+    prisma.systemLog.findMany({
+      where: finalWhere,
+      orderBy: { createdAt: "desc" },
+      take,
+      skip,
+      select: { id: true, level: true, source: true, message: true, context: true, createdAt: true }
+    }),
+    withCount ? prisma.systemLog.count({ where: finalWhere }) : Promise.resolve(null)
+  ]);
 
   const subscriptionIds = new Set<string>();
   const customerIds = new Set<string>();
@@ -199,6 +203,7 @@ logsRouter.get("/system/:id", async (req, res) => {
 });
 
 logsRouter.get("/payments", async (req, res) => {
+  const withCount = String(req.query.count ?? "") === "1";
   const take = Math.min(200, Math.max(1, Number(req.query.take ?? 20)));
   const skip = Math.max(0, Number(req.query.skip ?? 0));
   const q = String(req.query.q ?? "").trim();
@@ -242,18 +247,21 @@ logsRouter.get("/payments", async (req, res) => {
         }
       : {})
   };
-  const items = await prisma.payment.findMany({
-    orderBy: { createdAt: "desc" },
-    take,
-    skip,
-    where,
-    include: {
-      subscription: { include: { plan: true } },
-      customer: true,
-      attempts: { orderBy: { createdAt: "desc" }, take: 1 }
-    }
-  });
-  res.json({ items });
+  const [items, total] = await Promise.all([
+    prisma.payment.findMany({
+      orderBy: { createdAt: "desc" },
+      take,
+      skip,
+      where,
+      include: {
+        subscription: { include: { plan: true } },
+        customer: true,
+        attempts: { orderBy: { createdAt: "desc" }, take: 1 }
+      }
+    }),
+    withCount ? prisma.payment.count({ where }) : Promise.resolve(null)
+  ]);
+  res.json({ items, total });
 });
 
 logsRouter.post("/system/test", async (_req, res) => {
@@ -351,34 +359,39 @@ logsRouter.post("/payments/recollect", async (req, res) => {
 });
 
 logsRouter.get("/jobs", async (req, res) => {
+  const withCount = String(req.query.count ?? "") === "1";
   const take = Math.min(200, Math.max(1, Number(req.query.take ?? 20)));
   const skip = Math.max(0, Number(req.query.skip ?? 0));
   const fromRaw = String(req.query.from ?? "").trim();
   const toRaw = String(req.query.to ?? "").trim();
   const fromDate = parseDate(fromRaw) ?? defaultFromDate();
   const toDate = parseDate(toRaw);
-  const items = await prisma.retryJob.findMany({
-    where: {
-      updatedAt: {
-        gte: fromDate,
-        ...(toDate ? { lt: toDate } : {})
-      }
-    },
-    orderBy: { updatedAt: "desc" },
-    take,
-    skip,
-    select: {
-      id: true,
-      type: true,
-      status: true,
-      attempts: true,
-      maxAttempts: true,
-      runAt: true,
-      updatedAt: true,
-      payload: true,
-      lastError: true
+  const where = {
+    updatedAt: {
+      gte: fromDate,
+      ...(toDate ? { lt: toDate } : {})
     }
-  });
+  } as Prisma.RetryJobWhereInput;
+  const [items, total] = await Promise.all([
+    prisma.retryJob.findMany({
+      where,
+      orderBy: { updatedAt: "desc" },
+      take,
+      skip,
+      select: {
+        id: true,
+        type: true,
+        status: true,
+        attempts: true,
+        maxAttempts: true,
+        runAt: true,
+        updatedAt: true,
+        payload: true,
+        lastError: true
+      }
+    }),
+    withCount ? prisma.retryJob.count({ where }) : Promise.resolve(null)
+  ]);
 
   const subscriptionIds = new Set<string>();
   const paymentIds = new Set<string>();
@@ -399,25 +412,45 @@ logsRouter.get("/jobs", async (req, res) => {
     subscriptionIds.size
       ? prisma.subscription.findMany({
           where: { id: { in: Array.from(subscriptionIds) } },
-          include: { customer: true, plan: true }
+          select: {
+            id: true,
+            customerId: true,
+            customer: { select: { name: true, email: true, phone: true } },
+            plan: { select: { name: true } }
+          }
         })
       : Promise.resolve([]),
     paymentIds.size
       ? prisma.payment.findMany({
           where: { id: { in: Array.from(paymentIds) } },
-          include: { customer: true, subscription: { include: { plan: true } } }
+          select: {
+            id: true,
+            customerId: true,
+            customer: { select: { name: true, email: true, phone: true } },
+            subscription: { select: { plan: { select: { name: true } } } }
+          }
         })
       : Promise.resolve([]),
     customerIds.size
-      ? prisma.customer.findMany({ where: { id: { in: Array.from(customerIds) } } })
+      ? prisma.customer.findMany({
+          where: { id: { in: Array.from(customerIds) } },
+          select: { id: true, name: true, email: true, phone: true }
+        })
       : Promise.resolve([]),
     webhookIds.size
-      ? prisma.webhookEvent.findMany({ where: { id: { in: Array.from(webhookIds) } } })
+      ? prisma.webhookEvent.findMany({
+          where: { id: { in: Array.from(webhookIds) } },
+          select: { id: true, eventName: true, processStatus: true, errorMessage: true }
+        })
       : Promise.resolve([]),
     messageIds.size
       ? prisma.chatwootMessage.findMany({
           where: { id: { in: Array.from(messageIds) } },
-          include: { customer: true, subscription: true, payment: true }
+          select: {
+            id: true,
+            customerId: true,
+            customer: { select: { name: true, email: true, phone: true } }
+          }
         })
       : Promise.resolve([])
   ]);
@@ -482,31 +515,36 @@ logsRouter.get("/jobs", async (req, res) => {
     };
   });
 
-  res.json({ items: enriched });
+  res.json({ items: enriched, total });
 });
 
 logsRouter.get("/messages", async (req, res) => {
+  const withCount = String(req.query.count ?? "") === "1";
   const take = Math.min(200, Math.max(1, Number(req.query.take ?? 20)));
   const skip = Math.max(0, Number(req.query.skip ?? 0));
   const fromRaw = String(req.query.from ?? "").trim();
   const toRaw = String(req.query.to ?? "").trim();
   const fromDate = parseDate(fromRaw) ?? defaultFromDate();
   const toDate = parseDate(toRaw);
-  const items = await prisma.chatwootMessage.findMany({
-    where: {
-      createdAt: {
-        gte: fromDate,
-        ...(toDate ? { lt: toDate } : {})
-      }
-    },
-    orderBy: { createdAt: "desc" },
-    take,
-    skip,
-    include: {
-      customer: { select: { id: true, name: true, email: true, phone: true } }
+  const where = {
+    createdAt: {
+      gte: fromDate,
+      ...(toDate ? { lt: toDate } : {})
     }
-  });
-  res.json({ items });
+  } as Prisma.ChatwootMessageWhereInput;
+  const [items, total] = await Promise.all([
+    prisma.chatwootMessage.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take,
+      skip,
+      include: {
+        customer: { select: { id: true, name: true, email: true, phone: true } }
+      }
+    }),
+    withCount ? prisma.chatwootMessage.count({ where }) : Promise.resolve(null)
+  ]);
+  res.json({ items, total });
 });
 
 logsRouter.post("/jobs/retry-failed", async (_req, res) => {

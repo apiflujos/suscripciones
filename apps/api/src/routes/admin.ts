@@ -57,6 +57,7 @@ export function requireAdminToken(req: Request, res: Response, next: NextFunctio
 }
 
 export async function listWebhookEvents(req: Request, res: Response) {
+  const withCount = String(req.query.count ?? "") === "1";
   const take = Math.min(200, Math.max(1, Number(req.query.take ?? 20)));
   const skip = Math.max(0, Number(req.query.skip ?? 0));
   const q = String(req.query.q ?? "").trim();
@@ -75,19 +76,24 @@ export async function listWebhookEvents(req: Request, res: Response) {
   const fromDate = parseDate(fromRaw) ?? defaultFromDate();
   const toDate = parseDate(toRaw);
 
-  const items = await prisma.webhookEvent.findMany({
-    orderBy: { receivedAt: "desc" },
-    take,
-    skip,
-    where: {
-      ...(processStatus ? { processStatus: processStatus as any } : {}),
-      ...(tenantId ? { tenantId } : {}),
-      receivedAt: {
-        gte: fromDate,
-        ...(toDate ? { lt: toDate } : {})
-      }
+  const baseWhere = {
+    ...(processStatus ? { processStatus: processStatus as any } : {}),
+    ...(tenantId ? { tenantId } : {}),
+    receivedAt: {
+      gte: fromDate,
+      ...(toDate ? { lt: toDate } : {})
     }
-  });
+  } as any;
+
+  const [items, total] = await Promise.all([
+    prisma.webhookEvent.findMany({
+      orderBy: { receivedAt: "desc" },
+      take,
+      skip,
+      where: baseWhere
+    }),
+    withCount && !q ? prisma.webhookEvent.count({ where: baseWhere }) : Promise.resolve(null)
+  ]);
   const paymentLinkIds = new Set<string>();
   const references = new Set<string>();
   const transactionIds = new Set<string>();
@@ -106,15 +112,18 @@ export async function listWebhookEvents(req: Request, res: Response) {
   const payments = paymentFilters.length
     ? await prisma.payment.findMany({
         where: { OR: paymentFilters },
-        select: {
-          id: true,
-          reference: true,
-          wompiPaymentLinkId: true,
-          wompiTransactionId: true,
-          subscriptionId: true,
-          subscription: { select: { plan: { select: { name: true, metadata: true } } } },
-          customer: { select: { id: true, name: true, email: true, phone: true } }
-        }
+      select: {
+        id: true,
+        reference: true,
+        wompiPaymentLinkId: true,
+        wompiTransactionId: true,
+        amountInCents: true,
+        currency: true,
+        status: true,
+        subscriptionId: true,
+        subscription: { select: { plan: { select: { name: true, metadata: true } } } },
+        customer: { select: { id: true, name: true, email: true, phone: true } }
+      }
       })
     : [];
 
@@ -207,5 +216,5 @@ export async function listWebhookEvents(req: Request, res: Response) {
         return haystack.includes(q.toLowerCase());
       })
     : normalized;
-  res.json({ items: filtered });
+  res.json({ items: filtered, total });
 }
