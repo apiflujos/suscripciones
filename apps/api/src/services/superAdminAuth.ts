@@ -138,10 +138,40 @@ export async function touchSaSession(token: string) {
   const t = normalizeSaToken(token);
   if (!t) return;
   const tokenHash = sha256Hex(t);
+  const rollingEnabled = String(process.env.SA_SESSION_ROLLING || "1").trim() !== "0";
+  const ttlHoursRaw = Number(process.env.SA_SESSION_TTL_HOURS || "24");
+  const ttlHours = Number.isFinite(ttlHoursRaw) && ttlHoursRaw > 0 ? ttlHoursRaw : 24;
+  const maxDaysRaw = Number(process.env.SA_SESSION_MAX_DAYS || "7");
+  const maxDays = Number.isFinite(maxDaysRaw) && maxDaysRaw > 0 ? maxDaysRaw : 7;
+  const now = new Date();
+
+  if (!rollingEnabled) {
+    await prisma.saSession
+      .update({
+        where: { tokenHash },
+        data: { lastSeenAt: now }
+      })
+      .catch(() => {});
+    return;
+  }
+
+  const session = await prisma.saSession.findUnique({ where: { tokenHash } }).catch(() => null);
+  if (!session) return;
+
+  const maxExpiry = new Date(session.createdAt.getTime() + maxDays * 24 * 60 * 60 * 1000);
+  let nextExpires = new Date(now.getTime() + ttlHours * 60 * 60 * 1000);
+  if (nextExpires.getTime() > maxExpiry.getTime()) {
+    nextExpires = maxExpiry;
+  }
+
+  const shouldExtend =
+    nextExpires.getTime() > session.expiresAt.getTime() &&
+    nextExpires.getTime() - session.expiresAt.getTime() > 30 * 60 * 1000;
+
   await prisma.saSession
     .update({
       where: { tokenHash },
-      data: { lastSeenAt: new Date() }
+      data: { lastSeenAt: now, ...(shouldExtend ? { expiresAt: nextExpires } : {}) }
     })
     .catch(() => {});
 }

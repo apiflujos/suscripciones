@@ -102,10 +102,31 @@ async function ensureMonthlyBillingReportJob() {
 
 async function ensureSmartListsSyncJob() {
   const now = Date.now();
-  if (now - lastEnsureSmartListsAtMs < 5 * 60_000) return;
+  const minutesRaw = Number(process.env.SMART_LISTS_SYNC_MINUTES || 15);
+  const minutes = Number.isFinite(minutesRaw) ? Math.max(5, Math.trunc(minutesRaw)) : 15;
+  if (now - lastEnsureSmartListsAtMs < minutes * 60_000) return;
   lastEnsureSmartListsAtMs = now;
 
-  return;
+  const recent = new Date(now - minutes * 60_000);
+  const existing = await prisma.retryJob.findFirst({
+    where: {
+      type: RetryJobType.SYNC_SMART_LISTS,
+      status: { in: [RetryJobStatus.PENDING, RetryJobStatus.RUNNING] },
+      runAt: { gte: recent }
+    }
+  });
+  if (existing) return;
+
+  await prisma.retryJob
+    .create({
+      data: {
+        type: RetryJobType.SYNC_SMART_LISTS,
+        runAt: new Date(),
+        maxAttempts: 5,
+        payload: { reason: "auto" }
+      } as any
+    })
+    .catch(() => {});
 }
 
 async function ensureLogCleanup() {
