@@ -6120,6 +6120,63 @@ body.is-global-loading {
   gap: 10px;
 }
 
+.send-search-results {
+  margin-top: 8px;
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  background: var(--surface-2);
+  padding: 8px;
+  display: grid;
+  gap: 8px;
+}
+
+.send-search-heading {
+  font-size: 11px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.send-search-list {
+  display: grid;
+  gap: 6px;
+}
+
+.send-search-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--stroke);
+  background: var(--panel);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.send-search-item:hover {
+  border-color: var(--primary);
+  box-shadow: 0 6px 16px rgba(17, 20, 30, 0.12);
+}
+
+.send-search-item.is-selected {
+  border-color: var(--status-success);
+  background: rgba(46, 196, 182, 0.08);
+}
+
+.send-search-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.send-search-meta {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
 .check-pill {
   display: inline-flex;
   align-items: center;

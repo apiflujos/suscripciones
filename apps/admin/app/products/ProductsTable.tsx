@@ -253,6 +253,27 @@ export function ProductsTable({
     () => (Array.isArray(customers) ? customers.find((c: any) => String(c.id) === String(sendCustomerId)) : null),
     [customers, sendCustomerId]
   );
+  const searchResults = useMemo(() => {
+    if (!sendSearch.trim()) return [];
+    return filteredCustomers.slice(0, 6);
+  }, [filteredCustomers, sendSearch]);
+
+  function formatCustomerLabel(c: any) {
+    return String(c?.name || c?.email || c?.phone || "Contacto").trim() || "Contacto";
+  }
+
+  function formatCustomerMeta(c: any) {
+    const email = String(c?.email || "").trim();
+    const phone = String(c?.phone || "").trim();
+    return [email, phone].filter(Boolean).join(" · ");
+  }
+
+  function pickCustomer(c: any) {
+    if (!c) return;
+    setSendCustomerId(String(c.id));
+    const label = [formatCustomerLabel(c), formatCustomerMeta(c)].filter(Boolean).join(" · ");
+    setSendSearch(label);
+  }
 
   function isPublicImage(url?: string | null) {
     const value = String(url || "").trim();
@@ -518,22 +539,62 @@ export function ProductsTable({
                     value={sendSearch}
                     onChange={(e) => setSendSearch(e.target.value)}
                   />
+                  {sendSearch.trim() ? (
+                    <div className="send-search-results">
+                      <div className="send-search-heading">
+                        {searchResults.length ? `Resultados rápidos (${searchResults.length})` : "Sin coincidencias"}
+                      </div>
+                      {searchResults.length ? (
+                        <div className="send-search-list">
+                          {searchResults.map((c: any) => {
+                            const isSelected = String(c.id) === String(sendCustomerId);
+                            return (
+                              <button
+                                key={c.id}
+                                className={`send-search-item ${isSelected ? "is-selected" : ""}`}
+                                type="button"
+                                onClick={() => pickCustomer(c)}
+                              >
+                                <span className="send-search-name">{formatCustomerLabel(c)}</span>
+                                <span className="send-search-meta">{formatCustomerMeta(c) || "Sin contacto adicional"}</span>
+                                {isSelected ? <span className="pill pill-ok">Seleccionado</span> : <span className="pill">Elegir</span>}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="field">
-                  <label>Contacto destino</label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }}>
+                    <span>Contacto destino</span>
+                    {selectedCustomer ? (
+                      <button
+                        type="button"
+                        className="ghost btn-compact"
+                        onClick={() => {
+                          setSendCustomerId("");
+                          setSendSearch("");
+                        }}
+                      >
+                        Limpiar
+                      </button>
+                    ) : null}
+                  </label>
                   <select className="select" name="customerId" value={sendCustomerId} onChange={(e) => setSendCustomerId(e.target.value)}>
                     <option value="">Selecciona un contacto…</option>
                     {filteredCustomers.map((c: any) => (
                       <option key={c.id} value={c.id}>
-                        {(c.name || c.email || c.phone || "Contacto").toString()}
+                        {formatCustomerLabel(c)}
                       </option>
                     ))}
                   </select>
                   {selectedCustomer ? (
                     <div className="field-hint">
-                      {selectedCustomer.email ? <span>{selectedCustomer.email}</span> : null}
-                      {selectedCustomer.phone ? <span>{selectedCustomer.email ? " · " : ""}{selectedCustomer.phone}</span> : null}
+                      <span>Seleccionado: {formatCustomerLabel(selectedCustomer)}</span>
+                      {formatCustomerMeta(selectedCustomer) ? <span> · {formatCustomerMeta(selectedCustomer)}</span> : null}
                     </div>
                   ) : null}
                 </div>
