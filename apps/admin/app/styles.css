@@ -1390,20 +1390,20 @@ a {
   white-space: nowrap;
 }
 
+.logs-table .log-plan-cell {
+  max-width: 120px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .logs-table .log-status-cell {
   min-width: 88px;
 }
 
 .logs-table .log-error-cell {
   max-width: 120px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.logs-table-payments .log-plan-cell {
-  max-width: 120px;
-  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

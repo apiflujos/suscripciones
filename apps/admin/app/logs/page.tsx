@@ -90,8 +90,9 @@ function renderContactBlock(item: any) {
   const email = item?.customer?.email || item?.customerEmail || "";
   const phone = item?.customer?.phone || item?.customerPhone || "";
   const meta = [email, phone].filter(Boolean).join(" · ");
+  const title = [name, email, phone].filter(Boolean).join(" · ");
   return (
-    <div className="log-contact">
+    <div className="log-contact" title={title || "—"}>
       <span className="log-contact-name">{name || "—"}</span>
       {meta ? <span className="log-contact-meta muted">{meta}</span> : null}
     </div>
@@ -565,7 +566,7 @@ export default async function LogsPage({
                       <tr key={m.id}>
                         <td className="log-date-cell"><LocalDateTime value={m.createdAt} variant="stacked" /></td>
                         <td className="log-contact-cell">{renderContactBlock(m)}</td>
-                        <td className="log-type-cell">{m.type || "—"}</td>
+                        <td className="log-type-cell" title={m.type || "—"}>{m.type || "—"}</td>
                         <td className="log-status-cell">
                           <span className={`status-chip ${chip.cls}`}>
                             <span className={`status-led ${chip.cls === "is-success" ? "is-ok" : ""}`} />
@@ -635,7 +636,7 @@ export default async function LogsPage({
                     return (
                       <tr key={j.id}>
                         <td className="log-date-cell"><LocalDateTime value={j.updatedAt} variant="stacked" /></td>
-                        <td>{normalizeJobType(j.type)}</td>
+                        <td title={normalizeJobType(j.type)}>{normalizeJobType(j.type)}</td>
                         <td className="log-status-cell">
                           <span className={`status-chip ${chip.cls}`}>
                             <span className={`status-led ${chip.cls === "is-success" ? "is-ok" : ""}`} />
@@ -703,7 +704,7 @@ export default async function LogsPage({
                       <tr key={p.id}>
                         <td className="log-date-cell"><LocalDateTime value={p.createdAt} variant="stacked" /></td>
                         <td className="log-contact-cell">{renderContactBlock(p)}</td>
-                        <td className="log-plan-cell">{planName}</td>
+                        <td className="log-plan-cell" title={planName}>{planName}</td>
                         <td className="log-status-cell">
                           <span className={`status-chip ${chip.cls}`}>
                             <span className={`status-led ${chip.cls === "is-success" ? "is-ok" : ""}`} />
@@ -810,14 +811,14 @@ export default async function LogsPage({
                         <td className="log-date-cell"><LocalDateTime value={e.receivedAt} variant="stacked" /></td>
                         <td className="log-contact-cell">{renderContactBlock(e)}</td>
                         <td>{formatAmount(e.amountInCents, e.currency)}</td>
-                        <td className="log-ref-cell">
+                        <td className="log-ref-cell" title={[e.reference, refMeta].filter(Boolean).join(" · ") || "—"}>
                           <div className="log-ref">
                             <span className="log-ref-main">{e.reference || "—"}</span>
                             {refMeta ? <span className="log-ref-meta">{refMeta}</span> : null}
                           </div>
                         </td>
-                        <td className="log-type-cell">{e.paymentType || e.eventName || "—"}</td>
-                        <td className="log-plan-cell">{e.planName || "—"}</td>
+                        <td className="log-type-cell" title={e.paymentType || e.eventName || "—"}>{e.paymentType || e.eventName || "—"}</td>
+                        <td className="log-plan-cell" title={e.planName || "—"}>{e.planName || "—"}</td>
                         <td className="log-status-cell">
                           <span className={`status-chip ${processChip.cls}`}>
                             <span className={`status-led ${processChip.cls === "is-success" ? "is-ok" : ""}`} />
