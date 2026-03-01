@@ -3199,6 +3199,28 @@ textarea.input {
   background: var(--row-hover);
 }
 
+.log-cell {
+  max-width: 240px;
+  vertical-align: middle;
+}
+
+.log-detail {
+  max-width: 360px;
+}
+
+.log-entity {
+  max-width: 220px;
+}
+
+.log-truncate {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
 .status-chip {
   font-size: 11px;
   padding: 3px 8px;

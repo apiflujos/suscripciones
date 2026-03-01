@@ -43,14 +43,18 @@ export function LogsSystemTable({ items }: { items: LogItem[] }) {
               <tr key={id || `${l.createdAt ?? ""}-${l.message ?? ""}-${idx}`}>
                 <td><LocalDateTime value={l.createdAt} /></td>
                 <td>{(l as any).actor || "—"}</td>
-                <td>{(l as any).entity || l.source || "—"}</td>
+                <td className="log-cell log-entity" title={(l as any).entity || l.source || "—"}>
+                  <span className="log-truncate">{(l as any).entity || l.source || "—"}</span>
+                </td>
                 <td>
                   <span className={`status-chip ${chip.cls}`}>
                     <span className={`status-led ${chip.cls === "is-success" ? "is-ok" : ""}`} />
                     {chip.label}
                   </span>
                 </td>
-                <td>{l.message || "—"}</td>
+                <td className="log-cell log-detail" title={l.message || "—"}>
+                  <span className="log-truncate">{l.message || "—"}</span>
+                </td>
                 <td style={{ textAlign: "right" }}>
                   <div className="inline-detail">
                     <button
