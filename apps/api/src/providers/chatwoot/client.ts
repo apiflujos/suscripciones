@@ -432,7 +432,12 @@ export class ChatwootClient {
     const res = await this.request(`/api/v1/accounts/${this.opts.accountId}/contacts/${contactId}/conversations`, {
       method: "GET"
     });
-    if (!res.ok) throw new Error(`Chatwoot list contact conversations failed: ${res.status} ${JSON.stringify(res.json)}`);
+    if (!res.ok) {
+      if (res.status === 404) {
+        return { raw: { payload: [] }, notFound: true };
+      }
+      throw new Error(`Chatwoot list contact conversations failed: ${res.status} ${JSON.stringify(res.json)}`);
+    }
     return { raw: res.json };
   }
 

@@ -368,8 +368,15 @@ chatwootRouter.get("/contacts/:contactId/conversations", async (req, res) => {
   });
   if (!client) return;
 
-  const out = await client.listContactConversations(contactId);
-  res.json(out.raw);
+  try {
+    const out = await client.listContactConversations(contactId);
+    res.json(out.raw ?? { payload: [] });
+  } catch (err: any) {
+    res.status(502).json({
+      error: "chatwoot_list_contact_conversations_failed",
+      details: err?.message || "unknown_error"
+    });
+  }
 });
 
 const listCustomAttrsSchema = z.object({
