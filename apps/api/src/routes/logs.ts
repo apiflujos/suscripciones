@@ -7,6 +7,18 @@ import { LogLevel } from "@prisma/client";
 
 export const logsRouter = express.Router();
 
+const DEFAULT_LOG_WINDOW_DAYS = 30;
+
+function parseDate(raw: string) {
+  if (!raw) return null;
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function defaultFromDate() {
+  return new Date(Date.now() - DEFAULT_LOG_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+}
+
 logsRouter.get("/system", async (req, res) => {
   const take = Math.min(200, Math.max(1, Number(req.query.take ?? 20)));
   const skip = Math.max(0, Number(req.query.skip ?? 0));
@@ -15,8 +27,8 @@ logsRouter.get("/system", async (req, res) => {
   const customerId = String(req.query.customerId ?? "").trim();
   const fromRaw = String(req.query.from ?? "").trim();
   const toRaw = String(req.query.to ?? "").trim();
-  const fromDate = fromRaw ? new Date(fromRaw) : null;
-  const toDate = toRaw ? new Date(toRaw) : null;
+  const fromDate = parseDate(fromRaw) ?? defaultFromDate();
+  const toDate = parseDate(toRaw);
   const where: Prisma.SystemLogWhereInput | undefined = q
     ? {
         OR: [
@@ -25,15 +37,12 @@ logsRouter.get("/system", async (req, res) => {
         ]
       }
     : undefined;
-  const dateFilter =
-    fromDate || toDate
-      ? {
-          createdAt: {
-            ...(fromDate ? { gte: fromDate } : {}),
-            ...(toDate ? { lt: toDate } : {})
-          }
-        }
-      : null;
+  const dateFilter = {
+    createdAt: {
+      gte: fromDate,
+      ...(toDate ? { lt: toDate } : {})
+    }
+  };
   const levelFilter = level ? { level } : null;
   const customerFilter = customerId
     ? ({ context: { path: ["customerId"], equals: customerId } } as Prisma.SystemLogWhereInput)
@@ -186,21 +195,17 @@ logsRouter.get("/payments", async (req, res) => {
           ? ["DECLINED", "ERROR", "VOIDED"]
           : null;
 
-  const fromDate = fromRaw ? new Date(fromRaw) : null;
-  const toDate = toRaw ? new Date(toRaw) : null;
+  const fromDate = parseDate(fromRaw) ?? defaultFromDate();
+  const toDate = parseDate(toRaw);
 
   const where: Prisma.PaymentWhereInput = {
     ...(statusFilter ? { status: { in: statusFilter as any } } : {}),
     ...(tenantId ? { tenantId } : {}),
     ...(planId ? { subscription: { planId } } : {}),
-    ...(fromDate || toDate
-      ? {
-          createdAt: {
-            ...(fromDate ? { gte: fromDate } : {}),
-            ...(toDate ? { lt: toDate } : {})
-          }
-        }
-      : {}),
+    createdAt: {
+      gte: fromDate,
+      ...(toDate ? { lt: toDate } : {})
+    },
     ...(q
       ? {
           OR: [
@@ -326,7 +331,21 @@ logsRouter.post("/payments/recollect", async (req, res) => {
 logsRouter.get("/jobs", async (req, res) => {
   const take = Math.min(200, Math.max(1, Number(req.query.take ?? 20)));
   const skip = Math.max(0, Number(req.query.skip ?? 0));
-  const items = await prisma.retryJob.findMany({ orderBy: { updatedAt: "desc" }, take, skip });
+  const fromRaw = String(req.query.from ?? "").trim();
+  const toRaw = String(req.query.to ?? "").trim();
+  const fromDate = parseDate(fromRaw) ?? defaultFromDate();
+  const toDate = parseDate(toRaw);
+  const items = await prisma.retryJob.findMany({
+    where: {
+      updatedAt: {
+        gte: fromDate,
+        ...(toDate ? { lt: toDate } : {})
+      }
+    },
+    orderBy: { updatedAt: "desc" },
+    take,
+    skip
+  });
 
   const subscriptionIds = new Set<string>();
   const paymentIds = new Set<string>();
@@ -436,7 +455,17 @@ logsRouter.get("/jobs", async (req, res) => {
 logsRouter.get("/messages", async (req, res) => {
   const take = Math.min(200, Math.max(1, Number(req.query.take ?? 20)));
   const skip = Math.max(0, Number(req.query.skip ?? 0));
+  const fromRaw = String(req.query.from ?? "").trim();
+  const toRaw = String(req.query.to ?? "").trim();
+  const fromDate = parseDate(fromRaw) ?? defaultFromDate();
+  const toDate = parseDate(toRaw);
   const items = await prisma.chatwootMessage.findMany({
+    where: {
+      createdAt: {
+        gte: fromDate,
+        ...(toDate ? { lt: toDate } : {})
+      }
+    },
     orderBy: { createdAt: "desc" },
     take,
     skip,

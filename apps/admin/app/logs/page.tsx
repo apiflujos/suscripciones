@@ -135,8 +135,10 @@ export default async function LogsPage({
   const status = typeof sp.status === "string" ? sp.status : "";
   const level = typeof sp.level === "string" ? sp.level : "";
   const processStatus = typeof sp.processStatus === "string" ? sp.processStatus : "";
-  const from = typeof sp.from === "string" ? sp.from : "";
-  const to = typeof sp.to === "string" ? sp.to : "";
+  const defaultFrom = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const defaultTo = new Date().toISOString().slice(0, 10);
+  const from = typeof sp.from === "string" && sp.from.trim() ? sp.from : defaultFrom;
+  const to = typeof sp.to === "string" && sp.to.trim() ? sp.to : defaultTo;
   const tenantId = typeof sp.tenantId === "string" ? sp.tenantId : "";
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
   const take = 20;
@@ -294,7 +296,7 @@ export default async function LogsPage({
           {tab === "system" ? (
             <div className="filtersRow">
               <div className="filtersLeft">
-                <div className="filtersNote">Busca por evento, fuente o fecha.</div>
+                <div className="filtersNote">Busca por evento o fuente (por defecto últimos 30 días).</div>
                 <div className="filtersPanel">
                   <form action="/logs" method="GET" className="filtersForm">
                     <input type="hidden" name="tab" value="system" />
@@ -327,7 +329,7 @@ export default async function LogsPage({
           ) : tab === "payments" ? (
             <div className="filtersRow">
               <div className="filtersLeft">
-                <div className="filtersNote">Consulta pagos por cliente, referencia, link o estado.</div>
+                <div className="filtersNote">Consulta pagos por cliente, referencia o estado (por defecto últimos 30 días).</div>
                 <div className="filtersPanel">
                   <form action="/logs" method="GET" className="filtersForm">
                     <input type="hidden" name="tab" value="payments" />
@@ -542,7 +544,7 @@ export default async function LogsPage({
             <div className="panel module" style={{ padding: 0 }}>
               <div className="filtersRow" style={{ padding: "12px 16px 0" }}>
                 <div className="filtersLeft">
-                  <div className="filtersNote">Webhooks con trazabilidad de cliente y pago.</div>
+                  <div className="filtersNote">Webhooks con trazabilidad de cliente y pago (por defecto últimos 30 días).</div>
                   <div className="filtersPanel">
                     <form action="/logs" method="GET" className="filtersForm">
                       <input type="hidden" name="tab" value="webhooks" />

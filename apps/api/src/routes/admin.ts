@@ -65,8 +65,15 @@ export async function listWebhookEvents(req: Request, res: Response) {
   const toRaw = String(req.query.to ?? "").trim();
   const tenantId = String(req.query.tenantId ?? "").trim();
 
-  const fromDate = fromRaw ? new Date(fromRaw) : null;
-  const toDate = toRaw ? new Date(toRaw) : null;
+  const parseDate = (raw: string) => {
+    if (!raw) return null;
+    const d = new Date(raw);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+  const defaultFromDate = () => new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+  const fromDate = parseDate(fromRaw) ?? defaultFromDate();
+  const toDate = parseDate(toRaw);
 
   const items = await prisma.webhookEvent.findMany({
     orderBy: { receivedAt: "desc" },
@@ -75,14 +82,10 @@ export async function listWebhookEvents(req: Request, res: Response) {
     where: {
       ...(processStatus ? { processStatus: processStatus as any } : {}),
       ...(tenantId ? { tenantId } : {}),
-      ...(fromDate || toDate
-        ? {
-            receivedAt: {
-              ...(fromDate ? { gte: fromDate } : {}),
-              ...(toDate ? { lt: toDate } : {})
-            }
-          }
-        : {})
+      receivedAt: {
+        gte: fromDate,
+        ...(toDate ? { lt: toDate } : {})
+      }
     }
   });
   const paymentLinkIds = new Set<string>();
