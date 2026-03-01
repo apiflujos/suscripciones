@@ -6,6 +6,8 @@ import { getWompiApiBaseUrl, getWompiCheckoutLinkBaseUrl, getWompiPrivateKey, ge
 import { syncChatwootAttributesForCustomer } from "../services/chatwootSync";
 import { consumeApp } from "../services/superAdminApp";
 import { getEffectiveTenantId, getEffectiveTenantIds } from "../services/tenantContext";
+import { applyGamificationEvent, GAMIFICATION_EVENT_KINDS, formatLevelName } from "../services/gamification";
+import { GamificationEntityType } from "@prisma/client";
 
 const createCustomerSchema = z.object({
   name: z.string().min(1).optional(),
@@ -25,6 +27,19 @@ const wompiPaymentSourceSchema = z.object({
   type: z.enum(["CARD", "NEQUI", "PSE"]).default("CARD"),
   token: z.string().min(1)
 });
+
+function extractIdValue(meta: any) {
+  if (!meta || typeof meta !== "object") return "";
+  const value =
+    meta.identificacion ||
+    meta.identificacionNumero ||
+    meta.identificationNumber ||
+    meta.documentNumber ||
+    meta.document ||
+    meta.documento ||
+    "";
+  return String(value || "").trim();
+}
 
 export const customersRouter = express.Router();
 
@@ -129,7 +144,20 @@ customersRouter.get("/:id", async (req, res) => {
       || (await prisma.customerTenant.count({ where: { customerId, tenantId } })) > 0;
     if (!allowed) return res.status(404).json({ error: "customer_not_found" });
   }
-  res.json({ customer });
+  const gamificationRows = await prisma.gamificationScore.findMany({
+    where: {
+      entityType: GamificationEntityType.CUSTOMER,
+      entityId: customerId,
+      ...(tenantId ? { OR: [{ tenantId }, { tenantId: null }] } : { tenantId: null })
+    }
+  });
+  const global = gamificationRows.find((row) => row.tenantId == null) || null;
+  const byTenant = gamificationRows.filter((row) => row.tenantId != null).map((row) => ({
+    ...row,
+    levelName: formatLevelName(row.level)
+  }));
+  const globalWithName = global ? { ...global, levelName: formatLevelName(global.level) } : null;
+  res.json({ customer, gamification: { global: globalWithName, byTenant } });
 });
 
 customersRouter.get("/:id/payments", async (req, res) => {
@@ -216,6 +244,44 @@ customersRouter.put("/:id", async (req, res) => {
     }
     const updated = await prisma.customer.update({ where: { id: customerId }, data });
     await syncChatwootAttributesForCustomer(updated.id).catch(() => {});
+
+    const prevEmail = String(existing?.email || "").trim();
+    const nextEmail = String(updated.email || "").trim();
+    const prevPhone = String(existing?.phone || "").trim();
+    const nextPhone = String(updated.phone || "").trim();
+    const prevId = extractIdValue(existing?.metadata);
+    const nextId = extractIdValue(updated?.metadata);
+
+    if (!prevEmail && nextEmail) {
+      await applyGamificationEvent({
+        entityType: GamificationEntityType.CUSTOMER,
+        entityId: updated.id,
+        tenantId: updated.tenantId || null,
+        kind: GAMIFICATION_EVENT_KINDS.DATA_EMAIL_ADDED,
+        metadata: { source: "customers.update" }
+      }).catch(() => {});
+    }
+
+    if (!prevPhone && nextPhone) {
+      await applyGamificationEvent({
+        entityType: GamificationEntityType.CUSTOMER,
+        entityId: updated.id,
+        tenantId: updated.tenantId || null,
+        kind: GAMIFICATION_EVENT_KINDS.DATA_PHONE_ADDED,
+        metadata: { source: "customers.update" }
+      }).catch(() => {});
+    }
+
+    if (!prevId && nextId) {
+      await applyGamificationEvent({
+        entityType: GamificationEntityType.CUSTOMER,
+        entityId: updated.id,
+        tenantId: updated.tenantId || null,
+        kind: GAMIFICATION_EVENT_KINDS.DATA_ID_ADDED,
+        metadata: { source: "customers.update" }
+      }).catch(() => {});
+    }
+
     res.json({ customer: updated });
   } catch (err: any) {
     if (String(err?.code) === "P2025") return res.status(404).json({ error: "customer_not_found" });

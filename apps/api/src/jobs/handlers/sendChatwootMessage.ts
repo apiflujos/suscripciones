@@ -406,6 +406,19 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
     }
   });
 
+  const nowIso = new Date().toISOString();
+  const nextMeta = {
+    ...(customerMeta && typeof customerMeta === "object" ? customerMeta : {}),
+    chatwoot: {
+      ...(customerMeta?.chatwoot || {}),
+      contactId,
+      sourceId,
+      lastOutgoingAt: nowIso,
+      lastConversationId: conversationId
+    }
+  };
+  await prisma.customer.update({ where: { id: msg.customerId }, data: { metadata: nextMeta as any } }).catch(() => {});
+
   await consumeApp("messages_sent", { amount: 1, source: "jobs:chatwoot.sent", meta: { type: msg.type, id: msg.id } });
   if (msg.type === ChatwootMessageType.PAYMENT_LINK) {
     await consumeApp("payment_links_sent", { amount: 1, source: "jobs:chatwoot.sent", meta: { chatwootMessageId: msg.id } });

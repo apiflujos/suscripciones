@@ -12,6 +12,8 @@ import { billingMonthlyReport } from "./handlers/billingMonthlyReport";
 import { sendCampaign } from "./handlers/sendCampaign";
 import { syncSmartLists } from "./handlers/syncSmartLists";
 import { aiAssist } from "./handlers/aiAssist";
+import { gamificationRecalc } from "./handlers/gamificationRecalc";
+import { dataTrainer } from "./handlers/dataTrainer";
 
 loadEnv(process.env);
 const workerId = `jobs:${process.pid}`;
@@ -74,6 +76,8 @@ function nextRunAt(attempts: number) {
 let lastEnsureAtMs = 0;
 let lastEnsureSmartListsAtMs = 0;
 let lastLogCleanupAtMs = 0;
+let lastGamificationRecalcAtMs = 0;
+let lastDataTrainerAtMs = 0;
 async function ensureMonthlyBillingReportJob() {
   const now = Date.now();
   if (now - lastEnsureAtMs < 60_000) return;
@@ -140,6 +144,64 @@ async function ensureLogCleanup() {
   await prisma.systemLog.deleteMany({ where: { createdAt: { lt: cutoff } } });
 }
 
+async function ensureGamificationRecalcJob() {
+  const now = Date.now();
+  const minutesRaw = Number(process.env.GAMIFICATION_RECALC_MINUTES || 60);
+  const minutes = Number.isFinite(minutesRaw) ? Math.max(15, Math.trunc(minutesRaw)) : 60;
+  if (now - lastGamificationRecalcAtMs < minutes * 60_000) return;
+  lastGamificationRecalcAtMs = now;
+
+  const recent = new Date(now - minutes * 60_000);
+  const existing = await prisma.retryJob.findFirst({
+    where: {
+      type: RetryJobType.GAMIFICATION_RECALC,
+      status: { in: [RetryJobStatus.PENDING, RetryJobStatus.RUNNING] },
+      runAt: { gte: recent }
+    }
+  });
+  if (existing) return;
+
+  await prisma.retryJob
+    .create({
+      data: {
+        type: RetryJobType.GAMIFICATION_RECALC,
+        runAt: new Date(),
+        maxAttempts: 3,
+        payload: { scope: "all", reason: "auto" }
+      } as any
+    })
+    .catch(() => {});
+}
+
+async function ensureDataTrainerJob() {
+  const now = Date.now();
+  const minutesRaw = Number(process.env.DATA_TRAINER_MINUTES || 15);
+  const minutes = Number.isFinite(minutesRaw) ? Math.max(5, Math.trunc(minutesRaw)) : 15;
+  if (now - lastDataTrainerAtMs < minutes * 60_000) return;
+  lastDataTrainerAtMs = now;
+
+  const recent = new Date(now - minutes * 60_000);
+  const existing = await prisma.retryJob.findFirst({
+    where: {
+      type: RetryJobType.DATA_TRAINER,
+      status: { in: [RetryJobStatus.PENDING, RetryJobStatus.RUNNING] },
+      runAt: { gte: recent }
+    }
+  });
+  if (existing) return;
+
+  await prisma.retryJob
+    .create({
+      data: {
+        type: RetryJobType.DATA_TRAINER,
+        runAt: new Date(),
+        maxAttempts: 2,
+        payload: { trainer: "chatwoot_followup" }
+      } as any
+    })
+    .catch(() => {});
+}
+
 async function ensureJobsHeartbeat() {
   const now = Date.now();
   const secondsRaw = Number(process.env.JOBS_HEARTBEAT_SECONDS || 60);
@@ -199,6 +261,10 @@ async function runOnce() {
         await syncSmartLists();
       } else if (job.type === RetryJobType.AI_ASSIST) {
         await aiAssist(payload);
+      } else if (job.type === RetryJobType.GAMIFICATION_RECALC) {
+        await gamificationRecalc(payload);
+      } else if (job.type === RetryJobType.DATA_TRAINER) {
+        await dataTrainer(payload);
       } else {
         logger.warn({ jobId: job.id, type: job.type }, "Unhandled job type");
       }
@@ -241,6 +307,8 @@ async function main() {
     try {
       await ensureMonthlyBillingReportJob();
       await ensureSmartListsSyncJob();
+      await ensureGamificationRecalcJob();
+      await ensureDataTrainerJob();
       await ensureLogCleanup();
       await ensureShopifyForwardRetries();
       await ensureJobsHeartbeat();

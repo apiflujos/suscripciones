@@ -30,7 +30,16 @@ function statusPillClass(status: string) {
   return "pill-muted";
 }
 
-function tierForCustomer(approvedCount: number) {
+function tierForCustomer(approvedCount: number, gamification?: { level?: number; levelName?: string | null }) {
+  const level = Number(gamification?.level || 0);
+  const levelName = String(gamification?.levelName || "").trim();
+  if (level > 0) {
+    const label = levelName || `Nivel ${level}`;
+    if (level >= 11) return { label, cls: "tier-gold", icon: "crown" };
+    if (level >= 7) return { label, cls: "tier-silver", icon: "medal" };
+    if (level >= 3) return { label, cls: "tier-bronze", icon: "badge" };
+    return { label, cls: "tier-rookie", icon: "spark" };
+  }
   if (approvedCount >= 6) return { label: "Oro", cls: "tier-gold", icon: "crown" };
   if (approvedCount >= 3) return { label: "Plata", cls: "tier-silver", icon: "medal" };
   if (approvedCount >= 1) return { label: "Bronce", cls: "tier-bronze", icon: "badge" };
@@ -352,6 +361,8 @@ export default async function CustomerDetailPage({
   }
 
   const customer = customerRes.json?.customer || null;
+  const gamification = customerRes.json?.gamification || null;
+  const gamificationGlobal = gamification?.global || null;
   if (!customer) {
     return (
       <main className="page">
@@ -461,7 +472,7 @@ export default async function CustomerDetailPage({
   const formatWindowLabel = (fromDate: Date, toDate: Date) =>
     `${fromDate.toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" })} - ${toDate.toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" })}`;
 
-  const tier = tierForCustomer(approvedPayments.length);
+  const tier = tierForCustomer(approvedPayments.length, gamificationGlobal || undefined);
 
   const monthLabels = Array.from({ length: 6 }).map((_, idx) => {
     const d = new Date();

@@ -1,7 +1,7 @@
 import { prisma } from "../../db/prisma";
 import { logger } from "../../lib/logger";
 import { systemLog } from "../../services/systemLog";
-import { LogLevel } from "@prisma/client";
+import { GamificationEntityType, LogLevel } from "@prisma/client";
 import { classifyReference } from "../../webhooks/wompi/classifyReference";
 import { postJson } from "../../lib/http";
 import { PaymentLinkStatus, PaymentStatus, RetryJobType, SubscriptionStatus, WebhookProcessStatus } from "@prisma/client";
@@ -11,6 +11,8 @@ import { schedulePaymentStatusNotifications, scheduleSubscriptionDueNotification
 import { consumeApp } from "../../services/superAdminApp";
 import { syncChatwootAttributesForCustomer } from "../../services/chatwootSync";
 import { getDefaultTenantId } from "../../services/tenantContext";
+import { applyGamificationEvent, GAMIFICATION_EVENT_KINDS } from "../../services/gamification";
+import { GAMIFICATION_WEIGHTS, moneyToPoints } from "../../services/gamificationConfig";
 
 function getTransactionFromPayload(payload: any): any | null {
   const tx = payload?.data?.transaction;
@@ -407,6 +409,53 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     await consumeApp("payments_success", { amount: 1, source: "wompi:webhook", meta: { paymentId: paymentRecord.id } });
   } else if (becameFailed) {
     await consumeApp("payments_failed", { amount: 1, source: "wompi:webhook", meta: { paymentId: paymentRecord.id } });
+  }
+
+  if (becameApproved) {
+    await applyGamificationEvent({
+      entityType: GamificationEntityType.CUSTOMER,
+      entityId: paymentRecord.customerId,
+      tenantId: tenantIdForPayment,
+      kind: GAMIFICATION_EVENT_KINDS.PAYMENT_APPROVED,
+      moneyInCents: paymentRecord.amountInCents,
+      metadata: { paymentId: paymentRecord.id, subscriptionId: paymentRecord.subscriptionId || null }
+    }).catch(() => {});
+
+    if (subscription?.planId) {
+      const moneyPts = moneyToPoints(paymentRecord.amountInCents, GAMIFICATION_WEIGHTS.paymentApproved.moneyScale);
+      await applyGamificationEvent({
+        entityType: GamificationEntityType.PRODUCT,
+        entityId: subscription.planId,
+        tenantId: tenantIdForPayment,
+        kind: "product.payment.approved",
+        moneyInCents: paymentRecord.amountInCents,
+        statusDelta: GAMIFICATION_WEIGHTS.paymentApproved.status + moneyPts,
+        lifetimeDelta: GAMIFICATION_WEIGHTS.paymentApproved.lifetime + moneyPts,
+        metadata: { paymentId: paymentRecord.id, subscriptionId: paymentRecord.subscriptionId || null }
+      }).catch(() => {});
+    }
+  } else if (becameFailed) {
+    await applyGamificationEvent({
+      entityType: GamificationEntityType.CUSTOMER,
+      entityId: paymentRecord.customerId,
+      tenantId: tenantIdForPayment,
+      kind: GAMIFICATION_EVENT_KINDS.PAYMENT_FAILED,
+      moneyInCents: paymentRecord.amountInCents,
+      metadata: { paymentId: paymentRecord.id, subscriptionId: paymentRecord.subscriptionId || null }
+    }).catch(() => {});
+
+    if (subscription?.planId) {
+      await applyGamificationEvent({
+        entityType: GamificationEntityType.PRODUCT,
+        entityId: subscription.planId,
+        tenantId: tenantIdForPayment,
+        kind: "product.payment.failed",
+        moneyInCents: paymentRecord.amountInCents,
+        statusDelta: GAMIFICATION_WEIGHTS.paymentFailed.status,
+        lifetimeDelta: GAMIFICATION_WEIGHTS.paymentFailed.lifetime,
+        metadata: { paymentId: paymentRecord.id, subscriptionId: paymentRecord.subscriptionId || null }
+      }).catch(() => {});
+    }
   }
 
   if (paymentStatus === PaymentStatus.APPROVED && subscription) {

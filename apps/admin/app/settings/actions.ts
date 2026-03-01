@@ -228,6 +228,44 @@ export async function updateChatwoot(formData: FormData) {
   }
 }
 
+export async function updateGamificationConfig(formData: FormData) {
+  await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
+  const followupMinutes = Number(formData.get("followupMinutes") || 15);
+  const followupCooldown = Number(formData.get("followupCooldown") || 120);
+  const followupMaxAttempts = Number(formData.get("followupMaxAttempts") || 3);
+  const followupPenalty = Number(formData.get("followupPenalty") || 25);
+  const decayDays = Number(formData.get("decayDays") || 30);
+  const decayPerDay = Number(formData.get("decayPerDay") || 2);
+  const decayMaxPenalty = Number(formData.get("decayMaxPenalty") || 180);
+
+  try {
+    await adminFetch("/admin/gamification/config", {
+      method: "PUT",
+      body: JSON.stringify({
+        config: {
+          version: 1,
+          followup: {
+            minutes: Number.isFinite(followupMinutes) ? Math.max(1, Math.trunc(followupMinutes)) : 15,
+            cooldownMinutes: Number.isFinite(followupCooldown) ? Math.max(1, Math.trunc(followupCooldown)) : 120,
+            maxAttempts: Number.isFinite(followupMaxAttempts) ? Math.max(1, Math.trunc(followupMaxAttempts)) : 3,
+            penaltyNoResponse: Number.isFinite(followupPenalty) ? Math.max(0, Math.trunc(followupPenalty)) : 25
+          },
+          decay: {
+            inactivityDays: Number.isFinite(decayDays) ? Math.max(1, Math.trunc(decayDays)) : 30,
+            perDay: Number.isFinite(decayPerDay) ? Math.max(0, Math.trunc(decayPerDay)) : 2,
+            maxPenalty: Number.isFinite(decayMaxPenalty) ? Math.max(0, Math.trunc(decayMaxPenalty)) : 180
+          }
+        }
+      })
+    });
+    redirectWith("gamification_save", "ok", undefined, returnTo);
+  } catch (err) {
+    if (isNextRedirect(err)) throw err;
+    redirectWith("gamification_save", "fail", toShortErrorMessage(err), returnTo);
+  }
+}
+
 export async function updateAiProvider(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);
