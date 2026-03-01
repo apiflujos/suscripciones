@@ -24,9 +24,11 @@ export function RealtimeNotifier() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [status, setStatus] = useState<RealtimeStatus>("connecting");
   const [slot, setSlot] = useState<HTMLElement | null>(null);
+  const [usePolling, setUsePolling] = useState(false);
   const lastSeenRef = useRef<string>("");
   const reconnectRef = useRef<NodeJS.Timeout | null>(null);
   const connectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const errorCountRef = useRef(0);
   const soundEnabledRef = useRef(false);
   const soundEnabledStateRef = useRef(false);
   const volumeRef = useRef(0.55);
@@ -202,7 +204,54 @@ export function RealtimeNotifier() {
     }, 500);
   };
 
+  const handleEvents = (events: RealtimeEvent[], serverTime?: string) => {
+    if (!events.length) return;
+
+    let shouldPlayCash = false;
+    let shouldPlayFail = false;
+    const now = Date.now();
+    const freshEvents = events.filter((e) => {
+      if (!e?.id) return true;
+      if (seenIdsRef.current.has(e.id)) return false;
+      seenIdsRef.current.add(e.id);
+      return true;
+    });
+    if (seenIdsRef.current.size > 300) {
+      const trimmed = Array.from(seenIdsRef.current).slice(-200);
+      seenIdsRef.current = new Set(trimmed);
+    }
+    for (const e of freshEvents) {
+      if (e.sound === "cash") {
+        shouldPlayCash = true;
+        try {
+          window.dispatchEvent(new CustomEvent("apiflujos:payment-approved", { detail: e }));
+        } catch {}
+      }
+      if (e.sound === "fail") shouldPlayFail = true;
+    }
+    setToasts((prev) => {
+      const merged = [...freshEvents.map((e) => ({ ...e, seenAt: now })), ...prev];
+      return merged.slice(0, 6);
+    });
+    if (shouldPlayCash) playCashSound();
+    if (shouldPlayFail && !shouldPlayCash) playFailSound();
+
+    const latestTs = events
+      .map((e) => new Date(e.ts).getTime())
+      .filter((t) => Number.isFinite(t))
+      .sort((a, b) => b - a)[0];
+    if (latestTs) {
+      const iso = new Date(latestTs).toISOString();
+      lastSeenRef.current = iso;
+      window.localStorage.setItem(STORAGE_KEY, iso);
+    } else if (serverTime) {
+      lastSeenRef.current = serverTime;
+      window.localStorage.setItem(STORAGE_KEY, serverTime);
+    }
+  };
+
   useEffect(() => {
+    if (usePolling) return;
     let source: EventSource | null = null;
     let active = true;
 
@@ -223,6 +272,7 @@ export function RealtimeNotifier() {
       source.onopen = () => {
         if (!active) return;
         if (connectTimeoutRef.current) clearTimeout(connectTimeoutRef.current);
+        errorCountRef.current = 0;
         setStatus("connected");
       };
 
@@ -235,46 +285,7 @@ export function RealtimeNotifier() {
           return;
         }
         const events: RealtimeEvent[] = Array.isArray(payload.events) ? payload.events : [];
-        if (!events.length) return;
-
-        let shouldPlayCash = false;
-        let shouldPlayFail = false;
-        const now = Date.now();
-        const freshEvents = events.filter((e) => {
-          if (!e?.id) return true;
-          if (seenIdsRef.current.has(e.id)) return false;
-          seenIdsRef.current.add(e.id);
-          return true;
-        });
-        if (seenIdsRef.current.size > 300) {
-          const trimmed = Array.from(seenIdsRef.current).slice(-200);
-          seenIdsRef.current = new Set(trimmed);
-        }
-        for (const e of freshEvents) {
-          if (e.sound === "cash") {
-            shouldPlayCash = true;
-            try {
-              window.dispatchEvent(new CustomEvent("apiflujos:payment-approved", { detail: e }));
-            } catch {}
-          }
-          if (e.sound === "fail") shouldPlayFail = true;
-        }
-        setToasts((prev) => {
-          const merged = [...freshEvents.map((e) => ({ ...e, seenAt: now })), ...prev];
-          return merged.slice(0, 6);
-        });
-        if (shouldPlayCash) playCashSound();
-        if (shouldPlayFail && !shouldPlayCash) playFailSound();
-
-        const latestTs = events
-          .map((e) => new Date(e.ts).getTime())
-          .filter((t) => Number.isFinite(t))
-          .sort((a, b) => b - a)[0];
-        if (latestTs) {
-          const iso = new Date(latestTs).toISOString();
-          lastSeenRef.current = iso;
-          window.localStorage.setItem(STORAGE_KEY, iso);
-        }
+        handleEvents(events, payload.serverTime);
       };
 
       source.onerror = () => {
@@ -283,6 +294,11 @@ export function RealtimeNotifier() {
         setStatus("disconnected");
         source?.close();
         if (reconnectRef.current) clearTimeout(reconnectRef.current);
+        errorCountRef.current += 1;
+        if (errorCountRef.current >= 2) {
+          setUsePolling(true);
+          return;
+        }
         reconnectRef.current = setTimeout(connect, 6000);
       };
     };
@@ -294,7 +310,32 @@ export function RealtimeNotifier() {
       if (reconnectRef.current) clearTimeout(reconnectRef.current);
       if (connectTimeoutRef.current) clearTimeout(connectTimeoutRef.current);
     };
-  }, []);
+  }, [usePolling]);
+
+  useEffect(() => {
+    if (!usePolling) return;
+    let active = true;
+    const poll = async () => {
+      if (!active) return;
+      const since = lastSeenRef.current || new Date(Date.now() - 60 * 1000).toISOString();
+      try {
+        const res = await fetch(`/api/realtime?since=${encodeURIComponent(since)}&mode=poll`, { cache: "no-store" });
+        if (!res.ok) throw new Error("poll_failed");
+        const payload = await res.json().catch(() => ({}));
+        const events: RealtimeEvent[] = Array.isArray(payload.events) ? payload.events : [];
+        handleEvents(events, payload.serverTime);
+        setStatus("connected");
+      } catch {
+        setStatus("disconnected");
+      }
+    };
+    poll();
+    const id = setInterval(poll, 15000);
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
+  }, [usePolling]);
 
   useEffect(() => {
     if (!toasts.length) return;
@@ -324,9 +365,9 @@ export function RealtimeNotifier() {
           window.localStorage.setItem("apiflujos-realtime-sound", "1");
         } catch {}
       }
+      playCashSound();
       const res = await fetch("/api/realtime/test", { method: "POST" });
       if (!res.ok) throw new Error("test_failed");
-      playCashSound();
     } catch {
       const now = new Date().toISOString();
       const fallback: Toast = {
@@ -339,7 +380,6 @@ export function RealtimeNotifier() {
         seenAt: Date.now()
       };
       setToasts((prev) => [fallback, ...prev].slice(0, 6));
-      playFailSound();
     }
   };
 
