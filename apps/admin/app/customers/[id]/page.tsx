@@ -370,6 +370,12 @@ export default async function CustomerDetailPage({
   const avgDaysBetween = paymentIntervals.length
     ? paymentIntervals.reduce((acc, v) => acc + v, 0) / paymentIntervals.length
     : null;
+  const cadenceSeries = paymentIntervals.slice(-6);
+  const cadenceItems = cadenceSeries.map((v, idx) => ({
+    label: `-${cadenceSeries.length - idx}`,
+    value: Math.max(0, Math.round(v)),
+    color: "var(--chart-b)"
+  }));
   const daysSinceLast = lastPaymentAt ? Math.floor((Date.now() - new Date(lastPaymentAt).getTime()) / (1000 * 60 * 60 * 24)) : null;
   const avgTicket = approvedPayments.length ? Math.round(totalPaidCents / approvedPayments.length) : 0;
   const approvedLast30 = approvedPayments.filter((p) => {
@@ -437,7 +443,7 @@ export default async function CustomerDetailPage({
     const bT = Number(b?.last_activity_at || b?.updated_at || b?.created_at || 0);
     return bT - aT;
   });
-  const chatwootRecent = chatwootConvosSorted.slice(0, 5);
+  const chatwootRecent = chatwootConvosSorted.slice(0, 3);
   const chatwootStatusCounts = chatwootConvos.reduce(
     (acc: { open: number; pending: number; resolved: number; snoozed: number }, c: any) => {
       const st = String(c?.status || "").toLowerCase();
@@ -690,7 +696,7 @@ export default async function CustomerDetailPage({
       <section className="grid2">
         <div className="card cardPad customer-section">
           <div className="contact-section-title">KPIs comerciales</div>
-          <div className="summary-grid">
+          <div className="summary-grid compact">
             <div className="summary-item">
               <span className="summary-label">LTV</span>
               <span className="summary-value">{formatCopFromCents(totalPaidCents)}</span>
@@ -716,6 +722,12 @@ export default async function CustomerDetailPage({
               <span className="summary-value">{payments.length}</span>
             </div>
           </div>
+          {cadenceItems.length ? (
+            <div className="kpi-mini">
+              <div className="kpi-mini-title">Cadencia de pagos (días)</div>
+              <MiniBars items={cadenceItems} />
+            </div>
+          ) : null}
         </div>
 
         <div className="card cardPad customer-section">
@@ -724,7 +736,7 @@ export default async function CustomerDetailPage({
             <div className="muted">Sin contacto vinculado en Chatwoot.</div>
           ) : (
             <>
-              <div className="summary-grid">
+              <div className="summary-grid compact">
                 <div className="summary-item">
                   <span className="summary-label">Conversaciones</span>
                   <span className="summary-value">{chatwootConvos.length}</span>
@@ -736,14 +748,6 @@ export default async function CustomerDetailPage({
                 <div className="summary-item">
                   <span className="summary-label">Pendientes</span>
                   <span className="summary-value">{chatwootStatusCounts.pending}</span>
-                </div>
-                <div className="summary-item">
-                  <span className="summary-label">Resueltas</span>
-                  <span className="summary-value">{chatwootStatusCounts.resolved}</span>
-                </div>
-                <div className="summary-item">
-                  <span className="summary-label">Snoozed</span>
-                  <span className="summary-value">{chatwootStatusCounts.snoozed}</span>
                 </div>
                 <div className="summary-item">
                   <span className="summary-label">Última actividad</span>

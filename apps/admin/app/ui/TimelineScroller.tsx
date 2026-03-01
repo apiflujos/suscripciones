@@ -14,11 +14,27 @@ export function TimelineScroller({
   const dragStartX = useRef(0);
   const dragStartScroll = useRef(0);
 
+  const smoothScrollBy = (delta: number) => {
+    const el = trackRef.current;
+    if (!el) return;
+    const start = el.scrollLeft;
+    const target = start + delta;
+    const duration = 520;
+    const startAt = performance.now();
+    const step = (now: number) => {
+      const t = Math.min(1, (now - startAt) / duration);
+      const ease = t * (2 - t);
+      el.scrollLeft = start + (target - start) * ease;
+      if (t < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  };
+
   const scrollBy = (dir: number) => {
     const el = trackRef.current;
     if (!el) return;
-    const amount = Math.max(240, el.clientWidth * 0.6);
-    el.scrollBy({ left: dir * amount, behavior: "smooth" });
+    const amount = Math.max(140, el.clientWidth * 0.25);
+    smoothScrollBy(dir * amount);
   };
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -54,7 +70,7 @@ export function TimelineScroller({
     const el = trackRef.current;
     if (!el) return;
     if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
-      el.scrollLeft += event.deltaY;
+      el.scrollLeft += event.deltaY * 0.45;
       event.preventDefault();
     }
   };
@@ -75,7 +91,7 @@ export function TimelineScroller({
 
   return (
     <div className="timeline-wrap">
-      <button className="timeline-nav" type="button" aria-label="Anterior" onClick={() => scrollBy(-1)}>
+      <button className="timeline-nav" type="button" aria-label="Anterior" onClick={() => scrollBy(-1)} data-loader="off">
         <span aria-hidden="true">‹</span>
       </button>
       <div
@@ -93,7 +109,7 @@ export function TimelineScroller({
       >
         {children}
       </div>
-      <button className="timeline-nav" type="button" aria-label="Siguiente" onClick={() => scrollBy(1)}>
+      <button className="timeline-nav" type="button" aria-label="Siguiente" onClick={() => scrollBy(1)} data-loader="off">
         <span aria-hidden="true">›</span>
       </button>
     </div>

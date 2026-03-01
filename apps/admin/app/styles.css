@@ -1919,6 +1919,15 @@ textarea.input {
   margin-top: 6px;
 }
 
+.summary-grid.compact {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.summary-grid.compact .summary-item {
+  padding: 5px 6px;
+}
+
 .summary-item {
   padding: 6px 8px;
   border-radius: 10px;
@@ -1953,6 +1962,20 @@ textarea.input {
   font-weight: 600;
   color: var(--text);
   overflow-wrap: anywhere;
+}
+
+.kpi-mini {
+  margin-top: 8px;
+  display: grid;
+  gap: 6px;
+}
+
+.kpi-mini-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  font-weight: 700;
 }
 
 .table-meta {
@@ -2424,19 +2447,19 @@ textarea.input {
   border: 1px solid var(--stroke);
   border-radius: 12px;
   overflow: hidden;
-  min-height: 220px;
+  min-height: 170px;
   background: var(--surface-2);
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 .leaflet-map {
   width: 100%;
-  height: 240px;
+  height: 180px;
 }
 
 .customer-map .leaflet-container {
   width: 100%;
-  height: 240px;
+  height: 180px;
   font: inherit;
   background: var(--surface-2);
   filter: saturate(0.9) contrast(1.05);
@@ -2518,9 +2541,10 @@ textarea.input {
 
 .timeline-track {
   overflow-x: auto;
+  overflow-y: visible;
   scroll-snap-type: x mandatory;
   scrollbar-width: thin;
-  padding: 2px 0 6px;
+  padding: 18px 0 8px;
   cursor: grab;
 }
 
@@ -2562,7 +2586,7 @@ textarea.input {
   content: attr(data-tooltip);
   position: absolute;
   left: 50%;
-  bottom: calc(100% + 10px);
+  bottom: calc(100% + 16px);
   transform: translateX(-50%) translateY(6px);
   background: var(--panel);
   border: 1px solid var(--stroke);
@@ -2572,7 +2596,7 @@ textarea.input {
   font-size: 10px;
   white-space: pre-line;
   width: max-content;
-  max-width: 200px;
+  max-width: 240px;
   box-shadow: 0 10px 20px rgba(15, 23, 42, 0.2);
   opacity: 0;
   pointer-events: none;
