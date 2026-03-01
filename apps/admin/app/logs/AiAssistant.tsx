@@ -77,7 +77,7 @@ export function AiAssistant({
         const items = Array.isArray(json.items) ? json.items : [];
         const sorted = items
           .slice()
-          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+          .sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
         const restored: AiMessage[] = [];
         for (const item of sorted) {
           const ctx = item.context || {};
