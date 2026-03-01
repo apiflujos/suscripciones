@@ -2886,11 +2886,96 @@ textarea.input {
   padding: 10px 12px;
   box-shadow: 0 10px 20px rgba(15, 23, 42, 0.2);
   display: grid;
-  gap: 4px;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: start;
+  text-decoration: none;
+  color: inherit;
 }
 
 .toast.is-error {
   border-left-color: var(--status-danger);
+}
+
+.toast.is-clickable {
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+
+.toast.is-clickable:hover {
+  border-color: var(--primary);
+  background: var(--surface-2);
+  transform: translateY(-1px);
+}
+
+.toast-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--text-strong);
+  background: var(--surface-2);
+  border: 1px solid var(--stroke);
+}
+
+.toast-icon.icon-payment-ok {
+  color: var(--status-success);
+  border-color: color-mix(in srgb, var(--status-success) 40%, var(--stroke));
+  background: color-mix(in srgb, var(--status-success) 18%, transparent);
+}
+
+.toast-icon.icon-payment-bad {
+  color: var(--status-danger);
+  border-color: color-mix(in srgb, var(--status-danger) 40%, var(--stroke));
+  background: color-mix(in srgb, var(--status-danger) 18%, transparent);
+}
+
+.toast-icon.icon-message {
+  color: var(--status-info);
+  border-color: color-mix(in srgb, var(--status-info) 40%, var(--stroke));
+  background: color-mix(in srgb, var(--status-info) 18%, transparent);
+}
+
+.toast-icon.icon-link {
+  color: var(--status-warning);
+  border-color: color-mix(in srgb, var(--status-warning) 40%, var(--stroke));
+  background: color-mix(in srgb, var(--status-warning) 18%, transparent);
+}
+
+.toast-icon.icon-job,
+.toast-icon.icon-webhook,
+.toast-icon.icon-subscription {
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--stroke));
+  background: color-mix(in srgb, var(--primary) 18%, transparent);
+}
+
+.toast-body {
+  display: grid;
+  gap: 4px;
+}
+
+.toast-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.toast-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--stroke);
+  color: var(--text-faint);
+  background: var(--surface-2);
 }
 
 .toast-title {

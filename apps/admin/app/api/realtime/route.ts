@@ -36,6 +36,16 @@ async function collectEvents(apiBase: string, token: string, since: string) {
   const system = Array.isArray(systemJson.items) ? systemJson.items : [];
 
   const events: any[] = [];
+  const buildLogLink = (tab: string, params?: Record<string, string | undefined | null>) => {
+    const qp = new URLSearchParams({ tab });
+    if (params) {
+      for (const [k, v] of Object.entries(params)) {
+        if (v == null || v === "") continue;
+        qp.set(k, v);
+      }
+    }
+    return `/logs?${qp.toString()}`;
+  };
   for (const w of webhooks) {
     const status = String(w.processStatus || "");
     const level = status === "FAILED" ? "error" : "info";
@@ -46,6 +56,13 @@ async function collectEvents(apiBase: string, token: string, since: string) {
     const ref = w.reference || w.wompiPaymentLinkId || w.wompiTransactionId || "";
     const typeLabel = w.paymentType || "Pago";
     const planLabel = w.planName ? ` · ${w.planName}` : "";
+    const paymentHref = buildLogLink("payments", {
+      status: isApproved ? "APPROVED" : isFailed ? "FAILED" : "",
+      q: ref || w.customerEmail || w.customerPhone || ""
+    });
+    const webhookHref = buildLogLink("webhooks", {
+      processStatus: status || ""
+    });
     events.push({
       id: `wh_${w.id}`,
       type: "webhook",
@@ -59,7 +76,10 @@ async function collectEvents(apiBase: string, token: string, since: string) {
           : `${customer} · ${w.paymentStatus || "estado"}${ref ? ` · ${ref}` : ""}`,
       paymentStatus,
       paymentType: w.paymentType || null,
-      sound: isApproved ? "cash" : isFailed ? "fail" : null
+      sound: isApproved ? "cash" : isFailed ? "fail" : null,
+      kind: isApproved ? "payment_approved" : isFailed ? "payment_failed" : status === "FAILED" ? "webhook_failed" : "webhook_received",
+      href: isApproved || isFailed ? paymentHref : webhookHref,
+      badge: isApproved ? "Pago" : isFailed ? "Fallido" : status || "Webhook"
     });
   }
 
@@ -78,7 +98,10 @@ async function collectEvents(apiBase: string, token: string, since: string) {
       ts: j.updatedAt,
       title,
       message: `${j.type || "JOB"} · ${detail}`,
-      sound: "fail"
+      sound: null,
+      kind: "job_failed",
+      href: buildLogLink("jobs"),
+      badge: "Job"
     });
   }
 
@@ -87,17 +110,68 @@ async function collectEvents(apiBase: string, token: string, since: string) {
     const createdMs = new Date(createdAt || "").getTime();
     if (!Number.isFinite(createdMs) || createdMs <= sinceMs) continue;
     const level = String(s.level || "").toUpperCase();
-    if (level !== "WARN" && level !== "ERROR") continue;
+    const source = String(s.source || "");
     const message = String(s.message || s.source || "Evento del sistema");
     const compact = message.length > 160 ? `${message.slice(0, 157)}…` : message;
+    const isMessage = source.startsWith("chatwoot.") || source.startsWith("notifications.");
+    const isLink = source.startsWith("subscriptions.payment_link");
+    const isSubscription = source.startsWith("subscriptions.");
+    const isPublic = source.startsWith("public.");
+    const isInformative =
+      level === "INFO" && (isMessage || isLink || message.toLowerCase().includes("link") || message.toLowerCase().includes("mensaje"));
+    if (level !== "WARN" && level !== "ERROR" && !isInformative) continue;
+    const isFailure = level === "ERROR" || message.toLowerCase().includes("fallido") || message.toLowerCase().includes("failed");
+    const kind = isMessage
+      ? isFailure
+        ? "message_failed"
+        : "message_sent"
+      : isLink
+        ? isFailure
+          ? "link_failed"
+          : "link_sent"
+        : isSubscription
+          ? "subscription_failed"
+          : isPublic
+            ? "public_event"
+            : isFailure
+              ? "system_failed"
+              : "system_info";
+    const badge =
+      kind === "message_sent" || kind === "message_failed"
+        ? "Mensaje"
+        : kind === "link_sent" || kind === "link_failed"
+          ? "Link"
+          : kind === "subscription_failed"
+            ? "Suscripción"
+            : level === "ERROR"
+              ? "Error"
+              : level === "WARN"
+                ? "Aviso"
+                : "Sistema";
     events.push({
       id: `sys_${s.id}`,
       type: "system",
       level: level === "ERROR" ? "error" : "info",
       ts: createdAt,
-      title: level === "ERROR" ? "Alerta del sistema" : "Aviso del sistema",
+      title:
+        kind === "message_sent"
+          ? "Mensaje enviado"
+          : kind === "message_failed"
+            ? "Mensaje fallido"
+            : kind === "link_sent"
+              ? "Link generado"
+              : kind === "link_failed"
+                ? "Link fallido"
+                : kind === "subscription_failed"
+                  ? "Suscripción fallida"
+                  : level === "ERROR"
+                    ? "Alerta del sistema"
+                    : "Aviso del sistema",
       message: compact,
-      sound: level === "ERROR" ? "fail" : null
+      sound: null,
+      kind,
+      href: buildLogLink("system", { q: source, level: level === "ERROR" ? "ERROR" : level === "WARN" ? "WARN" : "" }),
+      badge
     });
   }
 

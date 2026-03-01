@@ -13,6 +13,9 @@ type RealtimeEvent = {
   paymentStatus?: string | null;
   paymentType?: string | null;
   sound?: "cash" | "fail" | null;
+  kind?: string | null;
+  href?: string | null;
+  badge?: string | null;
 };
 
 type Toast = RealtimeEvent & { seenAt: number };
@@ -392,21 +395,87 @@ export function RealtimeNotifier() {
     </div>
   );
 
+  const iconForToast = (toast: Toast) => {
+    const kind = String(toast.kind || "").toLowerCase();
+    if (kind.includes("payment_approved")) return "payment-ok";
+    if (kind.includes("payment_failed")) return "payment-bad";
+    if (kind.includes("link")) return "link";
+    if (kind.includes("message")) return "message";
+    if (kind.includes("job")) return "job";
+    if (kind.includes("webhook")) return "webhook";
+    if (kind.includes("subscription")) return "subscription";
+    return "system";
+  };
+
+  const iconLabel = (kind: string) => {
+    switch (kind) {
+      case "payment-ok":
+        return "Pago aprobado";
+      case "payment-bad":
+        return "Pago fallido";
+      case "link":
+        return "Link";
+      case "message":
+        return "Mensaje";
+      case "job":
+        return "Job";
+      case "webhook":
+        return "Webhook";
+      case "subscription":
+        return "Suscripción";
+      default:
+        return "Sistema";
+    }
+  };
+
   return (
     <>
       {slot ? createPortal(statusEl, slot) : null}
       <div className="realtime-toasts" aria-live="polite">
         {!slot ? statusEl : null}
-        {toasts.map((toast) => (
-          <div key={toast.id} className={`toast ${toast.level === "error" ? "is-error" : "is-info"}`}>
-            <div className="toast-title">{toast.title}</div>
-            <div className="toast-message">{toast.message}</div>
-            <div className="toast-meta">
-              <span>{toast.type === "webhook" ? "Webhook" : toast.type === "job" ? "Job" : "Sistema"}</span>
-              <span>{new Date(toast.ts).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}</span>
-            </div>
-          </div>
-        ))}
+        {toasts.map((toast) => {
+          const iconKind = iconForToast(toast);
+          const IconTag: any = toast.href ? "a" : "div";
+          return (
+            <IconTag
+              key={toast.id}
+              className={`toast ${toast.level === "error" ? "is-error" : "is-info"} ${toast.href ? "is-clickable" : ""}`}
+              href={toast.href || undefined}
+              data-loader={toast.href ? "off" : undefined}
+            >
+              <div className={`toast-icon icon-${iconKind}`} aria-label={iconLabel(iconKind)}>
+                <span aria-hidden="true">
+                  {iconKind === "payment-ok"
+                    ? "✓"
+                    : iconKind === "payment-bad"
+                      ? "!"
+                      : iconKind === "message"
+                        ? "✉"
+                        : iconKind === "link"
+                          ? "⛓"
+                          : iconKind === "job"
+                            ? "⚙"
+                            : iconKind === "webhook"
+                              ? "↗"
+                              : iconKind === "subscription"
+                                ? "◎"
+                                : "●"}
+                </span>
+              </div>
+              <div className="toast-body">
+                <div className="toast-title-row">
+                  <div className="toast-title">{toast.title}</div>
+                  {toast.badge ? <span className="toast-badge">{toast.badge}</span> : null}
+                </div>
+                <div className="toast-message">{toast.message}</div>
+                <div className="toast-meta">
+                  <span>{toast.type === "webhook" ? "Webhook" : toast.type === "job" ? "Job" : "Sistema"}</span>
+                  <span>{new Date(toast.ts).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}</span>
+                </div>
+              </div>
+            </IconTag>
+          );
+        })}
       </div>
     </>
   );
