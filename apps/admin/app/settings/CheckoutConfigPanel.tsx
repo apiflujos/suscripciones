@@ -49,8 +49,6 @@ export function CheckoutConfigPanel({
   }
   const [logoData, setLogoData] = useState<string>(defaults.logoUrl || "");
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [planBaseUrl, setPlanBaseUrl] = useState<string>(String(defaults.planBaseUrl || ""));
-  const [subscriptionBaseUrl, setSubscriptionBaseUrl] = useState<string>(String(defaults.subscriptionBaseUrl || ""));
   const [tokenExpiryHours, setTokenExpiryHours] = useState<string>(String(defaults.tokenExpiryHours || 24));
   const [checkoutTitle, setCheckoutTitle] = useState<string>(String(defaults.planTitle || defaults.subscriptionTitle || "Checkout"));
   const [checkoutDescription, setCheckoutDescription] = useState<string>(String(defaults.planDescription || defaults.subscriptionDescription || ""));
@@ -105,16 +103,11 @@ export function CheckoutConfigPanel({
       <input type="hidden" name="tokenizationReturnUrl" value={tokenReturnUrl} />
       <input type="hidden" name="supportEmail" value={supportEmail} />
       <input type="hidden" name="supportUrl" value={supportUrl} />
-      {mode === "PLAN" ? (
-        <input type="hidden" name="subscriptionBaseUrl" value={subscriptionBaseUrl} />
-      ) : (
-        <input type="hidden" name="planBaseUrl" value={planBaseUrl} />
-      )}
 
       <div className="panelHeaderRow" style={{ justifyContent: "space-between" }}>
         <div>
           <strong>Configuración de checkout</strong>
-          <div className="field-hint">Base URL, expiración y textos públicos.</div>
+          <div className="field-hint">Expiración y textos públicos.</div>
         </div>
         {showFullscreen ? (
           <button className="ghost" type="button" onClick={() => setPreviewOpen(true)}>
@@ -131,25 +124,6 @@ export function CheckoutConfigPanel({
         </div>
       </div>
 
-      {mode === "PLAN" ? (
-        <div className="field">
-          <label>Base URL Plan</label>
-          <input className="input" name="planBaseUrl" value={planBaseUrl} onChange={(e) => setPlanBaseUrl(e.target.value)} placeholder="https://pagos.tu-dominio.com" />
-          {planBaseUrl ? <div className="field-hint">URL pública: {`${planBaseUrl.replace(/\/$/, "")}/public/plan/{token}`}</div> : null}
-        </div>
-      ) : (
-        <div className="field">
-          <label>Base URL Suscripción</label>
-          <input
-            className="input"
-            name="subscriptionBaseUrl"
-            value={subscriptionBaseUrl}
-            onChange={(e) => setSubscriptionBaseUrl(e.target.value)}
-            placeholder="https://suscripciones.tu-dominio.com"
-          />
-          {subscriptionBaseUrl ? <div className="field-hint">URL pública: {`${subscriptionBaseUrl.replace(/\/$/, "")}/public/suscripcion/{token}`}</div> : null}
-        </div>
-      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <div className="field">

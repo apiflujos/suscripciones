@@ -7,7 +7,6 @@ import {
   testCentralConnection,
   testWompiConnection,
   testShopifyForward,
-  updateCheckoutConfig,
   updateChatwoot,
   updateShopify,
   updateWompi,
@@ -388,53 +387,6 @@ export default async function SettingsPage({
                 </div>
               </div>
 
-              <form action={updateCheckoutConfig} className="panel module" style={{ display: "grid", gap: 12 }}>
-                <input type="hidden" name="csrf" value={csrfToken} />
-                <input type="hidden" name="returnTo" value={returnTo} />
-                <div className="panelHeaderRow">
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <strong>Dominio personalizado del checkout</strong>
-                    <HelpTip text="Sirve para reemplazar el dominio genérico de Apiflujos por uno propio. Ej: pagos.tudominio.com en lugar de mdv.sus.apiflujos.com." />
-                  </div>
-                  <div className="field-hint">Si lo dejas vacío, usamos el dominio público por defecto.</div>
-                </div>
-                <div className="field-hint">
-                  Instrucciones DNS para dominio propio:
-                  <div className="field-hint">1. Crea un registro CNAME apuntando tu dominio al dominio público de Apiflujos.</div>
-                  <div className="field-hint">2. Espera propagación y luego guarda aquí la Base URL.</div>
-                </div>
-                <div className="field">
-                  <label>Base URL Plan</label>
-                  <input
-                    className="input"
-                    name="planBaseUrl"
-                    defaultValue={settings?.checkoutConfig?.planBaseUrl || ""}
-                    placeholder="https://pagos.tu-dominio.com"
-                  />
-                </div>
-                <div className="field">
-                  <label>Base URL Suscripción</label>
-                  <input
-                    className="input"
-                    name="subscriptionBaseUrl"
-                    defaultValue={settings?.checkoutConfig?.subscriptionBaseUrl || ""}
-                    placeholder="https://suscripciones.tu-dominio.com"
-                  />
-                </div>
-                <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    {inlineState.action === "checkout_config" && inlineState.status === "ok" ? <div className="field-hint">Configuración guardada.</div> : null}
-                    {inlineState.action === "checkout_config" && inlineState.status === "fail" ? (
-                      <div className="field-hint" style={{ color: "var(--danger)" }}>
-                        Error: {inlineState.errorText || "unknown_error"}
-                      </div>
-                    ) : null}
-                  </div>
-                  <PendingButton className="primary btn-save" type="submit" pendingText="Guardando...">
-                    Guardar dominio personalizado
-                  </PendingButton>
-                </div>
-              </form>
             </div>
           </section>
 

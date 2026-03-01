@@ -16,32 +16,6 @@ async function fetchAdmin(path: string) {
   return fetchAdminCached(path, { ttlMs: 1500 });
 }
 
-async function retryFailedJobs(formData: FormData) {
-  "use server";
-  await assertCsrfToken(formData);
-  const { apiBase, token } = getConfig();
-  if (!token) return;
-  await fetch(`${apiBase}/admin/logs/jobs/retry-failed`, {
-    method: "POST",
-    cache: "no-store",
-    headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
-  }).catch(() => {});
-  revalidatePath("/logs");
-}
-
-async function retryShopifyForwards(formData: FormData) {
-  "use server";
-  await assertCsrfToken(formData);
-  const { apiBase, token } = getConfig();
-  if (!token) return;
-  await fetch(`${apiBase}/admin/logs/jobs/retry-forward`, {
-    method: "POST",
-    cache: "no-store",
-    headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
-  }).catch(() => {});
-  revalidatePath("/logs");
-}
-
 async function retryJob(formData: FormData) {
   "use server";
   await assertCsrfToken(formData);
@@ -50,32 +24,6 @@ async function retryJob(formData: FormData) {
   const id = String(formData.get("id") || "").trim();
   if (!id) return;
   await fetch(`${apiBase}/admin/logs/jobs/${encodeURIComponent(id)}/retry`, {
-    method: "POST",
-    cache: "no-store",
-    headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
-  }).catch(() => {});
-  revalidatePath("/logs");
-}
-
-async function recollectPayments(formData: FormData) {
-  "use server";
-  await assertCsrfToken(formData);
-  const { apiBase, token } = getConfig();
-  if (!token) return;
-  await fetch(`${apiBase}/admin/logs/payments/recollect`, {
-    method: "POST",
-    cache: "no-store",
-    headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
-  }).catch(() => {});
-  revalidatePath("/logs");
-}
-
-async function retryFailedWebhooks(formData: FormData) {
-  "use server";
-  await assertCsrfToken(formData);
-  const { apiBase, token } = getConfig();
-  if (!token) return;
-  await fetch(`${apiBase}/admin/logs/webhooks/retry-failed`, {
     method: "POST",
     cache: "no-store",
     headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
@@ -277,33 +225,67 @@ export default async function LogsPage({
               <Link
                 className={`ghost no-icon panel-tab ${tab === "system" ? "is-active" : ""}`}
                 href={`/logs?${new URLSearchParams({ tab: "system" })}`}
+                data-loader={tab === "system" ? "off" : undefined}
+                aria-disabled={tab === "system" ? "true" : undefined}
+                tabIndex={tab === "system" ? -1 : undefined}
               >
                 Sistema
               </Link>
               <Link
                 className={`ghost no-icon panel-tab ${tab === "webhooks" ? "is-active" : ""}`}
                 href={`/logs?${new URLSearchParams({ tab: "webhooks" })}`}
+                data-loader={tab === "webhooks" ? "off" : undefined}
+                aria-disabled={tab === "webhooks" ? "true" : undefined}
+                tabIndex={tab === "webhooks" ? -1 : undefined}
               >
                 Webhooks
               </Link>
               <Link
                 className={`ghost no-icon panel-tab ${tab === "messages" ? "is-active" : ""}`}
                 href={`/logs?${new URLSearchParams({ tab: "messages" })}`}
+                data-loader={tab === "messages" ? "off" : undefined}
+                aria-disabled={tab === "messages" ? "true" : undefined}
+                tabIndex={tab === "messages" ? -1 : undefined}
               >
                 Mensajes
               </Link>
               <Link
                 className={`ghost no-icon panel-tab ${tab === "jobs" ? "is-active" : ""}`}
                 href={`/logs?${new URLSearchParams({ tab: "jobs" })}`}
+                data-loader={tab === "jobs" ? "off" : undefined}
+                aria-disabled={tab === "jobs" ? "true" : undefined}
+                tabIndex={tab === "jobs" ? -1 : undefined}
               >
                 Jobs
               </Link>
               <Link
                 className={`ghost no-icon panel-tab ${tab === "payments" ? "is-active" : ""}`}
                 href={`/logs?${new URLSearchParams({ tab: "payments" })}`}
+                data-loader={tab === "payments" ? "off" : undefined}
+                aria-disabled={tab === "payments" ? "true" : undefined}
+                tabIndex={tab === "payments" ? -1 : undefined}
               >
                 Pagos
               </Link>
+            </div>
+            <div className="panelHeaderPills">
+              {tab === "webhooks" ? (
+                <>
+                  <span className="pill pill-ok">Procesados {webhooksSummary.processed}</span>
+                  <span className="pill pill-warn">Omitidos {webhooksSummary.skipped}</span>
+                  <span className="pill pill-bad">Fallidos {webhooksSummary.failed}</span>
+                </>
+              ) : null}
+              {tab === "payments" ? (
+                <>
+                  <span className="pill pill-ok">Pagados {paymentsSummary.approved}</span>
+                  <span className="pill pill-warn">Pendientes {paymentsSummary.pending}</span>
+                  <span className="pill pill-bad">Fallidos {paymentsSummary.failed}</span>
+                </>
+              ) : null}
+              {tab === "jobs" || tab === "system" ? (
+                <span className={`pill ${failedJobsCount > 0 ? "pillDanger" : ""}`}>{failedJobsCount} fallos</span>
+              ) : null}
             </div>
           </div>
 
@@ -330,21 +312,6 @@ export default async function LogsPage({
                 </div>
               </div>
 
-              <div className="filtersRight">
-                <form action={retryFailedJobs}>
-                  <input type="hidden" name="csrf" value={csrfToken} />
-                  <PendingButton className="primary btn-retry" type="submit" pendingText="Reintentando...">
-                    Reintentar fallidos
-                  </PendingButton>
-                </form>
-                <form action={retryShopifyForwards}>
-                  <input type="hidden" name="csrf" value={csrfToken} />
-                  <PendingButton className="ghost btn-retry" type="submit" pendingText="Reintentando...">
-                    Reintentar forwards
-                  </PendingButton>
-                </form>
-                <span className={`pill ${failedJobsCount > 0 ? "pillDanger" : ""}`}>{failedJobsCount} fallos</span>
-              </div>
             </div>
           ) : tab === "jobs" ? (
             <div className="filtersRow">
@@ -353,21 +320,6 @@ export default async function LogsPage({
                   <div className="filter-label">Jobs</div>
                   <div style={{ color: "var(--muted)", fontSize: 13 }}>Reintentos uno a uno o masivos.</div>
                 </div>
-              </div>
-              <div className="filtersRight">
-                <form action={retryFailedJobs}>
-                  <input type="hidden" name="csrf" value={csrfToken} />
-                  <PendingButton className="primary btn-retry" type="submit" pendingText="Reintentando...">
-                    Reintentar fallidos
-                  </PendingButton>
-                </form>
-                <form action={retryShopifyForwards}>
-                  <input type="hidden" name="csrf" value={csrfToken} />
-                  <PendingButton className="ghost btn-retry" type="submit" pendingText="Reintentando...">
-                    Reintentar forwards
-                  </PendingButton>
-                </form>
-                <span className={`pill ${failedJobsCount > 0 ? "pillDanger" : ""}`}>{failedJobsCount} fallos</span>
               </div>
             </div>
           ) : tab === "payments" ? (
@@ -390,19 +342,6 @@ export default async function LogsPage({
                   </form>
                 </div>
               </div>
-              <div className="filtersRight">
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                  <span className="pill pill-ok">Pagados {paymentsSummary.approved}</span>
-                  <span className="pill pill-warn">Pendientes {paymentsSummary.pending}</span>
-                  <span className="pill pill-bad">Fallidos {paymentsSummary.failed}</span>
-                </div>
-                <form action={recollectPayments}>
-                  <input type="hidden" name="csrf" value={csrfToken} />
-                  <PendingButton className="primary btn-retry" type="submit" pendingText="Recolectando...">
-                    Recolectar pagos faltantes
-                  </PendingButton>
-                </form>
-              </div>
             </div>
           ) : null}
         </div>
@@ -412,7 +351,7 @@ export default async function LogsPage({
             <LogsSystemTable items={normalized} />
           ) : tab === "messages" ? (
             <div className="panel module" style={{ padding: 0 }}>
-              <table className="table" aria-label="Tabla de mensajes">
+              <table className="table logs-table" aria-label="Tabla de mensajes">
                 <thead>
                   <tr>
                     <th>Fecha</th>
@@ -431,9 +370,11 @@ export default async function LogsPage({
                         : status === "FAILED"
                           ? { cls: "is-error", label: "Fallido" }
                           : { cls: "is-warning", label: "Pendiente" };
+                    const detailRaw = String(m.errorMessage || m.content || "—");
+                    const detailText = detailRaw.length > 300 ? `${detailRaw.slice(0, 300)}…` : detailRaw;
                     return (
                       <tr key={m.id}>
-                        <td><LocalDateTime value={m.createdAt} /></td>
+                        <td className="log-date-cell"><LocalDateTime value={m.createdAt} /></td>
                         <td>{m.customer?.name || m.customer?.email || "—"}</td>
                         <td>{m.type || "—"}</td>
                         <td>
@@ -442,7 +383,7 @@ export default async function LogsPage({
                             {chip.label}
                           </span>
                         </td>
-                        <td>{m.errorMessage || m.content || "—"}</td>
+                        <td>{detailText}</td>
                       </tr>
                     );
                   })}
@@ -458,7 +399,7 @@ export default async function LogsPage({
             </div>
           ) : tab === "jobs" ? (
             <div className="panel module" style={{ padding: 0 }}>
-              <table className="table" aria-label="Tabla de jobs">
+              <table className="table logs-table" aria-label="Tabla de jobs">
                 <thead>
                   <tr>
                     <th>Fecha</th>
@@ -492,7 +433,7 @@ export default async function LogsPage({
                     const detail = j.lastError || webhookNote || "—";
                     return (
                       <tr key={j.id}>
-                        <td><LocalDateTime value={j.updatedAt} /></td>
+                        <td className="log-date-cell"><LocalDateTime value={j.updatedAt} /></td>
                         <td>{normalizeJobType(j.type)}</td>
                         <td>
                           <span className={`status-chip ${chip.cls}`}>
@@ -529,7 +470,7 @@ export default async function LogsPage({
             </div>
           ) : tab === "payments" ? (
             <div className="panel module" style={{ padding: 0 }}>
-              <table className="table" aria-label="Tabla de pagos">
+              <table className="table logs-table" aria-label="Tabla de pagos">
                 <thead>
                   <tr>
                     <th>Fecha</th>
@@ -549,7 +490,7 @@ export default async function LogsPage({
                     const contactQuery = p.customer?.email || p.customer?.phone || p.customer?.name;
                     return (
                       <tr key={p.id}>
-                        <td><LocalDateTime value={p.createdAt} /></td>
+                        <td className="log-date-cell"><LocalDateTime value={p.createdAt} /></td>
                         <td>{renderContactBlock(p)}</td>
                         <td>{planName}</td>
                         <td>
@@ -559,7 +500,9 @@ export default async function LogsPage({
                           </span>
                         </td>
                         <td>{formatAmount(p.amountInCents, p.currency)}</td>
-                        <td>{p.reference || "—"}</td>
+                        <td className="log-ref-cell">
+                          <span className="log-ref-main">{p.reference || "—"}</span>
+                        </td>
                         <td>{p.wompiTransactionId || p.wompiPaymentLinkId || "—"}</td>
                         <td style={{ textAlign: "right" }}>
                           {contactQuery ? (
@@ -602,21 +545,8 @@ export default async function LogsPage({
                     </form>
                   </div>
                 </div>
-                <div className="filtersRight">
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                    <span className="pill pill-ok">Procesados {webhooksSummary.processed}</span>
-                    <span className="pill pill-warn">Omitidos {webhooksSummary.skipped}</span>
-                    <span className="pill pill-bad">Fallidos {webhooksSummary.failed}</span>
-                  </div>
-                  <form action={retryFailedWebhooks}>
-                    <input type="hidden" name="csrf" value={csrfToken} />
-                    <PendingButton className="ghost btn-retry" type="submit" pendingText="Reprocesando...">
-                      Reprocesar fallidos
-                    </PendingButton>
-                  </form>
-                </div>
               </div>
-              <table className="table" aria-label="Tabla de webhooks">
+              <table className="table logs-table" aria-label="Tabla de webhooks">
                 <thead>
                   <tr>
                     <th>Fecha</th>
@@ -641,13 +571,13 @@ export default async function LogsPage({
                       .join(" · ");
                     return (
                       <tr key={e.id}>
-                        <td><LocalDateTime value={e.receivedAt} /></td>
+                        <td className="log-date-cell"><LocalDateTime value={e.receivedAt} /></td>
                         <td>{renderContactBlock(e)}</td>
                         <td>{formatAmount(e.amountInCents, e.currency)}</td>
-                        <td>
-                          <div style={{ display: "grid", gap: 2 }}>
-                            <span>{e.reference || "—"}</span>
-                            {refMeta ? <span className="muted" style={{ fontSize: 12 }}>{refMeta}</span> : null}
+                        <td className="log-ref-cell">
+                          <div className="log-ref">
+                            <span className="log-ref-main">{e.reference || "—"}</span>
+                            {refMeta ? <span className="log-ref-meta">{refMeta}</span> : null}
                           </div>
                         </td>
                         <td>{e.paymentType || e.eventName || "—"}</td>
@@ -719,8 +649,13 @@ export default async function LogsPage({
               ...(to ? { to } : {}),
               ...(tenantId ? { tenantId } : {})
             };
+            const startIndex = (currentPage - 1) * take + 1;
+            const endIndex = (currentPage - 1) * take + Math.max(0, count);
             return (
               <div className="pagination pagination-indicator">
+                <div className="pagination-summary">
+                  Mostrando {count ? `${startIndex}-${endIndex}` : "0"} · {take} por página
+                </div>
                 <a
                   className="page-link page-nav"
                   href={`/logs?${new URLSearchParams({

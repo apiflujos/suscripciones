@@ -23,7 +23,7 @@ export function LogsSystemTable({ items }: { items: LogItem[] }) {
   const [openId, setOpenId] = useState<string | null>(null);
   return (
     <div className="panel module" style={{ padding: 0 }}>
-      <table className="table" aria-label="Tabla de logs">
+      <table className="table logs-table" aria-label="Tabla de logs">
         <thead>
           <tr>
             <th>Fecha</th>
@@ -41,7 +41,7 @@ export function LogsSystemTable({ items }: { items: LogItem[] }) {
             const isOpen = Boolean(id) && openId === id;
             return (
               <tr key={id || `${l.createdAt ?? ""}-${l.message ?? ""}-${idx}`}>
-                <td><LocalDateTime value={l.createdAt} /></td>
+                <td className="log-date-cell"><LocalDateTime value={l.createdAt} /></td>
                 <td>{(l as any).actor || "—"}</td>
                 <td className="log-cell log-entity" title={(l as any).entity || l.source || "—"}>
                   <span className="log-truncate">{(l as any).entity || l.source || "—"}</span>

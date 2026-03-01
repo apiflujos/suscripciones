@@ -370,7 +370,7 @@ export function NotificationsSimple({
                         </div>
                       </div>
                       <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-                        <button className="ghost" type="button" onClick={() => setRealtimeEdit((prev) => ({ ...prev, [rt.key]: true }))}>
+                        <button className="ghost" type="button" data-loader="off" onClick={() => setRealtimeEdit((prev) => ({ ...prev, [rt.key]: true }))}>
                           Editar
                         </button>
                       </div>
@@ -540,11 +540,11 @@ export function NotificationsSimple({
                       )}
                     </div>
                   </div>
-                  <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-                    <button className="ghost" type="button" onClick={() => setDueEdit(true)}>
-                      Editar
-                    </button>
-                  </div>
+                    <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
+                      <button className="ghost" type="button" data-loader="off" onClick={() => setDueEdit(true)}>
+                        Editar
+                      </button>
+                    </div>
                 </div>
               )}
             </div>
@@ -698,11 +698,11 @@ export function NotificationsSimple({
                       )}
                     </div>
                   </div>
-                  <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-                    <button className="ghost" type="button" onClick={() => setMoraEdit(true)}>
-                      Editar
-                    </button>
-                  </div>
+                    <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
+                      <button className="ghost" type="button" data-loader="off" onClick={() => setMoraEdit(true)}>
+                        Editar
+                      </button>
+                    </div>
                 </div>
               )}
             </div>
