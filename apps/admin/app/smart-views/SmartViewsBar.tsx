@@ -466,7 +466,7 @@ export function SmartViewsBar({
   }
 
   return (
-    <div className="smartViewsBar">
+    <div className="smartViewsBar" data-loader="off">
       <div className="smartViewsTop">
         <select
           className="select"
