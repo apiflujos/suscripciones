@@ -516,10 +516,10 @@ export default async function LogsPage({
             <div className="panel module" style={{ padding: 0 }}>
               <table className="table logs-table logs-table-messages" aria-label="Tabla de mensajes">
                 <colgroup>
-                  <col style={{ width: "150px" }} />
-                  <col style={{ width: "200px" }} />
                   <col style={{ width: "120px" }} />
-                  <col style={{ width: "140px" }} />
+                  <col style={{ width: "180px" }} />
+                  <col style={{ width: "90px" }} />
+                  <col style={{ width: "110px" }} />
                   <col />
                 </colgroup>
                 <thead>

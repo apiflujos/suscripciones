@@ -1275,10 +1275,10 @@ a {
 }
 
 .logs-table .log-date-cell {
-  white-space: nowrap;
+  white-space: normal;
   font-size: 11.5px;
   color: var(--text);
-  max-width: 170px;
+  max-width: 120px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
