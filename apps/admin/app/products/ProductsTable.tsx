@@ -637,7 +637,22 @@ export function ProductsTable({
                       </button>
                     ) : null}
                   </label>
-                  <select className="select" name="customerId" value={sendCustomerId} onChange={(e) => setSendCustomerId(e.target.value)}>
+                  <select
+                    className="select"
+                    name="customerId"
+                    value={sendCustomerId}
+                    onChange={(e) => {
+                      const nextId = e.target.value;
+                      setSendCustomerId(nextId);
+                      const found = filteredCustomers.find((c: any) => String(c?.id) === String(nextId));
+                      if (found) {
+                        setSendSearch(formatCustomerLabel(found));
+                        setSendSearchLocked(true);
+                      } else {
+                        setSendSearchLocked(false);
+                      }
+                    }}
+                  >
                     <option value="">Selecciona un contacto…</option>
                     {filteredCustomers.map((c: any) => (
                       <option key={c.id} value={c.id}>
@@ -708,7 +723,7 @@ export function ProductsTable({
 
               <div className="send-product-right">
                 <div className="field">
-                  <label>Mensaje para WhatsApp</label>
+                  <label>Mensaje para el cliente</label>
                   <textarea
                     className="input"
                     name="message"
