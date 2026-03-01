@@ -43,6 +43,20 @@ function getCustomerPhoneFromPayload(payload: any): string | undefined {
   return trimmed || undefined;
 }
 
+function getPaidAtFromPayload(payload: any): Date | null {
+  const tx = getTransactionFromPayload(payload);
+  const raw =
+    tx?.finalized_at ||
+    tx?.finalizedAt ||
+    tx?.created_at ||
+    tx?.createdAt ||
+    tx?.paid_at ||
+    tx?.paidAt;
+  if (!raw) return null;
+  const dt = new Date(raw);
+  return Number.isNaN(dt.getTime()) ? null : dt;
+}
+
 export async function processWompiEventLogic(webhookEventId: string, db: typeof prisma) {
   const event = await db.webhookEvent.findUnique({ where: { id: webhookEventId } });
   if (!event) return;
@@ -256,7 +270,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   const wasFailed = prevStatus === PaymentStatus.DECLINED || prevStatus === PaymentStatus.ERROR || prevStatus === PaymentStatus.VOIDED;
 
   const now = new Date();
-  const paidAt = paymentStatus === PaymentStatus.APPROVED ? now : null;
+  const paidAt = paymentStatus === PaymentStatus.APPROVED ? (getPaidAtFromPayload(payload) ?? now) : null;
   const computedFailedAt = paymentStatus && paymentStatus !== PaymentStatus.APPROVED && paymentStatus !== PaymentStatus.PENDING ? now : null;
 
   if (!paymentByLink && !subscription) {
@@ -415,7 +429,8 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
       const manualAt = manualAtRaw ? new Date(manualAtRaw) : null;
       const useManualAnchor = Number.isFinite(manualCycle) && manualCycle === cycle && manualAt && !Number.isNaN(manualAt.getTime());
 
-      const nextStart = useManualAnchor ? (paidAt ?? manualAt!) : sub.currentPeriodEndAt;
+      // Next billing anchor should be the last successful payment date.
+      const nextStart = useManualAnchor ? (paidAt ?? manualAt!) : (paidAt ?? sub.currentPeriodEndAt);
       const nextEnd = addIntervalUtc(nextStart, sub.plan.intervalUnit, sub.plan.intervalCount);
 
       const nextMeta = useManualAnchor
