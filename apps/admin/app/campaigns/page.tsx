@@ -9,13 +9,15 @@ import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 export default async function CampaignsPage({
   searchParams
 }: {
-  searchParams?: Promise<{ error?: string; created?: string; running?: string; page?: string }>;
+  searchParams?: Promise<Record<string, string | undefined>>;
 }) {
   const csrfToken = await getCsrfToken();
   const listsRes = await fetchAdminCached("/admin/comms/smart-lists?take=200", { ttlMs: 0 });
   const lists = Array.isArray(listsRes?.json?.items) ? listsRes.json.items : [];
   const sp = (await searchParams) ?? {};
-  const returnTo = `/campaigns?${new URLSearchParams(Object.fromEntries(Object.entries(sp).filter(([_, v]) => typeof v === "string" && v))).toString()}`;
+  const returnTo = `/campaigns?${new URLSearchParams(
+    Object.fromEntries(Object.entries(sp).filter(([, v]) => typeof v === "string")) as Record<string, string>
+  ).toString()}`;
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
   const viewId = typeof sp.viewId === "string" ? sp.viewId : "";
   const filters = typeof sp.filters === "string" ? sp.filters : "";

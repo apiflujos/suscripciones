@@ -1,5 +1,5 @@
 import { prisma } from "../db/prisma";
-import { PaymentStatus, SubscriptionStatus } from "@prisma/client";
+import { PaymentStatus, SubscriptionStatus, SmartViewVisibility as DbSmartViewVisibility } from "@prisma/client";
 
 export type SmartViewRule =
   | {
@@ -184,8 +184,8 @@ export function parseFiltersParam(raw?: string): SmartViewRule | null {
 
 export async function listSmartViews(scope: SmartViewScope, tenantId: string, actorEmail?: string | null) {
   const visibilityWhere = actorEmail
-    ? { OR: [{ visibility: "ORG" }, { visibility: "PRIVATE", createdByEmail: actorEmail }] }
-    : { visibility: "ORG" };
+    ? { OR: [{ visibility: DbSmartViewVisibility.ORG }, { visibility: DbSmartViewVisibility.PRIVATE, createdByEmail: actorEmail }] }
+    : { visibility: DbSmartViewVisibility.ORG };
   const items = await prisma.smartView.findMany({
     where: {
       tenantId,

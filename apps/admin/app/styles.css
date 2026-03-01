@@ -1396,7 +1396,7 @@ a {
 
 .logs-table th,
 .logs-table td {
-  padding: 6px;
+  padding: 5px;
   overflow: hidden;
   min-width: 0;
   max-width: 0;
@@ -2096,7 +2096,7 @@ textarea {
 .apf-list-item {
   border: 1px solid var(--stroke);
   border-radius: var(--radius-lg);
-  padding: 10px 12px;
+  padding: 8px 10px;
   background: var(--panel);
   display: flex;
   align-items: center;
@@ -2412,14 +2412,14 @@ textarea.input {
 }
 
 .contact-sub {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--muted);
 }
 
 .contacts-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 14px;
+  gap: 10px;
 }
 
 .contact-card {
@@ -2475,13 +2475,13 @@ textarea.input {
 }
 
 .contact-title {
-  font-size: 15.5px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-strong);
 }
 
 .contact-subline {
-  font-size: 12.5px;
+  font-size: 11.5px;
   color: var(--text-soft);
 }
 
@@ -2512,7 +2512,7 @@ textarea.input {
 }
 
 .detail-item {
-  padding: 8px 10px;
+  padding: 6px 8px;
   border-radius: 12px;
   border: 1px solid var(--stroke);
   background: var(--surface-2);
@@ -2536,7 +2536,7 @@ textarea.input {
 }
 
 .detail-value {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text);
   overflow-wrap: anywhere;
@@ -2570,7 +2570,7 @@ textarea.input {
 }
 
 .summary-item {
-  padding: 6px 8px;
+  padding: 5px 6px;
   border-radius: 10px;
   border: 1px solid var(--stroke);
   background: var(--surface-2);
@@ -2599,7 +2599,7 @@ textarea.input {
 }
 
 .summary-value {
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text);
   overflow-wrap: anywhere;
@@ -2635,7 +2635,7 @@ textarea.input {
 }
 
 .invoice-title {
-  font-size: 11px;
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-faint);
@@ -2650,7 +2650,7 @@ textarea.input {
 
 .invoice-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 8px;
 }
 
@@ -2663,7 +2663,7 @@ textarea.input {
   display: grid;
   gap: 2px;
   min-width: 0;
-  padding: 2px 0;
+  padding: 1px 0;
 }
 
 .customer-dual {
@@ -2692,7 +2692,7 @@ textarea.input {
   border: 1px solid var(--stroke);
   background: var(--panel);
   display: grid;
-  gap: 4px;
+  gap: 3px;
 }
 
 .invoice-label {
@@ -2704,7 +2704,7 @@ textarea.input {
 }
 
 .invoice-value {
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text);
   white-space: nowrap;
@@ -2746,7 +2746,7 @@ textarea.input {
   border: 1px solid var(--stroke);
   border-radius: 12px;
   background: var(--surface-2);
-  padding: 10px;
+  padding: 8px;
   display: grid;
   gap: 6px;
 }
@@ -2788,7 +2788,7 @@ textarea.input {
   background: rgba(15, 23, 42, 0.02);
   border: 1px solid var(--stroke);
   border-radius: 12px;
-  padding: 8px 10px;
+  padding: 6px 8px;
   display: grid;
   gap: 6px;
 }
@@ -2896,30 +2896,30 @@ textarea.input {
 
 .btn-compact {
   min-width: 0 !important;
-  min-height: 32px;
-  padding: 0 9px;
-  font-size: 12px;
+  min-height: 30px;
+  padding: 0 8px;
+  font-size: 11.5px;
   border-radius: var(--radius-md);
 }
 
 .btn-xs {
-  min-height: 26px;
-  padding: 0 7px;
-  font-size: 11px;
+  min-height: 24px;
+  padding: 0 6px;
+  font-size: 10px;
   border-radius: var(--radius-sm);
 }
 
 .select-compact {
-  min-height: 32px;
-  padding: 6px 10px;
-  font-size: 13px;
+  min-height: 30px;
+  padding: 5px 9px;
+  font-size: 12px;
   border-radius: var(--radius-md);
 }
 
 .input-compact {
-  min-height: 32px;
-  padding: 6px 10px;
-  font-size: 13px;
+  min-height: 30px;
+  padding: 5px 9px;
+  font-size: 12px;
   border-radius: var(--radius-md);
 }
 
@@ -3058,7 +3058,7 @@ textarea.input {
 
 .customer-hero-meta {
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
 .hero-head {
@@ -3070,13 +3070,13 @@ textarea.input {
 
 .hero-right {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   justify-items: end;
 }
 
 .hero-right-top {
   display: inline-flex;
-  gap: 10px;
+  gap: 8px;
   align-items: stretch;
   justify-content: flex-end;
   flex-wrap: wrap;
@@ -3084,13 +3084,13 @@ textarea.input {
 
 .hero-name-block {
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
 .hero-name-row {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
@@ -3098,12 +3098,12 @@ textarea.input {
   display: grid;
   align-content: center;
   gap: 2px;
-  padding: 6px 12px;
+  padding: 6px 10px;
   border-radius: 10px;
   border: 1px solid var(--stroke);
   background: var(--surface-2);
   min-width: 160px;
-  min-height: 78px;
+  min-height: 64px;
   justify-items: start;
   text-align: left;
 }
@@ -3117,13 +3117,13 @@ textarea.input {
 }
 
 .hero-id-value {
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--text);
 }
 
 .hero-id-sub {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-faint);
 }
 
@@ -3131,26 +3131,26 @@ textarea.input {
   display: grid;
   align-content: center;
   justify-items: flex-start;
-  padding: 10px 12px;
+  padding: 6px 8px;
   border-radius: 12px;
   border: 1px solid var(--stroke);
   background: var(--surface-2);
-  min-width: 240px;
+  min-width: 220px;
   max-width: 360px;
 }
 
 .hero-subs-compact {
-  padding: 8px 12px;
+  padding: 6px 8px;
 }
 
 .hero-subs {
   display: grid;
-  gap: 6px;
-  margin-top: 6px;
+  gap: 4px;
+  margin-top: 4px;
 }
 
 .hero-subs-label {
-  font-size: 10px;
+  font-size: 9.5px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-faint);
@@ -3160,7 +3160,7 @@ textarea.input {
 .hero-subs-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
 }
 
 .tier-badge {
@@ -3173,17 +3173,17 @@ textarea.input {
   display: inline-flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 16px;
+  padding: 8px 12px;
   border-radius: 14px;
   border: 1px solid var(--stroke);
   background: var(--surface-2);
-  min-height: 78px;
+  min-height: 64px;
 }
 
 .tier-badge-hero .tier-icon,
 .tier-badge-hero .tier-icon svg {
-  width: 56px;
-  height: 56px;
+  width: 48px;
+  height: 48px;
 }
 
 .tier-text {
@@ -3523,20 +3523,20 @@ textarea.input {
 }
 
 .toast-title {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--text);
 }
 
 .toast-message {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text);
 }
 
 .toast-meta {
   display: flex;
   gap: 10px;
-  font-size: 10px;
+  font-size: 9px;
   color: var(--text-faint);
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -3575,7 +3575,7 @@ textarea.input {
 
 .customer-section {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .customer-section.compact {
@@ -3600,19 +3600,19 @@ textarea.input {
   border: 1px solid var(--stroke);
   border-radius: 12px;
   overflow: hidden;
-  min-height: 170px;
+  min-height: 150px;
   background: var(--surface-2);
   margin-top: 8px;
 }
 
 .leaflet-map {
   width: 100%;
-  height: 180px;
+  height: 160px;
 }
 
 .customer-map .leaflet-container {
   width: 100%;
-  height: 180px;
+  height: 160px;
   font: inherit;
   background: var(--surface-2);
   filter: saturate(0.9) contrast(1.05);
@@ -3621,7 +3621,7 @@ textarea.input {
 .customer-address {
   display: grid;
   gap: 8px;
-  padding: 10px 12px;
+  padding: 8px 10px;
   border-radius: 12px;
   border: 1px solid var(--stroke);
   background: var(--surface-2);
@@ -3630,7 +3630,7 @@ textarea.input {
 .customer-address-meta {
   display: grid;
   gap: 4px;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-faint);
 }
 
@@ -3642,18 +3642,18 @@ textarea.input {
 .customer-log-list {
   position: relative;
   display: flex;
-  gap: 12px;
+  gap: 10px;
   overflow: visible;
-  padding: 18px 48px 10px 8px;
+  padding: 14px 40px 8px 6px;
   width: max-content;
 }
 
 .customer-log-list::before {
   content: "";
   position: absolute;
-  left: 6px;
-  right: 6px;
-  top: 14px;
+  left: 4px;
+  right: 4px;
+  top: 12px;
   height: 1px;
   background: var(--stroke);
 }
@@ -3697,7 +3697,7 @@ textarea.input {
   overflow-x: auto;
   overflow-y: visible;
   scrollbar-width: thin;
-  padding: 16px 0 72px;
+  padding: 12px 0 60px;
   cursor: grab;
 }
 
@@ -3738,11 +3738,11 @@ textarea.input {
 .customer-log-item {
   border: 1px solid var(--stroke);
   border-radius: 8px;
-  padding: 6px 8px 5px;
+  padding: 5px 6px 4px;
   background: var(--panel);
   position: relative;
-  min-width: 120px;
-  max-width: 150px;
+  min-width: 110px;
+  max-width: 140px;
   overflow: visible;
   flex: 0 0 auto;
   z-index: 0;
@@ -3763,9 +3763,9 @@ textarea.input {
   background: var(--panel);
   border: 1px solid var(--stroke);
   color: var(--text);
-  padding: 6px 8px;
+  padding: 5px 7px;
   border-radius: 8px;
-  font-size: 10px;
+  font-size: 9.5px;
   white-space: pre-line;
   width: max-content;
   max-width: 280px;
@@ -3800,7 +3800,7 @@ textarea.input {
   justify-content: space-between;
   gap: 6px;
   font-weight: 600;
-  font-size: 10px;
+  font-size: 9.5px;
   color: var(--text);
   margin-top: 3px;
 }
@@ -3809,7 +3809,7 @@ textarea.input {
   display: flex;
   flex-wrap: wrap;
   gap: 3px 6px;
-  font-size: 8.5px;
+  font-size: 8px;
   color: var(--text-faint);
   margin-top: 2px;
   text-transform: uppercase;
@@ -3818,7 +3818,7 @@ textarea.input {
 
 .customer-log-message {
   margin-top: 2px;
-  font-size: 10px;
+  font-size: 9.5px;
   color: var(--text);
   line-height: 1.2;
   display: -webkit-box;
@@ -3829,14 +3829,14 @@ textarea.input {
 
 .chatwoot-list {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   margin-top: 8px;
 }
 
 .chatwoot-item {
   border: 1px solid var(--stroke);
   border-radius: 12px;
-  padding: 8px 10px;
+  padding: 6px 8px;
   background: var(--surface-2);
   display: grid;
   gap: 4px;
@@ -3846,7 +3846,7 @@ textarea.input {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--text);
 }
@@ -3855,14 +3855,14 @@ textarea.input {
   display: flex;
   flex-wrap: wrap;
   gap: 6px 10px;
-  font-size: 10px;
+  font-size: 9px;
   color: var(--text-faint);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .chatwoot-item-snippet {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text);
   line-height: 1.3;
   display: -webkit-box;
@@ -3908,7 +3908,7 @@ textarea.input {
 }
 
 .paylink-title {
-  font-size: 10px;
+  font-size: 9.5px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-faint);
@@ -3949,7 +3949,7 @@ textarea.input {
 
 .paylink-retry {
   width: fit-content;
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .pill.pill-muted {
@@ -3958,12 +3958,12 @@ textarea.input {
 }
 
 .paylink-error {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--status-danger);
 }
 
 .paylink-success {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--status-success);
 }
 
@@ -3999,7 +3999,7 @@ textarea.input {
   border-radius: 14px;
   border: 1px solid var(--stroke);
   box-shadow: var(--shadow);
-  padding: 6px 8px;
+  padding: 5px 6px;
   display: grid;
   gap: 4px;
   width: 100%;
@@ -4018,13 +4018,13 @@ textarea.input {
 }
 
 .billing-name {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-strong);
 }
 
 .billing-sub {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-soft);
 }
 
@@ -4040,7 +4040,7 @@ textarea.input {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 2px 8px;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text);
 }
 
@@ -4054,7 +4054,7 @@ textarea.input {
 .billing-grid-info span {
   display: inline;
   color: var(--text-faint);
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .billing-actions {
@@ -4089,13 +4089,13 @@ textarea.input {
   left: 0;
   min-width: 220px;
   max-width: 360px;
-  padding: 10px 12px;
+  padding: 8px 10px;
   border-radius: 12px;
   border: 1px solid rgba(15, 23, 42, 0.12);
   background: #0f172a;
   color: #fff;
   font-weight: 600;
-  font-size: 12px;
+  font-size: 11px;
   white-space: pre-line;
   box-shadow: var(--shadow);
   opacity: 0;
@@ -4169,16 +4169,16 @@ textarea.input {
 
 .multi-select summary {
   list-style: none;
-  font-size: 11px;
-  padding: 7px 10px;
+  font-size: 10.5px;
+  padding: 6px 8px;
   font-weight: 600;
   cursor: pointer;
 }
 
 .multi-select summary em {
   font-style: normal;
-  font-size: 10px;
-  padding: 2px 8px;
+  font-size: 9px;
+  padding: 2px 6px;
   border-radius: 999px;
   background: rgba(15, 23, 42, 0.06);
   margin-left: 6px;
@@ -4254,7 +4254,8 @@ textarea.input {
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: 10.5px;
+  line-height: 1.25;
 }
 
 .table-fixed {
@@ -4276,13 +4277,13 @@ textarea.input {
 
 .table th,
 .table td {
-  padding: 8px;
+  padding: 6px;
   border-bottom: 1px solid var(--stroke-strong);
   text-align: left;
 }
 
 .table thead th {
-  font-size: 10px;
+  font-size: 9.5px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-faint);
@@ -4337,8 +4338,8 @@ textarea.input {
 }
 
 .status-chip {
-  font-size: 11px;
-  padding: 3px 8px;
+  font-size: 10px;
+  padding: 2px 6px;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
@@ -4373,8 +4374,8 @@ textarea.input {
 }
 
 .status-led {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 999px;
   background: var(--status-danger);
 }
@@ -7429,18 +7430,19 @@ html[data-contrast="high"] .toggle::after {
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: 10.5px;
+  line-height: 1.25;
 }
 
 .table th,
 .table td {
-  padding: 8px;
+  padding: 6px;
   border-bottom: 1px solid var(--stroke-strong);
   text-align: left;
 }
 
 .table thead th {
-  font-size: 10px;
+  font-size: 9.5px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-faint);
@@ -7456,8 +7458,8 @@ html[data-contrast="high"] .toggle::after {
 }
 
 .status-chip {
-  font-size: 11px;
-  padding: 3px 8px;
+  font-size: 10px;
+  padding: 2px 6px;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
@@ -7491,8 +7493,8 @@ html[data-contrast="high"] .toggle::after {
 }
 
 .status-led {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 999px;
   background: var(--status-danger);
 }

@@ -627,6 +627,8 @@ model SaTenant {
   webhookEvents WebhookEvent[]
   chatwootMessages ChatwootMessage[]
   smartLists SmartList[]
+  smartViews SmartView[]
+  smartViewItems SmartViewItem[]
   campaigns Campaign[]
   campaignSends CampaignSend[]
   customerLinks CustomerTenant[]

@@ -3,6 +3,14 @@ import { getAdminApiConfig } from "../../../../lib/adminApi";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../../../../lib/session";
 
+type RouteContext = { params: Promise<{ scope: string; id: string }> };
+
+const getParam = async (paramsPromise: RouteContext["params"], key: "scope" | "id") => {
+  const params = await paramsPromise;
+  const raw = params?.[key] || "";
+  return String(raw).trim();
+};
+
 async function getSessionEmail() {
   const c = await cookies();
   const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
@@ -10,10 +18,10 @@ async function getSessionEmail() {
   return session?.email || "";
 }
 
-export async function DELETE(_: Request, ctx: { params: { scope: string; id: string } }) {
+export async function DELETE(_: Request, ctx: RouteContext) {
   const { apiBase, token } = getAdminApiConfig();
-  const scope = String(ctx.params.scope || "").trim();
-  const id = String(ctx.params.id || "").trim();
+  const scope = await getParam(ctx.params, "scope");
+  const id = await getParam(ctx.params, "id");
   const email = await getSessionEmail();
   const res = await fetch(`${apiBase}/admin/smart-views/${encodeURIComponent(scope)}/${encodeURIComponent(id)}`, {
     method: "DELETE",
@@ -23,10 +31,10 @@ export async function DELETE(_: Request, ctx: { params: { scope: string; id: str
   return NextResponse.json(json, { status: res.status });
 }
 
-export async function PUT(req: Request, ctx: { params: { scope: string; id: string } }) {
+export async function PUT(req: Request, ctx: RouteContext) {
   const { apiBase, token } = getAdminApiConfig();
-  const scope = String(ctx.params.scope || "").trim();
-  const id = String(ctx.params.id || "").trim();
+  const scope = await getParam(ctx.params, "scope");
+  const id = await getParam(ctx.params, "id");
   const email = await getSessionEmail();
   const body = await req.json().catch(() => ({}));
   const res = await fetch(`${apiBase}/admin/smart-views/${encodeURIComponent(scope)}/${encodeURIComponent(id)}`, {
