@@ -141,27 +141,54 @@ function evalRule(rule: SmartListRule, ctx: Record<string, any>): boolean {
 }
 
 export async function computeSmartListRecipients(rules: SmartListRule) {
-  const customers = await prisma.customer.findMany({
-    include: {
-      subscriptions: {
-        include: { plan: true, payments: { orderBy: { createdAt: "desc" }, take: 1 } },
-        orderBy: { createdAt: "desc" }
-      },
-      payments: { orderBy: { createdAt: "desc" }, take: 1 }
-    }
-  });
+  const [customers, approvedCounts, paymentCounts] = await Promise.all([
+    prisma.customer.findMany({
+      include: {
+        subscriptions: {
+          include: { plan: true, payments: { orderBy: { createdAt: "desc" }, take: 1 } },
+          orderBy: { createdAt: "desc" }
+        },
+        payments: { orderBy: { createdAt: "desc" }, take: 1 }
+      }
+    }),
+    prisma.payment.groupBy({
+      by: ["customerId"],
+      where: { status: PaymentStatus.APPROVED },
+      _count: { _all: true }
+    }),
+    prisma.payment.groupBy({
+      by: ["customerId"],
+      _count: { _all: true }
+    })
+  ]);
+
+  const approvedByCustomer = new Map<string, number>();
+  approvedCounts.forEach((row) => approvedByCustomer.set(String(row.customerId), Number(row._count?._all || 0)));
+  const paymentsByCustomer = new Map<string, number>();
+  paymentCounts.forEach((row) => paymentsByCustomer.set(String(row.customerId), Number(row._count?._all || 0)));
 
   const now = Date.now();
 
   return customers.filter((customer: any) => {
     const sub = customer.subscriptions?.[0] || null;
     const latestPayment = customer.payments?.[0] || sub?.payments?.[0] || null;
+    const approvedCount = approvedByCustomer.get(String(customer.id)) || 0;
+    const totalPayments = paymentsByCustomer.get(String(customer.id)) || 0;
 
     const currentPeriodEndAt = sub?.currentPeriodEndAt ? new Date(sub.currentPeriodEndAt) : null;
     const daysPastDue =
       currentPeriodEndAt && currentPeriodEndAt.getTime() < now
         ? Math.floor((now - currentPeriodEndAt.getTime()) / 86_400_000)
         : 0;
+
+    const tier =
+      approvedCount >= 6
+        ? "Oro"
+        : approvedCount >= 3
+          ? "Plata"
+          : approvedCount >= 1
+            ? "Bronce"
+            : "Rookie";
 
     const ctx: Record<string, any> = {
       email: customer.email || "",
@@ -177,6 +204,9 @@ export async function computeSmartListRecipients(rules: SmartListRule) {
       nextBillingDate: currentPeriodEndAt,
       lastPaymentStatus: latestPayment?.status ?? null,
       lastPaymentDate: latestPayment?.createdAt ?? null,
+      paymentsCount: totalPayments,
+      approvedPaymentsCount: approvedCount,
+      tier,
       daysPastDue,
       inMora: sub?.status === SubscriptionStatus.PAST_DUE || daysPastDue > 0,
       hasSubscription: !!sub,

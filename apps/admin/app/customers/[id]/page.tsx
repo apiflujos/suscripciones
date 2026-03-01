@@ -30,17 +30,11 @@ function statusPillClass(status: string) {
   return "pill-muted";
 }
 
-function tierForCustomer(approvedCount: number, hasSubscriptions: boolean, hasPayments: boolean) {
-  if (!hasSubscriptions && !hasPayments) {
-    return { label: "Potencial", cls: "tier-new", icon: "spark" };
-  }
-  if (!hasSubscriptions && hasPayments) {
-    return { label: "Activo (links)", cls: "tier-active", icon: "link" };
-  }
+function tierForCustomer(approvedCount: number) {
   if (approvedCount >= 6) return { label: "Oro", cls: "tier-gold", icon: "crown" };
   if (approvedCount >= 3) return { label: "Plata", cls: "tier-silver", icon: "medal" };
   if (approvedCount >= 1) return { label: "Bronce", cls: "tier-bronze", icon: "badge" };
-  return { label: "Potencial", cls: "tier-new", icon: "spark" };
+  return { label: "Rookie", cls: "tier-rookie", icon: "spark" };
 }
 
 function tierIcon(type: string) {
@@ -467,7 +461,7 @@ export default async function CustomerDetailPage({
   const formatWindowLabel = (fromDate: Date, toDate: Date) =>
     `${fromDate.toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" })} - ${toDate.toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" })}`;
 
-  const tier = tierForCustomer(approvedPayments.length, subscriptions.length > 0, payments.length > 0);
+  const tier = tierForCustomer(approvedPayments.length);
 
   const monthLabels = Array.from({ length: 6 }).map((_, idx) => {
     const d = new Date();

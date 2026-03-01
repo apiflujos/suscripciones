@@ -3133,6 +3133,12 @@ textarea.input {
   border-color: color-mix(in srgb, var(--status-success) 40%, transparent);
 }
 
+.tier-rookie {
+  background: color-mix(in srgb, var(--status-success) 18%, transparent);
+  color: var(--status-success);
+  border-color: color-mix(in srgb, var(--status-success) 40%, transparent);
+}
+
 .chart-donut {
   display: grid;
   place-items: center;
