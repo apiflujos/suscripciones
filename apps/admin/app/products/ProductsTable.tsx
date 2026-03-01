@@ -85,6 +85,7 @@ export function ProductsTable({
   const [sendIncludeImage, setSendIncludeImage] = useState(true);
   const [sendMessage, setSendMessage] = useState("");
   const [sendSearch, setSendSearch] = useState("");
+  const [sendSearchLocked, setSendSearchLocked] = useState(false);
   const [messageDirty, setMessageDirty] = useState(false);
   const [txError, setTxError] = useState("");
   const [planModalOpen, setPlanModalOpen] = useState(false);
@@ -237,26 +238,74 @@ export function ProductsTable({
 
   const modalTitle = useMemo(() => (editing ? `Editar: ${editing.name}` : "Editar producto"), [editing]);
 
+  const normalizedQuery = useMemo(() => {
+    const raw = sendSearch.trim();
+    if (!raw) return "";
+    return raw
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "")
+      .toLowerCase();
+  }, [sendSearch]);
+
   const filteredCustomers = useMemo(() => {
-    const q = sendSearch.trim().toLowerCase();
     const list = Array.isArray(customers) ? customers : [];
-    if (!q) return list;
+    if (!normalizedQuery) return list;
     return list.filter((c: any) => {
-      const name = String(c?.name || "").toLowerCase();
-      const email = String(c?.email || "").toLowerCase();
-      const phone = String(c?.phone || "").toLowerCase();
-      return name.includes(q) || email.includes(q) || phone.includes(q);
+      const name = String(c?.name || "")
+        .normalize("NFD")
+        .replace(/\p{Diacritic}/gu, "")
+        .toLowerCase();
+      const email = String(c?.email || "")
+        .normalize("NFD")
+        .replace(/\p{Diacritic}/gu, "")
+        .toLowerCase();
+      const phone = String(c?.phone || "")
+        .replace(/\s+/g, "")
+        .toLowerCase();
+      return name.includes(normalizedQuery) || email.includes(normalizedQuery) || phone.includes(normalizedQuery);
     });
-  }, [customers, sendSearch]);
+  }, [customers, normalizedQuery]);
 
   const selectedCustomer = useMemo(
     () => (Array.isArray(customers) ? customers.find((c: any) => String(c.id) === String(sendCustomerId)) : null),
     [customers, sendCustomerId]
   );
   const searchResults = useMemo(() => {
-    if (!sendSearch.trim()) return [];
-    return filteredCustomers.slice(0, 6);
-  }, [filteredCustomers, sendSearch]);
+    if (!normalizedQuery) return [];
+    const tokens = normalizedQuery.split(/\s+/).filter(Boolean);
+    const scored = filteredCustomers
+      .map((c: any) => {
+        const name = String(c?.name || "")
+          .normalize("NFD")
+          .replace(/\p{Diacritic}/gu, "")
+          .toLowerCase();
+        const email = String(c?.email || "")
+          .normalize("NFD")
+          .replace(/\p{Diacritic}/gu, "")
+          .toLowerCase();
+        const phone = String(c?.phone || "").replace(/\s+/g, "").toLowerCase();
+        let score = 0;
+        if (email && email === normalizedQuery) score += 120;
+        if (phone && phone === normalizedQuery.replace(/\s+/g, "")) score += 120;
+        if (name && name === normalizedQuery) score += 100;
+        if (name.startsWith(normalizedQuery)) score += 80;
+        if (email.startsWith(normalizedQuery) || phone.startsWith(normalizedQuery.replace(/\s+/g, ""))) score += 70;
+        if (name.includes(normalizedQuery)) score += 50;
+        if (email.includes(normalizedQuery) || phone.includes(normalizedQuery.replace(/\s+/g, ""))) score += 40;
+        if (tokens.length) {
+          const tokenHits = tokens.reduce((acc, t) => (name.includes(t) ? acc + 1 : acc), 0);
+          score += tokenHits * 10;
+        }
+        return { item: c, score };
+      })
+      .filter((row) => row.score > 0)
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return String(a.item?.name || "").localeCompare(String(b.item?.name || ""), "es");
+      })
+      .map((row) => row.item);
+    return scored.slice(0, 8);
+  }, [filteredCustomers, normalizedQuery]);
 
   function formatCustomerLabel(c: any) {
     return String(c?.name || c?.email || c?.phone || "Contacto").trim() || "Contacto";
@@ -270,9 +319,10 @@ export function ProductsTable({
 
   function pickCustomer(c: any) {
     if (!c) return;
+    const label = formatCustomerLabel(c);
     setSendCustomerId(String(c.id));
-    const label = [formatCustomerLabel(c), formatCustomerMeta(c)].filter(Boolean).join(" · ");
     setSendSearch(label);
+    setSendSearchLocked(true);
   }
 
   function isPublicImage(url?: string | null) {
@@ -313,6 +363,7 @@ export function ProductsTable({
     setSendIncludeLink(true);
     setSendCustomerId("");
     setSendSearch("");
+    setSendSearchLocked(false);
     setMessageDirty(false);
     setSendMessage(buildSendTemplate(item, true, includeImg));
   }
@@ -537,9 +588,12 @@ export function ProductsTable({
                     type="search"
                     placeholder="Nombre, email o teléfono"
                     value={sendSearch}
-                    onChange={(e) => setSendSearch(e.target.value)}
+                    onChange={(e) => {
+                      setSendSearch(e.target.value);
+                      setSendSearchLocked(false);
+                    }}
                   />
-                  {sendSearch.trim() ? (
+                  {sendSearch.trim() && !sendSearchLocked ? (
                     <div className="send-search-results">
                       <div className="send-search-heading">
                         {searchResults.length ? `Resultados rápidos (${searchResults.length})` : "Sin coincidencias"}
@@ -597,6 +651,20 @@ export function ProductsTable({
                       {formatCustomerMeta(selectedCustomer) ? <span> · {formatCustomerMeta(selectedCustomer)}</span> : null}
                     </div>
                   ) : null}
+                  {sendSearchLocked && selectedCustomer ? (
+                    <div className="field-hint">
+                      <button
+                        type="button"
+                        className="ghost btn-compact"
+                        onClick={() => {
+                          setSendSearch("");
+                          setSendSearchLocked(false);
+                        }}
+                      >
+                        Buscar otro contacto
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="field">
@@ -630,7 +698,11 @@ export function ProductsTable({
                       <span>Agregar imagen</span>
                     </label>
                   </label>
-                  <div className="field-hint">La imagen se envía como previsualización del enlace del producto.</div>
+                  <div className="field-hint">
+                    {isPublicImage(sendProduct.imageUrl)
+                      ? "La imagen se envía como adjunto público al canal del cliente."
+                      : "La imagen debe ser una URL https pública para poder enviarse."}
+                  </div>
                 </div>
               </div>
 

@@ -2,18 +2,18 @@
 
 import { useMemo, useRef, useState } from "react";
 
-export function CustomersFilters({
+export function ProductsFilters({
   q,
   tenantId,
+  smartListId,
   tenants,
-  smartLists,
-  smartListId
+  smartLists
 }: {
   q: string;
   tenantId: string;
+  smartListId: string;
   tenants: Array<{ id: string; name: string }>;
   smartLists: Array<{ id: string; name: string }>;
-  smartListId: string;
 }) {
   const [searchValue, setSearchValue] = useState(q);
   const canSearch = searchValue.trim().length > 0;
@@ -25,7 +25,7 @@ export function CustomersFilters({
   return (
     <>
       <form
-        action="/customers"
+        action="/products"
         method="GET"
         className="filtersForm"
         onSubmit={(event) => {
@@ -33,12 +33,13 @@ export function CustomersFilters({
         }}
       >
         {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+        {smartListId ? <input type="hidden" name="list" value={smartListId} /> : null}
         <input
           className="input"
           name="q"
           value={searchValue}
-          placeholder="Nombre, email, teléfono o identificación..."
-          aria-label="Buscar contactos"
+          placeholder="Buscar..."
+          aria-label="Buscar productos"
           onChange={(event) => setSearchValue(event.target.value)}
         />
         <button className="ghost" type="submit" disabled={!canSearch}>
@@ -46,7 +47,7 @@ export function CustomersFilters({
         </button>
       </form>
 
-      <form ref={tenantFormRef} action="/customers" method="GET" className="filtersForm">
+      <form ref={tenantFormRef} action="/products" method="GET" className="filtersForm">
         {trimmed ? <input type="hidden" name="q" value={trimmed} /> : null}
         {smartListId ? <input type="hidden" name="list" value={smartListId} /> : null}
         <select
@@ -64,7 +65,7 @@ export function CustomersFilters({
         </select>
       </form>
 
-      <form ref={listFormRef} action="/customers" method="GET" className="filtersForm">
+      <form ref={listFormRef} action="/products" method="GET" className="filtersForm">
         {trimmed ? <input type="hidden" name="q" value={trimmed} /> : null}
         {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
         <select

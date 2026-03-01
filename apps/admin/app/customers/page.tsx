@@ -29,6 +29,25 @@ async function fetchCustomers(opts?: { q?: string; take?: number; page?: number;
   return res.json || { items: [] as any[] };
 }
 
+async function fetchSmartLists() {
+  const res = await fetchAdminCached("/admin/comms/smart-lists?take=200", { ttlMs: 1500 });
+  return res.json || { items: [] as any[] };
+}
+
+async function fetchSmartListMembers(id: string, opts: { take: number; page: number }) {
+  if (!id) return { items: [] as any[] };
+  const take = Number(opts.take || 10);
+  const page = Number(opts.page || 1);
+  const skip = Math.max(0, Math.trunc(page) - 1) * Math.max(1, Math.trunc(take));
+  const res = await fetchAdminCached(
+    `/admin/comms/smart-lists/${encodeURIComponent(id)}/members?active=1&take=${encodeURIComponent(
+      String(Math.min(take, 200))
+    )}&skip=${encodeURIComponent(String(skip))}`,
+    { ttlMs: 1500 }
+  );
+  return res.json || { items: [] as any[] };
+}
+
 async function fetchPaymentLinks(q: string, tenantId?: string) {
   const sp = new URLSearchParams();
   sp.set("take", "200");
@@ -132,23 +151,30 @@ export default async function CustomersPage({
   const q = typeof sp.q === "string" ? sp.q : "";
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
   const tenantId = typeof sp.tenantId === "string" ? sp.tenantId : "";
+  const smartListId = typeof sp.list === "string" ? sp.list : "";
   const txCustomerId = typeof sp.tx === "string" ? sp.tx : "";
   const returnTo = `/customers?${new URLSearchParams({
     ...(q ? { q } : {}),
     ...(tenantId ? { tenantId } : {}),
+    ...(smartListId ? { list: smartListId } : {}),
     ...(txCustomerId ? { tx: txCustomerId } : {}),
     ...(Number.isFinite(page) && page > 1 ? { page: String(page) } : {})
   }).toString()}`;
   const take = 10;
-  const [data, tenantsRes, txCustomer, productsRes, templatesRes] = await Promise.all([
-    fetchCustomers({ q, take, page, tenantId }),
+  const [data, tenantsRes, txCustomer, productsRes, templatesRes, smartListsRes] = await Promise.all([
+    smartListId ? fetchSmartListMembers(smartListId, { take, page }) : fetchCustomers({ q, take, page, tenantId }),
     fetchAdminCached("/admin/tenants", { ttlMs: 1500 }),
     txCustomerId ? fetchCustomerById(txCustomerId) : Promise.resolve(null),
     fetchProducts(tenantId),
-    fetchCheckoutTemplates(tenantId)
+    fetchCheckoutTemplates(tenantId),
+    fetchSmartLists()
   ]);
-  const items = (data.items ?? []) as any[];
-  const total = Number.isFinite(Number(data.total)) ? Number(data.total) : items.length;
+  const smartListItems = smartListId ? ((data as any)?.items ?? []) : [];
+  const smartListCustomers = smartListId
+    ? smartListItems.map((m: any) => m?.customer).filter(Boolean)
+    : null;
+  const items = (smartListCustomers ?? data.items ?? []) as any[];
+  const total = Number.isFinite(Number((data as any)?.total)) ? Number((data as any).total) : items.length;
   if (txCustomer && !items.some((c) => String(c.id) === String(txCustomer.id))) {
     items.unshift(txCustomer);
   }
@@ -170,8 +196,9 @@ export default async function CustomersPage({
 
   const renderPagination = (totalCount: number) => {
     const currentPage = Math.max(1, Number(page) || 1);
-    const totalPages = totalCount > 0 ? Math.max(1, Math.ceil(totalCount / take)) : 1;
-    const hasNext = totalCount > 0 ? currentPage < totalPages : items.length >= take;
+    const totalKnown = !smartListId;
+    const hasNext = totalKnown ? totalCount > 0 && currentPage < Math.max(1, Math.ceil(totalCount / take)) : items.length >= take;
+    const totalPages = totalKnown ? Math.max(1, Math.ceil(totalCount / take)) : currentPage + (hasNext ? 1 : 0);
     const desktopWindow = 10;
     let start = Math.max(1, currentPage - Math.floor(desktopWindow / 2));
     let end = start + desktopWindow - 1;
@@ -190,7 +217,8 @@ export default async function CustomersPage({
     }
     const baseParams = {
       ...(q ? { q } : {}),
-      ...(tenantId ? { tenantId } : {})
+      ...(tenantId ? { tenantId } : {}),
+      ...(smartListId ? { list: smartListId } : {})
     };
     return (
       <div className="pagination pagination-indicator">
@@ -236,10 +264,15 @@ export default async function CustomersPage({
   const currentPage = Math.max(1, Number(page) || 1);
   const startIndex = total > 0 ? (currentPage - 1) * take + 1 : 0;
   const endIndex = items.length ? Math.min(total, startIndex + items.length - 1) : 0;
+  const smartListName = smartListsRes.json?.items?.find((list: any) => String(list.id) === String(smartListId))?.name || "";
   const summaryLabel =
     items.length > 0
-      ? `Mostrando ${startIndex}-${endIndex} de ${total} · ${take} por página`
-      : "Sin resultados";
+      ? smartListId
+        ? `Mostrando ${startIndex}-${endIndex} · Lista inteligente: ${smartListName || "Seleccionada"}`
+        : `Mostrando ${startIndex}-${endIndex} de ${total} · ${take} por página`
+      : smartListId
+        ? `Sin resultados en la lista inteligente ${smartListName || ""}`
+        : "Sin resultados";
 
   return (
     <main className="page" style={{ maxWidth: "100%" }}>
@@ -273,7 +306,13 @@ export default async function CustomersPage({
           <div className="filtersRow">
             <div className="filtersLeft">
               <div className="filtersPanel">
-                <CustomersFilters q={q} tenantId={tenantId} tenants={tenants} />
+            <CustomersFilters
+              q={q}
+              tenantId={tenantId}
+              tenants={tenants}
+              smartLists={(smartListsRes.json?.items ?? []) as Array<{ id: string; name: string }>}
+              smartListId={smartListId}
+            />
               </div>
             </div>
           </div>

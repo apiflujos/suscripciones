@@ -5,6 +5,7 @@ import { getCsrfToken } from "../lib/csrf";
 import { createTenant } from "../tenants/actions";
 import { ProductsModals } from "./ProductsModals";
 import { createCustomerFromBilling, createPlanAndSubscription } from "../billing/actions";
+import { ProductsFilters } from "./ProductsFilters";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,20 @@ function getConfig() {
 
 async function fetchAdmin(path: string) {
   return fetchAdminCached(path, { ttlMs: 1500 });
+}
+
+async function fetchSmartLists() {
+  const res = await fetchAdminCached("/admin/comms/smart-lists?take=200", { ttlMs: 1500 });
+  return res.json || { items: [] as any[] };
+}
+
+async function fetchSmartListMembers(id: string) {
+  if (!id) return { items: [] as any[] };
+  const res = await fetchAdminCached(
+    `/admin/comms/smart-lists/${encodeURIComponent(id)}/members?active=1&take=200`,
+    { ttlMs: 1500 }
+  );
+  return res.json || { items: [] as any[] };
 }
 
 export default async function ProductsPage({
@@ -41,9 +56,11 @@ export default async function ProductsPage({
   const sent = typeof spParams.sent === "string" ? spParams.sent : "";
   const q = typeof spParams.q === "string" ? spParams.q : "";
   const page = typeof spParams.page === "string" ? Number(spParams.page) : 1;
+  const smartListId = typeof spParams.list === "string" ? spParams.list : "";
   const returnTo = `/products?${new URLSearchParams({
     ...(tenantId ? { tenantId } : {}),
     ...(q ? { q } : {}),
+    ...(smartListId ? { list: smartListId } : {}),
     ...(Number.isFinite(page) && page > 1 ? { page: String(page) } : {})
   }).toString()}`;
 
@@ -53,16 +70,25 @@ export default async function ProductsPage({
   const take = 20;
   sp.set("take", String(take));
   if (Number.isFinite(page) && page > 1) sp.set("skip", String((Math.trunc(page) - 1) * take));
-  const [products, tenantsRes, customersRes, templatesRes] = await Promise.all([
+  const [products, tenantsRes, customersRes, templatesRes, smartListsRes, smartMembersRes] = await Promise.all([
     fetchAdmin(`/admin/products?${sp.toString()}`),
     fetchAdminCached("/admin/tenants", { ttlMs: 1500 }),
     fetchAdminCached(tenantId ? `/admin/customers?take=200&tenantId=${encodeURIComponent(tenantId)}` : "/admin/customers?take=200", { ttlMs: 1500 }),
-    fetchAdminCached(tenantId ? `/admin/checkout-templates?tenantId=${encodeURIComponent(tenantId)}` : "/admin/checkout-templates", { ttlMs: 1500 })
+    fetchAdminCached(tenantId ? `/admin/checkout-templates?tenantId=${encodeURIComponent(tenantId)}` : "/admin/checkout-templates", { ttlMs: 1500 }),
+    fetchSmartLists(),
+    smartListId ? fetchSmartListMembers(smartListId) : Promise.resolve({ items: [] as any[] })
   ]);
 
   const productItems = (products.json?.items ?? []) as any[];
   const tenants = (tenantsRes.json?.items ?? []) as Array<{ id: string; name: string }>;
   const tenantById = new Map(tenants.map((t) => [String(t.id), String(t.name)]));
+  const smartLists = (smartListsRes.json?.items ?? []) as Array<{ id: string; name: string }>;
+  const smartListName = smartLists.find((list) => String(list.id) === String(smartListId))?.name || "";
+  const smartListMembers = (smartMembersRes.items ?? smartMembersRes.json?.items ?? []) as any[];
+  const smartListCustomers = smartListId
+    ? smartListMembers.map((m: any) => m?.customer).filter(Boolean)
+    : (customersRes.json?.items ?? []);
+  const filteredCustomers = smartListCustomers;
 
   return (
     <main className="page pageWide">
@@ -83,28 +109,28 @@ export default async function ProductsPage({
             <div className="filtersLeft">
               <div className="filtersNote">Gestiona productos y servicios y asócialos a contactos para crear planes o suscripciones.</div>
               <div className="filtersPanel">
-                <form action="/products" method="GET" className="filtersForm">
-                  {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-                  <input className="input" name="q" defaultValue={q} placeholder="Buscar..." aria-label="Buscar productos" />
-                  <button className="ghost" type="submit">
-                    Buscar
-                  </button>
-                </form>
-                <form action="/products" method="GET" className="filtersForm">
-                  {q ? <input type="hidden" name="q" value={q} /> : null}
-                  <select className="select" name="tenantId" defaultValue={tenantId}>
-                    <option value="">Canal: (todos)</option>
-                    {tenants.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
-                    ))}
-                  </select>
-                  <button className="ghost" type="submit">Aplicar</button>
-                </form>
+                <ProductsFilters
+                  q={q}
+                  tenantId={tenantId}
+                  smartListId={smartListId}
+                  tenants={tenants}
+                  smartLists={smartLists}
+                />
                 <form action={createTenant} className="filtersForm">
                   <input type="hidden" name="csrf" value={csrfToken} />
-                  <input type="hidden" name="returnTo" value={`/products${tenantId || q ? `?${new URLSearchParams({ ...(tenantId ? { tenantId } : {}), ...(q ? { q } : {}) }).toString()}` : ""}`} />
+                  <input
+                    type="hidden"
+                    name="returnTo"
+                    value={`/products${
+                      tenantId || q || smartListId
+                        ? `?${new URLSearchParams({
+                            ...(tenantId ? { tenantId } : {}),
+                            ...(q ? { q } : {}),
+                            ...(smartListId ? { list: smartListId } : {})
+                          }).toString()}`
+                        : ""
+                    }`}
+                  />
                   <input className="input" name="name" placeholder="Nuevo canal" />
                   <button className="ghost btn-create" type="submit">Crear canal</button>
                 </form>
@@ -112,6 +138,8 @@ export default async function ProductsPage({
             </div>
             <div className="filtersRight">
               <span className="pill">{productItems.length} resultados</span>
+              {smartListId ? <span className="pill">Contactos: {filteredCustomers.length}</span> : null}
+              {smartListId ? <span className="pill pill-muted">Lista: {smartListName || "seleccionada"}</span> : null}
             </div>
           </div>
         </div>
@@ -119,7 +147,7 @@ export default async function ProductsPage({
         <div className="settings-group-body">
           <div style={{ display: "grid", gap: 14 }}>
             <ProductsModals
-              customers={customersRes.json?.items ?? []}
+              customers={filteredCustomers}
               products={productItems}
               checkoutTemplates={templatesRes.json?.items ?? []}
               csrfToken={csrfToken}
@@ -146,7 +174,7 @@ export default async function ProductsPage({
               csrfToken={csrfToken}
               deleteProductAction={deleteProduct}
               tenants={tenants}
-              customers={customersRes.json?.items ?? []}
+              customers={filteredCustomers}
               checkoutTemplates={templatesRes.json?.items ?? []}
               createCustomer={createCustomerFromBilling}
               createPlanAndSubscription={createPlanAndSubscription}
@@ -167,7 +195,8 @@ export default async function ProductsPage({
               const mobileEnd = Math.min(end, mobileStart + (mobileWindow - 1));
               const baseParams = {
                 ...(q ? { q } : {}),
-                ...(tenantId ? { tenantId } : {})
+                ...(tenantId ? { tenantId } : {}),
+                ...(smartListId ? { list: smartListId } : {})
               };
               return (
                 <div className="pagination pagination-indicator">
