@@ -232,14 +232,7 @@ export async function updateAiProvider(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);
   const provider = String(formData.get("provider") || "").trim().toUpperCase();
-  const activeProvider = String(formData.get("activeProvider") || "").trim().toUpperCase();
   const apiKey = String(formData.get("apiKey") || "").trim();
-  const baseUrlRaw = String(formData.get("baseUrl") || "").trim();
-  const baseUrl = baseUrlRaw ? normalizeUrl(baseUrlRaw) : "";
-  const model = String(formData.get("model") || "").trim();
-  const maxTokensRaw = String(formData.get("maxTokens") || "").trim();
-  const temperatureRaw = String(formData.get("temperature") || "").trim();
-  const timeoutMsRaw = String(formData.get("timeoutMs") || "").trim();
 
   if (!provider) {
     redirectWith("ai_save", "fail", "provider_required", returnTo);
@@ -251,13 +244,7 @@ export async function updateAiProvider(formData: FormData) {
       method: "PUT",
       body: JSON.stringify({
         provider,
-        ...(activeProvider ? { activeProvider } : {}),
-        ...(apiKey ? { apiKey } : {}),
-        ...(baseUrl ? { baseUrl } : {}),
-        ...(model ? { model } : {}),
-        ...(maxTokensRaw ? { maxTokens: Number(maxTokensRaw) } : {}),
-        ...(temperatureRaw ? { temperature: Number(temperatureRaw) } : {}),
-        ...(timeoutMsRaw ? { timeoutMs: Number(timeoutMsRaw) } : {})
+        ...(apiKey ? { apiKey } : {})
       })
     });
     redirectWith("ai_save", "ok", undefined, returnTo);

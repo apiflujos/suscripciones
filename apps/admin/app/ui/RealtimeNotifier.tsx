@@ -30,13 +30,14 @@ export function RealtimeNotifier() {
   const [usePolling, setUsePolling] = useState(false);
   const lastSeenRef = useRef<string>("");
   const reconnectRef = useRef<NodeJS.Timeout | null>(null);
-  const connectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const errorCountRef = useRef(0);
   const soundEnabledRef = useRef(false);
   const soundEnabledStateRef = useRef(false);
   const volumeRef = useRef(0.55);
   const lastSoundRef = useRef(0);
   const seenIdsRef = useRef<Set<string>>(new Set());
+  const lastMessageRef = useRef<number>(0);
+  const healthRef = useRef<NodeJS.Timeout | null>(null);
 
   const [soundEnabled, setSoundEnabled] = useState(false);
   const [volume, setVolume] = useState(0.55);
@@ -141,39 +142,36 @@ export function RealtimeNotifier() {
     const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
     if (!AudioCtx) return;
     const ctx = new AudioCtx();
+    ctx.resume().catch(() => {});
     const now = ctx.currentTime;
 
-    const gain = ctx.createGain();
     const base = volumeRef.current || 0.55;
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.55 * base, now + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
-    gain.connect(ctx.destination);
 
-    const osc = ctx.createOscillator();
-    osc.type = "square";
-    osc.frequency.setValueAtTime(1200, now);
-    osc.frequency.exponentialRampToValueAtTime(240, now + 0.3);
-    osc.connect(gain);
-    osc.start(now);
-    osc.stop(now + 0.35);
+    const playTone = (type: OscillatorType, startFreq: number, endFreq: number, startAt: number, duration: number, gainLevel: number) => {
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, startAt);
+      g.gain.exponentialRampToValueAtTime(gainLevel * base, startAt + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
+      g.connect(ctx.destination);
 
-    const clickGain = ctx.createGain();
-    clickGain.gain.setValueAtTime(0.0001, now);
-    clickGain.gain.exponentialRampToValueAtTime(0.35 * base, now + 0.01);
-    clickGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
-    clickGain.connect(ctx.destination);
+      const o = ctx.createOscillator();
+      o.type = type;
+      o.frequency.setValueAtTime(startFreq, startAt);
+      o.frequency.exponentialRampToValueAtTime(endFreq, startAt + duration);
+      o.connect(g);
+      o.start(startAt);
+      o.stop(startAt + duration);
+    };
 
-    const clickOsc = ctx.createOscillator();
-    clickOsc.type = "triangle";
-    clickOsc.frequency.setValueAtTime(1800, now);
-    clickOsc.connect(clickGain);
-    clickOsc.start(now + 0.05);
-    clickOsc.stop(now + 0.12);
+    // "Ka" thunk
+    playTone("sawtooth", 220, 110, now, 0.12, 0.35);
+    // "Ching" bell
+    playTone("triangle", 1200, 800, now + 0.04, 0.22, 0.45);
+    playTone("sine", 1600, 900, now + 0.08, 0.25, 0.35);
 
     setTimeout(() => {
       ctx.close().catch(() => {});
-    }, 500);
+    }, 700);
   };
 
   const playFailSound = () => {
@@ -185,6 +183,7 @@ export function RealtimeNotifier() {
     const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
     if (!AudioCtx) return;
     const ctx = new AudioCtx();
+    ctx.resume().catch(() => {});
     const now = ctx.currentTime;
 
     const base = volumeRef.current || 0.55;
@@ -263,20 +262,11 @@ export function RealtimeNotifier() {
       setStatus("connecting");
       const since = lastSeenRef.current || new Date(Date.now() - 60 * 1000).toISOString();
       source = new EventSource(`/api/realtime?since=${encodeURIComponent(since)}`);
-      if (connectTimeoutRef.current) clearTimeout(connectTimeoutRef.current);
-      connectTimeoutRef.current = setTimeout(() => {
-        if (!active) return;
-        setStatus("disconnected");
-        source?.close();
-        if (reconnectRef.current) clearTimeout(reconnectRef.current);
-        reconnectRef.current = setTimeout(connect, 4000);
-      }, 7000);
-
       source.onopen = () => {
         if (!active) return;
-        if (connectTimeoutRef.current) clearTimeout(connectTimeoutRef.current);
         errorCountRef.current = 0;
         setStatus("connected");
+        lastMessageRef.current = Date.now();
       };
 
       source.onmessage = (evt) => {
@@ -289,11 +279,12 @@ export function RealtimeNotifier() {
         }
         const events: RealtimeEvent[] = Array.isArray(payload.events) ? payload.events : [];
         handleEvents(events, payload.serverTime);
+        lastMessageRef.current = Date.now();
+        setStatus("connected");
       };
 
       source.onerror = () => {
         if (!active) return;
-        if (connectTimeoutRef.current) clearTimeout(connectTimeoutRef.current);
         setStatus("disconnected");
         source?.close();
         if (reconnectRef.current) clearTimeout(reconnectRef.current);
@@ -307,11 +298,23 @@ export function RealtimeNotifier() {
     };
 
     connect();
+    if (healthRef.current) clearInterval(healthRef.current);
+    healthRef.current = setInterval(() => {
+      if (!active) return;
+      const last = lastMessageRef.current || 0;
+      if (!last) return;
+      if (Date.now() - last > 45000) {
+        setStatus("disconnected");
+        source?.close();
+        if (reconnectRef.current) clearTimeout(reconnectRef.current);
+        reconnectRef.current = setTimeout(connect, 1000);
+      }
+    }, 15000);
     return () => {
       active = false;
       source?.close();
       if (reconnectRef.current) clearTimeout(reconnectRef.current);
-      if (connectTimeoutRef.current) clearTimeout(connectTimeoutRef.current);
+      if (healthRef.current) clearInterval(healthRef.current);
     };
   }, [usePolling]);
 
@@ -328,6 +331,7 @@ export function RealtimeNotifier() {
         const events: RealtimeEvent[] = Array.isArray(payload.events) ? payload.events : [];
         handleEvents(events, payload.serverTime);
         setStatus("connected");
+        lastMessageRef.current = Date.now();
       } catch {
         setStatus("disconnected");
       }
@@ -368,7 +372,7 @@ export function RealtimeNotifier() {
           window.localStorage.setItem("apiflujos-realtime-sound", "1");
         } catch {}
       }
-      playCashSound();
+      setTimeout(() => playCashSound(), 120);
       const res = await fetch("/api/realtime/test", { method: "POST" });
       if (!res.ok) throw new Error("test_failed");
     } catch {

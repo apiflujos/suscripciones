@@ -97,14 +97,13 @@ export default async function SettingsPage({
   const commsSandbox = (comms?.sandbox || {}) as any;
   const commsActiveEnv = (comms?.activeEnv || "PRODUCTION") as "PRODUCTION" | "SANDBOX";
   const ai = (settings?.ai || {}) as any;
-  const aiActiveProvider = (ai?.activeProvider || "NONE") as "OPENAI" | "DEEPSEEK" | "NONE";
   const aiProviders = (ai?.providers || {}) as any;
   const aiOpenai = (aiProviders?.openai || {}) as any;
   const aiDeepseek = (aiProviders?.deepseek || {}) as any;
-  const openaiStatus = aiOpenai?.configured ? (aiActiveProvider === "OPENAI" ? "Activa" : "Disponible") : "Inactiva";
-  const openaiPill = aiOpenai?.configured ? (aiActiveProvider === "OPENAI" ? "pill-green" : "pill-warn") : "pill-muted";
-  const deepseekStatus = aiDeepseek?.configured ? (aiActiveProvider === "DEEPSEEK" ? "Activa" : "Disponible") : "Inactiva";
-  const deepseekPill = aiDeepseek?.configured ? (aiActiveProvider === "DEEPSEEK" ? "pill-green" : "pill-warn") : "pill-muted";
+  const openaiStatus = aiOpenai?.configured ? "Activa" : "Inactiva";
+  const openaiPill = aiOpenai?.configured ? "pill-green" : "pill-muted";
+  const deepseekStatus = aiDeepseek?.configured ? "Activa" : "Inactiva";
+  const deepseekPill = aiDeepseek?.configured ? "pill-green" : "pill-muted";
   const sp = (await searchParams) ?? {};
   const action = String(sp.a || "");
   const status = String(sp.status || "");
@@ -406,37 +405,19 @@ export default async function SettingsPage({
               <div className="panelHeaderRow">
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <h3>Inteligencia artificial</h3>
-                  <HelpTip text="Configura OpenAI o DeepSeek y selecciona el proveedor activo para reportes." />
+                  <HelpTip text="Configura una o ambas llaves. Si una falla, usamos la otra automáticamente." />
                 </div>
               </div>
             </div>
             <div className="settings-group-body">
-              <div className="card cardPad">
-                <form action={updateAiProvider} className="row" style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
-                  <input type="hidden" name="csrf" value={csrfToken} />
-                  <input type="hidden" name="provider" value="OPENAI" />
-                  <input type="hidden" name="returnTo" value={returnTo} />
-                  <div className="field" style={{ minWidth: 220 }}>
-                    <label>Proveedor activo</label>
-                    <select className="input" name="activeProvider" defaultValue={aiActiveProvider}>
-                      <option value="NONE">Ninguno</option>
-                      <option value="OPENAI">OpenAI</option>
-                      <option value="DEEPSEEK">DeepSeek</option>
-                    </select>
-                    <div className="field-hint">Se usa en análisis y recomendaciones.</div>
-                  </div>
-                  <PendingButton className="primary btn-save" type="submit" pendingText="Guardando...">
-                    Guardar
-                  </PendingButton>
-                </form>
-              </div>
-
               <div className="saved-connections-grid settings-saved-grid">
                 <div className="saved-conn-card">
                   <div className="saved-conn-header">
                     <div>
                       <strong>OpenAI</strong>
-                      <div className="saved-conn-sub">{aiOpenai?.configured ? "Configurada" : "Sin configurar"}</div>
+                      <div className="saved-conn-sub">
+                        {aiOpenai?.configured ? "Configurada · Modelo fijo gpt-4o-mini" : "Sin configurar"}
+                      </div>
                     </div>
                     <span className={`pill ${openaiPill}`}>
                       {openaiStatus}
@@ -454,28 +435,6 @@ export default async function SettingsPage({
                         name="apiKey"
                         placeholder={aiOpenai?.apiKeyMasked ? `Configurada (${aiOpenai.apiKeyMasked})` : "Sin configurar"}
                       />
-                    </div>
-                    <div className="field">
-                      <label>Base URL</label>
-                      <input className="input" name="baseUrl" defaultValue={aiOpenai?.baseUrl || ""} placeholder="https://api.openai.com/v1" />
-                    </div>
-                    <div className="field">
-                      <label>Modelo</label>
-                      <input className="input" name="model" defaultValue={aiOpenai?.model || ""} placeholder="gpt-4o-mini" />
-                    </div>
-                    <div className="field" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8 }}>
-                      <div className="field">
-                        <label>Máx. tokens</label>
-                        <input className="input" name="maxTokens" defaultValue={aiOpenai?.maxTokens ?? ""} placeholder="1024" />
-                      </div>
-                      <div className="field">
-                        <label>Temperatura</label>
-                        <input className="input" name="temperature" defaultValue={aiOpenai?.temperature ?? ""} placeholder="0.2" />
-                      </div>
-                      <div className="field">
-                        <label>Timeout (ms)</label>
-                        <input className="input" name="timeoutMs" defaultValue={aiOpenai?.timeoutMs ?? ""} placeholder="15000" />
-                      </div>
                     </div>
                     <PendingButton className="ghost btn-save" type="submit" pendingText="Guardando...">
                       Guardar
@@ -511,28 +470,6 @@ export default async function SettingsPage({
                         name="apiKey"
                         placeholder={aiDeepseek?.apiKeyMasked ? `Configurada (${aiDeepseek.apiKeyMasked})` : "Sin configurar"}
                       />
-                    </div>
-                    <div className="field">
-                      <label>Base URL</label>
-                      <input className="input" name="baseUrl" defaultValue={aiDeepseek?.baseUrl || ""} placeholder="https://api.deepseek.com" />
-                    </div>
-                    <div className="field">
-                      <label>Modelo</label>
-                      <input className="input" name="model" defaultValue={aiDeepseek?.model || ""} placeholder="deepseek-chat" />
-                    </div>
-                    <div className="field" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8 }}>
-                      <div className="field">
-                        <label>Máx. tokens</label>
-                        <input className="input" name="maxTokens" defaultValue={aiDeepseek?.maxTokens ?? ""} placeholder="1024" />
-                      </div>
-                      <div className="field">
-                        <label>Temperatura</label>
-                        <input className="input" name="temperature" defaultValue={aiDeepseek?.temperature ?? ""} placeholder="0.2" />
-                      </div>
-                      <div className="field">
-                        <label>Timeout (ms)</label>
-                        <input className="input" name="timeoutMs" defaultValue={aiDeepseek?.timeoutMs ?? ""} placeholder="15000" />
-                      </div>
                     </div>
                     <PendingButton className="ghost btn-save" type="submit" pendingText="Guardando...">
                       Guardar
