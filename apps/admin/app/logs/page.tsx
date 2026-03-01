@@ -395,7 +395,9 @@ export default async function LogsPage({
                             {chip.label}
                           </span>
                         </td>
-                        <td className="log-message-cell">{detailText}</td>
+                        <td className="log-message-cell" title={detailRaw}>
+                          <span className="log-message-text">{detailText}</span>
+                        </td>
                       </tr>
                     );
                   })}
