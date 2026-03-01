@@ -46,7 +46,7 @@ export async function getOperationsReport(args: { from: Date; to: Date; granular
   const { trunc, step } = granularityConfig(args.granularity);
   const tenantId = String(args.tenantId || "").trim();
   const hasTenant = Boolean(tenantId);
-  const tenantFilter = (alias: string, idx: number) => (hasTenant ? ` AND ${alias}."tenantId" = $${idx}` : "");
+  const tenantFilter = (alias: string, idx: number) => (hasTenant ? ` AND ${alias}."tenantId" = $${idx}::uuid` : "");
   const tenantArgs = hasTenant ? [tenantId] : [];
 
   const buckets = (await prisma.$queryRawUnsafe<BucketRow[]>(
@@ -200,7 +200,7 @@ export async function getChatwootReport(args: { from: Date; to: Date; granularit
   const { trunc, step } = granularityConfig(args.granularity);
   const tenantId = String(args.tenantId || "").trim();
   const hasTenant = Boolean(tenantId);
-  const tenantFilter = (alias: string, idx: number) => (hasTenant ? ` AND ${alias}."tenantId" = $${idx}` : "");
+  const tenantFilter = (alias: string, idx: number) => (hasTenant ? ` AND ${alias}."tenantId" = $${idx}::uuid` : "");
   const tenantArgs = hasTenant ? [tenantId] : [];
 
   const buckets = (await prisma.$queryRawUnsafe<BucketRow[]>(

@@ -91,9 +91,9 @@ function renderContactBlock(item: any) {
   const phone = item?.customer?.phone || item?.customerPhone || "";
   const meta = [email, phone].filter(Boolean).join(" · ");
   return (
-    <div style={{ display: "grid", gap: 2 }}>
-      <span>{name || "—"}</span>
-      {meta ? <span className="muted" style={{ fontSize: 12 }}>{meta}</span> : null}
+    <div className="log-contact">
+      <span className="log-contact-name">{name || "—"}</span>
+      {meta ? <span className="log-contact-meta muted">{meta}</span> : null}
     </div>
   );
 }
@@ -186,6 +186,10 @@ export default async function LogsPage({
   const webhooks = tab === "webhooks" ? await fetchAdmin(`/admin/webhook-events?${webhooksParams.toString()}`) : empty;
   const messages = tab === "messages" ? await fetchAdmin(`/admin/logs/messages?${baseParams.toString()}`) : empty;
   const payments = tab === "payments" ? await fetchAdmin(`/admin/logs/payments?${paymentsParams.toString()}`) : empty;
+  const settingsRes = await fetchAdmin("/admin/settings");
+  const aiConfig = settingsRes.ok ? settingsRes.json?.ai : null;
+  const aiProviders = aiConfig?.providers || null;
+  const aiEnabled = Boolean(aiConfig?.enabled && (aiProviders?.openai?.configured || aiProviders?.deepseek?.configured));
 
   const sysItems = (system.json?.items ?? []) as any[];
   const jobItems = (jobs.json?.items ?? []) as any[];
@@ -361,6 +365,7 @@ export default async function LogsPage({
               <Link
                 className={`ghost no-icon panel-tab ${tab === "system" ? "is-active" : ""}`}
                 href={`/logs?${new URLSearchParams({ tab: "system" })}`}
+                prefetch={false}
                 data-loader={tab === "system" ? "off" : undefined}
                 aria-disabled={tab === "system" ? "true" : undefined}
                 tabIndex={tab === "system" ? -1 : undefined}
@@ -370,6 +375,7 @@ export default async function LogsPage({
               <Link
                 className={`ghost no-icon panel-tab ${tab === "webhooks" ? "is-active" : ""}`}
                 href={`/logs?${new URLSearchParams({ tab: "webhooks" })}`}
+                prefetch={false}
                 data-loader={tab === "webhooks" ? "off" : undefined}
                 aria-disabled={tab === "webhooks" ? "true" : undefined}
                 tabIndex={tab === "webhooks" ? -1 : undefined}
@@ -379,6 +385,7 @@ export default async function LogsPage({
               <Link
                 className={`ghost no-icon panel-tab ${tab === "messages" ? "is-active" : ""}`}
                 href={`/logs?${new URLSearchParams({ tab: "messages" })}`}
+                prefetch={false}
                 data-loader={tab === "messages" ? "off" : undefined}
                 aria-disabled={tab === "messages" ? "true" : undefined}
                 tabIndex={tab === "messages" ? -1 : undefined}
@@ -388,6 +395,7 @@ export default async function LogsPage({
               <Link
                 className={`ghost no-icon panel-tab ${tab === "jobs" ? "is-active" : ""}`}
                 href={`/logs?${new URLSearchParams({ tab: "jobs" })}`}
+                prefetch={false}
                 data-loader={tab === "jobs" ? "off" : undefined}
                 aria-disabled={tab === "jobs" ? "true" : undefined}
                 tabIndex={tab === "jobs" ? -1 : undefined}
@@ -397,6 +405,7 @@ export default async function LogsPage({
               <Link
                 className={`ghost no-icon panel-tab ${tab === "payments" ? "is-active" : ""}`}
                 href={`/logs?${new URLSearchParams({ tab: "payments" })}`}
+                prefetch={false}
                 data-loader={tab === "payments" ? "off" : undefined}
                 aria-disabled={tab === "payments" ? "true" : undefined}
                 tabIndex={tab === "payments" ? -1 : undefined}
@@ -506,9 +515,11 @@ export default async function LogsPage({
         </div>
 
         <div className="settings-group-body">
-          <div className="logs-ai-wrapper">
-            <AiAssistant from={from} to={to} tenantId={tenantId} />
-          </div>
+          {aiEnabled ? (
+            <div className="logs-ai-wrapper">
+              <AiAssistant from={from} to={to} tenantId={tenantId || undefined} scope="logs" />
+            </div>
+          ) : null}
           {pagination}
           {tab === "system" ? (
             <LogsSystemTable items={normalized} />
@@ -516,11 +527,11 @@ export default async function LogsPage({
             <div className="panel module" style={{ padding: 0 }}>
               <table className="table logs-table logs-table-messages" aria-label="Tabla de mensajes">
                 <colgroup>
-                  <col style={{ width: "120px" }} />
-                  <col style={{ width: "160px" }} />
-                  <col style={{ width: "80px" }} />
-                  <col style={{ width: "100px" }} />
-                  <col />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "16%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "54%" }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -545,8 +556,8 @@ export default async function LogsPage({
                     return (
                       <tr key={m.id}>
                         <td className="log-date-cell"><LocalDateTime value={m.createdAt} variant="stacked" /></td>
-                        <td>{m.customer?.name || m.customer?.email || "—"}</td>
-                        <td>{m.type || "—"}</td>
+                        <td className="log-contact-cell">{renderContactBlock(m)}</td>
+                        <td className="log-type-cell">{m.type || "—"}</td>
                         <td>
                           <span className={`status-chip ${chip.cls}`}>
                             <span className={`status-led ${chip.cls === "is-success" ? "is-ok" : ""}`} />
@@ -573,13 +584,13 @@ export default async function LogsPage({
             <div className="panel module" style={{ padding: 0 }}>
               <table className="table logs-table logs-table-jobs" aria-label="Tabla de jobs">
                 <colgroup>
-                  <col style={{ width: "150px" }} />
-                  <col style={{ width: "140px" }} />
-                  <col style={{ width: "120px" }} />
-                  <col style={{ width: "90px" }} />
-                  <col style={{ width: "240px" }} />
-                  <col />
-                  <col style={{ width: "130px" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "34%" }} />
+                  <col style={{ width: "10%" }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -611,7 +622,8 @@ export default async function LogsPage({
                         : j.webhookProcessStatus === "PROCESSED"
                           ? "Webhook procesado"
                           : null;
-                    const detail = j.lastError || webhookNote || "—";
+                    const detailRaw = String(j.lastError || webhookNote || "—");
+                    const detail = detailRaw.length > 260 ? `${detailRaw.slice(0, 260)}…` : detailRaw;
                     return (
                       <tr key={j.id}>
                         <td className="log-date-cell"><LocalDateTime value={j.updatedAt} variant="stacked" /></td>
@@ -623,8 +635,8 @@ export default async function LogsPage({
                           </span>
                         </td>
                         <td>{attemptsShown} / {maxAttempts}</td>
-                        <td className="log-target-cell">{target}</td>
-                        <td className="log-detail-cell">{detail}</td>
+                        <td className="log-target-cell" title={target}>{target}</td>
+                        <td className="log-detail-cell" title={detailRaw}>{detail}</td>
                         <td style={{ textAlign: "right" }}>
                           {status === "FAILED" ? (
                             <form action={retryJob}>
@@ -653,14 +665,14 @@ export default async function LogsPage({
             <div className="panel module" style={{ padding: 0 }}>
               <table className="table logs-table logs-table-payments" aria-label="Tabla de pagos">
                 <colgroup>
-                  <col style={{ width: "120px" }} />
-                  <col style={{ width: "200px" }} />
-                  <col style={{ width: "180px" }} />
-                  <col style={{ width: "100px" }} />
-                  <col style={{ width: "100px" }} />
-                  <col style={{ width: "180px" }} />
-                  <col style={{ width: "150px" }} />
-                  <col style={{ width: "110px" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "22%" }} />
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "12%" }} />
+                  <col style={{ width: "12%" }} />
+                  <col style={{ width: "14%" }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -682,8 +694,8 @@ export default async function LogsPage({
                     return (
                       <tr key={p.id}>
                         <td className="log-date-cell"><LocalDateTime value={p.createdAt} variant="stacked" /></td>
-                        <td>{renderContactBlock(p)}</td>
-                        <td>{planName}</td>
+                        <td className="log-contact-cell">{renderContactBlock(p)}</td>
+                        <td className="log-plan-cell">{planName}</td>
                         <td>
                           <span className={`status-chip ${chip.cls}`}>
                             <span className={`status-led ${chip.cls === "is-success" ? "is-ok" : ""}`} />
@@ -691,10 +703,12 @@ export default async function LogsPage({
                           </span>
                         </td>
                         <td>{formatAmount(p.amountInCents, p.currency)}</td>
-                        <td className="log-ref-cell">
+                        <td className="log-ref-cell" title={p.reference || "—"}>
                           <span className="log-ref-main">{p.reference || "—"}</span>
                         </td>
-                        <td className="log-transaction-cell">{p.wompiTransactionId || p.wompiPaymentLinkId || "—"}</td>
+                        <td className="log-transaction-cell" title={p.wompiTransactionId || p.wompiPaymentLinkId || "—"}>
+                          {p.wompiTransactionId || p.wompiPaymentLinkId || "—"}
+                        </td>
                         <td style={{ textAlign: "right" }}>
                           {contactQuery ? (
                             <Link className="ghost btn-compact btn-view" href={`/customers?q=${encodeURIComponent(String(contactQuery))}`}>
@@ -737,19 +751,19 @@ export default async function LogsPage({
                   </div>
                 </div>
               </div>
-              <table className="table logs-table logs-table-webhooks" aria-label="Tabla de webhooks">
-                <colgroup>
-                  <col style={{ width: "120px" }} />
-                  <col style={{ width: "190px" }} />
-                  <col style={{ width: "90px" }} />
-                  <col style={{ width: "180px" }} />
-                  <col style={{ width: "120px" }} />
-                  <col style={{ width: "170px" }} />
-                  <col style={{ width: "110px" }} />
-                  <col style={{ width: "110px" }} />
-                  <col style={{ width: "180px" }} />
-                  <col style={{ width: "110px" }} />
-                </colgroup>
+                  <table className="table logs-table logs-table-webhooks" aria-label="Tabla de webhooks">
+                    <colgroup>
+                      <col style={{ width: "10%" }} />
+                      <col style={{ width: "17%" }} />
+                      <col style={{ width: "8%" }} />
+                      <col style={{ width: "12%" }} />
+                      <col style={{ width: "8%" }} />
+                      <col style={{ width: "10%" }} />
+                      <col style={{ width: "9%" }} />
+                      <col style={{ width: "8%" }} />
+                      <col style={{ width: "12%" }} />
+                      <col style={{ width: "6%" }} />
+                    </colgroup>
                 <thead>
                   <tr>
                     <th>Fecha</th>
@@ -775,7 +789,7 @@ export default async function LogsPage({
                     return (
                       <tr key={e.id}>
                         <td className="log-date-cell"><LocalDateTime value={e.receivedAt} variant="stacked" /></td>
-                        <td>{renderContactBlock(e)}</td>
+                        <td className="log-contact-cell">{renderContactBlock(e)}</td>
                         <td>{formatAmount(e.amountInCents, e.currency)}</td>
                         <td className="log-ref-cell">
                           <div className="log-ref">

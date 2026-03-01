@@ -24,6 +24,14 @@ export function LogsSystemTable({ items }: { items: LogItem[] }) {
   return (
     <div className="panel module" style={{ padding: 0 }}>
       <table className="table logs-table" aria-label="Tabla de logs">
+        <colgroup>
+          <col style={{ width: "12%" }} />
+          <col style={{ width: "16%" }} />
+          <col style={{ width: "16%" }} />
+          <col style={{ width: "10%" }} />
+          <col style={{ width: "34%" }} />
+          <col style={{ width: "12%" }} />
+        </colgroup>
         <thead>
           <tr>
             <th>Fecha</th>

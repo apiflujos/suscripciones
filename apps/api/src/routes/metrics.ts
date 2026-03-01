@@ -29,8 +29,7 @@ metricsRouter.get("/overview", async (req, res) => {
   const hasExplicitRange = Boolean(parsed.data.from || parsed.data.to);
   const cacheTtlSeconds = 300;
   const staleSeconds = 900;
-  const tenantId = parsed.data.tenantId ?? (await getEffectiveTenantId(req));
-  if (!tenantId) return res.status(400).json({ error: "tenant_required" });
+  const resolvedTenantId = parsed.data.tenantId ?? (await getEffectiveTenantId(req)) ?? null;
 
   let cacheFrom = from;
   let cacheTo = to;
@@ -42,9 +41,18 @@ metricsRouter.get("/overview", async (req, res) => {
     cacheFrom = new Date(cacheTo.getTime() - rangeMs);
   }
 
+  if (!resolvedTenantId) {
+    try {
+      const data = await getMetricsOverview({ from: cacheFrom, to: cacheTo, granularity: parsed.data.granularity, tenantId: null });
+      return res.json(data);
+    } catch (err: any) {
+      return res.status(400).json({ error: "invalid_range", message: err?.message ? String(err.message) : "invalid_range" });
+    }
+  }
+
   const cacheKey = {
     reportKey: "metrics.overview",
-    tenantId,
+    tenantId: resolvedTenantId,
     from: cacheFrom,
     to: cacheTo,
     granularity: parsed.data.granularity,
@@ -60,7 +68,7 @@ metricsRouter.get("/overview", async (req, res) => {
     res.setHeader("x-report-cache", "STALE");
     res.json(cached.payload);
     setTimeout(() => {
-      getMetricsOverview({ from: cacheFrom, to: cacheTo, granularity: parsed.data.granularity, tenantId })
+      getMetricsOverview({ from: cacheFrom, to: cacheTo, granularity: parsed.data.granularity, tenantId: resolvedTenantId })
         .then((data) => setReportCache(cacheKey, data, cacheTtlSeconds, staleSeconds))
         .catch(() => {});
     }, 0);
@@ -68,7 +76,7 @@ metricsRouter.get("/overview", async (req, res) => {
   }
 
   try {
-    const data = await getMetricsOverview({ from: cacheFrom, to: cacheTo, granularity: parsed.data.granularity, tenantId });
+    const data = await getMetricsOverview({ from: cacheFrom, to: cacheTo, granularity: parsed.data.granularity, tenantId: resolvedTenantId });
     await setReportCache(cacheKey, data, cacheTtlSeconds, staleSeconds);
     res.setHeader("x-report-cache", "MISS");
     res.json(data);

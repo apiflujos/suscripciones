@@ -34,6 +34,7 @@ export function RealtimeNotifier() {
   const reconnectRef = useRef<NodeJS.Timeout | null>(null);
   const errorCountRef = useRef(0);
   const sourceRef = useRef<EventSource | null>(null);
+  const statusRef = useRef<RealtimeStatus>("connecting");
   const soundEnabledRef = useRef(false);
   const soundEnabledStateRef = useRef(false);
   const volumeRef = useRef(0.55);
@@ -165,28 +166,36 @@ export function RealtimeNotifier() {
     if (!cashAudioRef.current) {
       const audio = new Audio(CASH_SOUND_SRC);
       audio.preload = "auto";
+      try {
+        audio.load();
+      } catch {}
       cashAudioRef.current = audio;
     }
     return cashAudioRef.current;
   };
 
+  const setStatusSafe = (next: RealtimeStatus) => {
+    statusRef.current = next;
+    setStatus(next);
+  };
+
   const markConnected = () => {
-    setStatus("connected");
+    setStatusSafe("connected");
     lastMessageRef.current = Date.now();
     lastOkRef.current = lastMessageRef.current;
   };
 
   const markConnecting = () => {
+    const readyState = sourceRef.current?.readyState;
+    if (readyState === EventSource.OPEN) {
+      setStatusSafe("connected");
+      return;
+    }
     if (typeof navigator !== "undefined" && navigator.onLine === false) {
-      setStatus("disconnected");
+      setStatusSafe("disconnected");
       return;
     }
-    const last = lastOkRef.current || lastMessageRef.current || 0;
-    if (last && Date.now() - last < 30000) {
-      setStatus("connected");
-      return;
-    }
-    setStatus("connecting");
+    setStatusSafe("connecting");
   };
 
   const playCashSynth = (base: number) => {
@@ -243,6 +252,7 @@ export function RealtimeNotifier() {
       try {
         audio.pause();
         audio.currentTime = 0;
+        audio.load();
       } catch {}
       audio.volume = base;
       const p = audio.play();
@@ -378,7 +388,7 @@ export function RealtimeNotifier() {
         if (reconnectRef.current) clearTimeout(reconnectRef.current);
         if (readyState === EventSource.CLOSED || readyState == null) {
           errorCountRef.current += 1;
-          if (errorCountRef.current >= 2) {
+          if (errorCountRef.current >= 1) {
             setUsePolling(true);
             markConnecting();
             return;
@@ -401,7 +411,7 @@ export function RealtimeNotifier() {
         return;
       }
       if (readyState === EventSource.OPEN) {
-        markConnected();
+        setStatusSafe("connected");
       }
     }, 15000);
     return () => {

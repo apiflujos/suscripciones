@@ -49,12 +49,24 @@ export function AiAssistant({
   from,
   to,
   tenantId,
-  customerId
+  customerId,
+  productId,
+  scope,
+  title,
+  subtitle,
+  emptyText,
+  placeholder
 }: {
   from?: string;
   to?: string;
   tenantId?: string;
   customerId?: string;
+  productId?: string;
+  scope?: "logs" | "metrics" | "customer" | "product";
+  title?: string;
+  subtitle?: string;
+  emptyText?: string;
+  placeholder?: string;
 }) {
   const [prompt, setPrompt] = useState("");
   const [messages, setMessages] = useState<AiMessage[]>([]);
@@ -71,7 +83,12 @@ export function AiAssistant({
   useEffect(() => {
     const loadHistory = async () => {
       try {
-        const res = await fetch("/api/ai/history?take=12", { cache: "no-store" });
+        const qs = new URLSearchParams({ take: "12" });
+        if (scope) qs.set("scope", scope);
+        if (tenantId) qs.set("tenantId", tenantId);
+        if (customerId) qs.set("customerId", customerId);
+        if (productId) qs.set("productId", productId);
+        const res = await fetch(`/api/ai/history?${qs.toString()}`, { cache: "no-store" });
         if (!res.ok) return;
         const json = await res.json().catch(() => ({}));
         const items = Array.isArray(json.items) ? json.items : [];
@@ -81,6 +98,16 @@ export function AiAssistant({
         const restored: AiMessage[] = [];
         for (const item of sorted) {
           const ctx = item.context || {};
+          const ctxScope = String(ctx.scope || "").trim();
+          const ctxTenantId = String(ctx.tenantId || "").trim();
+          const ctxCustomerId = String(ctx.customerId || "").trim();
+          const ctxProductId = String(ctx.productId || "").trim();
+          if (scope) {
+            if (!ctxScope || ctxScope !== scope) continue;
+          }
+          if (tenantId && ctxTenantId && tenantId !== ctxTenantId) continue;
+          if (customerId && ctxCustomerId && customerId !== ctxCustomerId) continue;
+          if (productId && ctxProductId && productId !== ctxProductId) continue;
           const question = String(ctx.question || "").trim();
           const answer = String(ctx.answer || ctx.error || "").trim();
           if (question) {
@@ -107,6 +134,14 @@ export function AiAssistant({
       const detail = (evt as CustomEvent)?.detail || {};
       const ctx = detail?.context || detail?.meta || detail || {};
       const requestId = String(ctx.requestId || detail.requestId || "").trim();
+      const ctxScope = String(ctx.scope || "").trim();
+      const ctxTenantId = String(ctx.tenantId || "").trim();
+      const ctxCustomerId = String(ctx.customerId || "").trim();
+      const ctxProductId = String(ctx.productId || "").trim();
+      if (scope && ctxScope && ctxScope !== scope) return;
+      if (customerId && ctxCustomerId && customerId !== ctxCustomerId) return;
+      if (tenantId && ctxTenantId && tenantId !== ctxTenantId) return;
+      if (productId && ctxProductId && productId !== ctxProductId) return;
       const answer = String(ctx.answer || ctx.error || detail.message || "").trim();
       if (!answer) return;
 
@@ -172,7 +207,7 @@ export function AiAssistant({
       const res = await fetch("/api/ai/ask", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ question: q, from, to, tenantId, customerId })
+        body: JSON.stringify({ question: q, from, to, tenantId, customerId, productId, scope })
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -202,15 +237,15 @@ export function AiAssistant({
     <div className="ai-assistant">
       <div className="ai-header">
         <div>
-          <div className="ai-title">Asistente de Logs</div>
-          <div className="ai-subtitle">{rangeLabel}</div>
+          <div className="ai-title">{title || "Asistente de Logs"}</div>
+          <div className="ai-subtitle">{subtitle || rangeLabel}</div>
         </div>
         <div className="ai-badge">IA</div>
       </div>
       <div className="ai-messages" ref={listRef}>
         {messages.length === 0 ? (
           <div className="ai-empty">
-            Pregunta por pagos, webhooks, jobs o eventos recientes. Ej: “¿Hubo pagos fallidos hoy?”.
+            {emptyText || "Pregunta por pagos, webhooks, jobs o eventos recientes. Ej: “¿Hubo pagos fallidos hoy?”."}
           </div>
         ) : null}
         {messages.map((m) => (
@@ -228,7 +263,7 @@ export function AiAssistant({
           className="input ai-input"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Escribe tu pregunta sobre logs o pagos..."
+          placeholder={placeholder || "Escribe tu pregunta sobre logs o pagos..."}
           rows={2}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {

@@ -71,8 +71,11 @@ reportsRouter.get("/commerce", async (req, res) => {
   const ttlSeconds = 300;
   const staleSeconds = 900;
   const cacheRange = normalizeCacheRange(from, to, ttlSeconds, hasExplicitRange);
-  const tenantId = parsed.data.tenantId ?? (await getEffectiveTenantId(req));
-  if (!tenantId) return res.status(400).json({ error: "tenant_required" });
+  const tenantId = parsed.data.tenantId ?? (await getEffectiveTenantId(req)) ?? null;
+  if (!tenantId) {
+    const payload = await getCommerceReport({ from: cacheRange.from, to: cacheRange.to, granularity: parsed.data.granularity, tenantId: null });
+    return res.json(payload);
+  }
   const key = {
     reportKey: "reports.commerce",
     tenantId,
@@ -96,8 +99,11 @@ reportsRouter.get("/operations", async (req, res) => {
   const ttlSeconds = 60;
   const staleSeconds = 300;
   const cacheRange = normalizeCacheRange(from, to, ttlSeconds, hasExplicitRange);
-  const tenantId = parsed.data.tenantId ?? (await getEffectiveTenantId(req));
-  if (!tenantId) return res.status(400).json({ error: "tenant_required" });
+  const tenantId = parsed.data.tenantId ?? (await getEffectiveTenantId(req)) ?? null;
+  if (!tenantId) {
+    const payload = await getOperationsReport({ from: cacheRange.from, to: cacheRange.to, granularity: parsed.data.granularity, tenantId: null });
+    return res.json(payload);
+  }
   const key = {
     reportKey: "reports.operations",
     tenantId,
@@ -121,8 +127,11 @@ reportsRouter.get("/chatwoot", async (req, res) => {
   const ttlSeconds = 60;
   const staleSeconds = 300;
   const cacheRange = normalizeCacheRange(from, to, ttlSeconds, hasExplicitRange);
-  const tenantId = parsed.data.tenantId ?? (await getEffectiveTenantId(req));
-  if (!tenantId) return res.status(400).json({ error: "tenant_required" });
+  const tenantId = parsed.data.tenantId ?? (await getEffectiveTenantId(req)) ?? null;
+  if (!tenantId) {
+    const payload = await getChatwootReport({ from: cacheRange.from, to: cacheRange.to, granularity: parsed.data.granularity, tenantId: null });
+    return res.json(payload);
+  }
   const key = {
     reportKey: "reports.chatwoot",
     tenantId,

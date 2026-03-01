@@ -32,9 +32,8 @@ export function LocalDateTime({
     return (
       <span className="date-stack">
         <span className="date-stack-top">{dayMonth}</span>
-        <span className="date-stack-bottom">
-          {time} · {shortDate}
-        </span>
+        <span className="date-stack-middle">{time}</span>
+        <span className="date-stack-bottom">{shortDate}</span>
       </span>
     );
   }

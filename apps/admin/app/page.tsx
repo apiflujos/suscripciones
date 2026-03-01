@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { fetchAdminCached, fetchPublicCached, getAdminApiConfig } from "./lib/adminApi";
 import { MetricsFilters } from "./ui/MetricsFilters";
+import { AiAssistant } from "./logs/AiAssistant";
 import {
   alignSeries,
   avg,
@@ -404,6 +405,10 @@ export default async function Home({
         { ttlMs: 1500 }
       )
     : { ok: false, status: 401, json: { error: "missing_admin_token" } };
+  const settingsRes = hasToken ? await fetchAdminCached("/admin/settings", { ttlMs: 1500 }) : { ok: false, json: null };
+  const aiConfig = settingsRes.ok ? settingsRes.json?.ai : null;
+  const aiProviders = aiConfig?.providers || null;
+  const aiEnabled = Boolean(aiConfig?.enabled && (aiProviders?.openai?.configured || aiProviders?.deepseek?.configured));
 
   const series: any[] = metrics.ok ? metrics.json?.series || [] : [];
   const prevSeries: any[] = prevMetrics.ok ? prevMetrics.json?.series || [] : [];
@@ -1169,6 +1174,19 @@ export default async function Home({
               ) : null}
             </>
           )}
+          {aiEnabled ? (
+            <div className="logs-ai-wrapper" style={{ marginTop: 18 }}>
+              <AiAssistant
+                from={fromDate}
+                to={toDate}
+                tenantId={tenantId || undefined}
+                scope="metrics"
+                title="Asistente de Métricas"
+                emptyText="Pregunta por ingresos, pagos, suscripciones o conversión. Ej: “¿Cómo cambió la aprobación esta semana?”."
+                placeholder="Pregunta sobre métricas y tendencias..."
+              />
+            </div>
+          ) : null}
         </div>
       </section>
     </main>

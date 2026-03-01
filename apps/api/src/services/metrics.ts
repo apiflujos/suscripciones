@@ -61,7 +61,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
   const { trunc, step } = granularityConfig(args.granularity);
   const tenantId = String(args.tenantId || "").trim();
   const hasTenant = Boolean(tenantId);
-  const tenantFilter = (alias: string, idx: number) => (hasTenant ? ` AND ${alias}."tenantId" = $${idx}` : "");
+  const tenantFilter = (alias: string, idx: number) => (hasTenant ? ` AND ${alias}."tenantId" = $${idx}::uuid` : "");
   const tenantArgs = hasTenant ? [tenantId] : [];
 
   const buckets = (await prisma.$queryRawUnsafe<BucketRow[]>(
@@ -417,17 +417,17 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
        SELECT MIN(p."paidAt") AS first_at
        FROM "Payment" p
        WHERE p."paidAt" IS NOT NULL
-       ${hasTenant ? 'AND p."tenantId" = $1' : ""}
+       ${hasTenant ? 'AND p."tenantId" = $1::uuid' : ""}
        UNION ALL
        SELECT MIN(pl."sentAt") AS first_at
        FROM "PaymentLink" pl
        WHERE pl."sentAt" IS NOT NULL
-       ${hasTenant ? 'AND pl."tenantId" = $1' : ""}
+       ${hasTenant ? 'AND pl."tenantId" = $1::uuid' : ""}
        UNION ALL
        SELECT MIN(s."startAt") AS first_at
        FROM "Subscription" s
        WHERE s."startAt" IS NOT NULL
-       ${hasTenant ? 'AND s."tenantId" = $1' : ""}
+       ${hasTenant ? 'AND s."tenantId" = $1::uuid' : ""}
      ) t`,
     ...(hasTenant ? [tenantId] : [])
   );

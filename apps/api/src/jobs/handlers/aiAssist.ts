@@ -1,7 +1,11 @@
 import { LogLevel, PaymentStatus } from "@prisma/client";
 import { prisma } from "../../db/prisma";
 import { createAiChatCompletion } from "../../services/aiClient";
+import { getReportCache, setReportCache } from "../../services/reportCache";
+import { getDefaultTenantId } from "../../services/tenantContext";
 import { systemLog } from "../../services/systemLog";
+import { getMetricsOverview } from "../../services/metrics";
+import { getOperationsReport, getChatwootReport } from "../../services/reports";
 
 type AiAssistPayload = {
   requestId?: string;
@@ -10,6 +14,8 @@ type AiAssistPayload = {
   to?: string;
   tenantId?: string;
   customerId?: string;
+  productId?: string;
+  scope?: string;
 };
 
 type ChartItem = { label: string; value: number; tone?: "success" | "warning" | "danger" | "info" };
@@ -33,6 +39,14 @@ function formatCurrency(cents?: number | null, currency?: string | null) {
   return `${new Intl.NumberFormat("es-CO").format(value)} ${currency || "COP"}`;
 }
 
+function inferGranularity(from: Date, to: Date) {
+  const range = Math.max(1, to.getTime() - from.getTime());
+  const days = range / (24 * 60 * 60 * 1000);
+  if (days > 120) return "month" as const;
+  if (days > 35) return "week" as const;
+  return "day" as const;
+}
+
 export async function aiAssist(payload: AiAssistPayload) {
   const requestId = String(payload?.requestId || "").trim() || `ai_${Date.now()}`;
   const question = String(payload?.question || "").trim();
@@ -44,10 +58,55 @@ export async function aiAssist(payload: AiAssistPayload) {
   const from = parseDate(payload?.from) || new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000);
   const tenantId = String(payload?.tenantId || "").trim() || null;
   const customerId = String(payload?.customerId || "").trim() || null;
+  const productId = String(payload?.productId || "").trim() || null;
+  const scopeRaw = String(payload?.scope || "").trim();
+  const scope =
+    scopeRaw === "metrics" || scopeRaw === "customer" || scopeRaw === "product" || scopeRaw === "logs" ? scopeRaw : "logs";
+  const cacheTenantId = tenantId || (await getDefaultTenantId());
 
-  const systemWhere: any = {
-    createdAt: { gte: from, lt: to }
-  };
+  const cacheKey = cacheTenantId
+    ? {
+        reportKey: "ai.assist",
+        tenantId: cacheTenantId,
+        from,
+        to,
+        granularity: null,
+        filters: {
+          question,
+          customerId: customerId || null,
+          tenantId: tenantId || null,
+          productId: productId || null,
+          scope: scope || null
+        },
+        version: "v1"
+      }
+    : null;
+
+  if (cacheKey) {
+    const cached = await getReportCache(cacheKey);
+    if (cached.hit) {
+      const payload = (cached.payload && typeof cached.payload === "object" ? cached.payload : {}) as any;
+      await systemLog(LogLevel.INFO, "ai.chat.cached", "Respuesta IA (cache)", {
+        requestId,
+        question,
+        tenantId,
+        customerId,
+        productId,
+        scope,
+        cached: true,
+        stale: cached.stale,
+        provider: payload.provider,
+        model: payload.model,
+        answer: payload.answer,
+        chart: payload.chart,
+        context: payload.context
+      }).catch(() => {});
+      if (!cached.stale) return;
+      return;
+    }
+  }
+
+  const systemWhere: any = { createdAt: { gte: from, lt: to } };
   if (customerId) {
     systemWhere.context = { path: ["customerId"], equals: customerId };
   } else if (tenantId) {
@@ -60,18 +119,18 @@ export async function aiAssist(payload: AiAssistPayload) {
       orderBy: { createdAt: "desc" },
       take: 120
     }),
-    prisma.webhookEvent.findMany({
-      where: {
-        receivedAt: { gte: from, lt: to },
-        ...(tenantId ? { tenantId } : {})
-      },
-      orderBy: { receivedAt: "desc" },
-      take: 120
-    }),
+    scope === "customer"
+      ? Promise.resolve([])
+      : prisma.webhookEvent.findMany({
+          where: {
+            receivedAt: { gte: from, lt: to },
+            ...(tenantId ? { tenantId } : {})
+          },
+          orderBy: { receivedAt: "desc" },
+          take: 120
+        }),
     prisma.retryJob.findMany({
-      where: {
-        updatedAt: { gte: from, lt: to }
-      },
+      where: { updatedAt: { gte: from, lt: to } },
       orderBy: { updatedAt: "desc" },
       take: 120
     }),
@@ -79,10 +138,11 @@ export async function aiAssist(payload: AiAssistPayload) {
       where: {
         createdAt: { gte: from, lt: to },
         ...(tenantId ? { tenantId } : {}),
-        ...(customerId ? { customerId } : {})
+        ...(customerId ? { customerId } : {}),
+        ...(productId ? { subscription: { planId: productId } } : {})
       },
       orderBy: { createdAt: "desc" },
-      take: 60,
+      take: 80,
       include: { customer: true, subscription: { include: { plan: true } } }
     })
   ]);
@@ -141,7 +201,14 @@ export async function aiAssist(payload: AiAssistPayload) {
     { label: "Alertas", value: systemCounts.error, tone: "warning" }
   ];
 
-  if (questionLower.includes("pago") || questionLower.includes("payment")) {
+  if (scope === "metrics") {
+    chartTitle = "Pagos y conversión";
+    chartItems = [
+      { label: "Pagos OK", value: paymentCounts.approved, tone: "success" },
+      { label: "Pagos fallidos", value: paymentCounts.failed, tone: "danger" },
+      { label: "Links pagados", value: webhookCounts.processed, tone: "info" }
+    ];
+  } else if (questionLower.includes("pago") || questionLower.includes("payment")) {
     chartTitle = "Pagos en el periodo";
     chartItems = [
       { label: "Aprobados", value: paymentCounts.approved, tone: "success" },
@@ -205,6 +272,10 @@ export async function aiAssist(payload: AiAssistPayload) {
 
   const context = {
     window: { from: from.toISOString(), to: to.toISOString() },
+    scope,
+    tenantId,
+    customerId,
+    productId,
     counts: {
       system: systemCounts,
       webhooks: webhookCounts,
@@ -218,6 +289,54 @@ export async function aiAssist(payload: AiAssistPayload) {
       payments: samplePayments
     }
   };
+
+  if (scope === "metrics") {
+    const granularity = inferGranularity(from, to);
+    const [metrics, ops, chat] = await Promise.all([
+      getMetricsOverview({ from, to, granularity, tenantId }),
+      getOperationsReport({ from, to, granularity, tenantId }),
+      getChatwootReport({ from, to, granularity, tenantId })
+    ]);
+    (context as any).metrics = {
+      totals: metrics.totals,
+      breakdown: metrics.breakdown,
+      series: metrics.series.slice(-12)
+    };
+    (context as any).operations = {
+      totals: ops.totals,
+      series: ops.series.slice(-12)
+    };
+    (context as any).chatwoot = {
+      totals: chat.totals,
+      series: chat.series.slice(-12)
+    };
+  }
+
+  if (scope === "customer" && customerId) {
+    const [customer, subs] = await Promise.all([
+      prisma.customer.findUnique({ where: { id: customerId } }),
+      prisma.subscription.findMany({
+        where: { customerId },
+        include: { plan: true },
+        orderBy: { createdAt: "desc" },
+        take: 12
+      })
+    ]);
+    (context as any).customer = customer || null;
+    (context as any).subscriptions = subs.map((s) => ({
+      id: s.id,
+      status: s.status,
+      plan: s.plan?.name || null,
+      currentPeriodEndAt: s.currentPeriodEndAt
+    }));
+  }
+
+  if (scope === "product" && productId) {
+    const plan = await prisma.subscriptionPlan.findUnique({ where: { id: productId } });
+    (context as any).product = plan
+      ? { id: plan.id, name: plan.name, planType: plan.planType, priceInCents: plan.priceInCents }
+      : null;
+  }
 
   const messages = [
     {
@@ -234,9 +353,21 @@ export async function aiAssist(payload: AiAssistPayload) {
   try {
     const result = await createAiChatCompletion(messages, { requestId, question });
     const answer = clampString(result.content, 3800);
+    if (cacheKey) {
+      await setReportCache(
+        cacheKey,
+        { answer, provider: result.provider, model: result.model, chart, context },
+        6 * 60 * 60,
+        24 * 60 * 60
+      );
+    }
     await systemLog(LogLevel.INFO, "ai.chat", "Respuesta IA generada", {
       requestId,
       question,
+      tenantId,
+      customerId,
+      productId,
+      scope,
       answer,
       provider: result.provider,
       model: result.model,
@@ -248,6 +379,10 @@ export async function aiAssist(payload: AiAssistPayload) {
     await systemLog(LogLevel.ERROR, "ai.chat", "Error generando respuesta IA", {
       requestId,
       question,
+      tenantId,
+      customerId,
+      productId,
+      scope,
       error: msg,
       chart
     }).catch(() => {});

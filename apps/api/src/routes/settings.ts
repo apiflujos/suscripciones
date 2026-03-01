@@ -3,9 +3,11 @@ import { z } from "zod";
 import { CredentialProvider, LogLevel } from "@prisma/client";
 import { clearCredential, getCredential, getCredentialsBulk, setCredential } from "../services/credentials";
 import { systemLog } from "../services/systemLog";
+import { getModuleAccess } from "../services/moduleAccess";
 import { testShopifyForward } from "./shopifyForwardTest";
 import { WompiClient } from "../providers/wompi/client";
 import { getCheckoutBaseUrlsFromEnv } from "../services/publicBase";
+import { getEffectiveTenantId } from "../services/tenantContext";
 
 const envSchema = z.enum(["PRODUCTION", "SANDBOX"]);
 type ActiveEnv = z.infer<typeof envSchema>;
@@ -94,7 +96,7 @@ const checkoutConfigUpdateSchema = z.object({
 
 export const settingsRouter = express.Router();
 
-settingsRouter.get("/", async (_req, res) => {
+settingsRouter.get("/", async (req, res) => {
   const encKeyB64 = (process.env.CREDENTIALS_ENCRYPTION_KEY_B64 || "").trim();
   const encryptionKeyConfigured = !!encKeyB64;
   let encryptionKeyValid = false;
@@ -103,7 +105,8 @@ settingsRouter.get("/", async (_req, res) => {
     encryptionKeyValid = buf.length === 32;
   }
 
-  const [wompiCreds, shopifyCreds, commsCreds, checkoutConfigRaw, openAiCreds, deepseekCreds] = await Promise.all([
+  const tenantId = await getEffectiveTenantId(req);
+  const [wompiCreds, shopifyCreds, commsCreds, checkoutConfigRaw, openAiCreds, deepseekCreds, aiAccess] = await Promise.all([
     getCredentialsBulk(CredentialProvider.WOMPI, [
       "ACTIVE_ENV",
       "PUBLIC_KEY",
@@ -152,7 +155,8 @@ settingsRouter.get("/", async (_req, res) => {
     ]),
     getCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG"),
     getCredentialsBulk(CredentialProvider.OPENAI, ["API_KEY"]),
-    getCredentialsBulk(CredentialProvider.DEEPSEEK, ["API_KEY"])
+    getCredentialsBulk(CredentialProvider.DEEPSEEK, ["API_KEY"]),
+    getModuleAccess(tenantId, "ai")
   ]);
 
   const wompiActiveEnv = (() => {
@@ -263,6 +267,8 @@ settingsRouter.get("/", async (_req, res) => {
       sandbox: commsSandbox
     },
     ai: {
+      enabled: aiAccess.enabled,
+      reason: aiAccess.reason,
       providers: {
         openai: aiOpenAi,
         deepseek: aiDeepseek
@@ -508,6 +514,10 @@ settingsRouter.put("/ai", async (req, res) => {
   const parsed = aiUpdateSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
 
+  const tenantId = await getEffectiveTenantId(req);
+  const aiAccess = await getModuleAccess(tenantId, "ai");
+  if (!aiAccess.enabled) return res.status(403).json({ error: "ai_disabled", reason: aiAccess.reason });
+
   const provider = parsed.data.provider;
   const credentialProvider = provider === "DEEPSEEK" ? CredentialProvider.DEEPSEEK : CredentialProvider.OPENAI;
 
@@ -524,6 +534,10 @@ settingsRouter.put("/ai", async (req, res) => {
 settingsRouter.delete("/ai", async (req, res) => {
   const parsed = aiDeleteSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+
+  const tenantId = await getEffectiveTenantId(req);
+  const aiAccess = await getModuleAccess(tenantId, "ai");
+  if (!aiAccess.enabled) return res.status(403).json({ error: "ai_disabled", reason: aiAccess.reason });
 
   const provider = parsed.data.provider;
   const credentialProvider = provider === "DEEPSEEK" ? CredentialProvider.DEEPSEEK : CredentialProvider.OPENAI;

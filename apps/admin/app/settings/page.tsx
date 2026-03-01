@@ -100,6 +100,18 @@ export default async function SettingsPage({
   const aiProviders = (ai?.providers || {}) as any;
   const aiOpenai = (aiProviders?.openai || {}) as any;
   const aiDeepseek = (aiProviders?.deepseek || {}) as any;
+  const aiEnabled = Boolean(ai?.enabled);
+  const aiDisableReason = String(ai?.reason || "");
+  const aiDisableLabel =
+    aiDisableReason === "module_inactive"
+      ? "Módulo IA inactivo globalmente"
+      : aiDisableReason === "module_disabled"
+        ? "Módulo IA deshabilitado para este tenant"
+        : aiDisableReason === "tenant_missing"
+          ? "Tenant no identificado"
+          : aiDisableReason
+            ? `IA bloqueada (${aiDisableReason})`
+            : "";
   const openaiStatus = aiOpenai?.configured ? "Activa" : "Inactiva";
   const openaiPill = aiOpenai?.configured ? "pill-green" : "pill-muted";
   const deepseekStatus = aiDeepseek?.configured ? "Activa" : "Inactiva";
@@ -400,91 +412,110 @@ export default async function SettingsPage({
             </div>
           </section>
 
-          <section className="settings-group">
-            <div className="settings-group-header">
-              <div className="panelHeaderRow">
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <h3>Inteligencia artificial</h3>
-                  <HelpTip text="Configura una o ambas llaves. Si una falla, usamos la otra automáticamente." />
+          {aiEnabled ? (
+            <section className="settings-group">
+              <div className="settings-group-header">
+                <div className="panelHeaderRow">
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <h3>Inteligencia artificial</h3>
+                    <HelpTip text="Configura una o ambas llaves. Si una falla, usamos la otra automáticamente." />
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="settings-group-body">
-              <div className="saved-connections-grid settings-saved-grid">
-                <div className="saved-conn-card">
-                  <div className="saved-conn-header">
-                    <div>
-                      <strong>OpenAI</strong>
-                      <div className="saved-conn-sub">
-                        {aiOpenai?.configured ? "Configurada · Modelo fijo gpt-4o-mini" : "Sin configurar"}
+              <div className="settings-group-body">
+                <div className="saved-connections-grid settings-saved-grid">
+                  <div className="saved-conn-card">
+                    <div className="saved-conn-header">
+                      <div>
+                        <strong>OpenAI</strong>
+                        <div className="saved-conn-sub">
+                          {aiOpenai?.configured ? "Configurada · Modelo fijo gpt-4o-mini" : "Sin configurar"}
+                        </div>
                       </div>
+                      <span className={`pill ${openaiPill}`}>
+                        {openaiStatus}
+                      </span>
                     </div>
-                    <span className={`pill ${openaiPill}`}>
-                      {openaiStatus}
-                    </span>
+                    <form action={updateAiProvider} className="stack">
+                      <input type="hidden" name="csrf" value={csrfToken} />
+                      <input type="hidden" name="provider" value="OPENAI" />
+                      <input type="hidden" name="returnTo" value={returnTo} />
+                      <div className="field">
+                        <label>API Key</label>
+                        <input
+                          className="input"
+                          type="password"
+                          name="apiKey"
+                          placeholder={aiOpenai?.apiKeyMasked ? `Configurada (${aiOpenai.apiKeyMasked})` : "Sin configurar"}
+                        />
+                      </div>
+                      <PendingButton className="ghost btn-save" type="submit" pendingText="Guardando...">
+                        Guardar
+                      </PendingButton>
+                    </form>
+                    <form action={deleteAiProvider} className="saved-conn-actions">
+                      <input type="hidden" name="csrf" value={csrfToken} />
+                      <input type="hidden" name="provider" value="OPENAI" />
+                      <input type="hidden" name="returnTo" value={returnTo} />
+                      <button className="ghost btn-compact btn-red" type="submit">Eliminar</button>
+                    </form>
                   </div>
-                  <form action={updateAiProvider} className="stack">
-                    <input type="hidden" name="csrf" value={csrfToken} />
-                    <input type="hidden" name="provider" value="OPENAI" />
-                    <input type="hidden" name="returnTo" value={returnTo} />
-                    <div className="field">
-                      <label>API Key</label>
-                      <input
-                        className="input"
-                        type="password"
-                        name="apiKey"
-                        placeholder={aiOpenai?.apiKeyMasked ? `Configurada (${aiOpenai.apiKeyMasked})` : "Sin configurar"}
-                      />
-                    </div>
-                    <PendingButton className="ghost btn-save" type="submit" pendingText="Guardando...">
-                      Guardar
-                    </PendingButton>
-                  </form>
-                  <form action={deleteAiProvider} className="saved-conn-actions">
-                    <input type="hidden" name="csrf" value={csrfToken} />
-                    <input type="hidden" name="provider" value="OPENAI" />
-                    <input type="hidden" name="returnTo" value={returnTo} />
-                    <button className="ghost btn-compact btn-red" type="submit">Eliminar</button>
-                  </form>
-                </div>
 
-                <div className="saved-conn-card">
-                  <div className="saved-conn-header">
-                    <div>
-                      <strong>DeepSeek</strong>
-                      <div className="saved-conn-sub">{aiDeepseek?.configured ? "Configurada" : "Sin configurar"}</div>
+                  <div className="saved-conn-card">
+                    <div className="saved-conn-header">
+                      <div>
+                        <strong>DeepSeek</strong>
+                        <div className="saved-conn-sub">{aiDeepseek?.configured ? "Configurada" : "Sin configurar"}</div>
+                      </div>
+                      <span className={`pill ${deepseekPill}`}>
+                        {deepseekStatus}
+                      </span>
                     </div>
-                    <span className={`pill ${deepseekPill}`}>
-                      {deepseekStatus}
-                    </span>
+                    <form action={updateAiProvider} className="stack">
+                      <input type="hidden" name="csrf" value={csrfToken} />
+                      <input type="hidden" name="provider" value="DEEPSEEK" />
+                      <input type="hidden" name="returnTo" value={returnTo} />
+                      <div className="field">
+                        <label>API Key</label>
+                        <input
+                          className="input"
+                          type="password"
+                          name="apiKey"
+                          placeholder={aiDeepseek?.apiKeyMasked ? `Configurada (${aiDeepseek.apiKeyMasked})` : "Sin configurar"}
+                        />
+                      </div>
+                      <PendingButton className="ghost btn-save" type="submit" pendingText="Guardando...">
+                        Guardar
+                      </PendingButton>
+                    </form>
+                    <form action={deleteAiProvider} className="saved-conn-actions">
+                      <input type="hidden" name="csrf" value={csrfToken} />
+                      <input type="hidden" name="provider" value="DEEPSEEK" />
+                      <input type="hidden" name="returnTo" value={returnTo} />
+                      <button className="ghost btn-compact btn-red" type="submit">Eliminar</button>
+                    </form>
                   </div>
-                  <form action={updateAiProvider} className="stack">
-                    <input type="hidden" name="csrf" value={csrfToken} />
-                    <input type="hidden" name="provider" value="DEEPSEEK" />
-                    <input type="hidden" name="returnTo" value={returnTo} />
-                    <div className="field">
-                      <label>API Key</label>
-                      <input
-                        className="input"
-                        type="password"
-                        name="apiKey"
-                        placeholder={aiDeepseek?.apiKeyMasked ? `Configurada (${aiDeepseek.apiKeyMasked})` : "Sin configurar"}
-                      />
-                    </div>
-                    <PendingButton className="ghost btn-save" type="submit" pendingText="Guardando...">
-                      Guardar
-                    </PendingButton>
-                  </form>
-                  <form action={deleteAiProvider} className="saved-conn-actions">
-                    <input type="hidden" name="csrf" value={csrfToken} />
-                    <input type="hidden" name="provider" value="DEEPSEEK" />
-                    <input type="hidden" name="returnTo" value={returnTo} />
-                    <button className="ghost btn-compact btn-red" type="submit">Eliminar</button>
-                  </form>
                 </div>
               </div>
-            </div>
-          </section>
+            </section>
+          ) : (
+            <section className="settings-group">
+              <div className="settings-group-header">
+                <div className="panelHeaderRow">
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <h3>Inteligencia artificial</h3>
+                    <HelpTip text="Esta sección requiere habilitación del super admin." />
+                  </div>
+                </div>
+              </div>
+              <div className="settings-group-body">
+                <div className="card cardPad">
+                  La IA está deshabilitada para este tenant. Solicita al super admin habilitar el módulo.
+                  {aiDisableLabel ? <div className="field-hint">Motivo: {aiDisableLabel}.</div> : null}
+                </div>
+              </div>
+            </section>
+          )}
 
         </>
       ) : null}

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { fetchAdminCached, getAdminApiConfig } from "../../lib/adminApi";
+import { AiAssistant } from "../../logs/AiAssistant";
 import { LocalDateTime } from "../../ui/LocalDateTime";
 import { TimelineScroller } from "../../ui/TimelineScroller";
 import { MapModal } from "../../ui/MapModal";
@@ -281,6 +282,10 @@ async function fetchTenants() {
   return fetchAdminCached("/admin/tenants", { ttlMs: 1500 });
 }
 
+async function fetchSettings() {
+  return fetchAdminCached("/admin/settings", { ttlMs: 1500 });
+}
+
 async function fetchChatwootConversations(contactId: number) {
   return fetchAdminCached(`/admin/chatwoot/contacts/${contactId}/conversations`, { ttlMs: 1500 });
 }
@@ -334,12 +339,13 @@ export default async function CustomerDetailPage({
   const logsFrom = new Date();
   logsFrom.setDate(logsFrom.getDate() - logsWindowDays * logsPage);
   const logsTake = 20;
-  const [customerRes, paymentsRes, subscriptionsRes, logsRes, tenantsRes] = await Promise.all([
+  const [customerRes, paymentsRes, subscriptionsRes, logsRes, tenantsRes, settingsRes] = await Promise.all([
     fetchCustomer(id),
     fetchPayments(id),
     fetchSubscriptions(id),
     fetchLogs(id, { take: logsTake, from: logsFrom.toISOString(), to: logsTo.toISOString() }),
-    fetchTenants()
+    fetchTenants(),
+    fetchSettings()
   ]);
 
   if (!customerRes.ok) {
@@ -365,6 +371,9 @@ export default async function CustomerDetailPage({
   const subscriptions = (subscriptionsRes.json?.items ?? []) as any[];
   const logs = (logsRes.json?.items ?? []) as any[];
   const tenants = (tenantsRes.json?.items ?? []) as Array<{ id: string; name: string }>;
+  const aiConfig = settingsRes.ok ? settingsRes.json?.ai : null;
+  const aiProviders = aiConfig?.providers || null;
+  const aiEnabled = Boolean(aiConfig?.enabled && (aiProviders?.openai?.configured || aiProviders?.deepseek?.configured));
   const tenantName = tenants.find((t) => String(t.id) === String(customer.tenantId))?.name || "";
 
   const approvedPayments = payments.filter((p) => p.status === "APPROVED");
@@ -983,6 +992,22 @@ export default async function CustomerDetailPage({
           )}
         </div>
       </section>
+      {aiEnabled ? (
+        <section className="grid2">
+          <div className="card cardPad customer-section timeline-full">
+            <div className="contact-section-title">Asistente del cliente</div>
+            <AiAssistant
+              from={logsFrom.toISOString()}
+              to={logsTo.toISOString()}
+              customerId={customer.id}
+              scope="customer"
+              title="Asistente del cliente"
+              emptyText="Pregunta por pagos, logs y actividad del contacto. Ej: “¿Hay pagos fallidos este mes?”."
+              placeholder="Pregunta sobre este cliente..."
+            />
+          </div>
+        </section>
+      ) : null}
     </main>
   );
 }

@@ -26,6 +26,12 @@ async function main() {
     console.log("seed-default-tenant: found", { id: tenant.id, name: tenant.name });
   }
 
+  await prisma.saModuleDefinition.upsert({
+    where: { key: "ai" },
+    create: { key: "ai", name: "Inteligencia artificial", active: false } as any,
+    update: { name: "Inteligencia artificial" } as any
+  });
+
   const updatedNull = await prisma.saUser.updateMany({
     where: { tenantId: null },
     data: { tenantId: tenant.id }

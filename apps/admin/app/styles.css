@@ -728,7 +728,7 @@ a {
   justify-content: flex-end;
   align-items: center;
   gap: 10px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .appearanceTrigger {
@@ -1274,27 +1274,40 @@ a {
   flex: 1 1 auto;
 }
 
+.logs-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.logs-table th,
+.logs-table td {
+  overflow: hidden;
+  min-width: 0;
+}
+
 .logs-table .log-date-cell {
   white-space: normal;
   font-size: 11.5px;
   color: var(--text);
-  max-width: 120px;
+  max-width: 96px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .logs-table .log-ref-cell {
-  max-width: 200px;
+  max-width: 120px;
+  min-width: 0;
 }
 
 .logs-table .log-ref {
   display: grid;
   gap: 2px;
+  min-width: 0;
 }
 
 .logs-table .log-ref-main {
   display: block;
-  max-width: 200px;
+  max-width: 100px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1303,6 +1316,48 @@ a {
 .logs-table .log-ref-meta {
   font-size: 11px;
   color: var(--text-faint);
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logs-table .log-contact-cell {
+  max-width: 180px;
+  min-width: 0;
+}
+
+.logs-table .log-contact {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.logs-table .log-contact-name,
+.logs-table .log-contact-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logs-table .log-contact-meta {
+  font-size: 11px;
+  max-width: 150px;
+}
+
+.logs-table .log-type-cell {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logs-table-payments .log-plan-cell {
+  max-width: 140px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .logs-table-messages {
@@ -1320,11 +1375,14 @@ a {
   white-space: normal;
   word-break: break-word;
   overflow-wrap: anywhere;
+  overflow: hidden;
+  min-width: 0;
+  line-height: 1.35;
 }
 
 .logs-table-messages .log-message-text {
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -1343,24 +1401,40 @@ a {
 
 .logs-table-jobs .log-target-cell,
 .logs-table-payments .log-transaction-cell {
-  max-width: 240px;
-  white-space: normal;
-  word-break: break-word;
-  overflow-wrap: anywhere;
+  max-width: 160px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  min-width: 0;
 }
 
-.logs-table-payments .log-transaction-cell {
+.logs-table-jobs .log-target-cell {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
+.logs-table-payments .log-transaction-cell {
+  display: block;
+}
+
+.logs-table-payments .log-ref-cell {
+  max-width: 110px;
+}
+
+.logs-table-payments .log-transaction-cell {
+  max-width: 110px;
+}
+
 .logs-table-jobs .log-detail-cell {
-  max-width: 280px;
+  max-width: 220px;
   white-space: normal;
   word-break: break-word;
   overflow-wrap: anywhere;
+  overflow: hidden;
+  min-width: 0;
+  line-height: 1.35;
 }
 
 .logs-table-jobs .log-detail-cell {
@@ -1381,11 +1455,11 @@ a {
 
 .logs-table-webhooks .log-ref-cell,
 .logs-table-webhooks .log-ref-main {
-  max-width: 160px;
+  max-width: 130px;
 }
 
 .logs-table-webhooks .log-error-cell {
-  max-width: 180px;
+  max-width: 160px;
   white-space: normal;
   word-break: break-word;
   overflow-wrap: anywhere;
@@ -3092,10 +3166,9 @@ textarea.input {
   margin-right: 10px;
   min-height: 40px;
   min-width: 0;
-  max-width: 180px;
   justify-content: flex-start;
   align-self: stretch;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .topbar .realtime-status {
@@ -3123,6 +3196,11 @@ textarea.input {
 @media (max-width: 860px) {
   .topbarRealtimeSlot {
     display: none;
+  }
+}
+@media (max-width: 1100px) {
+  .topbarRight {
+    flex-wrap: wrap;
   }
 }
 
@@ -3168,8 +3246,9 @@ textarea.input {
   letter-spacing: 0.02em;
 }
 
+.date-stack-middle,
 .date-stack-bottom {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-muted, var(--text-faint));
   white-space: nowrap;
 }
@@ -6362,6 +6441,7 @@ html[data-contrast="high"] .module-footer .ghost {
   border-radius: 12px;
   gap: 4px;
   align-content: start;
+  overflow: hidden;
 }
 
 .notificationsPage .saved-conn-header {
@@ -6396,6 +6476,20 @@ html[data-contrast="high"] .module-footer .ghost {
 
 .notificationsPage .field {
   gap: 4px;
+}
+
+.notificationsPage .notification-form .input-compact,
+.notificationsPage .notification-form .select-compact,
+.notificationsPage .notification-form textarea.input-compact {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.notificationsPage .btn-compact {
+  height: 28px;
+  padding: 4px 8px;
+  font-size: 11px;
 }
 
 .notificationsPage .module-footer {
