@@ -9,7 +9,7 @@ import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 export default async function CampaignsPage({
   searchParams
 }: {
-  searchParams?: Promise<{ error?: string; created?: string; running?: string; page?: string }>;
+  searchParams?: Promise<Record<string, string | undefined>>;
 }) {
   const csrfToken = await getCsrfToken();
   const listsRes = await fetchAdminCached("/admin/comms/smart-lists?take=200", { ttlMs: 0 });
