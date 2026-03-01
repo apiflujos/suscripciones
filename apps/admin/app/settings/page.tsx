@@ -463,6 +463,11 @@ export default async function SettingsPage({
                   <label>Nuevo canal</label>
                   <input className="input" name="name" placeholder="Nombre del canal" />
                 </div>
+                <div className="field" style={{ minWidth: 240, flex: 1 }}>
+                  <label>Logo del canal (URL)</label>
+                  <input className="input" name="logoUrl" placeholder="https://..." />
+                  <div className="field-hint">Se usa en los links públicos de pago/tokenización.</div>
+                </div>
                 <PendingButton className="primary" type="submit" pendingText="Creando...">
                   Crear canal
                 </PendingButton>
@@ -480,6 +485,10 @@ export default async function SettingsPage({
                       <div className="field" style={{ minWidth: 240, flex: 1 }}>
                         <label>Nombre</label>
                         <input className="input" name="name" defaultValue={tenant.name || ""} />
+                      </div>
+                      <div className="field" style={{ minWidth: 240, flex: 1 }}>
+                        <label>Logo (URL)</label>
+                        <input className="input" name="logoUrl" defaultValue={tenant?.metadata?.logoUrl || tenant?.metadata?.brand?.logoUrl || ""} />
                       </div>
                       <PendingButton className="ghost" type="submit" pendingText="Guardando...">
                         Guardar

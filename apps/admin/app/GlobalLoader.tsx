@@ -124,11 +124,13 @@ export function GlobalLoader() {
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
       if (event.defaultPrevented) return;
+      if (pathname?.startsWith("/public")) return;
       if (!shouldTriggerLoader(event.target)) return;
       scheduleShow();
     };
 
     const onSubmit = () => {
+      if (pathname?.startsWith("/public")) return;
       show();
     };
 

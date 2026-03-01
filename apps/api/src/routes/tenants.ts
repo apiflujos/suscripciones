@@ -3,10 +3,12 @@ import { z } from "zod";
 import { prisma } from "../db/prisma";
 
 const createTenantSchema = z.object({
-  name: z.string().min(1)
+  name: z.string().min(1),
+  logoUrl: z.string().trim().optional().nullable()
 });
 const updateTenantSchema = z.object({
-  name: z.string().min(1)
+  name: z.string().min(1),
+  logoUrl: z.string().trim().optional().nullable()
 });
 
 export const tenantsRouter = express.Router();
@@ -21,10 +23,17 @@ tenantsRouter.post("/", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
 
   const name = parsed.data.name.trim();
+  const logoUrl = String(parsed.data.logoUrl || "").trim();
   const existing = await prisma.saTenant.findFirst({ where: { name: { equals: name, mode: "insensitive" } } });
   if (existing) return res.status(200).json({ tenant: existing, created: false });
 
-  const tenant = await prisma.saTenant.create({ data: { name, active: true } });
+  const tenant = await prisma.saTenant.create({
+    data: {
+      name,
+      active: true,
+      ...(logoUrl ? { metadata: { logoUrl } } : {})
+    }
+  });
   const superAdmins = await prisma.saUser.findMany({ where: { role: "SUPER_ADMIN", active: true }, select: { id: true } });
   if (superAdmins.length) {
     await prisma.saUserTenant.createMany({
@@ -41,9 +50,12 @@ tenantsRouter.put("/:tenantId", async (req, res) => {
   const parsed = updateTenantSchema.safeParse(req.body ?? {});
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   const name = parsed.data.name.trim();
+  const logoUrl = String(parsed.data.logoUrl || "").trim();
   const existing = await prisma.saTenant.findUnique({ where: { id: tenantId } });
   if (!existing) return res.status(404).json({ error: "tenant_not_found" });
-  const updated = await prisma.saTenant.update({ where: { id: tenantId }, data: { name } });
+  const existingMeta = (existing.metadata && typeof existing.metadata === "object" ? existing.metadata : {}) as Record<string, any>;
+  const updatedMeta = logoUrl ? { ...existingMeta, logoUrl } : existingMeta;
+  const updated = await prisma.saTenant.update({ where: { id: tenantId }, data: { name, metadata: updatedMeta } });
   res.json({ tenant: updated });
 });
 

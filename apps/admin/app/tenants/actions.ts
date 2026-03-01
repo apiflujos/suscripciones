@@ -33,11 +33,12 @@ async function adminFetch(path: string, init: RequestInit) {
 export async function createTenant(formData: FormData) {
   await assertCsrfToken(formData);
   const name = String(formData.get("name") || "").trim();
+  const logoUrl = String(formData.get("logoUrl") || "").trim();
   const returnTo = String(formData.get("returnTo") || "").trim() || "/";
   if (!name) return redirect(mergeQuery(returnTo, { error: "tenant_name_required" }));
 
   try {
-    const res = await adminFetch("/admin/tenants", { method: "POST", body: JSON.stringify({ name }) });
+    const res = await adminFetch("/admin/tenants", { method: "POST", body: JSON.stringify({ name, logoUrl }) });
     const tenantId = res?.tenant?.id ? String(res.tenant.id) : "";
     const url = new URL(returnTo, "http://localhost");
     if (tenantId) url.searchParams.set("tenantId", tenantId);
@@ -53,6 +54,7 @@ export async function updateTenant(formData: FormData) {
   await assertCsrfToken(formData);
   const tenantId = String(formData.get("tenantId") || "").trim();
   const name = String(formData.get("name") || "").trim();
+  const logoUrl = String(formData.get("logoUrl") || "").trim();
   const returnTo = String(formData.get("returnTo") || "").trim() || "/";
   if (!tenantId) return redirect(mergeQuery(returnTo, { error: "missing_tenant_id" }));
   if (!name) return redirect(mergeQuery(returnTo, { error: "tenant_name_required" }));
@@ -60,7 +62,7 @@ export async function updateTenant(formData: FormData) {
   try {
     await adminFetch(`/admin/tenants/${encodeURIComponent(tenantId)}`, {
       method: "PUT",
-      body: JSON.stringify({ name })
+      body: JSON.stringify({ name, logoUrl })
     });
     redirect(mergeQuery(returnTo, { saved: "1" }));
   } catch (err: any) {

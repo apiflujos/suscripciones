@@ -4,10 +4,11 @@ import { prisma } from "../db/prisma";
 import { addIntervalUtc } from "../lib/dates";
 import { createPaymentLinkForSubscription } from "../services/subscriptionBilling";
 import { scheduleSubscriptionDueNotifications } from "../services/notificationsScheduler";
-import { CredentialProvider, RetryJobType, SubscriptionStatus, PlanIntervalUnit } from "@prisma/client";
+import { CredentialProvider, RetryJobType, SubscriptionStatus, PlanIntervalUnit, LogLevel } from "@prisma/client";
 import { getCredential } from "../services/credentials";
 import { getCheckoutBaseUrlsFromEnv } from "../services/publicBase";
 import { getTenantBrand } from "../services/tenantBrand";
+import { systemLog } from "../services/systemLog";
 
 function parseCheckoutConfig(raw: string | null) {
   let parsed: any = null;
@@ -56,16 +57,31 @@ type PlanPublic = {
 publicCartRouter.get("/cart/:token", async (req, res) => {
   const token = String(req.params.token || "").trim();
   if (!token) return res.status(400).json({ error: "missing_token" });
+  const ip = String((req.headers["x-forwarded-for"] as string) || req.ip || "").split(",")[0].trim();
 
   const customer = await prisma.customer.findFirst({
     where: { metadata: { path: ["cartLink", "token"], equals: token } as any }
   });
-  if (!customer) return res.status(404).json({ error: "token_not_found" });
+  if (!customer) {
+    void systemLog(LogLevel.WARN, "public.cart_link", "cart_token_not_found", {
+      token,
+      ip,
+      userAgent: req.get("user-agent") || null
+    }).catch(() => {});
+    return res.status(404).json({ error: "token_not_found" });
+  }
 
   const meta: any = customer.metadata ?? {};
   const link = meta?.cartLink ?? {};
   const expiresAt = link?.expiresAt ? new Date(link.expiresAt) : null;
   if (expiresAt && Number.isFinite(expiresAt.getTime()) && expiresAt.getTime() < Date.now()) {
+    void systemLog(LogLevel.WARN, "public.cart_link", "cart_token_expired", {
+      token,
+      tenantId: customer.tenantId || null,
+      expiresAt: expiresAt.toISOString(),
+      ip,
+      userAgent: req.get("user-agent") || null
+    }).catch(() => {});
     return res.status(410).json({ error: "token_expired" });
   }
 
@@ -74,6 +90,13 @@ publicCartRouter.get("/cart/:token", async (req, res) => {
     ? await prisma.publicCheckoutTemplate.findUnique({ where: { id: templateId } })
     : null;
   if (!template || String(template.kind) !== "CART") {
+    void systemLog(LogLevel.WARN, "public.cart_link", "cart_template_not_found", {
+      token,
+      tenantId: customer.tenantId || null,
+      templateId: templateId || null,
+      ip,
+      userAgent: req.get("user-agent") || null
+    }).catch(() => {});
     return res.status(404).json({ error: "template_not_found" });
   }
 
@@ -85,7 +108,7 @@ publicCartRouter.get("/cart/:token", async (req, res) => {
     : [];
   const plansTyped = plans as PlanPublic[];
 
-  const tenant = await getTenantBrand(customer.tenantId || template?.tenantId || null);
+  const tenant = await getTenantBrand(template?.tenantId || customer.tenantId || null);
 
   res.json({
     ok: true,

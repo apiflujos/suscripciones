@@ -4012,7 +4012,7 @@ textarea.input {
   width: 18px;
   height: 18px;
   border-radius: 6px;
-  background: #fff;
+  background: color-mix(in srgb, #fff 92%, var(--panel));
   border: 1px solid var(--stroke);
   padding: 3px;
   object-fit: contain;
@@ -4082,9 +4082,20 @@ textarea.input {
   max-width: 120px;
   object-fit: contain;
   border-radius: 8px;
-  background: #fff;
+  background: color-mix(in srgb, #fff 92%, var(--panel));
   border: 1px solid var(--stroke);
   padding: 4px 6px;
+}
+.publicCheckoutBrandLogos img,
+.payment-point-provider img {
+  box-shadow: 0 6px 12px rgba(15, 23, 42, 0.12);
+}
+
+html[data-contrast="high"] .publicCheckoutBrandLogos img,
+html[data-contrast="high"] .payment-point-provider img {
+  background: #fff;
+  border-color: currentColor;
+  box-shadow: none;
 }
 .publicCheckoutTrust {
   font-size: 12.5px;

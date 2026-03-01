@@ -1,9 +1,10 @@
 import express from "express";
 import { prisma } from "../db/prisma";
 import { getCredential, getCredentialsBulk } from "../services/credentials";
-import { CredentialProvider } from "@prisma/client";
+import { CredentialProvider, LogLevel } from "@prisma/client";
 import { getCheckoutBaseUrlsFromEnv } from "../services/publicBase";
 import { getTenantBrand } from "../services/tenantBrand";
+import { systemLog } from "../services/systemLog";
 
 export const publicLinksRouter = express.Router();
 
@@ -69,15 +70,31 @@ publicLinksRouter.get("/payment-links/:token", async (req, res) => {
   const token = String(req.params.token || "").trim();
   if (!token) return res.status(400).json({ error: "invalid_token" });
 
+  const ip = String((req.headers["x-forwarded-for"] as string) || req.ip || "").split(",")[0].trim();
+
   const customer = await prisma.customer.findFirst({
     where: { metadata: { path: ["paymentLink", "token"], equals: token } as any }
   });
-  if (!customer) return res.status(404).json({ error: "not_found" });
+  if (!customer) {
+    void systemLog(LogLevel.WARN, "public.payment_link", "payment_link_not_found", {
+      token,
+      ip,
+      userAgent: req.get("user-agent") || null
+    }).catch(() => {});
+    return res.status(404).json({ error: "not_found" });
+  }
 
   const meta: any = customer.metadata || {};
   const link = meta?.paymentLink || {};
   const expiresAt = link?.expiresAt ? new Date(String(link.expiresAt)) : null;
   if (expiresAt && Number.isFinite(expiresAt.getTime()) && expiresAt.getTime() < Date.now()) {
+    void systemLog(LogLevel.WARN, "public.payment_link", "payment_link_expired", {
+      token,
+      tenantId: customer.tenantId || null,
+      expiresAt: expiresAt.toISOString(),
+      ip,
+      userAgent: req.get("user-agent") || null
+    }).catch(() => {});
     return res.status(410).json({ error: "expired" });
   }
 
@@ -96,7 +113,7 @@ publicLinksRouter.get("/payment-links/:token", async (req, res) => {
     });
   }
 
-  const tenant = await getTenantBrand(customer.tenantId || template?.tenantId || null);
+  const tenant = await getTenantBrand(template?.tenantId || customer.tenantId || null);
 
   res.json({
     ok: true,
