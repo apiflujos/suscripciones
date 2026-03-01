@@ -16,6 +16,7 @@ import { aiAssist } from "./handlers/aiAssist";
 loadEnv(process.env);
 const workerId = `jobs:${process.pid}`;
 let lastShopifyForwardRetryAt = 0;
+let lastHeartbeatAtMs = 0;
 
 const BOGOTA_UTC_OFFSET_MS = -5 * 60 * 60 * 1000;
 
@@ -139,6 +140,22 @@ async function ensureLogCleanup() {
   await prisma.systemLog.deleteMany({ where: { createdAt: { lt: cutoff } } });
 }
 
+async function ensureJobsHeartbeat() {
+  const now = Date.now();
+  const secondsRaw = Number(process.env.JOBS_HEARTBEAT_SECONDS || 60);
+  const intervalMs = Number.isFinite(secondsRaw) ? Math.max(15, Math.trunc(secondsRaw)) * 1000 : 60_000;
+  if (now - lastHeartbeatAtMs < intervalMs) return;
+  lastHeartbeatAtMs = now;
+  const key = String(process.env.JOBS_HEARTBEAT_KEY || "wompi-subs-jobs").trim() || "wompi-subs-jobs";
+  await prisma.serviceHeartbeat
+    .upsert({
+      where: { key },
+      create: { key, lastSeenAt: new Date(now), meta: { workerId } } as any,
+      update: { lastSeenAt: new Date(now), meta: { workerId } } as any
+    })
+    .catch(() => {});
+}
+
 async function ensureShopifyForwardRetries() {
   const now = Date.now();
   const { enabled, minutes } = await getShopifyForwardRetryConfig();
@@ -226,6 +243,7 @@ async function main() {
       await ensureSmartListsSyncJob();
       await ensureLogCleanup();
       await ensureShopifyForwardRetries();
+      await ensureJobsHeartbeat();
       await runOnce();
       await new Promise((r) => setTimeout(r, 1000));
     } catch (err: any) {

@@ -140,6 +140,25 @@ logsRouter.get("/system", async (req, res) => {
   res.json({ items: enriched });
 });
 
+logsRouter.get("/jobs/health", async (_req, res) => {
+  const key = String(process.env.JOBS_HEARTBEAT_KEY || "wompi-subs-jobs").trim() || "wompi-subs-jobs";
+  const ttlSecondsRaw = Number(process.env.JOBS_HEALTH_TTL_SECONDS || 180);
+  const ttlSeconds = Number.isFinite(ttlSecondsRaw) ? Math.max(30, Math.trunc(ttlSecondsRaw)) : 180;
+  const heartbeat = await prisma.serviceHeartbeat.findUnique({ where: { key } });
+  const now = new Date();
+  const lastSeenAt = heartbeat?.lastSeenAt || null;
+  const ageMs = lastSeenAt ? now.getTime() - lastSeenAt.getTime() : null;
+  const healthy = lastSeenAt ? ageMs != null && ageMs <= ttlSeconds * 1000 : false;
+  res.json({
+    ok: !!lastSeenAt,
+    healthy,
+    key,
+    lastSeenAt: lastSeenAt ? lastSeenAt.toISOString() : null,
+    ageMs,
+    ttlSeconds
+  });
+});
+
 logsRouter.get("/system/:id", async (req, res) => {
   const id = String(req.params.id || "").trim();
   if (!id) return res.status(400).json({ error: "invalid_id" });

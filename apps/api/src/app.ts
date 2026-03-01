@@ -3,6 +3,7 @@ import helmet from "helmet";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import { logger } from "./lib/logger";
+import { prisma } from "./db/prisma";
 import { health, healthz } from "./routes/health";
 import { requireAdminToken, listWebhookEvents } from "./routes/admin";
 import { wompiWebhook } from "./routes/webhooksWompi";
@@ -112,9 +113,11 @@ export function createApp() {
 
   const rateLimitWindowMs = Math.max(10_000, Number(process.env.RATE_LIMIT_WINDOW_MS || 600_000));
   const rateLimitMax = Math.max(10, Number(process.env.RATE_LIMIT_MAX || 10000));
+  const rateLimitStore = String(process.env.RATE_LIMIT_STORE || "memory").trim().toLowerCase();
+  const useDbRateLimit = rateLimitStore === "db" || rateLimitStore === "postgres" || rateLimitStore === "pg";
   const rateBuckets = new Map<string, { count: number; resetAt: number }>();
   let rateRequests = 0;
-  app.use((req, res, next) => {
+  app.use(async (req, res, next) => {
     if (!isApiPath(req.path)) return next();
     // 1. Bypass TOTAL para health checks y monitoreo (HEAD)
     const isHealth = req.path === "/health" || req.path === "/healthz" || req.path === "/health/";
@@ -132,6 +135,50 @@ export function createApp() {
     const key = forwarded || req.ip || "unknown";
     const now = Date.now();
     rateRequests += 1;
+
+    if (useDbRateLimit) {
+      try {
+        if (rateRequests % 200 === 0) {
+          await prisma.rateLimitBucket.deleteMany({ where: { resetAt: { lt: new Date(now) } } }).catch(() => {});
+        }
+        const existing = await prisma.rateLimitBucket.findUnique({ where: { key } });
+        if (!existing || existing.resetAt.getTime() <= now) {
+          const resetAt = new Date(now + rateLimitWindowMs);
+          await prisma.rateLimitBucket.upsert({
+            where: { key },
+            create: { key, count: 1, resetAt },
+            update: { count: 1, resetAt }
+          });
+          res.setHeader("X-RateLimit-Limit", String(rateLimitMax));
+          res.setHeader("X-RateLimit-Remaining", String(rateLimitMax - 1));
+          res.setHeader("X-RateLimit-Reset", String(Math.ceil(resetAt.getTime() / 1000)));
+          return next();
+        }
+
+        const nextCount = existing.count + 1;
+        if (nextCount > rateLimitMax) {
+          const retryAfter = Math.ceil((existing.resetAt.getTime() - now) / 1000);
+          res.setHeader("Retry-After", String(retryAfter));
+          res.setHeader("X-RateLimit-Limit", String(rateLimitMax));
+          res.setHeader("X-RateLimit-Remaining", "0");
+          res.setHeader("X-RateLimit-Reset", String(Math.ceil(existing.resetAt.getTime() / 1000)));
+          return res.status(429).json({ error: "rate_limited" });
+        }
+
+        const updated = await prisma.rateLimitBucket.update({
+          where: { key },
+          data: { count: nextCount }
+        });
+        res.setHeader("X-RateLimit-Limit", String(rateLimitMax));
+        res.setHeader("X-RateLimit-Remaining", String(Math.max(0, rateLimitMax - updated.count)));
+        res.setHeader("X-RateLimit-Reset", String(Math.ceil(updated.resetAt.getTime() / 1000)));
+        return next();
+      } catch (err) {
+        logger.warn({ err }, "Rate limit db failed, falling back to memory");
+        // fall through to memory limiter
+      }
+    }
+
     if (rateRequests % 200 === 0 && rateBuckets.size) {
       for (const [k, v] of rateBuckets.entries()) {
         if (now >= v.resetAt) rateBuckets.delete(k);
