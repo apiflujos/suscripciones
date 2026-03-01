@@ -2676,6 +2676,45 @@ textarea.input {
   max-width: min(320px, 90vw);
 }
 
+.realtime-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--stroke);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.18);
+}
+
+.realtime-status .btn-compact {
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+.realtime-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--text-faint);
+  display: inline-block;
+}
+
+.realtime-status.is-connected .realtime-status-dot {
+  background: var(--status-success);
+}
+
+.realtime-status.is-connecting .realtime-status-dot {
+  background: var(--status-warning);
+}
+
+.realtime-status.is-disconnected .realtime-status-dot {
+  background: var(--status-danger);
+}
+
 .toast {
   background: var(--panel);
   border: 1px solid var(--stroke);

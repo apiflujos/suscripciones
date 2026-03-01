@@ -12,11 +12,13 @@ type RealtimeEvent = {
 };
 
 type Toast = RealtimeEvent & { seenAt: number };
+type RealtimeStatus = "connecting" | "connected" | "disconnected";
 
 const STORAGE_KEY = "apiflujos-realtime-last";
 
 export function RealtimeNotifier() {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [status, setStatus] = useState<RealtimeStatus>("connecting");
   const lastSeenRef = useRef<string>("");
   const reconnectRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -36,8 +38,14 @@ export function RealtimeNotifier() {
 
     const connect = () => {
       if (!active) return;
+      setStatus("connecting");
       const since = lastSeenRef.current || new Date(Date.now() - 60 * 1000).toISOString();
       source = new EventSource(`/api/realtime?since=${encodeURIComponent(since)}`);
+
+      source.onopen = () => {
+        if (!active) return;
+        setStatus("connected");
+      };
 
       source.onmessage = (evt) => {
         if (!evt.data) return;
@@ -64,6 +72,7 @@ export function RealtimeNotifier() {
 
       source.onerror = () => {
         if (!active) return;
+        setStatus("disconnected");
         source?.close();
         if (reconnectRef.current) clearTimeout(reconnectRef.current);
         reconnectRef.current = setTimeout(connect, 6000);
@@ -88,8 +97,31 @@ export function RealtimeNotifier() {
     return () => timers.forEach(clearTimeout);
   }, [toasts]);
 
+  const pushTestToast = () => {
+    const now = new Date().toISOString();
+    const test: Toast = {
+      id: `test_${Date.now()}`,
+      type: "webhook",
+      level: "info",
+      ts: now,
+      title: "Notificación de prueba",
+      message: "Si ves esto, los avisos en tiempo real están activos en tu sesión.",
+      seenAt: Date.now()
+    };
+    setToasts((prev) => [test, ...prev].slice(0, 6));
+  };
+
   return (
     <div className="realtime-toasts" aria-live="polite">
+      <div className={`realtime-status is-${status}`}>
+        <span className="realtime-status-dot" aria-hidden="true" />
+        <span className="realtime-status-text">
+          {status === "connected" ? "Tiempo real: conectado" : status === "connecting" ? "Tiempo real: conectando" : "Tiempo real: desconectado"}
+        </span>
+        <button className="ghost btn-compact" type="button" onClick={pushTestToast} data-loader="off">
+          Probar
+        </button>
+      </div>
       {toasts.map((toast) => (
         <div key={toast.id} className={`toast ${toast.level === "error" ? "is-error" : "is-info"}`}>
           <div className="toast-title">{toast.title}</div>
