@@ -9,6 +9,9 @@ type RealtimeEvent = {
   ts: string;
   title: string;
   message: string;
+  paymentStatus?: string | null;
+  paymentType?: string | null;
+  sound?: "cash" | null;
 };
 
 type Toast = RealtimeEvent & { seenAt: number };
@@ -21,6 +24,9 @@ export function RealtimeNotifier() {
   const [status, setStatus] = useState<RealtimeStatus>("connecting");
   const lastSeenRef = useRef<string>("");
   const reconnectRef = useRef<NodeJS.Timeout | null>(null);
+  const soundEnabledRef = useRef(false);
+  const lastSoundRef = useRef(0);
+  const seenIdsRef = useRef<Set<string>>(new Set());
 
   const lastSeen = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -31,6 +37,63 @@ export function RealtimeNotifier() {
   useEffect(() => {
     if (lastSeen) lastSeenRef.current = lastSeen;
   }, [lastSeen]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem("apiflujos-realtime-sound");
+    if (stored === "1") soundEnabledRef.current = true;
+    const enable = () => {
+      soundEnabledRef.current = true;
+      try {
+        window.localStorage.setItem("apiflujos-realtime-sound", "1");
+      } catch {}
+    };
+    document.addEventListener("pointerdown", enable, { once: true });
+    return () => document.removeEventListener("pointerdown", enable);
+  }, []);
+
+  const playCashSound = () => {
+    if (typeof window === "undefined") return;
+    if (!soundEnabledRef.current) return;
+    const nowMs = Date.now();
+    if (nowMs - lastSoundRef.current < 3000) return;
+    lastSoundRef.current = nowMs;
+    const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const now = ctx.currentTime;
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.35, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+    gain.connect(ctx.destination);
+
+    const osc = ctx.createOscillator();
+    osc.type = "square";
+    osc.frequency.setValueAtTime(1200, now);
+    osc.frequency.exponentialRampToValueAtTime(240, now + 0.3);
+    osc.connect(gain);
+    osc.start(now);
+    osc.stop(now + 0.35);
+
+    const clickGain = ctx.createGain();
+    clickGain.gain.setValueAtTime(0.0001, now);
+    clickGain.gain.exponentialRampToValueAtTime(0.25, now + 0.01);
+    clickGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+    clickGain.connect(ctx.destination);
+
+    const clickOsc = ctx.createOscillator();
+    clickOsc.type = "triangle";
+    clickOsc.frequency.setValueAtTime(1800, now);
+    clickOsc.connect(clickGain);
+    clickOsc.start(now + 0.05);
+    clickOsc.stop(now + 0.12);
+
+    setTimeout(() => {
+      ctx.close().catch(() => {});
+    }, 500);
+  };
 
   useEffect(() => {
     let source: EventSource | null = null;
@@ -53,11 +116,26 @@ export function RealtimeNotifier() {
         const events: RealtimeEvent[] = Array.isArray(payload.events) ? payload.events : [];
         if (!events.length) return;
 
+        let shouldPlayCash = false;
         const now = Date.now();
+        const freshEvents = events.filter((e) => {
+          if (!e?.id) return true;
+          if (seenIdsRef.current.has(e.id)) return false;
+          seenIdsRef.current.add(e.id);
+          return true;
+        });
+        if (seenIdsRef.current.size > 300) {
+          const trimmed = Array.from(seenIdsRef.current).slice(-200);
+          seenIdsRef.current = new Set(trimmed);
+        }
+        for (const e of freshEvents) {
+          if (e.sound === "cash") shouldPlayCash = true;
+        }
         setToasts((prev) => {
-          const merged = [...events.map((e) => ({ ...e, seenAt: now })), ...prev];
+          const merged = [...freshEvents.map((e) => ({ ...e, seenAt: now })), ...prev];
           return merged.slice(0, 6);
         });
+        if (shouldPlayCash) playCashSound();
 
         const latestTs = events
           .map((e) => new Date(e.ts).getTime())

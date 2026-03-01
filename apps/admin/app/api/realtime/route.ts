@@ -53,15 +53,22 @@ export async function GET(req: Request) {
           for (const w of webhooks) {
             const status = String(w.processStatus || "");
             const level = status === "FAILED" ? "error" : "info";
+            const paymentStatus = String(w.paymentStatus || "").toUpperCase();
+            const isApproved = paymentStatus === "APPROVED" && status === "PROCESSED";
             const customer = w.customerName || w.customerEmail || w.customerPhone || "Cliente";
             const ref = w.reference || w.wompiPaymentLinkId || w.wompiTransactionId || "";
+            const typeLabel = w.paymentType || "Pago";
+            const planLabel = w.planName ? ` · ${w.planName}` : "";
             events.push({
               id: `wh_${w.id}`,
               type: "webhook",
               level,
               ts: w.receivedAt,
-              title: status === "FAILED" ? "Webhook fallido" : "Webhook recibido",
-              message: `${customer} · ${w.paymentStatus || "estado"}${ref ? ` · ${ref}` : ""}`
+              title: isApproved ? "Pago aprobado" : status === "FAILED" ? "Webhook fallido" : "Webhook recibido",
+              message: isApproved ? `${customer} · ${typeLabel}${planLabel}` : `${customer} · ${w.paymentStatus || "estado"}${ref ? ` · ${ref}` : ""}`,
+              paymentStatus,
+              paymentType: w.paymentType || null,
+              sound: isApproved ? "cash" : null
             });
           }
 
