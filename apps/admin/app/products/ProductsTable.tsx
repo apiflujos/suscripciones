@@ -95,6 +95,7 @@ export function ProductsTable({
   const [sendIncludeImage, setSendIncludeImage] = useState(true);
   const [sendMessage, setSendMessage] = useState("");
   const [sendSearch, setSendSearch] = useState("");
+  const [sendSearchDebounced, setSendSearchDebounced] = useState("");
   const [sendSearchLocked, setSendSearchLocked] = useState(false);
   const [messageDirty, setMessageDirty] = useState(false);
   const [sendInboxId, setSendInboxId] = useState("");
@@ -249,14 +250,21 @@ export function ProductsTable({
 
   const modalTitle = useMemo(() => (editing ? `Editar: ${editing.name}` : "Editar producto"), [editing]);
 
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setSendSearchDebounced(sendSearch);
+    }, 250);
+    return () => clearTimeout(handle);
+  }, [sendSearch]);
+
   const normalizedQuery = useMemo(() => {
-    const raw = sendSearch.trim();
+    const raw = sendSearchDebounced.trim();
     if (!raw) return "";
     return raw
       .normalize("NFD")
       .replace(/\p{Diacritic}/gu, "")
       .toLowerCase();
-  }, [sendSearch]);
+  }, [sendSearchDebounced]);
 
   const filteredCustomers = useMemo(() => {
     const list = Array.isArray(customers) ? customers : [];
@@ -285,8 +293,14 @@ export function ProductsTable({
     const list = Array.isArray(inboxes) ? inboxes.slice() : [];
     return list.sort((a, b) => String(a?.name || "").localeCompare(String(b?.name || ""), "es"));
   }, [inboxes]);
+  const searchActive = normalizedQuery.length >= 2;
+  const selectedInbox = useMemo(
+    () => (sendInboxId ? sortedInboxes.find((i) => String(i.id) === String(sendInboxId)) : null),
+    [sendInboxId, sortedInboxes]
+  );
+  const sendImageReady = Boolean(sendProduct && sendIncludeImage && isPublicImage(sendProduct.imageUrl));
   const searchResults = useMemo(() => {
-    if (!normalizedQuery) return [];
+    if (!normalizedQuery || normalizedQuery.length < 2) return [];
     const tokens = normalizedQuery.split(/\s+/).filter(Boolean);
     const scored = filteredCustomers
       .map((c: any) => {
@@ -300,26 +314,49 @@ export function ProductsTable({
           .toLowerCase();
         const phone = String(c?.phone || "").replace(/\s+/g, "").toLowerCase();
         let score = 0;
-        if (email && email === normalizedQuery) score += 120;
-        if (phone && phone === normalizedQuery.replace(/\s+/g, "")) score += 120;
-        if (name && name === normalizedQuery) score += 100;
-        if (name.startsWith(normalizedQuery)) score += 80;
-        if (email.startsWith(normalizedQuery) || phone.startsWith(normalizedQuery.replace(/\s+/g, ""))) score += 70;
-        if (name.includes(normalizedQuery)) score += 50;
-        if (email.includes(normalizedQuery) || phone.includes(normalizedQuery.replace(/\s+/g, ""))) score += 40;
+        let reason = "";
+        if (email && email === normalizedQuery) {
+          score += 160;
+          reason = "Email exacto";
+        }
+        if (phone && phone === normalizedQuery.replace(/\s+/g, "")) {
+          score += 160;
+          reason = reason || "Teléfono exacto";
+        }
+        if (name && name === normalizedQuery) {
+          score += 140;
+          reason = reason || "Nombre exacto";
+        }
+        if (name.startsWith(normalizedQuery)) {
+          score += 90;
+          reason = reason || "Nombre inicia";
+        }
+        if (email.startsWith(normalizedQuery) || phone.startsWith(normalizedQuery.replace(/\s+/g, ""))) {
+          score += 80;
+          reason = reason || "Contacto inicia";
+        }
+        if (name.includes(normalizedQuery)) {
+          score += 60;
+          reason = reason || "Nombre contiene";
+        }
+        if (email.includes(normalizedQuery) || phone.includes(normalizedQuery.replace(/\s+/g, ""))) {
+          score += 50;
+          reason = reason || "Contacto contiene";
+        }
         if (tokens.length) {
           const tokenHits = tokens.reduce((acc, t) => (name.includes(t) ? acc + 1 : acc), 0);
           score += tokenHits * 10;
+          if (tokenHits && !reason) reason = "Coincidencias parciales";
         }
-        return { item: c, score };
+        return { item: c, score, reason };
       })
       .filter((row) => row.score > 0)
       .sort((a, b) => {
         if (b.score !== a.score) return b.score - a.score;
         return String(a.item?.name || "").localeCompare(String(b.item?.name || ""), "es");
       })
-      .map((row) => row.item);
-    return scored.slice(0, 8);
+      .slice(0, 8);
+    return scored;
   }, [filteredCustomers, normalizedQuery]);
 
   function formatCustomerLabel(c: any) {
@@ -616,14 +653,36 @@ export function ProductsTable({
                       setSendSearchLocked(false);
                     }}
                   />
-                  {sendSearch.trim() && !sendSearchLocked ? (
+                  {!selectedCustomer && !searchActive ? (
+                    <div className="field-hint">Escribe al menos 2 caracteres para buscar rápido.</div>
+                  ) : null}
+                  {selectedCustomer ? (
+                    <div className="send-selected-card">
+                      <div>
+                        <div className="send-selected-name">{formatCustomerLabel(selectedCustomer)}</div>
+                        <div className="send-selected-meta">{formatCustomerMeta(selectedCustomer) || "Sin contacto adicional"}</div>
+                      </div>
+                      <button
+                        type="button"
+                        className="ghost btn-compact"
+                        onClick={() => {
+                          setSendSearch("");
+                          setSendSearchLocked(false);
+                        }}
+                      >
+                        Cambiar
+                      </button>
+                    </div>
+                  ) : null}
+                  {searchActive && !sendSearchLocked ? (
                     <div className="send-search-results">
                       <div className="send-search-heading">
                         {searchResults.length ? `Resultados rápidos (${searchResults.length})` : "Sin coincidencias"}
                       </div>
                       {searchResults.length ? (
                         <div className="send-search-list">
-                          {searchResults.map((c: any) => {
+                          {searchResults.map((row: any) => {
+                            const c = row.item;
                             const isSelected = String(c.id) === String(sendCustomerId);
                             return (
                               <button
@@ -634,7 +693,10 @@ export function ProductsTable({
                               >
                                 <span className="send-search-name">{formatCustomerLabel(c)}</span>
                                 <span className="send-search-meta">{formatCustomerMeta(c) || "Sin contacto adicional"}</span>
-                                {isSelected ? <span className="pill pill-ok">Seleccionado</span> : <span className="pill">Elegir</span>}
+                                <div className="send-search-tags">
+                                  {row.reason ? <span className="pill pill-soft">{row.reason}</span> : null}
+                                  {isSelected ? <span className="pill pill-ok">Seleccionado</span> : <span className="pill">Elegir</span>}
+                                </div>
                               </button>
                             );
                           })}
@@ -772,6 +834,20 @@ export function ProductsTable({
               </div>
 
               <div className="send-product-right">
+                <div className="send-product-summary">
+                  <div className="send-summary-row">
+                    <span>Adjuntos</span>
+                    {sendImageReady ? <span className="pill pill-ok">Imagen lista</span> : <span className="pill pill-soft">Sin imagen</span>}
+                  </div>
+                  <div className="send-summary-row">
+                    <span>Link de pago</span>
+                    {sendIncludeLink ? <span className="pill pill-ok">Incluido</span> : <span className="pill pill-soft">No incluido</span>}
+                  </div>
+                  <div className="send-summary-row">
+                    <span>Inbox</span>
+                    <span className="send-summary-value">{selectedInbox ? formatInboxLabel(selectedInbox) : "Automático"}</span>
+                  </div>
+                </div>
                 <div className="field">
                   <label>Mensaje para el cliente</label>
                   <textarea

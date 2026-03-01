@@ -4607,6 +4607,13 @@ textarea.input {
   background: var(--primary-soft);
 }
 
+.pill-soft {
+  color: var(--text-faint);
+  border-color: var(--stroke);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  font-weight: 600;
+}
+
 .pillDanger {
   background: rgba(217, 83, 79, 0.15);
   color: #a94442;
@@ -6129,6 +6136,30 @@ body.is-global-loading {
   gap: 10px;
 }
 
+.send-product-summary {
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  background: var(--surface-2);
+  padding: 10px 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.send-summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-soft);
+}
+
+.send-summary-value {
+  font-weight: 600;
+  color: var(--text);
+  text-align: right;
+}
+
 .send-search-results {
   margin-top: 8px;
   border: 1px solid var(--stroke);
@@ -6137,6 +6168,29 @@ body.is-global-loading {
   padding: 8px;
   display: grid;
   gap: 8px;
+}
+
+.send-selected-card {
+  margin-top: 8px;
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  background: var(--panel);
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.send-selected-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.send-selected-meta {
+  font-size: 11px;
+  color: var(--text-faint);
 }
 
 .send-search-heading {
@@ -6184,6 +6238,14 @@ body.is-global-loading {
 .send-search-meta {
   font-size: 11px;
   color: var(--text-faint);
+}
+
+.send-search-tags {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .check-pill {

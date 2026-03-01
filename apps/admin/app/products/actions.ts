@@ -413,7 +413,7 @@ export async function sendProductToCustomer(formData: FormData) {
     imagen: includeImageSafe ? imageUrl : "",
     link: includePaymentLink ? checkoutUrl : ""
   });
-  message = stripInlineImageLines(message, !includeImageSafe);
+  message = stripInlineImageLines(message, true);
 
   if (!message) return redirect(mergeQuery(returnTo, { error: "empty_message" }));
 
