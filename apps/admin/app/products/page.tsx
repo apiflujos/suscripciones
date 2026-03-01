@@ -31,6 +31,15 @@ async function fetchSmartListMembers(id: string) {
   return res.json || { items: [] as any[] };
 }
 
+async function fetchChatwootInboxes() {
+  try {
+    const res = await fetchAdminCached("/admin/chatwoot/inboxes", { ttlMs: 1500 });
+    return res.json || { items: [] as any[] };
+  } catch {
+    return { items: [] as any[] };
+  }
+}
+
 export default async function ProductsPage({
   searchParams
 }: {
@@ -70,13 +79,14 @@ export default async function ProductsPage({
   const take = 20;
   sp.set("take", String(take));
   if (Number.isFinite(page) && page > 1) sp.set("skip", String((Math.trunc(page) - 1) * take));
-  const [products, tenantsRes, customersRes, templatesRes, smartListsRes, smartMembersRes] = await Promise.all([
+  const [products, tenantsRes, customersRes, templatesRes, smartListsRes, smartMembersRes, chatwootInboxesRes] = await Promise.all([
     fetchAdmin(`/admin/products?${sp.toString()}`),
     fetchAdminCached("/admin/tenants", { ttlMs: 1500 }),
     fetchAdminCached(tenantId ? `/admin/customers?take=200&tenantId=${encodeURIComponent(tenantId)}` : "/admin/customers?take=200", { ttlMs: 1500 }),
     fetchAdminCached(tenantId ? `/admin/checkout-templates?tenantId=${encodeURIComponent(tenantId)}` : "/admin/checkout-templates", { ttlMs: 1500 }),
     fetchSmartLists(),
-    smartListId ? fetchSmartListMembers(smartListId) : Promise.resolve({ items: [] as any[] })
+    smartListId ? fetchSmartListMembers(smartListId) : Promise.resolve({ items: [] as any[] }),
+    fetchChatwootInboxes()
   ]);
 
   const productItems = (products.json?.items ?? []) as any[];
@@ -89,6 +99,7 @@ export default async function ProductsPage({
     ? smartListMembers.map((m: any) => m?.customer).filter(Boolean)
     : (customersRes.json?.items ?? []);
   const filteredCustomers = smartListCustomers;
+  const chatwootInboxes = (chatwootInboxesRes.items ?? chatwootInboxesRes.json?.items ?? []) as any[];
 
   return (
     <main className="page pageWide">
@@ -175,6 +186,7 @@ export default async function ProductsPage({
               deleteProductAction={deleteProduct}
               tenants={tenants}
               customers={filteredCustomers}
+              inboxes={chatwootInboxes}
               checkoutTemplates={templatesRes.json?.items ?? []}
               createCustomer={createCustomerFromBilling}
               createPlanAndSubscription={createPlanAndSubscription}

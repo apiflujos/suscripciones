@@ -302,6 +302,8 @@ export async function sendProductToCustomer(formData: FormData) {
   const includePaymentLink = String(formData.get("includePaymentLink") || "") === "on";
   const includeImage = String(formData.get("includeImage") || "") === "on";
   const messageTemplate = String(formData.get("message") || "").trim();
+  const inboxIdRaw = String(formData.get("inboxId") || "").trim();
+  const inboxId = inboxIdRaw ? Number(inboxIdRaw) : NaN;
 
   if (!productId || !customerId) {
     return redirect(mergeQuery(returnTo, { error: "missing_product_or_customer" }));
@@ -422,6 +424,7 @@ export async function sendProductToCustomer(formData: FormData) {
         customerId,
         content: message,
         type: "PAYMENT_LINK",
+        ...(Number.isFinite(inboxId) ? { inboxId } : {}),
         ...(templateParams ? { templateParams } : {}),
         ...(attachmentUrl ? { attachmentUrl } : {})
       })

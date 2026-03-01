@@ -51,12 +51,21 @@ type ProductRow = {
   collectionMode?: string | null;
 };
 
+type ChatwootInbox = {
+  id: number;
+  name: string;
+  channelType?: string;
+  medium?: string;
+  provider?: string;
+};
+
 export function ProductsTable({
   items,
   csrfToken,
   deleteProductAction,
   tenants,
   customers,
+  inboxes,
   checkoutTemplates,
   createCustomer,
   createPlanAndSubscription,
@@ -67,6 +76,7 @@ export function ProductsTable({
   deleteProductAction: (formData: FormData) => void | Promise<void>;
   tenants: Array<{ id: string; name: string }>;
   customers: any[];
+  inboxes: ChatwootInbox[];
   checkoutTemplates: any[];
   createCustomer: (formData: FormData) => Promise<void>;
   createPlanAndSubscription: (formData: FormData) => void | Promise<void>;
@@ -87,6 +97,7 @@ export function ProductsTable({
   const [sendSearch, setSendSearch] = useState("");
   const [sendSearchLocked, setSendSearchLocked] = useState(false);
   const [messageDirty, setMessageDirty] = useState(false);
+  const [sendInboxId, setSendInboxId] = useState("");
   const [txError, setTxError] = useState("");
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [planModalProduct, setPlanModalProduct] = useState<ProductRow | null>(null);
@@ -270,6 +281,10 @@ export function ProductsTable({
     () => (Array.isArray(customers) ? customers.find((c: any) => String(c.id) === String(sendCustomerId)) : null),
     [customers, sendCustomerId]
   );
+  const sortedInboxes = useMemo(() => {
+    const list = Array.isArray(inboxes) ? inboxes.slice() : [];
+    return list.sort((a, b) => String(a?.name || "").localeCompare(String(b?.name || ""), "es"));
+  }, [inboxes]);
   const searchResults = useMemo(() => {
     if (!normalizedQuery) return [];
     const tokens = normalizedQuery.split(/\s+/).filter(Boolean);
@@ -365,6 +380,7 @@ export function ProductsTable({
     setSendSearch("");
     setSendSearchLocked(false);
     setMessageDirty(false);
+    setSendInboxId("");
     setSendMessage(buildSendTemplate(item, true, includeImg));
   }
 
@@ -375,6 +391,7 @@ export function ProductsTable({
     setSendSearch("");
     setSendMessage("");
     setMessageDirty(false);
+    setSendInboxId("");
   }
 
   function onImageFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -414,6 +431,12 @@ export function ProductsTable({
     }
     if (!isPublicImage(trimmed)) return;
     setImageUrl(trimmed);
+  }
+
+  function formatInboxLabel(inbox: ChatwootInbox) {
+    const name = String(inbox?.name || `Inbox ${inbox?.id}`);
+    const channel = String(inbox?.channelType || inbox?.medium || inbox?.provider || "").trim();
+    return channel ? `${name} · ${channel}` : name;
   }
 
   return (
@@ -717,6 +740,33 @@ export function ProductsTable({
                     {isPublicImage(sendProduct.imageUrl)
                       ? "La imagen se envía como adjunto público al canal del cliente."
                       : "La imagen debe ser una URL https pública para poder enviarse."}
+                  </div>
+                </div>
+                <div className="field">
+                  <label>Canal Chatwoot</label>
+                  <select
+                    className="select"
+                    name="inboxId"
+                    value={sendInboxId}
+                    onChange={(e) => setSendInboxId(e.target.value)}
+                  >
+                    <option value="">Automático según contacto</option>
+                    {sortedInboxes.length ? (
+                      sortedInboxes.map((inbox) => (
+                        <option key={inbox.id} value={inbox.id}>
+                          {formatInboxLabel(inbox)}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled>
+                        No hay inboxes disponibles
+                      </option>
+                    )}
+                  </select>
+                  <div className="field-hint">
+                    {sendInboxId
+                      ? "Se usará el inbox seleccionado para enviar el mensaje."
+                      : "Se selecciona el inbox configurado o el mejor canal disponible."}
                   </div>
                 </div>
               </div>

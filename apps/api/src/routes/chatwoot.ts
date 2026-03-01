@@ -160,6 +160,7 @@ const messageSchema = z.object({
   content: z.string().min(1),
   templateParams: z.any().optional(),
   attachmentUrl: z.string().url().optional(),
+  inboxId: z.number().int().positive().optional(),
   type: z.nativeEnum(ChatwootMessageType).optional(),
   sendNow: z.boolean().optional()
 });
@@ -249,6 +250,7 @@ chatwootRouter.post("/messages", async (req, res) => {
     const providerResp: any = {};
     if (parsed.data.templateParams) providerResp.template_params = parsed.data.templateParams;
     if (parsed.data.attachmentUrl) providerResp.attachment = { url: parsed.data.attachmentUrl };
+    if (Number.isFinite(parsed.data.inboxId)) providerResp.inboxId = parsed.data.inboxId;
     const resolvedTenantId =
       customer?.tenantId ?? (await getEffectiveTenantId(req)) ?? (await getDefaultTenantId());
     if (!resolvedTenantId) return res.status(400).json({ error: "tenant_required" });
@@ -317,6 +319,28 @@ chatwootRouter.post("/conversations/:conversationId/labels", async (req, res) =>
 
 const convCustomAttrsSchema = z.object({
   customAttributes: z.record(z.any())
+});
+
+chatwootRouter.get("/inboxes", async (req, res) => {
+  const client = await getClientOrThrow().catch((err) => {
+    res.status(400).json({ error: err?.message || "chatwoot_not_configured" });
+    return null;
+  });
+  if (!client) return;
+  try {
+    const out = await client.listInboxes();
+    const items = Array.isArray(out.raw?.payload) ? out.raw.payload : Array.isArray(out.raw) ? out.raw : [];
+    const normalized = items.map((item: any) => ({
+      id: Number(item?.id || item?.inbox_id || item?.inboxId),
+      name: String(item?.name || item?.channel_name || item?.channel?.name || ""),
+      channelType: String(item?.channel_type || item?.channelType || item?.channel?.channel_type || ""),
+      medium: String(item?.medium || item?.channel?.medium || ""),
+      provider: String(item?.provider || item?.channel?.provider || "")
+    })).filter((item: any) => Number.isFinite(item.id));
+    res.json({ items: normalized });
+  } catch (err: any) {
+    res.status(502).json({ error: "chatwoot_list_inboxes_failed", details: err?.message || "unknown_error" });
+  }
 });
 
 chatwootRouter.post("/conversations/:conversationId/custom-attributes", async (req, res) => {

@@ -225,7 +225,13 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
     return;
   }
 
-  const wantsTemplate = Boolean((msg.providerResp as any)?.template_params);
+  const providerResp: any = (msg.providerResp ?? {}) as any;
+  const templateParams = providerResp?.template_params;
+  const attachmentUrl = providerResp?.attachment?.url;
+  const requestedInboxRaw = providerResp?.inboxId ?? providerResp?.inbox_id;
+  const requestedInboxId = Number(requestedInboxRaw);
+  const hasRequestedInbox = Number.isFinite(requestedInboxId);
+  const wantsTemplate = Boolean(templateParams);
   try {
     const contactable = await client.listContactableInboxes(contactId);
     contactableInboxes = toContactableInboxes(contactable.raw);
@@ -234,12 +240,26 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
   }
 
   if (contactableInboxes.length) {
+    let byRequested = hasRequestedInbox
+      ? contactableInboxes.find((item) => item.inboxId === requestedInboxId)
+      : null;
+    if (!byRequested && hasRequestedInbox) {
+      try {
+        const createdInbox = await client.createContactInbox(contactId, undefined, requestedInboxId);
+        byRequested = { inboxId: requestedInboxId, sourceId: createdInbox.sourceId };
+        contactableInboxes = [...contactableInboxes, byRequested];
+      } catch {
+        // ignore
+      }
+    }
     const byTemplate = wantsTemplate ? contactableInboxes.find((item) => isWhatsappChannel(item)) : null;
     const byConfig = contactableInboxes.find((item) => item.inboxId === cfg.inboxId);
-    const prefer = byTemplate || byConfig || contactableInboxes[0];
+    const prefer = byRequested || byTemplate || byConfig || contactableInboxes[0];
     selectedInboxId = prefer?.inboxId;
     selectedChannel = prefer || null;
     if (!sourceId && prefer?.sourceId) sourceId = prefer.sourceId;
+  } else if (hasRequestedInbox) {
+    selectedInboxId = requestedInboxId;
   }
 
   if (!sourceId) {
@@ -310,8 +330,6 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
     });
   }
 
-  const templateParams = (msg.providerResp as any)?.template_params;
-  const attachmentUrl = (msg.providerResp as any)?.attachment?.url;
   let allowTemplate = Boolean(templateParams);
   if (templateParams) {
     try {

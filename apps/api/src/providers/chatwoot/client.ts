@@ -306,6 +306,12 @@ export class ChatwootClient {
     return { raw: res.json };
   }
 
+  async listInboxes() {
+    const res = await this.request(`/api/v1/accounts/${this.opts.accountId}/inboxes`, { method: "GET" });
+    if (!res.ok) throw new Error(`Chatwoot list inboxes failed: ${res.status} ${JSON.stringify(res.json)}`);
+    return { raw: res.json };
+  }
+
   async createContactInbox(contactId: number, sourceId?: string, inboxId?: number) {
     const res = await this.request(`/api/v1/accounts/${this.opts.accountId}/contacts/${contactId}/contact_inboxes`, {
       method: "POST",
