@@ -1324,12 +1324,12 @@ a {
 }
 
 .logs-table .log-date-cell .date-stack-top {
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .logs-table .log-date-cell .date-stack-middle,
 .logs-table .log-date-cell .date-stack-bottom {
-  font-size: 9px;
+  font-size: 8.5px;
 }
 
 .logs-table .log-ref-cell {
@@ -1352,7 +1352,7 @@ a {
 }
 
 .logs-table .log-ref-meta {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-faint);
   max-width: 100%;
   overflow: hidden;
@@ -1379,7 +1379,7 @@ a {
 }
 
 .logs-table .log-contact-meta {
-  font-size: 9.5px;
+  font-size: 9px;
   max-width: 100%;
 }
 
@@ -1957,17 +1957,17 @@ html[data-contrast="high"] .filtersPanel {
   display: grid;
   gap: 5px;
   color: var(--text-soft);
-  font-size: 13px;
+  font-size: 12.5px;
 }
 
 .field label {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 700;
   color: var(--form-label);
 }
 
 .field-hint {
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--form-hint);
 }
 
@@ -2660,7 +2660,8 @@ textarea.input {
 }
 
 .table-meta {
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1.2;
   color: var(--text-faint);
   margin-bottom: 8px;
 }
@@ -4299,7 +4300,8 @@ textarea.input {
 
 .pageSub {
   margin: 2px 0 0;
-  font-size: 11px;
+  font-size: 10px;
+  line-height: 1.2;
   color: var(--muted);
 }
 
@@ -4366,7 +4368,7 @@ textarea.input {
 
 .metric-label {
   grid-area: label;
-  font-size: 11.5px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-faint);
@@ -4383,7 +4385,8 @@ textarea.input {
 
 .metric-sub {
   grid-area: sub;
-  font-size: 12px;
+  font-size: 10px;
+  line-height: 1.2;
   color: var(--text-soft);
 }
 
@@ -4407,19 +4410,20 @@ textarea.input {
 }
 
 .chart-title {
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.02em;
   color: var(--text);
 }
 
 .chart-sub {
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1.2;
   color: var(--text-faint);
 }
 
 .chart-range {
-  font-size: 11.5px;
+  font-size: 10.5px;
   color: var(--text-faint);
   font-weight: 600;
 }
@@ -4428,7 +4432,7 @@ textarea.input {
   display: flex;
   flex-wrap: wrap;
   gap: 10px 16px;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-faint);
 }
 
@@ -4488,7 +4492,7 @@ textarea.input {
 }
 
 .metricsTabsMeta {
-  font-size: 11.5px;
+  font-size: 10.5px;
   color: var(--text-faint);
   font-weight: 600;
 }
@@ -4517,13 +4521,13 @@ textarea.input {
 }
 
 .recent-payment-title {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--text);
 }
 
 .recent-payment-sub {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-faint);
 }
 
@@ -4531,14 +4535,14 @@ textarea.input {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text);
   font-weight: 700;
 }
 
 .delta {
   font-weight: 700;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .delta.up {
