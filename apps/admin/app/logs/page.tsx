@@ -4,6 +4,7 @@ import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { LocalDateTime } from "../ui/LocalDateTime";
 import { LogsSystemTable } from "./LogsSystemTable";
 import { AiAssistant } from "./AiAssistant";
+import { LogsFiltersAutoSubmit } from "./LogsFiltersAutoSubmit";
 import { getCsrfToken, assertCsrfToken } from "../lib/csrf";
 import { PendingButton } from "../ui/PendingButton";
 
@@ -146,7 +147,9 @@ export default async function LogsPage({
   const baseParams = new URLSearchParams({
     take: String(take),
     count: "1",
-    ...(Number.isFinite(skip) && skip > 0 ? { skip: String(skip) } : {})
+    ...(Number.isFinite(skip) && skip > 0 ? { skip: String(skip) } : {}),
+    ...(from ? { from } : {}),
+    ...(to ? { to } : {})
   });
   const systemParams = new URLSearchParams({
     take: String(take),
@@ -177,13 +180,12 @@ export default async function LogsPage({
     ...(to ? { to } : {}),
     ...(tenantId ? { tenantId } : {})
   });
-  const [system, jobs, webhooks, messages, payments] = await Promise.all([
-    fetchAdmin(`/admin/logs/system?${systemParams.toString()}`),
-    fetchAdmin(`/admin/logs/jobs?${baseParams.toString()}`),
-    fetchAdmin(`/admin/webhook-events?${webhooksParams.toString()}`),
-    fetchAdmin(`/admin/logs/messages?${baseParams.toString()}`),
-    fetchAdmin(`/admin/logs/payments?${paymentsParams.toString()}`)
-  ]);
+  const empty = { ok: true, status: 200, json: { items: [], total: null } } as const;
+  const system = tab === "system" ? await fetchAdmin(`/admin/logs/system?${systemParams.toString()}`) : empty;
+  const jobs = tab === "jobs" ? await fetchAdmin(`/admin/logs/jobs?${baseParams.toString()}`) : empty;
+  const webhooks = tab === "webhooks" ? await fetchAdmin(`/admin/webhook-events?${webhooksParams.toString()}`) : empty;
+  const messages = tab === "messages" ? await fetchAdmin(`/admin/logs/messages?${baseParams.toString()}`) : empty;
+  const payments = tab === "payments" ? await fetchAdmin(`/admin/logs/payments?${paymentsParams.toString()}`) : empty;
 
   const sysItems = (system.json?.items ?? []) as any[];
   const jobItems = (jobs.json?.items ?? []) as any[];
@@ -286,6 +288,26 @@ export default async function LogsPage({
     );
   })();
   const failedJobsCount = jobItems.filter((j) => String(j.status) === "FAILED").length;
+  const jobSummary = jobItems.reduce(
+    (acc: { ok: number; pending: number; failed: number }, j: any) => {
+      const s = String(j.status || "").toUpperCase();
+      if (s === "FAILED") acc.failed += 1;
+      else if (s === "PENDING" || s === "RUNNING") acc.pending += 1;
+      else acc.ok += 1;
+      return acc;
+    },
+    { ok: 0, pending: 0, failed: 0 }
+  );
+  const messageSummary = messageItems.reduce(
+    (acc: { sent: number; pending: number; failed: number }, m: any) => {
+      const s = String(m.status || "").toUpperCase();
+      if (s === "SENT") acc.sent += 1;
+      else if (s === "FAILED") acc.failed += 1;
+      else acc.pending += 1;
+      return acc;
+    },
+    { sent: 0, pending: 0, failed: 0 }
+  );
   const paymentsSummary = paymentItems.reduce(
     (acc: { approved: number; pending: number; failed: number; total: number }, p: any) => {
       const s = String(p.status || "").toUpperCase();
@@ -318,9 +340,20 @@ export default async function LogsPage({
     source: normalizeLogSource(l.source),
     message: normalizeLogMessage(l.message)
   }));
+  const systemSummary = normalized.reduce(
+    (acc: { info: number; warn: number; error: number }, l: any) => {
+      const lvl = String(l.level || "").toUpperCase();
+      if (lvl === "ERROR") acc.error += 1;
+      else if (lvl === "WARN") acc.warn += 1;
+      else acc.info += 1;
+      return acc;
+    },
+    { info: 0, warn: 0, error: 0 }
+  );
 
   return (
     <main className="page">
+      <LogsFiltersAutoSubmit />
       <section className="settings-group">
         <div className="settings-group-header">
           <div className="panelHeaderRow">
@@ -372,22 +405,45 @@ export default async function LogsPage({
               </Link>
             </div>
             <div className="panelHeaderPills">
+              {tab === "system" ? (
+                <>
+                  <span className="pill">Total {totals.system ?? normalized.length}</span>
+                  <span className="pill pill-ok">Info {systemSummary.info}</span>
+                  <span className="pill pill-warn">Alertas {systemSummary.warn}</span>
+                  <span className="pill pill-bad">Errores {systemSummary.error}</span>
+                </>
+              ) : null}
               {tab === "webhooks" ? (
                 <>
+                  <span className="pill">Total {totals.webhooks ?? webhooksSummary.total}</span>
                   <span className="pill pill-ok">Procesados {webhooksSummary.processed}</span>
-                  <span className="pill pill-warn">Omitidos {webhooksSummary.skipped}</span>
+                  <span className="pill pill-warn">Recibidos {webhooksSummary.skipped}</span>
                   <span className="pill pill-bad">Fallidos {webhooksSummary.failed}</span>
                 </>
               ) : null}
               {tab === "payments" ? (
                 <>
+                  <span className="pill">Total {totals.payments ?? paymentsSummary.total}</span>
                   <span className="pill pill-ok">Pagados {paymentsSummary.approved}</span>
                   <span className="pill pill-warn">Pendientes {paymentsSummary.pending}</span>
                   <span className="pill pill-bad">Fallidos {paymentsSummary.failed}</span>
                 </>
               ) : null}
-              {tab === "jobs" || tab === "system" ? (
-                <span className={`pill ${failedJobsCount > 0 ? "pillDanger" : ""}`}>{failedJobsCount} fallos</span>
+              {tab === "messages" ? (
+                <>
+                  <span className="pill">Total {totals.messages ?? messageItems.length}</span>
+                  <span className="pill pill-ok">Enviados {messageSummary.sent}</span>
+                  <span className="pill pill-warn">Pendientes {messageSummary.pending}</span>
+                  <span className="pill pill-bad">Fallidos {messageSummary.failed}</span>
+                </>
+              ) : null}
+              {tab === "jobs" ? (
+                <>
+                  <span className="pill">Total {totals.jobs ?? jobItems.length}</span>
+                  <span className="pill pill-ok">Procesados {jobSummary.ok}</span>
+                  <span className="pill pill-warn">Pendientes {jobSummary.pending}</span>
+                  <span className="pill pill-bad">Fallidos {jobSummary.failed}</span>
+                </>
               ) : null}
             </div>
           </div>
@@ -397,17 +453,17 @@ export default async function LogsPage({
               <div className="filtersLeft">
                 <div className="filtersNote">Busca por evento o fuente (por defecto últimos 30 días).</div>
                 <div className="filtersPanel">
-                  <form action="/logs" method="GET" className="filtersForm">
+                  <form action="/logs" method="GET" className="filtersForm" data-debounce-form="true">
                     <input type="hidden" name="tab" value="system" />
                     <input className="input" name="q" defaultValue={q} placeholder="Buscar en logs..." aria-label="Buscar en logs" />
-                    <select className="select" name="level" defaultValue={level}>
+                    <select className="select" name="level" defaultValue={level} data-auto-submit="true">
                       <option value="">Estado: todos</option>
                       <option value="INFO">Exitoso</option>
                       <option value="WARN">Advertencia</option>
                       <option value="ERROR">Error</option>
                     </select>
-                    <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" />
-                    <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" />
+                    <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" data-auto-submit="true" />
+                    <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" data-auto-submit="true" />
                     <button className="ghost" type="submit">
                       Filtrar
                     </button>
@@ -430,17 +486,17 @@ export default async function LogsPage({
               <div className="filtersLeft">
                 <div className="filtersNote">Consulta pagos por cliente, referencia o estado (por defecto últimos 30 días).</div>
                 <div className="filtersPanel">
-                  <form action="/logs" method="GET" className="filtersForm">
+                  <form action="/logs" method="GET" className="filtersForm" data-debounce-form="true">
                     <input type="hidden" name="tab" value="payments" />
                     <input className="input" name="q" defaultValue={q} placeholder="Buscar cliente, referencia, tx o link..." aria-label="Buscar pagos" />
-                    <select className="select" name="status" defaultValue={status}>
+                    <select className="select" name="status" defaultValue={status} data-auto-submit="true">
                       <option value="">Estado: todos</option>
                       <option value="APPROVED">Pagado</option>
                       <option value="PENDING">Pendiente</option>
                       <option value="FAILED">Fallido</option>
                     </select>
-                    <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" />
-                    <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" />
+                    <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" data-auto-submit="true" />
+                    <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" data-auto-submit="true" />
                     <button className="ghost" type="submit">Filtrar</button>
                   </form>
                 </div>
@@ -665,17 +721,17 @@ export default async function LogsPage({
                 <div className="filtersLeft">
                   <div className="filtersNote">Webhooks con trazabilidad de cliente y pago (por defecto últimos 30 días).</div>
                   <div className="filtersPanel">
-                    <form action="/logs" method="GET" className="filtersForm">
+                    <form action="/logs" method="GET" className="filtersForm" data-debounce-form="true">
                       <input type="hidden" name="tab" value="webhooks" />
                       <input className="input" name="q" defaultValue={q} placeholder="Buscar cliente, referencia o tx..." aria-label="Buscar webhooks" />
-                      <select className="select" name="processStatus" defaultValue={processStatus}>
+                      <select className="select" name="processStatus" defaultValue={processStatus} data-auto-submit="true">
                         <option value="">Procesamiento: todos</option>
                         <option value="PROCESSED">Procesado</option>
                         <option value="FAILED">Fallido</option>
                         <option value="SKIPPED">Omitido</option>
                       </select>
-                      <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" />
-                      <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" />
+                      <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" data-auto-submit="true" />
+                      <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" data-auto-submit="true" />
                       <button className="ghost" type="submit">Filtrar</button>
                     </form>
                   </div>
