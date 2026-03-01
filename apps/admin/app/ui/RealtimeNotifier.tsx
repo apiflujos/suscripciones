@@ -228,7 +228,12 @@ export function RealtimeNotifier() {
 
       source.onmessage = (evt) => {
         if (!evt.data) return;
-        const payload = JSON.parse(evt.data || "{}");
+        let payload: any = {};
+        try {
+          payload = JSON.parse(evt.data || "{}");
+        } catch {
+          return;
+        }
         const events: RealtimeEvent[] = Array.isArray(payload.events) ? payload.events : [];
         if (!events.length) return;
 
