@@ -111,6 +111,7 @@ export function TopBar({ session }: { session: AdminSession | null }) {
       </div>
 
       <div className="topbarRight" aria-label="Usuario">
+        <div id="realtime-slot" className="topbarRealtimeSlot" />
         <div className="appearanceMenu">
           <button
             type="button"

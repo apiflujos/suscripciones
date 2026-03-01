@@ -2752,6 +2752,38 @@ textarea.input {
   box-shadow: 0 8px 16px rgba(15, 23, 42, 0.18);
 }
 
+.topbarRealtimeSlot {
+  display: flex;
+  align-items: center;
+  margin-right: 10px;
+}
+
+.topbar .realtime-status {
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.05);
+  box-shadow: none;
+  font-size: 11px;
+}
+
+.topbar .realtime-status-text {
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+@media (max-width: 980px) {
+  .topbar .realtime-status-text {
+    display: none;
+  }
+}
+
+@media (max-width: 860px) {
+  .topbarRealtimeSlot {
+    display: none;
+  }
+}
+
 .realtime-status .btn-compact {
   padding: 4px 8px;
   font-size: 11px;

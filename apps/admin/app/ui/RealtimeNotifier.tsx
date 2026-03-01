@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 type RealtimeEvent = {
   id: string;
@@ -22,6 +23,7 @@ const STORAGE_KEY = "apiflujos-realtime-last";
 export function RealtimeNotifier() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [status, setStatus] = useState<RealtimeStatus>("connecting");
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
   const lastSeenRef = useRef<string>("");
   const reconnectRef = useRef<NodeJS.Timeout | null>(null);
   const soundEnabledRef = useRef(false);
@@ -42,6 +44,12 @@ export function RealtimeNotifier() {
   useEffect(() => {
     if (lastSeen) lastSeenRef.current = lastSeen;
   }, [lastSeen]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const el = document.getElementById("realtime-slot");
+    if (el) setSlot(el);
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -238,8 +246,17 @@ export function RealtimeNotifier() {
 
   const pushTestToast = async () => {
     try {
+      if (!soundEnabledRef.current) {
+        soundEnabledRef.current = true;
+        soundEnabledStateRef.current = true;
+        setSoundEnabled(true);
+        try {
+          window.localStorage.setItem("apiflujos-realtime-sound", "1");
+        } catch {}
+      }
       const res = await fetch("/api/realtime/test", { method: "POST" });
       if (!res.ok) throw new Error("test_failed");
+      playCashSound();
     } catch {
       const now = new Date().toISOString();
       const fallback: Toast = {
@@ -252,64 +269,72 @@ export function RealtimeNotifier() {
         seenAt: Date.now()
       };
       setToasts((prev) => [fallback, ...prev].slice(0, 6));
+      playFailSound();
     }
   };
 
-  return (
-    <div className="realtime-toasts" aria-live="polite">
-      <div className={`realtime-status is-${status}`}>
-        <span className="realtime-status-dot" aria-hidden="true" />
-        <span className="realtime-status-text">
-          {status === "connected" ? "Tiempo real: conectado" : status === "connecting" ? "Tiempo real: conectando" : "Tiempo real: desconectado"}
-        </span>
-        <label className="realtime-sound-toggle">
-          <input
-            type="checkbox"
-            checked={soundEnabled}
-            onChange={(e) => {
-              const next = e.target.checked;
-              soundEnabledRef.current = next;
-              soundEnabledStateRef.current = next;
-              setSoundEnabled(next);
-              try {
-                window.localStorage.setItem("apiflujos-realtime-sound", next ? "1" : "0");
-              } catch {}
-            }}
-          />
-          <span>Sonido</span>
-        </label>
+  const statusEl = (
+    <div className={`realtime-status is-${status}`}>
+      <span className="realtime-status-dot" aria-hidden="true" />
+      <span className="realtime-status-text">
+        {status === "connected" ? "Tiempo real" : status === "connecting" ? "Conectando" : "Desconectado"}
+      </span>
+      <label className="realtime-sound-toggle">
         <input
-          className="realtime-volume"
-          type="range"
-          min="0.1"
-          max="1"
-          step="0.05"
-          value={volume}
+          type="checkbox"
+          checked={soundEnabled}
           onChange={(e) => {
-            const v = Number(e.target.value);
-            if (!Number.isFinite(v)) return;
-            volumeRef.current = v;
-            setVolume(v);
+            const next = e.target.checked;
+            soundEnabledRef.current = next;
+            soundEnabledStateRef.current = next;
+            setSoundEnabled(next);
             try {
-              window.localStorage.setItem("apiflujos-realtime-sound-volume", String(v));
+              window.localStorage.setItem("apiflujos-realtime-sound", next ? "1" : "0");
             } catch {}
           }}
-          aria-label="Volumen"
         />
-        <button className="ghost btn-compact" type="button" onClick={pushTestToast} data-loader="off">
-          Probar
-        </button>
-      </div>
-      {toasts.map((toast) => (
-        <div key={toast.id} className={`toast ${toast.level === "error" ? "is-error" : "is-info"}`}>
-          <div className="toast-title">{toast.title}</div>
-          <div className="toast-message">{toast.message}</div>
-          <div className="toast-meta">
-            <span>{toast.type === "webhook" ? "Webhook" : toast.type === "job" ? "Job" : "Sistema"}</span>
-            <span>{new Date(toast.ts).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}</span>
-          </div>
-        </div>
-      ))}
+        <span>Sonido</span>
+      </label>
+      <input
+        className="realtime-volume"
+        type="range"
+        min="0.1"
+        max="1"
+        step="0.05"
+        value={volume}
+        onChange={(e) => {
+          const v = Number(e.target.value);
+          if (!Number.isFinite(v)) return;
+          volumeRef.current = v;
+          setVolume(v);
+          try {
+            window.localStorage.setItem("apiflujos-realtime-sound-volume", String(v));
+          } catch {}
+        }}
+        aria-label="Volumen"
+      />
+      <button className="ghost btn-compact" type="button" onClick={pushTestToast} data-loader="off">
+        Probar
+      </button>
     </div>
+  );
+
+  return (
+    <>
+      {slot ? createPortal(statusEl, slot) : null}
+      <div className="realtime-toasts" aria-live="polite">
+        {!slot ? statusEl : null}
+        {toasts.map((toast) => (
+          <div key={toast.id} className={`toast ${toast.level === "error" ? "is-error" : "is-info"}`}>
+            <div className="toast-title">{toast.title}</div>
+            <div className="toast-message">{toast.message}</div>
+            <div className="toast-meta">
+              <span>{toast.type === "webhook" ? "Webhook" : toast.type === "job" ? "Job" : "Sistema"}</span>
+              <span>{new Date(toast.ts).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
