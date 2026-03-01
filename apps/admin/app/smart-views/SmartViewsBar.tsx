@@ -144,21 +144,23 @@ export function SmartViewsBar({
 
   useEffect(() => {
     const load = async () => {
-      const [viewsRes, fieldsRes] = await Promise.all([
-        fetch(`/api/smart-views/${encodeURIComponent(scope)}`),
-        fetch(`/api/smart-views/${encodeURIComponent(scope)}/fields`)
-      ]);
+      const viewsRes = await fetch(`/api/smart-views/${encodeURIComponent(scope)}`);
       const viewsJson = await viewsRes.json().catch(() => ({}));
-      const fieldsJson = await fieldsRes.json().catch(() => ({}));
       setViews(Array.isArray(viewsJson.items) ? viewsJson.items : []);
-      const loadedFields = Array.isArray(fieldsJson.fields) ? fieldsJson.fields : [];
-      setFields(loadedFields);
-      if ("rules" in root && root.rules.length === 0 && loadedFields.length) {
-        setRoot({ op: "and", rules: [defaultRule(loadedFields[0].key, loadedFields)] });
-      }
     };
     load().catch(() => null);
   }, [scope]);
+
+  async function ensureFieldsLoaded() {
+    if (fields.length) return;
+    const fieldsRes = await fetch(`/api/smart-views/${encodeURIComponent(scope)}/fields`);
+    const fieldsJson = await fieldsRes.json().catch(() => ({}));
+    const loadedFields = Array.isArray(fieldsJson.fields) ? fieldsJson.fields : [];
+    setFields(loadedFields);
+    if ("rules" in root && root.rules.length === 0 && loadedFields.length) {
+      setRoot({ op: "and", rules: [defaultRule(loadedFields[0].key, loadedFields)] });
+    }
+  }
 
   useEffect(() => {
     if (!("rules" in root) || !fields.length) return;
@@ -521,11 +523,11 @@ export function SmartViewsBar({
             className="ghost"
             type="button"
             onClick={() => {
-              if (!fields.length) return;
               setMode("filters");
               setActiveViewId("");
               setEditingId("");
               setNotice(null);
+              ensureFieldsLoaded().catch(() => null);
             }}
           >
             Filtros avanzados
@@ -546,66 +548,74 @@ export function SmartViewsBar({
               </button>
             </div>
 
-            {"rules" in root && root.rules.map((rule, index) => renderRule(rule, index))}
+            {fields.length === 0 ? (
+              <div className="muted">Cargando campos...</div>
+            ) : (
+              "rules" in root && root.rules.map((rule, index) => renderRule(rule, index))
+            )}
 
-            <div className="smartViewsFooter">
-              <button className="ghost" type="button" onClick={addRule}>
-                + Agregar condición
-              </button>
-            </div>
+            {fields.length ? (
+              <>
+                <div className="smartViewsFooter">
+                  <button className="ghost" type="button" onClick={addRule}>
+                    + Agregar condición
+                  </button>
+                </div>
 
-            <div className="smartViewsSave">
-              <div className="smartViewsSaveRow" style={{ marginBottom: 10 }}>
-                <button
-                  className="ghost"
-                  type="button"
-                  onClick={() => {
-                    if (!fields.length) return;
-                    if (!hasRules) {
-                      setError("Agrega al menos una condición antes de aplicar.");
-                      return;
-                    }
-                    setError(null);
-                    const serialized = encodeURIComponent(JSON.stringify(serializeRule(root)));
-                    window.location.href = buildHref({ filters: serialized, viewId: undefined });
-                  }}
-                >
-                  Aplicar filtros
-                </button>
-                <button
-                  className="ghost"
-                  type="button"
-                  onClick={() => {
-                    if (!fields.length) return;
-                    setError(null);
-                    setRoot({ op: "and", rules: [defaultRule(fields[0]?.key || "", fields)] });
-                  }}
-                >
-                  Limpiar
-                </button>
-              </div>
-              <div className="smartViewsSaveRow">
-                <input
-                  className="input"
-                  placeholder="Nombre de la vista"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-                <select className="select" value={visibility} onChange={(e) => setVisibility(e.target.value as any)}>
-                  <option value="ORG">Organización</option>
-                  <option value="PRIVATE">Privada</option>
-                </select>
-                <select className="select" value={type} onChange={(e) => setType(e.target.value as any)}>
-                  <option value="DYNAMIC">Dinámica</option>
-                  <option value="STATIC">Estática</option>
-                </select>
-                <button className="primary" type="button" disabled={!name.trim() || loading} onClick={saveView}>
-                  {loading ? "Guardando..." : editingId ? "Actualizar vista" : "Guardar vista"}
-                </button>
-              </div>
-              {error ? <div className="error">{error}</div> : null}
-              {notice ? <div className="notice">{notice}</div> : null}
-            </div>
+                <div className="smartViewsSave">
+                  <div className="smartViewsSaveRow" style={{ marginBottom: 10 }}>
+                    <button
+                      className="ghost"
+                      type="button"
+                      onClick={() => {
+                        if (!fields.length) return;
+                        if (!hasRules) {
+                          setError("Agrega al menos una condición antes de aplicar.");
+                          return;
+                        }
+                        setError(null);
+                        const serialized = encodeURIComponent(JSON.stringify(serializeRule(root)));
+                        window.location.href = buildHref({ filters: serialized, viewId: undefined });
+                      }}
+                    >
+                      Aplicar filtros
+                    </button>
+                    <button
+                      className="ghost"
+                      type="button"
+                      onClick={() => {
+                        if (!fields.length) return;
+                        setError(null);
+                        setRoot({ op: "and", rules: [defaultRule(fields[0]?.key || "", fields)] });
+                      }}
+                    >
+                      Limpiar
+                    </button>
+                  </div>
+                  <div className="smartViewsSaveRow">
+                    <input
+                      className="input"
+                      placeholder="Nombre de la vista"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                    />
+                    <select className="select" value={visibility} onChange={(e) => setVisibility(e.target.value as any)}>
+                      <option value="ORG">Organización</option>
+                      <option value="PRIVATE">Privada</option>
+                    </select>
+                    <select className="select" value={type} onChange={(e) => setType(e.target.value as any)}>
+                      <option value="DYNAMIC">Dinámica</option>
+                      <option value="STATIC">Estática</option>
+                    </select>
+                    <button className="primary" type="button" disabled={!name.trim() || loading} onClick={saveView}>
+                      {loading ? "Guardando..." : editingId ? "Actualizar vista" : "Guardar vista"}
+                    </button>
+                  </div>
+                  {error ? <div className="error">{error}</div> : null}
+                  {notice ? <div className="notice">{notice}</div> : null}
+                </div>
+              </>
+            ) : null}
           </div>
         </div>
       ) : null}

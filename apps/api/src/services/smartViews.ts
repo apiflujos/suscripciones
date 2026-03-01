@@ -112,6 +112,28 @@ function durationMs(amount: number, unit: string): number {
   return n * 24 * 60 * 60 * 1000;
 }
 
+function toCents(input: any): number | null {
+  const n = Number(input);
+  if (!Number.isFinite(n)) return null;
+  return Math.round(n * 100);
+}
+
+function normalizeMoneyRuleValue(value: any): any {
+  if (value == null) return value;
+  if (Array.isArray(value)) {
+    return value.map((v) => toCents(v)).filter((v) => typeof v === "number");
+  }
+  if (typeof value === "object") {
+    const from = toCents((value as any)?.from ?? (value as any)?.min ?? (value as any)?.start);
+    const to = toCents((value as any)?.to ?? (value as any)?.max ?? (value as any)?.end);
+    return {
+      ...(typeof from === "number" ? { from } : {}),
+      ...(typeof to === "number" ? { to } : {})
+    };
+  }
+  return toCents(value);
+}
+
 function evalRule(rule: SmartViewRule, ctx: Record<string, any>): boolean {
   if (!rule) return true;
   if ("rules" in rule) {
@@ -124,23 +146,31 @@ function evalRule(rule: SmartViewRule, ctx: Record<string, any>): boolean {
   const op = rule.op;
   if (!field) return true;
   const val = getByPath(ctx, field);
+  const isMoneyField = field.includes("amountInCents") || field.includes("priceInCents");
 
   if (op === "exists") return val != null;
   if (op === "isEmpty") return val == null || String(val).trim() === "";
 
+  const ruleValue = isMoneyField ? normalizeMoneyRuleValue(rule.value) : rule.value;
   const cmpVal = toComparable(val);
-  const target = toComparable(rule.value);
+  const target = toComparable(ruleValue);
 
   if (op === "equals") return cmpVal === target;
   if (op === "contains") return normalizeString(cmpVal).includes(normalizeString(target));
   if (op === "startsWith") return normalizeString(cmpVal).startsWith(normalizeString(target));
   if (op === "endsWith") return normalizeString(cmpVal).endsWith(normalizeString(target));
-  if (op === "in") return Array.isArray(rule.value) && rule.value.map(toComparable).includes(cmpVal as any);
-  if (op === "notIn") return Array.isArray(rule.value) && !rule.value.map(toComparable).includes(cmpVal as any);
+  if (op === "in") return Array.isArray(ruleValue) && ruleValue.map(toComparable).includes(cmpVal as any);
+  if (op === "notIn") return Array.isArray(ruleValue) && !ruleValue.map(toComparable).includes(cmpVal as any);
   if (op === "gt") return (cmpVal as any) > (target as any);
   if (op === "gte") return (cmpVal as any) >= (target as any);
   if (op === "lt") return (cmpVal as any) < (target as any);
   if (op === "lte") return (cmpVal as any) <= (target as any);
+  if (op === "between" && typeof cmpVal === "number") {
+    const from = Number((ruleValue as any)?.from ?? (Array.isArray(ruleValue) ? ruleValue[0] : null));
+    const to = Number((ruleValue as any)?.to ?? (Array.isArray(ruleValue) ? ruleValue[1] : null));
+    if (!Number.isFinite(from) || !Number.isFinite(to)) return false;
+    return cmpVal >= from && cmpVal <= to;
+  }
   if (op === "before" || op === "after" || op === "between" || op === "within_last" || op === "within_next" || op === "older_than" || op === "newer_than") {
     const valMs = toDateMs(val);
     if (valMs == null) return false;
@@ -253,7 +283,7 @@ export function getSmartViewFields(scope: SmartViewScope): SmartField[] {
       { key: "id.number", label: "Número identificación", group: "Identificación", type: "text", operators: ["equals", "contains"] },
       { key: "subscription.status", label: "Estado suscripción", group: "Plan/Suscripción", type: "enum", operators: ["equals", "in"], options: ["ACTIVE", "PAST_DUE", "EXPIRED", "CANCELED", "SUSPENDED"].map((v) => ({ value: v, label: v })) },
       { key: "plan.name", label: "Plan", group: "Plan/Suscripción", type: "enum", operators: ["equals", "in"], optionsSource: "plan_names" },
-      { key: "plan.priceInCents", label: "Precio plan (cents)", group: "Plan/Suscripción", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] },
+      { key: "plan.priceInCents", label: "Precio plan (COP)", group: "Plan/Suscripción", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] },
       { key: "plan.intervalUnit", label: "Unidad periodicidad", group: "Plan/Suscripción", type: "enum", operators: ["equals", "in"], options: ["DAY", "WEEK", "MONTH"].map((v) => ({ value: v, label: v })) },
       { key: "plan.intervalCount", label: "Cada (intervalo)", group: "Plan/Suscripción", type: "number", operators: ["equals", "gt", "gte", "lt", "lte"] },
       { key: "subscription.nextBillingDate", label: "Próximo pago", group: "Plan/Suscripción", type: "date", operators: ["before", "after", "between", "within_last", "within_next", "older_than", "newer_than"] },
@@ -270,7 +300,7 @@ export function getSmartViewFields(scope: SmartViewScope): SmartField[] {
     return [
       { key: "product.name", label: "Nombre", group: "Producto", type: "text", operators: ["equals", "contains", "startsWith", "endsWith"] },
       { key: "product.sku", label: "SKU", group: "Producto", type: "text", operators: ["equals", "contains", "startsWith", "endsWith"] },
-      { key: "product.priceInCents", label: "Precio (cents)", group: "Producto", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] },
+      { key: "product.priceInCents", label: "Precio (COP)", group: "Producto", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] },
       { key: "product.currency", label: "Moneda", group: "Producto", type: "enum", operators: ["equals", "in"], options: ["COP"].map((v) => ({ value: v, label: v })) },
       { key: "product.intervalUnit", label: "Unidad periodicidad", group: "Producto", type: "enum", operators: ["equals", "in"], options: ["DAY", "WEEK", "MONTH"].map((v) => ({ value: v, label: v })) },
       { key: "product.intervalCount", label: "Cada (intervalo)", group: "Producto", type: "number", operators: ["equals", "gt", "gte", "lt", "lte"] },
@@ -290,7 +320,7 @@ export function getSmartViewFields(scope: SmartViewScope): SmartField[] {
       { key: "address.city", label: "Ciudad", group: "Cliente", type: "enum", operators: ["equals", "in"], optionsSource: "customer_city" },
       { key: "address.dept", label: "Departamento", group: "Cliente", type: "enum", operators: ["equals", "in"], optionsSource: "customer_dept" },
       { key: "plan.name", label: "Plan", group: "Plan", type: "enum", operators: ["equals", "in"], optionsSource: "plan_names" },
-      { key: "plan.priceInCents", label: "Precio plan (cents)", group: "Plan", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] },
+      { key: "plan.priceInCents", label: "Precio plan (COP)", group: "Plan", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] },
       { key: "plan.intervalUnit", label: "Unidad periodicidad", group: "Plan", type: "enum", operators: ["equals", "in"], options: ["DAY", "WEEK", "MONTH"].map((v) => ({ value: v, label: v })) },
       { key: "plan.intervalCount", label: "Cada (intervalo)", group: "Plan", type: "number", operators: ["equals", "gt", "gte", "lt", "lte"] },
       { key: "subscription.status", label: "Estado suscripción", group: "Suscripción", type: "enum", operators: ["equals", "in"], options: ["ACTIVE", "PAST_DUE", "EXPIRED", "CANCELED", "SUSPENDED"].map((v) => ({ value: v, label: v })) },
@@ -313,7 +343,7 @@ export function getSmartViewFields(scope: SmartViewScope): SmartField[] {
   if (scope === "payments") {
     return [
       { key: "payment.status", label: "Estado", group: "Pago", type: "enum", operators: ["equals", "in"], options: ["PENDING", "APPROVED", "DECLINED", "ERROR", "VOIDED"].map((v) => ({ value: v, label: v })) },
-      { key: "payment.amountInCents", label: "Monto (cents)", group: "Pago", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] },
+      { key: "payment.amountInCents", label: "Monto (COP)", group: "Pago", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] },
       { key: "payment.createdAt", label: "Fecha creación", group: "Pago", type: "date", operators: ["before", "after", "between", "within_last", "within_next", "older_than", "newer_than"] },
       { key: "payment.reference", label: "Referencia", group: "Pago", type: "text", operators: ["equals", "contains", "startsWith", "endsWith"] },
       { key: "payment.wompiTransactionId", label: "Wompi Tx", group: "Pago", type: "text", operators: ["equals", "contains", "startsWith", "endsWith"] },
