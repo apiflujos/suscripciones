@@ -12,6 +12,7 @@ import { TopBar } from "./TopBar";
 import { GlobalLoader } from "./GlobalLoader";
 import { ThemeClient } from "./ThemeClient";
 import { FormValidation } from "./FormValidation";
+import { RealtimeNotifier } from "./ui/RealtimeNotifier";
 import { fetchAdminCached } from "./lib/adminApi";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../lib/session";
 
@@ -116,6 +117,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
 
             <div className="content" style={{ alignContent: "start" }}>
               <TopBar session={session} />
+              <RealtimeNotifier />
               {children}
             </div>
           </div>

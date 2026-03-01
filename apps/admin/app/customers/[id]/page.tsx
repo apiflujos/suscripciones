@@ -2,6 +2,7 @@ import Link from "next/link";
 import { fetchAdminCached, getAdminApiConfig } from "../../lib/adminApi";
 import { LocalDateTime } from "../../ui/LocalDateTime";
 import { LeafletMap } from "../../ui/LeafletMap";
+import { TimelineScroller } from "../../ui/TimelineScroller";
 
 export const dynamic = "force-dynamic";
 
@@ -29,13 +30,16 @@ function statusPillClass(status: string) {
 }
 
 function tierForCustomer(approvedCount: number, hasSubscriptions: boolean, hasPayments: boolean) {
+  if (!hasSubscriptions && !hasPayments) {
+    return { label: "Potencial", cls: "tier-new", icon: "spark" };
+  }
   if (!hasSubscriptions && hasPayments) {
     return { label: "Activo (links)", cls: "tier-active", icon: "link" };
   }
   if (approvedCount >= 6) return { label: "Oro", cls: "tier-gold", icon: "crown" };
   if (approvedCount >= 3) return { label: "Plata", cls: "tier-silver", icon: "medal" };
   if (approvedCount >= 1) return { label: "Bronce", cls: "tier-bronze", icon: "badge" };
-  return { label: "Nuevo", cls: "tier-new", icon: "spark" };
+  return { label: "Potencial", cls: "tier-new", icon: "spark" };
 }
 
 function tierIcon(type: string) {
@@ -366,6 +370,32 @@ export default async function CustomerDetailPage({
 
   const tier = tierForCustomer(approvedPayments.length, subscriptions.length > 0, payments.length > 0);
 
+  const monthLabels = Array.from({ length: 6 }).map((_, idx) => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - (5 - idx));
+    return d.toLocaleDateString("es-CO", { month: "short" });
+  });
+  const monthlyCounts = monthLabels.map(() => 0);
+  approvedPayments.forEach((p) => {
+    const created = new Date(p.createdAt);
+    if (!Number.isFinite(created.getTime())) return;
+    const d = new Date();
+    const diffMonths = (d.getFullYear() - created.getFullYear()) * 12 + (d.getMonth() - created.getMonth());
+    if (diffMonths < 0 || diffMonths > 5) return;
+    monthlyCounts[5 - diffMonths] += 1;
+  });
+
+  const logCounts = logs.reduce(
+    (acc: { info: number; warn: number; error: number }, l: any) => {
+      const lvl = String(l.level || "").toUpperCase();
+      if (lvl === "ERROR") acc.error += 1;
+      else if (lvl === "WARN" || lvl === "WARNING") acc.warn += 1;
+      else acc.info += 1;
+      return acc;
+    },
+    { info: 0, warn: 0, error: 0 }
+  );
+
   return (
     <main className="page">
       <section className="card cardPad customer-hero">
@@ -453,66 +483,66 @@ export default async function CustomerDetailPage({
       </section>
 
       <section className="grid2">
-        <div className="card cardPad customer-section">
+        <div className="card cardPad customer-section compact">
           <div className="contact-section-title">Información del cliente</div>
-          <div className="detail-grid">
-            <div className="detail-item">
-              <span className="detail-label">Email</span>
-              <span className="detail-value">{customer.email || "—"}</span>
+          <div className="summary-grid">
+            <div className="summary-item">
+              <span className="summary-label">Email</span>
+              <span className="summary-value">{customer.email || "—"}</span>
             </div>
-            <div className="detail-item">
-              <span className="detail-label">Teléfono</span>
-              <span className="detail-value">{customer.phone || "—"}</span>
+            <div className="summary-item">
+              <span className="summary-label">Teléfono</span>
+              <span className="summary-value">{customer.phone || "—"}</span>
             </div>
-            <div className="detail-item">
-              <span className="detail-label">Identificación</span>
-              <span className="detail-value">{meta?.identificacion || meta?.identificationNumber || meta?.documentNumber || "—"}</span>
+            <div className="summary-item">
+              <span className="summary-label">Identificación</span>
+              <span className="summary-value">{meta?.identificacion || meta?.identificationNumber || meta?.documentNumber || "—"}</span>
             </div>
-            <div className="detail-item">
-              <span className="detail-label">Canal</span>
-              <span className="detail-value">{tenantName || customer.tenantId || "—"}</span>
+            <div className="summary-item">
+              <span className="summary-label">Canal</span>
+              <span className="summary-value">{tenantName || customer.tenantId || "—"}</span>
             </div>
-            <div className="detail-item">
-              <span className="detail-label">Creado</span>
-              <span className="detail-value"><LocalDateTime value={customer.createdAt} /></span>
+            <div className="summary-item">
+              <span className="summary-label">Creado</span>
+              <span className="summary-value"><LocalDateTime value={customer.createdAt} /></span>
             </div>
-            <div className="detail-item detail-span-3">
-              <span className="detail-label">Dirección</span>
-              <span className="detail-value">{addressDisplay || "—"}</span>
+            <div className="summary-item summary-span-3">
+              <span className="summary-label">Dirección</span>
+              <span className="summary-value">{addressDisplay || "—"}</span>
             </div>
           </div>
         </div>
 
-        <div className="card cardPad customer-section">
+        <div className="card cardPad customer-section compact">
           <div className="contact-section-title">Estado comercial</div>
-          <div className="detail-grid">
-            <div className="detail-item detail-span-2">
-              <span className="detail-label">Plan activo</span>
-              <span className="detail-value">{activeSub?.plan?.name || "Sin plan activo"}</span>
+          <div className="summary-grid">
+            <div className="summary-item summary-span-2">
+              <span className="summary-label">Plan activo</span>
+              <span className="summary-value">{activeSub?.plan?.name || "Sin plan activo"}</span>
             </div>
-            <div className="detail-item">
-              <span className="detail-label">Tipo</span>
-              <span className="detail-value">{activeSub ? collectionLabel(String(activeSub?.plan?.collectionMode || activeSub?.plan?.metadata?.collectionMode || "")) : "—"}</span>
+            <div className="summary-item">
+              <span className="summary-label">Tipo</span>
+              <span className="summary-value">{activeSub ? collectionLabel(String(activeSub?.plan?.collectionMode || activeSub?.plan?.metadata?.collectionMode || "")) : "—"}</span>
             </div>
-            <div className="detail-item">
-              <span className="detail-label">Estado</span>
-              <span className="detail-value">{activeSub ? statusLabel(String(activeSub.status || "")) : "—"}</span>
+            <div className="summary-item">
+              <span className="summary-label">Estado</span>
+              <span className="summary-value">{activeSub ? statusLabel(String(activeSub.status || "")) : "—"}</span>
             </div>
-            <div className="detail-item">
-              <span className="detail-label">Último pago</span>
-              <span className="detail-value">{lastPaymentAt ? <LocalDateTime value={lastPaymentAt} /> : "—"}</span>
+            <div className="summary-item">
+              <span className="summary-label">Último pago</span>
+              <span className="summary-value">{lastPaymentAt ? <LocalDateTime value={lastPaymentAt} /> : "—"}</span>
             </div>
-            <div className="detail-item">
-              <span className="detail-label">Próximo corte</span>
-              <span className="detail-value">{nextPeriodEnd ? <LocalDateTime value={nextPeriodEnd} /> : "—"}</span>
+            <div className="summary-item">
+              <span className="summary-label">Próximo corte</span>
+              <span className="summary-value">{nextPeriodEnd ? <LocalDateTime value={nextPeriodEnd} /> : "—"}</span>
             </div>
-            <div className="detail-item">
-              <span className="detail-label">Método de pago</span>
-              <span className="detail-value">{paymentSourceId ? "Tokenizado" : "Sin token"}</span>
+            <div className="summary-item">
+              <span className="summary-label">Método</span>
+              <span className="summary-value">{paymentSourceId ? "Tokenizado" : "Sin token"}</span>
             </div>
-            <div className="detail-item">
-              <span className="detail-label">ID token</span>
-              <span className="detail-value mono">{paymentSourceId ? String(paymentSourceId) : "—"}</span>
+            <div className="summary-item summary-span-2">
+              <span className="summary-label">ID token</span>
+              <span className="summary-value mono">{paymentSourceId ? String(paymentSourceId) : "—"}</span>
             </div>
           </div>
         </div>
@@ -555,6 +585,49 @@ export default async function CustomerDetailPage({
             <span><i style={{ background: "var(--status-success)" }} />Aprobados {approvedPayments.length}</span>
             <span><i style={{ background: "var(--status-warning)" }} />Pendientes {pendingPayments.length}</span>
             <span><i style={{ background: "var(--status-danger)" }} />Fallidos {failedPayments.length}</span>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid2">
+        <div className="card cardPad chart-card">
+          <div className="chart-header">
+            <div>
+              <div className="chart-title">Pagos por mes</div>
+              <div className="chart-sub">Últimos 6 meses.</div>
+            </div>
+            <div className="chart-range">{monthlyCounts.reduce((a, b) => a + b, 0)} pagos</div>
+          </div>
+          <MiniBars
+            items={monthLabels.map((label, idx) => ({
+              label,
+              value: monthlyCounts[idx],
+              color: "var(--chart-a)"
+            }))}
+          />
+        </div>
+
+        <div className="card cardPad chart-card">
+          <div className="chart-header">
+            <div>
+              <div className="chart-title">Actividad operativa</div>
+              <div className="chart-sub">Logs recientes del cliente.</div>
+            </div>
+          </div>
+          <div className="chart-donut">
+            <MiniDonut
+              totalLabel="Eventos"
+              items={[
+                { label: "Info", value: logCounts.info, color: "var(--chart-b)" },
+                { label: "Alertas", value: logCounts.warn, color: "var(--status-warning)" },
+                { label: "Errores", value: logCounts.error, color: "var(--status-danger)" }
+              ]}
+            />
+          </div>
+          <div className="chart-legend">
+            <span><i style={{ background: "var(--chart-b)" }} />Info {logCounts.info}</span>
+            <span><i style={{ background: "var(--status-warning)" }} />Alertas {logCounts.warn}</span>
+            <span><i style={{ background: "var(--status-danger)" }} />Errores {logCounts.error}</span>
           </div>
         </div>
       </section>
@@ -636,9 +709,16 @@ export default async function CustomerDetailPage({
           </div>
           {logs.length ? (
             <div className="timeline-scroll">
-              <div className="customer-log-list">
+              <TimelineScroller ariaLabel="Línea de tiempo del cliente">
+                <div className="customer-log-list" role="list">
                 {logs.map((l: any) => (
-                  <div key={l.id} className="customer-log-item">
+                  <div
+                    key={l.id}
+                    className="customer-log-item"
+                    role="listitem"
+                    tabIndex={0}
+                    data-tooltip={`${l.entity || "Evento del cliente"}\n${new Date(l.createdAt).toLocaleString("es-CO")} · ${logLevelLabel(String(l.level || ""))}\n${l.actor || "Sistema"}${l.source ? ` · ${l.source}` : ""}`}
+                  >
                     <div className="customer-log-title">{l.entity || "Evento del cliente"}</div>
                     <div className="customer-log-meta">
                       <span>{l.actor || "Sistema"}</span>
@@ -649,7 +729,8 @@ export default async function CustomerDetailPage({
                     <div className="customer-log-message">{l.message}</div>
                   </div>
                 ))}
-              </div>
+                </div>
+              </TimelineScroller>
             </div>
           ) : (
             <div className="muted">Sin logs en este periodo.</div>

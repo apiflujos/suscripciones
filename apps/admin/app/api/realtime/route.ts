@@ -1,0 +1,108 @@
+import { getRequiredApiBase } from "../../lib/adminApi";
+import { normalizeToken } from "../../lib/normalizeToken";
+
+const encoder = new TextEncoder();
+
+function ssePayload(data: any) {
+  return encoder.encode(`data: ${JSON.stringify(data)}\n\n`);
+}
+
+function toIso(input?: string | null) {
+  if (!input) return "";
+  const d = new Date(input);
+  return Number.isFinite(d.getTime()) ? d.toISOString() : "";
+}
+
+export async function GET(req: Request) {
+  const API_BASE = getRequiredApiBase();
+  const token = normalizeToken(process.env.ADMIN_API_TOKEN || "");
+  if (!token) return new Response("missing_admin_token", { status: 401 });
+
+  const url = new URL(req.url);
+  const sinceParam = url.searchParams.get("since");
+  const since = toIso(sinceParam) || new Date(Date.now() - 2 * 60 * 1000).toISOString();
+
+  let closed = false;
+  const stream = new ReadableStream({
+    start(controller) {
+      const poll = async () => {
+        if (closed) return;
+        try {
+          const [webhooksRes, jobsRes] = await Promise.all([
+            fetch(`${API_BASE}/admin/webhook-events?from=${encodeURIComponent(since)}&take=20`, {
+              headers: { authorization: `Bearer ${token}`, "x-admin-token": token },
+              cache: "no-store"
+            }),
+            fetch(`${API_BASE}/admin/logs/jobs?take=40`, {
+              headers: { authorization: `Bearer ${token}`, "x-admin-token": token },
+              cache: "no-store"
+            })
+          ]);
+          const webhooksJson = await webhooksRes.json().catch(() => ({ items: [] }));
+          const jobsJson = await jobsRes.json().catch(() => ({ items: [] }));
+          const webhooks = Array.isArray(webhooksJson.items) ? webhooksJson.items : [];
+          const jobs = Array.isArray(jobsJson.items) ? jobsJson.items : [];
+
+          const events: any[] = [];
+          for (const w of webhooks) {
+            const status = String(w.processStatus || "");
+            const level = status === "FAILED" ? "error" : "info";
+            const customer = w.customerName || w.customerEmail || w.customerPhone || "Cliente";
+            const ref = w.reference || w.wompiPaymentLinkId || w.wompiTransactionId || "";
+            events.push({
+              id: `wh_${w.id}`,
+              type: "webhook",
+              level,
+              ts: w.receivedAt,
+              title: status === "FAILED" ? "Webhook fallido" : "Webhook recibido",
+              message: `${customer} · ${w.paymentStatus || "estado"}${ref ? ` · ${ref}` : ""}`
+            });
+          }
+
+          const sinceMs = new Date(since).getTime();
+          for (const j of jobs) {
+            const updatedAt = new Date(j.updatedAt || j.runAt || "").getTime();
+            if (!Number.isFinite(updatedAt) || updatedAt <= sinceMs) continue;
+            const status = String(j.status || "");
+            if (status !== "FAILED") continue;
+            const title = "Job fallido";
+            const detail = j.lastError || "Sin detalle";
+            events.push({
+              id: `job_${j.id}`,
+              type: "job",
+              level: "error",
+              ts: j.updatedAt,
+              title,
+              message: `${j.type || "JOB"} · ${detail}`
+            });
+          }
+
+          if (events.length) {
+            controller.enqueue(ssePayload({ serverTime: new Date().toISOString(), events }));
+          } else {
+            controller.enqueue(ssePayload({ serverTime: new Date().toISOString(), events: [] }));
+          }
+        } catch {
+          controller.enqueue(ssePayload({ serverTime: new Date().toISOString(), events: [] }));
+        }
+      };
+
+      const interval = setInterval(poll, 15000);
+      poll();
+
+      req.signal.addEventListener("abort", () => {
+        closed = true;
+        clearInterval(interval);
+        controller.close();
+      });
+    }
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive"
+    }
+  });
+}

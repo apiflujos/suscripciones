@@ -1912,6 +1912,49 @@ textarea.input {
   overflow-wrap: anywhere;
 }
 
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.summary-item {
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--stroke);
+  background: var(--surface-2);
+  display: grid;
+  gap: 2px;
+}
+
+.summary-span-2 {
+  grid-column: span 2;
+}
+
+.summary-span-3 {
+  grid-column: span 3;
+}
+
+.summary-span-4 {
+  grid-column: span 4;
+}
+
+.summary-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  font-weight: 700;
+}
+
+.summary-value {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
 .table-meta {
   font-size: 12px;
   color: var(--text-faint);
@@ -1926,6 +1969,14 @@ textarea.input {
     grid-column: auto;
   }
   .detail-span-3 {
+    grid-column: auto;
+  }
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+  .summary-span-2,
+  .summary-span-3,
+  .summary-span-4 {
     grid-column: auto;
   }
   .hero-head {
@@ -2284,6 +2335,60 @@ textarea.input {
   display: inline-block;
 }
 
+.realtime-toasts {
+  position: fixed;
+  top: 72px;
+  right: 20px;
+  display: grid;
+  gap: 8px;
+  z-index: 20050;
+  max-width: min(320px, 90vw);
+}
+
+.toast {
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  border-left: 3px solid var(--primary);
+  border-radius: 12px;
+  padding: 10px 12px;
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.2);
+  display: grid;
+  gap: 4px;
+}
+
+.toast.is-error {
+  border-left-color: var(--status-danger);
+}
+
+.toast-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.toast-message {
+  font-size: 12px;
+  color: var(--text);
+}
+
+.toast-meta {
+  display: flex;
+  gap: 10px;
+  font-size: 10px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 720px) {
+  .realtime-toasts {
+    top: 64px;
+    right: 12px;
+    left: 12px;
+    max-width: none;
+  }
+}
+
 .customer-hero-actions {
   display: inline-flex;
   gap: 8px;
@@ -2295,6 +2400,10 @@ textarea.input {
 .customer-section {
   display: grid;
   gap: 10px;
+}
+
+.customer-section.compact {
+  gap: 6px;
 }
 
 .customer-log-controls {
@@ -2399,6 +2508,45 @@ textarea.input {
   background: linear-gradient(270deg, var(--panel) 0%, rgba(0, 0, 0, 0) 100%);
 }
 
+.timeline-wrap {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.timeline-track {
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: thin;
+  padding: 2px 0;
+  cursor: grab;
+}
+
+.timeline-track.is-dragging {
+  cursor: grabbing;
+}
+
+.timeline-nav {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid var(--stroke);
+  background: var(--surface-2);
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.timeline-nav:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
 .customer-log-item {
   border: 1px solid var(--stroke);
   border-radius: 12px;
@@ -2408,6 +2556,34 @@ textarea.input {
   min-width: 220px;
   max-width: 260px;
   scroll-snap-align: start;
+}
+
+.customer-log-item::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  transform: translateX(-50%) translateY(6px);
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  color: var(--text);
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 11px;
+  white-space: pre-line;
+  width: max-content;
+  max-width: 240px;
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.2);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 3;
+}
+
+.customer-log-item:hover::after,
+.customer-log-item:focus-visible::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 .customer-log-item::before {
