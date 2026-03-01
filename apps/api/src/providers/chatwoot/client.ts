@@ -452,7 +452,8 @@ export class ChatwootClient {
     form.append("content", this.formatChatwootText(content));
     form.append("message_type", "outgoing");
     form.append("content_type", "text");
-    const blob = new Blob([attachment.buffer], { type: attachment.mime });
+    const bytes = new Uint8Array(attachment.buffer);
+    const blob = new Blob([bytes], { type: attachment.mime });
     form.append("attachments[]", blob, attachment.filename);
     const res = await this.requestMultipart(
       `/api/v1/accounts/${this.opts.accountId}/conversations/${conversationId}/messages`,
