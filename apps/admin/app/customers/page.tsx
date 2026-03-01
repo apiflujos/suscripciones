@@ -5,7 +5,7 @@ import { normalizeErrorParam } from "../lib/errorParam";
 import { CustomersTable } from "./CustomersTable";
 import { getCsrfToken } from "../lib/csrf";
 import { createPlanAndSubscription } from "../billing/actions";
-import { CustomersFilters } from "./CustomersFilters";
+import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 
 export const dynamic = "force-dynamic";
 
@@ -13,42 +13,24 @@ function getConfig() {
   return getAdminApiConfig();
 }
 
-async function fetchCustomers(opts?: { q?: string; take?: number; page?: number; tenantId?: string }) {
+async function fetchCustomers(opts?: { q?: string; take?: number; page?: number; tenantId?: string; ids?: string[] }) {
   const sp = new URLSearchParams();
   const q = String(opts?.q || "").trim();
   const take = Number(opts?.take ?? 10);
   const page = Number(opts?.page ?? 1);
   const tenantId = String(opts?.tenantId || "").trim();
+  const ids = Array.isArray(opts?.ids) ? opts?.ids : [];
   if (q) sp.set("q", q);
   if (tenantId) sp.set("tenantId", tenantId);
   if (Number.isFinite(take) && take > 0) sp.set("take", String(Math.min(Math.trunc(take), 500)));
   if (Number.isFinite(page) && page > 1) sp.set("skip", String((Math.trunc(page) - 1) * Math.min(Math.trunc(take), 500)));
+  if (ids.length) sp.set("ids", ids.join(","));
 
   const path = sp.size ? `/admin/customers?${sp.toString()}` : "/admin/customers";
   const res = await fetchAdminCached(path, { ttlMs: 1500 });
   return res.json || { items: [] as any[] };
 }
 
-async function fetchSmartLists() {
-  const res = await fetchAdminCached("/admin/comms/smart-lists?take=200", { ttlMs: 1500 });
-  return res.json || { items: [] as any[] };
-}
-
-async function fetchSmartListMembers(id: string, opts: { take: number; page: number; tenantId?: string }) {
-  if (!id) return { items: [] as any[] };
-  const take = Number(opts.take || 10);
-  const page = Number(opts.page || 1);
-  const tenantId = String(opts.tenantId || "").trim();
-  const skip = Math.max(0, Math.trunc(page) - 1) * Math.max(1, Math.trunc(take));
-  const tenantParam = tenantId ? `&tenantId=${encodeURIComponent(tenantId)}` : "";
-  const res = await fetchAdminCached(
-    `/admin/comms/smart-lists/${encodeURIComponent(id)}/members?active=1&take=${encodeURIComponent(
-      String(Math.min(take, 200))
-    )}&skip=${encodeURIComponent(String(skip))}${tenantParam}`,
-    { ttlMs: 1500 }
-  );
-  return res.json || { items: [] as any[] };
-}
 
 async function fetchPaymentLinks(q: string, tenantId?: string) {
   const sp = new URLSearchParams();
@@ -153,29 +135,53 @@ export default async function CustomersPage({
   const q = typeof sp.q === "string" ? sp.q : "";
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
   const tenantId = typeof sp.tenantId === "string" ? sp.tenantId : "";
-  const smartListId = typeof sp.list === "string" ? sp.list : "";
   const txCustomerId = typeof sp.tx === "string" ? sp.tx : "";
+  const viewId = typeof sp.viewId === "string" ? sp.viewId : "";
+  const filters = typeof sp.filters === "string" ? sp.filters : "";
   const returnTo = `/customers?${new URLSearchParams({
     ...(q ? { q } : {}),
     ...(tenantId ? { tenantId } : {}),
-    ...(smartListId ? { list: smartListId } : {}),
     ...(txCustomerId ? { tx: txCustomerId } : {}),
+    ...(viewId ? { viewId } : {}),
+    ...(filters ? { filters } : {}),
     ...(Number.isFinite(page) && page > 1 ? { page: String(page) } : {})
   }).toString()}`;
   const take = 10;
-  const [data, tenantsRes, txCustomer, productsRes, templatesRes, smartListsRes] = await Promise.all([
-    smartListId ? fetchSmartListMembers(smartListId, { take, page, tenantId }) : fetchCustomers({ q, take, page, tenantId }),
+  let resolvedIds: string[] = [];
+  if (viewId) {
+    const res = await fetch(`/api/smart-views/customers/resolve`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ viewId })
+    });
+    const json = await res.json().catch(() => ({}));
+    resolvedIds = Array.isArray(json?.ids) ? json.ids : [];
+  } else if (filters) {
+    let parsed: any = null;
+    try {
+      parsed = JSON.parse(filters);
+    } catch {
+      parsed = null;
+    }
+    if (parsed) {
+      const res = await fetch(`/api/smart-views/customers/resolve`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ filters: parsed })
+      });
+      const json = await res.json().catch(() => ({}));
+      resolvedIds = Array.isArray(json?.ids) ? json.ids : [];
+    }
+  }
+
+  const [data, tenantsRes, txCustomer, productsRes, templatesRes] = await Promise.all([
+    fetchCustomers({ q, take, page, tenantId, ids: resolvedIds }),
     fetchAdminCached("/admin/tenants", { ttlMs: 1500 }),
     txCustomerId ? fetchCustomerById(txCustomerId) : Promise.resolve(null),
     fetchProducts(tenantId),
-    fetchCheckoutTemplates(tenantId),
-    fetchSmartLists()
+    fetchCheckoutTemplates(tenantId)
   ]);
-  const smartListItems = smartListId ? ((data as any)?.items ?? []) : [];
-  const smartListCustomers = smartListId
-    ? smartListItems.map((m: any) => m?.customer).filter(Boolean)
-    : null;
-  const items = (smartListCustomers ?? data.items ?? []) as any[];
+  const items = (data.items ?? []) as any[];
   const total = Number.isFinite(Number((data as any)?.total)) ? Number((data as any).total) : items.length;
   if (txCustomer && !items.some((c) => String(c.id) === String(txCustomer.id))) {
     items.unshift(txCustomer);
@@ -198,9 +204,8 @@ export default async function CustomersPage({
 
   const renderPagination = (totalCount: number) => {
     const currentPage = Math.max(1, Number(page) || 1);
-    const totalKnown = !smartListId;
-    const hasNext = totalKnown ? totalCount > 0 && currentPage < Math.max(1, Math.ceil(totalCount / take)) : items.length >= take;
-    const totalPages = totalKnown ? Math.max(1, Math.ceil(totalCount / take)) : currentPage + (hasNext ? 1 : 0);
+    const hasNext = totalCount > 0 && currentPage < Math.max(1, Math.ceil(totalCount / take));
+    const totalPages = Math.max(1, Math.ceil(totalCount / take));
     const desktopWindow = 10;
     let start = Math.max(1, currentPage - Math.floor(desktopWindow / 2));
     let end = start + desktopWindow - 1;
@@ -220,7 +225,8 @@ export default async function CustomersPage({
     const baseParams = {
       ...(q ? { q } : {}),
       ...(tenantId ? { tenantId } : {}),
-      ...(smartListId ? { list: smartListId } : {})
+      ...(viewId ? { viewId } : {}),
+      ...(filters ? { filters } : {})
     };
     return (
       <div className="pagination pagination-indicator">
@@ -266,15 +272,10 @@ export default async function CustomersPage({
   const currentPage = Math.max(1, Number(page) || 1);
   const startIndex = total > 0 ? (currentPage - 1) * take + 1 : 0;
   const endIndex = items.length ? Math.min(total, startIndex + items.length - 1) : 0;
-  const smartListName = smartListsRes.json?.items?.find((list: any) => String(list.id) === String(smartListId))?.name || "";
   const summaryLabel =
     items.length > 0
-      ? smartListId
-        ? `Mostrando ${startIndex}-${endIndex} · Lista inteligente: ${smartListName || "Seleccionada"}`
-        : `Mostrando ${startIndex}-${endIndex} de ${total} · ${take} por página`
-      : smartListId
-        ? `Sin resultados en la lista inteligente ${smartListName || ""}`
-        : "Sin resultados";
+      ? `Mostrando ${startIndex}-${endIndex} de ${total} · ${take} por página`
+      : "Sin resultados";
 
   return (
     <main className="page" style={{ maxWidth: "100%" }}>
@@ -305,19 +306,21 @@ export default async function CustomersPage({
               actionsClassName="contacts-toolbar-actions"
             />
           </div>
-          <div className="filtersRow">
-            <div className="filtersLeft">
-              <div className="filtersPanel">
-            <CustomersFilters
-              q={q}
-              tenantId={tenantId}
-              tenants={tenants}
-              smartLists={(smartListsRes.json?.items ?? []) as Array<{ id: string; name: string }>}
-              smartListId={smartListId}
+      <div className="filtersRow">
+        <div className="filtersLeft">
+          <div className="filtersPanel">
+            <SmartViewsBar
+              scope="customers"
+              initialViewId={viewId}
+              initialFilters={filters}
+              baseParams={{
+                ...(q ? { q } : {}),
+                ...(tenantId ? { tenantId } : {})
+              }}
             />
-              </div>
-            </div>
           </div>
+        </div>
+      </div>
         </div>
 
         <div className="settings-group-body">

@@ -47,6 +47,16 @@ enum PaymentLinkStatus {
   FAILED
 }
 
+enum SmartViewVisibility {
+  PRIVATE
+  ORG
+}
+
+enum SmartViewType {
+  DYNAMIC
+  STATIC
+}
+
 enum CampaignStatus {
   DRAFT
   RUNNING
@@ -395,6 +405,38 @@ model SmartList {
 
   @@index([enabled, createdAt])
   @@index([tenantId])
+}
+
+model SmartView {
+  id             String              @id @default(uuid()) @db.Uuid
+  tenantId       String              @db.Uuid
+  name           String
+  scope          String
+  visibility     SmartViewVisibility @default(ORG)
+  type           SmartViewType       @default(DYNAMIC)
+  filters        Json?
+  staticCount    Int                 @default(0)
+  createdByEmail String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  tenant SaTenant      @relation(fields: [tenantId], references: [id])
+  items  SmartViewItem[]
+
+  @@index([tenantId, scope, visibility])
+  @@index([tenantId, scope])
+}
+
+model SmartViewItem {
+  id          String   @id @default(uuid()) @db.Uuid
+  smartViewId String   @db.Uuid
+  itemId      String
+  createdAt   DateTime @default(now())
+
+  smartView SmartView @relation(fields: [smartViewId], references: [id], onDelete: Cascade)
+
+  @@unique([smartViewId, itemId])
+  @@index([itemId])
 }
 
 model SmartListMember {

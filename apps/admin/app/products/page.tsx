@@ -5,7 +5,7 @@ import { getCsrfToken } from "../lib/csrf";
 import { createTenant } from "../tenants/actions";
 import { ProductsModals } from "./ProductsModals";
 import { createCustomerFromBilling, createPlanAndSubscription } from "../billing/actions";
-import { ProductsFilters } from "./ProductsFilters";
+import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 
 export const dynamic = "force-dynamic";
 
@@ -66,11 +66,13 @@ export default async function ProductsPage({
   const sent = typeof spParams.sent === "string" ? spParams.sent : "";
   const q = typeof spParams.q === "string" ? spParams.q : "";
   const page = typeof spParams.page === "string" ? Number(spParams.page) : 1;
-  const smartListId = typeof spParams.list === "string" ? spParams.list : "";
+  const viewId = typeof spParams.viewId === "string" ? spParams.viewId : "";
+  const filters = typeof spParams.filters === "string" ? spParams.filters : "";
   const returnTo = `/products?${new URLSearchParams({
     ...(tenantId ? { tenantId } : {}),
     ...(q ? { q } : {}),
-    ...(smartListId ? { list: smartListId } : {}),
+    ...(viewId ? { viewId } : {}),
+    ...(filters ? { filters } : {}),
     ...(Number.isFinite(page) && page > 1 ? { page: String(page) } : {})
   }).toString()}`;
 
@@ -80,13 +82,40 @@ export default async function ProductsPage({
   const take = 20;
   sp.set("take", String(take));
   if (Number.isFinite(page) && page > 1) sp.set("skip", String((Math.trunc(page) - 1) * take));
-  const [products, tenantsRes, customersRes, templatesRes, smartListsRes, smartMembersRes, chatwootInboxesRes] = await Promise.all([
+  let resolvedIds: string[] = [];
+  if (viewId) {
+    const res = await fetch(`/api/smart-views/products/resolve`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ viewId })
+    });
+    const json = await res.json().catch(() => ({}));
+    resolvedIds = Array.isArray(json?.ids) ? json.ids : [];
+  } else if (filters) {
+    let parsed: any = null;
+    try {
+      parsed = JSON.parse(filters);
+    } catch {
+      parsed = null;
+    }
+    if (parsed) {
+      const res = await fetch(`/api/smart-views/products/resolve`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ filters: parsed })
+      });
+      const json = await res.json().catch(() => ({}));
+      resolvedIds = Array.isArray(json?.ids) ? json.ids : [];
+    }
+  }
+
+  if (resolvedIds.length) sp.set("ids", resolvedIds.join(","));
+
+  const [products, tenantsRes, customersRes, templatesRes, chatwootInboxesRes] = await Promise.all([
     fetchAdmin(`/admin/products?${sp.toString()}`),
     fetchAdminCached("/admin/tenants", { ttlMs: 1500 }),
     fetchAdminCached(tenantId ? `/admin/customers?take=200&tenantId=${encodeURIComponent(tenantId)}` : "/admin/customers?take=200", { ttlMs: 1500 }),
     fetchAdminCached(tenantId ? `/admin/checkout-templates?tenantId=${encodeURIComponent(tenantId)}` : "/admin/checkout-templates", { ttlMs: 1500 }),
-    fetchSmartLists(),
-    smartListId ? fetchSmartListMembers(smartListId, tenantId) : Promise.resolve({ items: [] as any[] }),
     fetchChatwootInboxes()
   ]);
 
@@ -94,13 +123,7 @@ export default async function ProductsPage({
   const total = Number(products.json?.total ?? productItems.length);
   const tenants = (tenantsRes.json?.items ?? []) as Array<{ id: string; name: string }>;
   const tenantById = new Map(tenants.map((t) => [String(t.id), String(t.name)]));
-  const smartLists = (smartListsRes.json?.items ?? []) as Array<{ id: string; name: string }>;
-  const smartListName = smartLists.find((list) => String(list.id) === String(smartListId))?.name || "";
-  const smartListMembers = (smartMembersRes.items ?? smartMembersRes.json?.items ?? []) as any[];
-  const smartListCustomers = smartListId
-    ? smartListMembers.map((m: any) => m?.customer).filter(Boolean)
-    : (customersRes.json?.items ?? []);
-  const filteredCustomers = smartListCustomers;
+  const filteredCustomers = (customersRes.json?.items ?? []) as any[];
   const chatwootInboxes = (chatwootInboxesRes.items ?? chatwootInboxesRes.json?.items ?? []) as any[];
 
   return (
@@ -122,12 +145,14 @@ export default async function ProductsPage({
             <div className="filtersLeft">
               <div className="filtersNote">Gestiona productos y servicios y asócialos a contactos para crear planes o suscripciones.</div>
               <div className="filtersPanel">
-                <ProductsFilters
-                  q={q}
-                  tenantId={tenantId}
-                  smartListId={smartListId}
-                  tenants={tenants}
-                  smartLists={smartLists}
+                <SmartViewsBar
+                  scope="products"
+                  initialViewId={viewId}
+                  initialFilters={filters}
+                  baseParams={{
+                    ...(tenantId ? { tenantId } : {}),
+                    ...(q ? { q } : {})
+                  }}
                 />
                 <form action={createTenant} className="filtersForm">
                   <input type="hidden" name="csrf" value={csrfToken} />
@@ -135,11 +160,10 @@ export default async function ProductsPage({
                     type="hidden"
                     name="returnTo"
                     value={`/products${
-                      tenantId || q || smartListId
+                      tenantId || q
                         ? `?${new URLSearchParams({
                             ...(tenantId ? { tenantId } : {}),
-                            ...(q ? { q } : {}),
-                            ...(smartListId ? { list: smartListId } : {})
+                            ...(q ? { q } : {})
                           }).toString()}`
                         : ""
                     }`}
@@ -151,8 +175,7 @@ export default async function ProductsPage({
             </div>
             <div className="filtersRight">
               <span className="pill">{productItems.length} resultados</span>
-              {smartListId ? <span className="pill">Contactos: {filteredCustomers.length}</span> : null}
-              {smartListId ? <span className="pill pill-muted">Lista: {smartListName || "seleccionada"}</span> : null}
+              <span className="pill">Contactos: {filteredCustomers.length}</span>
             </div>
           </div>
         </div>
@@ -218,7 +241,8 @@ export default async function ProductsPage({
               const baseParams = {
                 ...(q ? { q } : {}),
                 ...(tenantId ? { tenantId } : {}),
-                ...(smartListId ? { list: smartListId } : {})
+                ...(viewId ? { viewId } : {}),
+                ...(filters ? { filters } : {})
               };
               return (
                 <div className="pagination pagination-indicator">

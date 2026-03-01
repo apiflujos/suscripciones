@@ -13,6 +13,7 @@ import { getCsrfToken } from "../lib/csrf";
 import { createTenant } from "../tenants/actions";
 import { ScheduleCutoffButton } from "./ScheduleCutoffButton";
 import { ChangePlanButton } from "./ChangePlanButton";
+import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 
 export const dynamic = "force-dynamic";
 
@@ -181,10 +182,20 @@ export default async function BillingPage({
   const estado = typeof sp.estado === "string" ? sp.estado : "todos";
   const q = typeof sp.q === "string" ? sp.q : "";
   const ordenar = typeof sp.ordenar === "string" ? sp.ordenar : "vencimiento";
-  const smartListRules = buildSmartListRules({ tipo, estado, q });
-  const smartListRulesParam = encodeURIComponent(JSON.stringify(smartListRules));
-  const hasFiltersApplied = tipo !== "todos" || estado !== "todos" || Boolean(q.trim());
-  const returnTo = `/billing${tenantId || q || tipo !== "todos" || estado !== "todos" || ordenar !== "vencimiento" || (Number.isFinite(page) && page > 1) ? `?${new URLSearchParams({ ...(tenantId ? { tenantId } : {}), ...(q ? { q } : {}), ...(tipo ? { tipo } : {}), ...(estado ? { estado } : {}), ...(ordenar ? { ordenar } : {}), ...(Number.isFinite(page) && page > 1 ? { page: String(page) } : {}) }).toString()}` : ""}`;
+  const viewId = typeof sp.viewId === "string" ? sp.viewId : "";
+  const filters = typeof sp.filters === "string" ? sp.filters : "";
+  const returnTo = `/billing${tenantId || q || tipo !== "todos" || estado !== "todos" || ordenar !== "vencimiento" || viewId || filters || (Number.isFinite(page) && page > 1)
+    ? `?${new URLSearchParams({
+        ...(tenantId ? { tenantId } : {}),
+        ...(q ? { q } : {}),
+        ...(tipo ? { tipo } : {}),
+        ...(estado ? { estado } : {}),
+        ...(ordenar ? { ordenar } : {}),
+        ...(viewId ? { viewId } : {}),
+        ...(filters ? { filters } : {}),
+        ...(Number.isFinite(page) && page > 1 ? { page: String(page) } : {})
+      }).toString()}`
+    : ""}`;
 
   const subParams = new URLSearchParams();
   const take = 20;
@@ -195,6 +206,34 @@ export default async function BillingPage({
   if (tipo === "suscripciones") subParams.set("collectionMode", "AUTO_DEBIT");
   if (tipo === "planes") subParams.set("collectionMode", "MANUAL_LINK");
   if (tenantId) subParams.set("tenantId", tenantId);
+
+  if (viewId) {
+    const res = await fetch(`/api/smart-views/billing/resolve`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ viewId })
+    });
+    const json = await res.json().catch(() => ({}));
+    const ids = Array.isArray(json?.ids) ? json.ids : [];
+    if (ids.length) subParams.set("ids", ids.join(","));
+  } else if (filters) {
+    let parsed: any = null;
+    try {
+      parsed = JSON.parse(filters);
+    } catch {
+      parsed = null;
+    }
+    if (parsed) {
+      const res = await fetch(`/api/smart-views/billing/resolve`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ filters: parsed })
+      });
+      const json = await res.json().catch(() => ({}));
+      const ids = Array.isArray(json?.ids) ? json.ids : [];
+      if (ids.length) subParams.set("ids", ids.join(","));
+    }
+  }
 
   const [subs, customers, products, templates, tenantsRes, settingsRes, plansRes] = await Promise.all([
     fetchAdmin(`/admin/subscriptions?${subParams.toString()}`),
@@ -311,7 +350,9 @@ export default async function BillingPage({
     ...(q ? { q } : {}),
     ...(tipo ? { tipo } : {}),
     ...(estado ? { estado } : {}),
-    ...(ordenar ? { ordenar } : {})
+    ...(ordenar ? { ordenar } : {}),
+    ...(viewId ? { viewId } : {}),
+    ...(filters ? { filters } : {})
   };
 
   return (
@@ -345,65 +386,21 @@ export default async function BillingPage({
                 <span className="pill pill-muted">En mora = periodo vencido sin pago</span>
               </div>
               <div className="filtersPanel">
-                <form action="/billing" method="GET" className="filtersForm">
-                  <div style={{ display: "grid", gap: 4 }}>
-                    <span className="field-hint" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                      Tipo
-                      <HelpTip text="Filtra por planes (links de pago) o suscripciones (cobro automático)." />
-                    </span>
-                    <select className="select" name="tipo" defaultValue={tipo} aria-label="Tipo">
-                    <option value="todos">Todos</option>
-                    <option value="planes">Planes</option>
-                    <option value="suscripciones">Suscripciones</option>
-                    </select>
-                  </div>
-                  <div style={{ display: "grid", gap: 4 }}>
-                    <span className="field-hint" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                      Estado de pago
-                      <HelpTip text="Sí = activo, No = inactivo, En mora = pago vencido." />
-                    </span>
-                    <select className="select" name="estado" defaultValue={estado} aria-label="Estado de pago">
-                    <option value="todos">Todos</option>
-                    <option value="si">Sí</option>
-                    <option value="no">No</option>
-                    <option value="mora">En mora</option>
-                    </select>
-                  </div>
-                  <div style={{ display: "grid", gap: 4 }}>
-                    <span className="field-hint">Ordenar</span>
-                    <select className="select" name="ordenar" defaultValue={ordenar} aria-label="Ordenar">
-                    <option value="vencimiento">Próximo pago</option>
-                    <option value="pago">Pago</option>
-                    <option value="monto">Monto</option>
-                    </select>
-                  </div>
-                  <div style={{ display: "grid", gap: 4 }}>
-                    <span className="field-hint">Canal</span>
-                    <select className="select" name="tenantId" defaultValue={tenantId} aria-label="Canal">
-                      <option value="">Todos</option>
-                      {tenants.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div style={{ display: "grid", gap: 4 }}>
-                    <span className="field-hint">Buscar</span>
-                    <input className="input" name="q" defaultValue={q} placeholder="Nombre, email o identificación..." />
-                  </div>
-                  <button className="ghost" type="submit">
-                    Aplicar
-                  </button>
-                </form>
+                <SmartViewsBar
+                  scope="billing"
+                  initialViewId={viewId}
+                  initialFilters={filters}
+                  baseParams={{
+                    ...(tenantId ? { tenantId } : {}),
+                    ...(q ? { q } : {}),
+                    ...(tipo ? { tipo } : {}),
+                    ...(estado ? { estado } : {}),
+                    ...(ordenar ? { ordenar } : {})
+                  }}
+                />
               </div>
             </div>
             <div className="filtersRight" style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              {hasFiltersApplied ? (
-                <a className="ghost" href={`/smart-lists?rules=${smartListRulesParam}`}>
-                  Crear lista inteligente
-                </a>
-              ) : null}
               <form action={createTenant} className="filtersForm">
                 <input type="hidden" name="csrf" value={csrfToken} />
                 <input type="hidden" name="returnTo" value={returnTo} />

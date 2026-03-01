@@ -1172,6 +1172,78 @@ a {
   width: 100%;
 }
 
+.smartViewsBar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.smartViewsTop {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.smartViewsActions {
+  display: flex;
+  gap: 8px;
+}
+
+.smartViewsModal {
+  position: relative;
+  width: 100%;
+}
+
+.smartViewsModalCard {
+  border: 1px solid var(--stroke);
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.smartViewsModalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.smartRuleRow {
+  display: grid;
+  grid-template-columns: 2fr 1.3fr 2.6fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.smartRange {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.smartViewsFooter {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.smartViewsSave {
+  border-top: 1px solid var(--stroke);
+  padding-top: 12px;
+}
+
+.smartViewsSaveRow {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
 .filtersQuick {
   display: flex;
   flex-wrap: wrap;

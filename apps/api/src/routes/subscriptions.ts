@@ -25,10 +25,14 @@ subscriptionsRouter.get("/", async (_req, res) => {
   const tenantId = await getEffectiveTenantId(req);
   const takeRaw = Number(req?.query?.take ?? 50);
   const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 500) : 50;
+  const skipRaw = Number(req?.query?.skip ?? 0);
+  const skip = Number.isFinite(skipRaw) ? Math.max(Math.trunc(skipRaw), 0) : 0;
   const q = String(req?.query?.q ?? "").trim();
   const customerId = String(req?.query?.customerId ?? "").trim();
   const estado = String(req?.query?.estado ?? "").trim();
   const collectionMode = String(req?.query?.collectionMode ?? "").trim();
+  const idsRaw = String(req?.query?.ids ?? "").trim();
+  const ids = idsRaw ? idsRaw.split(",").map((v) => v.trim()).filter(Boolean) : [];
 
   const where: any = {};
   if (tenantId) {
@@ -61,10 +65,15 @@ subscriptionsRouter.get("/", async (_req, res) => {
     };
   }
 
+  if (ids.length) {
+    where.AND = Array.isArray(where.AND) ? [...where.AND, { id: { in: ids } }] : [{ id: { in: ids } }];
+  }
+
   const items = await prisma.subscription.findMany({
     where,
     orderBy: { createdAt: "desc" },
     take,
+    skip,
     include: { customer: true, plan: { include: { tenantLinks: true } }, tenantLinks: true }
   });
   const total = await prisma.subscription.count({ where });
