@@ -33,10 +33,10 @@ export function ProductsModals({
   return (
     <>
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-        <button className="primary btn-create" type="button" data-modal="true" onClick={() => setOpenProduct(true)}>
+        <button className="primary btn-create" type="button" data-modal="true" data-loader="off" onClick={() => setOpenProduct(true)}>
           Crear producto
         </button>
-        <button className="primary btn-create" type="button" data-modal="true" onClick={() => setOpenPlan(true)}>
+        <button className="primary btn-create" type="button" data-modal="true" data-loader="off" onClick={() => setOpenPlan(true)}>
           Crear plan / suscripción
         </button>
       </div>

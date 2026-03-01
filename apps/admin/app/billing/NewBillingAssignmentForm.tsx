@@ -278,7 +278,7 @@ export function NewBillingAssignmentForm({
             <h3 style={{ margin: 0 }}>Crear plan o suscripción para un contacto</h3>
           </div>
           {!forceOpen ? (
-            <button className={open ? "ghost" : "primary"} type="button" onClick={() => setOpen((v) => !v)}>
+            <button className={open ? "ghost" : "primary"} type="button" data-loader="off" onClick={() => setOpen((v) => !v)}>
               {open ? "Cerrar" : "Crear plan / suscripción"}
             </button>
           ) : null}

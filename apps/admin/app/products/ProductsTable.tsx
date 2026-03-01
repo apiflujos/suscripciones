@@ -509,16 +509,16 @@ export function ProductsTable({
               </div>
             </div>
               <div style={{ display: "flex", gap: 8 }}>
-                <button className="ghost btn-compact btn-blue btn-view" type="button" data-modal="true" onClick={() => openTransactions(p)}>
+                <button className="ghost btn-compact btn-blue btn-view" type="button" data-modal="true" data-loader="off" onClick={() => openTransactions(p)}>
                   🧾 Transacciones
                 </button>
                 <button className="ghost btn-compact btn-amber" type="button" data-modal="true" data-loader="off" onClick={() => openSendModal(p)}>
                   📩 Enviar
                 </button>
-                <button className="ghost btn-compact btn-green btn-create" type="button" data-modal="true" onClick={() => openPlanModal(p)}>
+                <button className="ghost btn-compact btn-green btn-create" type="button" data-modal="true" data-loader="off" onClick={() => openPlanModal(p)}>
                   Crear plan / suscripción
                 </button>
-                <button className="ghost btn-compact btn-blue btn-edit" type="button" data-modal="true" onClick={() => openEditor(p)}>
+                <button className="ghost btn-compact btn-blue btn-edit" type="button" data-modal="true" data-loader="off" onClick={() => openEditor(p)}>
                   Editar
                 </button>
                 <DeleteProductButton action={deleteProductAction} csrfToken={csrfToken} productId={p.id} tenantId={String(p.tenantId || "")} returnTo={returnTo} />

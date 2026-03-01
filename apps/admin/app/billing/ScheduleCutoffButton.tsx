@@ -38,7 +38,7 @@ export function ScheduleCutoffButton({
 
   return (
     <>
-      <button className="ghost btn-compact btn-blue" type="button" onClick={() => setOpen(true)}>
+      <button className="ghost btn-compact btn-blue" type="button" data-loader="off" onClick={() => setOpen(true)}>
         Programar fecha de corte
       </button>
 
@@ -74,7 +74,7 @@ export function ScheduleCutoffButton({
               </div>
 
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                <button className="ghost btn-cancel" type="button" onClick={() => setOpen(false)}>
+                <button className="ghost btn-cancel" type="button" data-loader="off" onClick={() => setOpen(false)}>
                   Cancelar
                 </button>
                 <PendingButton className="primary btn-save" type="submit" pendingText="Guardando...">

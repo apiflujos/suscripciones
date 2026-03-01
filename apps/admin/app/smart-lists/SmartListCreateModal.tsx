@@ -28,7 +28,7 @@ export function SmartListCreateModal({
 
   return (
     <>
-      <button className="primary btn-create" type="button" onClick={() => setOpen(true)}>
+      <button className="primary btn-create" type="button" data-loader="off" onClick={() => setOpen(true)}>
         Nueva lista
       </button>
       {open ? (

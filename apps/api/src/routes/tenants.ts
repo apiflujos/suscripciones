@@ -14,7 +14,11 @@ const updateTenantSchema = z.object({
 export const tenantsRouter = express.Router();
 
 tenantsRouter.get("/", async (_req, res) => {
-  const items = await prisma.saTenant.findMany({ orderBy: { createdAt: "desc" }, take: 500 });
+  const items = await prisma.saTenant.findMany({
+    where: { active: true },
+    orderBy: { createdAt: "desc" },
+    take: 500
+  });
   res.json({ items });
 });
 
@@ -87,8 +91,11 @@ tenantsRouter.delete("/:tenantId", async (req, res) => {
 
   const blocking = customers + plans + subscriptions + payments + paymentLinks + checkoutTemplates + webhookEvents + chatwootMessages;
   if (blocking > 0) {
-    return res.status(409).json({
-      error: "tenant_has_data",
+    const archived = await prisma.saTenant.update({ where: { id: tenantId }, data: { active: false } });
+    return res.json({
+      deleted: true,
+      archived: true,
+      tenant: archived,
       details: { customers, plans, subscriptions, payments, paymentLinks, checkoutTemplates, webhookEvents, chatwootMessages }
     });
   }

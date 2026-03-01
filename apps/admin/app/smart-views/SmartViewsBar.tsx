@@ -522,6 +522,7 @@ export function SmartViewsBar({
           <button
             className="ghost"
             type="button"
+            data-loader="off"
             onClick={() => {
               setMode("filters");
               setActiveViewId("");

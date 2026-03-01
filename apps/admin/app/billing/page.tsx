@@ -580,14 +580,6 @@ export default async function BillingPage({
                                 Cobrar ahora
                               </button>
                             </form>
-                            <form action={recalcCutoff}>
-                              <input type="hidden" name="csrf" value={csrfToken} />
-                              <input type="hidden" name="subscriptionId" value={r.id} />
-                              {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                              <button className="ghost btn-compact btn-amber" type="submit">
-                                Recalcular fecha
-                              </button>
-                            </form>
                             <ScheduleCutoffButton
                               subscriptionId={r.id}
                               csrfToken={csrfToken}
@@ -597,6 +589,16 @@ export default async function BillingPage({
                               action={scheduleCutoff}
                             />
                           </>
+                        ) : null}
+                        {r.status !== "CANCELED" ? (
+                          <form action={recalcCutoff}>
+                            <input type="hidden" name="csrf" value={csrfToken} />
+                            <input type="hidden" name="subscriptionId" value={r.id} />
+                            {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
+                            <button className="ghost btn-compact btn-amber" type="submit">
+                              Recalcular fecha
+                            </button>
+                          </form>
                         ) : null}
                         {r.status === "SUSPENDED" ? (
                           <form action={resumeSubscription}>

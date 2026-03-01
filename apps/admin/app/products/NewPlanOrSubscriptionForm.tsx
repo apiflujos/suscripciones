@@ -261,7 +261,7 @@ export function NewPlanOrSubscriptionForm({
           <h3>Crear plan o suscripción</h3>
           <HelpTip text="Aquí creas la plantilla (sin contacto) y la amarras a un producto/servicio." />
         </div>
-        <button type="button" className={open ? "btnLink" : "primary"} onClick={() => setOpen((v) => !v)}>
+        <button type="button" className={open ? "btnLink" : "primary"} data-loader="off" onClick={() => setOpen((v) => !v)}>
           {open ? "Cerrar" : "Crear nuevo"}
         </button>
       </div>

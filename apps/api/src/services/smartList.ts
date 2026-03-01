@@ -76,6 +76,28 @@ function durationMs(amount: number, unit: string): number {
   return n * 24 * 60 * 60 * 1000;
 }
 
+function toCents(input: any): number | null {
+  const n = Number(input);
+  if (!Number.isFinite(n)) return null;
+  return Math.round(n * 100);
+}
+
+function normalizeMoneyRuleValue(value: any): any {
+  if (value == null) return value;
+  if (Array.isArray(value)) {
+    return value.map((v) => toCents(v)).filter((v) => typeof v === "number");
+  }
+  if (typeof value === "object") {
+    const from = toCents((value as any)?.from ?? (value as any)?.min ?? (value as any)?.start);
+    const to = toCents((value as any)?.to ?? (value as any)?.max ?? (value as any)?.end);
+    return {
+      ...(typeof from === "number" ? { from } : {}),
+      ...(typeof to === "number" ? { to } : {})
+    };
+  }
+  return toCents(value);
+}
+
 function evalRule(rule: SmartListRule, ctx: Record<string, any>): boolean {
   if (!rule) return true;
   if ("rules" in rule) {
@@ -96,19 +118,27 @@ function evalRule(rule: SmartListRule, ctx: Record<string, any>): boolean {
   if (op === "exists") return val != null;
   if (op === "isEmpty") return val == null || String(val).trim() === "";
 
+  const isMoneyField = field === "planPrice";
+  const ruleValue = isMoneyField ? normalizeMoneyRuleValue(rule.value) : rule.value;
   const cmpVal = toComparable(val);
-  const target = toComparable(rule.value);
+  const target = toComparable(ruleValue);
 
   if (op === "equals") return cmpVal === target;
   if (op === "contains") return normalizeString(cmpVal).includes(normalizeString(target));
   if (op === "startsWith") return normalizeString(cmpVal).startsWith(normalizeString(target));
   if (op === "endsWith") return normalizeString(cmpVal).endsWith(normalizeString(target));
-  if (op === "in") return Array.isArray(rule.value) && rule.value.map(toComparable).includes(cmpVal as any);
-  if (op === "notIn") return Array.isArray(rule.value) && !rule.value.map(toComparable).includes(cmpVal as any);
+  if (op === "in") return Array.isArray(ruleValue) && ruleValue.map(toComparable).includes(cmpVal as any);
+  if (op === "notIn") return Array.isArray(ruleValue) && !ruleValue.map(toComparable).includes(cmpVal as any);
   if (op === "gt") return (cmpVal as any) > (target as any);
   if (op === "gte") return (cmpVal as any) >= (target as any);
   if (op === "lt") return (cmpVal as any) < (target as any);
   if (op === "lte") return (cmpVal as any) <= (target as any);
+  if (op === "between" && typeof cmpVal === "number") {
+    const from = Number((ruleValue as any)?.from ?? (Array.isArray(ruleValue) ? ruleValue[0] : null));
+    const to = Number((ruleValue as any)?.to ?? (Array.isArray(ruleValue) ? ruleValue[1] : null));
+    if (!Number.isFinite(from) || !Number.isFinite(to)) return false;
+    return cmpVal >= from && cmpVal <= to;
+  }
   if (op === "before" || op === "after" || op === "between" || op === "within_last" || op === "within_next" || op === "older_than" || op === "newer_than") {
     const valMs = toDateMs(val);
     if (valMs == null) return false;

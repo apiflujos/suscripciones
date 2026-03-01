@@ -517,6 +517,7 @@ export function CustomersTable({
                       className="ghost btn-compact btn-amber btn-token"
                       type="button"
                       data-modal="true"
+                      data-loader="off"
                       onClick={() => openTokenModal(c)}
                       disabled={sendingTokenId === c.id}
                     >
@@ -554,6 +555,7 @@ export function CustomersTable({
                       className="ghost btn-compact btn-blue btn-pay"
                       type="button"
                       data-modal="true"
+                      data-loader="off"
                       onClick={() => openPayModal(c)}
                     >
                       Enviar link de pago
@@ -562,6 +564,7 @@ export function CustomersTable({
                       className="ghost btn-compact btn-green btn-send"
                       type="button"
                       data-modal="true"
+                      data-loader="off"
                       onClick={() => openCartModal(c)}
                     >
                       Enviar catálogo
@@ -569,7 +572,7 @@ export function CustomersTable({
                     <Link className="ghost btn-compact btn-blue btn-view" href={`/customers/${c.id}`}>
                       Ver detalles
                     </Link>
-                    <button className="ghost btn-compact btn-green btn-create" type="button" data-modal="true" onClick={() => openPlanModal(c)}>
+                    <button className="ghost btn-compact btn-green btn-create" type="button" data-modal="true" data-loader="off" onClick={() => openPlanModal(c)}>
                       Crear plan / suscripción
                     </button>
                     {(() => {
