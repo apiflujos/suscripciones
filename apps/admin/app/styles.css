@@ -2820,10 +2820,18 @@ textarea.input {
 
 .timeline-track {
   overflow-x: auto;
-  overflow-y: visible;
+  overflow-y: hidden;
   scrollbar-width: thin;
-  padding: 26px 0 22px;
+  padding: 22px 0 72px;
   cursor: grab;
+}
+
+.timeline-track::-webkit-scrollbar {
+  height: 6px;
+}
+
+.timeline-track::-webkit-scrollbar:vertical {
+  width: 0;
 }
 
 .timeline-track.is-dragging {
