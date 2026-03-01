@@ -133,34 +133,6 @@ export function RealtimeNotifier() {
     return () => document.removeEventListener("pointerdown", enable);
   }, []);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const onSettings = (evt: Event) => {
-      const detail = (evt as CustomEvent)?.detail || {};
-      const nextEnabled = detail.soundEnabled === true;
-      const nextVolume = Number(detail.volume);
-      if (detail.soundEnabled != null) {
-        soundEnabledRef.current = nextEnabled;
-        soundEnabledStateRef.current = nextEnabled;
-        setSoundEnabled(nextEnabled);
-      }
-      if (Number.isFinite(nextVolume)) {
-        const v = Math.min(1, Math.max(0.1, nextVolume));
-        volumeRef.current = v;
-        setVolume(v);
-      }
-    };
-    const onTest = () => {
-      pushTestToast();
-    };
-    window.addEventListener("apiflujos:realtime-settings", onSettings as EventListener);
-    window.addEventListener("apiflujos:realtime-test", onTest);
-    return () => {
-      window.removeEventListener("apiflujos:realtime-settings", onSettings as EventListener);
-      window.removeEventListener("apiflujos:realtime-test", onTest);
-    };
-  }, []);
-
   const getCashAudio = () => {
     if (typeof window === "undefined") return null;
     if (!cashAudioRef.current) {
@@ -487,6 +459,44 @@ export function RealtimeNotifier() {
       setToasts((prev) => [fallback, ...prev].slice(0, 6));
     }
   };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    (window as any).__apiflujosRealtimeTest = () => {
+      pushTestToast();
+    };
+    return () => {
+      delete (window as any).__apiflujosRealtimeTest;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onSettings = (evt: Event) => {
+      const detail = (evt as CustomEvent)?.detail || {};
+      const nextEnabled = detail.soundEnabled === true;
+      const nextVolume = Number(detail.volume);
+      if (detail.soundEnabled != null) {
+        soundEnabledRef.current = nextEnabled;
+        soundEnabledStateRef.current = nextEnabled;
+        setSoundEnabled(nextEnabled);
+      }
+      if (Number.isFinite(nextVolume)) {
+        const v = Math.min(1, Math.max(0.1, nextVolume));
+        volumeRef.current = v;
+        setVolume(v);
+      }
+    };
+    const onTest = () => {
+      pushTestToast();
+    };
+    window.addEventListener("apiflujos:realtime-settings", onSettings as EventListener);
+    window.addEventListener("apiflujos:realtime-test", onTest);
+    return () => {
+      window.removeEventListener("apiflujos:realtime-settings", onSettings as EventListener);
+      window.removeEventListener("apiflujos:realtime-test", onTest);
+    };
+  }, []);
 
   const statusEl = (
     <div className={`realtime-status is-${status}`}>

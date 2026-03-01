@@ -120,6 +120,11 @@ export function TopBar({ session }: { session: AdminSession | null }) {
 
   const runRealtimeTest = () => {
     try {
+      const direct = (window as any).__apiflujosRealtimeTest;
+      if (typeof direct === "function") {
+        direct();
+        return;
+      }
       window.dispatchEvent(new CustomEvent("apiflujos:realtime-test"));
     } catch {}
   };

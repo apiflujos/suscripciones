@@ -118,6 +118,7 @@ async function collectEvents(apiBase: string, token: string, since: string) {
     const compact = message.length > 160 ? `${message.slice(0, 157)}…` : message;
     const ctx = s.context || null;
     const isAi = source.startsWith("ai.");
+    const isRealtimeTest = source === "realtime.test";
     if (isAi) {
       const answer = String(ctx?.answer || "").trim();
       const error = String(ctx?.error || "").trim();
@@ -135,6 +136,22 @@ async function collectEvents(apiBase: string, token: string, since: string) {
         kind: error ? "ai_failed" : "ai_response",
         href: buildLogLink("system", { q: "ai." }),
         badge: "IA",
+        meta: ctx
+      });
+      continue;
+    }
+    if (isRealtimeTest) {
+      events.push({
+        id: `rt_${s.id}`,
+        type: "system",
+        level: "info",
+        ts: createdAt,
+        title: "Prueba de sonido",
+        message: "Se emitió un evento de prueba desde el servidor.",
+        sound: "cash",
+        kind: "payment_approved",
+        href: buildLogLink("system", { q: source }),
+        badge: "Prueba",
         meta: ctx
       });
       continue;
