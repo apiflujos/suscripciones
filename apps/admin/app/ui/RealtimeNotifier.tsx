@@ -273,6 +273,7 @@ export function RealtimeNotifier() {
     lastMessageRef.current = Date.now();
     let shouldPlayCash = false;
     let shouldPlayFail = false;
+    let forceCash = false;
     const now = Date.now();
     const freshEvents = events.filter((e) => {
       if (!e?.id) return true;
@@ -297,13 +298,24 @@ export function RealtimeNotifier() {
             window.dispatchEvent(new CustomEvent("apiflujos:payment-approved", { detail: e }));
           } catch {}
         }
+        if (e.badge === "Prueba") {
+          forceCash = true;
+          if (!soundEnabledRef.current) {
+            soundEnabledRef.current = true;
+            soundEnabledStateRef.current = true;
+            setSoundEnabled(true);
+            try {
+              window.localStorage.setItem("apiflujos-realtime-sound", "1");
+            } catch {}
+          }
+        }
         if (e.sound === "fail") shouldPlayFail = true;
       }
       setToasts((prev) => {
         const merged = [...freshEvents.map((e) => ({ ...e, seenAt: now })), ...prev];
         return merged.slice(0, 6);
       });
-      if (shouldPlayCash) playCashSound();
+      if (shouldPlayCash) playCashSound(forceCash);
       if (shouldPlayFail && !shouldPlayCash) playFailSound();
     }
 

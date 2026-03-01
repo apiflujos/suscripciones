@@ -3414,6 +3414,11 @@ textarea.input {
   justify-content: flex-end;
 }
 
+.hero-subs-under {
+  justify-self: end;
+  width: min(420px, 100%);
+}
+
 .hero-subs-actions {
   min-width: 240px;
 }
@@ -3602,6 +3607,7 @@ textarea.input {
   content: attr(data-tooltip);
   position: absolute;
   left: 50%;
+  top: auto;
   bottom: calc(100% + 12px);
   transform: translateX(-50%) translateY(-6px);
   background: var(--panel);
@@ -3736,6 +3742,9 @@ textarea.input {
   .hero-subs-block {
     min-width: 0;
     width: 100%;
+  }
+  .hero-subs-under {
+    justify-self: start;
   }
   .customer-dual {
     grid-template-columns: 1fr;

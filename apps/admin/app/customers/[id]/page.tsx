@@ -574,20 +574,6 @@ export default async function CustomerDetailPage({
                   </div>
                 </div>
               </div>
-              <div className="hero-subs-block hero-subs-compact">
-                <span className="hero-subs-label">Suscripciones activas</span>
-                <div className="hero-subs-list">
-                  {activeSubs.length ? (
-                    activeSubs.slice(0, 3).map((s: any) => (
-                      <span key={s.id} className={`pill pill-sm ${statusPillClass(String(s.status || ""))}`}>
-                        {s.plan?.name || "Plan"} · {statusLabel(String(s.status || ""))}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="pill pill-muted pill-sm">Sin suscripciones activas</span>
-                  )}
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -595,6 +581,20 @@ export default async function CustomerDetailPage({
           <div className="hero-actions-row">
             <Link className="ghost btn-compact btn-blue" href="/customers">Volver</Link>
             <Link className="ghost btn-compact btn-amber" href={`/customers/${customer.id}/payment-method`}>Método de pago</Link>
+          </div>
+          <div className="hero-subs-block hero-subs-compact hero-subs-under">
+            <span className="hero-subs-label">Suscripciones activas</span>
+            <div className="hero-subs-list">
+              {activeSubs.length ? (
+                activeSubs.slice(0, 3).map((s: any) => (
+                  <span key={s.id} className={`pill pill-sm ${statusPillClass(String(s.status || ""))}`}>
+                    {s.plan?.name || "Plan"} · {statusLabel(String(s.status || ""))}
+                  </span>
+                ))
+              ) : (
+                <span className="pill pill-muted pill-sm">Sin suscripciones activas</span>
+              )}
+            </div>
           </div>
         </div>
       </section>
@@ -966,7 +966,7 @@ export default async function CustomerDetailPage({
                         role="listitem"
                         tabIndex={0}
                         data-tooltip={tooltip}
-                        title={tooltip}
+                        aria-label={tooltip}
                       >
                         <div className="customer-log-title">
                           <span>{entity}</span>
