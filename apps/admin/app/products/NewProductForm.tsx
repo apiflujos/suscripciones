@@ -41,6 +41,50 @@ export function NewProductForm({
   const [tags, setTags] = useState("");
   const [description, setDescription] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [imageUrlInput, setImageUrlInput] = useState("");
+  const [imageUploading, setImageUploading] = useState(false);
+  const [imageError, setImageError] = useState("");
+
+  function isPublicImage(url?: string | null) {
+    const value = String(url || "").trim();
+    return /^https?:\/\//i.test(value);
+  }
+
+  function applyImageUrl() {
+    const trimmed = imageUrlInput.trim();
+    if (!trimmed) return;
+    if (!isPublicImage(trimmed)) return;
+    setImageUrl(trimmed);
+  }
+
+  function onImageFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const maxBytes = 2 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      setImageError("La imagen supera 2MB. Usa una URL pública o comprímela.");
+      return;
+    }
+    setImageUploading(true);
+    setImageError("");
+    const fd = new FormData();
+    fd.append("file", file);
+    fetch("/api/uploads/product-image", { method: "POST", body: fd })
+      .then(async (res) => {
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.error || "upload_failed");
+        const url = String(json?.url || "").trim();
+        if (!url) throw new Error("upload_missing_url");
+        setImageUrl(url);
+        setImageUrlInput(url);
+      })
+      .catch((err) => {
+        setImageError(String(err?.message || "No se pudo subir la imagen."));
+      })
+      .finally(() => {
+        setImageUploading(false);
+      });
+  }
 
   return (
     <form action={action} className="panel module" style={{ display: "grid", gap: 10 }}>
@@ -176,9 +220,38 @@ export function NewProductForm({
           </select>
         </div>
         <div className="field">
-          <label>Imagen (URL)</label>
-          <input className="input" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://..." />
-          <div className="field-hint">Opcional. Pega una URL pública de imagen.</div>
+          <label>Imagen (URL pública)</label>
+          <div className="image-url-row">
+            <input
+              className="input"
+              placeholder="https://..."
+              value={imageUrlInput}
+              onChange={(e) => setImageUrlInput(e.target.value)}
+            />
+            <button type="button" className="ghost" onClick={applyImageUrl} disabled={!isPublicImage(imageUrlInput)}>
+              Usar URL
+            </button>
+          </div>
+          <div className="field-hint">Puedes pegar URLs de Shopify, WooCommerce, VTEX, Tiendanube, Exito, Falabella, Magento o Prestashop.</div>
+          {!isPublicImage(imageUrl) && imageUrl ? (
+            <div className="field-hint" style={{ color: "var(--status-warning)" }}>
+              La imagen actual es un archivo interno; para WhatsApp usa una URL pública.
+            </div>
+          ) : null}
+        </div>
+        <div className="field">
+          <label>Subir archivo (opcional)</label>
+          <div className="file-row">
+            <input type="file" accept="image/*" onChange={onImageFile} />
+            {imageUrl ? <img src={imageUrl} alt="Producto" className="logo-preview" /> : null}
+            {imageUrl ? (
+              <button type="button" className="ghost" onClick={() => { setImageUrl(""); setImageUrlInput(""); }}>
+                Quitar
+              </button>
+            ) : null}
+          </div>
+          {imageUploading ? <div className="field-hint">Subiendo imagen…</div> : null}
+          {imageError ? <div className="field-hint" style={{ color: "var(--status-warning)" }}>{imageError}</div> : null}
         </div>
       </div>
 

@@ -27,6 +27,8 @@ import { publicLinksRouter } from "./routes/publicLinks";
 import { checkoutTemplatesRouter } from "./routes/checkoutTemplates";
 import { tenantsRouter } from "./routes/tenants";
 import { paymentsRouter } from "./routes/payments";
+import { mediaRouter } from "./routes/media";
+import { getMediaDir } from "./services/mediaStorage";
 
 export function createApp() {
   const app = express();
@@ -82,6 +84,8 @@ export function createApp() {
     return helmetMw(req, res, next);
   });
 
+  app.use("/public/media", express.static(getMediaDir(), { maxAge: "30d", fallthrough: true }));
+
   const corsOriginsRaw = process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || "";
   const corsOrigins = corsOriginsRaw
     .split(",")
@@ -97,7 +101,7 @@ export function createApp() {
   );
   app.use((req, res, next) => (isApiPath(req.path) ? corsMw(req, res, next) : next()));
 
-  const jsonMw = express.json({ limit: "2mb" });
+  const jsonMw = express.json({ limit: "4mb" });
   app.use((req, res, next) => (isApiPath(req.path) ? jsonMw(req, res, next) : next()));
 
   const rateLimitWindowMs = Math.max(10_000, Number(process.env.RATE_LIMIT_WINDOW_MS || 600_000));
@@ -161,6 +165,7 @@ export function createApp() {
   app.get("/admin/webhook-events", requireAdminToken, listWebhookEvents);
   app.use("/admin/products", requireAdminToken, productsRouter);
   app.use("/admin/orders", requireAdminToken, ordersRouter);
+  app.use("/admin/media", requireAdminToken, mediaRouter);
   app.use("/admin/plans", requireAdminToken, plansRouter);
   app.use("/admin/customers", requireAdminToken, customersRouter);
   app.use("/admin/subscriptions", requireAdminToken, subscriptionsRouter);
