@@ -47,6 +47,45 @@ export async function POST(req: Request) {
   const normalized = ensureHttps(base).replace(/\/$/, "");
   const hasSubPath = /\/public\/suscripcion$/i.test(normalized);
   const link = `${normalized}${hasSubPath ? "" : "/public/suscripcion"}/${linkToken}`;
+
+  const existing = await fetch(
+    `${API_BASE}/admin/customers/${customerId}${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""}`,
+    {
+    headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
+  })
+    .then((r) => r.json())
+    .catch(() => null);
+  const prevMeta = existing?.customer?.metadata ?? {};
+  const expiryHours = Number(settingsJson?.checkoutConfig?.tokenExpiryHours || 24);
+  const hours = Number.isFinite(expiryHours) && expiryHours > 0 ? Math.min(Math.max(Math.trunc(expiryHours), 1), 168) : 24;
+  const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+
+  const nextMeta = {
+    ...prevMeta,
+    tokenizationLink: {
+      url: link,
+      token: linkToken,
+      ...(templateId ? { templateId } : {}),
+      createdAt: new Date().toISOString(),
+      expiresAt,
+      usedAt: null
+    }
+  };
+  const stored = await fetch(
+    `${API_BASE}/admin/customers/${customerId}${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""}`,
+    {
+    method: "PUT",
+    headers: {
+      authorization: `Bearer ${token}`,
+      "x-admin-token": token,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({ metadata: nextMeta })
+  });
+  if (!stored.ok) {
+    return NextResponse.json({ ok: false, error: "store_failed" }, { status: 500 });
+  }
+
   const scheduleRes = await fetch(`${API_BASE}/admin/notifications/schedule/tokenization?forceNow=1`, {
     method: "POST",
     headers: {
@@ -89,44 +128,6 @@ export async function POST(req: Request) {
     } catch (err: any) {
       chatwootError = String(err?.message || "chatwoot_request_failed");
     }
-  }
-
-  const existing = await fetch(
-    `${API_BASE}/admin/customers/${customerId}${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""}`,
-    {
-    headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
-  })
-    .then((r) => r.json())
-    .catch(() => null);
-  const prevMeta = existing?.customer?.metadata ?? {};
-  const expiryHours = Number(settingsJson?.checkoutConfig?.tokenExpiryHours || 24);
-  const hours = Number.isFinite(expiryHours) && expiryHours > 0 ? Math.min(Math.max(Math.trunc(expiryHours), 1), 168) : 24;
-  const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
-
-  const nextMeta = {
-    ...prevMeta,
-    tokenizationLink: {
-      url: link,
-      token: linkToken,
-      ...(templateId ? { templateId } : {}),
-      createdAt: new Date().toISOString(),
-      expiresAt,
-      usedAt: null
-    }
-  };
-  const stored = await fetch(
-    `${API_BASE}/admin/customers/${customerId}${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""}`,
-    {
-    method: "PUT",
-    headers: {
-      authorization: `Bearer ${token}`,
-      "x-admin-token": token,
-      "content-type": "application/json"
-    },
-    body: JSON.stringify({ metadata: nextMeta })
-  });
-  if (!stored.ok) {
-    return NextResponse.json({ ok: false, error: "store_failed" }, { status: 500 });
   }
 
   return NextResponse.json({

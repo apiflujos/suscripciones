@@ -17,7 +17,7 @@ const createCustomerSchema = z.object({
 const updateCustomerSchema = z.object({
   name: z.string().min(1).optional().or(z.literal("")),
   email: z.string().email().optional().or(z.literal("")),
-  phone: z.string().min(6),
+  phone: z.string().min(6).optional().or(z.literal("")),
   metadata: z.any().optional()
 });
 
@@ -173,6 +173,9 @@ customersRouter.put("/:id", async (req, res) => {
   if (data.name === "") data.name = null;
   if (data.email === "") data.email = null;
   if (data.phone === "") data.phone = null;
+  if (data.name === undefined) delete data.name;
+  if (data.email === undefined) delete data.email;
+  if (data.phone === undefined) delete data.phone;
 
   try {
     const tenantId = await getEffectiveTenantId(req);
