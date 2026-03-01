@@ -249,6 +249,11 @@ export function ProductsTable({
     [customers, sendCustomerId]
   );
 
+  function isPublicImage(url?: string | null) {
+    const value = String(url || "").trim();
+    return /^https?:\/\//i.test(value);
+  }
+
   function buildSendTemplate(product: ProductRow, includeLink: boolean, includeImage: boolean) {
     const lines: string[] = [];
     lines.push("Hola {{cliente}} 👋");
@@ -260,7 +265,7 @@ export function ProductsTable({
     }
     lines.push("");
     lines.push("Precio: {{precio}}");
-    if (includeImage && product.imageUrl) {
+    if (includeImage && isPublicImage(product.imageUrl)) {
       lines.push("");
       lines.push("Imagen: {{imagen}}");
     }
@@ -277,7 +282,7 @@ export function ProductsTable({
   function openSendModal(item: ProductRow) {
     setSendProduct(item);
     setSendOpen(true);
-    const includeImg = Boolean(item.imageUrl);
+    const includeImg = isPublicImage(item.imageUrl);
     setSendIncludeImage(includeImg);
     setSendIncludeLink(true);
     setSendCustomerId("");
@@ -490,7 +495,7 @@ export function ProductsTable({
                         type="checkbox"
                         name="includeImage"
                         checked={sendIncludeImage}
-                        disabled={!sendProduct.imageUrl}
+                        disabled={!isPublicImage(sendProduct.imageUrl)}
                         onChange={(e) => {
                           const next = e.target.checked;
                           setSendIncludeImage(next);
@@ -501,6 +506,11 @@ export function ProductsTable({
                     </label>
                   </label>
                   <div className="field-hint">La imagen se envía como previsualización del enlace del producto.</div>
+                  {!isPublicImage(sendProduct.imageUrl) && sendProduct.imageUrl ? (
+                    <div className="field-hint" style={{ color: "var(--status-warning)" }}>
+                      La imagen actual no es pública; usa un URL https para enviar imagen en WhatsApp.
+                    </div>
+                  ) : null}
                 </div>
               </div>
 

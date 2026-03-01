@@ -113,6 +113,13 @@ function buildOrderReference(product: { sku?: string | null; id: string }) {
   return `PROD_${base}_${stamp}`.slice(0, 50);
 }
 
+function normalizePublicUrl(input: string) {
+  const value = String(input || "").trim();
+  if (!value) return "";
+  if (/^https?:\/\//i.test(value)) return value;
+  return "";
+}
+
 export async function createProduct(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);
@@ -319,6 +326,8 @@ export async function sendProductToCustomer(formData: FormData) {
 
   const customerName = String(customer?.name || customer?.email || customer?.phone || "Cliente").trim();
 
+  const imageUrl = normalizePublicUrl(String(product.imageUrl || ""));
+  const includeImageSafe = includeImage && Boolean(imageUrl);
   let checkoutUrl = "";
   let templateParams: any = null;
   if (includePaymentLink) {
@@ -370,9 +379,9 @@ export async function sendProductToCustomer(formData: FormData) {
             }
           }
         };
-        if (includeImage && product.imageUrl) {
+        if (includeImageSafe && imageUrl) {
           templateParams.processed_params.header = {
-            media_url: String(product.imageUrl || ""),
+            media_url: imageUrl,
             media_type: "image"
           };
         }
@@ -386,7 +395,7 @@ export async function sendProductToCustomer(formData: FormData) {
     producto: String(product.name || "Producto"),
     precio: formatCurrency(totals.totalInCents, String(product.currency || "COP")),
     descripcion: description,
-    imagen: includeImage ? String(product.imageUrl || "") : "",
+    imagen: includeImageSafe ? imageUrl : "",
     link: includePaymentLink ? checkoutUrl : ""
   });
 
