@@ -1,5 +1,4 @@
-import { PublicCheckoutLayout } from "../_components/PublicCheckoutLayout";
-import { PublicAlert } from "../_components/PublicAlert";
+import { PublicErrorPage } from "../_components/PublicErrorPage";
 
 export const dynamic = "force-dynamic";
 
@@ -21,18 +20,14 @@ export default async function PublicPlanMissingPage() {
   const supportLabel = contactEmail || supportUrl.replace(/^https?:\/\//, "");
 
   return (
-    <PublicCheckoutLayout
+    <PublicErrorPage
       title="Link no válido"
-      subtitle="Este link no existe o ya no es válido."
-      description="Solicita un nuevo link."
+      message="Este link no existe o ya no es válido. Solicita uno nuevo."
       logoUrl={logoUrl}
       trustText="Pago seguro con Wompi."
       tenantName=""
       supportHref={supportHref || undefined}
       supportLabel={supportLabel || undefined}
-      maxWidth={680}
-    >
-      <PublicAlert>Este link no existe o ya no es válido. Solicita uno nuevo.</PublicAlert>
-    </PublicCheckoutLayout>
+    />
   );
 }

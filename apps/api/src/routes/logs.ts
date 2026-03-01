@@ -206,6 +206,13 @@ logsRouter.get("/payments", async (req, res) => {
   res.json({ items });
 });
 
+logsRouter.post("/system/test", async (_req, res) => {
+  await systemLog(LogLevel.WARN, "realtime.test", "Notificación de prueba en tiempo real", {
+    createdAt: new Date().toISOString()
+  }).catch(() => {});
+  res.json({ ok: true });
+});
+
 logsRouter.post("/payments/recollect", async (req, res) => {
   const daysRaw = Number(req.query.days ?? 7);
   const days = Number.isFinite(daysRaw) ? Math.min(Math.max(Math.trunc(daysRaw), 1), 30) : 7;

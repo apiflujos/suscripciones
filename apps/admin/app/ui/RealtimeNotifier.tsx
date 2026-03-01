@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 type RealtimeEvent = {
   id: string;
-  type: "webhook" | "job";
+  type: "webhook" | "job" | "system";
   level: "info" | "error";
   ts: string;
   title: string;
@@ -97,18 +97,23 @@ export function RealtimeNotifier() {
     return () => timers.forEach(clearTimeout);
   }, [toasts]);
 
-  const pushTestToast = () => {
-    const now = new Date().toISOString();
-    const test: Toast = {
-      id: `test_${Date.now()}`,
-      type: "webhook",
-      level: "info",
-      ts: now,
-      title: "Notificación de prueba",
-      message: "Si ves esto, los avisos en tiempo real están activos en tu sesión.",
-      seenAt: Date.now()
-    };
-    setToasts((prev) => [test, ...prev].slice(0, 6));
+  const pushTestToast = async () => {
+    try {
+      const res = await fetch("/api/realtime/test", { method: "POST" });
+      if (!res.ok) throw new Error("test_failed");
+    } catch {
+      const now = new Date().toISOString();
+      const fallback: Toast = {
+        id: `test_${Date.now()}`,
+        type: "system",
+        level: "info",
+        ts: now,
+        title: "Prueba local",
+        message: "No se pudo emitir un evento real. Revisa ADMIN_API_TOKEN.",
+        seenAt: Date.now()
+      };
+      setToasts((prev) => [fallback, ...prev].slice(0, 6));
+    }
   };
 
   return (
@@ -127,7 +132,7 @@ export function RealtimeNotifier() {
           <div className="toast-title">{toast.title}</div>
           <div className="toast-message">{toast.message}</div>
           <div className="toast-meta">
-            <span>{toast.type === "webhook" ? "Webhook" : "Job"}</span>
+            <span>{toast.type === "webhook" ? "Webhook" : toast.type === "job" ? "Job" : "Sistema"}</span>
             <span>{new Date(toast.ts).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}</span>
           </div>
         </div>

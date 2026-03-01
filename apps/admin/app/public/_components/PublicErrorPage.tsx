@@ -23,22 +23,23 @@ export function PublicErrorPage({
   return (
     <PublicCheckoutLayout
       title={title}
-      description=""
+      description={trustText || "Pago seguro con Wompi."}
       logoUrl={logoUrl}
       trustText={trustText}
       tenantName={tenantName}
       supportHref={supportHref}
       supportLabel={supportLabel}
       maxWidth={680}
+      variant="single"
     >
-      <PublicAlert>{message}</PublicAlert>
-      {supportHref ? (
-        <a className="primary" href={supportHref} referrerPolicy="no-referrer" style={{ width: "fit-content" }}>
-          Solicitar nuevo link
-        </a>
-      ) : (
-        <div />
-      )}
+      <div className="publicErrorStack">
+        <PublicAlert>{message}</PublicAlert>
+        {supportHref ? (
+          <a className="primary" href={supportHref} referrerPolicy="no-referrer" style={{ width: "fit-content" }}>
+            Solicitar nuevo link
+          </a>
+        ) : null}
+      </div>
     </PublicCheckoutLayout>
   );
 }

@@ -14,6 +14,7 @@ type PublicCheckoutLayoutProps = {
   maxWidth?: number;
   primaryColor?: string;
   fontFamily?: string;
+  variant?: "default" | "single";
   children: ReactNode;
 };
 
@@ -31,6 +32,7 @@ export function PublicCheckoutLayout({
   maxWidth = 860,
   primaryColor,
   fontFamily,
+  variant = "default",
   children
 }: PublicCheckoutLayoutProps) {
   const styleVars = primaryColor ? ({ ["--primary" as any]: primaryColor } as CSSProperties) : {};
@@ -42,10 +44,14 @@ export function PublicCheckoutLayout({
     brandText ||
     (tenantName ? `Pago para ${tenantName} a través de Apiflujos.` : "Pago gestionado a través de Apiflujos.");
 
+  const layoutClass = `publicCheckoutLayout ${variant === "single" ? "is-single" : ""}`;
+
+  const sideClass = variant === "single" ? "publicCheckoutSide is-single" : "publicCheckoutSide";
+
   return (
     <main className="page publicCheckoutShell" style={{ maxWidth, ...(fontFamily ? { fontFamily } : {}), ...styleVars }}>
       <div className="card cardPad publicCheckoutCard" style={{ ...(primaryColor ? { borderColor: primaryColor } : {}) }}>
-        <div className="publicCheckoutLayout">
+        <div className={layoutClass}>
           <div className="publicCheckoutIntro">
             <div className="publicCheckoutIntroTop">
               <div className="publicCheckoutHeader">
@@ -67,9 +73,9 @@ export function PublicCheckoutLayout({
               <div className="publicCheckoutBrand">
                 <span className="publicCheckoutBrandText">{resolvedBrandText}</span>
                 <div className="publicCheckoutBrandLogos" aria-label="Apiflujos y Wompi">
-                  <img src="/brand/logo.png" alt="Apiflujos" />
+                  <img className="publicCheckoutLogoApi" src="/brand/logo.png" alt="Apiflujos" />
                   <span aria-hidden="true">+</span>
-                  <img src="/brand/wompi-logo.svg" alt="Wompi" />
+                  <img className="publicCheckoutLogoWompi" src="/brand/wompi-logo.svg" alt="Wompi" />
                 </div>
               </div>
               {trustText ? <p className="publicCheckoutTrust">{trustText}</p> : null}
@@ -91,7 +97,7 @@ export function PublicCheckoutLayout({
               ) : null}
             </div>
           </div>
-          <div className="publicCheckoutSide">{children}</div>
+          <div className={sideClass}>{children}</div>
         </div>
       </div>
     </main>

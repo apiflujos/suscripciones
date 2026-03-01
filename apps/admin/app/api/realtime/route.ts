@@ -28,7 +28,7 @@ export async function GET(req: Request) {
       const poll = async () => {
         if (closed) return;
         try {
-          const [webhooksRes, jobsRes] = await Promise.all([
+          const [webhooksRes, jobsRes, systemRes] = await Promise.all([
             fetch(`${API_BASE}/admin/webhook-events?from=${encodeURIComponent(since)}&take=20`, {
               headers: { authorization: `Bearer ${token}`, "x-admin-token": token },
               cache: "no-store"
@@ -36,12 +36,18 @@ export async function GET(req: Request) {
             fetch(`${API_BASE}/admin/logs/jobs?take=40`, {
               headers: { authorization: `Bearer ${token}`, "x-admin-token": token },
               cache: "no-store"
+            }),
+            fetch(`${API_BASE}/admin/logs/system?from=${encodeURIComponent(since)}&take=30`, {
+              headers: { authorization: `Bearer ${token}`, "x-admin-token": token },
+              cache: "no-store"
             })
           ]);
           const webhooksJson = await webhooksRes.json().catch(() => ({ items: [] }));
           const jobsJson = await jobsRes.json().catch(() => ({ items: [] }));
+          const systemJson = await systemRes.json().catch(() => ({ items: [] }));
           const webhooks = Array.isArray(webhooksJson.items) ? webhooksJson.items : [];
           const jobs = Array.isArray(jobsJson.items) ? jobsJson.items : [];
+          const system = Array.isArray(systemJson.items) ? systemJson.items : [];
 
           const events: any[] = [];
           for (const w of webhooks) {
@@ -74,6 +80,24 @@ export async function GET(req: Request) {
               ts: j.updatedAt,
               title,
               message: `${j.type || "JOB"} · ${detail}`
+            });
+          }
+
+          for (const s of system) {
+            const createdAt = s.createdAt || s.updatedAt || s.ts;
+            const createdMs = new Date(createdAt || "").getTime();
+            if (!Number.isFinite(createdMs) || createdMs <= sinceMs) continue;
+            const level = String(s.level || "").toUpperCase();
+            if (level !== "WARN" && level !== "ERROR") continue;
+            const message = String(s.message || s.source || "Evento del sistema");
+            const compact = message.length > 160 ? `${message.slice(0, 157)}…` : message;
+            events.push({
+              id: `sys_${s.id}`,
+              type: "system",
+              level: level === "ERROR" ? "error" : "info",
+              ts: createdAt,
+              title: level === "ERROR" ? "Alerta del sistema" : "Aviso del sistema",
+              message: compact
             });
           }
 
