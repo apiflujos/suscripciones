@@ -492,6 +492,11 @@ export function ProductsTable({
                           <>
                             <span className="pill pill-ok">Lista para WhatsApp</span>
                             <span>URL pública detectada</span>
+                            {sendProduct.imageUrl ? (
+                              <a className="btnLink btn-open" href={sendProduct.imageUrl} target="_blank" rel="noreferrer">
+                                Ver imagen
+                              </a>
+                            ) : null}
                           </>
                         ) : (
                           <>
@@ -508,6 +513,7 @@ export function ProductsTable({
                   <label>Buscar contacto</label>
                   <input
                     className="input"
+                    type="search"
                     placeholder="Nombre, email o teléfono"
                     value={sendSearch}
                     onChange={(e) => setSendSearch(e.target.value)}
@@ -585,8 +591,8 @@ export function ProductsTable({
                   </div>
                 </div>
                 <div className="send-product-actions">
-                  <button className="primary" type="submit" disabled={!sendCustomerId || !sendMessage.trim()}>
-                    📤 Enviar mensaje
+                  <button className="primary btn-send" type="submit" disabled={!sendCustomerId || !sendMessage.trim()}>
+                    Enviar mensaje
                   </button>
                 </div>
               </div>
