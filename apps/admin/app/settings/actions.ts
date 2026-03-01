@@ -205,6 +205,8 @@ export async function updateChatwoot(formData: FormData) {
   const accountId = String(formData.get("accountId") || "").trim();
   const apiAccessToken = String(formData.get("apiAccessToken") || "").trim();
   const inboxId = String(formData.get("inboxId") || "").trim();
+  const productTemplateName = String(formData.get("productTemplateName") || "").trim();
+  const productTemplateLang = String(formData.get("productTemplateLang") || "").trim();
 
   try {
     await adminFetch("/admin/settings/chatwoot", {
@@ -214,7 +216,9 @@ export async function updateChatwoot(formData: FormData) {
         ...(baseUrl ? { baseUrl } : {}),
         ...(apiAccessToken ? { apiAccessToken } : {}),
         ...(accountId ? { accountId: Number(accountId) } : {}),
-        ...(inboxId ? { inboxId: Number(inboxId) } : {})
+        ...(inboxId ? { inboxId: Number(inboxId) } : {}),
+        ...(productTemplateName ? { productTemplateName } : {}),
+        ...(productTemplateLang ? { productTemplateLang } : {})
       })
     });
     redirectWith("central_save", "ok", undefined, returnTo);

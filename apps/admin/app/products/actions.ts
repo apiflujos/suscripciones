@@ -317,7 +317,10 @@ export async function sendProductToCustomer(formData: FormData) {
     taxPercent: Number(product.taxPercent || 0)
   });
 
+  const customerName = String(customer?.name || customer?.email || customer?.phone || "Cliente").trim();
+
   let checkoutUrl = "";
+  let templateParams: any = null;
   if (includePaymentLink) {
     try {
       const orderRes = await adminFetch("/admin/orders", {
@@ -345,9 +348,38 @@ export async function sendProductToCustomer(formData: FormData) {
     } catch (err: any) {
       return redirect(mergeQuery(returnTo, { error: String(err?.message || "order_create_failed") }));
     }
+
+    try {
+      const settingsRes = await adminFetch("/admin/settings", { method: "GET" });
+      const comms = settingsRes?.communications || null;
+      const activeEnv = String(comms?.activeEnv || "PRODUCTION").toUpperCase() === "SANDBOX" ? "SANDBOX" : "PRODUCTION";
+      const envCfg = activeEnv === "SANDBOX" ? comms?.sandbox : comms?.production;
+      const templateName = String(envCfg?.productTemplateName || "").trim();
+      const templateLang = String(envCfg?.productTemplateLang || "es").trim() || "es";
+      if (templateName) {
+        templateParams = {
+          name: templateName,
+          language: templateLang,
+          category: "UTILITY",
+          processed_params: {
+            body: {
+              "1": customerName,
+              "2": String(product.name || "Producto"),
+              "3": formatCurrency(totals.totalInCents, String(product.currency || "COP")),
+              "4": checkoutUrl
+            }
+          }
+        };
+        if (includeImage && product.imageUrl) {
+          templateParams.processed_params.header = {
+            media_url: String(product.imageUrl || ""),
+            media_type: "image"
+          };
+        }
+      }
+    } catch {}
   }
 
-  const customerName = String(customer?.name || customer?.email || customer?.phone || "Cliente").trim();
   const description = String(product.description || "").trim();
   const message = renderTemplate(messageTemplate, {
     cliente: customerName,
@@ -366,7 +398,8 @@ export async function sendProductToCustomer(formData: FormData) {
       body: JSON.stringify({
         customerId,
         content: message,
-        type: "PAYMENT_LINK"
+        type: "PAYMENT_LINK",
+        ...(templateParams ? { templateParams } : {})
       })
     });
   } catch (err: any) {

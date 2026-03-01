@@ -53,7 +53,9 @@ const chatwootUpdateSchema = z.object({
   baseUrl: z.string().url().optional().or(z.literal("")),
   accountId: z.coerce.number().int().positive().optional(),
   apiAccessToken: z.string().optional().or(z.literal("")),
-  inboxId: z.coerce.number().int().positive().optional()
+  inboxId: z.coerce.number().int().positive().optional(),
+  productTemplateName: z.string().optional().or(z.literal("")),
+  productTemplateLang: z.string().optional().or(z.literal(""))
 });
 
 const checkoutConfigUpdateSchema = z.object({
@@ -123,14 +125,20 @@ settingsRouter.get("/", async (_req, res) => {
       "ACCOUNT_ID",
       "INBOX_ID",
       "API_ACCESS_TOKEN",
+      "PRODUCT_TEMPLATE_NAME",
+      "PRODUCT_TEMPLATE_LANG",
       "BASE_URL_PRODUCTION",
       "ACCOUNT_ID_PRODUCTION",
       "INBOX_ID_PRODUCTION",
       "API_ACCESS_TOKEN_PRODUCTION",
+      "PRODUCT_TEMPLATE_NAME_PRODUCTION",
+      "PRODUCT_TEMPLATE_LANG_PRODUCTION",
       "BASE_URL_SANDBOX",
       "ACCOUNT_ID_SANDBOX",
       "INBOX_ID_SANDBOX",
-      "API_ACCESS_TOKEN_SANDBOX"
+      "API_ACCESS_TOKEN_SANDBOX",
+      "PRODUCT_TEMPLATE_NAME_SANDBOX",
+      "PRODUCT_TEMPLATE_LANG_SANDBOX"
     ]),
     getCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG")
   ]);
@@ -190,13 +198,17 @@ settingsRouter.get("/", async (_req, res) => {
   const commsProd = {
     baseUrl: getComms("BASE_URL", "PRODUCTION") ?? null,
     accountId: getComms("ACCOUNT_ID", "PRODUCTION") ?? null,
-    inboxId: getComms("INBOX_ID", "PRODUCTION") ?? null
+    inboxId: getComms("INBOX_ID", "PRODUCTION") ?? null,
+    productTemplateName: getComms("PRODUCT_TEMPLATE_NAME", "PRODUCTION") ?? null,
+    productTemplateLang: getComms("PRODUCT_TEMPLATE_LANG", "PRODUCTION") ?? null
   };
 
   const commsSandbox = {
     baseUrl: getComms("BASE_URL", "SANDBOX") ?? null,
     accountId: getComms("ACCOUNT_ID", "SANDBOX") ?? null,
-    inboxId: getComms("INBOX_ID", "SANDBOX") ?? null
+    inboxId: getComms("INBOX_ID", "SANDBOX") ?? null,
+    productTemplateName: getComms("PRODUCT_TEMPLATE_NAME", "SANDBOX") ?? null,
+    productTemplateLang: getComms("PRODUCT_TEMPLATE_LANG", "SANDBOX") ?? null
   };
 
   let checkoutConfig: any = {};
@@ -434,6 +446,10 @@ settingsRouter.put("/chatwoot", async (req, res) => {
     if (parsed.data.apiAccessToken != null)
       await setCredential(CredentialProvider.CHATWOOT, `API_ACCESS_TOKEN_${env}`, parsed.data.apiAccessToken);
     if (parsed.data.inboxId != null) await setCredential(CredentialProvider.CHATWOOT, `INBOX_ID_${env}`, String(parsed.data.inboxId));
+    if (parsed.data.productTemplateName != null)
+      await setCredential(CredentialProvider.CHATWOOT, `PRODUCT_TEMPLATE_NAME_${env}`, parsed.data.productTemplateName);
+    if (parsed.data.productTemplateLang != null)
+      await setCredential(CredentialProvider.CHATWOOT, `PRODUCT_TEMPLATE_LANG_${env}`, parsed.data.productTemplateLang);
   } catch (err: any) {
     return res.status(400).json({ error: "credentials_error", message: String(err?.message || err) });
   }
