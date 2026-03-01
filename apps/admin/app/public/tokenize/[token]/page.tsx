@@ -152,15 +152,22 @@ export default async function PublicTokenizePage({
         </PublicAlert>
       ) : null}
 
-      {!publicKey ? (
-        <PublicAlert>Servicio temporalmente no disponible. Solicita un nuevo link o intenta más tarde.</PublicAlert>
-      ) : !acceptanceLinks ? (
-        <PublicAlert>No pudimos cargar los terminos de Wompi. Intenta mas tarde.</PublicAlert>
-      ) : (
-        <form method="POST" action={`/public/tokenize/${encodeURIComponent(token)}/process`} style={{ display: "grid", gap: 10 }}>
-          <WompiTokenizeWidget publicKey={publicKey} acceptance={acceptanceLinks} />
-        </form>
-      )}
+      <div className="payment-point">
+        <div className="payment-point-title">Tokenización de tarjeta</div>
+        <div className="payment-point-provider">
+          <img src="/brand/wompi.png" alt="" />
+          Procesado por Wompi
+        </div>
+        {!publicKey ? (
+          <PublicAlert>Servicio temporalmente no disponible. Solicita un nuevo link o intenta más tarde.</PublicAlert>
+        ) : !acceptanceLinks ? (
+          <PublicAlert>No pudimos cargar los terminos de Wompi. Intenta mas tarde.</PublicAlert>
+        ) : (
+          <form method="POST" action={`/public/tokenize/${encodeURIComponent(token)}/process`} style={{ display: "grid", gap: 10 }}>
+            <WompiTokenizeWidget publicKey={publicKey} acceptance={acceptanceLinks} />
+          </form>
+        )}
+      </div>
     </PublicCheckoutLayout>
   );
 }

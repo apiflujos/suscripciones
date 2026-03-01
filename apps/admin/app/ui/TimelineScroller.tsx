@@ -11,7 +11,6 @@ export function TimelineScroller({
 }) {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const [dragging, setDragging] = useState(false);
-  const [paused, setPaused] = useState(false);
   const dragStartX = useRef(0);
   const dragStartScroll = useRef(0);
 
@@ -43,9 +42,9 @@ export function TimelineScroller({
     let last = performance.now();
     const tick = (now: number) => {
       const el = trackRef.current;
-      if (el && !dragging && !paused && !document.hidden) {
+      if (el && !dragging && !document.hidden) {
         const dt = now - last;
-        const speed = 0.03;
+        const speed = 0.06;
         el.scrollLeft += speed * dt;
         if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 2) {
           el.scrollLeft = 0;
@@ -56,7 +55,7 @@ export function TimelineScroller({
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [dragging, paused]);
+  }, [dragging]);
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     const el = trackRef.current;
@@ -122,8 +121,6 @@ export function TimelineScroller({
           event.stopPropagation();
           scrollBy(-1);
         }}
-        onMouseEnter={() => setPaused(true)}
-        onMouseLeave={() => setPaused(false)}
       >
         <span aria-hidden="true">‹</span>
       </button>
@@ -139,10 +136,6 @@ export function TimelineScroller({
         onPointerLeave={handlePointerLeave}
         onWheel={handleWheel}
         onKeyDown={handleKeyDown}
-        onMouseEnter={() => setPaused(true)}
-        onMouseLeave={() => setPaused(false)}
-        onFocus={() => setPaused(true)}
-        onBlur={() => setPaused(false)}
       >
         {children}
       </div>
@@ -156,8 +149,6 @@ export function TimelineScroller({
           event.stopPropagation();
           scrollBy(1);
         }}
-        onMouseEnter={() => setPaused(true)}
-        onMouseLeave={() => setPaused(false)}
       >
         <span aria-hidden="true">›</span>
       </button>

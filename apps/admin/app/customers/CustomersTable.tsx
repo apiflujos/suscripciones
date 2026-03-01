@@ -502,6 +502,13 @@ export function CustomersTable({
                 </div>
               </div>
               <div className="contact-paylink contact-footer">
+                  <div className="paylink-header">
+                    <span className="provider-badge">
+                      <img src="/brand/wompi.png" alt="" />
+                      Wompi
+                    </span>
+                    <span className="paylink-title">Pagos y tokenización</span>
+                  </div>
                   <div className="paylink-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-start" }}>
                     <Link className="ghost btn-compact btn-amber btn-token" href={`/customers/${c.id}/payment-method`}>
                       {hasToken(c) ? "Tokenizar otra tarjeta" : "Tokenizar"}

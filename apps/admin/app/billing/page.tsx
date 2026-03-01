@@ -464,6 +464,10 @@ export default async function BillingPage({
                     </div>
                   </div>
                   <div className="billing-badges">
+                    <span className="provider-badge">
+                      <img src="/brand/wompi.png" alt="" />
+                      Wompi
+                    </span>
                     {isPlan ? (
                       <span className={`pill ${planLinkStatus === "Pagado" ? "pill-ok" : planLinkStatus === "En mora" ? "pill-warn" : "pill-muted"}`}>
                         {planLinkStatus === "Link enviado" ? "Link enviado" : planLinkStatus}

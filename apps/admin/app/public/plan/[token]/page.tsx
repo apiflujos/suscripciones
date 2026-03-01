@@ -119,6 +119,10 @@ export default async function PublicPlanPage({ params }: { params: Promise<{ tok
       ) : null}
       <div className="payment-point">
         <div className="payment-point-title">Punto de pago</div>
+        <div className="payment-point-provider">
+          <img src="/brand/wompi.png" alt="" />
+          Procesado por Wompi
+        </div>
         {checkoutUrl ? (
           <a className="primary btn-pay" href={checkoutUrl} referrerPolicy="no-referrer">
             {ctaLabel}

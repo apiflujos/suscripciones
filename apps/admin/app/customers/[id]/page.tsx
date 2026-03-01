@@ -95,6 +95,24 @@ function logPillClass(level: string) {
   return "pill-muted";
 }
 
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function cleanLogEntity(raw: string, customerLabel: string) {
+  let out = String(raw || "").trim();
+  if (!out) return "Evento del cliente";
+  out = out.replace(/^cliente\s*·\s*/i, "");
+  out = out.replace(/^pago\s*·\s*/i, "Pago · ");
+  if (customerLabel) {
+    const safe = escapeRegex(customerLabel);
+    out = out.replace(new RegExp(`\\s*·\\s*${safe}`, "ig"), "");
+    out = out.replace(new RegExp(`\\b${safe}\\b`, "ig"), "");
+  }
+  out = out.replace(/\s+·\s+$/g, "").replace(/\s{2,}/g, " ").trim();
+  return out || "Evento del cliente";
+}
+
 function collectionLabel(mode: string) {
   if (mode === "AUTO_DEBIT") return "Suscripción";
   if (mode === "AUTO_LINK") return "Plan auto";
@@ -344,7 +362,7 @@ export default async function CustomerDetailPage({
   const totalPaidCents = approvedPayments.reduce((acc, p) => acc + Number(p.amountInCents || 0), 0);
   const lastPayment = payments[0] || null;
   const activeSub = subscriptions.find((s) => s.status === "ACTIVE" || s.status === "PAST_DUE") || subscriptions[0] || null;
-  const activeSubs = subscriptions.filter((s) => s.status === "ACTIVE" || s.status === "PAST_DUE");
+  const activeSubs = subscriptions.filter((s) => s.status === "ACTIVE");
   const lastPaymentAt = lastPayment?.paidAt || lastPayment?.createdAt || null;
   const meta = customer?.metadata || {};
   const nextPeriodEnd = activeSub?.currentPeriodEndAt || null;
@@ -704,29 +722,7 @@ export default async function CustomerDetailPage({
           </div>
         </div>
 
-        <div className="card cardPad chart-card">
-          <div className="chart-header">
-            <div>
-              <div className="chart-title">Actividad operativa</div>
-              <div className="chart-sub">Logs recientes del cliente.</div>
-            </div>
-          </div>
-          <div className="chart-donut">
-            <MiniDonut
-              totalLabel="Eventos"
-              items={[
-                { label: "Info", value: logCounts.info, color: "var(--chart-b)" },
-                { label: "Alertas", value: logCounts.warn, color: "var(--status-warning)" },
-                { label: "Errores", value: logCounts.error, color: "var(--status-danger)" }
-              ]}
-            />
-          </div>
-          <div className="chart-legend">
-            <span><i style={{ background: "var(--chart-b)" }} />Info {logCounts.info}</span>
-            <span><i style={{ background: "var(--status-warning)" }} />Alertas {logCounts.warn}</span>
-            <span><i style={{ background: "var(--status-danger)" }} />Errores {logCounts.error}</span>
-          </div>
-        </div>
+        
       </section>
 
       <section className="grid2">
@@ -835,7 +831,7 @@ export default async function CustomerDetailPage({
       </section>
 
       <section className="grid2">
-        <div className="card cardPad customer-section timeline-full">
+        <div className="card cardPad customer-section">
           <div className="contact-section-title">Pagos recientes</div>
           {recentPayments.length ? (
             <div className="table-scroll">
@@ -864,6 +860,25 @@ export default async function CustomerDetailPage({
             <div className="muted">Sin pagos registrados.</div>
           )}
         </div>
+
+        <div className="card cardPad customer-section">
+          <div className="contact-section-title">Actividad operativa</div>
+          <div className="chart-donut">
+            <MiniDonut
+              totalLabel="Eventos"
+              items={[
+                { label: "Info", value: logCounts.info, color: "var(--chart-b)" },
+                { label: "Alertas", value: logCounts.warn, color: "var(--status-warning)" },
+                { label: "Errores", value: logCounts.error, color: "var(--status-danger)" }
+              ]}
+            />
+          </div>
+          <div className="chart-legend">
+            <span><i style={{ background: "var(--chart-b)" }} />Info {logCounts.info}</span>
+            <span><i style={{ background: "var(--status-warning)" }} />Alertas {logCounts.warn}</span>
+            <span><i style={{ background: "var(--status-danger)" }} />Errores {logCounts.error}</span>
+          </div>
+        </div>
       </section>
 
       <section className="grid2">
@@ -872,10 +887,10 @@ export default async function CustomerDetailPage({
           <div className="customer-log-controls">
             <span className="muted">{formatWindowLabel(logsFrom, logsTo)}</span>
             <div className="customer-log-actions">
-              <Link className="ghost btn-compact" href={`/customers/${customer.id}?logsPage=${logsPage + 1}`}>
+              <Link className="ghost btn-compact" href={`/customers/${customer.id}?logsPage=${logsPage + 1}`} data-loader="off">
                 Mes anterior
               </Link>
-              <Link className="ghost btn-compact" href={`/customers/${customer.id}?logsPage=${Math.max(1, logsPage - 1)}`} aria-disabled={logsPage <= 1}>
+              <Link className="ghost btn-compact" href={`/customers/${customer.id}?logsPage=${Math.max(1, logsPage - 1)}`} aria-disabled={logsPage <= 1} data-loader="off">
                 Más reciente
               </Link>
             </div>
@@ -885,22 +900,34 @@ export default async function CustomerDetailPage({
               <TimelineScroller ariaLabel="Línea de tiempo del cliente">
                 <div className="customer-log-list" role="list">
                 {logs.map((l: any) => (
-                  <div
-                    key={l.id}
-                    className="customer-log-item"
-                    role="listitem"
-                    tabIndex={0}
-                    data-tooltip={`${l.entity || "Evento del cliente"}\n${new Date(l.createdAt).toLocaleString("es-CO")} · ${logLevelLabel(String(l.level || ""))}\n${l.actor || "Sistema"}${l.source ? ` · ${l.source}` : ""}`}
-                  >
-                    <div className="customer-log-title">{l.entity || "Evento del cliente"}</div>
-                    <div className="customer-log-meta">
-                      <span>{l.actor || "Sistema"}</span>
-                      <span><LocalDateTime value={l.createdAt} /></span>
-                      <span className={`pill pill-sm ${logPillClass(String(l.level || ""))}`}>{logLevelLabel(String(l.level || ""))}</span>
-                      {l.source ? <span>{l.source}</span> : null}
-                    </div>
-                    <div className="customer-log-message">{l.message}</div>
-                  </div>
+                  (() => {
+                    const customerLabel = String(customer.name || customer.email || customer.phone || "").trim();
+                    const entity = cleanLogEntity(String(l.entity || ""), customerLabel);
+                    const tooltip = `${entity}\n${new Date(l.createdAt).toLocaleString("es-CO")} · ${logLevelLabel(String(l.level || ""))}\n${l.source ? `${l.source} · ` : ""}${l.actor || "Sistema"}`;
+                    return (
+                      <div
+                        key={l.id}
+                        className="customer-log-item"
+                        role="listitem"
+                        tabIndex={0}
+                        data-tooltip={tooltip}
+                        title={tooltip}
+                      >
+                        <div className="customer-log-title">
+                          <span>{entity}</span>
+                          <span className={`pill pill-sm ${logPillClass(String(l.level || ""))}`}>
+                            {logLevelLabel(String(l.level || ""))}
+                          </span>
+                        </div>
+                        <div className="customer-log-message">{l.message}</div>
+                        <div className="customer-log-meta">
+                          <span><LocalDateTime value={l.createdAt} /></span>
+                          {l.source ? <span>{l.source}</span> : null}
+                          <span>{l.actor || "Sistema"}</span>
+                        </div>
+                      </div>
+                    );
+                  })()
                 ))}
                 </div>
               </TimelineScroller>
