@@ -42,6 +42,7 @@ export function RealtimeNotifier() {
   const audioPrimedRef = useRef(false);
   const seenIdsRef = useRef<Set<string>>(new Set());
   const lastMessageRef = useRef<number>(0);
+  const lastOkRef = useRef<number>(0);
   const healthRef = useRef<NodeJS.Timeout | null>(null);
 
   const [soundEnabled, setSoundEnabled] = useState(false);
@@ -172,6 +173,7 @@ export function RealtimeNotifier() {
   const markConnected = () => {
     setStatus("connected");
     lastMessageRef.current = Date.now();
+    lastOkRef.current = lastMessageRef.current;
   };
 
   const markConnecting = () => {
@@ -179,8 +181,8 @@ export function RealtimeNotifier() {
       setStatus("disconnected");
       return;
     }
-    const last = lastMessageRef.current || 0;
-    if (last && Date.now() - last < 45000) {
+    const last = lastOkRef.current || lastMessageRef.current || 0;
+    if (last && Date.now() - last < 30000) {
       setStatus("connected");
       return;
     }
@@ -376,7 +378,7 @@ export function RealtimeNotifier() {
         if (reconnectRef.current) clearTimeout(reconnectRef.current);
         if (readyState === EventSource.CLOSED || readyState == null) {
           errorCountRef.current += 1;
-          if (errorCountRef.current >= 3) {
+          if (errorCountRef.current >= 2) {
             setUsePolling(true);
             markConnecting();
             return;
@@ -429,7 +431,7 @@ export function RealtimeNotifier() {
       }
     };
     poll();
-    const id = setInterval(poll, 15000);
+    const id = setInterval(poll, 8000);
     return () => {
       active = false;
       clearInterval(id);
@@ -458,6 +460,7 @@ export function RealtimeNotifier() {
       }
       primeAudio();
       primeCashFile();
+      playCashSound(true);
       const res = await fetch("/api/realtime/test", { method: "POST" });
       if (!res.ok) throw new Error("test_failed");
     } catch {
@@ -524,7 +527,6 @@ export function RealtimeNotifier() {
     <>
       {slot ? createPortal(statusEl, slot) : null}
       <div className="realtime-toasts" aria-live="polite">
-        {!slot ? statusEl : null}
         {toasts.map((toast) => {
           const iconKind = iconForToast(toast);
           const IconTag: any = toast.href ? "a" : "div";

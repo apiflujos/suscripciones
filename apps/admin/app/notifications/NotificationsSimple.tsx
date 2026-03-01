@@ -267,7 +267,7 @@ export function NotificationsSimple({
                     <span className={`pill ${rule?.enabled ? "pill-green" : "pill-muted"}`}>{rule?.enabled ? "Activa" : "Inactiva"}</span>
                   </div>
                   {isEditing ? (
-                    <form action={actions.saveRealtime} style={{ display: "grid", gap: 6 }}>
+                    <form action={actions.saveRealtime} className="notification-form" style={{ display: "grid", gap: 6 }}>
                       <input type="hidden" name="csrf" value={csrfToken} />
                       <input type="hidden" name="environment" value={env} />
                       <input type="hidden" name="key" value={rt.key} />
@@ -283,7 +283,7 @@ export function NotificationsSimple({
                       <div className="field">
                         <label>Tipo de mensaje</label>
                         <select
-                          className="select"
+                          className="select select-compact"
                           name="templateKind"
                           value={kind}
                           onChange={(e) => setRealtimeKinds({ ...realtimeKinds, [rt.key]: e.target.value as any })}
@@ -299,7 +299,7 @@ export function NotificationsSimple({
                             <HelpTip text="Puedes usar variables del sistema, por ejemplo: {{customer.name}}, {{customer.email}}, {{plan.name}}, {{payment.checkoutUrl}}, {{tokenization.url}}, {{catalog.url}}, {{subscription.currentPeriodEndAt}}." />
                           </label>
                           <textarea
-                            className="input"
+                            className="input input-compact"
                             name="content"
                             rows={1}
                             defaultValue={content}
@@ -309,10 +309,10 @@ export function NotificationsSimple({
                           />
                           <div className="field-hint">Se reemplazan variables del sistema automáticamente.</div>
                           <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-                            <button type="button" className="ghost" data-modal="true" onClick={() => setPickerOpen("vars")} aria-label="Variables">
+                            <button type="button" className="ghost btn-compact" data-modal="true" onClick={() => setPickerOpen("vars")} aria-label="Variables">
                               {`{ }`}
                             </button>
-                            <button type="button" className="ghost" data-modal="true" onClick={() => setPickerOpen("emoji")} aria-label="Emojis">
+                            <button type="button" className="ghost btn-compact" data-modal="true" onClick={() => setPickerOpen("emoji")} aria-label="Emojis">
                               🙂
                             </button>
                           </div>
@@ -322,28 +322,28 @@ export function NotificationsSimple({
                         <>
                           <div className="field">
                             <label>Template WhatsApp</label>
-                            <input className="input" name="waTemplateName" defaultValue={waName} placeholder="nombre_template" />
+                            <input className="input input-compact" name="waTemplateName" defaultValue={waName} placeholder="nombre_template" />
                           </div>
                           <div className="field">
                             <label>Idioma</label>
-                            <input className="input" name="waLanguage" defaultValue={waLang} placeholder="es" />
+                            <input className="input input-compact" name="waLanguage" defaultValue={waLang} placeholder="es" />
                           </div>
                           <div className="field">
                             <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
                               <span>Parámetros (separados por |)</span>
                               <HelpTip text="Son los valores que reemplazan {{1}}, {{2}}, {{3}} en tu plantilla. Ej: 'Hola {{1}}, recibimos {{2}}' → Juan|$10.000" />
                             </label>
-                            <input className="input" name="waParams" defaultValue={waParams.map((p) => p.value).join("|")} placeholder="Juan|$10000" />
+                            <input className="input input-compact" name="waParams" defaultValue={waParams.map((p) => p.value).join("|")} placeholder="Juan|$10000" />
                           </div>
                         </>
                       ) : null}
                       <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
                         {rule ? (
-                          <button className="ghost btn-cancel" type="button" onClick={() => setRealtimeEdit((prev) => ({ ...prev, [rt.key]: false }))}>
+                          <button className="ghost btn-compact btn-cancel" type="button" onClick={() => setRealtimeEdit((prev) => ({ ...prev, [rt.key]: false }))}>
                             Cancelar
                           </button>
                         ) : null}
-                        <PendingButton className="primary btn-save" type="submit" pendingText="Guardando...">
+                        <PendingButton className="primary btn-compact btn-save" type="submit" pendingText="Guardando...">
                           Guardar
                         </PendingButton>
                       </div>
@@ -370,7 +370,7 @@ export function NotificationsSimple({
                         </div>
                       </div>
                       <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-                        <button className="ghost" type="button" data-loader="off" onClick={() => setRealtimeEdit((prev) => ({ ...prev, [rt.key]: true }))}>
+                        <button className="ghost btn-compact" type="button" data-loader="off" onClick={() => setRealtimeEdit((prev) => ({ ...prev, [rt.key]: true }))}>
                           Editar
                         </button>
                       </div>
@@ -399,7 +399,7 @@ export function NotificationsSimple({
                 </div>
               </div>
               {dueEdit || !reminderDue ? (
-                <form action={actions.saveReminder} style={{ display: "grid", gap: 6 }}>
+                <form action={actions.saveReminder} className="notification-form" style={{ display: "grid", gap: 6 }}>
                 <input type="hidden" name="csrf" value={csrfToken} />
                 <input type="hidden" name="environment" value={env} />
                 <input type="hidden" name="kind" value="DUE" />
@@ -410,7 +410,7 @@ export function NotificationsSimple({
                 </div>
                 <div className="field">
                   <label>Tipo de mensaje</label>
-                  <select className="select" name="templateKind" value={dueKind} onChange={(e) => setDueKind(e.target.value as any)}>
+                  <select className="select select-compact" name="templateKind" value={dueKind} onChange={(e) => setDueKind(e.target.value as any)}>
                     <option value="TEXT">Texto</option>
                     <option value="WHATSAPP_TEMPLATE">Plantilla WhatsApp</option>
                   </select>
@@ -422,7 +422,7 @@ export function NotificationsSimple({
                       <HelpTip text="Puedes usar variables del sistema, por ejemplo: {{customer.name}}, {{customer.email}}, {{plan.name}}, {{payment.checkoutUrl}}, {{tokenization.url}}, {{catalog.url}}, {{subscription.currentPeriodEndAt}}." />
                     </label>
                     <textarea
-                      className="input"
+                      className="input input-compact"
                       name="content"
                       rows={1}
                       defaultValue={reminderDueTemplate?.content && reminderDueTemplate.content !== "(template)" ? reminderDueTemplate.content : ""}
@@ -431,10 +431,10 @@ export function NotificationsSimple({
                     />
                     <div className="field-hint">Se reemplazan variables del sistema automáticamente.</div>
                     <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-                      <button type="button" className="ghost" data-modal="true" onClick={() => setPickerOpen("vars")} aria-label="Variables">
+                      <button type="button" className="ghost btn-compact" data-modal="true" onClick={() => setPickerOpen("vars")} aria-label="Variables">
                         {`{ }`}
                       </button>
-                      <button type="button" className="ghost" data-modal="true" onClick={() => setPickerOpen("emoji")} aria-label="Emojis">
+                      <button type="button" className="ghost btn-compact" data-modal="true" onClick={() => setPickerOpen("emoji")} aria-label="Emojis">
                         🙂
                       </button>
                     </div>
@@ -444,11 +444,11 @@ export function NotificationsSimple({
                   <>
                     <div className="field">
                       <label>Template WhatsApp</label>
-                      <input className="input" name="waTemplateName" defaultValue={reminderDueTemplate?.chatwootTemplate?.name || ""} placeholder="nombre_template" />
+                      <input className="input input-compact" name="waTemplateName" defaultValue={reminderDueTemplate?.chatwootTemplate?.name || ""} placeholder="nombre_template" />
                     </div>
                     <div className="field">
                       <label>Idioma</label>
-                      <input className="input" name="waLanguage" defaultValue={reminderDueTemplate?.chatwootTemplate?.language || "es"} placeholder="es" />
+                      <input className="input input-compact" name="waLanguage" defaultValue={reminderDueTemplate?.chatwootTemplate?.language || "es"} placeholder="es" />
                     </div>
                     <div className="field">
                       <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -456,7 +456,7 @@ export function NotificationsSimple({
                         <HelpTip text="Son los valores que reemplazan {{1}}, {{2}}, {{3}} en tu plantilla. Ej: 'Hola {{1}}, recibimos {{2}}' → Juan|$10.000" />
                       </label>
                       <input
-                        className="input"
+                        className="input input-compact"
                         name="waParams"
                         defaultValue={(reminderDueTemplate?.chatwootTemplate?.processed_params?.body || []).map((p) => p.value).join("|")}
                         placeholder="Juan|$10000"
@@ -469,7 +469,7 @@ export function NotificationsSimple({
                     <div className="field">
                       <label>Cada</label>
                       <input
-                        className="input"
+                        className="input input-compact"
                         value={item.amount}
                         onChange={(e) => {
                           const next = dueOffsets.slice();
@@ -482,7 +482,7 @@ export function NotificationsSimple({
                     <div className="field">
                       <label>Unidad</label>
                       <select
-                        className="select"
+                        className="select select-compact"
                         value={item.unit}
                         onChange={(e) => {
                           const next = dueOffsets.slice();
@@ -496,7 +496,7 @@ export function NotificationsSimple({
                       </select>
                     </div>
                     <button
-                      className="ghost"
+                      className="ghost btn-compact"
                       type="button"
                       onClick={() => setDueOffsets(dueOffsets.filter((_, i) => i !== idx))}
                       aria-label="Eliminar"
@@ -506,16 +506,16 @@ export function NotificationsSimple({
                   </div>
                 ))}
                 <input type="hidden" name="offsetsSeconds" value={dueOffsets.map((o) => secondsFromOffset(o, -1)).join(",")} />
-                <button className="ghost" type="button" onClick={() => setDueOffsets([...dueOffsets, { amount: "1", unit: "days" }])}>
+                <button className="ghost btn-compact" type="button" onClick={() => setDueOffsets([...dueOffsets, { amount: "1", unit: "days" }])}>
                   + Agregar recordatorio
                 </button>
                 <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
                   {reminderDue ? (
-                    <button className="ghost btn-cancel" type="button" onClick={() => setDueEdit(false)}>
+                    <button className="ghost btn-compact btn-cancel" type="button" onClick={() => setDueEdit(false)}>
                       Cancelar
                     </button>
                   ) : null}
-                  <PendingButton className="primary btn-save" type="submit" pendingText="Guardando...">
+                  <PendingButton className="primary btn-compact btn-save" type="submit" pendingText="Guardando...">
                     Guardar
                   </PendingButton>
                 </div>
@@ -541,7 +541,7 @@ export function NotificationsSimple({
                     </div>
                   </div>
                     <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-                      <button className="ghost" type="button" data-loader="off" onClick={() => setDueEdit(true)}>
+                      <button className="ghost btn-compact" type="button" data-loader="off" onClick={() => setDueEdit(true)}>
                         Editar
                       </button>
                     </div>
@@ -557,7 +557,7 @@ export function NotificationsSimple({
                 </div>
               </div>
               {moraEdit || !reminderMora ? (
-                <form action={actions.saveReminder} style={{ display: "grid", gap: 6 }}>
+                <form action={actions.saveReminder} className="notification-form" style={{ display: "grid", gap: 6 }}>
                 <input type="hidden" name="csrf" value={csrfToken} />
                 <input type="hidden" name="environment" value={env} />
                 <input type="hidden" name="kind" value="MORA" />
@@ -568,7 +568,7 @@ export function NotificationsSimple({
                 </div>
                 <div className="field">
                   <label>Tipo de mensaje</label>
-                  <select className="select" name="templateKind" value={moraKind} onChange={(e) => setMoraKind(e.target.value as any)}>
+                  <select className="select select-compact" name="templateKind" value={moraKind} onChange={(e) => setMoraKind(e.target.value as any)}>
                     <option value="TEXT">Texto</option>
                     <option value="WHATSAPP_TEMPLATE">Plantilla WhatsApp</option>
                   </select>
@@ -580,7 +580,7 @@ export function NotificationsSimple({
                       <HelpTip text="Puedes usar variables del sistema, por ejemplo: {{customer.name}}, {{customer.email}}, {{plan.name}}, {{payment.checkoutUrl}}, {{tokenization.url}}, {{catalog.url}}, {{subscription.currentPeriodEndAt}}." />
                     </label>
                     <textarea
-                      className="input"
+                      className="input input-compact"
                       name="content"
                       rows={1}
                       defaultValue={reminderMoraTemplate?.content && reminderMoraTemplate.content !== "(template)" ? reminderMoraTemplate.content : ""}
@@ -589,10 +589,10 @@ export function NotificationsSimple({
                     />
                     <div className="field-hint">Se reemplazan variables del sistema automáticamente.</div>
                     <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-                      <button type="button" className="ghost" data-modal="true" onClick={() => setPickerOpen("vars")} aria-label="Variables">
+                      <button type="button" className="ghost btn-compact" data-modal="true" onClick={() => setPickerOpen("vars")} aria-label="Variables">
                         {`{ }`}
                       </button>
-                      <button type="button" className="ghost" data-modal="true" onClick={() => setPickerOpen("emoji")} aria-label="Emojis">
+                      <button type="button" className="ghost btn-compact" data-modal="true" onClick={() => setPickerOpen("emoji")} aria-label="Emojis">
                         🙂
                       </button>
                     </div>
@@ -602,11 +602,11 @@ export function NotificationsSimple({
                   <>
                     <div className="field">
                       <label>Template WhatsApp</label>
-                      <input className="input" name="waTemplateName" defaultValue={reminderMoraTemplate?.chatwootTemplate?.name || ""} placeholder="nombre_template" />
+                      <input className="input input-compact" name="waTemplateName" defaultValue={reminderMoraTemplate?.chatwootTemplate?.name || ""} placeholder="nombre_template" />
                     </div>
                     <div className="field">
                       <label>Idioma</label>
-                      <input className="input" name="waLanguage" defaultValue={reminderMoraTemplate?.chatwootTemplate?.language || "es"} placeholder="es" />
+                      <input className="input input-compact" name="waLanguage" defaultValue={reminderMoraTemplate?.chatwootTemplate?.language || "es"} placeholder="es" />
                     </div>
                     <div className="field">
                       <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -614,7 +614,7 @@ export function NotificationsSimple({
                         <HelpTip text="Son los valores que reemplazan {{1}}, {{2}}, {{3}} en tu plantilla. Ej: 'Hola {{1}}, recibimos {{2}}' → Juan|$10.000" />
                       </label>
                       <input
-                        className="input"
+                        className="input input-compact"
                         name="waParams"
                         defaultValue={(reminderMoraTemplate?.chatwootTemplate?.processed_params?.body || []).map((p) => p.value).join("|")}
                         placeholder="Juan|$10000"
@@ -627,7 +627,7 @@ export function NotificationsSimple({
                     <div className="field">
                       <label>Cada</label>
                       <input
-                        className="input"
+                        className="input input-compact"
                         value={item.amount}
                         onChange={(e) => {
                           const next = moraOffsets.slice();
@@ -640,7 +640,7 @@ export function NotificationsSimple({
                     <div className="field">
                       <label>Unidad</label>
                       <select
-                        className="select"
+                        className="select select-compact"
                         value={item.unit}
                         onChange={(e) => {
                           const next = moraOffsets.slice();
@@ -654,7 +654,7 @@ export function NotificationsSimple({
                       </select>
                     </div>
                     <button
-                      className="ghost"
+                      className="ghost btn-compact"
                       type="button"
                       onClick={() => setMoraOffsets(moraOffsets.filter((_, i) => i !== idx))}
                       aria-label="Eliminar"
@@ -664,16 +664,16 @@ export function NotificationsSimple({
                   </div>
                 ))}
                 <input type="hidden" name="offsetsSeconds" value={moraOffsets.map((o) => secondsFromOffset(o, 1)).join(",")} />
-                <button className="ghost" type="button" onClick={() => setMoraOffsets([...moraOffsets, { amount: "1", unit: "days" }])}>
+                <button className="ghost btn-compact" type="button" onClick={() => setMoraOffsets([...moraOffsets, { amount: "1", unit: "days" }])}>
                   + Agregar recordatorio
                 </button>
                 <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
                   {reminderMora ? (
-                    <button className="ghost btn-cancel" type="button" onClick={() => setMoraEdit(false)}>
+                    <button className="ghost btn-compact btn-cancel" type="button" onClick={() => setMoraEdit(false)}>
                       Cancelar
                     </button>
                   ) : null}
-                  <PendingButton className="primary btn-save" type="submit" pendingText="Guardando...">
+                  <PendingButton className="primary btn-compact btn-save" type="submit" pendingText="Guardando...">
                     Guardar
                   </PendingButton>
                 </div>
@@ -699,7 +699,7 @@ export function NotificationsSimple({
                     </div>
                   </div>
                     <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-                      <button className="ghost" type="button" data-loader="off" onClick={() => setMoraEdit(true)}>
+                      <button className="ghost btn-compact" type="button" data-loader="off" onClick={() => setMoraEdit(true)}>
                         Editar
                       </button>
                     </div>
