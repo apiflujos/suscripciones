@@ -705,13 +705,14 @@ export function CheckoutTemplatesPanel({
             <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>{inlineMsg(editing ? "checkout_template_update" : "checkout_template_create")}</div>
               <div style={{ display: "flex", gap: 8 }}>
-                <button className="ghost btn-back" type="button" onClick={() => setStepIndex(Math.max(0, stepIndex - 1))}>
+                <button className="ghost btn-back" type="button" data-loader="off" onClick={() => setStepIndex(Math.max(0, stepIndex - 1))}>
                   Atrás
                 </button>
                 {stepIndex < STEPS.length - 1 ? (
                   <button
                     className="primary btn-next"
                     type="button"
+                    data-loader="off"
                     onClick={() => {
                       if (stepIndex === 0 && !kind) {
                         setLocalError("Selecciona el tipo de plantilla.");
@@ -770,7 +771,7 @@ export function CheckoutTemplatesPanel({
               Cancelar edición
             </button>
           ) : null}
-          <button className="primary btn-create" type="button" data-modal="true" onClick={openCreate}>
+          <button className="primary btn-create" type="button" data-modal="true" data-loader="off" onClick={openCreate}>
             Nueva plantilla
           </button>
         </div>
@@ -837,7 +838,7 @@ export function CheckoutTemplatesPanel({
               </div>
             </div>
             <div className="template-actions">
-              <button className="secondary" type="button" data-modal="true" onClick={() => openEdit(t)}>
+              <button className="secondary" type="button" data-modal="true" data-loader="off" onClick={() => openEdit(t)}>
                 Editar
               </button>
               <form action={actions.duplicate}>
