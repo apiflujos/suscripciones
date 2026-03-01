@@ -26,6 +26,7 @@ export function RealtimeNotifier() {
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   const lastSeenRef = useRef<string>("");
   const reconnectRef = useRef<NodeJS.Timeout | null>(null);
+  const connectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const soundEnabledRef = useRef(false);
   const soundEnabledStateRef = useRef(false);
   const volumeRef = useRef(0.55);
@@ -67,12 +68,29 @@ export function RealtimeNotifier() {
         setVolume(volumeRef.current);
       }
     }
+    const primeAudio = () => {
+      const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      try {
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        gain.gain.value = 0.0001;
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.05);
+        setTimeout(() => ctx.close().catch(() => {}), 120);
+      } catch {}
+    };
+
     const enable = () => {
       soundEnabledRef.current = true;
       if (!soundEnabledStateRef.current) {
         soundEnabledStateRef.current = true;
         setSoundEnabled(true);
       }
+      primeAudio();
       try {
         window.localStorage.setItem("apiflujos-realtime-sound", "1");
       } catch {}
@@ -165,9 +183,18 @@ export function RealtimeNotifier() {
       setStatus("connecting");
       const since = lastSeenRef.current || new Date(Date.now() - 60 * 1000).toISOString();
       source = new EventSource(`/api/realtime?since=${encodeURIComponent(since)}`);
+      if (connectTimeoutRef.current) clearTimeout(connectTimeoutRef.current);
+      connectTimeoutRef.current = setTimeout(() => {
+        if (!active) return;
+        setStatus("disconnected");
+        source?.close();
+        if (reconnectRef.current) clearTimeout(reconnectRef.current);
+        reconnectRef.current = setTimeout(connect, 4000);
+      }, 7000);
 
       source.onopen = () => {
         if (!active) return;
+        if (connectTimeoutRef.current) clearTimeout(connectTimeoutRef.current);
         setStatus("connected");
       };
 
@@ -219,6 +246,7 @@ export function RealtimeNotifier() {
 
       source.onerror = () => {
         if (!active) return;
+        if (connectTimeoutRef.current) clearTimeout(connectTimeoutRef.current);
         setStatus("disconnected");
         source?.close();
         if (reconnectRef.current) clearTimeout(reconnectRef.current);
@@ -231,6 +259,7 @@ export function RealtimeNotifier() {
       active = false;
       source?.close();
       if (reconnectRef.current) clearTimeout(reconnectRef.current);
+      if (connectTimeoutRef.current) clearTimeout(connectTimeoutRef.current);
     };
   }, []);
 
@@ -246,6 +275,14 @@ export function RealtimeNotifier() {
 
   const pushTestToast = async () => {
     try {
+      const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+      if (AudioCtx) {
+        try {
+          const ctx = new AudioCtx();
+          await ctx.resume();
+          ctx.close().catch(() => {});
+        } catch {}
+      }
       if (!soundEnabledRef.current) {
         soundEnabledRef.current = true;
         soundEnabledStateRef.current = true;
