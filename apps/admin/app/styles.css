@@ -2695,6 +2695,22 @@ textarea.input {
   font-size: 11px;
 }
 
+.realtime-sound-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text);
+}
+
+.realtime-sound-toggle input {
+  accent-color: var(--primary);
+}
+
+.realtime-volume {
+  width: 80px;
+}
+
 .realtime-status-dot {
   width: 8px;
   height: 8px;
