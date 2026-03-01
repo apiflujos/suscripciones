@@ -527,11 +527,11 @@ export default async function LogsPage({
             <div className="panel module" style={{ padding: 0 }}>
               <table className="table logs-table logs-table-messages" aria-label="Tabla de mensajes">
                 <colgroup>
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "16%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "54%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "15%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "59%" }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -584,13 +584,13 @@ export default async function LogsPage({
             <div className="panel module" style={{ padding: 0 }}>
               <table className="table logs-table logs-table-jobs" aria-label="Tabla de jobs">
                 <colgroup>
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "13%" }} />
                   <col style={{ width: "10%" }} />
                   <col style={{ width: "8%" }} />
                   <col style={{ width: "14%" }} />
                   <col style={{ width: "34%" }} />
-                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "12%" }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -665,14 +665,14 @@ export default async function LogsPage({
             <div className="panel module" style={{ padding: 0 }}>
               <table className="table logs-table logs-table-payments" aria-label="Tabla de pagos">
                 <colgroup>
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "22%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "20%" }} />
                   <col style={{ width: "14%" }} />
                   <col style={{ width: "8%" }} />
-                  <col style={{ width: "8%" }} />
-                  <col style={{ width: "12%" }} />
-                  <col style={{ width: "12%" }} />
+                  <col style={{ width: "9%" }} />
                   <col style={{ width: "14%" }} />
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "12%" }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -753,13 +753,13 @@ export default async function LogsPage({
               </div>
                   <table className="table logs-table logs-table-webhooks" aria-label="Tabla de webhooks">
                     <colgroup>
-                      <col style={{ width: "10%" }} />
-                      <col style={{ width: "17%" }} />
-                      <col style={{ width: "8%" }} />
-                      <col style={{ width: "12%" }} />
-                      <col style={{ width: "8%" }} />
-                      <col style={{ width: "10%" }} />
                       <col style={{ width: "9%" }} />
+                      <col style={{ width: "16%" }} />
+                      <col style={{ width: "8%" }} />
+                      <col style={{ width: "13%" }} />
+                      <col style={{ width: "8%" }} />
+                      <col style={{ width: "10%" }} />
+                      <col style={{ width: "10%" }} />
                       <col style={{ width: "8%" }} />
                       <col style={{ width: "12%" }} />
                       <col style={{ width: "6%" }} />
@@ -797,8 +797,8 @@ export default async function LogsPage({
                             {refMeta ? <span className="log-ref-meta">{refMeta}</span> : null}
                           </div>
                         </td>
-                        <td>{e.paymentType || e.eventName || "—"}</td>
-                        <td>{e.planName || "—"}</td>
+                        <td className="log-type-cell">{e.paymentType || e.eventName || "—"}</td>
+                        <td className="log-plan-cell">{e.planName || "—"}</td>
                         <td>
                           <span className={`status-chip ${processChip.cls}`}>
                             <span className={`status-led ${processChip.cls === "is-success" ? "is-ok" : ""}`} />

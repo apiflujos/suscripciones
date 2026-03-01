@@ -1352,6 +1352,13 @@ a {
   white-space: nowrap;
 }
 
+.logs-table .log-error-cell {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .logs-table-payments .log-plan-cell {
   max-width: 140px;
   min-width: 0;
