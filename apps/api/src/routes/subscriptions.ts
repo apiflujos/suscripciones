@@ -31,8 +31,13 @@ subscriptionsRouter.get("/", async (_req, res) => {
   const customerId = String(req?.query?.customerId ?? "").trim();
   const estado = String(req?.query?.estado ?? "").trim();
   const collectionMode = String(req?.query?.collectionMode ?? "").trim();
-  const idsRaw = String(req?.query?.ids ?? "").trim();
+  const idsParam = req?.query?.ids;
+  const idsRaw = String(idsParam ?? "").trim();
   const ids = idsRaw ? idsRaw.split(",").map((v) => v.trim()).filter(Boolean) : [];
+  const idsEmpty = !idsRaw || idsRaw === "__none__" || ids.includes("__none__");
+  if (typeof idsParam !== "undefined" && (idsEmpty || ids.length === 0)) {
+    return res.json({ items: [], total: 0 });
+  }
 
   const where: any = {};
   if (tenantId) {

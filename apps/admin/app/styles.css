@@ -1210,6 +1210,16 @@ a {
   flex-wrap: wrap;
 }
 
+.smartViewsActive {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+  background: var(--primary-soft);
+  border: 1px solid var(--primary-soft);
+  padding: 4px 8px;
+  border-radius: 999px;
+}
+
 .smartViewsActions {
   display: flex;
   gap: 8px;
@@ -1266,6 +1276,16 @@ a {
   grid-template-columns: 2fr 1fr 1fr auto;
   gap: 10px;
   align-items: center;
+}
+
+.notice {
+  margin-top: 8px;
+  color: #177245;
+  font-weight: 600;
+  background: #e9f7ef;
+  border: 1px solid #b7e2c7;
+  padding: 8px 10px;
+  border-radius: 10px;
 }
 
 .filtersQuick {

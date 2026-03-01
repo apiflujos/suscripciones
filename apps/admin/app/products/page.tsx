@@ -83,6 +83,7 @@ export default async function ProductsPage({
   sp.set("take", String(take));
   if (Number.isFinite(page) && page > 1) sp.set("skip", String((Math.trunc(page) - 1) * take));
   let resolvedIds: string[] = [];
+  const usingSmartFilters = Boolean(viewId || filters);
   if (viewId) {
     const res = await fetch(`/api/smart-views/products/resolve`, {
       method: "POST",
@@ -107,6 +108,9 @@ export default async function ProductsPage({
       const json = await res.json().catch(() => ({}));
       resolvedIds = Array.isArray(json?.ids) ? json.ids : [];
     }
+  }
+  if (usingSmartFilters && resolvedIds.length === 0) {
+    resolvedIds = ["__none__"];
   }
 
   if (resolvedIds.length) sp.set("ids", resolvedIds.join(","));

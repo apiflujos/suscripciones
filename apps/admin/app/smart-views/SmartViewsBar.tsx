@@ -92,6 +92,14 @@ function serializeRule(rule: Rule): any {
   return { field: rule.field, op, value: rule.value };
 }
 
+function collectRuleFields(rule: Rule, acc: Set<string>) {
+  if ("rules" in rule) {
+    rule.rules.forEach((r) => collectRuleFields(r, acc));
+    return;
+  }
+  if (rule.field) acc.add(rule.field);
+}
+
 export function SmartViewsBar({
   scope,
   initialViewId,
@@ -123,6 +131,7 @@ export function SmartViewsBar({
   const [type, setType] = useState<"DYNAMIC" | "STATIC">("DYNAMIC");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const groupedFields = useMemo(() => {
     const map = new Map<string, SmartField[]>();
@@ -151,6 +160,18 @@ export function SmartViewsBar({
     load().catch(() => null);
   }, [scope]);
 
+  useEffect(() => {
+    if (!("rules" in root) || !fields.length) return;
+    const keys = new Set<string>();
+    collectRuleFields(root, keys);
+    keys.forEach((key) => {
+      const field = fields.find((f) => f.key === key);
+      if (field?.optionsSource && (!field.options || field.options.length === 0)) {
+        loadOptions(field).catch(() => null);
+      }
+    });
+  }, [root, fields, scope]);
+
   async function loadOptions(field: SmartField) {
     if (!field.optionsSource) return;
     if (field.options && field.options.length) return;
@@ -163,11 +184,7 @@ export function SmartViewsBar({
     }
   }
 
-  useEffect(() => {
-    fields.forEach((f) => {
-      if (f.optionsSource) loadOptions(f).catch(() => null);
-    });
-  }, [fields]);
+  const hasRules = "rules" in root && root.rules.length > 0;
 
   function buildHref(next: { viewId?: string; filters?: string }) {
     const sp = new URLSearchParams(baseParams);
@@ -193,15 +210,41 @@ export function SmartViewsBar({
     }
   }
 
+  async function resolveStaticIds() {
+    const res = await fetch(`/api/smart-views/${encodeURIComponent(scope)}/resolve`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ filters: serializeRule(root) })
+    });
+    const json = await res.json().catch(() => ({}));
+    return Array.isArray(json?.ids) ? json.ids : [];
+  }
+
   async function saveView() {
     setLoading(true);
     setError(null);
+    setNotice(null);
+    if (!name.trim()) {
+      setError("El nombre de la vista es obligatorio.");
+      setLoading(false);
+      return;
+    }
+    if (!hasRules) {
+      setError("Agrega al menos una condición antes de guardar.");
+      setLoading(false);
+      return;
+    }
     try {
+      let staticIds: string[] | undefined;
+      if (type === "STATIC") {
+        staticIds = await resolveStaticIds();
+      }
       const payload = {
         name: name.trim(),
         visibility,
         type,
-        filters: serializeRule(root)
+        filters: serializeRule(root),
+        ...(staticIds ? { staticIds } : {})
       };
       const target = editingId
         ? `/api/smart-views/${encodeURIComponent(scope)}/${encodeURIComponent(editingId)}`
@@ -222,6 +265,7 @@ export function SmartViewsBar({
       setActiveViewId(nextId);
       setMode("list");
       setEditingId("");
+      setNotice(editingId ? "Vista actualizada." : "Vista guardada.");
       window.location.href = buildHref({ viewId: nextId || undefined, filters: undefined });
     } catch (err: any) {
       setError(String(err?.message || "save_failed"));
@@ -232,6 +276,7 @@ export function SmartViewsBar({
 
   function addRule() {
     if (!fields.length) return;
+    setError(null);
     const nextField = fields[0]?.key || "";
     const rule = defaultRule(nextField, fields);
     if ("rules" in root) {
@@ -241,6 +286,7 @@ export function SmartViewsBar({
 
   function updateRule(index: number, next: Rule) {
     if (!("rules" in root)) return;
+    setError(null);
     const rules = [...root.rules];
     rules[index] = next;
     setRoot({ ...root, rules });
@@ -438,6 +484,11 @@ export function SmartViewsBar({
           ))}
         </select>
         {activeViewId ? (
+          <div className="smartViewsActive">
+            Vista activa: {views.find((v) => v.id === activeViewId)?.name || ""}
+          </div>
+        ) : null}
+        {activeViewId ? (
           <button
             className="ghost"
             type="button"
@@ -448,6 +499,7 @@ export function SmartViewsBar({
               setName(view.name || "");
               setVisibility(view.visibility || "ORG");
               setType(view.type || "DYNAMIC");
+              setNotice(null);
               if (view.filters && typeof view.filters === "object") {
                 setRoot(view.filters as Rule);
               } else if (fields.length) {
@@ -473,6 +525,7 @@ export function SmartViewsBar({
               setMode("filters");
               setActiveViewId("");
               setEditingId("");
+              setNotice(null);
             }}
           >
             Filtros avanzados
@@ -508,6 +561,11 @@ export function SmartViewsBar({
                   type="button"
                   onClick={() => {
                     if (!fields.length) return;
+                    if (!hasRules) {
+                      setError("Agrega al menos una condición antes de aplicar.");
+                      return;
+                    }
+                    setError(null);
                     const serialized = encodeURIComponent(JSON.stringify(serializeRule(root)));
                     window.location.href = buildHref({ filters: serialized, viewId: undefined });
                   }}
@@ -519,6 +577,7 @@ export function SmartViewsBar({
                   type="button"
                   onClick={() => {
                     if (!fields.length) return;
+                    setError(null);
                     setRoot({ op: "and", rules: [defaultRule(fields[0]?.key || "", fields)] });
                   }}
                 >
@@ -545,6 +604,7 @@ export function SmartViewsBar({
                 </button>
               </div>
               {error ? <div className="error">{error}</div> : null}
+              {notice ? <div className="notice">{notice}</div> : null}
             </div>
           </div>
         </div>
