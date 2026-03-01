@@ -199,6 +199,59 @@ export default async function LogsPage({
     messages: typeof messages.json?.total === "number" ? messages.json.total : null,
     payments: typeof payments.json?.total === "number" ? payments.json.total : null
   };
+  const failedJobsCount = jobItems.filter((j) => String(j.status) === "FAILED").length;
+  const jobSummary = jobItems.reduce(
+    (acc: { ok: number; pending: number; failed: number }, j: any) => {
+      const s = String(j.status || "").toUpperCase();
+      if (s === "FAILED") acc.failed += 1;
+      else if (s === "PENDING" || s === "RUNNING") acc.pending += 1;
+      else acc.ok += 1;
+      return acc;
+    },
+    { ok: 0, pending: 0, failed: 0 }
+  );
+  const messageSummary = messageItems.reduce(
+    (acc: { sent: number; pending: number; failed: number }, m: any) => {
+      const s = String(m.status || "").toUpperCase();
+      if (s === "SENT") acc.sent += 1;
+      else if (s === "FAILED") acc.failed += 1;
+      else acc.pending += 1;
+      return acc;
+    },
+    { sent: 0, pending: 0, failed: 0 }
+  );
+  const paymentsSummary = paymentItems.reduce(
+    (acc: { approved: number; pending: number; failed: number; total: number }, p: any) => {
+      const s = String(p.status || "").toUpperCase();
+      if (s === "APPROVED") acc.approved += 1;
+      else if (s === "PENDING" || s === "PROCESSING") acc.pending += 1;
+      else acc.failed += 1;
+      acc.total += 1;
+      return acc;
+    },
+    { approved: 0, pending: 0, failed: 0, total: 0 }
+  );
+  const webhooksSummary = webhookItems.reduce(
+    (acc: { processed: number; failed: number; skipped: number; total: number }, e: any) => {
+      const s = String(e.processStatus || "").toUpperCase();
+      if (s === "PROCESSED") acc.processed += 1;
+      else if (s === "FAILED") acc.failed += 1;
+      else if (s === "SKIPPED") acc.skipped += 1;
+      acc.total += 1;
+      return acc;
+    },
+    { processed: 0, failed: 0, skipped: 0, total: 0 }
+  );
+
+  const filtered = q
+    ? sysItems.filter((l) => String(l.message || "").toLowerCase().includes(q.toLowerCase()) || String(l.source || "").toLowerCase().includes(q.toLowerCase()))
+    : sysItems;
+
+  const normalized = filtered.map((l) => ({
+    ...l,
+    source: normalizeLogSource(l.source),
+    message: normalizeLogMessage(l.message)
+  }));
   const pagination = (() => {
     const currentPage = Math.max(1, Number(page) || 1);
     const countOnPage =
@@ -287,59 +340,6 @@ export default async function LogsPage({
       </div>
     );
   })();
-  const failedJobsCount = jobItems.filter((j) => String(j.status) === "FAILED").length;
-  const jobSummary = jobItems.reduce(
-    (acc: { ok: number; pending: number; failed: number }, j: any) => {
-      const s = String(j.status || "").toUpperCase();
-      if (s === "FAILED") acc.failed += 1;
-      else if (s === "PENDING" || s === "RUNNING") acc.pending += 1;
-      else acc.ok += 1;
-      return acc;
-    },
-    { ok: 0, pending: 0, failed: 0 }
-  );
-  const messageSummary = messageItems.reduce(
-    (acc: { sent: number; pending: number; failed: number }, m: any) => {
-      const s = String(m.status || "").toUpperCase();
-      if (s === "SENT") acc.sent += 1;
-      else if (s === "FAILED") acc.failed += 1;
-      else acc.pending += 1;
-      return acc;
-    },
-    { sent: 0, pending: 0, failed: 0 }
-  );
-  const paymentsSummary = paymentItems.reduce(
-    (acc: { approved: number; pending: number; failed: number; total: number }, p: any) => {
-      const s = String(p.status || "").toUpperCase();
-      if (s === "APPROVED") acc.approved += 1;
-      else if (s === "PENDING" || s === "PROCESSING") acc.pending += 1;
-      else acc.failed += 1;
-      acc.total += 1;
-      return acc;
-    },
-    { approved: 0, pending: 0, failed: 0, total: 0 }
-  );
-  const webhooksSummary = webhookItems.reduce(
-    (acc: { processed: number; failed: number; skipped: number; total: number }, e: any) => {
-      const s = String(e.processStatus || "").toUpperCase();
-      if (s === "PROCESSED") acc.processed += 1;
-      else if (s === "FAILED") acc.failed += 1;
-      else if (s === "SKIPPED") acc.skipped += 1;
-      acc.total += 1;
-      return acc;
-    },
-    { processed: 0, failed: 0, skipped: 0, total: 0 }
-  );
-
-  const filtered = q
-    ? sysItems.filter((l) => String(l.message || "").toLowerCase().includes(q.toLowerCase()) || String(l.source || "").toLowerCase().includes(q.toLowerCase()))
-    : sysItems;
-
-  const normalized = filtered.map((l) => ({
-    ...l,
-    source: normalizeLogSource(l.source),
-    message: normalizeLogMessage(l.message)
-  }));
   const systemSummary = normalized.reduce(
     (acc: { info: number; warn: number; error: number }, l: any) => {
       const lvl = String(l.level || "").toUpperCase();
@@ -544,7 +544,7 @@ export default async function LogsPage({
                     const detailText = detailRaw.length > 300 ? `${detailRaw.slice(0, 300)}…` : detailRaw;
                     return (
                       <tr key={m.id}>
-                        <td className="log-date-cell"><LocalDateTime value={m.createdAt} variant="short" /></td>
+                        <td className="log-date-cell"><LocalDateTime value={m.createdAt} variant="stacked" /></td>
                         <td>{m.customer?.name || m.customer?.email || "—"}</td>
                         <td>{m.type || "—"}</td>
                         <td>
@@ -614,7 +614,7 @@ export default async function LogsPage({
                     const detail = j.lastError || webhookNote || "—";
                     return (
                       <tr key={j.id}>
-                        <td className="log-date-cell"><LocalDateTime value={j.updatedAt} variant="short" /></td>
+                        <td className="log-date-cell"><LocalDateTime value={j.updatedAt} variant="stacked" /></td>
                         <td>{normalizeJobType(j.type)}</td>
                         <td>
                           <span className={`status-chip ${chip.cls}`}>
@@ -681,7 +681,7 @@ export default async function LogsPage({
                     const contactQuery = p.customer?.email || p.customer?.phone || p.customer?.name;
                     return (
                       <tr key={p.id}>
-                        <td className="log-date-cell"><LocalDateTime value={p.createdAt} variant="short" /></td>
+                        <td className="log-date-cell"><LocalDateTime value={p.createdAt} variant="stacked" /></td>
                         <td>{renderContactBlock(p)}</td>
                         <td>{planName}</td>
                         <td>
@@ -774,7 +774,7 @@ export default async function LogsPage({
                       .join(" · ");
                     return (
                       <tr key={e.id}>
-                        <td className="log-date-cell"><LocalDateTime value={e.receivedAt} variant="short" /></td>
+                        <td className="log-date-cell"><LocalDateTime value={e.receivedAt} variant="stacked" /></td>
                         <td>{renderContactBlock(e)}</td>
                         <td>{formatAmount(e.amountInCents, e.currency)}</td>
                         <td className="log-ref-cell">

@@ -43,7 +43,7 @@ export function LogsSystemTable({ items }: { items: LogItem[] }) {
             const shortMessage = rawMessage.length > 300 ? `${rawMessage.slice(0, 300)}…` : rawMessage;
             return (
               <tr key={id || `${l.createdAt ?? ""}-${l.message ?? ""}-${idx}`}>
-                <td className="log-date-cell"><LocalDateTime value={l.createdAt} variant="short" /></td>
+                <td className="log-date-cell"><LocalDateTime value={l.createdAt} variant="stacked" /></td>
                 <td>{(l as any).actor || "—"}</td>
                 <td className="log-cell log-entity" title={(l as any).entity || l.source || "—"}>
                   <span className="log-truncate">{(l as any).entity || l.source || "—"}</span>

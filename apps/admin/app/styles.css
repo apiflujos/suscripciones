@@ -2676,6 +2676,32 @@ textarea.input {
   border-radius: var(--radius-md);
 }
 
+.input-compact {
+  min-height: 32px;
+  padding: 6px 10px;
+  font-size: 13px;
+  border-radius: var(--radius-md);
+}
+
+.notification-form {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.notification-form .field {
+  min-width: 0;
+}
+
+.notification-form .field.row {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.notification-form textarea.input-compact {
+  min-height: 72px;
+}
+
 .tenant-list {
   border: 1px solid rgba(15, 23, 42, 0.12);
   border-radius: 10px;
@@ -3051,9 +3077,11 @@ textarea.input {
   align-items: center;
   margin-right: 10px;
   min-height: 40px;
-  min-width: 140px;
+  min-width: 0;
+  max-width: 180px;
   justify-content: flex-start;
   align-self: stretch;
+  overflow: hidden;
 }
 
 .topbar .realtime-status {
@@ -3111,6 +3139,25 @@ textarea.input {
   border-radius: 999px;
   background: var(--text-faint);
   display: inline-block;
+}
+
+.date-stack {
+  display: grid;
+  gap: 2px;
+  line-height: 1.15;
+}
+
+.date-stack-top {
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.date-stack-bottom {
+  font-size: 11px;
+  color: var(--text-muted, var(--text-faint));
+  white-space: nowrap;
 }
 
 .realtime-status.is-connected .realtime-status-dot {
