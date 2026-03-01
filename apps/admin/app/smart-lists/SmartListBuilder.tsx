@@ -409,7 +409,7 @@ export function SmartListBuilder({
       <div className="field-hint">
         Fechas relativas soportan segundos, minutos, horas, días. Para listas usa coma.
         <br />
-        Nivel gamificación: Rookie (0), Bronce (>=1), Plata (>=3), Oro (>=6) pagos aprobados.
+        Nivel gamificación: Rookie (0), Bronce (&ge;1), Plata (&ge;3), Oro (&ge;6) pagos aprobados.
       </div>
     </div>
   );
