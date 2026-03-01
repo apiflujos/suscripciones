@@ -357,6 +357,13 @@ export default async function LogsPage({
           ) : tab === "messages" ? (
             <div className="panel module" style={{ padding: 0 }}>
               <table className="table logs-table logs-table-messages" aria-label="Tabla de mensajes">
+                <colgroup>
+                  <col style={{ width: "150px" }} />
+                  <col style={{ width: "200px" }} />
+                  <col style={{ width: "120px" }} />
+                  <col style={{ width: "140px" }} />
+                  <col />
+                </colgroup>
                 <thead>
                   <tr>
                     <th>Fecha</th>

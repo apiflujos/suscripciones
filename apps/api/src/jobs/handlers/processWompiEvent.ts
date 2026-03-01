@@ -269,6 +269,13 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
 
   const tenantIdForPayment =
     subscription?.tenantId ?? paymentByLink?.tenantId ?? (await getDefaultTenantId());
+  if (!tenantIdForPayment) {
+    await db.webhookEvent.update({
+      where: { id: webhookEventId },
+      data: { processStatus: WebhookProcessStatus.FAILED, errorMessage: "missing_tenant", processedAt: new Date() }
+    });
+    return;
+  }
 
   const checkoutUrlResolved = await checkoutUrlFromLink;
   const resolvedCheckoutUrl =
@@ -305,9 +312,9 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     : await db.payment.upsert({
         where: { subscriptionCycleKey: subscriptionCycleKey as string },
         create: {
-          ...(tenantIdForPayment ? { tenantId: tenantIdForPayment } : {}),
-          customerId: subscription!.customerId,
-          subscriptionId: subscription!.id,
+          tenant: { connect: { id: tenantIdForPayment! } },
+          customer: { connect: { id: subscription!.customerId } },
+          subscription: { connect: { id: subscription!.id } },
           amountInCents: amountInCents ?? 0,
           currency: currency ?? "COP",
           cycleNumber: cycle,

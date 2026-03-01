@@ -41,16 +41,7 @@ async function main() {
 
   const backfills = await Promise.all([
     prisma.customer.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } }),
-    prisma.subscriptionPlan.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } }),
-    prisma.publicCheckoutTemplate.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } }),
-    prisma.subscription.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } }),
-    prisma.payment.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } }),
-    prisma.paymentLink.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } }),
-    prisma.webhookEvent.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } }),
-    prisma.chatwootMessage.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } }),
-    prisma.smartList.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } }),
-    prisma.campaign.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } }),
-    prisma.campaignSend.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
+    prisma.subscriptionPlan.updateMany({ where: { tenantId: null }, data: { tenantId: tenant.id } })
   ]);
 
   // Backfill join tables for multi-tenant mappings.
@@ -69,7 +60,7 @@ async function main() {
     skipDuplicates: true
   });
   await prisma.subscriptionTenant.createMany({
-    data: (await prisma.subscription.findMany({ where: { tenantId: { not: null } }, select: { id: true, tenantId: true } })).map((s: any) => ({
+    data: (await prisma.subscription.findMany({ select: { id: true, tenantId: true } })).map((s: any) => ({
       subscriptionId: s.id,
       tenantId: s.tenantId as string
     })),
@@ -97,16 +88,7 @@ async function main() {
   const counts = {
     saUsers: updatedNull.count,
     customers: backfills[0].count,
-    plans: backfills[1].count,
-    checkoutTemplates: backfills[2].count,
-    subscriptions: backfills[3].count,
-    payments: backfills[4].count,
-    paymentLinks: backfills[5].count,
-    webhookEvents: backfills[6].count,
-    chatwootMsgs: backfills[7].count,
-    smartLists: backfills[8].count,
-    campaigns: backfills[9].count,
-    campaignSends: backfills[10].count
+    plans: backfills[1].count
   };
 
   if (Object.values(counts).some((v) => Number(v) > 0)) {

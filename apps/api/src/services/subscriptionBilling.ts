@@ -325,6 +325,8 @@ export async function createAutoDebitTransactionForSubscription(args: {
     include: { plan: true, customer: true }
   });
   if (!sub) throw new Error("subscription_not_found");
+  const tenantId = sub.tenantId || sub.plan?.tenantId;
+  if (!tenantId) throw new Error("tenant_required");
   if (sub.status === SubscriptionStatus.CANCELED) throw new Error("subscription_canceled");
   if (sub.status === SubscriptionStatus.SUSPENDED) throw new Error("subscription_suspended");
   if (sub.status === SubscriptionStatus.EXPIRED) throw new Error("subscription_expired");

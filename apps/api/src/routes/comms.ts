@@ -7,6 +7,7 @@ import { syncSmartListById } from "../services/smartListSync";
 import { ChatwootClient } from "../providers/chatwoot/client";
 import { getChatwootConfig } from "../services/runtimeConfig";
 import { RetryJobType } from "@prisma/client";
+import { getEffectiveTenantId } from "../services/tenantContext";
 
 export const commsRouter = express.Router();
 
@@ -145,11 +146,15 @@ commsRouter.post("/smart-lists", async (req, res) => {
   const parsed = smartListCreateSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
 
+  const tenantId = await getEffectiveTenantId(req);
+  if (!tenantId) return res.status(400).json({ error: "tenant_required" });
+
   const rules = parseRules(parsed.data.rules);
   const chatwootLabel = slugifyLabel(parsed.data.name);
 
   const created = await prisma.smartList.create({
     data: {
+      tenant: { connect: { id: tenantId } },
       name: parsed.data.name,
       description: parsed.data.description,
       enabled: parsed.data.enabled ?? true,
@@ -292,10 +297,14 @@ commsRouter.post("/campaigns", async (req, res) => {
   const parsed = campaignCreateSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
 
+  const tenantId = await getEffectiveTenantId(req);
+  if (!tenantId) return res.status(400).json({ error: "tenant_required" });
+
   const created = await prisma.campaign.create({
     data: {
+      tenant: { connect: { id: tenantId } },
       name: parsed.data.name,
-      smartListId: parsed.data.smartListId,
+      ...(parsed.data.smartListId ? { smartList: { connect: { id: parsed.data.smartListId } } } : {}),
       content: parsed.data.content,
       templateParams: parsed.data.templateParams ?? undefined
     }

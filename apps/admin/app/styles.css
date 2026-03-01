@@ -1315,7 +1315,8 @@ a {
 }
 
 .logs-table-messages .log-message-cell {
-  max-width: 360px;
+  width: auto;
+  max-width: none;
   white-space: normal;
   word-break: break-word;
   overflow-wrap: anywhere;
