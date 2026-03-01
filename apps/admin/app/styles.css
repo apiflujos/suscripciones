@@ -2011,6 +2011,86 @@ textarea.input {
   justify-content: flex-start;
 }
 
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.customer-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: start;
+}
+
+.customer-hero-meta {
+  display: grid;
+  gap: 6px;
+}
+
+.customer-hero-actions {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.customer-section {
+  display: grid;
+  gap: 10px;
+}
+
+.customer-map {
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  overflow: hidden;
+  min-height: 220px;
+  background: var(--surface-2);
+  margin-top: 10px;
+}
+
+.customer-map iframe {
+  width: 100%;
+  height: 220px;
+  border: 0;
+  display: block;
+}
+
+.customer-log-list {
+  display: grid;
+  gap: 8px;
+}
+
+.customer-log-item {
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  padding: 8px 10px;
+  background: var(--panel);
+}
+
+.customer-log-title {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.customer-log-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-top: 4px;
+}
+
+@media (max-width: 720px) {
+  .customer-hero {
+    grid-template-columns: 1fr;
+  }
+  .customer-hero-actions {
+    justify-content: flex-start;
+  }
+}
+
 .paylink-title {
   font-size: 10px;
   text-transform: uppercase;

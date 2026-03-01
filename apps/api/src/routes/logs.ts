@@ -12,6 +12,7 @@ logsRouter.get("/system", async (req, res) => {
   const skip = Math.max(0, Number(req.query.skip ?? 0));
   const q = String(req.query.q ?? "").trim();
   const level = String(req.query.level ?? "").trim().toUpperCase();
+  const customerId = String(req.query.customerId ?? "").trim();
   const fromRaw = String(req.query.from ?? "").trim();
   const toRaw = String(req.query.to ?? "").trim();
   const fromDate = fromRaw ? new Date(fromRaw) : null;
@@ -34,10 +35,14 @@ logsRouter.get("/system", async (req, res) => {
         }
       : null;
   const levelFilter = level ? { level } : null;
+  const customerFilter = customerId
+    ? ({ context: { path: ["customerId"], equals: customerId } } as Prisma.SystemLogWhereInput)
+    : null;
   const finalWhere = {
     ...(where || {}),
     ...(dateFilter || {}),
-    ...(levelFilter || {})
+    ...(levelFilter || {}),
+    ...(customerFilter || {})
   } as Prisma.SystemLogWhereInput;
   const items = await prisma.systemLog.findMany({ where: finalWhere, orderBy: { createdAt: "desc" }, take, skip });
 

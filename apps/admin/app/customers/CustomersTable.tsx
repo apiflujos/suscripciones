@@ -76,8 +76,6 @@ export function CustomersTable({
 }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<CustomerRow | null>(null);
-  const [detailsOpen, setDetailsOpen] = useState(false);
-  const [detailsCustomer, setDetailsCustomer] = useState<CustomerRow | null>(null);
   const [txOpen, setTxOpen] = useState(false);
   const [txCustomer, setTxCustomer] = useState<CustomerRow | null>(null);
   const [txItems, setTxItems] = useState<TransactionRow[]>([]);
@@ -121,8 +119,6 @@ export function CustomersTable({
   const [dane8, setDane8] = useState("");
   const modalRef = useRef<HTMLDivElement | null>(null);
   const lastActiveRef = useRef<HTMLElement | null>(null);
-  const detailsRef = useRef<HTMLDivElement | null>(null);
-  const detailsHasPlan = detailsCustomer ? (subscriptionsByCustomer[String(detailsCustomer.id)]?.hasPlan ?? false) : false;
 
   const modalTitle = useMemo(() => (editing ? `Editar: ${editing.name || editing.email || "Contacto"}` : "Editar contacto"), [editing]);
 
@@ -217,17 +213,6 @@ export function CustomersTable({
     setTimeout(() => lastActiveRef.current?.focus(), 0);
   }
 
-  function openDetails(item: CustomerRow) {
-    lastActiveRef.current = document.activeElement as HTMLElement | null;
-    setDetailsCustomer(item);
-    setDetailsOpen(true);
-  }
-
-  function closeDetails() {
-    setDetailsOpen(false);
-    setDetailsCustomer(null);
-    setTimeout(() => lastActiveRef.current?.focus(), 0);
-  }
 
   function openPlanModal(customer: CustomerRow) {
     lastActiveRef.current = document.activeElement as HTMLElement | null;
@@ -380,14 +365,6 @@ export function CustomersTable({
   }, [open]);
 
   useEffect(() => {
-    if (!detailsOpen) return;
-    const el = detailsRef.current;
-    if (!el) return;
-    const first = el.querySelector<HTMLElement>("button");
-    first?.focus();
-  }, [detailsOpen]);
-
-  useEffect(() => {
     if (!initialTxCustomerId || txOpen) return;
     const found = items.find((c) => String(c.id) === String(initialTxCustomerId));
     if (found) openTransactions(found);
@@ -396,13 +373,12 @@ export function CustomersTable({
   function onModalKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Escape") {
       e.preventDefault();
-      if (detailsOpen) closeDetails();
+      if (txOpen) closeTransactions();
       else closeEditor();
       return;
     }
     if (e.key !== "Tab") return;
-    const root = detailsOpen ? detailsRef.current : modalRef.current;
-    if (!root) return;
+    const root = e.currentTarget as HTMLElement;
     const focusables = Array.from(root.querySelectorAll<HTMLElement>("input, select, textarea, button, [tabindex]"))
       .filter((el) => !el.hasAttribute("disabled") && el.tabIndex >= 0);
     if (!focusables.length) return;
@@ -583,9 +559,9 @@ export function CustomersTable({
                     >
                       Enviar catálogo
                     </button>
-                    <button className="ghost btn-compact btn-blue btn-view" type="button" data-modal="true" onClick={() => openDetails(c)}>
+                    <Link className="ghost btn-compact btn-blue btn-view" href={`/customers/${c.id}`}>
                       Ver detalles
-                    </button>
+                    </Link>
                     <button className="ghost btn-compact btn-green btn-create" type="button" data-modal="true" onClick={() => openPlanModal(c)}>
                       Crear plan / suscripción
                     </button>
@@ -986,307 +962,6 @@ export function CustomersTable({
         </div>
       ) : null}
 
-      {detailsOpen && detailsCustomer ? (
-        <div className="modal-backdrop">
-          <div
-            ref={detailsRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="customer-details-title"
-            className="modal-panel"
-            style={{ width: "min(820px, 96vw)", maxHeight: "90vh", overflow: "auto" }}
-            onKeyDown={onModalKeyDown}
-          >
-            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 id="customer-details-title" style={{ margin: 0 }}>
-                Detalles: {detailsCustomer.name || detailsCustomer.email || detailsCustomer.id}
-              </h3>
-              <button type="button" className="ghost modal-close" onClick={closeDetails} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                X
-              </button>
-            </div>
-
-            <div style={{ display: "grid", gap: 14 }}>
-              <div>
-                <div className="contact-section-title">Datos personales</div>
-                <div className="contact-person-grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
-                  <div>
-                    <span>Nombre</span>
-                    <strong>{detailsCustomer.name || "—"}</strong>
-                  </div>
-                  <div>
-                    <span>Email</span>
-                    {detailsCustomer.email || "—"}
-                  </div>
-                  <div>
-                    <span>Teléfono</span>
-                    {detailsCustomer.phone || "—"}
-                  </div>
-                  <div>
-                    <span>Identificación</span>
-                    {detailsCustomer.metadata?.identificacion || detailsCustomer.metadata?.identificationNumber || "—"}
-                  </div>
-                  <div>
-                    <span>ID</span>
-                    <span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{detailsCustomer.id}</span>
-                  </div>
-                  <div>
-                    <span>Creado</span>
-                    <LocalDateTime value={detailsCustomer.createdAt} />
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <div className="contact-section-title">Dirección</div>
-                <div className="contact-person-grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
-                  <div>
-                    <span>Dirección</span>
-                    {detailsCustomer.metadata?.address?.line1 || "—"}
-                  </div>
-                  <div>
-                    <span>Ciudad</span>
-                    {detailsCustomer.metadata?.address?.city || "—"}
-                  </div>
-                  <div>
-                    <span>Departamento</span>
-                    {detailsCustomer.metadata?.address?.dept || "—"}
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <div className="contact-section-title">Método de pago</div>
-                <div className="contact-person-grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
-                  <div>
-                    <span>Estado</span>
-                    {hasToken(detailsCustomer) ? <span className="pill pill-ok">Tokenizada</span> : <span className="pill pill-bad">Sin token</span>}
-                  </div>
-                  <div>
-                    <span>Payment Source ID</span>
-                    <span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
-                      {String((detailsCustomer.metadata as any)?.wompi?.paymentSourceId || (detailsCustomer.metadata as any)?.wompi?.payment_source_id || "—")}
-                    </span>
-                  </div>
-                  <div>
-                    <span>Estado link</span>
-                    {(() => {
-                      const link = latestLinks[String(detailsCustomer.id)];
-                      const status = String(link?.chatwootStatus || "");
-                      const statusLabel = status === "SENT" ? "Enviado" : status === "FAILED" ? "Falló" : status === "PENDING" ? "Pendiente" : "";
-                      return statusLabel ? (
-                        <span className={`pill ${status === "SENT" ? "pill-ok" : status === "FAILED" ? "pill-bad" : "pill-warn"}`}>
-                          {statusLabel}
-                        </span>
-                      ) : (
-                        "—"
-                      );
-                    })()}
-                  </div>
-                  <div>
-                    <span>Último link</span>
-                    {(() => {
-                      const link = latestLinks[String(detailsCustomer.id)];
-                      return link?.createdAt ? <LocalDateTime value={link.createdAt} /> : "—";
-                    })()}
-                  </div>
-                  <div>
-                    <Link href={`/customers/${detailsCustomer.id}/payment-method`} style={{ textDecoration: "underline" }}>
-                      {hasToken(detailsCustomer) ? "Tokenizar otra tarjeta" : "Tokenizar método"}
-                    </Link>
-                  </div>
-                </div>
-                <div className="contact-paylink" style={{ marginTop: 10 }}>
-                  {detailsHasPlan ? (
-                    <>
-                      <div className="paylink-title">Enviar tokenización</div>
-                      <form
-                        id={`details-token-${detailsCustomer.id}`}
-                        className="paylink-form"
-                        onSubmit={async (e) => {
-                          e.preventDefault();
-                          setSendingTokenId(detailsCustomer.id);
-                          setSendError((prev) => ({ ...prev, [detailsCustomer.id]: "" }));
-                          setSendOk((prev) => ({ ...prev, [detailsCustomer.id]: "" }));
-                          try {
-                            const controller = new AbortController();
-                            const timeout = setTimeout(() => controller.abort(), 15000);
-                            const res = await fetch("/api/customers/send-tokenization-link", {
-                              method: "POST",
-                              headers: { "content-type": "application/json" },
-                              body: JSON.stringify({
-                                customerId: detailsCustomer.id,
-                                customerName: detailsCustomer.name || "",
-                                tenantId: detailsCustomer.tenantId || ""
-                              }),
-                              signal: controller.signal
-                            });
-                            clearTimeout(timeout);
-                            const contentType = res.headers.get("content-type") || "";
-                            if (!contentType.includes("application/json")) {
-                              setSendError((prev) => ({ ...prev, [detailsCustomer.id]: "auth_required" }));
-                              openNotify("fail", mapSendError("auth_required"));
-                              return;
-                            }
-                            const json = await res.json().catch(() => ({}));
-                            if (!res.ok || !json?.ok) {
-                              const msg = json?.error || "send_failed";
-                              setSendError((prev) => ({ ...prev, [detailsCustomer.id]: msg }));
-                              openNotify("fail", mapSendError(msg));
-                              return;
-                            }
-                            setSendOk((prev) => ({ ...prev, [detailsCustomer.id]: "sent" }));
-                            closeDetails();
-                            openNotify("ok", "El link de tokenización fue enviado correctamente.");
-                          } finally {
-                          setSendingTokenId(null);
-                          }
-                        }}
-                      >
-                        <input type="hidden" name="customerId" value={detailsCustomer.id} />
-                        <input type="hidden" name="customerName" value={detailsCustomer.name || ""} />
-                        <button className="primary btn-compact btn-send" type="submit" disabled={sendingTokenId === detailsCustomer.id}>
-                          {sendingTokenId === detailsCustomer.id ? "Enviando..." : "Enviar tokenización"}
-                        </button>
-                      </form>
-                      {hasToken(detailsCustomer) ? (
-                        <button
-                          className="ghost btn-compact btn-red"
-                          type="button"
-                          onClick={async () => {
-                            if (!window.confirm("¿Quitar el método de pago guardado?")) return;
-                            setClearingTokenId(detailsCustomer.id);
-                            try {
-                              const res = await fetch("/api/customers/clear-payment-source", {
-                                method: "POST",
-                                headers: { "content-type": "application/json" },
-                                body: JSON.stringify({ customerId: detailsCustomer.id })
-                              });
-                              const json = await res.json().catch(() => ({}));
-                              if (!res.ok || !json?.ok) {
-                                openNotify("fail", mapSendError(json?.error || "request_failed"));
-                                return;
-                              }
-                              openNotify("ok", "Método de pago removido.");
-                              closeDetails();
-                            } finally {
-                              setClearingTokenId(null);
-                            }
-                          }}
-                          disabled={clearingTokenId === detailsCustomer.id}
-                        >
-                          {clearingTokenId === detailsCustomer.id ? "Quitando..." : "Quitar token"}
-                        </button>
-                      ) : null}
-                    </>
-                  ) : (
-                    <>
-                      <div className="paylink-title">Enviar link de pago</div>
-                      <form
-                        id={`details-paylink-${detailsCustomer.id}`}
-                        className="paylink-form"
-                        onSubmit={async (e) => {
-                          e.preventDefault();
-                          const form = e.currentTarget;
-                          const amount = (form.elements.namedItem("amount") as HTMLInputElement | null)?.value || "";
-                          setSendingPaymentId(detailsCustomer.id);
-                          setSendError((prev) => ({ ...prev, [detailsCustomer.id]: "" }));
-                          setSendOk((prev) => ({ ...prev, [detailsCustomer.id]: "" }));
-                          try {
-                            const controller = new AbortController();
-                            const timeout = setTimeout(() => controller.abort(), 15000);
-                            const res = await fetch("/api/customers/send-payment-link", {
-                              method: "POST",
-                              headers: { "content-type": "application/json" },
-                              body: JSON.stringify({
-                                customerId: detailsCustomer.id,
-                                customerName: detailsCustomer.name || "",
-                                amount,
-                                tenantId: detailsCustomer.tenantId || ""
-                              }),
-                              signal: controller.signal
-                            });
-                            clearTimeout(timeout);
-                            const contentType = res.headers.get("content-type") || "";
-                            if (!contentType.includes("application/json")) {
-                              setSendError((prev) => ({ ...prev, [detailsCustomer.id]: "auth_required" }));
-                              openNotify("fail", mapSendError("auth_required"));
-                              return;
-                            }
-                            const json = await res.json().catch(() => ({}));
-                            if (!res.ok || !json?.ok) {
-                              const msg = json?.error || "send_failed";
-                              setSendError((prev) => ({ ...prev, [detailsCustomer.id]: msg }));
-                              openNotify("fail", mapSendError(msg));
-                              return;
-                            }
-                            if (json?.notificationsRulesActive === false && !json?.fallbackSent) {
-                              setSendError((prev) => ({ ...prev, [detailsCustomer.id]: "no_rules" }));
-                              openNotify("fail", "No hay notificaciones activas para enviar el link.");
-                              return;
-                            }
-                            const chatErr = String(json?.chatwootError || "").trim();
-                            if (chatErr) {
-                              setSendError((prev) => ({ ...prev, [detailsCustomer.id]: "centralcom_failed" }));
-                              openNotify("fail", `CentralCom no pudo enviar el mensaje: ${chatErr}`);
-                              return;
-                            }
-                            setSendOk((prev) => ({ ...prev, [detailsCustomer.id]: "sent" }));
-                            closeDetails();
-                            openNotify("ok", "El link de pago fue enviado correctamente.");
-                          } catch (err: any) {
-                            const msg = String(err?.message || "send_failed");
-                            setSendError((prev) => ({ ...prev, [detailsCustomer.id]: msg }));
-                            openNotify("fail", mapSendError(msg));
-                          } finally {
-                            setSendingPaymentId(null);
-                          }
-                        }}
-                      >
-                        <input type="hidden" name="customerId" value={detailsCustomer.id} />
-                        <input type="hidden" name="customerName" value={detailsCustomer.name || ""} />
-                        <input className="input" name="amount" placeholder="$ 10000" inputMode="numeric" aria-label="Monto" />
-                        <button className="primary btn-compact btn-send" type="submit" disabled={sendingPaymentId === detailsCustomer.id}>
-                          {sendingPaymentId === detailsCustomer.id ? "Enviando..." : "Enviar link de pago"}
-                        </button>
-                      </form>
-                    </>
-                  )}
-                  {sendError[detailsCustomer.id] === "auth_required" ? (
-                    <div className="paylink-error">Sesión vencida. Vuelve a iniciar sesión.</div>
-                  ) : null}
-                  {sendError[detailsCustomer.id] === "no_rules" ? (
-                    <div className="paylink-error">No hay notificaciones activas para enviar el link.</div>
-                  ) : null}
-                  {sendError[detailsCustomer.id] && sendError[detailsCustomer.id] !== "auth_required" && sendError[detailsCustomer.id] !== "no_rules" ? (
-                    <div className="paylink-error">{sendError[detailsCustomer.id]}</div>
-                  ) : null}
-                  {(() => {
-                    const override = linkOverrides[detailsCustomer.id] || {};
-                    const paymentLink = override.payment || detailsCustomer.metadata?.paymentLink?.url || latestLinks[String(detailsCustomer.id)]?.checkoutUrl || "";
-                    const tokenLink = override.token || getTokenLink(detailsCustomer);
-                    return (
-                      <div className="paylink-links">
-                        {paymentLink ? (
-                          <a className="ghost btn-compact btn-blue btn-link" href={paymentLink} target="_blank" rel="noreferrer" title={maskUrl(paymentLink)}>
-                            Link de pago
-                          </a>
-                        ) : null}
-                        {tokenLink ? (
-                          <a className="ghost btn-compact btn-amber btn-link" href={tokenLink} target="_blank" rel="noreferrer" title={maskUrl(tokenLink)}>
-                            Link de tokenización
-                          </a>
-                        ) : null}
-                      </div>
-                    );
-                  })()}
-                  {sendOk[detailsCustomer.id] ? <div className="paylink-success">Link enviado.</div> : null}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       {open && editing ? (
         <div className="modal-backdrop">

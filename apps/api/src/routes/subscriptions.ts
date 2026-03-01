@@ -26,6 +26,7 @@ subscriptionsRouter.get("/", async (_req, res) => {
   const takeRaw = Number(req?.query?.take ?? 50);
   const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 500) : 50;
   const q = String(req?.query?.q ?? "").trim();
+  const customerId = String(req?.query?.customerId ?? "").trim();
   const estado = String(req?.query?.estado ?? "").trim();
   const collectionMode = String(req?.query?.collectionMode ?? "").trim();
 
@@ -37,6 +38,10 @@ subscriptionsRouter.get("/", async (_req, res) => {
   if (estado === "mora") where.status = SubscriptionStatus.PAST_DUE;
   else if (estado === "si") where.status = SubscriptionStatus.ACTIVE;
   else if (estado === "no") where.status = { notIn: [SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE] };
+
+  if (customerId) {
+    where.customerId = customerId;
+  }
 
   if (collectionMode) {
     where.plan = { metadata: { path: ["collectionMode"], equals: collectionMode } } as any;
