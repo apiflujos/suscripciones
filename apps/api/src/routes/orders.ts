@@ -53,8 +53,13 @@ ordersRouter.get("/", async (_req, res) => {
   const takeRaw = Number(req?.query?.take ?? 50);
   const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 500) : 50;
   const q = String(req?.query?.q ?? "").trim();
-  const idsRaw = String(req?.query?.ids ?? "").trim();
+  const idsParam = req?.query?.ids;
+  const idsRaw = String(idsParam ?? "").trim();
   const ids = idsRaw ? idsRaw.split(",").map((v) => v.trim()).filter(Boolean) : [];
+  const idsEmpty = !idsRaw || idsRaw === "__none__" || ids.includes("__none__");
+  if (typeof idsParam !== "undefined" && (idsEmpty || ids.length === 0)) {
+    return res.json({ items: [] });
+  }
 
   const where: any = { subscriptionId: null, wompiPaymentLinkId: { not: null } };
   if (tenantId) where.tenantId = tenantId;

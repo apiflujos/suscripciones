@@ -36,8 +36,13 @@ logsRouter.get("/system", async (req, res) => {
   const toRaw = String(req.query.to ?? "").trim();
   const fromDate = parseDate(fromRaw) ?? defaultFromDate();
   const toDate = parseDate(toRaw, { end: true });
-  const idsRaw = String(req.query.ids ?? "").trim();
+  const idsParam = req.query.ids;
+  const idsRaw = String(idsParam ?? "").trim();
   const ids = idsRaw ? idsRaw.split(",").map((v) => v.trim()).filter(Boolean) : [];
+  const idsEmpty = !idsRaw || idsRaw === "__none__" || ids.includes("__none__");
+  if (typeof idsParam !== "undefined" && (idsEmpty || ids.length === 0)) {
+    return res.json({ items: [], total: withCount ? 0 : null });
+  }
   const where: Prisma.SystemLogWhereInput | undefined = q
     ? {
         OR: [
@@ -218,8 +223,13 @@ logsRouter.get("/payments", async (req, res) => {
   const take = Math.min(200, Math.max(1, Number(req.query.take ?? 20)));
   const skip = Math.max(0, Number(req.query.skip ?? 0));
   const q = String(req.query.q ?? "").trim();
-  const idsRaw = String(req.query.ids ?? "").trim();
+  const idsParam = req.query.ids;
+  const idsRaw = String(idsParam ?? "").trim();
   const ids = idsRaw ? idsRaw.split(",").map((v) => v.trim()).filter(Boolean) : [];
+  const idsEmpty = !idsRaw || idsRaw === "__none__" || ids.includes("__none__");
+  if (typeof idsParam !== "undefined" && (idsEmpty || ids.length === 0)) {
+    return res.json({ items: [], total: withCount ? 0 : null });
+  }
   const statusRaw = String(req.query.status ?? "").trim().toUpperCase();
   const fromRaw = String(req.query.from ?? "").trim();
   const toRaw = String(req.query.to ?? "").trim();

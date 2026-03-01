@@ -148,6 +148,7 @@ export default async function CustomersPage({
   }).toString()}`;
   const take = 10;
   let resolvedIds: string[] = [];
+  const usingSmartFilters = Boolean(viewId || filters);
   if (viewId) {
     const res = await fetch(`/api/smart-views/customers/resolve`, {
       method: "POST",
@@ -172,6 +173,9 @@ export default async function CustomersPage({
       const json = await res.json().catch(() => ({}));
       resolvedIds = Array.isArray(json?.ids) ? json.ids : [];
     }
+  }
+  if (usingSmartFilters && resolvedIds.length === 0) {
+    resolvedIds = ["__none__"];
   }
 
   const [data, tenantsRes, txCustomer, productsRes, templatesRes] = await Promise.all([

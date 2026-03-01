@@ -22,6 +22,7 @@ export default async function CampaignsPage({
   const take = 20;
   const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
   const params = new URLSearchParams({ take: String(take), skip: String(skip) });
+  const usingSmartFilters = Boolean(viewId || filters);
   if (viewId) {
     const res = await fetch(`/api/smart-views/campaigns/resolve`, {
       method: "POST",
@@ -48,6 +49,9 @@ export default async function CampaignsPage({
       const ids = Array.isArray(json?.ids) ? json.ids : [];
       if (ids.length) params.set("ids", ids.join(","));
     }
+  }
+  if (usingSmartFilters && !params.get("ids")) {
+    params.set("ids", "__none__");
   }
   const campaignsRes = await fetchAdminCached(`/admin/comms/campaigns?${params.toString()}`, { ttlMs: 0 });
   const items = Array.isArray(campaignsRes?.json?.items) ? campaignsRes.json.items : [];

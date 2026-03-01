@@ -375,8 +375,13 @@ commsRouter.get("/campaigns", async (_req, res) => {
   const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 500) : 100;
   const skipRaw = Number(req?.query?.skip ?? 0);
   const skip = Number.isFinite(skipRaw) ? Math.max(Math.trunc(skipRaw), 0) : 0;
-  const idsRaw = String(req?.query?.ids ?? "").trim();
+  const idsParam = req?.query?.ids;
+  const idsRaw = String(idsParam ?? "").trim();
   const ids = idsRaw ? idsRaw.split(",").map((v) => v.trim()).filter(Boolean) : [];
+  const idsEmpty = !idsRaw || idsRaw === "__none__" || ids.includes("__none__");
+  if (typeof idsParam !== "undefined" && (idsEmpty || ids.length === 0)) {
+    return res.json({ items: [], total: 0 });
+  }
   const where = ids.length ? { id: { in: ids } } : undefined;
   const [items, total] = await Promise.all([
     prisma.campaign.findMany({ where, orderBy: { createdAt: "desc" }, take, skip }),

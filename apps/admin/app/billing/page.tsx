@@ -206,6 +206,7 @@ export default async function BillingPage({
   if (tipo === "suscripciones") subParams.set("collectionMode", "AUTO_DEBIT");
   if (tipo === "planes") subParams.set("collectionMode", "MANUAL_LINK");
   if (tenantId) subParams.set("tenantId", tenantId);
+  const usingSmartFilters = Boolean(viewId || filters);
 
   if (viewId) {
     const res = await fetch(`/api/smart-views/billing/resolve`, {
@@ -233,6 +234,9 @@ export default async function BillingPage({
       const ids = Array.isArray(json?.ids) ? json.ids : [];
       if (ids.length) subParams.set("ids", ids.join(","));
     }
+  }
+  if (usingSmartFilters && !subParams.get("ids")) {
+    subParams.set("ids", "__none__");
   }
 
   const [subs, customers, products, templates, tenantsRes, settingsRes, plansRes] = await Promise.all([
