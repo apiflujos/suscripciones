@@ -13,6 +13,7 @@ export function TimelineScroller({
   const [dragging, setDragging] = useState(false);
   const dragStartX = useRef(0);
   const dragStartScroll = useRef(0);
+  const hoveringRef = useRef(false);
 
   const smoothScrollBy = (delta: number) => {
     const el = trackRef.current;
@@ -33,7 +34,7 @@ export function TimelineScroller({
   const scrollBy = (dir: number) => {
     const el = trackRef.current;
     if (!el) return;
-    const amount = Math.max(140, el.clientWidth * 0.25);
+    const amount = Math.max(160, el.clientWidth * 0.35);
     smoothScrollBy(dir * amount);
   };
 
@@ -42,9 +43,9 @@ export function TimelineScroller({
     let last = performance.now();
     const tick = (now: number) => {
       const el = trackRef.current;
-      if (el && !dragging && !document.hidden && el.scrollWidth > el.clientWidth + 4) {
+      if (el && !dragging && !hoveringRef.current && !document.hidden && el.scrollWidth > el.clientWidth + 4) {
         const dt = now - last;
-        const speed = 0.03;
+        const speed = 0.015;
         el.scrollLeft += speed * dt;
         if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 2) {
           el.scrollLeft = 0;
@@ -130,6 +131,12 @@ export function TimelineScroller({
         role="region"
         aria-label={ariaLabel || "Línea de tiempo"}
         tabIndex={0}
+        onMouseEnter={() => {
+          hoveringRef.current = true;
+        }}
+        onMouseLeave={() => {
+          hoveringRef.current = false;
+        }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}

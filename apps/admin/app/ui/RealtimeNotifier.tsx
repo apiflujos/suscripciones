@@ -33,11 +33,13 @@ export function RealtimeNotifier() {
   const lastSeenRef = useRef<string>("");
   const reconnectRef = useRef<NodeJS.Timeout | null>(null);
   const errorCountRef = useRef(0);
+  const sourceRef = useRef<EventSource | null>(null);
   const soundEnabledRef = useRef(false);
   const soundEnabledStateRef = useRef(false);
   const volumeRef = useRef(0.55);
   const lastSoundRef = useRef(0);
   const cashAudioRef = useRef<HTMLAudioElement | null>(null);
+  const audioPrimedRef = useRef(false);
   const seenIdsRef = useRef<Set<string>>(new Set());
   const lastMessageRef = useRef<number>(0);
   const healthRef = useRef<NodeJS.Timeout | null>(null);
@@ -50,6 +52,42 @@ export function RealtimeNotifier() {
     const saved = window.localStorage.getItem(STORAGE_KEY);
     return saved || "";
   }, []);
+
+  const primeAudio = () => {
+    if (typeof window === "undefined") return;
+    if (audioPrimedRef.current) return;
+    const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    try {
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      gain.gain.value = 0.0001;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.05);
+      audioPrimedRef.current = true;
+      setTimeout(() => ctx.close().catch(() => {}), 120);
+    } catch {}
+  };
+
+  const primeCashFile = () => {
+    const audio = getCashAudio();
+    if (!audio) return;
+    const prevVol = audio.volume || 0.6;
+    audio.volume = 0.02;
+    const p = audio.play();
+    if (p && typeof p.then === "function") {
+      p.then(() => {
+        audio.pause();
+        audio.currentTime = 0;
+        audio.volume = prevVol;
+      }).catch(() => {
+        audio.volume = prevVol;
+      });
+    }
+  };
 
   useEffect(() => {
     if (lastSeen) lastSeenRef.current = lastSeen;
@@ -77,39 +115,6 @@ export function RealtimeNotifier() {
         setVolume(volumeRef.current);
       }
     }
-    const primeAudio = () => {
-      const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      try {
-        const ctx = new AudioCtx();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        gain.gain.value = 0.0001;
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.05);
-        setTimeout(() => ctx.close().catch(() => {}), 120);
-      } catch {}
-    };
-
-    const primeCashFile = () => {
-      const audio = getCashAudio();
-      if (!audio) return;
-      const prevVol = audio.volume || 0.6;
-      audio.volume = 0.02;
-      const p = audio.play();
-      if (p && typeof p.then === "function") {
-        p.then(() => {
-          audio.pause();
-          audio.currentTime = 0;
-          audio.volume = prevVol;
-        }).catch(() => {
-          audio.volume = prevVol;
-        });
-      }
-    };
-
     const enable = () => {
       soundEnabledRef.current = true;
       if (!soundEnabledStateRef.current) {
@@ -225,6 +230,7 @@ export function RealtimeNotifier() {
 
   const playCashSound = (force = false) => {
     if (typeof window === "undefined") return;
+    if (force) primeAudio();
     if (!soundEnabledRef.current && !force) return;
     const nowMs = Date.now();
     if (!force && nowMs - lastSoundRef.current < 3000) return;
@@ -248,6 +254,7 @@ export function RealtimeNotifier() {
 
   const playFailSound = () => {
     if (typeof window === "undefined") return;
+    primeAudio();
     if (!soundEnabledRef.current) return;
     const nowMs = Date.now();
     if (nowMs - lastSoundRef.current < 1500) return;
@@ -279,8 +286,7 @@ export function RealtimeNotifier() {
   };
 
   const handleEvents = (events: RealtimeEvent[], serverTime?: string) => {
-    if (!events.length) return;
-
+    lastMessageRef.current = Date.now();
     let shouldPlayCash = false;
     let shouldPlayFail = false;
     const now = Date.now();
@@ -294,26 +300,28 @@ export function RealtimeNotifier() {
       const trimmed = Array.from(seenIdsRef.current).slice(-200);
       seenIdsRef.current = new Set(trimmed);
     }
-    for (const e of freshEvents) {
-      if (e.kind === "ai_response" || e.kind === "ai_failed") {
-        try {
-          window.dispatchEvent(new CustomEvent("apiflujos:ai-response", { detail: e.meta || e }));
-        } catch {}
+    if (freshEvents.length) {
+      for (const e of freshEvents) {
+        if (e.kind === "ai_response" || e.kind === "ai_failed") {
+          try {
+            window.dispatchEvent(new CustomEvent("apiflujos:ai-response", { detail: e.meta || e }));
+          } catch {}
+        }
+        if (e.sound === "cash") {
+          shouldPlayCash = true;
+          try {
+            window.dispatchEvent(new CustomEvent("apiflujos:payment-approved", { detail: e }));
+          } catch {}
+        }
+        if (e.sound === "fail") shouldPlayFail = true;
       }
-      if (e.sound === "cash") {
-        shouldPlayCash = true;
-        try {
-          window.dispatchEvent(new CustomEvent("apiflujos:payment-approved", { detail: e }));
-        } catch {}
-      }
-      if (e.sound === "fail") shouldPlayFail = true;
+      setToasts((prev) => {
+        const merged = [...freshEvents.map((e) => ({ ...e, seenAt: now })), ...prev];
+        return merged.slice(0, 6);
+      });
+      if (shouldPlayCash) playCashSound();
+      if (shouldPlayFail && !shouldPlayCash) playFailSound();
     }
-    setToasts((prev) => {
-      const merged = [...freshEvents.map((e) => ({ ...e, seenAt: now })), ...prev];
-      return merged.slice(0, 6);
-    });
-    if (shouldPlayCash) playCashSound();
-    if (shouldPlayFail && !shouldPlayCash) playFailSound();
 
     const latestTs = events
       .map((e) => new Date(e.ts).getTime())
@@ -339,6 +347,7 @@ export function RealtimeNotifier() {
       markConnecting();
       const since = lastSeenRef.current || new Date(Date.now() - 60 * 1000).toISOString();
       source = new EventSource(`/api/realtime?since=${encodeURIComponent(since)}`);
+      sourceRef.current = source;
       source.onopen = () => {
         if (!active) return;
         errorCountRef.current = 0;
@@ -362,15 +371,18 @@ export function RealtimeNotifier() {
       source.onerror = () => {
         if (!active) return;
         markConnecting();
+        const readyState = source?.readyState;
         source?.close();
         if (reconnectRef.current) clearTimeout(reconnectRef.current);
-        errorCountRef.current += 1;
-        if (errorCountRef.current >= 6) {
-          setUsePolling(true);
-          markConnecting();
-          return;
+        if (readyState === EventSource.CLOSED || readyState == null) {
+          errorCountRef.current += 1;
+          if (errorCountRef.current >= 3) {
+            setUsePolling(true);
+            markConnecting();
+            return;
+          }
+          reconnectRef.current = setTimeout(connect, 4000);
         }
-        reconnectRef.current = setTimeout(connect, 4000);
       };
     };
 
@@ -378,21 +390,22 @@ export function RealtimeNotifier() {
     if (healthRef.current) clearInterval(healthRef.current);
     healthRef.current = setInterval(() => {
       if (!active) return;
-      const last = lastMessageRef.current || 0;
-      if (!last) return;
-      const delta = Date.now() - last;
-      if (delta > 70000) {
-        setStatus("disconnected");
+      const readyState = sourceRef.current?.readyState;
+      if (readyState === EventSource.CLOSED) {
+        markConnecting();
         source?.close();
         if (reconnectRef.current) clearTimeout(reconnectRef.current);
         reconnectRef.current = setTimeout(connect, 1000);
-      } else if (delta > 35000) {
-        markConnecting();
+        return;
+      }
+      if (readyState === EventSource.OPEN) {
+        markConnected();
       }
     }, 15000);
     return () => {
       active = false;
       source?.close();
+      sourceRef.current = null;
       if (reconnectRef.current) clearTimeout(reconnectRef.current);
       if (healthRef.current) clearInterval(healthRef.current);
     };
@@ -412,7 +425,7 @@ export function RealtimeNotifier() {
         handleEvents(events, payload.serverTime);
         markConnected();
       } catch {
-        setStatus("disconnected");
+        markConnecting();
       }
     };
     poll();
@@ -443,7 +456,8 @@ export function RealtimeNotifier() {
           window.localStorage.setItem("apiflujos-realtime-sound", "1");
         } catch {}
       }
-      playCashSound(true);
+      primeAudio();
+      primeCashFile();
       const res = await fetch("/api/realtime/test", { method: "POST" });
       if (!res.ok) throw new Error("test_failed");
     } catch {

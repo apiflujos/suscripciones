@@ -6,6 +6,7 @@ import { ChatwootClient } from "../providers/chatwoot/client";
 import { getChatwootConfig } from "../services/runtimeConfig";
 import { syncChatwootAttributesForCustomer } from "../services/chatwootSync";
 import { sendChatwootMessage } from "../jobs/handlers/sendChatwootMessage";
+import { getDefaultTenantId, getEffectiveTenantId } from "../services/tenantContext";
 
 export const chatwootRouter = express.Router();
 
@@ -209,9 +210,12 @@ chatwootRouter.post("/messages", async (req, res) => {
     const providerResp: any = {};
     if (parsed.data.templateParams) providerResp.template_params = parsed.data.templateParams;
     if (parsed.data.attachmentUrl) providerResp.attachment = { url: parsed.data.attachmentUrl };
+    const resolvedTenantId =
+      customer?.tenantId ?? (await getEffectiveTenantId(req)) ?? (await getDefaultTenantId());
+    if (!resolvedTenantId) return res.status(400).json({ error: "tenant_required" });
     const created = await prisma.chatwootMessage.create({
       data: {
-        tenantId: customer?.tenantId ?? null,
+        tenantId: resolvedTenantId,
         customerId: parsed.data.customerId,
         type: msgType,
         status: MessageStatus.PENDING,

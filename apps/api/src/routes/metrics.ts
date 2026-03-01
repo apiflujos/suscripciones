@@ -2,6 +2,7 @@ import express from "express";
 import { z } from "zod";
 import { getMetricsOverview } from "../services/metrics";
 import { getReportCache, setReportCache } from "../services/reportCache";
+import { getEffectiveTenantId } from "../services/tenantContext";
 
 const querySchema = z.object({
   from: z.string().datetime().optional(),
@@ -28,6 +29,8 @@ metricsRouter.get("/overview", async (req, res) => {
   const hasExplicitRange = Boolean(parsed.data.from || parsed.data.to);
   const cacheTtlSeconds = 300;
   const staleSeconds = 900;
+  const tenantId = parsed.data.tenantId ?? (await getEffectiveTenantId(req));
+  if (!tenantId) return res.status(400).json({ error: "tenant_required" });
 
   let cacheFrom = from;
   let cacheTo = to;
@@ -41,7 +44,7 @@ metricsRouter.get("/overview", async (req, res) => {
 
   const cacheKey = {
     reportKey: "metrics.overview",
-    tenantId: parsed.data.tenantId ?? null,
+    tenantId,
     from: cacheFrom,
     to: cacheTo,
     granularity: parsed.data.granularity,
@@ -57,7 +60,7 @@ metricsRouter.get("/overview", async (req, res) => {
     res.setHeader("x-report-cache", "STALE");
     res.json(cached.payload);
     setTimeout(() => {
-      getMetricsOverview({ from: cacheFrom, to: cacheTo, granularity: parsed.data.granularity, tenantId: parsed.data.tenantId })
+      getMetricsOverview({ from: cacheFrom, to: cacheTo, granularity: parsed.data.granularity, tenantId })
         .then((data) => setReportCache(cacheKey, data, cacheTtlSeconds, staleSeconds))
         .catch(() => {});
     }, 0);
@@ -65,7 +68,7 @@ metricsRouter.get("/overview", async (req, res) => {
   }
 
   try {
-    const data = await getMetricsOverview({ from: cacheFrom, to: cacheTo, granularity: parsed.data.granularity, tenantId: parsed.data.tenantId });
+    const data = await getMetricsOverview({ from: cacheFrom, to: cacheTo, granularity: parsed.data.granularity, tenantId });
     await setReportCache(cacheKey, data, cacheTtlSeconds, staleSeconds);
     res.setHeader("x-report-cache", "MISS");
     res.json(data);

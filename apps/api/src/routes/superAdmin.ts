@@ -1,7 +1,8 @@
 import express from "express";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
-import { requireSaSession, revokeSaSession, createSaSession, hashPassword } from "../services/superAdminAuth";
+import { requireSaSession, revokeSaSession, createSaSession, hashPassword, refreshSaSession } from "../services/superAdminAuth";
+import { getDefaultTenantId } from "../services/tenantContext";
 import { SaPeriodType, SaPlanKind, SaUserRole } from "@prisma/client";
 import { consumeLimitOrBlock } from "../services/superAdminConsume";
 
@@ -56,11 +57,43 @@ superAdminRouter.post("/login", async (req, res) => {
     const ip = req.ip ? String(req.ip) : null;
     const ua = req.header("user-agent") || null;
     const session = await createSaSession({ email: parsed.data.email, password: parsed.data.password, ip, userAgent: ua });
-    res.json({ token: session.token, expiresAt: session.expiresAt.toISOString(), email: session.email });
+    res.json({
+      token: session.token,
+      refreshToken: session.refreshToken,
+      expiresAt: session.expiresAt.toISOString(),
+      refreshExpiresAt: session.refreshExpiresAt.toISOString(),
+      email: session.email
+    });
   } catch (err: any) {
     const msg = err?.message ? String(err.message) : "";
     if (msg === "no_super_admin_user") return res.status(500).json({ error: "no_super_admin_user" });
     res.status(401).json({ error: "unauthorized_sa" });
+  }
+});
+
+const refreshSchema = z.object({
+  refreshToken: z.string().min(10)
+});
+
+superAdminRouter.post("/refresh", async (req, res) => {
+  const parsed = refreshSchema.safeParse(req.body ?? {});
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+  try {
+    const ip = req.ip ? String(req.ip) : null;
+    const ua = req.header("user-agent") || null;
+    const session = await refreshSaSession({ refreshToken: parsed.data.refreshToken, ip, userAgent: ua });
+    res.json({
+      token: session.token,
+      refreshToken: session.refreshToken,
+      expiresAt: session.expiresAt.toISOString(),
+      refreshExpiresAt: session.refreshExpiresAt.toISOString(),
+      email: session.email
+    });
+  } catch (err: any) {
+    const msg = err?.message ? String(err.message) : "";
+    if (msg === "refresh_token_required") return res.status(400).json({ error: "refresh_token_required" });
+    if (msg === "refresh_expired") return res.status(401).json({ error: "refresh_expired" });
+    return res.status(401).json({ error: "refresh_invalid" });
   }
 });
 
@@ -78,13 +111,16 @@ superAdminRouter.post("/bootstrap", async (req, res) => {
   const existingSuperAdmins = await prisma.saUser.count({ where: { role: SaUserRole.SUPER_ADMIN, active: true } });
   if (existingSuperAdmins > 0) return res.status(409).json({ error: "already_bootstrapped" });
 
+  const tenantId = await getDefaultTenantId();
+  if (!tenantId) return res.status(500).json({ error: "tenant_not_ready" });
+
   const email = parsed.data.email.trim().toLowerCase();
   const existingEmail = await prisma.saUser.findFirst({ where: { email: { equals: email, mode: "insensitive" } } });
   if (existingEmail) return res.status(409).json({ error: "email_already_exists" });
 
   await prisma.saUser.create({
     data: {
-      tenantId: null,
+      tenantId,
       email,
       passwordHash: hashPassword(parsed.data.password),
       role: SaUserRole.SUPER_ADMIN,
@@ -95,7 +131,14 @@ superAdminRouter.post("/bootstrap", async (req, res) => {
   const ip = req.ip ? String(req.ip) : null;
   const ua = req.header("user-agent") || null;
   const session = await createSaSession({ email, password: parsed.data.password, ip, userAgent: ua });
-  res.status(201).json({ ok: true, token: session.token, expiresAt: session.expiresAt.toISOString(), email: session.email });
+  res.status(201).json({
+    ok: true,
+    token: session.token,
+    refreshToken: session.refreshToken,
+    expiresAt: session.expiresAt.toISOString(),
+    refreshExpiresAt: session.refreshExpiresAt.toISOString(),
+    email: session.email
+  });
 });
 
 superAdminRouter.post("/logout", requireSaSession, async (req, res) => {

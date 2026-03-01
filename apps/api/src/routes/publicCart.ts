@@ -77,7 +77,7 @@ publicCartRouter.get("/cart/:token", async (req, res) => {
   if (expiresAt && Number.isFinite(expiresAt.getTime()) && expiresAt.getTime() < Date.now()) {
     void systemLog(LogLevel.WARN, "public.cart_link", "cart_token_expired", {
       token,
-      tenantId: customer.tenantId || null,
+      tenantId: customer.tenantId,
       expiresAt: expiresAt.toISOString(),
       ip,
       userAgent: req.get("user-agent") || null
@@ -92,7 +92,7 @@ publicCartRouter.get("/cart/:token", async (req, res) => {
   if (!template || String(template.kind) !== "CART") {
     void systemLog(LogLevel.WARN, "public.cart_link", "cart_template_not_found", {
       token,
-      tenantId: customer.tenantId || null,
+      tenantId: customer.tenantId,
       templateId: templateId || null,
       ip,
       userAgent: req.get("user-agent") || null
@@ -192,6 +192,7 @@ publicCartRouter.post("/cart/:token/select", async (req, res) => {
         url: nextUrl,
         token: linkToken,
         planId,
+        tenantId: template.tenantId,
         kind: "SUBSCRIPTION",
         templateId: null,
         createdAt: new Date().toISOString(),
@@ -207,7 +208,7 @@ publicCartRouter.post("/cart/:token/select", async (req, res) => {
   const periodEnd = addIntervalUtc(startAt, plan.intervalUnit, plan.intervalCount);
   const subscription = await prisma.subscription.create({
     data: {
-      tenantId: plan.tenantId ?? null,
+      tenantId: template.tenantId,
       customerId: customer.id,
       planId: plan.id,
       status: SubscriptionStatus.PAST_DUE,
@@ -228,12 +229,15 @@ publicCartRouter.post("/cart/:token/select", async (req, res) => {
     )
   );
   if (tenantIds.length) {
-    await prisma.subscriptionTenant
-      .createMany({
-        data: tenantIds.map((t) => ({ subscriptionId: subscription.id, tenantId: t })),
-        skipDuplicates: true
-      })
-      .catch(() => {});
+  await prisma.subscriptionTenant
+    .createMany({
+      data: tenantIds.map((t) => ({ subscriptionId: subscription.id, tenantId: t })),
+      skipDuplicates: true
+    })
+    .catch(() => {});
+  await prisma.customerTenant
+    .createMany({ data: tenantIds.map((t) => ({ customerId: customer.id, tenantId: t })), skipDuplicates: true })
+    .catch(() => {});
   }
 
   await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});

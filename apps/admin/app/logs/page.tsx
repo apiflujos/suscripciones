@@ -379,7 +379,7 @@ export default async function LogsPage({
                     const detailText = detailRaw.length > 300 ? `${detailRaw.slice(0, 300)}…` : detailRaw;
                     return (
                       <tr key={m.id}>
-                        <td className="log-date-cell"><LocalDateTime value={m.createdAt} /></td>
+                        <td className="log-date-cell"><LocalDateTime value={m.createdAt} variant="short" /></td>
                         <td>{m.customer?.name || m.customer?.email || "—"}</td>
                         <td>{m.type || "—"}</td>
                         <td>
@@ -438,7 +438,7 @@ export default async function LogsPage({
                     const detail = j.lastError || webhookNote || "—";
                     return (
                       <tr key={j.id}>
-                        <td className="log-date-cell"><LocalDateTime value={j.updatedAt} /></td>
+                        <td className="log-date-cell"><LocalDateTime value={j.updatedAt} variant="short" /></td>
                         <td>{normalizeJobType(j.type)}</td>
                         <td>
                           <span className={`status-chip ${chip.cls}`}>
@@ -495,7 +495,7 @@ export default async function LogsPage({
                     const contactQuery = p.customer?.email || p.customer?.phone || p.customer?.name;
                     return (
                       <tr key={p.id}>
-                        <td className="log-date-cell"><LocalDateTime value={p.createdAt} /></td>
+                        <td className="log-date-cell"><LocalDateTime value={p.createdAt} variant="short" /></td>
                         <td>{renderContactBlock(p)}</td>
                         <td>{planName}</td>
                         <td>
@@ -551,7 +551,7 @@ export default async function LogsPage({
                   </div>
                 </div>
               </div>
-              <table className="table logs-table" aria-label="Tabla de webhooks">
+              <table className="table logs-table logs-table-webhooks" aria-label="Tabla de webhooks">
                 <thead>
                   <tr>
                     <th>Fecha</th>
@@ -576,7 +576,7 @@ export default async function LogsPage({
                       .join(" · ");
                     return (
                       <tr key={e.id}>
-                        <td className="log-date-cell"><LocalDateTime value={e.receivedAt} /></td>
+                        <td className="log-date-cell"><LocalDateTime value={e.receivedAt} variant="short" /></td>
                         <td>{renderContactBlock(e)}</td>
                         <td>{formatAmount(e.amountInCents, e.currency)}</td>
                         <td className="log-ref-cell">
@@ -599,21 +599,16 @@ export default async function LogsPage({
                             {chip.label}
                           </span>
                         </td>
-                        <td>{e.errorMessage || "—"}</td>
+                        <td className="log-error-cell">
+                          {String(e.errorMessage || "—").length > 120
+                            ? `${String(e.errorMessage).slice(0, 120)}…`
+                            : e.errorMessage || "—"}
+                        </td>
                         <td style={{ textAlign: "right" }}>
                           {contactQuery ? (
                             <Link className="ghost btn-compact btn-view" href={`/customers?q=${encodeURIComponent(String(contactQuery))}`}>
                               Ver cliente
                             </Link>
-                          ) : null}
-                          {String(e.processStatus || "").toUpperCase() === "FAILED" ? (
-                            <form action={retryWebhook} style={{ display: "inline-flex", marginLeft: 8 }}>
-                              <input type="hidden" name="csrf" value={csrfToken} />
-                              <input type="hidden" name="id" value={e.id} />
-                              <PendingButton className="ghost btn-compact btn-retry" type="submit" pendingText="Reintentando...">
-                                Reintentar
-                              </PendingButton>
-                            </form>
                           ) : null}
                         </td>
                       </tr>

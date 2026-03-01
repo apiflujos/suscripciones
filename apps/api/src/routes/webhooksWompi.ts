@@ -42,9 +42,13 @@ export async function wompiWebhook(req: Request, res: Response) {
 
   try {
     const tenantId = await getDefaultTenantId();
+    if (!tenantId) {
+      res.status(503).json({ error: "tenant_not_configured" });
+      return;
+    }
     const webhookEvent = await prisma.webhookEvent.create({
       data: {
-        ...(tenantId ? { tenantId } : {}),
+        tenantId,
         provider: WebhookProvider.WOMPI,
         checksum,
         eventName: parsed.data.event,

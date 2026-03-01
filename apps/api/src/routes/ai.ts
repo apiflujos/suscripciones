@@ -4,6 +4,7 @@ import { z } from "zod";
 import { LogLevel, RetryJobType } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { systemLog } from "../services/systemLog";
+import { getEffectiveTenantId } from "../services/tenantContext";
 
 export const aiRouter = express.Router();
 
@@ -20,12 +21,14 @@ aiRouter.post("/ask", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
 
   const requestId = crypto.randomUUID();
+  const tenantId = parsed.data.tenantId ?? (await getEffectiveTenantId(req));
+  if (!tenantId) return res.status(400).json({ error: "tenant_required" });
   const payload = {
     requestId,
     question: parsed.data.question,
     from: parsed.data.from || null,
     to: parsed.data.to || null,
-    tenantId: parsed.data.tenantId || null,
+    tenantId,
     customerId: parsed.data.customerId || null,
     requestedAt: new Date().toISOString()
   };

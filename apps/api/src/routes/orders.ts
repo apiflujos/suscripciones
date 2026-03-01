@@ -84,6 +84,9 @@ ordersRouter.post("/", async (req, res) => {
   if (!customer) return res.status(404).json({ error: "customer_not_found" });
   const tenantId = customer.tenantId || (await getEffectiveTenantId(req));
   if (!tenantId) return res.status(400).json({ error: "tenant_required" });
+  await prisma.customerTenant
+    .createMany({ data: [{ customerId: customer.id, tenantId }], skipDuplicates: true })
+    .catch(() => {});
 
   const totals = computeTotals(parsed.data);
 

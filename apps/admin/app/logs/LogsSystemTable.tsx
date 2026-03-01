@@ -39,9 +39,11 @@ export function LogsSystemTable({ items }: { items: LogItem[] }) {
             const id = String(l.id ?? "");
             const chip = toStatusChip(String(l.level || ""));
             const isOpen = Boolean(id) && openId === id;
+            const rawMessage = String(l.message || "—");
+            const shortMessage = rawMessage.length > 300 ? `${rawMessage.slice(0, 300)}…` : rawMessage;
             return (
               <tr key={id || `${l.createdAt ?? ""}-${l.message ?? ""}-${idx}`}>
-                <td className="log-date-cell"><LocalDateTime value={l.createdAt} /></td>
+                <td className="log-date-cell"><LocalDateTime value={l.createdAt} variant="short" /></td>
                 <td>{(l as any).actor || "—"}</td>
                 <td className="log-cell log-entity" title={(l as any).entity || l.source || "—"}>
                   <span className="log-truncate">{(l as any).entity || l.source || "—"}</span>
@@ -52,8 +54,8 @@ export function LogsSystemTable({ items }: { items: LogItem[] }) {
                     {chip.label}
                   </span>
                 </td>
-                <td className="log-cell log-detail" title={l.message || "—"}>
-                  <span className="log-truncate">{l.message || "—"}</span>
+                <td className="log-cell log-detail" title={rawMessage || "—"}>
+                  <span className="log-truncate">{shortMessage}</span>
                 </td>
                 <td style={{ textAlign: "right" }}>
                   <div className="inline-detail">

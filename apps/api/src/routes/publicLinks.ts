@@ -90,7 +90,7 @@ publicLinksRouter.get("/payment-links/:token", async (req, res) => {
   if (expiresAt && Number.isFinite(expiresAt.getTime()) && expiresAt.getTime() < Date.now()) {
     void systemLog(LogLevel.WARN, "public.payment_link", "payment_link_expired", {
       token,
-      tenantId: customer.tenantId || null,
+      tenantId: customer.tenantId,
       expiresAt: expiresAt.toISOString(),
       ip,
       userAgent: req.get("user-agent") || null

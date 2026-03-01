@@ -94,6 +94,9 @@ export async function chatwootWebhook(req: Request, res: Response) {
       .catch(() => {});
   } else if (contactId || email || phone) {
     const tenantId = await getDefaultTenantId();
+    if (!tenantId) {
+      return res.status(503).json({ error: "tenant_not_configured" });
+    }
     const merged = {
       chatwoot: {
         contactId: contactId ?? undefined,
@@ -106,7 +109,7 @@ export async function chatwootWebhook(req: Request, res: Response) {
     await prisma.customer
       .create({
         data: {
-          ...(tenantId ? { tenantId } : {}),
+          tenantId,
           name: name || undefined,
           email: email || undefined,
           phone: phone || undefined,

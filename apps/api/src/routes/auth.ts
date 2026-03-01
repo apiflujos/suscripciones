@@ -74,7 +74,9 @@ authRouter.post("/login", async (req, res) => {
         email: user.email,
         role: "SUPER_ADMIN",
         saToken: session.token,
-        expiresAt: session.expiresAt.toISOString()
+        saRefreshToken: session.refreshToken,
+        expiresAt: session.expiresAt.toISOString(),
+        refreshExpiresAt: session.refreshExpiresAt.toISOString()
       });
     } catch (err: any) {
       const msg = err?.message ? String(err.message) : "";

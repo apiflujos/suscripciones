@@ -3,7 +3,7 @@ import { prisma } from "../db/prisma";
 
 export type ReportCacheKey = {
   reportKey: string;
-  tenantId?: string | null;
+  tenantId: string;
   from: Date;
   to: Date;
   granularity?: string | null;
@@ -38,7 +38,7 @@ export async function getReportCache(key: ReportCacheKey): Promise<ReportCacheHi
   const row = await prisma.reportCache.findFirst({
     where: {
       reportKey: key.reportKey,
-      tenantId: key.tenantId ?? null,
+      tenantId: key.tenantId,
       from: key.from,
       to: key.to,
       granularity: key.granularity ?? null,
@@ -70,7 +70,7 @@ export async function setReportCache(
   const existing = await prisma.reportCache.findFirst({
     where: {
       reportKey: key.reportKey,
-      tenantId: key.tenantId ?? null,
+      tenantId: key.tenantId,
       from: key.from,
       to: key.to,
       granularity: key.granularity ?? null,
@@ -96,7 +96,7 @@ export async function setReportCache(
   await prisma.reportCache.create({
     data: {
       reportKey: key.reportKey,
-      tenantId: key.tenantId ?? null,
+      tenantId: key.tenantId,
       from: key.from,
       to: key.to,
       granularity: key.granularity ?? null,

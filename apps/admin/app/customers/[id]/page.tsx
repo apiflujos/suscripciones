@@ -113,6 +113,17 @@ function cleanLogEntity(raw: string, customerLabel: string) {
   return out || "Evento del cliente";
 }
 
+function cleanLogMessage(raw: string, customerLabel: string) {
+  let out = String(raw || "").trim();
+  if (!out) return "—";
+  if (customerLabel) {
+    const safe = escapeRegex(customerLabel);
+    out = out.replace(new RegExp(`\\b${safe}\\b`, "ig"), "");
+  }
+  out = out.replace(/\s{2,}/g, " ").trim();
+  return out || "—";
+}
+
 function collectionLabel(mode: string) {
   if (mode === "AUTO_DEBIT") return "Suscripción";
   if (mode === "AUTO_LINK") return "Plan auto";
@@ -361,7 +372,7 @@ export default async function CustomerDetailPage({
   const pendingPayments = payments.filter((p) => p.status === "PENDING");
   const totalPaidCents = approvedPayments.reduce((acc, p) => acc + Number(p.amountInCents || 0), 0);
   const lastPayment = payments[0] || null;
-  const activeSub = subscriptions.find((s) => s.status === "ACTIVE" || s.status === "PAST_DUE") || subscriptions[0] || null;
+  const activeSub = subscriptions.find((s) => s.status === "ACTIVE") || subscriptions[0] || null;
   const activeSubs = subscriptions.filter((s) => s.status === "ACTIVE");
   const subscriptionStatusCounts = subscriptions.reduce(
     (acc, s) => {
@@ -505,7 +516,6 @@ export default async function CustomerDetailPage({
               <div className="hero-name-row">
                 <div className="contact-title">{customer.name || customer.email || customer.phone || "Contacto"}</div>
               </div>
-              <div className="contact-subline">{customer.email || "—"} · {customer.phone || "—"}</div>
               <div className="contact-subline">
                 ID <span className="mono">{customer.id}</span>
               </div>
@@ -539,18 +549,34 @@ export default async function CustomerDetailPage({
               </div>
             </div>
             <div className="hero-right">
-              <div className="hero-id-block">
-                <span className="hero-id-label">NIT / ID</span>
-                <span className="hero-id-value mono">{meta?.identificacion || meta?.identificationNumber || meta?.documentNumber || "—"}</span>
-                <span className="hero-id-sub">{tenantName || customer.tenantId || "—"}</span>
+              <div className="hero-right-top">
+                <div className="hero-id-block">
+                  <span className="hero-id-label">NIT / ID</span>
+                  <span className="hero-id-value mono">{meta?.identificacion || meta?.identificationNumber || meta?.documentNumber || "—"}</span>
+                  <span className="hero-id-sub">{tenantName || customer.tenantId || "—"}</span>
+                </div>
+                <div className={`tier-badge tier-badge-hero ${tier.cls}`}>
+                  <span className="tier-icon" aria-hidden="true">
+                    {tierIcon(tier.icon)}
+                  </span>
+                  <div className="tier-text">
+                    <span className="tier-label">Nivel</span>
+                    <span className="tier-value">{tier.label}</span>
+                  </div>
+                </div>
               </div>
-              <div className={`tier-badge tier-badge-hero ${tier.cls}`}>
-                <span className="tier-icon" aria-hidden="true">
-                  {tierIcon(tier.icon)}
-                </span>
-                <div className="tier-text">
-                  <span className="tier-label">Nivel</span>
-                  <span className="tier-value">{tier.label}</span>
+              <div className="hero-subs-block hero-subs-compact">
+                <span className="hero-subs-label">Suscripciones activas</span>
+                <div className="hero-subs-list">
+                  {activeSubs.length ? (
+                    activeSubs.slice(0, 3).map((s: any) => (
+                      <span key={s.id} className={`pill pill-sm ${statusPillClass(String(s.status || ""))}`}>
+                        {s.plan?.name || "Plan"} · {statusLabel(String(s.status || ""))}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="pill pill-muted pill-sm">Sin suscripciones activas</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -560,20 +586,6 @@ export default async function CustomerDetailPage({
           <div className="hero-actions-row">
             <Link className="ghost btn-compact btn-blue" href="/customers">Volver</Link>
             <Link className="ghost btn-compact btn-amber" href={`/customers/${customer.id}/payment-method`}>Método de pago</Link>
-          </div>
-          <div className="hero-subs hero-subs-block hero-subs-actions">
-            <span className="hero-subs-label">Suscripciones activas</span>
-            <div className="hero-subs-list">
-              {activeSubs.length ? (
-                activeSubs.slice(0, 3).map((s: any) => (
-                  <span key={s.id} className={`pill pill-sm ${statusPillClass(String(s.status || ""))}`}>
-                    {s.plan?.name || "Plan"} · {statusLabel(String(s.status || ""))}
-                  </span>
-                ))
-              ) : (
-                <span className="pill pill-muted pill-sm">Sin suscripciones activas</span>
-              )}
-            </div>
           </div>
         </div>
       </section>
@@ -618,13 +630,6 @@ export default async function CustomerDetailPage({
             <div className="customer-pane">
               <div className="contact-section-title">Información del cliente</div>
               <div className="invoice-header invoice-compact">
-                <div className="invoice-top">
-                  <div className="invoice-title">Datos de facturación</div>
-                  <div className="invoice-id">
-                    <span className="invoice-label">NIT / ID</span>
-                    <span className="invoice-value mono">{meta?.identificacion || meta?.identificationNumber || meta?.documentNumber || "—"}</span>
-                  </div>
-                </div>
                 <div className="invoice-row compact">
                   <div className="invoice-kv">
                     <span className="invoice-label">Email</span>
@@ -653,7 +658,7 @@ export default async function CustomerDetailPage({
             <div className="customer-pane">
               <div className="contact-section-title">Estado comercial</div>
               <div className="summary-grid plain">
-                <div className="summary-item summary-span-2">
+                <div className="summary-item">
                   <span className="summary-label">Plan activo</span>
                   <span className="summary-value">{activeSub?.plan?.name || "Sin plan activo"}</span>
                 </div>
@@ -676,10 +681,6 @@ export default async function CustomerDetailPage({
                 <div className="summary-item">
                   <span className="summary-label">Método</span>
                   <span className="summary-value">{paymentSourceId ? "Tokenizado" : "Sin token"}</span>
-                </div>
-                <div className="summary-item summary-span-2">
-                  <span className="summary-label">ID token</span>
-                  <span className="summary-value mono">{paymentSourceId ? String(paymentSourceId) : "—"}</span>
                 </div>
               </div>
             </div>
@@ -947,6 +948,7 @@ export default async function CustomerDetailPage({
                   (() => {
                     const customerLabel = String(customer.name || customer.email || customer.phone || "").trim();
                     const entity = cleanLogEntity(String(l.entity || ""), customerLabel);
+                    const message = cleanLogMessage(String(l.message || ""), customerLabel);
                     const tooltip = `${entity}\n${new Date(l.createdAt).toLocaleString("es-CO")} · ${logLevelLabel(String(l.level || ""))}\n${l.source ? `${l.source} · ` : ""}${l.actor || "Sistema"}`;
                     return (
                       <div
@@ -963,7 +965,7 @@ export default async function CustomerDetailPage({
                             {logLevelLabel(String(l.level || ""))}
                           </span>
                         </div>
-                        <div className="customer-log-message">{l.message}</div>
+                        <div className="customer-log-message">{message}</div>
                         <div className="customer-log-meta">
                           <span><LocalDateTime value={l.createdAt} /></span>
                           {l.source ? <span>{l.source}</span> : null}

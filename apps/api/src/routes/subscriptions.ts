@@ -127,6 +127,12 @@ subscriptionsRouter.post("/", async (req, res) => {
   if (customer.tenantId && !effectiveTenantIds.includes(customer.tenantId)) {
     return res.status(409).json({ error: "tenant_mismatch" });
   }
+  if (!customer.tenantId) {
+    const linked = await prisma.customerTenant.findFirst({
+      where: { customerId: customer.id, tenantId: { in: effectiveTenantIds } }
+    });
+    if (!linked) return res.status(409).json({ error: "tenant_mismatch" });
+  }
   const tenantId = effectiveTenantIds[0];
 
   const collectionMode = String((plan.metadata as any)?.collectionMode || "MANUAL_LINK");
@@ -170,6 +176,9 @@ subscriptionsRouter.post("/", async (req, res) => {
     data: effectiveTenantIds.map((t) => ({ subscriptionId: subscription.id, tenantId: t })),
     skipDuplicates: true
   });
+  await prisma.customerTenant
+    .createMany({ data: effectiveTenantIds.map((t) => ({ customerId: customer.id, tenantId: t })), skipDuplicates: true })
+    .catch(() => {});
 
   await consumeApp("subscriptions_created", { amount: 1, source: "api:subscriptions.create", meta: { subscriptionId: subscription.id, planId: plan.id } });
   await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});

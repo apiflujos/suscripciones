@@ -2,6 +2,7 @@ import express from "express";
 import { z } from "zod";
 import { getCommerceReport, getOperationsReport, getChatwootReport } from "../services/reports";
 import { getReportCache, setReportCache } from "../services/reportCache";
+import { getEffectiveTenantId } from "../services/tenantContext";
 
 const querySchema = z.object({
   from: z.string().datetime().optional(),
@@ -32,7 +33,7 @@ function normalizeCacheRange(
 
 async function respondWithCache(
   res: express.Response,
-  key: { reportKey: string; tenantId?: string | null; from: Date; to: Date; granularity?: string; version?: string },
+  key: { reportKey: string; tenantId: string; from: Date; to: Date; granularity?: string; version?: string },
   ttlSeconds: number,
   staleSeconds: number,
   compute: () => Promise<any>
@@ -70,16 +71,18 @@ reportsRouter.get("/commerce", async (req, res) => {
   const ttlSeconds = 300;
   const staleSeconds = 900;
   const cacheRange = normalizeCacheRange(from, to, ttlSeconds, hasExplicitRange);
+  const tenantId = parsed.data.tenantId ?? (await getEffectiveTenantId(req));
+  if (!tenantId) return res.status(400).json({ error: "tenant_required" });
   const key = {
     reportKey: "reports.commerce",
-    tenantId: parsed.data.tenantId ?? null,
+    tenantId,
     from: cacheRange.from,
     to: cacheRange.to,
     granularity: parsed.data.granularity,
     version: "v1"
   };
   return respondWithCache(res, key, ttlSeconds, staleSeconds, () =>
-    getCommerceReport({ from: cacheRange.from, to: cacheRange.to, granularity: parsed.data.granularity, tenantId: parsed.data.tenantId })
+    getCommerceReport({ from: cacheRange.from, to: cacheRange.to, granularity: parsed.data.granularity, tenantId })
   );
 });
 
@@ -93,16 +96,18 @@ reportsRouter.get("/operations", async (req, res) => {
   const ttlSeconds = 60;
   const staleSeconds = 300;
   const cacheRange = normalizeCacheRange(from, to, ttlSeconds, hasExplicitRange);
+  const tenantId = parsed.data.tenantId ?? (await getEffectiveTenantId(req));
+  if (!tenantId) return res.status(400).json({ error: "tenant_required" });
   const key = {
     reportKey: "reports.operations",
-    tenantId: parsed.data.tenantId ?? null,
+    tenantId,
     from: cacheRange.from,
     to: cacheRange.to,
     granularity: parsed.data.granularity,
     version: "v1"
   };
   return respondWithCache(res, key, ttlSeconds, staleSeconds, () =>
-    getOperationsReport({ from: cacheRange.from, to: cacheRange.to, granularity: parsed.data.granularity, tenantId: parsed.data.tenantId })
+    getOperationsReport({ from: cacheRange.from, to: cacheRange.to, granularity: parsed.data.granularity, tenantId })
   );
 });
 
@@ -116,15 +121,17 @@ reportsRouter.get("/chatwoot", async (req, res) => {
   const ttlSeconds = 60;
   const staleSeconds = 300;
   const cacheRange = normalizeCacheRange(from, to, ttlSeconds, hasExplicitRange);
+  const tenantId = parsed.data.tenantId ?? (await getEffectiveTenantId(req));
+  if (!tenantId) return res.status(400).json({ error: "tenant_required" });
   const key = {
     reportKey: "reports.chatwoot",
-    tenantId: parsed.data.tenantId ?? null,
+    tenantId,
     from: cacheRange.from,
     to: cacheRange.to,
     granularity: parsed.data.granularity,
     version: "v1"
   };
   return respondWithCache(res, key, ttlSeconds, staleSeconds, () =>
-    getChatwootReport({ from: cacheRange.from, to: cacheRange.to, granularity: parsed.data.granularity, tenantId: parsed.data.tenantId })
+    getChatwootReport({ from: cacheRange.from, to: cacheRange.to, granularity: parsed.data.granularity, tenantId })
   );
 });

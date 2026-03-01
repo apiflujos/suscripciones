@@ -4,7 +4,7 @@ import { systemLog } from "../../services/systemLog";
 import { LogLevel } from "@prisma/client";
 import { classifyReference } from "../../webhooks/wompi/classifyReference";
 import { postJson } from "../../lib/http";
-import { PaymentStatus, RetryJobType, SubscriptionStatus, WebhookProcessStatus } from "@prisma/client";
+import { PaymentLinkStatus, PaymentStatus, RetryJobType, SubscriptionStatus, WebhookProcessStatus } from "@prisma/client";
 import { addIntervalUtc } from "../../lib/dates";
 import { getShopifyForward, getWompiCheckoutLinkBaseUrl } from "../../services/runtimeConfig";
 import { schedulePaymentStatusNotifications, scheduleSubscriptionDueNotifications } from "../../services/notificationsScheduler";
@@ -354,7 +354,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
             paymentId: paymentRecord.id,
             wompiPaymentLinkId: paymentRecord.wompiPaymentLinkId,
             checkoutUrl: paymentRecord.checkoutUrl,
-            status: paymentRecord.status === PaymentStatus.APPROVED ? "PAID" : "SENT",
+            status: paymentRecord.status === PaymentStatus.APPROVED ? PaymentLinkStatus.PAID : PaymentLinkStatus.SENT,
             sentAt: new Date(),
             paidAt: paymentRecord.paidAt ?? null
           },
@@ -364,7 +364,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
             subscriptionId: paymentRecord.subscriptionId,
             wompiPaymentLinkId: paymentRecord.wompiPaymentLinkId,
             checkoutUrl: paymentRecord.checkoutUrl,
-            status: paymentRecord.status === PaymentStatus.APPROVED ? "PAID" : undefined,
+            status: paymentRecord.status === PaymentStatus.APPROVED ? PaymentLinkStatus.PAID : undefined,
             paidAt: paymentRecord.paidAt ?? null
           }
         })

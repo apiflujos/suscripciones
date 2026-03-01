@@ -706,6 +706,7 @@ a {
 
 .topbarLeft {
   display: grid;
+  min-width: 0;
 }
 
 .topbarLogoLink {
@@ -727,6 +728,7 @@ a {
   justify-content: flex-end;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .appearanceTrigger {
@@ -992,11 +994,14 @@ a {
   display: flex;
   gap: 10px;
   align-items: center;
+  min-width: 0;
 }
 
 .topbarTitleGroup {
   display: grid;
   gap: 2px;
+  min-width: 0;
+  max-width: 60vw;
 }
 
 .topbarPulse {
@@ -1050,11 +1055,17 @@ a {
   font-size: 18px;
   font-weight: 800;
   color: var(--topbar-title);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .topbarSubtitle {
   font-size: 12.5px;
   color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .brandPill {
@@ -1273,7 +1284,7 @@ a {
 }
 
 .logs-table .log-ref-cell {
-  max-width: 220px;
+  max-width: 200px;
 }
 
 .logs-table .log-ref {
@@ -1283,7 +1294,7 @@ a {
 
 .logs-table .log-ref-main {
   display: block;
-  max-width: 220px;
+  max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1305,6 +1316,27 @@ a {
 
 .logs-table-messages .log-message-cell {
   max-width: 360px;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.logs-table-webhooks {
+  table-layout: fixed;
+}
+
+.logs-table-webhooks th,
+.logs-table-webhooks td {
+  vertical-align: top;
+}
+
+.logs-table-webhooks .log-ref-cell,
+.logs-table-webhooks .log-ref-main {
+  max-width: 160px;
+}
+
+.logs-table-webhooks .log-error-cell {
+  max-width: 180px;
   white-space: normal;
   word-break: break-word;
   overflow-wrap: anywhere;
@@ -2253,13 +2285,14 @@ textarea.input {
 }
 
 .summary-grid.plain {
-  gap: 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 10px;
 }
 
 .summary-grid.plain .summary-item {
   background: transparent;
   border: 0;
-  padding: 4px 0;
+  padding: 2px 0;
 }
 
 .summary-item {
@@ -2300,8 +2333,8 @@ textarea.input {
 
 .invoice-header {
   display: grid;
-  gap: 10px;
-  padding: 8px 10px;
+  gap: 8px;
+  padding: 6px 8px;
   border-radius: 12px;
   border: 1px solid var(--stroke);
   background: var(--surface-2);
@@ -2348,15 +2381,15 @@ textarea.input {
 }
 
 .invoice-row.compact {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 4px 8px;
 }
 
 .invoice-kv {
   display: grid;
   gap: 2px;
   min-width: 0;
-  padding: 4px 2px;
+  padding: 2px 0;
 }
 
 .customer-dual {
@@ -2380,7 +2413,7 @@ textarea.input {
 }
 
 .invoice-address {
-  padding: 6px 8px;
+  padding: 4px 6px;
   border-radius: 10px;
   border: 1px solid var(--stroke);
   background: var(--panel);
@@ -2728,6 +2761,12 @@ textarea.input {
 }
 
 .hero-right {
+  display: grid;
+  gap: 10px;
+  justify-items: end;
+}
+
+.hero-right-top {
   display: inline-flex;
   gap: 10px;
   align-items: stretch;
@@ -2751,14 +2790,14 @@ textarea.input {
   display: grid;
   align-content: center;
   gap: 2px;
-  padding: 6px 10px;
+  padding: 6px 12px;
   border-radius: 10px;
   border: 1px solid var(--stroke);
   background: var(--surface-2);
   min-width: 160px;
-  min-height: 64px;
-  justify-items: end;
-  text-align: right;
+  min-height: 72px;
+  justify-items: start;
+  text-align: left;
 }
 
 .hero-id-label {
@@ -2788,7 +2827,12 @@ textarea.input {
   border-radius: 12px;
   border: 1px solid var(--stroke);
   background: var(--surface-2);
-  min-width: 220px;
+  min-width: 240px;
+  max-width: 360px;
+}
+
+.hero-subs-compact {
+  padding: 8px 12px;
 }
 
 .hero-subs {
@@ -2825,13 +2869,13 @@ textarea.input {
   border-radius: 14px;
   border: 1px solid var(--stroke);
   background: var(--surface-2);
-  min-height: 64px;
+  min-height: 72px;
 }
 
 .tier-badge-hero .tier-icon,
 .tier-badge-hero .tier-icon svg {
-  width: 38px;
-  height: 38px;
+  width: 46px;
+  height: 46px;
 }
 
 .tier-text {
@@ -2965,6 +3009,8 @@ textarea.input {
   align-items: center;
   margin-right: 10px;
   min-height: 40px;
+  min-width: 140px;
+  justify-content: flex-start;
   align-self: stretch;
 }
 
@@ -3305,9 +3351,9 @@ textarea.input {
 
 .timeline-track {
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: visible;
   scrollbar-width: thin;
-  padding: 22px 0 72px;
+  padding: 16px 0 72px;
   cursor: grab;
 }
 
@@ -3348,11 +3394,11 @@ textarea.input {
 .customer-log-item {
   border: 1px solid var(--stroke);
   border-radius: 8px;
-  padding: 6px 8px 6px;
+  padding: 6px 8px 5px;
   background: var(--panel);
   position: relative;
-  min-width: 130px;
-  max-width: 170px;
+  min-width: 120px;
+  max-width: 150px;
   overflow: visible;
   flex: 0 0 auto;
   z-index: 0;
@@ -3367,8 +3413,8 @@ textarea.input {
   content: attr(data-tooltip);
   position: absolute;
   left: 50%;
-  top: calc(100% + 12px);
-  transform: translateX(-50%) translateY(6px);
+  bottom: calc(100% + 12px);
+  transform: translateX(-50%) translateY(-6px);
   background: var(--panel);
   border: 1px solid var(--stroke);
   color: var(--text);
@@ -3492,13 +3538,13 @@ textarea.input {
     justify-items: start;
   }
   .hero-right {
-    justify-content: flex-start;
+    justify-items: start;
   }
   .hero-id-block {
     text-align: left;
     justify-items: start;
   }
-  .hero-subs-actions {
+  .hero-subs-block {
     min-width: 0;
     width: 100%;
   }

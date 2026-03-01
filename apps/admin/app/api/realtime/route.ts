@@ -234,6 +234,7 @@ export async function GET(req: Request) {
   const stream = new ReadableStream({
     start(controller) {
       let lastSince = since;
+      controller.enqueue(encoder.encode("retry: 4000\n\n"));
       const poll = async () => {
         if (closed) return;
         try {
@@ -243,6 +244,7 @@ export async function GET(req: Request) {
         } catch {
           controller.enqueue(ssePayload({ serverTime: new Date().toISOString(), events: [] }));
         }
+        controller.enqueue(encoder.encode(": ping\n\n"));
       };
 
       const interval = setInterval(poll, 5000);

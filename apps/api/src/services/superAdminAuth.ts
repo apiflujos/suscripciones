@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { SaUserRole } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { sha256Hex, timingSafeEqualHex } from "../lib/crypto";
+import { getDefaultTenantId } from "./tenantContext";
 
 function normalize(v: unknown) {
   return String(v || "").trim();
@@ -47,12 +48,15 @@ export async function ensureBootstrapSuperAdmin() {
   const email = SUPER_ADMIN_EMAIL.toLowerCase();
   const existing = await prisma.saUser.findFirst({ where: { email: { equals: email, mode: "insensitive" } } });
 
+  const fallbackTenantId = SUPER_ADMIN_TENANT_ID || (await getDefaultTenantId());
+  if (!fallbackTenantId) return;
+
   if (existing) {
     const updates: any = {};
     if (existing.role !== SaUserRole.SUPER_ADMIN) updates.role = SaUserRole.SUPER_ADMIN;
     if (!existing.active) updates.active = true;
     if (SUPER_ADMIN_RESET_PASSWORD) updates.passwordHash = hashPassword(SUPER_ADMIN_PASSWORD);
-    if (SUPER_ADMIN_TENANT_ID && existing.tenantId !== SUPER_ADMIN_TENANT_ID) updates.tenantId = SUPER_ADMIN_TENANT_ID;
+    if (existing.tenantId !== fallbackTenantId) updates.tenantId = fallbackTenantId;
 
     if (Object.keys(updates).length > 0) {
       await prisma.saUser.update({ where: { id: existing.id }, data: updates });
@@ -66,7 +70,7 @@ export async function ensureBootstrapSuperAdmin() {
       passwordHash: hashPassword(SUPER_ADMIN_PASSWORD),
       role: SaUserRole.SUPER_ADMIN,
       active: true,
-      tenantId: SUPER_ADMIN_TENANT_ID || null
+      tenantId: fallbackTenantId
     } as any
   });
 }
@@ -89,14 +93,21 @@ export async function createSaSession(args: { email: string; password: string; i
 
   const token = crypto.randomBytes(32).toString("hex");
   const tokenHash = sha256Hex(token);
+  const refreshToken = crypto.randomBytes(32).toString("hex");
+  const refreshTokenHash = sha256Hex(refreshToken);
   const now = new Date();
   const ttlHoursRaw = Number(process.env.SA_SESSION_TTL_HOURS || "24");
   const ttlHours = Number.isFinite(ttlHoursRaw) && ttlHoursRaw > 0 ? ttlHoursRaw : 24;
   const expiresAt = new Date(now.getTime() + ttlHours * 60 * 60 * 1000);
+  const refreshDaysRaw = Number(process.env.SA_REFRESH_TTL_DAYS || "14");
+  const refreshDays = Number.isFinite(refreshDaysRaw) && refreshDaysRaw > 0 ? refreshDaysRaw : 14;
+  const refreshExpiresAt = new Date(now.getTime() + refreshDays * 24 * 60 * 60 * 1000);
 
   await prisma.saSession.create({
     data: {
       tokenHash,
+      refreshTokenHash,
+      refreshExpiresAt,
       email: user.email,
       expiresAt,
       ip: args.ip || null,
@@ -104,7 +115,7 @@ export async function createSaSession(args: { email: string; password: string; i
     }
   });
 
-  return { token, expiresAt, email: user.email };
+  return { token, refreshToken, expiresAt, refreshExpiresAt, email: user.email };
 }
 
 export async function getSaSessionByToken(token: string) {
@@ -132,6 +143,49 @@ export async function revokeSaSession(token: string) {
       data: { revokedAt: new Date() }
     })
     .catch(() => {});
+}
+
+export async function refreshSaSession(args: { refreshToken: string; ip?: string | null; userAgent?: string | null }) {
+  const raw = String(args.refreshToken || "").trim();
+  if (!raw) throw new Error("refresh_token_required");
+  const refreshTokenHash = sha256Hex(raw);
+  const session = await prisma.saSession.findUnique({ where: { refreshTokenHash } });
+  if (!session || session.revokedAt) throw new Error("refresh_invalid");
+  if (!session.refreshExpiresAt || session.refreshExpiresAt.getTime() <= Date.now()) throw new Error("refresh_expired");
+
+  const user = await prisma.saUser.findFirst({
+    where: { email: { equals: session.email, mode: "insensitive" }, role: SaUserRole.SUPER_ADMIN, active: true }
+  });
+  if (!user) throw new Error("unauthorized_sa");
+
+  const token = crypto.randomBytes(32).toString("hex");
+  const tokenHash = sha256Hex(token);
+  const newRefreshToken = crypto.randomBytes(32).toString("hex");
+  const newRefreshTokenHash = sha256Hex(newRefreshToken);
+  const now = new Date();
+  const ttlHoursRaw = Number(process.env.SA_SESSION_TTL_HOURS || "24");
+  const ttlHours = Number.isFinite(ttlHoursRaw) && ttlHoursRaw > 0 ? ttlHoursRaw : 24;
+  const expiresAt = new Date(now.getTime() + ttlHours * 60 * 60 * 1000);
+  const refreshDaysRaw = Number(process.env.SA_REFRESH_TTL_DAYS || "14");
+  const refreshDays = Number.isFinite(refreshDaysRaw) && refreshDaysRaw > 0 ? refreshDaysRaw : 14;
+  const refreshExpiresAt = new Date(now.getTime() + refreshDays * 24 * 60 * 60 * 1000);
+
+  await prisma.saSession
+    .update({
+      where: { id: session.id },
+      data: {
+        tokenHash,
+        refreshTokenHash: newRefreshTokenHash,
+        refreshExpiresAt,
+        refreshRotatedAt: now,
+        lastSeenAt: now,
+        ...(args.ip ? { ip: args.ip } : {}),
+        ...(args.userAgent ? { userAgent: args.userAgent } : {})
+      }
+    })
+    .catch(() => {});
+
+  return { token, refreshToken: newRefreshToken, expiresAt, refreshExpiresAt, email: user.email };
 }
 
 export async function touchSaSession(token: string) {

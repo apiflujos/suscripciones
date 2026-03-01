@@ -32,7 +32,7 @@ publicTokenizationRouter.get("/tokenization-links/:token", async (req, res) => {
   if (usedAt && !allowUsed) {
     void systemLog(LogLevel.WARN, "public.tokenization_link", "tokenization_token_used", {
       token,
-      tenantId: customer.tenantId || null,
+      tenantId: customer.tenantId,
       usedAt: usedAt.toISOString(),
       ip,
       userAgent: req.get("user-agent") || null
@@ -42,7 +42,7 @@ publicTokenizationRouter.get("/tokenization-links/:token", async (req, res) => {
   if (expiresAt && Number.isFinite(expiresAt.getTime()) && expiresAt.getTime() < Date.now()) {
     void systemLog(LogLevel.WARN, "public.tokenization_link", "tokenization_token_expired", {
       token,
-      tenantId: customer.tenantId || null,
+      tenantId: customer.tenantId,
       expiresAt: expiresAt.toISOString(),
       ip,
       userAgent: req.get("user-agent") || null
@@ -55,7 +55,8 @@ publicTokenizationRouter.get("/tokenization-links/:token", async (req, res) => {
     ? await prisma.publicCheckoutTemplate.findUnique({ where: { id: templateId } })
     : null;
 
-  const tenant = await getTenantBrand(template?.tenantId || customer.tenantId || null);
+  const tenantFromLink = link?.tenantId ? String(link.tenantId) : null;
+  const tenant = await getTenantBrand(template?.tenantId || tenantFromLink || customer.tenantId || null);
 
   res.json({
     ok: true,

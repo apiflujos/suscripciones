@@ -1,4 +1,4 @@
-import { CredentialProvider, LogLevel, PaymentStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
+import { CredentialProvider, LogLevel, PaymentLinkStatus, PaymentStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { WompiClient } from "../providers/wompi/client";
 import { systemLog } from "./systemLog";
@@ -65,6 +65,8 @@ export async function createPaymentLinkForSubscription(args: {
     include: { plan: true, customer: true }
   });
   if (!sub) throw new Error("subscription_not_found");
+  const tenantId = sub.tenantId || sub.plan?.tenantId;
+  if (!tenantId) throw new Error("tenant_required");
   if (sub.status === SubscriptionStatus.CANCELED) throw new Error("subscription_canceled");
   if (sub.status === SubscriptionStatus.SUSPENDED) throw new Error("subscription_suspended");
   if (sub.status === SubscriptionStatus.EXPIRED) throw new Error("subscription_expired");
@@ -77,7 +79,7 @@ export async function createPaymentLinkForSubscription(args: {
   const payment = await prisma.payment.upsert({
     where: { subscriptionCycleKey },
     create: {
-      tenantId: sub.tenantId ?? sub.plan?.tenantId ?? null,
+      tenantId,
       customerId: sub.customerId,
       subscriptionId: sub.id,
       amountInCents,
@@ -88,7 +90,7 @@ export async function createPaymentLinkForSubscription(args: {
       subscriptionCycleKey
     },
     update: {
-      ...(sub.tenantId || sub.plan?.tenantId ? { tenantId: sub.tenantId ?? sub.plan?.tenantId ?? null } : {}),
+      tenantId,
       amountInCents,
       currency: sub.plan.currency,
       reference,
@@ -100,25 +102,25 @@ export async function createPaymentLinkForSubscription(args: {
     await prisma.paymentLink
       .upsert({
         where: { paymentId: payment.id },
-    create: {
-          tenantId: sub.tenantId ?? sub.plan?.tenantId ?? null,
+        create: {
+          tenantId,
           planId: sub.planId,
           subscriptionId: sub.id,
           paymentId: payment.id,
           wompiPaymentLinkId: payment.wompiPaymentLinkId,
           checkoutUrl: payment.checkoutUrl,
-          status: payment.status === PaymentStatus.APPROVED ? "PAID" : "SENT",
+          status: payment.status === PaymentStatus.APPROVED ? PaymentLinkStatus.PAID : PaymentLinkStatus.SENT,
           sentAt: new Date(),
           paidAt: payment.paidAt ?? null
         },
         update: {
-          ...(sub.tenantId || sub.plan?.tenantId ? { tenantId: sub.tenantId ?? sub.plan?.tenantId ?? null } : {}),
+          tenantId,
           planId: sub.planId,
           subscriptionId: sub.id,
           wompiPaymentLinkId: payment.wompiPaymentLinkId,
           checkoutUrl: payment.checkoutUrl,
           paidAt: payment.paidAt ?? null,
-          status: payment.status === PaymentStatus.APPROVED ? "PAID" : undefined
+          status: payment.status === PaymentStatus.APPROVED ? PaymentLinkStatus.PAID : undefined
         }
       })
       .catch(() => {});
@@ -271,17 +273,17 @@ export async function createPaymentLinkForSubscription(args: {
       .upsert({
         where: { paymentId: updated.id },
       create: {
-          tenantId: sub.tenantId ?? sub.plan?.tenantId ?? null,
+          tenantId,
           planId: sub.planId,
           subscriptionId: sub.id,
           paymentId: updated.id,
           wompiPaymentLinkId: created.id,
           checkoutUrl: updated.checkoutUrl || created.checkoutUrl,
-          status: "SENT",
+          status: PaymentLinkStatus.SENT,
           sentAt: new Date()
         },
         update: {
-          ...(sub.tenantId || sub.plan?.tenantId ? { tenantId: sub.tenantId ?? sub.plan?.tenantId ?? null } : {}),
+          tenantId,
           planId: sub.planId,
           subscriptionId: sub.id,
           wompiPaymentLinkId: created.id,
@@ -353,7 +355,7 @@ export async function createAutoDebitTransactionForSubscription(args: {
   const payment = await prisma.payment.upsert({
     where: { subscriptionCycleKey },
     create: {
-      tenantId: sub.tenantId ?? sub.plan?.tenantId ?? null,
+      tenantId,
       customerId: sub.customerId,
       subscriptionId: sub.id,
       amountInCents,
@@ -364,7 +366,7 @@ export async function createAutoDebitTransactionForSubscription(args: {
       subscriptionCycleKey
     },
     update: {
-      ...(sub.tenantId || sub.plan?.tenantId ? { tenantId: sub.tenantId ?? sub.plan?.tenantId ?? null } : {}),
+      tenantId,
       amountInCents,
       currency,
       reference,
