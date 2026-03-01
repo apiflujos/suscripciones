@@ -198,6 +198,7 @@ export default async function CustomerDetailPage({
   const lastPayment = payments[0] || null;
   const activeSub = subscriptions.find((s) => s.status === "ACTIVE" || s.status === "PAST_DUE") || subscriptions[0] || null;
   const lastPaymentAt = lastPayment?.paidAt || lastPayment?.createdAt || null;
+  const meta = customer?.metadata || {};
   const nextPeriodEnd = activeSub?.currentPeriodEndAt || null;
   const paymentSourceId = meta?.wompi?.paymentSourceId || meta?.wompi?.payment_source_id || null;
 
@@ -213,7 +214,6 @@ export default async function CustomerDetailPage({
     customer?.metadata?.address?.code5
   ].filter(Boolean);
   const addressLabel = addressParts.join(", ");
-  const meta = customer?.metadata || {};
   const directLat = Number(meta?.address?.lat ?? meta?.geo?.lat ?? meta?.location?.lat);
   const directLon = Number(meta?.address?.lon ?? meta?.address?.lng ?? meta?.geo?.lon ?? meta?.geo?.lng ?? meta?.location?.lon ?? meta?.location?.lng);
   const geo =
