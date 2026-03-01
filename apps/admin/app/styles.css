@@ -95,6 +95,8 @@
   --chart-a: var(--apf-24);
   --chart-b: var(--apf-25);
   --chart-c: var(--apf-20);
+  --modal-backdrop: rgba(90, 37, 130, 0.24);
+  --modal-backdrop-blur: 10px;
 
   --status-success: var(--apf-26);
   --status-success-bg: rgba(34, 136, 51, 0.16);
@@ -167,6 +169,8 @@ html[data-theme="dark"] {
   --chart-b: var(--apf-25);
   --chart-c: var(--apf-21);
   --topbar-title: var(--apf-10);
+  --modal-backdrop: rgba(38, 18, 56, 0.36);
+  --modal-backdrop-blur: 10px;
 
   --status-success: var(--apf-26);
   --status-success-bg: rgba(34, 136, 51, 0.24);
@@ -218,6 +222,8 @@ html[data-theme="pink-dark"] {
   --row-hover: rgba(226, 121, 166, 0.22);
   --chart-axis: rgba(255, 255, 255, 0.22);
   --chart-track: rgba(255, 255, 255, 0.14);
+  --modal-backdrop: rgba(62, 10, 28, 0.35);
+  --modal-backdrop-blur: 10px;
   --chart-a: #ff9ac2;
   --chart-b: #ff6b6b;
   --chart-c: var(--apf-17);
@@ -300,6 +306,8 @@ html[data-contrast="high"] {
   --chart-b: #ff2e2e;
   --chart-c: #ffd400;
   --topbar-title: #ffd400;
+  --modal-backdrop: rgba(0, 0, 0, 0.7);
+  --modal-backdrop-blur: 6px;
 
   --form-bg: #0b0b0b;
   --form-border: #ffffff;
@@ -3966,8 +3974,9 @@ body.is-global-loading {
 .global-loader-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(24, 12, 36, 0.45);
-  backdrop-filter: blur(2px);
+  background: var(--modal-backdrop);
+  backdrop-filter: blur(var(--modal-backdrop-blur));
+  -webkit-backdrop-filter: blur(var(--modal-backdrop-blur));
 }
 
 .global-loader-card {
@@ -4150,13 +4159,14 @@ body.is-global-loading {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: linear-gradient(135deg, rgba(90, 37, 130, 0.38), rgba(27, 16, 34, 0.55));
+  background: var(--modal-backdrop);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 10020;
   padding: 16px;
-  backdrop-filter: blur(10px) saturate(1.05);
+  backdrop-filter: blur(var(--modal-backdrop-blur)) saturate(1.05);
+  -webkit-backdrop-filter: blur(var(--modal-backdrop-blur)) saturate(1.05);
 }
 
 .modal-panel {
