@@ -5,6 +5,7 @@ import { getNotificationsConfig, notificationTriggerSchema } from "../../service
 import { createPaymentLinkForSubscription } from "../../services/subscriptionBilling";
 import { systemLog } from "../../services/systemLog";
 import { sendChatwootMessage } from "./sendChatwootMessage";
+import { getDefaultTenantId } from "../../services/tenantContext";
 
 const payloadSchema = z.object({
   trigger: notificationTriggerSchema,
@@ -368,9 +369,13 @@ export async function subscriptionReminder(payload: any) {
     return;
   }
 
+  const resolvedTenantId =
+    subscription?.tenantId ?? customer.tenantId ?? effectivePayment?.tenantId ?? (await getDefaultTenantId());
+  if (!resolvedTenantId) throw new Error("tenant_required");
+
   const created = await prisma.chatwootMessage.create({
     data: {
-      tenantId: subscription?.tenantId ?? customer.tenantId ?? effectivePayment?.tenantId ?? null,
+      tenantId: resolvedTenantId,
       customerId: customer.id,
       subscriptionId: subscription?.id ?? effectivePayment?.subscriptionId ?? null,
       paymentId: effectivePayment?.id ?? null,
