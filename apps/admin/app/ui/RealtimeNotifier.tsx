@@ -11,7 +11,7 @@ type RealtimeEvent = {
   message: string;
   paymentStatus?: string | null;
   paymentType?: string | null;
-  sound?: "cash" | null;
+  sound?: "cash" | "fail" | null;
 };
 
 type Toast = RealtimeEvent & { seenAt: number };
