@@ -13,7 +13,7 @@ async function fetchCheckoutConfig() {
 export default async function PublicSubscriptionMissingPage() {
   const configRes = await fetchCheckoutConfig();
   const config = configRes.ok ? configRes.json?.config || {} : {};
-  const logoUrl = config?.logoUrl || "";
+  const logoUrl = String(config?.logoUrl || "").trim() || "/brand/logo.png";
   const contactEmail = String(config?.supportEmail || "").trim();
   const supportUrl = String(config?.supportUrl || "").trim();
   const supportHref = contactEmail ? `mailto:${contactEmail}` : supportUrl;

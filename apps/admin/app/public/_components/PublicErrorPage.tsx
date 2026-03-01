@@ -20,16 +20,17 @@ export function PublicErrorPage({
   supportHref,
   supportLabel
 }: PublicErrorPageProps) {
+  const resolvedLogo = String(logoUrl || "").trim() || "/brand/logo.png";
   return (
     <PublicCheckoutLayout
       title={title}
       description={trustText || "Pago seguro con Wompi."}
-      logoUrl={logoUrl}
+      logoUrl={resolvedLogo}
       trustText={trustText}
       tenantName={tenantName}
       supportHref={supportHref}
       supportLabel={supportLabel}
-      maxWidth={680}
+      maxWidth={720}
       variant="single"
     >
       <div className="publicErrorStack">
