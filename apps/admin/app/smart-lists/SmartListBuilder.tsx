@@ -52,7 +52,7 @@ const FIELDS: FieldOption[] = [
   { value: "subscriptionStatus", label: "Estado suscripción", type: "enum", enumValues: ["ACTIVE", "PAST_DUE", "EXPIRED", "CANCELED", "SUSPENDED"] },
   { value: "planName", label: "Plan", type: "text" },
   { value: "planActive", label: "Plan activo", type: "boolean" },
-  { value: "planPrice", label: "Precio plan (cents)", type: "number" },
+  { value: "planPrice", label: "Precio plan (COP)", type: "number" },
   { value: "nextBillingDate", label: "Próximo cobro", type: "date" },
   { value: "lastPaymentStatus", label: "Último pago estado", type: "enum", enumValues: ["PENDING", "APPROVED", "DECLINED", "ERROR", "VOIDED"] },
   { value: "lastPaymentDate", label: "Último pago fecha", type: "date" },

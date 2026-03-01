@@ -3,7 +3,7 @@ import { normalizeErrorParam } from "../lib/errorParam";
 import { HelpTip } from "../ui/HelpTip";
 import { getCsrfToken } from "../lib/csrf";
 import { createSmartList, previewSmartList, syncSmartList } from "./actions";
-import { SmartListBuilder } from "./SmartListBuilder";
+import { SmartListCreateModal } from "./SmartListCreateModal";
 
 type Preview = { count: number; sample: Array<{ id: string; name?: string; email?: string; phone?: string }> } | null;
 
@@ -69,36 +69,22 @@ export default async function SmartListsPage({
       {sp.synced ? <div className="panel module">Sync: {sp.synced}</div> : null}
 
       <div className="panel module" style={{ marginBottom: 16 }}>
-        <h3 style={{ marginTop: 0 }}>Nueva lista</h3>
-        <form action={createSmartList} style={{ display: "grid", gap: 10 }}>
-          <input type="hidden" name="csrf" value={csrfToken} />
-          <input type="hidden" name="returnTo" value={returnTo} />
-          <div className="field">
-            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span>Nombre</span>
-              <HelpTip text="Nombre visible en CentralCom y en campañas." />
-            </label>
-            <input className="input" name="name" defaultValue={prefillName} required />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+          <div>
+            <h3 style={{ marginTop: 0, marginBottom: 4 }}>Listas inteligentes</h3>
+            <div className="muted">Segmentos dinámicos de contactos para campañas.</div>
           </div>
-          <div className="field">
-            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span>Descripción</span>
-              <HelpTip text="Nota interna para saber qué segmento representa." />
-            </label>
-            <input className="input" name="description" defaultValue={prefillDescription} />
-          </div>
-          <SmartListBuilder preset={preset || undefined} initialRules={initialRules || undefined} nowIso={nowIso} />
-          <label className="checkbox" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <input type="checkbox" name="enabled" value="1" defaultChecked />
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-              <span>Habilitada</span>
-              <HelpTip text="Si está desactivada no se usa para campañas." />
-            </span>
-          </label>
-          <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-            <button className="primary btn-create" type="submit">Crear</button>
-          </div>
-        </form>
+          <SmartListCreateModal
+            action={createSmartList}
+            csrfToken={csrfToken}
+            returnTo={returnTo}
+            preset={preset || undefined}
+            prefillName={prefillName}
+            prefillDescription={prefillDescription}
+            nowIso={nowIso}
+            initialRules={initialRules || undefined}
+          />
+        </div>
       </div>
 
       <div className="panel module">
