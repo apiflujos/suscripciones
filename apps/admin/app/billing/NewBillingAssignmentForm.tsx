@@ -19,6 +19,8 @@ type CatalogItem = {
   kind: "PRODUCT" | "SERVICE";
   currency: string;
   basePriceInCents: number;
+  intervalUnit?: "DAY" | "WEEK" | "MONTH" | "CUSTOM";
+  intervalCount?: number;
   taxPercent?: number;
   discountType?: "NONE" | "FIXED" | "PERCENT";
   discountValueInCents?: number;
@@ -91,8 +93,6 @@ export function NewBillingAssignmentForm({
   const [selectedCustomerOverride, setSelectedCustomerOverride] = useState<Customer | null>(null);
 
   const [billingType, setBillingType] = useState<BillingType>("SUBSCRIPCION");
-  const intervalUnit = "MONTH";
-  const intervalCount = 1;
   const option1Value = "";
   const option2Value = "";
   const [templateId, setTemplateId] = useState("");
@@ -104,6 +104,9 @@ export function NewBillingAssignmentForm({
     if (!productId) return null;
     return catalogItems.find((p) => String(p.id) === String(productId)) || productHits.find((p) => String(p.id) === String(productId)) || null;
   }, [catalogItems, productHits, productId]);
+
+  const intervalUnit = (selectedProduct?.intervalUnit || "MONTH") as "DAY" | "WEEK" | "MONTH" | "CUSTOM";
+  const intervalCount = Number(selectedProduct?.intervalCount || 1);
 
   useEffect(() => {
     if (!defaultSelectedProductId) return;
