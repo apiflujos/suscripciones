@@ -55,6 +55,7 @@ export async function GET(req: Request) {
             const level = status === "FAILED" ? "error" : "info";
             const paymentStatus = String(w.paymentStatus || "").toUpperCase();
             const isApproved = paymentStatus === "APPROVED" && status === "PROCESSED";
+            const isFailed = status === "FAILED" || paymentStatus === "DECLINED";
             const customer = w.customerName || w.customerEmail || w.customerPhone || "Cliente";
             const ref = w.reference || w.wompiPaymentLinkId || w.wompiTransactionId || "";
             const typeLabel = w.paymentType || "Pago";
@@ -64,11 +65,15 @@ export async function GET(req: Request) {
               type: "webhook",
               level,
               ts: w.receivedAt,
-              title: isApproved ? "Pago aprobado" : status === "FAILED" ? "Webhook fallido" : "Webhook recibido",
-              message: isApproved ? `${customer} · ${typeLabel}${planLabel}` : `${customer} · ${w.paymentStatus || "estado"}${ref ? ` · ${ref}` : ""}`,
+              title: isApproved ? "Pago aprobado" : isFailed ? "Pago fallido" : status === "FAILED" ? "Webhook fallido" : "Webhook recibido",
+              message: isApproved
+                ? `${customer} · ${typeLabel}${planLabel}`
+                : isFailed
+                  ? `${customer} · ${typeLabel}${planLabel}`
+                  : `${customer} · ${w.paymentStatus || "estado"}${ref ? ` · ${ref}` : ""}`,
               paymentStatus,
               paymentType: w.paymentType || null,
-              sound: isApproved ? "cash" : null
+              sound: isApproved ? "cash" : isFailed ? "fail" : null
             });
           }
 
@@ -86,7 +91,8 @@ export async function GET(req: Request) {
               level: "error",
               ts: j.updatedAt,
               title,
-              message: `${j.type || "JOB"} · ${detail}`
+              message: `${j.type || "JOB"} · ${detail}`,
+              sound: "fail"
             });
           }
 
@@ -104,7 +110,8 @@ export async function GET(req: Request) {
               level: level === "ERROR" ? "error" : "info",
               ts: createdAt,
               title: level === "ERROR" ? "Alerta del sistema" : "Aviso del sistema",
-              message: compact
+              message: compact,
+              sound: level === "ERROR" ? "fail" : null
             });
           }
 

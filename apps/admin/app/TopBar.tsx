@@ -46,9 +46,17 @@ export function TopBar({ session }: { session: AdminSession | null }) {
   const isSuperAdmin = session?.role === "SUPER_ADMIN";
   const [menuOpen, setMenuOpen] = useState(false);
   const [appearanceOpen, setAppearanceOpen] = useState(false);
+  const [paymentPulse, setPaymentPulse] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const appearanceRef = useRef<HTMLButtonElement | null>(null);
   const appearancePopoverRef = useRef<HTMLDivElement | null>(null);
+  const pulseRef = useRef<NodeJS.Timeout | null>(null);
+
+  const triggerPaymentPulse = () => {
+    setPaymentPulse(true);
+    if (pulseRef.current) clearTimeout(pulseRef.current);
+    pulseRef.current = setTimeout(() => setPaymentPulse(false), 2200);
+  };
 
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
@@ -74,6 +82,15 @@ export function TopBar({ session }: { session: AdminSession | null }) {
     };
   }, []);
 
+  useEffect(() => {
+    const onPayment = () => triggerPaymentPulse();
+    window.addEventListener("apiflujos:payment-approved", onPayment);
+    return () => {
+      window.removeEventListener("apiflujos:payment-approved", onPayment);
+      if (pulseRef.current) clearTimeout(pulseRef.current);
+    };
+  }, []);
+
   return (
     <header className="topbar" aria-label="Topbar">
       <div className="topbarLeft">
@@ -85,6 +102,10 @@ export function TopBar({ session }: { session: AdminSession | null }) {
           <div className="topbarTitleGroup">
             <h1 className="topbarTitle">{header.title}</h1>
             <div className="topbarSubtitle">{header.subtitle}</div>
+          </div>
+          <div className={`topbarPulse ${paymentPulse ? "is-active" : ""}`} aria-live="polite">
+            <span className="topbarPulseDot" aria-hidden="true" />
+            <span className="topbarPulseText">Pago recibido</span>
           </div>
         </div>
       </div>

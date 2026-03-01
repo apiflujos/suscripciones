@@ -19,7 +19,7 @@ type RealtimeStatus = "connecting" | "connected" | "disconnected";
 
 const STORAGE_KEY = "apiflujos-realtime-last";
 
-export function RealtimeNotifier() {
+export function RealtimeNotifier({ onPaymentApproved }: { onPaymentApproved?: (payload: RealtimeEvent) => void } = {}) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [status, setStatus] = useState<RealtimeStatus>("connecting");
   const lastSeenRef = useRef<string>("");
@@ -117,6 +117,37 @@ export function RealtimeNotifier() {
     }, 500);
   };
 
+  const playFailSound = () => {
+    if (typeof window === "undefined") return;
+    if (!soundEnabledRef.current) return;
+    const nowMs = Date.now();
+    if (nowMs - lastSoundRef.current < 1500) return;
+    lastSoundRef.current = nowMs;
+    const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const now = ctx.currentTime;
+
+    const base = volumeRef.current || 0.55;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.45 * base, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+    gain.connect(ctx.destination);
+
+    const osc = ctx.createOscillator();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(360, now);
+    osc.frequency.exponentialRampToValueAtTime(140, now + 0.35);
+    osc.connect(gain);
+    osc.start(now);
+    osc.stop(now + 0.35);
+
+    setTimeout(() => {
+      ctx.close().catch(() => {});
+    }, 500);
+  };
+
   useEffect(() => {
     let source: EventSource | null = null;
     let active = true;
@@ -139,6 +170,7 @@ export function RealtimeNotifier() {
         if (!events.length) return;
 
         let shouldPlayCash = false;
+        let shouldPlayFail = false;
         const now = Date.now();
         const freshEvents = events.filter((e) => {
           if (!e?.id) return true;
@@ -151,13 +183,20 @@ export function RealtimeNotifier() {
           seenIdsRef.current = new Set(trimmed);
         }
         for (const e of freshEvents) {
-          if (e.sound === "cash") shouldPlayCash = true;
+          if (e.sound === "cash") {
+            shouldPlayCash = true;
+            if (onPaymentApproved) {
+              onPaymentApproved(e);
+            }
+          }
+          if (e.sound === "fail") shouldPlayFail = true;
         }
         setToasts((prev) => {
           const merged = [...freshEvents.map((e) => ({ ...e, seenAt: now })), ...prev];
           return merged.slice(0, 6);
         });
         if (shouldPlayCash) playCashSound();
+        if (shouldPlayFail && !shouldPlayCash) playFailSound();
 
         const latestTs = events
           .map((e) => new Date(e.ts).getTime())

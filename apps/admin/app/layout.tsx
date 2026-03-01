@@ -119,7 +119,13 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
 
             <div className="content" style={{ alignContent: "start" }}>
               <TopBar session={session} />
-              <RealtimeNotifier />
+              <RealtimeNotifier
+                onPaymentApproved={() => {
+                  try {
+                    window.dispatchEvent(new CustomEvent("apiflujos:payment-approved"));
+                  } catch {}
+                }}
+              />
               {children}
             </div>
           </div>
