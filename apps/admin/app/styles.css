@@ -1333,7 +1333,7 @@ a {
 }
 
 .logs-table .log-ref-cell {
-  max-width: 92px;
+  max-width: 80px;
   min-width: 0;
 }
 
@@ -1361,7 +1361,7 @@ a {
 }
 
 .logs-table .log-contact-cell {
-  max-width: 150px;
+  max-width: 140px;
   min-width: 0;
 }
 
@@ -1468,11 +1468,11 @@ a {
 }
 
 .logs-table-payments .log-ref-cell {
-  max-width: 72px;
+  max-width: 64px;
 }
 
 .logs-table-payments .log-transaction-cell {
-  max-width: 96px;
+  max-width: 110px;
 }
 
 .logs-table-jobs .log-detail-cell {
@@ -1503,7 +1503,7 @@ a {
 
 .logs-table-webhooks .log-ref-cell,
 .logs-table-webhooks .log-ref-main {
-  max-width: 72px;
+  max-width: 64px;
 }
 
 .logs-table-webhooks .log-error-cell {

@@ -9,10 +9,16 @@ export const logsRouter = express.Router();
 
 const DEFAULT_LOG_WINDOW_DAYS = 30;
 
-function parseDate(raw: string) {
+function parseDate(raw: string, opts?: { end?: boolean }) {
   if (!raw) return null;
   const d = new Date(raw);
-  return Number.isNaN(d.getTime()) ? null : d;
+  if (Number.isNaN(d.getTime())) return null;
+  const end = Boolean(opts?.end);
+  const isDateOnly = raw.length === 10 && /\d{4}-\d{2}-\d{2}/.test(raw);
+  if (end && isDateOnly) {
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return d;
 }
 
 function defaultFromDate() {
@@ -29,7 +35,7 @@ logsRouter.get("/system", async (req, res) => {
   const fromRaw = String(req.query.from ?? "").trim();
   const toRaw = String(req.query.to ?? "").trim();
   const fromDate = parseDate(fromRaw) ?? defaultFromDate();
-  const toDate = parseDate(toRaw);
+  const toDate = parseDate(toRaw, { end: true });
   const where: Prisma.SystemLogWhereInput | undefined = q
     ? {
         OR: [
@@ -223,7 +229,7 @@ logsRouter.get("/payments", async (req, res) => {
           : null;
 
   const fromDate = parseDate(fromRaw) ?? defaultFromDate();
-  const toDate = parseDate(toRaw);
+  const toDate = parseDate(toRaw, { end: true });
 
   const where: Prisma.PaymentWhereInput = {
     ...(statusFilter ? { status: { in: statusFilter as any } } : {}),
@@ -365,7 +371,7 @@ logsRouter.get("/jobs", async (req, res) => {
   const fromRaw = String(req.query.from ?? "").trim();
   const toRaw = String(req.query.to ?? "").trim();
   const fromDate = parseDate(fromRaw) ?? defaultFromDate();
-  const toDate = parseDate(toRaw);
+  const toDate = parseDate(toRaw, { end: true });
   const where = {
     updatedAt: {
       gte: fromDate,
@@ -525,7 +531,7 @@ logsRouter.get("/messages", async (req, res) => {
   const fromRaw = String(req.query.from ?? "").trim();
   const toRaw = String(req.query.to ?? "").trim();
   const fromDate = parseDate(fromRaw) ?? defaultFromDate();
-  const toDate = parseDate(toRaw);
+  const toDate = parseDate(toRaw, { end: true });
   const where = {
     createdAt: {
       gte: fromDate,

@@ -297,6 +297,15 @@ export function ProductsTable({
     () => (sendInboxId ? sortedInboxes.find((i) => String(i.id) === String(sendInboxId)) : null),
     [sendInboxId, sortedInboxes]
   );
+  const selectedInboxChannel = useMemo(() => {
+    const raw = selectedInbox?.channelType || selectedInbox?.medium || selectedInbox?.provider || "";
+    return String(raw || "").trim();
+  }, [selectedInbox]);
+  const selectedInboxChannelLabel = useMemo(() => {
+    if (!selectedInboxChannel) return "";
+    return selectedInboxChannel.replace(/_/g, " ");
+  }, [selectedInboxChannel]);
+  const selectedInboxIsWhatsapp = selectedInboxChannel.toLowerCase().includes("whatsapp");
   const sendImageReady = Boolean(sendProduct && sendIncludeImage && isPublicImage(sendProduct.imageUrl));
   const searchResults = useMemo(() => {
     if (!normalizedQuery || normalizedQuery.length < 2) return [];
@@ -354,9 +363,10 @@ export function ProductsTable({
         if (b.score !== a.score) return b.score - a.score;
         return String(a.item?.name || "").localeCompare(String(b.item?.name || ""), "es");
       })
-      .slice(0, 8);
+      .slice(0, 10);
     return scored;
   }, [filteredCustomers, normalizedQuery]);
+  const searchTotal = searchActive ? filteredCustomers.length : 0;
 
   function formatCustomerLabel(c: any) {
     return String(c?.name || c?.email || c?.phone || "Contacto").trim() || "Contacto";
@@ -672,7 +682,11 @@ export function ProductsTable({
                   {searchActive ? (
                     <div className="send-search-results">
                       <div className="send-search-heading">
-                        {searchResults.length ? `Resultados rápidos (${searchResults.length})` : "Sin coincidencias"}
+                        {searchResults.length
+                          ? searchTotal > searchResults.length
+                            ? `Resultados rápidos (${searchResults.length} de ${searchTotal})`
+                            : `Resultados rápidos (${searchResults.length})`
+                          : "Sin coincidencias"}
                       </div>
                       {searchResults.length ? (
                         <div className="send-search-list">
@@ -805,8 +819,11 @@ export function ProductsTable({
                   </select>
                   <div className="field-hint">
                     {sendInboxId
-                      ? "Se usará el inbox seleccionado para enviar el mensaje."
+                      ? `Se usará el inbox seleccionado (${selectedInboxChannelLabel || "canal configurado"}).`
                       : "Se selecciona el inbox configurado o el mejor canal disponible."}
+                    {selectedInboxIsWhatsapp ? (
+                      <span> · WhatsApp: se recomienda plantilla y adjunto público.</span>
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -824,6 +841,14 @@ export function ProductsTable({
                   <div className="send-summary-row">
                     <span>Inbox</span>
                     <span className="send-summary-value">{selectedInbox ? formatInboxLabel(selectedInbox) : "Automático"}</span>
+                  </div>
+                  <div className="send-summary-row">
+                    <span>Canal</span>
+                    {selectedInboxChannelLabel ? (
+                      <span className="pill pill-soft">{selectedInboxChannelLabel}</span>
+                    ) : (
+                      <span className="send-summary-value">Automático</span>
+                    )}
                   </div>
                 </div>
                 <div className="field">

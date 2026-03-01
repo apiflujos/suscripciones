@@ -527,11 +527,11 @@ export default async function LogsPage({
             <div className="panel module" style={{ padding: 0 }}>
               <table className="table logs-table logs-table-messages" aria-label="Tabla de mensajes">
                 <colgroup>
-                  <col style={{ width: "7%" }} />
-                  <col style={{ width: "20%" }} />
-                  <col style={{ width: "9%" }} />
                   <col style={{ width: "8%" }} />
-                  <col style={{ width: "56%" }} />
+                  <col style={{ width: "19%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "7%" }} />
+                  <col style={{ width: "58%" }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -584,9 +584,9 @@ export default async function LogsPage({
             <div className="panel module" style={{ padding: 0 }}>
               <table className="table logs-table logs-table-jobs" aria-label="Tabla de jobs">
                 <colgroup>
-                  <col style={{ width: "7%" }} />
+                  <col style={{ width: "8%" }} />
                   <col style={{ width: "14%" }} />
-                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "9%" }} />
                   <col style={{ width: "7%" }} />
                   <col style={{ width: "12%" }} />
                   <col style={{ width: "40%" }} />
@@ -665,14 +665,14 @@ export default async function LogsPage({
             <div className="panel module" style={{ padding: 0 }}>
               <table className="table logs-table logs-table-payments" aria-label="Tabla de pagos">
                 <colgroup>
-                  <col style={{ width: "7%" }} />
-                  <col style={{ width: "38%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "30%" }} />
                   <col style={{ width: "10%" }} />
                   <col style={{ width: "7%" }} />
-                  <col style={{ width: "8%" }} />
-                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "14%" }} />
                   <col style={{ width: "12%" }} />
-                  <col style={{ width: "10%" }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -753,16 +753,16 @@ export default async function LogsPage({
               </div>
                   <table className="table logs-table logs-table-webhooks" aria-label="Tabla de webhooks">
                     <colgroup>
-                      <col style={{ width: "6%" }} />
-                      <col style={{ width: "20%" }} />
-                      <col style={{ width: "7%" }} />
-                      <col style={{ width: "9%" }} />
-                      <col style={{ width: "7%" }} />
-                      <col style={{ width: "8%" }} />
-                      <col style={{ width: "10%" }} />
                       <col style={{ width: "8%" }} />
                       <col style={{ width: "18%" }} />
+                      <col style={{ width: "8%" }} />
+                      <col style={{ width: "8%" }} />
                       <col style={{ width: "7%" }} />
+                      <col style={{ width: "9%" }} />
+                      <col style={{ width: "10%" }} />
+                      <col style={{ width: "8%" }} />
+                      <col style={{ width: "16%" }} />
+                      <col style={{ width: "8%" }} />
                     </colgroup>
                 <thead>
                   <tr>
