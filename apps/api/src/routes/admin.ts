@@ -57,7 +57,7 @@ export function requireAdminToken(req: Request, res: Response, next: NextFunctio
 }
 
 export async function listWebhookEvents(req: Request, res: Response) {
-  const take = Math.min(200, Math.max(1, Number(req.query.take ?? 50)));
+  const take = Math.min(200, Math.max(1, Number(req.query.take ?? 20)));
   const skip = Math.max(0, Number(req.query.skip ?? 0));
   const q = String(req.query.q ?? "").trim();
   const processStatus = String(req.query.processStatus ?? "").trim();
@@ -103,7 +103,15 @@ export async function listWebhookEvents(req: Request, res: Response) {
   const payments = paymentFilters.length
     ? await prisma.payment.findMany({
         where: { OR: paymentFilters },
-        include: { subscription: { include: { plan: true } }, customer: true }
+        select: {
+          id: true,
+          reference: true,
+          wompiPaymentLinkId: true,
+          wompiTransactionId: true,
+          subscriptionId: true,
+          subscription: { select: { plan: { select: { name: true, metadata: true } } } },
+          customer: { select: { id: true, name: true, email: true, phone: true } }
+        }
       })
     : [];
 

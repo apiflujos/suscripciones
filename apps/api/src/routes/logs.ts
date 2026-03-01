@@ -8,7 +8,7 @@ import { LogLevel } from "@prisma/client";
 export const logsRouter = express.Router();
 
 logsRouter.get("/system", async (req, res) => {
-  const take = Math.min(200, Math.max(1, Number(req.query.take ?? 100)));
+  const take = Math.min(200, Math.max(1, Number(req.query.take ?? 20)));
   const skip = Math.max(0, Number(req.query.skip ?? 0));
   const q = String(req.query.q ?? "").trim();
   const level = String(req.query.level ?? "").trim().toUpperCase();
@@ -168,7 +168,7 @@ logsRouter.get("/system/:id", async (req, res) => {
 });
 
 logsRouter.get("/payments", async (req, res) => {
-  const take = Math.min(200, Math.max(1, Number(req.query.take ?? 50)));
+  const take = Math.min(200, Math.max(1, Number(req.query.take ?? 20)));
   const skip = Math.max(0, Number(req.query.skip ?? 0));
   const q = String(req.query.q ?? "").trim();
   const statusRaw = String(req.query.status ?? "").trim().toUpperCase();
@@ -220,7 +220,11 @@ logsRouter.get("/payments", async (req, res) => {
     take,
     skip,
     where,
-    include: { subscription: { include: { plan: true } }, customer: true, attempts: { orderBy: { createdAt: "desc" }, take: 5 } }
+    include: {
+      subscription: { include: { plan: true } },
+      customer: true,
+      attempts: { orderBy: { createdAt: "desc" }, take: 1 }
+    }
   });
   res.json({ items });
 });
@@ -320,7 +324,7 @@ logsRouter.post("/payments/recollect", async (req, res) => {
 });
 
 logsRouter.get("/jobs", async (req, res) => {
-  const take = Math.min(200, Math.max(1, Number(req.query.take ?? 50)));
+  const take = Math.min(200, Math.max(1, Number(req.query.take ?? 20)));
   const skip = Math.max(0, Number(req.query.skip ?? 0));
   const items = await prisma.retryJob.findMany({ orderBy: { updatedAt: "desc" }, take, skip });
 
@@ -430,13 +434,15 @@ logsRouter.get("/jobs", async (req, res) => {
 });
 
 logsRouter.get("/messages", async (req, res) => {
-  const take = Math.min(200, Math.max(1, Number(req.query.take ?? 100)));
+  const take = Math.min(200, Math.max(1, Number(req.query.take ?? 20)));
   const skip = Math.max(0, Number(req.query.skip ?? 0));
   const items = await prisma.chatwootMessage.findMany({
     orderBy: { createdAt: "desc" },
     take,
     skip,
-    include: { customer: true, subscription: true, payment: true }
+    include: {
+      customer: { select: { id: true, name: true, email: true, phone: true } }
+    }
   });
   res.json({ items });
 });
