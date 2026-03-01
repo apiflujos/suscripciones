@@ -96,7 +96,6 @@ export function ProductsTable({
   const [sendMessage, setSendMessage] = useState("");
   const [sendSearch, setSendSearch] = useState("");
   const [sendSearchDebounced, setSendSearchDebounced] = useState("");
-  const [sendSearchLocked, setSendSearchLocked] = useState(false);
   const [messageDirty, setMessageDirty] = useState(false);
   const [sendInboxId, setSendInboxId] = useState("");
   const [txError, setTxError] = useState("");
@@ -374,7 +373,6 @@ export function ProductsTable({
     const label = formatCustomerLabel(c);
     setSendCustomerId(String(c.id));
     setSendSearch(label);
-    setSendSearchLocked(true);
   }
 
   function isPublicImage(url?: string | null) {
@@ -415,7 +413,6 @@ export function ProductsTable({
     setSendIncludeLink(true);
     setSendCustomerId("");
     setSendSearch("");
-    setSendSearchLocked(false);
     setMessageDirty(false);
     setSendInboxId("");
     setSendMessage(buildSendTemplate(item, true, includeImg));
@@ -650,7 +647,6 @@ export function ProductsTable({
                     value={sendSearch}
                     onChange={(e) => {
                       setSendSearch(e.target.value);
-                      setSendSearchLocked(false);
                     }}
                   />
                   {!selectedCustomer && !searchActive ? (
@@ -667,14 +663,13 @@ export function ProductsTable({
                         className="ghost btn-compact"
                         onClick={() => {
                           setSendSearch("");
-                          setSendSearchLocked(false);
                         }}
                       >
                         Cambiar
                       </button>
                     </div>
                   ) : null}
-                  {searchActive && !sendSearchLocked ? (
+                  {searchActive ? (
                     <div className="send-search-results">
                       <div className="send-search-heading">
                         {searchResults.length ? `Resultados rápidos (${searchResults.length})` : "Sin coincidencias"}
@@ -732,9 +727,6 @@ export function ProductsTable({
                       const found = filteredCustomers.find((c: any) => String(c?.id) === String(nextId));
                       if (found) {
                         setSendSearch(formatCustomerLabel(found));
-                        setSendSearchLocked(true);
-                      } else {
-                        setSendSearchLocked(false);
                       }
                     }}
                   >
@@ -749,20 +741,6 @@ export function ProductsTable({
                     <div className="field-hint">
                       <span>Seleccionado: {formatCustomerLabel(selectedCustomer)}</span>
                       {formatCustomerMeta(selectedCustomer) ? <span> · {formatCustomerMeta(selectedCustomer)}</span> : null}
-                    </div>
-                  ) : null}
-                  {sendSearchLocked && selectedCustomer ? (
-                    <div className="field-hint">
-                      <button
-                        type="button"
-                        className="ghost btn-compact"
-                        onClick={() => {
-                          setSendSearch("");
-                          setSendSearchLocked(false);
-                        }}
-                      >
-                        Buscar otro contacto
-                      </button>
                     </div>
                   ) : null}
                 </div>
