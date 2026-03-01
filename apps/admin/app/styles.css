@@ -1876,13 +1876,13 @@ textarea.input {
 
 .detail-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 6px;
 }
 
 .detail-item {
-  padding: 10px 12px;
+  padding: 8px 10px;
   border-radius: 12px;
   border: 1px solid var(--stroke);
   background: var(--surface-2);
@@ -1894,6 +1894,10 @@ textarea.input {
   grid-column: span 2;
 }
 
+.detail-span-3 {
+  grid-column: span 3;
+}
+
 .detail-label {
   font-size: 10px;
   text-transform: uppercase;
@@ -1902,7 +1906,7 @@ textarea.input {
 }
 
 .detail-value {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text);
   overflow-wrap: anywhere;
@@ -1920,6 +1924,15 @@ textarea.input {
   }
   .detail-span-2 {
     grid-column: auto;
+  }
+  .detail-span-3 {
+    grid-column: auto;
+  }
+  .hero-head {
+    grid-template-columns: 1fr;
+  }
+  .hero-subs-block {
+    min-width: 0;
   }
 }
 
@@ -2152,6 +2165,29 @@ textarea.input {
   gap: 6px;
 }
 
+.hero-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+}
+
+.hero-name-block {
+  display: grid;
+  gap: 6px;
+}
+
+.hero-subs-block {
+  display: grid;
+  align-content: center;
+  justify-items: flex-start;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: var(--surface-2);
+  min-width: 220px;
+}
+
 .hero-subs {
   display: grid;
   gap: 6px;
@@ -2170,6 +2206,82 @@ textarea.input {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+.tier-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tier-icon {
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tier-icon svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
+.tier-gold {
+  background: color-mix(in srgb, var(--status-warning) 22%, transparent);
+  color: var(--status-warning);
+  border-color: color-mix(in srgb, var(--status-warning) 45%, transparent);
+}
+
+.tier-silver {
+  background: color-mix(in srgb, var(--text-faint) 18%, transparent);
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--text-faint) 35%, transparent);
+}
+
+.tier-bronze {
+  background: color-mix(in srgb, #b8794a 20%, transparent);
+  color: #b8794a;
+  border-color: color-mix(in srgb, #b8794a 45%, transparent);
+}
+
+.tier-active {
+  background: color-mix(in srgb, var(--primary) 20%, transparent);
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 45%, transparent);
+}
+
+.tier-new {
+  background: color-mix(in srgb, var(--status-success) 18%, transparent);
+  color: var(--status-success);
+  border-color: color-mix(in srgb, var(--status-success) 40%, transparent);
+}
+
+.chart-donut {
+  display: grid;
+  place-items: center;
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.chart-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chart-legend i {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  display: inline-block;
 }
 
 .customer-hero-actions {

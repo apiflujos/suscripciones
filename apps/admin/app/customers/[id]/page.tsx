@@ -28,6 +28,52 @@ function statusPillClass(status: string) {
   return "pill-muted";
 }
 
+function tierForCustomer(approvedCount: number, hasSubscriptions: boolean, hasPayments: boolean) {
+  if (!hasSubscriptions && hasPayments) {
+    return { label: "Activo (links)", cls: "tier-active", icon: "link" };
+  }
+  if (approvedCount >= 6) return { label: "Oro", cls: "tier-gold", icon: "crown" };
+  if (approvedCount >= 3) return { label: "Plata", cls: "tier-silver", icon: "medal" };
+  if (approvedCount >= 1) return { label: "Bronce", cls: "tier-bronze", icon: "badge" };
+  return { label: "Nuevo", cls: "tier-new", icon: "spark" };
+}
+
+function tierIcon(type: string) {
+  if (type === "crown") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 18h18v3H3zM5 6l4 4 3-6 3 6 4-4 2 10H3z" />
+      </svg>
+    );
+  }
+  if (type === "medal") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M7 2h4l1 4-4 7-3-6zM13 2h4l2 5-3 6-4-7zM12 11a5 5 0 1 0 0 10 5 5 0 0 0 0-10z" />
+      </svg>
+    );
+  }
+  if (type === "badge") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 2l3 4 5 1-3 4 1 5-6-2-6 2 1-5-3-4 5-1z" />
+      </svg>
+    );
+  }
+  if (type === "link") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M10.5 13.5l3-3M7 17a4 4 0 0 1 0-6l3-3a4 4 0 0 1 6 6l-1 1" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 2l2.4 6.4L21 9l-5 4 1.8 6-5.8-3.6L6.2 19 8 13 3 9l6.6-.6z" />
+    </svg>
+  );
+}
+
 function logLevelLabel(level: string) {
   const upper = String(level || "").toUpperCase();
   if (!upper) return "—";
@@ -115,6 +161,56 @@ function MiniBars({ items }: { items: Array<{ label: string; value: number; colo
         );
       })}
       <line x1="0" y1={h - 0.5} x2={w} y2={h - 0.5} stroke="var(--chart-axis)" />
+    </svg>
+  );
+}
+
+function MiniDonut({
+  items,
+  totalLabel
+}: {
+  items: Array<{ label: string; value: number; color: string }>;
+  totalLabel: string;
+}) {
+  const total = items.reduce((acc, item) => acc + item.value, 0);
+  if (!total) return <div className="muted">Sin datos para graficar.</div>;
+  const size = 120;
+  const stroke = 14;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  let offset = 0;
+
+  return (
+    <svg viewBox={`0 0 ${size} ${size}`} style={{ width: "100%", height: 140 }}>
+      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="var(--chart-track)" strokeWidth={stroke} />
+      {items.map((item, idx) => {
+        if (!item.value) return null;
+        const dash = (item.value / total) * circumference;
+        const strokeDasharray = `${dash} ${circumference - dash}`;
+        const circle = (
+          <circle
+            key={item.label}
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke={item.color}
+            strokeWidth={stroke}
+            strokeDasharray={strokeDasharray}
+            strokeDashoffset={-offset}
+            strokeLinecap="round"
+            transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          />
+        );
+        offset += dash;
+        return circle;
+      })}
+      <text x="50%" y="48%" textAnchor="middle" fontSize="12" fill="var(--text-faint)">
+        {totalLabel}
+      </text>
+      <text x="50%" y="62%" textAnchor="middle" fontSize="16" fill="var(--text)" fontWeight="700">
+        {total}
+      </text>
     </svg>
   );
 }
@@ -268,39 +364,51 @@ export default async function CustomerDetailPage({
   const formatWindowLabel = (fromDate: Date, toDate: Date) =>
     `${fromDate.toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" })} - ${toDate.toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" })}`;
 
+  const tier = tierForCustomer(approvedPayments.length, subscriptions.length > 0, payments.length > 0);
+
   return (
     <main className="page">
       <section className="card cardPad customer-hero">
         <div className="customer-hero-meta">
-          <div className="contact-title">{customer.name || customer.email || customer.phone || "Contacto"}</div>
-          <div className="contact-subline">{customer.email || "—"} · {customer.phone || "—"}</div>
-          <div className="contact-subline">ID: <span className="mono">{customer.id}</span></div>
-          <div className="contact-tags">
-            {meta?.wompi?.paymentSourceId || meta?.wompi?.payment_source_id ? (
-              <span className="pill pill-ok pill-sm">Tokenizada</span>
-            ) : (
-              <span className="pill pill-bad pill-sm">Sin token</span>
-            )}
-            {activeSub ? (
-              <span className={`pill pill-sm ${statusPillClass(String(activeSub.status || ""))}`}>
-                {collectionLabel(String(activeSub?.plan?.collectionMode || activeSub?.plan?.metadata?.collectionMode || ""))} · {statusLabel(String(activeSub.status || ""))}
-              </span>
-            ) : (
-              <span className="pill pill-muted pill-sm">Sin suscripciones</span>
-            )}
-          </div>
-          <div className="hero-subs">
-            <span className="hero-subs-label">Suscripciones activas</span>
-            <div className="hero-subs-list">
-              {activeSubs.length ? (
-                activeSubs.slice(0, 3).map((s: any) => (
-                  <span key={s.id} className={`pill pill-sm ${statusPillClass(String(s.status || ""))}`}>
-                    {s.plan?.name || "Plan"} · {statusLabel(String(s.status || ""))}
+          <div className="hero-head">
+            <div className="hero-name-block">
+              <div className="contact-title">{customer.name || customer.email || customer.phone || "Contacto"}</div>
+              <div className="contact-subline">{customer.email || "—"} · {customer.phone || "—"}</div>
+              <div className="contact-subline">ID: <span className="mono">{customer.id}</span></div>
+              <div className="contact-tags">
+                {meta?.wompi?.paymentSourceId || meta?.wompi?.payment_source_id ? (
+                  <span className="pill pill-ok pill-sm">Tokenizada</span>
+                ) : (
+                  <span className="pill pill-bad pill-sm">Sin token</span>
+                )}
+                {activeSub ? (
+                  <span className={`pill pill-sm ${statusPillClass(String(activeSub.status || ""))}`}>
+                    {collectionLabel(String(activeSub?.plan?.collectionMode || activeSub?.plan?.metadata?.collectionMode || ""))} · {statusLabel(String(activeSub.status || ""))}
                   </span>
-                ))
-              ) : (
-                <span className="pill pill-muted pill-sm">Sin suscripciones activas</span>
-              )}
+                ) : (
+                  <span className="pill pill-muted pill-sm">Sin suscripciones</span>
+                )}
+                <span className={`pill pill-sm tier-badge ${tier.cls}`}>
+                  <span className="tier-icon" aria-hidden="true">
+                    {tierIcon(tier.icon)}
+                  </span>
+                  {tier.label}
+                </span>
+              </div>
+            </div>
+            <div className="hero-subs hero-subs-block">
+              <span className="hero-subs-label">Suscripciones activas</span>
+              <div className="hero-subs-list">
+                {activeSubs.length ? (
+                  activeSubs.slice(0, 3).map((s: any) => (
+                    <span key={s.id} className={`pill pill-sm ${statusPillClass(String(s.status || ""))}`}>
+                      {s.plan?.name || "Plan"} · {statusLabel(String(s.status || ""))}
+                    </span>
+                  ))
+                ) : (
+                  <span className="pill pill-muted pill-sm">Sin suscripciones activas</span>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -368,7 +476,7 @@ export default async function CustomerDetailPage({
               <span className="detail-label">Creado</span>
               <span className="detail-value"><LocalDateTime value={customer.createdAt} /></span>
             </div>
-            <div className="detail-item detail-span-2">
+            <div className="detail-item detail-span-3">
               <span className="detail-label">Dirección</span>
               <span className="detail-value">{addressDisplay || "—"}</span>
             </div>
@@ -430,19 +538,23 @@ export default async function CustomerDetailPage({
           <div className="chart-header">
             <div>
               <div className="chart-title">Estado de pagos</div>
-              <div className="chart-sub">Distribución de los últimos movimientos.</div>
+              <div className="chart-sub">Distribución del historial reciente.</div>
             </div>
           </div>
-          <MiniBars
-            items={[
-              { label: "Aprobados", value: approvedPayments.length, color: "var(--status-success)" },
-              { label: "Pendientes", value: pendingPayments.length, color: "var(--status-warning)" },
-              { label: "Fallidos", value: failedPayments.length, color: "var(--status-danger)" }
-            ]}
-          />
-          <div className="chart-kpis">
-            <span className="chart-kpi">Fallidos <strong>{failedPayments.length}</strong></span>
-            <span className="chart-kpi">Pendientes <strong>{pendingPayments.length}</strong></span>
+          <div className="chart-donut">
+            <MiniDonut
+              totalLabel="Pagos"
+              items={[
+                { label: "Aprobados", value: approvedPayments.length, color: "var(--status-success)" },
+                { label: "Pendientes", value: pendingPayments.length, color: "var(--status-warning)" },
+                { label: "Fallidos", value: failedPayments.length, color: "var(--status-danger)" }
+              ]}
+            />
+          </div>
+          <div className="chart-legend">
+            <span><i style={{ background: "var(--status-success)" }} />Aprobados {approvedPayments.length}</span>
+            <span><i style={{ background: "var(--status-warning)" }} />Pendientes {pendingPayments.length}</span>
+            <span><i style={{ background: "var(--status-danger)" }} />Fallidos {failedPayments.length}</span>
           </div>
         </div>
       </section>
