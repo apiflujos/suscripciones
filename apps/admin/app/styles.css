@@ -2965,7 +2965,7 @@ textarea.input {
   border: 1px solid var(--stroke);
   background: var(--surface-2);
   min-width: 160px;
-  min-height: 72px;
+  min-height: 78px;
   justify-items: start;
   text-align: left;
 }
@@ -3035,17 +3035,17 @@ textarea.input {
   display: inline-flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 14px;
+  padding: 10px 16px;
   border-radius: 14px;
   border: 1px solid var(--stroke);
   background: var(--surface-2);
-  min-height: 72px;
+  min-height: 78px;
 }
 
 .tier-badge-hero .tier-icon,
 .tier-badge-hero .tier-icon svg {
-  width: 46px;
-  height: 46px;
+  width: 56px;
+  height: 56px;
 }
 
 .tier-text {
@@ -3615,8 +3615,8 @@ textarea.input {
   position: absolute;
   left: 50%;
   top: auto;
-  bottom: calc(100% + 12px);
-  transform: translateX(-50%) translateY(-6px);
+  bottom: calc(100% + 10px);
+  transform: translateX(-50%);
   background: var(--panel);
   border: 1px solid var(--stroke);
   color: var(--text);
@@ -3630,13 +3630,13 @@ textarea.input {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease, transform 0.2s ease;
-  z-index: 60;
+  z-index: 80;
 }
 
 .customer-log-item:hover::after,
 .customer-log-item:focus-visible::after {
   opacity: 1;
-  transform: translateX(-50%) translateY(0);
+  transform: translateX(-50%) translateY(-2px);
 }
 
 .customer-log-item::before {
