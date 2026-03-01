@@ -54,6 +54,7 @@ export function CustomersTable({
   cartTemplates,
   products,
   checkoutTemplates,
+  checkoutConfig,
   tenants,
   createCustomer,
   createPlanAndSubscription,
@@ -67,6 +68,7 @@ export function CustomersTable({
   cartTemplates: Array<{ id: string; name: string }>;
   products: any[];
   checkoutTemplates: any[];
+  checkoutConfig?: any;
   tenants: Array<{ id: string; name: string }>;
   createCustomer: (formData: FormData) => Promise<void>;
   createPlanAndSubscription: (formData: FormData) => void | Promise<void>;
@@ -106,6 +108,12 @@ export function CustomersTable({
   const [tokenModalOpen, setTokenModalOpen] = useState(false);
   const [tokenModalCustomer, setTokenModalCustomer] = useState<CustomerRow | null>(null);
   const [clearingTokenId, setClearingTokenId] = useState<string | null>(null);
+  const planBaseUrl = String(checkoutConfig?.planBaseUrl || "").trim();
+  const subscriptionBaseUrl = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
+  const publicBaseUrl = String(checkoutConfig?.planBaseUrl || checkoutConfig?.subscriptionBaseUrl || "").trim();
+  const missingPlanBase = !planBaseUrl;
+  const missingSubBase = !subscriptionBaseUrl;
+  const missingPublicBase = !publicBaseUrl;
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -734,12 +742,17 @@ export function CustomersTable({
                   inputMode="numeric"
                   required
                 />
+                {missingPlanBase ? (
+                  <div className="field-hint" style={{ color: "var(--danger)" }}>
+                    Falta configurar la URL base de plan en Checkout público.
+                  </div>
+                ) : null}
               </div>
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
                 <button className="ghost btn-cancel" type="button" onClick={closePayModal} data-modal-close="true" data-loader="off">
                   Cancelar
                 </button>
-                <button className="primary btn-send" type="submit" disabled={!payAmount}>
+                <button className="primary btn-send" type="submit" disabled={!payAmount || missingPlanBase}>
                   Enviar
                 </button>
               </div>
@@ -858,12 +871,17 @@ export function CustomersTable({
                     No hay plantillas de catálogo para {cartModalMode === "PLAN" ? "planes" : "suscripciones"}.
                   </div>
                 ) : null}
+                {missingPublicBase ? (
+                  <div className="field-hint" style={{ color: "var(--danger)" }}>
+                    Falta configurar la URL pública base en Checkout público.
+                  </div>
+                ) : null}
               </div>
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
                 <button className="ghost btn-cancel" type="button" onClick={closeCartModal} data-modal-close="true" data-loader="off">
                   Cancelar
                 </button>
-                <button className="primary btn-send" type="submit">
+                <button className="primary btn-send" type="submit" disabled={missingPublicBase}>
                   Enviar
                 </button>
               </div>
@@ -958,12 +976,17 @@ export function CustomersTable({
                     No hay plantillas de suscripción configuradas.
                   </div>
                 ) : null}
+                {missingSubBase ? (
+                  <div className="field-hint" style={{ color: "var(--danger)" }}>
+                    Falta configurar la URL base de suscripción en Checkout público.
+                  </div>
+                ) : null}
               </div>
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
                 <button className="ghost btn-cancel" type="button" onClick={closeTokenModal} data-modal-close="true" data-loader="off">
                   Cancelar
                 </button>
-                <button className="primary btn-send" type="submit" disabled={!resolveTokenTemplate(tokenModalCustomer.id)}>
+                <button className="primary btn-send" type="submit" disabled={!resolveTokenTemplate(tokenModalCustomer.id) || missingSubBase}>
                   Enviar
                 </button>
               </div>

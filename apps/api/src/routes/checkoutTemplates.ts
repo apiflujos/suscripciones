@@ -78,7 +78,8 @@ checkoutTemplatesRouter.post("/", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   const data = parsed.data;
 
-  if ((String(data.kind) === "CART" && (!data.productIds || data.productIds.length === 0)) || (!data.allowProductSelect && (!data.productIds || data.productIds.length === 0))) {
+  const hasProducts = Array.isArray(data.productIds) && data.productIds.length > 0;
+  if (!data.allowProductSelect && !hasProducts) {
     return res.status(400).json({ error: "product_required" });
   }
   if (String(data.kind) === "CART" && data.productIds?.length) {
@@ -130,7 +131,8 @@ checkoutTemplatesRouter.put("/:id", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   const data = parsed.data;
 
-  if ((String(data.kind) === "CART" && (!data.productIds || data.productIds.length === 0)) || (!data.allowProductSelect && (!data.productIds || data.productIds.length === 0))) {
+  const hasProducts = Array.isArray(data.productIds) && data.productIds.length > 0;
+  if (!data.allowProductSelect && !hasProducts) {
     return res.status(400).json({ error: "product_required" });
   }
   if (String(data.kind) === "CART" && data.productIds?.length) {

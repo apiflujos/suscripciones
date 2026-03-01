@@ -102,6 +102,11 @@ async function fetchProducts(tenantId?: string) {
   return res.json || { items: [] as any[] };
 }
 
+async function fetchSettings() {
+  const res = await fetchAdminCached("/admin/settings", { ttlMs: 1500 });
+  return res.json || null;
+}
+
 async function fetchCheckoutTemplates(tenantId?: string) {
   const sp = new URLSearchParams();
   if (tenantId) sp.set("tenantId", tenantId);
@@ -178,12 +183,13 @@ export default async function CustomersPage({
     resolvedIds = ["__none__"];
   }
 
-  const [data, tenantsRes, txCustomer, productsRes, templatesRes] = await Promise.all([
+  const [data, tenantsRes, txCustomer, productsRes, templatesRes, settingsRes] = await Promise.all([
     fetchCustomers({ q, take, page, tenantId, ids: resolvedIds }),
     fetchAdminCached("/admin/tenants", { ttlMs: 1500 }),
     txCustomerId ? fetchCustomerById(txCustomerId) : Promise.resolve(null),
     fetchProducts(tenantId),
-    fetchCheckoutTemplates(tenantId)
+    fetchCheckoutTemplates(tenantId),
+    fetchSettings()
   ]);
   const items = (data.items ?? []) as any[];
   const total = Number.isFinite(Number((data as any)?.total)) ? Number((data as any).total) : items.length;
@@ -191,6 +197,7 @@ export default async function CustomersPage({
     items.unshift(txCustomer);
   }
   const tenants = (tenantsRes.json?.items ?? []) as Array<{ id: string; name: string }>;
+  const checkoutConfig = settingsRes?.checkoutConfig || {};
   const tenantById = new Map(tenants.map((t) => [String(t.id), String(t.name)]));
   const [latestLinks, subscriptionsByCustomer, cartTemplates] = await Promise.all([
     fetchPaymentLinks(q, tenantId),
@@ -337,6 +344,7 @@ export default async function CustomersPage({
             cartTemplates={cartTemplates}
             products={productsRes?.items ?? []}
             checkoutTemplates={templatesRes?.items ?? []}
+            checkoutConfig={checkoutConfig}
             tenants={tenants}
             createCustomer={createCustomer}
             createPlanAndSubscription={createPlanAndSubscription}

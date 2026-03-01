@@ -28,6 +28,7 @@ import { CheckoutTemplatesPanel } from "../checkout-templates/CheckoutTemplatesP
 import { createCheckoutTemplate, updateCheckoutTemplate, deleteCheckoutTemplate, duplicateCheckoutTemplate } from "../checkout-templates/actions";
 import { RedirectConfigPanel } from "./RedirectConfigPanel";
 import { createTenant, deleteTenant, updateTenant } from "../tenants/actions";
+import { updateCheckoutConfig } from "./actions";
 import { DeleteTenantButton } from "./DeleteTenantButton";
 
 export const dynamic = "force-dynamic";
@@ -532,6 +533,9 @@ export default async function SettingsPage({
             <RedirectConfigPanel
               defaults={settings?.checkoutConfig || {}}
               appPublicBaseUrl={appPublicBaseUrl}
+              csrfToken={csrfToken}
+              returnTo={`/settings?${new URLSearchParams({ tab: "checkout-publico" }).toString()}`}
+              onSave={updateCheckoutConfig}
             />
             <CheckoutTemplatesPanel
               templates={templates}
