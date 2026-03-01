@@ -193,7 +193,7 @@ export default async function CustomerDetailPage({
   logsTo.setDate(logsTo.getDate() - logsWindowDays * (logsPage - 1));
   const logsFrom = new Date();
   logsFrom.setDate(logsFrom.getDate() - logsWindowDays * logsPage);
-  const logsTake = 12;
+  const logsTake = 20;
   const [customerRes, paymentsRes, subscriptionsRes, logsRes, tenantsRes] = await Promise.all([
     fetchCustomer(id),
     fetchPayments(id),
@@ -332,64 +332,64 @@ export default async function CustomerDetailPage({
       <section className="grid2">
         <div className="card cardPad customer-section">
           <div className="contact-section-title">Información del cliente</div>
-          <div className="contact-person-grid">
-            <div>
-              <span>Email</span>
-              <span className="contact-value">{customer.email || "—"}</span>
+          <div className="detail-grid">
+            <div className="detail-item">
+              <span className="detail-label">Email</span>
+              <span className="detail-value">{customer.email || "—"}</span>
             </div>
-            <div>
-              <span>Teléfono</span>
-              <span className="contact-value">{customer.phone || "—"}</span>
+            <div className="detail-item">
+              <span className="detail-label">Teléfono</span>
+              <span className="detail-value">{customer.phone || "—"}</span>
             </div>
-            <div>
-              <span>Identificación</span>
-              <span className="contact-value">{meta?.identificacion || meta?.identificationNumber || meta?.documentNumber || "—"}</span>
+            <div className="detail-item">
+              <span className="detail-label">Identificación</span>
+              <span className="detail-value">{meta?.identificacion || meta?.identificationNumber || meta?.documentNumber || "—"}</span>
             </div>
-            <div>
-              <span>Canal</span>
-              <span className="contact-value">{tenantName || customer.tenantId || "—"}</span>
+            <div className="detail-item">
+              <span className="detail-label">Canal</span>
+              <span className="detail-value">{tenantName || customer.tenantId || "—"}</span>
             </div>
-            <div>
-              <span>Creado</span>
-              <span className="contact-value"><LocalDateTime value={customer.createdAt} /></span>
+            <div className="detail-item">
+              <span className="detail-label">Creado</span>
+              <span className="detail-value"><LocalDateTime value={customer.createdAt} /></span>
             </div>
-            <div>
-              <span>Dirección</span>
-              <span className="contact-value">{addressLabel || "—"}</span>
+            <div className="detail-item detail-span-2">
+              <span className="detail-label">Dirección</span>
+              <span className="detail-value">{addressDisplay || "—"}</span>
             </div>
           </div>
         </div>
 
         <div className="card cardPad customer-section">
           <div className="contact-section-title">Estado comercial</div>
-          <div className="contact-plan-grid">
-            <div>
-              <span>Plan activo</span>
-              <strong className="contact-value">{activeSub?.plan?.name || "Sin plan activo"}</strong>
+          <div className="detail-grid">
+            <div className="detail-item detail-span-2">
+              <span className="detail-label">Plan activo</span>
+              <span className="detail-value">{activeSub?.plan?.name || "Sin plan activo"}</span>
             </div>
-            <div>
-              <span>Tipo</span>
-              <strong className="contact-value">{activeSub ? collectionLabel(String(activeSub?.plan?.collectionMode || activeSub?.plan?.metadata?.collectionMode || "")) : "—"}</strong>
+            <div className="detail-item">
+              <span className="detail-label">Tipo</span>
+              <span className="detail-value">{activeSub ? collectionLabel(String(activeSub?.plan?.collectionMode || activeSub?.plan?.metadata?.collectionMode || "")) : "—"}</span>
             </div>
-            <div>
-              <span>Estado</span>
-              <strong className="contact-value">{activeSub ? statusLabel(String(activeSub.status || "")) : "—"}</strong>
+            <div className="detail-item">
+              <span className="detail-label">Estado</span>
+              <span className="detail-value">{activeSub ? statusLabel(String(activeSub.status || "")) : "—"}</span>
             </div>
-            <div>
-              <span>Último pago</span>
-              <strong className="contact-value">{lastPaymentAt ? <LocalDateTime value={lastPaymentAt} /> : "—"}</strong>
+            <div className="detail-item">
+              <span className="detail-label">Último pago</span>
+              <span className="detail-value">{lastPaymentAt ? <LocalDateTime value={lastPaymentAt} /> : "—"}</span>
             </div>
-            <div>
-              <span>Próximo corte</span>
-              <strong className="contact-value">{nextPeriodEnd ? <LocalDateTime value={nextPeriodEnd} /> : "—"}</strong>
+            <div className="detail-item">
+              <span className="detail-label">Próximo corte</span>
+              <span className="detail-value">{nextPeriodEnd ? <LocalDateTime value={nextPeriodEnd} /> : "—"}</span>
             </div>
-            <div>
-              <span>Método de pago</span>
-              <strong className="contact-value">{paymentSourceId ? "Tokenizado" : "Sin token"}</strong>
+            <div className="detail-item">
+              <span className="detail-label">Método de pago</span>
+              <span className="detail-value">{paymentSourceId ? "Tokenizado" : "Sin token"}</span>
             </div>
-            <div>
-              <span>ID token</span>
-              <strong className="contact-value mono">{paymentSourceId ? String(paymentSourceId) : "—"}</strong>
+            <div className="detail-item">
+              <span className="detail-label">ID token</span>
+              <span className="detail-value mono">{paymentSourceId ? String(paymentSourceId) : "—"}</span>
             </div>
           </div>
         </div>
@@ -437,6 +437,9 @@ export default async function CustomerDetailPage({
           <div className="contact-section-title">Suscripciones y planes</div>
           {subscriptions.length ? (
             <div className="table-scroll">
+              {subscriptions.length > 5 ? (
+                <div className="table-meta">Mostrando 5 de {subscriptions.length}</div>
+              ) : null}
               <table className="table">
                 <thead>
                   <tr>
@@ -447,7 +450,7 @@ export default async function CustomerDetailPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {subscriptions.map((s: any) => {
+                  {subscriptions.slice(0, 5).map((s: any) => {
                     const mode = String(s?.plan?.collectionMode || s?.plan?.metadata?.collectionMode || "MANUAL_LINK");
                     return (
                       <tr key={s.id}>
