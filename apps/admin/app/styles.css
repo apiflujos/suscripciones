@@ -2152,6 +2152,26 @@ textarea.input {
   gap: 6px;
 }
 
+.hero-subs {
+  display: grid;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.hero-subs-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  font-weight: 700;
+}
+
+.hero-subs-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .customer-hero-actions {
   display: inline-flex;
   gap: 8px;

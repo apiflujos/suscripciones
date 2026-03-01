@@ -233,6 +233,7 @@ export default async function CustomerDetailPage({
   const totalPaidCents = approvedPayments.reduce((acc, p) => acc + Number(p.amountInCents || 0), 0);
   const lastPayment = payments[0] || null;
   const activeSub = subscriptions.find((s) => s.status === "ACTIVE" || s.status === "PAST_DUE") || subscriptions[0] || null;
+  const activeSubs = subscriptions.filter((s) => s.status === "ACTIVE" || s.status === "PAST_DUE");
   const lastPaymentAt = lastPayment?.paidAt || lastPayment?.createdAt || null;
   const meta = customer?.metadata || {};
   const nextPeriodEnd = activeSub?.currentPeriodEndAt || null;
@@ -287,6 +288,20 @@ export default async function CustomerDetailPage({
             ) : (
               <span className="pill pill-muted pill-sm">Sin suscripciones</span>
             )}
+          </div>
+          <div className="hero-subs">
+            <span className="hero-subs-label">Suscripciones activas</span>
+            <div className="hero-subs-list">
+              {activeSubs.length ? (
+                activeSubs.slice(0, 3).map((s: any) => (
+                  <span key={s.id} className={`pill pill-sm ${statusPillClass(String(s.status || ""))}`}>
+                    {s.plan?.name || "Plan"} · {statusLabel(String(s.status || ""))}
+                  </span>
+                ))
+              ) : (
+                <span className="pill pill-muted pill-sm">Sin suscripciones activas</span>
+              )}
+            </div>
           </div>
         </div>
         <div className="customer-hero-actions">
