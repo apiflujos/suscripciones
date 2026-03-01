@@ -432,13 +432,33 @@ export default async function Home({
   const prevRevenueSeries = alignSeries(prevSeries.map((p) => Number(p?.revenueInCents ?? 0)), revenueSeries.length);
   const okSeries = series.map((p) => Number(p?.paymentsSuccess ?? 0));
   const failSeries = series.map((p) => Number(p?.paymentsFailed ?? 0));
+  const prevOkSeries = alignSeries(prevSeries.map((p) => Number(p?.paymentsSuccess ?? 0)), okSeries.length);
+  const prevFailSeries = alignSeries(prevSeries.map((p) => Number(p?.paymentsFailed ?? 0)), okSeries.length);
   const linksSent = series.map((p) => Number(p?.linksSent ?? 0));
   const linksPaid = series.map((p) => Number(p?.linksPaid ?? 0));
+  const prevLinksSent = alignSeries(prevSeries.map((p) => Number(p?.linksSent ?? 0)), linksSent.length);
+  const prevLinksPaid = alignSeries(prevSeries.map((p) => Number(p?.linksPaid ?? 0)), linksPaid.length);
   const activeSubs = series.map((p) => Number(p?.activeSubscriptions ?? 0));
   const prevActiveSubs = alignSeries(prevSeries.map((p) => Number(p?.activeSubscriptions ?? 0)), activeSubs.length);
   const mrrSeries = series.map((p) => (p?.mrrInCents == null ? null : Number(p.mrrInCents)));
   const prevMrrSeries = alignSeries(prevSeries.map((p) => Number(p?.mrrInCents ?? 0)), mrrSeries.length);
   const bucketLabels = series.map((p) => fmtBucketLabel(String(p?.at || ""), g));
+  const approvalRateSeries = okSeries.map((ok, i) => {
+    const total = ok + (failSeries[i] ?? 0);
+    return total > 0 ? (ok / total) * 100 : 0;
+  });
+  const prevApprovalRateSeries = prevOkSeries.map((ok, i) => {
+    const total = ok + (prevFailSeries[i] ?? 0);
+    return total > 0 ? (ok / total) * 100 : 0;
+  });
+  const linkConversionSeries = linksSent.map((sent, i) => {
+    const paid = linksPaid[i] ?? 0;
+    return sent > 0 ? (paid / sent) * 100 : 0;
+  });
+  const prevLinkConversionSeries = prevLinksSent.map((sent, i) => {
+    const paid = prevLinksPaid[i] ?? 0;
+    return sent > 0 ? (paid / sent) * 100 : 0;
+  });
 
   const totalRevenue = Number(metrics.json?.totals?.totalRevenueInCents || 0);
   const totalPaymentsOk = Number(metrics.json?.totals?.totalPaymentsSuccessful || 0);
@@ -473,6 +493,12 @@ export default async function Home({
   const activeEnd = activeSubs[activeSubs.length - 1] ?? 0;
   const activeDelta = activeEnd - activeStart;
   const activeDeltaPct = activeStart > 0 ? (activeDelta / activeStart) * 100 : null;
+  const approvalRateAvg = avg(approvalRateSeries);
+  const approvalRateLast = approvalRateSeries[approvalRateSeries.length - 1] ?? 0;
+  const approvalRateMax = Math.max(0, ...approvalRateSeries);
+  const linkConversionAvg = avg(linkConversionSeries);
+  const linkConversionLast = linkConversionSeries[linkConversionSeries.length - 1] ?? 0;
+  const linkConversionMax = Math.max(0, ...linkConversionSeries);
 
   const revenueLink = Number(metrics.json?.breakdown?.revenueByPlanTypeInCents?.manual_link || 0);
   const revenueAuto = Number(metrics.json?.breakdown?.revenueByPlanTypeInCents?.auto_subscription || 0);
@@ -534,6 +560,18 @@ export default async function Home({
           { label: "Periodo anterior", values: prevMrrSeries, color: "var(--chart-c)", dashed: true }
         ]
       : [{ label: "Actual", values: mrrSeries.map((v) => Number(v ?? 0)), color: "var(--chart-a)" }];
+  const approvalRateLineSeries = hasPrev
+    ? [
+        { label: "Actual", values: approvalRateSeries, color: "var(--chart-a)" },
+        { label: "Periodo anterior", values: prevApprovalRateSeries, dashed: true, color: "var(--chart-b)" }
+      ]
+    : [{ label: "Actual", values: approvalRateSeries, color: "var(--chart-a)" }];
+  const linkConversionLineSeries = hasPrev
+    ? [
+        { label: "Actual", values: linkConversionSeries, color: "var(--chart-c)" },
+        { label: "Periodo anterior", values: prevLinkConversionSeries, dashed: true, color: "var(--chart-b)" }
+      ]
+    : [{ label: "Actual", values: linkConversionSeries, color: "var(--chart-c)" }];
 
   return (
     <main className="page pageWide">
@@ -732,6 +770,48 @@ export default async function Home({
                     <span className="chart-kpi">Manual <strong>{fmtPct(revenueLinkPct)}</strong></span>
                     <span className="chart-kpi">Auto <strong>{fmtPct(revenueAutoPct)}</strong></span>
                     <span className="chart-kpi">Total <strong>${fmtMoneyCop(revenueByTypeTotal)} COP</strong></span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid2">
+                <div className="card cardPad chart-card">
+                  <div className="chart-header">
+                    <div>
+                      <div className="chart-title">Tasa de aprobación por período</div>
+                      <div className="chart-sub">Calidad de cobros por {periodLabel.toLowerCase()}.</div>
+                    </div>
+                    <div className="chart-range">{rangeLabel} · {periodLabel}</div>
+                  </div>
+                  <ChartLines
+                    series={approvalRateLineSeries}
+                    labels={bucketLabels}
+                    tooltipLabel={(v, i, label) => `${bucketLabels[i] || ""} · ${label}: ${fmtPct(v)}`}
+                  />
+                  <div className="chart-kpis">
+                    <span className="chart-kpi">Promedio <strong>{fmtPct(approvalRateAvg)}</strong></span>
+                    <span className="chart-kpi">Último <strong>{fmtPct(approvalRateLast)}</strong></span>
+                    <span className="chart-kpi">Máximo <strong>{fmtPct(approvalRateMax)}</strong></span>
+                  </div>
+                </div>
+
+                <div className="card cardPad chart-card">
+                  <div className="chart-header">
+                    <div>
+                      <div className="chart-title">Conversión de links por período</div>
+                      <div className="chart-sub">Eficiencia de links enviados.</div>
+                    </div>
+                    <div className="chart-range">{rangeLabel} · {periodLabel}</div>
+                  </div>
+                  <ChartLines
+                    series={linkConversionLineSeries}
+                    labels={bucketLabels}
+                    tooltipLabel={(v, i, label) => `${bucketLabels[i] || ""} · ${label}: ${fmtPct(v)}`}
+                  />
+                  <div className="chart-kpis">
+                    <span className="chart-kpi">Promedio <strong>{fmtPct(linkConversionAvg)}</strong></span>
+                    <span className="chart-kpi">Último <strong>{fmtPct(linkConversionLast)}</strong></span>
+                    <span className="chart-kpi">Máximo <strong>{fmtPct(linkConversionMax)}</strong></span>
                   </div>
                 </div>
               </div>

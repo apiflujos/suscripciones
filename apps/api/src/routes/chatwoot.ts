@@ -288,6 +288,19 @@ chatwootRouter.post("/conversations/:conversationId/custom-attributes", async (r
   res.json(out.raw);
 });
 
+chatwootRouter.get("/contacts/:contactId/conversations", async (req, res) => {
+  const contactId = Number(req.params.contactId);
+  if (!Number.isFinite(contactId)) return res.status(400).json({ error: "invalid_contact_id" });
+  const client = await getClientOrThrow().catch((err) => {
+    res.status(400).json({ error: err?.message || "chatwoot_not_configured" });
+    return null;
+  });
+  if (!client) return;
+
+  const out = await client.listContactConversations(contactId);
+  res.json(out.raw);
+});
+
 const listCustomAttrsSchema = z.object({
   model: z.enum(["contact", "conversation"])
 });

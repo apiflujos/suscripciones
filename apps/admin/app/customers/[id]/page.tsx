@@ -101,6 +101,13 @@ function collectionLabel(mode: string) {
   return "Plan";
 }
 
+function epochToIso(value: any) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return null;
+  const ms = num > 1_000_000_000_000 ? num : num * 1000;
+  return new Date(ms).toISOString();
+}
+
 function MiniLine({ values, formatValue }: { values: number[]; formatValue?: (value: number) => string }) {
   if (!values.length) return <div className="muted">Sin datos para graficar.</div>;
   const w = 260;
@@ -245,6 +252,10 @@ async function fetchTenants() {
   return fetchAdminCached("/admin/tenants", { ttlMs: 1500 });
 }
 
+async function fetchChatwootConversations(contactId: number) {
+  return fetchAdminCached(`/admin/chatwoot/contacts/${contactId}/conversations`, { ttlMs: 1500 });
+}
+
 async function geocodeAddress(address: string) {
   if (!address) return null;
   try {
@@ -338,11 +349,34 @@ export default async function CustomerDetailPage({
   const meta = customer?.metadata || {};
   const nextPeriodEnd = activeSub?.currentPeriodEndAt || null;
   const paymentSourceId = meta?.wompi?.paymentSourceId || meta?.wompi?.payment_source_id || null;
+  const chatwootContactId = Number(meta?.chatwoot?.contactId || 0);
 
   const amountSeries = payments
     .slice(0, 12)
     .reverse()
     .map((p) => Number(p.status === "APPROVED" ? p.amountInCents || 0 : 0));
+
+  const approvedSorted = approvedPayments
+    .map((p) => ({
+      ...p,
+      _at: new Date(p.paidAt || p.createdAt).getTime()
+    }))
+    .filter((p) => Number.isFinite(p._at))
+    .sort((a, b) => a._at - b._at);
+  const paymentIntervals = approvedSorted.slice(1).map((p, idx) => {
+    const prev = approvedSorted[idx];
+    return (p._at - prev._at) / (1000 * 60 * 60 * 24);
+  });
+  const avgDaysBetween = paymentIntervals.length
+    ? paymentIntervals.reduce((acc, v) => acc + v, 0) / paymentIntervals.length
+    : null;
+  const daysSinceLast = lastPaymentAt ? Math.floor((Date.now() - new Date(lastPaymentAt).getTime()) / (1000 * 60 * 60 * 24)) : null;
+  const avgTicket = approvedPayments.length ? Math.round(totalPaidCents / approvedPayments.length) : 0;
+  const approvedLast30 = approvedPayments.filter((p) => {
+    const at = new Date(p.paidAt || p.createdAt).getTime();
+    if (!Number.isFinite(at)) return false;
+    return at >= Date.now() - 30 * 24 * 60 * 60 * 1000;
+  }).length;
 
   const addressParts = [
     customer?.metadata?.address?.line1,
@@ -395,6 +429,27 @@ export default async function CustomerDetailPage({
     },
     { info: 0, warn: 0, error: 0 }
   );
+
+  const chatwootRes = chatwootContactId ? await fetchChatwootConversations(chatwootContactId) : null;
+  const chatwootConvos = chatwootRes?.ok && Array.isArray(chatwootRes.json?.payload) ? chatwootRes.json.payload : [];
+  const chatwootConvosSorted = [...chatwootConvos].sort((a, b) => {
+    const aT = Number(a?.last_activity_at || a?.updated_at || a?.created_at || 0);
+    const bT = Number(b?.last_activity_at || b?.updated_at || b?.created_at || 0);
+    return bT - aT;
+  });
+  const chatwootRecent = chatwootConvosSorted.slice(0, 5);
+  const chatwootStatusCounts = chatwootConvos.reduce(
+    (acc: { open: number; pending: number; resolved: number; snoozed: number }, c: any) => {
+      const st = String(c?.status || "").toLowerCase();
+      if (st === "resolved") acc.resolved += 1;
+      else if (st === "pending") acc.pending += 1;
+      else if (st === "snoozed") acc.snoozed += 1;
+      else acc.open += 1;
+      return acc;
+    },
+    { open: 0, pending: 0, resolved: 0, snoozed: 0 }
+  );
+  const chatwootLastActivity = chatwootConvosSorted[0]?.last_activity_at || chatwootConvosSorted[0]?.updated_at || null;
 
   return (
     <main className="page">
@@ -629,6 +684,100 @@ export default async function CustomerDetailPage({
             <span><i style={{ background: "var(--status-warning)" }} />Alertas {logCounts.warn}</span>
             <span><i style={{ background: "var(--status-danger)" }} />Errores {logCounts.error}</span>
           </div>
+        </div>
+      </section>
+
+      <section className="grid2">
+        <div className="card cardPad customer-section">
+          <div className="contact-section-title">KPIs comerciales</div>
+          <div className="summary-grid">
+            <div className="summary-item">
+              <span className="summary-label">LTV</span>
+              <span className="summary-value">{formatCopFromCents(totalPaidCents)}</span>
+            </div>
+            <div className="summary-item">
+              <span className="summary-label">Ticket promedio</span>
+              <span className="summary-value">{formatCopFromCents(avgTicket)}</span>
+            </div>
+            <div className="summary-item">
+              <span className="summary-label">Frecuencia pago</span>
+              <span className="summary-value">{avgDaysBetween == null ? "—" : `${Math.round(avgDaysBetween)} días`}</span>
+            </div>
+            <div className="summary-item">
+              <span className="summary-label">Recencia</span>
+              <span className="summary-value">{daysSinceLast == null ? "—" : `${daysSinceLast} días`}</span>
+            </div>
+            <div className="summary-item">
+              <span className="summary-label">Aprobados 30 días</span>
+              <span className="summary-value">{approvedLast30}</span>
+            </div>
+            <div className="summary-item">
+              <span className="summary-label">Total pagos</span>
+              <span className="summary-value">{payments.length}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="card cardPad customer-section">
+          <div className="contact-section-title">Chatwoot</div>
+          {!chatwootContactId ? (
+            <div className="muted">Sin contacto vinculado en Chatwoot.</div>
+          ) : (
+            <>
+              <div className="summary-grid">
+                <div className="summary-item">
+                  <span className="summary-label">Conversaciones</span>
+                  <span className="summary-value">{chatwootConvos.length}</span>
+                </div>
+                <div className="summary-item">
+                  <span className="summary-label">Abiertas</span>
+                  <span className="summary-value">{chatwootStatusCounts.open}</span>
+                </div>
+                <div className="summary-item">
+                  <span className="summary-label">Pendientes</span>
+                  <span className="summary-value">{chatwootStatusCounts.pending}</span>
+                </div>
+                <div className="summary-item">
+                  <span className="summary-label">Resueltas</span>
+                  <span className="summary-value">{chatwootStatusCounts.resolved}</span>
+                </div>
+                <div className="summary-item">
+                  <span className="summary-label">Snoozed</span>
+                  <span className="summary-value">{chatwootStatusCounts.snoozed}</span>
+                </div>
+                <div className="summary-item">
+                  <span className="summary-label">Última actividad</span>
+                  <span className="summary-value">{chatwootLastActivity ? <LocalDateTime value={epochToIso(chatwootLastActivity) || ""} /> : "—"}</span>
+                </div>
+              </div>
+              {chatwootRecent.length ? (
+                <div className="chatwoot-list">
+                  {chatwootRecent.map((c: any) => (
+                    <div key={c.id} className="chatwoot-item">
+                      <div className="chatwoot-item-title">
+                        Conversación #{c.id}
+                        <span className={`pill pill-sm ${c.status === "resolved" ? "pill-ok" : c.status === "pending" ? "pill-warn" : "pill-muted"}`}>
+                          {String(c.status || "open")}
+                        </span>
+                      </div>
+                      <div className="chatwoot-item-meta">
+                        <span>Inbox {c.inbox_id || "—"}</span>
+                        <span>Canal {c.inbox?.name || "—"}</span>
+                        <span>{c.last_activity_at ? <LocalDateTime value={epochToIso(c.last_activity_at) || ""} /> : "—"}</span>
+                      </div>
+                      {c.last_message?.content || c.messages?.[0]?.content ? (
+                        <div className="chatwoot-item-snippet">
+                          {String(c.last_message?.content || c.messages?.[0]?.content || "").slice(0, 140)}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="muted">Sin conversaciones recientes.</div>
+              )}
+            </>
+          )}
         </div>
       </section>
 

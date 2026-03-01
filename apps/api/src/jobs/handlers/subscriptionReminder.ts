@@ -386,13 +386,6 @@ export async function subscriptionReminder(payload: any) {
   if (parsed.data.immediateSend) {
     try {
       await sendChatwootMessage(created.id);
-      await systemLog(LogLevel.INFO, "notifications.dispatch", "Mensaje enviado", {
-        trigger: parsed.data.trigger,
-        ruleId: parsed.data.ruleId,
-        chatwootMessageId: created.id,
-        customerId: customer.id,
-        paymentId: effectivePayment?.id ?? null
-      }).catch(() => {});
     } catch (err: any) {
       await systemLog(LogLevel.WARN, "notifications.dispatch", "Mensaje fallido", {
         trigger: parsed.data.trigger,

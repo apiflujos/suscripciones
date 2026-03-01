@@ -142,15 +142,16 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
         paymentStatus: payment.status,
         anchorAt: anchorIso
       } as any;
-      await prisma.retryJob.create({
-        data: {
-          type: RetryJobType.SUBSCRIPTION_REMINDER,
-          runAt,
-          payload: jobPayload
-        }
-      });
-      scheduled++;
-      if (args.forceNow || runAt.getTime() <= now.getTime()) {
+      if (!args.forceNow && runAt.getTime() > now.getTime()) {
+        await prisma.retryJob.create({
+          data: {
+            type: RetryJobType.SUBSCRIPTION_REMINDER,
+            runAt,
+            payload: jobPayload
+          }
+        });
+        scheduled++;
+      } else {
         await subscriptionReminder(jobPayload).catch(() => {});
       }
     }
@@ -213,7 +214,7 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
         ...(payment.subscriptionId ? { subscriptionId: payment.subscriptionId } : {}),
         anchorAt: anchorIso
       } as any;
-      if (!args.forceNow) {
+      if (!args.forceNow && runAt.getTime() > now.getTime()) {
         await prisma.retryJob.create({
           data: {
             type: RetryJobType.SUBSCRIPTION_REMINDER,
@@ -222,9 +223,8 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
           }
         });
         scheduled++;
-      }
-      if (args.forceNow || runAt.getTime() <= now.getTime()) {
-        await subscriptionReminder({ ...jobPayload, immediateSend: true }).catch(() => {});
+      } else {
+        await subscriptionReminder(jobPayload).catch(() => {});
         sentNow++;
       }
     }
@@ -280,7 +280,7 @@ export async function scheduleCatalogLinkNotifications(args: { customerId: strin
         catalogUrl,
         anchorAt: anchorIso
       } as any;
-      if (!args.forceNow) {
+      if (!args.forceNow && runAt.getTime() > now.getTime()) {
         await prisma.retryJob.create({
           data: {
             type: RetryJobType.SUBSCRIPTION_REMINDER,
@@ -289,9 +289,8 @@ export async function scheduleCatalogLinkNotifications(args: { customerId: strin
           }
         });
         scheduled++;
-      }
-      if (args.forceNow || runAt.getTime() <= now.getTime()) {
-        await subscriptionReminder({ ...jobPayload, immediateSend: true }).catch(() => {});
+      } else {
+        await subscriptionReminder(jobPayload).catch(() => {});
         sentNow++;
       }
     }
@@ -347,7 +346,7 @@ export async function scheduleTokenizationLinkNotifications(args: { customerId: 
         tokenUrl,
         anchorAt: anchorIso
       } as any;
-      if (!args.forceNow) {
+      if (!args.forceNow && runAt.getTime() > now.getTime()) {
         await prisma.retryJob.create({
           data: {
             type: RetryJobType.SUBSCRIPTION_REMINDER,
@@ -356,9 +355,8 @@ export async function scheduleTokenizationLinkNotifications(args: { customerId: 
           }
         });
         scheduled++;
-      }
-      if (args.forceNow || runAt.getTime() <= now.getTime()) {
-        await subscriptionReminder({ ...jobPayload, immediateSend: true }).catch(() => {});
+      } else {
+        await subscriptionReminder(jobPayload).catch(() => {});
         sentNow++;
       }
     }

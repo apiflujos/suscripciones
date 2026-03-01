@@ -397,6 +397,14 @@ export class ChatwootClient {
     return { raw: res.json };
   }
 
+  async listContactConversations(contactId: number) {
+    const res = await this.request(`/api/v1/accounts/${this.opts.accountId}/contacts/${contactId}/conversations`, {
+      method: "GET"
+    });
+    if (!res.ok) throw new Error(`Chatwoot list contact conversations failed: ${res.status} ${JSON.stringify(res.json)}`);
+    return { raw: res.json };
+  }
+
   async sendMessage(conversationId: number, content: string) {
     const body = { content: this.formatChatwootText(content), message_type: "outgoing", content_type: "text" };
     const res = await this.request(

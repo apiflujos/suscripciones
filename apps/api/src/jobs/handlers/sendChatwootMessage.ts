@@ -23,11 +23,6 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
       chatwootMessageId,
       customerId: msg.customerId
     }).catch(() => {});
-    await systemLog(LogLevel.WARN, "notifications.dispatch", "Mensaje fallido", {
-      chatwootMessageId,
-      customerId: msg.customerId,
-      err: errorMessage
-    }).catch(() => {});
     return;
   }
 
@@ -40,11 +35,6 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
     await systemLog(LogLevel.WARN, "chatwoot.send", "Chatwoot no configurado", {
       chatwootMessageId,
       customerId: msg.customerId
-    }).catch(() => {});
-    await systemLog(LogLevel.WARN, "notifications.dispatch", "Mensaje fallido", {
-      chatwootMessageId,
-      customerId: msg.customerId,
-      err: "chatwoot not configured"
     }).catch(() => {});
     return;
   }
@@ -143,11 +133,6 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
       chatwootMessageId,
       customerId: msg.customerId
     }).catch(() => {});
-    await systemLog(LogLevel.WARN, "notifications.dispatch", "Mensaje fallido", {
-      chatwootMessageId,
-      customerId: msg.customerId,
-      err: "contact not found/created"
-    }).catch(() => {});
     return;
   }
 
@@ -202,11 +187,6 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
         customerId: msg.customerId,
         err: message
       }).catch(() => {});
-      await systemLog(LogLevel.WARN, "notifications.dispatch", "Mensaje fallido", {
-        chatwootMessageId,
-        customerId: msg.customerId,
-        err: message
-      }).catch(() => {});
       return;
     }
   }
@@ -239,11 +219,6 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
       customerId: msg.customerId,
       err: message
     }).catch(() => {});
-    await systemLog(LogLevel.WARN, "notifications.dispatch", "Mensaje fallido", {
-      chatwootMessageId,
-      customerId: msg.customerId,
-      err: message
-    }).catch(() => {});
     throw err;
   }
 
@@ -263,11 +238,6 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
   }
 
   await systemLog(LogLevel.INFO, "chatwoot.send", "Mensaje enviado", {
-    chatwootMessageId,
-    customerId: msg.customerId,
-    type: msg.type
-  }).catch(() => {});
-  await systemLog(LogLevel.INFO, "notifications.dispatch", "Mensaje enviado", {
     chatwootMessageId,
     customerId: msg.customerId,
     type: msg.type
