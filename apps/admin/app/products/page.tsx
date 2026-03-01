@@ -38,6 +38,7 @@ export default async function ProductsPage({
   const tenantId = typeof spParams.tenantId === "string" ? spParams.tenantId : "";
   const tenantCreated = typeof spParams.tenantCreated === "string" ? spParams.tenantCreated : "";
   const error = typeof spParams.error === "string" ? spParams.error : "";
+  const sent = typeof spParams.sent === "string" ? spParams.sent : "";
   const q = typeof spParams.q === "string" ? spParams.q : "";
   const page = typeof spParams.page === "string" ? Number(spParams.page) : 1;
   const returnTo = `/products?${new URLSearchParams({
@@ -74,6 +75,7 @@ export default async function ProductsPage({
       {updated ? <div className="card cardPad">Actualizado.</div> : null}
       {deleted ? <div className="card cardPad">Eliminado.</div> : null}
       {tenantCreated ? <div className="card cardPad">Canal creado.</div> : null}
+      {sent ? <div className="card cardPad">Mensaje enviado.</div> : null}
 
       <section className="settings-group">
         <div className="settings-group-header">

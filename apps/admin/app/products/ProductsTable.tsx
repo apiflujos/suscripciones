@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, useEffect } from "react";
-import { updateProduct } from "./actions";
+import { sendProductToCustomer, updateProduct } from "./actions";
 import { HelpTip } from "../ui/HelpTip";
 import { VariantsEditor } from "./VariantsEditor";
 import { LocalDateTime } from "../ui/LocalDateTime";
@@ -78,6 +78,14 @@ export function ProductsTable({
   const [txProduct, setTxProduct] = useState<ProductRow | null>(null);
   const [txItems, setTxItems] = useState<any[]>([]);
   const [txLoading, setTxLoading] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
+  const [sendProduct, setSendProduct] = useState<ProductRow | null>(null);
+  const [sendCustomerId, setSendCustomerId] = useState("");
+  const [sendIncludeLink, setSendIncludeLink] = useState(true);
+  const [sendIncludeImage, setSendIncludeImage] = useState(true);
+  const [sendMessage, setSendMessage] = useState("");
+  const [sendSearch, setSendSearch] = useState("");
+  const [messageDirty, setMessageDirty] = useState(false);
   const [txError, setTxError] = useState("");
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [planModalProduct, setPlanModalProduct] = useState<ProductRow | null>(null);
@@ -224,6 +232,69 @@ export function ProductsTable({
 
   const modalTitle = useMemo(() => (editing ? `Editar: ${editing.name}` : "Editar producto"), [editing]);
 
+  const filteredCustomers = useMemo(() => {
+    const q = sendSearch.trim().toLowerCase();
+    const list = Array.isArray(customers) ? customers : [];
+    if (!q) return list;
+    return list.filter((c: any) => {
+      const name = String(c?.name || "").toLowerCase();
+      const email = String(c?.email || "").toLowerCase();
+      const phone = String(c?.phone || "").toLowerCase();
+      return name.includes(q) || email.includes(q) || phone.includes(q);
+    });
+  }, [customers, sendSearch]);
+
+  const selectedCustomer = useMemo(
+    () => (Array.isArray(customers) ? customers.find((c: any) => String(c.id) === String(sendCustomerId)) : null),
+    [customers, sendCustomerId]
+  );
+
+  function buildSendTemplate(product: ProductRow, includeLink: boolean, includeImage: boolean) {
+    const lines: string[] = [];
+    lines.push("Hola {{cliente}} 👋");
+    lines.push("");
+    lines.push(`Te comparto ${product.kind === "SERVICE" ? "el servicio" : "el producto"} *{{producto}}*.`);
+    if (product.description) {
+      lines.push("");
+      lines.push("{{descripcion}}");
+    }
+    lines.push("");
+    lines.push("Precio: {{precio}}");
+    if (includeImage && product.imageUrl) {
+      lines.push("");
+      lines.push("Imagen: {{imagen}}");
+    }
+    if (includeLink) {
+      lines.push("");
+      lines.push("Puedes pagar de forma segura aquí:");
+      lines.push("{{link}}");
+    }
+    lines.push("");
+    lines.push("Quedo atento.");
+    return lines.join("\n");
+  }
+
+  function openSendModal(item: ProductRow) {
+    setSendProduct(item);
+    setSendOpen(true);
+    const includeImg = Boolean(item.imageUrl);
+    setSendIncludeImage(includeImg);
+    setSendIncludeLink(true);
+    setSendCustomerId("");
+    setSendSearch("");
+    setMessageDirty(false);
+    setSendMessage(buildSendTemplate(item, true, includeImg));
+  }
+
+  function closeSendModal() {
+    setSendOpen(false);
+    setSendProduct(null);
+    setSendCustomerId("");
+    setSendSearch("");
+    setSendMessage("");
+    setMessageDirty(false);
+  }
+
   function onImageFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -263,6 +334,9 @@ export function ProductsTable({
               <div style={{ display: "flex", gap: 8 }}>
                 <button className="ghost btn-compact btn-blue btn-view" type="button" data-modal="true" onClick={() => openTransactions(p)}>
                   🧾 Transacciones
+                </button>
+                <button className="ghost btn-compact btn-amber" type="button" data-modal="true" data-loader="off" onClick={() => openSendModal(p)}>
+                  📩 Enviar
                 </button>
                 <button className="ghost btn-compact btn-green btn-create" type="button" data-modal="true" onClick={() => openPlanModal(p)}>
                   Crear plan / suscripción
@@ -332,6 +406,126 @@ export function ProductsTable({
               createCustomer={createCustomer}
               createPlanAndSubscription={createPlanAndSubscription}
             />
+          </div>
+        </div>
+      ) : null}
+
+      {sendOpen && sendProduct ? (
+        <div className="modal-backdrop">
+          <div className="modal-panel" style={{ width: "min(980px, 96vw)" }}>
+            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <strong>Enviar producto</strong>
+              <button className="ghost modal-close" type="button" onClick={closeSendModal} aria-label="Cerrar" data-modal-close="true" data-loader="off">
+                X
+              </button>
+            </div>
+            <form action={sendProductToCustomer} className="send-product-grid">
+              <input type="hidden" name="csrf" value={csrfToken} />
+              <input type="hidden" name="productId" value={sendProduct.id} />
+              {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
+
+              <div className="send-product-left">
+                <div className="send-product-card">
+                  <div className="send-product-header">
+                    <div className="product-thumb">
+                      {sendProduct.imageUrl ? <img src={sendProduct.imageUrl} alt={sendProduct.name} /> : <span>📦</span>}
+                    </div>
+                    <div>
+                      <div className="send-product-name">{sendProduct.name}</div>
+                      <div className="send-product-meta">
+                        <span>{sendProduct.kind === "SERVICE" ? "Servicio" : "Producto"}</span>
+                        <span>·</span>
+                        <span>{formatCopFromCents(sendProduct.basePriceInCents)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="field">
+                  <label>Buscar contacto</label>
+                  <input
+                    className="input"
+                    placeholder="Nombre, email o teléfono"
+                    value={sendSearch}
+                    onChange={(e) => setSendSearch(e.target.value)}
+                  />
+                </div>
+
+                <div className="field">
+                  <label>Contacto destino</label>
+                  <select className="select" name="customerId" value={sendCustomerId} onChange={(e) => setSendCustomerId(e.target.value)}>
+                    <option value="">Selecciona un contacto…</option>
+                    {filteredCustomers.map((c: any) => (
+                      <option key={c.id} value={c.id}>
+                        {(c.name || c.email || c.phone || "Contacto").toString()}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedCustomer ? (
+                    <div className="field-hint">
+                      {selectedCustomer.email ? <span>{selectedCustomer.email}</span> : null}
+                      {selectedCustomer.phone ? <span>{selectedCustomer.email ? " · " : ""}{selectedCustomer.phone}</span> : null}
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="field">
+                  <label style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                    <span>Opciones</span>
+                    <label className="check-pill">
+                      <input
+                        type="checkbox"
+                        name="includePaymentLink"
+                        checked={sendIncludeLink}
+                        onChange={(e) => {
+                          const next = e.target.checked;
+                          setSendIncludeLink(next);
+                          if (!messageDirty && sendProduct) setSendMessage(buildSendTemplate(sendProduct, next, sendIncludeImage));
+                        }}
+                      />
+                      <span>Incluir link de pago</span>
+                    </label>
+                    <label className="check-pill">
+                      <input
+                        type="checkbox"
+                        name="includeImage"
+                        checked={sendIncludeImage}
+                        disabled={!sendProduct.imageUrl}
+                        onChange={(e) => {
+                          const next = e.target.checked;
+                          setSendIncludeImage(next);
+                          if (!messageDirty && sendProduct) setSendMessage(buildSendTemplate(sendProduct, sendIncludeLink, next));
+                        }}
+                      />
+                      <span>Agregar imagen</span>
+                    </label>
+                  </label>
+                  <div className="field-hint">La imagen se envía como previsualización del enlace del producto.</div>
+                </div>
+              </div>
+
+              <div className="send-product-right">
+                <div className="field">
+                  <label>Mensaje para WhatsApp</label>
+                  <textarea
+                    className="input"
+                    name="message"
+                    rows={12}
+                    value={sendMessage}
+                    onChange={(e) => {
+                      setSendMessage(e.target.value);
+                      setMessageDirty(true);
+                    }}
+                  />
+                  <div className="field-hint">
+                    Variables disponibles: <strong>{{`{{cliente}}`}}</strong>, <strong>{{`{{producto}}`}}</strong>, <strong>{{`{{precio}}`}}</strong>, <strong>{{`{{descripcion}}`}}</strong>, <strong>{{`{{imagen}}`}}</strong>, <strong>{{`{{link}}`}}</strong>.
+                  </div>
+                </div>
+                <button className="primary" type="submit" disabled={!sendCustomerId || !sendMessage.trim()}>
+                  📤 Enviar mensaje
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       ) : null}

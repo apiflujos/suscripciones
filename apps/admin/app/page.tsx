@@ -1020,7 +1020,7 @@ export default async function Home({
                           { label: "Alertas", values: opsSeries.map((p) => Number(p?.logs?.warn || 0)), color: "var(--status-warning)", dashed: true }
                         ]}
                         labels={opsLabels}
-                        tooltipLabel={(v, i, label) => `${opsLabels[i] || \"\"} · ${label}: ${v}`}
+                        tooltipLabel={(v, i, label) => `${opsLabels[i] || ""} · ${label}: ${v}`}
                       />
                       <div className="chart-kpis">
                         <span className="chart-kpi">Errores <strong>{opsTotals?.logs?.error ?? 0}</strong></span>

@@ -75,6 +75,44 @@ function computeTotalInCents(args: {
   return { subtotalInCents: subtotal, taxInCents: tax, totalInCents: subtotal + tax };
 }
 
+function formatCurrency(amountInCents: number, currency: string) {
+  const code = currency || "COP";
+  const amount = Math.trunc(Number(amountInCents || 0) / 100);
+  if (!Number.isFinite(amount)) return "";
+  return new Intl.NumberFormat("es-CO", { style: "currency", currency: code, maximumFractionDigits: 0 }).format(amount);
+}
+
+function normalizeMessage(input: string) {
+  const lines = String(input || "")
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((line) => line.replace(/[ \t]+/g, " "));
+  const out: string[] = [];
+  for (const line of lines) {
+    if (!line.trim()) {
+      if (out.length && out[out.length - 1] !== "") out.push("");
+      continue;
+    }
+    out.push(line.trimEnd());
+  }
+  return out.join("\n").trim();
+}
+
+function renderTemplate(template: string, data: Record<string, string>) {
+  let out = String(template || "");
+  for (const [key, value] of Object.entries(data)) {
+    out = out.replaceAll(`{{${key}}}`, value || "");
+  }
+  return normalizeMessage(out);
+}
+
+function buildOrderReference(product: { sku?: string | null; id: string }) {
+  const sku = String(product.sku || "").replace(/[^a-zA-Z0-9_-]/g, "");
+  const base = sku || String(product.id || "").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 8);
+  const stamp = Date.now();
+  return `PROD_${base}_${stamp}`.slice(0, 50);
+}
+
 export async function createProduct(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);
@@ -235,6 +273,107 @@ export async function updateProduct(formData: FormData) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
     redirect(mergeQuery(returnTo, { error: String(err?.message || "update_product_failed"), ...(tenantId ? { tenantId } : {}) }));
   }
+}
+
+export async function sendProductToCustomer(formData: FormData) {
+  await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
+  const productId = String(formData.get("productId") || "").trim();
+  const customerId = String(formData.get("customerId") || "").trim();
+  const includePaymentLink = String(formData.get("includePaymentLink") || "") === "on";
+  const includeImage = String(formData.get("includeImage") || "") === "on";
+  const messageTemplate = String(formData.get("message") || "").trim();
+
+  if (!productId || !customerId) {
+    return redirect(mergeQuery(returnTo, { error: "missing_product_or_customer" }));
+  }
+
+  let product: any = null;
+  let customer: any = null;
+  try {
+    const productRes = await adminFetch(`/admin/products/${encodeURIComponent(productId)}`, { method: "GET" });
+    product = productRes?.item || null;
+  } catch (err: any) {
+    return redirect(mergeQuery(returnTo, { error: String(err?.message || "product_fetch_failed") }));
+  }
+
+  try {
+    const customerRes = await adminFetch(`/admin/customers/${encodeURIComponent(customerId)}`, { method: "GET" });
+    customer = customerRes?.customer || null;
+  } catch (err: any) {
+    return redirect(mergeQuery(returnTo, { error: String(err?.message || "customer_fetch_failed") }));
+  }
+
+  if (!product || !customer) {
+    return redirect(mergeQuery(returnTo, { error: "product_or_customer_not_found" }));
+  }
+
+  const totals = computeTotalInCents({
+    basePriceInCents: Number(product.basePriceInCents || 0),
+    variantDeltaInCents: 0,
+    discountType: product.discountType,
+    discountValueInCents: Number(product.discountValueInCents || 0),
+    discountPercent: Number(product.discountPercent || 0),
+    taxPercent: Number(product.taxPercent || 0)
+  });
+
+  let checkoutUrl = "";
+  if (includePaymentLink) {
+    try {
+      const orderRes = await adminFetch("/admin/orders", {
+        method: "POST",
+        body: JSON.stringify({
+          customerId,
+          reference: buildOrderReference(product),
+          currency: String(product.currency || "COP"),
+          discountType: product.discountType || "NONE",
+          discountValueInCents: Number(product.discountValueInCents || 0),
+          discountPercent: Number(product.discountPercent || 0),
+          taxPercent: Number(product.taxPercent || 0),
+          lineItems: [
+            {
+              sku: product.sku || undefined,
+              name: product.name || "Producto",
+              quantity: 1,
+              unitPriceInCents: Number(product.basePriceInCents || 0)
+            }
+          ],
+          sendChatwoot: false
+        })
+      });
+      checkoutUrl = String(orderRes?.checkoutUrl || "");
+    } catch (err: any) {
+      return redirect(mergeQuery(returnTo, { error: String(err?.message || "order_create_failed") }));
+    }
+  }
+
+  const customerName = String(customer?.name || customer?.email || customer?.phone || "Cliente").trim();
+  const description = String(product.description || "").trim();
+  const message = renderTemplate(messageTemplate, {
+    cliente: customerName,
+    producto: String(product.name || "Producto"),
+    precio: formatCurrency(totals.totalInCents, String(product.currency || "COP")),
+    descripcion: description,
+    imagen: includeImage ? String(product.imageUrl || "") : "",
+    link: includePaymentLink ? checkoutUrl : ""
+  });
+
+  if (!message) return redirect(mergeQuery(returnTo, { error: "empty_message" }));
+
+  try {
+    await adminFetch("/admin/chatwoot/messages", {
+      method: "POST",
+      body: JSON.stringify({
+        customerId,
+        content: message,
+        type: "PAYMENT_LINK"
+      })
+    });
+  } catch (err: any) {
+    return redirect(mergeQuery(returnTo, { error: String(err?.message || "chatwoot_send_failed") }));
+  }
+
+  redirect(mergeQuery(returnTo, { sent: "1" }));
 }
 
 export async function deleteProduct(formData: FormData) {

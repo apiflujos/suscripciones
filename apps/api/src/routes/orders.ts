@@ -181,11 +181,14 @@ ordersRouter.post("/", async (req, res) => {
     }
   });
 
-  const scheduledInfo = await schedulePaymentLinkNotifications({ paymentId: updated.id, forceNow: true }).catch(() => ({
-    scheduled: 0,
-    sentNow: 0,
-    rulesActive: false
-  }));
+  const scheduledInfo =
+    parsed.data.sendChatwoot === false
+      ? { scheduled: 0, sentNow: 0, rulesActive: false }
+      : await schedulePaymentLinkNotifications({ paymentId: updated.id, forceNow: true }).catch(() => ({
+          scheduled: 0,
+          sentNow: 0,
+          rulesActive: false
+        }));
 
   res.status(201).json({
     payment: updated,
