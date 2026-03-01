@@ -3,11 +3,12 @@ import { getAdminApiConfig } from "../../../../lib/adminApi";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../../../../lib/session";
 
-type RouteContext = { params: Record<string, string | string[]> };
+type RouteContext = { params: Promise<{ scope: string }> };
 
-const getParam = (params: RouteContext["params"], key: string) => {
-  const raw = params?.[key];
-  return String(Array.isArray(raw) ? raw[0] : raw || "").trim();
+const getParam = async (paramsPromise: RouteContext["params"], key: "scope") => {
+  const params = await paramsPromise;
+  const raw = params?.[key] || "";
+  return String(raw).trim();
 };
 
 async function getSessionEmail() {
@@ -19,7 +20,7 @@ async function getSessionEmail() {
 
 export async function GET(req: Request, ctx: RouteContext) {
   const { apiBase, token } = getAdminApiConfig();
-  const scope = getParam(ctx.params, "scope");
+  const scope = await getParam(ctx.params, "scope");
   const email = await getSessionEmail();
   const url = new URL(req.url);
   const field = url.searchParams.get("field") || "";

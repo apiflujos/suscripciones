@@ -3,11 +3,12 @@ import { getAdminApiConfig } from "../../../../lib/adminApi";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../../../../lib/session";
 
-type RouteContext = { params: Record<string, string | string[]> };
+type RouteContext = { params: Promise<{ scope: string; id: string }> };
 
-const getParam = (params: RouteContext["params"], key: string) => {
-  const raw = params?.[key];
-  return String(Array.isArray(raw) ? raw[0] : raw || "").trim();
+const getParam = async (paramsPromise: RouteContext["params"], key: "scope" | "id") => {
+  const params = await paramsPromise;
+  const raw = params?.[key] || "";
+  return String(raw).trim();
 };
 
 async function getSessionEmail() {
@@ -19,8 +20,8 @@ async function getSessionEmail() {
 
 export async function DELETE(_: Request, ctx: RouteContext) {
   const { apiBase, token } = getAdminApiConfig();
-  const scope = getParam(ctx.params, "scope");
-  const id = getParam(ctx.params, "id");
+  const scope = await getParam(ctx.params, "scope");
+  const id = await getParam(ctx.params, "id");
   const email = await getSessionEmail();
   const res = await fetch(`${apiBase}/admin/smart-views/${encodeURIComponent(scope)}/${encodeURIComponent(id)}`, {
     method: "DELETE",
@@ -32,8 +33,8 @@ export async function DELETE(_: Request, ctx: RouteContext) {
 
 export async function PUT(req: Request, ctx: RouteContext) {
   const { apiBase, token } = getAdminApiConfig();
-  const scope = getParam(ctx.params, "scope");
-  const id = getParam(ctx.params, "id");
+  const scope = await getParam(ctx.params, "scope");
+  const id = await getParam(ctx.params, "id");
   const email = await getSessionEmail();
   const body = await req.json().catch(() => ({}));
   const res = await fetch(`${apiBase}/admin/smart-views/${encodeURIComponent(scope)}/${encodeURIComponent(id)}`, {
