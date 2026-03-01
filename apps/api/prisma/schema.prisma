@@ -91,6 +91,8 @@ enum CredentialProvider {
   WOMPI
   CHATWOOT
   SHOPIFY
+  OPENAI
+  DEEPSEEK
 }
 
 enum RetryJobType {

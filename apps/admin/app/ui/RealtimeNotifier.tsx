@@ -19,7 +19,7 @@ type RealtimeStatus = "connecting" | "connected" | "disconnected";
 
 const STORAGE_KEY = "apiflujos-realtime-last";
 
-export function RealtimeNotifier({ onPaymentApproved }: { onPaymentApproved?: (payload: RealtimeEvent) => void } = {}) {
+export function RealtimeNotifier() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [status, setStatus] = useState<RealtimeStatus>("connecting");
   const lastSeenRef = useRef<string>("");
@@ -185,9 +185,9 @@ export function RealtimeNotifier({ onPaymentApproved }: { onPaymentApproved?: (p
         for (const e of freshEvents) {
           if (e.sound === "cash") {
             shouldPlayCash = true;
-            if (onPaymentApproved) {
-              onPaymentApproved(e);
-            }
+            try {
+              window.dispatchEvent(new CustomEvent("apiflujos:payment-approved", { detail: e }));
+            } catch {}
           }
           if (e.sound === "fail") shouldPlayFail = true;
         }

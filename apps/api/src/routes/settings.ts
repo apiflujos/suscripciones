@@ -58,6 +58,23 @@ const chatwootUpdateSchema = z.object({
   productTemplateLang: z.string().optional().or(z.literal(""))
 });
 
+const aiProviderSchema = z.enum(["OPENAI", "DEEPSEEK"]);
+const aiActiveProviderSchema = z.enum(["OPENAI", "DEEPSEEK", "NONE"]);
+const aiUpdateSchema = z.object({
+  provider: aiProviderSchema,
+  activeProvider: aiActiveProviderSchema.optional(),
+  apiKey: z.string().optional().or(z.literal("")),
+  baseUrl: z.string().url().optional().or(z.literal("")),
+  model: z.string().optional().or(z.literal("")),
+  maxTokens: z.coerce.number().int().positive().optional(),
+  temperature: z.coerce.number().min(0).max(2).optional(),
+  timeoutMs: z.coerce.number().int().positive().optional()
+});
+
+const aiDeleteSchema = z.object({
+  provider: aiProviderSchema
+});
+
 const checkoutConfigUpdateSchema = z.object({
   planBaseUrl: z.string().url().optional().or(z.literal("")),
   subscriptionBaseUrl: z.string().url().optional().or(z.literal("")),
@@ -93,7 +110,7 @@ settingsRouter.get("/", async (_req, res) => {
     encryptionKeyValid = buf.length === 32;
   }
 
-  const [wompiCreds, shopifyCreds, commsCreds, checkoutConfigRaw] = await Promise.all([
+  const [wompiCreds, shopifyCreds, commsCreds, checkoutConfigRaw, openAiCreds, deepseekCreds] = await Promise.all([
     getCredentialsBulk(CredentialProvider.WOMPI, [
       "ACTIVE_ENV",
       "PUBLIC_KEY",
@@ -140,7 +157,24 @@ settingsRouter.get("/", async (_req, res) => {
       "PRODUCT_TEMPLATE_NAME_SANDBOX",
       "PRODUCT_TEMPLATE_LANG_SANDBOX"
     ]),
-    getCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG")
+    getCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG"),
+    getCredentialsBulk(CredentialProvider.OPENAI, [
+      "API_KEY",
+      "BASE_URL",
+      "MODEL",
+      "MAX_TOKENS",
+      "TEMPERATURE",
+      "TIMEOUT_MS",
+      "ACTIVE_PROVIDER"
+    ]),
+    getCredentialsBulk(CredentialProvider.DEEPSEEK, [
+      "API_KEY",
+      "BASE_URL",
+      "MODEL",
+      "MAX_TOKENS",
+      "TEMPERATURE",
+      "TIMEOUT_MS"
+    ])
   ]);
 
   const wompiActiveEnv = (() => {
@@ -211,6 +245,46 @@ settingsRouter.get("/", async (_req, res) => {
     productTemplateLang: getComms("PRODUCT_TEMPLATE_LANG", "SANDBOX") ?? null
   };
 
+  const toInt = (value: string | undefined) => {
+    if (value == null) return null;
+    const num = Number(value);
+    return Number.isFinite(num) ? Math.trunc(num) : null;
+  };
+
+  const toFloat = (value: string | undefined) => {
+    if (value == null) return null;
+    const num = Number(value);
+    return Number.isFinite(num) ? num : null;
+  };
+
+  const aiActiveProvider = (() => {
+    const raw = String(openAiCreds.get("ACTIVE_PROVIDER") || "")
+      .trim()
+      .toUpperCase();
+    if (raw === "OPENAI" || raw === "DEEPSEEK") return raw;
+    return "NONE";
+  })() as "OPENAI" | "DEEPSEEK" | "NONE";
+
+  const aiOpenAi = {
+    configured: !!openAiCreds.get("API_KEY"),
+    apiKeyMasked: maskSecret(openAiCreds.get("API_KEY") || undefined),
+    baseUrl: openAiCreds.get("BASE_URL") ?? null,
+    model: openAiCreds.get("MODEL") ?? null,
+    maxTokens: toInt(openAiCreds.get("MAX_TOKENS") || undefined),
+    temperature: toFloat(openAiCreds.get("TEMPERATURE") || undefined),
+    timeoutMs: toInt(openAiCreds.get("TIMEOUT_MS") || undefined)
+  };
+
+  const aiDeepseek = {
+    configured: !!deepseekCreds.get("API_KEY"),
+    apiKeyMasked: maskSecret(deepseekCreds.get("API_KEY") || undefined),
+    baseUrl: deepseekCreds.get("BASE_URL") ?? null,
+    model: deepseekCreds.get("MODEL") ?? null,
+    maxTokens: toInt(deepseekCreds.get("MAX_TOKENS") || undefined),
+    temperature: toFloat(deepseekCreds.get("TEMPERATURE") || undefined),
+    timeoutMs: toInt(deepseekCreds.get("TIMEOUT_MS") || undefined)
+  };
+
   let checkoutConfig: any = {};
   try {
     checkoutConfig = checkoutConfigRaw ? JSON.parse(checkoutConfigRaw) : {};
@@ -239,6 +313,13 @@ settingsRouter.get("/", async (_req, res) => {
       activeEnv: chatwootActiveEnv,
       production: commsProd,
       sandbox: commsSandbox
+    },
+    ai: {
+      activeProvider: aiActiveProvider,
+      providers: {
+        openai: aiOpenAi,
+        deepseek: aiDeepseek
+      }
     },
     // Back-compat: keep the old name pointing to the active environment.
     chatwoot: {
@@ -473,5 +554,61 @@ settingsRouter.delete("/chatwoot", async (req, res) => {
   }
 
   await systemLog(LogLevel.INFO, "configuracion.comunicaciones", "Credenciales de la central de comunicaciones eliminadas").catch(() => {});
+  res.json({ ok: true });
+});
+
+settingsRouter.put("/ai", async (req, res) => {
+  const parsed = aiUpdateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+
+  const provider = parsed.data.provider;
+  const credentialProvider = provider === "DEEPSEEK" ? CredentialProvider.DEEPSEEK : CredentialProvider.OPENAI;
+
+  try {
+    if (parsed.data.activeProvider) {
+      await setCredential(CredentialProvider.OPENAI, "ACTIVE_PROVIDER", parsed.data.activeProvider);
+    }
+    if (parsed.data.apiKey != null) await setCredential(credentialProvider, "API_KEY", parsed.data.apiKey);
+    if (parsed.data.baseUrl != null) await setCredential(credentialProvider, "BASE_URL", parsed.data.baseUrl);
+    if (parsed.data.model != null) await setCredential(credentialProvider, "MODEL", parsed.data.model);
+    if (parsed.data.maxTokens != null) await setCredential(credentialProvider, "MAX_TOKENS", String(parsed.data.maxTokens));
+    if (parsed.data.temperature != null) await setCredential(credentialProvider, "TEMPERATURE", String(parsed.data.temperature));
+    if (parsed.data.timeoutMs != null) await setCredential(credentialProvider, "TIMEOUT_MS", String(parsed.data.timeoutMs));
+  } catch (err: any) {
+    return res.status(400).json({ error: "credentials_error", message: String(err?.message || err) });
+  }
+
+  await systemLog(LogLevel.INFO, "configuracion.ia", "Configuración de IA actualizada", { provider }).catch(() => {});
+  res.json({ ok: true });
+});
+
+settingsRouter.delete("/ai", async (req, res) => {
+  const parsed = aiDeleteSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+
+  const provider = parsed.data.provider;
+  const credentialProvider = provider === "DEEPSEEK" ? CredentialProvider.DEEPSEEK : CredentialProvider.OPENAI;
+
+  try {
+    await Promise.all([
+      clearCredential(credentialProvider, "API_KEY"),
+      clearCredential(credentialProvider, "BASE_URL"),
+      clearCredential(credentialProvider, "MODEL"),
+      clearCredential(credentialProvider, "MAX_TOKENS"),
+      clearCredential(credentialProvider, "TEMPERATURE"),
+      clearCredential(credentialProvider, "TIMEOUT_MS")
+    ]);
+
+    const activeProviderRaw = String((await getCredential(CredentialProvider.OPENAI, "ACTIVE_PROVIDER")) || "")
+      .trim()
+      .toUpperCase();
+    if (activeProviderRaw === provider) {
+      await setCredential(CredentialProvider.OPENAI, "ACTIVE_PROVIDER", "NONE");
+    }
+  } catch (err: any) {
+    return res.status(400).json({ error: "credentials_error", message: String(err?.message || err) });
+  }
+
+  await systemLog(LogLevel.INFO, "configuracion.ia", "Configuración de IA eliminada", { provider }).catch(() => {});
   res.json({ ok: true });
 });

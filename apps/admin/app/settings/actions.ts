@@ -228,6 +228,62 @@ export async function updateChatwoot(formData: FormData) {
   }
 }
 
+export async function updateAiProvider(formData: FormData) {
+  await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
+  const provider = String(formData.get("provider") || "").trim().toUpperCase();
+  const activeProvider = String(formData.get("activeProvider") || "").trim().toUpperCase();
+  const apiKey = String(formData.get("apiKey") || "").trim();
+  const baseUrlRaw = String(formData.get("baseUrl") || "").trim();
+  const baseUrl = baseUrlRaw ? normalizeUrl(baseUrlRaw) : "";
+  const model = String(formData.get("model") || "").trim();
+  const maxTokensRaw = String(formData.get("maxTokens") || "").trim();
+  const temperatureRaw = String(formData.get("temperature") || "").trim();
+  const timeoutMsRaw = String(formData.get("timeoutMs") || "").trim();
+
+  if (!provider) {
+    redirectWith("ai_save", "fail", "provider_required", returnTo);
+    return;
+  }
+
+  try {
+    await adminFetch("/admin/settings/ai", {
+      method: "PUT",
+      body: JSON.stringify({
+        provider,
+        ...(activeProvider ? { activeProvider } : {}),
+        ...(apiKey ? { apiKey } : {}),
+        ...(baseUrl ? { baseUrl } : {}),
+        ...(model ? { model } : {}),
+        ...(maxTokensRaw ? { maxTokens: Number(maxTokensRaw) } : {}),
+        ...(temperatureRaw ? { temperature: Number(temperatureRaw) } : {}),
+        ...(timeoutMsRaw ? { timeoutMs: Number(timeoutMsRaw) } : {})
+      })
+    });
+    redirectWith("ai_save", "ok", undefined, returnTo);
+  } catch (err) {
+    if (isNextRedirect(err)) throw err;
+    redirectWith("ai_save", "fail", toShortErrorMessage(err), returnTo);
+  }
+}
+
+export async function deleteAiProvider(formData: FormData) {
+  await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
+  const provider = String(formData.get("provider") || "").trim().toUpperCase();
+
+  try {
+    await adminFetch("/admin/settings/ai", {
+      method: "DELETE",
+      body: JSON.stringify({ provider })
+    });
+    redirectWith("ai_delete", "ok", undefined, returnTo);
+  } catch (err) {
+    if (isNextRedirect(err)) throw err;
+    redirectWith("ai_delete", "fail", toShortErrorMessage(err), returnTo);
+  }
+}
+
 export async function updateCheckoutConfig(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);

@@ -351,7 +351,7 @@ export default async function LogsPage({
             <LogsSystemTable items={normalized} />
           ) : tab === "messages" ? (
             <div className="panel module" style={{ padding: 0 }}>
-              <table className="table logs-table" aria-label="Tabla de mensajes">
+              <table className="table logs-table logs-table-messages" aria-label="Tabla de mensajes">
                 <thead>
                   <tr>
                     <th>Fecha</th>
@@ -383,7 +383,7 @@ export default async function LogsPage({
                             {chip.label}
                           </span>
                         </td>
-                        <td>{detailText}</td>
+                        <td className="log-message-cell">{detailText}</td>
                       </tr>
                     );
                   })}
