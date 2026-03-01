@@ -4,8 +4,8 @@ import { z } from "zod";
 import { LogLevel, RetryJobType } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { systemLog } from "../services/systemLog";
-import { getEffectiveTenantId } from "../services/tenantContext";
-import { getModuleAccess } from "../services/moduleAccess";
+import { coerceTenantId, getEffectiveTenantId } from "../services/tenantContext";
+import { getGlobalModuleAccess } from "../services/moduleAccess";
 
 export const aiRouter = express.Router();
 
@@ -24,8 +24,8 @@ aiRouter.post("/ask", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
 
   const requestId = crypto.randomUUID();
-  const tenantId = parsed.data.tenantId ?? (await getEffectiveTenantId(req)) ?? null;
-  const aiAccess = await getModuleAccess(tenantId, "ai");
+  const tenantId = coerceTenantId(parsed.data.tenantId) ?? (await getEffectiveTenantId(req)) ?? null;
+  const aiAccess = await getGlobalModuleAccess("ai");
   if (!aiAccess.enabled) return res.status(403).json({ error: "ai_disabled", reason: aiAccess.reason });
   const payload = {
     requestId,
@@ -53,8 +53,8 @@ aiRouter.post("/ask", async (req, res) => {
 });
 
 aiRouter.get("/history", async (req, res) => {
-  const tenantId = await getEffectiveTenantId(req);
-  const aiAccess = await getModuleAccess(tenantId, "ai");
+  const tenantId = coerceTenantId(req.query.tenantId) ?? (await getEffectiveTenantId(req));
+  const aiAccess = await getGlobalModuleAccess("ai");
   if (!aiAccess.enabled) return res.status(403).json({ error: "ai_disabled", reason: aiAccess.reason });
   const take = Math.min(50, Math.max(1, Number(req.query.take ?? 20)));
   const scope = String(req.query.scope || "").trim();

@@ -105,13 +105,11 @@ export default async function SettingsPage({
   const aiDisableLabel =
     aiDisableReason === "module_inactive"
       ? "Módulo IA inactivo globalmente"
-      : aiDisableReason === "module_disabled"
-        ? "Módulo IA deshabilitado para este tenant"
-        : aiDisableReason === "tenant_missing"
-          ? "Tenant no identificado"
-          : aiDisableReason
-            ? `IA bloqueada (${aiDisableReason})`
-            : "";
+      : aiDisableReason === "module_missing"
+        ? "Módulo IA no existe"
+        : aiDisableReason
+          ? `IA bloqueada (${aiDisableReason})`
+          : "";
   const openaiStatus = aiOpenai?.configured ? "Activa" : "Inactiva";
   const openaiPill = aiOpenai?.configured ? "pill-green" : "pill-muted";
   const deepseekStatus = aiDeepseek?.configured ? "Activa" : "Inactiva";
@@ -510,7 +508,7 @@ export default async function SettingsPage({
               </div>
               <div className="settings-group-body">
                 <div className="card cardPad">
-                  La IA está deshabilitada para este tenant. Solicita al super admin habilitar el módulo.
+                  La IA está deshabilitada globalmente. Solicita al super admin habilitar el módulo.
                   {aiDisableLabel ? <div className="field-hint">Motivo: {aiDisableLabel}.</div> : null}
                 </div>
               </div>

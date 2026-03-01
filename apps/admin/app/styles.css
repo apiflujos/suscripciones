@@ -1285,6 +1285,7 @@ a {
   padding: 6px;
   overflow: hidden;
   min-width: 0;
+  max-width: 0;
   word-break: break-word;
   overflow-wrap: anywhere;
 }
@@ -1296,6 +1297,7 @@ a {
   max-width: 84px;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.1;
 }
 
 .logs-table .log-ref-cell {
@@ -1311,7 +1313,7 @@ a {
 
 .logs-table .log-ref-main {
   display: block;
-  max-width: 90px;
+  max-width: 72px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1320,7 +1322,7 @@ a {
 .logs-table .log-ref-meta {
   font-size: 11px;
   color: var(--text-faint);
-  max-width: 90px;
+  max-width: 72px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1345,8 +1347,8 @@ a {
 }
 
 .logs-table .log-contact-meta {
-  font-size: 11px;
-  max-width: 110px;
+  font-size: 10px;
+  max-width: 84px;
 }
 
 .logs-table .log-type-cell {
@@ -1389,7 +1391,7 @@ a {
   overflow: hidden;
   min-width: 0;
   line-height: 1.35;
-  max-width: 0;
+  max-width: 100%;
 }
 
 .logs-table-messages .log-message-text {
@@ -1432,11 +1434,11 @@ a {
 }
 
 .logs-table-payments .log-ref-cell {
-  max-width: 100px;
+  max-width: 90px;
 }
 
 .logs-table-payments .log-transaction-cell {
-  max-width: 96px;
+  max-width: 88px;
 }
 
 .logs-table-jobs .log-detail-cell {
@@ -1467,7 +1469,7 @@ a {
 
 .logs-table-webhooks .log-ref-cell,
 .logs-table-webhooks .log-ref-main {
-  max-width: 110px;
+  max-width: 86px;
 }
 
 .logs-table-webhooks .log-error-cell {
@@ -3260,7 +3262,7 @@ textarea.input {
 
 .date-stack-middle,
 .date-stack-bottom {
-  font-size: 9px;
+  font-size: 8px;
   color: var(--text-muted, var(--text-faint));
   white-space: nowrap;
 }

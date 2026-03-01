@@ -8,6 +8,12 @@ function isUuid(v: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 }
 
+export function coerceTenantId(value: unknown): string | null {
+  const raw = normalize(value);
+  if (!raw || raw.toLowerCase() === "all") return null;
+  return isUuid(raw) ? raw : null;
+}
+
 let cached: { tenantId: string | null; at: number } | null = null;
 const CACHE_TTL_MS = 30_000;
 
@@ -46,8 +52,7 @@ export function readTenantIdFromReq(req: any): string | null {
     normalize(req?.body?.tenantId) ||
     normalize(req?.header?.("x-tenant-id")) ||
     normalize(req?.headers?.["x-tenant-id"]);
-  if (!raw || raw.toLowerCase() === "all") return null;
-  return isUuid(raw) ? raw : null;
+  return coerceTenantId(raw);
 }
 
 export function readTenantIdsFromReq(req: any): string[] {

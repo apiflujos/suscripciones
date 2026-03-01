@@ -25,11 +25,11 @@ export function LogsSystemTable({ items }: { items: LogItem[] }) {
     <div className="panel module" style={{ padding: 0 }}>
       <table className="table logs-table" aria-label="Tabla de logs">
         <colgroup>
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "16%" }} />
-          <col style={{ width: "16%" }} />
-          <col style={{ width: "10%" }} />
-          <col style={{ width: "34%" }} />
+          <col style={{ width: "9%" }} />
+          <col style={{ width: "14%" }} />
+          <col style={{ width: "15%" }} />
+          <col style={{ width: "9%" }} />
+          <col style={{ width: "41%" }} />
           <col style={{ width: "12%" }} />
         </colgroup>
         <thead>

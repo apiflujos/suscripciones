@@ -2,7 +2,7 @@ import express from "express";
 import { z } from "zod";
 import { getCommerceReport, getOperationsReport, getChatwootReport } from "../services/reports";
 import { getReportCache, setReportCache } from "../services/reportCache";
-import { getEffectiveTenantId } from "../services/tenantContext";
+import { coerceTenantId, getEffectiveTenantId } from "../services/tenantContext";
 
 const querySchema = z.object({
   from: z.string().datetime().optional(),
@@ -71,7 +71,7 @@ reportsRouter.get("/commerce", async (req, res) => {
   const ttlSeconds = 300;
   const staleSeconds = 900;
   const cacheRange = normalizeCacheRange(from, to, ttlSeconds, hasExplicitRange);
-  const tenantId = parsed.data.tenantId ?? (await getEffectiveTenantId(req)) ?? null;
+  const tenantId = coerceTenantId(parsed.data.tenantId) ?? (await getEffectiveTenantId(req)) ?? null;
   if (!tenantId) {
     const payload = await getCommerceReport({ from: cacheRange.from, to: cacheRange.to, granularity: parsed.data.granularity, tenantId: null });
     return res.json(payload);
@@ -99,7 +99,7 @@ reportsRouter.get("/operations", async (req, res) => {
   const ttlSeconds = 60;
   const staleSeconds = 300;
   const cacheRange = normalizeCacheRange(from, to, ttlSeconds, hasExplicitRange);
-  const tenantId = parsed.data.tenantId ?? (await getEffectiveTenantId(req)) ?? null;
+  const tenantId = coerceTenantId(parsed.data.tenantId) ?? (await getEffectiveTenantId(req)) ?? null;
   if (!tenantId) {
     const payload = await getOperationsReport({ from: cacheRange.from, to: cacheRange.to, granularity: parsed.data.granularity, tenantId: null });
     return res.json(payload);
@@ -127,7 +127,7 @@ reportsRouter.get("/chatwoot", async (req, res) => {
   const ttlSeconds = 60;
   const staleSeconds = 300;
   const cacheRange = normalizeCacheRange(from, to, ttlSeconds, hasExplicitRange);
-  const tenantId = parsed.data.tenantId ?? (await getEffectiveTenantId(req)) ?? null;
+  const tenantId = coerceTenantId(parsed.data.tenantId) ?? (await getEffectiveTenantId(req)) ?? null;
   if (!tenantId) {
     const payload = await getChatwootReport({ from: cacheRange.from, to: cacheRange.to, granularity: parsed.data.granularity, tenantId: null });
     return res.json(payload);

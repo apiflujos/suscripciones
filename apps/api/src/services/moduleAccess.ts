@@ -5,6 +5,16 @@ export type ModuleAccess = {
   reason: null | "tenant_missing" | "module_missing" | "module_inactive" | "module_disabled";
 };
 
+export async function getGlobalModuleAccess(moduleKey: string): Promise<ModuleAccess> {
+  const key = String(moduleKey || "").trim();
+  if (!key) return { enabled: true, reason: null };
+
+  const def = await prisma.saModuleDefinition.findUnique({ where: { key } });
+  if (!def) return { enabled: false, reason: "module_missing" };
+  if (!def.active) return { enabled: false, reason: "module_inactive" };
+  return { enabled: true, reason: null };
+}
+
 export async function getModuleAccess(tenantId: string | null, moduleKey: string): Promise<ModuleAccess> {
   const key = String(moduleKey || "").trim();
   if (!key) return { enabled: true, reason: null };

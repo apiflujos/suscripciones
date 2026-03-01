@@ -2,7 +2,7 @@ import express from "express";
 import { z } from "zod";
 import { getMetricsOverview } from "../services/metrics";
 import { getReportCache, setReportCache } from "../services/reportCache";
-import { getEffectiveTenantId } from "../services/tenantContext";
+import { coerceTenantId, getEffectiveTenantId } from "../services/tenantContext";
 
 const querySchema = z.object({
   from: z.string().datetime().optional(),
@@ -29,7 +29,7 @@ metricsRouter.get("/overview", async (req, res) => {
   const hasExplicitRange = Boolean(parsed.data.from || parsed.data.to);
   const cacheTtlSeconds = 300;
   const staleSeconds = 900;
-  const resolvedTenantId = parsed.data.tenantId ?? (await getEffectiveTenantId(req)) ?? null;
+  const resolvedTenantId = coerceTenantId(parsed.data.tenantId) ?? (await getEffectiveTenantId(req)) ?? null;
 
   let cacheFrom = from;
   let cacheTo = to;
