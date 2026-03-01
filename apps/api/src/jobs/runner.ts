@@ -11,6 +11,7 @@ import { getShopifyForward, getShopifyForwardRetryConfig } from "../services/run
 import { billingMonthlyReport } from "./handlers/billingMonthlyReport";
 import { sendCampaign } from "./handlers/sendCampaign";
 import { syncSmartLists } from "./handlers/syncSmartLists";
+import { aiAssist } from "./handlers/aiAssist";
 
 loadEnv(process.env);
 const workerId = `jobs:${process.pid}`;
@@ -158,6 +159,8 @@ async function runOnce() {
         await sendCampaign(payload);
       } else if (job.type === RetryJobType.SYNC_SMART_LISTS) {
         await syncSmartLists();
+      } else if (job.type === RetryJobType.AI_ASSIST) {
+        await aiAssist(payload);
       } else {
         logger.warn({ jobId: job.id, type: job.type }, "Unhandled job type");
       }

@@ -104,6 +104,7 @@ enum RetryJobType {
   BILLING_MONTHLY_REPORT
   SEND_CAMPAIGN
   SYNC_SMART_LISTS
+  AI_ASSIST
 }
 
 enum RetryJobStatus {

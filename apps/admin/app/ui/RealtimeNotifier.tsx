@@ -16,12 +16,14 @@ type RealtimeEvent = {
   kind?: string | null;
   href?: string | null;
   badge?: string | null;
+  meta?: any;
 };
 
 type Toast = RealtimeEvent & { seenAt: number };
 type RealtimeStatus = "connecting" | "connected" | "disconnected";
 
 const STORAGE_KEY = "apiflujos-realtime-last";
+const CASH_SOUND_SRC = "/brand/cashier.mp3";
 
 export function RealtimeNotifier() {
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -35,6 +37,7 @@ export function RealtimeNotifier() {
   const soundEnabledStateRef = useRef(false);
   const volumeRef = useRef(0.55);
   const lastSoundRef = useRef(0);
+  const cashAudioRef = useRef<HTMLAudioElement | null>(null);
   const seenIdsRef = useRef<Set<string>>(new Set());
   const lastMessageRef = useRef<number>(0);
   const healthRef = useRef<NodeJS.Timeout | null>(null);
@@ -90,6 +93,23 @@ export function RealtimeNotifier() {
       } catch {}
     };
 
+    const primeCashFile = () => {
+      const audio = getCashAudio();
+      if (!audio) return;
+      const prevVol = audio.volume || 0.6;
+      audio.volume = 0.02;
+      const p = audio.play();
+      if (p && typeof p.then === "function") {
+        p.then(() => {
+          audio.pause();
+          audio.currentTime = 0;
+          audio.volume = prevVol;
+        }).catch(() => {
+          audio.volume = prevVol;
+        });
+      }
+    };
+
     const enable = () => {
       soundEnabledRef.current = true;
       if (!soundEnabledStateRef.current) {
@@ -97,6 +117,7 @@ export function RealtimeNotifier() {
         setSoundEnabled(true);
       }
       primeAudio();
+      primeCashFile();
       try {
         window.localStorage.setItem("apiflujos-realtime-sound", "1");
       } catch {}
@@ -133,21 +154,49 @@ export function RealtimeNotifier() {
     };
   }, []);
 
-  const playCashSound = () => {
-    if (typeof window === "undefined") return;
-    if (!soundEnabledRef.current) return;
-    const nowMs = Date.now();
-    if (nowMs - lastSoundRef.current < 3000) return;
-    lastSoundRef.current = nowMs;
+  const getCashAudio = () => {
+    if (typeof window === "undefined") return null;
+    if (!cashAudioRef.current) {
+      const audio = new Audio(CASH_SOUND_SRC);
+      audio.preload = "auto";
+      cashAudioRef.current = audio;
+    }
+    return cashAudioRef.current;
+  };
+
+  const markConnected = () => {
+    setStatus("connected");
+    lastMessageRef.current = Date.now();
+  };
+
+  const markConnecting = () => {
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      setStatus("disconnected");
+      return;
+    }
+    const last = lastMessageRef.current || 0;
+    if (last && Date.now() - last < 45000) {
+      setStatus("connected");
+      return;
+    }
+    setStatus("connecting");
+  };
+
+  const playCashSynth = (base: number) => {
     const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
     if (!AudioCtx) return;
     const ctx = new AudioCtx();
     ctx.resume().catch(() => {});
     const now = ctx.currentTime;
 
-    const base = volumeRef.current || 0.55;
-
-    const playTone = (type: OscillatorType, startFreq: number, endFreq: number, startAt: number, duration: number, gainLevel: number) => {
+    const playTone = (
+      type: OscillatorType,
+      startFreq: number,
+      endFreq: number,
+      startAt: number,
+      duration: number,
+      gainLevel: number
+    ) => {
       const g = ctx.createGain();
       g.gain.setValueAtTime(0.0001, startAt);
       g.gain.exponentialRampToValueAtTime(gainLevel * base, startAt + 0.02);
@@ -172,6 +221,29 @@ export function RealtimeNotifier() {
     setTimeout(() => {
       ctx.close().catch(() => {});
     }, 700);
+  };
+
+  const playCashSound = (force = false) => {
+    if (typeof window === "undefined") return;
+    if (!soundEnabledRef.current && !force) return;
+    const nowMs = Date.now();
+    if (!force && nowMs - lastSoundRef.current < 3000) return;
+    lastSoundRef.current = nowMs;
+    const base = volumeRef.current || 0.55;
+    const audio = getCashAudio();
+    if (audio) {
+      try {
+        audio.pause();
+        audio.currentTime = 0;
+      } catch {}
+      audio.volume = base;
+      const p = audio.play();
+      if (p && typeof p.catch === "function") {
+        p.catch(() => playCashSynth(base));
+      }
+      return;
+    }
+    playCashSynth(base);
   };
 
   const playFailSound = () => {
@@ -223,6 +295,11 @@ export function RealtimeNotifier() {
       seenIdsRef.current = new Set(trimmed);
     }
     for (const e of freshEvents) {
+      if (e.kind === "ai_response" || e.kind === "ai_failed") {
+        try {
+          window.dispatchEvent(new CustomEvent("apiflujos:ai-response", { detail: e.meta || e }));
+        } catch {}
+      }
       if (e.sound === "cash") {
         shouldPlayCash = true;
         try {
@@ -259,14 +336,13 @@ export function RealtimeNotifier() {
 
     const connect = () => {
       if (!active) return;
-      setStatus("connecting");
+      markConnecting();
       const since = lastSeenRef.current || new Date(Date.now() - 60 * 1000).toISOString();
       source = new EventSource(`/api/realtime?since=${encodeURIComponent(since)}`);
       source.onopen = () => {
         if (!active) return;
         errorCountRef.current = 0;
-        setStatus("connected");
-        lastMessageRef.current = Date.now();
+        markConnected();
       };
 
       source.onmessage = (evt) => {
@@ -275,25 +351,26 @@ export function RealtimeNotifier() {
         try {
           payload = JSON.parse(evt.data || "{}");
         } catch {
+          markConnected();
           return;
         }
         const events: RealtimeEvent[] = Array.isArray(payload.events) ? payload.events : [];
         handleEvents(events, payload.serverTime);
-        lastMessageRef.current = Date.now();
-        setStatus("connected");
+        markConnected();
       };
 
       source.onerror = () => {
         if (!active) return;
-        setStatus("disconnected");
+        markConnecting();
         source?.close();
         if (reconnectRef.current) clearTimeout(reconnectRef.current);
         errorCountRef.current += 1;
-        if (errorCountRef.current >= 2) {
+        if (errorCountRef.current >= 6) {
           setUsePolling(true);
+          markConnecting();
           return;
         }
-        reconnectRef.current = setTimeout(connect, 6000);
+        reconnectRef.current = setTimeout(connect, 4000);
       };
     };
 
@@ -303,11 +380,14 @@ export function RealtimeNotifier() {
       if (!active) return;
       const last = lastMessageRef.current || 0;
       if (!last) return;
-      if (Date.now() - last > 45000) {
+      const delta = Date.now() - last;
+      if (delta > 70000) {
         setStatus("disconnected");
         source?.close();
         if (reconnectRef.current) clearTimeout(reconnectRef.current);
         reconnectRef.current = setTimeout(connect, 1000);
+      } else if (delta > 35000) {
+        markConnecting();
       }
     }, 15000);
     return () => {
@@ -330,8 +410,7 @@ export function RealtimeNotifier() {
         const payload = await res.json().catch(() => ({}));
         const events: RealtimeEvent[] = Array.isArray(payload.events) ? payload.events : [];
         handleEvents(events, payload.serverTime);
-        setStatus("connected");
-        lastMessageRef.current = Date.now();
+        markConnected();
       } catch {
         setStatus("disconnected");
       }
@@ -356,14 +435,6 @@ export function RealtimeNotifier() {
 
   const pushTestToast = async () => {
     try {
-      const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
-      if (AudioCtx) {
-        try {
-          const ctx = new AudioCtx();
-          await ctx.resume();
-          ctx.close().catch(() => {});
-        } catch {}
-      }
       if (!soundEnabledRef.current) {
         soundEnabledRef.current = true;
         soundEnabledStateRef.current = true;
@@ -372,7 +443,7 @@ export function RealtimeNotifier() {
           window.localStorage.setItem("apiflujos-realtime-sound", "1");
         } catch {}
       }
-      setTimeout(() => playCashSound(), 120);
+      playCashSound(true);
       const res = await fetch("/api/realtime/test", { method: "POST" });
       if (!res.ok) throw new Error("test_failed");
     } catch {
@@ -401,6 +472,7 @@ export function RealtimeNotifier() {
 
   const iconForToast = (toast: Toast) => {
     const kind = String(toast.kind || "").toLowerCase();
+    if (kind.includes("ai")) return "ai";
     if (kind.includes("payment_approved")) return "payment-ok";
     if (kind.includes("payment_failed")) return "payment-bad";
     if (kind.includes("link")) return "link";
@@ -417,6 +489,8 @@ export function RealtimeNotifier() {
         return "Pago aprobado";
       case "payment-bad":
         return "Pago fallido";
+      case "ai":
+        return "IA";
       case "link":
         return "Link";
       case "message":
@@ -453,6 +527,8 @@ export function RealtimeNotifier() {
                     ? "✓"
                     : iconKind === "payment-bad"
                       ? "!"
+                      : iconKind === "ai"
+                        ? "✦"
                       : iconKind === "message"
                         ? "✉"
                         : iconKind === "link"

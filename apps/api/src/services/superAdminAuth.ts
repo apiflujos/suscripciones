@@ -90,7 +90,9 @@ export async function createSaSession(args: { email: string; password: string; i
   const token = crypto.randomBytes(32).toString("hex");
   const tokenHash = sha256Hex(token);
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const ttlHoursRaw = Number(process.env.SA_SESSION_TTL_HOURS || "24");
+  const ttlHours = Number.isFinite(ttlHoursRaw) && ttlHoursRaw > 0 ? ttlHoursRaw : 24;
+  const expiresAt = new Date(now.getTime() + ttlHours * 60 * 60 * 1000);
 
   await prisma.saSession.create({
     data: {

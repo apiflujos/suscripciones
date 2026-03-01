@@ -1,6 +1,9 @@
 import { getRequiredApiBase } from "../../lib/adminApi";
 import { normalizeToken } from "../../lib/normalizeToken";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 const encoder = new TextEncoder();
 
 function ssePayload(data: any) {
@@ -113,6 +116,29 @@ async function collectEvents(apiBase: string, token: string, since: string) {
     const source = String(s.source || "");
     const message = String(s.message || s.source || "Evento del sistema");
     const compact = message.length > 160 ? `${message.slice(0, 157)}…` : message;
+    const ctx = s.context || null;
+    const isAi = source.startsWith("ai.");
+    if (isAi) {
+      const answer = String(ctx?.answer || "").trim();
+      const error = String(ctx?.error || "").trim();
+      if (!answer && !error) continue;
+      const question = String(ctx?.question || "").trim();
+      const questionHint = question ? (question.length > 80 ? `${question.slice(0, 77)}…` : question) : "";
+      events.push({
+        id: `ai_${s.id}`,
+        type: "system",
+        level: error ? "error" : "info",
+        ts: createdAt,
+        title: error ? "Asistente falló" : "Asistente listo",
+        message: questionHint || (error ? "Error al generar respuesta." : "Respuesta lista para revisar."),
+        sound: null,
+        kind: error ? "ai_failed" : "ai_response",
+        href: buildLogLink("system", { q: "ai." }),
+        badge: "IA",
+        meta: ctx
+      });
+      continue;
+    }
     const isMessage = source.startsWith("chatwoot.") || source.startsWith("notifications.");
     const isLink = source.startsWith("subscriptions.payment_link");
     const isSubscription = source.startsWith("subscriptions.");
@@ -171,7 +197,8 @@ async function collectEvents(apiBase: string, token: string, since: string) {
       sound: null,
       kind,
       href: buildLogLink("system", { q: source, level: level === "ERROR" ? "ERROR" : level === "WARN" ? "WARN" : "" }),
-      badge
+      badge,
+      meta: ctx
     });
   }
 
@@ -206,17 +233,19 @@ export async function GET(req: Request) {
   let closed = false;
   const stream = new ReadableStream({
     start(controller) {
+      let lastSince = since;
       const poll = async () => {
         if (closed) return;
         try {
-          const payload = await collectEvents(API_BASE, token, since);
+          const payload = await collectEvents(API_BASE, token, lastSince);
+          if (payload.serverTime) lastSince = payload.serverTime;
           controller.enqueue(ssePayload(payload));
         } catch {
           controller.enqueue(ssePayload({ serverTime: new Date().toISOString(), events: [] }));
         }
       };
 
-      const interval = setInterval(poll, 15000);
+      const interval = setInterval(poll, 5000);
       poll();
 
       req.signal.addEventListener("abort", () => {
@@ -231,7 +260,8 @@ export async function GET(req: Request) {
     headers: {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache, no-transform",
-      Connection: "keep-alive"
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no"
     }
   });
 }

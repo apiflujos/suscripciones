@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
+import crypto from "node:crypto";
 import { prisma } from "../db/prisma";
 
 function normalizeToken(value: string) {
@@ -20,9 +21,18 @@ export function requireAdminToken(req: Request, res: Response, next: NextFunctio
     .map((t) => normalizeToken(t))
     .filter(Boolean);
 
-  if (!token || !expectedTokens.length || !expectedTokens.includes(token)) {
+  const matchesToken = expectedTokens.some((expected) => {
+    if (expected.length !== token.length) return false;
+    try {
+      return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(token));
+    } catch {
+      return false;
+    }
+  });
+
+  if (!token || !expectedTokens.length || !matchesToken) {
     const reason = !expectedTokens.length ? "expected_not_configured" : !token ? "missing_token" : "token_mismatch";
-    const debugAuth = (process.env.DEBUG_AUTH || "").trim() === "1";
+    const debugAuth = (process.env.DEBUG_AUTH || "").trim() === "1" && process.env.NODE_ENV !== "production";
     res.status(401).json(
       debugAuth
         ? {

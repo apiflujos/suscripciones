@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { LocalDateTime } from "../ui/LocalDateTime";
 import { LogsSystemTable } from "./LogsSystemTable";
+import { AiAssistant } from "./AiAssistant";
 import { getCsrfToken, assertCsrfToken } from "../lib/csrf";
 import { PendingButton } from "../ui/PendingButton";
 
@@ -72,6 +73,7 @@ function normalizeJobType(type: any) {
   if (v === "BILLING_MONTHLY_REPORT") return "Reporte mensual";
   if (v === "SEND_CAMPAIGN") return "Enviar campaña";
   if (v === "SYNC_SMART_LISTS") return "Sincronizar listas";
+  if (v === "AI_ASSIST") return "Asistente IA";
   return v || "—";
 }
 
@@ -347,6 +349,9 @@ export default async function LogsPage({
         </div>
 
         <div className="settings-group-body">
+          <div className="logs-ai-wrapper">
+            <AiAssistant from={from} to={to} tenantId={tenantId} />
+          </div>
           {tab === "system" ? (
             <LogsSystemTable items={normalized} />
           ) : tab === "messages" ? (

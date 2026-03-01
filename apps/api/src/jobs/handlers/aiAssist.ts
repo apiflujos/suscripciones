@@ -1,0 +1,256 @@
+import { LogLevel, PaymentStatus } from "@prisma/client";
+import { prisma } from "../../db/prisma";
+import { createAiChatCompletion } from "../../services/aiClient";
+import { systemLog } from "../../services/systemLog";
+
+type AiAssistPayload = {
+  requestId?: string;
+  question?: string;
+  from?: string;
+  to?: string;
+  tenantId?: string;
+  customerId?: string;
+};
+
+type ChartItem = { label: string; value: number; tone?: "success" | "warning" | "danger" | "info" };
+
+function parseDate(value?: string | null) {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isFinite(d.getTime()) ? d : null;
+}
+
+function clampString(value?: string | null, max = 4000) {
+  const v = String(value || "").trim();
+  if (!v) return "";
+  if (v.length <= max) return v;
+  return `${v.slice(0, max - 1)}…`;
+}
+
+function formatCurrency(cents?: number | null, currency?: string | null) {
+  if (typeof cents !== "number") return null;
+  const value = Math.max(0, Math.round(cents / 100));
+  return `${new Intl.NumberFormat("es-CO").format(value)} ${currency || "COP"}`;
+}
+
+export async function aiAssist(payload: AiAssistPayload) {
+  const requestId = String(payload?.requestId || "").trim() || `ai_${Date.now()}`;
+  const question = String(payload?.question || "").trim();
+  if (!question) {
+    throw new Error("ai_question_missing");
+  }
+
+  const to = parseDate(payload?.to) || new Date();
+  const from = parseDate(payload?.from) || new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const tenantId = String(payload?.tenantId || "").trim() || null;
+  const customerId = String(payload?.customerId || "").trim() || null;
+
+  const systemWhere: any = {
+    createdAt: { gte: from, lt: to }
+  };
+  if (customerId) {
+    systemWhere.context = { path: ["customerId"], equals: customerId };
+  } else if (tenantId) {
+    systemWhere.context = { path: ["tenantId"], equals: tenantId };
+  }
+
+  const [systemLogs, webhooks, jobs, payments] = await Promise.all([
+    prisma.systemLog.findMany({
+      where: systemWhere,
+      orderBy: { createdAt: "desc" },
+      take: 120
+    }),
+    prisma.webhookEvent.findMany({
+      where: {
+        receivedAt: { gte: from, lt: to },
+        ...(tenantId ? { tenantId } : {})
+      },
+      orderBy: { receivedAt: "desc" },
+      take: 120
+    }),
+    prisma.retryJob.findMany({
+      where: {
+        updatedAt: { gte: from, lt: to }
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 120
+    }),
+    prisma.payment.findMany({
+      where: {
+        createdAt: { gte: from, lt: to },
+        ...(tenantId ? { tenantId } : {}),
+        ...(customerId ? { customerId } : {})
+      },
+      orderBy: { createdAt: "desc" },
+      take: 60,
+      include: { customer: true, subscription: { include: { plan: true } } }
+    })
+  ]);
+
+  const systemCounts = systemLogs.reduce(
+    (acc, l) => {
+      const level = String(l.level || "").toUpperCase();
+      if (level === "ERROR") acc.error += 1;
+      else if (level === "WARN") acc.warn += 1;
+      else acc.info += 1;
+      return acc;
+    },
+    { error: 0, warn: 0, info: 0 }
+  );
+
+  const webhookCounts = webhooks.reduce(
+    (acc, w) => {
+      const status = String(w.processStatus || "").toUpperCase();
+      if (status === "PROCESSED") acc.processed += 1;
+      else if (status === "FAILED") acc.failed += 1;
+      else acc.received += 1;
+      return acc;
+    },
+    { processed: 0, failed: 0, received: 0 }
+  );
+
+  const jobCounts = jobs.reduce(
+    (acc, j) => {
+      const status = String(j.status || "").toUpperCase();
+      if (status === "FAILED") acc.failed += 1;
+      else if (status === "PENDING") acc.pending += 1;
+      else if (status === "RUNNING") acc.running += 1;
+      else acc.succeeded += 1;
+      return acc;
+    },
+    { failed: 0, pending: 0, running: 0, succeeded: 0 }
+  );
+
+  const paymentCounts = payments.reduce(
+    (acc, p) => {
+      const status = String(p.status || "").toUpperCase() as PaymentStatus;
+      if (status === "APPROVED") acc.approved += 1;
+      else if (status === "PENDING") acc.pending += 1;
+      else acc.failed += 1;
+      return acc;
+    },
+    { approved: 0, pending: 0, failed: 0 }
+  );
+
+  const questionLower = question.toLowerCase();
+  let chartTitle = "Resumen operativo";
+  let chartItems: ChartItem[] = [
+    { label: "Webhooks OK", value: webhookCounts.processed, tone: "success" },
+    { label: "Webhooks fallidos", value: webhookCounts.failed, tone: "danger" },
+    { label: "Jobs fallidos", value: jobCounts.failed, tone: "danger" },
+    { label: "Alertas", value: systemCounts.error, tone: "warning" }
+  ];
+
+  if (questionLower.includes("pago") || questionLower.includes("payment")) {
+    chartTitle = "Pagos en el periodo";
+    chartItems = [
+      { label: "Aprobados", value: paymentCounts.approved, tone: "success" },
+      { label: "Pendientes", value: paymentCounts.pending, tone: "warning" },
+      { label: "Fallidos", value: paymentCounts.failed, tone: "danger" }
+    ];
+  } else if (questionLower.includes("webhook")) {
+    chartTitle = "Webhooks en el periodo";
+    chartItems = [
+      { label: "Procesados", value: webhookCounts.processed, tone: "success" },
+      { label: "Fallidos", value: webhookCounts.failed, tone: "danger" },
+      { label: "Recibidos", value: webhookCounts.received, tone: "info" }
+    ];
+  } else if (questionLower.includes("job")) {
+    chartTitle = "Jobs en el periodo";
+    chartItems = [
+      { label: "En cola", value: jobCounts.pending, tone: "warning" },
+      { label: "Corriendo", value: jobCounts.running, tone: "info" },
+      { label: "Fallidos", value: jobCounts.failed, tone: "danger" },
+      { label: "Completados", value: jobCounts.succeeded, tone: "success" }
+    ];
+  }
+
+  const chart = {
+    type: "bars",
+    title: chartTitle,
+    items: chartItems.filter((i) => i.value > 0)
+  };
+
+  const sampleSystem = systemLogs.slice(0, 12).map((l) => ({
+    ts: l.createdAt,
+    level: l.level,
+    source: l.source,
+    message: clampString(l.message, 180)
+  }));
+  const sampleWebhooks = webhooks.slice(0, 10).map((w) => {
+    const payload: any = w.payload;
+    const tx = payload?.data?.transaction || {};
+    return {
+      ts: w.receivedAt,
+      status: w.processStatus,
+      paymentStatus: tx?.status,
+      reference: clampString(tx?.reference || "", 80)
+    };
+  });
+  const sampleJobs = jobs.slice(0, 10).map((j) => ({
+    ts: j.updatedAt,
+    type: j.type,
+    status: j.status,
+    error: clampString(j.lastError || "", 140),
+    attempts: `${j.attempts}/${j.maxAttempts}`
+  }));
+  const samplePayments = payments.slice(0, 8).map((p) => ({
+    ts: p.createdAt,
+    status: p.status,
+    amount: formatCurrency(p.amountInCents, p.currency),
+    customer: p.customer?.name || p.customer?.email || p.customer?.phone || p.customerId,
+    plan: p.subscription?.plan?.name || null,
+    reference: clampString(p.reference || "", 80)
+  }));
+
+  const context = {
+    window: { from: from.toISOString(), to: to.toISOString() },
+    counts: {
+      system: systemCounts,
+      webhooks: webhookCounts,
+      jobs: jobCounts,
+      payments: paymentCounts
+    },
+    samples: {
+      system: sampleSystem,
+      webhooks: sampleWebhooks,
+      jobs: sampleJobs,
+      payments: samplePayments
+    }
+  };
+
+  const messages = [
+    {
+      role: "system" as const,
+      content:
+        "Eres un analista operativo para Apiflujos. Responde en español con un resumen claro, pasos accionables y menciona datos concretos del contexto. Si no hay evidencia suficiente, dilo."
+    },
+    {
+      role: "user" as const,
+      content: `Pregunta: ${question}\n\nContexto (resumen):\n${JSON.stringify(context)}`
+    }
+  ];
+
+  try {
+    const result = await createAiChatCompletion(messages, { requestId, question });
+    const answer = clampString(result.content, 3800);
+    await systemLog(LogLevel.INFO, "ai.chat", "Respuesta IA generada", {
+      requestId,
+      question,
+      answer,
+      provider: result.provider,
+      model: result.model,
+      chart,
+      context
+    });
+  } catch (err: any) {
+    const msg = String(err?.message || err || "ai_failed");
+    await systemLog(LogLevel.ERROR, "ai.chat", "Error generando respuesta IA", {
+      requestId,
+      question,
+      error: msg,
+      chart
+    }).catch(() => {});
+    throw err;
+  }
+}

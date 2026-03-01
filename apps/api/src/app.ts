@@ -29,15 +29,22 @@ import { tenantsRouter } from "./routes/tenants";
 import { paymentsRouter } from "./routes/payments";
 import { mediaRouter } from "./routes/media";
 import { getMediaDir } from "./services/mediaStorage";
+import { aiRouter } from "./routes/ai";
 
 export function createApp() {
   const app = express();
-  app.set("trust proxy", true); // Más flexible para Render/Cloudflare
+  const isProd = process.env.NODE_ENV === "production";
+  const trustProxyRaw = String(process.env.TRUST_PROXY || "").trim();
+  const trustProxy = trustProxyRaw ? trustProxyRaw : isProd ? 1 : true;
+  app.set("trust proxy", trustProxy);
 
   app.use(pinoHttp({ logger }));
   const apiPrefixes = ["/admin", "/webhooks", "/public", "/health", "/healthz"];
   const isApiPath = (path: string) => apiPrefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
 
+  const allowUnsafeInline = String(process.env.CSP_ALLOW_UNSAFE_INLINE || "").trim() === "1" && !isProd;
+  const scriptSrc = ["'self'", "https://checkout.wompi.co", ...(allowUnsafeInline ? ["'unsafe-inline'"] : [])];
+  const styleSrc = ["'self'", "https://fonts.googleapis.com", ...(allowUnsafeInline ? ["'unsafe-inline'"] : [])];
   const helmetMw = helmet({
     contentSecurityPolicy: {
       useDefaults: true,
@@ -47,8 +54,8 @@ export function createApp() {
         "object-src": ["'none'"],
         "frame-ancestors": ["'none'"],
         "img-src": ["'self'", "data:", "https:"],
-        "script-src": ["'self'", "'unsafe-inline'", "https://checkout.wompi.co"],
-        "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        "script-src": scriptSrc,
+        "style-src": styleSrc,
         "font-src": ["'self'", "https://fonts.gstatic.com", "data:"],
         "frame-src": ["'self'", "https://checkout.wompi.co"],
         "child-src": ["'self'", "https://checkout.wompi.co"],
@@ -66,9 +73,9 @@ export function createApp() {
         "object-src": ["'none'"],
         "frame-ancestors": ["'none'"],
         "img-src": ["'self'", "data:", "https:"],
-        "script-src": ["'self'", "'unsafe-inline'", "https://checkout.wompi.co"],
-        "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-        "style-src-elem": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        "script-src": scriptSrc,
+        "style-src": styleSrc,
+        "style-src-elem": styleSrc,
         "font-src": ["'self'", "data:", "https://fonts.gstatic.com"],
         "frame-src": ["'self'", "https://checkout.wompi.co"],
         "child-src": ["'self'", "https://checkout.wompi.co"],
@@ -91,7 +98,6 @@ export function createApp() {
     .split(",")
     .map((o) => o.trim())
     .filter(Boolean);
-  const isProd = process.env.NODE_ENV === "production";
   const corsMw = cors(
     corsOrigins.length
       ? { origin: corsOrigins, credentials: true }
@@ -175,6 +181,7 @@ export function createApp() {
   app.use("/admin/notifications", requireAdminToken, notificationsRouter);
   app.use("/admin/metrics", requireAdminToken, metricsRouter);
   app.use("/admin/reports", requireAdminToken, reportsRouter);
+  app.use("/admin/ai", requireAdminToken, aiRouter);
   app.use("/admin/auth", requireAdminToken, authRouter);
   app.use("/admin/sa", requireAdminToken, superAdminRouter);
   app.use("/admin/chatwoot", requireAdminToken, chatwootRouter);
