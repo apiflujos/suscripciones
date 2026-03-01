@@ -264,6 +264,7 @@ export function SideNav({ session }: { session: AdminSession | null }) {
           <ChevronIcon className="nav-icon" direction="left" />
         )}
         <span className="nav-label">Menú</span>
+        <span className="menuStatusDot" aria-hidden="true" />
       </button>
 
       <nav className="nav" aria-label="Navegación">

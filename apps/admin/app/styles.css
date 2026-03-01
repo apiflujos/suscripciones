@@ -623,6 +623,7 @@ a {
   display: flex;
   align-items: center;
   gap: 10px;
+  position: relative;
   cursor: pointer;
   color: var(--text);
   font-weight: 700;
@@ -636,6 +637,17 @@ a {
 .sidebarToggleBtn:hover {
   background: var(--primary-soft);
   border-color: var(--primary);
+}
+
+.menuStatusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--status-success);
+  position: absolute;
+  right: 12px;
+  top: 8px;
+  box-shadow: 0 0 0 2px var(--panel);
 }
 
 .sidebarSpacer {
@@ -713,6 +725,7 @@ a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  position: relative;
 }
 
 .topbarLogo {
@@ -721,6 +734,17 @@ a {
   width: auto;
   display: block;
   object-fit: contain;
+}
+
+.logoStatusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--status-success);
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  box-shadow: 0 0 0 2px var(--panel);
 }
 
 .topbarRight {
@@ -1961,6 +1985,11 @@ html[data-contrast="high"] .filtersPanel {
 .app-shell.is-collapsed .sidebarToggleBtn {
   justify-content: center;
   padding: 0;
+}
+
+.app-shell.is-collapsed .menuStatusDot {
+  right: 6px;
+  top: 6px;
 }
 
 .app-shell.is-collapsed .nav-submenu {

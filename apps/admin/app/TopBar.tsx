@@ -136,6 +136,7 @@ export function TopBar({ session }: { session: AdminSession | null }) {
           <Link href="/" className="topbarLogoLink" prefetch={false} aria-label="Ir al home">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/brand/logo.png" alt="Logo" className="topbarLogo" />
+            <span className="logoStatusDot" aria-hidden="true" />
           </Link>
           <div className="topbarTitleGroup">
             <h1 className="topbarTitle">{header.title}</h1>
