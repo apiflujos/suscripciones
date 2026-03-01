@@ -67,9 +67,18 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     : Promise.resolve<string | undefined>(undefined);
 
   // Prefer mapping by payment_link_id (subscriptions created via API payment links)
-  const paymentByLink = paymentLinkId
+  let paymentByLink = paymentLinkId
     ? await db.payment.findUnique({ where: { wompiPaymentLinkId: paymentLinkId } })
     : null;
+  const paymentLinkRecord = paymentLinkId
+    ? await db.paymentLink.findUnique({
+        where: { wompiPaymentLinkId: paymentLinkId },
+        select: { paymentId: true, subscriptionId: true }
+      })
+    : null;
+  if (!paymentByLink && paymentLinkRecord?.paymentId) {
+    paymentByLink = await db.payment.findUnique({ where: { id: paymentLinkRecord.paymentId } });
+  }
   const referenceClassification = classifyReference(reference);
 
   const paymentSource = String((paymentByLink?.providerResponse as any)?.order?.source || "").toUpperCase();
@@ -88,13 +97,25 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
 
   let inferredSubscriptionId =
     paymentByLink?.subscriptionId ??
+    paymentLinkRecord?.subscriptionId ??
     (referenceClassification.kind === "subscription" ? referenceClassification.subscriptionId : "");
 
   let inferredSubscription: any | null = null;
   
   // SOLO intentar inferencia por precio si NO tenemos un ID de suscripción de la referencia
   // y la referencia no es explícitamente de otro tipo (como shopify).
-  const shouldAttemptPriceInference = !paymentByLink && !inferredSubscriptionId && (referenceClassification.kind === "unknown" || (referenceClassification.kind === "order" && !referenceClassification.planId));
+  if (paymentLinkId && !paymentByLink && !paymentLinkRecord) {
+    await db.webhookEvent.update({
+      where: { id: webhookEventId },
+      data: { processStatus: WebhookProcessStatus.FAILED, errorMessage: "payment_link_not_found", processedAt: new Date() }
+    });
+    return;
+  }
+
+  const shouldAttemptPriceInference =
+    !paymentByLink &&
+    !inferredSubscriptionId &&
+    (referenceClassification.kind === "unknown" || (referenceClassification.kind === "order" && !referenceClassification.planId));
 
   if (shouldAttemptPriceInference || (referenceClassification.kind === "order" && referenceClassification.planId)) {
     if (!amountInCents && shouldAttemptPriceInference) {
