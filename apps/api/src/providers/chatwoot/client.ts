@@ -33,6 +33,8 @@ const conversationCreateSchema = z.object({
 });
 
 export class ChatwootClient {
+  private static inboxCache = new Map<number, { raw: any; expiresAt: number }>();
+
   constructor(
     private readonly opts: {
       baseUrl: string;
@@ -479,8 +481,12 @@ export class ChatwootClient {
   }
 
   async getInbox(inboxId: number) {
+    const cached = ChatwootClient.inboxCache.get(inboxId);
+    const now = Date.now();
+    if (cached && cached.expiresAt > now) return { raw: cached.raw };
     const res = await this.request(`/api/v1/accounts/${this.opts.accountId}/inboxes/${inboxId}`, { method: "GET" });
     if (!res.ok) throw new Error(`Chatwoot get inbox failed: ${res.status} ${JSON.stringify(res.json)}`);
+    ChatwootClient.inboxCache.set(inboxId, { raw: res.json, expiresAt: now + 5 * 60 * 1000 });
     return { raw: res.json };
   }
 

@@ -270,13 +270,23 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
     if (allowTemplate && templateParams) {
       sent = await client.sendTemplate(conversationId, { content: msg.content, templateParams });
     } else if (attachmentUrl) {
-      const attachment = await downloadAttachment(attachmentUrl);
-      const content = stripAttachmentLine(msg.content, attachmentUrl);
-      sent = await client.sendMessageWithAttachment(conversationId, content || msg.content, {
-        buffer: attachment.buffer,
-        mime: attachment.mime,
-        filename: `producto.${attachment.ext}`
-      });
+      try {
+        const attachment = await downloadAttachment(attachmentUrl);
+        const content = stripAttachmentLine(msg.content, attachmentUrl);
+        sent = await client.sendMessageWithAttachment(conversationId, content || msg.content, {
+          buffer: attachment.buffer,
+          mime: attachment.mime,
+          filename: `producto.${attachment.ext}`
+        });
+      } catch (err: any) {
+        await systemLog(LogLevel.WARN, "chatwoot.send", "Adjunto falló; enviando solo texto", {
+          chatwootMessageId,
+          customerId: msg.customerId,
+          err: String(err?.message || err || "attachment_failed")
+        }).catch(() => {});
+        const content = stripAttachmentLine(msg.content, attachmentUrl);
+        sent = await client.sendMessage(conversationId, content || msg.content);
+      }
     } else {
       sent = await client.sendMessage(conversationId, msg.content);
     }

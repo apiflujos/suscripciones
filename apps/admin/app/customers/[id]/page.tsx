@@ -465,15 +465,16 @@ export default async function CustomerDetailPage({
             <div className="hero-name-block">
               <div className="hero-name-row">
                 <div className="contact-title">{customer.name || customer.email || customer.phone || "Contacto"}</div>
-                <span className={`pill pill-sm tier-badge level-badge ${tier.cls}`}>
-                  <span className="tier-icon" aria-hidden="true">
-                    {tierIcon(tier.icon)}
-                  </span>
-                  Nivel {tier.label}
-                </span>
+                <div className="hero-id-block">
+                  <span className="hero-id-label">NIT / ID</span>
+                  <span className="hero-id-value mono">{meta?.identificacion || meta?.identificationNumber || meta?.documentNumber || "—"}</span>
+                  <span className="hero-id-sub">{tenantName || customer.tenantId || "—"}</span>
+                </div>
               </div>
               <div className="contact-subline">{customer.email || "—"} · {customer.phone || "—"}</div>
-              <div className="contact-subline">ID: <span className="mono">{customer.id}</span></div>
+              <div className="contact-subline">
+                Cliente desde <LocalDateTime value={customer.createdAt} /> · ID <span className="mono">{customer.id}</span>
+              </div>
               <div className="contact-tags">
                 {meta?.wompi?.paymentSourceId || meta?.wompi?.payment_source_id ? (
                   <span className="pill pill-ok pill-sm">Tokenizada</span>
@@ -489,25 +490,36 @@ export default async function CustomerDetailPage({
                 )}
               </div>
             </div>
-            <div className="hero-subs hero-subs-block">
-              <span className="hero-subs-label">Suscripciones activas</span>
-              <div className="hero-subs-list">
-                {activeSubs.length ? (
-                  activeSubs.slice(0, 3).map((s: any) => (
-                    <span key={s.id} className={`pill pill-sm ${statusPillClass(String(s.status || ""))}`}>
-                      {s.plan?.name || "Plan"} · {statusLabel(String(s.status || ""))}
-                    </span>
-                  ))
-                ) : (
-                  <span className="pill pill-muted pill-sm">Sin suscripciones activas</span>
-                )}
+            <div className={`tier-badge tier-badge-hero ${tier.cls}`}>
+              <span className="tier-icon" aria-hidden="true">
+                {tierIcon(tier.icon)}
+              </span>
+              <div className="tier-text">
+                <span className="tier-label">Nivel</span>
+                <span className="tier-value">{tier.label}</span>
               </div>
             </div>
           </div>
         </div>
         <div className="customer-hero-actions">
-          <Link className="ghost btn-compact" href="/customers">Volver</Link>
-          <Link className="ghost btn-compact" href={`/customers/${customer.id}/payment-method`}>Método de pago</Link>
+          <div className="hero-actions-row">
+            <Link className="ghost btn-compact btn-blue" href="/customers">Volver</Link>
+            <Link className="ghost btn-compact btn-amber" href={`/customers/${customer.id}/payment-method`}>Método de pago</Link>
+          </div>
+          <div className="hero-subs hero-subs-block hero-subs-actions">
+            <span className="hero-subs-label">Suscripciones activas</span>
+            <div className="hero-subs-list">
+              {activeSubs.length ? (
+                activeSubs.slice(0, 3).map((s: any) => (
+                  <span key={s.id} className={`pill pill-sm ${statusPillClass(String(s.status || ""))}`}>
+                    {s.plan?.name || "Plan"} · {statusLabel(String(s.status || ""))}
+                  </span>
+                ))
+              ) : (
+                <span className="pill pill-muted pill-sm">Sin suscripciones activas</span>
+              )}
+            </div>
+          </div>
         </div>
       </section>
 
@@ -550,26 +562,26 @@ export default async function CustomerDetailPage({
           <div className="contact-section-title">Información del cliente</div>
           <div className="invoice-header">
             <div className="invoice-top">
-              <div className="invoice-name">{customer.name || customer.email || customer.phone || "Contacto"}</div>
+              <div className="invoice-title">Datos de facturación</div>
               <div className="invoice-id">
                 <span className="invoice-label">NIT / ID</span>
                 <span className="invoice-value mono">{meta?.identificacion || meta?.identificationNumber || meta?.documentNumber || "—"}</span>
               </div>
             </div>
-            <div className="invoice-row">
-              <div className="invoice-item">
+            <div className="invoice-row compact">
+              <div className="invoice-kv">
                 <span className="invoice-label">Email</span>
                 <span className="invoice-value truncate">{customer.email || "—"}</span>
               </div>
-              <div className="invoice-item">
+              <div className="invoice-kv">
                 <span className="invoice-label">Teléfono</span>
                 <span className="invoice-value">{customer.phone || "—"}</span>
               </div>
-              <div className="invoice-item">
+              <div className="invoice-kv">
                 <span className="invoice-label">Canal</span>
                 <span className="invoice-value">{tenantName || customer.tenantId || "—"}</span>
               </div>
-              <div className="invoice-item">
+              <div className="invoice-kv">
                 <span className="invoice-label">Creado</span>
                 <span className="invoice-value"><LocalDateTime value={customer.createdAt} /></span>
               </div>

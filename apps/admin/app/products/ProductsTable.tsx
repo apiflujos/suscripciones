@@ -334,9 +334,12 @@ export function ProductsTable({
       });
   }
 
-  function applyImageUrl() {
-    const trimmed = imageUrlInput.trim();
-    if (!trimmed) return;
+  function applyImageUrl(value?: string) {
+    const trimmed = String(value ?? imageUrlInput).trim();
+    if (!trimmed) {
+      setImageUrl("");
+      return;
+    }
     if (!isPublicImage(trimmed)) return;
     setImageUrl(trimmed);
   }
@@ -667,8 +670,15 @@ export function ProductsTable({
                       placeholder="https://..."
                       value={imageUrlInput}
                       onChange={(e) => setImageUrlInput(e.target.value)}
+                      onBlur={(e) => applyImageUrl(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          applyImageUrl(e.currentTarget.value);
+                        }
+                      }}
                     />
-                    <button type="button" className="ghost" onClick={applyImageUrl} disabled={!isPublicImage(imageUrlInput)}>
+                    <button type="button" className="ghost" onClick={() => applyImageUrl()} disabled={!isPublicImage(imageUrlInput)}>
                       Usar URL
                     </button>
                   </div>

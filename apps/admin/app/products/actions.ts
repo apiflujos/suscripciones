@@ -98,6 +98,18 @@ function normalizeMessage(input: string) {
   return out.join("\n").trim();
 }
 
+function stripInlineImageLines(input: string, removeImageLabel: boolean) {
+  const lines = String(input || "").split(/\r?\n/);
+  const filtered = lines.filter((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) return true;
+    if (removeImageLabel && /^imagen\s*:/i.test(trimmed)) return false;
+    if (/data:image\//i.test(trimmed)) return false;
+    return true;
+  });
+  return normalizeMessage(filtered.join("\n"));
+}
+
 function renderTemplate(template: string, data: Record<string, string>) {
   let out = String(template || "");
   for (const [key, value] of Object.entries(data)) {
@@ -391,7 +403,7 @@ export async function sendProductToCustomer(formData: FormData) {
   }
 
   const description = String(product.description || "").trim();
-  const message = renderTemplate(messageTemplate, {
+  let message = renderTemplate(messageTemplate, {
     cliente: customerName,
     producto: String(product.name || "Producto"),
     precio: formatCurrency(totals.totalInCents, String(product.currency || "COP")),
@@ -399,6 +411,7 @@ export async function sendProductToCustomer(formData: FormData) {
     imagen: includeImageSafe ? imageUrl : "",
     link: includePaymentLink ? checkoutUrl : ""
   });
+  message = stripInlineImageLines(message, !includeImageSafe);
 
   if (!message) return redirect(mergeQuery(returnTo, { error: "empty_message" }));
 
