@@ -1304,7 +1304,7 @@ a {
 
 .logs-table th,
 .logs-table td {
-  padding: 6px;
+  padding: 5px;
   overflow: hidden;
   min-width: 0;
   max-width: 0;
@@ -2004,7 +2004,7 @@ textarea {
 .apf-list-item {
   border: 1px solid var(--stroke);
   border-radius: var(--radius-lg);
-  padding: 10px 12px;
+  padding: 8px 10px;
   background: var(--panel);
   display: flex;
   align-items: center;
@@ -2320,14 +2320,14 @@ textarea.input {
 }
 
 .contact-sub {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--muted);
 }
 
 .contacts-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 14px;
+  gap: 10px;
 }
 
 .contact-card {
@@ -2383,13 +2383,13 @@ textarea.input {
 }
 
 .contact-title {
-  font-size: 15.5px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-strong);
 }
 
 .contact-subline {
-  font-size: 12.5px;
+  font-size: 11.5px;
   color: var(--text-soft);
 }
 
@@ -2420,7 +2420,7 @@ textarea.input {
 }
 
 .detail-item {
-  padding: 8px 10px;
+  padding: 6px 8px;
   border-radius: 12px;
   border: 1px solid var(--stroke);
   background: var(--surface-2);
@@ -2444,7 +2444,7 @@ textarea.input {
 }
 
 .detail-value {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text);
   overflow-wrap: anywhere;
@@ -2478,7 +2478,7 @@ textarea.input {
 }
 
 .summary-item {
-  padding: 6px 8px;
+  padding: 5px 6px;
   border-radius: 10px;
   border: 1px solid var(--stroke);
   background: var(--surface-2);
@@ -2507,7 +2507,7 @@ textarea.input {
 }
 
 .summary-value {
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text);
   overflow-wrap: anywhere;
@@ -2543,7 +2543,7 @@ textarea.input {
 }
 
 .invoice-title {
-  font-size: 11px;
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-faint);
@@ -2558,7 +2558,7 @@ textarea.input {
 
 .invoice-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 8px;
 }
 
@@ -2571,7 +2571,7 @@ textarea.input {
   display: grid;
   gap: 2px;
   min-width: 0;
-  padding: 2px 0;
+  padding: 1px 0;
 }
 
 .customer-dual {
@@ -2600,7 +2600,7 @@ textarea.input {
   border: 1px solid var(--stroke);
   background: var(--panel);
   display: grid;
-  gap: 4px;
+  gap: 3px;
 }
 
 .invoice-label {
@@ -2612,7 +2612,7 @@ textarea.input {
 }
 
 .invoice-value {
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text);
   white-space: nowrap;
@@ -2654,7 +2654,7 @@ textarea.input {
   border: 1px solid var(--stroke);
   border-radius: 12px;
   background: var(--surface-2);
-  padding: 10px;
+  padding: 8px;
   display: grid;
   gap: 6px;
 }
@@ -2696,7 +2696,7 @@ textarea.input {
   background: rgba(15, 23, 42, 0.02);
   border: 1px solid var(--stroke);
   border-radius: 12px;
-  padding: 8px 10px;
+  padding: 6px 8px;
   display: grid;
   gap: 6px;
 }
@@ -3006,12 +3006,12 @@ textarea.input {
   display: grid;
   align-content: center;
   gap: 2px;
-  padding: 6px 12px;
+  padding: 6px 10px;
   border-radius: 10px;
   border: 1px solid var(--stroke);
   background: var(--surface-2);
   min-width: 160px;
-  min-height: 78px;
+  min-height: 64px;
   justify-items: start;
   text-align: left;
 }
@@ -3039,7 +3039,7 @@ textarea.input {
   display: grid;
   align-content: center;
   justify-items: flex-start;
-  padding: 10px 12px;
+  padding: 8px 10px;
   border-radius: 12px;
   border: 1px solid var(--stroke);
   background: var(--surface-2);
@@ -4162,7 +4162,8 @@ textarea.input {
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: 10.5px;
+  line-height: 1.25;
 }
 
 .table-fixed {
@@ -4184,13 +4185,13 @@ textarea.input {
 
 .table th,
 .table td {
-  padding: 8px;
+  padding: 6px;
   border-bottom: 1px solid var(--stroke-strong);
   text-align: left;
 }
 
 .table thead th {
-  font-size: 10px;
+  font-size: 9.5px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-faint);
@@ -7337,18 +7338,19 @@ html[data-contrast="high"] .toggle::after {
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: 10.5px;
+  line-height: 1.25;
 }
 
 .table th,
 .table td {
-  padding: 8px;
+  padding: 6px;
   border-bottom: 1px solid var(--stroke-strong);
   text-align: left;
 }
 
 .table thead th {
-  font-size: 10px;
+  font-size: 9.5px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-faint);
