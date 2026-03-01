@@ -261,14 +261,22 @@ export default async function BillingPage({
   const checkoutConfig = settings?.checkoutConfig || {};
   const subscriptionBaseUrl = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
   const plans = (plansRes.json?.items ?? []) as any[];
-  const planOptions = plans.map((p: any) => ({
-    id: String(p.id),
-    name: String(p?.metadata?.displayName || p.name || "Plan"),
-    sku: String(p?.metadata?.sku || ""),
-    collectionMode: String(p?.metadata?.collectionMode || p.collectionMode || ""),
-    priceInCents: Number(p.priceInCents || 0),
-    currency: String(p.currency || "COP")
-  }));
+  const planOptions = plans.map((p: any) => {
+    const catalogItemId = String((p?.metadata as any)?.catalog?.itemId || "");
+    const productName = catalogItemId ? String(productById.get(catalogItemId)?.name || "") : "";
+    const displayName = String(p?.metadata?.displayName || productName || p.name || "Plan");
+    const sku = String(p?.metadata?.sku || "");
+    const searchText = [displayName, p.name, productName, sku, p.id].filter(Boolean).join(" ").toLowerCase();
+    return {
+      id: String(p.id),
+      name: displayName,
+      sku,
+      searchText,
+      collectionMode: String(p?.metadata?.collectionMode || p.collectionMode || ""),
+      priceInCents: Number(p.priceInCents || 0),
+      currency: String(p.currency || "COP")
+    };
+  });
 
   const rows = subItems
     .map((s) => {

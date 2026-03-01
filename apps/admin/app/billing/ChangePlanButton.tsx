@@ -7,6 +7,8 @@ import { HelpTip } from "../ui/HelpTip";
 type PlanOption = {
   id: string;
   name: string;
+  sku?: string;
+  searchText?: string;
   collectionMode?: string | null;
   priceInCents?: number | null;
   currency?: string | null;
@@ -57,7 +59,9 @@ export function ChangePlanButton({
     return plans.filter((p) => {
       const name = String(p.name || "").toLowerCase();
       const id = String(p.id || "").toLowerCase();
-      return name.includes(q) || id.includes(q);
+      const sku = String(p.sku || "").toLowerCase();
+      const search = String(p.searchText || "").toLowerCase();
+      return name.includes(q) || id.includes(q) || sku.includes(q) || search.includes(q);
     });
   }, [plans, query]);
 
