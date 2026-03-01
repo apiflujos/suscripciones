@@ -755,6 +755,81 @@ a {
   flex-wrap: nowrap;
 }
 
+.jobs-health-card {
+  border: 1px solid var(--stroke);
+  background: var(--panel);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 8px;
+  min-width: 280px;
+  box-shadow: var(--shadow-soft);
+}
+
+.jobs-health-card.is-warn {
+  border-color: var(--status-warning);
+}
+
+.jobs-health-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text);
+}
+
+.jobs-health-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--status-success);
+  box-shadow: 0 0 0 2px var(--panel);
+}
+
+.jobs-health-card.is-warn .jobs-health-dot {
+  background: var(--status-warning);
+}
+
+.jobs-health-badge {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-faint);
+  text-transform: none;
+}
+
+.jobs-health-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 14px;
+  font-size: 12px;
+}
+
+.jobs-health-wide {
+  grid-column: 1 / -1;
+}
+
+.jobs-health-label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-bottom: 2px;
+}
+
+.jobs-health-value {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.log-detail-meta {
+  display: block;
+  font-size: 11px;
+  margin-top: 4px;
+}
+
 .appearanceTrigger {
   border: 1px solid var(--stroke);
   background: var(--panel);
@@ -1175,6 +1250,8 @@ a {
   align-items: center;
   justify-content: flex-end;
   flex: 0 0 auto;
+  margin-left: auto;
+  flex-wrap: wrap;
 }
 
 .filtersNote {

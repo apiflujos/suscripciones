@@ -216,6 +216,7 @@ export default async function LogsPage({
   const empty = { ok: true, status: 200, json: { items: [], total: null } } as const;
   const system = tab === "system" ? await fetchAdmin(`/admin/logs/system?${systemParams.toString()}`) : empty;
   const jobs = tab === "jobs" ? await fetchAdmin(`/admin/logs/jobs?${baseParams.toString()}`) : empty;
+  const jobsHealth = tab === "jobs" ? await fetchAdmin("/admin/logs/jobs/health") : empty;
   const webhooks = tab === "webhooks" ? await fetchAdmin(`/admin/webhook-events?${webhooksParams.toString()}`) : empty;
   const messages = tab === "messages" ? await fetchAdmin(`/admin/logs/messages?${baseParams.toString()}`) : empty;
   const payments = tab === "payments" ? await fetchAdmin(`/admin/logs/payments?${paymentsParams.toString()}`) : empty;
@@ -279,6 +280,18 @@ export default async function LogsPage({
     },
     { processed: 0, failed: 0, skipped: 0, total: 0 }
   );
+
+  const jobsHealthInfo = jobsHealth?.ok ? jobsHealth.json : null;
+  const jobsHeartbeatLabel =
+    jobsHealthInfo?.lastSeenAt ? <LocalDateTime value={jobsHealthInfo.lastSeenAt} variant="short" /> : "—";
+  const jobsNextLabel =
+    jobsHealthInfo?.nextJobAt ? (
+      <>
+        {normalizeJobType(jobsHealthInfo?.nextJobType)} · <LocalDateTime value={jobsHealthInfo.nextJobAt} variant="short" />
+      </>
+    ) : (
+      "—"
+    );
 
   const filtered = q
     ? sysItems.filter((l) => String(l.message || "").toLowerCase().includes(q.toLowerCase()) || String(l.source || "").toLowerCase().includes(q.toLowerCase()))
@@ -529,6 +542,37 @@ export default async function LogsPage({
                   <div style={{ color: "var(--muted)", fontSize: 13 }}>Reintentos uno a uno o masivos.</div>
                 </div>
               </div>
+              <div className="filtersRight">
+                <div className={`jobs-health-card ${jobsHealthInfo?.healthy ? "is-ok" : "is-warn"}`}>
+                  <div className="jobs-health-header">
+                    <span className="jobs-health-dot" aria-hidden="true" />
+                    <span>Runner</span>
+                    <span className="jobs-health-badge">{jobsHealthInfo?.healthy ? "Activo" : "Sin latido"}</span>
+                  </div>
+                  <div className="jobs-health-grid">
+                    <div>
+                      <span className="jobs-health-label">Último ping</span>
+                      <span className="jobs-health-value">{jobsHeartbeatLabel}</span>
+                    </div>
+                    <div>
+                      <span className="jobs-health-label">Pendientes</span>
+                      <span className="jobs-health-value">{jobsHealthInfo?.pending ?? "—"}</span>
+                    </div>
+                    <div>
+                      <span className="jobs-health-label">Corriendo</span>
+                      <span className="jobs-health-value">{jobsHealthInfo?.running ?? "—"}</span>
+                    </div>
+                    <div>
+                      <span className="jobs-health-label">Fallidos</span>
+                      <span className="jobs-health-value">{jobsHealthInfo?.failed ?? "—"}</span>
+                    </div>
+                    <div className="jobs-health-wide">
+                      <span className="jobs-health-label">Próximo job</span>
+                      <span className="jobs-health-value">{jobsNextLabel}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           ) : tab === "payments" ? (
             <div className="filtersRow">
@@ -663,6 +707,22 @@ export default async function LogsPage({
                           : null;
                     const detailRaw = String(j.lastError || webhookNote || "—");
                     const detail = detailRaw.length > 260 ? `${detailRaw.slice(0, 260)}…` : detailRaw;
+                    const scheduleAt =
+                      status === "PENDING"
+                        ? j.runAt
+                        : status === "RUNNING"
+                          ? j.lockedAt
+                          : status === "FAILED"
+                            ? j.updatedAt
+                            : null;
+                    const scheduleLabel =
+                      status === "PENDING"
+                        ? "Programado"
+                        : status === "RUNNING"
+                          ? "En ejecución"
+                          : status === "FAILED"
+                            ? "Falló"
+                            : "Actualizado";
                     return (
                       <tr key={j.id}>
                         <td className="log-date-cell"><LocalDateTime value={j.updatedAt} variant="stacked" /></td>
@@ -675,7 +735,17 @@ export default async function LogsPage({
                         </td>
                         <td>{attemptsShown} / {maxAttempts}</td>
                         <td className="log-target-cell" title={target}>{target}</td>
-                        <td className="log-detail-cell" title={detailRaw}>{detail}</td>
+                        <td className="log-detail-cell" title={detailRaw}>
+                          <span className="log-message-text">{detail}</span>
+                          {scheduleAt ? (
+                            <span className="log-detail-meta muted">
+                              {scheduleLabel}: <LocalDateTime value={scheduleAt} variant="short" />
+                            </span>
+                          ) : null}
+                          {j.lockedBy ? (
+                            <span className="log-detail-meta muted">Worker: {j.lockedBy}</span>
+                          ) : null}
+                        </td>
                         <td style={{ textAlign: "right" }}>
                           {status === "FAILED" ? (
                             <form action={retryJob}>
