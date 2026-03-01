@@ -113,6 +113,7 @@ export function ProductsTable({
   const [variantOptionsCount, setVariantOptionsCount] = useState<0 | 1 | 2>(0);
   const [variantsJson, setVariantsJson] = useState("[]");
   const [imageUrl, setImageUrl] = useState("");
+  const [imageUrlInput, setImageUrlInput] = useState("");
   const modalRef = useRef<HTMLDivElement | null>(null);
   const lastActiveRef = useRef<HTMLElement | null>(null);
 
@@ -142,7 +143,9 @@ export function ProductsTable({
     setRequiresShipping(Boolean(item.requiresShipping));
     setOption1Name(item.option1Name || "");
     setOption2Name(item.option2Name || "");
-    setImageUrl(item.imageUrl || "");
+    const currentImageUrl = String(item.imageUrl || "");
+    setImageUrl(currentImageUrl);
+    setImageUrlInput(isPublicImage(currentImageUrl) ? currentImageUrl : "");
     const ids = Array.isArray(item.tenantIds) && item.tenantIds.length ? item.tenantIds : item.tenantId ? [item.tenantId] : [];
     setSelectedTenantIds(ids as string[]);
     const hasOpt2 = Boolean(item.option2Name) || (item.variants || []).some((v) => v?.option2);
@@ -307,8 +310,16 @@ export function ProductsTable({
     reader.onload = () => {
       const result = typeof reader.result === "string" ? reader.result : "";
       if (result) setImageUrl(result);
+      setImageUrlInput("");
     };
     reader.readAsDataURL(file);
+  }
+
+  function applyImageUrl() {
+    const trimmed = imageUrlInput.trim();
+    if (!trimmed) return;
+    if (!isPublicImage(trimmed)) return;
+    setImageUrl(trimmed);
   }
 
   return (
@@ -630,12 +641,32 @@ export function ProductsTable({
                 <textarea className="input" name="description" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
               </div>
               <div className="field">
-                <label>Imagen</label>
+                <label>Imagen (URL pública)</label>
+                <div className="image-url-row">
+                  <input
+                    className="input"
+                    placeholder="https://..."
+                    value={imageUrlInput}
+                    onChange={(e) => setImageUrlInput(e.target.value)}
+                  />
+                  <button type="button" className="ghost" onClick={applyImageUrl} disabled={!isPublicImage(imageUrlInput)}>
+                    Usar URL
+                  </button>
+                </div>
+                <div className="field-hint">Puedes pegar URLs de Shopify, WooCommerce, VTEX, Tiendanube, Exito, Falabella, Magento o Prestashop.</div>
+                {!isPublicImage(imageUrl) && imageUrl ? (
+                  <div className="field-hint" style={{ color: "var(--status-warning)" }}>
+                    La imagen actual es un archivo interno; para WhatsApp usa una URL pública.
+                  </div>
+                ) : null}
+              </div>
+              <div className="field">
+                <label>Subir archivo (opcional)</label>
                 <div className="file-row">
                   <input type="file" accept="image/*" onChange={onImageFile} />
                   {imageUrl ? <img src={imageUrl} alt="Producto" className="logo-preview" /> : null}
                   {imageUrl ? (
-                    <button type="button" className="ghost" onClick={() => setImageUrl("")}>
+                    <button type="button" className="ghost" onClick={() => { setImageUrl(""); setImageUrlInput(""); }}>
                       Quitar
                     </button>
                   ) : null}
