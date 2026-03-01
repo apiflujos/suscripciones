@@ -56,6 +56,9 @@ const FIELDS: FieldOption[] = [
   { value: "nextBillingDate", label: "Próximo cobro", type: "date" },
   { value: "lastPaymentStatus", label: "Último pago estado", type: "enum", enumValues: ["PENDING", "APPROVED", "DECLINED", "ERROR", "VOIDED"] },
   { value: "lastPaymentDate", label: "Último pago fecha", type: "date" },
+  { value: "paymentsCount", label: "Pagos totales", type: "number" },
+  { value: "approvedPaymentsCount", label: "Pagos aprobados", type: "number" },
+  { value: "tier", label: "Nivel gamificación", type: "enum", enumValues: ["Rookie", "Bronce", "Plata", "Oro"] },
   { value: "daysPastDue", label: "Días en mora", type: "number" },
   { value: "inMora", label: "En mora", type: "boolean" },
   { value: "hasSubscription", label: "Tiene suscripción", type: "boolean" },
@@ -405,6 +408,8 @@ export function SmartListBuilder({
       <input type="hidden" name="rules" value={json} />
       <div className="field-hint">
         Fechas relativas soportan segundos, minutos, horas, días. Para listas usa coma.
+        <br />
+        Nivel gamificación: Rookie (0), Bronce (>=1), Plata (>=3), Oro (>=6) pagos aprobados.
       </div>
     </div>
   );
