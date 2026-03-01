@@ -27,6 +27,23 @@ function statusPillClass(status: string) {
   return "pill-muted";
 }
 
+function logLevelLabel(level: string) {
+  const upper = String(level || "").toUpperCase();
+  if (!upper) return "—";
+  if (upper === "ERROR") return "Error";
+  if (upper === "WARN" || upper === "WARNING") return "Alerta";
+  if (upper === "INFO") return "Info";
+  return upper;
+}
+
+function logPillClass(level: string) {
+  const upper = String(level || "").toUpperCase();
+  if (upper === "ERROR") return "pill-bad";
+  if (upper === "WARN" || upper === "WARNING") return "pill-warn";
+  if (upper === "INFO") return "pill-muted";
+  return "pill-muted";
+}
+
 function collectionLabel(mode: string) {
   if (mode === "AUTO_DEBIT") return "Suscripción";
   if (mode === "AUTO_LINK") return "Plan auto";
@@ -98,6 +115,10 @@ async function fetchLogs(id: string) {
   return fetchAdminCached(`/admin/logs/system?customerId=${encodeURIComponent(id)}&take=20`, { ttlMs: 1500 });
 }
 
+async function fetchTenants() {
+  return fetchAdminCached("/admin/tenants", { ttlMs: 1500 });
+}
+
 async function geocodeAddress(address: string) {
   if (!address) return null;
   try {
@@ -137,11 +158,12 @@ export default async function CustomerDetailPage({
   }
 
   const { id } = await params;
-  const [customerRes, paymentsRes, subscriptionsRes, logsRes] = await Promise.all([
+  const [customerRes, paymentsRes, subscriptionsRes, logsRes, tenantsRes] = await Promise.all([
     fetchCustomer(id),
     fetchPayments(id),
     fetchSubscriptions(id),
-    fetchLogs(id)
+    fetchLogs(id),
+    fetchTenants()
   ]);
 
   if (!customerRes.ok) {
@@ -166,6 +188,8 @@ export default async function CustomerDetailPage({
   const payments = (paymentsRes.json?.items ?? []) as any[];
   const subscriptions = (subscriptionsRes.json?.items ?? []) as any[];
   const logs = (logsRes.json?.items ?? []) as any[];
+  const tenants = (tenantsRes.json?.items ?? []) as Array<{ id: string; name: string }>;
+  const tenantName = tenants.find((t) => String(t.id) === String(customer.tenantId))?.name || "";
 
   const approvedPayments = payments.filter((p) => p.status === "APPROVED");
   const failedPayments = payments.filter((p) => ["DECLINED", "ERROR", "VOIDED"].includes(String(p.status)));
@@ -174,6 +198,8 @@ export default async function CustomerDetailPage({
   const lastPayment = payments[0] || null;
   const activeSub = subscriptions.find((s) => s.status === "ACTIVE" || s.status === "PAST_DUE") || subscriptions[0] || null;
   const lastPaymentAt = lastPayment?.paidAt || lastPayment?.createdAt || null;
+  const nextPeriodEnd = activeSub?.currentPeriodEndAt || null;
+  const paymentSourceId = meta?.wompi?.paymentSourceId || meta?.wompi?.payment_source_id || null;
 
   const amountSeries = payments
     .slice(0, 12)
@@ -285,7 +311,7 @@ export default async function CustomerDetailPage({
             </div>
             <div>
               <span>Canal</span>
-              <span className="contact-value">{customer.tenantId || "—"}</span>
+              <span className="contact-value">{tenantName || customer.tenantId || "—"}</span>
             </div>
             <div>
               <span>Creado</span>
@@ -316,6 +342,18 @@ export default async function CustomerDetailPage({
             <div>
               <span>Último pago</span>
               <strong className="contact-value">{lastPaymentAt ? <LocalDateTime value={lastPaymentAt} /> : "—"}</strong>
+            </div>
+            <div>
+              <span>Próximo corte</span>
+              <strong className="contact-value">{nextPeriodEnd ? <LocalDateTime value={nextPeriodEnd} /> : "—"}</strong>
+            </div>
+            <div>
+              <span>Método de pago</span>
+              <strong className="contact-value">{paymentSourceId ? "Tokenizado" : "Sin token"}</strong>
+            </div>
+            <div>
+              <span>ID token</span>
+              <strong className="contact-value mono">{paymentSourceId ? String(paymentSourceId) : "—"}</strong>
             </div>
           </div>
         </div>
@@ -443,7 +481,8 @@ export default async function CustomerDetailPage({
                   <div className="customer-log-meta">
                     <span>{l.actor || "Sistema"}</span>
                     <span><LocalDateTime value={l.createdAt} /></span>
-                    <span>{statusLabel(String(l.level || ""))}</span>
+                    <span className={`pill pill-sm ${logPillClass(String(l.level || ""))}`}>{logLevelLabel(String(l.level || ""))}</span>
+                    {l.source ? <span>{l.source}</span> : null}
                   </div>
                   <div className="muted" style={{ marginTop: 6 }}>{l.message}</div>
                 </div>
