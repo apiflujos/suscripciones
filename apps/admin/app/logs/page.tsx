@@ -493,16 +493,6 @@ export default async function LogsPage({
               >
                 Jobs
               </Link>
-              <Link
-                className={`ghost no-icon panel-tab ${tab === "payments" ? "is-active" : ""}`}
-                href={`/logs?${new URLSearchParams({ tab: "payments" })}`}
-                prefetch={false}
-                data-loader={tab === "payments" ? "off" : undefined}
-                aria-disabled={tab === "payments" ? "true" : undefined}
-                tabIndex={tab === "payments" ? -1 : undefined}
-              >
-                Pagos
-              </Link>
             </div>
             <div className="panelHeaderPills">
               {tab === "system" ? (

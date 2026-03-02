@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { AdminSession } from "../lib/session";
 
@@ -9,6 +9,7 @@ type Header = { title: string; subtitle: string };
 
 function getHeader(pathname: string): Header {
   if (pathname === "/") return { title: "Métricas", subtitle: "Ajusta rango y granularidad para leer la evolución de las métricas." };
+  if (pathname.startsWith("/payments")) return { title: "Pagos", subtitle: "Seguimiento de pagos, estados y conciliación." };
   if (pathname.startsWith("/logs")) return { title: "Logs de API", subtitle: "Seguimiento de procesos y sincronizaciones." };
   if (pathname.startsWith("/customers")) return { title: "Contactos", subtitle: "Clientes y datos de contacto." };
   if (pathname.startsWith("/products")) return { title: "Productos y Servicios", subtitle: "Catálogo para cobranza recurrente." };
@@ -23,6 +24,13 @@ function getHeader(pathname: string): Header {
   if (pathname.startsWith("/appearance")) return { title: "Apariencia", subtitle: "Tema, visión y contraste." };
   if (pathname.startsWith("/sa") || pathname.startsWith("/__sa")) return { title: "Super Admin", subtitle: "Planes, módulos, usuarios y consumos." };
   return { title: "Panel", subtitle: "—" };
+}
+
+function getHeaderWithTab(pathname: string, tab: string): Header {
+  if (pathname === "/logs" && tab === "payments") {
+    return { title: "Pagos", subtitle: "Seguimiento de pagos, estados y conciliación." };
+  }
+  return getHeader(pathname);
 }
 
 function UserMenuIcon({ className }: { className?: string }) {
@@ -42,7 +50,9 @@ function displayNameFromEmail(email: string) {
 
 export function TopBar({ session }: { session: AdminSession | null }) {
   const pathname = usePathname() || "/";
-  const header = useMemo(() => getHeader(pathname), [pathname]);
+  const searchParams = useSearchParams();
+  const headerTab = String(searchParams?.get("tab") || "");
+  const header = useMemo(() => getHeaderWithTab(pathname, headerTab), [pathname, headerTab]);
   const isSuperAdmin = session?.role === "SUPER_ADMIN";
   const [menuOpen, setMenuOpen] = useState(false);
   const [paymentPulse, setPaymentPulse] = useState(false);

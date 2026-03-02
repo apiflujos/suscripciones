@@ -16,7 +16,7 @@ function NavIcon({
   name,
   className
 }: {
-  name: "metrics" | "contacts" | "products" | "billing" | "checkout" | "notifications" | "logs" | "settings" | "appearance" | "lists" | "campaigns";
+  name: "metrics" | "payments" | "contacts" | "products" | "billing" | "checkout" | "notifications" | "logs" | "settings" | "appearance" | "lists" | "campaigns";
   className?: string;
 }) {
   if (name === "metrics") {
@@ -110,6 +110,15 @@ function NavIcon({
       </svg>
     );
   }
+  if (name === "payments") {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+        <rect x="3" y="5" width="18" height="14" rx="2" />
+        <path d="M3 10h18" />
+        <path d="M7 15h4" />
+      </svg>
+    );
+  }
   if (name === "appearance") {
     return (
       <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -174,12 +183,13 @@ function LogoutIcon({ className }: { className?: string }) {
 export function SideNav({ session }: { session: AdminSession | null }) {
   const pathname = usePathname() || "";
   const searchParams = useSearchParams();
+  const logTab = searchParams?.get("tab") || "";
+  const isPaymentsInLogs = pathname === "/logs" && logTab === "payments";
   const isSuperAdminPath = pathname.startsWith("/sa") || pathname.startsWith("/__sa");
   const isSuperAdmin = session?.role === "SUPER_ADMIN";
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  void searchParams;
 
   useEffect(() => {
     const shell = document.querySelector(".app-shell") as HTMLElement | null;
@@ -289,6 +299,18 @@ export function SideNav({ session }: { session: AdminSession | null }) {
         <span className="nav-label">Métricas</span>
       </Link>
       <Link
+        className={`nav-item ${(isActivePath(pathname, "/payments") || isPaymentsInLogs) ? "is-active" : ""}`}
+        href="/logs?tab=payments"
+        prefetch={false}
+        aria-current={(isActivePath(pathname, "/payments") || isPaymentsInLogs) ? "page" : undefined}
+        aria-disabled={(isActivePath(pathname, "/payments") || isPaymentsInLogs) ? "true" : undefined}
+        data-loader={(isActivePath(pathname, "/payments") || isPaymentsInLogs) ? "off" : undefined}
+        tabIndex={(isActivePath(pathname, "/payments") || isPaymentsInLogs) ? -1 : undefined}
+      >
+        <NavIcon name="payments" className="nav-icon" />
+        <span className="nav-label">Pagos</span>
+      </Link>
+      <Link
         className={`nav-item ${isActivePath(pathname, "/customers") ? "is-active" : ""}`}
         href="/customers"
         prefetch={false}
@@ -373,13 +395,13 @@ export function SideNav({ session }: { session: AdminSession | null }) {
         <span className="nav-label">Campañas</span>
       </Link>
       <Link
-        className={`nav-item ${isActivePath(pathname, "/logs") ? "is-active" : ""}`}
+        className={`nav-item ${(isActivePath(pathname, "/logs") && !isPaymentsInLogs) ? "is-active" : ""}`}
         href="/logs"
         prefetch={false}
-        aria-current={isActivePath(pathname, "/logs") ? "page" : undefined}
-        aria-disabled={isActivePath(pathname, "/logs") ? "true" : undefined}
-        data-loader={isActivePath(pathname, "/logs") ? "off" : undefined}
-        tabIndex={isActivePath(pathname, "/logs") ? -1 : undefined}
+        aria-current={(isActivePath(pathname, "/logs") && !isPaymentsInLogs) ? "page" : undefined}
+        aria-disabled={(isActivePath(pathname, "/logs") && !isPaymentsInLogs) ? "true" : undefined}
+        data-loader={(isActivePath(pathname, "/logs") && !isPaymentsInLogs) ? "off" : undefined}
+        tabIndex={(isActivePath(pathname, "/logs") && !isPaymentsInLogs) ? -1 : undefined}
       >
         <NavIcon name="logs" className="nav-icon" />
         <span className="nav-label">Logs de API</span>
