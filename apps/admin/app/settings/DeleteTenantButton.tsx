@@ -30,7 +30,9 @@ export function DeleteTenantButton({ action, csrfToken, tenantId, returnTo }: Pr
       <input type="hidden" name="csrf" value={csrfToken} />
       <input type="hidden" name="tenantId" value={tenantId} />
       <input type="hidden" name="returnTo" value={returnTo} />
-      <PendingButton className="ghost btn-compact btn-red btn-delete-icon" type="submit" pendingText="Eliminando..." aria-label="Eliminar canal" title="Eliminar canal" />
+      <PendingButton className="ghost btn-compact btn-red btn-delete-icon" type="submit" pendingText="Eliminando..." aria-label="Eliminar canal" title="Eliminar canal">
+        Eliminar
+      </PendingButton>
     </form>
   );
 }
