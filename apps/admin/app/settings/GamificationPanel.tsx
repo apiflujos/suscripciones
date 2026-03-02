@@ -4,11 +4,13 @@ import { HelpTip } from "../ui/HelpTip";
 export function GamificationPanel({
   csrfToken,
   config,
+  view,
   trending,
   actions
 }: {
   csrfToken: string;
   config: any;
+  view: "compact" | "full";
   trending: {
     customers24h: any[];
     customers7d: any[];
@@ -35,6 +37,153 @@ export function GamificationPanel({
   const wEmail = weights?.dataEmailAdded || {};
   const wPhone = weights?.dataPhoneAdded || {};
   const wId = weights?.dataIdAdded || {};
+  const isCompact = view !== "full";
+
+  const basePreset = {
+    followup: { minutes: 15, cooldownMinutes: 120, maxAttempts: 3, penaltyNoResponse: 25 },
+    decay: { inactivityDays: 30, perDay: 2, maxPenalty: 180 },
+    weights: {
+      paymentApproved: { status: 120, lifetime: 100, reward: 40, moneyScale: 10000 },
+      paymentFailed: { status: -60, lifetime: 0, reward: 0 },
+      subscriptionStarted: { status: 60, lifetime: 40, reward: 10 },
+      subscriptionRenewed: { status: 70, lifetime: 50, reward: 15 },
+      subscriptionCanceled: { status: -120, lifetime: 0, reward: 0 },
+      subscriptionPastDue: { status: -80, lifetime: 0, reward: 0 },
+      chatwootMessageIn: { status: 12, lifetime: 6, reward: 2 },
+      dataEmailAdded: { status: 10, lifetime: 10, reward: 0 },
+      dataPhoneAdded: { status: 10, lifetime: 10, reward: 0 },
+      dataIdAdded: { status: 15, lifetime: 15, reward: 0 }
+    },
+    penalties: { pastDue: 90, canceled: 120 }
+  };
+
+  const presetMap = {
+    balanced: basePreset,
+    conservative: {
+      ...basePreset,
+      weights: {
+        ...basePreset.weights,
+        paymentApproved: { status: 100, lifetime: 80, reward: 30, moneyScale: 12000 },
+        paymentFailed: { status: -70, lifetime: 0, reward: 0 },
+        subscriptionStarted: { status: 50, lifetime: 30, reward: 8 },
+        subscriptionRenewed: { status: 55, lifetime: 40, reward: 10 },
+        subscriptionCanceled: { status: -140, lifetime: 0, reward: 0 },
+        subscriptionPastDue: { status: -95, lifetime: 0, reward: 0 },
+        chatwootMessageIn: { status: 8, lifetime: 4, reward: 2 },
+        dataEmailAdded: { status: 8, lifetime: 8, reward: 0 },
+        dataPhoneAdded: { status: 8, lifetime: 8, reward: 0 },
+        dataIdAdded: { status: 12, lifetime: 12, reward: 0 }
+      },
+      penalties: { pastDue: 110, canceled: 140 }
+    },
+    aggressive: {
+      ...basePreset,
+      weights: {
+        ...basePreset.weights,
+        paymentApproved: { status: 150, lifetime: 130, reward: 60, moneyScale: 8000 },
+        paymentFailed: { status: -50, lifetime: 0, reward: 0 },
+        subscriptionStarted: { status: 80, lifetime: 60, reward: 15 },
+        subscriptionRenewed: { status: 90, lifetime: 70, reward: 20 },
+        subscriptionCanceled: { status: -90, lifetime: 0, reward: 0 },
+        subscriptionPastDue: { status: -60, lifetime: 0, reward: 0 },
+        chatwootMessageIn: { status: 16, lifetime: 10, reward: 4 },
+        dataEmailAdded: { status: 14, lifetime: 14, reward: 0 },
+        dataPhoneAdded: { status: 14, lifetime: 14, reward: 0 },
+        dataIdAdded: { status: 20, lifetime: 20, reward: 0 }
+      },
+      penalties: { pastDue: 70, canceled: 90 }
+    }
+  };
+
+  const normalizePreset = (input: any) => {
+    const src = input || {};
+    const num = (v: any, fallback: number) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
+    return {
+      followup: {
+        minutes: num(src?.followup?.minutes, basePreset.followup.minutes),
+        cooldownMinutes: num(src?.followup?.cooldownMinutes, basePreset.followup.cooldownMinutes),
+        maxAttempts: num(src?.followup?.maxAttempts, basePreset.followup.maxAttempts),
+        penaltyNoResponse: num(src?.followup?.penaltyNoResponse, basePreset.followup.penaltyNoResponse)
+      },
+      decay: {
+        inactivityDays: num(src?.decay?.inactivityDays, basePreset.decay.inactivityDays),
+        perDay: num(src?.decay?.perDay, basePreset.decay.perDay),
+        maxPenalty: num(src?.decay?.maxPenalty, basePreset.decay.maxPenalty)
+      },
+      weights: {
+        paymentApproved: {
+          status: num(src?.weights?.paymentApproved?.status, basePreset.weights.paymentApproved.status),
+          lifetime: num(src?.weights?.paymentApproved?.lifetime, basePreset.weights.paymentApproved.lifetime),
+          reward: num(src?.weights?.paymentApproved?.reward, basePreset.weights.paymentApproved.reward),
+          moneyScale: num(src?.weights?.paymentApproved?.moneyScale, basePreset.weights.paymentApproved.moneyScale)
+        },
+        paymentFailed: {
+          status: num(src?.weights?.paymentFailed?.status, basePreset.weights.paymentFailed.status),
+          lifetime: num(src?.weights?.paymentFailed?.lifetime, basePreset.weights.paymentFailed.lifetime),
+          reward: num(src?.weights?.paymentFailed?.reward, basePreset.weights.paymentFailed.reward)
+        },
+        subscriptionStarted: {
+          status: num(src?.weights?.subscriptionStarted?.status, basePreset.weights.subscriptionStarted.status),
+          lifetime: num(src?.weights?.subscriptionStarted?.lifetime, basePreset.weights.subscriptionStarted.lifetime),
+          reward: num(src?.weights?.subscriptionStarted?.reward, basePreset.weights.subscriptionStarted.reward)
+        },
+        subscriptionRenewed: {
+          status: num(src?.weights?.subscriptionRenewed?.status, basePreset.weights.subscriptionRenewed.status),
+          lifetime: num(src?.weights?.subscriptionRenewed?.lifetime, basePreset.weights.subscriptionRenewed.lifetime),
+          reward: num(src?.weights?.subscriptionRenewed?.reward, basePreset.weights.subscriptionRenewed.reward)
+        },
+        subscriptionCanceled: {
+          status: num(src?.weights?.subscriptionCanceled?.status, basePreset.weights.subscriptionCanceled.status),
+          lifetime: num(src?.weights?.subscriptionCanceled?.lifetime, basePreset.weights.subscriptionCanceled.lifetime),
+          reward: num(src?.weights?.subscriptionCanceled?.reward, basePreset.weights.subscriptionCanceled.reward)
+        },
+        subscriptionPastDue: {
+          status: num(src?.weights?.subscriptionPastDue?.status, basePreset.weights.subscriptionPastDue.status),
+          lifetime: num(src?.weights?.subscriptionPastDue?.lifetime, basePreset.weights.subscriptionPastDue.lifetime),
+          reward: num(src?.weights?.subscriptionPastDue?.reward, basePreset.weights.subscriptionPastDue.reward)
+        },
+        chatwootMessageIn: {
+          status: num(src?.weights?.chatwootMessageIn?.status, basePreset.weights.chatwootMessageIn.status),
+          lifetime: num(src?.weights?.chatwootMessageIn?.lifetime, basePreset.weights.chatwootMessageIn.lifetime),
+          reward: num(src?.weights?.chatwootMessageIn?.reward, basePreset.weights.chatwootMessageIn.reward)
+        },
+        dataEmailAdded: {
+          status: num(src?.weights?.dataEmailAdded?.status, basePreset.weights.dataEmailAdded.status),
+          lifetime: num(src?.weights?.dataEmailAdded?.lifetime, basePreset.weights.dataEmailAdded.lifetime),
+          reward: num(src?.weights?.dataEmailAdded?.reward, basePreset.weights.dataEmailAdded.reward)
+        },
+        dataPhoneAdded: {
+          status: num(src?.weights?.dataPhoneAdded?.status, basePreset.weights.dataPhoneAdded.status),
+          lifetime: num(src?.weights?.dataPhoneAdded?.lifetime, basePreset.weights.dataPhoneAdded.lifetime),
+          reward: num(src?.weights?.dataPhoneAdded?.reward, basePreset.weights.dataPhoneAdded.reward)
+        },
+        dataIdAdded: {
+          status: num(src?.weights?.dataIdAdded?.status, basePreset.weights.dataIdAdded.status),
+          lifetime: num(src?.weights?.dataIdAdded?.lifetime, basePreset.weights.dataIdAdded.lifetime),
+          reward: num(src?.weights?.dataIdAdded?.reward, basePreset.weights.dataIdAdded.reward)
+        }
+      },
+      penalties: {
+        pastDue: num(src?.penalties?.pastDue, basePreset.penalties.pastDue),
+        canceled: num(src?.penalties?.canceled, basePreset.penalties.canceled)
+      }
+    };
+  };
+
+  const currentKey = JSON.stringify(normalizePreset(config || {}));
+  const presetKeyMap = {
+    balanced: JSON.stringify(normalizePreset(presetMap.balanced)),
+    conservative: JSON.stringify(normalizePreset(presetMap.conservative)),
+    aggressive: JSON.stringify(normalizePreset(presetMap.aggressive))
+  };
+  const presetLabel =
+    currentKey === presetKeyMap.conservative
+      ? "Conservador"
+      : currentKey === presetKeyMap.aggressive
+        ? "Agresivo"
+        : currentKey === presetKeyMap.balanced
+          ? "Equilibrado"
+          : "Personalizado";
 
   return (
     <section className="settings-group">
@@ -44,10 +193,29 @@ export function GamificationPanel({
             <h3>Gamificación</h3>
             <div className="field-hint">Umbrales, degradación y entrenadores de datos.</div>
           </div>
+          <div className="gamification-header-right">
+            <span className={`pill ${presetLabel === "Personalizado" ? "pill-muted" : "pill-green"}`}>
+              Preset: {presetLabel}
+            </span>
+            <div className="gamification-view-toggle">
+              <a
+                className={`pill ${isCompact ? "pill-ok" : "pill-muted"}`}
+                href="/settings?tab=gamificacion&gview=compact"
+              >
+                Vista compacta
+              </a>
+              <a
+                className={`pill ${!isCompact ? "pill-ok" : "pill-muted"}`}
+                href="/settings?tab=gamificacion&gview=full"
+              >
+                Vista completa
+              </a>
+            </div>
+          </div>
         </div>
       </div>
       <div className="settings-group-body">
-        <div className="card cardPad gamification-panel">
+        <div className={`card cardPad gamification-panel ${isCompact ? "is-compact" : "is-full"}`}>
           <form action={actions.updateGamificationConfig} className="gamification-form">
             <input type="hidden" name="csrf" value={csrfToken} />
             <input type="hidden" name="returnTo" value="/settings?tab=gamificacion" />

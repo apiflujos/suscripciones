@@ -3754,6 +3754,43 @@ textarea.input {
   font-weight: 700;
 }
 
+.gamification-panel.is-full {
+  gap: 18px;
+}
+
+.gamification-panel.is-full .gamification-section {
+  padding: 12px;
+  gap: 10px;
+}
+
+.gamification-panel.is-full .gamification-group {
+  padding: 10px;
+  gap: 10px;
+}
+
+.gamification-panel.is-full .gamification-grid {
+  gap: 12px;
+}
+
+.gamification-panel.is-full .input-compact,
+.gamification-panel.is-full .select-compact {
+  min-height: 32px;
+  font-size: 12.5px;
+  padding: 6px 10px;
+}
+
+.gamification-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.gamification-view-toggle {
+  display: inline-flex;
+  gap: 6px;
+}
+
 @media (max-width: 1100px) {
   .gamification-layout {
     grid-template-columns: 1fr;

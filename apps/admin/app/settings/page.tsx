@@ -142,6 +142,8 @@ export default async function SettingsPage({
   const status = String(sp.status || "");
   const errorText = normalizeErrorParam(typeof sp.error === "string" ? sp.error : undefined);
   const tab = String(sp.tab || "connections");
+  const gviewRaw = String(sp.gview || "compact");
+  const gamificationView = gviewRaw === "full" ? "full" : "compact";
   const open = String(sp.open || "");
   const templateKind = String(sp.kind || "").toUpperCase();
   const templateStep = String(sp.step || "choose");
@@ -159,6 +161,7 @@ export default async function SettingsPage({
     Object.fromEntries(
       Object.entries({
         tab,
+        ...(tab === "gamificacion" ? { gview: gamificationView } : {}),
         ...(open ? { open } : {}),
         ...(templateKind ? { kind: templateKind } : {}),
         ...(templateStep ? { step: templateStep } : {})
@@ -230,6 +233,7 @@ export default async function SettingsPage({
         <GamificationPanel
           csrfToken={csrfToken}
           config={gamificationConfig}
+          view={gamificationView}
           trending={{
             customers24h: trendCustomers24h.ok ? trendCustomers24h.json?.items || [] : [],
             customers7d: trendCustomers7d.ok ? trendCustomers7d.json?.items || [] : [],
