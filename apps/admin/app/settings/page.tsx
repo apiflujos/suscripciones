@@ -41,7 +41,7 @@ function getConfig() {
 }
 
 async function fetchSettings() {
-  return fetchAdminCached("/admin/settings", { ttlMs: 1500 });
+  return fetchAdminCached("/admin/settings", { ttlMs: 0 });
 }
 
 async function fetchCheckoutTemplates() {
