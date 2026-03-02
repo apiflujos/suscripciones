@@ -1,7 +1,7 @@
 import { prisma } from "../../db/prisma";
 import { logger } from "../../lib/logger";
 import { systemLog } from "../../services/systemLog";
-import { GamificationEntityType, LogLevel, Prisma } from "@prisma/client";
+import { GamificationEntityType, LogLevel, Prisma, type Subscription } from "@prisma/client";
 import { classifyReference } from "../../webhooks/wompi/classifyReference";
 import { postJson } from "../../lib/http";
 import { PaymentLinkStatus, PaymentStatus, RetryJobType, SubscriptionStatus, WebhookProcessStatus } from "@prisma/client";
@@ -169,7 +169,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     paymentLinkRecord?.subscriptionId ??
     (referenceClassification.kind === "subscription" ? referenceClassification.subscriptionId : "");
 
-  let inferredSubscription: { id: string } | null = null;
+  let inferredSubscription: Subscription | null = null;
   
   // SOLO intentar inferencia por precio si NO tenemos un ID de suscripción de la referencia
   // y la referencia no es explícitamente de otro tipo (como shopify).
@@ -260,11 +260,19 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
 
     const startAt = new Date();
     const planResolved = plan as { id: string; tenantId?: string | null; intervalUnit: any; intervalCount: number };
+    const inferredTenantId = planResolved?.tenantId ?? defaultTenantId;
+    if (!inferredTenantId) {
+      await db.webhookEvent.update({
+        where: { id: webhookEventId },
+        data: { processStatus: WebhookProcessStatus.FAILED, errorMessage: "missing_tenant", processedAt: new Date() }
+      });
+      return;
+    }
     const periodEnd = addIntervalUtc(startAt, planResolved.intervalUnit, planResolved.intervalCount);
 
     inferredSubscription = await db.subscription.create({
       data: {
-        tenantId: planResolved?.tenantId ?? defaultTenantId ?? null,
+        tenantId: inferredTenantId,
         customerId: customer.id,
         planId: planResolved.id,
         status: SubscriptionStatus.PAST_DUE,
@@ -274,15 +282,12 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         currentCycle: 1
       }
     });
-    const linkTenantId = planResolved?.tenantId ?? defaultTenantId ?? null;
-    if (linkTenantId) {
-      await db.subscriptionTenant
-        .createMany({
-          data: [{ subscriptionId: inferredSubscription.id, tenantId: linkTenantId }],
-          skipDuplicates: true
-        })
-        .catch(() => {});
-    }
+    await db.subscriptionTenant
+      .createMany({
+        data: [{ subscriptionId: inferredSubscription.id, tenantId: inferredTenantId }],
+        skipDuplicates: true
+      })
+      .catch(() => {});
     inferredSubscriptionId = inferredSubscription.id;
   }
 
@@ -607,7 +612,9 @@ export async function forwardWompiToShopify(webhookEventId: string) {
   const event = await prisma.webhookEvent.findUnique({ where: { id: webhookEventId } });
   if (!event) return;
 
-  const raw = (event.payload && typeof event.payload === "object" ? event.payload : {}) as Record<string, unknown>;
+  const raw = (event.payload && typeof event.payload === "object"
+    ? event.payload
+    : {}) as { signature?: { checksum?: string } } & Record<string, unknown>;
   const data = raw && typeof raw === "object" ? (raw as Record<string, unknown>).data : undefined;
   const transaction = data && typeof data === "object" ? (data as Record<string, unknown>).transaction : undefined;
   const dataRecord = data && typeof data === "object" ? (data as Record<string, unknown>) : null;

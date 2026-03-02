@@ -74,9 +74,9 @@ type ContactableInboxRaw = {
 
 function toContactableInboxes(raw: ContactableInboxRaw | unknown): ContactableInboxMeta[] {
   const payload = raw && typeof raw === "object" && Array.isArray((raw as ContactableInboxRaw).payload)
-    ? (raw as ContactableInboxRaw).payload
+    ? ((raw as ContactableInboxRaw).payload as unknown[])
     : Array.isArray(raw)
-      ? raw
+      ? (raw as unknown[])
       : [];
   return payload
     .map((item: any) => {

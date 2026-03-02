@@ -67,9 +67,10 @@ type CustomerMeta = {
 };
 
 function mergeWeights(overrides?: GamificationWeightsOverride | null) {
-  const out = { ...GAMIFICATION_WEIGHTS } as GamificationWeights;
-  (Object.keys(out) as Array<keyof GamificationWeights>).forEach((key) => {
-    out[key] = { ...out[key], ...(overrides?.[key] ?? {}) } as GamificationWeights[typeof key];
+  const keys = Object.keys(GAMIFICATION_WEIGHTS) as Array<keyof GamificationWeights>;
+  const out = {} as GamificationWeights;
+  keys.forEach((key) => {
+    out[key] = { ...GAMIFICATION_WEIGHTS[key], ...(overrides?.[key] ?? {}) } as GamificationWeights[typeof key];
   });
   return out;
 }
@@ -513,7 +514,11 @@ async function recomputeCustomerScores(
     const customerMeta = (customer?.metadata ?? {}) as CustomerMeta;
     const chatwootAt = parseIso(customerMeta?.chatwoot?.lastEventAt) || null;
     const lastActivityAt = [globalStats.lastPaidAt, chatwootAt].filter(Boolean).sort((a, b) => (b as Date).getTime() - (a as Date).getTime())[0] || null;
-    const dataQualityScore = computeDataQualityScore(customer);
+    const dataQualityScore = computeDataQualityScore({
+      email: customer.email,
+      phone: customer.phone,
+      metadata: (customer.metadata ?? null) as CustomerMeta | null
+    });
     const sub = globalSubByCustomer.get(String(customer.id)) || null;
     const currentPeriodEndAt = sub?.currentPeriodEndAt ? new Date(sub.currentPeriodEndAt) : null;
     const daysPastDue = currentPeriodEndAt && currentPeriodEndAt.getTime() < Date.now()
@@ -585,7 +590,11 @@ async function recomputeCustomerScores(
     const customerMeta = (customer?.metadata ?? {}) as CustomerMeta;
     const chatwootAt = parseIso(customerMeta?.chatwoot?.lastEventAt) || null;
       const lastActivityAt = [stats.lastPaidAt, chatwootAt].filter(Boolean).sort((a, b) => (b as Date).getTime() - (a as Date).getTime())[0] || null;
-      const dataQualityScore = computeDataQualityScore(customer);
+      const dataQualityScore = computeDataQualityScore({
+        email: customer.email,
+        phone: customer.phone,
+        metadata: (customer.metadata ?? null) as CustomerMeta | null
+      });
       const sub = subByKey.get(`${tId}:${customer.id}`) || null;
       const currentPeriodEndAt = sub?.currentPeriodEndAt ? new Date(sub.currentPeriodEndAt) : null;
       const daysPastDue = currentPeriodEndAt && currentPeriodEndAt.getTime() < Date.now()

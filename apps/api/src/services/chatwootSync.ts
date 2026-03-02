@@ -92,8 +92,8 @@ async function ensureCustomAttributes(client: ChatwootClient) {
     const rawPayload = Array.isArray(list.raw?.payload) ? list.raw.payload : [];
     const existing = new Set(
       rawPayload
-        .map((item) => (item && typeof item === "object" ? (item as Record<string, unknown>) : {}))
-        .map((a) => String(a.attribute_key || a.attributeKey || ""))
+        .map((item: unknown) => (item && typeof item === "object" ? (item as Record<string, unknown>) : {}))
+        .map((a: Record<string, unknown>) => String(a.attribute_key || a.attributeKey || ""))
     );
     for (const def of CHATWOOT_CUSTOM_ATTR_DEFS) {
       if (existing.has(def.key)) continue;

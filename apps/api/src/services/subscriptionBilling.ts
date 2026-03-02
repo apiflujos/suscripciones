@@ -310,6 +310,7 @@ export async function createPaymentLinkForSubscription(args: {
         checkoutUrl: created.checkoutUrl
       }
     });
+    const updatedId = updated?.id ?? payment.id;
 
     await prisma.paymentLink
       .upsert({
@@ -333,15 +334,15 @@ export async function createPaymentLinkForSubscription(args: {
         }
       })
       .catch((err) => {
-        logIgnored(err, "payment link: failed to upsert payment link", { subscriptionId: sub.id, paymentId: updated.id });
+        logIgnored(err, "payment link: failed to upsert payment link", { subscriptionId: sub.id, paymentId: updatedId });
       });
 
     await systemLog(LogLevel.INFO, "subscriptions.payment_link", "Payment link created", {
       subscriptionId: sub.id,
-      paymentId: updated.id,
+      paymentId: updatedId,
       wompiPaymentLinkId: created.id
     }).catch((err) => {
-      logIgnored(err, "payment link: failed to write system log", { subscriptionId: sub.id, paymentId: updated.id });
+      logIgnored(err, "payment link: failed to write system log", { subscriptionId: sub.id, paymentId: updatedId });
     });
   } finally {
     await releaseLock();

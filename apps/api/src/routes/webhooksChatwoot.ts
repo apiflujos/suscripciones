@@ -160,11 +160,12 @@ export async function chatwootWebhook(req: Request, res: Response) {
   const email = contact?.email ? String(contact.email).trim().toLowerCase() : "";
   const phone = contact?.phone_number ? String(contact.phone_number).trim() : "";
   const name = contact?.name ? String(contact.name).trim() : "";
-  const sourceId =
+  const sourceIdRaw =
     contact?.contact_inboxes?.[0]?.source_id ||
     payload?.contact_inbox?.source_id ||
     payload?.contact_inbox?.sourceId ||
     undefined;
+  const sourceId = sourceIdRaw != null ? String(sourceIdRaw).trim() || undefined : undefined;
 
   const conversationId = getConversationIdFromPayload(payload);
 
@@ -221,7 +222,7 @@ export async function chatwootWebhook(req: Request, res: Response) {
         }
       })
       .catch((err) => {
-        logger.warn({ err, customerId: customer.id }, "chatwoot webhook: failed to update customer");
+        logger.warn({ err, customerId: customer?.id }, "chatwoot webhook: failed to update customer");
         return null;
       });
     if (updatedCustomer) customer = updatedCustomer;
