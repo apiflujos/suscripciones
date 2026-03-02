@@ -146,6 +146,7 @@ export default async function SettingsPage({
   const gviewRaw = String(sp.gview || "compact");
   const gamificationView = gviewRaw === "full" ? "full" : "compact";
   const open = String(sp.open || "");
+  const openTenant = String(sp.openTenant || "").trim();
   const templateKind = String(sp.kind || "").toUpperCase();
   const templateStep = String(sp.step || "choose");
   const tenantDeleteBlocked = String(sp.tenantDeleteBlocked || "") === "1";
@@ -678,79 +679,86 @@ export default async function SettingsPage({
 
             {tenants.length ? (
               <div className="stack">
-                {tenants.map((tenant: any) => (
-                  <div key={tenant.id} className="card cardPad">
-                    <form action={updateTenant} className="row" style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
-                      <input type="hidden" name="csrfToken" value={csrfToken} />
-                      <input type="hidden" name="tenantId" value={tenant.id} />
-                      <input type="hidden" name="returnTo" value={returnTo} />
-                      <div className="field" style={{ minWidth: 240, flex: 1 }}>
-                        <label>Nombre</label>
-                        <input className="input" name="name" defaultValue={tenant.name || ""} />
-                      </div>
-                      <div style={{ minWidth: 240, flex: 1 }}>
-                        <LogoUploadField
-                          name="logoUrl"
-                          label="Logo del canal"
-                          defaultValue={tenant?.metadata?.logoUrl || tenant?.metadata?.brand?.logoUrl || ""}
-                        />
-                      </div>
-                      <div className="field" style={{ minWidth: 200 }}>
-                        <label>Factor gamificación</label>
-                        <input
-                          className="input"
-                          name="gamificationFactor"
-                          type="number"
-                          step="0.01"
-                          defaultValue={tenant?.metadata?.gamification?.factor ?? 1}
-                        />
-                      </div>
-                      <div className="field" style={{ minWidth: 200 }}>
-                        <label>Bonus gamificación</label>
-                        <input
-                          className="input"
-                          name="gamificationBonus"
-                          type="number"
-                          step="1"
-                          defaultValue={tenant?.metadata?.gamification?.bonus ?? 0}
-                        />
-                      </div>
-                      <div className="field" style={{ minWidth: 200 }}>
-                        <label>Follow-up (min)</label>
-                        <input
-                          className="input"
-                          name="followupMinutes"
-                          type="number"
-                          defaultValue={tenant?.metadata?.gamification?.followupMinutes ?? ""}
-                        />
-                      </div>
-                      <div className="field" style={{ minWidth: 200 }}>
-                        <label>Cooldown (min)</label>
-                        <input
-                          className="input"
-                          name="followupCooldownMinutes"
-                          type="number"
-                          defaultValue={tenant?.metadata?.gamification?.followupCooldownMinutes ?? ""}
-                        />
-                      </div>
-                      <div className="field" style={{ minWidth: 200 }}>
-                        <label>Máx. retomas</label>
-                        <input
-                          className="input"
-                          name="followupMaxAttempts"
-                          type="number"
-                          defaultValue={tenant?.metadata?.gamification?.followupMaxAttempts ?? ""}
-                        />
-                      </div>
-                      <PendingButton className="ghost" type="submit" pendingText="Guardando...">
-                        Guardar
-                      </PendingButton>
-                    </form>
-                    <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end" }}>
-                      <DeleteTenantButton action={deleteTenant} csrfToken={csrfToken} tenantId={tenant.id} returnTo={returnTo} />
+                {tenants.map((tenant: any) => {
+                  const tenantIdValue = String(tenant.id || "");
+                  const isEditingTenant = openTenant === tenantIdValue;
+                  const tenantLogo = tenant?.metadata?.logoUrl || tenant?.metadata?.brand?.logoUrl || "";
+                  const editHref = `/settings?${new URLSearchParams({ tab: "canales", openTenant: tenantIdValue }).toString()}`;
+                  const closeEditHref = `/settings?${new URLSearchParams({ tab: "canales" }).toString()}`;
+                  return (
+                    <div key={tenant.id} className="card cardPad">
+                      {!isEditingTenant ? (
+                        <>
+                          <div style={{ display: "grid", gap: 8 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                              {tenantLogo ? (
+                                <img src={tenantLogo} alt={tenant.name || "Canal"} style={{ height: 44, width: 44, borderRadius: 10, objectFit: "cover", border: "1px solid var(--stroke)" }} />
+                              ) : (
+                                <div style={{ height: 44, width: 44, borderRadius: 10, border: "1px dashed var(--stroke)", background: "var(--panel-soft)" }} />
+                              )}
+                              <div>
+                                <strong>{tenant.name || "Canal"}</strong>
+                                <div className="field-hint">
+                                  Factor: {tenant?.metadata?.gamification?.factor ?? 1} · Bonus: {tenant?.metadata?.gamification?.bonus ?? 0}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                            <a className="ghost btn-compact btn-blue" href={editHref}>
+                              Editar
+                            </a>
+                            <DeleteTenantButton action={deleteTenant} csrfToken={csrfToken} tenantId={tenant.id} returnTo={returnTo} />
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <form action={updateTenant} className="row" style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
+                            <input type="hidden" name="csrfToken" value={csrfToken} />
+                            <input type="hidden" name="tenantId" value={tenant.id} />
+                            <input type="hidden" name="returnTo" value={returnTo} />
+                            <div className="field" style={{ minWidth: 240, flex: 1 }}>
+                              <label>Nombre</label>
+                              <input className="input" name="name" defaultValue={tenant.name || ""} />
+                            </div>
+                            <div style={{ minWidth: 240, flex: 1 }}>
+                              <LogoUploadField name="logoUrl" label="Logo del canal" defaultValue={tenantLogo} />
+                            </div>
+                            <div className="field" style={{ minWidth: 200 }}>
+                              <label>Factor gamificación</label>
+                              <input className="input" name="gamificationFactor" type="number" step="0.01" defaultValue={tenant?.metadata?.gamification?.factor ?? 1} />
+                            </div>
+                            <div className="field" style={{ minWidth: 200 }}>
+                              <label>Bonus gamificación</label>
+                              <input className="input" name="gamificationBonus" type="number" step="1" defaultValue={tenant?.metadata?.gamification?.bonus ?? 0} />
+                            </div>
+                            <div className="field" style={{ minWidth: 200 }}>
+                              <label>Follow-up (min)</label>
+                              <input className="input" name="followupMinutes" type="number" defaultValue={tenant?.metadata?.gamification?.followupMinutes ?? ""} />
+                            </div>
+                            <div className="field" style={{ minWidth: 200 }}>
+                              <label>Cooldown (min)</label>
+                              <input className="input" name="followupCooldownMinutes" type="number" defaultValue={tenant?.metadata?.gamification?.followupCooldownMinutes ?? ""} />
+                            </div>
+                            <div className="field" style={{ minWidth: 200 }}>
+                              <label>Máx. retomas</label>
+                              <input className="input" name="followupMaxAttempts" type="number" defaultValue={tenant?.metadata?.gamification?.followupMaxAttempts ?? ""} />
+                            </div>
+                            <PendingButton className="ghost" type="submit" pendingText="Guardando...">
+                              Guardar
+                            </PendingButton>
+                          </form>
+                          <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                            <a className="ghost btn-compact" href={closeEditHref}>
+                              Cancelar
+                            </a>
+                            <DeleteTenantButton action={deleteTenant} csrfToken={csrfToken} tenantId={tenant.id} returnTo={returnTo} />
+                          </div>
+                        </>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="card cardPad">No hay canales creados.</div>
