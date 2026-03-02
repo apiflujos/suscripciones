@@ -24,7 +24,7 @@ export async function getCsrfToken() {
 
 export async function assertCsrfToken(formData: FormData) {
   await assertSameOrigin();
-  const token = String(formData.get("csrf") || "").trim();
+  const token = String(formData.get("csrf") || formData.get("csrfToken") || "").trim();
   const c = await cookies();
   const cookieToken = String(c.get(CSRF_COOKIE)?.value || "").trim();
   if (!token || !cookieToken || token !== cookieToken) {
