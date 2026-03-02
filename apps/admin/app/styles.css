@@ -3791,6 +3791,12 @@ textarea.input {
   gap: 6px;
 }
 
+.label-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 @media (max-width: 1100px) {
   .gamification-layout {
     grid-template-columns: 1fr;
