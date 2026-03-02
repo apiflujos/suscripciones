@@ -579,8 +579,11 @@ async function recomputeCustomerScores(
   }
 
   for (const customer of customers) {
-    const tenantIdList = tenantId ? [tenantId] : Array.from(
-      new Set([customer.tenantId, ...(customer?.tenantLinks?.map?.((t: any) => t.tenantId) || [])].filter(Boolean))
+    const rawTenantIds = tenantId
+      ? [tenantId]
+      : [customer.tenantId, ...(customer?.tenantLinks?.map?.((t: any) => t.tenantId) || [])];
+    const tenantIdList = Array.from(
+      new Set(rawTenantIds.filter((id): id is string => typeof id === "string" && id.length > 0))
     );
 
     for (const tId of tenantIdList) {
