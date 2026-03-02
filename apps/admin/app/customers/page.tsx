@@ -194,7 +194,7 @@ export default async function CustomersPage({
     resolvedIds = ["__none__"];
   }
 
-  const [data, tenantsRes, txCustomer, productsRes, templatesRes, settingsRes, trendingRes, notificationsRes] = await Promise.all([
+  const [data, tenantsRes, txCustomer, productsRes, templatesRes, settingsRes, trending24Res, trending7Res, trending30Res, notificationsRes] = await Promise.all([
     fetchCustomers({ q, take, page, tenantId, ids: resolvedIds }),
     fetchAdminCached("/admin/tenants", { ttlMs: 1500 }),
     txCustomerId ? fetchCustomerById(txCustomerId) : Promise.resolve(null),
@@ -202,6 +202,8 @@ export default async function CustomersPage({
     fetchCheckoutTemplates(tenantId),
     fetchSettings(),
     fetchTrending("customers", 24, tenantId),
+    fetchTrending("customers", 168, tenantId),
+    fetchTrending("customers", 720, tenantId),
     fetchNotificationsConfig()
   ]);
   const items = (data.items ?? []) as any[];
@@ -212,7 +214,9 @@ export default async function CustomersPage({
   const tenants = (tenantsRes.json?.items ?? []) as Array<{ id: string; name: string }>;
   const checkoutConfig = settingsRes?.checkoutConfig || {};
   const notificationsConfig = notificationsRes?.config || null;
-  const trendingCustomers = trendingRes?.ok ? trendingRes.json?.items ?? [] : [];
+  const trendingCustomers24 = trending24Res?.ok ? trending24Res.json?.items ?? [] : [];
+  const trendingCustomers7 = trending7Res?.ok ? trending7Res.json?.items ?? [] : [];
+  const trendingCustomers30 = trending30Res?.ok ? trending30Res.json?.items ?? [] : [];
   const tenantById = new Map(tenants.map((t) => [String(t.id), String(t.name)]));
   const [latestLinks, subscriptionsByCustomer, cartTemplates] = await Promise.all([
     fetchPaymentLinks(q, tenantId),
@@ -480,20 +484,55 @@ export default async function CustomersPage({
               </div>
             </div>
             <div className="filtersRight">
-              <div className="trend-card">
-                <div className="trend-title">Top 3 tendencia (24h)</div>
-                <ul className="mini-list">
-                  {trendingCustomers.length ? (
-                    trendingCustomers.map((item: any) => (
-                      <li key={`trend-c-${item.id}`}>
-                        <span>{item.name || "Contacto"}</span>
-                        <span className="trend-score">{item.score}</span>
-                      </li>
-                    ))
-                  ) : (
-                    <li className="muted">Sin datos</li>
-                  )}
-                </ul>
+              <div className="trend-card trend-card-wide">
+                <div className="trend-title">Tendencias contactos</div>
+                <div className="trend-columns">
+                  <div className="trend-column">
+                    <div className="trend-sub">24h</div>
+                    <ul className="mini-list mini-list-tight">
+                      {trendingCustomers24.length ? (
+                        trendingCustomers24.map((item: any) => (
+                          <li key={`trend-c-24-${item.id}`}>
+                            <span>{item.name || "Contacto"}</span>
+                            <span className="trend-score">{item.score}</span>
+                          </li>
+                        ))
+                      ) : (
+                        <li className="muted">Sin datos</li>
+                      )}
+                    </ul>
+                  </div>
+                  <div className="trend-column">
+                    <div className="trend-sub">7d</div>
+                    <ul className="mini-list mini-list-tight">
+                      {trendingCustomers7.length ? (
+                        trendingCustomers7.map((item: any) => (
+                          <li key={`trend-c-7-${item.id}`}>
+                            <span>{item.name || "Contacto"}</span>
+                            <span className="trend-score">{item.score}</span>
+                          </li>
+                        ))
+                      ) : (
+                        <li className="muted">Sin datos</li>
+                      )}
+                    </ul>
+                  </div>
+                  <div className="trend-column">
+                    <div className="trend-sub">30d</div>
+                    <ul className="mini-list mini-list-tight">
+                      {trendingCustomers30.length ? (
+                        trendingCustomers30.map((item: any) => (
+                          <li key={`trend-c-30-${item.id}`}>
+                            <span>{item.name || "Contacto"}</span>
+                            <span className="trend-score">{item.score}</span>
+                          </li>
+                        ))
+                      ) : (
+                        <li className="muted">Sin datos</li>
+                      )}
+                    </ul>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

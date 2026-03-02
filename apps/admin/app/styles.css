@@ -3497,12 +3497,37 @@ textarea.input {
   min-width: 200px;
 }
 
+.trend-card-wide {
+  min-width: 260px;
+  max-width: 420px;
+}
+
 .trend-title {
   font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-faint);
   font-weight: 700;
+}
+
+.trend-sub {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  font-weight: 700;
+  margin-top: 6px;
+}
+
+.trend-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.trend-column {
+  display: grid;
+  gap: 4px;
 }
 
 .trend-card .mini-list li {
@@ -3515,6 +3540,12 @@ textarea.input {
 .trend-score {
   font-weight: 700;
   color: var(--text);
+}
+
+.mini-list-tight {
+  margin-top: 6px;
+  gap: 4px;
+  font-size: 12px;
 }
 
 .tier-badge {
