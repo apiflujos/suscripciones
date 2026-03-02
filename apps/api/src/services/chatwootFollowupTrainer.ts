@@ -1,4 +1,4 @@
-import { GamificationEntityType, LogLevel } from "@prisma/client";
+import { GamificationEntityType, LogLevel, Prisma } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { ChatwootClient } from "../providers/chatwoot/client";
 import { getChatwootConfig } from "./runtimeConfig";
@@ -7,7 +7,7 @@ import { applyGamificationEvent } from "./gamification";
 import { GAMIFICATION_PENALTIES } from "./gamificationConfig";
 import { getGamificationConfig } from "./gamificationSettings";
 
-function toDate(value: any): Date | null {
+function toDate(value: unknown): Date | null {
   if (!value) return null;
   if (value instanceof Date) return value;
   if (typeof value === "number") {
@@ -29,7 +29,42 @@ function normalizeMessage(input?: string | null) {
   return "Hola, ¿quieres que te ayudemos con tu compra o suscripción?";
 }
 
-function resolveTemplate(meta: any) {
+type FollowupTemplateConfig = {
+  templateName?: string;
+  templateLang?: string;
+  templateParams?: Record<string, unknown>;
+  processed_params?: Record<string, unknown>;
+};
+
+type ChatwootMeta = {
+  contactId?: number | string;
+  lastOutgoingAt?: string | number;
+  lastIncomingAt?: string | number;
+  lastFollowupAt?: string | number;
+  lastConversationId?: number | string;
+  followupCount?: number;
+  followupMaxedAt?: string | number | null;
+  followup?: FollowupTemplateConfig & { message?: string };
+};
+
+type GamificationMeta = {
+  followup?: FollowupTemplateConfig & { message?: string };
+};
+
+type CustomerMetadata = Record<string, unknown> & {
+  chatwoot?: ChatwootMeta;
+  gamification?: GamificationMeta;
+};
+
+type TenantGamificationMeta = {
+  gamification?: {
+    followupMinutes?: number;
+    followupCooldownMinutes?: number;
+    followupMaxAttempts?: number;
+  };
+};
+
+function resolveTemplate(meta: CustomerMetadata) {
   const cfg = meta?.gamification?.followup || meta?.chatwoot?.followup || {};
   const templateName = String(cfg?.templateName || "").trim();
   const templateLang = String(cfg?.templateLang || "").trim();
@@ -41,7 +76,10 @@ function resolveTemplate(meta: any) {
   };
 }
 
-function resolveThresholds(payload: any, cfg?: { followup?: { minutes?: number; cooldownMinutes?: number; maxAttempts?: number; penaltyNoResponse?: number } }) {
+function resolveThresholds(
+  payload: { followupMinutes?: number; cooldownMinutes?: number; maxCustomers?: number; maxFollowups?: number } | null,
+  cfg?: { followup?: { minutes?: number; cooldownMinutes?: number; maxAttempts?: number; penaltyNoResponse?: number } }
+) {
   const minutes = Number(payload?.followupMinutes ?? process.env.CHATWOOT_FOLLOWUP_MINUTES ?? 15);
   const cooldown = Number(payload?.cooldownMinutes ?? process.env.CHATWOOT_FOLLOWUP_COOLDOWN_MINUTES ?? 120);
   const max = Number(payload?.maxCustomers ?? process.env.CHATWOOT_FOLLOWUP_MAX_CUSTOMERS ?? 200);
@@ -73,15 +111,21 @@ function resolveThresholds(payload: any, cfg?: { followup?: { minutes?: number; 
 
 async function resolveConversationId(client: ChatwootClient, contactId: number) {
   const list = await client.listContactConversations(contactId).catch(() => null);
-  const payload = list && Array.isArray((list as any).raw?.payload) ? (list as any).raw.payload : [];
+  const raw = list && typeof list === "object" ? (list as { raw?: { payload?: unknown } }).raw : null;
+  const payload = raw && Array.isArray(raw.payload) ? raw.payload : [];
   const items = Array.isArray(payload) ? payload : [];
   if (!items.length) return null;
-  const open = items.find((c: any) => String(c?.status || "").toLowerCase() === "open") || items[0];
-  const id = Number(open?.id || open?.conversation_id || open?.conversationId);
+  const open = items.find((c) => {
+    if (!c || typeof c !== "object") return false;
+    const status = String((c as Record<string, unknown>).status || "").toLowerCase();
+    return status === "open";
+  }) || items[0];
+  const openRecord = open && typeof open === "object" ? (open as Record<string, unknown>) : {};
+  const id = Number(openRecord.id || openRecord.conversation_id || openRecord.conversationId);
   return Number.isFinite(id) ? id : null;
 }
 
-export async function chatwootFollowupTrainer(payload: any) {
+export async function chatwootFollowupTrainer(payload: { followupMinutes?: number; cooldownMinutes?: number; maxCustomers?: number; maxFollowups?: number } | null) {
   const cfg = await getChatwootConfig();
   if (!cfg.configured) {
     await systemLog(LogLevel.WARN, "data_trainer", "Chatwoot no configurado", {}).catch(() => {});
@@ -101,8 +145,8 @@ export async function chatwootFollowupTrainer(payload: any) {
   const tenants = tenantIds.length
     ? await prisma.saTenant.findMany({ where: { id: { in: tenantIds } }, select: { id: true, metadata: true } })
     : [];
-  const tenantConfig = new Map<string, any>();
-  tenants.forEach((t) => tenantConfig.set(String(t.id), t.metadata || {}));
+  const tenantConfig = new Map<string, TenantGamificationMeta>();
+  tenants.forEach((t) => tenantConfig.set(String(t.id), (t.metadata || {}) as TenantGamificationMeta));
 
   const client = new ChatwootClient({
     baseUrl: cfg.baseUrl,
@@ -117,7 +161,7 @@ export async function chatwootFollowupTrainer(payload: any) {
 
   for (const customer of customers) {
     processed += 1;
-    const meta: any = customer.metadata || {};
+    const meta = (customer.metadata || {}) as CustomerMetadata;
     const chat = meta.chatwoot || {};
     const contactId = Number(chat.contactId || 0);
     if (!Number.isFinite(contactId) || contactId <= 0) {
@@ -167,7 +211,10 @@ export async function chatwootFollowupTrainer(payload: any) {
             followupMaxedAt: now.toISOString()
           }
         };
-        await prisma.customer.update({ where: { id: customer.id }, data: { metadata: nextMeta as any } }).catch(() => {});
+        await prisma.customer.update({
+          where: { id: customer.id },
+          data: { metadata: nextMeta as Prisma.InputJsonValue }
+        }).catch(() => {});
         await applyGamificationEvent({
           entityType: GamificationEntityType.CUSTOMER,
           entityId: customer.id,
@@ -219,7 +266,10 @@ export async function chatwootFollowupTrainer(payload: any) {
           followupCount: followupCount + 1
         }
       };
-      await prisma.customer.update({ where: { id: customer.id }, data: { metadata: nextMeta as any } }).catch(() => {});
+      await prisma.customer.update({
+        where: { id: customer.id },
+        data: { metadata: nextMeta as Prisma.InputJsonValue }
+      }).catch(() => {});
 
       await applyGamificationEvent({
         entityType: GamificationEntityType.CUSTOMER,

@@ -5,7 +5,7 @@ El repo remoto `apiflujos/suscripciones` estaba **vacío (sin commits)**. Este p
 ## Stack
 
 - **API**: Node.js + TypeScript + Express + Prisma + PostgreSQL
-- **Admin**: Next.js (panel mínimo, protegido con Basic Auth)
+- **Admin**: Next.js (panel mínimo, autenticación por sesión)
 - **Un solo webhook Wompi**: validación de firma + idempotencia + procesamiento asíncrono
 - **Jobs/reintentos**: tabla `retry_jobs` + runner (sin Redis)
 - **Deploy**: Render Blueprint (`render.yaml`)
@@ -47,39 +47,39 @@ Clasificación actual por prefijo:
 
 Requisitos: Node 20+, Docker.
 
-1) Instalar dependencias del monorepo:
+1. Instalar dependencias del monorepo:
 
 ```bash
 npm install
 ```
 
-2) Levantar PostgreSQL:
+2. Levantar PostgreSQL:
 
 ```bash
 docker-compose up -d
 ```
 
-3) Variables de entorno:
+3. Variables de entorno:
 
 ```bash
 cp apps/api/.env.example apps/api/.env
 cp apps/admin/.env.example apps/admin/.env.local
 ```
 
-4) Migraciones (primera vez) + correr API:
+4. Migraciones (primera vez) + correr API:
 
 ```bash
 npm -w apps/api run prisma:migrate:dev
 npm -w apps/api run dev
 ```
 
-5) (Opcional) correr jobs:
+5. (Opcional) correr jobs:
 
 ```bash
 npm -w apps/api run jobs
 ```
 
-6) Admin:
+6. Admin:
 
 ```bash
 npm -w apps/admin run dev
@@ -91,9 +91,6 @@ Ver `apps/api/.env.example`.
 
 Obligatorias (para arrancar):
 
-- `DATABASE_URL`
-- `ADMIN_API_TOKEN` (para endpoints admin del API)
-- `ADMIN_SESSION_SECRET` (firma de sesión del Admin)
 - `SUPER_ADMIN_EMAIL` y `SUPER_ADMIN_PASSWORD` (crea el usuario SUPER_ADMIN automáticamente si no existe)
 - `SUPER_ADMIN_RESET_PASSWORD=1` (opcional, fuerza reset de contraseña en cada arranque)
 
@@ -168,7 +165,7 @@ Ver `docs/API.md`.
 - `NEXT_PUBLIC_API_BASE_URL` (ej. `http://localhost:3001` en local, o `https://tu-dominio.com` si el Admin corre en el mismo servidor)
 - `ADMIN_INTERNAL_API_BASE_URL` (opcional, override interno)
 - `ADMIN_API_TOKEN` (el mismo valor que el `ADMIN_API_TOKEN` del API)
-- `ADMIN_BASIC_USER`, `ADMIN_BASIC_PASS` (si están seteadas, el panel pide Basic Auth)
+- `ADMIN_API_TOKEN` se usa para autenticar la API desde el Admin (login y acciones internas)
 
 ## Endpoints
 
@@ -195,7 +192,6 @@ Crear plan:
 curl -sS "$API_BASE/admin/plans" -H "authorization: Bearer $API_TOKEN" -H "content-type: application/json" -d '{"name":"Plan Mensual","priceInCents":49000,"currency":"COP","intervalUnit":"MONTH","intervalCount":1}' | jq
 ```
 
-
 ## Deploy en Render
 
 - Blueprint: `render.yaml` crea Postgres + servicios (API + Jobs + Admin).
@@ -214,6 +210,7 @@ Si no usas Blueprint (servicios creados manualmente en Render), usa estos comand
 Para desplegar en un servidor propio usando PM2, sigue estos pasos:
 
 1. **Build completo**:
+
    ```bash
    npm install
    npm run build --workspaces
@@ -229,10 +226,12 @@ Para desplegar en un servidor propio usando PM2, sigue estos pasos:
    ```
 
 Este comando arrancará 2 procesos:
+
 - `wompi-subs-api`: La API principal, el servidor de webhooks y el Admin (Next.js).
 - `wompi-subs-jobs`: El procesador de tareas en segundo plano.
 
 **Comandos útiles de PM2:**
+
 - Ver estado: `pm2 status`
 - Ver logs: `pm2 logs`
 - Reiniciar todo: `pm2 restart ecosystem.config.js`

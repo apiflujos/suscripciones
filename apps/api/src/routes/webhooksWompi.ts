@@ -9,6 +9,7 @@ import { systemLog } from "../services/systemLog";
 import { LogLevel } from "@prisma/client";
 import { redactHeaders } from "../lib/redact";
 import { getDefaultTenantId } from "../services/tenantContext";
+import { logger } from "../lib/logger";
 
 function getChecksumHeader(req: Request): string | undefined {
   const h = req.header("x-event-checksum") || req.header("x-wompi-checksum");
@@ -65,7 +66,9 @@ export async function wompiWebhook(req: Request, res: Response) {
       transactionId: tx?.id,
       reference: tx?.reference,
       status: tx?.status
-    }).catch(() => {});
+    }).catch((err) => {
+      logger.warn({ err, checksum }, "wompi webhook: failed to write system log");
+    });
 
     await prisma.retryJob.create({
       data: {

@@ -8,6 +8,35 @@ import { systemLog } from "../services/systemLog";
 
 export const publicLinksRouter = express.Router();
 
+type CheckoutConfig = {
+  planBaseUrl?: string;
+  subscriptionBaseUrl?: string;
+  defaultUtmParams?: string;
+  tokenExpiryHours?: number;
+  logoUrl?: string;
+  supportEmail?: string;
+  supportUrl?: string;
+  planTitle?: string;
+  planDescription?: string;
+  subscriptionTitle?: string;
+  subscriptionDescription?: string;
+  planWompiTitle?: string;
+  planWompiDescription?: string;
+  subscriptionWompiTitle?: string;
+  subscriptionWompiDescription?: string;
+  tokenizationSuccessTitle?: string;
+  tokenizationSuccessMessage?: string;
+  tokenizationErrorMessage?: string;
+  tokenizationReturnUrl?: string;
+};
+
+type PaymentLinkMeta = {
+  token?: string;
+  expiresAt?: string;
+  templateId?: string;
+  checkoutUrl?: string;
+};
+
 publicLinksRouter.get("/checkout-config", async (_req, res) => {
   const [raw, wompiCreds] = await Promise.all([
     getCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG"),
@@ -21,14 +50,17 @@ publicLinksRouter.get("/checkout-config", async (_req, res) => {
       "API_BASE_URL_SANDBOX"
     ])
   ]);
-  let parsed: any = null;
+  let parsed: CheckoutConfig | null = null;
   try {
-    parsed = raw ? JSON.parse(raw) : null;
-  } catch {}
+    const json = raw ? JSON.parse(raw) : null;
+    parsed = json && typeof json === "object" ? (json as CheckoutConfig) : null;
+  } catch {
+    parsed = null;
+  }
   const envBases = getCheckoutBaseUrlsFromEnv();
   const storedPlanBaseUrl = String(parsed?.planBaseUrl || "").trim();
   const storedSubscriptionBaseUrl = String(parsed?.subscriptionBaseUrl || "").trim();
-  const wompiActiveEnv = (() => {
+  const wompiActiveEnv: "SANDBOX" | "PRODUCTION" = (() => {
     const fromDb = wompiCreds.get("ACTIVE_ENV");
     const normalized = String(fromDb || "PRODUCTION")
       .trim()
@@ -37,8 +69,8 @@ publicLinksRouter.get("/checkout-config", async (_req, res) => {
   })();
   const getWompi = (key: string, env: "SANDBOX" | "PRODUCTION") =>
     wompiCreds.get(`${key}_${env}`) || wompiCreds.get(key) || "";
-  const wompiPublicKey = String(getWompi("PUBLIC_KEY", wompiActiveEnv as any) || "").trim();
-  const wompiApiBaseUrl = String(getWompi("API_BASE_URL", wompiActiveEnv as any) || "").trim();
+  const wompiPublicKey = String(getWompi("PUBLIC_KEY", wompiActiveEnv) || "").trim();
+  const wompiApiBaseUrl = String(getWompi("API_BASE_URL", wompiActiveEnv) || "").trim();
   const config = {
     planBaseUrl: storedPlanBaseUrl || envBases.planBaseUrl,
     subscriptionBaseUrl: storedSubscriptionBaseUrl || envBases.subscriptionBaseUrl,
@@ -84,7 +116,7 @@ publicLinksRouter.get("/payment-links/:token", async (req, res) => {
     return res.status(404).json({ error: "not_found" });
   }
 
-  const meta: any = customer.metadata || {};
+  const meta = (customer.metadata ?? {}) as { paymentLink?: PaymentLinkMeta };
   const link = meta?.paymentLink || {};
   const expiresAt = link?.expiresAt ? new Date(String(link.expiresAt)) : null;
   if (expiresAt && Number.isFinite(expiresAt.getTime()) && expiresAt.getTime() < Date.now()) {

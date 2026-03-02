@@ -5,6 +5,7 @@ import { systemLog } from "./systemLog";
 import { sha256Hex } from "../lib/crypto";
 import { syncChatwootAttributesForCustomer } from "./chatwootSync";
 import { getCredential } from "./credentials";
+import { logger } from "../lib/logger";
 import {
   getChatwootConfig,
   getWompiApiBaseUrl,
@@ -19,6 +20,36 @@ import { schedulePaymentLinkNotifications } from "./notificationsScheduler";
 const PAYMENT_LINK_LOCK_PREFIX = "payment-link";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const logIgnored = (err: unknown, message: string, context?: Record<string, unknown>) => {
+  logger.warn({ err, ...(context || {}) }, message);
+};
+
+type PlanMetadata = {
+  collectionMode?: string;
+};
+
+type SubscriptionMetadata = {
+  templateId?: string;
+};
+
+type CheckoutConfig = {
+  planTitle?: string;
+  planDescription?: string;
+  subscriptionTitle?: string;
+  subscriptionDescription?: string;
+};
+
+type CustomerWompiMeta = {
+  paymentSourceId?: number | string;
+  payment_source_id?: number | string;
+};
+
+type CustomerMetadata = {
+  wompi?: CustomerWompiMeta;
+  paymentSourceId?: number | string;
+  payment_source_id?: number | string;
+};
 
 async function tryAcquirePaymentLinkLock(key: string) {
   const rows = await prisma.$queryRaw<{ locked: boolean }[]>`
@@ -123,7 +154,9 @@ export async function createPaymentLinkForSubscription(args: {
           status: payment.status === PaymentStatus.APPROVED ? PaymentLinkStatus.PAID : undefined
         }
       })
-      .catch(() => {});
+      .catch((err) => {
+        logIgnored(err, "payment link: failed to upsert existing link", { subscriptionId: sub.id, paymentId: payment.id });
+      });
     return {
       paymentId: payment.id,
       wompiPaymentLinkId: payment.wompiPaymentLinkId,
@@ -151,7 +184,9 @@ export async function createPaymentLinkForSubscription(args: {
     await systemLog(LogLevel.WARN, "subscriptions.payment_link", "Payment link creation already in progress", {
       subscriptionId: sub.id,
       paymentId: payment.id
-    }).catch(() => {});
+    }).catch((err) => {
+      logIgnored(err, "payment link: failed to write system log", { subscriptionId: sub.id, paymentId: payment.id });
+    });
     throw new Error("payment_link_in_progress");
   }
 
@@ -159,7 +194,9 @@ export async function createPaymentLinkForSubscription(args: {
   const releaseLock = async () => {
     if (lockReleased) return;
     lockReleased = true;
-    await releasePaymentLinkLock(lockKey).catch(() => {});
+    await releasePaymentLinkLock(lockKey).catch((err) => {
+      logIgnored(err, "payment link: failed to release advisory lock", { lockKey });
+    });
   };
 
   let created: Awaited<ReturnType<WompiClient["createPaymentLink"]>>;
@@ -194,15 +231,18 @@ export async function createPaymentLinkForSubscription(args: {
       const cliente = sub.customer?.name || sub.customer?.email || "Cliente";
       const producto = sub.plan?.name || "Suscripción";
       const rawConfig = (await getCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG")) || "";
-      let cfg: any = null;
+      let cfg: CheckoutConfig | null = null;
       try {
-        cfg = rawConfig ? JSON.parse(rawConfig) : null;
-      } catch {}
-      const collectionMode = String((sub.plan.metadata as any)?.collectionMode || "MANUAL_LINK");
+        const parsed = rawConfig ? JSON.parse(rawConfig) : null;
+        cfg = parsed && typeof parsed === "object" ? (parsed as CheckoutConfig) : null;
+      } catch {
+        cfg = null;
+      }
+      const collectionMode = String((sub.plan.metadata as PlanMetadata | null)?.collectionMode || "MANUAL_LINK");
       const isPlan = collectionMode === "AUTO_LINK";
       const baseTitle = String(isPlan ? cfg?.planTitle : cfg?.subscriptionTitle || "").trim();
       const baseDesc = String(isPlan ? cfg?.planDescription : cfg?.subscriptionDescription || "").trim();
-      const templateId = String((sub.metadata as any)?.templateId || "").trim();
+      const templateId = String((sub.metadata as SubscriptionMetadata | null)?.templateId || "").trim();
       const template =
         templateId
           ? await prisma.publicCheckoutTemplate.findUnique({ where: { id: templateId } })
@@ -247,7 +287,9 @@ export async function createPaymentLinkForSubscription(args: {
         subscriptionId: sub.id,
         paymentId: payment.id,
         err: err?.message ? String(err.message) : "unknown error"
-      }).catch(() => {});
+      }).catch((logErr) => {
+        logIgnored(logErr, "payment link: failed to write error system log", { subscriptionId: sub.id, paymentId: payment.id });
+      });
       throw err;
     }
 
@@ -290,13 +332,17 @@ export async function createPaymentLinkForSubscription(args: {
           checkoutUrl: updated.checkoutUrl || created.checkoutUrl
         }
       })
-      .catch(() => {});
+      .catch((err) => {
+        logIgnored(err, "payment link: failed to upsert payment link", { subscriptionId: sub.id, paymentId: updated.id });
+      });
 
     await systemLog(LogLevel.INFO, "subscriptions.payment_link", "Payment link created", {
       subscriptionId: sub.id,
       paymentId: updated.id,
       wompiPaymentLinkId: created.id
-    }).catch(() => {});
+    }).catch((err) => {
+      logIgnored(err, "payment link: failed to write system log", { subscriptionId: sub.id, paymentId: updated.id });
+    });
   } finally {
     await releaseLock();
   }
@@ -305,11 +351,15 @@ export async function createPaymentLinkForSubscription(args: {
     throw new Error("payment_link_not_created");
   }
 
-  await schedulePaymentLinkNotifications({ paymentId: updated.id, forceNow: true }).catch(() => {});
+  await schedulePaymentLinkNotifications({ paymentId: updated.id, forceNow: true }).catch((err) => {
+    logIgnored(err, "payment link: failed to schedule notifications", { paymentId: updated.id });
+  });
 
   const chatwoot = await getChatwootConfig();
   if (chatwoot.configured) {
-    await syncChatwootAttributesForCustomer(sub.customerId).catch(() => {});
+    await syncChatwootAttributesForCustomer(sub.customerId).catch((err) => {
+      logIgnored(err, "payment link: failed to sync chatwoot attributes", { customerId: sub.customerId });
+    });
   }
 
   if (!updated.checkoutUrl) throw new Error("checkout_url_missing");
@@ -332,7 +382,7 @@ export async function createAutoDebitTransactionForSubscription(args: {
   if (sub.status === SubscriptionStatus.EXPIRED) throw new Error("subscription_expired");
 
   const paymentSourceId = (() => {
-    const meta = (sub.customer.metadata as any) ?? {};
+    const meta = ((sub.customer.metadata as CustomerMetadata) ?? {}) as CustomerMetadata;
     const candidates = [
       meta?.wompi?.paymentSourceId,
       meta?.wompi?.payment_source_id,
@@ -416,7 +466,9 @@ export async function createAutoDebitTransactionForSubscription(args: {
       currency,
       signature,
       err: err?.message ? String(err.message) : "unknown error"
-    }).catch(() => {});
+    }).catch((logErr) => {
+      logIgnored(logErr, "auto debit: failed to write error system log", { subscriptionId: sub.id, paymentId: payment.id });
+    });
     await prisma.paymentAttempt.create({
       data: {
         paymentId: payment.id,
@@ -430,7 +482,9 @@ export async function createAutoDebitTransactionForSubscription(args: {
       subscriptionId: sub.id,
       paymentId: payment.id,
       err: err?.message ? String(err.message) : "unknown error"
-    }).catch(() => {});
+    }).catch((logErr) => {
+      logIgnored(logErr, "auto debit: failed to write error system log", { subscriptionId: sub.id, paymentId: payment.id });
+    });
     throw err;
   }
 
@@ -453,7 +507,9 @@ export async function createAutoDebitTransactionForSubscription(args: {
     subscriptionId: sub.id,
     paymentId: updated.id,
     wompiTransactionId: created.id
-  }).catch(() => {});
+  }).catch((err) => {
+    logIgnored(err, "auto debit: failed to write system log", { subscriptionId: sub.id, paymentId: updated.id });
+  });
 
   return { paymentId: updated.id, wompiTransactionId: created.id };
 }

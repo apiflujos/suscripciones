@@ -1,35 +1,110 @@
 import type { Request, Response } from "express";
-import { GamificationEntityType, LogLevel } from "@prisma/client";
+import crypto from "node:crypto";
+import { z } from "zod";
+import { GamificationEntityType, LogLevel, Prisma } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { systemLog } from "../services/systemLog";
 import { redactHeaders } from "../lib/redact";
+import { logger } from "../lib/logger";
 import { getDefaultTenantId } from "../services/tenantContext";
 import { applyGamificationEvent, GAMIFICATION_EVENT_KINDS } from "../services/gamification";
 
-function getContactFromPayload(payload: any) {
+const chatwootWebhookSchema = z.object({}).passthrough();
+
+type ChatwootContact = {
+  id?: number | string;
+  email?: string;
+  phone_number?: string;
+  name?: string;
+  contact_inboxes?: Array<{ source_id?: string | number }>;
+};
+
+type ChatwootConversation = {
+  id?: number | string;
+  last_message?: Record<string, unknown>;
+};
+
+type ChatwootMessage = {
+  message_type?: number | string;
+  messageType?: number | string;
+  direction?: string;
+  created_at?: number | string;
+  createdAt?: number | string;
+};
+
+type ChatwootContactInbox = {
+  contact?: ChatwootContact;
+  source_id?: string | number;
+  sourceId?: string | number;
+};
+
+type ChatwootPayload = {
+  event?: string;
+  event_type?: string;
+  contact?: ChatwootContact;
+  data?: {
+    contact?: ChatwootContact;
+    conversation?: ChatwootConversation;
+    message?: ChatwootMessage;
+    conversation_id?: number | string;
+  };
+  contact_inbox?: ChatwootContactInbox;
+  conversation?: ChatwootConversation;
+  conversation_id?: number | string;
+  conversationId?: number | string;
+  message?: ChatwootMessage;
+  message_type?: number | string;
+  timestamp?: number | string;
+};
+
+type ChatwootCustomerMeta = {
+  contactId?: number;
+  sourceId?: string;
+  conversationId?: number;
+  lastEvent?: string;
+  lastEventAt?: string;
+  lastConversationId?: number;
+  lastIncomingAt?: string;
+  lastOutgoingAt?: string;
+  followupCount?: number;
+  followupMaxedAt?: string | null;
+};
+
+type CustomerMetadata = Record<string, unknown> & { chatwoot?: ChatwootCustomerMeta };
+
+function timingSafeEqualStr(a: string, b: string) {
+  if (a.length !== b.length) return false;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+  } catch {
+    return false;
+  }
+}
+
+function getContactFromPayload(payload: ChatwootPayload): ChatwootContact | null {
   if (payload?.contact && typeof payload.contact === "object") return payload.contact;
   if (payload?.data?.contact && typeof payload.data.contact === "object") return payload.data.contact;
   if (payload?.contact_inbox?.contact && typeof payload.contact_inbox.contact === "object") return payload.contact_inbox.contact;
   return null;
 }
 
-function getConversationIdFromPayload(payload: any) {
+function getConversationIdFromPayload(payload: ChatwootPayload) {
   const conversation = payload?.conversation || payload?.data?.conversation;
   if (conversation && typeof conversation === "object" && Number.isFinite(Number(conversation.id))) return Number(conversation.id);
   const id = payload?.conversation_id ?? payload?.conversationId;
   return Number.isFinite(Number(id)) ? Number(id) : null;
 }
 
-function getMessageFromPayload(payload: any) {
+function getMessageFromPayload(payload: ChatwootPayload): ChatwootMessage | null {
   if (payload?.message && typeof payload.message === "object") return payload.message;
   if (payload?.data?.message && typeof payload.data.message === "object") return payload.data.message;
   if (payload?.data?.conversation?.last_message && typeof payload.data.conversation.last_message === "object") {
-    return payload.data.conversation.last_message;
+    return payload.data.conversation.last_message as ChatwootMessage;
   }
   return null;
 }
 
-function isIncomingMessage(payload: any) {
+function isIncomingMessage(payload: ChatwootPayload) {
   const message = getMessageFromPayload(payload);
   const rawType = message?.message_type ?? message?.messageType ?? message?.direction ?? payload?.message_type;
   if (rawType === 0 || rawType === "incoming") return true;
@@ -37,7 +112,7 @@ function isIncomingMessage(payload: any) {
   return normalized === "incoming" || normalized === "inbound";
 }
 
-function messageTimestamp(payload: any) {
+function messageTimestamp(payload: ChatwootPayload) {
   const message = getMessageFromPayload(payload);
   const raw = message?.created_at ?? message?.createdAt ?? payload?.timestamp ?? null;
   if (raw == null) return new Date();
@@ -51,6 +126,12 @@ function messageTimestamp(payload: any) {
 }
 
 export async function chatwootWebhook(req: Request, res: Response) {
+  const parsed = chatwootWebhookSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_payload" });
+    return;
+  }
+
   const requiredToken = String(process.env.CHATWOOT_WEBHOOK_TOKEN || "").trim();
   if (!requiredToken && process.env.NODE_ENV === "production") {
     res.status(503).json({ error: "chatwoot_webhook_token_not_configured" });
@@ -60,15 +141,18 @@ export async function chatwootWebhook(req: Request, res: Response) {
     const headerToken = String(req.header("x-chatwoot-token") || "").trim();
     const auth = String(req.header("authorization") || "");
     const bearer = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
-    const queryToken = String((req.query as any)?.token || "").trim();
+    const queryToken = String((req.query as Record<string, unknown>)?.token || "").trim();
     const provided = headerToken || bearer || queryToken;
-    if (!provided || provided !== requiredToken) {
+    if (!provided || !timingSafeEqualStr(provided, requiredToken)) {
       res.status(401).json({ error: "unauthorized" });
       return;
     }
+    if (!headerToken && !bearer && queryToken) {
+      logger.warn({ source: "query" }, "chatwoot webhook: token provided via query string");
+    }
   }
 
-  const payload = req.body ?? {};
+  const payload = parsed.data as ChatwootPayload;
   const event = String(payload?.event || payload?.event_type || "").trim() || "unknown";
 
   const contact = getContactFromPayload(payload);
@@ -84,7 +168,14 @@ export async function chatwootWebhook(req: Request, res: Response) {
 
   const conversationId = getConversationIdFromPayload(payload);
 
-  let customer: any = null;
+  let customer: {
+    id: string;
+    tenantId?: string | null;
+    name?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    metadata?: unknown;
+  } | null = null;
 
   if (contactId && Number.isFinite(contactId)) {
     customer = await prisma.customer.findFirst({
@@ -102,8 +193,8 @@ export async function chatwootWebhook(req: Request, res: Response) {
   const eventAt = messageTimestamp(payload).toISOString();
 
   if (customer) {
-    const meta: any = (customer.metadata ?? {}) as any;
-    const merged = {
+    const meta = (customer.metadata ?? {}) as CustomerMetadata;
+    const merged: CustomerMetadata = {
       ...(meta && typeof meta === "object" ? meta : {}),
       chatwoot: {
         ...(meta?.chatwoot || {}),
@@ -126,10 +217,13 @@ export async function chatwootWebhook(req: Request, res: Response) {
           name: customer.name || name || undefined,
           phone: customer.phone || phone || undefined,
           email: customer.email || email || undefined,
-          metadata: merged as any
+          metadata: merged as Prisma.InputJsonValue
         }
       })
-      .catch(() => {});
+      .catch((err) => {
+        logger.warn({ err, customerId: customer.id }, "chatwoot webhook: failed to update customer");
+        return null;
+      });
     if (updatedCustomer) customer = updatedCustomer;
   } else if (contactId || email || phone) {
     const tenantId = await getDefaultTenantId();
@@ -156,10 +250,13 @@ export async function chatwootWebhook(req: Request, res: Response) {
           name: name || undefined,
           email: email || undefined,
           phone: phone || undefined,
-          metadata: merged as any
+          metadata: merged as Prisma.InputJsonValue
         }
       })
-      .catch(() => {});
+      .catch((err) => {
+        logger.warn({ err, tenantId }, "chatwoot webhook: failed to create customer");
+        return null;
+      });
     if (createdCustomer) customer = createdCustomer;
   }
 
@@ -170,7 +267,9 @@ export async function chatwootWebhook(req: Request, res: Response) {
       tenantId: customer.tenantId || null,
       kind: GAMIFICATION_EVENT_KINDS.CHATWOOT_MESSAGE_IN,
       metadata: { event, contactId, conversationId }
-    }).catch(() => {});
+    }).catch((err) => {
+      logger.warn({ err, customerId: customer.id }, "chatwoot webhook: failed to apply gamification");
+    });
   }
 
   await systemLog(LogLevel.INFO, "webhooks.chatwoot", `event:${event}`, {
@@ -178,8 +277,10 @@ export async function chatwootWebhook(req: Request, res: Response) {
     contactId,
     conversationId,
     hasContact: !!contact,
-    headers: redactHeaders(req.headers as any)
-  }).catch(() => {});
+    headers: redactHeaders(req.headers as Record<string, string | string[] | number | boolean | null | undefined>)
+  }).catch((err) => {
+    logger.warn({ err, event }, "chatwoot webhook: failed to write system log");
+  });
 
   res.json({ ok: true });
 }

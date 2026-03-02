@@ -1,6 +1,7 @@
-import { LogLevel } from "@prisma/client";
+import { LogLevel, Prisma } from "@prisma/client";
 import { createHash } from "crypto";
 import { prisma } from "../db/prisma";
+import { logger } from "../lib/logger";
 import { ChatwootClient } from "../providers/chatwoot/client";
 import { getChatwootConfig } from "./runtimeConfig";
 import { systemLog } from "./systemLog";
@@ -65,6 +66,22 @@ export const CHATWOOT_CUSTOM_ATTR_DEFS: Array<{
 let lastEnsureAt = 0;
 let lastEnsureOk = false;
 
+type ChatwootContactSnapshot = {
+  name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+};
+
+type ChatwootMeta = {
+  contactId?: number;
+  sourceId?: string;
+  contactSnapshot?: ChatwootContactSnapshot;
+  attributesHash?: string;
+  attributesSyncedAt?: string;
+};
+
+type CustomerMetadata = Record<string, unknown> & { chatwoot?: ChatwootMeta };
+
 async function ensureCustomAttributes(client: ChatwootClient) {
   const now = Date.now();
   if (lastEnsureOk && now - lastEnsureAt < 10 * 60 * 1000) return { ok: true as const };
@@ -72,10 +89,11 @@ async function ensureCustomAttributes(client: ChatwootClient) {
 
   try {
     const list = await client.listCustomAttributes("contact");
+    const rawPayload = Array.isArray(list.raw?.payload) ? list.raw.payload : [];
     const existing = new Set(
-      Array.isArray(list.raw?.payload)
-        ? (list.raw.payload as any[]).map((a) => String(a?.attribute_key || a?.attributeKey || ""))
-        : []
+      rawPayload
+        .map((item) => (item && typeof item === "object" ? (item as Record<string, unknown>) : {}))
+        .map((a) => String(a.attribute_key || a.attributeKey || ""))
     );
     for (const def of CHATWOOT_CUSTOM_ATTR_DEFS) {
       if (existing.has(def.key)) continue;
@@ -95,7 +113,9 @@ async function ensureCustomAttributes(client: ChatwootClient) {
     lastEnsureOk = false;
     await systemLog(LogLevel.WARN, "chatwoot.sync", "No se pudieron asegurar atributos", {
       err: err?.message ? String(err.message) : "unknown_error"
-    }).catch(() => {});
+    }).catch((logErr) => {
+      logger.warn({ err: logErr }, "chatwoot.sync: failed to write system log");
+    });
     return { ok: false as const };
   }
 }
@@ -121,17 +141,21 @@ export async function ensureChatwootContactForCustomer(customerId: string, opts?
   if (!customer.phone) {
     await systemLog(LogLevel.WARN, "chatwoot.sync", "Cliente sin teléfono, se requiere para sincronizar", {
       customerId: customer.id
-    }).catch(() => {});
+    }).catch((logErr) => {
+      logger.warn({ err: logErr, customerId: customer.id }, "chatwoot.sync: failed to write system log");
+    });
     return { ok: false as const, reason: "customer_phone_required" as const };
   }
 
   const cfg = await getChatwootConfig();
   if (!cfg.configured) {
-    await systemLog(LogLevel.WARN, "chatwoot.sync", "Chatwoot no configurado", { customerId: customer.id }).catch(() => {});
+    await systemLog(LogLevel.WARN, "chatwoot.sync", "Chatwoot no configurado", { customerId: customer.id }).catch((logErr) => {
+      logger.warn({ err: logErr, customerId: customer.id }, "chatwoot.sync: failed to write system log");
+    });
     return { ok: false as const, reason: "chatwoot_not_configured" as const };
   }
 
-  const meta: any = (customer.metadata ?? {}) as any;
+  const meta = (customer.metadata ?? {}) as CustomerMetadata;
   const existingContactId = meta?.chatwoot?.contactId;
   const existingSourceId = meta?.chatwoot?.sourceId;
   const nextSnapshot = {
@@ -165,9 +189,13 @@ export async function ensureChatwootContactForCustomer(customerId: string, opts?
           systemLog(LogLevel.INFO, "chatwoot.sync", "Contacto actualizado", {
             customerId: customer.id,
             contactId: existingContactId
-          }).catch(() => {})
+          }).catch((logErr) => {
+            logger.warn({ err: logErr, customerId: customer.id }, "chatwoot.sync: failed to write system log");
+          })
         )
-        .catch(() => {});
+        .catch((err) => {
+          logger.warn({ err, customerId: customer.id }, "chatwoot.sync: failed to update contact");
+        });
     }
     // Ensure we have a sourceId tied to the inbox.
     let sourceId = existingSourceId;
@@ -192,13 +220,23 @@ export async function ensureChatwootContactForCustomer(customerId: string, opts?
         ...(meta && typeof meta === "object" ? meta : {}),
         chatwoot: { ...(meta?.chatwoot || {}), contactId: existingContactId, sourceId, contactSnapshot: nextSnapshot }
       };
-      await prisma.customer.update({ where: { id: customer.id }, data: { metadata: merged as any } }).catch(() => {});
+      await prisma.customer.update({
+        where: { id: customer.id },
+        data: { metadata: merged as Prisma.InputJsonValue }
+      }).catch((err) => {
+        logger.warn({ err, customerId: customer.id }, "chatwoot.sync: failed to update customer metadata");
+      });
     } else if (!snapshotEqual) {
       const merged = {
         ...(meta && typeof meta === "object" ? meta : {}),
         chatwoot: { ...(meta?.chatwoot || {}), contactId: existingContactId, sourceId: existingSourceId, contactSnapshot: nextSnapshot }
       };
-      await prisma.customer.update({ where: { id: customer.id }, data: { metadata: merged as any } }).catch(() => {});
+      await prisma.customer.update({
+        where: { id: customer.id },
+        data: { metadata: merged as Prisma.InputJsonValue }
+      }).catch((err) => {
+        logger.warn({ err, customerId: customer.id }, "chatwoot.sync: failed to update customer metadata");
+      });
     }
     return { ok: true as const, contactId: existingContactId, sourceId };
   }
@@ -236,9 +274,13 @@ export async function ensureChatwootContactForCustomer(customerId: string, opts?
             systemLog(LogLevel.INFO, "chatwoot.sync", "Contacto actualizado", {
               customerId: customer.id,
               contactId: found.contactId
-            }).catch(() => {})
+            }).catch((logErr) => {
+              logger.warn({ err: logErr, customerId: customer.id }, "chatwoot.sync: failed to write system log");
+            })
           )
-          .catch(() => {});
+          .catch((err) => {
+            logger.warn({ err, customerId: customer.id }, "chatwoot.sync: failed to update contact");
+          });
       }
 
       let sourceId = existingSourceId;
@@ -263,13 +305,20 @@ export async function ensureChatwootContactForCustomer(customerId: string, opts?
         ...(meta && typeof meta === "object" ? meta : {}),
         chatwoot: { ...(meta?.chatwoot || {}), contactId: found.contactId, sourceId, contactSnapshot: nextSnapshot }
       };
-      await prisma.customer.update({ where: { id: customer.id }, data: { metadata: merged as any } }).catch(() => {});
+      await prisma.customer.update({
+        where: { id: customer.id },
+        data: { metadata: merged as Prisma.InputJsonValue }
+      }).catch((err) => {
+        logger.warn({ err, customerId: customer.id }, "chatwoot.sync: failed to update customer metadata");
+      });
       return { ok: true as const, contactId: found.contactId, sourceId };
     }
     await systemLog(LogLevel.WARN, "chatwoot.sync", "Could not create/search contact for customer", {
       customerId: customer.id,
       err: err?.message ? String(err.message) : "unknown error"
-    }).catch(() => {});
+    }).catch((logErr) => {
+      logger.warn({ err: logErr, customerId: customer.id }, "chatwoot.sync: failed to write system log");
+    });
     return { ok: false as const, reason: "create_or_search_failed" as const };
   }
 
@@ -279,7 +328,12 @@ export async function ensureChatwootContactForCustomer(customerId: string, opts?
     ...(meta && typeof meta === "object" ? meta : {}),
     chatwoot: { ...(meta?.chatwoot || {}), contactId: created.contactId, sourceId: created.sourceId, contactSnapshot: nextSnapshot }
   };
-  await prisma.customer.update({ where: { id: customer.id }, data: { metadata: merged as any } }).catch(() => {});
+  await prisma.customer.update({
+    where: { id: customer.id },
+    data: { metadata: merged as Prisma.InputJsonValue }
+  }).catch((err) => {
+    logger.warn({ err, customerId: customer.id }, "chatwoot.sync: failed to update customer metadata");
+  });
 
   return { ok: true as const, contactId: created.contactId, sourceId: created.sourceId };
 }
@@ -304,7 +358,7 @@ export async function syncChatwootAttributesForCustomer(customerId: string) {
   const cfg = await getChatwootConfig();
   if (!cfg.configured) return { ok: false as const, reason: "chatwoot_not_configured" as const };
 
-  const meta: any = (customer.metadata ?? {}) as any;
+  const meta = (customer.metadata ?? {}) as CustomerMetadata;
   const ensured = await ensureChatwootContactForCustomer(customer.id, { skipUpdate: true });
   if (!ensured.ok) return ensured;
 
@@ -317,7 +371,7 @@ export async function syncChatwootAttributesForCustomer(customerId: string) {
       ? Math.floor((now - currentPeriodEndAt.getTime()) / 86_400_000)
       : 0;
 
-  const safeJson = (value: any) => {
+  const safeJson = (value: unknown) => {
     if (!value || typeof value !== "object") return null;
     try {
       const json = JSON.stringify(value);
@@ -414,7 +468,12 @@ export async function syncChatwootAttributesForCustomer(customerId: string) {
       attributesSyncedAt: new Date().toISOString()
     }
   };
-  await prisma.customer.update({ where: { id: customer.id }, data: { metadata: merged as any } }).catch(() => {});
+  await prisma.customer.update({
+    where: { id: customer.id },
+    data: { metadata: merged as Prisma.InputJsonValue }
+  }).catch((err) => {
+    logger.warn({ err, customerId: customer.id }, "chatwoot.sync: failed to update customer metadata");
+  });
 
   return { ok: true as const, contactId: ensured.contactId, sourceId: ensured.sourceId };
 }

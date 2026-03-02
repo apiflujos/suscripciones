@@ -11,9 +11,10 @@ import { getTenantBrand } from "../services/tenantBrand";
 import { systemLog } from "../services/systemLog";
 
 function parseCheckoutConfig(raw: string | null) {
-  let parsed: any = null;
+  let parsed: CheckoutConfig | null = null;
   try {
-    parsed = raw ? JSON.parse(raw) : null;
+    const json = raw ? JSON.parse(raw) : null;
+    parsed = json && typeof json === "object" ? (json as CheckoutConfig) : null;
   } catch {
     parsed = null;
   }
@@ -41,6 +42,23 @@ function buildPublicUrl(base: string, path: string, utm: string) {
 }
 
 export const publicCartRouter = express.Router();
+
+type CheckoutConfig = {
+  planBaseUrl?: string;
+  subscriptionBaseUrl?: string;
+  defaultUtmParams?: string;
+  tokenExpiryHours?: number;
+};
+
+type CartLinkMeta = {
+  token?: string;
+  expiresAt?: string;
+  templateId?: string;
+};
+
+type PlanMetadata = {
+  collectionMode?: string;
+};
 
 type PlanPublic = {
   id: string;
@@ -71,7 +89,7 @@ publicCartRouter.get("/cart/:token", async (req, res) => {
     return res.status(404).json({ error: "token_not_found" });
   }
 
-  const meta: any = customer.metadata ?? {};
+  const meta = (customer.metadata ?? {}) as { cartLink?: CartLinkMeta };
   const link = meta?.cartLink ?? {};
   const expiresAt = link?.expiresAt ? new Date(link.expiresAt) : null;
   if (expiresAt && Number.isFinite(expiresAt.getTime()) && expiresAt.getTime() < Date.now()) {
@@ -137,7 +155,7 @@ publicCartRouter.get("/cart/:token", async (req, res) => {
       currency: p.currency,
       intervalUnit: p.intervalUnit,
       intervalCount: p.intervalCount,
-      collectionMode: String((p.metadata as any)?.collectionMode || "MANUAL_LINK")
+      collectionMode: String((p.metadata as PlanMetadata | null)?.collectionMode || "MANUAL_LINK")
     }))
   });
 });
@@ -154,7 +172,7 @@ publicCartRouter.post("/cart/:token/select", async (req, res) => {
   const planId = String(req.body?.planId || "").trim();
   if (!planId) return res.status(400).json({ error: "missing_plan_id" });
 
-  const meta: any = customer.metadata ?? {};
+  const meta = (customer.metadata ?? {}) as { cartLink?: CartLinkMeta };
   const link = meta?.cartLink ?? {};
   const templateId = String(link?.templateId || "").trim();
   const template = templateId
@@ -177,7 +195,7 @@ publicCartRouter.post("/cart/:token/select", async (req, res) => {
 
   const rawConfig = (await getCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG")) || "";
   const cfg = parseCheckoutConfig(rawConfig);
-  const collectionMode = String((plan.metadata as any)?.collectionMode || "MANUAL_LINK");
+  const collectionMode = String((plan.metadata as PlanMetadata | null)?.collectionMode || "MANUAL_LINK");
 
   if (collectionMode === "AUTO_DEBIT") {
     const base = normalizeCheckoutBase(cfg.subscriptionBaseUrl, "suscripcion");

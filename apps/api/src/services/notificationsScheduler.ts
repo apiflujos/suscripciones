@@ -4,8 +4,25 @@ import { getNotificationsActiveEnv, getNotificationsConfig, NotificationTrigger 
 import { systemLog } from "./systemLog";
 import { subscriptionReminder } from "../jobs/handlers/subscriptionReminder";
 
+type NotificationRule = {
+  id: string;
+  enabled: boolean;
+  trigger: NotificationTrigger;
+  offsetsSeconds?: number[];
+  offsetsMinutes?: number[];
+  atTimeUtc?: string;
+};
+
 function toMsSeconds(seconds: number) {
   return seconds * 1000;
+}
+
+function resolveOffsetsSeconds(rule: NotificationRule) {
+  if (Array.isArray(rule.offsetsSeconds) && rule.offsetsSeconds.length) return rule.offsetsSeconds;
+  if (Array.isArray(rule.offsetsMinutes) && rule.offsetsMinutes.length) {
+    return rule.offsetsMinutes.map((m) => m * 60);
+  }
+  return [0];
 }
 
 function clampRunAt(runAt: Date, now: Date) {
@@ -55,13 +72,11 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
 
   let scheduled = 0;
   for (const rule of rules) {
-    const offsetsSecondsBase = (rule as any).offsetsSeconds?.length
-      ? (rule as any).offsetsSeconds
-      : ((rule as any).offsetsMinutes?.length ? (rule as any).offsetsMinutes.map((m: number) => m * 60) : [0]);
+    const offsetsSecondsBase = resolveOffsetsSeconds(rule as NotificationRule);
     const offsetsSeconds = args.forceNow ? [0] : offsetsSecondsBase;
     for (const offsetSeconds of offsetsSeconds) {
       const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
-      const runAtRaw = (rule as any).atTimeUtc ? applyAtTimeUtc(runAtBase, String((rule as any).atTimeUtc)) : runAtBase;
+      const runAtRaw = rule.atTimeUtc ? applyAtTimeUtc(runAtBase, String(rule.atTimeUtc)) : runAtBase;
       const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
       await prisma.retryJob.create({
         data: {
@@ -75,7 +90,7 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
             customerId: sub.customerId,
             cycleNumber: sub.currentCycle,
             anchorAt: anchorIso
-          } as any
+          }
         }
       });
       scheduled++;
@@ -124,13 +139,11 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
 
   let scheduled = 0;
   for (const rule of rules) {
-    const offsetsSecondsBase = (rule as any).offsetsSeconds?.length
-      ? (rule as any).offsetsSeconds
-      : ((rule as any).offsetsMinutes?.length ? (rule as any).offsetsMinutes.map((m: number) => m * 60) : [0]);
+    const offsetsSecondsBase = resolveOffsetsSeconds(rule as NotificationRule);
     const offsetsSeconds = args.forceNow ? [0] : offsetsSecondsBase;
     for (const offsetSeconds of offsetsSeconds) {
       const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
-      const runAtRaw = (rule as any).atTimeUtc ? applyAtTimeUtc(runAtBase, String((rule as any).atTimeUtc)) : runAtBase;
+      const runAtRaw = rule.atTimeUtc ? applyAtTimeUtc(runAtBase, String(rule.atTimeUtc)) : runAtBase;
       const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
       const jobPayload = {
         trigger,
@@ -141,7 +154,7 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
         subscriptionId: payment.subscriptionId,
         paymentStatus: payment.status,
         anchorAt: anchorIso
-      } as any;
+      };
       if (!args.forceNow && runAt.getTime() > now.getTime()) {
         await prisma.retryJob.create({
           data: {
@@ -197,13 +210,11 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
   let scheduled = 0;
   let sentNow = 0;
   for (const rule of rules) {
-    const offsetsSecondsBase = (rule as any).offsetsSeconds?.length
-      ? (rule as any).offsetsSeconds
-      : ((rule as any).offsetsMinutes?.length ? (rule as any).offsetsMinutes.map((m: number) => m * 60) : [0]);
+    const offsetsSecondsBase = resolveOffsetsSeconds(rule as NotificationRule);
     const offsetsSeconds = args.forceNow ? [0] : offsetsSecondsBase;
     for (const offsetSeconds of offsetsSeconds) {
       const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
-      const runAtRaw = (rule as any).atTimeUtc ? applyAtTimeUtc(runAtBase, String((rule as any).atTimeUtc)) : runAtBase;
+      const runAtRaw = rule.atTimeUtc ? applyAtTimeUtc(runAtBase, String(rule.atTimeUtc)) : runAtBase;
       const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
       const jobPayload = {
         trigger: "PAYMENT_LINK_CREATED" satisfies NotificationTrigger,
@@ -213,7 +224,7 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
         customerId: payment.customerId,
         ...(payment.subscriptionId ? { subscriptionId: payment.subscriptionId } : {}),
         anchorAt: anchorIso
-      } as any;
+      };
       if (!args.forceNow && runAt.getTime() > now.getTime()) {
         await prisma.retryJob.create({
           data: {
@@ -265,12 +276,10 @@ export async function scheduleCatalogLinkNotifications(args: { customerId: strin
   let sentNow = 0;
 
   for (const rule of rules) {
-    const offsetsSeconds = (rule as any).offsetsSeconds?.length
-      ? (rule as any).offsetsSeconds
-      : ((rule as any).offsetsMinutes?.length ? (rule as any).offsetsMinutes.map((m: number) => m * 60) : [0]);
+    const offsetsSeconds = resolveOffsetsSeconds(rule as NotificationRule);
     for (const offsetSeconds of offsetsSeconds) {
       const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
-      const runAtRaw = (rule as any).atTimeUtc ? applyAtTimeUtc(runAtBase, String((rule as any).atTimeUtc)) : runAtBase;
+      const runAtRaw = rule.atTimeUtc ? applyAtTimeUtc(runAtBase, String(rule.atTimeUtc)) : runAtBase;
       const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
       const jobPayload = {
         trigger: "CATALOG_LINK_CREATED" satisfies NotificationTrigger,
@@ -280,7 +289,7 @@ export async function scheduleCatalogLinkNotifications(args: { customerId: strin
         catalogUrl,
         anchorAt: anchorIso,
         ...(args.paymentType ? { paymentType: args.paymentType } : {})
-      } as any;
+      };
       if (!args.forceNow && runAt.getTime() > now.getTime()) {
         await prisma.retryJob.create({
           data: {
@@ -331,13 +340,11 @@ export async function scheduleTokenizationLinkNotifications(args: { customerId: 
   let sentNow = 0;
 
   for (const rule of rules) {
-    const offsetsSecondsBase = (rule as any).offsetsSeconds?.length
-      ? (rule as any).offsetsSeconds
-      : ((rule as any).offsetsMinutes?.length ? (rule as any).offsetsMinutes.map((m: number) => m * 60) : [0]);
+    const offsetsSecondsBase = resolveOffsetsSeconds(rule as NotificationRule);
     const offsetsSeconds = args.forceNow ? [0] : offsetsSecondsBase;
     for (const offsetSeconds of offsetsSeconds) {
       const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
-      const runAtRaw = (rule as any).atTimeUtc ? applyAtTimeUtc(runAtBase, String((rule as any).atTimeUtc)) : runAtBase;
+      const runAtRaw = rule.atTimeUtc ? applyAtTimeUtc(runAtBase, String(rule.atTimeUtc)) : runAtBase;
       const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
       const jobPayload = {
         trigger: "TOKENIZATION_LINK_CREATED" satisfies NotificationTrigger,
@@ -346,7 +353,7 @@ export async function scheduleTokenizationLinkNotifications(args: { customerId: 
         customerId,
         tokenUrl,
         anchorAt: anchorIso
-      } as any;
+      };
       if (!args.forceNow && runAt.getTime() > now.getTime()) {
         await prisma.retryJob.create({
           data: {

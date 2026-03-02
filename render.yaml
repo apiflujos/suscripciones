@@ -121,9 +121,5 @@ services:
         sync: false
       - key: ADMIN_API_TOKEN
         sync: false
-      - key: ADMIN_BASIC_USER
-        sync: false
-      - key: ADMIN_BASIC_PASS
-        sync: false
       - key: ADMIN_SESSION_SECRET
         sync: false

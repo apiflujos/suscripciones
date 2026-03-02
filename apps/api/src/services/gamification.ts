@@ -1,5 +1,5 @@
 import { prisma } from "../db/prisma";
-import { GamificationEntityType, PaymentStatus, SubscriptionStatus } from "@prisma/client";
+import { GamificationEntityType, PaymentStatus, Prisma, SubscriptionStatus } from "@prisma/client";
 import {
   GAMIFICATION_LEVEL_NAMES,
   GAMIFICATION_LEVEL_THRESHOLDS,
@@ -36,21 +36,46 @@ export type GamificationEventInput = {
   statusDelta?: number;
   lifetimeDelta?: number;
   rewardDelta?: number;
-  metadata?: Record<string, any> | null;
+  metadata?: Record<string, unknown> | null;
   includeGlobal?: boolean;
   occurredAt?: Date;
 };
 
-function mergeWeights(overrides: any) {
-  const out: any = { ...GAMIFICATION_WEIGHTS };
-  Object.keys(out).forEach((key) => {
-    out[key] = { ...(out as any)[key], ...(overrides?.[key] ?? {}) };
+type GamificationWeights = typeof GAMIFICATION_WEIGHTS;
+type GamificationWeightsOverride = { [K in keyof GamificationWeights]?: Partial<GamificationWeights[K]> };
+type GamificationPenalties = typeof GAMIFICATION_PENALTIES;
+type GamificationPenaltiesOverride = Partial<GamificationPenalties>;
+
+type TenantGamificationMeta = {
+  gamification?: {
+    factor?: number;
+    bonus?: number;
+  };
+};
+
+type CustomerMeta = {
+  chatwoot?: { lastEventAt?: string };
+  address?: { line1?: string; city?: string; dept?: string };
+  city?: string;
+  dept?: string;
+  identificacion?: string;
+  identificacionNumero?: string;
+  identificationNumber?: string;
+  documentNumber?: string;
+  document?: string;
+  documento?: string;
+};
+
+function mergeWeights(overrides?: GamificationWeightsOverride | null) {
+  const out = { ...GAMIFICATION_WEIGHTS } as GamificationWeights;
+  (Object.keys(out) as Array<keyof GamificationWeights>).forEach((key) => {
+    out[key] = { ...out[key], ...(overrides?.[key] ?? {}) } as GamificationWeights[typeof key];
   });
   return out;
 }
 
-function mergePenalties(overrides: any) {
-  return { ...GAMIFICATION_PENALTIES, ...(overrides ?? {}) };
+function mergePenalties(overrides?: GamificationPenaltiesOverride | null) {
+  return { ...GAMIFICATION_PENALTIES, ...(overrides ?? {}) } as GamificationPenalties;
 }
 
 function resolveEventDeltas(input: GamificationEventInput, weights = GAMIFICATION_WEIGHTS) {
@@ -138,7 +163,7 @@ function resolveEventDeltas(input: GamificationEventInput, weights = GAMIFICATIO
 async function getTenantGamificationConfig(tenantId?: string | null) {
   if (!tenantId) return { ...GAMIFICATION_FACTORS_DEFAULT };
   const tenant = await prisma.saTenant.findUnique({ where: { id: tenantId }, select: { metadata: true } });
-  const meta = (tenant?.metadata ?? {}) as any;
+  const meta = (tenant?.metadata ?? {}) as TenantGamificationMeta;
   const cfg = meta?.gamification || {};
   const factorRaw = Number(cfg?.factor ?? GAMIFICATION_FACTORS_DEFAULT.factor);
   const bonusRaw = Number(cfg?.bonus ?? GAMIFICATION_FACTORS_DEFAULT.bonus);
@@ -233,7 +258,7 @@ export async function applyGamificationEvent(input: GamificationEventInput) {
         lifetimeDelta: deltas.lifetimeDelta,
         rewardDelta: deltas.rewardDelta,
         moneyInCents: input.moneyInCents ?? null,
-        metadata: (input.metadata ?? {}) as any,
+        metadata: (input.metadata ?? {}) as Prisma.InputJsonValue,
         createdAt: now
       }
     });
@@ -312,7 +337,7 @@ function computeRecencyScore(lastPaymentAt?: Date | null, lastActivityAt?: Date 
   return score;
 }
 
-function computeDataQualityScore(customer: any) {
+function computeDataQualityScore(customer: { email?: string | null; phone?: string | null; metadata?: CustomerMeta | null }) {
   const email = String(customer?.email || "").trim();
   const phone = String(customer?.phone || "").trim();
   const meta = customer?.metadata || {};
@@ -485,7 +510,7 @@ async function recomputeCustomerScores(
 
   for (const customer of customers) {
     const globalStats = approvedByCustomer.get(String(customer.id)) || { count: 0, amount: 0, lastPaidAt: null };
-    const customerMeta = (customer?.metadata ?? {}) as any;
+    const customerMeta = (customer?.metadata ?? {}) as CustomerMeta;
     const chatwootAt = parseIso(customerMeta?.chatwoot?.lastEventAt) || null;
     const lastActivityAt = [globalStats.lastPaidAt, chatwootAt].filter(Boolean).sort((a, b) => (b as Date).getTime() - (a as Date).getTime())[0] || null;
     const dataQualityScore = computeDataQualityScore(customer);
@@ -557,7 +582,7 @@ async function recomputeCustomerScores(
     for (const tId of tenantIdList) {
       if (!tId) continue;
       const stats = approvedByTenantCustomer.get(`${tId}:${customer.id}`) || { count: 0, amount: 0, lastPaidAt: null };
-    const customerMeta = (customer?.metadata ?? {}) as any;
+    const customerMeta = (customer?.metadata ?? {}) as CustomerMeta;
     const chatwootAt = parseIso(customerMeta?.chatwoot?.lastEventAt) || null;
       const lastActivityAt = [stats.lastPaidAt, chatwootAt].filter(Boolean).sort((a, b) => (b as Date).getTime() - (a as Date).getTime())[0] || null;
       const dataQualityScore = computeDataQualityScore(customer);

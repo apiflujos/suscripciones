@@ -6,6 +6,16 @@ import { systemLog } from "../services/systemLog";
 
 export const publicTokenizationRouter = express.Router();
 
+type TokenizationLinkMeta = {
+  token?: string;
+  expiresAt?: string;
+  usedAt?: string;
+  templateId?: string;
+  planId?: string;
+  kind?: string;
+  tenantId?: string;
+};
+
 publicTokenizationRouter.get("/tokenization-links/:token", async (req, res) => {
   const token = String(req.params.token || "").trim();
   if (!token) return res.status(400).json({ error: "missing_token" });
@@ -23,12 +33,12 @@ publicTokenizationRouter.get("/tokenization-links/:token", async (req, res) => {
     return res.status(404).json({ error: "token_not_found" });
   }
 
-  const meta: any = customer.metadata ?? {};
+  const meta = (customer.metadata ?? {}) as { tokenizationLink?: TokenizationLinkMeta };
   const link = meta?.tokenizationLink ?? {};
   const expiresAt = link?.expiresAt ? new Date(link.expiresAt) : null;
   const usedAt = link?.usedAt ? new Date(link.usedAt) : null;
 
-  const allowUsed = String((req.query as any)?.allowUsed || "").trim() === "1";
+  const allowUsed = String((req.query as Record<string, unknown>)?.allowUsed || "").trim() === "1";
   if (usedAt && !allowUsed) {
     void systemLog(LogLevel.WARN, "public.tokenization_link", "tokenization_token_used", {
       token,

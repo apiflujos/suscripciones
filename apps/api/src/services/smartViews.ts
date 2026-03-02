@@ -25,7 +25,7 @@ export type SmartViewRule =
         | "newer_than"
         | "exists"
         | "isEmpty";
-      value?: any;
+      value?: unknown;
     }
   | { op: "and" | "or"; rules: SmartViewRule[] };
 
@@ -65,17 +65,21 @@ export function normalizeSmartViewType(value: string): SmartViewType {
   return v === "STATIC" ? "STATIC" : "DYNAMIC";
 }
 
-function getByPath(obj: any, path: string) {
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+function getByPath(obj: Record<string, unknown> | null | undefined, path: string) {
   const parts = path.split(".").filter(Boolean);
-  let current = obj as any;
+  let current: unknown = obj;
   for (const part of parts) {
-    if (current == null) return undefined;
-    current = current[part];
+    if (current == null || typeof current !== "object") return undefined;
+    current = (current as Record<string, unknown>)[part];
   }
   return current;
 }
 
-function toComparable(val: any) {
+function toComparable(val: unknown) {
   if (val == null) return null;
   if (val instanceof Date) return val.getTime();
   if (typeof val === "string") {
@@ -87,12 +91,12 @@ function toComparable(val: any) {
   return val;
 }
 
-function normalizeString(val: any) {
+function normalizeString(val: unknown) {
   if (val == null) return "";
   return String(val).toLowerCase();
 }
 
-function toDateMs(val: any): number | null {
+function toDateMs(val: unknown): number | null {
   if (val == null) return null;
   if (val instanceof Date) return val.getTime();
   if (typeof val === "number") return Number.isFinite(val) ? val : null;
@@ -113,20 +117,21 @@ function durationMs(amount: number, unit: string): number {
   return n * 24 * 60 * 60 * 1000;
 }
 
-function toCents(input: any): number | null {
+function toCents(input: unknown): number | null {
   const n = Number(input);
   if (!Number.isFinite(n)) return null;
   return Math.round(n * 100);
 }
 
-function normalizeMoneyRuleValue(value: any): any {
+function normalizeMoneyRuleValue(value: unknown): unknown {
   if (value == null) return value;
   if (Array.isArray(value)) {
     return value.map((v) => toCents(v)).filter((v) => typeof v === "number");
   }
   if (typeof value === "object") {
-    const from = toCents((value as any)?.from ?? (value as any)?.min ?? (value as any)?.start);
-    const to = toCents((value as any)?.to ?? (value as any)?.max ?? (value as any)?.end);
+    const record = value as Record<string, unknown>;
+    const from = toCents(record?.from ?? record?.min ?? record?.start);
+    const to = toCents(record?.to ?? record?.max ?? record?.end);
     return {
       ...(typeof from === "number" ? { from } : {}),
       ...(typeof to === "number" ? { to } : {})
@@ -135,7 +140,7 @@ function normalizeMoneyRuleValue(value: any): any {
   return toCents(value);
 }
 
-function evalRule(rule: SmartViewRule, ctx: Record<string, any>): boolean {
+function evalRule(rule: SmartViewRule, ctx: Record<string, unknown>): boolean {
   if (!rule) return true;
   if ("rules" in rule) {
     const items = Array.isArray(rule.rules) ? rule.rules : [];
@@ -167,8 +172,9 @@ function evalRule(rule: SmartViewRule, ctx: Record<string, any>): boolean {
   if (op === "lt") return (cmpVal as any) < (target as any);
   if (op === "lte") return (cmpVal as any) <= (target as any);
   if (op === "between" && typeof cmpVal === "number") {
-    const from = Number((ruleValue as any)?.from ?? (Array.isArray(ruleValue) ? ruleValue[0] : null));
-    const to = Number((ruleValue as any)?.to ?? (Array.isArray(ruleValue) ? ruleValue[1] : null));
+    const ruleRecord = ruleValue as Record<string, unknown>;
+    const from = Number(ruleRecord?.from ?? (Array.isArray(ruleValue) ? ruleValue[0] : null));
+    const to = Number(ruleRecord?.to ?? (Array.isArray(ruleValue) ? ruleValue[1] : null));
     if (!Number.isFinite(from) || !Number.isFinite(to)) return false;
     return cmpVal >= from && cmpVal <= to;
   }
@@ -186,13 +192,15 @@ function evalRule(rule: SmartViewRule, ctx: Record<string, any>): boolean {
       return t != null ? valMs > t : false;
     }
     if (op === "between") {
-      const from = toDateMs((rule.value as any)?.from ?? (Array.isArray(rule.value) ? rule.value[0] : null));
-      const to = toDateMs((rule.value as any)?.to ?? (Array.isArray(rule.value) ? rule.value[1] : null));
+      const ruleValueObj = rule.value as Record<string, unknown>;
+      const from = toDateMs(ruleValueObj?.from ?? (Array.isArray(rule.value) ? rule.value[0] : null));
+      const to = toDateMs(ruleValueObj?.to ?? (Array.isArray(rule.value) ? rule.value[1] : null));
       if (from == null || to == null) return false;
       return valMs >= from && valMs <= to;
     }
-    const amount = Number((rule.value as any)?.amount ?? (rule.value as any)?.value ?? 0);
-    const unit = String((rule.value as any)?.unit ?? "days");
+    const ruleValueObj = rule.value as Record<string, unknown>;
+    const amount = Number(ruleValueObj?.amount ?? ruleValueObj?.value ?? 0);
+    const unit = String(ruleValueObj?.unit ?? "days");
     const ms = durationMs(amount, unit);
     if (ms <= 0) return false;
     if (op === "within_last") return valMs >= now - ms && valMs <= now;
@@ -380,8 +388,10 @@ export async function getSmartViewOptions(scope: SmartViewScope, field: string, 
       select: { metadata: true }
     });
     const set = new Set<string>();
-    rows.forEach((r: any) => {
-      const city = r?.metadata?.address?.city || r?.metadata?.city;
+    rows.forEach((r) => {
+      const meta = asRecord(r.metadata);
+      const address = asRecord(meta.address);
+      const city = (address.city as string) || (meta.city as string);
       if (city) set.add(String(city));
     });
     return Array.from(set).sort().map((v) => ({ value: v, label: v }));
@@ -393,8 +403,10 @@ export async function getSmartViewOptions(scope: SmartViewScope, field: string, 
       select: { metadata: true }
     });
     const set = new Set<string>();
-    rows.forEach((r: any) => {
-      const dept = r?.metadata?.address?.dept || r?.metadata?.dept;
+    rows.forEach((r) => {
+      const meta = asRecord(r.metadata);
+      const address = asRecord(meta.address);
+      const dept = (address.dept as string) || (meta.dept as string);
       if (dept) set.add(String(dept));
     });
     return Array.from(set).sort().map((v) => ({ value: v, label: v }));
@@ -405,7 +417,7 @@ export async function getSmartViewOptions(scope: SmartViewScope, field: string, 
       where: tenantId ? { OR: [{ tenantId }, { tenantLinks: { some: { tenantId } } }] } : {},
       select: { name: true }
     });
-    return rows.map((r: any) => ({ value: String(r.name), label: String(r.name) }));
+    return rows.map((r) => ({ value: String(r.name), label: String(r.name) }));
   }
 
   if (field === "product.productType") {
@@ -417,8 +429,9 @@ export async function getSmartViewOptions(scope: SmartViewScope, field: string, 
       select: { metadata: true }
     });
     const set = new Set<string>();
-    rows.forEach((r: any) => {
-      const v = r?.metadata?.productType;
+    rows.forEach((r) => {
+      const meta = asRecord(r.metadata);
+      const v = meta.productType;
       if (v) set.add(String(v));
     });
     return Array.from(set).sort().map((v) => ({ value: v, label: v }));
@@ -433,8 +446,9 @@ export async function getSmartViewOptions(scope: SmartViewScope, field: string, 
       select: { metadata: true }
     });
     const set = new Set<string>();
-    rows.forEach((r: any) => {
-      const v = r?.metadata?.vendor;
+    rows.forEach((r) => {
+      const meta = asRecord(r.metadata);
+      const v = meta.vendor;
       if (v) set.add(String(v));
     });
     return Array.from(set).sort().map((v) => ({ value: v, label: v }));
@@ -446,8 +460,9 @@ export async function getSmartViewOptions(scope: SmartViewScope, field: string, 
       select: { metadata: true }
     });
     const set = new Set<string>();
-    rows.forEach((r: any) => {
-      const v = r?.metadata?.identificacionTipo;
+    rows.forEach((r) => {
+      const meta = asRecord(r.metadata);
+      const v = meta.identificacionTipo;
       if (v) set.add(String(v));
     });
     return Array.from(set).sort().map((v) => ({ value: v, label: v }));
@@ -491,7 +506,7 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
     approvedCounts.forEach((row) => approvedByCustomer.set(String(row.customerId), Number(row._count?._all || 0)));
     const paymentsByCustomer = new Map<string, number>();
     paymentCounts.forEach((row) => paymentsByCustomer.set(String(row.customerId), Number(row._count?._all || 0)));
-    const gamificationByKey = new Map<string, any>();
+    const gamificationByKey = new Map<string, { level?: number | null; statusScore?: number | null; lifetimePoints?: number | null }>();
     gamificationScores.forEach((row) => {
       const key = `${row.tenantId || "global"}:${row.entityId}`;
       gamificationByKey.set(key, row);
@@ -517,7 +532,9 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
         const gamificationLevel = Number(gamification?.level || 1);
         const gamificationLevelName = formatLevelName(gamificationLevel);
 
-        const ctx: Record<string, any> = {
+        const customerMeta = asRecord(customer.metadata);
+        const addressMeta = asRecord(customerMeta.address);
+        const ctx: Record<string, unknown> = {
           customer: {
             name: customer.name || "",
             email: customer.email || "",
@@ -525,13 +542,13 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
             createdAt: customer.createdAt
           },
           address: {
-            city: customer.metadata?.address?.city || customer.metadata?.city || null,
-            dept: customer.metadata?.address?.dept || customer.metadata?.dept || null,
-            line1: customer.metadata?.address?.line1 || null
+            city: (addressMeta.city as string) || (customerMeta.city as string) || null,
+            dept: (addressMeta.dept as string) || (customerMeta.dept as string) || null,
+            line1: (addressMeta.line1 as string) || null
           },
           id: {
-            type: customer.metadata?.identificacionTipo || null,
-            number: customer.metadata?.identificacionNumero || null
+            type: (customerMeta.identificacionTipo as string) || null,
+            number: (customerMeta.identificacionNumero as string) || null
           },
           subscription: {
             status: sub?.status ?? null,
@@ -576,7 +593,7 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
         ...(tenantId ? { OR: [{ tenantId }, { tenantId: null }] } : { tenantId: null })
       }
     });
-    const gamificationByKey = new Map<string, any>();
+    const gamificationByKey = new Map<string, { level?: number | null; statusScore?: number | null; lifetimePoints?: number | null }>();
     gamificationScores.forEach((row) => {
       const key = `${row.tenantId || "global"}:${row.entityId}`;
       gamificationByKey.set(key, row);
@@ -588,19 +605,27 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
         const gamification = gamificationByKey.get(gKey) || gamificationByKey.get(gFallbackKey) || null;
         const gamificationLevel = Number(gamification?.level || 1);
         const gamificationLevelName = formatLevelName(gamificationLevel);
+        const productMeta = asRecord(p.metadata);
+        const displayName = typeof productMeta.displayName === "string" ? productMeta.displayName : "";
+        const sku = typeof productMeta.sku === "string" ? productMeta.sku : "";
+        const itemKind = typeof productMeta.itemKind === "string" && productMeta.itemKind.trim() ? productMeta.itemKind : "PRODUCT";
+        const productType = typeof productMeta.productType === "string" ? productMeta.productType : null;
+        const vendor = typeof productMeta.vendor === "string" ? productMeta.vendor : null;
+        const requiresShipping = typeof productMeta.requiresShipping === "boolean" ? productMeta.requiresShipping : false;
+        const taxable = typeof productMeta.taxable === "boolean" ? productMeta.taxable : true;
         const ctx = {
           product: {
-            name: (p.metadata as any)?.displayName || p.name,
-            sku: (p.metadata as any)?.sku || "",
+            name: displayName || p.name,
+            sku,
             priceInCents: p.priceInCents,
             currency: p.currency,
             intervalUnit: p.intervalUnit,
             intervalCount: p.intervalCount,
-            kind: (p.metadata as any)?.itemKind || "PRODUCT",
-            productType: (p.metadata as any)?.productType || null,
-            vendor: (p.metadata as any)?.vendor || null,
-            requiresShipping: (p.metadata as any)?.requiresShipping ?? false,
-            taxable: (p.metadata as any)?.taxable ?? true
+            kind: itemKind,
+            productType,
+            vendor,
+            requiresShipping,
+            taxable
           },
           gamification: {
             level: gamificationLevel,
@@ -627,15 +652,17 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
           currentPeriodEndAt && currentPeriodEndAt.getTime() < now
             ? Math.floor((now - currentPeriodEndAt.getTime()) / 86_400_000)
             : 0;
-        const ctx = {
+        const customerMeta = asRecord(s.customer?.metadata);
+        const addressMeta = asRecord(customerMeta.address);
+        const ctx: Record<string, unknown> = {
           customer: {
             name: s.customer?.name || "",
             email: s.customer?.email || "",
             phone: s.customer?.phone || ""
           },
           address: {
-            city: s.customer?.metadata?.address?.city || s.customer?.metadata?.city || null,
-            dept: s.customer?.metadata?.address?.dept || s.customer?.metadata?.dept || null
+            city: (addressMeta.city as string) || (customerMeta.city as string) || null,
+            dept: (addressMeta.dept as string) || (customerMeta.dept as string) || null
           },
           plan: {
             name: s.plan?.name ?? null,
@@ -662,7 +689,7 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
     const items = await prisma.systemLog.findMany({ orderBy: { createdAt: "desc" }, take: 2000 });
     return items
       .filter((l: any) => {
-        const ctx = {
+        const ctx: Record<string, unknown> = {
           log: {
             level: l.level,
             source: l.source,
@@ -682,7 +709,7 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
     });
     return items
       .filter((p: any) => {
-        const ctx = {
+        const ctx: Record<string, unknown> = {
           payment: {
             status: p.status,
             amountInCents: p.amountInCents,
@@ -711,7 +738,7 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
   });
   return items
     .filter((c: any) => {
-      const ctx = {
+      const ctx: Record<string, unknown> = {
         campaign: {
           name: c.name,
           status: c.status,
