@@ -79,6 +79,7 @@ export function CheckoutTemplatesPanel({
     update: (formData: FormData) => void;
     remove: (formData: FormData) => void;
     duplicate: (formData: FormData) => void;
+    defaults: (formData: FormData) => void;
   };
 }) {
   const [stepIndex, setStepIndex] = useState<number>(initialStep === "form" ? 1 : 0);
@@ -259,8 +260,24 @@ export function CheckoutTemplatesPanel({
 
   const inlineMsg = (key: string) => {
     if (inlineState.action !== key) return null;
-    if (inlineState.status === "ok") return <div className="field-hint">Guardado.</div>;
+    if (inlineState.status === "ok") {
+      if (inlineState.action === "checkout_template_defaults") {
+        return <div className="field-hint">Catálogos base creados.</div>;
+      }
+      return <div className="field-hint">Guardado.</div>;
+    }
     if (inlineState.status === "fail") {
+      if (inlineState.action === "checkout_template_defaults") {
+        const msg =
+          inlineState.errorText === "nothing_to_create"
+            ? "No hay productos para crear catálogos base."
+            : "No se pudieron crear catálogos base. Revisa productos y canales.";
+        return (
+          <div className="field-hint" style={{ color: "var(--danger)" }}>
+            {msg}
+          </div>
+        );
+      }
       if (inlineState.errorText?.startsWith("cart_mixed_collection")) {
         return (
           <div className="field-hint" style={{ color: "var(--danger)" }}>
@@ -766,6 +783,12 @@ export function CheckoutTemplatesPanel({
           <div className="field-hint">Wizard para crear plantillas de checkout público.</div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
+          <form action={actions.defaults}>
+            <input type="hidden" name="csrf" value={csrfToken} />
+            <PendingButton className="ghost" type="submit" pendingText="Creando...">
+              Crear catálogos base
+            </PendingButton>
+          </form>
           {editing ? (
             <button className="ghost btn-cancel" type="button" onClick={resetWizard} data-loader="off">
               Cancelar edición

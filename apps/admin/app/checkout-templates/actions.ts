@@ -58,7 +58,7 @@ export async function createCheckoutTemplate(formData: FormData) {
     if (!name || (kind !== "PLAN" && kind !== "SUBSCRIPTION" && kind !== "CART")) {
       return redirectWith("checkout_template_create", "fail", "invalid_body");
     }
-    if ((kind === "CART" && productIds.length === 0) || (!allowProductSelect && productIds.length === 0)) {
+    if (!allowProductSelect && productIds.length === 0) {
       return redirectWith("checkout_template_create", "fail", "invalid_body");
     }
     const expiryHoursRaw = String(formData.get("expiryHours") || "").trim();
@@ -109,7 +109,7 @@ export async function updateCheckoutTemplate(formData: FormData) {
     if (!name || (kind !== "PLAN" && kind !== "SUBSCRIPTION" && kind !== "CART")) {
       return redirectWith("checkout_template_update", "fail", "invalid_body");
     }
-    if ((kind === "CART" && productIds.length === 0) || (!allowProductSelect && productIds.length === 0)) {
+    if (!allowProductSelect && productIds.length === 0) {
       return redirectWith("checkout_template_update", "fail", "invalid_body");
     }
     const expiryHoursRaw = String(formData.get("expiryHours") || "").trim();
@@ -181,5 +181,116 @@ export async function duplicateCheckoutTemplate(formData: FormData) {
   } catch (err: any) {
     if (isNextRedirect(err)) throw err;
     redirectWith("checkout_template_duplicate", "fail", String(err?.message || "duplicate_failed"));
+  }
+}
+
+export async function createCheckoutTemplateDefaults(formData: FormData) {
+  try {
+    await assertCsrfToken(formData);
+    const tenantIdInput = String(formData.get("tenantId") || "").trim();
+    const tenantsRes = await adminFetch("/admin/tenants", { method: "GET" });
+    const tenants = Array.isArray(tenantsRes?.items) ? tenantsRes.items : [];
+    const selectedTenants = tenantIdInput ? tenants.filter((t: any) => String(t.id) === tenantIdInput) : tenants;
+    if (!selectedTenants.length) return redirectWith("checkout_template_defaults", "fail", "tenant_required");
+
+    const settingsRes = await adminFetch("/admin/settings", { method: "GET" });
+    const checkoutConfig = settingsRes?.checkoutConfig || {};
+    const logoUrl = String(checkoutConfig?.logoUrl || "").trim();
+    const utmParams = String(checkoutConfig?.defaultUtmParams || "").trim();
+    const planTitle = String(checkoutConfig?.planTitle || "Paga tu plan").trim();
+    const planDescription = String(checkoutConfig?.planDescription || "Selecciona el plan que deseas pagar.").trim();
+    const subTitle = String(checkoutConfig?.subscriptionTitle || "Guarda tu método de pago").trim();
+    const subDescription = String(
+      checkoutConfig?.subscriptionDescription || "Guarda tu tarjeta para cobros automáticos."
+    ).trim();
+
+    let createdCount = 0;
+    for (const tenant of selectedTenants) {
+      const tenantId = String(tenant.id);
+      const productsRes = await adminFetch(`/admin/products?take=500&tenantId=${encodeURIComponent(tenantId)}`, { method: "GET" });
+      const products = Array.isArray(productsRes?.items) ? productsRes.items : [];
+      const planProducts = products.filter((p: any) => {
+        const mode = String(p?.collectionMode || p?.metadata?.collectionMode || "");
+        return !mode || mode === "AUTO_LINK" || mode === "MANUAL_LINK";
+      });
+      const subProducts = products.filter((p: any) => String(p?.collectionMode || p?.metadata?.collectionMode || "") === "AUTO_DEBIT");
+      if (!planProducts.length && !subProducts.length) continue;
+
+      const templatesRes = await adminFetch(`/admin/checkout-templates?tenantId=${encodeURIComponent(tenantId)}`, { method: "GET" });
+      const templates = Array.isArray(templatesRes?.items) ? templatesRes.items : [];
+      const cartTemplates = templates.filter((t: any) => String(t?.kind || "") === "CART");
+
+      const existingPlan = cartTemplates.find((t: any) => {
+        const ids = Array.isArray(t?.productIds) ? t.productIds : [];
+        let hasPlan = false;
+        let hasSub = false;
+        for (const id of ids) {
+          const p = products.find((prod: any) => String(prod.id) === String(id));
+          const mode = String(p?.collectionMode || p?.metadata?.collectionMode || "");
+          if (!mode || mode === "AUTO_LINK" || mode === "MANUAL_LINK") hasPlan = true;
+          if (mode === "AUTO_DEBIT") hasSub = true;
+        }
+        return hasPlan && !hasSub;
+      });
+      const existingSub = cartTemplates.find((t: any) => {
+        const ids = Array.isArray(t?.productIds) ? t.productIds : [];
+        let hasPlan = false;
+        let hasSub = false;
+        for (const id of ids) {
+          const p = products.find((prod: any) => String(prod.id) === String(id));
+          const mode = String(p?.collectionMode || p?.metadata?.collectionMode || "");
+          if (!mode || mode === "AUTO_LINK" || mode === "MANUAL_LINK") hasPlan = true;
+          if (mode === "AUTO_DEBIT") hasSub = true;
+        }
+        return hasSub && !hasPlan;
+      });
+
+      if (!existingPlan && planProducts.length) {
+        await adminFetch("/admin/checkout-templates", {
+          method: "POST",
+          body: JSON.stringify({
+            name: "Catálogo planes",
+            kind: "CART",
+            active: true,
+            allowProductSelect: true,
+            productIds: planProducts.map((p: any) => p.id),
+            tenantId,
+            logoUrl,
+            publicTitle: planTitle,
+            publicDescription: planDescription,
+            wompiTitle: planTitle,
+            wompiDescription: planDescription,
+            utmParams
+          })
+        });
+        createdCount += 1;
+      }
+      if (!existingSub && subProducts.length) {
+        await adminFetch("/admin/checkout-templates", {
+          method: "POST",
+          body: JSON.stringify({
+            name: "Catálogo suscripciones",
+            kind: "CART",
+            active: true,
+            allowProductSelect: true,
+            productIds: subProducts.map((p: any) => p.id),
+            tenantId,
+            logoUrl,
+            publicTitle: subTitle,
+            publicDescription: subDescription,
+            wompiTitle: subTitle,
+            wompiDescription: subDescription,
+            utmParams
+          })
+        });
+        createdCount += 1;
+      }
+    }
+
+    if (!createdCount) return redirectWith("checkout_template_defaults", "fail", "nothing_to_create");
+    redirectWith("checkout_template_defaults", "ok");
+  } catch (err: any) {
+    if (isNextRedirect(err)) throw err;
+    redirectWith("checkout_template_defaults", "fail", String(err?.message || "defaults_failed"));
   }
 }

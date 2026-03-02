@@ -25,7 +25,7 @@ import { PendingButton } from "../ui/PendingButton";
 import { getCsrfToken } from "../lib/csrf";
 import { ConnectionsPanel } from "./ConnectionsPanel";
 import { CheckoutTemplatesPanel } from "../checkout-templates/CheckoutTemplatesPanel";
-import { createCheckoutTemplate, updateCheckoutTemplate, deleteCheckoutTemplate, duplicateCheckoutTemplate } from "../checkout-templates/actions";
+import { createCheckoutTemplate, updateCheckoutTemplate, deleteCheckoutTemplate, duplicateCheckoutTemplate, createCheckoutTemplateDefaults } from "../checkout-templates/actions";
 import { RedirectConfigPanel } from "./RedirectConfigPanel";
 import { createTenant, deleteTenant, updateTenant } from "../tenants/actions";
 import { updateCheckoutConfig } from "./actions";
@@ -549,7 +549,8 @@ export default async function SettingsPage({
                 create: createCheckoutTemplate,
                 update: updateCheckoutTemplate,
                 remove: deleteCheckoutTemplate,
-                duplicate: duplicateCheckoutTemplate
+                duplicate: duplicateCheckoutTemplate,
+                defaults: createCheckoutTemplateDefaults
               }}
             />
           </div>
