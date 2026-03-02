@@ -279,7 +279,7 @@ export function NewBillingAssignmentForm({
           </div>
           {!forceOpen ? (
             <button className={open ? "ghost" : "primary"} type="button" data-loader="off" onClick={() => setOpen((v) => !v)}>
-              {open ? "Cerrar" : "Crear plan / suscripción"}
+              {open ? "Cerrar" : "Crear suscripción"}
             </button>
           ) : null}
         </div>
@@ -498,7 +498,7 @@ export function NewBillingAssignmentForm({
 
           <div className="panel module" style={{ margin: 0, opacity: canSubmit ? 1 : 0.6 }}>
             <div className="panel-header">
-              <h3 style={{ margin: 0 }}>3) Plan o suscripción</h3>
+              <h3 style={{ margin: 0 }}>3) Tipo de suscripción</h3>
             </div>
 
             <form action={createPlanAndSubscription} onKeyDownCapture={enterToNextField} style={{ display: "grid", gap: 10 }}>
@@ -591,7 +591,7 @@ export function NewBillingAssignmentForm({
                   value="LINK_NOW"
                   disabled={!canSubmit}
                 >
-                  {billingType === "PLAN" ? "Crear y enviar link de pago" : "Crear y enviar link de tokenización"}
+                  {billingType === "PLAN" ? "Crear y enviar link de pago" : "Crear y enviar link de débito automático"}
                 </button>
               </div>
             </form>

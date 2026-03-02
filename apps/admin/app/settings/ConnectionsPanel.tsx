@@ -85,7 +85,7 @@ export function ConnectionsPanel({
           </div>
           <div className="conn-body">
             <div className="conn-title">Wompi · Producción</div>
-            <div className="conn-sub">Pagos y tokenización</div>
+            <div className="conn-sub">Pagos y débito automático</div>
           </div>
           <div className="conn-status" style={{ display: "grid", gap: 4, justifyItems: "end" }}>
             <span>{wompiActiveEnv === "PRODUCTION" ? "Activo" : "Inactivo"}</span>
@@ -102,7 +102,7 @@ export function ConnectionsPanel({
           </div>
           <div className="conn-body">
             <div className="conn-title">Wompi · Sandbox</div>
-            <div className="conn-sub">Pagos y tokenización</div>
+            <div className="conn-sub">Pagos y débito automático</div>
           </div>
           <div className="conn-status" style={{ display: "grid", gap: 4, justifyItems: "end" }}>
             <span>{wompiActiveEnv === "SANDBOX" ? "Activo" : "Inactivo"}</span>

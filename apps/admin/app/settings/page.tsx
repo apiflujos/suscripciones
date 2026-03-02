@@ -656,7 +656,7 @@ export default async function SettingsPage({
                   <LogoUploadField
                     name="logoUrl"
                     label="Logo del canal"
-                    hint="Se usa en los links públicos de pago/tokenización."
+                    hint="Se usa en los links públicos de pago/débito automático."
                   />
                 </div>
                 <PendingButton className="primary" type="submit" pendingText="Creando...">

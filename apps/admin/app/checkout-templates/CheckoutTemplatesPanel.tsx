@@ -436,7 +436,7 @@ export function CheckoutTemplatesPanel({
                     style={{ display: "none" }}
                   />
                   <strong>Suscripción</strong>
-                  <div className="field-hint">Checkout de tokenización.</div>
+                  <div className="field-hint">Checkout de débito automático.</div>
                 </label>
                 <label
                   className={`card cardPad ${kind === "CART" ? "is-active" : ""}`}
@@ -612,8 +612,8 @@ export function CheckoutTemplatesPanel({
                         style={missingCatalogMode ? { borderColor: "var(--danger)" } : undefined}
                       >
                         <option value="">Selecciona un tipo</option>
-                        <option value="PLAN">Plan (link de pago)</option>
-                        <option value="SUBSCRIPTION">Suscripción (tokenización)</option>
+                        <option value="PLAN">Link de pago</option>
+                        <option value="SUBSCRIPTION">Débito automático</option>
                       </select>
                     </div>
                     <div className="field-hint">
@@ -871,7 +871,7 @@ export function CheckoutTemplatesPanel({
                         {opt === "PLAN"
                           ? "Catálogo para link de pago."
                           : opt === "SUBSCRIPTION"
-                            ? "Catálogo para tokenización."
+                            ? "Catálogo para débito automático."
                             : "Crea los dos catálogos base."}
                       </div>
                     </label>

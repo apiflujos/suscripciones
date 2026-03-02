@@ -292,7 +292,7 @@ export function NewPlanOrSubscriptionForm({
                 <HelpTip text="Plan = link de pago. Suscripción = cobro automático." />
               </label>
               <select ref={tipoRef} className="select" name="billingType" value={tipo} onChange={(e) => setTipo(e.target.value as any)}>
-                <option value="PLAN">Plan (link de pago)</option>
+                <option value="PLAN">Link de pago</option>
                 <option value="SUBSCRIPCION">Suscripción (cobro automático)</option>
               </select>
             </div>

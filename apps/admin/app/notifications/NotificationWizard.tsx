@@ -29,7 +29,7 @@ const VARIABLES = [
   { label: "Fecha pago", value: "{{payment.paidAt}}" },
   { label: "Referencia", value: "{{payment.reference}}" },
   { label: "Link pago", value: "{{payment.checkoutUrl}}" },
-  { label: "Link tokenización", value: "{{tokenization.url}}" },
+  { label: "Link débito automático", value: "{{tokenization.url}}" },
   { label: "Link catálogo", value: "{{catalog.url}}" },
   { label: "Tipo de pago", value: "{{paymentType}}" }
 ];
@@ -325,7 +325,7 @@ export function NotificationWizard({
                   <span>Aplica a</span>
                   <HelpTip text="Se configura automáticamente según el tipo de notificación." />
                 </label>
-                <input className="input" value={paymentType === "ANY" ? "Todos" : paymentType === "PLAN" ? "Pago del plan" : paymentType === "SUBSCRIPTION" ? "Pago suscripción" : "Pago por link de pago"} readOnly />
+                <input className="input" value={paymentType === "ANY" ? "Todos" : paymentType === "PLAN" ? "Pago por link de pago" : paymentType === "SUBSCRIPTION" ? "Pago suscripción" : "Pago por link de pago"} readOnly />
               </div>
             </>
           ) : null}

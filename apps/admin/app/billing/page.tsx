@@ -51,7 +51,7 @@ function getTipo(plan: any) {
 function getTipoPago(plan: any) {
   const mode = String(plan?.collectionMode || plan?.metadata?.collectionMode || "");
   if (mode === "AUTO_DEBIT") return "Pago suscripción";
-  if (mode === "AUTO_LINK") return "Pago del plan";
+  if (mode === "AUTO_LINK") return "Pago por link de pago";
   return "Pago por link de pago";
 }
 function getActivo(status: any) {
@@ -394,9 +394,9 @@ export default async function BillingPage({
         <div className="settings-group-header">
           <div className="filtersRow">
             <div className="filtersLeft">
-              <div className="filtersNote">Filtra planes y suscripciones, y prioriza rápidamente lo que necesitas atender.</div>
+              <div className="filtersNote">Filtra suscripciones por link de pago o débito automático.</div>
               <div className="billing-legend">
-                <span className="pill pill-muted">Suscripción = estado del plan</span>
+                <span className="pill pill-muted">Suscripción = estado del cobro</span>
                 <span className="pill pill-muted">Pago = estado del último cobro del periodo</span>
                 <span className="pill pill-muted">En mora = periodo vencido sin pago</span>
               </div>
@@ -563,7 +563,7 @@ export default async function BillingPage({
                               <input type="hidden" name="returnTo" value={returnTo} />
                               {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
                               <button className="ghost btn-compact btn-blue btn-token" type="submit" title="Enviar por CentralCom">
-                                Enviar tokenización
+                                Enviar débito automático
                               </button>
                             </form>
                           ) : (

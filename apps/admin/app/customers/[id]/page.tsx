@@ -828,7 +828,7 @@ export default async function CustomerDetailPage({
                 <div className="commercial-card">
                   <span className="commercial-label">Método</span>
                   <span className="commercial-value">{paymentSourceId ? "Tokenizado" : "Sin token"}</span>
-                  <span className="commercial-meta">{paymentSourceId ? "Pago recurrente habilitado" : "Requiere tokenización"}</span>
+                  <span className="commercial-meta">{paymentSourceId ? "Pago recurrente habilitado" : "Requiere débito automático"}</span>
                 </div>
                 <div className="commercial-card">
                   <span className="commercial-label">Recencia</span>

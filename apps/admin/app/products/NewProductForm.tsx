@@ -116,10 +116,10 @@ export function NewProductForm({
         <div className="field">
           <label>Tipo de cobro</label>
           <select className="select" name="collectionMode" value={collectionMode} onChange={(e) => setCollectionMode(e.target.value as any)}>
-            <option value="AUTO_LINK">Plan (link de pago)</option>
-            <option value="AUTO_DEBIT">Suscripción (tokenización)</option>
+            <option value="AUTO_LINK">Link de pago</option>
+            <option value="AUTO_DEBIT">Débito automático</option>
           </select>
-          <div className="field-hint">Define si este producto se cobra por link o por tokenización.</div>
+          <div className="field-hint">Define si este producto se cobra por link de pago o débito automático.</div>
         </div>
         <div className="field">
           <label>Nombre</label>

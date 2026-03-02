@@ -616,7 +616,7 @@ export function CustomersTable({
               </div>
 
               <div className="contact-right contact-block">
-                <div className="contact-block-title">Plan / suscripción</div>
+                <div className="contact-block-title">Suscripción</div>
                 <div className="contact-plan-grid">
                   <div>
                     <span>Estado</span>
@@ -635,14 +635,14 @@ export function CustomersTable({
                   {!hasToken(c) ? (
                     <div>
                       <span>Método de pago</span>
-                      <div className="field-hint">Envía el link de tokenización para que el cliente guarde su tarjeta.</div>
+                      <div className="field-hint">Envía el link de débito automático para que el cliente guarde su tarjeta.</div>
                     </div>
                   ) : null}
                 </div>
               </div>
               <div className="contact-paylink contact-footer">
                   <div className="paylink-header">
-                    <span className="paylink-title">Pagos y tokenización</span>
+                    <span className="paylink-title">Pagos y débito automático</span>
                   </div>
                   <div className="paylink-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-start" }}>
                     <Link className="ghost btn-compact btn-noicon btn-amber btn-token" href={`/customers/${c.id}/payment-method`}>
@@ -684,7 +684,7 @@ export function CustomersTable({
                       Ver detalles
                     </Link>
                     <button className="ghost btn-compact btn-noicon btn-green btn-create" type="button" data-modal="true" data-loader="off" onClick={() => openPlanModal(c)}>
-                      Crear plan / suscripción
+                      Crear suscripción
                     </button>
                     {(() => {
                       const override = linkOverrides[c.id] || {};
@@ -694,7 +694,7 @@ export function CustomersTable({
                         <>
                           {tokenLink ? (
                             <a className="ghost btn-compact btn-noicon btn-amber btn-token" href={tokenLink} target="_blank" rel="noreferrer" title={maskUrl(tokenLink)}>
-                              Link de tokenización
+                              Link de débito automático
                             </a>
                           ) : null}
                           {cartLink ? (
@@ -964,8 +964,8 @@ export function CustomersTable({
               <div className="field">
                 <label>Tipo de catálogo</label>
                 <select className="select" value={cartModalMode} onChange={(e) => setCartModalMode(e.target.value as any)}>
-                  <option value="PLAN">Plan (link de pago)</option>
-                  <option value="SUBSCRIPTION">Suscripción (tokenización)</option>
+                  <option value="PLAN">Link de pago</option>
+                  <option value="SUBSCRIPTION">Débito automático</option>
                 </select>
                 <div className="field-hint">
                   Plan: el cliente paga con un link. Suscripción: el cliente tokeniza tarjeta para cobros automáticos.
@@ -1109,7 +1109,7 @@ export function CustomersTable({
         <div className="modal-backdrop">
           <div className="modal-panel" style={{ maxWidth: 520 }}>
             <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <strong>Enviar tokenización</strong>
+              <strong>Enviar débito automático</strong>
               <button className="ghost modal-close" type="button" onClick={closeTokenModal} aria-label="Cerrar" data-modal-close="true" data-loader="off">
                 X
               </button>
@@ -1156,7 +1156,7 @@ export function CustomersTable({
                     setLinkOverrides((prev) => ({ ...prev, [customer.id]: { ...(prev[customer.id] || {}), token: json.link } }));
                   }
                   setSendOk((prev) => ({ ...prev, [customer.id]: "sent" }));
-                  openNotify("ok", "El link de tokenización fue enviado correctamente.");
+                  openNotify("ok", "El link de débito automático fue enviado correctamente.");
                 } finally {
                   setSendingTokenId(null);
                 }

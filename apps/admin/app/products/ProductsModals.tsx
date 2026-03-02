@@ -37,7 +37,7 @@ export function ProductsModals({
           Crear producto
         </button>
         <button className="primary btn-create" type="button" data-modal="true" data-loader="off" onClick={() => setOpenPlan(true)}>
-          Crear plan / suscripción
+          Crear suscripción
         </button>
       </div>
 

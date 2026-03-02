@@ -87,7 +87,7 @@ const MESSAGE_VARIABLES = [
   { label: "Fecha pago", value: "{{payment.paidAt}}" },
   { label: "Referencia", value: "{{payment.reference}}" },
   { label: "Link pago", value: "{{payment.checkoutUrl}}" },
-  { label: "Link tokenización", value: "{{tokenization.url}}" },
+  { label: "Link débito automático", value: "{{tokenization.url}}" },
   { label: "Link catálogo", value: "{{catalog.url}}" },
   { label: "Tipo de pago", value: "{{paymentType}}" }
 ];

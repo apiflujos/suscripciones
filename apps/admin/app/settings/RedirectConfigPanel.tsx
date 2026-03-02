@@ -142,7 +142,7 @@ export function RedirectConfigPanel({
                 <input className="input" name="defaultUtmParams" value={defaultUtmParams} onChange={(e) => setDefaultUtmParams(e.target.value)} />
               </div>
               <div className="field">
-                <label>URL retorno tokenización</label>
+                <label>URL retorno débito automático</label>
                 <input className="input" name="tokenizationReturnUrl" value={tokenReturnUrl} onChange={(e) => setTokenReturnUrl(e.target.value)} />
               </div>
               <div className="field">
