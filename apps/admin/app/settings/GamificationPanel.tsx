@@ -69,7 +69,7 @@ export function GamificationPanel({
               </label>
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <PendingButton className="btn" type="submit">Guardar</PendingButton>
+              <PendingButton className="btn" type="submit" pendingText="Guardando...">Guardar</PendingButton>
               <span className="field-hint">Aplica globalmente. Los canales pueden sumar reglas adicionales.</span>
             </div>
           </form>
