@@ -275,7 +275,10 @@ export default async function BillingPage({
       searchText,
       collectionMode: String(p?.metadata?.collectionMode || p.collectionMode || ""),
       priceInCents: Number(p.priceInCents || 0),
-      currency: String(p.currency || "COP")
+      currency: String(p.currency || "COP"),
+      kind: String((p?.metadata as any)?.catalog?.kind || "").toUpperCase() === "SERVICE" ? "SERVICE" : "PRODUCT",
+      requiresShipping: Boolean((p?.metadata as any)?.catalog?.requiresShipping),
+      shippingInCents: Number((p?.metadata as any)?.catalog?.pricing?.shippingInCents || 0)
     };
   });
 
@@ -329,7 +332,9 @@ export default async function BillingPage({
         periodoInicioAt: s.currentPeriodStartAt || null,
         periodoFinAt: s.currentPeriodEndAt || null,
         mode: String(plan?.collectionMode || plan?.metadata?.collectionMode || "MANUAL_LINK"),
-        tenantName: tenantNameList.length ? tenantNameList.join(", ") : "—"
+        tenantName: tenantNameList.length ? tenantNameList.join(", ") : "—",
+        currentShippingInCents: Number((plan?.metadata as any)?.catalog?.pricing?.shippingInCents || 0),
+        currentRequiresShipping: Boolean((plan?.metadata as any)?.catalog?.requiresShipping)
       };
     })
     .filter((r) => {
@@ -377,6 +382,7 @@ export default async function BillingPage({
           Error: {error}
         </div>
       ) : null}
+      {contactCreated ? <div className="card cardPad">Contacto creado correctamente.</div> : null}
       {chargeStatus ? (
         <ChargeStatusModal
           initialStatus={chargeStatus === "processing" ? "processing" : chargeStatus === "ok" ? "ok" : "fail"}
@@ -491,6 +497,21 @@ export default async function BillingPage({
                         {r.customerEmail || "—"} · {r.identificacion || "—"}
                       </div>
                     </div>
+                    <div className="billing-header-middle">
+                      <span className="billing-header-label">Canal de ventas</span>
+                      <BillingTenantModalButton
+                        triggerId={`tenant-modal-open-${r.id}`}
+                        triggerLabel={r.tenantName || "Sin canal"}
+                        triggerClassName="ghost btn-compact btn-noicon"
+                        subscriptionId={r.id}
+                        scopeTenantId={r.tenantId || ""}
+                        tenantIds={Array.isArray(r.tenantIds) ? r.tenantIds.map(String) : []}
+                        tenants={tenants}
+                        csrfToken={csrfToken}
+                        returnTo={returnTo}
+                        action={updateSubscriptionTenants}
+                      />
+                    </div>
                     <div className="billing-header-right">
                       <span className={`pill ${isPlan ? "pill-warn" : "pill-ok"}`} style={{ fontSize: 12 }}>
                         {isPlan ? "Link de pago" : "Débito automático"}
@@ -501,6 +522,8 @@ export default async function BillingPage({
                             subscriptionId={r.id}
                             currentPlanId={r.planId}
                             currentEndAt={r.vencimientoAt}
+                            currentShippingInCents={r.currentShippingInCents}
+                            currentRequiresShipping={r.currentRequiresShipping}
                             plans={planOptions}
                             csrfToken={csrfToken}
                             returnTo={returnTo}
@@ -509,7 +532,6 @@ export default async function BillingPage({
                             iconOnly
                           />
                         ) : null}
-                        <span className="pill pill-muted" title={r.tenantName || "Sin canal"}>{r.tenantName || "Sin canal"}</span>
                         <a
                           className="ghost btn-compact btn-open btn-icon-only"
                           href={`/customers?${new URLSearchParams({
@@ -518,15 +540,6 @@ export default async function BillingPage({
                           }).toString()}`}
                           aria-label="Historial"
                           title="Historial"
-                        />
-                        <BillingTenantModalButton
-                          subscriptionId={r.id}
-                          scopeTenantId={r.tenantId || ""}
-                          tenantIds={Array.isArray(r.tenantIds) ? r.tenantIds.map(String) : []}
-                          tenants={tenants}
-                          csrfToken={csrfToken}
-                          returnTo={returnTo}
-                          action={updateSubscriptionTenants}
                         />
                         <DeleteSubscriptionButton action={deleteSubscription} csrfToken={csrfToken} subscriptionId={r.id} tenantId={r.tenantId} />
                         {r.tipoTx === "Link de pago" && r.status === "CANCELED" && r.planId ? (
@@ -597,7 +610,7 @@ export default async function BillingPage({
                     </span>
                   </div>
 
-                  <div className="billing-grid-info" style={{ gridTemplateColumns: "1.6fr 1fr 1fr 1fr", alignItems: "center" }}>
+                  <div className="billing-grid-info" style={{ gridTemplateColumns: "1.9fr 1.2fr 1fr", alignItems: "center" }}>
                     <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                       <div className="product-thumb" style={{ width: 36, height: 36 }}>
                         {r.planImageUrl ? <img src={r.planImageUrl} alt={r.planName} /> : <span>📦</span>}
@@ -608,12 +621,12 @@ export default async function BillingPage({
                       </div>
                     </div>
                     <div>
-                      <span>Fecha de pago</span>
-                      <div>{r.pagoAt ? <LocalDateTime value={r.pagoAt} /> : "—"}</div>
-                    </div>
-                    <div>
-                      <span>Próximo pago</span>
-                      <div>{r.vencimientoAt ? <LocalDateTime value={r.vencimientoAt} /> : "—"}</div>
+                      <span title="Esta fecha es la misma fecha de corte. Se modifica con el botón 'Fecha de cobro'.">
+                        Próximo pago / corte
+                      </span>
+                      <div title="Modificar desde 'Fecha de cobro'">
+                        {r.vencimientoAt ? <LocalDateTime value={r.vencimientoAt} /> : "—"}
+                      </div>
                     </div>
                     <div>
                       <span>Valor</span>
@@ -630,7 +643,7 @@ export default async function BillingPage({
                         <input type="hidden" name="customerId" value={r.customerId} />
                         <input type="hidden" name="returnTo" value={returnTo} />
                         {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                        <button className="ghost btn-compact btn-noicon btn-blue btn-pay" type="submit" title="Enviar por CentralCom">
+                        <button className="ghost btn-compact btn-noicon btn-send" type="submit" title="Enviar por CentralCom">
                           Enviar link de pago
                         </button>
                       </form>
@@ -644,7 +657,7 @@ export default async function BillingPage({
                               <input type="hidden" name="planId" value={r.planId} />
                               <input type="hidden" name="returnTo" value={returnTo} />
                               {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                              <button className="ghost btn-compact btn-noicon btn-blue btn-token" type="submit" title="Enviar por CentralCom">
+                              <button className="ghost btn-compact btn-noicon btn-send" type="submit" title="Enviar por CentralCom">
                                 Enviar débito automático
                               </button>
                             </form>
@@ -654,25 +667,34 @@ export default async function BillingPage({
                             </a>
                           )
                         ) : null}
+                        <form action={chargeSubscriptionNow}>
+                          <input type="hidden" name="csrf" value={csrfToken} />
+                          <input type="hidden" name="subscriptionId" value={r.id} />
+                          {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
+                          <button
+                            className="ghost btn-compact btn-noicon btn-blue btn-pay"
+                            type="submit"
+                            disabled={!r.customerTokenized || r.status === "CANCELED"}
+                            title={
+                              r.status === "CANCELED"
+                                ? "La suscripción está cancelada"
+                                : !r.customerTokenized
+                                  ? "Primero debes guardar tarjeta (débito automático)"
+                                  : "Cobrar ahora"
+                            }
+                          >
+                            Cobrar
+                          </button>
+                        </form>
                         {r.customerTokenized && r.status !== "CANCELED" ? (
-                          <>
-                            <form action={chargeSubscriptionNow}>
-                              <input type="hidden" name="csrf" value={csrfToken} />
-                              <input type="hidden" name="subscriptionId" value={r.id} />
-                              {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                              <button className="ghost btn-compact btn-noicon btn-blue btn-pay" type="submit">
-                                Cobrar
-                              </button>
-                            </form>
-                            <ScheduleCutoffButton
-                              subscriptionId={r.id}
-                              csrfToken={csrfToken}
-                              returnTo={returnTo}
-                              tenantId={r.tenantId}
-                              currentEndAt={r.vencimientoAt}
-                              action={scheduleCutoff}
-                            />
-                          </>
+                          <ScheduleCutoffButton
+                            subscriptionId={r.id}
+                            csrfToken={csrfToken}
+                            returnTo={returnTo}
+                            tenantId={r.tenantId}
+                            currentEndAt={r.vencimientoAt}
+                            action={scheduleCutoff}
+                          />
                         ) : null}
                       </>
                     )}

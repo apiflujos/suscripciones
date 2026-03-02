@@ -632,6 +632,9 @@ export default async function LogsPage({
                       <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" data-auto-submit="true" />
                       <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" data-auto-submit="true" />
                       <button className="ghost" type="submit">Buscar</button>
+                      <div title="Reconciliación manual de una transacción Wompi" style={{ display: "inline-flex", alignItems: "center" }}>
+                        <ReconcilePaymentModal csrfToken={csrfToken} action={reconcilePayment} />
+                      </div>
                     </form>
                     <SmartViewsBar
                       scope="payments"
@@ -646,15 +649,6 @@ export default async function LogsPage({
                       }}
                     />
                   </div>
-                </div>
-              </div>
-              <div className="filtersRight">
-                <div className="panel" style={{ padding: 12, minWidth: 240 }}>
-                  <div className="filter-group" style={{ marginBottom: 8 }}>
-                    <div className="filter-label">Reconciliación Wompi</div>
-                    <div style={{ color: "var(--muted)", fontSize: 12 }}>Abre el modal para ejecutar la reconciliación manual.</div>
-                  </div>
-                  <ReconcilePaymentModal csrfToken={csrfToken} action={reconcilePayment} />
                 </div>
               </div>
             </div>

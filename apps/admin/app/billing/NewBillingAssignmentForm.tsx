@@ -17,6 +17,7 @@ type CatalogItem = {
   sku: string;
   name: string;
   kind: "PRODUCT" | "SERVICE";
+  requiresShipping?: boolean;
   currency: string;
   basePriceInCents: number;
   intervalUnit?: "DAY" | "WEEK" | "MONTH" | "CUSTOM";
@@ -43,6 +44,14 @@ function fmtMoneyFromCents(cents: number, currency = "COP") {
   const major = Math.trunc(Number(cents || 0) / 100);
   if (currency !== "COP") return `${major} ${currency}`;
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(major);
+}
+
+function formatCurrencyInput(input: string, currency: string): string {
+  const digits = String(input || "").replace(/[^\d]/g, "");
+  if (!digits) return "";
+  const value = Number(digits);
+  if (!Number.isFinite(value)) return "";
+  return new Intl.NumberFormat("es-CO", { style: "currency", currency, maximumFractionDigits: 0 }).format(value);
 }
 
 export function NewBillingAssignmentForm({
@@ -96,6 +105,7 @@ export function NewBillingAssignmentForm({
   const option1Value = "";
   const option2Value = "";
   const [templateId, setTemplateId] = useState("");
+  const [shippingCop, setShippingCop] = useState("");
 
   const startAtIso = "";
   const cutoffAtIso = "";
@@ -104,6 +114,10 @@ export function NewBillingAssignmentForm({
     if (!productId) return null;
     return catalogItems.find((p) => String(p.id) === String(productId)) || productHits.find((p) => String(p.id) === String(productId)) || null;
   }, [catalogItems, productHits, productId]);
+
+  useEffect(() => {
+    setShippingCop("");
+  }, [productId]);
 
   const intervalUnit = (selectedProduct?.intervalUnit || "MONTH") as "DAY" | "WEEK" | "MONTH" | "CUSTOM";
   const intervalCount = Number(selectedProduct?.intervalCount || 1);
@@ -568,6 +582,25 @@ export function NewBillingAssignmentForm({
                 <div className="field-hint">Selecciona un solo canal para esta creación.</div>
               </div>
               ) : null}
+
+              {selectedProduct?.kind === "PRODUCT" && selectedProduct?.requiresShipping ? (
+                <div className="field">
+                  <label>Flete / envío para este contacto</label>
+                  <input
+                    className="input"
+                    name="shippingPesos"
+                    value={shippingCop}
+                    onChange={(e) => setShippingCop(formatCurrencyInput(e.target.value, selectedProduct.currency || "COP"))}
+                    inputMode="numeric"
+                    placeholder="$ 0"
+                  />
+                  <div className="field-hint">
+                    Este valor solo se aplica a esta suscripción/plan.
+                  </div>
+                </div>
+              ) : (
+                <input type="hidden" name="shippingPesos" value="0" />
+              )}
 
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                 {!canSubmit ? (

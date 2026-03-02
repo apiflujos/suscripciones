@@ -12,6 +12,9 @@ type PlanOption = {
   collectionMode?: string | null;
   priceInCents?: number | null;
   currency?: string | null;
+  kind?: "PRODUCT" | "SERVICE" | null;
+  requiresShipping?: boolean;
+  shippingInCents?: number | null;
 };
 
 function toLocalInput(value?: string | null) {
@@ -27,10 +30,34 @@ function toLocalInput(value?: string | null) {
   return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
 }
 
+function centsToCurrencyInput(cents: number, currency = "COP") {
+  const major = Math.trunc(Number(cents || 0) / 100);
+  if (!Number.isFinite(major) || major <= 0) return "";
+  return new Intl.NumberFormat("es-CO", { style: "currency", currency, maximumFractionDigits: 0 }).format(major);
+}
+
+function currencyInputToCents(input: string) {
+  const digits = String(input || "").replace(/[^\d]/g, "");
+  if (!digits) return 0;
+  const value = Number(digits);
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  return Math.trunc(value) * 100;
+}
+
+function formatCurrencyInput(input: string, currency: string) {
+  const digits = String(input || "").replace(/[^\d]/g, "");
+  if (!digits) return "";
+  const value = Number(digits);
+  if (!Number.isFinite(value)) return "";
+  return new Intl.NumberFormat("es-CO", { style: "currency", currency, maximumFractionDigits: 0 }).format(value);
+}
+
 export function ChangePlanButton({
   subscriptionId,
   currentPlanId,
   currentEndAt,
+  currentShippingInCents = 0,
+  currentRequiresShipping = false,
   plans,
   csrfToken,
   returnTo,
@@ -41,6 +68,8 @@ export function ChangePlanButton({
   subscriptionId: string;
   currentPlanId: string;
   currentEndAt?: string | null;
+  currentShippingInCents?: number;
+  currentRequiresShipping?: boolean;
   plans: PlanOption[];
   csrfToken: string;
   returnTo: string;
@@ -53,9 +82,10 @@ export function ChangePlanButton({
   const [planId, setPlanId] = useState(currentPlanId);
   const [cutoffAt, setCutoffAt] = useState(initialCutoff);
   const [query, setQuery] = useState("");
+  const [shippingCop, setShippingCop] = useState(centsToCurrencyInput(currentShippingInCents || 0, "COP"));
+  const [freeShipping, setFreeShipping] = useState(Boolean(currentRequiresShipping) && Number(currentShippingInCents || 0) <= 0);
   const [remotePlans, setRemotePlans] = useState<PlanOption[]>([]);
   const [searching, setSearching] = useState(false);
-  const hasChange = planId && planId !== currentPlanId;
 
   const localFilteredPlans = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -104,7 +134,10 @@ export function ChangePlanButton({
             .toLowerCase(),
           collectionMode: String(p?.metadata?.collectionMode || p?.collectionMode || ""),
           priceInCents: Number(p?.priceInCents || 0),
-          currency: String(p?.currency || "COP")
+          currency: String(p?.currency || "COP"),
+          kind: String(p?.metadata?.catalog?.kind || "").toUpperCase() === "SERVICE" ? "SERVICE" : "PRODUCT",
+          requiresShipping: Boolean(p?.metadata?.catalog?.requiresShipping),
+          shippingInCents: Number(p?.metadata?.catalog?.pricing?.shippingInCents || 0)
         }));
         setRemotePlans(mapped.filter((p: any) => p.id));
       } catch {
@@ -129,15 +162,45 @@ export function ChangePlanButton({
     return Array.from(merged.values());
   }, [query, remotePlans, localFilteredPlans, plans, currentPlanId]);
 
+  const selectedPlan = useMemo(() => {
+    return filteredPlans.find((p) => String(p.id) === String(planId)) || plans.find((p) => String(p.id) === String(planId)) || null;
+  }, [filteredPlans, plans, planId]);
+  const selectedRequiresShipping = Boolean(
+    selectedPlan &&
+      String(selectedPlan.kind || "").toUpperCase() === "PRODUCT" &&
+      Boolean(selectedPlan.requiresShipping)
+  );
+  const currentShippingComparable = currentRequiresShipping ? Number(currentShippingInCents || 0) : 0;
+  const selectedShippingInCents = selectedRequiresShipping ? (freeShipping ? 0 : currencyInputToCents(shippingCop)) : 0;
+  const shippingChanged = selectedRequiresShipping && selectedShippingInCents !== currentShippingComparable;
+  const hasChange = Boolean(
+    planId &&
+      (planId !== currentPlanId || cutoffAt !== initialCutoff || shippingChanged)
+  );
+
+  useEffect(() => {
+    const plan = plans.find((p) => String(p.id) === String(planId)) || remotePlans.find((p) => String(p.id) === String(planId));
+    if (!plan) return;
+    const requires = String(plan.kind || "").toUpperCase() === "PRODUCT" && Boolean(plan.requiresShipping);
+    if (!requires) {
+      setFreeShipping(false);
+      setShippingCop("");
+      return;
+    }
+    const nextShipping = Number(plan.shippingInCents || 0);
+    setFreeShipping(nextShipping <= 0);
+    setShippingCop(centsToCurrencyInput(nextShipping, String(plan.currency || "COP")));
+  }, [planId, plans, remotePlans]);
+
   return (
     <>
       <button
-        className={`ghost btn-compact btn-noicon btn-blue ${iconOnly ? "btn-icon-only btn-edit" : ""}`}
+        className={`ghost btn-compact btn-blue ${iconOnly ? "btn-icon-only btn-edit" : "btn-noicon"}`}
         type="button"
         data-loader="off"
         onClick={() => setOpen(true)}
-        aria-label={iconOnly ? "Cambiar producto" : undefined}
-        title={iconOnly ? "Cambiar producto" : undefined}
+        aria-label={iconOnly ? "Editar" : undefined}
+        title={iconOnly ? "Editar" : undefined}
       >
         {iconOnly ? null : "Cambiar producto"}
       </button>
@@ -185,7 +248,7 @@ export function ChangePlanButton({
                 ) : null}
                 {!hasChange ? (
                   <div className="field-hint" style={{ color: "var(--danger)" }}>
-                    Debes seleccionar un producto diferente.
+                    Debes hacer al menos un cambio para guardar.
                   </div>
                 ) : null}
                 <div className="field-hint" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -210,6 +273,43 @@ export function ChangePlanButton({
                   required
                 />
               </div>
+
+              {selectedRequiresShipping ? (
+                <div className="field">
+                  <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span>Flete para esta suscripción</span>
+                    <HelpTip text="Este valor queda solo para esta suscripción." />
+                  </label>
+                  <input
+                    className="input"
+                    name="shippingPesos"
+                    inputMode="numeric"
+                    value={shippingCop}
+                    onChange={(e) => setShippingCop(formatCurrencyInput(e.target.value, String(selectedPlan?.currency || "COP")))}
+                    disabled={freeShipping}
+                    placeholder="$ 0"
+                    required={!freeShipping}
+                  />
+                  <label className="field-hint" style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
+                    <input
+                      type="checkbox"
+                      checked={freeShipping}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setFreeShipping(checked);
+                        if (checked) setShippingCop("");
+                      }}
+                    />
+                    Envío gratis
+                  </label>
+                  <input type="hidden" name="freeShipping" value={freeShipping ? "1" : "0"} />
+                </div>
+              ) : (
+                <>
+                  <input type="hidden" name="shippingPesos" value="0" />
+                  <input type="hidden" name="freeShipping" value="0" />
+                </>
+              )}
 
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
                 <button className="ghost btn-cancel" type="button" data-loader="off" onClick={() => setOpen(false)}>

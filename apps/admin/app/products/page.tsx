@@ -58,6 +58,7 @@ export default async function ProductsPage({
 
   const spParams = (await searchParams) ?? {};
   const created = typeof spParams.created === "string" ? spParams.created : "";
+  const contactCreated = typeof spParams.contactCreated === "string" ? spParams.contactCreated : "";
   const updated = typeof spParams.updated === "string" ? spParams.updated : "";
   const deleted = typeof spParams.deleted === "string" ? spParams.deleted : "";
   const tenantId = typeof spParams.tenantId === "string" ? spParams.tenantId : "";
@@ -205,6 +206,7 @@ export default async function ProductsPage({
         </div>
       ) : null}
       {created ? <div className="card cardPad">Guardado.</div> : null}
+      {contactCreated ? <div className="card cardPad">Contacto creado correctamente.</div> : null}
       {updated ? <div className="card cardPad">Actualizado.</div> : null}
       {deleted ? <div className="card cardPad">Eliminado.</div> : null}
       {tenantCreated ? <div className="card cardPad">Canal creado.</div> : null}

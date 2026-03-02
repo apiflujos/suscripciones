@@ -587,7 +587,7 @@ export function CustomersTable({
                     <input type="hidden" name="id" value={c.id} />
                     <input type="hidden" name="tenantId" value={c.tenantId || ""} />
                     {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
-                    <button className="ghost btn-compact btn-noicon btn-red btn-delete-icon" type="submit" aria-label="Eliminar contacto" title="Eliminar contacto" />
+                    <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" aria-label="Eliminar contacto" title="Eliminar contacto" />
                   </form>
                 </div>
               </div>
@@ -643,12 +643,12 @@ export function CustomersTable({
                     <span className="paylink-title">Pagos y débito automático</span>
                   </div>
                   <div className="paylink-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-start" }}>
-                    <Link className="ghost btn-compact btn-noicon btn-amber btn-token" href={`/customers/${c.id}/payment-method`}>
+                    <Link className="ghost btn-compact btn-noicon btn-blue btn-token contact-action-btn" href={`/customers/${c.id}/payment-method`}>
                       {hasToken(c) ? "Actualizar tarjeta" : "Guardar tarjeta"}
                     </Link>
                     {hasToken(c) ? (
                       <button
-                        className="ghost btn-compact btn-noicon btn-red"
+                        className="ghost btn-compact btn-noicon btn-red contact-action-btn"
                         type="button"
                         onClick={async () => {
                           if (!window.confirm("¿Quitar el método de pago guardado?")) return;
@@ -675,13 +675,13 @@ export function CustomersTable({
                         {clearingTokenId === c.id ? "Quitando..." : "Quitar token"}
                       </button>
                     ) : null}
-                    <button className="ghost btn-compact btn-noicon btn-blue btn-send" type="button" data-modal="true" data-loader="off" onClick={() => openSendMenu(c)}>
+                    <button className="ghost btn-compact btn-noicon btn-send contact-action-btn" type="button" data-modal="true" data-loader="off" onClick={() => openSendMenu(c)}>
                       Enviar
                     </button>
-                    <Link className="ghost btn-compact btn-noicon btn-blue btn-view" href={`/customers/${c.id}`}>
+                    <Link className="ghost btn-compact btn-noicon btn-blue btn-view contact-action-btn" href={`/customers/${c.id}`}>
                       Ver detalles
                     </Link>
-                    <button className="ghost btn-compact btn-noicon btn-green btn-create" type="button" data-modal="true" data-loader="off" onClick={() => openPlanModal(c)}>
+                    <button className="ghost btn-compact btn-noicon btn-blue btn-create contact-action-btn" type="button" data-modal="true" data-loader="off" onClick={() => openPlanModal(c)}>
                       Crear suscripción
                     </button>
                     {(() => {

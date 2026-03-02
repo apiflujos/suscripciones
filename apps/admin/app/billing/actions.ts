@@ -60,6 +60,7 @@ function humanizeCreateError(raw: string) {
   if (msg.includes("tenant_mismatch")) return "El contacto no pertenece al canal seleccionado.";
   if (msg.includes("tenant_not_allowed_for_plan")) return "El producto no está habilitado para ese canal.";
   if (msg.includes("missing_customer_or_product")) return "Falta seleccionar contacto o producto.";
+  if (msg.includes("missing_shipping_amount")) return "Debes ingresar el valor del flete o activar envío gratis.";
   if (msg.includes("missing_subscription_base_url")) return "Falta configurar URL base de suscripción en Configuración.";
   if (msg.includes("missing_plan_base_url")) return "Falta configurar URL base de plan en Configuración.";
   if (msg.includes("create_plan_failed")) return "No se pudo crear el producto de cobro.";
@@ -115,6 +116,8 @@ function readTenantIds(formData: FormData): string[] {
 function computeTotalInCents(args: {
   basePriceInCents: number;
   variantDeltaInCents: number;
+  shippingInCents?: number | null;
+  itemKind?: string | null;
   discountType?: string | null;
   discountValueInCents?: number | null;
   discountPercent?: number | null;
@@ -122,12 +125,13 @@ function computeTotalInCents(args: {
 }): { subtotalInCents: number; taxInCents: number; totalInCents: number } {
   const base = Number(args.basePriceInCents || 0);
   const delta = Number(args.variantDeltaInCents || 0);
+  const shipping = String(args.itemKind || "").toUpperCase() === "PRODUCT" ? Number(args.shippingInCents || 0) : 0;
   const taxPercent = Number(args.taxPercent || 0);
   const discountType = String(args.discountType || "NONE");
   const discountValue = Number(args.discountValueInCents || 0);
   const discountPercent = Number(args.discountPercent || 0);
 
-  let subtotal = base + delta;
+  let subtotal = base + delta + shipping;
   if (discountType === "FIXED") subtotal -= discountValue;
   else if (discountType === "PERCENT") subtotal -= Math.round((subtotal * discountPercent) / 100);
   if (subtotal < 0) subtotal = 0;
@@ -278,6 +282,7 @@ export async function createPlanTemplate(formData: FormData) {
     const totals = computeTotalInCents({
       basePriceInCents: Number(item.basePriceInCents || 0),
       variantDeltaInCents: delta,
+      itemKind: String(item.kind || ""),
       discountType: item.discountType,
       discountValueInCents: item.discountValueInCents,
       discountPercent: item.discountPercent,
@@ -472,6 +477,8 @@ export async function changeSubscriptionPlan(formData: FormData) {
   const subscriptionId = String(formData.get("subscriptionId") || "").trim();
   const planId = String(formData.get("planId") || "").trim();
   const cutoffAt = String(formData.get("cutoffAt") || "").trim();
+  const shippingInCents = pesosToCents(String(formData.get("shippingPesos") || ""));
+  const freeShipping = String(formData.get("freeShipping") || "").trim() === "1";
   const tenantIds = readTenantIds(formData);
   const tenantId = tenantIds[0] || "";
   if (!subscriptionId || !planId || !cutoffAt) {
@@ -482,11 +489,19 @@ export async function changeSubscriptionPlan(formData: FormData) {
     const path = tenantId
       ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/change-plan?tenantId=${encodeURIComponent(tenantId)}`
       : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/change-plan`;
-    await adminFetch(path, { method: "POST", body: JSON.stringify({ planId, cutoffAt }) });
+    await adminFetch(path, {
+      method: "POST",
+      body: JSON.stringify({
+        planId,
+        cutoffAt,
+        shippingInCents,
+        freeShipping
+      })
+    });
     redirect(mergeQuery(returnTo, { planChanged: "1", subscriptionId, ...(tenantId ? { tenantId } : {}) }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
-    redirect(mergeQuery(returnTo, { error: String(err?.message || "change_plan_failed"), ...(tenantId ? { tenantId } : {}) }));
+    redirect(mergeQuery(returnTo, { error: humanizeCreateError(String(err?.message || "change_plan_failed")), ...(tenantId ? { tenantId } : {}) }));
   }
 }
 
@@ -508,6 +523,7 @@ export async function createPlanAndSubscription(formData: FormData) {
   const templateIdRaw = String(formData.get("templateId") || "").trim();
   const submitActionRaw = String(formData.get("submitAction") || "").trim().toUpperCase();
   const submitAction = submitActionRaw === "LINK_NOW" ? "LINK_NOW" : "CREATE";
+  const shippingInCentsInput = pesosToCents(String(formData.get("shippingPesos") || ""));
 
   if (!customerId || !productId) {
     return redirect(mergeQuery(returnTo, { error: "missing_customer_or_product" }));
@@ -573,9 +589,25 @@ export async function createPlanAndSubscription(formData: FormData) {
     );
     const delta = matched?.priceDeltaInCents ? Number(matched.priceDeltaInCents) : 0;
 
+    const shippingForThisSubscription =
+      String(item.kind || "").toUpperCase() === "PRODUCT" && Boolean(item.requiresShipping)
+        ? shippingInCentsInput
+        : 0;
+    if (String(item.kind || "").toUpperCase() === "PRODUCT" && Boolean(item.requiresShipping) && shippingForThisSubscription <= 0) {
+      return redirect(
+        mergeQuery(returnTo, {
+          error: "missing_shipping_amount",
+          customerId,
+          ...(tenantId ? { tenantId } : {})
+        })
+      );
+    }
+
     const totals = computeTotalInCents({
       basePriceInCents: Number(item.basePriceInCents || 0),
       variantDeltaInCents: delta,
+      shippingInCents: shippingForThisSubscription,
+      itemKind: String(item.kind || ""),
       discountType: item.discountType,
       discountValueInCents: item.discountValueInCents,
       discountPercent: item.discountPercent,
@@ -631,6 +663,7 @@ export async function createPlanAndSubscription(formData: FormData) {
             discountType: item.discountType || "NONE",
             discountValueInCents: Number(item.discountValueInCents || 0),
             discountPercent: Number(item.discountPercent || 0),
+            shippingInCents: shippingForThisSubscription,
             totalInCents: totals.totalInCents
           }
         }

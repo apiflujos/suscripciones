@@ -262,13 +262,39 @@ const scheduleCutoffSchema = z.object({
 
 const changePlanSchema = z.object({
   planId: z.string().uuid(),
-  cutoffAt: z.string().min(1)
+  cutoffAt: z.string().min(1),
+  shippingInCents: z.number().int().nonnegative().optional(),
+  freeShipping: z.boolean().optional().default(false)
 });
 
 const updateSubscriptionTenantsSchema = z.object({
   tenantIds: z.array(z.string().uuid()).optional().default([]),
   primaryTenantId: z.string().uuid().optional().or(z.literal(""))
 });
+
+function computePlanTotalInCents(args: {
+  basePriceInCents: number;
+  variantDeltaInCents: number;
+  shippingInCents: number;
+  discountType?: string | null;
+  discountValueInCents?: number | null;
+  discountPercent?: number | null;
+  taxPercent?: number | null;
+}) {
+  const base = Number(args.basePriceInCents || 0);
+  const delta = Number(args.variantDeltaInCents || 0);
+  const shipping = Number(args.shippingInCents || 0);
+  const discountType = String(args.discountType || "NONE");
+  const discountValue = Number(args.discountValueInCents || 0);
+  const discountPercent = Number(args.discountPercent || 0);
+  const taxPercent = Number(args.taxPercent || 0);
+  let subtotal = base + delta + shipping;
+  if (discountType === "FIXED") subtotal -= discountValue;
+  else if (discountType === "PERCENT") subtotal -= Math.round((subtotal * discountPercent) / 100);
+  if (subtotal < 0) subtotal = 0;
+  const taxInCents = Math.round((subtotal * taxPercent) / 100);
+  return { subtotalInCents: subtotal, taxInCents, totalInCents: subtotal + taxInCents };
+}
 
 subscriptionsRouter.post("/:id/payment-link", async (req, res) => {
   const subscriptionId = req.params.id;
@@ -415,7 +441,7 @@ subscriptionsRouter.post("/:id/change-plan", async (req, res) => {
 
   const tenantId = await getEffectiveTenantId(req);
   const [subscription, plan] = await Promise.all([
-    prisma.subscription.findUnique({ where: { id: subscriptionId }, include: { tenantLinks: true } }),
+    prisma.subscription.findUnique({ where: { id: subscriptionId }, include: { tenantLinks: true, plan: true } }),
     prisma.subscriptionPlan.findUnique({ where: { id: parsed.data.planId }, include: { tenantLinks: true } })
   ]);
   if (!subscription) return res.status(404).json({ error: "subscription_not_found" });
@@ -427,11 +453,75 @@ subscriptionsRouter.post("/:id/change-plan", async (req, res) => {
     if (!allowedPlan) return res.status(404).json({ error: "plan_not_found" });
   }
 
+  let planForSubscription = plan;
+  const catalog = (plan.metadata as any)?.catalog ?? {};
+  const pricing = catalog?.pricing ?? {};
+  const isProduct = String(catalog?.kind || "").toUpperCase() === "PRODUCT";
+  const requiresShipping = isProduct && Boolean(catalog?.requiresShipping);
+  const defaultShippingInCents = Number(pricing?.shippingInCents || 0);
+  const requestedShippingInCents = requiresShipping
+    ? (parsed.data.freeShipping ? 0 : Number(parsed.data.shippingInCents ?? defaultShippingInCents))
+    : 0;
+
+  if (requiresShipping && !parsed.data.freeShipping && requestedShippingInCents <= 0) {
+    return res.status(400).json({ error: "missing_shipping_amount" });
+  }
+
+  const shippingChanged = requiresShipping && requestedShippingInCents !== defaultShippingInCents;
+  if (shippingChanged) {
+    const totals = computePlanTotalInCents({
+      basePriceInCents: Number(pricing?.basePriceInCents || plan.priceInCents || 0),
+      variantDeltaInCents: Number(catalog?.variantDeltaInCents || 0),
+      shippingInCents: requestedShippingInCents,
+      discountType: String(pricing?.discountType || "NONE"),
+      discountValueInCents: Number(pricing?.discountValueInCents || 0),
+      discountPercent: Number(pricing?.discountPercent || 0),
+      taxPercent: Number(pricing?.taxPercent || 0)
+    });
+
+    const nextMetadata = {
+      ...(plan.metadata && typeof plan.metadata === "object" ? (plan.metadata as any) : {}),
+      catalog: {
+        ...(catalog && typeof catalog === "object" ? catalog : {}),
+        pricing: {
+          ...(pricing && typeof pricing === "object" ? pricing : {}),
+          shippingInCents: requestedShippingInCents,
+          subtotalInCents: totals.subtotalInCents,
+          taxInCents: totals.taxInCents,
+          totalInCents: totals.totalInCents,
+          freeShipping: Boolean(parsed.data.freeShipping)
+        }
+      }
+    };
+    const created = await prisma.subscriptionPlan.create({
+      data: {
+        tenantId: plan.tenantId,
+        name: `${String((plan.metadata as any)?.displayName || plan.name || "Plan")} · envío ajustado`,
+        priceInCents: totals.totalInCents,
+        currency: plan.currency,
+        intervalUnit: plan.intervalUnit,
+        intervalCount: plan.intervalCount,
+        planType: plan.planType as any,
+        metadata: nextMetadata as any
+      }
+    });
+    const tenantIdsForClone = Array.from(
+      new Set([plan.tenantId, ...(plan.tenantLinks || []).map((t: any) => String(t.tenantId || "")).filter(Boolean)])
+    ) as string[];
+    if (tenantIdsForClone.length) {
+      await prisma.subscriptionPlanTenant.createMany({
+        data: tenantIdsForClone.map((t) => ({ planId: created.id, tenantId: t })),
+        skipDuplicates: true
+      });
+    }
+    planForSubscription = created as any;
+  }
+
   const now = new Date();
   const updated = await prisma.subscription.update({
     where: { id: subscriptionId },
     data: {
-      planId: plan.id,
+      planId: planForSubscription.id,
       currentCycle: 1,
       currentPeriodStartAt: now,
       currentPeriodEndAt: cutoffAt

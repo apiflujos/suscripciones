@@ -515,6 +515,77 @@ logsRouter.post("/payments/recollect", async (req, res) => {
   res.json({ ok: true, queuedProcess, queuedForward, skipped, days, take });
 });
 
+logsRouter.post("/payments/reconcile-pending", async (req, res) => {
+  const minutesRaw = Number(req.query.minutes ?? 5);
+  const minutes = Number.isFinite(minutesRaw) ? Math.min(Math.max(Math.trunc(minutesRaw), 1), 24 * 60) : 5;
+  const takeRaw = Number(req.query.take ?? 200);
+  const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 1000) : 200;
+  const tenantId = String(req.query.tenantId ?? "").trim();
+  const before = new Date(Date.now() - minutes * 60 * 1000);
+
+  const pending = await prisma.payment.findMany({
+    where: {
+      status: "PENDING" as any,
+      wompiTransactionId: { not: null },
+      createdAt: { lte: before },
+      ...(tenantId ? { tenantId } : {})
+    },
+    orderBy: { createdAt: "asc" },
+    take,
+    select: { id: true, tenantId: true, wompiTransactionId: true }
+  });
+
+  let reconciled = 0;
+  let skipped = 0;
+  let failed = 0;
+  const errors: Array<{ paymentId: string; tx: string; reason: string }> = [];
+
+  for (const payment of pending) {
+    const tx = String(payment.wompiTransactionId || "").trim();
+    if (!tx) {
+      skipped += 1;
+      continue;
+    }
+    try {
+      const out = await reconcileWompiTransaction({
+        wompiTransactionId: tx,
+        tenantId: payment.tenantId,
+        checksumPrefix: "manual-pending-reconcile"
+      });
+      if (out?.ok) reconciled += 1;
+      else {
+        skipped += 1;
+        if (out?.reason && out.reason !== "status_not_final") {
+          errors.push({ paymentId: payment.id, tx, reason: String(out.reason) });
+        }
+      }
+    } catch (err: any) {
+      failed += 1;
+      errors.push({ paymentId: payment.id, tx, reason: String(err?.message || "reconcile_failed") });
+    }
+  }
+
+  await systemLog(LogLevel.INFO, "logs.payments", "Reconciliar pendientes ejecutado", {
+    minutes,
+    take,
+    scanned: pending.length,
+    reconciled,
+    skipped,
+    failed
+  }).catch(() => {});
+
+  res.json({
+    ok: true,
+    minutes,
+    take,
+    scanned: pending.length,
+    reconciled,
+    skipped,
+    failed,
+    errors: errors.slice(0, 50)
+  });
+});
+
 logsRouter.post("/payments/reconcile", async (req, res) => {
   const paymentId = String(req.body?.paymentId || "").trim();
   const reference = String(req.body?.reference || "").trim();

@@ -4,6 +4,10 @@ import { useState } from "react";
 import { PendingButton } from "../ui/PendingButton";
 
 export function BillingTenantModalButton({
+  triggerId,
+  triggerLabel = "Cambiar canal",
+  triggerClassName = "ghost btn-compact btn-noicon",
+  hideTrigger = false,
   subscriptionId,
   scopeTenantId,
   tenantIds,
@@ -12,6 +16,10 @@ export function BillingTenantModalButton({
   returnTo,
   action
 }: {
+  triggerId?: string;
+  triggerLabel?: string;
+  triggerClassName?: string;
+  hideTrigger?: boolean;
   subscriptionId: string;
   scopeTenantId?: string;
   tenantIds: string[];
@@ -24,8 +32,16 @@ export function BillingTenantModalButton({
 
   return (
     <>
-      <button className="ghost btn-compact btn-noicon" type="button" onClick={() => setOpen(true)} data-modal="true" data-loader="off">
-        Cambiar canal
+      <button
+        id={triggerId}
+        className={triggerClassName}
+        style={hideTrigger ? { display: "none" } : undefined}
+        type="button"
+        onClick={() => setOpen(true)}
+        data-modal="true"
+        data-loader="off"
+      >
+        {triggerLabel}
       </button>
       {open ? (
         <div className="modal-backdrop">
@@ -69,4 +85,3 @@ export function BillingTenantModalButton({
     </>
   );
 }
-

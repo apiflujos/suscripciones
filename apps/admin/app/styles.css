@@ -2677,6 +2677,21 @@ textarea.input {
 
 .btn-send {
   --btn-icon: var(--icon-link);
+  border-color: #22c55e;
+  color: #166534;
+  background: #ecfdf3;
+}
+
+.btn-send:hover {
+  background: #dcfce7;
+  border-color: #16a34a;
+}
+
+.primary.btn-send,
+.btnPrimary.btn-send {
+  background: #22c55e;
+  border-color: #16a34a;
+  color: #fff;
 }
 
 .btn-filter {
@@ -3367,6 +3382,14 @@ textarea.input {
   padding: 4px 6px;
   display: grid;
   gap: 2px;
+}
+
+.contact-action-btn {
+  display: inline-flex;
+  align-items: center;
+  min-width: 138px !important;
+  justify-content: center;
+  text-align: center;
 }
 
 .send-grid {
@@ -4821,6 +4844,19 @@ textarea.input {
   justify-content: space-between;
   gap: 10px;
   align-items: flex-start;
+}
+
+.billing-header-middle {
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+  align-content: start;
+  min-width: 170px;
+}
+
+.billing-header-label {
+  font-size: 10px;
+  color: var(--text-faint);
 }
 
 .billing-header-right {
@@ -6913,7 +6949,7 @@ body.is-global-loading {
 .global-loader-backdrop {
   position: absolute;
   inset: 0;
-  background: var(--modal-backdrop);
+  background: rgba(17, 24, 39, 0.26);
   backdrop-filter: blur(var(--modal-backdrop-blur));
   -webkit-backdrop-filter: blur(var(--modal-backdrop-blur));
 }
@@ -6926,24 +6962,25 @@ body.is-global-loading {
   gap: 12px;
   padding: 14px 18px;
   border-radius: 14px;
-  background: var(--brand-primary-700);
-  color: #f8fafc;
-  box-shadow: 0 12px 30px rgba(34, 16, 52, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #f5f3ff;
+  color: #4c1d95;
+  box-shadow: 0 12px 30px rgba(31, 41, 55, 0.22);
+  border: 1px solid rgba(124, 58, 237, 0.26);
 }
 
-.global-loader-gif {
-  width: 28px;
-  height: 30px;
-  display: block;
+.global-loader-spinner {
+  width: 20px;
+  height: 20px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.15);
-  padding: 2px;
+  border: 2px solid #d1d5db;
+  border-top-color: #7c3aed;
+  border-right-color: #7c3aed;
+  animation: spin 0.78s linear infinite;
 }
 
 .global-loader-text {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.01em;
 }
 
@@ -7415,6 +7452,10 @@ body.is-global-loading {
   .billing-header {
     flex-direction: column;
     align-items: flex-start;
+  }
+  .billing-header-middle {
+    justify-items: flex-start;
+    min-width: 0;
   }
 }
 

@@ -169,7 +169,7 @@ export function GlobalLoader() {
     <div className="global-loader" role="status" aria-live="polite" aria-busy="true">
       <div className="global-loader-backdrop" />
       <div className="global-loader-card">
-        <img className="global-loader-gif" src="/brand/loader.gif" alt="" aria-hidden="true" />
+        <span className="global-loader-spinner" aria-hidden="true" />
         <div className="global-loader-text">Procesando…</div>
       </div>
     </div>

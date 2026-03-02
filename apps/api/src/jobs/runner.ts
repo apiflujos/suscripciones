@@ -1,7 +1,7 @@
 import { prisma } from "../db/prisma";
 import { logger } from "../lib/logger";
 import { loadEnv } from "../config/env";
-import { LogLevel, RetryJobStatus, RetryJobType } from "@prisma/client";
+import { LogLevel, PaymentStatus, RetryJobStatus, RetryJobType } from "@prisma/client";
 import { forwardWompiToShopify, processWompiEvent } from "./handlers/processWompiEvent";
 import { sendChatwootMessage } from "./handlers/sendChatwootMessage";
 import { paymentRetry } from "./handlers/paymentRetry";
@@ -14,6 +14,7 @@ import { syncSmartLists } from "./handlers/syncSmartLists";
 import { aiAssist } from "./handlers/aiAssist";
 import { gamificationRecalc } from "./handlers/gamificationRecalc";
 import { dataTrainer } from "./handlers/dataTrainer";
+import { reconcileWompiTransaction } from "../services/wompiReconcile";
 
 loadEnv(process.env);
 const workerId = `jobs:${process.pid}`;
