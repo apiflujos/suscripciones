@@ -142,7 +142,13 @@ export async function chatwootWebhook(req: Request, res: Response) {
     const auth = String(req.header("authorization") || "");
     const bearer = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
     const queryToken = String((req.query as Record<string, unknown>)?.token || "").trim();
+    const allowQueryInProd = String(process.env.CHATWOOT_WEBHOOK_ALLOW_QUERY || "").trim() === "1";
     const provided = headerToken || bearer || queryToken;
+    const usesQueryOnly = Boolean(queryToken && !headerToken && !bearer);
+    if (usesQueryOnly && process.env.NODE_ENV === "production" && !allowQueryInProd) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
     if (!provided || !timingSafeEqualStr(provided, requiredToken)) {
       res.status(401).json({ error: "unauthorized" });
       return;
