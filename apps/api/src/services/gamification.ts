@@ -182,7 +182,7 @@ export async function applyGamificationEvent(input: GamificationEventInput) {
   for (const target of targets) {
     const event = await prisma.gamificationEvent.create({
       data: {
-        tenantId: target.tenantId,
+        ...(target.tenantId ? { tenantId: target.tenantId } : {}),
         entityType: input.entityType,
         entityId: input.entityId,
         kind: String(input.kind || "").trim() || "custom",
@@ -201,13 +201,13 @@ export async function applyGamificationEvent(input: GamificationEventInput) {
     const scoreRow = await prisma.gamificationScore.upsert({
       where: {
         tenantId_entityType_entityId: {
-          tenantId: target.tenantId,
+          tenantId: target.tenantId as any,
           entityType: input.entityType,
           entityId: input.entityId
         }
       },
       create: {
-        tenantId: target.tenantId,
+        ...(target.tenantId ? { tenantId: target.tenantId } : {}),
         entityType: input.entityType,
         entityId: input.entityId,
         lifetimePoints: Math.max(0, deltas.lifetimeDelta),
@@ -437,7 +437,8 @@ async function recomputeCustomerScores(tenantId: string | null, cfg: { decay: { 
 
   for (const customer of customers) {
     const globalStats = approvedByCustomer.get(String(customer.id)) || { count: 0, amount: 0, lastPaidAt: null };
-    const chatwootAt = parseIso(customer?.metadata?.chatwoot?.lastEventAt) || null;
+    const customerMeta = (customer?.metadata ?? {}) as any;
+    const chatwootAt = parseIso(customerMeta?.chatwoot?.lastEventAt) || null;
     const lastActivityAt = [globalStats.lastPaidAt, chatwootAt].filter(Boolean).sort((a, b) => (b as Date).getTime() - (a as Date).getTime())[0] || null;
     const dataQualityScore = computeDataQualityScore(customer);
     const sub = globalSubByCustomer.get(String(customer.id)) || null;
@@ -462,13 +463,12 @@ async function recomputeCustomerScores(tenantId: string | null, cfg: { decay: { 
     const row = await prisma.gamificationScore.upsert({
       where: {
         tenantId_entityType_entityId: {
-          tenantId: null,
+          tenantId: null as any,
           entityType: GamificationEntityType.CUSTOMER,
           entityId: customer.id
         }
       },
       create: {
-        tenantId: null,
         entityType: GamificationEntityType.CUSTOMER,
         entityId: customer.id,
         lifetimePoints: computed.lifetimePoints,
@@ -511,7 +511,8 @@ async function recomputeCustomerScores(tenantId: string | null, cfg: { decay: { 
     for (const tId of tenantIdList) {
       if (!tId) continue;
       const stats = approvedByTenantCustomer.get(`${tId}:${customer.id}`) || { count: 0, amount: 0, lastPaidAt: null };
-      const chatwootAt = parseIso(customer?.metadata?.chatwoot?.lastEventAt) || null;
+    const customerMeta = (customer?.metadata ?? {}) as any;
+    const chatwootAt = parseIso(customerMeta?.chatwoot?.lastEventAt) || null;
       const lastActivityAt = [stats.lastPaidAt, chatwootAt].filter(Boolean).sort((a, b) => (b as Date).getTime() - (a as Date).getTime())[0] || null;
       const dataQualityScore = computeDataQualityScore(customer);
       const sub = subByKey.get(`${tId}:${customer.id}`) || null;
@@ -532,8 +533,8 @@ async function recomputeCustomerScores(tenantId: string | null, cfg: { decay: { 
       });
 
       const globalScore = globalScoreByCustomer.get(String(customer.id))?.score || 0;
-      const cfg = await getTenantGamificationConfig(tId);
-      const effectiveScore = computeEffectiveScore(globalScore, computed.statusScore, cfg.factor, cfg.bonus);
+      const tenantCfg = await getTenantGamificationConfig(tId);
+      const effectiveScore = computeEffectiveScore(globalScore, computed.statusScore, tenantCfg.factor, tenantCfg.bonus);
       const levelInfo = levelForScore(effectiveScore);
 
       await prisma.gamificationScore.upsert({
@@ -661,13 +662,12 @@ async function recomputeProductScores(tenantId: string | null) {
     await prisma.gamificationScore.upsert({
       where: {
         tenantId_entityType_entityId: {
-          tenantId: null,
+          tenantId: null as any,
           entityType: GamificationEntityType.PRODUCT,
           entityId: plan.id
         }
       },
       create: {
-        tenantId: null,
         entityType: GamificationEntityType.PRODUCT,
         entityId: plan.id,
         lifetimePoints: computed.lifetimePoints,

@@ -234,10 +234,10 @@ customersRouter.put("/:id", async (req, res) => {
   if (data.phone === undefined) delete data.phone;
 
   try {
+    const existing = await prisma.customer.findUnique({ where: { id: customerId } });
+    if (!existing) return res.status(404).json({ error: "customer_not_found" });
     const tenantId = await getEffectiveTenantId(req);
     if (tenantId) {
-      const existing = await prisma.customer.findUnique({ where: { id: customerId } });
-      if (!existing) return res.status(404).json({ error: "customer_not_found" });
       const allowed = existing.tenantId === tenantId
         || (await prisma.customerTenant.count({ where: { customerId, tenantId } })) > 0;
       if (!allowed) return res.status(404).json({ error: "customer_not_found" });
