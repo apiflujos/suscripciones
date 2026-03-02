@@ -179,7 +179,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     if (!canProceedByReference) {
       await db.webhookEvent.update({
         where: { id: webhookEventId },
-        data: { processStatus: WebhookProcessStatus.FAILED, errorMessage: "payment_link_not_found", processedAt: new Date() }
+        data: { processStatus: WebhookProcessStatus.SKIPPED, errorMessage: "payment_link_external", processedAt: new Date() }
       });
       return;
     }
