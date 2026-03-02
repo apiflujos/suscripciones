@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { LocalDateTime } from "../ui/LocalDateTime";
 
 type LogItem = {
@@ -49,8 +49,10 @@ export function LogsSystemTable({ items }: { items: LogItem[] }) {
             const isOpen = Boolean(id) && openId === id;
             const rawMessage = String(l.message || "—");
             const shortMessage = rawMessage.length > 300 ? `${rawMessage.slice(0, 300)}…` : rawMessage;
+            const rowKey = id || `${l.createdAt ?? ""}-${l.message ?? ""}-${idx}`;
             return (
-              <tr key={id || `${l.createdAt ?? ""}-${l.message ?? ""}-${idx}`}>
+              <Fragment key={rowKey}>
+              <tr>
                 <td className="log-date-cell"><LocalDateTime value={l.createdAt} variant="stacked" /></td>
                 <td>{(l as any).actor || "—"}</td>
                 <td className="log-cell log-entity" title={(l as any).entity || l.source || "—"}>
@@ -66,25 +68,28 @@ export function LogsSystemTable({ items }: { items: LogItem[] }) {
                   <span className="log-truncate">{shortMessage}</span>
                 </td>
                 <td style={{ textAlign: "right" }}>
-                  <div className="inline-detail">
-                    <button
-                      className="ghost btn-eye btn-compact"
-                      type="button"
-                      aria-expanded={isOpen}
-                      data-loader="off"
-                      onClick={() => setOpenId(isOpen ? null : id)}
-                    >
-                      {isOpen ? "Ocultar" : "Ver"}
-                    </button>
-                    {isOpen ? (
-                      <div className="inline-detail-body">
-                        <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 6 }}>{l.source || "—"}</div>
-                        <pre className="inline-detail-pre">{JSON.stringify(l.context ?? l, null, 2)}</pre>
-                      </div>
-                    ) : null}
-                  </div>
+                  <button
+                    className="ghost btn-eye btn-compact"
+                    type="button"
+                    aria-expanded={isOpen}
+                    data-loader="off"
+                    onClick={() => setOpenId(isOpen ? null : id)}
+                  >
+                    {isOpen ? "Ocultar" : "Ver"}
+                  </button>
                 </td>
               </tr>
+              {isOpen ? (
+                <tr className="log-detail-row">
+                  <td colSpan={6}>
+                    <div className="log-detail-expanded">
+                      <div className="log-detail-meta">{l.source || "—"}</div>
+                      <pre className="log-detail-pre">{JSON.stringify(l.context ?? l, null, 2)}</pre>
+                    </div>
+                  </td>
+                </tr>
+              ) : null}
+              </Fragment>
             );
           })}
           {items.length === 0 ? (

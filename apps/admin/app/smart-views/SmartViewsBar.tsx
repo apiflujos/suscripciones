@@ -471,7 +471,7 @@ export function SmartViewsBar({
     <div className="smartViewsBar" data-loader="off">
       <div className="smartViewsTop">
         <div className="field smartViewsField">
-          <label htmlFor={selectId}>Vistas guardadas</label>
+          <label htmlFor={selectId}>Vistas</label>
           <select
             id={selectId}
             className="select"

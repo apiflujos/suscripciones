@@ -304,7 +304,7 @@ export default async function LogsPage({
     source: normalizeLogSource(l.source),
     message: normalizeLogMessage(l.message)
   }));
-  const pagination = (() => {
+  const paginationInfo = (() => {
     const currentPage = Math.max(1, Number(page) || 1);
     const countOnPage =
       tab === "system"
@@ -359,11 +359,13 @@ export default async function LogsPage({
     const startIndex = countOnPage ? (currentPage - 1) * take + 1 : 0;
     const endIndex = countOnPage ? (currentPage - 1) * take + countOnPage : 0;
     const totalLabel = totalCount != null ? ` de ${totalCount}` : "";
-    return (
+    const summaryText = `Mostrando ${countOnPage ? `${startIndex}-${endIndex}${totalLabel}` : "0"} · ${take} por página`;
+    const showSummary = tab !== "system";
+    return {
+      summaryText,
+      component: (
       <div className="pagination pagination-indicator">
-        <div className="pagination-summary">
-          Mostrando {countOnPage ? `${startIndex}-${endIndex}${totalLabel}` : "0"} · {take} por página
-        </div>
+        {showSummary ? <div className="pagination-summary">{summaryText}</div> : null}
         <a
           className="page-link page-nav"
           href={`/logs?${new URLSearchParams({
@@ -400,8 +402,11 @@ export default async function LogsPage({
           Siguiente
         </a>
       </div>
-    );
+      )
+    };
   })();
+  const pagination = paginationInfo.component;
+  const paginationSummary = paginationInfo.summaryText;
   const systemSummary = normalized.reduce(
     (acc: { info: number; warn: number; error: number }, l: any) => {
       const lvl = String(l.level || "").toUpperCase();
@@ -518,7 +523,9 @@ export default async function LogsPage({
           {tab === "system" ? (
             <div className="filtersRow">
               <div className="filtersLeft">
-                <div className="filtersNote">Busca por evento o fuente (por defecto últimos 30 días).</div>
+                <div className="filtersNote">
+                  Busca por evento o fuente (por defecto últimos 30 días). <span className="muted">Vistas = filtros guardados.</span>
+                </div>
                 <div className="filtersPanel">
                   <SmartViewsBar
                     scope="logs"
@@ -533,6 +540,9 @@ export default async function LogsPage({
                     }}
                   />
                 </div>
+              </div>
+              <div className="filtersRight">
+                <div className="filtersSummary">{paginationSummary}</div>
               </div>
 
             </div>
