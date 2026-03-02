@@ -499,9 +499,13 @@ export function CustomersTable({
                     {statusLabel && statusPillClass ? <span className={`pill ${statusPillClass} pill-sm`}>{statusLabel}</span> : null}
                   </div>
                 </div>
-                <div className="contact-card-top-actions">
-                  <button className="ghost btn-compact btn-eye" type="button" onClick={() => openTransactions(c)} aria-label="Historial de pagos" />
-                  <button className="ghost btn-compact btn-edit" type="button" onClick={() => openEditor(c)} aria-label="Editar" />
+                  <div className="contact-card-top-actions">
+                    <button className="ghost btn-compact btn-noicon" type="button" onClick={() => openTransactions(c)} aria-label="Historial de pagos">
+                      Historial
+                    </button>
+                    <button className="ghost btn-compact btn-noicon" type="button" onClick={() => openEditor(c)} aria-label="Editar">
+                      Editar
+                    </button>
                   <form
                     action={deleteCustomer}
                     className="delete-row"
@@ -513,7 +517,9 @@ export function CustomersTable({
                     <input type="hidden" name="id" value={c.id} />
                     <input type="hidden" name="tenantId" value={c.tenantId || ""} />
                     {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
-                    <button className="ghost btn-compact btn-red" type="submit" aria-label="Eliminar" />
+                    <button className="ghost btn-compact btn-noicon btn-red" type="submit" aria-label="Eliminar">
+                      Eliminar
+                    </button>
                   </form>
                 </div>
               </div>
@@ -573,12 +579,12 @@ export function CustomersTable({
                     <span className="paylink-title">Pagos y tokenización</span>
                   </div>
                   <div className="paylink-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-start" }}>
-                    <Link className="ghost btn-compact btn-amber btn-token" href={`/customers/${c.id}/payment-method`}>
+                    <Link className="ghost btn-compact btn-noicon btn-amber btn-token" href={`/customers/${c.id}/payment-method`}>
                       {hasToken(c) ? "Tokenizar otra tarjeta" : "Tokenizar"}
                     </Link>
                     {hasToken(c) ? (
                       <button
-                        className="ghost btn-compact btn-red"
+                        className="ghost btn-compact btn-noicon btn-red"
                         type="button"
                         onClick={async () => {
                           if (!window.confirm("¿Quitar el método de pago guardado?")) return;
@@ -604,34 +610,28 @@ export function CustomersTable({
                         {clearingTokenId === c.id ? "Quitando..." : "Quitar token"}
                       </button>
                     ) : null}
-                    <button className="ghost btn-compact btn-blue btn-send" type="button" data-modal="true" data-loader="off" onClick={() => openSendMenu(c)}>
+                    <button className="ghost btn-compact btn-noicon btn-blue btn-send" type="button" data-modal="true" data-loader="off" onClick={() => openSendMenu(c)}>
                       Enviar
                     </button>
-                    <Link className="ghost btn-compact btn-blue btn-view" href={`/customers/${c.id}`}>
+                    <Link className="ghost btn-compact btn-noicon btn-blue btn-view" href={`/customers/${c.id}`}>
                       Ver detalles
                     </Link>
-                    <button className="ghost btn-compact btn-green btn-create" type="button" data-modal="true" data-loader="off" onClick={() => openPlanModal(c)}>
+                    <button className="ghost btn-compact btn-noicon btn-green btn-create" type="button" data-modal="true" data-loader="off" onClick={() => openPlanModal(c)}>
                       Crear plan / suscripción
                     </button>
                     {(() => {
                       const override = linkOverrides[c.id] || {};
-                      const paymentLink = override.payment || c.metadata?.paymentLink?.url || latestLinks[String(c.id)]?.checkoutUrl || "";
                       const tokenLink = override.token || getTokenLink(c);
                       const cartLink = override.cart || getCartLink(c);
                       return (
                         <>
-                          {paymentLink ? (
-                            <a className="ghost btn-compact btn-blue btn-open" href={paymentLink} target="_blank" rel="noreferrer" title={maskUrl(paymentLink)}>
-                              Link de pago
-                            </a>
-                          ) : null}
                           {tokenLink ? (
-                            <a className="ghost btn-compact btn-amber btn-token" href={tokenLink} target="_blank" rel="noreferrer" title={maskUrl(tokenLink)}>
+                            <a className="ghost btn-compact btn-noicon btn-amber btn-token" href={tokenLink} target="_blank" rel="noreferrer" title={maskUrl(tokenLink)}>
                               Link de tokenización
                             </a>
                           ) : null}
                           {cartLink ? (
-                            <a className="ghost btn-compact btn-green btn-open" href={cartLink} target="_blank" rel="noreferrer" title={maskUrl(cartLink)}>
+                            <a className="ghost btn-compact btn-noicon btn-green btn-open" href={cartLink} target="_blank" rel="noreferrer" title={maskUrl(cartLink)}>
                               Link de catálogo
                             </a>
                           ) : null}
