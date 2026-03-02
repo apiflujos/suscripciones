@@ -21,7 +21,6 @@ import { normalizeErrorParam } from "../lib/errorParam";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
 import { HelpTip } from "../ui/HelpTip";
-import { AppearanceSelector } from "../ui/AppearanceSelector";
 import { PendingButton } from "../ui/PendingButton";
 import { getCsrfToken } from "../lib/csrf";
 import { ConnectionsPanel } from "./ConnectionsPanel";
@@ -215,22 +214,6 @@ export default async function SettingsPage({
           `CREDENTIALS_ENCRYPTION_KEY_B64` está configurada pero es inválida. Debe ser Base64 de <strong>32 bytes</strong> (no 32 caracteres).
         </div>
       ) : null}
-
-      <section className="settings-group">
-        <div className="settings-group-header">
-          <div className="panelHeaderRow">
-            <div style={{ display: "grid", gap: 4 }}>
-              <h3>Apariencia</h3>
-              <div className="field-hint">Controla tema, contraste y modo seguro para visión.</div>
-            </div>
-          </div>
-        </div>
-        <div className="settings-group-body">
-          <div className="card cardPad">
-            <AppearanceSelector />
-          </div>
-        </div>
-      </section>
 
       {tab === "gamificacion" ? (
         <GamificationPanel

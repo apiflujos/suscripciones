@@ -28,7 +28,7 @@ function writeAppearancePref(key: string, value: string | null) {
   window.dispatchEvent(new Event("apiflujos-theme:change"));
 }
 
-export function AppearanceSelector({ compact = false }: { compact?: boolean }) {
+export function AppearanceSelector({ compact = false, cards = false }: { compact?: boolean; cards?: boolean }) {
   const [themeChoice, setThemeChoice] = useState<ThemeChoice>("auto");
   const [contrastChoice, setContrastChoice] = useState<ContrastChoice>("auto");
   const [visionChoice, setVisionChoice] = useState<VisionChoice>("standard");
@@ -72,7 +72,7 @@ export function AppearanceSelector({ compact = false }: { compact?: boolean }) {
   };
 
   return (
-    <div className={`appearanceSelector ${compact ? "is-compact" : ""}`}>
+    <div className={`appearanceSelector ${compact ? "is-compact" : ""} ${cards ? "is-cards" : ""}`}>
       <div className="appearanceGroup">
         <div className="appearanceLabel">Tema</div>
         <div className="appearanceOptions">

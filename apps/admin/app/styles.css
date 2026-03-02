@@ -1042,6 +1042,25 @@ a {
   gap: 4px;
 }
 
+.appearanceSelector.is-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.appearanceSelector.is-cards .appearanceGroup {
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  background: var(--surface-2);
+  padding: 10px;
+}
+
+@media (max-width: 980px) {
+  .appearanceSelector.is-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
 .userMenuItem {
   padding: 10px 10px;
   border-radius: 10px;

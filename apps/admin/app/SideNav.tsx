@@ -16,7 +16,7 @@ function NavIcon({
   name,
   className
 }: {
-  name: "metrics" | "contacts" | "products" | "billing" | "checkout" | "notifications" | "logs" | "settings" | "lists" | "campaigns";
+  name: "metrics" | "contacts" | "products" | "billing" | "checkout" | "notifications" | "logs" | "settings" | "appearance" | "lists" | "campaigns";
   className?: string;
 }) {
   if (name === "metrics") {
@@ -107,6 +107,14 @@ function NavIcon({
         <path d="M4 18h10" />
         <path d="M18 16v4" />
         <path d="M16 18h4" />
+      </svg>
+    );
+  }
+  if (name === "appearance") {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+        <circle cx="12" cy="12" r="5" />
+        <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
       </svg>
     );
   }
@@ -327,6 +335,18 @@ export function SideNav({ session }: { session: AdminSession | null }) {
       >
         <NavIcon name="notifications" className="nav-icon" />
         <span className="nav-label">Notificaciones</span>
+      </Link>
+      <Link
+        className={`nav-item ${isActivePath(pathname, "/appearance") ? "is-active" : ""}`}
+        href="/appearance"
+        prefetch={false}
+        aria-current={isActivePath(pathname, "/appearance") ? "page" : undefined}
+        aria-disabled={isActivePath(pathname, "/appearance") ? "true" : undefined}
+        data-loader={isActivePath(pathname, "/appearance") ? "off" : undefined}
+        tabIndex={isActivePath(pathname, "/appearance") ? -1 : undefined}
+      >
+        <NavIcon name="appearance" className="nav-icon" />
+        <span className="nav-label">Apariencia</span>
       </Link>
       <Link
         className={`nav-item ${isActivePath(pathname, "/smart-lists") ? "is-active" : ""}`}
