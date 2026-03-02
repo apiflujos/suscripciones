@@ -216,6 +216,17 @@ export function NotificationsSimple({
     setPickerOpen(null);
   }
 
+  const pendingRealtime = REALTIME_TYPES.filter((rt) => {
+    const rule = rulesByKey.get(rt.key);
+    return !rule || Boolean(realtimeEdit[rt.key]);
+  });
+  const configuredRealtime = REALTIME_TYPES.filter((rt) => {
+    const rule = rulesByKey.get(rt.key);
+    return Boolean(rule) && !Boolean(realtimeEdit[rt.key]);
+  });
+  const dueConfigured = Boolean(reminderDue && !dueEdit);
+  const moraConfigured = Boolean(reminderMora && !moraEdit);
+
   return (
     <div style={{ display: "grid", gap: 16 }}>
       {pickerOpen ? (
@@ -248,8 +259,8 @@ export function NotificationsSimple({
           </div>
         </div>
         <div className="settings-group-body">
-          <div className="saved-connections-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
-            {REALTIME_TYPES.map((rt) => {
+          <div className="saved-connections-grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+            {pendingRealtime.map((rt) => {
               const tpl = templateForKey(rt.key, rt.chatwootType, rt.label);
               const rule = rulesByKey.get(rt.key);
               const content = tpl?.content && tpl.content !== "(template)" ? String(tpl.content) : "";
@@ -258,7 +269,6 @@ export function NotificationsSimple({
               const waLang = tpl?.chatwootTemplate?.language || "es";
               const waParams = tpl?.chatwootTemplate?.processed_params?.body || [];
               const kind = realtimeKinds[rt.key] || (hasWa ? "WHATSAPP_TEMPLATE" : "TEXT");
-              const isEditing = Boolean(realtimeEdit[rt.key] || !rule);
               return (
                 <div key={rt.key} className="saved-conn-card">
                   <div className="saved-conn-header">
@@ -268,8 +278,7 @@ export function NotificationsSimple({
                     </div>
                     <span className={`pill ${rule?.enabled ? "pill-green" : "pill-muted"}`}>{rule?.enabled ? "Activa" : "Inactiva"}</span>
                   </div>
-                  {isEditing ? (
-                    <form action={actions.saveRealtime} className="notification-form" style={{ display: "grid", gap: 6 }}>
+                  <form action={actions.saveRealtime} className="notification-form" style={{ display: "grid", gap: 6 }}>
                       <input type="hidden" name="csrf" value={csrfToken} />
                       <input type="hidden" name="environment" value={env} />
                       <input type="hidden" name="key" value={rt.key} />
@@ -350,38 +359,39 @@ export function NotificationsSimple({
                         </PendingButton>
                       </div>
                     </form>
-                  ) : (
-                    <div style={{ display: "grid", gap: 6 }}>
-                      <div className="saved-conn-meta">
-                        <div className="saved-conn-meta-item">
-                          <span className="saved-conn-meta-label">Tipo de mensaje</span>
-                          <span className="saved-conn-meta-value">{kind === "TEXT" ? "Texto" : "Plantilla WhatsApp"}</span>
-                        </div>
-                        <div className="saved-conn-meta-item" style={{ gridColumn: "1 / -1" }}>
-                          <span className="saved-conn-meta-label">Detalle</span>
-                          {kind === "TEXT" ? (
-                            <span className="saved-conn-meta-value" style={CLAMP_STYLE}>
-                              {content || "—"}
-                            </span>
-                          ) : (
-                            <span className="saved-conn-meta-value" style={CLAMP_STYLE}>
-                              {waName ? `${waName} (${waLang})` : "—"}
-                              {waParams.length ? ` · ${waParams.map((p) => p.value).join(" | ")}` : ""}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-                        <button className="ghost btn-compact" type="button" data-loader="off" onClick={() => setRealtimeEdit((prev) => ({ ...prev, [rt.key]: true }))}>
-                          Editar
-                        </button>
-                      </div>
-                    </div>
-                  )}
                 </div>
               );
             })}
           </div>
+          {configuredRealtime.length ? (
+            <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
+              <h4 style={{ margin: 0 }}>Notificaciones configuradas</h4>
+              <div className="module" style={{ display: "grid", gap: 6 }}>
+                {configuredRealtime.map((rt) => {
+                  const tpl = templateForKey(rt.key, rt.chatwootType, rt.label);
+                  const content = tpl?.content && tpl.content !== "(template)" ? String(tpl.content) : "";
+                  const waName = tpl?.chatwootTemplate?.name || "";
+                  const waLang = tpl?.chatwootTemplate?.language || "es";
+                  const waParams = tpl?.chatwootTemplate?.processed_params?.body || [];
+                  const kind = realtimeKinds[rt.key] || (waName ? "WHATSAPP_TEMPLATE" : "TEXT");
+                  return (
+                    <div key={`configured-${rt.key}`} className="saved-conn-meta" style={{ borderBottom: "1px solid var(--stroke)", paddingBottom: 8 }}>
+                      <div className="saved-conn-meta-item">
+                        <span className="saved-conn-meta-label">{rt.label}</span>
+                        <span className="pill pill-green">Configurada</span>
+                      </div>
+                      <div className="saved-conn-meta-item" style={{ gridColumn: "1 / -1" }}>
+                        <span className="saved-conn-meta-label">{kind === "TEXT" ? "Mensaje" : "Plantilla"}</span>
+                        <span className="saved-conn-meta-value" style={CLAMP_STYLE}>
+                          {kind === "TEXT" ? (content || "—") : waName ? `${waName} (${waLang})${waParams.length ? ` · ${waParams.map((p) => p.value).join(" | ")}` : ""}` : "—"}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
         </div>
       </section>
 
@@ -392,7 +402,8 @@ export function NotificationsSimple({
           </div>
         </div>
         <div className="settings-group-body">
-          <div className="saved-connections-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
+          <div className="saved-connections-grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+            {!dueConfigured ? (
             <div className="saved-conn-card">
               <div className="saved-conn-header">
                 <div>
@@ -400,7 +411,6 @@ export function NotificationsSimple({
                   <div className="saved-conn-sub">Antes del vencimiento</div>
                 </div>
               </div>
-              {dueEdit || !reminderDue ? (
                 <form action={actions.saveReminder} className="notification-form" style={{ display: "grid", gap: 6 }}>
                 <input type="hidden" name="csrf" value={csrfToken} />
                 <input type="hidden" name="environment" value={env} />
@@ -522,35 +532,10 @@ export function NotificationsSimple({
                   </PendingButton>
                 </div>
               </form>
-              ) : (
-                <div style={{ display: "grid", gap: 6 }}>
-                  <div className="saved-conn-meta">
-                    <div className="saved-conn-meta-item">
-                      <span className="saved-conn-meta-label">Tipo de mensaje</span>
-                      <span className="saved-conn-meta-value">{dueKind === "TEXT" ? "Texto" : "Plantilla WhatsApp"}</span>
-                    </div>
-                    <div className="saved-conn-meta-item" style={{ gridColumn: "1 / -1" }}>
-                      <span className="saved-conn-meta-label">Detalle</span>
-                      {dueKind === "TEXT" ? (
-                        <span className="saved-conn-meta-value" style={{ whiteSpace: "pre-wrap" }}>
-                          {reminderDueTemplate?.content && reminderDueTemplate.content !== "(template)" ? reminderDueTemplate.content : "—"}
-                        </span>
-                      ) : (
-                        <span className="saved-conn-meta-value" style={{ whiteSpace: "pre-wrap" }}>
-                          {reminderDueTemplate?.chatwootTemplate?.name || "—"}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                    <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-                      <button className="ghost btn-compact" type="button" data-loader="off" onClick={() => setDueEdit(true)}>
-                        Editar
-                      </button>
-                    </div>
-                </div>
-              )}
             </div>
+            ) : null}
 
+            {!moraConfigured ? (
             <div className="saved-conn-card">
               <div className="saved-conn-header">
                 <div>
@@ -558,7 +543,6 @@ export function NotificationsSimple({
                   <div className="saved-conn-sub">Después del vencimiento</div>
                 </div>
               </div>
-              {moraEdit || !reminderMora ? (
                 <form action={actions.saveReminder} className="notification-form" style={{ display: "grid", gap: 6 }}>
                 <input type="hidden" name="csrf" value={csrfToken} />
                 <input type="hidden" name="environment" value={env} />
@@ -680,35 +664,48 @@ export function NotificationsSimple({
                   </PendingButton>
                 </div>
               </form>
-              ) : (
-                <div style={{ display: "grid", gap: 6 }}>
-                  <div className="saved-conn-meta">
+            </div>
+            ) : null}
+          </div>
+          {(dueConfigured || moraConfigured) ? (
+            <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
+              <h4 style={{ margin: 0 }}>Recordatorios configurados</h4>
+              <div className="module" style={{ display: "grid", gap: 6 }}>
+                {dueConfigured ? (
+                  <div className="saved-conn-meta" style={{ borderBottom: "1px solid var(--stroke)", paddingBottom: 8 }}>
                     <div className="saved-conn-meta-item">
-                      <span className="saved-conn-meta-label">Tipo de mensaje</span>
-                      <span className="saved-conn-meta-value">{moraKind === "TEXT" ? "Texto" : "Plantilla WhatsApp"}</span>
+                      <span className="saved-conn-meta-label">Recordatorio de fecha de pago</span>
+                      <span className="pill pill-green">Configurado</span>
                     </div>
                     <div className="saved-conn-meta-item" style={{ gridColumn: "1 / -1" }}>
-                      <span className="saved-conn-meta-label">Detalle</span>
-                      {moraKind === "TEXT" ? (
-                        <span className="saved-conn-meta-value" style={{ whiteSpace: "pre-wrap" }}>
-                          {reminderMoraTemplate?.content && reminderMoraTemplate.content !== "(template)" ? reminderMoraTemplate.content : "—"}
-                        </span>
-                      ) : (
-                        <span className="saved-conn-meta-value" style={{ whiteSpace: "pre-wrap" }}>
-                          {reminderMoraTemplate?.chatwootTemplate?.name || "—"}
-                        </span>
-                      )}
+                      <span className="saved-conn-meta-label">Mensaje</span>
+                      <span className="saved-conn-meta-value" style={CLAMP_STYLE}>
+                        {dueKind === "TEXT"
+                          ? (reminderDueTemplate?.content && reminderDueTemplate.content !== "(template)" ? reminderDueTemplate.content : "—")
+                          : (reminderDueTemplate?.chatwootTemplate?.name || "—")}
+                      </span>
                     </div>
                   </div>
-                    <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-                      <button className="ghost btn-compact" type="button" data-loader="off" onClick={() => setMoraEdit(true)}>
-                        Editar
-                      </button>
+                ) : null}
+                {moraConfigured ? (
+                  <div className="saved-conn-meta" style={{ borderBottom: "1px solid var(--stroke)", paddingBottom: 8 }}>
+                    <div className="saved-conn-meta-item">
+                      <span className="saved-conn-meta-label">Recordatorio en mora</span>
+                      <span className="pill pill-green">Configurado</span>
                     </div>
-                </div>
-              )}
+                    <div className="saved-conn-meta-item" style={{ gridColumn: "1 / -1" }}>
+                      <span className="saved-conn-meta-label">Mensaje</span>
+                      <span className="saved-conn-meta-value" style={CLAMP_STYLE}>
+                        {moraKind === "TEXT"
+                          ? (reminderMoraTemplate?.content && reminderMoraTemplate.content !== "(template)" ? reminderMoraTemplate.content : "—")
+                          : (reminderMoraTemplate?.chatwootTemplate?.name || "—")}
+                      </span>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             </div>
-          </div>
+          ) : null}
         </div>
       </section>
     </div>
