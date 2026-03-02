@@ -3676,6 +3676,26 @@ textarea.input {
   color: var(--text);
 }
 
+.gamification-group {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px dashed var(--stroke);
+  background: var(--panel);
+}
+
+.gamification-group-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  font-weight: 700;
+}
+
 .gamification-grid {
   display: grid;
   gap: 10px;

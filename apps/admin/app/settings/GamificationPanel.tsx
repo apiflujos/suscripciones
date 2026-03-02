@@ -1,4 +1,5 @@
 import { PendingButton } from "../ui/PendingButton";
+import { HelpTip } from "../ui/HelpTip";
 
 export function GamificationPanel({
   csrfToken,
@@ -104,83 +105,116 @@ export function GamificationPanel({
               <div className="gamification-stack">
                 <div className="gamification-section">
                   <div className="section-title">Pesos de eventos</div>
-                  <div className="gamification-grid gamification-grid-4">
-                    <label className="field compact">
-                      <span className="label">Pago OK · Status</span>
-                      <input className="input input-compact" type="number" name="weightPaymentApprovedStatus" defaultValue={wPayment.status ?? 120} />
-                    </label>
-                    <label className="field compact">
-                      <span className="label">Pago OK · Lifetime</span>
-                      <input className="input input-compact" type="number" name="weightPaymentApprovedLifetime" defaultValue={wPayment.lifetime ?? 100} />
-                    </label>
-                    <label className="field compact">
-                      <span className="label">Pago OK · Reward</span>
-                      <input className="input input-compact" type="number" name="weightPaymentApprovedReward" defaultValue={wPayment.reward ?? 40} />
-                    </label>
-                    <label className="field compact">
-                      <span className="label">Money scale</span>
-                      <input className="input input-compact" type="number" name="weightPaymentApprovedMoneyScale" defaultValue={wPayment.moneyScale ?? 10000} min={1} />
-                    </label>
-                    <label className="field compact">
-                      <span className="label">Pago fallido</span>
-                      <input className="input input-compact" type="number" name="weightPaymentFailedStatus" defaultValue={wPaymentFail.status ?? -60} />
-                    </label>
-                    <label className="field compact">
-                      <span className="label">Sub. inicio · Status</span>
-                      <input className="input input-compact" type="number" name="weightSubStartStatus" defaultValue={wSubStart.status ?? 60} />
-                    </label>
-                    <label className="field compact">
-                      <span className="label">Sub. inicio · Lifetime</span>
-                      <input className="input input-compact" type="number" name="weightSubStartLifetime" defaultValue={wSubStart.lifetime ?? 40} />
-                    </label>
-                    <label className="field compact">
-                      <span className="label">Sub. inicio · Reward</span>
-                      <input className="input input-compact" type="number" name="weightSubStartReward" defaultValue={wSubStart.reward ?? 10} />
-                    </label>
-                    <label className="field compact">
-                      <span className="label">Renovación · Status</span>
-                      <input className="input input-compact" type="number" name="weightSubRenewStatus" defaultValue={wSubRenew.status ?? 70} />
-                    </label>
-                    <label className="field compact">
-                      <span className="label">Renovación · Lifetime</span>
-                      <input className="input input-compact" type="number" name="weightSubRenewLifetime" defaultValue={wSubRenew.lifetime ?? 50} />
-                    </label>
-                    <label className="field compact">
-                      <span className="label">Renovación · Reward</span>
-                      <input className="input input-compact" type="number" name="weightSubRenewReward" defaultValue={wSubRenew.reward ?? 15} />
-                    </label>
-                    <label className="field compact">
-                      <span className="label">Cancelación</span>
-                      <input className="input input-compact" type="number" name="weightSubCancelStatus" defaultValue={wSubCancel.status ?? -120} />
-                    </label>
-                    <label className="field compact">
-                      <span className="label">En mora</span>
-                      <input className="input input-compact" type="number" name="weightSubPastStatus" defaultValue={wSubPast.status ?? -80} />
-                    </label>
-                    <label className="field compact">
-                      <span className="label">Chatwoot · Status</span>
-                      <input className="input input-compact" type="number" name="weightChatwootStatus" defaultValue={wChatwoot.status ?? 12} />
-                    </label>
-                    <label className="field compact">
-                      <span className="label">Chatwoot · Lifetime</span>
-                      <input className="input input-compact" type="number" name="weightChatwootLifetime" defaultValue={wChatwoot.lifetime ?? 6} />
-                    </label>
-                    <label className="field compact">
-                      <span className="label">Chatwoot · Reward</span>
-                      <input className="input input-compact" type="number" name="weightChatwootReward" defaultValue={wChatwoot.reward ?? 2} />
-                    </label>
-                    <label className="field compact">
-                      <span className="label">Email agregado</span>
-                      <input className="input input-compact" type="number" name="weightEmailStatus" defaultValue={wEmail.status ?? 10} />
-                    </label>
-                    <label className="field compact">
-                      <span className="label">Teléfono agregado</span>
-                      <input className="input input-compact" type="number" name="weightPhoneStatus" defaultValue={wPhone.status ?? 10} />
-                    </label>
-                    <label className="field compact">
-                      <span className="label">Documento agregado</span>
-                      <input className="input input-compact" type="number" name="weightIdStatus" defaultValue={wId.status ?? 15} />
-                    </label>
+                  <div className="gamification-group">
+                    <div className="gamification-group-header">
+                      <span>Pagos</span>
+                      <HelpTip text="Impacto de pagos y escala monetaria." />
+                    </div>
+                    <div className="gamification-grid gamification-grid-4">
+                      <label className="field compact">
+                        <span className="label">Pago OK · Status</span>
+                        <input className="input input-compact" type="number" name="weightPaymentApprovedStatus" defaultValue={wPayment.status ?? 120} />
+                      </label>
+                      <label className="field compact">
+                        <span className="label">Pago OK · Lifetime</span>
+                        <input className="input input-compact" type="number" name="weightPaymentApprovedLifetime" defaultValue={wPayment.lifetime ?? 100} />
+                      </label>
+                      <label className="field compact">
+                        <span className="label">Pago OK · Reward</span>
+                        <input className="input input-compact" type="number" name="weightPaymentApprovedReward" defaultValue={wPayment.reward ?? 40} />
+                      </label>
+                      <label className="field compact">
+                        <span className="label">Money scale</span>
+                        <input className="input input-compact" type="number" name="weightPaymentApprovedMoneyScale" defaultValue={wPayment.moneyScale ?? 10000} min={1} />
+                      </label>
+                      <label className="field compact">
+                        <span className="label">Pago fallido</span>
+                        <input className="input input-compact" type="number" name="weightPaymentFailedStatus" defaultValue={wPaymentFail.status ?? -60} />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="gamification-group">
+                    <div className="gamification-group-header">
+                      <span>Suscripciones</span>
+                      <HelpTip text="Inicio, renovación y penalizaciones por estado." />
+                    </div>
+                    <div className="gamification-grid gamification-grid-4">
+                      <label className="field compact">
+                        <span className="label">Inicio · Status</span>
+                        <input className="input input-compact" type="number" name="weightSubStartStatus" defaultValue={wSubStart.status ?? 60} />
+                      </label>
+                      <label className="field compact">
+                        <span className="label">Inicio · Lifetime</span>
+                        <input className="input input-compact" type="number" name="weightSubStartLifetime" defaultValue={wSubStart.lifetime ?? 40} />
+                      </label>
+                      <label className="field compact">
+                        <span className="label">Inicio · Reward</span>
+                        <input className="input input-compact" type="number" name="weightSubStartReward" defaultValue={wSubStart.reward ?? 10} />
+                      </label>
+                      <label className="field compact">
+                        <span className="label">Renovación · Status</span>
+                        <input className="input input-compact" type="number" name="weightSubRenewStatus" defaultValue={wSubRenew.status ?? 70} />
+                      </label>
+                      <label className="field compact">
+                        <span className="label">Renovación · Lifetime</span>
+                        <input className="input input-compact" type="number" name="weightSubRenewLifetime" defaultValue={wSubRenew.lifetime ?? 50} />
+                      </label>
+                      <label className="field compact">
+                        <span className="label">Renovación · Reward</span>
+                        <input className="input input-compact" type="number" name="weightSubRenewReward" defaultValue={wSubRenew.reward ?? 15} />
+                      </label>
+                      <label className="field compact">
+                        <span className="label">Cancelación</span>
+                        <input className="input input-compact" type="number" name="weightSubCancelStatus" defaultValue={wSubCancel.status ?? -120} />
+                      </label>
+                      <label className="field compact">
+                        <span className="label">En mora</span>
+                        <input className="input input-compact" type="number" name="weightSubPastStatus" defaultValue={wSubPast.status ?? -80} />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="gamification-group">
+                    <div className="gamification-group-header">
+                      <span>Interacción (Chatwoot)</span>
+                      <HelpTip text="Mensajes entrantes del cliente." />
+                    </div>
+                    <div className="gamification-grid gamification-grid-3">
+                      <label className="field compact">
+                        <span className="label">Status</span>
+                        <input className="input input-compact" type="number" name="weightChatwootStatus" defaultValue={wChatwoot.status ?? 12} />
+                      </label>
+                      <label className="field compact">
+                        <span className="label">Lifetime</span>
+                        <input className="input input-compact" type="number" name="weightChatwootLifetime" defaultValue={wChatwoot.lifetime ?? 6} />
+                      </label>
+                      <label className="field compact">
+                        <span className="label">Reward</span>
+                        <input className="input input-compact" type="number" name="weightChatwootReward" defaultValue={wChatwoot.reward ?? 2} />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="gamification-group">
+                    <div className="gamification-group-header">
+                      <span>Datos del cliente</span>
+                      <HelpTip text="Completar datos mejora reputación." />
+                    </div>
+                    <div className="gamification-grid gamification-grid-3">
+                      <label className="field compact">
+                        <span className="label">Email</span>
+                        <input className="input input-compact" type="number" name="weightEmailStatus" defaultValue={wEmail.status ?? 10} />
+                      </label>
+                      <label className="field compact">
+                        <span className="label">Teléfono</span>
+                        <input className="input input-compact" type="number" name="weightPhoneStatus" defaultValue={wPhone.status ?? 10} />
+                      </label>
+                      <label className="field compact">
+                        <span className="label">Documento</span>
+                        <input className="input input-compact" type="number" name="weightIdStatus" defaultValue={wId.status ?? 15} />
+                      </label>
+                    </div>
                   </div>
                 </div>
               </div>
