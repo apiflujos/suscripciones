@@ -133,7 +133,7 @@ export default async function CustomerPaymentMethodPage({
             ) : (
               <div style={{ display: "grid", gap: 10 }}>
                 <div className="field-hint">
-                  Al tokenizar, Wompi devolverá un `token` que se registrará como `paymentSourceId` en este contacto.
+                  Al guardar tarjeta, Wompi devolverá un `token` que se registrará como `paymentSourceId` en este contacto.
                 </div>
                 <form
                   method="POST"

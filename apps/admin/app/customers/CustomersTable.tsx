@@ -551,10 +551,10 @@ export function CustomersTable({
           const collectionMode = String(subInfo?.collectionMode || "");
           const kindLabel =
             collectionMode === "AUTO_DEBIT"
-              ? "Suscripción"
+              ? "Débito automático"
               : collectionMode === "AUTO_LINK" || collectionMode === "MANUAL_LINK"
-                ? "Plan"
-                : "Suscripción";
+                ? "Link de pago"
+                : "Débito automático";
           const statusLabel =
             status === "ACTIVE" ? "Activa" : status === "PAST_DUE" ? "En mora" : status ? "Inactiva" : "";
           const statusPillClass = status === "ACTIVE" ? "pill-ok" : status === "PAST_DUE" ? "pill-bad" : status ? "pill-muted" : "";
@@ -565,7 +565,7 @@ export function CustomersTable({
                   <div className="contact-title">{c.name || "—"}</div>
                   <div className="contact-tags">
                     {hasToken(c) ? <span className="pill pill-ok pill-sm">Tokenizada</span> : <span className="pill pill-bad pill-sm">Sin token</span>}
-                    {hasPlan ? <span className="pill pill-muted pill-sm">{kindLabel}</span> : <span className="pill pill-muted pill-sm">Sin plan</span>}
+                    {hasPlan ? <span className="pill pill-muted pill-sm">{kindLabel}</span> : <span className="pill pill-muted pill-sm">Sin suscripción</span>}
                     {statusLabel && statusPillClass ? <span className={`pill ${statusPillClass} pill-sm`}>{statusLabel}</span> : null}
                   </div>
                 </div>
@@ -646,7 +646,7 @@ export function CustomersTable({
                   </div>
                   <div className="paylink-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-start" }}>
                     <Link className="ghost btn-compact btn-noicon btn-amber btn-token" href={`/customers/${c.id}/payment-method`}>
-                      {hasToken(c) ? "Tokenizar otra tarjeta" : "Tokenizar"}
+                      {hasToken(c) ? "Actualizar tarjeta" : "Guardar tarjeta"}
                     </Link>
                     {hasToken(c) ? (
                       <button
@@ -968,7 +968,7 @@ export function CustomersTable({
                   <option value="SUBSCRIPTION">Débito automático</option>
                 </select>
                 <div className="field-hint">
-                  Plan: el cliente paga con un link. Suscripción: el cliente tokeniza tarjeta para cobros automáticos.
+                  Link de pago: el cliente paga con un link. Débito automático: guarda tarjeta para cobros automáticos.
                 </div>
               </div>
               <div className="field">
@@ -1003,7 +1003,7 @@ export function CustomersTable({
                 ) : null}
                 {checkoutTemplates.filter((t: any) => String(t?.kind || "") === "CART" && inferTemplateMode(t) === cartModalMode).length === 0 ? (
                   <div className="field-hint" style={{ color: "var(--danger)" }}>
-                    No hay plantillas de catálogo para {cartModalMode === "PLAN" ? "planes" : "suscripciones"}.
+                    No hay plantillas de catálogo para {cartModalMode === "PLAN" ? "link de pago" : "débito automático"}.
                   </div>
                 ) : null}
                 {missingPublicBase ? (
@@ -1394,7 +1394,7 @@ export function CustomersTable({
                       <th>Monto</th>
                       <th>Estado</th>
                       <th>Último intento</th>
-                      <th>Producto/Plan</th>
+                      <th>Producto/Suscripción</th>
                       <th>Referencia</th>
                     </tr>
                   </thead>

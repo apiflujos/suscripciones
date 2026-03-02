@@ -178,21 +178,6 @@ export function GamificationPanel({
     };
   };
 
-  const currentKey = JSON.stringify(normalizePreset(config || {}));
-  const presetKeyMap = {
-    balanced: JSON.stringify(normalizePreset(presetMap.balanced)),
-    conservative: JSON.stringify(normalizePreset(presetMap.conservative)),
-    aggressive: JSON.stringify(normalizePreset(presetMap.aggressive))
-  };
-  const presetLabel =
-    currentKey === presetKeyMap.conservative
-      ? "Conservador"
-      : currentKey === presetKeyMap.aggressive
-        ? "Agresivo"
-        : currentKey === presetKeyMap.balanced
-          ? "Equilibrado"
-          : "Personalizado";
-
   return (
     <section className="settings-group">
       <div className="settings-group-header">
@@ -200,25 +185,6 @@ export function GamificationPanel({
           <div style={{ display: "grid", gap: 4 }}>
             <h3>Gamificación</h3>
             <div className="field-hint">Umbrales, degradación y entrenadores de datos.</div>
-          </div>
-          <div className="gamification-header-right">
-            <span className={`pill ${presetLabel === "Personalizado" ? "pill-muted" : "pill-green"}`}>
-              Preset: {presetLabel}
-            </span>
-            <div className="gamification-view-toggle">
-              <a
-                className={`pill ${isCompact ? "pill-ok" : "pill-muted"}`}
-                href="/settings?tab=gamificacion&gview=compact"
-              >
-                Vista compacta
-              </a>
-              <a
-                className={`pill ${!isCompact ? "pill-ok" : "pill-muted"}`}
-                href="/settings?tab=gamificacion&gview=full"
-              >
-                Vista completa
-              </a>
-            </div>
           </div>
         </div>
       </div>

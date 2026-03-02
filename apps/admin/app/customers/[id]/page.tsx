@@ -129,9 +129,9 @@ function cleanLogMessage(raw: string, customerLabel: string) {
 }
 
 function collectionLabel(mode: string) {
-  if (mode === "AUTO_DEBIT") return "Suscripción";
-  if (mode === "AUTO_LINK") return "Plan auto";
-  return "Plan";
+  if (mode === "AUTO_DEBIT") return "Débito automático";
+  if (mode === "AUTO_LINK") return "Link de pago (auto)";
+  return "Link de pago";
 }
 
 function epochToIso(value: any) {
@@ -655,7 +655,7 @@ export default async function CustomerDetailPage({
           </div>
           <div className="metric-label">Suscripciones</div>
           <div className="metric-value">{subscriptions.length}</div>
-          <div className="metric-sub">{activeSub ? activeSub.plan?.name || "Plan activo" : "Sin plan activo"}</div>
+          <div className="metric-sub">{activeSub ? activeSub.plan?.name || "Suscripción activa" : "Sin suscripción activa"}</div>
         </div>
       </section>
 
@@ -806,7 +806,7 @@ export default async function CustomerDetailPage({
               <div className="contact-section-title">Estado comercial</div>
               <div className="commercial-grid">
                 <div className="commercial-card">
-                  <span className="commercial-label">Plan activo</span>
+                  <span className="commercial-label">Suscripción activa</span>
                   <span className="commercial-value">{activeSub?.plan?.name || "Sin plan activo"}</span>
                   <span className="commercial-meta">{activeSub ? collectionLabel(String(activeSub?.plan?.collectionMode || activeSub?.plan?.metadata?.collectionMode || "")) : "—"}</span>
                 </div>
@@ -1045,7 +1045,7 @@ export default async function CustomerDetailPage({
                     <th>Fecha</th>
                     <th>Monto</th>
                     <th>Estado</th>
-                    <th>Plan</th>
+                    <th>Suscripción</th>
                   </tr>
                 </thead>
                 <tbody>

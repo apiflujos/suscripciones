@@ -521,8 +521,8 @@ export function NewBillingAssignmentForm({
                 <div className="field">
                   <label>Tipo</label>
                   <select className="select" value={billingType} onChange={(e) => setBillingType(e.target.value === "PLAN" ? "PLAN" : "SUBSCRIPCION")} disabled={!productId || !customerId}>
-                    <option value="SUBSCRIPCION">Suscripción</option>
-                    <option value="PLAN">Plan</option>
+                    <option value="SUBSCRIPCION">Débito automático</option>
+                    <option value="PLAN">Link de pago</option>
                   </select>
                 </div>
               </div>

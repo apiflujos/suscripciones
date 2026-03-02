@@ -45,7 +45,7 @@ function fmtEvery(intervalUnit: any, intervalCount: any) {
 
 function getTipo(plan: any) {
   const mode = String(plan?.collectionMode || plan?.metadata?.collectionMode || "MANUAL_LINK");
-  return mode === "AUTO_DEBIT" ? "Suscripción" : "Plan";
+  return mode === "AUTO_DEBIT" ? "Débito automático" : "Link de pago";
 }
 
 function getTipoPago(plan: any) {
@@ -333,8 +333,8 @@ export default async function BillingPage({
       };
     })
     .filter((r) => {
-      if (tipo === "planes" && r.tipoTx !== "Plan") return false;
-      if (tipo === "suscripciones" && r.tipoTx !== "Suscripción") return false;
+      if (tipo === "planes" && r.tipoTx !== "Link de pago") return false;
+      if (tipo === "suscripciones" && r.tipoTx !== "Débito automático") return false;
       if (estado === "si" && r.estadoInfo.key !== "si") return false;
       if (estado === "no" && r.estadoInfo.key !== "no") return false;
       if (estado === "mora" && r.estadoInfo.key !== "mora") return false;
@@ -494,7 +494,7 @@ export default async function BillingPage({
                     </div>
                     <div style={{ display: "grid", gap: 6, justifyItems: "end" }}>
                       <span className={`pill ${isPlan ? "pill-warn" : "pill-ok"}`} style={{ fontSize: 12 }}>
-                        {isPlan ? "Plan" : "Suscripción"}
+                        {isPlan ? "Link de pago" : "Débito automático"}
                       </span>
                     </div>
                   </div>
@@ -663,7 +663,7 @@ export default async function BillingPage({
                       </>
                     )}
                     <DeleteSubscriptionButton action={deleteSubscription} csrfToken={csrfToken} subscriptionId={r.id} tenantId={r.tenantId} />
-                    {r.tipoTx === "Plan" && r.status === "CANCELED" && r.planId ? (
+                    {r.tipoTx === "Link de pago" && r.status === "CANCELED" && r.planId ? (
                       <DeletePlanButton action={deletePlanAndSubscription} csrfToken={csrfToken} subscriptionId={r.id} planId={r.planId} tenantId={r.tenantId} />
                     ) : null}
                     <a

@@ -331,7 +331,7 @@ export function CheckoutTemplatesPanel({
     }
     if (missingCatalogMode) {
       setStepIndex(3);
-      setLocalError("Selecciona si el catálogo es Plan o Suscripción.");
+      setLocalError("Selecciona si el catálogo es Link de pago o Débito automático.");
       setTimeout(() => productsRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 0);
       return false;
     }
@@ -411,7 +411,7 @@ export function CheckoutTemplatesPanel({
                     onChange={() => setKind("PLAN")}
                     style={{ display: "none" }}
                   />
-                  <strong>Plan</strong>
+                  <strong>Link de pago</strong>
                   <div className="field-hint">Checkout de pago / link.</div>
                 </label>
                 <label
@@ -617,7 +617,7 @@ export function CheckoutTemplatesPanel({
                       </select>
                     </div>
                     <div className="field-hint">
-                      Plan: el cliente paga con un link. Suscripción: el cliente tokeniza tarjeta para cobros automáticos.
+                      Link de pago: el cliente paga con un link. Débito automático: guarda tarjeta para cobros automáticos.
                     </div>
                     {missingCatalogMode ? (
                       <div className="field-hint" style={{ color: "var(--danger)" }}>
@@ -698,10 +698,10 @@ export function CheckoutTemplatesPanel({
                   <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
                     Faltan datos obligatorios:
                     <ul style={{ margin: "6px 0 0 16px" }}>
-                      {missingKind ? <li>Selecciona tipo (Plan o Suscripción).</li> : null}
+                      {missingKind ? <li>Selecciona tipo (Link de pago o Débito automático).</li> : null}
                       {missingName ? <li>Nombre interno.</li> : null}
                       {missingTenant ? <li>Canal de ventas.</li> : null}
-                      {missingCatalogMode ? <li>Selecciona si el catálogo es Plan o Suscripción.</li> : null}
+                      {missingCatalogMode ? <li>Selecciona si el catálogo es Link de pago o Débito automático.</li> : null}
                       {missingProducts ? <li>Selecciona productos o activa “El cliente puede elegir producto”.</li> : null}
                     </ul>
                   </div>
@@ -753,7 +753,7 @@ export function CheckoutTemplatesPanel({
                         return;
                       }
                     if (stepIndex === 3 && missingCatalogMode) {
-                      setLocalError("Selecciona si el catálogo es Plan o Suscripción.");
+                      setLocalError("Selecciona si el catálogo es Link de pago o Débito automático.");
                       return;
                     }
                     if (stepIndex === 3 && !isProductsValid) {
@@ -865,7 +865,7 @@ export function CheckoutTemplatesPanel({
                     >
                       <input type="radio" name="defaultsMode" value={opt} checked={defaultsMode === opt} onChange={() => setDefaultsMode(opt)} style={{ display: "none" }} />
                       <strong>
-                        {opt === "PLAN" ? "Plan" : opt === "SUBSCRIPTION" ? "Suscripción" : "Ambos"}
+                        {opt === "PLAN" ? "Link de pago" : opt === "SUBSCRIPTION" ? "Débito automático" : "Ambos"}
                       </strong>
                       <div className="field-hint">
                         {opt === "PLAN"
@@ -916,7 +916,7 @@ export function CheckoutTemplatesPanel({
                   {t.logoUrl ? <img src={t.logoUrl} alt={t.name} style={{ height: 26, width: "auto", borderRadius: 6, border: "1px solid var(--stroke)" }} /> : null}
                   <div className="template-title">{t.name}</div>
                 </div>
-                <div className="field-hint">{t.kind === "PLAN" ? "Plan" : t.kind === "CART" ? "Catálogo" : "Suscripción"}</div>
+                <div className="field-hint">{t.kind === "PLAN" ? "Link de pago" : t.kind === "CART" ? "Catálogo" : "Débito automático"}</div>
               </div>
               <div style={{ display: "grid", gap: 6, justifyItems: "end" }}>
                 <span className={`pill ${t.active ? "pill-green" : ""}`}>{t.active ? "Activa" : "Inactiva"}</span>
