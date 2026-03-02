@@ -4,6 +4,8 @@ import { Prisma, RetryJobStatus, RetryJobType, WebhookProvider, WebhookProcessSt
 import { classifyReference } from "../webhooks/wompi/classifyReference";
 import { systemLog } from "../services/systemLog";
 import { LogLevel } from "@prisma/client";
+import { getChatwootConfig } from "../services/runtimeConfig";
+import { ChatwootClient } from "../providers/chatwoot/client";
 
 export const logsRouter = express.Router();
 
@@ -224,6 +226,55 @@ logsRouter.get("/jobs/health", async (_req, res) => {
     nextJobType: nextJob?.type || null,
     nextJobAt
   });
+});
+
+logsRouter.get("/chatwoot/health", async (_req, res) => {
+  const cfg = await getChatwootConfig();
+  if (!cfg.configured) {
+    return res.status(503).json({ ok: false, error: "chatwoot_not_configured" });
+  }
+
+  const client = new ChatwootClient({
+    baseUrl: cfg.baseUrl,
+    accountId: cfg.accountId,
+    apiAccessToken: cfg.apiAccessToken,
+    inboxId: cfg.inboxId
+  });
+
+  const out: {
+    ok: boolean;
+    accountOk: boolean;
+    inboxOk: boolean;
+    baseUrl: string;
+    accountId: number;
+    inboxId: number;
+    accountError?: string;
+    inboxError?: string;
+  } = {
+    ok: false,
+    accountOk: false,
+    inboxOk: false,
+    baseUrl: cfg.baseUrl,
+    accountId: cfg.accountId,
+    inboxId: cfg.inboxId
+  };
+
+  try {
+    await client.getAccount();
+    out.accountOk = true;
+  } catch (err: any) {
+    out.accountError = String(err?.message || err || "account_check_failed");
+  }
+
+  try {
+    await client.getInbox(cfg.inboxId);
+    out.inboxOk = true;
+  } catch (err: any) {
+    out.inboxError = String(err?.message || err || "inbox_check_failed");
+  }
+
+  out.ok = out.accountOk && out.inboxOk;
+  res.status(out.ok ? 200 : 502).json(out);
 });
 
 logsRouter.get("/system/:id", async (req, res) => {
