@@ -40,6 +40,8 @@ export async function POST(req: Request) {
   const customerName = String(body?.customerName || "").trim() || "Cliente";
   const tenantId = String(body?.tenantId || "").trim();
   const templateIdInput = String(body?.templateId || "").trim();
+  const catalogTypeRaw = String(body?.catalogType || "").trim().toUpperCase();
+  const catalogType = catalogTypeRaw === "SUBSCRIPTION" ? "SUBSCRIPTION" : "PLAN";
   if (!customerId) return NextResponse.json({ ok: false, error: "missing_customer_id" }, { status: 400 });
 
   const settingsRes = await fetch(`${API_BASE}/admin/settings`, {
@@ -47,7 +49,9 @@ export async function POST(req: Request) {
   }).catch(() => null);
   const settingsJson = settingsRes && "ok" in settingsRes ? await (settingsRes as any).json().catch(() => null) : null;
   const checkoutConfig = settingsJson?.checkoutConfig || {};
-  const baseFromSettings = String(checkoutConfig?.planBaseUrl || checkoutConfig?.subscriptionBaseUrl || "").trim();
+  const baseFromSettings =
+    String((catalogType === "SUBSCRIPTION" ? checkoutConfig?.subscriptionBaseUrl : checkoutConfig?.planBaseUrl) || "").trim() ||
+    String(checkoutConfig?.planBaseUrl || checkoutConfig?.subscriptionBaseUrl || "").trim();
   const base = baseFromSettings.replace(/\/$/, "");
   if (!base) return NextResponse.json({ ok: false, error: "missing_public_base_url" }, { status: 400 });
 
@@ -85,7 +89,7 @@ export async function POST(req: Request) {
       "x-admin-token": token,
       "content-type": "application/json"
     },
-    body: JSON.stringify({ customerId, catalogUrl: link })
+    body: JSON.stringify({ customerId, catalogUrl: link, catalogType })
   });
   const scheduleJson = await scheduleRes.json().catch(() => null);
   if (!scheduleRes.ok) {
@@ -141,6 +145,7 @@ export async function POST(req: Request) {
       url: link,
       token: linkToken,
       templateId: selectedTemplate.id,
+      catalogType,
       createdAt: new Date().toISOString(),
       expiresAt,
       usedAt: null

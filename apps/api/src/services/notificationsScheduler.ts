@@ -241,7 +241,7 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
   return { scheduled, sentNow, rulesActive: true };
 }
 
-export async function scheduleCatalogLinkNotifications(args: { customerId: string; catalogUrl: string; forceNow?: boolean }) {
+export async function scheduleCatalogLinkNotifications(args: { customerId: string; catalogUrl: string; forceNow?: boolean; paymentType?: "PLAN" | "SUBSCRIPTION" | "LINK" | "" }) {
   const customerId = String(args.customerId || "").trim();
   const catalogUrl = String(args.catalogUrl || "").trim();
   if (!customerId || !catalogUrl) return { scheduled: 0, sentNow: 0, rulesActive: false };
@@ -278,7 +278,8 @@ export async function scheduleCatalogLinkNotifications(args: { customerId: strin
         offsetSeconds,
         customerId,
         catalogUrl,
-        anchorAt: anchorIso
+        anchorAt: anchorIso,
+        ...(args.paymentType ? { paymentType: args.paymentType } : {})
       } as any;
       if (!args.forceNow && runAt.getTime() > now.getTime()) {
         await prisma.retryJob.create({

@@ -35,7 +35,8 @@ type Rule = {
 };
 
 type RealtimeKey =
-  | "catalog_link_created"
+  | "catalog_link_created_plan"
+  | "catalog_link_created_subscription"
   | "tokenization_link_created"
   | "payment_link_created"
   | "payment_success_subscription"
@@ -52,7 +53,8 @@ const REALTIME_TYPES: Array<{
   chatwootType: Template["chatwootType"];
   paymentType?: "PLAN" | "SUBSCRIPTION" | "LINK";
 }> = [
-  { key: "catalog_link_created", label: "Catálogo enviado", trigger: "CATALOG_LINK_CREATED", chatwootType: "PAYMENT_LINK" },
+  { key: "catalog_link_created_plan", label: "Catálogo enviado (plan)", trigger: "CATALOG_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "PLAN" },
+  { key: "catalog_link_created_subscription", label: "Catálogo enviado (suscripción)", trigger: "CATALOG_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "SUBSCRIPTION" },
   { key: "tokenization_link_created", label: "Tokenización enviada", trigger: "TOKENIZATION_LINK_CREATED", chatwootType: "PAYMENT_LINK" },
   { key: "payment_link_created", label: "Link de pago creado", trigger: "PAYMENT_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "LINK" },
   { key: "payment_success_subscription", label: "Pago exitoso (suscripción)", trigger: "PAYMENT_APPROVED", chatwootType: "PAYMENT_CONFIRMED", paymentType: "SUBSCRIPTION" },

@@ -50,9 +50,11 @@ notificationsRouter.post("/schedule/payment/:id", async (req, res) => {
 notificationsRouter.post("/schedule/catalog", async (req, res) => {
   const customerId = String(req?.body?.customerId || "").trim();
   const catalogUrl = String(req?.body?.catalogUrl || "").trim();
+  const catalogTypeRaw = String(req?.body?.catalogType || "").trim().toUpperCase();
+  const catalogType = catalogTypeRaw === "SUBSCRIPTION" ? "SUBSCRIPTION" : catalogTypeRaw === "PLAN" ? "PLAN" : "";
   if (!customerId || !catalogUrl) return res.status(400).json({ error: "invalid_payload" });
   const forceNow = String((req.query.forceNow ?? "") as any).trim() === "1";
-  const result = await scheduleCatalogLinkNotifications({ customerId, catalogUrl, forceNow });
+  const result = await scheduleCatalogLinkNotifications({ customerId, catalogUrl, forceNow, paymentType: catalogType });
   res.json({ ok: true, ...result });
 });
 

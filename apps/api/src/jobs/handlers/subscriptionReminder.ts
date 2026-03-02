@@ -31,7 +31,8 @@ const payloadSchema = z.object({
   tokenUrl: z.string().url().optional(),
   immediateSend: z.boolean().optional(),
   cycleNumber: z.number().int().positive().optional(),
-  paymentStatus: z.enum(["PENDING", "APPROVED", "DECLINED", "ERROR", "VOIDED"]).optional()
+  paymentStatus: z.enum(["PENDING", "APPROVED", "DECLINED", "ERROR", "VOIDED"]).optional(),
+  paymentType: z.enum(["PLAN", "SUBSCRIPTION", "LINK"]).optional()
 });
 
 function getPath(obj: any, path: string) {
@@ -291,7 +292,7 @@ export async function subscriptionReminder(payload: any) {
     }
   }
 
-  const paymentType = getPaymentType({ subscription, payment: effectivePayment || payment });
+  const paymentType = parsed.data.paymentType || getPaymentType({ subscription, payment: effectivePayment || payment });
 
   if (parsed.data.trigger !== "PAYMENT_LINK_CREATED") {
     if (rule.conditions?.requirePaymentTypeIn && !rule.conditions.requirePaymentTypeIn.includes(paymentType as any)) {

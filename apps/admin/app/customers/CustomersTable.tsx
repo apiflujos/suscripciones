@@ -55,6 +55,7 @@ export function CustomersTable({
   products,
   checkoutTemplates,
   checkoutConfig,
+  notificationsConfig,
   tenants,
   createCustomer,
   createPlanAndSubscription,
@@ -69,6 +70,7 @@ export function CustomersTable({
   products: any[];
   checkoutTemplates: any[];
   checkoutConfig?: any;
+  notificationsConfig?: any;
   tenants: Array<{ id: string; name: string }>;
   createCustomer: (formData: FormData) => Promise<void>;
   createPlanAndSubscription: (formData: FormData) => void | Promise<void>;
@@ -97,6 +99,7 @@ export function CustomersTable({
   const [linkOverrides, setLinkOverrides] = useState<Record<string, { payment?: string; token?: string; cart?: string }>>({});
   const [cartTemplateByCustomer, setCartTemplateByCustomer] = useState<Record<string, string>>({});
   const [tokenTemplateByCustomer, setTokenTemplateByCustomer] = useState<Record<string, string>>({});
+  const [paymentTemplateByCustomer, setPaymentTemplateByCustomer] = useState<Record<string, string>>({});
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [planModalCustomer, setPlanModalCustomer] = useState<CustomerRow | null>(null);
   const [cartModalOpen, setCartModalOpen] = useState(false);
@@ -108,6 +111,8 @@ export function CustomersTable({
   const [tokenModalOpen, setTokenModalOpen] = useState(false);
   const [tokenModalCustomer, setTokenModalCustomer] = useState<CustomerRow | null>(null);
   const [clearingTokenId, setClearingTokenId] = useState<string | null>(null);
+  const [sendMenuOpen, setSendMenuOpen] = useState(false);
+  const [sendMenuCustomer, setSendMenuCustomer] = useState<CustomerRow | null>(null);
   const planBaseUrl = String(checkoutConfig?.planBaseUrl || "").trim();
   const subscriptionBaseUrl = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
   const publicBaseUrl = String(checkoutConfig?.planBaseUrl || checkoutConfig?.subscriptionBaseUrl || "").trim();
@@ -185,6 +190,44 @@ export function CustomersTable({
     return "";
   }
 
+  function resolvePaymentTemplate(customerId: string) {
+    const chosen = paymentTemplateByCustomer[customerId];
+    if (chosen) return chosen;
+    const first = checkoutTemplates.find((t: any) => String(t?.kind || "") === "PLAN");
+    return first?.id || "";
+  }
+
+  function resolveNotificationTemplate(trigger: string, paymentType?: "PLAN" | "SUBSCRIPTION" | "LINK") {
+    const cfg = notificationsConfig || {};
+    const rules = Array.isArray(cfg?.rules) ? cfg.rules : [];
+    const templates = Array.isArray(cfg?.templates) ? cfg.templates : [];
+    const candidates = rules.filter((r: any) => r?.enabled && String(r?.trigger || "") === trigger);
+    const filtered = paymentType
+      ? candidates.filter((r: any) => {
+          const types = r?.conditions?.requirePaymentTypeIn;
+          if (!Array.isArray(types) || !types.length) return true;
+          return types.includes(paymentType);
+        })
+      : candidates;
+    const rule = filtered[0] || candidates[0] || null;
+    if (!rule) return null;
+    const template = templates.find((t: any) => String(t?.id || "") === String(rule?.templateId || ""));
+    return template || null;
+  }
+
+  function renderNotificationPreview(template: any) {
+    if (!template) return "No hay plantilla configurada en Notificaciones.";
+    if (template?.content && String(template.content || "").trim() && String(template.content || "") !== "(template)") {
+      return String(template.content || "").trim();
+    }
+    const name = String(template?.chatwootTemplate?.name || "").trim();
+    const lang = String(template?.chatwootTemplate?.language || "").trim();
+    const params = template?.chatwootTemplate?.processed_params?.body || [];
+    if (!name) return "Plantilla configurada en CentralCom.";
+    const paramText = Array.isArray(params) && params.length ? params.map((p: any) => String(p?.value || "")).join(" | ") : "—";
+    return `Plantilla WhatsApp: ${name}${lang ? ` (${lang})` : ""}\nParámetros: ${paramText}`;
+  }
+
 
   function maskUrl(raw: string) {
     if (!raw) return "";
@@ -239,6 +282,8 @@ export function CustomersTable({
     setCartModalCustomer(customer);
     setCartModalMode("PLAN");
     setCartModalOpen(true);
+    setSendError((prev) => ({ ...prev, [customer.id]: "" }));
+    setSendOk((prev) => ({ ...prev, [customer.id]: "" }));
   }
 
   function closeCartModal() {
@@ -272,6 +317,8 @@ export function CustomersTable({
     lastActiveRef.current = document.activeElement as HTMLElement | null;
     setTokenModalCustomer(customer);
     setTokenModalOpen(true);
+    setSendError((prev) => ({ ...prev, [customer.id]: "" }));
+    setSendOk((prev) => ({ ...prev, [customer.id]: "" }));
   }
 
   function closeTokenModal() {
@@ -285,6 +332,20 @@ export function CustomersTable({
     setPayModalCustomer(customer);
     setPayAmount("");
     setPayModalOpen(true);
+    setSendError((prev) => ({ ...prev, [customer.id]: "" }));
+    setSendOk((prev) => ({ ...prev, [customer.id]: "" }));
+  }
+
+  function openSendMenu(customer: CustomerRow) {
+    lastActiveRef.current = document.activeElement as HTMLElement | null;
+    setSendMenuCustomer(customer);
+    setSendMenuOpen(true);
+  }
+
+  function closeSendMenu() {
+    setSendMenuOpen(false);
+    setSendMenuCustomer(null);
+    setTimeout(() => lastActiveRef.current?.focus(), 0);
   }
 
   function closePayModal() {
@@ -439,12 +500,8 @@ export function CustomersTable({
                   </div>
                 </div>
                 <div className="contact-card-top-actions">
-                  <button className="ghost btn-compact" type="button" onClick={() => openTransactions(c)} aria-label="Historial de pagos">
-                    Historial
-                  </button>
-                  <button className="ghost btn-compact btn-edit" type="button" onClick={() => openEditor(c)} aria-label="Editar">
-                    Editar
-                  </button>
+                  <button className="ghost btn-compact btn-eye" type="button" onClick={() => openTransactions(c)} aria-label="Historial de pagos" />
+                  <button className="ghost btn-compact btn-edit" type="button" onClick={() => openEditor(c)} aria-label="Editar" />
                   <form
                     action={deleteCustomer}
                     className="delete-row"
@@ -456,9 +513,7 @@ export function CustomersTable({
                     <input type="hidden" name="id" value={c.id} />
                     <input type="hidden" name="tenantId" value={c.tenantId || ""} />
                     {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
-                    <button className="icon-btn danger" type="submit" aria-label="Eliminar">
-                      🗑
-                    </button>
+                    <button className="ghost btn-compact btn-red" type="submit" aria-label="Eliminar" />
                   </form>
                 </div>
               </div>
@@ -521,16 +576,6 @@ export function CustomersTable({
                     <Link className="ghost btn-compact btn-amber btn-token" href={`/customers/${c.id}/payment-method`}>
                       {hasToken(c) ? "Tokenizar otra tarjeta" : "Tokenizar"}
                     </Link>
-                    <button
-                      className="ghost btn-compact btn-amber btn-token"
-                      type="button"
-                      data-modal="true"
-                      data-loader="off"
-                      onClick={() => openTokenModal(c)}
-                      disabled={sendingTokenId === c.id}
-                    >
-                      {sendingTokenId === c.id ? "Enviando..." : "Enviar tokenización"}
-                    </button>
                     {hasToken(c) ? (
                       <button
                         className="ghost btn-compact btn-red"
@@ -559,23 +604,8 @@ export function CustomersTable({
                         {clearingTokenId === c.id ? "Quitando..." : "Quitar token"}
                       </button>
                     ) : null}
-                    <button
-                      className="ghost btn-compact btn-blue btn-pay"
-                      type="button"
-                      data-modal="true"
-                      data-loader="off"
-                      onClick={() => openPayModal(c)}
-                    >
-                      Enviar link de pago
-                    </button>
-                    <button
-                      className="ghost btn-compact btn-green btn-send"
-                      type="button"
-                      data-modal="true"
-                      data-loader="off"
-                      onClick={() => openCartModal(c)}
-                    >
-                      Enviar catálogo
+                    <button className="ghost btn-compact btn-blue btn-send" type="button" data-modal="true" data-loader="off" onClick={() => openSendMenu(c)}>
+                      Enviar
                     </button>
                     <Link className="ghost btn-compact btn-blue btn-view" href={`/customers/${c.id}`}>
                       Ver detalles
@@ -669,6 +699,11 @@ export function CustomersTable({
                 e.preventDefault();
                 const customer = payModalCustomer;
                 if (!customer) return;
+                const templateId = resolvePaymentTemplate(customer.id);
+                if (!templateId) {
+                  setSendError((prev) => ({ ...prev, [customer.id]: "missing_template" }));
+                  return;
+                }
                 setSendingPaymentId(customer.id);
                 setSendError((prev) => ({ ...prev, [customer.id]: "" }));
                 setSendOk((prev) => ({ ...prev, [customer.id]: "" }));
@@ -682,7 +717,8 @@ export function CustomersTable({
                       customerId: customer.id,
                       customerName: customer.name || "",
                       amount: payAmount,
-                      tenantId: customer.tenantId || ""
+                      tenantId: customer.tenantId || "",
+                      templateId
                     }),
                     signal: controller.signal
                   });
@@ -690,7 +726,6 @@ export function CustomersTable({
                   const contentType = res.headers.get("content-type") || "";
                   if (!contentType.includes("application/json")) {
                     setSendError((prev) => ({ ...prev, [customer.id]: "auth_required" }));
-                    closePayModal();
                     openNotify("fail", "Sesión vencida. Vuelve a iniciar sesión.");
                     return;
                   }
@@ -698,13 +733,11 @@ export function CustomersTable({
                   if (!res.ok || !json?.ok) {
                     const msg = json?.error || "send_failed";
                     setSendError((prev) => ({ ...prev, [customer.id]: msg }));
-                    closePayModal();
                     openNotify("fail", mapSendError(msg));
                     return;
                   }
                   if (json?.notificationsRulesActive === false && !json?.fallbackSent) {
                     setSendError((prev) => ({ ...prev, [customer.id]: "no_rules" }));
-                    closePayModal();
                     openNotify("fail", "No hay notificaciones activas para enviar el link.");
                     return;
                   }
@@ -715,23 +748,48 @@ export function CustomersTable({
                   const chatErr = String(json?.chatwootError || "").trim();
                   if (chatErr) {
                     setSendError((prev) => ({ ...prev, [customer.id]: "centralcom_failed" }));
-                    closePayModal();
                     openNotify("fail", `CentralCom no pudo enviar el mensaje: ${chatErr}`);
                     return;
                   }
                   setSendOk((prev) => ({ ...prev, [customer.id]: "sent" }));
-                  closePayModal();
                   openNotify("ok", "El link de pago fue enviado correctamente.");
                 } catch (err: any) {
                   const msg = String(err?.message || "send_failed");
                   setSendError((prev) => ({ ...prev, [customer.id]: msg }));
-                  closePayModal();
                   openNotify("fail", mapSendError(msg));
                 } finally {
                   setSendingPaymentId(null);
                 }
               }}
             >
+              <div className="field">
+                <label>Checkout público</label>
+                <select
+                  className="select"
+                  value={resolvePaymentTemplate(payModalCustomer.id)}
+                  onChange={(e) =>
+                    setPaymentTemplateByCustomer((prev) => ({
+                      ...prev,
+                      [payModalCustomer.id]: e.target.value
+                    }))
+                  }
+                  required
+                >
+                  <option value="">Selecciona una plantilla</option>
+                  {checkoutTemplates
+                    .filter((t: any) => String(t?.kind || "") === "PLAN")
+                    .map((t: any) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                </select>
+                {checkoutTemplates.filter((t: any) => String(t?.kind || "") === "PLAN").length === 0 ? (
+                  <div className="field-hint" style={{ color: "var(--danger)" }}>
+                    No hay plantillas de plan configuradas.
+                  </div>
+                ) : null}
+              </div>
               <div className="field">
                 <label>Monto</label>
                 <input
@@ -748,11 +806,24 @@ export function CustomersTable({
                   </div>
                 ) : null}
               </div>
+              <div className="field">
+                <label>Plantilla de mensaje</label>
+                <textarea
+                  className="input"
+                  rows={4}
+                  readOnly
+                  value={renderNotificationPreview(resolveNotificationTemplate("PAYMENT_LINK_CREATED", "LINK"))}
+                  style={{ whiteSpace: "pre-wrap" }}
+                />
+                <div className="field-hint">Se usa la plantilla configurada en Notificaciones.</div>
+              </div>
+              {sendError[payModalCustomer.id] ? <div className="paylink-error">{mapSendError(sendError[payModalCustomer.id])}</div> : null}
+              {sendOk[payModalCustomer.id] ? <div className="paylink-success">Mensaje enviado correctamente.</div> : null}
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
                 <button className="ghost btn-cancel" type="button" onClick={closePayModal} data-modal-close="true" data-loader="off">
                   Cancelar
                 </button>
-                <button className="primary btn-send" type="submit" disabled={!payAmount || missingPlanBase}>
+                <button className="primary btn-send" type="submit" disabled={!payAmount || missingPlanBase || !resolvePaymentTemplate(payModalCustomer.id)}>
                   Enviar
                 </button>
               </div>
@@ -778,7 +849,6 @@ export function CustomersTable({
                 if (!customer) return;
                 const templateId = resolveCartTemplate(customer.id, cartModalMode);
                 if (!templateId) {
-                  closeCartModal();
                   openNotify("fail", "No hay plantillas de catálogo para enviar.");
                   return;
                 }
@@ -795,7 +865,8 @@ export function CustomersTable({
                       customerId: customer.id,
                       customerName: customer.name || "",
                       tenantId: customer.tenantId || "",
-                      templateId
+                      templateId,
+                      catalogType: cartModalMode
                     }),
                     signal: controller.signal
                   });
@@ -803,7 +874,6 @@ export function CustomersTable({
                   const contentType = res.headers.get("content-type") || "";
                   if (!contentType.includes("application/json")) {
                     setSendError((prev) => ({ ...prev, [customer.id]: "auth_required" }));
-                    closeCartModal();
                     openNotify("fail", "Sesión vencida. Vuelve a iniciar sesión.");
                     return;
                   }
@@ -811,7 +881,6 @@ export function CustomersTable({
                   if (!res.ok || !json?.ok) {
                     const msg = json?.error || "send_failed";
                     setSendError((prev) => ({ ...prev, [customer.id]: msg }));
-                    closeCartModal();
                     openNotify("fail", mapSendError(msg));
                     return;
                   }
@@ -819,7 +888,6 @@ export function CustomersTable({
                     setLinkOverrides((prev) => ({ ...prev, [customer.id]: { ...(prev[customer.id] || {}), cart: json.link } }));
                   }
                   setSendOk((prev) => ({ ...prev, [customer.id]: "sent" }));
-                  closeCartModal();
                   openNotify("ok", "El catálogo fue enviado correctamente.");
                 } finally {
                   setSendingCartId(null);
@@ -877,15 +945,95 @@ export function CustomersTable({
                   </div>
                 ) : null}
               </div>
+              <div className="field">
+                <label>Plantilla de mensaje</label>
+                <textarea
+                  className="input"
+                  rows={4}
+                  readOnly
+                  value={renderNotificationPreview(
+                    resolveNotificationTemplate("CATALOG_LINK_CREATED", cartModalMode === "SUBSCRIPTION" ? "SUBSCRIPTION" : "PLAN")
+                  )}
+                  style={{ whiteSpace: "pre-wrap" }}
+                />
+                <div className="field-hint">Se usa la plantilla configurada en Notificaciones.</div>
+              </div>
+              {sendError[cartModalCustomer.id] ? <div className="paylink-error">{mapSendError(sendError[cartModalCustomer.id])}</div> : null}
+              {sendOk[cartModalCustomer.id] ? <div className="paylink-success">Mensaje enviado correctamente.</div> : null}
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
                 <button className="ghost btn-cancel" type="button" onClick={closeCartModal} data-modal-close="true" data-loader="off">
                   Cancelar
                 </button>
-                <button className="primary btn-send" type="submit" disabled={missingPublicBase}>
+                <button
+                  className="primary btn-send"
+                  type="submit"
+                  disabled={missingPublicBase || !resolveCartTemplate(cartModalCustomer.id, cartModalMode)}
+                >
                   Enviar
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {sendMenuOpen && sendMenuCustomer ? (
+        <div className="modal-backdrop">
+          <div className="modal-panel" style={{ maxWidth: 520 }}>
+            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <strong>Enviar</strong>
+              <button className="ghost modal-close" type="button" onClick={closeSendMenu} aria-label="Cerrar" data-modal-close="true" data-loader="off">
+                X
+              </button>
+            </div>
+            <div className="panel module">
+              <div className="field-hint" style={{ marginBottom: 12 }}>
+                Selecciona qué deseas enviar al cliente.
+              </div>
+              <div className="send-grid">
+                <button
+                  type="button"
+                  className="ghost send-option"
+                  onClick={() => {
+                    closeSendMenu();
+                    openPayModal(sendMenuCustomer);
+                  }}
+                  data-loader="off"
+                >
+                  <span className="send-icon btn-link" aria-hidden />
+                  <span>Link de pago</span>
+                </button>
+                <button
+                  type="button"
+                  className="ghost send-option"
+                  onClick={() => {
+                    closeSendMenu();
+                    openTokenModal(sendMenuCustomer);
+                  }}
+                  data-loader="off"
+                >
+                  <span className="send-icon btn-lock" aria-hidden />
+                  <span>Tokenización</span>
+                </button>
+                <button
+                  type="button"
+                  className="ghost send-option"
+                  onClick={() => {
+                    closeSendMenu();
+                    openCartModal(sendMenuCustomer);
+                  }}
+                  data-loader="off"
+                >
+                  <span className="send-icon btn-card" aria-hidden />
+                  <span>Catálogo</span>
+                </button>
+              </div>
+              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                <button className="ghost btn-cancel" type="button" onClick={closeSendMenu} data-modal-close="true" data-loader="off">
+                  Cerrar
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       ) : null}
@@ -927,7 +1075,6 @@ export function CustomersTable({
                   const contentType = res.headers.get("content-type") || "";
                   if (!contentType.includes("application/json")) {
                     setSendError((prev) => ({ ...prev, [customer.id]: "auth_required" }));
-                    closeTokenModal();
                     openNotify("fail", mapSendError("auth_required"));
                     return;
                   }
@@ -935,7 +1082,6 @@ export function CustomersTable({
                   if (!res.ok || !json?.ok) {
                     const msg = json?.error || "send_failed";
                     setSendError((prev) => ({ ...prev, [customer.id]: msg }));
-                    closeTokenModal();
                     openNotify("fail", mapSendError(msg));
                     return;
                   }
@@ -943,7 +1089,6 @@ export function CustomersTable({
                     setLinkOverrides((prev) => ({ ...prev, [customer.id]: { ...(prev[customer.id] || {}), token: json.link } }));
                   }
                   setSendOk((prev) => ({ ...prev, [customer.id]: "sent" }));
-                  closeTokenModal();
                   openNotify("ok", "El link de tokenización fue enviado correctamente.");
                 } finally {
                   setSendingTokenId(null);
@@ -982,6 +1127,19 @@ export function CustomersTable({
                   </div>
                 ) : null}
               </div>
+              <div className="field">
+                <label>Plantilla de mensaje</label>
+                <textarea
+                  className="input"
+                  rows={4}
+                  readOnly
+                  value={renderNotificationPreview(resolveNotificationTemplate("TOKENIZATION_LINK_CREATED"))}
+                  style={{ whiteSpace: "pre-wrap" }}
+                />
+                <div className="field-hint">Se usa la plantilla configurada en Notificaciones.</div>
+              </div>
+              {sendError[tokenModalCustomer.id] ? <div className="paylink-error">{mapSendError(sendError[tokenModalCustomer.id])}</div> : null}
+              {sendOk[tokenModalCustomer.id] ? <div className="paylink-success">Mensaje enviado correctamente.</div> : null}
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
                 <button className="ghost btn-cancel" type="button" onClick={closeTokenModal} data-modal-close="true" data-loader="off">
                   Cancelar

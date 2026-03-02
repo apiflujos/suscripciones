@@ -3173,6 +3173,10 @@ textarea.input {
   --btn-icon: var(--icon-alert);
 }
 
+.btn-lock {
+  --btn-icon: var(--icon-lock);
+}
+
 .btn-red {
   border-color: var(--status-danger);
   color: var(--status-danger);
@@ -3193,6 +3197,56 @@ textarea.input {
   padding: 4px 6px;
   display: grid;
   gap: 2px;
+}
+
+.send-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.send-option {
+  display: grid;
+  gap: 6px;
+  align-items: center;
+  justify-items: center;
+  padding: 14px 10px;
+  min-height: 92px;
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  font-size: 12px;
+  color: var(--text);
+  text-align: center;
+}
+
+.send-option:hover {
+  border-color: var(--primary);
+  background: var(--panel-soft);
+}
+
+.send-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--panel-soft);
+  display: grid;
+  place-items: center;
+}
+
+.send-icon::before {
+  content: "";
+  width: 18px;
+  height: 18px;
+  background-color: currentColor;
+  -webkit-mask: var(--btn-icon) no-repeat center / contain;
+  mask: var(--btn-icon) no-repeat center / contain;
+}
+
+@media (max-width: 720px) {
+  .send-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .paylink-header {

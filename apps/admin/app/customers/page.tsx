@@ -121,6 +121,11 @@ async function fetchCheckoutTemplates(tenantId?: string) {
   return res.json || { items: [] as any[] };
 }
 
+async function fetchNotificationsConfig() {
+  const res = await fetchAdminCached("/admin/notifications/config", { ttlMs: 1500 });
+  return res.json || { config: null };
+}
+
 async function fetchCustomerById(id: string) {
   if (!id) return null;
   const res = await fetchAdminCached(`/admin/customers/${encodeURIComponent(id)}`, { ttlMs: 1500 });
@@ -189,14 +194,15 @@ export default async function CustomersPage({
     resolvedIds = ["__none__"];
   }
 
-  const [data, tenantsRes, txCustomer, productsRes, templatesRes, settingsRes, trendingRes] = await Promise.all([
+  const [data, tenantsRes, txCustomer, productsRes, templatesRes, settingsRes, trendingRes, notificationsRes] = await Promise.all([
     fetchCustomers({ q, take, page, tenantId, ids: resolvedIds }),
     fetchAdminCached("/admin/tenants", { ttlMs: 1500 }),
     txCustomerId ? fetchCustomerById(txCustomerId) : Promise.resolve(null),
     fetchProducts(tenantId),
     fetchCheckoutTemplates(tenantId),
     fetchSettings(),
-    fetchTrending("customers", 24, tenantId)
+    fetchTrending("customers", 24, tenantId),
+    fetchNotificationsConfig()
   ]);
   const items = (data.items ?? []) as any[];
   const total = Number.isFinite(Number((data as any)?.total)) ? Number((data as any).total) : items.length;
@@ -205,6 +211,7 @@ export default async function CustomersPage({
   }
   const tenants = (tenantsRes.json?.items ?? []) as Array<{ id: string; name: string }>;
   const checkoutConfig = settingsRes?.checkoutConfig || {};
+  const notificationsConfig = notificationsRes?.config || null;
   const trendingCustomers = trendingRes?.ok ? trendingRes.json?.items ?? [] : [];
   const tenantById = new Map(tenants.map((t) => [String(t.id), String(t.name)]));
   const [latestLinks, subscriptionsByCustomer, cartTemplates] = await Promise.all([
@@ -503,6 +510,7 @@ export default async function CustomersPage({
             products={productsRes?.items ?? []}
             checkoutTemplates={templatesRes?.items ?? []}
             checkoutConfig={checkoutConfig}
+            notificationsConfig={notificationsConfig}
             tenants={tenants}
             createCustomer={createCustomer}
             createPlanAndSubscription={createPlanAndSubscription}
