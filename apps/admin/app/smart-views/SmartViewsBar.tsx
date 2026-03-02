@@ -104,12 +104,14 @@ export function SmartViewsBar({
   scope,
   initialViewId,
   initialFilters,
-  baseParams
+  baseParams,
+  compactInline = false
 }: {
   scope: string;
   initialViewId: string;
   initialFilters: string;
   baseParams: Record<string, string>;
+  compactInline?: boolean;
 }) {
   const [views, setViews] = useState<SmartView[]>([]);
   const [fields, setFields] = useState<SmartField[]>([]);
@@ -466,31 +468,72 @@ export function SmartViewsBar({
   }
 
   const selectId = `smart-view-${scope}`;
+  const applyView = (id: string) => {
+    setActiveViewId(id);
+    setEditingId("");
+    window.location.href = buildHref({ viewId: id || undefined, filters: undefined });
+  };
 
   return (
-    <div className="smartViewsBar" data-loader="off">
+    <div className={`smartViewsBar ${compactInline ? "smartViewsBarInline" : ""}`} data-loader="off">
       <div className="smartViewsTop">
-        <div className="field smartViewsField">
-          <label htmlFor={selectId}>Vistas</label>
-          <select
-            id={selectId}
-            className="select"
-            value={activeViewId}
-            onChange={(e) => {
-              const id = e.target.value;
-              setActiveViewId(id);
-              setEditingId("");
-              window.location.href = buildHref({ viewId: id || undefined, filters: undefined });
-            }}
-          >
-            <option value="">Todas las vistas</option>
-            {views.map((view) => (
-              <option key={view.id} value={view.id}>
-                {view.name} {view.visibility === "PRIVATE" ? "(Privada)" : ""}
-              </option>
-            ))}
-          </select>
-        </div>
+        {compactInline ? (
+          <div className="smartViewsInlineRow">
+            <div className="smartViewsActions">
+              <button
+                className="primary btn-compact"
+                type="button"
+                data-loader="off"
+                onClick={() => {
+                  setMode("filters");
+                  setActiveViewId("");
+                  setEditingId("");
+                  setNotice(null);
+                  ensureFieldsLoaded().catch(() => null);
+                }}
+              >
+                Filtros avanzados
+              </button>
+            </div>
+            <div className="smartViewsPills">
+              <button
+                type="button"
+                className={`pill quick-pill ${!activeViewId ? "is-active" : ""}`}
+                onClick={() => applyView("")}
+              >
+                Todas
+              </button>
+              {views.map((view) => (
+                <button
+                  key={view.id}
+                  type="button"
+                  className={`pill quick-pill ${activeViewId === view.id ? "is-active" : ""}`}
+                  onClick={() => applyView(view.id)}
+                  title={view.visibility === "PRIVATE" ? `${view.name} (Privada)` : view.name}
+                >
+                  {view.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="field smartViewsField">
+            <label htmlFor={selectId}>Vistas</label>
+            <select
+              id={selectId}
+              className="select"
+              value={activeViewId}
+              onChange={(e) => applyView(e.target.value)}
+            >
+              <option value="">Todas las vistas</option>
+              {views.map((view) => (
+                <option key={view.id} value={view.id}>
+                  {view.name} {view.visibility === "PRIVATE" ? "(Privada)" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         {activeViewId ? (
           <button
             className="ghost"
@@ -519,22 +562,24 @@ export function SmartViewsBar({
             Eliminar
           </button>
         ) : null}
-        <div className="smartViewsActions">
-          <button
-            className="primary btn-compact"
-            type="button"
-            data-loader="off"
-            onClick={() => {
-              setMode("filters");
-              setActiveViewId("");
-              setEditingId("");
-              setNotice(null);
-              ensureFieldsLoaded().catch(() => null);
-            }}
-          >
-            Filtros avanzados
-          </button>
-        </div>
+        {!compactInline ? (
+          <div className="smartViewsActions">
+            <button
+              className="primary btn-compact"
+              type="button"
+              data-loader="off"
+              onClick={() => {
+                setMode("filters");
+                setActiveViewId("");
+                setEditingId("");
+                setNotice(null);
+                ensureFieldsLoaded().catch(() => null);
+              }}
+            >
+              Filtros avanzados
+            </button>
+          </div>
+        ) : null}
       </div>
 
       {mode === "filters" ? (

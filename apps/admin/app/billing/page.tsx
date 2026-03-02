@@ -401,18 +401,38 @@ export default async function BillingPage({
                 <span className="pill pill-muted">En mora = periodo vencido sin pago</span>
               </div>
               <div className="filtersPanel">
-                <SmartViewsBar
-                  scope="billing"
-                  initialViewId={viewId}
-                  initialFilters={filters}
-                  baseParams={{
-                    ...(tenantId ? { tenantId } : {}),
-                    ...(q ? { q } : {}),
-                    ...(tipo ? { tipo } : {}),
-                    ...(estado ? { estado } : {}),
-                    ...(ordenar ? { ordenar } : {})
-                  }}
-                />
+                <div className="contacts-search-row">
+                  <form action="/billing" method="GET" className="filtersForm filtersSearch">
+                    {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+                    {tipo ? <input type="hidden" name="tipo" value={tipo} /> : null}
+                    {estado ? <input type="hidden" name="estado" value={estado} /> : null}
+                    {ordenar ? <input type="hidden" name="ordenar" value={ordenar} /> : null}
+                    {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
+                    {filters ? <input type="hidden" name="filters" value={filters} /> : null}
+                    <input
+                      className="input"
+                      type="search"
+                      name="q"
+                      defaultValue={q}
+                      placeholder="Buscar por contacto, email o identificación..."
+                      aria-label="Buscar suscripciones"
+                    />
+                    <button className="ghost" type="submit">Buscar</button>
+                  </form>
+                  <SmartViewsBar
+                    scope="billing"
+                    initialViewId={viewId}
+                    initialFilters={filters}
+                    baseParams={{
+                      ...(tenantId ? { tenantId } : {}),
+                      ...(q ? { q } : {}),
+                      ...(tipo ? { tipo } : {}),
+                      ...(estado ? { estado } : {}),
+                      ...(ordenar ? { ordenar } : {})
+                    }}
+                    compactInline
+                  />
+                </div>
               </div>
             </div>
             <div className="filtersRight" style={{ display: "flex", gap: 8, alignItems: "center" }}>

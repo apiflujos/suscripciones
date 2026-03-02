@@ -80,12 +80,6 @@ async function fetchCustomerSubscriptions(tenantId?: string) {
   return map;
 }
 
-async function fetchTrending(scope: "customers" | "products", hours: number, tenantId?: string) {
-  const sp = new URLSearchParams({ scope, windowHours: String(hours) });
-  if (tenantId) sp.set("tenantId", tenantId);
-  return fetchAdminCached(`/admin/gamification/trending?${sp.toString()}`, { ttlMs: 1500 });
-}
-
 async function fetchSmartLists() {
   return fetchAdminCached("/admin/comms/smart-lists?take=200", { ttlMs: 1500 });
 }
@@ -218,16 +212,13 @@ export default async function CustomersPage({
     resolvedIds = ["__none__"];
   }
 
-  const [data, tenantsRes, txCustomer, productsRes, templatesRes, settingsRes, trending24Res, trending7Res, trending30Res, notificationsRes, smartListsRes] = await Promise.all([
+  const [data, tenantsRes, txCustomer, productsRes, templatesRes, settingsRes, notificationsRes, smartListsRes] = await Promise.all([
     fetchCustomers({ q, take, page, tenantId, ids: resolvedIds }),
     fetchAdminCached("/admin/tenants", { ttlMs: 1500 }),
     txCustomerId ? fetchCustomerById(txCustomerId) : Promise.resolve(null),
     fetchProducts(tenantId),
     fetchCheckoutTemplates(tenantId),
     fetchSettings(),
-    fetchTrending("customers", 24, tenantId),
-    fetchTrending("customers", 168, tenantId),
-    fetchTrending("customers", 720, tenantId),
     fetchNotificationsConfig(),
     fetchSmartLists()
   ]);
@@ -239,9 +230,6 @@ export default async function CustomersPage({
   const tenants = (tenantsRes.json?.items ?? []) as Array<{ id: string; name: string }>;
   const checkoutConfig = settingsRes?.checkoutConfig || {};
   const notificationsConfig = notificationsRes?.config || null;
-  const trendingCustomers24 = trending24Res?.ok ? trending24Res.json?.items ?? [] : [];
-  const trendingCustomers7 = trending7Res?.ok ? trending7Res.json?.items ?? [] : [];
-  const trendingCustomers30 = trending30Res?.ok ? trending30Res.json?.items ?? [] : [];
   const smartListsRaw = smartListsRes?.ok ? smartListsRes.json?.items ?? [] : [];
   const smartListPreviews = smartListsRaw.length
     ? await Promise.all(smartListsRaw.map((list: any) => fetchSmartListPreview(String(list.id || ""), tenantId)))
@@ -432,90 +420,34 @@ export default async function CustomersPage({
                     </div>
                   </div>
                 ) : null}
-                <form action="/customers" method="GET" className="filtersForm filtersSearch">
-                  {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-                  {listId ? <input type="hidden" name="list" value={listId} /> : null}
-                  {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
-                  {filters ? <input type="hidden" name="filters" value={filters} /> : null}
-                  <input
-                    className="input"
-                    type="search"
-                    name="q"
-                    defaultValue={q}
-                    placeholder="Buscar por nombre, email, teléfono o identificación..."
-                    aria-label="Buscar contactos"
+                <div className="contacts-search-row">
+                  <form action="/customers" method="GET" className="filtersForm filtersSearch">
+                    {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+                    {listId ? <input type="hidden" name="list" value={listId} /> : null}
+                    {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
+                    {filters ? <input type="hidden" name="filters" value={filters} /> : null}
+                    <input
+                      className="input"
+                      type="search"
+                      name="q"
+                      defaultValue={q}
+                      placeholder="Buscar por nombre, email, teléfono o identificación..."
+                      aria-label="Buscar contactos"
+                    />
+                    <button className="ghost" type="submit">Buscar</button>
+                  </form>
+                  <SmartViewsBar
+                    scope="customers"
+                    initialViewId={viewId}
+                    initialFilters={filters}
+                    baseParams={{
+                      ...(q ? { q } : {}),
+                      ...(tenantId ? { tenantId } : {})
+                    }}
+                    compactInline
                   />
-                  <button className="ghost" type="submit">Buscar</button>
-                </form>
-                <SmartViewsBar
-                  scope="customers"
-                  initialViewId={viewId}
-                  initialFilters={filters}
-                  baseParams={{
-                    ...(q ? { q } : {}),
-                    ...(tenantId ? { tenantId } : {})
-                  }}
-                />
+                </div>
               </div>
-            </div>
-            <div className="filtersRight">
-              {trendingCustomers24.length || trendingCustomers7.length || trendingCustomers30.length ? (
-                <div className="trend-card trend-card-wide">
-                  <div className="trend-title">Tendencias contactos</div>
-                  <div className="trend-columns">
-                    <div className="trend-column">
-                      <div className="trend-sub">24h</div>
-                      <ul className="mini-list mini-list-tight">
-                        {trendingCustomers24.length ? (
-                          trendingCustomers24.map((item: any) => (
-                            <li key={`trend-c-24-${item.id}`}>
-                              <span>{item.name || "Contacto"}</span>
-                              <span className="trend-score">{item.score}</span>
-                            </li>
-                          ))
-                        ) : (
-                          <li className="muted">Sin datos</li>
-                        )}
-                      </ul>
-                    </div>
-                    <div className="trend-column">
-                      <div className="trend-sub">7d</div>
-                      <ul className="mini-list mini-list-tight">
-                        {trendingCustomers7.length ? (
-                          trendingCustomers7.map((item: any) => (
-                            <li key={`trend-c-7-${item.id}`}>
-                              <span>{item.name || "Contacto"}</span>
-                              <span className="trend-score">{item.score}</span>
-                            </li>
-                          ))
-                        ) : (
-                          <li className="muted">Sin datos</li>
-                        )}
-                      </ul>
-                    </div>
-                    <div className="trend-column">
-                      <div className="trend-sub">30d</div>
-                      <ul className="mini-list mini-list-tight">
-                        {trendingCustomers30.length ? (
-                          trendingCustomers30.map((item: any) => (
-                            <li key={`trend-c-30-${item.id}`}>
-                              <span>{item.name || "Contacto"}</span>
-                              <span className="trend-score">{item.score}</span>
-                            </li>
-                          ))
-                        ) : (
-                          <li className="muted">Sin datos</li>
-                        )}
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="trend-card trend-card-compact">
-                  <div className="trend-title">Tendencias contactos</div>
-                  <div className="trend-empty">Sin datos de tendencias todavía.</div>
-                </div>
-              )}
             </div>
           </div>
         </div>

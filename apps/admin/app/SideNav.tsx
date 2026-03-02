@@ -314,7 +314,7 @@ export function SideNav({ session }: { session: AdminSession | null }) {
         tabIndex={isActivePath(pathname, "/billing") ? -1 : undefined}
       >
         <NavIcon name="billing" className="nav-icon" />
-        <span className="nav-label">Planes y Suscripciones</span>
+        <span className="nav-label">Suscripciones</span>
       </Link>
       <Link
         className={`nav-item ${isActivePath(pathname, "/notifications") ? "is-active" : ""}`}

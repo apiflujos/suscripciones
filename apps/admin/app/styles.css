@@ -1305,6 +1305,25 @@ a {
   flex-wrap: wrap;
 }
 
+.smartViewsInlineRow {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.smartViewsPills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.smartViewsBarInline .smartViewsTop > .ghost {
+  height: 34px;
+}
+
 .smartViewsField {
   min-width: 240px;
 }
@@ -1535,6 +1554,19 @@ a {
   background: var(--panel);
   border-color: var(--stroke);
   font-weight: 600;
+}
+
+.contacts-search-row {
+  display: grid;
+  grid-template-columns: minmax(300px, 1fr) minmax(320px, 1fr);
+  gap: 10px;
+  width: 100%;
+}
+
+@media (max-width: 980px) {
+  .contacts-search-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .filtersForm .input,
