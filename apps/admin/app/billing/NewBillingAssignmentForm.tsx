@@ -548,33 +548,42 @@ export function NewBillingAssignmentForm({
 
               {tenants.length > 0 ? (
                 <div className="field">
-                  <label>Canal(es)</label>
+                  <label>Canal</label>
                   <select
                     className="select"
-                    multiple
-                    value={selectedTenantIds}
+                    value={selectedTenantIds[0] || ""}
                     onChange={(e) => {
-                      const values = Array.from(e.target.selectedOptions).map((opt) => opt.value);
-                      setSelectedTenantIds(values);
+                      const value = String(e.target.value || "").trim();
+                      setSelectedTenantIds(value ? [value] : []);
                     }}
                     disabled={!productId || !customerId}
                   >
+                    <option value="">Selecciona un canal…</option>
                     {tenants.map((t) => (
                       <option key={t.id} value={t.id}>
                         {t.name}
                       </option>
                     ))}
                   </select>
-                <div className="field-hint">Puedes seleccionar uno o varios canales.</div>
+                <div className="field-hint">Selecciona un solo canal para esta creación.</div>
               </div>
               ) : null}
 
-              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 10, alignItems: "center" }}>
+              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                 {!canSubmit ? (
                   <span className="field-hint">
                     Selecciona producto, contacto{mustPickTenant ? " y canal" : ""} para continuar.
                   </span>
                 ) : null}
+                <button
+                  className="ghost btn-send"
+                  type="submit"
+                  name="submitAction"
+                  value="CREATE"
+                  disabled={!canSubmit}
+                >
+                  {billingType === "PLAN" ? "Crear plan" : "Crear suscripción"}
+                </button>
                 <button
                   className="primary btn-send"
                   type="submit"
@@ -582,7 +591,7 @@ export function NewBillingAssignmentForm({
                   value="LINK_NOW"
                   disabled={!canSubmit}
                 >
-                  {billingType === "PLAN" ? "Enviar link de pago" : "Enviar link de tokenización"}
+                  {billingType === "PLAN" ? "Crear y enviar link de pago" : "Crear y enviar link de tokenización"}
                 </button>
               </div>
             </form>
