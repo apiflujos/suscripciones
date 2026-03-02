@@ -188,6 +188,8 @@ export async function createCheckoutTemplateDefaults(formData: FormData) {
   try {
     await assertCsrfToken(formData);
     const tenantIdInput = String(formData.get("tenantId") || "").trim();
+    const modeRaw = String(formData.get("mode") || "").trim().toUpperCase();
+    const mode = modeRaw === "PLAN" || modeRaw === "SUBSCRIPTION" || modeRaw === "BOTH" ? modeRaw : "BOTH";
     const tenantsRes = await adminFetch("/admin/tenants", { method: "GET" });
     const tenants = Array.isArray(tenantsRes?.items) ? tenantsRes.items : [];
     const selectedTenants = tenantIdInput ? tenants.filter((t: any) => String(t.id) === tenantIdInput) : tenants;
@@ -245,7 +247,7 @@ export async function createCheckoutTemplateDefaults(formData: FormData) {
         return hasSub && !hasPlan;
       });
 
-      if (!existingPlan && planProducts.length) {
+      if (mode !== "SUBSCRIPTION" && !existingPlan && planProducts.length) {
         await adminFetch("/admin/checkout-templates", {
           method: "POST",
           body: JSON.stringify({
@@ -265,7 +267,7 @@ export async function createCheckoutTemplateDefaults(formData: FormData) {
         });
         createdCount += 1;
       }
-      if (!existingSub && subProducts.length) {
+      if (mode !== "PLAN" && !existingSub && subProducts.length) {
         await adminFetch("/admin/checkout-templates", {
           method: "POST",
           body: JSON.stringify({
@@ -287,7 +289,7 @@ export async function createCheckoutTemplateDefaults(formData: FormData) {
       }
     }
 
-    if (!createdCount) return redirectWith("checkout_template_defaults", "fail", "nothing_to_create");
+      if (!createdCount) return redirectWith("checkout_template_defaults", "fail", "nothing_to_create");
     redirectWith("checkout_template_defaults", "ok");
   } catch (err: any) {
     if (isNextRedirect(err)) throw err;

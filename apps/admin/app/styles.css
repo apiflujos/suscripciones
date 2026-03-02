@@ -5989,7 +5989,7 @@ html[data-contrast="high"] .payment-point-provider img {
 
 .template-grid {
   display: grid;
-  gap: 16px;
+  gap: 10px;
   grid-template-columns: 1fr;
 }
 .template-modal-body {
@@ -6443,10 +6443,10 @@ html[data-contrast="high"] .payment-point-provider img {
 .template-card {
   background: var(--panel);
   border: 1px solid var(--stroke);
-  border-radius: 14px;
-  padding: 14px;
+  border-radius: 12px;
+  padding: 10px;
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .template-card.is-disabled {
@@ -6462,12 +6462,27 @@ html[data-contrast="high"] .payment-point-provider img {
 
 .template-title {
   font-weight: 700;
+  font-size: 14px;
 }
 
 .template-meta {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
+}
+
+.template-meta-compact {
+  gap: 6px;
+}
+
+.template-meta-value {
+  font-size: 12px;
+  color: var(--text-strong);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  white-space: pre-wrap;
 }
 
 .template-link {
@@ -6485,6 +6500,7 @@ html[data-contrast="high"] .payment-point-provider img {
   display: flex;
   gap: 8px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .pill-green {

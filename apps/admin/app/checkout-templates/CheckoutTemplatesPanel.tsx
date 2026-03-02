@@ -86,6 +86,7 @@ export function CheckoutTemplatesPanel({
   const [editing, setEditing] = useState<Template | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [defaultsModalOpen, setDefaultsModalOpen] = useState(false);
   const [kind, setKind] = useState<"PLAN" | "SUBSCRIPTION" | "CART" | "">(
     initialKind === "PLAN" ? "PLAN" : initialKind === "SUBSCRIPTION" ? "SUBSCRIPTION" : ""
   );
@@ -94,6 +95,7 @@ export function CheckoutTemplatesPanel({
   const [active, setActive] = useState(true);
   const [allowSelect, setAllowSelect] = useState(true);
   const [catalogMode, setCatalogMode] = useState<"" | "PLAN" | "SUBSCRIPTION">("");
+  const [defaultsMode, setDefaultsMode] = useState<"PLAN" | "SUBSCRIPTION" | "BOTH">("BOTH");
   const [productIds, setProductIds] = useState<string[]>([]);
   const [tenantId, setTenantId] = useState("");
   const [expiryHours, setExpiryHours] = useState("24");
@@ -132,11 +134,13 @@ export function CheckoutTemplatesPanel({
     setEditing(null);
     setEditModalOpen(false);
     setCreateModalOpen(false);
+    setDefaultsModalOpen(false);
     setKind("");
     setName("");
     setActive(true);
     setAllowSelect(true);
     setCatalogMode("");
+    setDefaultsMode("BOTH");
     setProductIds([]);
     setTenantId("");
     setExpiryHours("24");
@@ -189,6 +193,11 @@ export function CheckoutTemplatesPanel({
   function openCreate() {
     resetWizard();
     setCreateModalOpen(true);
+  }
+
+  function openDefaultsModal() {
+    resetWizard();
+    setDefaultsModalOpen(true);
   }
 
   function onLogoFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -783,12 +792,9 @@ export function CheckoutTemplatesPanel({
           <div className="field-hint">Wizard para crear plantillas de checkout público.</div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <form action={actions.defaults}>
-            <input type="hidden" name="csrf" value={csrfToken} />
-            <PendingButton className="ghost" type="submit" pendingText="Creando...">
-              Crear catálogos base
-            </PendingButton>
-          </form>
+          <button className="ghost" type="button" data-modal="true" data-loader="off" onClick={openDefaultsModal}>
+            Personalizar catálogos
+          </button>
           {editing ? (
             <button className="ghost btn-cancel" type="button" onClick={resetWizard} data-loader="off">
               Cancelar edición
@@ -828,6 +834,78 @@ export function CheckoutTemplatesPanel({
         </div>
       ) : null}
 
+      {defaultsModalOpen ? (
+        <div className="modal-backdrop">
+          <div className="modal-panel" style={{ maxWidth: 620 }}>
+            <div className="panel-header">
+              <strong>Personalizar catálogos</strong>
+              <button className="ghost modal-close" type="button" onClick={resetWizard} aria-label="Cerrar" data-modal-close="true" data-loader="off">
+                X
+              </button>
+            </div>
+            <form action={actions.defaults} className="panel module" style={{ display: "grid", gap: 12 }}>
+              <input type="hidden" name="csrf" value={csrfToken} />
+              {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+              <input type="hidden" name="mode" value={defaultsMode} />
+              <div className="field">
+                <label>Tipo de catálogo</label>
+                <div className="template-choice-row" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10 }}>
+                  {(["PLAN", "SUBSCRIPTION", "BOTH"] as const).map((opt) => (
+                    <label
+                      key={opt}
+                      className={`card cardPad ${defaultsMode === opt ? "is-active" : ""}`}
+                      style={{
+                        textAlign: "left",
+                        cursor: "pointer",
+                        borderColor: defaultsMode === opt ? "var(--primary)" : "var(--stroke)",
+                        background: defaultsMode === opt ? "rgba(14, 165, 233, 0.08)" : "transparent",
+                        boxShadow: defaultsMode === opt ? "0 0 0 2px rgba(14, 165, 233, 0.25)" : "none"
+                      }}
+                      onClick={() => setDefaultsMode(opt)}
+                    >
+                      <input type="radio" name="defaultsMode" value={opt} checked={defaultsMode === opt} onChange={() => setDefaultsMode(opt)} style={{ display: "none" }} />
+                      <strong>
+                        {opt === "PLAN" ? "Plan" : opt === "SUBSCRIPTION" ? "Suscripción" : "Ambos"}
+                      </strong>
+                      <div className="field-hint">
+                        {opt === "PLAN"
+                          ? "Catálogo para link de pago."
+                          : opt === "SUBSCRIPTION"
+                            ? "Catálogo para tokenización."
+                            : "Crea los dos catálogos base."}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              {tenants.length > 1 ? (
+                <div className="field">
+                  <label>Canal de ventas</label>
+                  <select className="select" value={tenantId} onChange={(e) => setTenantId(e.target.value)} ref={tenantRef}>
+                    <option value="">Todos los canales</option>
+                    {tenants.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="field-hint">Si eliges un canal, solo se crean catálogos para ese canal.</div>
+                </div>
+              ) : null}
+              {inlineMsg("checkout_template_defaults")}
+              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                <button className="ghost btn-cancel" type="button" onClick={resetWizard} data-modal-close="true" data-loader="off">
+                  Cancelar
+                </button>
+                <PendingButton className="primary btn-save" type="submit" pendingText="Creando...">
+                  Crear
+                </PendingButton>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
       {!templates.length ? <div className="field-hint">Aún no hay plantillas.</div> : null}
       <div className="template-grid">
         {templates.map((t) => (
@@ -850,24 +928,26 @@ export function CheckoutTemplatesPanel({
                 })()}
               </div>
             </div>
-            <div className="template-meta">
+            <div className="template-meta template-meta-compact">
               <div>
                 <div className="field-hint">Productos</div>
-                <strong>{t.allowProductSelect ? "Selector" : (t.productIds || []).map((id) => productById.get(id)?.name || "—").join(", ") || "—"}</strong>
+                <div className="template-meta-value">
+                  {t.allowProductSelect ? "Selector" : (t.productIds || []).map((id) => productById.get(id)?.name || "—").join(", ") || "—"}
+                </div>
               </div>
               <div>
                 <div className="field-hint">Expira</div>
-                <strong>{t.expiryHours ? `${t.expiryHours}h` : "Nunca"}</strong>
+                <div className="template-meta-value">{t.expiryHours ? `${t.expiryHours}h` : "Nunca"}</div>
               </div>
             </div>
             <div className="template-actions">
-              <button className="secondary" type="button" data-modal="true" data-loader="off" onClick={() => openEdit(t)}>
+              <button className="secondary btn-compact" type="button" data-modal="true" data-loader="off" onClick={() => openEdit(t)}>
                 Editar
               </button>
               <form action={actions.duplicate}>
                 <input type="hidden" name="csrf" value={csrfToken} />
                 <input type="hidden" name="id" value={t.id} />
-                <PendingButton className="ghost" type="submit" pendingText="Duplicando...">Duplicar</PendingButton>
+                <PendingButton className="ghost btn-compact" type="submit" pendingText="Duplicando...">Duplicar</PendingButton>
               </form>
               <form
                 action={actions.remove}
@@ -877,7 +957,7 @@ export function CheckoutTemplatesPanel({
               >
                 <input type="hidden" name="csrf" value={csrfToken} />
                 <input type="hidden" name="id" value={t.id} />
-                <PendingButton className="ghost" type="submit" pendingText="Eliminando...">Eliminar</PendingButton>
+                <PendingButton className="ghost btn-compact" type="submit" pendingText="Eliminando...">Eliminar</PendingButton>
               </form>
             </div>
           </div>
