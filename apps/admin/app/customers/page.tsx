@@ -459,56 +459,63 @@ export default async function CustomersPage({
               </div>
             </div>
             <div className="filtersRight">
-              <div className="trend-card trend-card-wide">
-                <div className="trend-title">Tendencias contactos</div>
-                <div className="trend-columns">
-                  <div className="trend-column">
-                    <div className="trend-sub">24h</div>
-                    <ul className="mini-list mini-list-tight">
-                      {trendingCustomers24.length ? (
-                        trendingCustomers24.map((item: any) => (
-                          <li key={`trend-c-24-${item.id}`}>
-                            <span>{item.name || "Contacto"}</span>
-                            <span className="trend-score">{item.score}</span>
-                          </li>
-                        ))
-                      ) : (
-                        <li className="muted">Sin datos</li>
-                      )}
-                    </ul>
-                  </div>
-                  <div className="trend-column">
-                    <div className="trend-sub">7d</div>
-                    <ul className="mini-list mini-list-tight">
-                      {trendingCustomers7.length ? (
-                        trendingCustomers7.map((item: any) => (
-                          <li key={`trend-c-7-${item.id}`}>
-                            <span>{item.name || "Contacto"}</span>
-                            <span className="trend-score">{item.score}</span>
-                          </li>
-                        ))
-                      ) : (
-                        <li className="muted">Sin datos</li>
-                      )}
-                    </ul>
-                  </div>
-                  <div className="trend-column">
-                    <div className="trend-sub">30d</div>
-                    <ul className="mini-list mini-list-tight">
-                      {trendingCustomers30.length ? (
-                        trendingCustomers30.map((item: any) => (
-                          <li key={`trend-c-30-${item.id}`}>
-                            <span>{item.name || "Contacto"}</span>
-                            <span className="trend-score">{item.score}</span>
-                          </li>
-                        ))
-                      ) : (
-                        <li className="muted">Sin datos</li>
-                      )}
-                    </ul>
+              {trendingCustomers24.length || trendingCustomers7.length || trendingCustomers30.length ? (
+                <div className="trend-card trend-card-wide">
+                  <div className="trend-title">Tendencias contactos</div>
+                  <div className="trend-columns">
+                    <div className="trend-column">
+                      <div className="trend-sub">24h</div>
+                      <ul className="mini-list mini-list-tight">
+                        {trendingCustomers24.length ? (
+                          trendingCustomers24.map((item: any) => (
+                            <li key={`trend-c-24-${item.id}`}>
+                              <span>{item.name || "Contacto"}</span>
+                              <span className="trend-score">{item.score}</span>
+                            </li>
+                          ))
+                        ) : (
+                          <li className="muted">Sin datos</li>
+                        )}
+                      </ul>
+                    </div>
+                    <div className="trend-column">
+                      <div className="trend-sub">7d</div>
+                      <ul className="mini-list mini-list-tight">
+                        {trendingCustomers7.length ? (
+                          trendingCustomers7.map((item: any) => (
+                            <li key={`trend-c-7-${item.id}`}>
+                              <span>{item.name || "Contacto"}</span>
+                              <span className="trend-score">{item.score}</span>
+                            </li>
+                          ))
+                        ) : (
+                          <li className="muted">Sin datos</li>
+                        )}
+                      </ul>
+                    </div>
+                    <div className="trend-column">
+                      <div className="trend-sub">30d</div>
+                      <ul className="mini-list mini-list-tight">
+                        {trendingCustomers30.length ? (
+                          trendingCustomers30.map((item: any) => (
+                            <li key={`trend-c-30-${item.id}`}>
+                              <span>{item.name || "Contacto"}</span>
+                              <span className="trend-score">{item.score}</span>
+                            </li>
+                          ))
+                        ) : (
+                          <li className="muted">Sin datos</li>
+                        )}
+                      </ul>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="trend-card trend-card-compact">
+                  <div className="trend-title">Tendencias contactos</div>
+                  <div className="trend-empty">Sin datos de tendencias todavía.</div>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -120,6 +120,32 @@ export function CustomersTable({
   const missingSubBase = !subscriptionBaseUrl;
   const missingPublicBase = !publicBaseUrl;
 
+  function ensureHttps(value: string) {
+    if (!value) return value;
+    if (/^https?:\/\//i.test(value)) return value;
+    return `https://${value.replace(/^\/+/, "")}`;
+  }
+
+  function normalizePublicUrl(rawUrl: string, base: string, path: string, token?: string) {
+    const cleaned = String(rawUrl || "").trim();
+    if (cleaned) {
+      if (/^https?:\/\//i.test(cleaned)) return cleaned;
+      if (cleaned.startsWith("/")) {
+        const normalizedBase = ensureHttps(base).replace(/\/$/, "");
+        return normalizedBase ? `${normalizedBase}${cleaned}` : cleaned;
+      }
+      return ensureHttps(cleaned);
+    }
+    const cleanToken = String(token || "").trim();
+    const normalizedBase = ensureHttps(base).replace(/\/$/, "");
+    if (!cleanToken || !normalizedBase) return "";
+    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+    if (normalizedBase.endsWith(normalizedPath)) {
+      return `${normalizedBase}/${cleanToken}`;
+    }
+    return `${normalizedBase}${normalizedPath}/${cleanToken}`;
+  }
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -161,15 +187,28 @@ export function CustomersTable({
   }
 
   function getTokenLink(customer: CustomerRow) {
-    return (
-      customer.metadata?.tokenizationLink?.url ||
-      customer.metadata?.wompi?.tokenizationLink?.url ||
-      ""
-    );
+    const meta = customer.metadata ?? {};
+    const raw =
+      meta?.tokenizationLink?.url ||
+      meta?.wompi?.tokenizationLink?.url ||
+      "";
+    const token =
+      meta?.tokenizationLink?.token ||
+      meta?.wompi?.tokenizationLink?.token ||
+      "";
+    return normalizePublicUrl(raw, subscriptionBaseUrl, "/public/suscripcion", token);
   }
 
   function getCartLink(customer: CustomerRow) {
-    return customer.metadata?.cartLink?.url || "";
+    const meta = customer.metadata ?? {};
+    const raw = meta?.cartLink?.url || "";
+    const token = meta?.cartLink?.token || "";
+    const catalogType = String(meta?.cartLink?.catalogType || "").toUpperCase();
+    const base =
+      catalogType === "SUBSCRIPTION"
+        ? subscriptionBaseUrl
+        : planBaseUrl || publicBaseUrl;
+    return normalizePublicUrl(raw, base, "/public/cart", token);
   }
 
   function resolveCartTemplate(customerId: string, mode?: "PLAN" | "SUBSCRIPTION") {
