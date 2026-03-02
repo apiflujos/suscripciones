@@ -265,6 +265,11 @@ const changePlanSchema = z.object({
   cutoffAt: z.string().min(1)
 });
 
+const updateSubscriptionTenantsSchema = z.object({
+  tenantIds: z.array(z.string().uuid()).optional().default([]),
+  primaryTenantId: z.string().uuid().optional().or(z.literal(""))
+});
+
 subscriptionsRouter.post("/:id/payment-link", async (req, res) => {
   const subscriptionId = req.params.id;
 
@@ -457,6 +462,61 @@ subscriptionsRouter.post("/:id/change-plan", async (req, res) => {
   res.status(200).json({ ok: true, subscription: updated, scheduledAt: cutoffAt.toISOString(), scheduled: true });
 });
 
+subscriptionsRouter.put("/:id/tenants", async (req, res) => {
+  const subscriptionId = String(req.params.id || "").trim();
+  if (!subscriptionId) return res.status(400).json({ error: "invalid_id" });
+
+  const parsed = updateSubscriptionTenantsSchema.safeParse(req.body ?? {});
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+
+  const tenantId = await getEffectiveTenantId(req);
+  const existing = await prisma.subscription.findUnique({
+    where: { id: subscriptionId },
+    include: { tenantLinks: true }
+  });
+  if (!existing) return res.status(404).json({ error: "subscription_not_found" });
+  if (tenantId) {
+    const allowed = existing.tenantId === tenantId || (existing.tenantLinks || []).some((t: any) => t.tenantId === tenantId);
+    if (!allowed) return res.status(404).json({ error: "subscription_not_found" });
+    const invalid = (parsed.data.tenantIds || []).find((t) => t !== tenantId);
+    if (invalid) return res.status(403).json({ error: "tenant_forbidden" });
+    if (parsed.data.primaryTenantId && parsed.data.primaryTenantId !== tenantId) {
+      return res.status(403).json({ error: "tenant_forbidden" });
+    }
+  }
+
+  const requestedTenantIds = Array.from(new Set((parsed.data.tenantIds || []).map((v) => String(v || "").trim()).filter(Boolean)));
+  const requestedPrimary = String(parsed.data.primaryTenantId || "").trim();
+  if (requestedPrimary && !requestedTenantIds.includes(requestedPrimary)) {
+    return res.status(400).json({ error: "primary_tenant_not_in_list" });
+  }
+  const primaryTenantId = requestedPrimary || requestedTenantIds[0] || null;
+
+  if (requestedTenantIds.length) {
+    const countTenants = await prisma.saTenant.count({ where: { id: { in: requestedTenantIds } } });
+    if (countTenants !== requestedTenantIds.length) return res.status(400).json({ error: "tenant_not_found" });
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const next = await tx.subscription.update({
+      where: { id: subscriptionId },
+      data: {
+        tenantId: primaryTenantId
+      }
+    });
+    await tx.subscriptionTenant.deleteMany({ where: { subscriptionId } });
+    if (requestedTenantIds.length) {
+      await tx.subscriptionTenant.createMany({
+        data: requestedTenantIds.map((t) => ({ subscriptionId, tenantId: t })),
+        skipDuplicates: true
+      });
+    }
+    return next;
+  });
+
+  res.json({ ok: true, subscription: updated });
+});
+
 subscriptionsRouter.post("/:id/recalculate-cutoff", async (req, res) => {
   const subscriptionId = String(req.params.id || "").trim();
   if (!subscriptionId) return res.status(400).json({ error: "invalid_id" });
@@ -628,15 +688,25 @@ subscriptionsRouter.delete("/:id", async (req, res) => {
     });
   }
 
+  const purgePayments = String((req as any)?.query?.purgePayments || "").trim() === "1";
+
   if (force) {
     const payments = await prisma.payment.findMany({ where: { subscriptionId }, select: { id: true } });
     const paymentIds = payments.map((p: any) => p.id);
-    if (paymentIds.length) {
+    if (paymentIds.length && !purgePayments) {
+      return res.status(409).json({
+        error: "subscription_has_payments",
+        reason: "use_purgePayments=1_to_delete_with_payments"
+      });
+    }
+    if (paymentIds.length && purgePayments) {
       await prisma.paymentAttempt.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch(() => {});
     }
     await prisma.paymentLink.deleteMany({ where: { subscriptionId } }).catch(() => {});
     await prisma.chatwootMessage.deleteMany({ where: { subscriptionId } }).catch(() => {});
-    await prisma.payment.deleteMany({ where: { subscriptionId } }).catch(() => {});
+    if (purgePayments) {
+      await prisma.payment.deleteMany({ where: { subscriptionId } }).catch(() => {});
+    }
   }
 
   await prisma.subscription.delete({ where: { id: subscriptionId } });

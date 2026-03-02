@@ -125,7 +125,12 @@ export async function updateCustomer(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);
   const id = String(formData.get("id") || "").trim();
-  const tenantId = String(formData.get("tenantId") || "").trim();
+  const scopeTenantId = String(formData.get("scopeTenantId") || formData.get("tenantId") || "").trim();
+  const tenantIds = formData
+    .getAll("tenantIds")
+    .map((v) => String(v || "").trim())
+    .filter(Boolean);
+  const primaryTenantId = String(formData.get("primaryTenantId") || "").trim();
   const name = String(formData.get("name") || "").trim();
   const email = String(formData.get("email") || "").trim();
   const phone = String(formData.get("phone") || "").trim();
@@ -138,7 +143,7 @@ export async function updateCustomer(formData: FormData) {
   const idNumber = String(formData.get("idNumber") || "").trim();
 
   if (!id) return redirect(mergeQuery(returnTo, { error: "invalid_id" }));
-  if (!phone) return redirect(mergeQuery(returnTo, { error: "telefono_requerido", ...(tenantId ? { tenantId } : {}) }));
+  if (!phone) return redirect(mergeQuery(returnTo, { error: "telefono_requerido", ...(scopeTenantId ? { tenantId: scopeTenantId } : {}) }));
 
   try {
     const address =
@@ -160,17 +165,18 @@ export async function updateCustomer(formData: FormData) {
     await adminFetch(`/admin/customers/${encodeURIComponent(id)}`, {
       method: "PUT",
       body: JSON.stringify({
-        ...(tenantId ? { tenantId } : {}),
+        tenantIds,
+        primaryTenantId: primaryTenantId || "",
         name: name || "",
         email: email || "",
         phone: phone || "",
         ...(metadata ? { metadata } : {})
       })
     });
-    redirect(mergeQuery(returnTo, { updated: "1", ...(tenantId ? { tenantId } : {}) }));
+    redirect(mergeQuery(returnTo, { updated: "1", ...(scopeTenantId ? { tenantId: scopeTenantId } : {}) }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
-    redirect(mergeQuery(returnTo, { error: String(err?.message || "update_customer_failed"), ...(tenantId ? { tenantId } : {}) }));
+    redirect(mergeQuery(returnTo, { error: String(err?.message || "update_customer_failed"), ...(scopeTenantId ? { tenantId: scopeTenantId } : {}) }));
   }
 }
 

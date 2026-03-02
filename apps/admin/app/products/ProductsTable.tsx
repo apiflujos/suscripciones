@@ -7,19 +7,20 @@ import { VariantsEditor } from "./VariantsEditor";
 import { LocalDateTime } from "../ui/LocalDateTime";
 import { DeleteProductButton } from "./DeleteProductButton";
 import { NewBillingAssignmentForm } from "../billing/NewBillingAssignmentForm";
+import { DEFAULT_CURRENCY, SUPPORTED_CURRENCIES, normalizeSupportedCurrency } from "../lib/currencies";
 
-function formatCopCurrency(input: string): string {
+function formatCurrencyInput(input: string, currency: string): string {
   const digits = String(input || "").replace(/[^\d]/g, "");
   if (!digits) return "";
   const value = Number(digits);
   if (!Number.isFinite(value)) return "";
-  return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(value);
+  return new Intl.NumberFormat("es-CO", { style: "currency", currency, maximumFractionDigits: 0 }).format(value);
 }
 
-function formatCopFromCents(cents: number) {
+function formatMoneyFromCents(cents: number, currency: string) {
   const pesos = Math.trunc(Number(cents || 0) / 100);
   if (!Number.isFinite(pesos)) return "";
-  return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(pesos);
+  return new Intl.NumberFormat("es-CO", { style: "currency", currency, maximumFractionDigits: 0 }).format(pesos);
 }
 
 type ProductRow = {
@@ -111,6 +112,7 @@ export function ProductsTable({
   const [tags, setTags] = useState("");
   const [unit, setUnit] = useState("");
   const [priceCop, setPriceCop] = useState("");
+  const [currency, setCurrency] = useState(DEFAULT_CURRENCY);
   const [taxPercent, setTaxPercent] = useState("0");
   const [intervalUnit, setIntervalUnit] = useState<"DAY" | "WEEK" | "MONTH" | "CUSTOM">("MONTH");
   const [intervalCount, setIntervalCount] = useState("1");
@@ -120,6 +122,7 @@ export function ProductsTable({
   const [collectionMode, setCollectionMode] = useState<"AUTO_LINK" | "AUTO_DEBIT">("AUTO_LINK");
   const [requiresShipping, setRequiresShipping] = useState(false);
   const [selectedTenantIds, setSelectedTenantIds] = useState<string[]>([]);
+  const [primaryTenantId, setPrimaryTenantId] = useState("");
   const [option1Name, setOption1Name] = useState("");
   const [option2Name, setOption2Name] = useState("");
   const [variantOptionsCount, setVariantOptionsCount] = useState<0 | 1 | 2>(0);
@@ -146,10 +149,12 @@ export function ProductsTable({
     setProductType(item.productType || "");
     setTags(item.tags || "");
     setUnit(item.unit || "");
-    setPriceCop(formatCopFromCents(Number(item.basePriceInCents || 0)));
+    const normalizedCurrency = normalizeSupportedCurrency(item.currency || DEFAULT_CURRENCY);
+    setCurrency(normalizedCurrency);
+    setPriceCop(formatMoneyFromCents(Number(item.basePriceInCents || 0), normalizedCurrency));
     setTaxPercent(String(item.taxPercent ?? 0));
     setDiscountType((item.discountType as any) || "NONE");
-    setDiscountCop(formatCopFromCents(Number(item.discountValueInCents || 0)));
+    setDiscountCop(formatMoneyFromCents(Number(item.discountValueInCents || 0), normalizedCurrency));
     setDiscountPercent(String(item.discountPercent ?? 0));
     setCollectionMode(String(item.collectionMode || "AUTO_LINK") as any);
     setIntervalUnit((item.intervalUnit as any) || "MONTH");
@@ -162,6 +167,7 @@ export function ProductsTable({
     setImageUrlInput(isPublicImage(currentImageUrl) ? currentImageUrl : "");
     const ids = Array.isArray(item.tenantIds) && item.tenantIds.length ? item.tenantIds : item.tenantId ? [item.tenantId] : [];
     setSelectedTenantIds(ids as string[]);
+    setPrimaryTenantId(String(item.tenantId || ids[0] || ""));
     const hasOpt2 = Boolean(item.option2Name) || (item.variants || []).some((v) => v?.option2);
     const hasOpt1 = Boolean(item.option1Name) || (item.variants || []).some((v) => v?.option1);
     setVariantOptionsCount(hasOpt2 ? 2 : hasOpt1 ? 1 : 0);
@@ -171,7 +177,19 @@ export function ProductsTable({
   function closeEditor() {
     setOpen(false);
     setEditing(null);
+    setPrimaryTenantId("");
     setTimeout(() => lastActiveRef.current?.focus(), 0);
+  }
+
+  function toggleTenantSelection(tenantId: string, checked: boolean) {
+    const id = String(tenantId || "").trim();
+    if (!id) return;
+    setSelectedTenantIds((prev) => {
+      const next = checked ? Array.from(new Set([...prev, id])) : prev.filter((v) => v !== id);
+      if (!next.length) setPrimaryTenantId("");
+      else if (!next.includes(primaryTenantId)) setPrimaryTenantId(next[0] || "");
+      return next;
+    });
   }
 
   async function openTransactions(item: ProductRow) {
@@ -527,7 +545,7 @@ export function ProductsTable({
             <div className="product-info">
               <div>
                 <span>Precio</span>
-                <strong>{formatCopFromCents(p.basePriceInCents)}</strong>
+                <strong>{formatMoneyFromCents(p.basePriceInCents, String(p.currency || DEFAULT_CURRENCY))}</strong>
               </div>
               <div>
                 <span>IVA</span>
@@ -539,7 +557,7 @@ export function ProductsTable({
                   {p.discountType === "PERCENT"
                     ? `${p.discountPercent || 0}%`
                     : p.discountType === "FIXED"
-                      ? formatCopFromCents(p.discountValueInCents || 0)
+                      ? formatMoneyFromCents(p.discountValueInCents || 0, String(p.currency || DEFAULT_CURRENCY))
                       : "—"}
                 </strong>
               </div>
@@ -612,7 +630,7 @@ export function ProductsTable({
                       <div className="send-product-meta">
                         <span>{sendProduct.kind === "SERVICE" ? "Servicio" : "Producto"}</span>
                         <span>·</span>
-                        <span>{formatCopFromCents(sendProduct.basePriceInCents)}</span>
+                        <span>{formatMoneyFromCents(sendProduct.basePriceInCents, String(sendProduct.currency || DEFAULT_CURRENCY))}</span>
                       </div>
                     </div>
                   </div>
@@ -899,8 +917,9 @@ export function ProductsTable({
             <form action={updateProduct} style={{ display: "grid", gap: 10 }}>
               <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="id" value={editing.id} />
-              <input type="hidden" name="currency" value="COP" />
+              <input type="hidden" name="currency" value={currency} />
               <input type="hidden" name="tenantId" value={editing.tenantId || ""} />
+              <input type="hidden" name="primaryTenantId" value={primaryTenantId} />
               {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
               {selectedTenantIds.map((id) => (
                 <input key={id} type="hidden" name="tenantIds" value={id} />
@@ -944,21 +963,32 @@ export function ProductsTable({
               {tenants.length > 0 ? (
                 <div className="field">
                   <label>Canal(es)</label>
-                  <select
-                    className="select"
-                    multiple
-                    value={selectedTenantIds}
-                    onChange={(e) => {
-                      const values = Array.from(e.target.selectedOptions).map((opt) => opt.value);
-                      setSelectedTenantIds(values);
-                    }}
-                  >
-                    {tenants.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div style={{ display: "grid", gap: 6 }}>
+                    {tenants.map((t) => {
+                      const id = String(t.id || "");
+                      const checked = selectedTenantIds.includes(id);
+                      return (
+                        <label key={id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <input type="checkbox" checked={checked} onChange={(e) => toggleTenantSelection(id, e.target.checked)} />
+                          <span>{t.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <div className="field" style={{ marginTop: 10 }}>
+                    <label>Canal principal</label>
+                    <select className="select" value={primaryTenantId} onChange={(e) => setPrimaryTenantId(String(e.target.value || ""))} disabled={!selectedTenantIds.length}>
+                      <option value="">Sin canal principal</option>
+                      {selectedTenantIds.map((id) => {
+                        const tenant = tenants.find((t) => String(t.id) === id);
+                        return (
+                          <option key={`primary-${id}`} value={id}>
+                            {tenant?.name || id}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
                   <div className="field-hint">Puedes seleccionar uno o varios canales.</div>
                 </div>
               ) : null}
@@ -1046,7 +1076,27 @@ export function ProductsTable({
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                <div className="field">
+                  <label>Moneda</label>
+                  <select
+                    className="select"
+                    name="currencySelect"
+                    value={currency}
+                    onChange={(e) => {
+                      const next = normalizeSupportedCurrency(e.target.value);
+                      setCurrency(next);
+                      setPriceCop(formatCurrencyInput(priceCop, next));
+                      setDiscountCop(formatCurrencyInput(discountCop, next));
+                    }}
+                  >
+                    {SUPPORTED_CURRENCIES.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <div className="field">
                   <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span>Unidad</span>
@@ -1064,7 +1114,7 @@ export function ProductsTable({
                     name="basePricePesos"
                     inputMode="numeric"
                     value={priceCop}
-                    onChange={(e) => setPriceCop(formatCopCurrency(e.target.value))}
+                    onChange={(e) => setPriceCop(formatCurrencyInput(e.target.value, currency))}
                     required
                   />
                 </div>
@@ -1115,7 +1165,7 @@ export function ProductsTable({
                 <div className="field">
                   <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span>Descuento (valor)</span>
-                    <HelpTip text="Valor fijo en COP." />
+                    <HelpTip text={`Valor fijo en ${currency}.`} />
                   </label>
                   <input
                     className="input"
@@ -1123,7 +1173,7 @@ export function ProductsTable({
                     placeholder="$ 0"
                     inputMode="numeric"
                     value={discountCop}
-                    onChange={(e) => setDiscountCop(formatCopCurrency(e.target.value))}
+                    onChange={(e) => setDiscountCop(formatCurrencyInput(e.target.value, currency))}
                   />
                 </div>
                 <div className="field">
@@ -1253,7 +1303,7 @@ export function ProductsTable({
                     {txItems.map((t) => (
                       <tr key={t.id}>
                         <td><LocalDateTime value={t.createdAt} /></td>
-                        <td>{formatCopFromCents(t.amountInCents)}</td>
+                        <td>{formatMoneyFromCents(t.amountInCents, String(t.currency || DEFAULT_CURRENCY))}</td>
                         <td className="cell-truncate" title={t.status || "—"}>{t.status || "—"}</td>
                         <td className="cell-truncate" title={t.customerName || "—"}>{t.customerName || "—"}</td>
                         <td className="cell-truncate mono" title={t.reference || "—"}>{t.reference || "—"}</td>

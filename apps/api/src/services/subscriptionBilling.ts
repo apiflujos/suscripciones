@@ -2,10 +2,10 @@ import { CredentialProvider, LogLevel, PaymentLinkStatus, PaymentStatus, RetryJo
 import { prisma } from "../db/prisma";
 import { WompiClient } from "../providers/wompi/client";
 import { systemLog } from "./systemLog";
-import { sha256Hex } from "../lib/crypto";
 import { syncChatwootAttributesForCustomer } from "./chatwootSync";
 import { getCredential } from "./credentials";
 import { logger } from "../lib/logger";
+import { buildWompiTransactionSignature, validateWompiCurrency } from "../lib/wompiSignature";
 import {
   getChatwootConfig,
   getWompiApiBaseUrl,
@@ -18,6 +18,7 @@ import {
 import { schedulePaymentLinkNotifications } from "./notificationsScheduler";
 
 const PAYMENT_LINK_LOCK_PREFIX = "payment-link";
+const AUTO_DEBIT_LOCK_PREFIX = "auto-debit";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -401,10 +402,22 @@ export async function createAutoDebitTransactionForSubscription(args: {
 
   const cycle = sub.currentCycle;
   const reference = `SUB_${sub.id}_${cycle}`;
-  const amountInCents = args.amountInCentsOverride ?? sub.plan.priceInCents;
-  const currency = sub.plan.currency;
+  const amountInCents = Math.trunc(args.amountInCentsOverride ?? sub.plan.priceInCents);
+  const currency = validateWompiCurrency(sub.plan.currency);
 
   const subscriptionCycleKey = `${sub.id}:${cycle}`;
+  const existingByCycle = await prisma.payment.findUnique({
+    where: { subscriptionCycleKey },
+    select: { id: true, status: true, wompiTransactionId: true }
+  });
+
+  if (existingByCycle?.status === PaymentStatus.APPROVED) {
+    if (existingByCycle.wompiTransactionId) {
+      return { paymentId: existingByCycle.id, wompiTransactionId: existingByCycle.wompiTransactionId };
+    }
+    throw new Error("payment_already_approved");
+  }
+
   const payment = await prisma.payment.upsert({
     where: { subscriptionCycleKey },
     create: {
@@ -422,8 +435,7 @@ export async function createAutoDebitTransactionForSubscription(args: {
       tenantId,
       amountInCents,
       currency,
-      reference,
-      status: PaymentStatus.PENDING
+      reference
     }
   });
 
@@ -431,28 +443,96 @@ export async function createAutoDebitTransactionForSubscription(args: {
     return { paymentId: payment.id, wompiTransactionId: payment.wompiTransactionId };
   }
 
+  const lockKey = `${AUTO_DEBIT_LOCK_PREFIX}:${subscriptionCycleKey}`;
+  const locked = await tryAcquirePaymentLinkLock(lockKey);
+  if (!locked) {
+    for (let attempt = 0; attempt < 6; attempt++) {
+      await delay(250);
+      const existing = await prisma.payment.findUnique({
+        where: { id: payment.id },
+        select: { wompiTransactionId: true, status: true }
+      });
+      if (existing?.wompiTransactionId) {
+        return { paymentId: payment.id, wompiTransactionId: existing.wompiTransactionId };
+      }
+      if (existing?.status === PaymentStatus.APPROVED) {
+        throw new Error("payment_already_approved");
+      }
+    }
+    await systemLog(LogLevel.WARN, "subscriptions.auto_debit", "Auto debit already in progress", {
+      subscriptionId: sub.id,
+      paymentId: payment.id
+    }).catch(() => {});
+    throw new Error("auto_debit_in_progress");
+  }
+
+  let lockReleased = false;
+  const releaseLock = async () => {
+    if (lockReleased) return;
+    lockReleased = true;
+    await releasePaymentLinkLock(lockKey).catch((err) => {
+      logIgnored(err, "auto debit: failed to release advisory lock", { lockKey });
+    });
+  };
+
   const privateKey = await getWompiPrivateKey();
-  if (!privateKey) throw new Error("wompi_private_key_not_configured");
+  if (!privateKey) {
+    await releaseLock();
+    throw new Error("wompi_private_key_not_configured");
+  }
   const integritySecret = await getWompiIntegritySecret();
-  if (!integritySecret) throw new Error("wompi_integrity_secret_not_configured");
+  if (!integritySecret) {
+    await releaseLock();
+    throw new Error("wompi_integrity_secret_not_configured");
+  }
   const publicKey = await getWompiPublicKey();
-  if (!publicKey) throw new Error("wompi_public_key_not_configured");
+  if (!publicKey) {
+    await releaseLock();
+    throw new Error("wompi_public_key_not_configured");
+  }
 
   const apiBaseUrl = await getWompiApiBaseUrl();
   const checkoutLinkBaseUrl = await getWompiCheckoutLinkBaseUrl();
   const wompi = new WompiClient({ apiBaseUrl, privateKey, checkoutLinkBaseUrl });
-  const merchant = await wompi.getMerchant(publicKey);
+  let merchant: Awaited<ReturnType<WompiClient["getMerchant"]>>;
+  try {
+    merchant = await wompi.getMerchant(publicKey);
+  } catch (err) {
+    await releaseLock();
+    throw err;
+  }
 
-  const signFor = (ref: string) => sha256Hex(`${ref}${amountInCents}${currency}${integritySecret}`);
+  const signFor = (ref: string) =>
+    buildWompiTransactionSignature({
+      reference: ref,
+      amountInCents,
+      currency,
+      integritySecret
+    });
   let usedReference = reference;
   let created: Awaited<ReturnType<WompiClient["createTransaction"]>>;
   try {
+    const existingAfterLock = await prisma.payment.findUnique({
+      where: { id: payment.id },
+      select: { wompiTransactionId: true, status: true }
+    });
+    if (existingAfterLock?.wompiTransactionId) {
+      await releaseLock();
+      return { paymentId: payment.id, wompiTransactionId: existingAfterLock.wompiTransactionId };
+    }
+    if (existingAfterLock?.status === PaymentStatus.APPROVED) {
+      await releaseLock();
+      throw new Error("payment_already_approved");
+    }
+
+    const signed = signFor(usedReference);
+    usedReference = signed.normalizedReference;
     created = await wompi.createTransaction({
-      amount_in_cents: amountInCents,
-      currency,
+      amount_in_cents: signed.normalizedAmountInCents,
+      currency: signed.normalizedCurrency,
       customer_email: sub.customer.email,
       reference: usedReference,
-      signature: signFor(usedReference),
+      signature: signed.signature,
       acceptance_token: merchant.acceptanceToken,
       accept_personal_auth: merchant.acceptPersonalAuth,
       payment_source_id: paymentSourceId as number,
@@ -475,12 +555,14 @@ export async function createAutoDebitTransactionForSubscription(args: {
       }).catch(() => {});
 
       try {
+        const signed = signFor(usedReference);
+        usedReference = signed.normalizedReference;
         created = await wompi.createTransaction({
-          amount_in_cents: amountInCents,
-          currency,
+          amount_in_cents: signed.normalizedAmountInCents,
+          currency: signed.normalizedCurrency,
           customer_email: sub.customer.email,
           reference: usedReference,
-          signature: signFor(usedReference),
+          signature: signed.signature,
           acceptance_token: merchant.acceptanceToken,
           accept_personal_auth: merchant.acceptPersonalAuth,
           payment_source_id: paymentSourceId as number,
@@ -495,41 +577,43 @@ export async function createAutoDebitTransactionForSubscription(args: {
           reference: usedReference,
           amountInCents,
           currency,
-          signature: signFor(usedReference),
+          signature: signFor(usedReference).signature,
           err: retryMessage
         }).catch(() => {});
         throw retryErr;
       }
     } else {
-    await systemLog(LogLevel.ERROR, "subscriptions.auto_debit", "Transaction create failed (signature details)", {
-      subscriptionId: sub.id,
-      paymentId: payment.id,
-      reference: usedReference,
-      amountInCents,
-      currency,
-      signature: signFor(usedReference),
-      err: errMsg
-    }).catch((logErr) => {
-      logIgnored(logErr, "auto debit: failed to write error system log", { subscriptionId: sub.id, paymentId: payment.id });
-    });
-    await prisma.paymentAttempt.create({
-      data: {
+      await systemLog(LogLevel.ERROR, "subscriptions.auto_debit", "Transaction create failed (signature details)", {
+        subscriptionId: sub.id,
         paymentId: payment.id,
-        attemptNo: 0,
-        status: "TRANSACTION_CREATE_FAILED",
-        provider: "wompi",
-        errorMessage: err?.message ? String(err.message) : "unknown error"
-      }
-    });
-    await systemLog(LogLevel.ERROR, "subscriptions.auto_debit", "Transaction create failed", {
-      subscriptionId: sub.id,
-      paymentId: payment.id,
-      err: errMsg
-    }).catch((logErr) => {
-      logIgnored(logErr, "auto debit: failed to write error system log", { subscriptionId: sub.id, paymentId: payment.id });
-    });
-    throw err;
+        reference: usedReference,
+        amountInCents,
+        currency,
+        signature: signFor(usedReference).signature,
+        err: errMsg
+      }).catch((logErr) => {
+        logIgnored(logErr, "auto debit: failed to write error system log", { subscriptionId: sub.id, paymentId: payment.id });
+      });
+      await prisma.paymentAttempt.create({
+        data: {
+          paymentId: payment.id,
+          attemptNo: 0,
+          status: "TRANSACTION_CREATE_FAILED",
+          provider: "wompi",
+          errorMessage: err?.message ? String(err.message) : "unknown error"
+        }
+      });
+      await systemLog(LogLevel.ERROR, "subscriptions.auto_debit", "Transaction create failed", {
+        subscriptionId: sub.id,
+        paymentId: payment.id,
+        err: errMsg
+      }).catch((logErr) => {
+        logIgnored(logErr, "auto debit: failed to write error system log", { subscriptionId: sub.id, paymentId: payment.id });
+      });
+      throw err;
     }
+  } finally {
+    await releaseLock();
   }
 
   await prisma.paymentAttempt.create({

@@ -4,6 +4,7 @@ import { prisma } from "../db/prisma";
 import { LogLevel, PlanIntervalUnit } from "@prisma/client";
 import { systemLog } from "../services/systemLog";
 import { getEffectiveTenantId, getEffectiveTenantIds, readTenantIdsFromReq } from "../services/tenantContext";
+import { DEFAULT_CURRENCY, isSupportedCurrency, normalizeCurrencyCode } from "../lib/currencies";
 
 const variantRowSchema = z.object({
   option1: z.string().optional().nullable(),
@@ -11,11 +12,15 @@ const variantRowSchema = z.object({
   priceDeltaInCents: z.number().int()
 });
 
+const currencyCodeSchema = z
+  .preprocess((v) => normalizeCurrencyCode(v), z.string().min(3).max(3))
+  .refine((v) => isSupportedCurrency(v), { message: "unsupported_currency" });
+
 const createProductSchema = z.object({
   name: z.string().min(1),
   sku: z.string().min(1),
   kind: z.enum(["PRODUCT", "SERVICE"]).optional().default("PRODUCT"),
-  currency: z.string().min(3).max(3).optional().default("COP"),
+  currency: currencyCodeSchema.optional().default(DEFAULT_CURRENCY),
   basePriceInCents: z.number().int().nonnegative(),
   intervalUnit: z.nativeEnum(PlanIntervalUnit).optional().default(PlanIntervalUnit.MONTH),
   intervalCount: z.number().int().positive().optional().default(1),
@@ -220,7 +225,9 @@ productsRouter.get("/:id", async (req, res) => {
   });
 });
 
-const updateProductSchema = createProductSchema.extend({});
+const updateProductSchema = createProductSchema.extend({
+  primaryTenantId: z.string().uuid().optional().or(z.literal(""))
+});
 
 productsRouter.put("/:id", async (req, res) => {
   const id = String(req.params.id || "").trim();
@@ -272,17 +279,23 @@ productsRouter.put("/:id", async (req, res) => {
   };
 
   const requestedTenantIds = readTenantIdsFromReq(req);
-  const primaryTenantId = requestedTenantIds[0] || existing.tenantId || null;
+  const requestedPrimaryTenantId = String((data as any)?.primaryTenantId || "").trim();
+  if (requestedPrimaryTenantId && requestedTenantIds.length && !requestedTenantIds.includes(requestedPrimaryTenantId)) {
+    return res.status(400).json({ error: "primary_tenant_not_in_list" });
+  }
+  const primaryTenantId = requestedPrimaryTenantId || requestedTenantIds[0] || existing.tenantId || null;
+  const dataForSave: any = { ...(data as any) };
+  delete dataForSave.primaryTenantId;
 
   const updated = await prisma.subscriptionPlan.update({
     where: { id },
     data: {
       ...(primaryTenantId ? { tenantId: primaryTenantId } : {}),
-      name: `[${data.sku}] ${data.name}`,
-      currency: data.currency,
-      priceInCents: data.basePriceInCents,
-      intervalUnit: data.intervalUnit ?? PlanIntervalUnit.MONTH,
-      intervalCount: data.intervalCount ?? 1,
+      name: `[${dataForSave.sku}] ${dataForSave.name}`,
+      currency: dataForSave.currency,
+      priceInCents: dataForSave.basePriceInCents,
+      intervalUnit: dataForSave.intervalUnit ?? PlanIntervalUnit.MONTH,
+      intervalCount: dataForSave.intervalCount ?? 1,
       metadata: mergedMetadata as any
     }
   });
@@ -299,29 +312,29 @@ productsRouter.put("/:id", async (req, res) => {
         const totals = computeTotalsForCatalog({
           basePriceInCents: data.basePriceInCents,
           variantDeltaInCents: variantDelta,
-          discountType: data.discountType,
-          discountValueInCents: data.discountValueInCents,
-          discountPercent: data.discountPercent,
-          taxPercent: data.taxPercent
+          discountType: dataForSave.discountType,
+          discountValueInCents: dataForSave.discountValueInCents,
+          discountPercent: dataForSave.discountPercent,
+          taxPercent: dataForSave.taxPercent
         });
         const nextMeta = {
           ...meta,
           catalog: {
             ...(meta.catalog || {}),
             itemId: id,
-            sku: data.sku,
-            name: data.name,
-            kind: data.kind,
-            option1Name: data.option1Name || null,
-            option2Name: data.option2Name || null
+            sku: dataForSave.sku,
+            name: dataForSave.name,
+            kind: dataForSave.kind,
+            option1Name: dataForSave.option1Name || null,
+            option2Name: dataForSave.option2Name || null
           },
           pricing: {
             ...(meta.pricing || {}),
-            basePriceInCents: data.basePriceInCents,
-            discountType: data.discountType,
-            discountValueInCents: data.discountValueInCents,
-            discountPercent: data.discountPercent,
-            taxPercent: data.taxPercent,
+            basePriceInCents: dataForSave.basePriceInCents,
+            discountType: dataForSave.discountType,
+            discountValueInCents: dataForSave.discountValueInCents,
+            discountPercent: dataForSave.discountPercent,
+            taxPercent: dataForSave.taxPercent,
             totalInCents: totals.totalInCents
           }
         };
@@ -329,8 +342,8 @@ productsRouter.put("/:id", async (req, res) => {
           where: { id: plan.id },
           data: {
             priceInCents: totals.totalInCents,
-            intervalUnit: data.intervalUnit ?? PlanIntervalUnit.MONTH,
-            intervalCount: data.intervalCount ?? 1,
+            intervalUnit: dataForSave.intervalUnit ?? PlanIntervalUnit.MONTH,
+            intervalCount: dataForSave.intervalCount ?? 1,
             metadata: nextMeta as any
           }
         });

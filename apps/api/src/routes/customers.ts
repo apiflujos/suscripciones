@@ -17,6 +17,9 @@ const createCustomerSchema = z.object({
 });
 
 const updateCustomerSchema = z.object({
+  tenantId: z.string().uuid().optional().or(z.literal("")),
+  tenantIds: z.array(z.string().uuid()).optional(),
+  primaryTenantId: z.string().uuid().optional().or(z.literal("")),
   name: z.string().min(1).optional().or(z.literal("")),
   email: z.string().email().optional().or(z.literal("")),
   phone: z.string().min(6).optional().or(z.literal("")),
@@ -127,10 +130,28 @@ customersRouter.get("/", async (_req, res) => {
   }
 
   const [items, total] = await Promise.all([
-    prisma.customer.findMany({ where, orderBy: { createdAt: "desc" }, take, skip }),
+    prisma.customer.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take,
+      skip,
+      include: { tenantLinks: { select: { tenantId: true } } }
+    }),
     prisma.customer.count({ where })
   ]);
-  res.json({ items, total });
+  res.json({
+    items: items.map((c: any) => ({
+      ...c,
+      tenantIds: Array.from(
+        new Set(
+          [...(Array.isArray(c?.tenantLinks) ? c.tenantLinks.map((t: any) => String(t?.tenantId || "")) : []), String(c?.tenantId || "")]
+            .map((v) => String(v || "").trim())
+            .filter(Boolean)
+        )
+      )
+    })),
+    total
+  });
 });
 
 customersRouter.get("/:id", async (req, res) => {
@@ -226,6 +247,21 @@ customersRouter.put("/:id", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
 
   const data: any = { ...parsed.data };
+  const hasTenantPayload =
+    Object.prototype.hasOwnProperty.call(req.body || {}, "tenantId")
+    || Object.prototype.hasOwnProperty.call(req.body || {}, "tenantIds")
+    || Object.prototype.hasOwnProperty.call(req.body || {}, "primaryTenantId");
+  const legacyTenantId = String(data.tenantId || "").trim();
+  const requestedTenantIdsRaw = Array.isArray(data.tenantIds)
+    ? data.tenantIds
+    : legacyTenantId
+      ? [legacyTenantId]
+      : [];
+  const requestedTenantIds = Array.from(new Set(requestedTenantIdsRaw.map((v: any) => String(v || "").trim()).filter(Boolean)));
+  const requestedPrimaryTenantId = String(data.primaryTenantId || "").trim();
+  delete data.tenantId;
+  delete data.tenantIds;
+  delete data.primaryTenantId;
   if (data.name === "") data.name = null;
   if (data.email === "") data.email = null;
   if (data.phone === "") data.phone = null;
@@ -241,8 +277,54 @@ customersRouter.put("/:id", async (req, res) => {
       const allowed = existing.tenantId === tenantId
         || (await prisma.customerTenant.count({ where: { customerId, tenantId } })) > 0;
       if (!allowed) return res.status(404).json({ error: "customer_not_found" });
+      if (requestedTenantIds.some((id) => id !== tenantId)) {
+        return res.status(403).json({ error: "tenant_forbidden" });
+      }
+      if (requestedPrimaryTenantId && requestedPrimaryTenantId !== tenantId) {
+        return res.status(403).json({ error: "tenant_forbidden" });
+      }
     }
-    const updated = await prisma.customer.update({ where: { id: customerId }, data });
+
+    let nextTenantIds = requestedTenantIds;
+    if (!hasTenantPayload) {
+      const existingLinks = await prisma.customerTenant.findMany({ where: { customerId }, select: { tenantId: true } });
+      nextTenantIds = Array.from(new Set(
+        [...existingLinks.map((link: any) => String(link.tenantId || "")), String(existing.tenantId || "")]
+          .map((v) => String(v || "").trim())
+          .filter(Boolean)
+      ));
+    }
+
+    if (nextTenantIds.length) {
+      const countTenants = await prisma.saTenant.count({ where: { id: { in: nextTenantIds } } });
+      if (countTenants !== nextTenantIds.length) return res.status(400).json({ error: "tenant_not_found" });
+    }
+    if (requestedPrimaryTenantId && !nextTenantIds.includes(requestedPrimaryTenantId)) {
+      return res.status(400).json({ error: "primary_tenant_not_in_list" });
+    }
+    const nextPrimaryTenantId = requestedPrimaryTenantId || nextTenantIds[0] || null;
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const customerUpdated = await tx.customer.update({
+        where: { id: customerId },
+        data: {
+          ...data,
+          tenantId: nextPrimaryTenantId
+        }
+      });
+
+      if (hasTenantPayload) {
+        await tx.customerTenant.deleteMany({ where: { customerId } });
+        if (nextTenantIds.length) {
+          await tx.customerTenant.createMany({
+            data: nextTenantIds.map((tenantId) => ({ customerId, tenantId })),
+            skipDuplicates: true
+          });
+        }
+      }
+
+      return customerUpdated;
+    });
     await syncChatwootAttributesForCustomer(updated.id).catch(() => {});
 
     const prevEmail = String(existing?.email || "").trim();
@@ -308,16 +390,66 @@ customersRouter.delete("/:id", async (req, res) => {
       prisma.smartListMember.count({ where: { customerId } }),
       prisma.campaignSend.count({ where: { customerId } })
     ]);
+    const force = String((req as any)?.query?.force || "").trim() === "1";
 
-    if (subscriptionsCount || paymentsCount || chatwootCount || smartListCount || campaignCount) {
+    if (!force && (subscriptionsCount || paymentsCount || chatwootCount || smartListCount || campaignCount)) {
       return res.status(409).json({
         error: "customer_has_dependencies",
         details: { subscriptionsCount, paymentsCount, chatwootCount, smartListCount, campaignCount }
       });
     }
 
+    if (force) {
+      const subscriptions = await prisma.subscription.findMany({
+        where: { customerId },
+        select: { id: true }
+      });
+      const subscriptionIds = subscriptions.map((s: any) => s.id);
+      const payments = await prisma.payment.findMany({
+        where: {
+          OR: [
+            { customerId },
+            ...(subscriptionIds.length ? [{ subscriptionId: { in: subscriptionIds } }] : [])
+          ]
+        },
+        select: { id: true }
+      });
+      const paymentIds = payments.map((p: any) => p.id);
+
+      if (paymentIds.length) {
+        await prisma.paymentAttempt.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch(() => {});
+      }
+      await prisma.chatwootMessage.deleteMany({
+        where: {
+          OR: [
+            { customerId },
+            ...(subscriptionIds.length ? [{ subscriptionId: { in: subscriptionIds } }] : []),
+            ...(paymentIds.length ? [{ paymentId: { in: paymentIds } }] : [])
+          ]
+        }
+      }).catch(() => {});
+      if (paymentIds.length) {
+        await prisma.paymentLink.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch(() => {});
+      }
+      await prisma.payment.deleteMany({
+        where: {
+          OR: [
+            { customerId },
+            ...(subscriptionIds.length ? [{ subscriptionId: { in: subscriptionIds } }] : [])
+          ]
+        }
+      }).catch(() => {});
+      if (subscriptionIds.length) {
+        await prisma.subscriptionTenant.deleteMany({ where: { subscriptionId: { in: subscriptionIds } } }).catch(() => {});
+      }
+      await prisma.subscription.deleteMany({ where: { customerId } }).catch(() => {});
+      await prisma.smartListMember.deleteMany({ where: { customerId } }).catch(() => {});
+      await prisma.campaignSend.deleteMany({ where: { customerId } }).catch(() => {});
+      await prisma.customerTenant.deleteMany({ where: { customerId } }).catch(() => {});
+    }
+
     await prisma.customer.delete({ where: { id: customerId } });
-    res.json({ ok: true });
+    res.json({ ok: true, forced: force });
   } catch (err: any) {
     if (String(err?.code) === "P2025") return res.status(404).json({ error: "customer_not_found" });
     if (String(err?.code) === "P2003") return res.status(409).json({ error: "customer_has_dependencies" });

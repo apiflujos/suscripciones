@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import crypto from "crypto";
 import { getAdminApiConfig } from "../lib/adminApi";
 import { assertCsrfToken } from "../lib/csrf";
+import { DEFAULT_CURRENCY, normalizeSupportedCurrency } from "../lib/currencies";
 
 function safeReturnTo(formData: FormData) {
   const raw = String(formData.get("returnTo") || "").trim();
@@ -51,6 +52,20 @@ function pesosToCents(input: string): number {
   const pesos = Number(digits);
   if (!Number.isFinite(pesos)) return 0;
   return Math.trunc(pesos) * 100;
+}
+
+function humanizeCreateError(raw: string) {
+  const msg = String(raw || "").trim();
+  if (!msg) return "No se pudo crear la suscripción.";
+  if (msg.includes("tenant_mismatch")) return "El contacto no pertenece al canal seleccionado.";
+  if (msg.includes("tenant_not_allowed_for_plan")) return "El producto no está habilitado para ese canal.";
+  if (msg.includes("missing_customer_or_product")) return "Falta seleccionar contacto o producto.";
+  if (msg.includes("missing_subscription_base_url")) return "Falta configurar URL base de suscripción en Configuración.";
+  if (msg.includes("missing_plan_base_url")) return "Falta configurar URL base de plan en Configuración.";
+  if (msg.includes("create_plan_failed")) return "No se pudo crear el producto de cobro.";
+  if (msg.includes("create_subscription_failed")) return "No se pudo crear la suscripción.";
+  if (msg.includes("csrf_invalid")) return "La sesión expiró. Recarga la página e intenta de nuevo.";
+  return msg;
 }
 
 function escapeHtml(value: string) {
@@ -187,6 +202,7 @@ export async function createPlanTemplate(formData: FormData) {
       const itemKind = String(formData.get("itemKind") || "PRODUCT").trim();
       const itemName = String(formData.get("itemName") || "").trim();
       const itemSku = String(formData.get("itemSku") || "").trim();
+      const itemCurrency = normalizeSupportedCurrency(String(formData.get("itemCurrency") || DEFAULT_CURRENCY));
       const basePriceInCents = pesosToCents(String(formData.get("itemBasePricePesos") || ""));
       const taxPercent = Number(String(formData.get("itemTaxPercent") || "0"));
       const discountType = String(formData.get("itemDiscountType") || "NONE").trim();
@@ -211,7 +227,7 @@ export async function createPlanTemplate(formData: FormData) {
           name: itemName,
           sku: itemSku,
           kind: itemKind,
-          currency: "COP",
+          currency: itemCurrency,
           basePriceInCents,
           taxPercent,
           discountType,
@@ -232,7 +248,7 @@ export async function createPlanTemplate(formData: FormData) {
         sku: itemSku,
         name: itemName,
         kind: itemKind,
-        currency: "COP",
+        currency: itemCurrency,
         basePriceInCents,
         taxPercent,
         discountType,
@@ -408,6 +424,48 @@ export async function recalcCutoff(formData: FormData) {
   }
 }
 
+export async function updateSubscriptionTenants(formData: FormData) {
+  await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
+  const subscriptionId = String(formData.get("subscriptionId") || "").trim();
+  const scopeTenantId = String(formData.get("scopeTenantId") || formData.get("tenantId") || "").trim();
+  const tenantIds = formData
+    .getAll("tenantIds")
+    .map((v) => String(v || "").trim())
+    .filter(Boolean);
+  const primaryTenantId = String(formData.get("primaryTenantId") || "").trim();
+  if (!subscriptionId) {
+    return redirect(mergeQuery(returnTo, { error: "missing_subscription_id", ...(scopeTenantId ? { tenantId: scopeTenantId } : {}) }));
+  }
+  try {
+    const path = scopeTenantId
+      ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/tenants?tenantId=${encodeURIComponent(scopeTenantId)}`
+      : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/tenants`;
+    await adminFetch(path, {
+      method: "PUT",
+      body: JSON.stringify({
+        tenantIds,
+        primaryTenantId: primaryTenantId || ""
+      })
+    });
+    redirect(
+      mergeQuery(returnTo, {
+        tenantsUpdated: "1",
+        subscriptionId,
+        ...(scopeTenantId ? { tenantId: scopeTenantId } : {})
+      })
+    );
+  } catch (err: any) {
+    if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
+    redirect(
+      mergeQuery(returnTo, {
+        error: String(err?.message || "update_subscription_tenants_failed"),
+        ...(scopeTenantId ? { tenantId: scopeTenantId } : {})
+      })
+    );
+  }
+}
+
 export async function changeSubscriptionPlan(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);
@@ -459,6 +517,18 @@ export async function createPlanAndSubscription(formData: FormData) {
     await assertCsrfToken(formData);
     const customerRes = await adminFetch(`/admin/customers/${customerId}`, { method: "GET" }).catch(() => null);
     const customer = customerRes?.customer || {};
+    if (tenantIds.length) {
+      const customerTenantId = String(customer?.tenantId || "").trim();
+      if (customerTenantId && !tenantIds.includes(customerTenantId)) {
+        return redirect(
+          mergeQuery(returnTo, {
+            error: "El contacto no pertenece al canal seleccionado.",
+            customerId,
+            ...(tenantId ? { tenantId } : {})
+          })
+        );
+      }
+    }
     const meta = customer?.metadata || {};
     const paymentSource =
       meta?.wompi?.paymentSourceId ||
@@ -716,7 +786,8 @@ export async function createPlanAndSubscription(formData: FormData) {
     redirect(mergeQuery(returnTo, { created: "1", ...(tenantId ? { tenantId } : {}) }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
-    redirect(mergeQuery(returnTo, { error: String(err?.message || "create_plan_and_subscription_failed"), ...(tenantId ? { tenantId } : {}) }));
+    const friendly = humanizeCreateError(String(err?.message || "create_plan_and_subscription_failed"));
+    redirect(mergeQuery(returnTo, { error: friendly, ...(tenantId ? { tenantId } : {}) }));
   }
 }
 

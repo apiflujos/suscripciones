@@ -8,6 +8,11 @@ import { getCredential } from "../services/credentials";
 import { schedulePaymentLinkNotifications } from "../services/notificationsScheduler";
 import { systemLog } from "../services/systemLog";
 import { getEffectiveTenantId } from "../services/tenantContext";
+import { DEFAULT_CURRENCY, isSupportedCurrency, normalizeCurrencyCode } from "../lib/currencies";
+
+const currencyCodeSchema = z
+  .preprocess((v) => normalizeCurrencyCode(v), z.string().min(3).max(3))
+  .refine((v) => isSupportedCurrency(v), { message: "unsupported_currency" });
 
 const lineItemSchema = z.object({
   sku: z.string().optional().nullable(),
@@ -19,7 +24,7 @@ const lineItemSchema = z.object({
 const createOrderSchema = z.object({
   customerId: z.string().uuid(),
   reference: z.string().min(1),
-  currency: z.string().min(3).max(3).default("COP"),
+  currency: currencyCodeSchema.default(DEFAULT_CURRENCY),
   expiresAt: z.string().datetime().optional(),
   discountType: z.enum(["NONE", "FIXED", "PERCENT"]).optional().default("NONE"),
   discountValueInCents: z.number().int().nonnegative().optional().default(0),

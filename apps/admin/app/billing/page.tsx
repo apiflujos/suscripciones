@@ -1,7 +1,7 @@
 import { activateSubscription, cancelSubscription, deleteSubscription, resumeSubscription, suspendSubscription } from "../subscriptions/actions";
 import { DeleteSubscriptionButton } from "./DeleteSubscriptionButton";
 import { DeletePlanButton } from "./DeletePlanButton";
-import { changeSubscriptionPlan, chargeSubscriptionNow, createCustomerFromBilling, createPlanAndSubscription, deletePlanAndSubscription, scheduleCutoff, recalcCutoff, sendCentralComPaymentLink, sendCentralComTokenizationLink } from "./actions";
+import { changeSubscriptionPlan, chargeSubscriptionNow, createCustomerFromBilling, createPlanAndSubscription, deletePlanAndSubscription, scheduleCutoff, recalcCutoff, sendCentralComPaymentLink, sendCentralComTokenizationLink, updateSubscriptionTenants } from "./actions";
 import { ChargeStatusModal } from "./ChargeStatusModal";
 import { NewBillingAssignmentForm } from "./NewBillingAssignmentForm";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
@@ -173,6 +173,7 @@ export default async function BillingPage({
   const actionSubscriptionId = typeof sp.subscriptionId === "string" ? sp.subscriptionId : "";
   const cutoffScheduled = typeof sp.cutoffScheduled === "string" ? sp.cutoffScheduled : "";
   const cutoffRecalc = typeof sp.cutoffRecalc === "string" ? sp.cutoffRecalc : "";
+  const tenantsUpdated = typeof sp.tenantsUpdated === "string" ? sp.tenantsUpdated : "";
   const error = normalizeErrorParam(typeof sp.error === "string" ? sp.error : undefined);
   const central = typeof sp.central === "string" ? sp.central : "";
   const crear = typeof sp.crear === "string" ? sp.crear : "";
@@ -459,6 +460,7 @@ export default async function BillingPage({
               const chargedForRow = chargeStatus === "ok" && actionSubscriptionId === r.id;
               const cutoffForRow = cutoffScheduled && actionSubscriptionId === r.id;
               const recalcForRow = cutoffRecalc && actionSubscriptionId === r.id;
+              const tenantsUpdatedForRow = tenantsUpdated && actionSubscriptionId === r.id;
               const needsToken = r.mode === "AUTO_DEBIT" && !r.customerTokenized;
               const canSendToken = needsToken && Boolean(subscriptionBaseUrl);
               return (
@@ -677,6 +679,45 @@ export default async function BillingPage({
                         ) : null}
                       </div>
                     ) : null}
+                    <details className="tenant-link-box">
+                      <summary style={{ cursor: "pointer" }}>Canales</summary>
+                      <form action={updateSubscriptionTenants} style={{ marginTop: 8, display: "grid", gap: 8 }}>
+                        <input type="hidden" name="csrf" value={csrfToken} />
+                        <input type="hidden" name="subscriptionId" value={r.id} />
+                        <input type="hidden" name="scopeTenantId" value={r.tenantId || ""} />
+                        <input type="hidden" name="returnTo" value={returnTo} />
+                        <div className="field-hint">
+                          Enlazado a: {r.tenantName && r.tenantName !== "—" ? r.tenantName : "Sin canal"}
+                        </div>
+                        <div style={{ display: "grid", gap: 6, maxHeight: 140, overflow: "auto", paddingRight: 4 }}>
+                          {tenants.map((tenant) => {
+                            const id = String(tenant.id || "");
+                            const checked = Array.isArray(r.tenantIds) && r.tenantIds.includes(id);
+                            return (
+                              <label key={`${r.id}-${id}`} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <input type="checkbox" name="tenantIds" value={id} defaultChecked={checked} />
+                                <span>{tenant.name}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                        <div>
+                          <label>Canal principal</label>
+                          <select className="select" name="primaryTenantId" defaultValue={r.tenantId || ""}>
+                            <option value="">Sin canal principal</option>
+                            {tenants.map((tenant) => (
+                              <option key={`${r.id}-primary-${tenant.id}`} value={tenant.id}>
+                                {tenant.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <button className="ghost btn-compact btn-blue" type="submit">Guardar canales</button>
+                          {tenantsUpdatedForRow ? <span className="field-hint" style={{ marginLeft: 8 }}>Canales actualizados.</span> : null}
+                        </div>
+                      </form>
+                    </details>
                   </div>
                 </div>
               );

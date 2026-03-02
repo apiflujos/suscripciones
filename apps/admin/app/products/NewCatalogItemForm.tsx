@@ -3,13 +3,14 @@
 import { useMemo, useState } from "react";
 import { VariantsEditor } from "./VariantsEditor";
 import { HelpTip } from "../ui/HelpTip";
+import { DEFAULT_CURRENCY, SUPPORTED_CURRENCIES, normalizeSupportedCurrency } from "../lib/currencies";
 
-function formatCopCurrency(input: string): string {
+function formatCurrencyInput(input: string, currency: string): string {
   const digits = String(input || "").replace(/[^\d]/g, "");
   if (!digits) return "";
   const value = Number(digits);
   if (!Number.isFinite(value)) return "";
-  return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(value);
+  return new Intl.NumberFormat("es-CO", { style: "currency", currency, maximumFractionDigits: 0 }).format(value);
 }
 
 export function NewCatalogItemForm({
@@ -26,6 +27,7 @@ export function NewCatalogItemForm({
   const [option2Name, setOption2Name] = useState("");
   const [priceCop, setPriceCop] = useState("");
   const [discountCop, setDiscountCop] = useState("");
+  const [currency, setCurrency] = useState(DEFAULT_CURRENCY);
 
   const hasVariants = useMemo(() => kind === "PRODUCT" && variantOptionsCount > 0, [kind, variantOptionsCount]);
   const showOption2 = useMemo(() => hasVariants && variantOptionsCount === 2, [hasVariants, variantOptionsCount]);
@@ -53,8 +55,6 @@ export function NewCatalogItemForm({
             </select>
           </div>
 
-          <input type="hidden" name="currency" value="COP" />
-
           <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 10 }}>
             <div className="field">
               <label>Nombre</label>
@@ -74,7 +74,7 @@ export function NewCatalogItemForm({
             <textarea className="input" name="description" rows={3} placeholder="Describe el producto o servicio (opcional)" />
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
             <div className="field">
               <label>Marca / Proveedor</label>
               <input className="input" name="vendor" placeholder="Ej: Tu marca" />
@@ -90,6 +90,26 @@ export function NewCatalogItemForm({
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+            <div className="field">
+              <label>Moneda</label>
+              <select
+                className="select"
+                name="currency"
+                value={currency}
+                onChange={(e) => {
+                  const next = normalizeSupportedCurrency(e.target.value);
+                  setCurrency(next);
+                  setPriceCop(formatCurrencyInput(priceCop, next));
+                  setDiscountCop(formatCurrencyInput(discountCop, next));
+                }}
+              >
+                {SUPPORTED_CURRENCIES.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div className="field">
               <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span>Unidad</span>
@@ -107,7 +127,7 @@ export function NewCatalogItemForm({
                 name="basePricePesos"
                 inputMode="numeric"
                 value={priceCop}
-                onChange={(e) => setPriceCop(formatCopCurrency(e.target.value))}
+                onChange={(e) => setPriceCop(formatCurrencyInput(e.target.value, currency))}
                 placeholder="$ 150.500"
                 required
               />
@@ -153,7 +173,7 @@ export function NewCatalogItemForm({
             <div className="field">
               <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span>Descuento (valor)</span>
-                <HelpTip text="Valor fijo en COP." />
+                <HelpTip text={`Valor fijo en ${currency}.`} />
               </label>
               <input
                 className="input"
@@ -161,7 +181,7 @@ export function NewCatalogItemForm({
                 placeholder="$ 0"
                 inputMode="numeric"
                 value={discountCop}
-                onChange={(e) => setDiscountCop(formatCopCurrency(e.target.value))}
+                onChange={(e) => setDiscountCop(formatCurrencyInput(e.target.value, currency))}
               />
             </div>
             <div className="field">

@@ -15,6 +15,7 @@ function formatCopFromCents(cents: number) {
 type CustomerRow = {
   id: string;
   tenantId?: string | null;
+  tenantIds?: string[];
   tenantName?: string;
   name?: string | null;
   email?: string | null;
@@ -157,6 +158,8 @@ export function CustomersTable({
   const [city, setCity] = useState("");
   const [code5, setCode5] = useState("");
   const [dane8, setDane8] = useState("");
+  const [editTenantIds, setEditTenantIds] = useState<string[]>([]);
+  const [editPrimaryTenantId, setEditPrimaryTenantId] = useState("");
   const modalRef = useRef<HTMLDivElement | null>(null);
   const lastActiveRef = useRef<HTMLElement | null>(null);
 
@@ -298,12 +301,37 @@ export function CustomersTable({
     setCity(String(item.metadata?.address?.city || ""));
     setCode5(String(item.metadata?.address?.code5 || ""));
     setDane8(String(item.metadata?.address?.dane8 || ""));
+    const uniqueTenantIds = Array.from(
+      new Set(
+        [...(Array.isArray(item.tenantIds) ? item.tenantIds : []), String(item.tenantId || "")]
+          .map((v) => String(v || "").trim())
+          .filter(Boolean)
+      )
+    );
+    setEditTenantIds(uniqueTenantIds);
+    setEditPrimaryTenantId(uniqueTenantIds.includes(String(item.tenantId || "")) ? String(item.tenantId || "") : uniqueTenantIds[0] || "");
   }
 
   function closeEditor() {
     setOpen(false);
     setEditing(null);
+    setEditTenantIds([]);
+    setEditPrimaryTenantId("");
     setTimeout(() => lastActiveRef.current?.focus(), 0);
+  }
+
+  function toggleEditTenant(tenantId: string, checked: boolean) {
+    const id = String(tenantId || "").trim();
+    if (!id) return;
+    setEditTenantIds((prev) => {
+      const next = checked ? Array.from(new Set([...prev, id])) : prev.filter((v) => v !== id);
+      if (!next.length) {
+        setEditPrimaryTenantId("");
+      } else if (!next.includes(editPrimaryTenantId)) {
+        setEditPrimaryTenantId(next[0] || "");
+      }
+      return next;
+    });
   }
 
 
@@ -1220,8 +1248,11 @@ export function CustomersTable({
             >
               <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="id" value={editing.id} />
-              <input type="hidden" name="tenantId" value={editing.tenantId || ""} />
+              <input type="hidden" name="scopeTenantId" value={editing.tenantId || ""} />
               {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
+              {editTenantIds.map((id) => (
+                <input key={id} type="hidden" name="tenantIds" value={id} />
+              ))}
 
               <div className="contact-edit-grid-2">
                 <div className="field">
@@ -1245,6 +1276,46 @@ export function CustomersTable({
                     <input className="input" name="idType" value={idType} onChange={(e) => setIdType(e.target.value)} placeholder="CC" />
                     <input className="input" name="idNumber" value={idNumber} onChange={(e) => setIdNumber(e.target.value)} />
                   </div>
+                </div>
+              </div>
+
+              <div className="field">
+                <label>Canal de ventas</label>
+                <div style={{ display: "grid", gap: 8 }}>
+                  {(tenants || []).map((tenant) => {
+                    const tenantId = String(tenant.id || "");
+                    const checked = editTenantIds.includes(tenantId);
+                    return (
+                      <label key={tenantId} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => toggleEditTenant(tenantId, e.target.checked)}
+                        />
+                        <span>{tenant.name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                <div className="field" style={{ marginTop: 10 }}>
+                  <label>Canal principal</label>
+                  <select
+                    className="select"
+                    name="primaryTenantId"
+                    value={editPrimaryTenantId}
+                    onChange={(e) => setEditPrimaryTenantId(String(e.target.value || ""))}
+                    disabled={!editTenantIds.length}
+                  >
+                    <option value="">Sin canal principal</option>
+                    {editTenantIds.map((id) => {
+                      const found = (tenants || []).find((t) => String(t.id) === id);
+                      return (
+                        <option key={id} value={id}>
+                          {found?.name || id}
+                        </option>
+                      );
+                    })}
+                  </select>
                 </div>
               </div>
 

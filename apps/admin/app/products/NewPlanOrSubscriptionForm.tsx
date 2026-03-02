@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { VariantsEditor } from "./VariantsEditor";
 import { enterToNextField } from "../lib/enterToNext";
 import { HelpTip } from "../ui/HelpTip";
+import { DEFAULT_CURRENCY, SUPPORTED_CURRENCIES, normalizeSupportedCurrency } from "../lib/currencies";
 
 type CatalogItem = {
   id: string;
@@ -21,17 +22,17 @@ type CatalogItem = {
   variants?: Array<{ option1?: string | null; option2?: string | null; priceDeltaInCents: number }> | null;
 };
 
-function fmtMoneyFromCents(cents: number) {
+function fmtMoneyFromCents(cents: number, currency = DEFAULT_CURRENCY) {
   const pesos = Math.trunc(Number(cents || 0) / 100);
-  return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(pesos);
+  return new Intl.NumberFormat("es-CO", { style: "currency", currency, maximumFractionDigits: 0 }).format(pesos);
 }
 
-function formatCopCurrencyInput(input: string): string {
+function formatCurrencyInput(input: string, currency: string): string {
   const digits = String(input || "").replace(/[^\d]/g, "");
   if (!digits) return "";
   const value = Number(digits);
   if (!Number.isFinite(value)) return "";
-  return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(value);
+  return new Intl.NumberFormat("es-CO", { style: "currency", currency, maximumFractionDigits: 0 }).format(value);
 }
 
 export function NewPlanOrSubscriptionForm({
@@ -66,6 +67,7 @@ export function NewPlanOrSubscriptionForm({
   const [itemKind, setItemKind] = useState<"PRODUCT" | "SERVICE">("PRODUCT");
   const [itemName, setItemName] = useState("");
   const [itemSku, setItemSku] = useState("");
+  const [itemCurrency, setItemCurrency] = useState(DEFAULT_CURRENCY);
   const [itemPriceCop, setItemPriceCop] = useState("");
   const [itemTaxPercent, setItemTaxPercent] = useState("0");
   const [itemDiscountType, setItemDiscountType] = useState<"NONE" | "FIXED" | "PERCENT">("NONE");
@@ -382,7 +384,7 @@ export function NewPlanOrSubscriptionForm({
               ) : (
                 <>
                   <input type="hidden" name="catalogItemId" value="" />
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                     <div className="field">
                       <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <span>Tipo de ítem</span>
@@ -391,6 +393,26 @@ export function NewPlanOrSubscriptionForm({
                       <select className="select" name="itemKind" value={itemKind} onChange={(e) => setItemKind(e.target.value as any)}>
                         <option value="PRODUCT">Producto</option>
                         <option value="SERVICE">Servicio</option>
+                      </select>
+                    </div>
+                    <div className="field">
+                      <label>Moneda</label>
+                      <select
+                        className="select"
+                        name="itemCurrency"
+                        value={itemCurrency}
+                        onChange={(e) => {
+                          const next = normalizeSupportedCurrency(e.target.value);
+                          setItemCurrency(next);
+                          setItemPriceCop(formatCurrencyInput(itemPriceCop, next));
+                          setItemDiscountCop(formatCurrencyInput(itemDiscountCop, next));
+                        }}
+                      >
+                        {SUPPORTED_CURRENCIES.map((c) => (
+                          <option key={c.code} value={c.code}>
+                            {c.label}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <div className="field">
@@ -403,7 +425,7 @@ export function NewPlanOrSubscriptionForm({
                         name="itemBasePricePesos"
                         inputMode="numeric"
                         value={itemPriceCop}
-                        onChange={(e) => setItemPriceCop(formatCopCurrencyInput(e.target.value))}
+                        onChange={(e) => setItemPriceCop(formatCurrencyInput(e.target.value, itemCurrency))}
                         placeholder="$ 150.500"
                         required
                       />
@@ -458,7 +480,7 @@ export function NewPlanOrSubscriptionForm({
                     <div className="field">
                       <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <span>{itemDiscountType === "PERCENT" ? "Descuento (%)" : "Descuento (valor)"}</span>
-                        <HelpTip text="Si es porcentaje, usa 0-100. Si es valor, en COP." />
+                        <HelpTip text={`Si es porcentaje, usa 0-100. Si es valor, en ${itemCurrency}.`} />
                       </label>
                       {itemDiscountType === "PERCENT" ? (
                         <input className="input" name="itemDiscountPercent" value={itemDiscountPercent} onChange={(e) => setItemDiscountPercent(e.target.value)} inputMode="numeric" />
@@ -467,7 +489,7 @@ export function NewPlanOrSubscriptionForm({
                           className="input"
                           name="itemDiscountValuePesos"
                           value={itemDiscountCop}
-                          onChange={(e) => setItemDiscountCop(formatCopCurrencyInput(e.target.value))}
+                          onChange={(e) => setItemDiscountCop(formatCurrencyInput(e.target.value, itemCurrency))}
                           inputMode="numeric"
                           placeholder="$ 0"
                         />
@@ -561,10 +583,10 @@ export function NewPlanOrSubscriptionForm({
                 <div className="card cardPad" style={{ background: "rgba(15, 23, 42, 0.03)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
                     <span style={{ color: "var(--muted)" }}>Total del plan</span>
-                    <strong>{fmtMoneyFromCents(summary.total)}</strong>
+                    <strong>{fmtMoneyFromCents(summary.total, catalogMode === "NEW" ? itemCurrency : String(selectedItem?.currency || DEFAULT_CURRENCY))}</strong>
                   </div>
                   <div className="field-hint" style={{ marginTop: 6 }}>
-                    Base: {fmtMoneyFromCents(summary.base)} · Variantes: {fmtMoneyFromCents(summary.delta)} · Impuesto: {fmtMoneyFromCents(summary.tax)}
+                    Base: {fmtMoneyFromCents(summary.base, catalogMode === "NEW" ? itemCurrency : String(selectedItem?.currency || DEFAULT_CURRENCY))} · Variantes: {fmtMoneyFromCents(summary.delta, catalogMode === "NEW" ? itemCurrency : String(selectedItem?.currency || DEFAULT_CURRENCY))} · Impuesto: {fmtMoneyFromCents(summary.tax, catalogMode === "NEW" ? itemCurrency : String(selectedItem?.currency || DEFAULT_CURRENCY))}
                   </div>
                 </div>
               ) : null}

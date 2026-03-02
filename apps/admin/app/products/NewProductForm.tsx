@@ -3,13 +3,14 @@
 import { useState } from "react";
 import { HelpTip } from "../ui/HelpTip";
 import { PendingButton } from "../ui/PendingButton";
+import { DEFAULT_CURRENCY, SUPPORTED_CURRENCIES, normalizeSupportedCurrency } from "../lib/currencies";
 
-function formatCopCurrency(input: string): string {
+function formatCurrencyInput(input: string, currency: string): string {
   const digits = String(input || "").replace(/[^\d]/g, "");
   if (!digits) return "";
   const value = Number(digits);
   if (!Number.isFinite(value)) return "";
-  return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(value);
+  return new Intl.NumberFormat("es-CO", { style: "currency", currency, maximumFractionDigits: 0 }).format(value);
 }
 
 export function NewProductForm({
@@ -29,6 +30,7 @@ export function NewProductForm({
   const [name, setName] = useState("");
   const [sku, setSku] = useState("");
   const [priceCop, setPriceCop] = useState("");
+  const [currency, setCurrency] = useState(DEFAULT_CURRENCY);
   const [intervalUnit, setIntervalUnit] = useState<"DAY" | "WEEK" | "MONTH" | "CUSTOM">("MONTH");
   const [intervalCount, setIntervalCount] = useState("1");
   const [taxPercent, setTaxPercent] = useState("0");
@@ -93,7 +95,6 @@ export function NewProductForm({
     <form action={action} className="panel module" style={{ display: "grid", gap: 10 }}>
       <input type="hidden" name="csrf" value={csrfToken} />
       {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
-      <input type="hidden" name="currency" value="COP" />
       <input type="hidden" name="imageUrl" value={imageUrl} />
       {selectedTenantIds.map((id) => (
         <input key={id} type="hidden" name="tenantIds" value={id} />
@@ -154,7 +155,26 @@ export function NewProductForm({
         </div>
       ) : null}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+        <div className="field">
+          <label>Moneda</label>
+          <select
+            className="select"
+            name="currency"
+            value={currency}
+            onChange={(e) => {
+              const next = normalizeSupportedCurrency(e.target.value);
+              setCurrency(next);
+              setPriceCop(formatCurrencyInput(priceCop, next));
+            }}
+          >
+            {SUPPORTED_CURRENCIES.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="field">
           <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span>SKU</span>
@@ -172,7 +192,7 @@ export function NewProductForm({
             name="basePricePesos"
             inputMode="numeric"
             value={priceCop}
-            onChange={(e) => setPriceCop(formatCopCurrency(e.target.value))}
+            onChange={(e) => setPriceCop(formatCurrencyInput(e.target.value, currency))}
             required
           />
         </div>

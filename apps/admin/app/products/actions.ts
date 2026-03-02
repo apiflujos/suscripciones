@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { normalizeToken } from "../lib/normalizeToken";
 import { getRequiredApiBase } from "../lib/adminApi";
 import { assertCsrfToken } from "../lib/csrf";
+import { DEFAULT_CURRENCY, normalizeSupportedCurrency } from "../lib/currencies";
 
 async function adminFetch(path: string, init: RequestInit) {
   const API_BASE = getRequiredApiBase();
@@ -138,7 +139,7 @@ export async function createProduct(formData: FormData) {
   const name = String(formData.get("name") || "").trim();
   const sku = String(formData.get("sku") || "").trim();
   const kind = String(formData.get("kind") || "PRODUCT").trim();
-  const currency = String(formData.get("currency") || "COP").trim();
+  const currency = normalizeSupportedCurrency(String(formData.get("currency") || DEFAULT_CURRENCY));
   const basePriceInCents = pesosToCents(String(formData.get("basePricePesos") || ""));
   const intervalUnit = String(formData.get("intervalUnit") || "MONTH").trim();
   const intervalCountRaw = Number(String(formData.get("intervalCount") || "1"));
@@ -216,11 +217,12 @@ export async function updateProduct(formData: FormData) {
   const returnTo = safeReturnTo(formData);
   const id = String(formData.get("id") || "").trim();
   const tenantIds = readTenantIds(formData);
+  const primaryTenantId = String(formData.get("primaryTenantId") || "").trim();
   const tenantId = tenantIds[0] || "";
   const name = String(formData.get("name") || "").trim();
   const sku = String(formData.get("sku") || "").trim();
   const kind = String(formData.get("kind") || "PRODUCT").trim();
-  const currency = String(formData.get("currency") || "COP").trim();
+  const currency = normalizeSupportedCurrency(String(formData.get("currency") || DEFAULT_CURRENCY));
   const basePriceInCents = pesosToCents(String(formData.get("basePricePesos") || ""));
   const intervalUnit = String(formData.get("intervalUnit") || "MONTH").trim();
   const intervalCountRaw = Number(String(formData.get("intervalCount") || "1"));
@@ -260,6 +262,7 @@ export async function updateProduct(formData: FormData) {
       method: "PUT",
       body: JSON.stringify({
         ...(tenantIds.length ? { tenantIds } : tenantId ? { tenantId } : {}),
+        ...(primaryTenantId ? { primaryTenantId } : {}),
         name,
         sku,
         kind,
@@ -485,6 +488,7 @@ export async function createPlanTemplate(formData: FormData) {
       const itemKind = String(formData.get("itemKind") || "PRODUCT").trim();
       const itemName = String(formData.get("itemName") || "").trim();
       const itemSku = String(formData.get("itemSku") || "").trim();
+      const itemCurrency = normalizeSupportedCurrency(String(formData.get("itemCurrency") || DEFAULT_CURRENCY));
       const basePriceInCents = pesosToCents(String(formData.get("itemBasePricePesos") || ""));
       const taxPercent = Number(String(formData.get("itemTaxPercent") || "0"));
       const discountType = String(formData.get("itemDiscountType") || "NONE").trim();
@@ -511,7 +515,7 @@ export async function createPlanTemplate(formData: FormData) {
           name: itemName,
           sku: itemSku,
           kind: itemKind,
-          currency: "COP",
+          currency: itemCurrency,
           basePriceInCents,
           taxPercent,
           discountType,
@@ -536,7 +540,7 @@ export async function createPlanTemplate(formData: FormData) {
         sku: itemSku,
         name: itemName,
         kind: itemKind,
-        currency: "COP",
+        currency: itemCurrency,
         basePriceInCents,
         taxPercent,
         discountType,

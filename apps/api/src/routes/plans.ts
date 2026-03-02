@@ -5,11 +5,16 @@ import { LogLevel, PlanIntervalUnit, PlanType } from "@prisma/client";
 import { consumeApp } from "../services/superAdminApp";
 import { systemLog } from "../services/systemLog";
 import { getEffectiveTenantId, getEffectiveTenantIds, readTenantIdsFromReq } from "../services/tenantContext";
+import { DEFAULT_CURRENCY, isSupportedCurrency, normalizeCurrencyCode } from "../lib/currencies";
+
+const currencyCodeSchema = z
+  .preprocess((v) => normalizeCurrencyCode(v), z.string().min(3).max(3))
+  .refine((v) => isSupportedCurrency(v), { message: "unsupported_currency" });
 
 const createPlanSchema = z.object({
   name: z.string().min(1),
   priceInCents: z.number().int().positive(),
-  currency: z.string().min(3).max(3).default("COP"),
+  currency: currencyCodeSchema.default(DEFAULT_CURRENCY),
   intervalUnit: z.nativeEnum(PlanIntervalUnit),
   intervalCount: z.number().int().positive().default(1),
   collectionMode: z.enum(["MANUAL_LINK", "AUTO_LINK", "AUTO_DEBIT"]).optional().default("MANUAL_LINK"),
