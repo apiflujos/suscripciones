@@ -112,6 +112,23 @@ function getPaymentSourceFromProviderResponse(resp: unknown) {
   return String((order as Record<string, unknown>).source || "").toUpperCase();
 }
 
+function resolvePersistedPaymentStatus(
+  prev: PaymentStatus | null,
+  incoming: PaymentStatus | null
+): PaymentStatus | null {
+  if (!incoming) return prev;
+  if (!prev) return incoming;
+  if (prev === PaymentStatus.APPROVED) return PaymentStatus.APPROVED;
+  if (incoming === PaymentStatus.APPROVED) return PaymentStatus.APPROVED;
+  if (
+    (prev === PaymentStatus.DECLINED || prev === PaymentStatus.ERROR || prev === PaymentStatus.VOIDED) &&
+    incoming === PaymentStatus.PENDING
+  ) {
+    return prev;
+  }
+  return incoming;
+}
+
 export async function processWompiEventLogic(webhookEventId: string, db: typeof prisma) {
   const event = await db.webhookEvent.findUnique({ where: { id: webhookEventId } });
   if (!event) return;
@@ -148,9 +165,22 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   if (!paymentByLink && paymentLinkRecord?.paymentId) {
     paymentByLink = await db.payment.findUnique({ where: { id: paymentLinkRecord.paymentId } });
   }
+  const paymentByTxId = transactionId
+    ? await db.payment.findUnique({ where: { wompiTransactionId: transactionId } })
+    : null;
+  const paymentByReference = reference
+    ? await db.payment.findFirst({
+        where: {
+          reference,
+          ...(event.tenantId ? { tenantId: event.tenantId } : {})
+        },
+        orderBy: { createdAt: "desc" }
+      })
+    : null;
+  const paymentMatched = paymentByLink ?? paymentByTxId ?? paymentByReference ?? null;
   const referenceClassification = classifyReference(reference);
 
-  const paymentSource = getPaymentSourceFromProviderResponse(paymentByLink?.providerResponse);
+  const paymentSource = getPaymentSourceFromProviderResponse(paymentMatched?.providerResponse);
   const isShopifyPayment =
     referenceClassification.kind === "shopify" ||
     paymentSource === "SHOPIFY";
@@ -165,7 +195,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   }
 
   let inferredSubscriptionId =
-    paymentByLink?.subscriptionId ??
+    paymentMatched?.subscriptionId ??
     paymentLinkRecord?.subscriptionId ??
     (referenceClassification.kind === "subscription" ? referenceClassification.subscriptionId : "");
 
@@ -190,7 +220,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   }
 
   const shouldAttemptPriceInference =
-    !paymentByLink &&
+    !paymentMatched &&
     !inferredSubscriptionId &&
     (referenceClassification.kind === "unknown" || (referenceClassification.kind === "order" && !referenceClassification.planId));
 
@@ -337,19 +367,20 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
               : null;
 
   const prevByTx = transactionId != null ? await db.payment.findUnique({ where: { wompiTransactionId: transactionId } }) : null;
-  const prevStatus = prevByTx?.status ?? paymentByLink?.status ?? null;
+  const prevStatus = prevByTx?.status ?? paymentMatched?.status ?? null;
+  const nextStatus = resolvePersistedPaymentStatus(prevStatus, paymentStatus);
 
   const cycleFromRef = referenceClassification.kind === "subscription" ? referenceClassification.cycle ?? null : null;
-  const cycle = paymentByLink?.cycleNumber ?? cycleFromRef ?? (subscription?.currentCycle ?? 1);
+  const cycle = paymentMatched?.cycleNumber ?? cycleFromRef ?? (subscription?.currentCycle ?? 1);
   const subscriptionCycleKey = subscription ? `${subscription.id}:${cycle}` : null;
   const wasApproved = prevStatus === PaymentStatus.APPROVED;
   const wasFailed = prevStatus === PaymentStatus.DECLINED || prevStatus === PaymentStatus.ERROR || prevStatus === PaymentStatus.VOIDED;
 
   const now = new Date();
-  const paidAt = paymentStatus === PaymentStatus.APPROVED ? (getPaidAtFromPayload(payload) ?? now) : null;
-  const computedFailedAt = paymentStatus && paymentStatus !== PaymentStatus.APPROVED && paymentStatus !== PaymentStatus.PENDING ? now : null;
+  const paidAt = nextStatus === PaymentStatus.APPROVED ? (getPaidAtFromPayload(payload) ?? now) : null;
+  const computedFailedAt = nextStatus && nextStatus !== PaymentStatus.APPROVED && nextStatus !== PaymentStatus.PENDING ? now : null;
 
-  if (!paymentByLink && !subscription) {
+  if (!paymentMatched && !subscription) {
     await db.webhookEvent.update({
       where: { id: webhookEventId },
       data: { processStatus: WebhookProcessStatus.FAILED, errorMessage: "payment not linked to subscription", processedAt: new Date() }
@@ -358,7 +389,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   }
 
   const tenantIdForPayment =
-    subscription?.tenantId ?? paymentByLink?.tenantId ?? (await getDefaultTenantId());
+    subscription?.tenantId ?? paymentMatched?.tenantId ?? (await getDefaultTenantId());
   if (!tenantIdForPayment) {
     await db.webhookEvent.update({
       where: { id: webhookEventId },
@@ -369,35 +400,35 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
 
   const checkoutUrlResolved = await checkoutUrlFromLink;
   const resolvedCheckoutUrl =
-    paymentByLink?.checkoutUrl ||
+    paymentMatched?.checkoutUrl ||
     prevByTx?.checkoutUrl ||
     checkoutUrlResolved;
   const wompiTransactionUpdate = transactionId ? { wompiTransactionId: transactionId } : {};
 
-  const paymentRecord = paymentByLink
+  const paymentRecord = paymentMatched
     ? await db.payment.update({
-        where: { id: paymentByLink.id },
+        where: { id: paymentMatched.id },
         data: {
           ...(tenantIdForPayment ? { tenantId: tenantIdForPayment } : {}),
           ...wompiTransactionUpdate,
-          ...(paymentStatus ? { status: paymentStatus } : {}),
-          paidAt,
+          ...(nextStatus ? { status: nextStatus } : {}),
+          paidAt: nextStatus === PaymentStatus.APPROVED ? paidAt : paymentMatched.paidAt ?? null,
           failedAt:
-            paymentStatus === PaymentStatus.APPROVED
+            nextStatus === PaymentStatus.APPROVED
               ? null
-              : paymentStatus === PaymentStatus.PENDING
-                ? paymentByLink.failedAt ?? null
-                : paymentByLink.failedAt ?? computedFailedAt,
+              : nextStatus === PaymentStatus.PENDING
+                ? paymentMatched.failedAt ?? null
+                : paymentMatched.failedAt ?? computedFailedAt,
           providerResponse:
-            paymentByLink.providerResponse && typeof paymentByLink.providerResponse === "object"
-              ? ({ ...(paymentByLink.providerResponse as Record<string, unknown>), webhook: payload } as Prisma.InputJsonValue)
+            paymentMatched.providerResponse && typeof paymentMatched.providerResponse === "object"
+              ? ({ ...(paymentMatched.providerResponse as Record<string, unknown>), webhook: payload } as Prisma.InputJsonValue)
               : ({ webhook: payload } as Prisma.InputJsonValue),
-          amountInCents: amountInCents ?? paymentByLink.amountInCents,
-          currency: currency ?? paymentByLink.currency,
-          reference: reference ?? paymentByLink.reference,
+          amountInCents: amountInCents ?? paymentMatched.amountInCents,
+          currency: currency ?? paymentMatched.currency,
+          reference: reference ?? paymentMatched.reference,
           ...(resolvedCheckoutUrl ? { checkoutUrl: resolvedCheckoutUrl } : {}),
-          cycleNumber: paymentByLink.cycleNumber ?? cycle,
-          subscriptionCycleKey: paymentByLink.subscriptionId ? subscriptionCycleKey : paymentByLink.subscriptionCycleKey
+          cycleNumber: paymentMatched.cycleNumber ?? cycle,
+          subscriptionCycleKey: paymentMatched.subscriptionId ? subscriptionCycleKey : paymentMatched.subscriptionCycleKey
         }
       })
     : await db.payment.upsert({
@@ -413,7 +444,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
           ...wompiTransactionUpdate,
           wompiPaymentLinkId: paymentLinkId,
           ...(resolvedCheckoutUrl ? { checkoutUrl: resolvedCheckoutUrl } : {}),
-          ...(paymentStatus ? { status: paymentStatus } : {}),
+          ...(nextStatus ? { status: nextStatus } : {}),
           paidAt,
           failedAt: computedFailedAt,
           providerResponse: { webhook: payload } as Prisma.InputJsonValue,
@@ -422,12 +453,12 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         update: {
           ...(tenantIdForPayment ? { tenantId: tenantIdForPayment } : {}),
           ...wompiTransactionUpdate,
-          ...(paymentStatus ? { status: paymentStatus } : {}),
+          ...(nextStatus ? { status: nextStatus } : {}),
           paidAt,
           failedAt:
-            paymentStatus === PaymentStatus.APPROVED
+            nextStatus === PaymentStatus.APPROVED
               ? null
-              : paymentStatus === PaymentStatus.PENDING
+              : nextStatus === PaymentStatus.PENDING
                 ? prevByTx?.failedAt ?? null
                 : prevByTx?.failedAt ?? computedFailedAt,
           providerResponse: { webhook: payload } as Prisma.InputJsonValue,
@@ -470,6 +501,16 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     }
   }
 
+  await systemLog(LogLevel.INFO, "webhooks.wompi", "Webhook conciliado", {
+    webhookEventId,
+    paymentId: paymentRecord.id,
+    paymentStatus: paymentRecord.status,
+    wompiTransactionId: paymentRecord.wompiTransactionId,
+    wompiPaymentLinkId: paymentRecord.wompiPaymentLinkId,
+    reference: paymentRecord.reference,
+    subscriptionId: paymentRecord.subscriptionId
+  }).catch(() => {});
+
   await db.webhookEvent.update({
     where: { id: webhookEventId },
     data: { processStatus: WebhookProcessStatus.PROCESSED, processedAt: new Date() }
@@ -478,8 +519,8 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   await schedulePaymentStatusNotifications({ paymentId: paymentRecord.id, forceNow: true }).catch(() => {});
   await syncChatwootAttributesForCustomer(paymentRecord.customerId).catch(() => {});
 
-  const becameApproved = !wasApproved && paymentStatus === PaymentStatus.APPROVED;
-  const becameFailed = !wasFailed && (paymentStatus === PaymentStatus.DECLINED || paymentStatus === PaymentStatus.ERROR || paymentStatus === PaymentStatus.VOIDED);
+  const becameApproved = !wasApproved && nextStatus === PaymentStatus.APPROVED;
+  const becameFailed = !wasFailed && (nextStatus === PaymentStatus.DECLINED || nextStatus === PaymentStatus.ERROR || nextStatus === PaymentStatus.VOIDED);
   if (becameApproved) {
     await consumeApp("payments_success", { amount: 1, source: "wompi:webhook", meta: { paymentId: paymentRecord.id } });
   } else if (becameFailed) {
@@ -533,7 +574,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     }
   }
 
-  if (paymentStatus === PaymentStatus.APPROVED && subscription) {
+  if (nextStatus === PaymentStatus.APPROVED && subscription) {
     const advancedTo = await db.$transaction(async (tx) => {
       const sub = await tx.subscription.findUnique({
         where: { id: subscription.id },
