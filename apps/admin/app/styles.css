@@ -3489,6 +3489,75 @@ textarea.input {
   color: var(--text-faint);
 }
 
+.gamification-inline {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.gamification-block {
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: var(--panel);
+  padding: 10px 12px;
+  display: grid;
+  gap: 4px;
+}
+
+.gamification-points {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.gamification-event-list {
+  display: grid;
+  gap: 10px;
+}
+
+.gamification-event {
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: var(--panel);
+  padding: 10px 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.gamification-event.is-positive {
+  border-color: color-mix(in srgb, var(--status-success) 35%, var(--stroke));
+}
+
+.gamification-event.is-negative {
+  border-color: color-mix(in srgb, var(--status-danger) 35%, var(--stroke));
+}
+
+.gamification-event-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.gamification-event-title {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.gamification-event-delta {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.gamification-event-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
 .trend-card {
   border-radius: 12px;
   border: 1px solid var(--stroke);

@@ -293,6 +293,19 @@ async function fetchChatwootConversations(contactId: number) {
   return fetchAdminCached(`/admin/chatwoot/contacts/${contactId}/conversations`, { ttlMs: 1500 });
 }
 
+async function fetchGamificationEvents(id: string, opts?: { take?: number; tenantId?: string; includeGlobal?: boolean }) {
+  const params = new URLSearchParams({
+    take: String(opts?.take ?? 30),
+    ...(opts?.tenantId ? { tenantId: opts.tenantId } : {}),
+    includeGlobal: opts?.includeGlobal === false ? "0" : "1"
+  });
+  return fetchAdminCached(`/admin/gamification/customers/${encodeURIComponent(id)}/events?${params.toString()}`, { ttlMs: 1500 });
+}
+
+async function fetchGamificationRewards(id: string) {
+  return fetchAdminCached(`/admin/gamification/customers/${encodeURIComponent(id)}/rewards`, { ttlMs: 1500 });
+}
+
 async function geocodeAddress(address: string) {
   if (!address) return null;
   try {
@@ -342,13 +355,15 @@ export default async function CustomerDetailPage({
   const logsFrom = new Date();
   logsFrom.setDate(logsFrom.getDate() - logsWindowDays * logsPage);
   const logsTake = 20;
-  const [customerRes, paymentsRes, subscriptionsRes, logsRes, tenantsRes, settingsRes] = await Promise.all([
+  const [customerRes, paymentsRes, subscriptionsRes, logsRes, tenantsRes, settingsRes, gamificationEventsRes, gamificationRewardsRes] = await Promise.all([
     fetchCustomer(id),
     fetchPayments(id),
     fetchSubscriptions(id),
     fetchLogs(id, { take: logsTake, from: logsFrom.toISOString(), to: logsTo.toISOString() }),
     fetchTenants(),
-    fetchSettings()
+    fetchSettings(),
+    fetchGamificationEvents(id, { take: 25 }),
+    fetchGamificationRewards(id)
   ]);
 
   if (!customerRes.ok) {
@@ -363,6 +378,8 @@ export default async function CustomerDetailPage({
   const customer = customerRes.json?.customer || null;
   const gamification = customerRes.json?.gamification || null;
   const gamificationGlobal = gamification?.global || null;
+  const gamificationEvents = gamificationEventsRes?.ok ? gamificationEventsRes.json?.items ?? [] : [];
+  const rewards = gamificationRewardsRes?.ok ? gamificationRewardsRes.json ?? {} : {};
   if (!customer) {
     return (
       <main className="page">
@@ -380,6 +397,7 @@ export default async function CustomerDetailPage({
   const aiProviders = aiConfig?.providers || null;
   const aiEnabled = Boolean(aiConfig?.enabled && (aiProviders?.openai?.configured || aiProviders?.deepseek?.configured));
   const tenantName = tenants.find((t) => String(t.id) === String(customer.tenantId))?.name || "";
+  const tenantNameById = new Map(tenants.map((t) => [String(t.id), String(t.name)]));
 
   const approvedPayments = payments.filter((p) => p.status === "APPROVED");
   const failedPayments = payments.filter((p) => ["DECLINED", "ERROR", "VOIDED"].includes(String(p.status)));
@@ -473,6 +491,23 @@ export default async function CustomerDetailPage({
     `${fromDate.toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" })} - ${toDate.toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" })}`;
 
   const tier = tierForCustomer(approvedPayments.length, gamificationGlobal || undefined);
+
+  const kindLabel = (raw: string) => {
+    const key = String(raw || "").toLowerCase();
+    if (!key) return "Evento";
+    if (key.includes("payment") && key.includes("approved")) return "Pago aprobado";
+    if (key.includes("payment") && (key.includes("failed") || key.includes("declined"))) return "Pago fallido";
+    if (key.includes("subscription") && key.includes("started")) return "Suscripción iniciada";
+    if (key.includes("subscription") && key.includes("renew")) return "Renovación";
+    if (key.includes("subscription") && key.includes("cancel")) return "Cancelación";
+    if (key.includes("past_due")) return "En mora";
+    if (key.includes("chatwoot") && key.includes("message")) return "Mensaje cliente";
+    if (key.includes("data") && key.includes("email")) return "Email agregado";
+    if (key.includes("data") && key.includes("phone")) return "Teléfono agregado";
+    if (key.includes("data") && key.includes("id")) return "Documento agregado";
+    if (key.includes("no_response")) return "Sin respuesta";
+    return key.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
+  };
 
   const monthLabels = Array.from({ length: 6 }).map((_, idx) => {
     const d = new Date();
@@ -621,6 +656,112 @@ export default async function CustomerDetailPage({
           <div className="metric-label">Suscripciones</div>
           <div className="metric-value">{subscriptions.length}</div>
           <div className="metric-sub">{activeSub ? activeSub.plan?.name || "Plan activo" : "Sin plan activo"}</div>
+        </div>
+      </section>
+
+      <section className="grid2">
+        <div className="card cardPad customer-section">
+          <div className="contact-section-title">Gamificación y reputación</div>
+          <div className="summary-grid compact">
+            <div className="summary-item">
+              <span className="summary-label">Nivel global</span>
+              <span className="summary-value">{gamificationGlobal?.levelName || (gamificationGlobal?.level ? `Nivel ${gamificationGlobal.level}` : "—")}</span>
+            </div>
+            <div className="summary-item">
+              <span className="summary-label">Score actual</span>
+              <span className="summary-value">{gamificationGlobal ? Number(gamificationGlobal?.statusScore ?? 0) : "—"}</span>
+            </div>
+            <div className="summary-item">
+              <span className="summary-label">Puntos históricos</span>
+              <span className="summary-value">{gamificationGlobal ? Number(gamificationGlobal?.lifetimePoints ?? 0) : "—"}</span>
+            </div>
+            <div className="summary-item">
+              <span className="summary-label">Actividad</span>
+              <span className="summary-value">{gamificationGlobal ? Number(gamificationGlobal?.activityScore ?? 0) : "—"}</span>
+            </div>
+            <div className="summary-item">
+              <span className="summary-label">Monetario</span>
+              <span className="summary-value">{gamificationGlobal ? Number(gamificationGlobal?.monetaryScore ?? 0) : "—"}</span>
+            </div>
+            <div className="summary-item">
+              <span className="summary-label">Calidad datos</span>
+              <span className="summary-value">{gamificationGlobal ? Number(gamificationGlobal?.dataQualityScore ?? 0) : "—"}</span>
+            </div>
+          </div>
+
+          <div className="field-divider" />
+
+          <div className="gamification-inline">
+            <div className="gamification-block">
+              <div className="muted">Recompensas globales</div>
+              <div className="gamification-points">{rewards?.global?.balance ?? 0} pts</div>
+              {rewards?.global?.lastAt ? (
+                <div className="muted"><LocalDateTime value={rewards.global.lastAt} /></div>
+              ) : (
+                <div className="muted">Sin movimientos</div>
+              )}
+            </div>
+            <div className="gamification-block">
+              <div className="muted">Recompensas por canal</div>
+              {Array.isArray(rewards?.byTenant) && rewards.byTenant.length ? (
+                <ul className="mini-list mini-list-tight">
+                  {rewards.byTenant.map((row: any) => (
+                    <li key={`reward-${row.tenantId}`}>
+                      <span>{tenantNameById.get(String(row.tenantId)) || row.tenantId || "Canal"}</span>
+                      <span className="trend-score">{row.balance ?? 0} pts</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="muted">Sin recompensas por canal</div>
+              )}
+            </div>
+          </div>
+
+          {Array.isArray(gamification?.byTenant) && gamification.byTenant.length ? (
+            <>
+              <div className="field-divider" />
+              <div className="muted">Niveles por canal</div>
+              <ul className="mini-list mini-list-tight">
+                {gamification.byTenant.map((row: any) => (
+                  <li key={`gam-tenant-${row.tenantId}`}>
+                    <span>{tenantNameById.get(String(row.tenantId)) || row.tenantId || "Canal"}</span>
+                    <span className="trend-score">{row.levelName || `Nivel ${row.level}`}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+        </div>
+
+        <div className="card cardPad customer-section">
+          <div className="contact-section-title">Eventos recientes de gamificación</div>
+          {gamificationEvents.length ? (
+            <div className="gamification-event-list">
+              {gamificationEvents.map((evt: any) => {
+                const delta = Number(evt.statusDelta || 0);
+                const sign = delta >= 0 ? "+" : "";
+                const reward = Number(evt.rewardDelta || 0);
+                const label = kindLabel(String(evt.kind || ""));
+                const tenantLabel = evt.tenantId ? tenantNameById.get(String(evt.tenantId)) || evt.tenantId : "Global";
+                return (
+                  <div key={evt.id} className={`gamification-event ${delta >= 0 ? "is-positive" : "is-negative"}`}>
+                    <div className="gamification-event-head">
+                      <span className="gamification-event-title">{label}</span>
+                      <span className="gamification-event-delta">{sign}{delta}</span>
+                    </div>
+                    <div className="gamification-event-meta">
+                      <span>{tenantLabel}</span>
+                      {reward ? <span>Recompensa {reward > 0 ? `+${reward}` : reward} pts</span> : null}
+                      <span><LocalDateTime value={evt.createdAt} /></span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="muted">Sin eventos recientes.</div>
+          )}
         </div>
       </section>
 
