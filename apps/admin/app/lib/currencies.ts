@@ -6,11 +6,17 @@ export const SUPPORTED_CURRENCIES = [
   { code: "CLP", label: "CLP - Peso chileno" }
 ] as const;
 
-export const DEFAULT_CURRENCY = "COP";
+export type SupportedCurrencyCode = (typeof SUPPORTED_CURRENCIES)[number]["code"];
 
-const SUPPORTED_CODES = new Set(SUPPORTED_CURRENCIES.map((c) => c.code));
+export const DEFAULT_CURRENCY: SupportedCurrencyCode = "COP";
 
-export function normalizeSupportedCurrency(input: string): string {
+const SUPPORTED_CODES = new Set<SupportedCurrencyCode>(SUPPORTED_CURRENCIES.map((c) => c.code));
+
+function isSupportedCurrencyCode(value: string): value is SupportedCurrencyCode {
+  return SUPPORTED_CODES.has(value as SupportedCurrencyCode);
+}
+
+export function normalizeSupportedCurrency(input: string): SupportedCurrencyCode {
   const code = String(input || "").trim().toUpperCase();
-  return SUPPORTED_CODES.has(code) ? code : DEFAULT_CURRENCY;
+  return isSupportedCurrencyCode(code) ? code : DEFAULT_CURRENCY;
 }
