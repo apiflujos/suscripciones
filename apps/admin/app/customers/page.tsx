@@ -431,6 +431,20 @@ export default async function CustomersPage({
                     </div>
                   </div>
                 ) : null}
+                <form action="/customers" method="GET" className="filtersForm">
+                  {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+                  {listId ? <input type="hidden" name="list" value={listId} /> : null}
+                  {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
+                  {filters ? <input type="hidden" name="filters" value={filters} /> : null}
+                  <input
+                    className="input"
+                    name="q"
+                    defaultValue={q}
+                    placeholder="Buscar por nombre, email, teléfono o identificación..."
+                    aria-label="Buscar contactos"
+                  />
+                  <button className="ghost" type="submit">Buscar</button>
+                </form>
                 <SmartViewsBar
                   scope="customers"
                   initialViewId={viewId}

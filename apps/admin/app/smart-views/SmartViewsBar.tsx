@@ -478,18 +478,13 @@ export function SmartViewsBar({
             window.location.href = buildHref({ viewId: id || undefined, filters: undefined });
           }}
         >
-          <option value="">Vista: Todas</option>
+          <option value="">Vista guardada: (todas)</option>
           {views.map((view) => (
             <option key={view.id} value={view.id}>
               {view.name} {view.visibility === "PRIVATE" ? "(Privada)" : ""}
             </option>
           ))}
         </select>
-        {activeViewId ? (
-          <div className="smartViewsActive">
-            Vista activa: {views.find((v) => v.id === activeViewId)?.name || ""}
-          </div>
-        ) : null}
         {activeViewId ? (
           <button
             className="ghost"
@@ -558,7 +553,7 @@ export function SmartViewsBar({
             {fields.length ? (
               <>
                 <div className="smartViewsFooter">
-                  <button className="ghost" type="button" onClick={addRule}>
+                  <button className="ghost btn-compact" type="button" onClick={addRule}>
                     + Agregar condición
                   </button>
                 </div>
@@ -566,7 +561,7 @@ export function SmartViewsBar({
                 <div className="smartViewsSave">
                   <div className="smartViewsSaveRow" style={{ marginBottom: 10 }}>
                     <button
-                      className="ghost"
+                      className="primary"
                       type="button"
                       onClick={() => {
                         if (!fields.length) return;
