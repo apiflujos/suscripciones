@@ -146,6 +146,35 @@ async function updateLevelForScoreRow(rowId: string, score: number) {
   await prisma.gamificationScore.update({ where: { id: rowId }, data: { level } }).catch(() => {});
 }
 
+async function upsertScoreRow(args: {
+  tenantId: string | null;
+  entityType: GamificationEntityType;
+  entityId: string;
+  create: any;
+  update: any;
+}) {
+  if (args.tenantId == null) {
+    const existing = await prisma.gamificationScore.findFirst({
+      where: { tenantId: null, entityType: args.entityType, entityId: args.entityId }
+    });
+    if (existing) {
+      return prisma.gamificationScore.update({ where: { id: existing.id }, data: args.update });
+    }
+    return prisma.gamificationScore.create({ data: args.create });
+  }
+  return prisma.gamificationScore.upsert({
+    where: {
+      tenantId_entityType_entityId: {
+        tenantId: args.tenantId,
+        entityType: args.entityType,
+        entityId: args.entityId
+      }
+    },
+    create: args.create,
+    update: args.update
+  });
+}
+
 async function writeRewardLedger(customerId: string, tenantId: string | null, rewardDelta: number, eventId?: string | null) {
   if (!rewardDelta) return;
   const last = await prisma.gamificationRewardLedger.findFirst({
@@ -198,14 +227,10 @@ export async function applyGamificationEvent(input: GamificationEventInput) {
     const isPayment = String(input.kind || "").startsWith("payment.");
     const isActivity = isPayment || String(input.kind || "").startsWith("chatwoot.") || String(input.kind || "").startsWith("data.");
 
-    const scoreRow = await prisma.gamificationScore.upsert({
-      where: {
-        tenantId_entityType_entityId: {
-          tenantId: target.tenantId as any,
-          entityType: input.entityType,
-          entityId: input.entityId
-        }
-      },
+    const scoreRow = await upsertScoreRow({
+      tenantId: target.tenantId,
+      entityType: input.entityType,
+      entityId: input.entityId,
       create: {
         ...(target.tenantId ? { tenantId: target.tenantId } : {}),
         entityType: input.entityType,
@@ -460,14 +485,10 @@ async function recomputeCustomerScores(tenantId: string | null, cfg: { decay: { 
 
     const levelInfo = levelForScore(computed.statusScore);
 
-    const row = await prisma.gamificationScore.upsert({
-      where: {
-        tenantId_entityType_entityId: {
-          tenantId: null as any,
-          entityType: GamificationEntityType.CUSTOMER,
-          entityId: customer.id
-        }
-      },
+    const row = await upsertScoreRow({
+      tenantId: null,
+      entityType: GamificationEntityType.CUSTOMER,
+      entityId: customer.id,
       create: {
         entityType: GamificationEntityType.CUSTOMER,
         entityId: customer.id,
@@ -659,14 +680,10 @@ async function recomputeProductScores(tenantId: string | null) {
     });
     const levelInfo = levelForScore(computed.statusScore);
 
-    await prisma.gamificationScore.upsert({
-      where: {
-        tenantId_entityType_entityId: {
-          tenantId: null as any,
-          entityType: GamificationEntityType.PRODUCT,
-          entityId: plan.id
-        }
-      },
+    await upsertScoreRow({
+      tenantId: null,
+      entityType: GamificationEntityType.PRODUCT,
+      entityId: plan.id,
       create: {
         entityType: GamificationEntityType.PRODUCT,
         entityId: plan.id,
