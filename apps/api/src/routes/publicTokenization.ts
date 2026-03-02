@@ -3,6 +3,7 @@ import { prisma } from "../db/prisma";
 import { LogLevel } from "@prisma/client";
 import { getTenantBrand } from "../services/tenantBrand";
 import { systemLog } from "../services/systemLog";
+import { tokenMeta } from "../lib/tokenMeta";
 
 export const publicTokenizationRouter = express.Router();
 
@@ -19,6 +20,8 @@ type TokenizationLinkMeta = {
 publicTokenizationRouter.get("/tokenization-links/:token", async (req, res) => {
   const token = String(req.params.token || "").trim();
   if (!token) return res.status(400).json({ error: "missing_token" });
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Pragma", "no-cache");
   const ip = String((req.headers["x-forwarded-for"] as string) || req.ip || "").split(",")[0].trim();
 
   const customer = await prisma.customer.findFirst({
@@ -26,7 +29,7 @@ publicTokenizationRouter.get("/tokenization-links/:token", async (req, res) => {
   });
   if (!customer) {
     void systemLog(LogLevel.WARN, "public.tokenization_link", "tokenization_token_not_found", {
-      token,
+      ...tokenMeta(token),
       ip,
       userAgent: req.get("user-agent") || null
     }).catch(() => {});
@@ -41,7 +44,7 @@ publicTokenizationRouter.get("/tokenization-links/:token", async (req, res) => {
   const allowUsed = String((req.query as Record<string, unknown>)?.allowUsed || "").trim() === "1";
   if (usedAt && !allowUsed) {
     void systemLog(LogLevel.WARN, "public.tokenization_link", "tokenization_token_used", {
-      token,
+      ...tokenMeta(token),
       tenantId: customer.tenantId,
       usedAt: usedAt.toISOString(),
       ip,
@@ -51,7 +54,7 @@ publicTokenizationRouter.get("/tokenization-links/:token", async (req, res) => {
   }
   if (expiresAt && Number.isFinite(expiresAt.getTime()) && expiresAt.getTime() < Date.now()) {
     void systemLog(LogLevel.WARN, "public.tokenization_link", "tokenization_token_expired", {
-      token,
+      ...tokenMeta(token),
       tenantId: customer.tenantId,
       expiresAt: expiresAt.toISOString(),
       ip,

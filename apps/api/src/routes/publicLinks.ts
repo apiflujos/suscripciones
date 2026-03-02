@@ -5,6 +5,7 @@ import { CredentialProvider, LogLevel } from "@prisma/client";
 import { getCheckoutBaseUrlsFromEnv } from "../services/publicBase";
 import { getTenantBrand } from "../services/tenantBrand";
 import { systemLog } from "../services/systemLog";
+import { tokenMeta } from "../lib/tokenMeta";
 
 export const publicLinksRouter = express.Router();
 
@@ -101,6 +102,8 @@ publicLinksRouter.get("/checkout-config", async (_req, res) => {
 publicLinksRouter.get("/payment-links/:token", async (req, res) => {
   const token = String(req.params.token || "").trim();
   if (!token) return res.status(400).json({ error: "invalid_token" });
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Pragma", "no-cache");
 
   const ip = String((req.headers["x-forwarded-for"] as string) || req.ip || "").split(",")[0].trim();
 
@@ -109,7 +112,7 @@ publicLinksRouter.get("/payment-links/:token", async (req, res) => {
   });
   if (!customer) {
     void systemLog(LogLevel.WARN, "public.payment_link", "payment_link_not_found", {
-      token,
+      ...tokenMeta(token),
       ip,
       userAgent: req.get("user-agent") || null
     }).catch(() => {});
@@ -121,7 +124,7 @@ publicLinksRouter.get("/payment-links/:token", async (req, res) => {
   const expiresAt = link?.expiresAt ? new Date(String(link.expiresAt)) : null;
   if (expiresAt && Number.isFinite(expiresAt.getTime()) && expiresAt.getTime() < Date.now()) {
     void systemLog(LogLevel.WARN, "public.payment_link", "payment_link_expired", {
-      token,
+      ...tokenMeta(token),
       tenantId: customer.tenantId,
       expiresAt: expiresAt.toISOString(),
       ip,

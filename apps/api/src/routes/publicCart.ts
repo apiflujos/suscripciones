@@ -9,6 +9,7 @@ import { getCredential } from "../services/credentials";
 import { getCheckoutBaseUrlsFromEnv } from "../services/publicBase";
 import { getTenantBrand } from "../services/tenantBrand";
 import { systemLog } from "../services/systemLog";
+import { tokenMeta } from "../lib/tokenMeta";
 
 function parseCheckoutConfig(raw: string | null) {
   let parsed: CheckoutConfig | null = null;
@@ -75,6 +76,8 @@ type PlanPublic = {
 publicCartRouter.get("/cart/:token", async (req, res) => {
   const token = String(req.params.token || "").trim();
   if (!token) return res.status(400).json({ error: "missing_token" });
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Pragma", "no-cache");
   const ip = String((req.headers["x-forwarded-for"] as string) || req.ip || "").split(",")[0].trim();
 
   const customer = await prisma.customer.findFirst({
@@ -82,7 +85,7 @@ publicCartRouter.get("/cart/:token", async (req, res) => {
   });
   if (!customer) {
     void systemLog(LogLevel.WARN, "public.cart_link", "cart_token_not_found", {
-      token,
+      ...tokenMeta(token),
       ip,
       userAgent: req.get("user-agent") || null
     }).catch(() => {});
@@ -94,7 +97,7 @@ publicCartRouter.get("/cart/:token", async (req, res) => {
   const expiresAt = link?.expiresAt ? new Date(link.expiresAt) : null;
   if (expiresAt && Number.isFinite(expiresAt.getTime()) && expiresAt.getTime() < Date.now()) {
     void systemLog(LogLevel.WARN, "public.cart_link", "cart_token_expired", {
-      token,
+      ...tokenMeta(token),
       tenantId: customer.tenantId,
       expiresAt: expiresAt.toISOString(),
       ip,
@@ -109,7 +112,7 @@ publicCartRouter.get("/cart/:token", async (req, res) => {
     : null;
   if (!template || String(template.kind) !== "CART") {
     void systemLog(LogLevel.WARN, "public.cart_link", "cart_template_not_found", {
-      token,
+      ...tokenMeta(token),
       tenantId: customer.tenantId,
       templateId: templateId || null,
       ip,
