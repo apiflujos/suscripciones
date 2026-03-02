@@ -1,7 +1,7 @@
 import { prisma } from "../../db/prisma";
 import { logger } from "../../lib/logger";
 import { systemLog } from "../../services/systemLog";
-import { GamificationEntityType, LogLevel } from "@prisma/client";
+import { GamificationEntityType, LogLevel, Prisma } from "@prisma/client";
 import { classifyReference } from "../../webhooks/wompi/classifyReference";
 import { postJson } from "../../lib/http";
 import { PaymentLinkStatus, PaymentStatus, RetryJobType, SubscriptionStatus, WebhookProcessStatus } from "@prisma/client";
@@ -14,12 +14,58 @@ import { getDefaultTenantId } from "../../services/tenantContext";
 import { applyGamificationEvent, GAMIFICATION_EVENT_KINDS } from "../../services/gamification";
 import { GAMIFICATION_WEIGHTS, moneyToPoints } from "../../services/gamificationConfig";
 
-function getTransactionFromPayload(payload: any): any | null {
+type WompiCustomerData = {
+  full_name?: string;
+  name?: string;
+  fullName?: string;
+  email?: string;
+  phone_number?: string;
+  phoneNumber?: string;
+};
+
+type WompiCustomer = {
+  name?: string;
+  phone_number?: string;
+  phone?: string;
+};
+
+type WompiTransaction = {
+  id?: string;
+  reference?: string;
+  payment_link_id?: string;
+  paymentLinkId?: string;
+  status?: string;
+  amount_in_cents?: number;
+  amountInCents?: number;
+  currency?: string;
+  customer_email?: string;
+  customerEmail?: string;
+  customer_data?: WompiCustomerData;
+  customer?: WompiCustomer;
+  finalized_at?: string | number;
+  finalizedAt?: string | number;
+  created_at?: string | number;
+  createdAt?: string | number;
+  paid_at?: string | number;
+  paidAt?: string | number;
+};
+
+type WompiPayload = {
+  data?: {
+    transaction?: WompiTransaction;
+    customer_email?: string;
+    customerEmail?: string;
+  };
+  signature?: { checksum?: string };
+  event?: string;
+};
+
+function getTransactionFromPayload(payload: WompiPayload): WompiTransaction | null {
   const tx = payload?.data?.transaction;
   return tx && typeof tx === "object" ? tx : null;
 }
 
-function getCustomerEmailFromPayload(payload: any): string | undefined {
+function getCustomerEmailFromPayload(payload: WompiPayload): string | undefined {
   const tx = getTransactionFromPayload(payload);
   const email =
     tx?.customer_email ||
@@ -31,21 +77,21 @@ function getCustomerEmailFromPayload(payload: any): string | undefined {
   return trimmed || undefined;
 }
 
-function getCustomerNameFromPayload(payload: any): string | undefined {
+function getCustomerNameFromPayload(payload: WompiPayload): string | undefined {
   const tx = getTransactionFromPayload(payload);
   const name = tx?.customer_data?.full_name || tx?.customer_data?.name || tx?.customer_data?.fullName || tx?.customer?.name;
   const trimmed = String(name || "").trim();
   return trimmed || undefined;
 }
 
-function getCustomerPhoneFromPayload(payload: any): string | undefined {
+function getCustomerPhoneFromPayload(payload: WompiPayload): string | undefined {
   const tx = getTransactionFromPayload(payload);
   const phone = tx?.customer_data?.phone_number || tx?.customer_data?.phoneNumber || tx?.customer?.phone_number || tx?.customer?.phone;
   const trimmed = String(phone || "").trim();
   return trimmed || undefined;
 }
 
-function getPaidAtFromPayload(payload: any): Date | null {
+function getPaidAtFromPayload(payload: WompiPayload): Date | null {
   const tx = getTransactionFromPayload(payload);
   const raw =
     tx?.finalized_at ||
@@ -59,12 +105,19 @@ function getPaidAtFromPayload(payload: any): Date | null {
   return Number.isNaN(dt.getTime()) ? null : dt;
 }
 
+function getPaymentSourceFromProviderResponse(resp: unknown) {
+  if (!resp || typeof resp !== "object") return "";
+  const order = (resp as Record<string, unknown>).order;
+  if (!order || typeof order !== "object") return "";
+  return String((order as Record<string, unknown>).source || "").toUpperCase();
+}
+
 export async function processWompiEventLogic(webhookEventId: string, db: typeof prisma) {
   const event = await db.webhookEvent.findUnique({ where: { id: webhookEventId } });
   if (!event) return;
   if (event.processStatus === WebhookProcessStatus.PROCESSED) return;
 
-  const payload: any = event.payload;
+  const payload = (event.payload && typeof event.payload === "object" ? event.payload : {}) as WompiPayload;
   const tx = getTransactionFromPayload(payload);
   const reference: string | undefined = tx?.reference;
   const transactionId: string | undefined = tx?.id;
@@ -97,7 +150,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   }
   const referenceClassification = classifyReference(reference);
 
-  const paymentSource = String((paymentByLink?.providerResponse as any)?.order?.source || "").toUpperCase();
+  const paymentSource = getPaymentSourceFromProviderResponse(paymentByLink?.providerResponse);
   const isShopifyPayment =
     referenceClassification.kind === "shopify" ||
     paymentSource === "SHOPIFY";
@@ -116,7 +169,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     paymentLinkRecord?.subscriptionId ??
     (referenceClassification.kind === "subscription" ? referenceClassification.subscriptionId : "");
 
-  let inferredSubscription: any | null = null;
+  let inferredSubscription: { id: string } | null = null;
   
   // SOLO intentar inferencia por precio si NO tenemos un ID de suscripción de la referencia
   // y la referencia no es explícitamente de otro tipo (como shopify).
@@ -143,7 +196,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     }
 
     const defaultTenantId = await getDefaultTenantId();
-    let plan: any = null;
+    let plan: { id: string; tenantId?: string | null; intervalUnit: any; intervalCount: number; priceInCents?: number; currency?: string; name?: string } | null = null;
     if (referenceClassification.kind === "order" && referenceClassification.planId) {
       plan = await db.subscriptionPlan.findUnique({ where: { id: referenceClassification.planId } });
       if (plan && plan.priceInCents !== amountInCents) {
@@ -178,7 +231,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         await systemLog(LogLevel.WARN, "processWompiEvent", "Ambiguous plan inference by price", {
           amountInCents,
           currency,
-          foundPlans: plans.map((p: any) => ({ id: p.id, name: p.name }))
+          foundPlans: plans.map((p) => ({ id: p.id, name: p.name }))
         }).catch(() => {});
       }
       plan = plans[0];
@@ -206,7 +259,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     }
 
     const startAt = new Date();
-    const planResolved = plan as any;
+    const planResolved = plan as { id: string; tenantId?: string | null; intervalUnit: any; intervalCount: number };
     const periodEnd = addIntervalUtc(startAt, planResolved.intervalUnit, planResolved.intervalCount);
 
     inferredSubscription = await db.subscription.create({
@@ -315,8 +368,8 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
                 : paymentByLink.failedAt ?? computedFailedAt,
           providerResponse:
             paymentByLink.providerResponse && typeof paymentByLink.providerResponse === "object"
-              ? ({ ...(paymentByLink.providerResponse as any), webhook: payload } as any)
-              : ({ webhook: payload } as any),
+              ? ({ ...(paymentByLink.providerResponse as Record<string, unknown>), webhook: payload } as Prisma.InputJsonValue)
+              : ({ webhook: payload } as Prisma.InputJsonValue),
           amountInCents: amountInCents ?? paymentByLink.amountInCents,
           currency: currency ?? paymentByLink.currency,
           reference: reference ?? paymentByLink.reference,
@@ -341,7 +394,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
           ...(paymentStatus ? { status: paymentStatus } : {}),
           paidAt,
           failedAt: computedFailedAt,
-          providerResponse: { webhook: payload } as any,
+          providerResponse: { webhook: payload } as Prisma.InputJsonValue,
           subscriptionCycleKey: subscriptionCycleKey as string
         },
         update: {
@@ -355,7 +408,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
               : paymentStatus === PaymentStatus.PENDING
                 ? prevByTx?.failedAt ?? null
                 : prevByTx?.failedAt ?? computedFailedAt,
-          providerResponse: { webhook: payload } as any,
+          providerResponse: { webhook: payload } as Prisma.InputJsonValue,
           reference: reference ?? undefined,
           ...(resolvedCheckoutUrl ? { checkoutUrl: resolvedCheckoutUrl } : {}),
           wompiPaymentLinkId: paymentLinkId ?? undefined
@@ -498,7 +551,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
           currentCycle: { increment: 1 },
           currentPeriodStartAt: nextStart,
           currentPeriodEndAt: nextEnd,
-          ...(useManualAnchor ? { metadata: nextMeta as any } : {})
+          ...(useManualAnchor ? { metadata: nextMeta as Prisma.InputJsonValue } : {})
         }
       });
 
@@ -541,8 +594,6 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
       await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});
     }
   }
-
-  // Notifications are handled via rules (PAYMENT_APPROVED / PAYMENT_DECLINED).
 }
 
 export async function processWompiEvent(webhookEventId: string) {
@@ -556,23 +607,25 @@ export async function forwardWompiToShopify(webhookEventId: string) {
   const event = await prisma.webhookEvent.findUnique({ where: { id: webhookEventId } });
   if (!event) return;
 
-  const raw = event.payload as any;
-  const data = raw && typeof raw === "object" ? raw.data : undefined;
-  const transaction = data && typeof data === "object" ? data.transaction : undefined;
+  const raw = (event.payload && typeof event.payload === "object" ? event.payload : {}) as Record<string, unknown>;
+  const data = raw && typeof raw === "object" ? (raw as Record<string, unknown>).data : undefined;
+  const transaction = data && typeof data === "object" ? (data as Record<string, unknown>).transaction : undefined;
+  const dataRecord = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
+  const txRecord = transaction && typeof transaction === "object" ? (transaction as Record<string, unknown>) : null;
   const checksum = String(event.checksum || raw?.signature?.checksum || "").trim();
   const origin = cfg.origin === "shopify-native" ? "shopify-native" : "shopify";
   const payload = {
     ...(raw && typeof raw === "object" ? raw : {}),
-    origin: raw?.origin ?? origin,
-    sent_at: raw?.sent_at ?? new Date().toISOString(),
+    origin: (raw as Record<string, unknown>)?.origin ?? origin,
+    sent_at: (raw as Record<string, unknown>)?.sent_at ?? new Date().toISOString(),
     data:
       data && typeof data === "object"
         ? {
-            ...data,
-            origin: (data as any).origin ?? origin,
+            ...dataRecord,
+            origin: dataRecord?.origin ?? origin,
             transaction:
               transaction && typeof transaction === "object"
-                ? { ...transaction, origin: (transaction as any).origin ?? origin }
+                ? { ...txRecord, origin: txRecord?.origin ?? origin }
                 : transaction
           }
         : data

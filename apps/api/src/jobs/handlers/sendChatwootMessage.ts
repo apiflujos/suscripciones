@@ -1,10 +1,11 @@
-import { ChatwootMessageType, LogLevel, MessageStatus } from "@prisma/client";
+import { ChatwootMessageType, LogLevel, MessageStatus, Prisma } from "@prisma/client";
 import { prisma } from "../../db/prisma";
 import { ChatwootClient } from "../../providers/chatwoot/client";
 import { getChatwootConfig } from "../../services/runtimeConfig";
 import { consumeApp } from "../../services/superAdminApp";
 import { systemLog } from "../../services/systemLog";
 import { syncChatwootAttributesForCustomer } from "../../services/chatwootSync";
+import { logger } from "../../lib/logger";
 
 const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024;
 const MIME_EXT: Record<string, string> = {
@@ -67,8 +68,16 @@ type ContactableInboxMeta = {
   provider?: string;
 };
 
-function toContactableInboxes(raw: any): ContactableInboxMeta[] {
-  const payload = Array.isArray(raw?.payload) ? raw.payload : Array.isArray(raw) ? raw : [];
+type ContactableInboxRaw = {
+  payload?: unknown;
+};
+
+function toContactableInboxes(raw: ContactableInboxRaw | unknown): ContactableInboxMeta[] {
+  const payload = raw && typeof raw === "object" && Array.isArray((raw as ContactableInboxRaw).payload)
+    ? (raw as ContactableInboxRaw).payload
+    : Array.isArray(raw)
+      ? raw
+      : [];
   return payload
     .map((item: any) => {
       const inbox = item?.inbox || item?.inbox_meta || item?.inboxMeta || {};
@@ -104,11 +113,15 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
     await prisma.chatwootMessage.update({
       where: { id: chatwootMessageId },
       data: { status: MessageStatus.FAILED, errorMessage }
-    }).catch(() => {});
+    }).catch((err) => {
+      logger.warn({ err, chatwootMessageId }, "chatwoot.send: failed to update message status");
+    });
     await systemLog(LogLevel.WARN, "chatwoot.send", "Cliente sin teléfono", {
       chatwootMessageId,
       customerId: msg.customerId
-    }).catch(() => {});
+    }).catch((err) => {
+      logger.warn({ err, chatwootMessageId }, "chatwoot.send: failed to write system log");
+    });
     return;
   }
 
@@ -121,7 +134,9 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
     await systemLog(LogLevel.WARN, "chatwoot.send", "Chatwoot no configurado", {
       chatwootMessageId,
       customerId: msg.customerId
-    }).catch(() => {});
+    }).catch((err) => {
+      logger.warn({ err, chatwootMessageId }, "chatwoot.send: failed to write system log");
+    });
     return;
   }
 
@@ -139,7 +154,10 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
   let selectedChannel: ContactableInboxMeta | null = null;
   let contactableInboxes: ContactableInboxMeta[] = [];
 
-  const customerMeta: any = (msg.customer.metadata ?? {}) as any;
+  type CustomerMetadata = Record<string, unknown> & {
+    chatwoot?: { contactId?: number; sourceId?: string; contactSnapshot?: { name?: string | null; email?: string | null; phone?: string | null } };
+  };
+  const customerMeta = (msg.customer.metadata ?? {}) as CustomerMetadata;
   const knownContactId = customerMeta?.chatwoot?.contactId;
   const knownSourceId = customerMeta?.chatwoot?.sourceId;
   if (typeof knownContactId === "number" && Number.isFinite(knownContactId)) {
@@ -168,8 +186,10 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
       };
       await prisma.customer.update({
         where: { id: msg.customerId },
-        data: { metadata: merged as any }
-      }).catch(() => {});
+        data: { metadata: merged as Prisma.InputJsonValue }
+      }).catch((err) => {
+        logger.warn({ err, customerId: msg.customerId }, "chatwoot.send: failed to update customer metadata");
+      });
     }
   } catch {
     const queries = client.buildSearchQueries({
@@ -207,8 +227,10 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
       };
       await prisma.customer.update({
         where: { id: msg.customerId },
-        data: { metadata: merged as any }
-      }).catch(() => {});
+        data: { metadata: merged as Prisma.InputJsonValue }
+      }).catch((err) => {
+        logger.warn({ err, customerId: msg.customerId }, "chatwoot.send: failed to update customer metadata");
+      });
       break;
     }
   }
@@ -221,11 +243,19 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
     await systemLog(LogLevel.WARN, "chatwoot.send", "Contacto no encontrado/creado", {
       chatwootMessageId,
       customerId: msg.customerId
-    }).catch(() => {});
+    }).catch((err) => {
+      logger.warn({ err, chatwootMessageId }, "chatwoot.send: failed to write system log");
+    });
     return;
   }
 
-  const providerResp: any = (msg.providerResp ?? {}) as any;
+  type ProviderResp = {
+    template_params?: Record<string, unknown>;
+    attachment?: { url?: string };
+    inboxId?: number | string;
+    inbox_id?: number | string;
+  };
+  const providerResp = (msg.providerResp ?? {}) as ProviderResp;
   const templateParams = providerResp?.template_params;
   const attachmentUrl = providerResp?.attachment?.url;
   const requestedInboxRaw = providerResp?.inboxId ?? providerResp?.inbox_id;
@@ -235,7 +265,8 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
   try {
     const contactable = await client.listContactableInboxes(contactId);
     contactableInboxes = toContactableInboxes(contactable.raw);
-  } catch {
+  } catch (err) {
+    logger.warn({ err, contactId }, "chatwoot.send: failed to list contactable inboxes");
     contactableInboxes = [];
   }
 
@@ -285,16 +316,21 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
       };
       await prisma.customer.update({
         where: { id: msg.customerId },
-        data: { metadata: merged as any }
-      }).catch(() => {});
+        data: { metadata: merged as Prisma.InputJsonValue }
+      }).catch((err) => {
+        logger.warn({ err, customerId: msg.customerId }, "chatwoot.send: failed to update customer metadata");
+      });
     } catch {
       // ignore
     }
   }
 
-  await syncChatwootAttributesForCustomer(msg.customerId).catch(() => {});
+  await syncChatwootAttributesForCustomer(msg.customerId).catch((err) => {
+    logger.warn({ err, customerId: msg.customerId }, "chatwoot.send: failed to sync chatwoot attributes");
+  });
 
-  const meta: any = (msg.subscription?.metadata ?? {}) as any;
+  type SubscriptionMetadata = Record<string, unknown> & { chatwoot?: { conversationId?: number } };
+  const meta = (msg.subscription?.metadata ?? {}) as SubscriptionMetadata;
   const existingConversationId = meta?.chatwoot?.conversationId;
   let conversationId: number;
   if (typeof existingConversationId === "number") {
@@ -309,12 +345,16 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
       await prisma.chatwootMessage.update({
         where: { id: chatwootMessageId },
         data: { status: MessageStatus.FAILED, errorMessage: message }
-      }).catch(() => {});
+      }).catch((updateErr) => {
+        logger.warn({ err: updateErr, chatwootMessageId }, "chatwoot.send: failed to update message status");
+      });
       await systemLog(LogLevel.ERROR, "chatwoot.send", "Error creando conversación", {
         chatwootMessageId,
         customerId: msg.customerId,
         err: message
-      }).catch(() => {});
+      }).catch((logErr) => {
+        logger.warn({ err: logErr, chatwootMessageId }, "chatwoot.send: failed to write system log");
+      });
       return;
     }
   }
@@ -326,7 +366,9 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
     };
     await prisma.subscription.update({
       where: { id: msg.subscriptionId },
-      data: { metadata: merged as any }
+      data: { metadata: merged as Prisma.InputJsonValue }
+    }).catch((err) => {
+      logger.warn({ err, subscriptionId: msg.subscriptionId }, "chatwoot.send: failed to update subscription metadata");
     });
   }
 
@@ -338,9 +380,10 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
       let provider = selectedChannel?.provider || "";
       if (!channelType && !medium && !provider) {
         const inbox = await client.getInbox(selectedInboxId ?? cfg.inboxId);
-        channelType = String((inbox.raw as any)?.channel_type || "");
-        medium = String((inbox.raw as any)?.medium || "");
-        provider = String((inbox.raw as any)?.provider || "");
+        const raw = inbox.raw as { channel_type?: string; medium?: string; provider?: string } | undefined;
+        channelType = String(raw?.channel_type || "");
+        medium = String(raw?.medium || "");
+        provider = String(raw?.provider || "");
       }
       const isWhatsapp = isWhatsappChannel({ channelType, medium, provider });
       allowTemplate = isWhatsapp;
@@ -351,7 +394,9 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
           channelType,
           medium,
           provider
-        }).catch(() => {});
+        }).catch((logErr) => {
+          logger.warn({ err: logErr, chatwootMessageId }, "chatwoot.send: failed to write system log");
+        });
       }
     } catch {
       allowTemplate = false;
@@ -375,7 +420,9 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
           chatwootMessageId,
           customerId: msg.customerId,
           err: String(err?.message || err || "attachment_failed")
-        }).catch(() => {});
+        }).catch((logErr) => {
+          logger.warn({ err: logErr, chatwootMessageId }, "chatwoot.send: failed to write system log");
+        });
         const content = sanitizeInlineImages(stripAttachmentLine(msg.content, attachmentUrl));
         sent = await client.sendMessage(conversationId, content || sanitizeInlineImages(msg.content));
       }
@@ -387,12 +434,16 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
     await prisma.chatwootMessage.update({
       where: { id: chatwootMessageId },
       data: { status: MessageStatus.FAILED, errorMessage: message }
-    }).catch(() => {});
+    }).catch((updateErr) => {
+      logger.warn({ err: updateErr, chatwootMessageId }, "chatwoot.send: failed to update message status");
+    });
     await systemLog(LogLevel.ERROR, "chatwoot.send", "Error enviando mensaje", {
       chatwootMessageId,
       customerId: msg.customerId,
       err: message
-    }).catch(() => {});
+    }).catch((logErr) => {
+      logger.warn({ err: logErr, chatwootMessageId }, "chatwoot.send: failed to write system log");
+    });
     throw err;
   }
 
@@ -401,7 +452,9 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
     data: {
       status: MessageStatus.SENT,
       sentAt: new Date(),
-      providerResp: templateParams ? ({ ...(msg.providerResp as any), response: sent.raw } as any) : (sent.raw as any),
+      providerResp: templateParams
+        ? ({ ...(msg.providerResp as Record<string, unknown>), response: sent.raw } as Prisma.InputJsonValue)
+        : (sent.raw as Prisma.InputJsonValue),
       errorMessage: null
     }
   });
@@ -417,7 +470,12 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
       lastConversationId: conversationId
     }
   };
-  await prisma.customer.update({ where: { id: msg.customerId }, data: { metadata: nextMeta as any } }).catch(() => {});
+  await prisma.customer.update({
+    where: { id: msg.customerId },
+    data: { metadata: nextMeta as Prisma.InputJsonValue }
+  }).catch((err) => {
+    logger.warn({ err, customerId: msg.customerId }, "chatwoot.send: failed to update customer metadata");
+  });
 
   await consumeApp("messages_sent", { amount: 1, source: "jobs:chatwoot.sent", meta: { type: msg.type, id: msg.id } });
   if (msg.type === ChatwootMessageType.PAYMENT_LINK) {
@@ -428,5 +486,7 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
     chatwootMessageId,
     customerId: msg.customerId,
     type: msg.type
-  }).catch(() => {});
+  }).catch((logErr) => {
+    logger.warn({ err: logErr, chatwootMessageId }, "chatwoot.send: failed to write system log");
+  });
 }
