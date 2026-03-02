@@ -523,8 +523,11 @@ export default async function LogsPage({
           {tab === "system" ? (
             <div className="filtersRow">
               <div className="filtersLeft">
-                <div className="filtersNote">
-                  Busca por evento o fuente (por defecto últimos 30 días). <span className="muted">Vistas = filtros guardados.</span>
+                <div className="filtersTop">
+                  <div className="filtersNote">
+                    Busca por evento o fuente (por defecto últimos 30 días). <span className="muted">Vistas = filtros guardados.</span>
+                  </div>
+                  <div className="filtersSummary">{paginationSummary}</div>
                 </div>
                 <div className="filtersPanel">
                   <SmartViewsBar
@@ -541,10 +544,6 @@ export default async function LogsPage({
                   />
                 </div>
               </div>
-              <div className="filtersRight">
-                <div className="filtersSummary">{paginationSummary}</div>
-              </div>
-
             </div>
           ) : tab === "jobs" ? (
             <div className="filtersRow">
@@ -854,7 +853,10 @@ export default async function LogsPage({
             <div className="panel module" style={{ padding: 0 }}>
               <div className="filtersRow" style={{ padding: "12px 16px 0" }}>
                 <div className="filtersLeft">
-                  <div className="filtersNote">Webhooks con trazabilidad de cliente y pago (por defecto últimos 30 días).</div>
+                  <div className="filtersTop">
+                    <div className="filtersNote">Webhooks con trazabilidad de cliente y pago (por defecto últimos 30 días).</div>
+                    <div className="filtersSummary">{paginationSummary}</div>
+                  </div>
                   <div className="filtersPanel">
                     <form action="/logs" method="GET" className="filtersForm" data-debounce-form="true">
                       <input type="hidden" name="tab" value="webhooks" />
@@ -870,9 +872,6 @@ export default async function LogsPage({
                       <button className="ghost" type="submit">Filtrar</button>
                     </form>
                   </div>
-                </div>
-                <div className="filtersRight">
-                  <div className="filtersSummary">{paginationSummary}</div>
                 </div>
               </div>
                   <table className="table logs-table logs-table-webhooks" aria-label="Tabla de webhooks">

@@ -1244,6 +1244,14 @@ a {
   gap: 8px;
 }
 
+.filtersTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .filtersRight {
   display: flex;
   gap: 10px;
