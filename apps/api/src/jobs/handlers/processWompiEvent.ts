@@ -429,7 +429,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         .upsert({
           where: { paymentId: paymentRecord.id },
           create: {
-            ...(tenantIdForPayment ? { tenantId: tenantIdForPayment } : {}),
+            tenantId: tenantIdForPayment,
             planId,
             subscriptionId: paymentRecord.subscriptionId,
             paymentId: paymentRecord.id,
