@@ -1,9 +1,10 @@
 import type { Request, Response } from "express";
-import { LogLevel } from "@prisma/client";
+import { GamificationEntityType, LogLevel } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { systemLog } from "../services/systemLog";
 import { redactHeaders } from "../lib/redact";
 import { getDefaultTenantId } from "../services/tenantContext";
+import { applyGamificationEvent, GAMIFICATION_EVENT_KINDS } from "../services/gamification";
 
 function getContactFromPayload(payload: any) {
   if (payload?.contact && typeof payload.contact === "object") return payload.contact;
@@ -17,6 +18,36 @@ function getConversationIdFromPayload(payload: any) {
   if (conversation && typeof conversation === "object" && Number.isFinite(Number(conversation.id))) return Number(conversation.id);
   const id = payload?.conversation_id ?? payload?.conversationId;
   return Number.isFinite(Number(id)) ? Number(id) : null;
+}
+
+function getMessageFromPayload(payload: any) {
+  if (payload?.message && typeof payload.message === "object") return payload.message;
+  if (payload?.data?.message && typeof payload.data.message === "object") return payload.data.message;
+  if (payload?.data?.conversation?.last_message && typeof payload.data.conversation.last_message === "object") {
+    return payload.data.conversation.last_message;
+  }
+  return null;
+}
+
+function isIncomingMessage(payload: any) {
+  const message = getMessageFromPayload(payload);
+  const rawType = message?.message_type ?? message?.messageType ?? message?.direction ?? payload?.message_type;
+  if (rawType === 0 || rawType === "incoming") return true;
+  const normalized = String(rawType || "").toLowerCase();
+  return normalized === "incoming" || normalized === "inbound";
+}
+
+function messageTimestamp(payload: any) {
+  const message = getMessageFromPayload(payload);
+  const raw = message?.created_at ?? message?.createdAt ?? payload?.timestamp ?? null;
+  if (raw == null) return new Date();
+  if (typeof raw === "number") {
+    const ms = raw > 1e12 ? raw : raw * 1000;
+    const d = new Date(ms);
+    return Number.isFinite(d.getTime()) ? d : new Date();
+  }
+  const d = new Date(String(raw));
+  return Number.isFinite(d.getTime()) ? d : new Date();
 }
 
 export async function chatwootWebhook(req: Request, res: Response) {
@@ -67,6 +98,9 @@ export async function chatwootWebhook(req: Request, res: Response) {
     customer = await prisma.customer.findFirst({ where: { phone } });
   }
 
+  const incoming = isIncomingMessage(payload);
+  const eventAt = messageTimestamp(payload).toISOString();
+
   if (customer) {
     const meta: any = (customer.metadata ?? {}) as any;
     const merged = {
@@ -77,11 +111,15 @@ export async function chatwootWebhook(req: Request, res: Response) {
         sourceId: sourceId ?? meta?.chatwoot?.sourceId,
         ...(conversationId ? { conversationId } : {}),
         lastEvent: event,
-        lastEventAt: new Date().toISOString()
+        lastEventAt: eventAt,
+        ...(conversationId ? { lastConversationId: conversationId } : {}),
+        ...(incoming
+          ? { lastIncomingAt: eventAt, followupCount: 0, followupMaxedAt: null }
+          : { lastOutgoingAt: eventAt })
       }
     };
 
-    await prisma.customer
+    const updatedCustomer = await prisma.customer
       .update({
         where: { id: customer.id },
         data: {
@@ -92,6 +130,7 @@ export async function chatwootWebhook(req: Request, res: Response) {
         }
       })
       .catch(() => {});
+    if (updatedCustomer) customer = updatedCustomer;
   } else if (contactId || email || phone) {
     const tenantId = await getDefaultTenantId();
     if (!tenantId) {
@@ -103,10 +142,14 @@ export async function chatwootWebhook(req: Request, res: Response) {
         sourceId: sourceId ?? undefined,
         ...(conversationId ? { conversationId } : {}),
         lastEvent: event,
-        lastEventAt: new Date().toISOString()
+        lastEventAt: eventAt,
+        ...(conversationId ? { lastConversationId: conversationId } : {}),
+        ...(incoming
+          ? { lastIncomingAt: eventAt, followupCount: 0, followupMaxedAt: null }
+          : { lastOutgoingAt: eventAt })
       }
     };
-    await prisma.customer
+    const createdCustomer = await prisma.customer
       .create({
         data: {
           tenantId,
@@ -117,6 +160,17 @@ export async function chatwootWebhook(req: Request, res: Response) {
         }
       })
       .catch(() => {});
+    if (createdCustomer) customer = createdCustomer;
+  }
+
+  if (incoming && customer?.id) {
+    await applyGamificationEvent({
+      entityType: GamificationEntityType.CUSTOMER,
+      entityId: customer.id,
+      tenantId: customer.tenantId || null,
+      kind: GAMIFICATION_EVENT_KINDS.CHATWOOT_MESSAGE_IN,
+      metadata: { event, contactId, conversationId }
+    }).catch(() => {});
   }
 
   await systemLog(LogLevel.INFO, "webhooks.chatwoot", `event:${event}`, {

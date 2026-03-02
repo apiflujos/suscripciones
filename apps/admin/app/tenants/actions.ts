@@ -55,14 +55,35 @@ export async function updateTenant(formData: FormData) {
   const tenantId = String(formData.get("tenantId") || "").trim();
   const name = String(formData.get("name") || "").trim();
   const logoUrl = String(formData.get("logoUrl") || "").trim();
+  const factorRaw = String(formData.get("gamificationFactor") || "").trim();
+  const bonusRaw = String(formData.get("gamificationBonus") || "").trim();
+  const followupMinutesRaw = String(formData.get("followupMinutes") || "").trim();
+  const followupCooldownRaw = String(formData.get("followupCooldownMinutes") || "").trim();
+  const followupMaxAttemptsRaw = String(formData.get("followupMaxAttempts") || "").trim();
   const returnTo = String(formData.get("returnTo") || "").trim() || "/";
   if (!tenantId) return redirect(mergeQuery(returnTo, { error: "missing_tenant_id" }));
   if (!name) return redirect(mergeQuery(returnTo, { error: "tenant_name_required" }));
 
+  const factor = factorRaw ? Number(factorRaw) : undefined;
+  const bonus = bonusRaw ? Number(bonusRaw) : undefined;
+  const followupMinutes = followupMinutesRaw ? Number(followupMinutesRaw) : undefined;
+  const followupCooldownMinutes = followupCooldownRaw ? Number(followupCooldownRaw) : undefined;
+  const followupMaxAttempts = followupMaxAttemptsRaw ? Number(followupMaxAttemptsRaw) : undefined;
+
   try {
     await adminFetch(`/admin/tenants/${encodeURIComponent(tenantId)}`, {
       method: "PUT",
-      body: JSON.stringify({ name, logoUrl })
+      body: JSON.stringify({
+        name,
+        logoUrl,
+        gamification: {
+          ...(Number.isFinite(factor as any) ? { factor } : {}),
+          ...(Number.isFinite(bonus as any) ? { bonus } : {}),
+          ...(Number.isFinite(followupMinutes as any) ? { followupMinutes } : {}),
+          ...(Number.isFinite(followupCooldownMinutes as any) ? { followupCooldownMinutes } : {}),
+          ...(Number.isFinite(followupMaxAttempts as any) ? { followupMaxAttempts } : {})
+        }
+      })
     });
     redirect(mergeQuery(returnTo, { saved: "1" }));
   } catch (err: any) {

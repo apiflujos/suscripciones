@@ -10,32 +10,32 @@ export type SystemSmartList = {
 
 const gamificationLists: SystemSmartList[] = [
   {
+    id: "system:tier:leyenda",
+    name: "Gamificación: Leyenda",
+    category: "Gamificación",
+    description: "Leyenda / Maestro / Elite / Diamante",
+    rules: { field: "gamificationLevelName", op: "in", value: ["Leyenda", "Maestro", "Elite", "Diamante"] }
+  },
+  {
     id: "system:tier:oro",
     name: "Gamificación: Oro",
     category: "Gamificación",
-    description: ">= 6 pagos aprobados",
-    rules: { field: "tier", op: "equals", value: "Oro" }
+    description: "Oro / Platino",
+    rules: { field: "gamificationLevelName", op: "in", value: ["Oro", "Platino"] }
   },
   {
     id: "system:tier:plata",
     name: "Gamificación: Plata",
     category: "Gamificación",
-    description: "3 a 5 pagos aprobados",
-    rules: { field: "tier", op: "equals", value: "Plata" }
-  },
-  {
-    id: "system:tier:bronce",
-    name: "Gamificación: Bronce",
-    category: "Gamificación",
-    description: "1 a 2 pagos aprobados",
-    rules: { field: "tier", op: "equals", value: "Bronce" }
+    description: "Plata / Bronce",
+    rules: { field: "gamificationLevelName", op: "in", value: ["Plata", "Bronce"] }
   },
   {
     id: "system:tier:rookie",
     name: "Gamificación: Rookie",
     category: "Gamificación",
-    description: "0 pagos aprobados",
-    rules: { field: "tier", op: "equals", value: "Rookie" }
+    description: "Rookie / Explorador",
+    rules: { field: "gamificationLevelName", op: "in", value: ["Rookie", "Explorador"] }
   }
 ];
 
@@ -106,4 +106,3 @@ export function getSystemSmartList(id: string) {
 export function getSystemSmartLists() {
   return SYSTEM_SMART_LISTS.slice();
 }
-

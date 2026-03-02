@@ -1,5 +1,6 @@
 import { prisma } from "../db/prisma";
-import { SubscriptionStatus, PaymentStatus } from "@prisma/client";
+import { SubscriptionStatus, PaymentStatus, GamificationEntityType } from "@prisma/client";
+import { formatLevelName } from "./gamification";
 
 export type SmartListRule =
   | {
@@ -171,7 +172,7 @@ function evalRule(rule: SmartListRule, ctx: Record<string, any>): boolean {
 }
 
 export async function computeSmartListRecipients(rules: SmartListRule) {
-  const [customers, approvedCounts, paymentCounts] = await Promise.all([
+  const [customers, approvedCounts, paymentCounts, gamificationScores] = await Promise.all([
     prisma.customer.findMany({
       include: {
         subscriptions: {
@@ -190,6 +191,9 @@ export async function computeSmartListRecipients(rules: SmartListRule) {
     prisma.payment.groupBy({
       by: ["customerId"],
       _count: { _all: true }
+    }),
+    prisma.gamificationScore.findMany({
+      where: { entityType: GamificationEntityType.CUSTOMER, tenantId: null }
     })
   ]);
 
@@ -197,6 +201,8 @@ export async function computeSmartListRecipients(rules: SmartListRule) {
   approvedCounts.forEach((row) => approvedByCustomer.set(String(row.customerId), Number(row._count?._all || 0)));
   const paymentsByCustomer = new Map<string, number>();
   paymentCounts.forEach((row) => paymentsByCustomer.set(String(row.customerId), Number(row._count?._all || 0)));
+  const gamificationByCustomer = new Map<string, any>();
+  gamificationScores.forEach((row) => gamificationByCustomer.set(String(row.entityId), row));
 
   const now = Date.now();
 
@@ -205,6 +211,9 @@ export async function computeSmartListRecipients(rules: SmartListRule) {
     const latestPayment = customer.payments?.[0] || sub?.payments?.[0] || null;
     const approvedCount = approvedByCustomer.get(String(customer.id)) || 0;
     const totalPayments = paymentsByCustomer.get(String(customer.id)) || 0;
+    const gamification = gamificationByCustomer.get(String(customer.id));
+    const gamificationLevel = Number(gamification?.level || 1);
+    const gamificationLevelName = formatLevelName(gamificationLevel);
 
     const currentPeriodEndAt = sub?.currentPeriodEndAt ? new Date(sub.currentPeriodEndAt) : null;
     const daysPastDue =
@@ -237,6 +246,10 @@ export async function computeSmartListRecipients(rules: SmartListRule) {
       lastPaymentDate: latestPayment?.createdAt ?? null,
       paymentsCount: totalPayments,
       approvedPaymentsCount: approvedCount,
+      gamificationLevel,
+      gamificationLevelName,
+      gamificationScore: Number(gamification?.statusScore || 0),
+      gamificationLifetime: Number(gamification?.lifetimePoints || 0),
       tier,
       daysPastDue,
       inMora: sub?.status === SubscriptionStatus.PAST_DUE || daysPastDue > 0,

@@ -76,6 +76,8 @@ function normalizeJobType(type: any) {
   if (v === "SEND_CAMPAIGN") return "Enviar campaña";
   if (v === "SYNC_SMART_LISTS") return "Sincronizar listas";
   if (v === "AI_ASSIST") return "Asistente IA";
+  if (v === "GAMIFICATION_RECALC") return "Recalcular gamificación";
+  if (v === "DATA_TRAINER") return "Entrenador de datos";
   return v || "—";
 }
 

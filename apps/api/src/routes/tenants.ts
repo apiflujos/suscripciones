@@ -2,13 +2,25 @@ import express from "express";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
 
+const gamificationSchema = z
+  .object({
+    factor: z.number().optional(),
+    bonus: z.number().optional(),
+    followupMinutes: z.number().int().positive().optional(),
+    followupCooldownMinutes: z.number().int().positive().optional(),
+    followupMaxAttempts: z.number().int().positive().optional()
+  })
+  .optional();
+
 const createTenantSchema = z.object({
   name: z.string().min(1),
-  logoUrl: z.string().trim().optional().nullable()
+  logoUrl: z.string().trim().optional().nullable(),
+  gamification: gamificationSchema
 });
 const updateTenantSchema = z.object({
   name: z.string().min(1),
-  logoUrl: z.string().trim().optional().nullable()
+  logoUrl: z.string().trim().optional().nullable(),
+  gamification: gamificationSchema
 });
 
 export const tenantsRouter = express.Router();
@@ -28,14 +40,27 @@ tenantsRouter.post("/", async (req, res) => {
 
   const name = parsed.data.name.trim();
   const logoUrl = String(parsed.data.logoUrl || "").trim();
+  const gamification = parsed.data.gamification;
   const existing = await prisma.saTenant.findFirst({ where: { name: { equals: name, mode: "insensitive" } } });
   if (existing) return res.status(200).json({ tenant: existing, created: false });
+
+  const meta: any = {};
+  if (logoUrl) meta.logoUrl = logoUrl;
+  if (gamification) {
+    meta.gamification = {
+      ...(typeof gamification.factor === "number" ? { factor: gamification.factor } : {}),
+      ...(typeof gamification.bonus === "number" ? { bonus: gamification.bonus } : {}),
+      ...(typeof gamification.followupMinutes === "number" ? { followupMinutes: gamification.followupMinutes } : {}),
+      ...(typeof gamification.followupCooldownMinutes === "number" ? { followupCooldownMinutes: gamification.followupCooldownMinutes } : {}),
+      ...(typeof gamification.followupMaxAttempts === "number" ? { followupMaxAttempts: gamification.followupMaxAttempts } : {})
+    };
+  }
 
   const tenant = await prisma.saTenant.create({
     data: {
       name,
       active: true,
-      ...(logoUrl ? { metadata: { logoUrl } } : {})
+      ...(Object.keys(meta).length ? { metadata: meta } : {})
     }
   });
   const superAdmins = await prisma.saUser.findMany({ where: { role: "SUPER_ADMIN", active: true }, select: { id: true } });
@@ -55,10 +80,24 @@ tenantsRouter.put("/:tenantId", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   const name = parsed.data.name.trim();
   const logoUrl = String(parsed.data.logoUrl || "").trim();
+  const gamification = parsed.data.gamification;
   const existing = await prisma.saTenant.findUnique({ where: { id: tenantId } });
   if (!existing) return res.status(404).json({ error: "tenant_not_found" });
   const existingMeta = (existing.metadata && typeof existing.metadata === "object" ? existing.metadata : {}) as Record<string, any>;
-  const updatedMeta = logoUrl ? { ...existingMeta, logoUrl } : existingMeta;
+  const nextMeta = { ...existingMeta };
+  if (logoUrl) nextMeta.logoUrl = logoUrl;
+  if (gamification) {
+    const currentGamification = (existingMeta as any).gamification || {};
+    nextMeta.gamification = {
+      ...currentGamification,
+      ...(typeof gamification.factor === "number" ? { factor: gamification.factor } : {}),
+      ...(typeof gamification.bonus === "number" ? { bonus: gamification.bonus } : {}),
+      ...(typeof gamification.followupMinutes === "number" ? { followupMinutes: gamification.followupMinutes } : {}),
+      ...(typeof gamification.followupCooldownMinutes === "number" ? { followupCooldownMinutes: gamification.followupCooldownMinutes } : {}),
+      ...(typeof gamification.followupMaxAttempts === "number" ? { followupMaxAttempts: gamification.followupMaxAttempts } : {})
+    };
+  }
+  const updatedMeta = nextMeta;
   const updated = await prisma.saTenant.update({ where: { id: tenantId }, data: { name, metadata: updatedMeta } });
   res.json({ tenant: updated });
 });

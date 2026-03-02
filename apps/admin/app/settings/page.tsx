@@ -13,7 +13,8 @@ import {
   deleteWompiConnection,
   setCentralActiveEnv,
   updateAiProvider,
-  deleteAiProvider
+  deleteAiProvider,
+  updateGamificationConfig
 } from "./actions";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { normalizeErrorParam } from "../lib/errorParam";
@@ -30,6 +31,7 @@ import { RedirectConfigPanel } from "./RedirectConfigPanel";
 import { createTenant, deleteTenant, updateTenant } from "../tenants/actions";
 import { updateCheckoutConfig } from "./actions";
 import { DeleteTenantButton } from "./DeleteTenantButton";
+import { GamificationPanel } from "./GamificationPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +55,15 @@ async function fetchTenants() {
   return fetchAdminCached("/admin/tenants", { ttlMs: 1500 });
 }
 
+async function fetchGamificationConfig() {
+  return fetchAdminCached("/admin/gamification/config", { ttlMs: 1500 });
+}
+
+async function fetchTrending(scope: string, hours: number) {
+  const sp = new URLSearchParams({ scope, windowHours: String(hours) });
+  return fetchAdminCached(`/admin/gamification/trending?${sp.toString()}`, { ttlMs: 1500 });
+}
+
 export default async function SettingsPage({
   searchParams
 }: {
@@ -72,7 +83,18 @@ export default async function SettingsPage({
   const templatesRes = await fetchCheckoutTemplates();
   const productsRes = await fetchProducts();
   const tenantsRes = await fetchTenants();
+  const gamificationRes = await fetchGamificationConfig();
+  const [trendCustomers24h, trendCustomers7d, trendCustomers30d, trendProducts24h, trendProducts7d, trendProducts30d] =
+    await Promise.all([
+      fetchTrending("customers", 24),
+      fetchTrending("customers", 168),
+      fetchTrending("customers", 720),
+      fetchTrending("products", 24),
+      fetchTrending("products", 168),
+      fetchTrending("products", 720)
+    ]);
   const settings = settingsRes.ok ? settingsRes.json : null;
+  const gamificationConfig = gamificationRes.ok ? gamificationRes.json?.config : null;
   const templates = templatesRes.ok ? templatesRes.json?.items || [] : [];
   const products = productsRes.ok ? productsRes.json?.items || [] : [];
   const tenants = tenantsRes.ok ? tenantsRes.json?.items || [] : [];
@@ -163,6 +185,9 @@ export default async function SettingsPage({
         <a className={`settings-tab ${tab === "canales" ? "is-active" : ""}`} href="/settings?tab=canales">
           Canales de venta
         </a>
+        <a className={`settings-tab ${tab === "gamificacion" ? "is-active" : ""}`} href="/settings?tab=gamificacion">
+          Gamificación
+        </a>
       </div>
 
       {!settingsRes.ok ? (
@@ -200,6 +225,22 @@ export default async function SettingsPage({
           </div>
         </div>
       </section>
+
+      {tab === "gamificacion" ? (
+        <GamificationPanel
+          csrfToken={csrfToken}
+          config={gamificationConfig}
+          trending={{
+            customers24h: trendCustomers24h.ok ? trendCustomers24h.json?.items || [] : [],
+            customers7d: trendCustomers7d.ok ? trendCustomers7d.json?.items || [] : [],
+            customers30d: trendCustomers30d.ok ? trendCustomers30d.json?.items || [] : [],
+            products24h: trendProducts24h.ok ? trendProducts24h.json?.items || [] : [],
+            products7d: trendProducts7d.ok ? trendProducts7d.json?.items || [] : [],
+            products30d: trendProducts30d.ok ? trendProducts30d.json?.items || [] : []
+          }}
+          actions={{ updateGamificationConfig }}
+        />
+      ) : null}
 
       {tab === "connections" ? (
         <>
@@ -619,6 +660,53 @@ export default async function SettingsPage({
                       <div className="field" style={{ minWidth: 240, flex: 1 }}>
                         <label>Logo (URL)</label>
                         <input className="input" name="logoUrl" defaultValue={tenant?.metadata?.logoUrl || tenant?.metadata?.brand?.logoUrl || ""} />
+                      </div>
+                      <div className="field" style={{ minWidth: 200 }}>
+                        <label>Factor gamificación</label>
+                        <input
+                          className="input"
+                          name="gamificationFactor"
+                          type="number"
+                          step="0.01"
+                          defaultValue={tenant?.metadata?.gamification?.factor ?? 1}
+                        />
+                      </div>
+                      <div className="field" style={{ minWidth: 200 }}>
+                        <label>Bonus gamificación</label>
+                        <input
+                          className="input"
+                          name="gamificationBonus"
+                          type="number"
+                          step="1"
+                          defaultValue={tenant?.metadata?.gamification?.bonus ?? 0}
+                        />
+                      </div>
+                      <div className="field" style={{ minWidth: 200 }}>
+                        <label>Follow-up (min)</label>
+                        <input
+                          className="input"
+                          name="followupMinutes"
+                          type="number"
+                          defaultValue={tenant?.metadata?.gamification?.followupMinutes ?? ""}
+                        />
+                      </div>
+                      <div className="field" style={{ minWidth: 200 }}>
+                        <label>Cooldown (min)</label>
+                        <input
+                          className="input"
+                          name="followupCooldownMinutes"
+                          type="number"
+                          defaultValue={tenant?.metadata?.gamification?.followupCooldownMinutes ?? ""}
+                        />
+                      </div>
+                      <div className="field" style={{ minWidth: 200 }}>
+                        <label>Máx. retomas</label>
+                        <input
+                          className="input"
+                          name="followupMaxAttempts"
+                          type="number"
+                          defaultValue={tenant?.metadata?.gamification?.followupMaxAttempts ?? ""}
+                        />
                       </div>
                       <PendingButton className="ghost" type="submit" pendingText="Guardando...">
                         Guardar

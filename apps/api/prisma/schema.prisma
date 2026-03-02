@@ -109,6 +109,7 @@ enum CredentialProvider {
   SHOPIFY
   OPENAI
   DEEPSEEK
+  GAMIFICATION
 }
 
 enum RetryJobType {
@@ -121,6 +122,8 @@ enum RetryJobType {
   SEND_CAMPAIGN
   SYNC_SMART_LISTS
   AI_ASSIST
+  GAMIFICATION_RECALC
+  DATA_TRAINER
 }
 
 enum RetryJobStatus {
@@ -146,6 +149,14 @@ enum SaPlanKind {
   MASTER
   PRO
   ON_DEMAND
+}
+
+enum GamificationEntityType {
+  CUSTOMER
+  PRODUCT
+  PLAN
+  SUBSCRIPTION
+  JOB
 }
 
 model Customer {
@@ -549,6 +560,65 @@ model SystemLog {
   createdAt DateTime @default(now())
 
   @@index([level, createdAt])
+}
+
+model GamificationEvent {
+  id            String                 @id @default(uuid()) @db.Uuid
+  tenantId      String?                @db.Uuid
+  entityType    GamificationEntityType
+  entityId      String                 @db.Uuid
+  kind          String
+  statusDelta   Int                    @default(0)
+  lifetimeDelta Int                    @default(0)
+  rewardDelta   Int                    @default(0)
+  moneyInCents  Int?
+  metadata      Json?
+  createdAt     DateTime               @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([entityType, entityId, createdAt])
+  @@index([kind, createdAt])
+}
+
+model GamificationScore {
+  id                 String                 @id @default(uuid()) @db.Uuid
+  tenantId           String?                @db.Uuid
+  entityType         GamificationEntityType
+  entityId           String                 @db.Uuid
+  lifetimePoints     Int                    @default(0)
+  statusScore        Int                    @default(0)
+  level              Int                    @default(1)
+  lastActivityAt     DateTime?
+  lastPaymentAt      DateTime?
+  lastDecayAt        DateTime?
+  streakMonths       Int                    @default(0)
+  dataQualityScore   Int                    @default(0)
+  recencyScore       Int                    @default(0)
+  monetaryScore      Int                    @default(0)
+  activityScore      Int                    @default(0)
+  consistencyScore   Int                    @default(0)
+  penaltyScore       Int                    @default(0)
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+
+  @@unique([tenantId, entityType, entityId])
+  @@index([tenantId, entityType, level])
+  @@index([entityType, statusScore])
+}
+
+model GamificationRewardLedger {
+  id             String   @id @default(uuid()) @db.Uuid
+  customerId     String   @db.Uuid
+  tenantId       String?  @db.Uuid
+  eventId        String?  @db.Uuid
+  pointsEarned   Int      @default(0)
+  pointsRedeemed Int      @default(0)
+  balance        Int      @default(0)
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  @@index([customerId, createdAt])
+  @@index([tenantId, createdAt])
 }
 
 model RateLimitBucket {
