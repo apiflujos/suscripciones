@@ -230,6 +230,9 @@ export function NewPlanTemplateForm({
     option2Value
   ]);
 
+  const summaryCurrency =
+    catalogMode === "NEW" ? itemCurrency : normalizeSupportedCurrency(selectedItem?.currency || DEFAULT_CURRENCY);
+
   useEffect(() => {
     const t = setTimeout(() => nameRef.current?.focus(), 0);
     return () => clearTimeout(t);
@@ -527,10 +530,10 @@ export function NewPlanTemplateForm({
           <div className="card cardPad" style={{ background: "rgba(15, 23, 42, 0.03)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
               <span style={{ color: "var(--muted)" }}>Total del plan</span>
-              <strong>{fmtMoneyFromCents(summary.total, catalogMode === "NEW" ? itemCurrency : String(selectedItem?.currency || DEFAULT_CURRENCY))}</strong>
+              <strong>{fmtMoneyFromCents(summary.total, summaryCurrency)}</strong>
             </div>
             <div className="field-hint" style={{ marginTop: 6 }}>
-              Base: {fmtMoneyFromCents(summary.base, catalogMode === "NEW" ? itemCurrency : String(selectedItem?.currency || DEFAULT_CURRENCY))} · Variantes: {fmtMoneyFromCents(summary.delta, catalogMode === "NEW" ? itemCurrency : String(selectedItem?.currency || DEFAULT_CURRENCY))} · Impuesto: {fmtMoneyFromCents(summary.tax, catalogMode === "NEW" ? itemCurrency : String(selectedItem?.currency || DEFAULT_CURRENCY))}
+              Base: {fmtMoneyFromCents(summary.base, summaryCurrency)} · Variantes: {fmtMoneyFromCents(summary.delta, summaryCurrency)} · Impuesto: {fmtMoneyFromCents(summary.tax, summaryCurrency)}
             </div>
           </div>
         ) : null}
