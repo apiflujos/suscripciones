@@ -443,15 +443,16 @@ export async function createAutoDebitTransactionForSubscription(args: {
   const wompi = new WompiClient({ apiBaseUrl, privateKey, checkoutLinkBaseUrl });
   const merchant = await wompi.getMerchant(publicKey);
 
-  const signature = sha256Hex(`${reference}${amountInCents}${currency}${integritySecret}`);
+  const signFor = (ref: string) => sha256Hex(`${ref}${amountInCents}${currency}${integritySecret}`);
+  let usedReference = reference;
   let created: Awaited<ReturnType<WompiClient["createTransaction"]>>;
   try {
     created = await wompi.createTransaction({
       amount_in_cents: amountInCents,
       currency,
       customer_email: sub.customer.email,
-      reference,
-      signature,
+      reference: usedReference,
+      signature: signFor(usedReference),
       acceptance_token: merchant.acceptanceToken,
       accept_personal_auth: merchant.acceptPersonalAuth,
       payment_source_id: paymentSourceId as number,
@@ -459,14 +460,55 @@ export async function createAutoDebitTransactionForSubscription(args: {
       payment_method: { installments: 1 }
     });
   } catch (err: any) {
+    const errMsg = err?.message ? String(err.message) : "unknown error";
+    const duplicateReference =
+      /reference/i.test(errMsg) &&
+      /(ya ha sido usada|already used|already been used)/i.test(errMsg);
+
+    if (duplicateReference) {
+      usedReference = `${reference}_${Date.now()}`;
+      await systemLog(LogLevel.WARN, "subscriptions.auto_debit", "Reference duplicada en Wompi; reintentando con nueva referencia", {
+        subscriptionId: sub.id,
+        paymentId: payment.id,
+        previousReference: reference,
+        nextReference: usedReference
+      }).catch(() => {});
+
+      try {
+        created = await wompi.createTransaction({
+          amount_in_cents: amountInCents,
+          currency,
+          customer_email: sub.customer.email,
+          reference: usedReference,
+          signature: signFor(usedReference),
+          acceptance_token: merchant.acceptanceToken,
+          accept_personal_auth: merchant.acceptPersonalAuth,
+          payment_source_id: paymentSourceId as number,
+          recurrent: true,
+          payment_method: { installments: 1 }
+        });
+      } catch (retryErr: any) {
+        const retryMessage = retryErr?.message ? String(retryErr.message) : "unknown error";
+        await systemLog(LogLevel.ERROR, "subscriptions.auto_debit", "Transaction create failed after reference retry", {
+          subscriptionId: sub.id,
+          paymentId: payment.id,
+          reference: usedReference,
+          amountInCents,
+          currency,
+          signature: signFor(usedReference),
+          err: retryMessage
+        }).catch(() => {});
+        throw retryErr;
+      }
+    } else {
     await systemLog(LogLevel.ERROR, "subscriptions.auto_debit", "Transaction create failed (signature details)", {
       subscriptionId: sub.id,
       paymentId: payment.id,
-      reference,
+      reference: usedReference,
       amountInCents,
       currency,
-      signature,
-      err: err?.message ? String(err.message) : "unknown error"
+      signature: signFor(usedReference),
+      err: errMsg
     }).catch((logErr) => {
       logIgnored(logErr, "auto debit: failed to write error system log", { subscriptionId: sub.id, paymentId: payment.id });
     });
@@ -482,11 +524,12 @@ export async function createAutoDebitTransactionForSubscription(args: {
     await systemLog(LogLevel.ERROR, "subscriptions.auto_debit", "Transaction create failed", {
       subscriptionId: sub.id,
       paymentId: payment.id,
-      err: err?.message ? String(err.message) : "unknown error"
+      err: errMsg
     }).catch((logErr) => {
       logIgnored(logErr, "auto debit: failed to write error system log", { subscriptionId: sub.id, paymentId: payment.id });
     });
     throw err;
+    }
   }
 
   await prisma.paymentAttempt.create({
@@ -501,7 +544,7 @@ export async function createAutoDebitTransactionForSubscription(args: {
 
   const updated = await prisma.payment.update({
     where: { id: payment.id },
-    data: { wompiTransactionId: created.id, providerResponse: created.raw as any }
+    data: { reference: usedReference, wompiTransactionId: created.id, providerResponse: created.raw as any }
   });
 
   await systemLog(LogLevel.INFO, "subscriptions.auto_debit", "Transaction created", {

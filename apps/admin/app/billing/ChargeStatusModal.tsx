@@ -63,6 +63,18 @@ export function ChargeStatusModal({
           }
           return;
         }
+        const tx = String(json?.payment?.wompiTransactionId || "").trim();
+        const last = String(json?.lastAttempt?.status || "").trim();
+        if (tx || last) {
+          setDetail(
+            [
+              tx ? `Transacción Wompi: ${tx}` : "",
+              last ? `Estado técnico: ${last}` : ""
+            ]
+              .filter(Boolean)
+              .join(" · ")
+          );
+        }
         setAttempts((v) => v + 1);
       } catch {
         setAttempts((v) => v + 1);
@@ -81,7 +93,7 @@ export function ChargeStatusModal({
   const toneOk = status === "processing" || status === "ok";
   const body =
     status === "processing"
-      ? "Esperando confirmación de Wompi. Este proceso puede tardar algunos segundos."
+      ? `Esperando confirmación de Wompi. Este proceso puede tardar algunos segundos.${detail ? ` ${detail}` : ""}`
       : status === "ok"
         ? "El cobro se confirmó correctamente."
         : `No se pudo cobrar la suscripción. ${detail || ""}`;
