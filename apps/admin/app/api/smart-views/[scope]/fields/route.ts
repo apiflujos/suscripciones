@@ -11,20 +11,25 @@ const getParam = async (paramsPromise: RouteContext["params"], key: "scope") => 
   return String(raw).trim();
 };
 
-async function getSessionEmail() {
+async function getSessionContext() {
   const c = await cookies();
   const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
   const session = await verifyAdminSessionToken(sessionToken);
-  return session?.email || "";
+  return { email: session?.email || "", tenantId: session?.tenantId || "" };
 }
 
 export async function GET(_: Request, ctx: RouteContext) {
   const { apiBase, token } = getAdminApiConfig();
   const scope = await getParam(ctx.params, "scope");
-  const email = await getSessionEmail();
+  const { email, tenantId } = await getSessionContext();
   const res = await fetch(`${apiBase}/admin/smart-views/${encodeURIComponent(scope)}/fields`, {
     cache: "no-store",
-    headers: { authorization: `Bearer ${token}`, "x-admin-token": token, ...(email ? { "x-admin-user-email": email } : {}) }
+    headers: {
+      authorization: `Bearer ${token}`,
+      "x-admin-token": token,
+      ...(email ? { "x-admin-user-email": email } : {}),
+      ...(tenantId ? { "x-tenant-id": tenantId } : {})
+    }
   });
   const json = await res.json().catch(() => ({}));
   return NextResponse.json(json, { status: res.status });
