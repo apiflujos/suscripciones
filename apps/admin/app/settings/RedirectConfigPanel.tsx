@@ -97,29 +97,17 @@ export function RedirectConfigPanel({
 
       <div className="saved-conn-meta" style={{ gridTemplateColumns: "1fr", gap: 8 }}>
         <div className="saved-conn-meta-item">
-          <span className="saved-conn-meta-label">URL pública base</span>
-          <span className="saved-conn-meta-value">{publicBaseUrl || "—"}</span>
-        </div>
-        <div className="saved-conn-meta-item">
-          <span className="saved-conn-meta-label">Base URL Plan</span>
-          <span className="saved-conn-meta-value">{planBaseUrl || "—"}</span>
-        </div>
-        <div className="saved-conn-meta-item">
-          <span className="saved-conn-meta-label">Base URL Suscripción</span>
-          <span className="saved-conn-meta-value">{subscriptionBaseUrl || "—"}</span>
+          <span className="saved-conn-meta-label">URLs públicas</span>
+          <span className="saved-conn-meta-value">{planBaseUrl && subscriptionBaseUrl ? "Configuradas" : "—"}</span>
         </div>
         <div className="saved-conn-meta-item">
           <span className="saved-conn-meta-label">UTM por defecto</span>
-          <span className="saved-conn-meta-value">{defaultUtmParams || "—"}</span>
+          <span className="saved-conn-meta-value">{defaultUtmParams ? "Configurado" : "—"}</span>
         </div>
         <div className="saved-conn-meta-item">
-          <span className="saved-conn-meta-label">URL retorno tokenización</span>
-          <span className="saved-conn-meta-value">{tokenReturnUrl || "—"}</span>
-        </div>
-        <div className="saved-conn-meta-item">
-          <span className="saved-conn-meta-label">Tokenización (éxito / error)</span>
+          <span className="saved-conn-meta-label">Tokenización</span>
           <span className="saved-conn-meta-value">
-            {tokenSuccessTitle && tokenSuccessMessage && tokenErrorMessage ? "Configurado" : "—"}
+            {tokenReturnUrl && tokenSuccessTitle && tokenSuccessMessage && tokenErrorMessage ? "Configurada" : "—"}
           </span>
         </div>
       </div>

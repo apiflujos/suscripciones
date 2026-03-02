@@ -25,6 +25,7 @@ import { AppearanceSelector } from "../ui/AppearanceSelector";
 import { PendingButton } from "../ui/PendingButton";
 import { getCsrfToken } from "../lib/csrf";
 import { ConnectionsPanel } from "./ConnectionsPanel";
+import { LogoUploadField } from "./LogoUploadField";
 import { CheckoutTemplatesPanel } from "../checkout-templates/CheckoutTemplatesPanel";
 import { createCheckoutTemplate, updateCheckoutTemplate, deleteCheckoutTemplate, duplicateCheckoutTemplate, createCheckoutTemplateDefaults } from "../checkout-templates/actions";
 import { RedirectConfigPanel } from "./RedirectConfigPanel";
@@ -44,7 +45,7 @@ async function fetchSettings() {
 }
 
 async function fetchCheckoutTemplates() {
-  return fetchAdminCached("/admin/checkout-templates", { ttlMs: 1500 });
+  return fetchAdminCached("/admin/checkout-templates", { ttlMs: 0 });
 }
 
 async function fetchProducts() {
@@ -52,7 +53,7 @@ async function fetchProducts() {
 }
 
 async function fetchTenants() {
-  return fetchAdminCached("/admin/tenants", { ttlMs: 1500 });
+  return fetchAdminCached("/admin/tenants", { ttlMs: 0 });
 }
 
 async function fetchGamificationConfig() {
@@ -97,7 +98,7 @@ export default async function SettingsPage({
   const gamificationConfig = gamificationRes.ok ? gamificationRes.json?.config : null;
   const templates = templatesRes.ok ? templatesRes.json?.items || [] : [];
   const products = productsRes.ok ? productsRes.json?.items || [] : [];
-  const tenants = tenantsRes.ok ? tenantsRes.json?.items || [] : [];
+  const tenants = (tenantsRes.ok ? tenantsRes.json?.items || [] : []).filter((t: any) => t?.active !== false);
   const c = await cookies();
   const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
   const session = await verifyAdminSessionToken(sessionToken);
@@ -148,6 +149,7 @@ export default async function SettingsPage({
   const templateKind = String(sp.kind || "").toUpperCase();
   const templateStep = String(sp.step || "choose");
   const tenantDeleteBlocked = String(sp.tenantDeleteBlocked || "") === "1";
+  const tenantArchived = String(sp.tenantArchived || "") === "1";
   const tenantDeleteStats = {
     customers: Number(sp.tenantCustomers || 0),
     plans: Number(sp.tenantPlans || 0),
@@ -303,18 +305,28 @@ export default async function SettingsPage({
                 {([
                   ["PRODUCTION", "Producción", wompiProduction],
                   ["SANDBOX", "Sandbox", wompiSandbox]
-                ] as const).map(([envKey, envLabel, wompi]) => (
+                ] as const)
+                  .filter(([envKey]) => envKey === wompiActiveEnv)
+                  .map(([envKey, envLabel, wompi]) => (
                   <div className="saved-conn-card" key={`wompi-${envKey}`}>
                     <div className="saved-conn-header">
                       <div className="saved-conn-title-row">
                         <img className="saved-conn-icon" src="/brand/conn-wompi.png" alt="" />
                         <div>
                           <strong>Wompi · {envLabel}</strong>
-                          <div className="saved-conn-sub">{envKey === wompiActiveEnv ? "Activa" : "Inactiva"}</div>
+                          <div className="saved-conn-sub">
+                            {wompi?.publicKey && wompi?.privateKey && wompi?.integritySecret && wompi?.eventsSecret ? "Configurada" : "Sin configurar"}
+                          </div>
                         </div>
                       </div>
-                      <span className={`pill ${envKey === wompiActiveEnv ? "pill-green" : "pill-muted"}`}>
-                        {envKey === wompiActiveEnv ? "Activa" : "Inactiva"}
+                      <span
+                        className={`pill ${
+                          envKey === wompiActiveEnv && wompi?.publicKey && wompi?.privateKey && wompi?.integritySecret && wompi?.eventsSecret
+                            ? "pill-green"
+                            : "pill-muted"
+                        }`}
+                      >
+                        {envKey === wompiActiveEnv && wompi?.publicKey && wompi?.privateKey && wompi?.integritySecret && wompi?.eventsSecret ? "Activa" : "Inactiva"}
                       </span>
                     </div>
                     <div className="saved-conn-actions">
@@ -368,15 +380,21 @@ export default async function SettingsPage({
                 {([
                   ["PRODUCTION", "Producción", commsProduction],
                   ["SANDBOX", "Sandbox", commsSandbox]
-                ] as const).map(([envKey, envLabel, comms]) => (
+                ] as const)
+                  .filter(([envKey]) => envKey === commsActiveEnv)
+                  .map(([envKey, envLabel, comms]) => (
                   <div className="saved-conn-card" key={`central-${envKey}`}>
                     <div className="saved-conn-header">
                       <div>
                         <strong>Central · {envLabel}</strong>
-                        <div className="saved-conn-sub">{comms?.baseUrl ? "Configurada" : "Sin configurar"}</div>
+                        <div className="saved-conn-sub">{comms?.baseUrl && comms?.accountId && comms?.inboxId ? "Configurada" : "Sin configurar"}</div>
                       </div>
-                      <span className={`pill ${envKey === commsActiveEnv ? "pill-green" : "pill-muted"}`}>
-                        {envKey === commsActiveEnv ? "Activa" : "Inactiva"}
+                      <span
+                        className={`pill ${
+                          envKey === commsActiveEnv && comms?.baseUrl && comms?.accountId && comms?.inboxId ? "pill-green" : "pill-muted"
+                        }`}
+                      >
+                        {envKey === commsActiveEnv && comms?.baseUrl && comms?.accountId && comms?.inboxId ? "Activa" : "Inactiva"}
                       </span>
                     </div>
                     <div className="saved-conn-actions">
@@ -415,7 +433,8 @@ export default async function SettingsPage({
                   </div>
                 ))}
 
-                <div className="saved-conn-card">
+                {settings?.shopify?.forwardUrl ? (
+                  <div className="saved-conn-card">
                   <div className="saved-conn-header">
                     <div>
                       <strong>Shopify</strong>
@@ -451,6 +470,7 @@ export default async function SettingsPage({
                     </div>
                   </div>
                 </div>
+                ) : null}
               </div>
 
             </div>
@@ -630,6 +650,11 @@ export default async function SettingsPage({
                 </div>
               </div>
             ) : null}
+            {tenantArchived ? (
+              <div className="card cardPad" style={{ borderColor: "rgba(16, 185, 129, 0.22)", background: "rgba(16, 185, 129, 0.08)" }}>
+                Canal archivado. Ya no aparece en la lista.
+              </div>
+            ) : null}
             <div className="card cardPad" style={{ marginBottom: 16 }}>
               <form action={createTenant} className="row" style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
                 <input type="hidden" name="csrfToken" value={csrfToken} />
@@ -638,10 +663,12 @@ export default async function SettingsPage({
                   <label>Nuevo canal</label>
                   <input className="input" name="name" placeholder="Nombre del canal" />
                 </div>
-                <div className="field" style={{ minWidth: 240, flex: 1 }}>
-                  <label>Logo del canal (URL)</label>
-                  <input className="input" name="logoUrl" placeholder="https://..." />
-                  <div className="field-hint">Se usa en los links públicos de pago/tokenización.</div>
+                <div style={{ minWidth: 240, flex: 1 }}>
+                  <LogoUploadField
+                    name="logoUrl"
+                    label="Logo del canal"
+                    hint="Se usa en los links públicos de pago/tokenización."
+                  />
                 </div>
                 <PendingButton className="primary" type="submit" pendingText="Creando...">
                   Crear canal
@@ -661,9 +688,12 @@ export default async function SettingsPage({
                         <label>Nombre</label>
                         <input className="input" name="name" defaultValue={tenant.name || ""} />
                       </div>
-                      <div className="field" style={{ minWidth: 240, flex: 1 }}>
-                        <label>Logo (URL)</label>
-                        <input className="input" name="logoUrl" defaultValue={tenant?.metadata?.logoUrl || tenant?.metadata?.brand?.logoUrl || ""} />
+                      <div style={{ minWidth: 240, flex: 1 }}>
+                        <LogoUploadField
+                          name="logoUrl"
+                          label="Logo del canal"
+                          defaultValue={tenant?.metadata?.logoUrl || tenant?.metadata?.brand?.logoUrl || ""}
+                        />
                       </div>
                       <div className="field" style={{ minWidth: 200 }}>
                         <label>Factor gamificación</label>

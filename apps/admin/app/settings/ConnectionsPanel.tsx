@@ -88,10 +88,10 @@ export function ConnectionsPanel({
             <div className="conn-sub">Pagos y tokenización</div>
           </div>
           <div className="conn-status" style={{ display: "grid", gap: 4, justifyItems: "end" }}>
-            <span>Producción</span>
+            <span>{wompiActiveEnv === "PRODUCTION" ? "Activo" : "Inactivo"}</span>
             {(() => {
-              const ready = Boolean(wompiProduction?.publicKey && wompiProduction?.apiBaseUrl);
-              return ready ? <span className="pill pill-ok pill-sm">Listo</span> : null;
+              const ready = Boolean(wompiProduction?.publicKey && wompiProduction?.privateKey && wompiProduction?.integritySecret && wompiProduction?.eventsSecret);
+              return ready && wompiActiveEnv === "PRODUCTION" ? <span className="pill pill-ok pill-sm">Listo</span> : null;
             })()}
           </div>
         </button>
@@ -105,10 +105,10 @@ export function ConnectionsPanel({
             <div className="conn-sub">Pagos y tokenización</div>
           </div>
           <div className="conn-status" style={{ display: "grid", gap: 4, justifyItems: "end" }}>
-            <span>Sandbox</span>
+            <span>{wompiActiveEnv === "SANDBOX" ? "Activo" : "Inactivo"}</span>
             {(() => {
-              const ready = Boolean(wompiSandbox?.publicKey && wompiSandbox?.apiBaseUrl);
-              return ready ? <span className="pill pill-ok pill-sm">Listo</span> : null;
+              const ready = Boolean(wompiSandbox?.publicKey && wompiSandbox?.privateKey && wompiSandbox?.integritySecret && wompiSandbox?.eventsSecret);
+              return ready && wompiActiveEnv === "SANDBOX" ? <span className="pill pill-ok pill-sm">Listo</span> : null;
             })()}
           </div>
         </button>
@@ -122,13 +122,10 @@ export function ConnectionsPanel({
             <div className="conn-sub">Comunicaciones</div>
           </div>
           <div className="conn-status" style={{ display: "grid", gap: 4, justifyItems: "end" }}>
-            <span>
-              {commsActiveEnv === "PRODUCTION" ? "Producción" : "Sandbox"} ·{" "}
-              {commsActiveEnv === "PRODUCTION" ? (commsProduction?.baseUrl ? "OK" : "Sin configurar") : (commsSandbox?.baseUrl ? "OK" : "Sin configurar")}
-            </span>
+            <span>{commsActiveEnv === "PRODUCTION" ? "Activo" : "Inactivo"}</span>
             {(() => {
               const env = commsActiveEnv === "PRODUCTION" ? commsProduction : commsSandbox;
-              const ready = Boolean(env?.baseUrl);
+              const ready = Boolean(env?.baseUrl && env?.accountId && env?.inboxId);
               return ready ? <span className="pill pill-ok pill-sm">Listo</span> : null;
             })()}
           </div>
@@ -143,7 +140,7 @@ export function ConnectionsPanel({
             <div className="conn-sub">Reenvío de eventos</div>
           </div>
           <div className="conn-status" style={{ display: "grid", gap: 4, justifyItems: "end" }}>
-            <span>{shopify?.forwardUrl ? "Configurada" : "Sin configurar"}</span>
+            <span>{shopify?.forwardUrl ? "Activo" : "Inactivo"}</span>
             {shopify?.forwardUrl ? <span className="pill pill-ok pill-sm">Listo</span> : null}
           </div>
         </button>

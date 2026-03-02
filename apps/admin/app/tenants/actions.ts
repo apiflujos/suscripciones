@@ -127,6 +127,9 @@ export async function deleteTenant(formData: FormData) {
       }
       throw new Error(json?.reason ? `${json?.error || "request_failed"}:${json.reason}` : json?.error || `request_failed_${res.status}`);
     }
+    if (json?.archived) {
+      return redirect(mergeQuery(returnTo, { deleted: "1", tenantArchived: "1" }));
+    }
     redirect(mergeQuery(returnTo, { deleted: "1" }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
