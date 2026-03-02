@@ -28,6 +28,56 @@ function defaultFromDate() {
   return new Date(Date.now() - DEFAULT_LOG_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 }
 
+function stringOrNull(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+function pickProviderFailureMessage(providerResponse: unknown): string | null {
+  if (!providerResponse || typeof providerResponse !== "object") return null;
+  const root = providerResponse as Record<string, any>;
+  const candidates = [
+    root?.status_message,
+    root?.statusMessage,
+    root?.reason,
+    root?.error,
+    root?.error_message
+  ];
+  for (const candidate of candidates) {
+    const text = stringOrNull(candidate);
+    if (text) return text;
+  }
+  const errorObj = root?.error;
+  if (errorObj && typeof errorObj === "object") {
+    const maybeMessage =
+      stringOrNull((errorObj as any).message) ||
+      stringOrNull((errorObj as any).reason) ||
+      stringOrNull((errorObj as any).type);
+    if (maybeMessage) return maybeMessage;
+    const messages = (errorObj as any).messages;
+    if (messages && typeof messages === "object") {
+      for (const value of Object.values(messages as Record<string, any>)) {
+        if (Array.isArray(value)) {
+          const first = value.map((v) => stringOrNull(v)).find(Boolean);
+          if (first) return first;
+        }
+        const text = stringOrNull(value);
+        if (text) return text;
+      }
+    }
+  }
+  const webhookTx = root?.webhook?.data?.transaction;
+  if (webhookTx && typeof webhookTx === "object") {
+    const webhookMsg =
+      stringOrNull((webhookTx as any).status_message) ||
+      stringOrNull((webhookTx as any).statusMessage) ||
+      stringOrNull((webhookTx as any).status_reason);
+    if (webhookMsg) return webhookMsg;
+  }
+  return null;
+}
+
 logsRouter.get("/system", async (req, res) => {
   const withCount = String(req.query.count ?? "") === "1";
   const take = Math.min(200, Math.max(1, Number(req.query.take ?? 20)));
@@ -352,7 +402,23 @@ logsRouter.get("/payments", async (req, res) => {
     }),
     withCount ? prisma.payment.count({ where: ids.length ? { ...where, id: { in: ids } } : where }) : Promise.resolve(null)
   ]);
-  res.json({ items, total });
+  const mappedItems = items.map((item: any) => {
+    const lastAttempt = Array.isArray(item.attempts) ? item.attempts[0] : null;
+    const failureCode =
+      stringOrNull(lastAttempt?.errorCode) ||
+      stringOrNull(lastAttempt?.status) ||
+      null;
+    const failureReason =
+      stringOrNull(lastAttempt?.errorMessage) ||
+      pickProviderFailureMessage(item.providerResponse) ||
+      null;
+    return {
+      ...item,
+      failureCode,
+      failureReason
+    };
+  });
+  res.json({ items: mappedItems, total });
 });
 
 logsRouter.post("/system/test", async (_req, res) => {

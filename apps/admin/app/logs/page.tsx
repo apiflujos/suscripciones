@@ -8,6 +8,7 @@ import { LogsFiltersAutoSubmit } from "./LogsFiltersAutoSubmit";
 import { getCsrfToken, assertCsrfToken } from "../lib/csrf";
 import { PendingButton } from "../ui/PendingButton";
 import { SmartViewsBar } from "../smart-views/SmartViewsBar";
+import { ReconcilePaymentModal } from "./ReconcilePaymentModal";
 
 export const dynamic = "force-dynamic";
 
@@ -611,58 +612,50 @@ export default async function LogsPage({
               <div className="filtersLeft">
                 <div className="filtersNote">Consulta pagos por cliente, referencia o estado (por defecto últimos 30 días).</div>
                 <div className="filtersPanel">
-                  <form action="/payments" method="GET" className="filtersForm" data-debounce-form="true">
-                    <input
-                      className="input"
-                      name="q"
-                      defaultValue={q}
-                      placeholder="Buscar cliente, referencia o transacción..."
-                      aria-label="Buscar pagos"
+                  <div className="contacts-search-row">
+                    <form action="/payments" method="GET" className="filtersForm filtersSearch" data-debounce-form="true">
+                      <input
+                        className="input"
+                        name="q"
+                        defaultValue={q}
+                        placeholder="Buscar cliente, referencia o transacción..."
+                        aria-label="Buscar pagos"
+                      />
+                      <select className="select" name="status" defaultValue={status} data-auto-submit="true">
+                        <option value="">Estado: todos</option>
+                        <option value="APPROVED">Pagado</option>
+                        <option value="PENDING">Pendiente</option>
+                        <option value="DECLINED">Declinado</option>
+                        <option value="ERROR">Error</option>
+                        <option value="VOIDED">Anulado</option>
+                      </select>
+                      <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" data-auto-submit="true" />
+                      <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" data-auto-submit="true" />
+                      <button className="ghost" type="submit">Buscar</button>
+                    </form>
+                    <SmartViewsBar
+                      scope="payments"
+                      initialViewId={viewId}
+                      initialFilters={filters}
+                      compactInline
+                      baseParams={{
+                        ...(q ? { q } : {}),
+                        ...(status ? { status } : {}),
+                        ...(from ? { from } : {}),
+                        ...(to ? { to } : {})
+                      }}
                     />
-                    <select className="select" name="status" defaultValue={status} data-auto-submit="true">
-                      <option value="">Estado: todos</option>
-                      <option value="APPROVED">Pagado</option>
-                      <option value="PENDING">Pendiente</option>
-                      <option value="DECLINED">Declinado</option>
-                      <option value="ERROR">Error</option>
-                      <option value="VOIDED">Anulado</option>
-                    </select>
-                    <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" data-auto-submit="true" />
-                    <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" data-auto-submit="true" />
-                    <button className="ghost" type="submit">Filtrar</button>
-                  </form>
-                  <SmartViewsBar
-                    scope="payments"
-                    initialViewId={viewId}
-                    initialFilters={filters}
-                    baseParams={{
-                      ...(q ? { q } : {}),
-                      ...(status ? { status } : {}),
-                      ...(from ? { from } : {}),
-                      ...(to ? { to } : {})
-                    }}
-                  />
+                  </div>
                 </div>
               </div>
               <div className="filtersRight">
-                <form action={reconcilePayment} className="panel" style={{ padding: 12, minWidth: 320 }}>
-                  <input type="hidden" name="csrf" value={csrfToken} />
+                <div className="panel" style={{ padding: 12, minWidth: 240 }}>
                   <div className="filter-group" style={{ marginBottom: 8 }}>
-                    <div className="filter-label">Reconciliar pago Wompi</div>
-                    <div style={{ color: "var(--muted)", fontSize: 12 }}>
-                      Usa la transacción y una referencia para localizar el pago.
-                    </div>
+                    <div className="filter-label">Reconciliación Wompi</div>
+                    <div style={{ color: "var(--muted)", fontSize: 12 }}>Abre el modal para ejecutar la reconciliación manual.</div>
                   </div>
-                  <div style={{ display: "grid", gap: 8 }}>
-                    <input className="input" name="wompiTransactionId" placeholder="Transacción Wompi (obligatorio)" required />
-                    <input className="input" name="reference" placeholder="Referencia (opcional)" />
-                    <input className="input" name="paymentId" placeholder="Payment ID (opcional)" />
-                    <input className="input" name="wompiPaymentLinkId" placeholder="Link id (opcional)" />
-                    <PendingButton className="ghost btn-compact" type="submit" pendingText="Reconciliando...">
-                      Reconciliar
-                    </PendingButton>
-                  </div>
-                </form>
+                  <ReconcilePaymentModal csrfToken={csrfToken} action={reconcilePayment} />
+                </div>
               </div>
             </div>
           ) : null}
@@ -846,13 +839,15 @@ export default async function LogsPage({
               <table className="table logs-table logs-table-payments" aria-label="Tabla de pagos">
                 <colgroup>
                   <col style={{ width: "8%" }} />
-                  <col style={{ width: "20%" }} />
+                  <col style={{ width: "17%" }} />
                   <col style={{ width: "9%" }} />
-                  <col style={{ width: "12%" }} />
-                  <col style={{ width: "9%" }} />
-                  <col style={{ width: "8%" }} />
-                  <col style={{ width: "24%" }} />
                   <col style={{ width: "10%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "13%" }} />
+                  <col style={{ width: "11%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "8%" }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -862,7 +857,9 @@ export default async function LogsPage({
                     <th>Estado</th>
                     <th>Monto</th>
                     <th>Referencia</th>
-                    <th>Transacción</th>
+                    <th>ID pago Wompi</th>
+                    <th>ID link Wompi</th>
+                    <th>Motivo fallo</th>
                     <th />
                   </tr>
                 </thead>
@@ -871,6 +868,15 @@ export default async function LogsPage({
                     const chip = paymentStatusChip(p.status);
                     const planName = p.subscription?.plan?.name || "—";
                     const contactQuery = p.customer?.email || p.customer?.phone || p.customer?.name;
+                    const isFailed = chip.label === "Fallido";
+                    const failureReason = isFailed
+                      ? String(
+                          p.failureReason ||
+                            p.attempts?.[0]?.errorMessage ||
+                            p.providerResponse?.status_message ||
+                            "Sin detalle de Wompi"
+                        )
+                      : "—";
                     return (
                       <tr key={p.id}>
                         <td className="log-date-cell"><LocalDateTime value={p.createdAt} variant="stacked" /></td>
@@ -886,8 +892,14 @@ export default async function LogsPage({
                         <td className="log-ref-cell" title={p.reference || "—"}>
                           <span className="log-ref-main">{p.reference || "—"}</span>
                         </td>
-                        <td className="log-transaction-cell" title={p.wompiTransactionId || p.wompiPaymentLinkId || "—"}>
-                          {p.wompiTransactionId || p.wompiPaymentLinkId || "—"}
+                        <td className="log-transaction-cell" title={p.wompiTransactionId || "—"}>
+                          {p.wompiTransactionId || "—"}
+                        </td>
+                        <td className="log-transaction-cell" title={p.wompiPaymentLinkId || "—"}>
+                          {p.wompiPaymentLinkId || "—"}
+                        </td>
+                        <td className="log-payment-error-cell" title={failureReason}>
+                          {failureReason}
                         </td>
                         <td style={{ textAlign: "right" }}>
                           {contactQuery ? (
@@ -901,7 +913,7 @@ export default async function LogsPage({
                   })}
                   {paymentItems.length === 0 ? (
                     <tr>
-                      <td colSpan={8} style={{ color: "var(--muted)" }}>
+                      <td colSpan={10} style={{ color: "var(--muted)" }}>
                         Sin pagos.
                       </td>
                     </tr>
