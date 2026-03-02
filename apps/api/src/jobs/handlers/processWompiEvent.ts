@@ -190,7 +190,6 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   }
 
   const shouldAttemptPriceInference =
-    !missingPaymentLinkRecord &&
     !paymentByLink &&
     !inferredSubscriptionId &&
     (referenceClassification.kind === "unknown" || (referenceClassification.kind === "order" && !referenceClassification.planId));
@@ -205,6 +204,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     }
 
     const defaultTenantId = await getDefaultTenantId();
+    const baseTenantId = event.tenantId || defaultTenantId || null;
     let plan: { id: string; tenantId?: string | null; intervalUnit: any; intervalCount: number; priceInCents?: number; currency?: string; name?: string } | null = null;
     if (referenceClassification.kind === "order" && referenceClassification.planId) {
       plan = await db.subscriptionPlan.findUnique({ where: { id: referenceClassification.planId } });
@@ -223,7 +223,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
           active: true,
           priceInCents: amountInCents,
           currency: (currency || "COP").toUpperCase(),
-          ...(defaultTenantId ? { tenantId: defaultTenantId } : {})
+          ...(baseTenantId ? { tenantId: baseTenantId } : {})
         },
         orderBy: { updatedAt: "desc" }
       });
@@ -237,6 +237,13 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
       }
 
       if (plans.length > 1) {
+        if (missingPaymentLinkRecord) {
+          await db.webhookEvent.update({
+            where: { id: webhookEventId },
+            data: { processStatus: WebhookProcessStatus.FAILED, errorMessage: "plan_ambiguous_without_link", processedAt: new Date() }
+          });
+          return;
+        }
         await systemLog(LogLevel.WARN, "processWompiEvent", "Ambiguous plan inference by price", {
           amountInCents,
           currency,
@@ -259,7 +266,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     if (!customer) {
       customer = await db.customer.create({
         data: {
-          tenantId: plan?.tenantId ?? defaultTenantId ?? null,
+          tenantId: plan?.tenantId ?? baseTenantId ?? null,
           email,
           name: getCustomerNameFromPayload(payload),
           phone: getCustomerPhoneFromPayload(payload)
@@ -269,7 +276,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
 
     const startAt = new Date();
     const planResolved = plan as { id: string; tenantId?: string | null; intervalUnit: any; intervalCount: number };
-    const inferredTenantId = planResolved?.tenantId ?? defaultTenantId;
+    const inferredTenantId = planResolved?.tenantId ?? baseTenantId;
     if (!inferredTenantId) {
       await db.webhookEvent.update({
         where: { id: webhookEventId },
