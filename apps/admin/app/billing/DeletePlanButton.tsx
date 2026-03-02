@@ -24,9 +24,7 @@ export function DeletePlanButton({
       <input type="hidden" name="subscriptionId" value={subscriptionId} />
       <input type="hidden" name="planId" value={planId} />
       {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-      <button className="ghost btn-compact btn-red" type="submit" aria-label="Eliminar plan">
-        Eliminar plan
-      </button>
+      <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" aria-label="Eliminar plan" title="Eliminar plan" />
     </form>
   );
 }

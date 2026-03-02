@@ -359,18 +359,6 @@ export function SideNav({ session }: { session: AdminSession | null }) {
         <span className="nav-label">Notificaciones</span>
       </Link>
       <Link
-        className={`nav-item ${isActivePath(pathname, "/appearance") ? "is-active" : ""}`}
-        href="/appearance"
-        prefetch={false}
-        aria-current={isActivePath(pathname, "/appearance") ? "page" : undefined}
-        aria-disabled={isActivePath(pathname, "/appearance") ? "true" : undefined}
-        data-loader={isActivePath(pathname, "/appearance") ? "off" : undefined}
-        tabIndex={isActivePath(pathname, "/appearance") ? -1 : undefined}
-      >
-        <NavIcon name="appearance" className="nav-icon" />
-        <span className="nav-label">Apariencia</span>
-      </Link>
-      <Link
         className={`nav-item ${isActivePath(pathname, "/smart-lists") ? "is-active" : ""}`}
         href="/smart-lists"
         prefetch={false}
@@ -380,7 +368,7 @@ export function SideNav({ session }: { session: AdminSession | null }) {
         tabIndex={isActivePath(pathname, "/smart-lists") ? -1 : undefined}
       >
         <NavIcon name="lists" className="nav-icon" />
-        <span className="nav-label">Listas Inteligentes</span>
+        <span className="nav-label">Gamificación</span>
       </Link>
       <Link
         className={`nav-item ${isActivePath(pathname, "/campaigns") ? "is-active" : ""}`}
@@ -392,7 +380,7 @@ export function SideNav({ session }: { session: AdminSession | null }) {
         tabIndex={isActivePath(pathname, "/campaigns") ? -1 : undefined}
       >
         <NavIcon name="campaigns" className="nav-icon" />
-        <span className="nav-label">Campañas</span>
+        <span className="nav-label">Mensajes masivos</span>
       </Link>
       <Link
         className={`nav-item ${(isActivePath(pathname, "/logs") && !isPaymentsInLogs) ? "is-active" : ""}`}

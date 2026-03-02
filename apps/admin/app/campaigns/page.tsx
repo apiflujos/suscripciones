@@ -1,10 +1,40 @@
 import { fetchAdminCached } from "../lib/adminApi";
 import { normalizeErrorParam } from "../lib/errorParam";
-import { HelpTip } from "../ui/HelpTip";
 import { getCsrfToken } from "../lib/csrf";
 import { createCampaign, runCampaign } from "./actions";
 import { RunCampaignButton } from "./RunCampaignButton";
-import { SmartViewsBar } from "../smart-views/SmartViewsBar";
+import { NewMassMessageModal } from "./NewMassMessageModal";
+
+function buildMessageOptions(templates: any[]) {
+  const findByName = (name: string) =>
+    templates.find((t) => String(t?.name || "").trim().toLowerCase() === name.trim().toLowerCase());
+  const contentOf = (name: string) => String(findByName(name)?.content || "").trim();
+  return [
+    {
+      key: "payment_link_created",
+      label: "Link de pago",
+      content: contentOf("Link de pago creado")
+    },
+    {
+      key: "tokenization_link_created",
+      label: "Guardar tarjeta (débito automático)",
+      content: contentOf("Tokenización enviada")
+    },
+    {
+      key: "reminder_due",
+      label: "Recordatorio de pago",
+      content: contentOf("Recordatorio de fecha de pago")
+    },
+    {
+      key: "reminder_mora",
+      label: "Recordatorio en mora",
+      content: contentOf("Recordatorio en mora")
+    }
+  ].map((item) => ({
+    ...item,
+    content: item.content || "Configura este mensaje en Notificaciones para usarlo aquí."
+  }));
+}
 
 export default async function CampaignsPage({
   searchParams
@@ -14,47 +44,19 @@ export default async function CampaignsPage({
   const csrfToken = await getCsrfToken();
   const listsRes = await fetchAdminCached("/admin/comms/smart-lists?take=200", { ttlMs: 0 });
   const lists = Array.isArray(listsRes?.json?.items) ? listsRes.json.items : [];
+  const notificationsRes = await fetchAdminCached("/admin/notifications/config?environment=PRODUCTION", { ttlMs: 0 });
+  const notificationsTemplates = Array.isArray(notificationsRes?.json?.config?.templates)
+    ? notificationsRes.json.config.templates
+    : [];
+  const messageOptions = buildMessageOptions(notificationsTemplates);
   const sp = (await searchParams) ?? {};
   const returnTo = `/campaigns?${new URLSearchParams(
     Object.fromEntries(Object.entries(sp).filter(([, v]) => typeof v === "string")) as Record<string, string>
   ).toString()}`;
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
-  const viewId = typeof sp.viewId === "string" ? sp.viewId : "";
-  const filters = typeof sp.filters === "string" ? sp.filters : "";
   const take = 20;
   const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
   const params = new URLSearchParams({ take: String(take), skip: String(skip) });
-  const usingSmartFilters = Boolean(viewId || filters);
-  if (viewId) {
-    const res = await fetch(`/api/smart-views/campaigns/resolve`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ viewId })
-    });
-    const json = await res.json().catch(() => ({}));
-    const ids = Array.isArray(json?.ids) ? json.ids : [];
-    if (ids.length) params.set("ids", ids.join(","));
-  } else if (filters) {
-    let parsed: any = null;
-    try {
-      parsed = JSON.parse(filters);
-    } catch {
-      parsed = null;
-    }
-    if (parsed) {
-      const res = await fetch(`/api/smart-views/campaigns/resolve`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ filters: parsed })
-      });
-      const json = await res.json().catch(() => ({}));
-      const ids = Array.isArray(json?.ids) ? json.ids : [];
-      if (ids.length) params.set("ids", ids.join(","));
-    }
-  }
-  if (usingSmartFilters && !params.get("ids")) {
-    params.set("ids", "__none__");
-  }
   const campaignsRes = await fetchAdminCached(`/admin/comms/campaigns?${params.toString()}`, { ttlMs: 0 });
   const items = Array.isArray(campaignsRes?.json?.items) ? campaignsRes.json.items : [];
   const total = Number(campaignsRes?.json?.total ?? items.length);
@@ -63,66 +65,27 @@ export default async function CampaignsPage({
     <div className="page pageWide">
 
       {normalizeErrorParam(sp.error) ? <div className="panel module">Error: {normalizeErrorParam(sp.error)}</div> : null}
-      {sp.created ? <div className="panel module">Campaña creada.</div> : null}
+      {sp.created ? <div className="panel module">Campaña guardada.</div> : null}
       {sp.running ? <div className="panel module">Campaña en cola.</div> : null}
 
       <div className="panel module" style={{ marginBottom: 16 }}>
-        <h3 style={{ marginTop: 0 }}>Nueva campaña</h3>
-        <form action={createCampaign} style={{ display: "grid", gap: 10 }}>
-          <input type="hidden" name="csrf" value={csrfToken} />
-          <input type="hidden" name="returnTo" value={returnTo} />
-          <div className="field">
-            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span>Nombre</span>
-              <HelpTip text="Identificador interno de la campaña." />
-            </label>
-            <input className="input" name="name" required />
+        <div className="panelHeaderRow" style={{ justifyContent: "space-between" }}>
+          <div>
+            <h3 style={{ marginTop: 0, marginBottom: 4 }}>Mensajes masivos</h3>
+            <div className="muted">Crea campañas usando filtros inteligentes y plantillas configuradas.</div>
           </div>
-          <div className="field">
-            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span>Lista inteligente</span>
-              <HelpTip text="Segmento de contactos que recibirá el envío." />
-            </label>
-            <select className="select" name="smartListId" required>
-              <option value="">Selecciona una lista</option>
-              {lists.map((l: any) => (
-                <option key={l.id} value={l.id}>{l.name}</option>
-              ))}
-            </select>
-          </div>
-          <div className="field">
-            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span>Mensaje</span>
-              <HelpTip text="Texto que se enviará a cada contacto." />
-            </label>
-            <textarea className="input" name="content" rows={4} required />
-          </div>
-          <div className="field">
-            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span>Template params (JSON opcional)</span>
-              <HelpTip text='Solo si usas plantilla. Ej: {"name":"Juan","amount":"$49.000"}.' />
-            </label>
-            <textarea className="input" name="templateParams" rows={3} placeholder='{"name":"Juan","amount":"$49.000"}' />
-          </div>
-          <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-            <button className="primary btn-create" type="submit">Crear</button>
-          </div>
-        </form>
-      </div>
-
-      <div className="panel module" style={{ marginBottom: 16 }}>
-        <div className="filtersGrid">
-          <SmartViewsBar
-            scope="campaigns"
-            initialViewId={viewId}
-            initialFilters={filters}
-            baseParams={{}}
+          <NewMassMessageModal
+            csrfToken={csrfToken}
+            returnTo={returnTo}
+            lists={lists.map((l: any) => ({ id: String(l.id), name: String(l.name) }))}
+            messageOptions={messageOptions}
+            action={createCampaign}
           />
         </div>
       </div>
 
       <div className="panel module">
-        <h3 style={{ marginTop: 0 }}>Historial</h3>
+        <h3 style={{ marginTop: 0 }}>Campañas guardadas</h3>
         <div style={{ display: "grid", gap: 10 }}>
           {items.length === 0 ? <div className="muted">No hay campañas aún.</div> : null}
           {items.map((c: any) => (
@@ -131,14 +94,14 @@ export default async function CampaignsPage({
                 <div>
                   <strong>{c.name}</strong>
                   <div className="muted" style={{ fontSize: 12 }}>
-                    Estado: {c.status} · Enviados: {c.sentCount} · Fallidos: {c.failedCount}
+                    Enviados: {c.sentCount} · Fallidos: {c.failedCount} · Estado: {c.status}
                   </div>
                 </div>
                 <form action={runCampaign}>
                   <input type="hidden" name="csrf" value={csrfToken} />
                   <input type="hidden" name="id" value={c.id} />
                   <input type="hidden" name="returnTo" value={returnTo} />
-                  <RunCampaignButton disabled={c.status === "RUNNING" || c.status === "COMPLETED"} />
+                  <RunCampaignButton disabled={c.status === "RUNNING"} label={c.sentCount > 0 ? "Reenviar" : "Enviar"} />
                 </form>
               </div>
               {c.content ? (

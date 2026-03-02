@@ -32,6 +32,7 @@ import { createTenant, deleteTenant, updateTenant } from "../tenants/actions";
 import { updateCheckoutConfig } from "./actions";
 import { DeleteTenantButton } from "./DeleteTenantButton";
 import { GamificationPanel } from "./GamificationPanel";
+import { AppearanceSelector } from "../ui/AppearanceSelector";
 
 export const dynamic = "force-dynamic";
 
@@ -193,6 +194,9 @@ export default async function SettingsPage({
         <a className={`settings-tab ${tab === "gamificacion" ? "is-active" : ""}`} href="/settings?tab=gamificacion">
           Gamificación
         </a>
+        <a className={`settings-tab ${tab === "apariencia" ? "is-active" : ""}`} href="/settings?tab=apariencia">
+          Apariencia
+        </a>
       </div>
 
       {!settingsRes.ok ? (
@@ -230,6 +234,22 @@ export default async function SettingsPage({
           }}
           actions={{ updateGamificationConfig }}
         />
+      ) : null}
+
+      {tab === "apariencia" ? (
+        <section className="settings-group">
+          <div className="settings-group-header">
+            <div className="panelHeaderRow">
+              <div style={{ display: "grid", gap: 4 }}>
+                <h3>Apariencia</h3>
+                <div className="field-hint">Tema, visión y contraste.</div>
+              </div>
+            </div>
+          </div>
+          <div className="settings-group-body">
+            <AppearanceSelector cards />
+          </div>
+        </section>
       ) : null}
 
       {tab === "connections" ? (
@@ -325,7 +345,7 @@ export default async function SettingsPage({
                         <input type="hidden" name="csrf" value={csrfToken} />
                         <input type="hidden" name="environment" value={envKey} />
                         <input type="hidden" name="returnTo" value={returnTo} />
-                        <button className="ghost btn-compact btn-red" type="submit">Eliminar</button>
+                        <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" aria-label="Eliminar conexión" title="Eliminar conexión" />
                       </form>
                     </div>
                     <div className="saved-conn-meta">
@@ -385,7 +405,7 @@ export default async function SettingsPage({
                         <input type="hidden" name="csrf" value={csrfToken} />
                         <input type="hidden" name="environment" value={envKey} />
                         <input type="hidden" name="returnTo" value={returnTo} />
-                        <button className="ghost btn-compact btn-red" type="submit">Eliminar</button>
+                        <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" aria-label="Eliminar conexión" title="Eliminar conexión" />
                       </form>
                     </div>
                     <div className="saved-conn-meta">
@@ -428,7 +448,7 @@ export default async function SettingsPage({
                     <form action={deleteShopifyConnection}>
                       <input type="hidden" name="csrf" value={csrfToken} />
                       <input type="hidden" name="returnTo" value={returnTo} />
-                      <button className="ghost btn-compact btn-red" type="submit">Eliminar</button>
+                      <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" aria-label="Eliminar conexión" title="Eliminar conexión" />
                     </form>
                   </div>
                   <div className="saved-conn-meta">
@@ -493,7 +513,7 @@ export default async function SettingsPage({
                       <input type="hidden" name="csrf" value={csrfToken} />
                       <input type="hidden" name="provider" value="OPENAI" />
                       <input type="hidden" name="returnTo" value={returnTo} />
-                      <button className="ghost btn-compact btn-red" type="submit">Eliminar</button>
+                      <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" aria-label="Eliminar canal" title="Eliminar canal" />
                     </form>
                   </div>
 
@@ -528,7 +548,7 @@ export default async function SettingsPage({
                       <input type="hidden" name="csrf" value={csrfToken} />
                       <input type="hidden" name="provider" value="DEEPSEEK" />
                       <input type="hidden" name="returnTo" value={returnTo} />
-                      <button className="ghost btn-compact btn-red" type="submit">Eliminar</button>
+                      <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" aria-label="Eliminar checkout público" title="Eliminar checkout público" />
                     </form>
                   </div>
                 </div>

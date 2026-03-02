@@ -208,9 +208,7 @@ export function ConnectionsPanel({
                 <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     {inlineMsg("wompi_delete", "Eliminado.", "Error eliminando", inlineState)}
-                    <button className="ghost" type="submit" formAction={actions.deleteWompiConnection}>
-                      Eliminar conexión
-                    </button>
+                    <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" formAction={actions.deleteWompiConnection} aria-label="Eliminar conexión Wompi" title="Eliminar conexión Wompi" />
                   </div>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     {inlineMsg("wompi_creds", "Guardado.", "Error guardando", inlineState)}
@@ -315,9 +313,7 @@ export function ConnectionsPanel({
                     <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
                       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                         {inlineMsg("central_delete", "Eliminado.", "Error eliminando", inlineState)}
-                        <button className="ghost" type="submit" formAction={actions.deleteCentralConnection}>
-                          Eliminar conexión
-                        </button>
+                        <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" formAction={actions.deleteCentralConnection} aria-label="Eliminar conexión CentralCom" title="Eliminar conexión CentralCom" />
                       </div>
                       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                         {inlineMsg("central_save", "Guardado.", "Error guardando", inlineState)}
@@ -478,9 +474,7 @@ export function ConnectionsPanel({
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   {inlineMsg("shopify_delete", "Eliminado.", "Error eliminando", inlineState)}
-                  <button className="ghost" type="submit" formAction={actions.deleteShopifyConnection}>
-                    Eliminar conexión
-                  </button>
+                  <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" formAction={actions.deleteShopifyConnection} aria-label="Eliminar conexión Shopify" title="Eliminar conexión Shopify" />
                 </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   {inlineMsg("shopify_save", "Guardado.", "Error guardando", inlineState)}

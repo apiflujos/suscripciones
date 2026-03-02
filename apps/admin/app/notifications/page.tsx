@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { HelpTip } from "../ui/HelpTip";
 import { getCsrfToken } from "../lib/csrf";
@@ -43,21 +44,20 @@ export default async function NotificationsPage({
         <div className="filtersLeft">
           <div className="filtersNote">Configura reglas y recordatorios para notificaciones en producción o sandbox.</div>
           <div className="filtersPanel">
-            <form action="/notifications" method="GET" className="filtersForm">
-              <div className="field" style={{ margin: 0, minWidth: 220 }}>
-                <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span>Entorno</span>
-                  <HelpTip text="Selecciona Producción o Sandbox para ver y crear reglas." />
-                </label>
-                <select className="select" name="env" defaultValue={env}>
-                  <option value="PRODUCTION">Producción</option>
-                  <option value="SANDBOX">Sandbox</option>
-                </select>
+            <div className="field" style={{ margin: 0, minWidth: 220 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span>Entorno</span>
+                <HelpTip text="Selecciona Producción o Sandbox para ver y crear reglas." />
+              </label>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <Link className={env === "PRODUCTION" ? "primary" : "ghost"} href="/notifications?env=PRODUCTION">
+                  Producción
+                </Link>
+                <Link className={env === "SANDBOX" ? "primary" : "ghost"} href="/notifications?env=SANDBOX">
+                  Sandbox
+                </Link>
               </div>
-              <button className="ghost" type="submit">
-                Cambiar
-              </button>
-            </form>
+            </div>
           </div>
         </div>
       </div>

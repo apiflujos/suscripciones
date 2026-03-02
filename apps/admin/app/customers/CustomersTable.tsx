@@ -587,9 +587,7 @@ export function CustomersTable({
                     <input type="hidden" name="id" value={c.id} />
                     <input type="hidden" name="tenantId" value={c.tenantId || ""} />
                     {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
-                    <button className="ghost btn-compact btn-noicon btn-red" type="submit" aria-label="Eliminar">
-                      Eliminar
-                    </button>
+                    <button className="ghost btn-compact btn-noicon btn-red btn-delete-icon" type="submit" aria-label="Eliminar contacto" title="Eliminar contacto" />
                   </form>
                 </div>
               </div>

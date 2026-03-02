@@ -35,7 +35,8 @@ export function ChangePlanButton({
   csrfToken,
   returnTo,
   tenantId,
-  action
+  action,
+  iconOnly = false
 }: {
   subscriptionId: string;
   currentPlanId: string;
@@ -45,6 +46,7 @@ export function ChangePlanButton({
   returnTo: string;
   tenantId?: string;
   action: (formData: FormData) => void;
+  iconOnly?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const initialCutoff = useMemo(() => toLocalInput(currentEndAt), [currentEndAt]);
@@ -129,8 +131,15 @@ export function ChangePlanButton({
 
   return (
     <>
-      <button className="ghost btn-compact btn-blue" type="button" data-loader="off" onClick={() => setOpen(true)}>
-        Cambiar producto
+      <button
+        className={`ghost btn-compact btn-noicon btn-blue ${iconOnly ? "btn-icon-only btn-edit" : ""}`}
+        type="button"
+        data-loader="off"
+        onClick={() => setOpen(true)}
+        aria-label={iconOnly ? "Cambiar producto" : undefined}
+        title={iconOnly ? "Cambiar producto" : undefined}
+      >
+        {iconOnly ? null : "Cambiar producto"}
       </button>
 
       {open ? (

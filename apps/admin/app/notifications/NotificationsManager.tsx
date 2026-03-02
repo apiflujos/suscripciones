@@ -266,7 +266,7 @@ export function NotificationsManager({
                         <input type="hidden" name="csrf" value={csrfToken} />
                         <input type="hidden" name="environment" value={env} />
                         <input type="hidden" name="ruleId" value={rule.id} />
-                        <button className="ghost" type="submit">Eliminar</button>
+                        <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" aria-label="Eliminar regla" title="Eliminar regla" />
                       </form>
                     </div>
                   </div>
@@ -308,7 +308,7 @@ export function NotificationsManager({
                       <input type="hidden" name="csrf" value={csrfToken} />
                       <input type="hidden" name="environment" value={env} />
                       <input type="hidden" name="templateId" value={tpl.id} />
-                      <button className="ghost" type="submit">Eliminar</button>
+                      <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" aria-label="Eliminar plantilla" title="Eliminar plantilla" />
                     </form>
                   </div>
                 </div>

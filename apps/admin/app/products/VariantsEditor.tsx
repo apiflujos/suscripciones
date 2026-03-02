@@ -158,12 +158,11 @@ export function VariantsEditor({
             </div>
             <button
               type="button"
-              className="ghost"
+              className="ghost btn-compact btn-red btn-delete-icon"
               onClick={() => setRows((prev) => prev.filter((_, i) => i !== idx))}
               aria-label="Eliminar variante"
-            >
-              Eliminar
-            </button>
+              title="Eliminar variante"
+            />
           </div>
         ))}
 

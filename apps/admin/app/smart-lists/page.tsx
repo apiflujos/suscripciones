@@ -71,7 +71,7 @@ export default async function SmartListsPage({
       <div className="panel module" style={{ marginBottom: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
           <div>
-            <h3 style={{ marginTop: 0, marginBottom: 4 }}>Listas inteligentes</h3>
+            <h3 style={{ marginTop: 0, marginBottom: 4 }}>Gamificación</h3>
             <div className="muted">Segmentos dinámicos de contactos para campañas.</div>
           </div>
           <SmartListCreateModal

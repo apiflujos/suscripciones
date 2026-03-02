@@ -38,8 +38,8 @@ export function ScheduleCutoffButton({
 
   return (
     <>
-      <button className="ghost btn-compact btn-blue" type="button" data-loader="off" onClick={() => setOpen(true)}>
-        Programar fecha de corte
+      <button className="ghost btn-compact btn-noicon btn-blue" type="button" data-loader="off" onClick={() => setOpen(true)}>
+        Fecha de cobro
       </button>
 
       {open ? (

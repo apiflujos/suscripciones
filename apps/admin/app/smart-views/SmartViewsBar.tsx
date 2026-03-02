@@ -481,9 +481,11 @@ export function SmartViewsBar({
           <div className="smartViewsInlineRow">
             <div className="smartViewsActions">
               <button
-                className="primary btn-compact"
+                className="primary btn-compact btn-filter btn-icon-only"
                 type="button"
                 data-loader="off"
+                aria-label="Filtros avanzados"
+                title="Filtros avanzados"
                 onClick={() => {
                   setMode("filters");
                   setActiveViewId("");
@@ -492,7 +494,6 @@ export function SmartViewsBar({
                   ensureFieldsLoaded().catch(() => null);
                 }}
               >
-                Filtros avanzados
               </button>
             </div>
             <div className="smartViewsPills">
@@ -558,9 +559,7 @@ export function SmartViewsBar({
           </button>
         ) : null}
         {activeViewId ? (
-          <button className="ghost" type="button" onClick={() => deleteView(activeViewId)}>
-            Eliminar
-          </button>
+          <button className="ghost btn-compact btn-red btn-delete-icon" type="button" onClick={() => deleteView(activeViewId)} aria-label="Eliminar vista" title="Eliminar vista" />
         ) : null}
         {!compactInline ? (
           <div className="smartViewsActions">
