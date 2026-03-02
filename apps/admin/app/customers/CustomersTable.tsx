@@ -111,6 +111,7 @@ export function CustomersTable({
   const [tokenModalOpen, setTokenModalOpen] = useState(false);
   const [tokenModalCustomer, setTokenModalCustomer] = useState<CustomerRow | null>(null);
   const [clearingTokenId, setClearingTokenId] = useState<string | null>(null);
+  const [tokenStateByCustomer, setTokenStateByCustomer] = useState<Record<string, boolean>>({});
   const [sendMenuOpen, setSendMenuOpen] = useState(false);
   const [sendMenuCustomer, setSendMenuCustomer] = useState<CustomerRow | null>(null);
   const planBaseUrl = String(checkoutConfig?.planBaseUrl || "").trim();
@@ -162,6 +163,8 @@ export function CustomersTable({
   const modalTitle = useMemo(() => (editing ? `Editar: ${editing.name || editing.email || "Contacto"}` : "Editar contacto"), [editing]);
 
   function hasToken(customer: CustomerRow) {
+    const localState = tokenStateByCustomer[String(customer.id)];
+    if (typeof localState === "boolean") return localState;
     const meta = customer.metadata ?? {};
     const candidates = [
       meta?.wompi?.paymentSourceId,
@@ -635,6 +638,7 @@ export function CustomersTable({
                               openNotify("fail", mapSendError(json?.error || "request_failed"));
                               return;
                             }
+                            setTokenStateByCustomer((prev) => ({ ...prev, [String(c.id)]: false }));
                             openNotify("ok", "Método de pago removido.");
                           } finally {
                             setClearingTokenId(null);

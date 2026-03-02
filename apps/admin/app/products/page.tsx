@@ -41,12 +41,6 @@ async function fetchChatwootInboxes() {
   }
 }
 
-async function fetchTrending(scope: "customers" | "products", hours: number, tenantId?: string) {
-  const sp = new URLSearchParams({ scope, windowHours: String(hours) });
-  if (tenantId) sp.set("tenantId", tenantId);
-  return fetchAdminCached(`/admin/gamification/trending?${sp.toString()}`, { ttlMs: 1500 });
-}
-
 export default async function ProductsPage({
   searchParams
 }: {
@@ -121,15 +115,12 @@ export default async function ProductsPage({
 
   if (resolvedIds.length) sp.set("ids", resolvedIds.join(","));
 
-  const [products, tenantsRes, customersRes, templatesRes, chatwootInboxesRes, trending24Res, trending7Res, trending30Res] = await Promise.all([
+  const [products, tenantsRes, customersRes, templatesRes, chatwootInboxesRes] = await Promise.all([
     fetchAdmin(`/admin/products?${sp.toString()}`),
     fetchAdminCached("/admin/tenants", { ttlMs: 1500 }),
     fetchAdminCached(tenantId ? `/admin/customers?take=200&tenantId=${encodeURIComponent(tenantId)}` : "/admin/customers?take=200", { ttlMs: 1500 }),
     fetchAdminCached(tenantId ? `/admin/checkout-templates?tenantId=${encodeURIComponent(tenantId)}` : "/admin/checkout-templates", { ttlMs: 1500 }),
-    fetchChatwootInboxes(),
-    fetchTrending("products", 24, tenantId),
-    fetchTrending("products", 168, tenantId),
-    fetchTrending("products", 720, tenantId)
+    fetchChatwootInboxes()
   ]);
 
   const productItems = (products.json?.items ?? []) as any[];
@@ -138,9 +129,6 @@ export default async function ProductsPage({
   const tenantById = new Map(tenants.map((t) => [String(t.id), String(t.name)]));
   const filteredCustomers = (customersRes.json?.items ?? []) as any[];
   const chatwootInboxes = (chatwootInboxesRes.items ?? chatwootInboxesRes.json?.items ?? []) as any[];
-  const trendingProducts24 = trending24Res?.ok ? trending24Res.json?.items ?? [] : [];
-  const trendingProducts7 = trending7Res?.ok ? trending7Res.json?.items ?? [] : [];
-  const trendingProducts30 = trending30Res?.ok ? trending30Res.json?.items ?? [] : [];
 
   const quickFilters = [
     {
@@ -278,56 +266,6 @@ export default async function ProductsPage({
               </div>
             </div>
             <div className="filtersRight">
-              <div className="trend-card trend-card-wide">
-                <div className="trend-title">Tendencias productos</div>
-                <div className="trend-columns">
-                  <div className="trend-column">
-                    <div className="trend-sub">24h</div>
-                    <ul className="mini-list mini-list-tight">
-                      {trendingProducts24.length ? (
-                        trendingProducts24.map((item: any) => (
-                          <li key={`trend-p-24-${item.id}`}>
-                            <span>{item.name || "Producto"}</span>
-                            <span className="trend-score">{item.score}</span>
-                          </li>
-                        ))
-                      ) : (
-                        <li className="muted">Sin datos</li>
-                      )}
-                    </ul>
-                  </div>
-                  <div className="trend-column">
-                    <div className="trend-sub">7d</div>
-                    <ul className="mini-list mini-list-tight">
-                      {trendingProducts7.length ? (
-                        trendingProducts7.map((item: any) => (
-                          <li key={`trend-p-7-${item.id}`}>
-                            <span>{item.name || "Producto"}</span>
-                            <span className="trend-score">{item.score}</span>
-                          </li>
-                        ))
-                      ) : (
-                        <li className="muted">Sin datos</li>
-                      )}
-                    </ul>
-                  </div>
-                  <div className="trend-column">
-                    <div className="trend-sub">30d</div>
-                    <ul className="mini-list mini-list-tight">
-                      {trendingProducts30.length ? (
-                        trendingProducts30.map((item: any) => (
-                          <li key={`trend-p-30-${item.id}`}>
-                            <span>{item.name || "Producto"}</span>
-                            <span className="trend-score">{item.score}</span>
-                          </li>
-                        ))
-                      ) : (
-                        <li className="muted">Sin datos</li>
-                      )}
-                    </ul>
-                  </div>
-                </div>
-              </div>
               <span className="pill">{productItems.length} resultados</span>
               <span className="pill">Contactos: {filteredCustomers.length}</span>
             </div>

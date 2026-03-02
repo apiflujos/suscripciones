@@ -181,14 +181,16 @@ export async function deleteCustomer(formData: FormData) {
   const tenantId = String(formData.get("tenantId") || "").trim();
   if (!id) return redirect(mergeQuery(returnTo, { error: "invalid_id" }));
   try {
-    const path = tenantId ? `/admin/customers/${encodeURIComponent(id)}?tenantId=${encodeURIComponent(tenantId)}` : `/admin/customers/${encodeURIComponent(id)}`;
+    const path = tenantId
+      ? `/admin/customers/${encodeURIComponent(id)}?tenantId=${encodeURIComponent(tenantId)}&force=1`
+      : `/admin/customers/${encodeURIComponent(id)}?force=1`;
     await adminFetch(path, { method: "DELETE" });
     redirect(mergeQuery(returnTo, { deleted: "1", ...(tenantId ? { tenantId } : {}) }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
     const msg = String(err?.message || "delete_customer_failed");
     if (msg.includes("customer_has_dependencies")) {
-      return redirect(mergeQuery(returnTo, { error: "No se puede borrar: tiene suscripciones o pagos asociados.", ...(tenantId ? { tenantId } : {}) }));
+      return redirect(mergeQuery(returnTo, { error: "No se pudo borrar el contacto.", ...(tenantId ? { tenantId } : {}) }));
     }
     redirect(mergeQuery(returnTo, { error: msg, ...(tenantId ? { tenantId } : {}) }));
   }

@@ -433,7 +433,6 @@ export async function changeSubscriptionPlan(formData: FormData) {
 }
 
 export async function createPlanAndSubscription(formData: FormData) {
-  await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);
   const customerId = String(formData.get("customerId") || "").trim();
   const productId = String(formData.get("productId") || "").trim();
@@ -450,13 +449,14 @@ export async function createPlanAndSubscription(formData: FormData) {
   const firstPeriodEndAt = String(formData.get("firstPeriodEndAt") || "").trim();
   const templateIdRaw = String(formData.get("templateId") || "").trim();
   const submitActionRaw = String(formData.get("submitAction") || "").trim().toUpperCase();
-  const submitAction = submitActionRaw === "CHARGE_NOW" ? "CHARGE_NOW" : submitActionRaw === "LINK_NOW" ? "LINK_NOW" : "CREATE";
+  const submitAction = submitActionRaw === "LINK_NOW" ? "LINK_NOW" : "CREATE";
 
   if (!customerId || !productId) {
     return redirect(mergeQuery(returnTo, { error: "missing_customer_or_product" }));
   }
 
   try {
+    await assertCsrfToken(formData);
     const customerRes = await adminFetch(`/admin/customers/${customerId}`, { method: "GET" }).catch(() => null);
     const customer = customerRes?.customer || {};
     const meta = customer?.metadata || {};
@@ -530,11 +530,12 @@ export async function createPlanAndSubscription(formData: FormData) {
         ? templateCandidate
         : null;
 
+    const nameSuffix = `${new Date().toISOString().slice(11, 19).replace(/:/g, "")}-${customerId.slice(0, 6)}`;
     const createdPlan = await adminFetch("/admin/plans", {
       method: "POST",
       body: JSON.stringify({
         ...(tenantIds.length ? { tenantIds } : {}),
-        name: `${billingType === "PLAN" ? "Plan" : "Suscripción"} - ${item.name}`,
+        name: `${billingType === "PLAN" ? "Plan" : "Suscripción"} - ${item.name} - ${nameSuffix}`,
         priceInCents: totals.totalInCents,
         currency: item.currency || "COP",
         intervalUnit,
@@ -569,15 +570,9 @@ export async function createPlanAndSubscription(formData: FormData) {
     const planId = createdPlan?.plan?.id ? String(createdPlan.plan.id) : "";
     if (!planId) throw new Error("create_plan_failed");
 
-    const shouldCreateLink = billingType === "PLAN";
+    const shouldCreateLink = billingType === "PLAN" && submitAction === "LINK_NOW";
     let startAtValue = startAt || "";
     let endAtValue = firstPeriodEndAt || "";
-    if (submitAction === "CHARGE_NOW") {
-      const now = new Date().toISOString();
-      startAtValue = startAtValue || now;
-      endAtValue = startAtValue;
-    }
-
     const sub = await adminFetch("/admin/subscriptions", {
       method: "POST",
       body: JSON.stringify({
@@ -590,6 +585,8 @@ export async function createPlanAndSubscription(formData: FormData) {
         ...(shouldCreateLink ? { createPaymentLink: true } : {})
       })
     });
+    const subscriptionId = String(sub?.subscription?.id || "").trim();
+    if (!subscriptionId) throw new Error("create_subscription_failed");
 
     const checkoutUrl = sub?.checkoutUrl ? String(sub.checkoutUrl) : "";
     const templateExpiryHours = template?.expiryHours ?? null;
@@ -653,6 +650,9 @@ export async function createPlanAndSubscription(formData: FormData) {
 
     if (billingType === "SUBSCRIPCION") {
       if (hasToken) {
+        redirect(mergeQuery(returnTo, { created: "1", customerId, ...(tenantId ? { tenantId } : {}) }));
+      }
+      if (submitAction !== "LINK_NOW") {
         redirect(mergeQuery(returnTo, { created: "1", customerId, ...(tenantId ? { tenantId } : {}) }));
       }
       const base = subBase;
