@@ -95,7 +95,7 @@ export function RedirectConfigPanel({
         </div>
       </div>
 
-      <div className="saved-conn-meta" style={{ gridTemplateColumns: "1fr", gap: 8 }}>
+      <div className="saved-conn-meta" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
         <div className="saved-conn-meta-item">
           <span className="saved-conn-meta-label">URLs públicas</span>
           <span className="saved-conn-meta-value">{planBaseUrl && subscriptionBaseUrl ? "Configuradas" : "—"}</span>

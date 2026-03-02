@@ -786,23 +786,23 @@ export function CheckoutTemplatesPanel({
 
   return (
     <div className="panel module">
-      <div className="panelHeaderRow" style={{ justifyContent: "space-between" }}>
+      <div className="panelHeaderRow" style={{ justifyContent: "flex-start" }}>
         <div>
           <strong>Plantillas</strong>
           <div className="field-hint">Wizard para crear plantillas de checkout público.</div>
-        </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button className="ghost" type="button" data-modal="true" data-loader="off" onClick={openDefaultsModal}>
-            Personalizar catálogos
-          </button>
-          {editing ? (
-            <button className="ghost btn-cancel" type="button" onClick={resetWizard} data-loader="off">
-              Cancelar edición
+          <div style={{ display: "flex", gap: 8, marginTop: 8, justifyContent: "flex-start", flexWrap: "wrap" }}>
+            <button className="ghost" type="button" data-modal="true" data-loader="off" onClick={openDefaultsModal}>
+              Personalizar catálogos
             </button>
-          ) : null}
-          <button className="primary btn-create" type="button" data-modal="true" data-loader="off" onClick={openCreate}>
-            Nueva plantilla
-          </button>
+            {editing ? (
+              <button className="ghost btn-cancel" type="button" onClick={resetWizard} data-loader="off">
+                Cancelar edición
+              </button>
+            ) : null}
+            <button className="primary btn-create" type="button" data-modal="true" data-loader="off" onClick={openCreate}>
+              Nueva plantilla
+            </button>
+          </div>
         </div>
       </div>
 
