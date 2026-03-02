@@ -171,17 +171,26 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
 
   let inferredSubscription: Subscription | null = null;
   
-  // SOLO intentar inferencia por precio si NO tenemos un ID de suscripción de la referencia
-  // y la referencia no es explícitamente de otro tipo (como shopify).
-  if (paymentLinkId && !paymentByLink && !paymentLinkRecord) {
-    await db.webhookEvent.update({
-      where: { id: webhookEventId },
-      data: { processStatus: WebhookProcessStatus.FAILED, errorMessage: "payment_link_not_found", processedAt: new Date() }
-    });
-    return;
+  const missingPaymentLinkRecord = Boolean(paymentLinkId && !paymentByLink && !paymentLinkRecord);
+  if (missingPaymentLinkRecord) {
+    const canProceedByReference =
+      referenceClassification.kind === "subscription" ||
+      (referenceClassification.kind === "order" && referenceClassification.planId);
+    if (!canProceedByReference) {
+      await db.webhookEvent.update({
+        where: { id: webhookEventId },
+        data: { processStatus: WebhookProcessStatus.FAILED, errorMessage: "payment_link_not_found", processedAt: new Date() }
+      });
+      return;
+    }
+    await systemLog(LogLevel.WARN, "processWompiEvent", "payment_link_not_found: proceeding by reference", {
+      paymentLinkId,
+      reference
+    }).catch(() => {});
   }
 
   const shouldAttemptPriceInference =
+    !missingPaymentLinkRecord &&
     !paymentByLink &&
     !inferredSubscriptionId &&
     (referenceClassification.kind === "unknown" || (referenceClassification.kind === "order" && !referenceClassification.planId));
