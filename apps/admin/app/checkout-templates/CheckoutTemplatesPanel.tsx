@@ -95,7 +95,7 @@ export function CheckoutTemplatesPanel({
   const [active, setActive] = useState(true);
   const [allowSelect, setAllowSelect] = useState(true);
   const [catalogMode, setCatalogMode] = useState<"" | "PLAN" | "SUBSCRIPTION">("");
-  const [defaultsMode, setDefaultsMode] = useState<"PLAN" | "SUBSCRIPTION" | "BOTH">("BOTH");
+  const [defaultsMode, setDefaultsMode] = useState<"PLAN" | "SUBSCRIPTION">("PLAN");
   const [productIds, setProductIds] = useState<string[]>([]);
   const [tenantId, setTenantId] = useState("");
   const [expiryHours, setExpiryHours] = useState("24");
@@ -140,7 +140,7 @@ export function CheckoutTemplatesPanel({
     setActive(true);
     setAllowSelect(true);
     setCatalogMode("");
-    setDefaultsMode("BOTH");
+    setDefaultsMode("PLAN");
     setProductIds([]);
     setTenantId("");
     setExpiryHours("24");
@@ -791,9 +791,9 @@ export function CheckoutTemplatesPanel({
           <strong>Plantillas</strong>
           <div className="field-hint">Wizard para crear plantillas de checkout público.</div>
           <div style={{ display: "flex", gap: 8, marginTop: 8, justifyContent: "flex-start", flexWrap: "wrap" }}>
-            <button className="ghost" type="button" data-modal="true" data-loader="off" onClick={openDefaultsModal}>
-              Personalizar catálogos
-            </button>
+          <button className="ghost" type="button" data-modal="true" data-loader="off" onClick={openDefaultsModal}>
+            Crear catálogo
+          </button>
             {editing ? (
               <button className="ghost btn-cancel" type="button" onClick={resetWizard} data-loader="off">
                 Cancelar edición
@@ -838,7 +838,7 @@ export function CheckoutTemplatesPanel({
         <div className="modal-backdrop">
           <div className="modal-panel" style={{ maxWidth: 620 }}>
             <div className="panel-header">
-              <strong>Personalizar catálogos</strong>
+              <strong>Crear catálogo</strong>
               <button className="ghost modal-close" type="button" onClick={resetWizard} aria-label="Cerrar" data-modal-close="true" data-loader="off">
                 X
               </button>
@@ -848,9 +848,9 @@ export function CheckoutTemplatesPanel({
               {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
               <input type="hidden" name="mode" value={defaultsMode} />
               <div className="field">
-                <label>Tipo de catálogo</label>
+                <label>Tipo de catálogo a crear</label>
                 <div className="template-choice-row" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10 }}>
-                  {(["PLAN", "SUBSCRIPTION", "BOTH"] as const).map((opt) => (
+                  {(["PLAN", "SUBSCRIPTION"] as const).map((opt) => (
                     <label
                       key={opt}
                       className={`card cardPad ${defaultsMode === opt ? "is-active" : ""}`}
@@ -865,14 +865,12 @@ export function CheckoutTemplatesPanel({
                     >
                       <input type="radio" name="defaultsMode" value={opt} checked={defaultsMode === opt} onChange={() => setDefaultsMode(opt)} style={{ display: "none" }} />
                       <strong>
-                        {opt === "PLAN" ? "Link de pago" : opt === "SUBSCRIPTION" ? "Débito automático" : "Ambos"}
+                        {opt === "PLAN" ? "Link de pago" : "Débito automático"}
                       </strong>
                       <div className="field-hint">
                         {opt === "PLAN"
                           ? "Catálogo para link de pago."
-                          : opt === "SUBSCRIPTION"
-                            ? "Catálogo para débito automático."
-                            : "Crea los dos catálogos base."}
+                          : "Catálogo para débito automático."}
                       </div>
                     </label>
                   ))}
