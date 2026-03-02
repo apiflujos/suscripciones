@@ -94,12 +94,12 @@ function getCustomerPhoneFromPayload(payload: WompiPayload): string | undefined 
 function getPaidAtFromPayload(payload: WompiPayload): Date | null {
   const tx = getTransactionFromPayload(payload);
   const raw =
+    tx?.paid_at ||
+    tx?.paidAt ||
     tx?.finalized_at ||
     tx?.finalizedAt ||
     tx?.created_at ||
-    tx?.createdAt ||
-    tx?.paid_at ||
-    tx?.paidAt;
+    tx?.createdAt;
   if (!raw) return null;
   const dt = new Date(raw);
   return Number.isNaN(dt.getTime()) ? null : dt;
@@ -372,13 +372,14 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     paymentByLink?.checkoutUrl ||
     prevByTx?.checkoutUrl ||
     checkoutUrlResolved;
+  const wompiTransactionUpdate = transactionId ? { wompiTransactionId: transactionId } : {};
 
   const paymentRecord = paymentByLink
     ? await db.payment.update({
         where: { id: paymentByLink.id },
         data: {
           ...(tenantIdForPayment ? { tenantId: tenantIdForPayment } : {}),
-          wompiTransactionId: transactionId,
+          ...wompiTransactionUpdate,
           ...(paymentStatus ? { status: paymentStatus } : {}),
           paidAt,
           failedAt:
@@ -409,7 +410,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
           currency: currency ?? "COP",
           cycleNumber: cycle,
           reference: reference ?? `SUB_${subscription!.id}_${cycle}`,
-          wompiTransactionId: transactionId,
+          ...wompiTransactionUpdate,
           wompiPaymentLinkId: paymentLinkId,
           ...(resolvedCheckoutUrl ? { checkoutUrl: resolvedCheckoutUrl } : {}),
           ...(paymentStatus ? { status: paymentStatus } : {}),
@@ -420,7 +421,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         },
         update: {
           ...(tenantIdForPayment ? { tenantId: tenantIdForPayment } : {}),
-          wompiTransactionId: transactionId,
+          ...wompiTransactionUpdate,
           ...(paymentStatus ? { status: paymentStatus } : {}),
           paidAt,
           failedAt:
