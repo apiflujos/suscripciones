@@ -355,24 +355,12 @@ export default async function SettingsPage({
                         <span className="saved-conn-meta-value">{maskSecret(wompi?.privateKey)}</span>
                       </div>
                       <div className="saved-conn-meta-item">
-                        <span className="saved-conn-meta-label">Integridad</span>
-                        <span className="saved-conn-meta-value">{maskSecret(wompi?.integritySecret)}</span>
-                      </div>
-                      <div className="saved-conn-meta-item">
                         <span className="saved-conn-meta-label">Eventos</span>
                         <span className="saved-conn-meta-value">{maskSecret(wompi?.eventsSecret)}</span>
                       </div>
                       <div className="saved-conn-meta-item">
-                        <span className="saved-conn-meta-label">API</span>
-                        <span className="saved-conn-meta-value">{wompi?.apiBaseUrl || "—"}</span>
-                      </div>
-                      <div className="saved-conn-meta-item">
-                        <span className="saved-conn-meta-label">Links</span>
-                        <span className="saved-conn-meta-value">{wompi?.checkoutLinkBaseUrl || "—"}</span>
-                      </div>
-                      <div className="saved-conn-meta-item">
-                        <span className="saved-conn-meta-label">Redirección</span>
-                        <span className="saved-conn-meta-value">{wompi?.redirectUrl || "—"}</span>
+                        <span className="saved-conn-meta-label">Integridad</span>
+                        <span className="saved-conn-meta-value">{maskSecret(wompi?.integritySecret)}</span>
                       </div>
                     </div>
                   </div>

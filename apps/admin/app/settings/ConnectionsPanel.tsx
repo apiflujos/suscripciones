@@ -198,34 +198,12 @@ export function ConnectionsPanel({
                   <input className="input" name="privateKey" type="password" />
                 </div>
                 <div className="field">
-                  <label>Secreto de integridad</label>
-                  <input className="input" name="integritySecret" type="password" />
-                </div>
-                <div className="field">
-                  <label>Secreto de eventos</label>
+                  <label>Eventos</label>
                   <input className="input" name="eventsSecret" type="password" />
                 </div>
                 <div className="field">
-                  <label>URL base del API</label>
-                  <input
-                    className="input"
-                    name="apiBaseUrl"
-                    placeholder={open === "wompi_sandbox" ? "https://sandbox.wompi.co/v1" : "https://production.wompi.co/v1"}
-                    defaultValue={(open === "wompi_prod" ? wompiProduction : wompiSandbox)?.apiBaseUrl || ""}
-                  />
-                </div>
-                <div className="field">
-                  <label>URL base de links de pago</label>
-                  <input
-                    className="input"
-                    name="checkoutLinkBaseUrl"
-                    placeholder="https://checkout.wompi.co/l/"
-                    defaultValue={(open === "wompi_prod" ? wompiProduction : wompiSandbox)?.checkoutLinkBaseUrl || ""}
-                  />
-                </div>
-                <div className="field">
-                  <label>URL de redirección (opcional)</label>
-                  <input className="input" name="redirectUrl" defaultValue={(open === "wompi_prod" ? wompiProduction : wompiSandbox)?.redirectUrl || ""} />
+                  <label>Integridad</label>
+                  <input className="input" name="integritySecret" type="password" />
                 </div>
                 <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>

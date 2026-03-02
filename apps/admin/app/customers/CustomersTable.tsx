@@ -619,7 +619,7 @@ export function CustomersTable({
                 <div className="contact-block-title">Plan / suscripción</div>
                 <div className="contact-plan-grid">
                   <div>
-                    <span>Plan / Suscripción</span>
+                    <span>Estado</span>
                     <div className="contact-plan-row">
                       {hasPlan ? (
                         <>
