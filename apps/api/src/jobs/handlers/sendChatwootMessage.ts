@@ -342,20 +342,44 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
       ).conversationId;
     } catch (err: any) {
       const message = err?.message ? String(err.message) : "chatwoot_create_conversation_failed";
-      await prisma.chatwootMessage.update({
-        where: { id: chatwootMessageId },
-        data: { status: MessageStatus.FAILED, errorMessage: message }
-      }).catch((updateErr) => {
-        logger.warn({ err: updateErr, chatwootMessageId }, "chatwoot.send: failed to update message status");
-      });
-      await systemLog(LogLevel.ERROR, "chatwoot.send", "Error creando conversación", {
-        chatwootMessageId,
-        customerId: msg.customerId,
-        err: message
-      }).catch((logErr) => {
-        logger.warn({ err: logErr, chatwootMessageId }, "chatwoot.send: failed to write system log");
-      });
-      return;
+      const canRetryInbox =
+        !!selectedInboxId && selectedInboxId !== cfg.inboxId && /resource could not be found/i.test(message);
+      if (canRetryInbox) {
+        try {
+          conversationId = (await client.createConversation({ contactId, sourceId, inboxId: cfg.inboxId, message: undefined })).conversationId;
+        } catch (retryErr: any) {
+          const retryMessage = retryErr?.message ? String(retryErr.message) : message;
+          await prisma.chatwootMessage.update({
+            where: { id: chatwootMessageId },
+            data: { status: MessageStatus.FAILED, errorMessage: retryMessage }
+          }).catch((updateErr) => {
+            logger.warn({ err: updateErr, chatwootMessageId }, "chatwoot.send: failed to update message status");
+          });
+          await systemLog(LogLevel.ERROR, "chatwoot.send", "Error creando conversación", {
+            chatwootMessageId,
+            customerId: msg.customerId,
+            err: retryMessage
+          }).catch((logErr) => {
+            logger.warn({ err: logErr, chatwootMessageId }, "chatwoot.send: failed to write system log");
+          });
+          return;
+        }
+      } else {
+        await prisma.chatwootMessage.update({
+          where: { id: chatwootMessageId },
+          data: { status: MessageStatus.FAILED, errorMessage: message }
+        }).catch((updateErr) => {
+          logger.warn({ err: updateErr, chatwootMessageId }, "chatwoot.send: failed to update message status");
+        });
+        await systemLog(LogLevel.ERROR, "chatwoot.send", "Error creando conversación", {
+          chatwootMessageId,
+          customerId: msg.customerId,
+          err: message
+        }).catch((logErr) => {
+          logger.warn({ err: logErr, chatwootMessageId }, "chatwoot.send: failed to write system log");
+        });
+        return;
+      }
     }
   }
 
@@ -405,7 +429,16 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
   let sent: any;
   try {
     if (allowTemplate && templateParams) {
-      sent = await client.sendTemplate(conversationId, { content: sanitizeInlineImages(msg.content), templateParams });
+      try {
+        sent = await client.sendTemplate(conversationId, { content: sanitizeInlineImages(msg.content), templateParams });
+      } catch (err: any) {
+        const errMsg = String(err?.message || "");
+        if (/content[_-]?type/i.test(errMsg) && /html/i.test(errMsg)) {
+          sent = await client.sendMessage(conversationId, sanitizeInlineImages(msg.content));
+        } else {
+          throw err;
+        }
+      }
     } else if (attachmentUrl) {
       try {
         const attachment = await downloadAttachment(attachmentUrl);

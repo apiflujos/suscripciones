@@ -202,7 +202,10 @@ export class ChatwootClient {
     if (Array.isArray(input)) return input.map((item) => this.sanitizeTemplateParams(item));
     const out: Record<string, any> = {};
     for (const [key, value] of Object.entries(input)) {
-      if (key === "content_type") continue;
+      const normalizedKey = String(key || "").toLowerCase();
+      if (normalizedKey === "content_type" || normalizedKey === "contenttype" || normalizedKey === "content-type") {
+        continue;
+      }
       if (typeof value === "string") {
         out[key] = this.normalizePlainText(value);
       } else {
