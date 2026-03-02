@@ -189,16 +189,36 @@ export class WompiClient {
       throw new Error(`Wompi get transaction failed: ${res.status} ${JSON.stringify(json)}`);
     }
     const parsed = wompiTransactionResponseSchema.safeParse(json);
-    if (!parsed.success) throw new Error("Wompi get transaction: unexpected response");
-    return {
-      id: parsed.data.data.id,
-      status: parsed.data.data.status,
-      reference: parsed.data.data.reference,
-      amountInCents: parsed.data.data.amount_in_cents,
-      currency: parsed.data.data.currency,
-      paymentLinkId: parsed.data.data.payment_link_id,
-      customerEmail: parsed.data.data.customer_email,
-      raw: json
-    };
+    if (parsed.success) {
+      return {
+        id: parsed.data.data.id,
+        status: parsed.data.data.status,
+        reference: parsed.data.data.reference,
+        amountInCents: parsed.data.data.amount_in_cents,
+        currency: parsed.data.data.currency,
+        paymentLinkId: parsed.data.data.payment_link_id,
+        customerEmail: parsed.data.data.customer_email,
+        raw: json
+      };
+    }
+
+    const data = (json && typeof json === "object"
+      ? ((json as Record<string, any>).data ?? (json as Record<string, any>).transaction ?? null)
+      : null) as Record<string, any> | null;
+
+    if (data && typeof data.id === "string" && data.id.length > 0) {
+      return {
+        id: data.id,
+        status: data.status,
+        reference: data.reference,
+        amountInCents: data.amount_in_cents,
+        currency: data.currency,
+        paymentLinkId: data.payment_link_id,
+        customerEmail: data.customer_email,
+        raw: json
+      };
+    }
+
+    throw new Error(`Wompi get transaction: unexpected response ${JSON.stringify(json)}`);
   }
 }
