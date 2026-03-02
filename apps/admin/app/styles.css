@@ -1314,8 +1314,8 @@ a {
 }
 
 .smartViewsModalCard {
-  border: 1px solid var(--stroke);
-  background: var(--surface);
+  border: 1px solid var(--stroke-strong);
+  background: var(--panel);
   border-radius: 14px;
   padding: 16px;
   display: flex;
@@ -1324,6 +1324,7 @@ a {
   width: min(1100px, 100%);
   max-height: 80vh;
   overflow: auto;
+  box-shadow: var(--shadow-soft);
 }
 
 .smartListModal {
@@ -1362,6 +1363,10 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.smartViewsModalHeader .ghost {
+  border-color: var(--stroke);
 }
 
 .smartRuleRow {
@@ -3507,6 +3512,75 @@ textarea.input {
   color: var(--text-faint);
 }
 
+.gamification-inline {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.gamification-block {
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: var(--panel);
+  padding: 10px 12px;
+  display: grid;
+  gap: 4px;
+}
+
+.gamification-points {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.gamification-event-list {
+  display: grid;
+  gap: 10px;
+}
+
+.gamification-event {
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: var(--panel);
+  padding: 10px 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.gamification-event.is-positive {
+  border-color: color-mix(in srgb, var(--status-success) 35%, var(--stroke));
+}
+
+.gamification-event.is-negative {
+  border-color: color-mix(in srgb, var(--status-danger) 35%, var(--stroke));
+}
+
+.gamification-event-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.gamification-event-title {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.gamification-event-delta {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.gamification-event-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
 .trend-card {
   border-radius: 12px;
   border: 1px solid var(--stroke);
@@ -3515,12 +3589,37 @@ textarea.input {
   min-width: 200px;
 }
 
+.trend-card-wide {
+  min-width: 260px;
+  max-width: 420px;
+}
+
 .trend-title {
   font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-faint);
   font-weight: 700;
+}
+
+.trend-sub {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  font-weight: 700;
+  margin-top: 6px;
+}
+
+.trend-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.trend-column {
+  display: grid;
+  gap: 4px;
 }
 
 .trend-card .mini-list li {
@@ -3533,6 +3632,12 @@ textarea.input {
 .trend-score {
   font-weight: 700;
   color: var(--text);
+}
+
+.mini-list-tight {
+  margin-top: 6px;
+  gap: 4px;
+  font-size: 12px;
 }
 
 .tier-badge {
@@ -3690,16 +3795,6 @@ textarea.input {
   box-shadow: none;
 }
 
-.topbarRealtimeSlot {
-  display: flex;
-  align-items: center;
-  margin-left: 6px;
-  min-height: 40px;
-  min-width: 0;
-  justify-content: center;
-  align-self: stretch;
-  overflow: visible;
-}
 
 .topbar .realtime-status {
   padding: 0;
@@ -3721,11 +3816,6 @@ textarea.input {
   }
 }
 
-@media (max-width: 860px) {
-  .topbarRealtimeSlot {
-    display: none;
-  }
-}
 @media (max-width: 1100px) {
   .topbarRight {
     flex-wrap: wrap;

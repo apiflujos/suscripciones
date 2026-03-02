@@ -572,10 +572,6 @@ export function CustomersTable({
               </div>
               <div className="contact-paylink contact-footer">
                   <div className="paylink-header">
-                    <span className="provider-badge">
-                      <img src="/brand/wompi.png" alt="" />
-                      Wompi
-                    </span>
                     <span className="paylink-title">Pagos y tokenización</span>
                   </div>
                   <div className="paylink-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-start" }}>

@@ -249,7 +249,6 @@ export function TopBar({ session }: { session: AdminSession | null }) {
             </div>
           ) : null}
         </div>
-        <div id="realtime-slot" className="topbarRealtimeSlot" />
       </div>
     </header>
   );

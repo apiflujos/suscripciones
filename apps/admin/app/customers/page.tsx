@@ -86,6 +86,24 @@ async function fetchTrending(scope: "customers" | "products", hours: number, ten
   return fetchAdminCached(`/admin/gamification/trending?${sp.toString()}`, { ttlMs: 1500 });
 }
 
+async function fetchSmartLists() {
+  return fetchAdminCached("/admin/comms/smart-lists?take=200", { ttlMs: 1500 });
+}
+
+async function fetchSmartListPreview(id: string, tenantId?: string) {
+  if (!id) return { count: 0 };
+  const tenantParam = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
+  const res = await fetchAdminCached(`/admin/comms/smart-lists/${encodeURIComponent(id)}/preview${tenantParam}`, { ttlMs: 1500 });
+  return res.json || { count: 0 };
+}
+
+async function fetchSmartListMembers(id: string, tenantId?: string) {
+  if (!id) return { items: [] as any[] };
+  const tenantParam = tenantId ? `&tenantId=${encodeURIComponent(tenantId)}` : "";
+  const res = await fetchAdminCached(`/admin/comms/smart-lists/${encodeURIComponent(id)}/members?active=1&take=200${tenantParam}`, { ttlMs: 1500 });
+  return res.json || { items: [] as any[] };
+}
+
 async function fetchCartTemplates(tenantId?: string) {
   const sp = new URLSearchParams();
   if (tenantId) sp.set("tenantId", tenantId);
@@ -152,20 +170,26 @@ export default async function CustomersPage({
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
   const tenantId = typeof sp.tenantId === "string" ? sp.tenantId : "";
   const txCustomerId = typeof sp.tx === "string" ? sp.tx : "";
+  const listId = typeof sp.list === "string" ? sp.list : "";
   const viewId = typeof sp.viewId === "string" ? sp.viewId : "";
   const filters = typeof sp.filters === "string" ? sp.filters : "";
   const returnTo = `/customers?${new URLSearchParams({
     ...(q ? { q } : {}),
     ...(tenantId ? { tenantId } : {}),
     ...(txCustomerId ? { tx: txCustomerId } : {}),
+    ...(listId ? { list: listId } : {}),
     ...(viewId ? { viewId } : {}),
     ...(filters ? { filters } : {}),
     ...(Number.isFinite(page) && page > 1 ? { page: String(page) } : {})
   }).toString()}`;
   const take = 10;
   let resolvedIds: string[] = [];
-  const usingSmartFilters = Boolean(viewId || filters);
-  if (viewId) {
+  const usingSmartFilters = Boolean(listId || viewId || filters);
+  if (listId) {
+    const res = await fetchSmartListMembers(listId, tenantId);
+    const rows = Array.isArray(res?.items) ? res.items : [];
+    resolvedIds = rows.map((row: any) => String(row?.customer?.id || row?.customerId || row?.id || "")).filter(Boolean);
+  } else if (viewId) {
     const res = await fetch(`/api/smart-views/customers/resolve`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -194,7 +218,7 @@ export default async function CustomersPage({
     resolvedIds = ["__none__"];
   }
 
-  const [data, tenantsRes, txCustomer, productsRes, templatesRes, settingsRes, trendingRes, notificationsRes] = await Promise.all([
+  const [data, tenantsRes, txCustomer, productsRes, templatesRes, settingsRes, trending24Res, trending7Res, trending30Res, notificationsRes, smartListsRes] = await Promise.all([
     fetchCustomers({ q, take, page, tenantId, ids: resolvedIds }),
     fetchAdminCached("/admin/tenants", { ttlMs: 1500 }),
     txCustomerId ? fetchCustomerById(txCustomerId) : Promise.resolve(null),
@@ -202,7 +226,10 @@ export default async function CustomersPage({
     fetchCheckoutTemplates(tenantId),
     fetchSettings(),
     fetchTrending("customers", 24, tenantId),
-    fetchNotificationsConfig()
+    fetchTrending("customers", 168, tenantId),
+    fetchTrending("customers", 720, tenantId),
+    fetchNotificationsConfig(),
+    fetchSmartLists()
   ]);
   const items = (data.items ?? []) as any[];
   const total = Number.isFinite(Number((data as any)?.total)) ? Number((data as any).total) : items.length;
@@ -212,7 +239,17 @@ export default async function CustomersPage({
   const tenants = (tenantsRes.json?.items ?? []) as Array<{ id: string; name: string }>;
   const checkoutConfig = settingsRes?.checkoutConfig || {};
   const notificationsConfig = notificationsRes?.config || null;
-  const trendingCustomers = trendingRes?.ok ? trendingRes.json?.items ?? [] : [];
+  const trendingCustomers24 = trending24Res?.ok ? trending24Res.json?.items ?? [] : [];
+  const trendingCustomers7 = trending7Res?.ok ? trending7Res.json?.items ?? [] : [];
+  const trendingCustomers30 = trending30Res?.ok ? trending30Res.json?.items ?? [] : [];
+  const smartListsRaw = smartListsRes?.ok ? smartListsRes.json?.items ?? [] : [];
+  const smartListPreviews = smartListsRaw.length
+    ? await Promise.all(smartListsRaw.map((list: any) => fetchSmartListPreview(String(list.id || ""), tenantId)))
+    : [];
+  const smartLists = smartListsRaw.filter((_list: any, idx: number) => {
+    const preview = smartListPreviews[idx];
+    return Number(preview?.count || 0) > 0;
+  });
   const tenantById = new Map(tenants.map((t) => [String(t.id), String(t.name)]));
   const [latestLinks, subscriptionsByCustomer, cartTemplates] = await Promise.all([
     fetchPaymentLinks(q, tenantId),
@@ -303,78 +340,6 @@ export default async function CustomersPage({
       ? `Mostrando ${startIndex}-${endIndex} de ${total} · ${take} por página`
       : "Sin resultados";
 
-  const quickFilters = [
-    {
-      id: "gamification-legend",
-      name: "Gamificación: Leyenda",
-      category: "Gamificación",
-      filters: { op: "and", rules: [{ field: "gamification.levelName", op: "in", value: ["Leyenda", "Maestro", "Elite", "Diamante"] }] }
-    },
-    {
-      id: "gamification-oro",
-      name: "Gamificación: Oro",
-      category: "Gamificación",
-      filters: { op: "and", rules: [{ field: "gamification.levelName", op: "in", value: ["Oro", "Platino"] }] }
-    },
-    {
-      id: "gamification-plata",
-      name: "Gamificación: Plata",
-      category: "Gamificación",
-      filters: { op: "and", rules: [{ field: "gamification.levelName", op: "in", value: ["Plata", "Bronce"] }] }
-    },
-    {
-      id: "gamification-rookie",
-      name: "Gamificación: Rookie",
-      category: "Gamificación",
-      filters: { op: "and", rules: [{ field: "gamification.levelName", op: "in", value: ["Rookie", "Explorador"] }] }
-    },
-    {
-      id: "ranking-top",
-      name: "Ranking: Top",
-      category: "Ranking",
-      filters: { op: "and", rules: [{ field: "payments.approvedCount", op: "gte", value: 6 }] }
-    },
-    {
-      id: "ranking-recurrente",
-      name: "Ranking: Recurrente",
-      category: "Ranking",
-      filters: { op: "and", rules: [{ field: "payments.approvedCount", op: "between", value: { from: 3, to: 5 } }] }
-    },
-    {
-      id: "ranking-nuevo",
-      name: "Ranking: Nuevo",
-      category: "Ranking",
-      filters: { op: "and", rules: [{ field: "payments.approvedCount", op: "lt", value: 3 }] }
-    },
-    {
-      id: "status-mora",
-      name: "Estado: En mora",
-      category: "Estado",
-      filters: { op: "and", rules: [{ field: "subscription.inMora", op: "equals", value: true }] }
-    },
-    {
-      id: "status-con-suscripcion",
-      name: "Estado: Con suscripción",
-      category: "Estado",
-      filters: { op: "and", rules: [{ field: "subscription.status", op: "equals", value: "ACTIVE" }] }
-    },
-    {
-      id: "status-sin-suscripcion",
-      name: "Estado: Sin suscripción",
-      category: "Estado",
-      filters: { op: "and", rules: [{ field: "subscription.status", op: "isEmpty" }] }
-    }
-  ];
-
-  let activeFiltersKey = "";
-  if (filters) {
-    try {
-      activeFiltersKey = JSON.stringify(JSON.parse(filters));
-    } catch {
-      activeFiltersKey = "";
-    }
-  }
-
   const iconForCategory = (category?: string) => {
     const key = String(category || "").toLowerCase();
     if (key.includes("gam")) {
@@ -406,11 +371,11 @@ export default async function CustomersPage({
     return "default";
   };
 
-  const buildQuickHref = (filtersObj: any) => {
+  const buildListHref = (id: string) => {
     const sp = new URLSearchParams({
       ...(q ? { q } : {}),
       ...(tenantId ? { tenantId } : {}),
-      filters: JSON.stringify(filtersObj)
+      list: id
     });
     return `/customers?${sp.toString()}`;
   };
@@ -447,27 +412,39 @@ export default async function CustomersPage({
           <div className="filtersRow">
             <div className="filtersLeft">
               <div className="filtersPanel">
-                <div className="filtersQuickRow">
-                  <div className="filtersQuick">
-                    {quickFilters.map((filter) => {
-                      const key = JSON.stringify(filter.filters);
-                      const isActive = activeFiltersKey === key;
-                      return (
+                {smartLists.length ? (
+                  <div className="filtersQuickRow">
+                    <div className="filtersQuick">
+                      {smartLists.map((list: any) => (
                         <a
-                          key={filter.id}
-                          className={`pill quick-pill ${isActive ? "is-active" : ""}`}
-                          href={buildQuickHref(filter.filters)}
-                          data-tone={toneForCategory(filter.category)}
+                          key={list.id}
+                          className={`pill quick-pill ${listId === list.id ? "is-active" : ""}`}
+                          href={buildListHref(list.id)}
+                          data-tone={toneForCategory(list.category)}
                         >
                           <span className="quick-pill-icon" aria-hidden="true">
-                            {iconForCategory(filter.category)}
+                            {iconForCategory(list.category)}
                           </span>
-                          {filter.name}
+                          {list.name}
                         </a>
-                      );
-                    })}
+                      ))}
+                    </div>
                   </div>
-                </div>
+                ) : null}
+                <form action="/customers" method="GET" className="filtersForm">
+                  {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+                  {listId ? <input type="hidden" name="list" value={listId} /> : null}
+                  {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
+                  {filters ? <input type="hidden" name="filters" value={filters} /> : null}
+                  <input
+                    className="input"
+                    name="q"
+                    defaultValue={q}
+                    placeholder="Buscar por nombre, email, teléfono o identificación..."
+                    aria-label="Buscar contactos"
+                  />
+                  <button className="ghost" type="submit">Buscar</button>
+                </form>
                 <SmartViewsBar
                   scope="customers"
                   initialViewId={viewId}
@@ -480,20 +457,55 @@ export default async function CustomersPage({
               </div>
             </div>
             <div className="filtersRight">
-              <div className="trend-card">
-                <div className="trend-title">Top 3 tendencia (24h)</div>
-                <ul className="mini-list">
-                  {trendingCustomers.length ? (
-                    trendingCustomers.map((item: any) => (
-                      <li key={`trend-c-${item.id}`}>
-                        <span>{item.name || "Contacto"}</span>
-                        <span className="trend-score">{item.score}</span>
-                      </li>
-                    ))
-                  ) : (
-                    <li className="muted">Sin datos</li>
-                  )}
-                </ul>
+              <div className="trend-card trend-card-wide">
+                <div className="trend-title">Tendencias contactos</div>
+                <div className="trend-columns">
+                  <div className="trend-column">
+                    <div className="trend-sub">24h</div>
+                    <ul className="mini-list mini-list-tight">
+                      {trendingCustomers24.length ? (
+                        trendingCustomers24.map((item: any) => (
+                          <li key={`trend-c-24-${item.id}`}>
+                            <span>{item.name || "Contacto"}</span>
+                            <span className="trend-score">{item.score}</span>
+                          </li>
+                        ))
+                      ) : (
+                        <li className="muted">Sin datos</li>
+                      )}
+                    </ul>
+                  </div>
+                  <div className="trend-column">
+                    <div className="trend-sub">7d</div>
+                    <ul className="mini-list mini-list-tight">
+                      {trendingCustomers7.length ? (
+                        trendingCustomers7.map((item: any) => (
+                          <li key={`trend-c-7-${item.id}`}>
+                            <span>{item.name || "Contacto"}</span>
+                            <span className="trend-score">{item.score}</span>
+                          </li>
+                        ))
+                      ) : (
+                        <li className="muted">Sin datos</li>
+                      )}
+                    </ul>
+                  </div>
+                  <div className="trend-column">
+                    <div className="trend-sub">30d</div>
+                    <ul className="mini-list mini-list-tight">
+                      {trendingCustomers30.length ? (
+                        trendingCustomers30.map((item: any) => (
+                          <li key={`trend-c-30-${item.id}`}>
+                            <span>{item.name || "Contacto"}</span>
+                            <span className="trend-score">{item.score}</span>
+                          </li>
+                        ))
+                      ) : (
+                        <li className="muted">Sin datos</li>
+                      )}
+                    </ul>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

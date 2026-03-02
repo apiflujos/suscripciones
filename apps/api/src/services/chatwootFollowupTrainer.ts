@@ -97,7 +97,7 @@ export async function chatwootFollowupTrainer(payload: any) {
     orderBy: { updatedAt: "desc" }
   });
 
-  const tenantIds = Array.from(new Set(customers.map((c) => String(c.tenantId || \"\")).filter(Boolean)));
+  const tenantIds = Array.from(new Set(customers.map((c) => String(c.tenantId || "")).filter(Boolean)));
   const tenants = tenantIds.length
     ? await prisma.saTenant.findMany({ where: { id: { in: tenantIds } }, select: { id: true, metadata: true } })
     : [];
