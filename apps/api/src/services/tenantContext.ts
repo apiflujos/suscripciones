@@ -5,7 +5,9 @@ function normalize(v: unknown) {
 }
 
 function isUuid(v: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    v,
+  );
 }
 
 export function coerceTenantId(value: unknown): string | null {
@@ -32,15 +34,16 @@ export async function getDefaultTenantId(): Promise<string | null> {
 
   const name =
     normalize(process.env.SA_DEFAULT_TENANT_NAME) ||
-    normalize(process.env.DEFAULT_TENANT_NAME) ||
-    "Mercado de vinos";
+    normalize(process.env.DEFAULT_TENANT_NAME);
 
   if (!name) {
     cached = { tenantId: null, at: now };
     return null;
   }
 
-  const tenant = await prisma.saTenant.findFirst({ where: { name: { equals: name, mode: "insensitive" } } });
+  const tenant = await prisma.saTenant.findFirst({
+    where: { name: { equals: name, mode: "insensitive" } },
+  });
   const tenantId = tenant?.id || null;
   cached = { tenantId, at: now };
   return tenantId;

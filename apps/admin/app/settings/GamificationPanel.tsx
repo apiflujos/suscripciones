@@ -39,6 +39,7 @@ export function GamificationPanel({
   const wId = weights?.dataIdAdded || {};
   const isCompact = view !== "full";
 
+  const tip = (accepts: string, impact: string) => `Acepta: ${accepts}\nImpacto: ${impact}`;
   const labelWithTip = (text: string, tip: string) => (
     <span className="label-row">
       <span className="label">{text}</span>
@@ -234,49 +235,49 @@ export function GamificationPanel({
                     <label className="field compact">
                       {labelWithTip(
                         "Follow-up (min)",
-                        "Minutos desde el último mensaje saliente sin respuesta para enviar retoma automática. Entero ≥ 1."
+                        tip("entero ≥ 1", "Minutos desde el último mensaje saliente sin respuesta para enviar retoma automática.")
                       )}
                       <input className="input input-compact" type="number" name="followupMinutes" defaultValue={followup.minutes ?? 15} min={1} />
                     </label>
                     <label className="field compact">
                       {labelWithTip(
                         "Cooldown (min)",
-                        "Tiempo mínimo entre retomas al mismo contacto. Entero ≥ 1."
+                        tip("entero ≥ 1", "Tiempo mínimo entre retomas al mismo contacto.")
                       )}
                       <input className="input input-compact" type="number" name="followupCooldown" defaultValue={followup.cooldownMinutes ?? 120} min={1} />
                     </label>
                     <label className="field compact">
                       {labelWithTip(
                         "Máx. retomas",
-                        "Número máximo de retomas antes de parar y penalizar. Entero ≥ 1."
+                        tip("entero ≥ 1", "Número máximo de retomas antes de parar y penalizar.")
                       )}
                       <input className="input input-compact" type="number" name="followupMaxAttempts" defaultValue={followup.maxAttempts ?? 3} min={1} />
                     </label>
                     <label className="field compact">
                       {labelWithTip(
                         "Penalidad no resp.",
-                        "Puntos que se descuentan al alcanzar el máximo de retomas. ≥ 0."
+                        tip("entero ≥ 0", "Puntos que se descuentan al alcanzar el máximo de retomas.")
                       )}
                       <input className="input input-compact" type="number" name="followupPenalty" defaultValue={followup.penaltyNoResponse ?? 25} min={0} />
                     </label>
                     <label className="field compact">
                       {labelWithTip(
                         "Inactividad (días)",
-                        "Días sin actividad antes de empezar degradación. Entero ≥ 1."
+                        tip("entero ≥ 1", "Días sin actividad antes de empezar degradación.")
                       )}
                       <input className="input input-compact" type="number" name="decayDays" defaultValue={decay.inactivityDays ?? 30} min={1} />
                     </label>
                     <label className="field compact">
                       {labelWithTip(
                         "Degradación/día",
-                        "Puntos que se descuentan por día después de la inactividad. ≥ 0."
+                        tip("entero ≥ 0", "Puntos que se descuentan por día después de la inactividad.")
                       )}
                       <input className="input input-compact" type="number" name="decayPerDay" defaultValue={decay.perDay ?? 2} min={0} />
                     </label>
                     <label className="field compact">
                       {labelWithTip(
                         "Penalidad máx.",
-                        "Tope de descuento total por inactividad. ≥ 0."
+                        tip("entero ≥ 0", "Tope de descuento total por inactividad.")
                       )}
                       <input className="input input-compact" type="number" name="decayMaxPenalty" defaultValue={decay.maxPenalty ?? 180} min={0} />
                     </label>
@@ -289,14 +290,14 @@ export function GamificationPanel({
                     <label className="field compact">
                       {labelWithTip(
                         "En mora",
-                        "Penalidad base aplicada si la suscripción está en mora. ≥ 0."
+                        tip("entero ≥ 0", "Penalidad base aplicada si la suscripción está en mora.")
                       )}
                       <input className="input input-compact" type="number" name="penaltyPastDue" defaultValue={penalties.pastDue ?? 90} min={0} />
                     </label>
                     <label className="field compact">
                       {labelWithTip(
                         "Cancelación",
-                        "Penalidad base aplicada si la suscripción está cancelada. ≥ 0."
+                        tip("entero ≥ 0", "Penalidad base aplicada si la suscripción está cancelada.")
                       )}
                       <input className="input input-compact" type="number" name="penaltyCanceled" defaultValue={penalties.canceled ?? 120} min={0} />
                     </label>
@@ -316,35 +317,35 @@ export function GamificationPanel({
                     <label className="field compact">
                       {labelWithTip(
                         "Pago OK · Status",
-                        "Suma/resta al score actual cuando un pago es aprobado."
+                        tip("entero (positivo recomendado)", "Ajusta el score actual cuando un pago es aprobado.")
                       )}
                       <input className="input input-compact" type="number" name="weightPaymentApprovedStatus" defaultValue={wPayment.status ?? 120} />
                     </label>
                     <label className="field compact">
                       {labelWithTip(
                         "Pago OK · Lifetime",
-                        "Suma a puntos históricos cuando un pago es aprobado."
+                        tip("entero ≥ 0", "Suma a puntos históricos cuando un pago es aprobado.")
                       )}
                       <input className="input input-compact" type="number" name="weightPaymentApprovedLifetime" defaultValue={wPayment.lifetime ?? 100} />
                     </label>
                     <label className="field compact">
                       {labelWithTip(
                         "Pago OK · Reward",
-                        "Suma al saldo de recompensas del contacto."
+                        tip("entero ≥ 0", "Suma al saldo de recompensas del contacto.")
                       )}
                       <input className="input input-compact" type="number" name="weightPaymentApprovedReward" defaultValue={wPayment.reward ?? 40} />
                     </label>
                     <label className="field compact">
                       {labelWithTip(
                         "Money scale",
-                        "Escala monetaria: 1 punto por cada X en centavos del monto. ≥ 1."
+                        tip("entero ≥ 1", "Escala monetaria: 1 punto por cada X centavos del monto.")
                       )}
                       <input className="input input-compact" type="number" name="weightPaymentApprovedMoneyScale" defaultValue={wPayment.moneyScale ?? 10000} min={1} />
                     </label>
                     <label className="field compact">
                       {labelWithTip(
                         "Pago fallido",
-                        "Descuenta del score actual cuando un pago falla."
+                        tip("entero (negativo recomendado)", "Descuenta del score actual cuando un pago falla.")
                       )}
                       <input className="input input-compact" type="number" name="weightPaymentFailedStatus" defaultValue={wPaymentFail.status ?? -60} />
                     </label>
@@ -360,56 +361,56 @@ export function GamificationPanel({
                     <label className="field compact">
                       {labelWithTip(
                         "Inicio · Status",
-                        "Suma al score actual cuando inicia una suscripción."
+                        tip("entero", "Ajusta el score actual cuando inicia una suscripción.")
                       )}
                       <input className="input input-compact" type="number" name="weightSubStartStatus" defaultValue={wSubStart.status ?? 60} />
                     </label>
                     <label className="field compact">
                       {labelWithTip(
                         "Inicio · Lifetime",
-                        "Suma a puntos históricos al iniciar una suscripción."
+                        tip("entero ≥ 0", "Suma a puntos históricos al iniciar una suscripción.")
                       )}
                       <input className="input input-compact" type="number" name="weightSubStartLifetime" defaultValue={wSubStart.lifetime ?? 40} />
                     </label>
                     <label className="field compact">
                       {labelWithTip(
                         "Inicio · Reward",
-                        "Suma al saldo de recompensas al iniciar."
+                        tip("entero ≥ 0", "Suma al saldo de recompensas al iniciar.")
                       )}
                       <input className="input input-compact" type="number" name="weightSubStartReward" defaultValue={wSubStart.reward ?? 10} />
                     </label>
                     <label className="field compact">
                       {labelWithTip(
                         "Renovación · Status",
-                        "Suma al score actual cuando se renueva."
+                        tip("entero", "Ajusta el score actual cuando se renueva.")
                       )}
                       <input className="input input-compact" type="number" name="weightSubRenewStatus" defaultValue={wSubRenew.status ?? 70} />
                     </label>
                     <label className="field compact">
                       {labelWithTip(
                         "Renovación · Lifetime",
-                        "Suma a puntos históricos al renovar."
+                        tip("entero ≥ 0", "Suma a puntos históricos al renovar.")
                       )}
                       <input className="input input-compact" type="number" name="weightSubRenewLifetime" defaultValue={wSubRenew.lifetime ?? 50} />
                     </label>
                     <label className="field compact">
                       {labelWithTip(
                         "Renovación · Reward",
-                        "Suma al saldo de recompensas al renovar."
+                        tip("entero ≥ 0", "Suma al saldo de recompensas al renovar.")
                       )}
                       <input className="input input-compact" type="number" name="weightSubRenewReward" defaultValue={wSubRenew.reward ?? 15} />
                     </label>
                     <label className="field compact">
                       {labelWithTip(
                         "Cancelación",
-                        "Descuento al score cuando se cancela una suscripción."
+                        tip("entero (negativo recomendado)", "Descuento al score cuando se cancela una suscripción.")
                       )}
                       <input className="input input-compact" type="number" name="weightSubCancelStatus" defaultValue={wSubCancel.status ?? -120} />
                     </label>
                     <label className="field compact">
                       {labelWithTip(
                         "En mora",
-                        "Descuento al score cuando la suscripción entra en mora."
+                        tip("entero (negativo recomendado)", "Descuento al score cuando la suscripción entra en mora.")
                       )}
                       <input className="input input-compact" type="number" name="weightSubPastStatus" defaultValue={wSubPast.status ?? -80} />
                     </label>
@@ -425,21 +426,21 @@ export function GamificationPanel({
                     <label className="field compact">
                       {labelWithTip(
                         "Status",
-                        "Puntos al score actual por mensaje entrante."
+                        tip("entero ≥ 0", "Puntos al score actual por mensaje entrante.")
                       )}
                       <input className="input input-compact" type="number" name="weightChatwootStatus" defaultValue={wChatwoot.status ?? 12} />
                     </label>
                     <label className="field compact">
                       {labelWithTip(
                         "Lifetime",
-                        "Puntos históricos por mensaje entrante."
+                        tip("entero ≥ 0", "Puntos históricos por mensaje entrante.")
                       )}
                       <input className="input input-compact" type="number" name="weightChatwootLifetime" defaultValue={wChatwoot.lifetime ?? 6} />
                     </label>
                     <label className="field compact">
                       {labelWithTip(
                         "Reward",
-                        "Puntos de recompensa por mensaje entrante."
+                        tip("entero ≥ 0", "Puntos de recompensa por mensaje entrante.")
                       )}
                       <input className="input input-compact" type="number" name="weightChatwootReward" defaultValue={wChatwoot.reward ?? 2} />
                     </label>
@@ -455,21 +456,21 @@ export function GamificationPanel({
                     <label className="field compact">
                       {labelWithTip(
                         "Email",
-                        "Puntos al completar email por primera vez."
+                        tip("entero ≥ 0", "Puntos al completar email por primera vez.")
                       )}
                       <input className="input input-compact" type="number" name="weightEmailStatus" defaultValue={wEmail.status ?? 10} />
                     </label>
                     <label className="field compact">
                       {labelWithTip(
                         "Teléfono",
-                        "Puntos al completar teléfono por primera vez."
+                        tip("entero ≥ 0", "Puntos al completar teléfono por primera vez.")
                       )}
                       <input className="input input-compact" type="number" name="weightPhoneStatus" defaultValue={wPhone.status ?? 10} />
                     </label>
                     <label className="field compact">
                       {labelWithTip(
                         "Documento",
-                        "Puntos al completar documento por primera vez."
+                        tip("entero ≥ 0", "Puntos al completar documento por primera vez.")
                       )}
                       <input className="input input-compact" type="number" name="weightIdStatus" defaultValue={wId.status ?? 15} />
                     </label>
