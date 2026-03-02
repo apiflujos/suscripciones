@@ -414,6 +414,7 @@ export default async function CustomersPage({
               <div className="filtersPanel">
                 {smartLists.length ? (
                   <div className="filtersQuickRow">
+                    <div className="filter-label">Listas inteligentes</div>
                     <div className="filtersQuick">
                       {smartLists.map((list: any) => (
                         <a
@@ -431,13 +432,14 @@ export default async function CustomersPage({
                     </div>
                   </div>
                 ) : null}
-                <form action="/customers" method="GET" className="filtersForm">
+                <form action="/customers" method="GET" className="filtersForm filtersSearch">
                   {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
                   {listId ? <input type="hidden" name="list" value={listId} /> : null}
                   {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
                   {filters ? <input type="hidden" name="filters" value={filters} /> : null}
                   <input
                     className="input"
+                    type="search"
                     name="q"
                     defaultValue={q}
                     placeholder="Buscar por nombre, email, teléfono o identificación..."

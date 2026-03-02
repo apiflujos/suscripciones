@@ -1287,6 +1287,10 @@ a {
   flex-wrap: wrap;
 }
 
+.smartViewsField {
+  min-width: 240px;
+}
+
 .smartViewsActive {
   font-size: 12px;
   font-weight: 600;
@@ -1325,6 +1329,15 @@ a {
   max-height: 80vh;
   overflow: auto;
   box-shadow: var(--shadow-soft);
+}
+
+.smartViewsModalPanel {
+  width: min(1100px, 96vw);
+}
+
+.smartViewsModalBody {
+  display: grid;
+  gap: 12px;
 }
 
 .smartListModal {
@@ -1419,6 +1432,8 @@ a {
 .filtersQuickRow {
   flex: 1 1 100%;
   width: 100%;
+  display: grid;
+  gap: 6px;
 }
 
 .quick-pill {
@@ -1484,6 +1499,24 @@ a {
   flex-wrap: wrap;
   flex: 1 1 240px;
   width: 100%;
+}
+
+.filtersSearch {
+  background: var(--surface-2);
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  padding: 6px;
+}
+
+.filtersSearch .input {
+  flex: 1;
+  min-width: 240px;
+}
+
+.filtersSearch .ghost {
+  background: var(--panel);
+  border-color: var(--stroke);
+  font-weight: 600;
 }
 
 .filtersForm .input,
