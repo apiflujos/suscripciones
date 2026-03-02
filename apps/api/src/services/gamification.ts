@@ -68,11 +68,10 @@ type CustomerMeta = {
 
 function mergeWeights(overrides?: GamificationWeightsOverride | null) {
   const keys = Object.keys(GAMIFICATION_WEIGHTS) as Array<keyof GamificationWeights>;
-  const out: Partial<GamificationWeights> = {};
-  keys.forEach((key) => {
-    out[key] = { ...GAMIFICATION_WEIGHTS[key], ...(overrides?.[key] ?? {}) } as GamificationWeights[typeof key];
-  });
-  return out as GamificationWeights;
+  const out = Object.fromEntries(
+    keys.map((key) => [key, { ...GAMIFICATION_WEIGHTS[key], ...(overrides?.[key] ?? {}) }])
+  ) as GamificationWeights;
+  return out;
 }
 
 function mergePenalties(overrides?: GamificationPenaltiesOverride | null) {
