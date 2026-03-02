@@ -28,7 +28,12 @@ const wompiPaymentSourceResponseSchema = z.object({
 const wompiTransactionResponseSchema = z.object({
   data: z.object({
     id: z.string().min(1),
-    status: z.string().optional()
+    status: z.string().optional(),
+    reference: z.string().optional(),
+    amount_in_cents: z.number().int().optional(),
+    currency: z.string().optional(),
+    payment_link_id: z.string().optional(),
+    customer_email: z.string().optional()
   })
 });
 
@@ -163,5 +168,37 @@ export class WompiClient {
     const parsed = wompiTransactionResponseSchema.safeParse(json);
     if (!parsed.success) throw new Error("Wompi create transaction: unexpected response");
     return { id: parsed.data.data.id, status: parsed.data.data.status, raw: json };
+  }
+
+  async getTransaction(id: string, publicKey: string): Promise<{
+    id: string;
+    status?: string;
+    reference?: string;
+    amountInCents?: number;
+    currency?: string;
+    paymentLinkId?: string;
+    customerEmail?: string;
+    raw: unknown;
+  }> {
+    const res = await fetch(`${this.opts.apiBaseUrl.replace(/\/$/, "")}/transactions/${encodeURIComponent(id)}`, {
+      method: "GET",
+      headers: { authorization: `Bearer ${publicKey}` }
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok) {
+      throw new Error(`Wompi get transaction failed: ${res.status} ${JSON.stringify(json)}`);
+    }
+    const parsed = wompiTransactionResponseSchema.safeParse(json);
+    if (!parsed.success) throw new Error("Wompi get transaction: unexpected response");
+    return {
+      id: parsed.data.data.id,
+      status: parsed.data.data.status,
+      reference: parsed.data.data.reference,
+      amountInCents: parsed.data.data.amount_in_cents,
+      currency: parsed.data.data.currency,
+      paymentLinkId: parsed.data.data.payment_link_id,
+      customerEmail: parsed.data.data.customer_email,
+      raw: json
+    };
   }
 }
