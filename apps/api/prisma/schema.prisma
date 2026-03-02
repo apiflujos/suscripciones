@@ -288,6 +288,7 @@ model Payment {
   @@unique([wompiTransactionId])
   @@index([reference])
   @@index([subscriptionId, status])
+  @@index([status, createdAt])
   @@index([tenantId])
 }
 
@@ -349,6 +350,7 @@ model WebhookEvent {
   tenant SaTenant @relation(fields: [tenantId], references: [id])
   @@index([provider, receivedAt])
   @@index([processStatus, receivedAt])
+  @@index([receivedAt])
   @@index([tenantId])
 }
 
