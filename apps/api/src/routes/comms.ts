@@ -217,6 +217,8 @@ commsRouter.put("/smart-lists/:id", async (req, res) => {
   const parsed = smartListUpdateSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
 
+  if (getSystemSmartList(id)) return res.status(400).json({ error: "system_list_readonly" });
+
   const existing = await prisma.smartList.findUnique({ where: { id } });
   if (!existing) return res.status(404).json({ error: "not_found" });
   const tenantId = await getEffectiveTenantId(req);
@@ -240,6 +242,7 @@ commsRouter.put("/smart-lists/:id", async (req, res) => {
 
 commsRouter.delete("/smart-lists/:id", async (req, res) => {
   const id = String(req.params.id || "").trim();
+  if (getSystemSmartList(id)) return res.status(400).json({ error: "system_list_readonly" });
   const existing = await prisma.smartList.findUnique({ where: { id } });
   if (!existing) return res.json({ ok: true });
   const tenantId = await getEffectiveTenantId(req);
@@ -351,6 +354,7 @@ commsRouter.get("/smart-lists/:id/members", async (req, res) => {
 
 commsRouter.post("/smart-lists/:id/sync", async (req, res) => {
   const id = String(req.params.id || "").trim();
+  if (getSystemSmartList(id)) return res.status(400).json({ error: "system_list_readonly" });
   const smartList = await prisma.smartList.findUnique({ where: { id } });
   if (!smartList) return res.status(404).json({ error: "not_found" });
 
