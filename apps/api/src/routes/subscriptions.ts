@@ -490,7 +490,7 @@ subscriptionsRouter.put("/:id/tenants", async (req, res) => {
   if (requestedPrimary && !requestedTenantIds.includes(requestedPrimary)) {
     return res.status(400).json({ error: "primary_tenant_not_in_list" });
   }
-  const primaryTenantId = requestedPrimary || requestedTenantIds[0] || null;
+  const primaryTenantId = requestedPrimary || requestedTenantIds[0] || undefined;
 
   if (requestedTenantIds.length) {
     const countTenants = await prisma.saTenant.count({ where: { id: { in: requestedTenantIds } } });
@@ -500,9 +500,7 @@ subscriptionsRouter.put("/:id/tenants", async (req, res) => {
   const updated = await prisma.$transaction(async (tx) => {
     const next = await tx.subscription.update({
       where: { id: subscriptionId },
-      data: {
-        tenantId: primaryTenantId
-      }
+      data: primaryTenantId ? { tenantId: primaryTenantId } : {}
     });
     await tx.subscriptionTenant.deleteMany({ where: { subscriptionId } });
     if (requestedTenantIds.length) {

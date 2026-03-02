@@ -252,12 +252,12 @@ customersRouter.put("/:id", async (req, res) => {
     || Object.prototype.hasOwnProperty.call(req.body || {}, "tenantIds")
     || Object.prototype.hasOwnProperty.call(req.body || {}, "primaryTenantId");
   const legacyTenantId = String(data.tenantId || "").trim();
-  const requestedTenantIdsRaw = Array.isArray(data.tenantIds)
-    ? data.tenantIds
+  const requestedTenantIdsRaw: string[] = Array.isArray(data.tenantIds)
+    ? data.tenantIds.map((value: any) => String(value || "").trim()).filter(Boolean)
     : legacyTenantId
       ? [legacyTenantId]
       : [];
-  const requestedTenantIds = Array.from(new Set(requestedTenantIdsRaw.map((v: any) => String(v || "").trim()).filter(Boolean)));
+  const requestedTenantIds: string[] = Array.from(new Set(requestedTenantIdsRaw));
   const requestedPrimaryTenantId = String(data.primaryTenantId || "").trim();
   delete data.tenantId;
   delete data.tenantIds;
@@ -285,7 +285,7 @@ customersRouter.put("/:id", async (req, res) => {
       }
     }
 
-    let nextTenantIds = requestedTenantIds;
+    let nextTenantIds: string[] = requestedTenantIds;
     if (!hasTenantPayload) {
       const existingLinks = await prisma.customerTenant.findMany({ where: { customerId }, select: { tenantId: true } });
       nextTenantIds = Array.from(new Set(
