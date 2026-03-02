@@ -3639,6 +3639,80 @@ textarea.input {
   margin-top: 6px;
 }
 
+.gamification-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.gamification-form {
+  display: grid;
+  gap: 14px;
+}
+
+.gamification-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.gamification-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.gamification-section {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.gamification-section .section-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.gamification-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.gamification-grid-4 {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.gamification-grid-3 {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.gamification-section .field {
+  gap: 4px;
+}
+
+.gamification-section .label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--form-hint);
+  font-weight: 700;
+}
+
+.gamification-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+@media (max-width: 1100px) {
+  .gamification-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 .trend-title {
   font-size: 9px;
   text-transform: uppercase;

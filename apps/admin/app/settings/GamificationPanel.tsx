@@ -46,143 +46,149 @@ export function GamificationPanel({
         </div>
       </div>
       <div className="settings-group-body">
-        <div className="card cardPad" style={{ display: "grid", gap: 18 }}>
-          <form action={actions.updateGamificationConfig} style={{ display: "grid", gap: 12 }}>
+        <div className="card cardPad gamification-panel">
+          <form action={actions.updateGamificationConfig} className="gamification-form">
             <input type="hidden" name="csrf" value={csrfToken} />
             <input type="hidden" name="returnTo" value="/settings?tab=gamificacion" />
-            <div className="form-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
-              <label className="field">
-                <span className="label">Follow-up minutos</span>
-                <input className="input" type="number" name="followupMinutes" defaultValue={followup.minutes ?? 15} min={1} />
-              </label>
-              <label className="field">
-                <span className="label">Cooldown minutos</span>
-                <input className="input" type="number" name="followupCooldown" defaultValue={followup.cooldownMinutes ?? 120} min={1} />
-              </label>
-              <label className="field">
-                <span className="label">Máx. retomas</span>
-                <input className="input" type="number" name="followupMaxAttempts" defaultValue={followup.maxAttempts ?? 3} min={1} />
-              </label>
-              <label className="field">
-                <span className="label">Penalidad no respuesta</span>
-                <input className="input" type="number" name="followupPenalty" defaultValue={followup.penaltyNoResponse ?? 25} min={0} />
-              </label>
-              <label className="field">
-                <span className="label">Inactividad (días)</span>
-                <input className="input" type="number" name="decayDays" defaultValue={decay.inactivityDays ?? 30} min={1} />
-              </label>
-              <label className="field">
-                <span className="label">Degradación por día</span>
-                <input className="input" type="number" name="decayPerDay" defaultValue={decay.perDay ?? 2} min={0} />
-              </label>
-              <label className="field">
-                <span className="label">Penalidad máxima</span>
-                <input className="input" type="number" name="decayMaxPenalty" defaultValue={decay.maxPenalty ?? 180} min={0} />
-              </label>
+            <div className="gamification-layout">
+              <div className="gamification-stack">
+                <div className="gamification-section">
+                  <div className="section-title">Entrenadores y degradación</div>
+                  <div className="gamification-grid gamification-grid-4">
+                    <label className="field compact">
+                      <span className="label">Follow-up (min)</span>
+                      <input className="input input-compact" type="number" name="followupMinutes" defaultValue={followup.minutes ?? 15} min={1} />
+                    </label>
+                    <label className="field compact">
+                      <span className="label">Cooldown (min)</span>
+                      <input className="input input-compact" type="number" name="followupCooldown" defaultValue={followup.cooldownMinutes ?? 120} min={1} />
+                    </label>
+                    <label className="field compact">
+                      <span className="label">Máx. retomas</span>
+                      <input className="input input-compact" type="number" name="followupMaxAttempts" defaultValue={followup.maxAttempts ?? 3} min={1} />
+                    </label>
+                    <label className="field compact">
+                      <span className="label">Penalidad no resp.</span>
+                      <input className="input input-compact" type="number" name="followupPenalty" defaultValue={followup.penaltyNoResponse ?? 25} min={0} />
+                    </label>
+                    <label className="field compact">
+                      <span className="label">Inactividad (días)</span>
+                      <input className="input input-compact" type="number" name="decayDays" defaultValue={decay.inactivityDays ?? 30} min={1} />
+                    </label>
+                    <label className="field compact">
+                      <span className="label">Degradación/día</span>
+                      <input className="input input-compact" type="number" name="decayPerDay" defaultValue={decay.perDay ?? 2} min={0} />
+                    </label>
+                    <label className="field compact">
+                      <span className="label">Penalidad máx.</span>
+                      <input className="input input-compact" type="number" name="decayMaxPenalty" defaultValue={decay.maxPenalty ?? 180} min={0} />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="gamification-section">
+                  <div className="section-title">Penalidades base</div>
+                  <div className="gamification-grid gamification-grid-3">
+                    <label className="field compact">
+                      <span className="label">En mora</span>
+                      <input className="input input-compact" type="number" name="penaltyPastDue" defaultValue={penalties.pastDue ?? 90} min={0} />
+                    </label>
+                    <label className="field compact">
+                      <span className="label">Cancelación</span>
+                      <input className="input input-compact" type="number" name="penaltyCanceled" defaultValue={penalties.canceled ?? 120} min={0} />
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="gamification-stack">
+                <div className="gamification-section">
+                  <div className="section-title">Pesos de eventos</div>
+                  <div className="gamification-grid gamification-grid-4">
+                    <label className="field compact">
+                      <span className="label">Pago OK · Status</span>
+                      <input className="input input-compact" type="number" name="weightPaymentApprovedStatus" defaultValue={wPayment.status ?? 120} />
+                    </label>
+                    <label className="field compact">
+                      <span className="label">Pago OK · Lifetime</span>
+                      <input className="input input-compact" type="number" name="weightPaymentApprovedLifetime" defaultValue={wPayment.lifetime ?? 100} />
+                    </label>
+                    <label className="field compact">
+                      <span className="label">Pago OK · Reward</span>
+                      <input className="input input-compact" type="number" name="weightPaymentApprovedReward" defaultValue={wPayment.reward ?? 40} />
+                    </label>
+                    <label className="field compact">
+                      <span className="label">Money scale</span>
+                      <input className="input input-compact" type="number" name="weightPaymentApprovedMoneyScale" defaultValue={wPayment.moneyScale ?? 10000} min={1} />
+                    </label>
+                    <label className="field compact">
+                      <span className="label">Pago fallido</span>
+                      <input className="input input-compact" type="number" name="weightPaymentFailedStatus" defaultValue={wPaymentFail.status ?? -60} />
+                    </label>
+                    <label className="field compact">
+                      <span className="label">Sub. inicio · Status</span>
+                      <input className="input input-compact" type="number" name="weightSubStartStatus" defaultValue={wSubStart.status ?? 60} />
+                    </label>
+                    <label className="field compact">
+                      <span className="label">Sub. inicio · Lifetime</span>
+                      <input className="input input-compact" type="number" name="weightSubStartLifetime" defaultValue={wSubStart.lifetime ?? 40} />
+                    </label>
+                    <label className="field compact">
+                      <span className="label">Sub. inicio · Reward</span>
+                      <input className="input input-compact" type="number" name="weightSubStartReward" defaultValue={wSubStart.reward ?? 10} />
+                    </label>
+                    <label className="field compact">
+                      <span className="label">Renovación · Status</span>
+                      <input className="input input-compact" type="number" name="weightSubRenewStatus" defaultValue={wSubRenew.status ?? 70} />
+                    </label>
+                    <label className="field compact">
+                      <span className="label">Renovación · Lifetime</span>
+                      <input className="input input-compact" type="number" name="weightSubRenewLifetime" defaultValue={wSubRenew.lifetime ?? 50} />
+                    </label>
+                    <label className="field compact">
+                      <span className="label">Renovación · Reward</span>
+                      <input className="input input-compact" type="number" name="weightSubRenewReward" defaultValue={wSubRenew.reward ?? 15} />
+                    </label>
+                    <label className="field compact">
+                      <span className="label">Cancelación</span>
+                      <input className="input input-compact" type="number" name="weightSubCancelStatus" defaultValue={wSubCancel.status ?? -120} />
+                    </label>
+                    <label className="field compact">
+                      <span className="label">En mora</span>
+                      <input className="input input-compact" type="number" name="weightSubPastStatus" defaultValue={wSubPast.status ?? -80} />
+                    </label>
+                    <label className="field compact">
+                      <span className="label">Chatwoot · Status</span>
+                      <input className="input input-compact" type="number" name="weightChatwootStatus" defaultValue={wChatwoot.status ?? 12} />
+                    </label>
+                    <label className="field compact">
+                      <span className="label">Chatwoot · Lifetime</span>
+                      <input className="input input-compact" type="number" name="weightChatwootLifetime" defaultValue={wChatwoot.lifetime ?? 6} />
+                    </label>
+                    <label className="field compact">
+                      <span className="label">Chatwoot · Reward</span>
+                      <input className="input input-compact" type="number" name="weightChatwootReward" defaultValue={wChatwoot.reward ?? 2} />
+                    </label>
+                    <label className="field compact">
+                      <span className="label">Email agregado</span>
+                      <input className="input input-compact" type="number" name="weightEmailStatus" defaultValue={wEmail.status ?? 10} />
+                    </label>
+                    <label className="field compact">
+                      <span className="label">Teléfono agregado</span>
+                      <input className="input input-compact" type="number" name="weightPhoneStatus" defaultValue={wPhone.status ?? 10} />
+                    </label>
+                    <label className="field compact">
+                      <span className="label">Documento agregado</span>
+                      <input className="input input-compact" type="number" name="weightIdStatus" defaultValue={wId.status ?? 15} />
+                    </label>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+
+            <div className="gamification-actions">
               <PendingButton className="btn" type="submit" pendingText="Guardando...">Guardar</PendingButton>
               <span className="field-hint">Aplica globalmente. Los canales pueden sumar reglas adicionales.</span>
-            </div>
-
-            <div className="field-divider" />
-
-            <div style={{ display: "grid", gap: 12 }}>
-              <div style={{ fontWeight: 700 }}>Pesos de eventos</div>
-              <div className="form-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
-                <label className="field">
-                  <span className="label">Pago aprobado · Status</span>
-                  <input className="input" type="number" name="weightPaymentApprovedStatus" defaultValue={wPayment.status ?? 120} />
-                </label>
-                <label className="field">
-                  <span className="label">Pago aprobado · Lifetime</span>
-                  <input className="input" type="number" name="weightPaymentApprovedLifetime" defaultValue={wPayment.lifetime ?? 100} />
-                </label>
-                <label className="field">
-                  <span className="label">Pago aprobado · Reward</span>
-                  <input className="input" type="number" name="weightPaymentApprovedReward" defaultValue={wPayment.reward ?? 40} />
-                </label>
-                <label className="field">
-                  <span className="label">Pago aprobado · Money scale</span>
-                  <input className="input" type="number" name="weightPaymentApprovedMoneyScale" defaultValue={wPayment.moneyScale ?? 10000} min={1} />
-                </label>
-                <label className="field">
-                  <span className="label">Pago fallido · Status</span>
-                  <input className="input" type="number" name="weightPaymentFailedStatus" defaultValue={wPaymentFail.status ?? -60} />
-                </label>
-                <label className="field">
-                  <span className="label">Suscripción inicio · Status</span>
-                  <input className="input" type="number" name="weightSubStartStatus" defaultValue={wSubStart.status ?? 60} />
-                </label>
-                <label className="field">
-                  <span className="label">Suscripción inicio · Lifetime</span>
-                  <input className="input" type="number" name="weightSubStartLifetime" defaultValue={wSubStart.lifetime ?? 40} />
-                </label>
-                <label className="field">
-                  <span className="label">Suscripción inicio · Reward</span>
-                  <input className="input" type="number" name="weightSubStartReward" defaultValue={wSubStart.reward ?? 10} />
-                </label>
-                <label className="field">
-                  <span className="label">Renovación · Status</span>
-                  <input className="input" type="number" name="weightSubRenewStatus" defaultValue={wSubRenew.status ?? 70} />
-                </label>
-                <label className="field">
-                  <span className="label">Renovación · Lifetime</span>
-                  <input className="input" type="number" name="weightSubRenewLifetime" defaultValue={wSubRenew.lifetime ?? 50} />
-                </label>
-                <label className="field">
-                  <span className="label">Renovación · Reward</span>
-                  <input className="input" type="number" name="weightSubRenewReward" defaultValue={wSubRenew.reward ?? 15} />
-                </label>
-                <label className="field">
-                  <span className="label">Cancelación · Status</span>
-                  <input className="input" type="number" name="weightSubCancelStatus" defaultValue={wSubCancel.status ?? -120} />
-                </label>
-                <label className="field">
-                  <span className="label">En mora · Status</span>
-                  <input className="input" type="number" name="weightSubPastStatus" defaultValue={wSubPast.status ?? -80} />
-                </label>
-                <label className="field">
-                  <span className="label">Chatwoot msg · Status</span>
-                  <input className="input" type="number" name="weightChatwootStatus" defaultValue={wChatwoot.status ?? 12} />
-                </label>
-                <label className="field">
-                  <span className="label">Chatwoot msg · Lifetime</span>
-                  <input className="input" type="number" name="weightChatwootLifetime" defaultValue={wChatwoot.lifetime ?? 6} />
-                </label>
-                <label className="field">
-                  <span className="label">Chatwoot msg · Reward</span>
-                  <input className="input" type="number" name="weightChatwootReward" defaultValue={wChatwoot.reward ?? 2} />
-                </label>
-                <label className="field">
-                  <span className="label">Email agregado · Status</span>
-                  <input className="input" type="number" name="weightEmailStatus" defaultValue={wEmail.status ?? 10} />
-                </label>
-                <label className="field">
-                  <span className="label">Teléfono agregado · Status</span>
-                  <input className="input" type="number" name="weightPhoneStatus" defaultValue={wPhone.status ?? 10} />
-                </label>
-                <label className="field">
-                  <span className="label">Documento agregado · Status</span>
-                  <input className="input" type="number" name="weightIdStatus" defaultValue={wId.status ?? 15} />
-                </label>
-              </div>
-            </div>
-
-            <div className="field-divider" />
-
-            <div style={{ display: "grid", gap: 12 }}>
-              <div style={{ fontWeight: 700 }}>Penalidades base</div>
-              <div className="form-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
-                <label className="field">
-                  <span className="label">En mora</span>
-                  <input className="input" type="number" name="penaltyPastDue" defaultValue={penalties.pastDue ?? 90} min={0} />
-                </label>
-                <label className="field">
-                  <span className="label">Cancelación</span>
-                  <input className="input" type="number" name="penaltyCanceled" defaultValue={penalties.canceled ?? 120} min={0} />
-                </label>
-              </div>
             </div>
           </form>
 
