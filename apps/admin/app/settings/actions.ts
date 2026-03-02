@@ -238,6 +238,27 @@ export async function updateGamificationConfig(formData: FormData) {
   const decayDays = Number(formData.get("decayDays") || 30);
   const decayPerDay = Number(formData.get("decayPerDay") || 2);
   const decayMaxPenalty = Number(formData.get("decayMaxPenalty") || 180);
+  const weightPaymentApprovedStatus = Number(formData.get("weightPaymentApprovedStatus"));
+  const weightPaymentApprovedLifetime = Number(formData.get("weightPaymentApprovedLifetime"));
+  const weightPaymentApprovedReward = Number(formData.get("weightPaymentApprovedReward"));
+  const weightPaymentApprovedMoneyScale = Number(formData.get("weightPaymentApprovedMoneyScale"));
+  const weightPaymentFailedStatus = Number(formData.get("weightPaymentFailedStatus"));
+  const weightSubStartStatus = Number(formData.get("weightSubStartStatus"));
+  const weightSubStartLifetime = Number(formData.get("weightSubStartLifetime"));
+  const weightSubStartReward = Number(formData.get("weightSubStartReward"));
+  const weightSubRenewStatus = Number(formData.get("weightSubRenewStatus"));
+  const weightSubRenewLifetime = Number(formData.get("weightSubRenewLifetime"));
+  const weightSubRenewReward = Number(formData.get("weightSubRenewReward"));
+  const weightSubCancelStatus = Number(formData.get("weightSubCancelStatus"));
+  const weightSubPastStatus = Number(formData.get("weightSubPastStatus"));
+  const weightChatwootStatus = Number(formData.get("weightChatwootStatus"));
+  const weightChatwootLifetime = Number(formData.get("weightChatwootLifetime"));
+  const weightChatwootReward = Number(formData.get("weightChatwootReward"));
+  const weightEmailStatus = Number(formData.get("weightEmailStatus"));
+  const weightPhoneStatus = Number(formData.get("weightPhoneStatus"));
+  const weightIdStatus = Number(formData.get("weightIdStatus"));
+  const penaltyPastDue = Number(formData.get("penaltyPastDue"));
+  const penaltyCanceled = Number(formData.get("penaltyCanceled"));
 
   try {
     await adminFetch("/admin/gamification/config", {
@@ -255,6 +276,63 @@ export async function updateGamificationConfig(formData: FormData) {
             inactivityDays: Number.isFinite(decayDays) ? Math.max(1, Math.trunc(decayDays)) : 30,
             perDay: Number.isFinite(decayPerDay) ? Math.max(0, Math.trunc(decayPerDay)) : 2,
             maxPenalty: Number.isFinite(decayMaxPenalty) ? Math.max(0, Math.trunc(decayMaxPenalty)) : 180
+          },
+          weights: {
+            paymentApproved: {
+              status: Number.isFinite(weightPaymentApprovedStatus) ? Math.trunc(weightPaymentApprovedStatus) : 120,
+              lifetime: Number.isFinite(weightPaymentApprovedLifetime) ? Math.trunc(weightPaymentApprovedLifetime) : 100,
+              reward: Number.isFinite(weightPaymentApprovedReward) ? Math.trunc(weightPaymentApprovedReward) : 40,
+              moneyScale: Number.isFinite(weightPaymentApprovedMoneyScale) ? Math.max(1, Math.trunc(weightPaymentApprovedMoneyScale)) : 10000
+            },
+            paymentFailed: {
+              status: Number.isFinite(weightPaymentFailedStatus) ? Math.trunc(weightPaymentFailedStatus) : -60,
+              lifetime: 0,
+              reward: 0
+            },
+            subscriptionStarted: {
+              status: Number.isFinite(weightSubStartStatus) ? Math.trunc(weightSubStartStatus) : 60,
+              lifetime: Number.isFinite(weightSubStartLifetime) ? Math.trunc(weightSubStartLifetime) : 40,
+              reward: Number.isFinite(weightSubStartReward) ? Math.trunc(weightSubStartReward) : 10
+            },
+            subscriptionRenewed: {
+              status: Number.isFinite(weightSubRenewStatus) ? Math.trunc(weightSubRenewStatus) : 70,
+              lifetime: Number.isFinite(weightSubRenewLifetime) ? Math.trunc(weightSubRenewLifetime) : 50,
+              reward: Number.isFinite(weightSubRenewReward) ? Math.trunc(weightSubRenewReward) : 15
+            },
+            subscriptionCanceled: {
+              status: Number.isFinite(weightSubCancelStatus) ? Math.trunc(weightSubCancelStatus) : -120,
+              lifetime: 0,
+              reward: 0
+            },
+            subscriptionPastDue: {
+              status: Number.isFinite(weightSubPastStatus) ? Math.trunc(weightSubPastStatus) : -80,
+              lifetime: 0,
+              reward: 0
+            },
+            chatwootMessageIn: {
+              status: Number.isFinite(weightChatwootStatus) ? Math.trunc(weightChatwootStatus) : 12,
+              lifetime: Number.isFinite(weightChatwootLifetime) ? Math.trunc(weightChatwootLifetime) : 6,
+              reward: Number.isFinite(weightChatwootReward) ? Math.trunc(weightChatwootReward) : 2
+            },
+            dataEmailAdded: {
+              status: Number.isFinite(weightEmailStatus) ? Math.trunc(weightEmailStatus) : 10,
+              lifetime: 10,
+              reward: 0
+            },
+            dataPhoneAdded: {
+              status: Number.isFinite(weightPhoneStatus) ? Math.trunc(weightPhoneStatus) : 10,
+              lifetime: 10,
+              reward: 0
+            },
+            dataIdAdded: {
+              status: Number.isFinite(weightIdStatus) ? Math.trunc(weightIdStatus) : 15,
+              lifetime: 15,
+              reward: 0
+            }
+          },
+          penalties: {
+            pastDue: Number.isFinite(penaltyPastDue) ? Math.max(0, Math.trunc(penaltyPastDue)) : 90,
+            canceled: Number.isFinite(penaltyCanceled) ? Math.max(0, Math.trunc(penaltyCanceled)) : 120
           }
         }
       })

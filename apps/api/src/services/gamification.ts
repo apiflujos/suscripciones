@@ -41,78 +41,90 @@ export type GamificationEventInput = {
   occurredAt?: Date;
 };
 
-function resolveEventDeltas(input: GamificationEventInput) {
+function mergeWeights(overrides: any) {
+  const out: any = { ...GAMIFICATION_WEIGHTS };
+  Object.keys(out).forEach((key) => {
+    out[key] = { ...(out as any)[key], ...(overrides?.[key] ?? {}) };
+  });
+  return out;
+}
+
+function mergePenalties(overrides: any) {
+  return { ...GAMIFICATION_PENALTIES, ...(overrides ?? {}) };
+}
+
+function resolveEventDeltas(input: GamificationEventInput, weights = GAMIFICATION_WEIGHTS) {
   const kind = String(input.kind || "").trim();
-  const moneyPts = moneyToPoints(input.moneyInCents || 0, GAMIFICATION_WEIGHTS.paymentApproved.moneyScale);
+  const moneyPts = moneyToPoints(input.moneyInCents || 0, weights.paymentApproved.moneyScale);
 
   if (kind === GAMIFICATION_EVENT_KINDS.PAYMENT_APPROVED) {
     return {
-      statusDelta: (input.statusDelta ?? GAMIFICATION_WEIGHTS.paymentApproved.status) + moneyPts,
-      lifetimeDelta: (input.lifetimeDelta ?? GAMIFICATION_WEIGHTS.paymentApproved.lifetime) + moneyPts,
-      rewardDelta: input.rewardDelta ?? GAMIFICATION_WEIGHTS.paymentApproved.reward
+      statusDelta: (input.statusDelta ?? weights.paymentApproved.status) + moneyPts,
+      lifetimeDelta: (input.lifetimeDelta ?? weights.paymentApproved.lifetime) + moneyPts,
+      rewardDelta: input.rewardDelta ?? weights.paymentApproved.reward
     };
   }
   if (kind === GAMIFICATION_EVENT_KINDS.PAYMENT_FAILED) {
     return {
-      statusDelta: input.statusDelta ?? GAMIFICATION_WEIGHTS.paymentFailed.status,
-      lifetimeDelta: input.lifetimeDelta ?? GAMIFICATION_WEIGHTS.paymentFailed.lifetime,
-      rewardDelta: input.rewardDelta ?? GAMIFICATION_WEIGHTS.paymentFailed.reward
+      statusDelta: input.statusDelta ?? weights.paymentFailed.status,
+      lifetimeDelta: input.lifetimeDelta ?? weights.paymentFailed.lifetime,
+      rewardDelta: input.rewardDelta ?? weights.paymentFailed.reward
     };
   }
   if (kind === GAMIFICATION_EVENT_KINDS.SUBSCRIPTION_STARTED) {
     return {
-      statusDelta: input.statusDelta ?? GAMIFICATION_WEIGHTS.subscriptionStarted.status,
-      lifetimeDelta: input.lifetimeDelta ?? GAMIFICATION_WEIGHTS.subscriptionStarted.lifetime,
-      rewardDelta: input.rewardDelta ?? GAMIFICATION_WEIGHTS.subscriptionStarted.reward
+      statusDelta: input.statusDelta ?? weights.subscriptionStarted.status,
+      lifetimeDelta: input.lifetimeDelta ?? weights.subscriptionStarted.lifetime,
+      rewardDelta: input.rewardDelta ?? weights.subscriptionStarted.reward
     };
   }
   if (kind === GAMIFICATION_EVENT_KINDS.SUBSCRIPTION_RENEWED) {
     return {
-      statusDelta: input.statusDelta ?? GAMIFICATION_WEIGHTS.subscriptionRenewed.status,
-      lifetimeDelta: input.lifetimeDelta ?? GAMIFICATION_WEIGHTS.subscriptionRenewed.lifetime,
-      rewardDelta: input.rewardDelta ?? GAMIFICATION_WEIGHTS.subscriptionRenewed.reward
+      statusDelta: input.statusDelta ?? weights.subscriptionRenewed.status,
+      lifetimeDelta: input.lifetimeDelta ?? weights.subscriptionRenewed.lifetime,
+      rewardDelta: input.rewardDelta ?? weights.subscriptionRenewed.reward
     };
   }
   if (kind === GAMIFICATION_EVENT_KINDS.SUBSCRIPTION_CANCELED) {
     return {
-      statusDelta: input.statusDelta ?? GAMIFICATION_WEIGHTS.subscriptionCanceled.status,
-      lifetimeDelta: input.lifetimeDelta ?? GAMIFICATION_WEIGHTS.subscriptionCanceled.lifetime,
-      rewardDelta: input.rewardDelta ?? GAMIFICATION_WEIGHTS.subscriptionCanceled.reward
+      statusDelta: input.statusDelta ?? weights.subscriptionCanceled.status,
+      lifetimeDelta: input.lifetimeDelta ?? weights.subscriptionCanceled.lifetime,
+      rewardDelta: input.rewardDelta ?? weights.subscriptionCanceled.reward
     };
   }
   if (kind === GAMIFICATION_EVENT_KINDS.SUBSCRIPTION_PAST_DUE) {
     return {
-      statusDelta: input.statusDelta ?? GAMIFICATION_WEIGHTS.subscriptionPastDue.status,
-      lifetimeDelta: input.lifetimeDelta ?? GAMIFICATION_WEIGHTS.subscriptionPastDue.lifetime,
-      rewardDelta: input.rewardDelta ?? GAMIFICATION_WEIGHTS.subscriptionPastDue.reward
+      statusDelta: input.statusDelta ?? weights.subscriptionPastDue.status,
+      lifetimeDelta: input.lifetimeDelta ?? weights.subscriptionPastDue.lifetime,
+      rewardDelta: input.rewardDelta ?? weights.subscriptionPastDue.reward
     };
   }
   if (kind === GAMIFICATION_EVENT_KINDS.CHATWOOT_MESSAGE_IN) {
     return {
-      statusDelta: input.statusDelta ?? GAMIFICATION_WEIGHTS.chatwootMessageIn.status,
-      lifetimeDelta: input.lifetimeDelta ?? GAMIFICATION_WEIGHTS.chatwootMessageIn.lifetime,
-      rewardDelta: input.rewardDelta ?? GAMIFICATION_WEIGHTS.chatwootMessageIn.reward
+      statusDelta: input.statusDelta ?? weights.chatwootMessageIn.status,
+      lifetimeDelta: input.lifetimeDelta ?? weights.chatwootMessageIn.lifetime,
+      rewardDelta: input.rewardDelta ?? weights.chatwootMessageIn.reward
     };
   }
   if (kind === GAMIFICATION_EVENT_KINDS.DATA_EMAIL_ADDED) {
     return {
-      statusDelta: input.statusDelta ?? GAMIFICATION_WEIGHTS.dataEmailAdded.status,
-      lifetimeDelta: input.lifetimeDelta ?? GAMIFICATION_WEIGHTS.dataEmailAdded.lifetime,
-      rewardDelta: input.rewardDelta ?? GAMIFICATION_WEIGHTS.dataEmailAdded.reward
+      statusDelta: input.statusDelta ?? weights.dataEmailAdded.status,
+      lifetimeDelta: input.lifetimeDelta ?? weights.dataEmailAdded.lifetime,
+      rewardDelta: input.rewardDelta ?? weights.dataEmailAdded.reward
     };
   }
   if (kind === GAMIFICATION_EVENT_KINDS.DATA_PHONE_ADDED) {
     return {
-      statusDelta: input.statusDelta ?? GAMIFICATION_WEIGHTS.dataPhoneAdded.status,
-      lifetimeDelta: input.lifetimeDelta ?? GAMIFICATION_WEIGHTS.dataPhoneAdded.lifetime,
-      rewardDelta: input.rewardDelta ?? GAMIFICATION_WEIGHTS.dataPhoneAdded.reward
+      statusDelta: input.statusDelta ?? weights.dataPhoneAdded.status,
+      lifetimeDelta: input.lifetimeDelta ?? weights.dataPhoneAdded.lifetime,
+      rewardDelta: input.rewardDelta ?? weights.dataPhoneAdded.reward
     };
   }
   if (kind === GAMIFICATION_EVENT_KINDS.DATA_ID_ADDED) {
     return {
-      statusDelta: input.statusDelta ?? GAMIFICATION_WEIGHTS.dataIdAdded.status,
-      lifetimeDelta: input.lifetimeDelta ?? GAMIFICATION_WEIGHTS.dataIdAdded.lifetime,
-      rewardDelta: input.rewardDelta ?? GAMIFICATION_WEIGHTS.dataIdAdded.reward
+      statusDelta: input.statusDelta ?? weights.dataIdAdded.status,
+      lifetimeDelta: input.lifetimeDelta ?? weights.dataIdAdded.lifetime,
+      rewardDelta: input.rewardDelta ?? weights.dataIdAdded.reward
     };
   }
 
@@ -200,7 +212,9 @@ export async function applyGamificationEvent(input: GamificationEventInput) {
   const now = input.occurredAt ?? new Date();
   const includeGlobal = input.includeGlobal !== false;
   const tenantId = input.tenantId || null;
-  const deltas = resolveEventDeltas(input);
+  const cfg = await getGamificationConfig().catch(() => null);
+  const weights = mergeWeights(cfg?.weights);
+  const deltas = resolveEventDeltas(input, weights);
 
   const targets: Array<{ tenantId: string | null; isGlobal: boolean }> = [];
   if (tenantId) targets.push({ tenantId, isGlobal: false });
@@ -329,17 +343,19 @@ function computeCustomerScores(args: {
   daysPastDue?: number;
   dataQualityScore: number;
   decay: { inactivityDays: number; perDay: number; maxPenalty: number };
+  weights: typeof GAMIFICATION_WEIGHTS;
+  penalties: typeof GAMIFICATION_PENALTIES;
 }) {
   const approvedCount = Math.max(0, args.approvedCount || 0);
   const totalAmountInCents = Math.max(0, args.totalAmountInCents || 0);
-  const monetaryScore = approvedCount * GAMIFICATION_WEIGHTS.paymentApproved.status + moneyToPoints(totalAmountInCents, GAMIFICATION_WEIGHTS.paymentApproved.moneyScale);
+  const monetaryScore = approvedCount * args.weights.paymentApproved.status + moneyToPoints(totalAmountInCents, args.weights.paymentApproved.moneyScale);
   const consistencyScore = Math.min(approvedCount, GAMIFICATION_CONSISTENCY.maxMonths) * GAMIFICATION_CONSISTENCY.perPayment;
   const recencyScore = computeRecencyScore(args.lastPaidAt, args.lastActivityAt);
   const activityScore = args.lastActivityAt ? Math.round(recencyScore * 0.4) : 0;
 
   let penaltyScore = 0;
-  if (args.subscriptionStatus === SubscriptionStatus.PAST_DUE) penaltyScore += GAMIFICATION_PENALTIES.pastDue;
-  if (args.subscriptionStatus === SubscriptionStatus.CANCELED) penaltyScore += GAMIFICATION_PENALTIES.canceled;
+  if (args.subscriptionStatus === SubscriptionStatus.PAST_DUE) penaltyScore += args.penalties.pastDue;
+  if (args.subscriptionStatus === SubscriptionStatus.CANCELED) penaltyScore += args.penalties.canceled;
   if ((args.daysPastDue || 0) > 0) penaltyScore += Math.min(120, (args.daysPastDue || 0) * 3);
   if (args.lastActivityAt) {
     const daysSince = Math.floor((Date.now() - args.lastActivityAt.getTime()) / 86_400_000);
@@ -355,7 +371,7 @@ function computeCustomerScores(args: {
   }
 
   const statusScore = Math.max(0, monetaryScore + consistencyScore + recencyScore + activityScore + args.dataQualityScore - penaltyScore);
-  const lifetimePoints = Math.max(0, approvedCount * GAMIFICATION_WEIGHTS.paymentApproved.lifetime + moneyToPoints(totalAmountInCents, GAMIFICATION_WEIGHTS.paymentApproved.moneyScale) + args.dataQualityScore);
+  const lifetimePoints = Math.max(0, approvedCount * args.weights.paymentApproved.lifetime + moneyToPoints(totalAmountInCents, args.weights.paymentApproved.moneyScale) + args.dataQualityScore);
 
   return {
     monetaryScore,
@@ -369,28 +385,35 @@ function computeCustomerScores(args: {
   };
 }
 
-function computeProductScores(args: { approvedCount: number; totalAmountInCents: number; lastPaidAt?: Date | null }) {
+function computeProductScores(args: { approvedCount: number; totalAmountInCents: number; lastPaidAt?: Date | null; weights: typeof GAMIFICATION_WEIGHTS }) {
   const approvedCount = Math.max(0, args.approvedCount || 0);
   const totalAmountInCents = Math.max(0, args.totalAmountInCents || 0);
-  const monetaryScore = approvedCount * GAMIFICATION_WEIGHTS.paymentApproved.status + moneyToPoints(totalAmountInCents, GAMIFICATION_WEIGHTS.paymentApproved.moneyScale);
+  const monetaryScore = approvedCount * args.weights.paymentApproved.status + moneyToPoints(totalAmountInCents, args.weights.paymentApproved.moneyScale);
   const recencyScore = computeRecencyScore(args.lastPaidAt, args.lastPaidAt);
   const statusScore = Math.max(0, monetaryScore + recencyScore);
-  const lifetimePoints = Math.max(0, approvedCount * GAMIFICATION_WEIGHTS.paymentApproved.lifetime + moneyToPoints(totalAmountInCents, GAMIFICATION_WEIGHTS.paymentApproved.moneyScale));
+  const lifetimePoints = Math.max(0, approvedCount * args.weights.paymentApproved.lifetime + moneyToPoints(totalAmountInCents, args.weights.paymentApproved.moneyScale));
   return { monetaryScore, recencyScore, statusScore, lifetimePoints };
 }
 
 export async function recomputeGamificationScores(opts?: { scope?: "customers" | "products" | "all"; tenantId?: string | null }) {
   const scope = opts?.scope || "all";
   const cfg = await getGamificationConfig();
+  const weights = mergeWeights(cfg?.weights);
+  const penalties = mergePenalties(cfg?.penalties);
   if (scope === "customers" || scope === "all") {
-    await recomputeCustomerScores(opts?.tenantId ?? null, cfg);
+    await recomputeCustomerScores(opts?.tenantId ?? null, cfg, weights, penalties);
   }
   if (scope === "products" || scope === "all") {
-    await recomputeProductScores(opts?.tenantId ?? null);
+    await recomputeProductScores(opts?.tenantId ?? null, weights);
   }
 }
 
-async function recomputeCustomerScores(tenantId: string | null, cfg: { decay: { inactivityDays: number; perDay: number; maxPenalty: number } }) {
+async function recomputeCustomerScores(
+  tenantId: string | null,
+  cfg: { decay: { inactivityDays: number; perDay: number; maxPenalty: number } },
+  weights: typeof GAMIFICATION_WEIGHTS,
+  penalties: typeof GAMIFICATION_PENALTIES
+) {
   const customerWhere: any = tenantId
     ? { OR: [{ tenantId }, { tenantLinks: { some: { tenantId } } }] }
     : {};
@@ -480,7 +503,9 @@ async function recomputeCustomerScores(tenantId: string | null, cfg: { decay: { 
       subscriptionStatus: sub?.status || null,
       daysPastDue,
       dataQualityScore,
-      decay: cfg.decay
+      decay: cfg.decay,
+      weights,
+      penalties
     });
 
     const levelInfo = levelForScore(computed.statusScore);
@@ -550,7 +575,9 @@ async function recomputeCustomerScores(tenantId: string | null, cfg: { decay: { 
         subscriptionStatus: sub?.status || null,
         daysPastDue,
         dataQualityScore,
-        decay: cfg.decay
+        decay: cfg.decay,
+        weights,
+        penalties
       });
 
       const globalScore = globalScoreByCustomer.get(String(customer.id))?.score || 0;
@@ -602,7 +629,7 @@ async function recomputeCustomerScores(tenantId: string | null, cfg: { decay: { 
   }
 }
 
-async function recomputeProductScores(tenantId: string | null) {
+async function recomputeProductScores(tenantId: string | null, weights: typeof GAMIFICATION_WEIGHTS) {
   const planWhere: any = {
     metadata: { path: ["kind"], equals: "CATALOG_ITEM" } as any,
     ...(tenantId ? { OR: [{ tenantId }, { tenantLinks: { some: { tenantId } } }] } : {})
@@ -676,7 +703,8 @@ async function recomputeProductScores(tenantId: string | null) {
     const computed = computeProductScores({
       approvedCount: stats.count,
       totalAmountInCents: stats.amount,
-      lastPaidAt: stats.lastPaidAt
+      lastPaidAt: stats.lastPaidAt,
+      weights
     });
     const levelInfo = levelForScore(computed.statusScore);
 
@@ -716,7 +744,8 @@ async function recomputeProductScores(tenantId: string | null) {
     const computed = computeProductScores({
       approvedCount: stats.count,
       totalAmountInCents: stats.amount,
-      lastPaidAt: stats.lastPaidAt
+      lastPaidAt: stats.lastPaidAt,
+      weights
     });
 
     const globalScore = globalScoreByPlan.get(String(plan.id)) || 0;

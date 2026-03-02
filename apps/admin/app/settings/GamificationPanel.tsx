@@ -22,6 +22,18 @@ export function GamificationPanel({
 }) {
   const followup = config?.followup || {};
   const decay = config?.decay || {};
+  const weights = config?.weights || {};
+  const penalties = config?.penalties || {};
+  const wPayment = weights?.paymentApproved || {};
+  const wPaymentFail = weights?.paymentFailed || {};
+  const wSubStart = weights?.subscriptionStarted || {};
+  const wSubRenew = weights?.subscriptionRenewed || {};
+  const wSubCancel = weights?.subscriptionCanceled || {};
+  const wSubPast = weights?.subscriptionPastDue || {};
+  const wChatwoot = weights?.chatwootMessageIn || {};
+  const wEmail = weights?.dataEmailAdded || {};
+  const wPhone = weights?.dataPhoneAdded || {};
+  const wId = weights?.dataIdAdded || {};
 
   return (
     <section className="settings-group">
@@ -71,6 +83,106 @@ export function GamificationPanel({
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <PendingButton className="btn" type="submit" pendingText="Guardando...">Guardar</PendingButton>
               <span className="field-hint">Aplica globalmente. Los canales pueden sumar reglas adicionales.</span>
+            </div>
+
+            <div className="field-divider" />
+
+            <div style={{ display: "grid", gap: 12 }}>
+              <div style={{ fontWeight: 700 }}>Pesos de eventos</div>
+              <div className="form-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
+                <label className="field">
+                  <span className="label">Pago aprobado · Status</span>
+                  <input className="input" type="number" name="weightPaymentApprovedStatus" defaultValue={wPayment.status ?? 120} />
+                </label>
+                <label className="field">
+                  <span className="label">Pago aprobado · Lifetime</span>
+                  <input className="input" type="number" name="weightPaymentApprovedLifetime" defaultValue={wPayment.lifetime ?? 100} />
+                </label>
+                <label className="field">
+                  <span className="label">Pago aprobado · Reward</span>
+                  <input className="input" type="number" name="weightPaymentApprovedReward" defaultValue={wPayment.reward ?? 40} />
+                </label>
+                <label className="field">
+                  <span className="label">Pago aprobado · Money scale</span>
+                  <input className="input" type="number" name="weightPaymentApprovedMoneyScale" defaultValue={wPayment.moneyScale ?? 10000} min={1} />
+                </label>
+                <label className="field">
+                  <span className="label">Pago fallido · Status</span>
+                  <input className="input" type="number" name="weightPaymentFailedStatus" defaultValue={wPaymentFail.status ?? -60} />
+                </label>
+                <label className="field">
+                  <span className="label">Suscripción inicio · Status</span>
+                  <input className="input" type="number" name="weightSubStartStatus" defaultValue={wSubStart.status ?? 60} />
+                </label>
+                <label className="field">
+                  <span className="label">Suscripción inicio · Lifetime</span>
+                  <input className="input" type="number" name="weightSubStartLifetime" defaultValue={wSubStart.lifetime ?? 40} />
+                </label>
+                <label className="field">
+                  <span className="label">Suscripción inicio · Reward</span>
+                  <input className="input" type="number" name="weightSubStartReward" defaultValue={wSubStart.reward ?? 10} />
+                </label>
+                <label className="field">
+                  <span className="label">Renovación · Status</span>
+                  <input className="input" type="number" name="weightSubRenewStatus" defaultValue={wSubRenew.status ?? 70} />
+                </label>
+                <label className="field">
+                  <span className="label">Renovación · Lifetime</span>
+                  <input className="input" type="number" name="weightSubRenewLifetime" defaultValue={wSubRenew.lifetime ?? 50} />
+                </label>
+                <label className="field">
+                  <span className="label">Renovación · Reward</span>
+                  <input className="input" type="number" name="weightSubRenewReward" defaultValue={wSubRenew.reward ?? 15} />
+                </label>
+                <label className="field">
+                  <span className="label">Cancelación · Status</span>
+                  <input className="input" type="number" name="weightSubCancelStatus" defaultValue={wSubCancel.status ?? -120} />
+                </label>
+                <label className="field">
+                  <span className="label">En mora · Status</span>
+                  <input className="input" type="number" name="weightSubPastStatus" defaultValue={wSubPast.status ?? -80} />
+                </label>
+                <label className="field">
+                  <span className="label">Chatwoot msg · Status</span>
+                  <input className="input" type="number" name="weightChatwootStatus" defaultValue={wChatwoot.status ?? 12} />
+                </label>
+                <label className="field">
+                  <span className="label">Chatwoot msg · Lifetime</span>
+                  <input className="input" type="number" name="weightChatwootLifetime" defaultValue={wChatwoot.lifetime ?? 6} />
+                </label>
+                <label className="field">
+                  <span className="label">Chatwoot msg · Reward</span>
+                  <input className="input" type="number" name="weightChatwootReward" defaultValue={wChatwoot.reward ?? 2} />
+                </label>
+                <label className="field">
+                  <span className="label">Email agregado · Status</span>
+                  <input className="input" type="number" name="weightEmailStatus" defaultValue={wEmail.status ?? 10} />
+                </label>
+                <label className="field">
+                  <span className="label">Teléfono agregado · Status</span>
+                  <input className="input" type="number" name="weightPhoneStatus" defaultValue={wPhone.status ?? 10} />
+                </label>
+                <label className="field">
+                  <span className="label">Documento agregado · Status</span>
+                  <input className="input" type="number" name="weightIdStatus" defaultValue={wId.status ?? 15} />
+                </label>
+              </div>
+            </div>
+
+            <div className="field-divider" />
+
+            <div style={{ display: "grid", gap: 12 }}>
+              <div style={{ fontWeight: 700 }}>Penalidades base</div>
+              <div className="form-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
+                <label className="field">
+                  <span className="label">En mora</span>
+                  <input className="input" type="number" name="penaltyPastDue" defaultValue={penalties.pastDue ?? 90} min={0} />
+                </label>
+                <label className="field">
+                  <span className="label">Cancelación</span>
+                  <input className="input" type="number" name="penaltyCanceled" defaultValue={penalties.canceled ?? 120} min={0} />
+                </label>
+              </div>
             </div>
           </form>
 
