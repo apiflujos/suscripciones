@@ -3725,6 +3725,19 @@ textarea.input {
   display: flex;
   gap: 8px;
   align-items: center;
+  flex-wrap: wrap;
+}
+
+.gamification-presets {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.gamification-presets .select-compact {
+  min-width: 160px;
 }
 
 @media (max-width: 1100px) {

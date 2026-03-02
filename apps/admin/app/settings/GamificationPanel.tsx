@@ -223,6 +223,20 @@ export function GamificationPanel({
             <div className="gamification-actions">
               <PendingButton className="btn" type="submit" pendingText="Guardando...">Guardar</PendingButton>
               <span className="field-hint">Aplica globalmente. Los canales pueden sumar reglas adicionales.</span>
+              <div className="gamification-presets">
+                <select className="select select-compact" name="preset" defaultValue="">
+                  <option value="">Preset rápido</option>
+                  <option value="balanced">Equilibrado</option>
+                  <option value="conservative">Conservador</option>
+                  <option value="aggressive">Agresivo</option>
+                </select>
+                <button className="ghost btn-compact" type="submit" name="applyPreset" value="1">
+                  Aplicar preset
+                </button>
+                <button className="ghost btn-compact" type="submit" name="resetDefaults" value="1">
+                  Restaurar defaults
+                </button>
+              </div>
             </div>
           </form>
 
