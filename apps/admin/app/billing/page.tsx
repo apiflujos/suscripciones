@@ -247,7 +247,7 @@ export default async function BillingPage({
     fetchAdmin(tenantId ? `/admin/checkout-templates?tenantId=${encodeURIComponent(tenantId)}` : "/admin/checkout-templates"),
     fetchAdminCached("/admin/tenants", { ttlMs: 1500 }),
     fetchAdminCached("/admin/settings", { ttlMs: 1500 }),
-    fetchAdmin(tenantId ? `/admin/plans?take=400&tenantId=${encodeURIComponent(tenantId)}` : "/admin/plans?take=400")
+    fetchAdmin(tenantId ? `/admin/plans?take=2000&tenantId=${encodeURIComponent(tenantId)}` : "/admin/plans?take=2000")
   ]);
   const subItems = (subs.json?.items ?? []) as any[];
   const total = Number(subs.json?.total ?? 0);

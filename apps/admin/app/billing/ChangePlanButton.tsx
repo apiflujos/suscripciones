@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PendingButton } from "../ui/PendingButton";
 import { HelpTip } from "../ui/HelpTip";
 
@@ -51,9 +51,11 @@ export function ChangePlanButton({
   const [planId, setPlanId] = useState(currentPlanId);
   const [cutoffAt, setCutoffAt] = useState(initialCutoff);
   const [query, setQuery] = useState("");
+  const [remotePlans, setRemotePlans] = useState<PlanOption[]>([]);
+  const [searching, setSearching] = useState(false);
   const hasChange = planId && planId !== currentPlanId;
 
-  const filteredPlans = useMemo(() => {
+  const localFilteredPlans = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return plans;
     return plans.filter((p) => {
@@ -64,6 +66,66 @@ export function ChangePlanButton({
       return name.includes(q) || id.includes(q) || sku.includes(q) || search.includes(q);
     });
   }, [plans, query]);
+
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) {
+      setRemotePlans([]);
+      setSearching(false);
+      return;
+    }
+    let canceled = false;
+    setSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const qs = new URLSearchParams();
+        qs.set("q", q);
+        qs.set("take", "120");
+        if (tenantId) qs.set("tenantId", tenantId);
+        const res = await fetch(`/api/search/plans?${qs.toString()}`, { cache: "no-store" });
+        const json = await res.json().catch(() => null);
+        if (canceled) return;
+        const items = Array.isArray(json?.items) ? json.items : [];
+        const mapped = items.map((p: any) => ({
+          id: String(p?.id || ""),
+          name: String(p?.metadata?.displayName || p?.name || "Plan"),
+          sku: String(p?.metadata?.sku || ""),
+          searchText: [
+            p?.metadata?.displayName,
+            p?.name,
+            p?.metadata?.sku,
+            p?.metadata?.catalog?.name,
+            p?.id
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase(),
+          collectionMode: String(p?.metadata?.collectionMode || p?.collectionMode || ""),
+          priceInCents: Number(p?.priceInCents || 0),
+          currency: String(p?.currency || "COP")
+        }));
+        setRemotePlans(mapped.filter((p: any) => p.id));
+      } catch {
+        if (!canceled) setRemotePlans([]);
+      } finally {
+        if (!canceled) setSearching(false);
+      }
+    }, 250);
+    return () => {
+      canceled = true;
+      clearTimeout(timer);
+    };
+  }, [query, tenantId]);
+
+  const filteredPlans = useMemo(() => {
+    const q = query.trim();
+    const source = q.length >= 2 ? remotePlans : localFilteredPlans;
+    const merged = new Map<string, PlanOption>();
+    const current = plans.find((p) => p.id === currentPlanId);
+    if (current) merged.set(current.id, current);
+    for (const p of source) merged.set(p.id, p);
+    return Array.from(merged.values());
+  }, [query, remotePlans, localFilteredPlans, plans, currentPlanId]);
 
   return (
     <>
@@ -99,6 +161,7 @@ export function ChangePlanButton({
                   onChange={(e) => setQuery(e.target.value)}
                   style={{ marginBottom: 8 }}
                 />
+                {searching ? <div className="field-hint">Buscando productos...</div> : null}
                 <select className="select" name="planId" value={planId} onChange={(e) => setPlanId(e.target.value)}>
                   {filteredPlans.map((p) => (
                     <option key={p.id} value={p.id}>

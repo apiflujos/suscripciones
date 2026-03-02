@@ -39,16 +39,35 @@ plansRouter.get("/", async (_req, res) => {
     const tenantFilter = { OR: [{ tenantId }, { tenantLinks: { some: { tenantId } } }] };
     and.push(tenantFilter);
   }
-  if (q) and.push({ name: { contains: q, mode: "insensitive" } });
   if (mode) and.push({ metadata: { path: ["collectionMode"], equals: mode } } as any);
   if (and.length) where.AND = and;
 
-  const items = await prisma.subscriptionPlan.findMany({
+  // For search queries, fetch a broader window and filter in-memory across
+  // name + metadata display fields so "servicios/productos" are found reliably.
+  const rawItems = await prisma.subscriptionPlan.findMany({
     where,
     orderBy: { createdAt: "desc" },
-    take,
+    take: q ? Math.max(take, 2000) : take,
     include: { tenantLinks: true }
   });
+  const qNorm = q.toLowerCase();
+  const items = q
+    ? rawItems.filter((p: any) => {
+        const md = p?.metadata && typeof p.metadata === "object" ? (p.metadata as any) : {};
+        const catalog = md?.catalog && typeof md.catalog === "object" ? md.catalog : {};
+        const searchable = [
+          p?.name,
+          p?.id,
+          md?.displayName,
+          md?.sku,
+          catalog?.name,
+          catalog?.title
+        ]
+          .map((v) => String(v || "").toLowerCase())
+          .join(" ");
+        return searchable.includes(qNorm);
+      }).slice(0, take)
+    : rawItems;
   res.json({
     items: items.map((p: any) => ({
       ...p,
