@@ -166,8 +166,22 @@ export class WompiClient {
       throw new Error(`Wompi create transaction failed: ${res.status} ${JSON.stringify(json)}`);
     }
     const parsed = wompiTransactionResponseSchema.safeParse(json);
-    if (!parsed.success) throw new Error("Wompi create transaction: unexpected response");
-    return { id: parsed.data.data.id, status: parsed.data.data.status, raw: json };
+    if (parsed.success) {
+      return { id: parsed.data.data.id, status: parsed.data.data.status, raw: json };
+    }
+
+    // Wompi has returned different response shapes over time.
+    const data = (json && typeof json === "object"
+      ? ((json as Record<string, any>).data ?? (json as Record<string, any>).transaction ?? null)
+      : null) as Record<string, any> | null;
+    const fallbackId =
+      data && (typeof data.id === "string" || typeof data.id === "number")
+        ? String(data.id)
+        : "";
+    if (fallbackId) {
+      return { id: fallbackId, status: typeof data?.status === "string" ? data.status : undefined, raw: json };
+    }
+    throw new Error(`Wompi create transaction: unexpected response ${JSON.stringify(json)}`);
   }
 
   async getTransaction(id: string, publicKey: string): Promise<{
