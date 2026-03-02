@@ -300,7 +300,7 @@ export function SideNav({ session }: { session: AdminSession | null }) {
       </Link>
       <Link
         className={`nav-item ${(isActivePath(pathname, "/payments") || isPaymentsInLogs) ? "is-active" : ""}`}
-        href="/logs?tab=payments"
+        href="/payments"
         prefetch={false}
         aria-current={(isActivePath(pathname, "/payments") || isPaymentsInLogs) ? "page" : undefined}
         aria-disabled={(isActivePath(pathname, "/payments") || isPaymentsInLogs) ? "true" : undefined}

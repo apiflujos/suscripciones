@@ -164,6 +164,7 @@ export default async function LogsPage({
 
   const sp = (await searchParams) ?? {};
   const tab = typeof sp.tab === "string" ? sp.tab : "system";
+  const routeBase = tab === "payments" ? "/payments" : "/logs";
   const q = typeof sp.q === "string" ? sp.q : "";
   const status = typeof sp.status === "string" ? sp.status : "";
   const level = typeof sp.level === "string" ? sp.level : "";
@@ -396,7 +397,7 @@ export default async function LogsPage({
         {showSummary ? <div className="pagination-summary">{summaryText}</div> : null}
         <a
           className="page-link page-nav"
-          href={`/logs?${new URLSearchParams({
+          href={`${routeBase}?${new URLSearchParams({
             ...baseParams,
             page: String(Math.max(1, currentPage - 1))
           })}`}
@@ -411,7 +412,7 @@ export default async function LogsPage({
               <a
                 key={`logs-page-${p}`}
                 className={`page-link ${p === currentPage ? "is-active" : ""} ${isDesktopOnly ? "page-desktop-only" : ""}`}
-                href={`/logs?${new URLSearchParams({ ...baseParams, page: String(p) })}`}
+                href={`${routeBase}?${new URLSearchParams({ ...baseParams, page: String(p) })}`}
                 aria-current={p === currentPage ? "page" : undefined}
               >
                 {p}
@@ -421,7 +422,7 @@ export default async function LogsPage({
         </div>
         <a
           className="page-link page-nav"
-          href={`/logs?${new URLSearchParams({
+          href={`${routeBase}?${new URLSearchParams({
             ...baseParams,
             page: String(currentPage + 1)
           })}`}
@@ -452,48 +453,50 @@ export default async function LogsPage({
       <section className="settings-group">
         <div className="settings-group-header">
           <div className="panelHeaderRow">
-            <div className="panel-tabs">
-              <Link
-                className={`ghost no-icon panel-tab ${tab === "system" ? "is-active" : ""}`}
-                href={`/logs?${new URLSearchParams({ tab: "system" })}`}
-                prefetch={false}
-                data-loader={tab === "system" ? "off" : undefined}
-                aria-disabled={tab === "system" ? "true" : undefined}
-                tabIndex={tab === "system" ? -1 : undefined}
-              >
-                Sistema
-              </Link>
-              <Link
-                className={`ghost no-icon panel-tab ${tab === "webhooks" ? "is-active" : ""}`}
-                href={`/logs?${new URLSearchParams({ tab: "webhooks" })}`}
-                prefetch={false}
-                data-loader={tab === "webhooks" ? "off" : undefined}
-                aria-disabled={tab === "webhooks" ? "true" : undefined}
-                tabIndex={tab === "webhooks" ? -1 : undefined}
-              >
-                Webhooks
-              </Link>
-              <Link
-                className={`ghost no-icon panel-tab ${tab === "messages" ? "is-active" : ""}`}
-                href={`/logs?${new URLSearchParams({ tab: "messages" })}`}
-                prefetch={false}
-                data-loader={tab === "messages" ? "off" : undefined}
-                aria-disabled={tab === "messages" ? "true" : undefined}
-                tabIndex={tab === "messages" ? -1 : undefined}
-              >
-                Mensajes
-              </Link>
-              <Link
-                className={`ghost no-icon panel-tab ${tab === "jobs" ? "is-active" : ""}`}
-                href={`/logs?${new URLSearchParams({ tab: "jobs" })}`}
-                prefetch={false}
-                data-loader={tab === "jobs" ? "off" : undefined}
-                aria-disabled={tab === "jobs" ? "true" : undefined}
-                tabIndex={tab === "jobs" ? -1 : undefined}
-              >
-                Jobs
-              </Link>
-            </div>
+            {tab !== "payments" ? (
+              <div className="panel-tabs">
+                <Link
+                  className={`ghost no-icon panel-tab ${tab === "system" ? "is-active" : ""}`}
+                  href={`/logs?${new URLSearchParams({ tab: "system" })}`}
+                  prefetch={false}
+                  data-loader={tab === "system" ? "off" : undefined}
+                  aria-disabled={tab === "system" ? "true" : undefined}
+                  tabIndex={tab === "system" ? -1 : undefined}
+                >
+                  Sistema
+                </Link>
+                <Link
+                  className={`ghost no-icon panel-tab ${tab === "webhooks" ? "is-active" : ""}`}
+                  href={`/logs?${new URLSearchParams({ tab: "webhooks" })}`}
+                  prefetch={false}
+                  data-loader={tab === "webhooks" ? "off" : undefined}
+                  aria-disabled={tab === "webhooks" ? "true" : undefined}
+                  tabIndex={tab === "webhooks" ? -1 : undefined}
+                >
+                  Webhooks
+                </Link>
+                <Link
+                  className={`ghost no-icon panel-tab ${tab === "messages" ? "is-active" : ""}`}
+                  href={`/logs?${new URLSearchParams({ tab: "messages" })}`}
+                  prefetch={false}
+                  data-loader={tab === "messages" ? "off" : undefined}
+                  aria-disabled={tab === "messages" ? "true" : undefined}
+                  tabIndex={tab === "messages" ? -1 : undefined}
+                >
+                  Mensajes
+                </Link>
+                <Link
+                  className={`ghost no-icon panel-tab ${tab === "jobs" ? "is-active" : ""}`}
+                  href={`/logs?${new URLSearchParams({ tab: "jobs" })}`}
+                  prefetch={false}
+                  data-loader={tab === "jobs" ? "off" : undefined}
+                  aria-disabled={tab === "jobs" ? "true" : undefined}
+                  tabIndex={tab === "jobs" ? -1 : undefined}
+                >
+                  Jobs
+                </Link>
+              </div>
+            ) : null}
             <div className="panelHeaderPills">
               {tab === "system" ? (
                 <>
@@ -608,12 +611,31 @@ export default async function LogsPage({
               <div className="filtersLeft">
                 <div className="filtersNote">Consulta pagos por cliente, referencia o estado (por defecto últimos 30 días).</div>
                 <div className="filtersPanel">
+                  <form action="/payments" method="GET" className="filtersForm" data-debounce-form="true">
+                    <input
+                      className="input"
+                      name="q"
+                      defaultValue={q}
+                      placeholder="Buscar cliente, referencia o transacción..."
+                      aria-label="Buscar pagos"
+                    />
+                    <select className="select" name="status" defaultValue={status} data-auto-submit="true">
+                      <option value="">Estado: todos</option>
+                      <option value="APPROVED">Pagado</option>
+                      <option value="PENDING">Pendiente</option>
+                      <option value="DECLINED">Declinado</option>
+                      <option value="ERROR">Error</option>
+                      <option value="VOIDED">Anulado</option>
+                    </select>
+                    <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" data-auto-submit="true" />
+                    <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" data-auto-submit="true" />
+                    <button className="ghost" type="submit">Filtrar</button>
+                  </form>
                   <SmartViewsBar
                     scope="payments"
                     initialViewId={viewId}
                     initialFilters={filters}
                     baseParams={{
-                      tab: "payments",
                       ...(q ? { q } : {}),
                       ...(status ? { status } : {}),
                       ...(from ? { from } : {}),
