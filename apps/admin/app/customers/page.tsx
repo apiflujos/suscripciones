@@ -90,6 +90,13 @@ async function fetchSmartLists() {
   return fetchAdminCached("/admin/comms/smart-lists?take=200", { ttlMs: 1500 });
 }
 
+async function fetchSmartListPreview(id: string, tenantId?: string) {
+  if (!id) return { count: 0 };
+  const tenantParam = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
+  const res = await fetchAdminCached(`/admin/comms/smart-lists/${encodeURIComponent(id)}/preview${tenantParam}`, { ttlMs: 1500 });
+  return res.json || { count: 0 };
+}
+
 async function fetchSmartListMembers(id: string, tenantId?: string) {
   if (!id) return { items: [] as any[] };
   const tenantParam = tenantId ? `&tenantId=${encodeURIComponent(tenantId)}` : "";
@@ -235,7 +242,14 @@ export default async function CustomersPage({
   const trendingCustomers24 = trending24Res?.ok ? trending24Res.json?.items ?? [] : [];
   const trendingCustomers7 = trending7Res?.ok ? trending7Res.json?.items ?? [] : [];
   const trendingCustomers30 = trending30Res?.ok ? trending30Res.json?.items ?? [] : [];
-  const smartLists = smartListsRes?.ok ? smartListsRes.json?.items ?? [] : [];
+  const smartListsRaw = smartListsRes?.ok ? smartListsRes.json?.items ?? [] : [];
+  const smartListPreviews = smartListsRaw.length
+    ? await Promise.all(smartListsRaw.map((list: any) => fetchSmartListPreview(String(list.id || ""), tenantId)))
+    : [];
+  const smartLists = smartListsRaw.filter((_list: any, idx: number) => {
+    const preview = smartListPreviews[idx];
+    return Number(preview?.count || 0) > 0;
+  });
   const tenantById = new Map(tenants.map((t) => [String(t.id), String(t.name)]));
   const [latestLinks, subscriptionsByCustomer, cartTemplates] = await Promise.all([
     fetchPaymentLinks(q, tenantId),
@@ -326,78 +340,6 @@ export default async function CustomersPage({
       ? `Mostrando ${startIndex}-${endIndex} de ${total} · ${take} por página`
       : "Sin resultados";
 
-  const quickFilters = [
-    {
-      id: "gamification-legend",
-      name: "Gamificación: Leyenda",
-      category: "Gamificación",
-      filters: { op: "and", rules: [{ field: "gamification.levelName", op: "in", value: ["Leyenda", "Maestro", "Elite", "Diamante"] }] }
-    },
-    {
-      id: "gamification-oro",
-      name: "Gamificación: Oro",
-      category: "Gamificación",
-      filters: { op: "and", rules: [{ field: "gamification.levelName", op: "in", value: ["Oro", "Platino"] }] }
-    },
-    {
-      id: "gamification-plata",
-      name: "Gamificación: Plata",
-      category: "Gamificación",
-      filters: { op: "and", rules: [{ field: "gamification.levelName", op: "in", value: ["Plata", "Bronce"] }] }
-    },
-    {
-      id: "gamification-rookie",
-      name: "Gamificación: Rookie",
-      category: "Gamificación",
-      filters: { op: "and", rules: [{ field: "gamification.levelName", op: "in", value: ["Rookie", "Explorador"] }] }
-    },
-    {
-      id: "ranking-top",
-      name: "Ranking: Top",
-      category: "Ranking",
-      filters: { op: "and", rules: [{ field: "payments.approvedCount", op: "gte", value: 6 }] }
-    },
-    {
-      id: "ranking-recurrente",
-      name: "Ranking: Recurrente",
-      category: "Ranking",
-      filters: { op: "and", rules: [{ field: "payments.approvedCount", op: "between", value: { from: 3, to: 5 } }] }
-    },
-    {
-      id: "ranking-nuevo",
-      name: "Ranking: Nuevo",
-      category: "Ranking",
-      filters: { op: "and", rules: [{ field: "payments.approvedCount", op: "lt", value: 3 }] }
-    },
-    {
-      id: "status-mora",
-      name: "Estado: En mora",
-      category: "Estado",
-      filters: { op: "and", rules: [{ field: "subscription.inMora", op: "equals", value: true }] }
-    },
-    {
-      id: "status-con-suscripcion",
-      name: "Estado: Con suscripción",
-      category: "Estado",
-      filters: { op: "and", rules: [{ field: "subscription.status", op: "equals", value: "ACTIVE" }] }
-    },
-    {
-      id: "status-sin-suscripcion",
-      name: "Estado: Sin suscripción",
-      category: "Estado",
-      filters: { op: "and", rules: [{ field: "subscription.status", op: "isEmpty" }] }
-    }
-  ];
-
-  let activeFiltersKey = "";
-  if (filters) {
-    try {
-      activeFiltersKey = JSON.stringify(JSON.parse(filters));
-    } catch {
-      activeFiltersKey = "";
-    }
-  }
-
   const iconForCategory = (category?: string) => {
     const key = String(category || "").toLowerCase();
     if (key.includes("gam")) {
@@ -427,15 +369,6 @@ export default async function CustomersPage({
     if (key.includes("rank")) return "ranking";
     if (key.includes("estado") || key.includes("status")) return "status";
     return "default";
-  };
-
-  const buildQuickHref = (filtersObj: any) => {
-    const sp = new URLSearchParams({
-      ...(q ? { q } : {}),
-      ...(tenantId ? { tenantId } : {}),
-      filters: JSON.stringify(filtersObj)
-    });
-    return `/customers?${sp.toString()}`;
   };
 
   const buildListHref = (id: string) => {
@@ -479,27 +412,6 @@ export default async function CustomersPage({
           <div className="filtersRow">
             <div className="filtersLeft">
               <div className="filtersPanel">
-                <div className="filtersQuickRow">
-                  <div className="filtersQuick">
-                    {quickFilters.map((filter) => {
-                      const key = JSON.stringify(filter.filters);
-                      const isActive = activeFiltersKey === key;
-                      return (
-                        <a
-                          key={filter.id}
-                          className={`pill quick-pill ${isActive ? "is-active" : ""}`}
-                          href={buildQuickHref(filter.filters)}
-                          data-tone={toneForCategory(filter.category)}
-                        >
-                          <span className="quick-pill-icon" aria-hidden="true">
-                            {iconForCategory(filter.category)}
-                          </span>
-                          {filter.name}
-                        </a>
-                      );
-                    })}
-                  </div>
-                </div>
                 {smartLists.length ? (
                   <div className="filtersQuickRow">
                     <div className="filtersQuick">
