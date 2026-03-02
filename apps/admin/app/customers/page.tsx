@@ -86,6 +86,17 @@ async function fetchTrending(scope: "customers" | "products", hours: number, ten
   return fetchAdminCached(`/admin/gamification/trending?${sp.toString()}`, { ttlMs: 1500 });
 }
 
+async function fetchSmartLists() {
+  return fetchAdminCached("/admin/comms/smart-lists?take=200", { ttlMs: 1500 });
+}
+
+async function fetchSmartListMembers(id: string, tenantId?: string) {
+  if (!id) return { items: [] as any[] };
+  const tenantParam = tenantId ? `&tenantId=${encodeURIComponent(tenantId)}` : "";
+  const res = await fetchAdminCached(`/admin/comms/smart-lists/${encodeURIComponent(id)}/members?active=1&take=200${tenantParam}`, { ttlMs: 1500 });
+  return res.json || { items: [] as any[] };
+}
+
 async function fetchCartTemplates(tenantId?: string) {
   const sp = new URLSearchParams();
   if (tenantId) sp.set("tenantId", tenantId);
@@ -152,20 +163,26 @@ export default async function CustomersPage({
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
   const tenantId = typeof sp.tenantId === "string" ? sp.tenantId : "";
   const txCustomerId = typeof sp.tx === "string" ? sp.tx : "";
+  const listId = typeof sp.list === "string" ? sp.list : "";
   const viewId = typeof sp.viewId === "string" ? sp.viewId : "";
   const filters = typeof sp.filters === "string" ? sp.filters : "";
   const returnTo = `/customers?${new URLSearchParams({
     ...(q ? { q } : {}),
     ...(tenantId ? { tenantId } : {}),
     ...(txCustomerId ? { tx: txCustomerId } : {}),
+    ...(listId ? { list: listId } : {}),
     ...(viewId ? { viewId } : {}),
     ...(filters ? { filters } : {}),
     ...(Number.isFinite(page) && page > 1 ? { page: String(page) } : {})
   }).toString()}`;
   const take = 10;
   let resolvedIds: string[] = [];
-  const usingSmartFilters = Boolean(viewId || filters);
-  if (viewId) {
+  const usingSmartFilters = Boolean(listId || viewId || filters);
+  if (listId) {
+    const res = await fetchSmartListMembers(listId, tenantId);
+    const rows = Array.isArray(res?.items) ? res.items : [];
+    resolvedIds = rows.map((row: any) => String(row?.customer?.id || row?.customerId || row?.id || "")).filter(Boolean);
+  } else if (viewId) {
     const res = await fetch(`/api/smart-views/customers/resolve`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -194,7 +211,7 @@ export default async function CustomersPage({
     resolvedIds = ["__none__"];
   }
 
-  const [data, tenantsRes, txCustomer, productsRes, templatesRes, settingsRes, trending24Res, trending7Res, trending30Res, notificationsRes] = await Promise.all([
+  const [data, tenantsRes, txCustomer, productsRes, templatesRes, settingsRes, trending24Res, trending7Res, trending30Res, notificationsRes, smartListsRes] = await Promise.all([
     fetchCustomers({ q, take, page, tenantId, ids: resolvedIds }),
     fetchAdminCached("/admin/tenants", { ttlMs: 1500 }),
     txCustomerId ? fetchCustomerById(txCustomerId) : Promise.resolve(null),
@@ -204,7 +221,8 @@ export default async function CustomersPage({
     fetchTrending("customers", 24, tenantId),
     fetchTrending("customers", 168, tenantId),
     fetchTrending("customers", 720, tenantId),
-    fetchNotificationsConfig()
+    fetchNotificationsConfig(),
+    fetchSmartLists()
   ]);
   const items = (data.items ?? []) as any[];
   const total = Number.isFinite(Number((data as any)?.total)) ? Number((data as any).total) : items.length;
@@ -217,6 +235,7 @@ export default async function CustomersPage({
   const trendingCustomers24 = trending24Res?.ok ? trending24Res.json?.items ?? [] : [];
   const trendingCustomers7 = trending7Res?.ok ? trending7Res.json?.items ?? [] : [];
   const trendingCustomers30 = trending30Res?.ok ? trending30Res.json?.items ?? [] : [];
+  const smartLists = smartListsRes?.ok ? smartListsRes.json?.items ?? [] : [];
   const tenantById = new Map(tenants.map((t) => [String(t.id), String(t.name)]));
   const [latestLinks, subscriptionsByCustomer, cartTemplates] = await Promise.all([
     fetchPaymentLinks(q, tenantId),
@@ -419,6 +438,15 @@ export default async function CustomersPage({
     return `/customers?${sp.toString()}`;
   };
 
+  const buildListHref = (id: string) => {
+    const sp = new URLSearchParams({
+      ...(q ? { q } : {}),
+      ...(tenantId ? { tenantId } : {}),
+      list: id
+    });
+    return `/customers?${sp.toString()}`;
+  };
+
   return (
     <main className="page" style={{ maxWidth: "100%" }}>
       {error ? (
@@ -472,6 +500,25 @@ export default async function CustomersPage({
                     })}
                   </div>
                 </div>
+                {smartLists.length ? (
+                  <div className="filtersQuickRow">
+                    <div className="filtersQuick">
+                      {smartLists.map((list: any) => (
+                        <a
+                          key={list.id}
+                          className={`pill quick-pill ${listId === list.id ? "is-active" : ""}`}
+                          href={buildListHref(list.id)}
+                          data-tone={toneForCategory(list.category)}
+                        >
+                          <span className="quick-pill-icon" aria-hidden="true">
+                            {iconForCategory(list.category)}
+                          </span>
+                          {list.name}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
                 <SmartViewsBar
                   scope="customers"
                   initialViewId={viewId}
