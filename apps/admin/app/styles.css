@@ -3253,7 +3253,7 @@ textarea.input {
   align-items: center;
   justify-items: center;
   padding: 14px 10px;
-  min-height: 92px;
+  min-height: 108px;
   border: 1px solid var(--stroke);
   border-radius: var(--radius-lg);
   background: var(--panel);
@@ -3268,9 +3268,9 @@ textarea.input {
 }
 
 .send-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
   background: var(--panel-soft);
   display: grid;
   place-items: center;
@@ -3278,8 +3278,8 @@ textarea.input {
 
 .send-icon::before {
   content: "";
-  width: 18px;
-  height: 18px;
+  width: 26px;
+  height: 26px;
   background-color: currentColor;
   -webkit-mask: var(--btn-icon) no-repeat center / contain;
   mask: var(--btn-icon) no-repeat center / contain;

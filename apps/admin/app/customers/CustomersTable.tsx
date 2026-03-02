@@ -1028,7 +1028,7 @@ export function CustomersTable({
               <div className="send-grid">
                 <button
                   type="button"
-                  className="ghost send-option"
+                  className="ghost btn-noicon send-option"
                   onClick={() => {
                     closeSendMenu();
                     openPayModal(sendMenuCustomer);
@@ -1040,7 +1040,7 @@ export function CustomersTable({
                 </button>
                 <button
                   type="button"
-                  className="ghost send-option"
+                  className="ghost btn-noicon send-option"
                   onClick={() => {
                     closeSendMenu();
                     openTokenModal(sendMenuCustomer);
@@ -1052,7 +1052,7 @@ export function CustomersTable({
                 </button>
                 <button
                   type="button"
-                  className="ghost send-option"
+                  className="ghost btn-noicon send-option"
                   onClick={() => {
                     closeSendMenu();
                     openCartModal(sendMenuCustomer);
