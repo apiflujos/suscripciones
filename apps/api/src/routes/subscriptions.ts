@@ -215,9 +215,9 @@ subscriptionsRouter.post("/", async (req, res) => {
       .catch(() => {});
     // If requested, generate a link right away (useful for first charge or missing token).
     const isDueNow = runAt.getTime() <= Date.now() + 5_000;
-    const shouldCreateLinkNow =
-      (collectionMode === "AUTO_LINK" ? parsed.data.createPaymentLink && isDueNow : false) ||
-      (collectionMode === "AUTO_DEBIT" && (!hasPaymentSource || !hasCustomerEmail));
+    // AUTO_DEBIT must never auto-create payment links on subscription creation.
+    // Tokenization link is a separate explicit action from admin UI.
+    const shouldCreateLinkNow = collectionMode === "AUTO_LINK" ? parsed.data.createPaymentLink && isDueNow : false;
 
     if (!shouldCreateLinkNow) return res.status(201).json({ subscription, scheduled: true });
 
