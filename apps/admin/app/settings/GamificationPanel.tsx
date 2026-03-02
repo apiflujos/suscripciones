@@ -242,65 +242,70 @@ export function GamificationPanel({
 
           <div className="field-divider" />
 
-          <div style={{ display: "grid", gap: 12 }}>
-            <div style={{ fontWeight: 700 }}>Tendencias (Top 3)</div>
-            <div className="form-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
-              <div className="card cardPad">
-                <div className="muted">Contactos 24h</div>
-                <ul className="mini-list">
-                  {trending.customers24h.map((item, idx) => (
-                    <li key={`c24-${item.id}-${idx}`}>{item.name} · {item.score}</li>
-                  ))}
-                  {trending.customers24h.length === 0 ? <li className="muted">Sin datos</li> : null}
-                </ul>
-              </div>
-              <div className="card cardPad">
-                <div className="muted">Contactos 7d</div>
-                <ul className="mini-list">
-                  {trending.customers7d.map((item, idx) => (
-                    <li key={`c7-${item.id}-${idx}`}>{item.name} · {item.score}</li>
-                  ))}
-                  {trending.customers7d.length === 0 ? <li className="muted">Sin datos</li> : null}
-                </ul>
-              </div>
-              <div className="card cardPad">
-                <div className="muted">Contactos 30d</div>
-                <ul className="mini-list">
-                  {trending.customers30d.map((item, idx) => (
-                    <li key={`c30-${item.id}-${idx}`}>{item.name} · {item.score}</li>
-                  ))}
-                  {trending.customers30d.length === 0 ? <li className="muted">Sin datos</li> : null}
-                </ul>
-              </div>
-              <div className="card cardPad">
-                <div className="muted">Productos 24h</div>
-                <ul className="mini-list">
-                  {trending.products24h.map((item, idx) => (
-                    <li key={`p24-${item.id}-${idx}`}>{item.name} · {item.score}</li>
-                  ))}
-                  {trending.products24h.length === 0 ? <li className="muted">Sin datos</li> : null}
-                </ul>
-              </div>
-              <div className="card cardPad">
-                <div className="muted">Productos 7d</div>
-                <ul className="mini-list">
-                  {trending.products7d.map((item, idx) => (
-                    <li key={`p7-${item.id}-${idx}`}>{item.name} · {item.score}</li>
-                  ))}
-                  {trending.products7d.length === 0 ? <li className="muted">Sin datos</li> : null}
-                </ul>
-              </div>
-              <div className="card cardPad">
-                <div className="muted">Productos 30d</div>
-                <ul className="mini-list">
-                  {trending.products30d.map((item, idx) => (
-                    <li key={`p30-${item.id}-${idx}`}>{item.name} · {item.score}</li>
-                  ))}
-                  {trending.products30d.length === 0 ? <li className="muted">Sin datos</li> : null}
-                </ul>
+          <details className="card cardPad gamification-trends">
+            <summary className="detailsSummary">
+              <span>Tendencias (Top 3)</span>
+              <span className="muted">Ver detalle</span>
+            </summary>
+            <div className="detailsBody">
+              <div className="form-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
+                <div className="card cardPad">
+                  <div className="muted">Contactos 24h</div>
+                  <ul className="mini-list">
+                    {trending.customers24h.map((item, idx) => (
+                      <li key={`c24-${item.id}-${idx}`}>{item.name} · {item.score}</li>
+                    ))}
+                    {trending.customers24h.length === 0 ? <li className="muted">Sin datos</li> : null}
+                  </ul>
+                </div>
+                <div className="card cardPad">
+                  <div className="muted">Contactos 7d</div>
+                  <ul className="mini-list">
+                    {trending.customers7d.map((item, idx) => (
+                      <li key={`c7-${item.id}-${idx}`}>{item.name} · {item.score}</li>
+                    ))}
+                    {trending.customers7d.length === 0 ? <li className="muted">Sin datos</li> : null}
+                  </ul>
+                </div>
+                <div className="card cardPad">
+                  <div className="muted">Contactos 30d</div>
+                  <ul className="mini-list">
+                    {trending.customers30d.map((item, idx) => (
+                      <li key={`c30-${item.id}-${idx}`}>{item.name} · {item.score}</li>
+                    ))}
+                    {trending.customers30d.length === 0 ? <li className="muted">Sin datos</li> : null}
+                  </ul>
+                </div>
+                <div className="card cardPad">
+                  <div className="muted">Productos 24h</div>
+                  <ul className="mini-list">
+                    {trending.products24h.map((item, idx) => (
+                      <li key={`p24-${item.id}-${idx}`}>{item.name} · {item.score}</li>
+                    ))}
+                    {trending.products24h.length === 0 ? <li className="muted">Sin datos</li> : null}
+                  </ul>
+                </div>
+                <div className="card cardPad">
+                  <div className="muted">Productos 7d</div>
+                  <ul className="mini-list">
+                    {trending.products7d.map((item, idx) => (
+                      <li key={`p7-${item.id}-${idx}`}>{item.name} · {item.score}</li>
+                    ))}
+                    {trending.products7d.length === 0 ? <li className="muted">Sin datos</li> : null}
+                  </ul>
+                </div>
+                <div className="card cardPad">
+                  <div className="muted">Productos 30d</div>
+                  <ul className="mini-list">
+                    {trending.products30d.map((item, idx) => (
+                      <li key={`p30-${item.id}-${idx}`}>{item.name} · {item.score}</li>
+                    ))}
+                    {trending.products30d.length === 0 ? <li className="muted">Sin datos</li> : null}
+                  </ul>
+                </div>
               </div>
             </div>
-          </div>
+          </details>
         </div>
       </div>
     </section>
