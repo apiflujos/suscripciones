@@ -3772,16 +3772,6 @@ textarea.input {
   box-shadow: none;
 }
 
-.topbarRealtimeSlot {
-  display: flex;
-  align-items: center;
-  margin-left: 6px;
-  min-height: 40px;
-  min-width: 0;
-  justify-content: center;
-  align-self: stretch;
-  overflow: visible;
-}
 
 .topbar .realtime-status {
   padding: 0;
@@ -3803,11 +3793,6 @@ textarea.input {
   }
 }
 
-@media (max-width: 860px) {
-  .topbarRealtimeSlot {
-    display: none;
-  }
-}
 @media (max-width: 1100px) {
   .topbarRight {
     flex-wrap: wrap;
