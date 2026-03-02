@@ -360,7 +360,7 @@ export default async function LogsPage({
     const endIndex = countOnPage ? (currentPage - 1) * take + countOnPage : 0;
     const totalLabel = totalCount != null ? ` de ${totalCount}` : "";
     const summaryText = `Mostrando ${countOnPage ? `${startIndex}-${endIndex}${totalLabel}` : "0"} · ${take} por página`;
-    const showSummary = tab !== "system";
+    const showSummary = tab !== "system" && tab !== "webhooks";
     return {
       summaryText,
       component: (
@@ -870,6 +870,9 @@ export default async function LogsPage({
                       <button className="ghost" type="submit">Filtrar</button>
                     </form>
                   </div>
+                </div>
+                <div className="filtersRight">
+                  <div className="filtersSummary">{paginationSummary}</div>
                 </div>
               </div>
                   <table className="table logs-table logs-table-webhooks" aria-label="Tabla de webhooks">

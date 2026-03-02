@@ -1841,13 +1841,14 @@ a {
   white-space: normal;
   word-break: break-word;
   overflow-wrap: anywhere;
-  display: flex;
-  align-items: center;
+  display: block;
+  text-align: center;
 }
 
 .logs-table-webhooks .log-error-cell .btn-fail {
-  width: 100%;
+  width: auto;
   justify-content: center;
+  margin: 0 auto;
 }
 
 .logs-table .log-detail-row td {
