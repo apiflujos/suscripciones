@@ -6,6 +6,7 @@ import { systemLog } from "../services/systemLog";
 import { LogLevel } from "@prisma/client";
 import { getChatwootConfig } from "../services/runtimeConfig";
 import { ChatwootClient } from "../providers/chatwoot/client";
+import { reconcileWompiTransaction } from "../services/wompiReconcile";
 
 export const logsRouter = express.Router();
 
@@ -446,6 +447,67 @@ logsRouter.post("/payments/recollect", async (req, res) => {
   }).catch(() => {});
 
   res.json({ ok: true, queuedProcess, queuedForward, skipped, days, take });
+});
+
+logsRouter.post("/payments/reconcile", async (req, res) => {
+  const paymentId = String(req.body?.paymentId || "").trim();
+  const reference = String(req.body?.reference || "").trim();
+  const wompiPaymentLinkId = String(req.body?.wompiPaymentLinkId || req.body?.paymentLinkId || "").trim();
+  const wompiTransactionId = String(req.body?.wompiTransactionId || req.body?.transactionId || "").trim();
+
+  if (!wompiTransactionId) {
+    return res.status(400).json({ error: "missing_transaction_id" });
+  }
+
+  let payment =
+    (paymentId ? await prisma.payment.findUnique({ where: { id: paymentId } }) : null) ||
+    (reference ? await prisma.payment.findFirst({ where: { reference } }) : null) ||
+    (wompiPaymentLinkId ? await prisma.payment.findFirst({ where: { wompiPaymentLinkId } }) : null) ||
+    (wompiTransactionId ? await prisma.payment.findFirst({ where: { wompiTransactionId } }) : null);
+
+  if (!payment) {
+    return res.status(404).json({ error: "payment_not_found" });
+  }
+
+  if (payment.wompiTransactionId !== wompiTransactionId) {
+    payment = await prisma.payment.update({
+      where: { id: payment.id },
+      data: { wompiTransactionId }
+    });
+  }
+
+  const reconcile = await reconcileWompiTransaction({
+    wompiTransactionId,
+    tenantId: payment.tenantId,
+    checksumPrefix: "manual-reconcile"
+  }).catch((err: any) => ({
+    ok: false as const,
+    reason: "reconcile_failed" as const,
+    message: String(err?.message || err || "reconcile_failed")
+  }));
+
+  await systemLog(LogLevel.INFO, "logs.payments", "Reconciliar pago ejecutado", {
+    paymentId: payment.id,
+    wompiTransactionId,
+    reference: payment.reference || null,
+    ok: reconcile.ok,
+    reason: (reconcile as any)?.reason || null
+  }).catch(() => {});
+
+  const refreshed = await prisma.payment.findUnique({
+    where: { id: payment.id },
+    select: {
+      id: true,
+      status: true,
+      paidAt: true,
+      failedAt: true,
+      wompiTransactionId: true,
+      wompiPaymentLinkId: true,
+      reference: true
+    }
+  });
+
+  res.json({ ok: reconcile.ok, reconcile, payment: refreshed });
 });
 
 logsRouter.get("/jobs", async (req, res) => {

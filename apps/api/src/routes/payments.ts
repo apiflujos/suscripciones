@@ -1,71 +1,19 @@
 import express from "express";
 import { prisma } from "../db/prisma";
 import { getEffectiveTenantId } from "../services/tenantContext";
-import { PaymentStatus, RetryJobType, WebhookProcessStatus, WebhookProvider } from "@prisma/client";
-import { WompiClient } from "../providers/wompi/client";
-import { getWompiApiBaseUrl, getWompiCheckoutLinkBaseUrl, getWompiPublicKey } from "../services/runtimeConfig";
-import { randomUUID } from "crypto";
-import { processWompiEventLogic } from "../jobs/handlers/processWompiEvent";
+import { PaymentStatus } from "@prisma/client";
+import { reconcileWompiTransaction } from "../services/wompiReconcile";
 
 export const paymentsRouter = express.Router();
-
-const FINAL_WOMPI_STATUSES = new Set(["APPROVED", "DECLINED", "VOIDED", "ERROR"]);
-
-function normalizeStatus(raw?: string | null) {
-  return String(raw || "").trim().toUpperCase();
-}
 
 async function reconcilePendingPaymentFromWompi(args: { paymentId: string; wompiTransactionId?: string | null; tenantId?: string | null }) {
   const txId = String(args.wompiTransactionId || "").trim();
   if (!txId) return;
-
-  const publicKey = await getWompiPublicKey();
-  if (!publicKey) return;
-  const apiBaseUrl = await getWompiApiBaseUrl();
-  const checkoutLinkBaseUrl = await getWompiCheckoutLinkBaseUrl();
-  const wompi = new WompiClient({ apiBaseUrl, privateKey: "unused", checkoutLinkBaseUrl });
-  const tx = await wompi.getTransaction(txId, publicKey);
-  const status = normalizeStatus(tx.status);
-  if (!FINAL_WOMPI_STATUSES.has(status)) return;
-
-  const payload = {
-    event: "transaction.updated",
-    data: {
-      transaction: {
-        id: tx.id,
-        status: tx.status,
-        amount_in_cents: tx.amountInCents,
-        currency: tx.currency,
-        reference: tx.reference,
-        payment_link_id: tx.paymentLinkId,
-        customer_email: tx.customerEmail
-      }
-    }
-  };
-
-  const event = await prisma.webhookEvent.create({
-    data: {
-      tenantId: String(args.tenantId || ""),
-      provider: WebhookProvider.WOMPI,
-      checksum: `poll-reconcile:${tx.id}:${randomUUID()}`,
-      eventName: "transaction.updated",
-      payload: payload as any,
-      processStatus: WebhookProcessStatus.RECEIVED,
-      receivedAt: new Date()
-    }
-  });
-
-  // Process immediately so UI can see final status without waiting for background worker.
-  await processWompiEventLogic(event.id, prisma).catch(async () => {
-    await prisma.retryJob
-      .create({
-        data: {
-          type: RetryJobType.PROCESS_WOMPI_EVENT,
-          payload: { webhookEventId: event.id }
-        }
-      })
-      .catch(() => {});
-  });
+  await reconcileWompiTransaction({
+    wompiTransactionId: txId,
+    tenantId: args.tenantId || null,
+    checksumPrefix: "poll-reconcile"
+  }).catch(() => {});
 }
 
 paymentsRouter.get("/:id", async (req, res) => {

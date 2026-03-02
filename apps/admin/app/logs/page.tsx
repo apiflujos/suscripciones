@@ -49,6 +49,34 @@ async function retryWebhook(formData: FormData) {
   revalidatePath("/logs");
 }
 
+async function reconcilePayment(formData: FormData) {
+  "use server";
+  await assertCsrfToken(formData);
+  const { apiBase, token } = getConfig();
+  if (!token) return;
+  const wompiTransactionId = String(formData.get("wompiTransactionId") || "").trim();
+  const reference = String(formData.get("reference") || "").trim();
+  const paymentId = String(formData.get("paymentId") || "").trim();
+  const wompiPaymentLinkId = String(formData.get("wompiPaymentLinkId") || "").trim();
+  if (!wompiTransactionId) return;
+  await fetch(`${apiBase}/admin/logs/payments/reconcile`, {
+    method: "POST",
+    cache: "no-store",
+    headers: {
+      authorization: `Bearer ${token}`,
+      "x-admin-token": token,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      wompiTransactionId,
+      reference: reference || undefined,
+      paymentId: paymentId || undefined,
+      wompiPaymentLinkId: wompiPaymentLinkId || undefined
+    })
+  }).catch(() => {});
+  revalidatePath("/logs");
+}
+
 function normalizeLogSource(source: any) {
   const s = String(source || "");
   if (s === "settings.shopify") return "configuracion.reenvio";
@@ -603,6 +631,26 @@ export default async function LogsPage({
                     }}
                   />
                 </div>
+              </div>
+              <div className="filtersRight">
+                <form action={reconcilePayment} className="panel" style={{ padding: 12, minWidth: 320 }}>
+                  <input type="hidden" name="csrf" value={csrfToken} />
+                  <div className="filter-group" style={{ marginBottom: 8 }}>
+                    <div className="filter-label">Reconciliar pago Wompi</div>
+                    <div style={{ color: "var(--muted)", fontSize: 12 }}>
+                      Usa la transacción y una referencia para localizar el pago.
+                    </div>
+                  </div>
+                  <div style={{ display: "grid", gap: 8 }}>
+                    <input className="input" name="wompiTransactionId" placeholder="Transacción Wompi (obligatorio)" required />
+                    <input className="input" name="reference" placeholder="Referencia (opcional)" />
+                    <input className="input" name="paymentId" placeholder="Payment ID (opcional)" />
+                    <input className="input" name="wompiPaymentLinkId" placeholder="Link id (opcional)" />
+                    <PendingButton className="ghost btn-compact" type="submit" pendingText="Reconciliando...">
+                      Reconciliar
+                    </PendingButton>
+                  </div>
+                </form>
               </div>
             </div>
           ) : null}
