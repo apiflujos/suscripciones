@@ -59,7 +59,11 @@ async function reconcilePayment(formData: FormData) {
   const reference = String(formData.get("reference") || "").trim();
   const paymentId = String(formData.get("paymentId") || "").trim();
   const wompiPaymentLinkId = String(formData.get("wompiPaymentLinkId") || "").trim();
-  if (!wompiTransactionId) return;
+  const tenantId = String(formData.get("tenantId") || "").trim();
+  const amountInCentsRaw = Number(String(formData.get("amountInCents") || "0"));
+  const amountInCents = Number.isFinite(amountInCentsRaw) ? Math.trunc(amountInCentsRaw) : 0;
+  const currency = String(formData.get("currency") || "").trim().toUpperCase();
+  if (!wompiTransactionId && !reference && !wompiPaymentLinkId && !paymentId) return;
   await fetch(`${apiBase}/admin/logs/payments/reconcile`, {
     method: "POST",
     cache: "no-store",
@@ -69,13 +73,17 @@ async function reconcilePayment(formData: FormData) {
       "content-type": "application/json"
     },
     body: JSON.stringify({
-      wompiTransactionId,
+      wompiTransactionId: wompiTransactionId || undefined,
       reference: reference || undefined,
       paymentId: paymentId || undefined,
-      wompiPaymentLinkId: wompiPaymentLinkId || undefined
+      wompiPaymentLinkId: wompiPaymentLinkId || undefined,
+      tenantId: tenantId || undefined,
+      amountInCents: amountInCents > 0 ? amountInCents : undefined,
+      currency: currency || undefined
     })
   }).catch(() => {});
   revalidatePath("/logs");
+  revalidatePath("/payments");
 }
 
 async function reconcilePendingPayments(formData: FormData) {
@@ -929,6 +937,21 @@ export default async function LogsPage({
                           {failureReason}
                         </td>
                         <td style={{ textAlign: "right" }}>
+                          {String(p.status || "").toUpperCase() === "PENDING" ? (
+                            <form action={reconcilePayment} style={{ display: "inline-flex", marginRight: 8 }}>
+                              <input type="hidden" name="csrf" value={csrfToken} />
+                              <input type="hidden" name="paymentId" value={String(p.id || "")} />
+                              <input type="hidden" name="reference" value={String(p.reference || "")} />
+                              <input type="hidden" name="wompiTransactionId" value={String(p.wompiTransactionId || "")} />
+                              <input type="hidden" name="wompiPaymentLinkId" value={String(p.wompiPaymentLinkId || "")} />
+                              <input type="hidden" name="tenantId" value={String(tenantId || p.tenantId || "")} />
+                              <input type="hidden" name="amountInCents" value={String(Number(p.amountInCents || 0))} />
+                              <input type="hidden" name="currency" value={String(p.currency || "COP")} />
+                              <PendingButton className="ghost btn-compact btn-noicon" type="submit" pendingText="Conciliando...">
+                                Conciliar
+                              </PendingButton>
+                            </form>
+                          ) : null}
                           {contactQuery ? (
                             <Link className="ghost btn-compact btn-view" href={`/customers?q=${encodeURIComponent(String(contactQuery))}`}>
                               Ver cliente

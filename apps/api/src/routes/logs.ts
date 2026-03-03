@@ -6,7 +6,7 @@ import { systemLog } from "../services/systemLog";
 import { LogLevel } from "@prisma/client";
 import { getChatwootConfig } from "../services/runtimeConfig";
 import { ChatwootClient } from "../providers/chatwoot/client";
-import { reconcileWompiTransaction } from "../services/wompiReconcile";
+import { reconcileWompiByReference, reconcileWompiTransaction } from "../services/wompiReconcile";
 
 export const logsRouter = express.Router();
 
@@ -647,61 +647,75 @@ logsRouter.post("/payments/reconcile", async (req, res) => {
   const paymentId = String(req.body?.paymentId || "").trim();
   const reference = String(req.body?.reference || "").trim();
   const wompiPaymentLinkId = String(req.body?.wompiPaymentLinkId || req.body?.paymentLinkId || "").trim();
-  const wompiTransactionId = String(req.body?.wompiTransactionId || req.body?.transactionId || "").trim();
+  let wompiTransactionId = String(req.body?.wompiTransactionId || req.body?.transactionId || "").trim();
   const tenantIdFromBody = String(req.body?.tenantId || "").trim();
-
-  if (!wompiTransactionId) {
-    return res.status(400).json({ error: "missing_transaction_id" });
-  }
+  const amountInCentsRaw = Number(req.body?.amountInCents ?? req.body?.amount_in_cents ?? 0);
+  const amountInCents = Number.isFinite(amountInCentsRaw) && amountInCentsRaw > 0 ? Math.trunc(amountInCentsRaw) : undefined;
+  const currency = String(req.body?.currency || "").trim().toUpperCase();
 
   let payment =
     (paymentId ? await prisma.payment.findUnique({ where: { id: paymentId } }) : null) ||
     (reference ? await prisma.payment.findFirst({ where: { reference } }) : null) ||
     (wompiPaymentLinkId ? await prisma.payment.findFirst({ where: { wompiPaymentLinkId } }) : null) ||
     (wompiTransactionId ? await prisma.payment.findFirst({ where: { wompiTransactionId } }) : null);
+  if (!wompiTransactionId && payment?.wompiTransactionId) {
+    wompiTransactionId = String(payment.wompiTransactionId || "").trim();
+  }
+  const resolvedTenantId = tenantIdFromBody || String(payment?.tenantId || "").trim() || undefined;
 
-  if (!payment) {
-    const reconcile = await reconcileWompiTransaction({
+  let reconcile: any;
+  if (wompiTransactionId) {
+    if (payment && payment.wompiTransactionId !== wompiTransactionId) {
+      payment = await prisma.payment.update({
+        where: { id: payment.id },
+        data: { wompiTransactionId }
+      });
+    }
+    reconcile = await reconcileWompiTransaction({
       wompiTransactionId,
-      tenantId: tenantIdFromBody || undefined,
-      checksumPrefix: "manual-reconcile-no-payment"
+      tenantId: resolvedTenantId,
+      checksumPrefix: payment ? "manual-reconcile" : "manual-reconcile-no-payment"
     }).catch((err: any) => ({
       ok: false as const,
       reason: "reconcile_failed" as const,
       message: String(err?.message || err || "reconcile_failed")
     }));
-    await systemLog(LogLevel.WARN, "logs.payments", "Reconciliar pago sin registro previo de Payment", {
-      wompiTransactionId,
-      ok: reconcile.ok,
-      reason: (reconcile as any)?.reason || null
-    }).catch(() => {});
-    return res.json({ ok: reconcile.ok, reconcile, payment: null });
+  } else {
+    const referenceCandidate = reference || String(payment?.reference || "").trim();
+    const paymentLinkCandidate = wompiPaymentLinkId || String(payment?.wompiPaymentLinkId || "").trim();
+    if (!referenceCandidate) return res.status(400).json({ error: "missing_reconcile_identifiers" });
+    reconcile = await reconcileWompiByReference({
+      reference: referenceCandidate,
+      tenantId: resolvedTenantId,
+      paymentLinkId: paymentLinkCandidate || undefined,
+      amountInCents: amountInCents ?? (payment ? Number(payment.amountInCents || 0) : undefined),
+      currency: currency || (payment ? String(payment.currency || "").trim().toUpperCase() : undefined),
+      checksumPrefix: payment ? "manual-reconcile-ref" : "manual-reconcile-ref-no-payment"
+    }).catch((err: any) => ({
+      ok: false as const,
+      reason: "reconcile_failed" as const,
+      message: String(err?.message || err || "reconcile_failed")
+    }));
   }
-
-  if (payment.wompiTransactionId !== wompiTransactionId) {
-    payment = await prisma.payment.update({
-      where: { id: payment.id },
-      data: { wompiTransactionId }
-    });
-  }
-
-  const reconcile = await reconcileWompiTransaction({
-    wompiTransactionId,
-    tenantId: payment.tenantId,
-    checksumPrefix: "manual-reconcile"
-  }).catch((err: any) => ({
-    ok: false as const,
-    reason: "reconcile_failed" as const,
-    message: String(err?.message || err || "reconcile_failed")
-  }));
 
   await systemLog(LogLevel.INFO, "logs.payments", "Reconciliar pago ejecutado", {
-    paymentId: payment.id,
-    wompiTransactionId,
-    reference: payment.reference || null,
+    paymentId: payment?.id || null,
+    wompiTransactionId: wompiTransactionId || null,
+    reference: reference || payment?.reference || null,
     ok: reconcile.ok,
     reason: (reconcile as any)?.reason || null
   }).catch(() => {});
+
+  if (!payment) {
+    if (wompiTransactionId) {
+      await systemLog(LogLevel.WARN, "logs.payments", "Reconciliar pago sin registro previo de Payment", {
+        wompiTransactionId,
+        ok: reconcile.ok,
+        reason: (reconcile as any)?.reason || null
+      }).catch(() => {});
+    }
+    return res.json({ ok: reconcile.ok, reconcile, payment: null });
+  }
 
   const refreshed = await prisma.payment.findUnique({
     where: { id: payment.id },
