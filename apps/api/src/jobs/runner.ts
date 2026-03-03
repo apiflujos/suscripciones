@@ -14,7 +14,7 @@ import { syncSmartLists } from "./handlers/syncSmartLists";
 import { aiAssist } from "./handlers/aiAssist";
 import { gamificationRecalc } from "./handlers/gamificationRecalc";
 import { dataTrainer } from "./handlers/dataTrainer";
-import { reconcileWompiTransaction } from "../services/wompiReconcile";
+import { reconcileWompiByReference, reconcileWompiTransaction } from "../services/wompiReconcile";
 
 loadEnv(process.env);
 const workerId = `jobs:${process.pid}`;
@@ -240,7 +240,7 @@ async function ensurePendingPaymentsAutoReconcile() {
   const payments = await prisma.payment.findMany({
     where: {
       status: PaymentStatus.PENDING,
-      wompiTransactionId: { not: null },
+      OR: [{ wompiTransactionId: { not: null } }, { reference: { not: null } }],
       createdAt: { lt: olderThan }
     },
     orderBy: { createdAt: "asc" },
@@ -248,7 +248,11 @@ async function ensurePendingPaymentsAutoReconcile() {
     select: {
       id: true,
       tenantId: true,
+      reference: true,
+      wompiPaymentLinkId: true,
       wompiTransactionId: true,
+      amountInCents: true,
+      currency: true,
       providerResponse: true
     }
   });
@@ -258,7 +262,8 @@ async function ensurePendingPaymentsAutoReconcile() {
   let tried = 0;
   for (const payment of payments) {
     const tx = String(payment.wompiTransactionId || "").trim();
-    if (!tx) continue;
+    const reference = String(payment.reference || "").trim();
+    if (!tx && !reference) continue;
     const provider = payment.providerResponse && typeof payment.providerResponse === "object" ? (payment.providerResponse as any) : {};
     const autoMeta = provider?.autoReconcile && typeof provider.autoReconcile === "object" ? provider.autoReconcile : {};
     const attempts = Number(autoMeta.attempts || 0);
@@ -268,11 +273,20 @@ async function ensurePendingPaymentsAutoReconcile() {
 
     tried += 1;
     try {
-      const out = await reconcileWompiTransaction({
-        wompiTransactionId: tx,
-        tenantId: payment.tenantId || undefined,
-        checksumPrefix: "jobs-auto-reconcile"
-      });
+      const out = tx
+        ? await reconcileWompiTransaction({
+            wompiTransactionId: tx,
+            tenantId: payment.tenantId || undefined,
+            checksumPrefix: "jobs-auto-reconcile"
+          })
+        : await reconcileWompiByReference({
+            reference,
+            tenantId: payment.tenantId || undefined,
+            paymentLinkId: payment.wompiPaymentLinkId || undefined,
+            amountInCents: Number(payment.amountInCents || 0),
+            currency: payment.currency || undefined,
+            checksumPrefix: "jobs-auto-reconcile-ref"
+          });
       if (out?.ok) reconciled += 1;
       const nextProvider = {
         ...provider,

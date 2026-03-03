@@ -506,6 +506,7 @@ export default async function BillingPage({
                       <div className="billing-sub">
                         {r.customerEmail || "—"} · {r.identificacion || "—"}
                       </div>
+                      <div className="field-hint">{isPlan ? "Suscripción link de pago" : "Débito automático"}</div>
                     </div>
                     <div className="billing-header-middle">
                       <span className="billing-header-label">Canal de ventas</span>
@@ -623,9 +624,6 @@ export default async function BillingPage({
 
                   <div className="billing-actions">
                     <div className="billing-actions-left">
-                      <span className={`pill ${isPlan ? "pill-warn" : "pill-ok"}`} style={{ fontSize: 12 }}>
-                        {isPlan ? "Link de pago" : "Débito automático"}
-                      </span>
                       {r.mode === "AUTO_DEBIT" ? (
                         <form action={chargeSubscriptionNow}>
                           <input type="hidden" name="csrf" value={csrfToken} />

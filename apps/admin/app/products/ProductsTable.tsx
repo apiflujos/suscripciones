@@ -23,6 +23,10 @@ function formatMoneyFromCents(cents: number, currency: string) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency, maximumFractionDigits: 0 }).format(pesos);
 }
 
+function getCollectionModeLabel(mode?: string | null) {
+  return String(mode || "").toUpperCase() === "AUTO_DEBIT" ? "Débito automático" : "Link de pago";
+}
+
 type ProductRow = {
   id: string;
   sku: string;
@@ -517,6 +521,10 @@ export function ProductsTable({
                   <span className="product-sku">{p.sku}</span>
                   <span>·</span>
                   <span>{p.kind === "SERVICE" ? "Servicio" : "Producto"}</span>
+                  <span>·</span>
+                  <span className={`pill pill-sm ${String(p.collectionMode || "").toUpperCase() === "AUTO_DEBIT" ? "pill-ok" : "pill-warn"}`}>
+                    {getCollectionModeLabel(p.collectionMode)}
+                  </span>
                   {p.tenantName ? (
                     <>
                       <span>·</span>
@@ -576,6 +584,10 @@ export function ProductsTable({
                 <strong>
                   {p.intervalUnit ? `${p.intervalCount || 1} ${String(p.intervalUnit).toLowerCase()}` : "—"}
                 </strong>
+              </div>
+              <div>
+                <span>Tipo de cobro</span>
+                <strong>{getCollectionModeLabel(p.collectionMode)}</strong>
               </div>
             </div>
             <div className="product-footer-actions">

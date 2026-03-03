@@ -1,6 +1,6 @@
 import { prisma } from "../db/prisma";
 import { WompiClient } from "../providers/wompi/client";
-import { getWompiApiBaseUrl, getWompiCheckoutLinkBaseUrl, getWompiPublicKey } from "../services/runtimeConfig";
+import { getWompiApiBaseUrl, getWompiCheckoutLinkBaseUrl, getWompiPrivateKey, getWompiPublicKey } from "../services/runtimeConfig";
 import { RetryJobType, WebhookProvider, WebhookProcessStatus } from "@prisma/client";
 import { randomUUID } from "crypto";
 import { processWompiEventLogic } from "../jobs/handlers/processWompiEvent";
@@ -92,4 +92,79 @@ export async function reconcileWompiTransaction(args: {
   }
 
   return { ok: true, webhookEventId: event.id, status: tx.status, reference: tx.reference };
+}
+
+function parseDateLike(input: unknown) {
+  if (!input) return 0;
+  const dt = new Date(String(input));
+  const ms = dt.getTime();
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+export async function reconcileWompiByReference(args: {
+  reference: string;
+  tenantId?: string | null;
+  paymentLinkId?: string | null;
+  amountInCents?: number | null;
+  currency?: string | null;
+  processNow?: boolean;
+  checksumPrefix?: string;
+}) {
+  const reference = String(args.reference || "").trim();
+  if (!reference) return { ok: false, reason: "missing_reference" as const };
+  const tenantId = String(args.tenantId || "").trim();
+  if (!tenantId) return { ok: false, reason: "missing_tenant" as const };
+
+  const publicKey = await getWompiPublicKey();
+  const privateKey = await getWompiPrivateKey();
+  if (!publicKey && !privateKey) {
+    return { ok: false, reason: "wompi_credentials_not_configured" as const };
+  }
+  const apiBaseUrl = await getWompiApiBaseUrl();
+  const checkoutLinkBaseUrl = await getWompiCheckoutLinkBaseUrl();
+  const wompi = new WompiClient({ apiBaseUrl, privateKey: privateKey || "unused", checkoutLinkBaseUrl });
+
+  const listByKey = async (key: string) => wompi.listTransactionsByReference(reference, key);
+  const txs = await (async () => {
+    if (publicKey) {
+      try {
+        const out = await listByKey(publicKey);
+        if (out.length) return out;
+      } catch {}
+    }
+    if (privateKey) return listByKey(privateKey);
+    return [];
+  })();
+
+  if (!txs.length) return { ok: false, reason: "transaction_not_found_by_reference" as const };
+
+  const expectedLink = String(args.paymentLinkId || "").trim();
+  const expectedCurrency = String(args.currency || "").trim().toUpperCase();
+  const expectedAmount = Number(args.amountInCents || 0);
+  const finalStatuses = new Set(["APPROVED", "DECLINED", "VOIDED", "ERROR"]);
+  const candidates = txs
+    .map((tx) => {
+      const status = normalizeStatus(tx.status);
+      if (!finalStatuses.has(status)) return null;
+      let score = 0;
+      if (expectedLink && String(tx.paymentLinkId || "").trim() === expectedLink) score += 100;
+      if (expectedCurrency && String(tx.currency || "").trim().toUpperCase() === expectedCurrency) score += 20;
+      if (expectedAmount > 0 && Number(tx.amountInCents || 0) === expectedAmount) score += 20;
+      if (status === "APPROVED") score += 10;
+      const ts = Math.max(parseDateLike(tx.finalizedAt), parseDateLike(tx.createdAt));
+      return { tx, score, ts };
+    })
+    .filter(Boolean) as Array<{ tx: (typeof txs)[number]; score: number; ts: number }>;
+
+  if (!candidates.length) return { ok: false, reason: "status_not_final" as const };
+  candidates.sort((a, b) => (b.score !== a.score ? b.score - a.score : b.ts - a.ts));
+  const winner = candidates[0]?.tx;
+  if (!winner?.id) return { ok: false, reason: "transaction_not_found_by_reference" as const };
+
+  return reconcileWompiTransaction({
+    wompiTransactionId: winner.id,
+    tenantId,
+    processNow: args.processNow,
+    checksumPrefix: args.checksumPrefix || "reconcile-ref"
+  });
 }

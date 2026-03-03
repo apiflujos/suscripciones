@@ -157,21 +157,23 @@ export default async function ProductsPage({
                     />
                     <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
                   </form>
-                  <SmartViewsBar
-                    scope="products"
-                    initialViewId={viewId}
-                    initialFilters={filters}
-                    baseParams={{
-                      ...(tenantId ? { tenantId } : {}),
-                      ...(q ? { q } : {})
-                    }}
-                    compactInline
-                  />
+                  <div className="products-search-right">
+                    <SmartViewsBar
+                      scope="products"
+                      initialViewId={viewId}
+                      initialFilters={filters}
+                      baseParams={{
+                        ...(tenantId ? { tenantId } : {}),
+                        ...(q ? { q } : {})
+                      }}
+                      compactInline
+                    />
+                    <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="products" />
+                  </div>
                 </div>
                 <div className="field-hint tiny-total">{productItems.length} resultados</div>
               </div>
             </div>
-            <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="products" />
           </div>
         </div>
 

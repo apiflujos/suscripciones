@@ -1767,6 +1767,18 @@ a {
   width: 100%;
 }
 
+.products-search-right {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.products-search-right .smartViewsBar {
+  min-width: 0;
+}
+
 .payments-totals-row {
   margin-top: 8px;
   display: flex;
@@ -5275,6 +5287,19 @@ textarea.input {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Estandar Apiflujos en acciones de billing (excepto enviar por WhatsApp). */
+.billing-actions :is(.ghost, .btn, .primary, .btnPrimary).btn-compact:not(.btn-send) {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.billing-actions :is(.ghost, .btn, .primary, .btnPrimary).btn-compact:not(.btn-send):hover {
+  border-color: var(--primary-700, var(--primary));
+  color: var(--primary-700, var(--primary));
+  background: color-mix(in srgb, var(--primary-soft) 70%, var(--panel));
 }
 
 .helpTip {

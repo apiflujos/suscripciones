@@ -37,6 +37,22 @@ const wompiTransactionResponseSchema = z.object({
   })
 });
 
+const wompiTransactionListResponseSchema = z.object({
+  data: z.array(
+    z.object({
+      id: z.string().min(1),
+      status: z.string().optional(),
+      reference: z.string().optional(),
+      amount_in_cents: z.number().int().optional(),
+      currency: z.string().optional(),
+      payment_link_id: z.string().optional(),
+      customer_email: z.string().optional(),
+      created_at: z.union([z.string(), z.number()]).optional(),
+      finalized_at: z.union([z.string(), z.number()]).optional()
+    })
+  )
+});
+
 export type WompiPaymentLinkCreateInput = {
   name: string;
   description?: string;
@@ -234,5 +250,68 @@ export class WompiClient {
     }
 
     throw new Error(`Wompi get transaction: unexpected response ${JSON.stringify(json)}`);
+  }
+
+  async listTransactionsByReference(
+    reference: string,
+    authKey: string
+  ): Promise<
+    Array<{
+      id: string;
+      status?: string;
+      reference?: string;
+      amountInCents?: number;
+      currency?: string;
+      paymentLinkId?: string;
+      customerEmail?: string;
+      createdAt?: string | number;
+      finalizedAt?: string | number;
+      raw: unknown;
+    }>
+  > {
+    const ref = String(reference || "").trim();
+    if (!ref) return [];
+    const base = this.opts.apiBaseUrl.replace(/\/$/, "");
+    const res = await fetch(`${base}/transactions?reference=${encodeURIComponent(ref)}`, {
+      method: "GET",
+      headers: { authorization: `Bearer ${authKey}` }
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok) {
+      throw new Error(`Wompi list transactions failed: ${res.status} ${JSON.stringify(json)}`);
+    }
+
+    const parsed = wompiTransactionListResponseSchema.safeParse(json);
+    if (parsed.success) {
+      return parsed.data.data.map((t) => ({
+        id: t.id,
+        status: t.status,
+        reference: t.reference,
+        amountInCents: t.amount_in_cents,
+        currency: t.currency,
+        paymentLinkId: t.payment_link_id,
+        customerEmail: t.customer_email,
+        createdAt: t.created_at,
+        finalizedAt: t.finalized_at,
+        raw: t
+      }));
+    }
+
+    const data = (json && typeof json === "object" ? (json as Record<string, any>).data : null) as any;
+    const list = Array.isArray(data) ? data : Array.isArray((json as any)?.transactions) ? (json as any).transactions : [];
+    return list
+      .filter((t: any) => t && (typeof t.id === "string" || typeof t.id === "number"))
+      .map((t: any) => ({
+        id: String(t.id),
+        status: typeof t.status === "string" ? t.status : undefined,
+        reference: typeof t.reference === "string" ? t.reference : undefined,
+        amountInCents: typeof t.amount_in_cents === "number" ? t.amount_in_cents : undefined,
+        currency: typeof t.currency === "string" ? t.currency : undefined,
+        paymentLinkId: typeof t.payment_link_id === "string" ? t.payment_link_id : undefined,
+        customerEmail: typeof t.customer_email === "string" ? t.customer_email : undefined,
+        createdAt: t.created_at,
+        finalizedAt: t.finalized_at,
+        raw: t
+      }));
   }
 }

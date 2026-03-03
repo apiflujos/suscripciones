@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { PendingButton } from "../ui/PendingButton";
 import { HelpTip } from "../ui/HelpTip";
 
@@ -161,34 +161,63 @@ export function ChangePlanButton({
     });
   }, [plans, query]);
 
-  useEffect(() => {
-    if (!open) return;
-    const q = query.trim();
-    let canceled = false;
-    setSearching(true);
-    const timer = setTimeout(async () => {
+  const fetchPlans = useCallback(
+    async (qRaw: string) => {
+      const q = String(qRaw || "").trim();
+      setSearching(true);
       try {
         const qs = new URLSearchParams();
         qs.set("take", "120");
         if (q) qs.set("q", q);
         if (tenantId) qs.set("tenantId", tenantId);
+        qs.set("_ts", String(Date.now()));
         const res = await fetch(`/api/search/plans?${qs.toString()}`, { cache: "no-store" });
         const json = await res.json().catch(() => null);
-        if (canceled) return;
         const items = Array.isArray(json?.items) ? json.items : [];
         const mapped = items.map((p: any) => mapPlanFromApi(p));
         setRemotePlans(mapped.filter((p: any) => p.id));
       } catch {
-        if (!canceled) setRemotePlans([]);
+        setRemotePlans([]);
       } finally {
-        if (!canceled) setSearching(false);
+        setSearching(false);
       }
+    },
+    [tenantId]
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    let canceled = false;
+    const timer = setTimeout(async () => {
+      if (canceled) return;
+      await fetchPlans(query);
     }, 250);
     return () => {
       canceled = true;
       clearTimeout(timer);
     };
-  }, [open, query, tenantId]);
+  }, [open, query, fetchPlans]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onFocus = () => {
+      void fetchPlans(query);
+    };
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [open, query, fetchPlans]);
+
+  useEffect(() => {
+    if (!open) return;
+    const timer = setInterval(() => {
+      void fetchPlans(query);
+    }, 15000);
+    return () => {
+      clearInterval(timer);
+    };
+  }, [open, query, fetchPlans]);
 
   const filteredPlans = useMemo(() => {
     const merged = new Map<string, PlanOption>();
