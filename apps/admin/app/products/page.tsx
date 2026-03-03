@@ -17,21 +17,6 @@ async function fetchAdmin(path: string) {
   return fetchAdminCached(path, { ttlMs: 1500 });
 }
 
-async function fetchSmartLists() {
-  const res = await fetchAdminCached("/admin/comms/smart-lists?take=200", { ttlMs: 1500 });
-  return res.json || { items: [] as any[] };
-}
-
-async function fetchSmartListMembers(id: string, tenantId?: string) {
-  if (!id) return { items: [] as any[] };
-  const tenantParam = tenantId ? `&tenantId=${encodeURIComponent(tenantId)}` : "";
-  const res = await fetchAdminCached(
-    `/admin/comms/smart-lists/${encodeURIComponent(id)}/members?active=1&take=200${tenantParam}`,
-    { ttlMs: 1500 }
-  );
-  return res.json || { items: [] as any[] };
-}
-
 async function fetchChatwootInboxes() {
   try {
     const res = await fetchAdminCached("/admin/chatwoot/inboxes", { ttlMs: 1500 });
@@ -131,73 +116,6 @@ export default async function ProductsPage({
   const filteredCustomers = (customersRes.json?.items ?? []) as any[];
   const chatwootInboxes = (chatwootInboxesRes.items ?? chatwootInboxesRes.json?.items ?? []) as any[];
 
-  const quickFilters = [
-    {
-      id: "gamification-legend",
-      name: "Gamificación: Leyenda",
-      category: "Gamificación",
-      filters: { op: "and", rules: [{ field: "gamification.levelName", op: "in", value: ["Leyenda", "Maestro", "Elite", "Diamante"] }] }
-    },
-    {
-      id: "gamification-oro",
-      name: "Gamificación: Oro",
-      category: "Gamificación",
-      filters: { op: "and", rules: [{ field: "gamification.levelName", op: "in", value: ["Oro", "Platino"] }] }
-    },
-    {
-      id: "gamification-plata",
-      name: "Gamificación: Plata",
-      category: "Gamificación",
-      filters: { op: "and", rules: [{ field: "gamification.levelName", op: "in", value: ["Plata", "Bronce"] }] }
-    },
-    {
-      id: "gamification-rookie",
-      name: "Gamificación: Rookie",
-      category: "Gamificación",
-      filters: { op: "and", rules: [{ field: "gamification.levelName", op: "in", value: ["Rookie", "Explorador"] }] }
-    }
-  ];
-
-  let activeFiltersKey = "";
-  if (filters) {
-    try {
-      activeFiltersKey = JSON.stringify(JSON.parse(filters));
-    } catch {
-      activeFiltersKey = "";
-    }
-  }
-
-  const iconForCategory = (category?: string) => {
-    const key = String(category || "").toLowerCase();
-    if (key.includes("gam")) {
-      return (
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M12 2l2.4 6.4L21 9l-5 4 1.8 6-5.8-3.6L6.2 19 8 13 3 9l6.6-.6z" />
-        </svg>
-      );
-    }
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M9 12l2 2 4-4M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z" />
-      </svg>
-    );
-  };
-
-  const toneForCategory = (category?: string) => {
-    const key = String(category || "").toLowerCase();
-    if (key.includes("gam")) return "gamification";
-    return "default";
-  };
-
-  const buildQuickHref = (filtersObj: any) => {
-    const sp = new URLSearchParams({
-      ...(tenantId ? { tenantId } : {}),
-      ...(q ? { q } : {}),
-      filters: JSON.stringify(filtersObj)
-    });
-    return `/products?${sp.toString()}`;
-  };
-
   return (
     <main className="page pageWide">
       {error ? (
@@ -216,29 +134,7 @@ export default async function ProductsPage({
         <div className="settings-group-header">
           <div className="filtersRow">
             <div className="filtersLeft">
-              <div className="filtersNote">Gestiona productos y servicios y asócialos a contactos para crear planes o suscripciones.</div>
               <div className="filtersPanel">
-                <div className="filtersQuickRow">
-                  <div className="filtersQuick">
-                    {quickFilters.map((filter) => {
-                      const key = JSON.stringify(filter.filters);
-                      const isActive = activeFiltersKey === key;
-                      return (
-                        <a
-                          key={filter.id}
-                          className={`pill quick-pill ${isActive ? "is-active" : ""}`}
-                          href={buildQuickHref(filter.filters)}
-                          data-tone={toneForCategory(filter.category)}
-                        >
-                          <span className="quick-pill-icon" aria-hidden="true">
-                            {iconForCategory(filter.category)}
-                          </span>
-                          {filter.name}
-                        </a>
-                      );
-                    })}
-                  </div>
-                </div>
                 <div className="contacts-search-row">
                   <form action="/products" method="GET" className="filtersForm filtersSearch">
                     {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}

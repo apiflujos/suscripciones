@@ -400,12 +400,6 @@ export default async function BillingPage({
         <div className="settings-group-header">
           <div className="filtersRow">
             <div className="filtersLeft">
-              <div className="filtersNote">Filtra suscripciones por link de pago o débito automático.</div>
-              <div className="billing-legend">
-                <span className="pill pill-muted">Suscripción = estado del cobro</span>
-                <span className="pill pill-muted">Pago = estado del último cobro del periodo</span>
-                <span className="pill pill-muted">En mora = periodo vencido sin pago</span>
-              </div>
               <div className="filtersPanel">
                 <div className="contacts-search-row">
                   <form action="/billing" method="GET" className="filtersForm filtersSearch">

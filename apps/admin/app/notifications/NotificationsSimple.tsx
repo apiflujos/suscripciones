@@ -111,6 +111,14 @@ function autoResizeTextarea(el: HTMLTextAreaElement) {
   el.style.height = `${el.scrollHeight}px`;
 }
 
+function isTemplateConfigured(template: Template | null | undefined, kind: "TEXT" | "WHATSAPP_TEMPLATE") {
+  if (kind === "WHATSAPP_TEMPLATE") {
+    return Boolean(String(template?.chatwootTemplate?.name || "").trim());
+  }
+  const content = String(template?.content || "").trim();
+  return Boolean(content && content !== "(template)");
+}
+
 function secondsFromOffset(item: OffsetItem, sign: 1 | -1) {
   const amount = Number(item.amount || 0);
   const base = item.unit === "days" ? amount * 24 * 60 * 60 : item.unit === "hours" ? amount * 60 * 60 : amount * 60;
@@ -224,8 +232,8 @@ export function NotificationsSimple({
     const rule = rulesByKey.get(rt.key);
     return Boolean(rule) && !Boolean(realtimeEdit[rt.key]);
   });
-  const dueConfigured = Boolean(reminderDue && !dueEdit);
-  const moraConfigured = Boolean(reminderMora && !moraEdit);
+  const dueConfigured = Boolean(reminderDue && isTemplateConfigured(reminderDueTemplate, dueKind) && !dueEdit);
+  const moraConfigured = Boolean(reminderMora && isTemplateConfigured(reminderMoraTemplate, moraKind) && !moraEdit);
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
