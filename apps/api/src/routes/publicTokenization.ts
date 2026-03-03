@@ -45,7 +45,14 @@ publicTokenizationRouter.get("/tokenization-links/:token", async (req, res) => {
   if (usedAt && !allowUsed) {
     void systemLog(LogLevel.WARN, "public.tokenization_link", "tokenization_token_used", {
       ...tokenMeta(token),
+      customerId: customer.id,
+      customerName: customer.name || null,
+      customerEmail: customer.email || null,
+      customerPhone: customer.phone || null,
       tenantId: customer.tenantId,
+      planId: link?.planId || null,
+      templateId: link?.templateId || null,
+      kind: link?.kind || null,
       usedAt: usedAt.toISOString(),
       ip,
       userAgent: req.get("user-agent") || null
@@ -55,7 +62,14 @@ publicTokenizationRouter.get("/tokenization-links/:token", async (req, res) => {
   if (expiresAt && Number.isFinite(expiresAt.getTime()) && expiresAt.getTime() < Date.now()) {
     void systemLog(LogLevel.WARN, "public.tokenization_link", "tokenization_token_expired", {
       ...tokenMeta(token),
+      customerId: customer.id,
+      customerName: customer.name || null,
+      customerEmail: customer.email || null,
+      customerPhone: customer.phone || null,
       tenantId: customer.tenantId,
+      planId: link?.planId || null,
+      templateId: link?.templateId || null,
+      kind: link?.kind || null,
       expiresAt: expiresAt.toISOString(),
       ip,
       userAgent: req.get("user-agent") || null

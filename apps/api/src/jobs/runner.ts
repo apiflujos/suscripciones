@@ -417,11 +417,20 @@ async function main() {
       // Common during first boot if migrations haven't been applied yet.
       logger.warn({ err: msg }, "Jobs runner transient failure; retrying soon");
       const short = String(msg || "").replace(/\s+/g, " ").trim().slice(0, 240);
+      const lower = String(msg || "").toLowerCase();
+      const isDbSlots = lower.includes("remaining connection slots are reserved");
+      const hint = isDbSlots
+        ? "Base de datos sin cupos de conexión. Reduce conexiones/pool del API y worker, o aumenta límites en la BD."
+        : "Falla transitoria en jobs. Revisa logs y estado de base de datos/credenciales.";
       await systemLog(
         LogLevel.WARN,
         "jobs.runner",
         short ? `Transient failure (will retry): ${short}` : "Transient failure (will retry)",
-        { err: msg }
+        {
+          err: msg,
+          reasonCode: isDbSlots ? "db_connection_slots_exhausted" : "transient_jobs_failure",
+          actionHint: hint
+        }
       ).catch(() => {});
       await new Promise((r) => setTimeout(r, 5000));
     }
