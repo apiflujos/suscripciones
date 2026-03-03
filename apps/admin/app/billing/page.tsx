@@ -632,13 +632,11 @@ export default async function BillingPage({
                           <button
                             className="ghost btn-compact btn-noicon btn-blue btn-pay"
                             type="submit"
-                            disabled={!r.customerTokenized || r.status === "CANCELED"}
+                            disabled={!r.customerTokenized}
                             title={
-                              r.status === "CANCELED"
-                                ? "La suscripción está cancelada"
-                                : !r.customerTokenized
-                                  ? "Primero debes guardar tarjeta (débito automático)"
-                                  : "Cobrar ahora"
+                              !r.customerTokenized
+                                ? "Primero debes guardar tarjeta (débito automático)"
+                                : "Cobrar ahora"
                             }
                           >
                             Cobrar
