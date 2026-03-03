@@ -41,7 +41,7 @@ export async function getDefaultTenantId(): Promise<string | null> {
         where: { name: { equals: name, mode: "insensitive" } },
       })
     : await prisma.saTenant.findFirst({
-        where: { isActive: true },
+        where: { active: true },
         orderBy: { createdAt: "asc" },
       });
 
