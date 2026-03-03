@@ -133,7 +133,9 @@ export async function reconcileWompiByReference(args: {
       try {
         const out = await listByKey(publicKey);
         if (out.length) return out;
-      } catch {}
+      } catch {
+        // Fallback to private key when public-key lookup fails.
+      }
     }
     if (privateKey) return listByKey(privateKey);
     return [];

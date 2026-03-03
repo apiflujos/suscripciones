@@ -35,16 +35,27 @@ export async function paymentRetry(payload: any) {
     });
     if (recentPendingAutoCharge) {
       const nextRunAt = new Date(now.getTime() + 30 * 60 * 1000);
-      await prisma.retryJob
-        .create({
-          data: {
-            type: RetryJobType.PAYMENT_RETRY,
-            runAt: nextRunAt,
-            maxAttempts: 5,
-            payload: { subscriptionId }
-          }
-        })
-        .catch(() => {});
+      const alreadyScheduled = await prisma.retryJob.findFirst({
+        where: {
+          type: RetryJobType.PAYMENT_RETRY,
+          status: { in: [RetryJobStatus.PENDING, RetryJobStatus.RUNNING] },
+          payload: { path: ["subscriptionId"], equals: subscriptionId } as any,
+          runAt: { gte: new Date(now.getTime() - 60_000) }
+        },
+        select: { id: true }
+      });
+      if (!alreadyScheduled) {
+        await prisma.retryJob
+          .create({
+            data: {
+              type: RetryJobType.PAYMENT_RETRY,
+              runAt: nextRunAt,
+              maxAttempts: 5,
+              payload: { subscriptionId }
+            }
+          })
+          .catch(() => {});
+      }
       await systemLog(LogLevel.WARN, "jobs.payment_retry", "Cobro automático omitido: ya existe cobro pendiente reciente", {
         subscriptionId,
         mode,
