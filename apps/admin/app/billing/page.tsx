@@ -104,6 +104,15 @@ function getPlanLinkStatus(link: any, lastPaidAt: any) {
   return "Link enviado";
 }
 
+function readPlanPricing(meta: any) {
+  if (!meta || typeof meta !== "object") return {};
+  const root = meta?.pricing;
+  const legacy = meta?.catalog?.pricing;
+  if (root && typeof root === "object") return root;
+  if (legacy && typeof legacy === "object") return legacy;
+  return {};
+}
+
 function buildSmartListRules({
   tipo,
   estado,
@@ -272,14 +281,16 @@ export default async function BillingPage({
   const subscriptionBaseUrl = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
   const plans = (plansRes.json?.items ?? []) as any[];
   const planOptions: PlanOption[] = plans.map((p: any): PlanOption => {
-    const catalog = (p?.metadata as any)?.catalog ?? {};
+    const metadata = (p?.metadata as any) ?? {};
+    const catalog = metadata?.catalog ?? {};
+    const pricing = readPlanPricing(metadata);
     const kind = String(catalog?.kind || "").toUpperCase() === "SERVICE" ? "SERVICE" : "PRODUCT";
     const requiresShippingRaw = catalog?.requiresShipping;
     const requiresShipping = kind === "PRODUCT" && (requiresShippingRaw === true || requiresShippingRaw == null);
     const catalogItemId = String(catalog?.itemId || "");
     const productName = catalogItemId ? String(productById.get(catalogItemId)?.name || "") : "";
-    const displayName = String(p?.metadata?.displayName || productName || p.name || "Plan");
-    const sku = String(p?.metadata?.sku || "");
+    const displayName = String(metadata?.displayName || productName || p.name || "Plan");
+    const sku = String(metadata?.sku || "");
     const searchText = [displayName, p.name, productName, sku, p.id].filter(Boolean).join(" ").toLowerCase();
     return {
       id: String(p.id),
@@ -291,7 +302,7 @@ export default async function BillingPage({
       currency: String(p.currency || "COP"),
       kind,
       requiresShipping,
-      shippingInCents: Number(catalog?.pricing?.shippingInCents || 0)
+      shippingInCents: Number(pricing?.shippingInCents || 0)
     };
   });
 
@@ -346,7 +357,7 @@ export default async function BillingPage({
         periodoFinAt: s.currentPeriodEndAt || null,
         mode: String(plan?.collectionMode || plan?.metadata?.collectionMode || "MANUAL_LINK"),
         tenantName: tenantNameList.length ? tenantNameList.join(", ") : "—",
-        currentShippingInCents: Number((plan?.metadata as any)?.catalog?.pricing?.shippingInCents || 0),
+        currentShippingInCents: Number(readPlanPricing((plan?.metadata as any) ?? {})?.shippingInCents || 0),
         currentRequiresShipping: String((plan?.metadata as any)?.catalog?.kind || "").toUpperCase() !== "SERVICE"
       };
     })
@@ -520,6 +531,8 @@ export default async function BillingPage({
                             currentEndAt={r.vencimientoAt}
                             currentShippingInCents={r.currentShippingInCents}
                             currentRequiresShipping={r.currentRequiresShipping}
+                            currentPlanName={r.planName}
+                            currentPlanCurrency={r.moneda}
                             plans={planOptions}
                             csrfToken={csrfToken}
                             returnTo={returnTo}

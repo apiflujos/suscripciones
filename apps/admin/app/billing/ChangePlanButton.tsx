@@ -17,6 +17,38 @@ export type PlanOption = {
   shippingInCents?: number | null;
 };
 
+function readPlanPricing(meta: any) {
+  if (!meta || typeof meta !== "object") return {};
+  const root = meta?.pricing;
+  const legacy = meta?.catalog?.pricing;
+  if (root && typeof root === "object") return root;
+  if (legacy && typeof legacy === "object") return legacy;
+  return {};
+}
+
+function mapPlanFromApi(p: any): PlanOption {
+  const metadata = p?.metadata && typeof p.metadata === "object" ? p.metadata : {};
+  const catalog = metadata?.catalog && typeof metadata.catalog === "object" ? metadata.catalog : {};
+  const pricing = readPlanPricing(metadata);
+  const kind = String(catalog?.kind || "").toUpperCase() === "SERVICE" ? "SERVICE" : "PRODUCT";
+  const requiresShippingRaw = catalog?.requiresShipping;
+  return {
+    id: String(p?.id || ""),
+    name: String(metadata?.displayName || p?.name || "Plan"),
+    sku: String(metadata?.sku || ""),
+    searchText: [metadata?.displayName, p?.name, metadata?.sku, catalog?.name, p?.id]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase(),
+    collectionMode: String(metadata?.collectionMode || p?.collectionMode || ""),
+    priceInCents: Number(p?.priceInCents || 0),
+    currency: String(p?.currency || "COP"),
+    kind,
+    requiresShipping: kind === "PRODUCT" && (requiresShippingRaw === true || requiresShippingRaw == null),
+    shippingInCents: Number(pricing?.shippingInCents || 0)
+  };
+}
+
 function toLocalInput(value?: string | null) {
   if (!value) return "";
   const d = new Date(value);
@@ -64,6 +96,8 @@ export function ChangePlanButton({
   currentEndAt,
   currentShippingInCents = 0,
   currentRequiresShipping = false,
+  currentPlanName = "Plan actual",
+  currentPlanCurrency = "COP",
   plans,
   csrfToken,
   returnTo,
@@ -76,6 +110,8 @@ export function ChangePlanButton({
   currentEndAt?: string | null;
   currentShippingInCents?: number;
   currentRequiresShipping?: boolean;
+  currentPlanName?: string;
+  currentPlanCurrency?: string;
   plans: PlanOption[];
   csrfToken: string;
   returnTo: string;
@@ -92,6 +128,26 @@ export function ChangePlanButton({
   const [freeShipping, setFreeShipping] = useState(Boolean(currentRequiresShipping) && Number(currentShippingInCents || 0) <= 0);
   const [remotePlans, setRemotePlans] = useState<PlanOption[]>([]);
   const [searching, setSearching] = useState(false);
+  const currentPlanFallback = useMemo<PlanOption>(
+    () => ({
+      id: currentPlanId,
+      name: currentPlanName || "Plan actual",
+      currency: currentPlanCurrency || "COP",
+      kind: currentRequiresShipping ? "PRODUCT" : "SERVICE",
+      requiresShipping: currentRequiresShipping,
+      shippingInCents: Number(currentShippingInCents || 0)
+    }),
+    [currentPlanId, currentPlanName, currentPlanCurrency, currentRequiresShipping, currentShippingInCents]
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    setPlanId(currentPlanId);
+    setCutoffAt(initialCutoff);
+    setQuery("");
+    setShippingCop(centsToCurrencyInput(currentShippingInCents || 0, currentPlanCurrency || "COP"));
+    setFreeShipping(Boolean(currentRequiresShipping) && Number(currentShippingInCents || 0) <= 0);
+  }, [open, currentPlanId, initialCutoff, currentShippingInCents, currentRequiresShipping, currentPlanCurrency]);
 
   const localFilteredPlans = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -106,49 +162,21 @@ export function ChangePlanButton({
   }, [plans, query]);
 
   useEffect(() => {
+    if (!open) return;
     const q = query.trim();
-    if (q.length < 2) {
-      setRemotePlans([]);
-      setSearching(false);
-      return;
-    }
     let canceled = false;
     setSearching(true);
     const timer = setTimeout(async () => {
       try {
         const qs = new URLSearchParams();
-        qs.set("q", q);
         qs.set("take", "120");
+        if (q) qs.set("q", q);
         if (tenantId) qs.set("tenantId", tenantId);
         const res = await fetch(`/api/search/plans?${qs.toString()}`, { cache: "no-store" });
         const json = await res.json().catch(() => null);
         if (canceled) return;
         const items = Array.isArray(json?.items) ? json.items : [];
-        const mapped = items.map((p: any) => {
-          const kind = String(p?.metadata?.catalog?.kind || "").toUpperCase() === "SERVICE" ? "SERVICE" : "PRODUCT";
-          const requiresShippingRaw = p?.metadata?.catalog?.requiresShipping;
-          return {
-            id: String(p?.id || ""),
-            name: String(p?.metadata?.displayName || p?.name || "Plan"),
-            sku: String(p?.metadata?.sku || ""),
-            searchText: [
-              p?.metadata?.displayName,
-              p?.name,
-              p?.metadata?.sku,
-              p?.metadata?.catalog?.name,
-              p?.id
-            ]
-              .filter(Boolean)
-              .join(" ")
-              .toLowerCase(),
-            collectionMode: String(p?.metadata?.collectionMode || p?.collectionMode || ""),
-            priceInCents: Number(p?.priceInCents || 0),
-            currency: String(p?.currency || "COP"),
-            kind,
-            requiresShipping: kind === "PRODUCT" && (requiresShippingRaw === true || requiresShippingRaw == null),
-            shippingInCents: Number(p?.metadata?.catalog?.pricing?.shippingInCents || 0)
-          };
-        });
+        const mapped = items.map((p: any) => mapPlanFromApi(p));
         setRemotePlans(mapped.filter((p: any) => p.id));
       } catch {
         if (!canceled) setRemotePlans([]);
@@ -160,19 +188,17 @@ export function ChangePlanButton({
       canceled = true;
       clearTimeout(timer);
     };
-  }, [query, tenantId]);
+  }, [open, query, tenantId]);
 
   const filteredPlans = useMemo(() => {
-    const q = query.trim();
     const merged = new Map<string, PlanOption>();
-    const current = plans.find((p) => p.id === currentPlanId);
+    const current = plans.find((p) => p.id === currentPlanId) || remotePlans.find((p) => p.id === currentPlanId) || currentPlanFallback;
     if (current) merged.set(current.id, current);
     for (const p of localFilteredPlans) merged.set(p.id, p);
-    if (q.length >= 2) {
-      for (const p of remotePlans) merged.set(p.id, p);
-    }
+    for (const p of remotePlans) merged.set(p.id, p);
+    if (planId && !merged.has(planId)) merged.set(planId, currentPlanFallback);
     return Array.from(merged.values());
-  }, [query, remotePlans, localFilteredPlans, plans, currentPlanId]);
+  }, [remotePlans, localFilteredPlans, plans, currentPlanId, planId, currentPlanFallback]);
 
   const selectedPlan = useMemo(() => {
     return filteredPlans.find((p) => String(p.id) === String(planId)) || plans.find((p) => String(p.id) === String(planId)) || null;

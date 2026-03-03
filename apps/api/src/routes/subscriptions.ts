@@ -294,6 +294,15 @@ function computePlanTotalInCents(args: {
   return { subtotalInCents: subtotal, taxInCents, totalInCents: subtotal + taxInCents };
 }
 
+function readPlanPricing(meta: any) {
+  if (!meta || typeof meta !== "object") return {};
+  const root = meta?.pricing;
+  const legacy = meta?.catalog?.pricing;
+  if (root && typeof root === "object") return root;
+  if (legacy && typeof legacy === "object") return legacy;
+  return {};
+}
+
 subscriptionsRouter.post("/:id/payment-link", async (req, res) => {
   const subscriptionId = req.params.id;
 
@@ -452,8 +461,9 @@ subscriptionsRouter.post("/:id/change-plan", async (req, res) => {
   }
 
   let planForSubscription = plan;
-  const catalog = (plan.metadata as any)?.catalog ?? {};
-  const pricing = catalog?.pricing ?? {};
+  const planMeta = (plan.metadata as any) ?? {};
+  const catalog = planMeta?.catalog ?? {};
+  const pricing = readPlanPricing(planMeta);
   const kind = String(catalog?.kind || "").toUpperCase();
   // Compatibilidad: si falta kind en datos antiguos, se asume producto para permitir ajustar flete.
   const requiresShipping = kind !== "SERVICE";
@@ -479,7 +489,7 @@ subscriptionsRouter.post("/:id/change-plan", async (req, res) => {
     });
 
     const nextMetadata = {
-      ...(plan.metadata && typeof plan.metadata === "object" ? (plan.metadata as any) : {}),
+      ...(planMeta && typeof planMeta === "object" ? planMeta : {}),
       catalog: {
         ...(catalog && typeof catalog === "object" ? catalog : {}),
         pricing: {
@@ -490,6 +500,14 @@ subscriptionsRouter.post("/:id/change-plan", async (req, res) => {
           totalInCents: totals.totalInCents,
           freeShipping: Boolean(parsed.data.freeShipping)
         }
+      },
+      pricing: {
+        ...(pricing && typeof pricing === "object" ? pricing : {}),
+        shippingInCents: requestedShippingInCents,
+        subtotalInCents: totals.subtotalInCents,
+        taxInCents: totals.taxInCents,
+        totalInCents: totals.totalInCents,
+        freeShipping: Boolean(parsed.data.freeShipping)
       }
     };
     const created = await prisma.subscriptionPlan.create({
