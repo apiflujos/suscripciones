@@ -219,10 +219,30 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     }).catch(() => {});
   }
 
+  let missingSubscriptionFromReference = false;
+  if (referenceClassification.kind === "subscription" && inferredSubscriptionId && !paymentMatched) {
+    const exists = await db.subscription.findUnique({
+      where: { id: inferredSubscriptionId },
+      select: { id: true }
+    });
+    if (!exists) {
+      missingSubscriptionFromReference = true;
+      inferredSubscriptionId = "";
+      await systemLog(LogLevel.WARN, "processWompiEvent", "subscription_reference_not_found: falling back to inference", {
+        reference,
+        subscriptionId: referenceClassification.subscriptionId
+      }).catch(() => {});
+    }
+  }
+
   const shouldAttemptPriceInference =
     !paymentMatched &&
     !inferredSubscriptionId &&
-    (referenceClassification.kind === "unknown" || (referenceClassification.kind === "order" && !referenceClassification.planId));
+    (
+      missingSubscriptionFromReference ||
+      referenceClassification.kind === "unknown" ||
+      (referenceClassification.kind === "order" && !referenceClassification.planId)
+    );
 
   if (shouldAttemptPriceInference || (referenceClassification.kind === "order" && referenceClassification.planId)) {
     if (!amountInCents && shouldAttemptPriceInference) {
@@ -704,7 +724,7 @@ export async function forwardWompiToShopify(webhookEventId: string) {
 
   if (!res.ok) {
     const bodyText = res.text || "";
-    const looksLikeSoftFail = res.status >= 500 && /internal server error/i.test(bodyText) && /\"success\"\s*:\s*false/i.test(bodyText);
+    const looksLikeSoftFail = res.status >= 500 && /internal server error/i.test(bodyText) && /"success"\s*:\s*false/i.test(bodyText);
     if (looksLikeSoftFail) {
       await systemLog(LogLevel.WARN, "shopify.forward", "Forward returned 5xx but treated as accepted", {
         webhookEventId,
