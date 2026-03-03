@@ -481,7 +481,7 @@ export function SmartViewsBar({
           <div className="smartViewsInlineRow">
             <div className="smartViewsActions">
               <button
-                className="primary btn-compact btn-filter btn-icon-only"
+                className="primary btn-compact btn-noicon"
                 type="button"
                 data-loader="off"
                 aria-label="Filtros avanzados"
@@ -494,6 +494,7 @@ export function SmartViewsBar({
                   ensureFieldsLoaded().catch(() => null);
                 }}
               >
+                Filtros
               </button>
             </div>
             <div className="smartViewsPills">

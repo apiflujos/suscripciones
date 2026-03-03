@@ -651,7 +651,7 @@ export default async function LogsPage({
               <div className="filtersLeft">
                 <div className="filtersPanel">
                   <div className="payments-actions-row">
-                    <form action="/payments" method="GET" className="filtersForm filtersSearch" data-debounce-form="true">
+                    <form action="/payments" method="GET" className="filtersForm filtersSearch payments-search-form" data-debounce-form="true">
                       <input
                         className="input"
                         name="q"
@@ -659,29 +659,35 @@ export default async function LogsPage({
                         placeholder="Buscar cliente, referencia o transacción..."
                         aria-label="Buscar pagos"
                       />
-                      <button className="ghost btn-noicon" type="submit">Buscar</button>
+                      <button className="ghost btn-noicon btn-compact" type="submit">Buscar</button>
                     </form>
-                    <SmartViewsBar
-                      scope="payments"
-                      initialViewId={viewId}
-                      initialFilters={filters}
-                      compactInline
-                      baseParams={{
-                        ...(q ? { q } : {})
-                      }}
-                    />
-                    <form action={reconcilePendingPayments} className="filtersForm payments-action-form" style={{ display: "inline-flex" }}>
-                      <input type="hidden" name="csrf" value={csrfToken} />
-                      <input type="hidden" name="days" value="7" />
-                      <input type="hidden" name="minutes" value="720" />
-                      <input type="hidden" name="take" value="150" />
-                      {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-                      <PendingButton className="ghost btn-compact" type="submit" pendingText="Conciliando...">
-                        Recolectar pagos
-                      </PendingButton>
-                    </form>
-                    <div className="payments-action-form" title="Reconciliación manual de una transacción Wompi" style={{ display: "inline-flex", alignItems: "center" }}>
-                      <ReconcilePaymentModal csrfToken={csrfToken} action={reconcilePayment} />
+                    <div className="payments-secondary-row">
+                      <div className="payments-views-wrap">
+                        <SmartViewsBar
+                          scope="payments"
+                          initialViewId={viewId}
+                          initialFilters={filters}
+                          compactInline
+                          baseParams={{
+                            ...(q ? { q } : {})
+                          }}
+                        />
+                      </div>
+                      <div className="payments-buttons-wrap">
+                        <form action={reconcilePendingPayments} className="filtersForm payments-action-form">
+                          <input type="hidden" name="csrf" value={csrfToken} />
+                          <input type="hidden" name="days" value="7" />
+                          <input type="hidden" name="minutes" value="720" />
+                          <input type="hidden" name="take" value="150" />
+                          {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+                          <PendingButton className="ghost btn-compact btn-noicon" type="submit" pendingText="Conciliando...">
+                            Recolectar pagos
+                          </PendingButton>
+                        </form>
+                        <div className="payments-action-form" title="Reconciliación manual de una transacción Wompi">
+                          <ReconcilePaymentModal csrfToken={csrfToken} action={reconcilePayment} />
+                        </div>
+                      </div>
                     </div>
                   </div>
                   <div className="payments-totals-row">
