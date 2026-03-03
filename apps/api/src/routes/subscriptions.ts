@@ -454,9 +454,9 @@ subscriptionsRouter.post("/:id/change-plan", async (req, res) => {
   let planForSubscription = plan;
   const catalog = (plan.metadata as any)?.catalog ?? {};
   const pricing = catalog?.pricing ?? {};
-  const isProduct = String(catalog?.kind || "").toUpperCase() === "PRODUCT";
-  // Permite ajustar flete en cualquier plan de tipo PRODUCT, incluso datos antiguos.
-  const requiresShipping = isProduct;
+  const kind = String(catalog?.kind || "").toUpperCase();
+  // Compatibilidad: si falta kind en datos antiguos, se asume producto para permitir ajustar flete.
+  const requiresShipping = kind !== "SERVICE";
   const defaultShippingInCents = Number(pricing?.shippingInCents || 0);
   const requestedShippingInCents = requiresShipping
     ? (parsed.data.freeShipping ? 0 : Number(parsed.data.shippingInCents ?? defaultShippingInCents))

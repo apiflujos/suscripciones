@@ -347,7 +347,7 @@ export default async function BillingPage({
         mode: String(plan?.collectionMode || plan?.metadata?.collectionMode || "MANUAL_LINK"),
         tenantName: tenantNameList.length ? tenantNameList.join(", ") : "—",
         currentShippingInCents: Number((plan?.metadata as any)?.catalog?.pricing?.shippingInCents || 0),
-        currentRequiresShipping: String((plan?.metadata as any)?.catalog?.kind || "").toUpperCase() === "PRODUCT"
+        currentRequiresShipping: String((plan?.metadata as any)?.catalog?.kind || "").toUpperCase() !== "SERVICE"
       };
     })
     .filter((r) => {

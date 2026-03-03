@@ -55,7 +55,7 @@ function formatCurrencyInput(input: string, currency: string) {
 function planRequiresShipping(plan: PlanOption | null | undefined) {
   if (!plan) return false;
   const kind = String(plan.kind || "").toUpperCase();
-  return kind === "PRODUCT";
+  return kind !== "SERVICE";
 }
 
 export function ChangePlanButton({
@@ -236,6 +236,7 @@ export function ChangePlanButton({
                 </label>
                 <input
                   className="input"
+                  type="search"
                   placeholder="Buscar producto..."
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
