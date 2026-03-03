@@ -36,14 +36,22 @@ export async function getDefaultTenantId(): Promise<string | null> {
     normalize(process.env.SA_DEFAULT_TENANT_NAME) ||
     normalize(process.env.DEFAULT_TENANT_NAME);
 
-  if (!name) {
-    cached = { tenantId: null, at: now };
-    return null;
+  const tenant = name
+    ? await prisma.saTenant.findFirst({
+        where: { name: { equals: name, mode: "insensitive" } },
+      })
+    : await prisma.saTenant.findFirst({
+        where: { isActive: true },
+        orderBy: { createdAt: "asc" },
+      });
+
+  if (!tenant && !name) {
+    const anyTenant = await prisma.saTenant.findFirst({ orderBy: { createdAt: "asc" } });
+    const anyTenantId = anyTenant?.id || null;
+    cached = { tenantId: anyTenantId, at: now };
+    return anyTenantId;
   }
 
-  const tenant = await prisma.saTenant.findFirst({
-    where: { name: { equals: name, mode: "insensitive" } },
-  });
   const tenantId = tenant?.id || null;
   cached = { tenantId, at: now };
   return tenantId;

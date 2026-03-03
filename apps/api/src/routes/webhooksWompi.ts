@@ -10,6 +10,7 @@ import { LogLevel } from "@prisma/client";
 import { redactHeaders } from "../lib/redact";
 import { getDefaultTenantId } from "../services/tenantContext";
 import { logger } from "../lib/logger";
+import { processWompiEventLogic } from "../jobs/handlers/processWompiEvent";
 
 function getChecksumHeader(req: Request): string | undefined {
   const h = req.header("x-event-checksum") || req.header("x-wompi-checksum");
@@ -76,6 +77,17 @@ export async function wompiWebhook(req: Request, res: Response) {
         payload: { webhookEventId: webhookEvent.id }
       }
     });
+
+    // Safety net: process immediately so payments are reconciled
+    // even if the background jobs runner is down or delayed.
+    try {
+      await processWompiEventLogic(webhookEvent.id, prisma);
+    } catch (inlineErr) {
+      await systemLog(LogLevel.WARN, "webhooks.wompi", "Inline processing failed; queued for retry job", {
+        webhookEventId: webhookEvent.id,
+        error: String((inlineErr as any)?.message || inlineErr || "unknown_error")
+      }).catch(() => {});
+    }
 
     const shopify = await getShopifyForward();
     if (shopify.url) {
