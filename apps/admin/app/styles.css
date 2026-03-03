@@ -5276,6 +5276,11 @@ textarea.input {
   font-size: 12px;
 }
 
+.billing-inline-cutoff .input[type="datetime-local"] {
+  --field-icon: none;
+  padding-left: 10px;
+}
+
 .tiny-total {
   font-size: 11px;
   color: var(--text-faint);
