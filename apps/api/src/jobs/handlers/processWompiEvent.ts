@@ -141,6 +141,30 @@ function getCustomerPhoneFromPayload(payload: WompiPayload): string | undefined 
   return trimmed || undefined;
 }
 
+function normalizePhoneDigits(value: unknown): string {
+  const digits = String(value || "").replace(/\D+/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("57") && digits.length > 10) return digits.slice(-10);
+  return digits;
+}
+
+function phonesMatch(a: unknown, b: unknown): boolean {
+  const da = normalizePhoneDigits(a);
+  const db = normalizePhoneDigits(b);
+  if (!da || !db) return false;
+  if (da === db) return true;
+  return da.length >= 8 && db.length >= 8 && (da.endsWith(db) || db.endsWith(da));
+}
+
+function normalizeNameForMatch(value: unknown): string {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
 function getPaidAtFromPayload(payload: WompiPayload): Date | null {
   const tx = getTransactionFromPayload(payload);
   const raw =
@@ -285,136 +309,82 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         reference,
         subscriptionId: referenceClassification.subscriptionId
       }).catch(() => {});
+      inferredSubscriptionId = "";
+    }
+  }
+
+  const inferSubscriptionByCustomerIdentity = async () => {
+    const tenantScope = event.tenantId ? { tenantId: event.tenantId } : {};
+    const email = getCustomerEmailFromPayload(payload);
+    const phone = getCustomerPhoneFromPayload(payload);
+    const name = getCustomerNameFromPayload(payload);
+    const nameNorm = normalizeNameForMatch(name);
+    const customerIds = new Set<string>();
+
+    if (email) {
+      const byEmail = await db.customer.findMany({
+        where: { email, ...tenantScope },
+        select: { id: true }
+      });
+      byEmail.forEach((c) => customerIds.add(c.id));
+    }
+
+    if (phone) {
+      const byPhone = await db.customer.findMany({
+        where: { phone: { not: null }, ...tenantScope },
+        select: { id: true, phone: true },
+        orderBy: { updatedAt: "desc" },
+        take: 500
+      });
+      byPhone.filter((c) => phonesMatch(c.phone, phone)).forEach((c) => customerIds.add(c.id));
+    }
+
+    if (customerIds.size === 0 && nameNorm.length >= 4) {
+      const byName = await db.customer.findMany({
+        where: { name: { contains: String(name || "").trim(), mode: "insensitive" }, ...tenantScope },
+        select: { id: true, name: true },
+        orderBy: { updatedAt: "desc" },
+        take: 100
+      });
+      byName.filter((c) => normalizeNameForMatch(c.name) === nameNorm).forEach((c) => customerIds.add(c.id));
+    }
+
+    if (!customerIds.size) return { subscriptionId: "", reason: "identity_not_found" };
+    const candidates = await db.subscription.findMany({
+      where: {
+        customerId: { in: Array.from(customerIds) },
+        status: { in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE, SubscriptionStatus.SUSPENDED] },
+        ...(event.tenantId ? { tenantId: event.tenantId } : {})
+      },
+      select: { id: true, customerId: true, status: true, updatedAt: true },
+      orderBy: [{ updatedAt: "desc" }]
+    });
+
+    if (candidates.length === 1) return { subscriptionId: candidates[0].id, reason: "identity_unique" };
+    if (!candidates.length) return { subscriptionId: "", reason: "subscription_not_found_for_identity" };
+    return { subscriptionId: "", reason: "subscription_ambiguous_for_identity", count: candidates.length };
+  };
+
+  if (!paymentMatched && !inferredSubscriptionId) {
+    const inferred = await inferSubscriptionByCustomerIdentity();
+    if (inferred.subscriptionId) {
+      inferredSubscriptionId = inferred.subscriptionId;
+      await systemLog(LogLevel.INFO, "processWompiEvent", "subscription_inferred_by_customer_identity", {
+        reference,
+        subscriptionId: inferred.subscriptionId,
+        reason: inferred.reason
+      }).catch(() => {});
+    } else if (referenceClassification.kind === "subscription") {
       await db.webhookEvent.update({
         where: { id: webhookEventId },
         data: {
           processStatus: WebhookProcessStatus.FAILED,
-          errorMessage: `subscription_reference_not_found:${referenceClassification.subscriptionId}`,
+          errorMessage: `subscription_reference_not_found:${referenceClassification.subscriptionId}:${inferred.reason}`,
           processedAt: new Date()
         }
       });
       return;
     }
-  }
-
-  const shouldAttemptPriceInference =
-    !paymentMatched &&
-    !inferredSubscriptionId &&
-    (
-      referenceClassification.kind === "unknown" ||
-      (referenceClassification.kind === "order" && !referenceClassification.planId)
-    );
-
-  if (shouldAttemptPriceInference || (referenceClassification.kind === "order" && referenceClassification.planId)) {
-    if (!amountInCents && shouldAttemptPriceInference) {
-      await db.webhookEvent.update({
-        where: { id: webhookEventId },
-        data: { processStatus: WebhookProcessStatus.FAILED, errorMessage: "missing_amount_in_cents", processedAt: new Date() }
-      });
-      return;
-    }
-
-    const defaultTenantId = await getDefaultTenantId();
-    const baseTenantId = event.tenantId || defaultTenantId || null;
-    let plan: { id: string; tenantId?: string | null; intervalUnit: any; intervalCount: number; priceInCents?: number; currency?: string; name?: string } | null = null;
-    if (referenceClassification.kind === "order" && referenceClassification.planId) {
-      plan = await db.subscriptionPlan.findUnique({ where: { id: referenceClassification.planId } });
-      if (plan && plan.priceInCents !== amountInCents) {
-        await systemLog(LogLevel.WARN, "processWompiEvent", "Price mismatch with reference planId; using reference planId", {
-          expected: plan.priceInCents,
-          received: amountInCents,
-          planId: plan.id
-        }).catch(() => {});
-      }
-    }
-
-    if (!plan) {
-      const plans = await db.subscriptionPlan.findMany({
-        where: {
-          active: true,
-          priceInCents: amountInCents,
-          currency: (currency || "COP").toUpperCase(),
-          ...(baseTenantId ? { tenantId: baseTenantId } : {})
-        },
-        orderBy: { updatedAt: "desc" }
-      });
-
-      if (plans.length === 0) {
-        await db.webhookEvent.update({
-          where: { id: webhookEventId },
-          data: { processStatus: WebhookProcessStatus.FAILED, errorMessage: "plan_not_found_for_amount", processedAt: new Date() }
-        });
-        return;
-      }
-
-      if (plans.length > 1) {
-        await systemLog(LogLevel.WARN, "processWompiEvent", "Ambiguous plan inference by price", {
-          reference,
-          amountInCents,
-          currency,
-          foundPlans: plans.map((p) => ({ id: p.id, name: p.name }))
-        }).catch(() => {});
-        await db.webhookEvent.update({
-          where: { id: webhookEventId },
-          data: { processStatus: WebhookProcessStatus.FAILED, errorMessage: "plan_ambiguous_by_price", processedAt: new Date() }
-        });
-        return;
-      }
-      plan = plans[0];
-    }
-
-    const email = getCustomerEmailFromPayload(payload);
-    if (!email) {
-      await db.webhookEvent.update({
-        where: { id: webhookEventId },
-        data: { processStatus: WebhookProcessStatus.FAILED, errorMessage: "customer_email_missing", processedAt: new Date() }
-      });
-      return;
-    }
-
-    let customer = await db.customer.findUnique({ where: { email } });
-    if (!customer) {
-      customer = await db.customer.create({
-        data: {
-          tenantId: plan?.tenantId ?? baseTenantId ?? null,
-          email,
-          name: getCustomerNameFromPayload(payload),
-          phone: getCustomerPhoneFromPayload(payload)
-        }
-      });
-    }
-
-    const startAt = new Date();
-    const planResolved = plan as { id: string; tenantId?: string | null; intervalUnit: any; intervalCount: number };
-    const inferredTenantId = planResolved?.tenantId ?? baseTenantId;
-    if (!inferredTenantId) {
-      await db.webhookEvent.update({
-        where: { id: webhookEventId },
-        data: { processStatus: WebhookProcessStatus.FAILED, errorMessage: "missing_tenant", processedAt: new Date() }
-      });
-      return;
-    }
-    const periodEnd = addIntervalUtc(startAt, planResolved.intervalUnit, planResolved.intervalCount);
-
-    inferredSubscription = await db.subscription.create({
-      data: {
-        tenantId: inferredTenantId,
-        customerId: customer.id,
-        planId: planResolved.id,
-        status: SubscriptionStatus.PAST_DUE,
-        startAt,
-        currentPeriodStartAt: startAt,
-        currentPeriodEndAt: periodEnd,
-        currentCycle: 1
-      }
-    });
-    await db.subscriptionTenant
-      .createMany({
-        data: [{ subscriptionId: inferredSubscription.id, tenantId: inferredTenantId }],
-        skipDuplicates: true
-      })
-      .catch(() => {});
-    inferredSubscriptionId = inferredSubscription.id;
   }
 
   const subscriptionId = inferredSubscriptionId;
