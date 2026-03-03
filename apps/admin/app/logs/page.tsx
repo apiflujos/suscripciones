@@ -906,7 +906,7 @@ export default async function LogsPage({
                       : "—";
                     return (
                       <tr key={p.id}>
-                        <td className="log-date-cell"><LocalDateTime value={p.createdAt} variant="stacked" /></td>
+                        <td className="log-date-cell"><LocalDateTime value={p.paidAt || p.createdAt} variant="stacked" /></td>
                         <td className="log-contact-cell">{renderContactBlock(p)}</td>
                         <td className="log-plan-cell" title={planName}>{planName}</td>
                         <td className="log-status-cell">

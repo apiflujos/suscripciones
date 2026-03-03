@@ -366,14 +366,26 @@ logsRouter.get("/payments", async (req, res) => {
   const fromDate = parseDate(fromRaw) ?? defaultFromDate();
   const toDate = parseDate(toRaw, { end: true });
 
+  const dateWhere: Prisma.PaymentWhereInput =
+    statusRaw === "APPROVED"
+      ? {
+          paidAt: {
+            gte: fromDate,
+            ...(toDate ? { lt: toDate } : {})
+          }
+        }
+      : {
+          createdAt: {
+            gte: fromDate,
+            ...(toDate ? { lt: toDate } : {})
+          }
+        };
+
   const where: Prisma.PaymentWhereInput = {
     ...(statusFilter ? { status: { in: statusFilter as any } } : {}),
     ...(tenantId ? { tenantId } : {}),
     ...(planId ? { subscription: { planId } } : {}),
-    createdAt: {
-      gte: fromDate,
-      ...(toDate ? { lt: toDate } : {})
-    },
+    ...dateWhere,
     ...(q
       ? {
           OR: [
