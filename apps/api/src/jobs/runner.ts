@@ -1,7 +1,7 @@
 import { prisma } from "../db/prisma";
 import { logger } from "../lib/logger";
 import { loadEnv } from "../config/env";
-import { LogLevel, PaymentStatus, RetryJobStatus, RetryJobType } from "@prisma/client";
+import { LogLevel, PaymentStatus, RetryJobStatus, RetryJobType, WebhookProcessStatus, WebhookProvider } from "@prisma/client";
 import { forwardWompiToShopify, processWompiEvent } from "./handlers/processWompiEvent";
 import { sendChatwootMessage } from "./handlers/sendChatwootMessage";
 import { paymentRetry } from "./handlers/paymentRetry";
@@ -80,6 +80,7 @@ let lastLogCleanupAtMs = 0;
 let lastGamificationRecalcAtMs = 0;
 let lastDataTrainerAtMs = 0;
 let lastAutoReconcileAtMs = 0;
+let lastWebhookRecoveryAtMs = 0;
 async function ensureMonthlyBillingReportJob() {
   const now = Date.now();
   if (now - lastEnsureAtMs < 60_000) return;
@@ -329,6 +330,67 @@ async function ensurePendingPaymentsAutoReconcile() {
   }
 }
 
+async function ensureWompiWebhookRecoveryJobs() {
+  const now = Date.now();
+  const intervalSecondsRaw = Number(process.env.WEBHOOK_RECOVERY_INTERVAL_SECONDS || 60);
+  const intervalMs = (Number.isFinite(intervalSecondsRaw) ? Math.max(30, Math.trunc(intervalSecondsRaw)) : 60) * 1000;
+  if (now - lastWebhookRecoveryAtMs < intervalMs) return;
+  lastWebhookRecoveryAtMs = now;
+
+  const lookbackMinutesRaw = Number(process.env.WEBHOOK_RECOVERY_LOOKBACK_MINUTES || 240);
+  const lookbackMinutes = Number.isFinite(lookbackMinutesRaw) ? Math.max(30, Math.trunc(lookbackMinutesRaw)) : 240;
+  const limitRaw = Number(process.env.WEBHOOK_RECOVERY_BATCH || 120);
+  const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.trunc(limitRaw), 10), 500) : 120;
+  const since = new Date(now - lookbackMinutes * 60 * 1000);
+
+  const stuck = await prisma.webhookEvent.findMany({
+    where: {
+      provider: WebhookProvider.WOMPI,
+      processStatus: { in: [WebhookProcessStatus.RECEIVED, WebhookProcessStatus.FAILED] },
+      receivedAt: { gte: since }
+    },
+    orderBy: { receivedAt: "asc" },
+    take: limit,
+    select: { id: true }
+  });
+  if (!stuck.length) return;
+
+  const ids = stuck.map((e) => String(e.id || "")).filter(Boolean);
+  if (!ids.length) return;
+
+  const pendingJobs = await prisma.retryJob.findMany({
+    where: {
+      type: RetryJobType.PROCESS_WOMPI_EVENT,
+      status: { in: [RetryJobStatus.PENDING, RetryJobStatus.RUNNING] },
+      OR: ids.map((id) => ({ payload: { path: ["webhookEventId"], equals: id } as any }))
+    },
+    select: { payload: true }
+  });
+  const pendingIds = new Set(
+    pendingJobs
+      .map((j: any) => String((j?.payload as any)?.webhookEventId || "").trim())
+      .filter(Boolean)
+  );
+  const toEnqueue = ids.filter((id) => !pendingIds.has(id));
+  if (!toEnqueue.length) return;
+
+  await prisma.retryJob.createMany({
+    data: toEnqueue.map((webhookEventId) => ({
+      type: RetryJobType.PROCESS_WOMPI_EVENT,
+      runAt: new Date(),
+      maxAttempts: 12,
+      payload: { webhookEventId }
+    })),
+    skipDuplicates: false
+  });
+
+  await systemLog(LogLevel.INFO, "payments.reconcile.webhooks", "Wompi webhook recovery queued", {
+    scanned: ids.length,
+    queued: toEnqueue.length,
+    lookbackMinutes
+  }).catch(() => {});
+}
+
 async function ensureShopifyForwardRetries() {
   const now = Date.now();
   const { enabled, minutes } = await getShopifyForwardRetryConfig();
@@ -424,6 +486,7 @@ async function main() {
       await ensureShopifyForwardRetries();
       await ensureJobsHeartbeat();
       await ensurePendingPaymentsAutoReconcile();
+      await ensureWompiWebhookRecoveryJobs();
       await runOnce();
       await new Promise((r) => setTimeout(r, 1000));
     } catch (err: any) {
