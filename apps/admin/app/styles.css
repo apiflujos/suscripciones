@@ -905,6 +905,10 @@ a {
   border-radius: 10px;
 }
 
+:is(.module-footer, .product-footer-actions, .billing-actions, .wizard-footer, .drawer-footer, .modal-footer, .send-product-actions) {
+  justify-content: flex-start !important;
+}
+
 :is(.contact-footer, .product-footer-actions, .billing-actions, .module-footer) :is(.btn-send, .btn-green) {
   border-color: #16a34a;
   color: #166534;
@@ -2849,7 +2853,7 @@ textarea.input {
 }
 
 .btn-eye {
-  --btn-icon: var(--icon-eye);
+  --btn-icon: var(--icon-link);
 }
 
 .btn-edit {
@@ -2880,7 +2884,7 @@ textarea.input {
   border-color: var(--stroke-strong);
   color: var(--text);
   box-shadow: var(--btn-shadow-soft);
-  --btn-icon: var(--icon-eye);
+  --btn-icon: var(--icon-next);
 }
 
 .btn-create {
@@ -2943,7 +2947,7 @@ textarea.input {
 }
 
 .btn-open {
-  --btn-icon: var(--icon-eye);
+  --btn-icon: var(--icon-link);
 }
 
 .btn-history {
@@ -2955,7 +2959,7 @@ textarea.input {
 }
 
 .btn-view {
-  --btn-icon: var(--icon-eye);
+  --btn-icon: var(--icon-next);
 }
 
 .btn-next {
@@ -2964,6 +2968,27 @@ textarea.input {
 
 .btn-back {
   --btn-icon: var(--icon-back);
+}
+
+/* Estandar: iconos específicos no deben ser sobrescritos por .ghost/.btn */
+:is(.ghost, .btn, .primary, .btnLink).btn-eye,
+.btn-eye {
+  --btn-icon: var(--icon-link);
+}
+
+:is(.ghost, .btn, .primary, .btnLink).btn-edit,
+.btn-edit {
+  --btn-icon: var(--icon-edit);
+}
+
+:is(.ghost, .btn, .primary, .btnLink).btn-link,
+.btn-link {
+  --btn-icon: var(--icon-link);
+}
+
+:is(.ghost, .btn, .primary, .btnLink).btn-history,
+.btn-history {
+  --btn-icon: var(--icon-time);
 }
 
 .btn-retry {

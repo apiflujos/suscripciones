@@ -16,6 +16,71 @@ function toIso(input?: string | null) {
   return Number.isFinite(d.getTime()) ? d.toISOString() : "";
 }
 
+function asText(input: unknown) {
+  if (input == null) return "";
+  const txt = String(input).trim();
+  return txt;
+}
+
+function compactText(input: string, max = 160) {
+  const clean = asText(input);
+  if (!clean) return "";
+  return clean.length > max ? `${clean.slice(0, Math.max(0, max - 1))}…` : clean;
+}
+
+function firstText(...values: unknown[]) {
+  for (const v of values) {
+    const txt = asText(v);
+    if (txt) return txt;
+  }
+  return "";
+}
+
+function formatSystemMessage(raw: string) {
+  const clean = asText(raw);
+  if (!clean) return "Evento del sistema";
+  if (clean.includes("_") && !clean.includes(" ")) return clean.replace(/_/g, " ");
+  return clean;
+}
+
+function buildContextSummary(context: any) {
+  if (!context || typeof context !== "object") return "";
+  const customer = firstText(
+    context.customerName,
+    context.customer,
+    context.contactName,
+    context.customerEmail,
+    context.customerPhone,
+    context.phone
+  );
+  const subscription = firstText(
+    context.subscriptionRef,
+    context.subscriptionReference,
+    context.subscriptionId,
+    context.subscription_id
+  );
+  const plan = firstText(context.planName, context.planCode, context.planId);
+  const product = firstText(context.productName, context.productId);
+  const reference = firstText(
+    context.reference,
+    context.txRef,
+    context.transactionId,
+    context.paymentId,
+    context.wompiTransactionId,
+    context.paymentLinkId
+  );
+  const actionHint = firstText(context.actionHint, context.hint, context.reasonCode);
+  const parts = [
+    customer ? `Cliente: ${customer}` : "",
+    subscription ? `Suscripción: ${subscription}` : "",
+    plan ? `Plan: ${plan}` : "",
+    product ? `Producto: ${product}` : "",
+    reference ? `Ref: ${reference}` : "",
+    actionHint ? `Acción: ${actionHint}` : ""
+  ].filter(Boolean);
+  return compactText(parts.join(" · "), 260);
+}
+
 async function collectEvents(apiBase: string, token: string, since: string) {
   const [webhooksRes, jobsRes, systemRes] = await Promise.all([
     fetch(`${apiBase}/admin/webhook-events?from=${encodeURIComponent(since)}&take=20`, {
@@ -114,9 +179,11 @@ async function collectEvents(apiBase: string, token: string, since: string) {
     if (!Number.isFinite(createdMs) || createdMs <= sinceMs) continue;
     const level = String(s.level || "").toUpperCase();
     const source = String(s.source || "");
-    const message = String(s.message || s.source || "Evento del sistema");
-    const compact = message.length > 160 ? `${message.slice(0, 157)}…` : message;
     const ctx = s.context || null;
+    const message = formatSystemMessage(String(s.message || s.source || "Evento del sistema"));
+    const contextSummary = buildContextSummary(ctx);
+    const compact = compactText(message, 170);
+    const finalMessage = compactText(contextSummary ? `${compact} · ${contextSummary}` : compact, 320);
     const isAi = source.startsWith("ai.");
     const isRealtimeTest = source === "realtime.test";
     if (isAi) {
@@ -210,7 +277,7 @@ async function collectEvents(apiBase: string, token: string, since: string) {
                   : level === "ERROR"
                     ? "Alerta del sistema"
                     : "Aviso del sistema",
-      message: compact,
+      message: finalMessage,
       sound: null,
       kind,
       href: buildLogLink("system", { q: source, level: level === "ERROR" ? "ERROR" : level === "WARN" ? "WARN" : "" }),
