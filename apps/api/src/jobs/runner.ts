@@ -240,7 +240,7 @@ async function ensurePendingPaymentsAutoReconcile() {
   const payments = await prisma.payment.findMany({
     where: {
       status: PaymentStatus.PENDING,
-      OR: [{ wompiTransactionId: { not: null } }, { reference: { not: null } }],
+      OR: [{ wompiTransactionId: { not: null } }, { reference: { not: "" } }],
       createdAt: { lt: olderThan }
     },
     orderBy: { createdAt: "asc" },
