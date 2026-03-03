@@ -1,7 +1,8 @@
 import { prisma } from "../../db/prisma";
-import { LogLevel } from "@prisma/client";
+import { LogLevel, RetryJobStatus, RetryJobType } from "@prisma/client";
 import { createAutoDebitTransactionForSubscription, createPaymentLinkForSubscription } from "../../services/subscriptionBilling";
 import { systemLog } from "../../services/systemLog";
+import { addIntervalUtc } from "../../lib/dates";
 
 function isAutoDebitDisabled() {
   const raw = String(process.env.AUTO_DEBIT_DISABLED || "").trim().toLowerCase();
@@ -20,6 +21,54 @@ export async function paymentRetry(payload: any) {
   if (!sub) return;
 
   const mode = String((sub.plan.metadata as any)?.collectionMode || "MANUAL_LINK");
+  if (mode === "AUTO_DEBIT" || mode === "AUTO_LINK") {
+    const now = new Date();
+    const latestApproved = await prisma.payment.findFirst({
+      where: { subscriptionId, status: "APPROVED", paidAt: { not: null } },
+      orderBy: { paidAt: "desc" },
+      select: { paidAt: true }
+    });
+    const dueByLastPayment = latestApproved?.paidAt
+      ? addIntervalUtc(latestApproved.paidAt, sub.plan.intervalUnit, sub.plan.intervalCount)
+      : null;
+    const dueByCutoff = sub.currentPeriodEndAt ? new Date(sub.currentPeriodEndAt) : null;
+    const dueAt =
+      dueByCutoff && dueByLastPayment
+        ? (dueByCutoff.getTime() >= dueByLastPayment.getTime() ? dueByCutoff : dueByLastPayment)
+        : (dueByCutoff || dueByLastPayment);
+
+    if (dueAt && now.getTime() + 5_000 < dueAt.getTime()) {
+      const alreadyScheduled = await prisma.retryJob.findFirst({
+        where: {
+          type: RetryJobType.PAYMENT_RETRY,
+          status: { in: [RetryJobStatus.PENDING, RetryJobStatus.RUNNING] },
+          payload: { path: ["subscriptionId"], equals: subscriptionId } as any,
+          runAt: { gte: new Date(dueAt.getTime() - 60_000) }
+        },
+        select: { id: true }
+      });
+      if (!alreadyScheduled) {
+        await prisma.retryJob.create({
+          data: {
+            type: RetryJobType.PAYMENT_RETRY,
+            runAt: dueAt,
+            maxAttempts: 5,
+            payload: { subscriptionId }
+          }
+        }).catch(() => {});
+      }
+      await systemLog(LogLevel.INFO, "jobs.payment_retry", "Cobro automático omitido: aún no es fecha de cobro", {
+        subscriptionId,
+        mode,
+        dueAt: dueAt.toISOString(),
+        now: now.toISOString(),
+        byCutoff: dueByCutoff ? dueByCutoff.toISOString() : null,
+        byLastPayment: dueByLastPayment ? dueByLastPayment.toISOString() : null
+      }).catch(() => {});
+      return;
+    }
+  }
+
   if (mode === "AUTO_DEBIT") {
     if (isAutoDebitDisabled()) {
       await systemLog(LogLevel.WARN, "jobs.payment_retry", "Auto-debit automático deshabilitado; cobro omitido", {
