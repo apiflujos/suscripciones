@@ -166,16 +166,27 @@ export function ChangePlanButton({
       const q = String(qRaw || "").trim();
       setSearching(true);
       try {
-        const qs = new URLSearchParams();
-        qs.set("take", "120");
-        if (q) qs.set("q", q);
-        if (tenantId) qs.set("tenantId", tenantId);
-        qs.set("_ts", String(Date.now()));
-        const res = await fetch(`/api/search/plans?${qs.toString()}`, { cache: "no-store" });
-        const json = await res.json().catch(() => null);
-        const items = Array.isArray(json?.items) ? json.items : [];
-        const mapped = items.map((p: any) => mapPlanFromApi(p));
-        setRemotePlans(mapped.filter((p: any) => p.id));
+        const fetchBatch = async (opts: { scopedTenant: boolean }) => {
+          const qs = new URLSearchParams();
+          qs.set("take", "2000");
+          if (q) qs.set("q", q);
+          if (tenantId && opts.scopedTenant) qs.set("tenantId", tenantId);
+          qs.set("_ts", String(Date.now()));
+          const res = await fetch(`/api/search/plans?${qs.toString()}`, { cache: "no-store" });
+          if (!res.ok) return [] as any[];
+          const json = await res.json().catch(() => null);
+          return Array.isArray(json?.items) ? json.items : [];
+        };
+
+        const scopedItems = await fetchBatch({ scopedTenant: true });
+        const shouldTryGlobal = Boolean(tenantId) && scopedItems.length <= 1;
+        const globalItems = shouldTryGlobal ? await fetchBatch({ scopedTenant: false }) : [];
+        const merged = new Map<string, PlanOption>();
+        for (const item of [...scopedItems, ...globalItems]) {
+          const mapped = mapPlanFromApi(item);
+          if (mapped?.id) merged.set(mapped.id, mapped);
+        }
+        setRemotePlans(Array.from(merged.values()));
       } catch {
         setRemotePlans([]);
       } finally {
