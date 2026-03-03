@@ -428,21 +428,27 @@ productsRouter.delete("/:id", async (req, res) => {
   }
   if ((plan.metadata as any)?.kind !== "CATALOG_ITEM") return res.status(404).json({ error: "not_found" });
 
+  const dependentPlans = await prisma.subscriptionPlan.findMany({
+    where: { metadata: { path: ["catalog", "itemId"], equals: id } as any },
+    select: { id: true }
+  });
+  const relatedPlanIds = Array.from(new Set([id, ...dependentPlans.map((p) => p.id)]));
+
   const [subscriptionsCount, paymentLinksCount] = await Promise.all([
-    prisma.subscription.count({ where: { planId: id } }),
-    prisma.paymentLink.count({ where: { planId: id } })
+    prisma.subscription.count({ where: { planId: { in: relatedPlanIds } } }),
+    prisma.paymentLink.count({ where: { planId: { in: relatedPlanIds } } })
   ]);
 
   const force = String((req as any)?.query?.force || "").trim() === "1";
-  if (!force && (subscriptionsCount || paymentLinksCount)) {
+  if (!force && (subscriptionsCount || paymentLinksCount || dependentPlans.length)) {
     return res.status(409).json({
       error: "product_has_dependencies",
-      details: { subscriptionsCount, paymentLinksCount }
+      details: { subscriptionsCount, paymentLinksCount, dependentPlansCount: dependentPlans.length }
     });
   }
 
   if (force) {
-    const subs = await prisma.subscription.findMany({ where: { planId: id }, select: { id: true } });
+    const subs = await prisma.subscription.findMany({ where: { planId: { in: relatedPlanIds } }, select: { id: true } });
     const subIds = subs.map((s: any) => s.id);
     const payments = await prisma.payment.findMany({ where: { subscriptionId: { in: subIds } }, select: { id: true } });
     const paymentIds = payments.map((p: any) => p.id);
@@ -451,14 +457,21 @@ productsRouter.delete("/:id", async (req, res) => {
       await prisma.paymentAttempt.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch(() => {});
     }
     await prisma.chatwootMessage.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch(() => {});
-    await prisma.paymentLink.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch(() => {});
+    await prisma.paymentLink
+      .deleteMany({ where: { OR: [{ subscriptionId: { in: subIds } }, { planId: { in: relatedPlanIds } }] } })
+      .catch(() => {});
     await prisma.payment.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch(() => {});
     await prisma.subscriptionTenant.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch(() => {});
     await prisma.subscription.deleteMany({ where: { id: { in: subIds } } }).catch(() => {});
-    await prisma.subscriptionPlanTenant.deleteMany({ where: { planId: id } }).catch(() => {});
+    await prisma.subscriptionPlanTenant.deleteMany({ where: { planId: { in: relatedPlanIds } } }).catch(() => {});
+    await prisma.subscriptionPlan.deleteMany({ where: { id: { in: relatedPlanIds } } }).catch(() => {});
+  } else {
+    await prisma.subscriptionPlan.delete({ where: { id } });
   }
-
-  await prisma.subscriptionPlan.delete({ where: { id } });
-  await systemLog(LogLevel.INFO, "products.delete", "Catalog item deleted", { productId: id }).catch(() => {});
+  await systemLog(LogLevel.INFO, "products.delete", "Catalog item deleted", {
+    productId: id,
+    relatedPlanIds,
+    dependentPlansCount: dependentPlans.length
+  }).catch(() => {});
   res.json({ ok: true });
 });
