@@ -624,7 +624,7 @@ export default async function BillingPage({
 
                   <div className="billing-actions">
                     <div className="billing-actions-left">
-                      {r.mode === "AUTO_DEBIT" ? (
+                      {r.mode === "AUTO_DEBIT" && r.status === "PAST_DUE" ? (
                         <form action={chargeSubscriptionNow}>
                           <input type="hidden" name="csrf" value={csrfToken} />
                           <input type="hidden" name="subscriptionId" value={r.id} />
