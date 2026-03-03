@@ -23,6 +23,39 @@ export async function paymentRetry(payload: any) {
   const mode = String((sub.plan.metadata as any)?.collectionMode || "MANUAL_LINK");
   if (mode === "AUTO_DEBIT" || mode === "AUTO_LINK") {
     const now = new Date();
+    const recentPendingAutoCharge = await prisma.payment.findFirst({
+      where: {
+        subscriptionId,
+        status: "PENDING",
+        wompiTransactionId: { not: null },
+        createdAt: { gte: new Date(now.getTime() - 36 * 60 * 60 * 1000) }
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, wompiTransactionId: true, createdAt: true }
+    });
+    if (recentPendingAutoCharge) {
+      const nextRunAt = new Date(now.getTime() + 30 * 60 * 1000);
+      await prisma.retryJob
+        .create({
+          data: {
+            type: RetryJobType.PAYMENT_RETRY,
+            runAt: nextRunAt,
+            maxAttempts: 5,
+            payload: { subscriptionId }
+          }
+        })
+        .catch(() => {});
+      await systemLog(LogLevel.WARN, "jobs.payment_retry", "Cobro automático omitido: ya existe cobro pendiente reciente", {
+        subscriptionId,
+        mode,
+        pendingPaymentId: recentPendingAutoCharge.id,
+        wompiTransactionId: recentPendingAutoCharge.wompiTransactionId,
+        pendingCreatedAt: recentPendingAutoCharge.createdAt?.toISOString?.() || recentPendingAutoCharge.createdAt,
+        reScheduledAt: nextRunAt.toISOString()
+      }).catch(() => {});
+      return;
+    }
+
     const latestApproved = await prisma.payment.findFirst({
       where: { subscriptionId, status: "APPROVED", paidAt: { not: null } },
       orderBy: { paidAt: "desc" },
