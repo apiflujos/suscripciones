@@ -458,6 +458,14 @@ export async function deleteProduct(formData: FormData) {
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
     const msg = String(err?.message || "delete_product_failed");
+    if (msg.includes("product_has_active_subscriptions")) {
+      return redirect(
+        mergeQuery(returnTo, {
+          error: "No se puede borrar: primero cancela las suscripciones activas/en mora/suspendidas de este producto.",
+          ...(tenantId ? { tenantId } : {})
+        })
+      );
+    }
     if (msg.includes("product_has_dependencies")) {
       return redirect(mergeQuery(returnTo, { error: "No se puede borrar: tiene suscripciones o links asociados.", ...(tenantId ? { tenantId } : {}) }));
     }

@@ -1,7 +1,7 @@
 import express from "express";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
-import { LogLevel, PlanIntervalUnit } from "@prisma/client";
+import { LogLevel, PlanIntervalUnit, SubscriptionStatus } from "@prisma/client";
 import { systemLog } from "../services/systemLog";
 import { getEffectiveTenantId, getEffectiveTenantIds, readTenantIdsFromReq } from "../services/tenantContext";
 import { DEFAULT_CURRENCY, isSupportedCurrency, normalizeCurrencyCode } from "../lib/currencies";
@@ -433,6 +433,27 @@ productsRouter.delete("/:id", async (req, res) => {
     select: { id: true }
   });
   const relatedPlanIds = Array.from(new Set([id, ...dependentPlans.map((p) => p.id)]));
+  const blockingStatuses: SubscriptionStatus[] = [
+    SubscriptionStatus.ACTIVE,
+    SubscriptionStatus.PAST_DUE,
+    SubscriptionStatus.SUSPENDED
+  ];
+  const activeBlocking = await prisma.subscription.findMany({
+    where: { planId: { in: relatedPlanIds }, status: { in: blockingStatuses } },
+    select: { id: true, status: true, customerId: true, planId: true },
+    take: 20
+  });
+  if (activeBlocking.length) {
+    return res.status(409).json({
+      error: "product_has_active_subscriptions",
+      details: {
+        message: "Debes cancelar suscripciones activas/en mora/suspendidas antes de borrar el producto.",
+        count: activeBlocking.length,
+        statuses: blockingStatuses,
+        samples: activeBlocking
+      }
+    });
+  }
 
   const [subscriptionsCount, paymentLinksCount] = await Promise.all([
     prisma.subscription.count({ where: { planId: { in: relatedPlanIds } } }),
