@@ -12,7 +12,7 @@ import { CopyButton } from "../ui/CopyButton";
 import { getCsrfToken } from "../lib/csrf";
 import { createTenant } from "../tenants/actions";
 import { ScheduleCutoffButton } from "./ScheduleCutoffButton";
-import { ChangePlanButton } from "./ChangePlanButton";
+import { ChangePlanButton, type PlanOption } from "./ChangePlanButton";
 import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { BillingTenantModalButton } from "./BillingTenantModalButton";
 
@@ -262,7 +262,7 @@ export default async function BillingPage({
   const checkoutConfig = settings?.checkoutConfig || {};
   const subscriptionBaseUrl = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
   const plans = (plansRes.json?.items ?? []) as any[];
-  const planOptions = plans.map((p: any) => {
+  const planOptions: PlanOption[] = plans.map((p: any): PlanOption => {
     const catalogItemId = String((p?.metadata as any)?.catalog?.itemId || "");
     const productName = catalogItemId ? String(productById.get(catalogItemId)?.name || "") : "";
     const displayName = String(p?.metadata?.displayName || productName || p.name || "Plan");

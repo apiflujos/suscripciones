@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PendingButton } from "../ui/PendingButton";
 import { HelpTip } from "../ui/HelpTip";
 
-type PlanOption = {
+export type PlanOption = {
   id: string;
   name: string;
   sku?: string;
