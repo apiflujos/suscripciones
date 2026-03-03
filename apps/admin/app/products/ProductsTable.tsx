@@ -527,21 +527,27 @@ export function ProductsTable({
               </div>
             </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between", width: "100%" }}>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <button className="ghost btn-compact btn-blue btn-view" type="button" data-modal="true" data-loader="off" onClick={() => openTransactions(p)}>
-                  Transacciones
-                </button>
-                <button className="ghost btn-compact btn-send" type="button" data-modal="true" data-loader="off" onClick={() => openSendModal(p)}>
-                  Enviar
-                </button>
-                <button className="ghost btn-compact btn-green btn-create" type="button" data-modal="true" data-loader="off" onClick={() => openPlanModal(p)}>
-                  Crear suscripción
-                </button>
-                <button className="ghost btn-compact btn-blue btn-edit" type="button" data-modal="true" data-loader="off" onClick={() => openEditor(p)}>
-                  Editar
-                </button>
-                </div>
+                <div className="product-header-actions">
+                <button
+                  className="ghost btn-compact btn-history btn-icon-only"
+                  type="button"
+                  data-modal="true"
+                  data-loader="off"
+                  onClick={() => openTransactions(p)}
+                  aria-label="Historial de transacciones"
+                  title="Historial de transacciones"
+                />
+                <button
+                  className="ghost btn-compact btn-edit btn-icon-only"
+                  type="button"
+                  data-modal="true"
+                  data-loader="off"
+                  onClick={() => openEditor(p)}
+                  aria-label="Editar"
+                  title="Editar"
+                />
                 <DeleteProductButton action={deleteProductAction} csrfToken={csrfToken} productId={p.id} tenantId={String(p.tenantId || "")} returnTo={returnTo} />
+                </div>
               </div>
             </div>
             <div className="product-info">
@@ -573,6 +579,14 @@ export function ProductsTable({
                   {p.intervalUnit ? `${p.intervalCount || 1} ${String(p.intervalUnit).toLowerCase()}` : "—"}
                 </strong>
               </div>
+            </div>
+            <div className="product-footer-actions">
+              <button className="ghost btn-compact btn-send btn-noicon" type="button" data-modal="true" data-loader="off" onClick={() => openSendModal(p)}>
+                Enviar
+              </button>
+              <button className="ghost btn-compact btn-green btn-create btn-noicon" type="button" data-modal="true" data-loader="off" onClick={() => openPlanModal(p)}>
+                Crear suscripción
+              </button>
             </div>
           </div>
         ))}

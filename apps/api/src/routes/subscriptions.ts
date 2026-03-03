@@ -457,7 +457,9 @@ subscriptionsRouter.post("/:id/change-plan", async (req, res) => {
   const catalog = (plan.metadata as any)?.catalog ?? {};
   const pricing = catalog?.pricing ?? {};
   const isProduct = String(catalog?.kind || "").toUpperCase() === "PRODUCT";
-  const requiresShipping = isProduct && Boolean(catalog?.requiresShipping);
+  const requiresShippingRaw = catalog?.requiresShipping;
+  // Compatibilidad: planes antiguos pueden no tener requiresShipping en metadata.
+  const requiresShipping = isProduct && (requiresShippingRaw === true || requiresShippingRaw == null);
   const defaultShippingInCents = Number(pricing?.shippingInCents || 0);
   const requestedShippingInCents = requiresShipping
     ? (parsed.data.freeShipping ? 0 : Number(parsed.data.shippingInCents ?? defaultShippingInCents))

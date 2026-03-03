@@ -120,12 +120,13 @@
   --form-placeholder: var(--text-faint);
   --icon-text: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b6070' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 20h4l10-10-4-4L4 16v4z'/><path d='M14 6l4 4'/></svg>");
   --icon-search: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b6070' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='7'/><path d='M20 20l-3.5-3.5'/></svg>");
-  --icon-filter: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b6070' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 5h18'/><path d='M6 12h12'/><path d='M10 19h4'/></svg>");
+  --icon-filter: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b6070' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 5h18l-7 8v5l-4 2v-7L3 5z'/></svg>");
   --icon-email: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b6070' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='5' width='18' height='14' rx='2'/><path d='m3 7 9 6 9-6'/></svg>");
   --icon-phone: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b6070' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M22 16.9v3a2 2 0 0 1-2.2 2c-8-.8-14.2-7-15-15A2 2 0 0 1 6.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .8 3a2 2 0 0 1-.5 2.1l-1.3 1.3a16 16 0 0 0 6.5 6.5l1.3-1.3a2 2 0 0 1 2.1-.5c1 .4 2 .7 3 .8a2 2 0 0 1 1.7 2z'/></svg>");
   --icon-url: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b6070' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M10 13a5 5 0 0 0 7.1 0l2.1-2.1a5 5 0 0 0-7.1-7.1L10 5'/><path d='M14 11a5 5 0 0 0-7.1 0L4.8 13.1a5 5 0 0 0 7.1 7.1L14 19'/></svg>");
   --icon-date: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b6070' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='4' width='18' height='18' rx='2'/><path d='M8 2v4'/><path d='M16 2v4'/><path d='M3 10h18'/></svg>");
   --icon-time: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b6070' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M12 7v5l3 3'/></svg>");
+  --icon-history: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b6070' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 12a9 9 0 1 0 3-6.7'/><path d='M3 4v5h5'/><path d='M12 7v5l3 2'/></svg>");
   --icon-number: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b6070' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 9h16'/><path d='M4 15h16'/><path d='M10 3L8 21'/><path d='M16 3l-2 18'/></svg>");
   --icon-lock: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b6070' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='10' width='16' height='10' rx='2'/><path d='M8 10V7a4 4 0 0 1 8 0v3'/></svg>");
   --icon-card: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b6070' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='5' width='18' height='14' rx='2'/><path d='M3 10h18'/><path d='M7 15h4'/></svg>");
@@ -190,7 +191,7 @@ html[data-theme="dark"] {
   --form-placeholder: #9aa0b4;
   --icon-text: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c7c3d3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 20h4l10-10-4-4L4 16v4z'/><path d='M14 6l4 4'/></svg>");
   --icon-search: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c7c3d3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='7'/><path d='M20 20l-3.5-3.5'/></svg>");
-  --icon-filter: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c7c3d3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 5h18'/><path d='M6 12h12'/><path d='M10 19h4'/></svg>");
+  --icon-filter: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c7c3d3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 5h18l-7 8v5l-4 2v-7L3 5z'/></svg>");
   --icon-email: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c7c3d3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='5' width='18' height='14' rx='2'/><path d='m3 7 9 6 9-6'/></svg>");
   --icon-phone: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c7c3d3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M22 16.9v3a2 2 0 0 1-2.2 2c-8-.8-14.2-7-15-15A2 2 0 0 1 6.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .8 3a2 2 0 0 1-.5 2.1l-1.3 1.3a16 16 0 0 0 6.5 6.5l1.3-1.3a2 2 0 0 1 2.1-.5c1 .4 2 .7 3 .8a2 2 0 0 1 1.7 2z'/></svg>");
   --icon-url: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c7c3d3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M10 13a5 5 0 0 0 7.1 0l2.1-2.1a5 5 0 0 0-7.1-7.1L10 5'/><path d='M14 11a5 5 0 0 0-7.1 0L4.8 13.1a5 5 0 0 0 7.1 7.1L14 19'/></svg>");
@@ -239,7 +240,7 @@ html[data-theme="pink-dark"] {
   --form-placeholder: #e9a8c2;
   --icon-text: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f6c1d6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 20h4l10-10-4-4L4 16v4z'/><path d='M14 6l4 4'/></svg>");
   --icon-search: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f6c1d6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='7'/><path d='M20 20l-3.5-3.5'/></svg>");
-  --icon-filter: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f6c1d6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 5h18'/><path d='M6 12h12'/><path d='M10 19h4'/></svg>");
+  --icon-filter: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f6c1d6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 5h18l-7 8v5l-4 2v-7L3 5z'/></svg>");
   --icon-email: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f6c1d6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='5' width='18' height='14' rx='2'/><path d='m3 7 9 6 9-6'/></svg>");
   --icon-phone: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f6c1d6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M22 16.9v3a2 2 0 0 1-2.2 2c-8-.8-14.2-7-15-15A2 2 0 0 1 6.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .8 3a2 2 0 0 1-.5 2.1l-1.3 1.3a16 16 0 0 0 6.5 6.5l1.3-1.3a2 2 0 0 1 2.1-.5c1 .4 2 .7 3 .8a2 2 0 0 1 1.7 2z'/></svg>");
   --icon-url: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f6c1d6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M10 13a5 5 0 0 0 7.1 0l2.1-2.1a5 5 0 0 0-7.1-7.1L10 5'/><path d='M14 11a5 5 0 0 0-7.1 0L4.8 13.1a5 5 0 0 0 7.1 7.1L14 19'/></svg>");
@@ -322,7 +323,7 @@ html[data-contrast="high"] {
   --form-placeholder: #e5e7eb;
   --icon-text: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffd400' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 20h4l10-10-4-4L4 16v4z'/><path d='M14 6l4 4'/></svg>");
   --icon-search: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffd400' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='7'/><path d='M20 20l-3.5-3.5'/></svg>");
-  --icon-filter: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffd400' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 5h18'/><path d='M6 12h12'/><path d='M10 19h4'/></svg>");
+  --icon-filter: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffd400' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 5h18l-7 8v5l-4 2v-7L3 5z'/></svg>");
   --icon-email: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffd400' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='5' width='18' height='14' rx='2'/><path d='m3 7 9 6 9-6'/></svg>");
   --icon-phone: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffd400' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M22 16.9v3a2 2 0 0 1-2.2 2c-8-.8-14.2-7-15-15A2 2 0 0 1 6.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .8 3a2 2 0 0 1-.5 2.1l-1.3 1.3a16 16 0 0 0 6.5 6.5l1.3-1.3a2 2 0 0 1 2.1-.5c1 .4 2 .7 3 .8a2 2 0 0 1 1.7 2z'/></svg>");
   --icon-url: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffd400' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M10 13a5 5 0 0 0 7.1 0l2.1-2.1a5 5 0 0 0-7.1-7.1L10 5'/><path d='M14 11a5 5 0 0 0-7.1 0L4.8 13.1a5 5 0 0 0 7.1 7.1L14 19'/></svg>");
@@ -757,6 +758,157 @@ a {
   align-items: center;
   gap: 10px;
   flex-wrap: nowrap;
+}
+
+.topbarNotifications {
+  position: relative;
+}
+
+.topbarBellBtn {
+  border: 1px solid var(--stroke);
+  background: var(--panel);
+  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  position: relative;
+}
+
+.topbarBellBtn:hover {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.topbarBellIcon {
+  width: 18px;
+  height: 18px;
+}
+
+.topbarBellBadge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--status-danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border: 2px solid var(--panel);
+}
+
+.topbarBellPopover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: min(420px, 92vw);
+  max-height: 440px;
+  overflow: auto;
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  z-index: 2500;
+}
+
+.topbarBellHead {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--stroke);
+}
+
+.topbarBellList {
+  display: grid;
+}
+
+.topbarBellItem {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--stroke);
+  text-decoration: none;
+  color: inherit;
+}
+
+.topbarBellItem:hover {
+  background: var(--surface-2);
+}
+
+.topbarBellItemTitle {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+.topbarBellItemMsg {
+  font-size: 12px;
+  color: var(--text);
+}
+
+.topbarBellItemMeta {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.topbarBellEmpty {
+  padding: 12px;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+/* ===== Estandar visual global de cards y acciones ===== */
+:is(
+  .contact-card,
+  .product-card,
+  .billing-card,
+  .saved-conn-card,
+  .settingsPage .saved-conn-card,
+  .notificationsPage .saved-conn-card,
+  .cardPad
+) {
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+}
+
+:is(.contact-card-top, .product-header, .billing-header) {
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--stroke);
+}
+
+:is(.contact-card-top-actions, .product-header-actions, .billing-header-actions) {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+:is(.contact-card-top-actions, .product-header-actions, .billing-header-actions) .btn-icon-only {
+  width: 34px;
+  height: 34px;
+  min-width: 34px !important;
+  border-radius: 10px;
+}
+
+:is(.contact-footer, .product-footer-actions, .billing-actions, .module-footer) .btn-compact {
+  min-height: 32px;
+  border-radius: 10px;
+}
+
+:is(.contact-footer, .product-footer-actions, .billing-actions, .module-footer) :is(.btn-send, .btn-green) {
+  border-color: #16a34a;
+  color: #166534;
+  background: #ecfdf3;
 }
 
 .jobs-health-card {
@@ -1585,6 +1737,42 @@ a {
   gap: 10px;
   align-items: center;
   width: 100%;
+}
+
+.payments-totals-row {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.payments-actions-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.payments-actions-row .filtersSearch {
+  flex: 1 1 420px;
+  min-width: 320px;
+}
+
+.payments-actions-row .filtersSearch .input {
+  min-width: 280px;
+}
+
+.payments-action-form {
+  flex: 0 0 auto;
+}
+
+.payments-actions-row .btn-compact {
+  min-height: 34px;
+  border-radius: 10px;
+}
+
+.payments-actions-row .btn-compact::before {
+  content: none !important;
 }
 
 @media (max-width: 980px) {
@@ -2714,6 +2902,10 @@ textarea.input {
   --btn-icon: var(--icon-link);
 }
 
+.btn-history {
+  --btn-icon: var(--icon-time);
+}
+
 .btn-cancel {
   --btn-icon: var(--icon-close);
 }
@@ -2792,7 +2984,7 @@ textarea.input {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
   gap: 4px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .contact-card-top {
@@ -3151,6 +3343,8 @@ textarea.input {
   padding: 6px 8px;
   display: grid;
   gap: 6px;
+  height: 100%;
+  align-content: start;
 }
 
 .contact-block-title {
@@ -3282,6 +3476,20 @@ textarea.input {
   gap: 0 !important;
 }
 
+/* Estandar global: iconos en headers */
+:is(.panel-header, .settings-group-header, .billing-header, .tableHeader, .cardHead, .modal-panel .panel-header) .btn-icon-only,
+:is(.panel-header, .settings-group-header, .billing-header, .tableHeader, .cardHead, .modal-panel .panel-header) .btn-delete-icon {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+
+:is(.panel-header, .settings-group-header, .billing-header, .tableHeader, .cardHead, .modal-panel .panel-header) .btn-delete-icon {
+  border-color: var(--status-danger);
+  color: var(--status-danger);
+  background: var(--status-danger-bg);
+}
+
 .btn-xs {
   min-height: 24px;
   padding: 0 6px;
@@ -3342,23 +3550,23 @@ textarea.input {
 }
 
 .btn-blue {
-  border-color: var(--status-info);
-  color: var(--status-info);
-  background: var(--status-info-bg);
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-soft);
   --btn-icon: var(--icon-edit);
 }
 
 .btn-green {
-  border-color: var(--status-success);
-  color: var(--status-success);
-  background: var(--status-success-bg);
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-soft);
   --btn-icon: var(--icon-check);
 }
 
 .btn-amber {
-  border-color: var(--status-warning);
-  color: var(--status-warning);
-  background: var(--status-warning-bg);
+  border-color: var(--stroke-strong);
+  color: var(--text);
+  background: var(--panel);
   --btn-icon: var(--icon-alert);
 }
 
@@ -3371,6 +3579,26 @@ textarea.input {
   color: var(--status-danger);
   background: var(--status-danger-bg);
   --btn-icon: var(--icon-trash);
+}
+
+.billing-header-actions .btn-compact {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  padding: 0;
+  border-radius: 10px;
+}
+
+.billing-header-actions .ghost {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.billing-header-actions .ghost:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-soft);
 }
 
 .was-validated .input:invalid,
@@ -4926,7 +5154,39 @@ textarea.input {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.billing-actions-left,
+.billing-actions-right {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.billing-actions-right {
   justify-content: flex-end;
+}
+
+.billing-inline-cutoff {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.billing-inline-cutoff .input {
+  min-width: 210px;
+  height: 32px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.tiny-total {
+  font-size: 11px;
+  color: var(--text-faint);
 }
 
 .billing-actions .btn-compact {
@@ -7024,6 +7284,12 @@ body.is-global-loading {
   align-items: flex-start;
 }
 
+.product-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .product-title-row {
   display: grid;
   grid-template-columns: 44px 1fr;
@@ -7075,6 +7341,14 @@ body.is-global-loading {
   display: inline;
   color: var(--text-faint);
   font-size: 11px;
+}
+
+.product-footer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 4px;
 }
 
 .send-product-grid {
@@ -7551,6 +7825,18 @@ html[data-contrast="high"] .icon-btn.danger:hover {
   min-width: 92px;
 }
 
+.module-footer .btn-compact::before,
+.module-footer .primary::before,
+.module-footer .ghost::before,
+.module-footer .btn::before {
+  content: none !important;
+}
+
+/* Estandar global: botones de acción en footers sin icono */
+:is(.module-footer, .billing-actions, .contact-footer, .wizard-footer, .drawer-footer, .modal-footer) :is(.btn, .ghost, .primary, .btn-compact)::before {
+  content: none !important;
+}
+
 .module-footer .ghost {
   background: #eef2f7;
   border-color: #cbd5e1;
@@ -7652,6 +7938,20 @@ html[data-contrast="high"] .module-footer .ghost {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+.saved-conn-actions .btn-compact {
+  min-height: 34px;
+  border-radius: 10px;
+}
+
+.saved-conn-actions .btn-compact::before {
+  content: none !important;
+}
+
+.saved-conn-actions .btn-delete-icon::before,
+.saved-conn-actions .btn-icon-only::before {
+  content: "" !important;
 }
 
 .settingsPage .saved-conn-actions .ghost {

@@ -23,6 +23,7 @@ type Toast = RealtimeEvent & { seenAt: number };
 type RealtimeStatus = "connecting" | "connected" | "disconnected";
 
 const STORAGE_KEY = "apiflujos-realtime-last";
+const NOTIFICATIONS_STORAGE_KEY = "apiflujos-notifications-feed";
 const CASH_SOUND_SRC = "/brand/cashier.mp3";
 
 export function RealtimeNotifier() {
@@ -286,6 +287,18 @@ export function RealtimeNotifier() {
       seenIdsRef.current = new Set(trimmed);
     }
     if (freshEvents.length) {
+      try {
+        const existingRaw = window.localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
+        const parsedExisting = existingRaw ? JSON.parse(existingRaw) : [];
+        const existing = Array.isArray(parsedExisting) ? (parsedExisting as RealtimeEvent[]) : [];
+        const merged = [...freshEvents, ...existing]
+          .filter((ev, idx, arr) => arr.findIndex((x) => x.id === ev.id) === idx)
+          .slice(0, 80);
+        window.localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(merged));
+        window.dispatchEvent(
+          new CustomEvent("apiflujos:notifications-updated", { detail: { count: merged.length, items: merged } })
+        );
+      } catch {}
       for (const e of freshEvents) {
         if (e.kind === "ai_response" || e.kind === "ai_failed") {
           try {

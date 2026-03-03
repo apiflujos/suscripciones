@@ -2,7 +2,6 @@ import { createProduct, deleteProduct } from "./actions";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { ProductsTable } from "./ProductsTable";
 import { getCsrfToken } from "../lib/csrf";
-import { createTenant } from "../tenants/actions";
 import { ProductsModals } from "./ProductsModals";
 import { createCustomerFromBilling, createPlanAndSubscription } from "../billing/actions";
 import { SmartViewsBar } from "../smart-views/SmartViewsBar";
@@ -148,7 +147,7 @@ export default async function ProductsPage({
                       placeholder="Buscar producto o servicio..."
                       aria-label="Buscar productos"
                     />
-                    <button className="ghost btn-icon-only btn-filter" type="submit" aria-label="Buscar" title="Buscar" />
+                    <button className="ghost btn-noicon" type="submit">Buscar</button>
                   </form>
                   <SmartViewsBar
                     scope="products"
@@ -161,24 +160,7 @@ export default async function ProductsPage({
                     compactInline
                   />
                 </div>
-                <form action={createTenant} className="filtersForm">
-                  <input type="hidden" name="csrf" value={csrfToken} />
-                  <input
-                    type="hidden"
-                    name="returnTo"
-                    value={`/products${
-                      tenantId || q
-                        ? `?${new URLSearchParams({
-                            ...(tenantId ? { tenantId } : {}),
-                            ...(q ? { q } : {})
-                          }).toString()}`
-                        : ""
-                    }`}
-                  />
-                  <input className="input" name="name" placeholder="Nuevo canal" />
-                  <button className="ghost btn-create" type="submit">Crear canal</button>
-                </form>
-                <div className="field-hint">{productItems.length} resultados</div>
+                <div className="field-hint tiny-total">{productItems.length} resultados</div>
               </div>
             </div>
           </div>

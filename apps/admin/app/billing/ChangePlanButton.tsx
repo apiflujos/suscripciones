@@ -52,6 +52,13 @@ function formatCurrencyInput(input: string, currency: string) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency, maximumFractionDigits: 0 }).format(value);
 }
 
+function planRequiresShipping(plan: PlanOption | null | undefined) {
+  if (!plan) return false;
+  const kind = String(plan.kind || "").toUpperCase();
+  if (kind !== "PRODUCT") return false;
+  return plan.requiresShipping === true || plan.requiresShipping == null;
+}
+
 export function ChangePlanButton({
   subscriptionId,
   currentPlanId,
@@ -118,27 +125,31 @@ export function ChangePlanButton({
         const json = await res.json().catch(() => null);
         if (canceled) return;
         const items = Array.isArray(json?.items) ? json.items : [];
-        const mapped = items.map((p: any) => ({
-          id: String(p?.id || ""),
-          name: String(p?.metadata?.displayName || p?.name || "Plan"),
-          sku: String(p?.metadata?.sku || ""),
-          searchText: [
-            p?.metadata?.displayName,
-            p?.name,
-            p?.metadata?.sku,
-            p?.metadata?.catalog?.name,
-            p?.id
-          ]
-            .filter(Boolean)
-            .join(" ")
-            .toLowerCase(),
-          collectionMode: String(p?.metadata?.collectionMode || p?.collectionMode || ""),
-          priceInCents: Number(p?.priceInCents || 0),
-          currency: String(p?.currency || "COP"),
-          kind: String(p?.metadata?.catalog?.kind || "").toUpperCase() === "SERVICE" ? "SERVICE" : "PRODUCT",
-          requiresShipping: Boolean(p?.metadata?.catalog?.requiresShipping),
-          shippingInCents: Number(p?.metadata?.catalog?.pricing?.shippingInCents || 0)
-        }));
+        const mapped = items.map((p: any) => {
+          const kind = String(p?.metadata?.catalog?.kind || "").toUpperCase() === "SERVICE" ? "SERVICE" : "PRODUCT";
+          const requiresShippingRaw = p?.metadata?.catalog?.requiresShipping;
+          return {
+            id: String(p?.id || ""),
+            name: String(p?.metadata?.displayName || p?.name || "Plan"),
+            sku: String(p?.metadata?.sku || ""),
+            searchText: [
+              p?.metadata?.displayName,
+              p?.name,
+              p?.metadata?.sku,
+              p?.metadata?.catalog?.name,
+              p?.id
+            ]
+              .filter(Boolean)
+              .join(" ")
+              .toLowerCase(),
+            collectionMode: String(p?.metadata?.collectionMode || p?.collectionMode || ""),
+            priceInCents: Number(p?.priceInCents || 0),
+            currency: String(p?.currency || "COP"),
+            kind,
+            requiresShipping: kind === "PRODUCT" && (requiresShippingRaw === true || requiresShippingRaw == null),
+            shippingInCents: Number(p?.metadata?.catalog?.pricing?.shippingInCents || 0)
+          };
+        });
         setRemotePlans(mapped.filter((p: any) => p.id));
       } catch {
         if (!canceled) setRemotePlans([]);
@@ -165,11 +176,7 @@ export function ChangePlanButton({
   const selectedPlan = useMemo(() => {
     return filteredPlans.find((p) => String(p.id) === String(planId)) || plans.find((p) => String(p.id) === String(planId)) || null;
   }, [filteredPlans, plans, planId]);
-  const selectedRequiresShipping = Boolean(
-    selectedPlan &&
-      String(selectedPlan.kind || "").toUpperCase() === "PRODUCT" &&
-      Boolean(selectedPlan.requiresShipping)
-  );
+  const selectedRequiresShipping = planRequiresShipping(selectedPlan);
   const currentShippingComparable = currentRequiresShipping ? Number(currentShippingInCents || 0) : 0;
   const selectedShippingInCents = selectedRequiresShipping ? (freeShipping ? 0 : currencyInputToCents(shippingCop)) : 0;
   const shippingChanged = selectedRequiresShipping && selectedShippingInCents !== currentShippingComparable;
@@ -181,7 +188,7 @@ export function ChangePlanButton({
   useEffect(() => {
     const plan = plans.find((p) => String(p.id) === String(planId)) || remotePlans.find((p) => String(p.id) === String(planId));
     if (!plan) return;
-    const requires = String(plan.kind || "").toUpperCase() === "PRODUCT" && Boolean(plan.requiresShipping);
+    const requires = planRequiresShipping(plan);
     if (!requires) {
       setFreeShipping(false);
       setShippingCop("");
@@ -199,8 +206,8 @@ export function ChangePlanButton({
         type="button"
         data-loader="off"
         onClick={() => setOpen(true)}
-        aria-label={iconOnly ? "Editar" : undefined}
-        title={iconOnly ? "Editar" : undefined}
+        aria-label={iconOnly ? "Editar producto/flete" : undefined}
+        title={iconOnly ? "Editar producto/flete" : undefined}
       >
         {iconOnly ? null : "Cambiar producto"}
       </button>

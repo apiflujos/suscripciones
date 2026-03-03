@@ -554,14 +554,6 @@ export default async function LogsPage({
                   <span className="pill pill-bad">Fallidos {webhooksSummary.failed}</span>
                 </>
               ) : null}
-              {tab === "payments" ? (
-                <>
-                  <span className="pill">Total {totals.payments ?? paymentsSummary.total}</span>
-                  <span className="pill pill-ok">Pagados {paymentsSummary.approved}</span>
-                  <span className="pill pill-warn">Pendientes {paymentsSummary.pending}</span>
-                  <span className="pill pill-bad">Fallidos {paymentsSummary.failed}</span>
-                </>
-              ) : null}
               {tab === "messages" ? (
                 <>
                   <span className="pill">Total {totals.messages ?? messageItems.length}</span>
@@ -650,7 +642,7 @@ export default async function LogsPage({
             <div className="filtersRow">
               <div className="filtersLeft">
                 <div className="filtersPanel">
-                  <div className="contacts-search-row">
+                  <div className="payments-actions-row">
                     <form action="/payments" method="GET" className="filtersForm filtersSearch" data-debounce-form="true">
                       <input
                         className="input"
@@ -659,21 +651,8 @@ export default async function LogsPage({
                         placeholder="Buscar cliente, referencia o transacción..."
                         aria-label="Buscar pagos"
                       />
-                      <button className="ghost btn-icon-only btn-filter" type="submit" aria-label="Buscar" title="Buscar" />
+                      <button className="ghost btn-noicon" type="submit">Buscar</button>
                     </form>
-                    <form action={reconcilePendingPayments} className="filtersForm" style={{ display: "inline-flex" }}>
-                      <input type="hidden" name="csrf" value={csrfToken} />
-                      <input type="hidden" name="days" value="7" />
-                      <input type="hidden" name="minutes" value="720" />
-                      <input type="hidden" name="take" value="150" />
-                      {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-                      <PendingButton className="ghost btn-compact" type="submit" pendingText="Conciliando...">
-                        Recolectar pagos
-                      </PendingButton>
-                    </form>
-                    <div title="Reconciliación manual de una transacción Wompi" style={{ display: "inline-flex", alignItems: "center" }}>
-                      <ReconcilePaymentModal csrfToken={csrfToken} action={reconcilePayment} />
-                    </div>
                     <SmartViewsBar
                       scope="payments"
                       initialViewId={viewId}
@@ -683,6 +662,25 @@ export default async function LogsPage({
                         ...(q ? { q } : {})
                       }}
                     />
+                    <form action={reconcilePendingPayments} className="filtersForm payments-action-form" style={{ display: "inline-flex" }}>
+                      <input type="hidden" name="csrf" value={csrfToken} />
+                      <input type="hidden" name="days" value="7" />
+                      <input type="hidden" name="minutes" value="720" />
+                      <input type="hidden" name="take" value="150" />
+                      {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+                      <PendingButton className="ghost btn-compact" type="submit" pendingText="Conciliando...">
+                        Recolectar pagos
+                      </PendingButton>
+                    </form>
+                    <div className="payments-action-form" title="Reconciliación manual de una transacción Wompi" style={{ display: "inline-flex", alignItems: "center" }}>
+                      <ReconcilePaymentModal csrfToken={csrfToken} action={reconcilePayment} />
+                    </div>
+                  </div>
+                  <div className="payments-totals-row">
+                    <span className="pill">Total {totals.payments ?? paymentsSummary.total}</span>
+                    <span className="pill pill-ok">Pagados {paymentsSummary.approved}</span>
+                    <span className="pill pill-warn">Pendientes {paymentsSummary.pending}</span>
+                    <span className="pill pill-bad">Fallidos {paymentsSummary.failed}</span>
                   </div>
                 </div>
               </div>

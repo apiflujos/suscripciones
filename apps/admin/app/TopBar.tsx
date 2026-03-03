@@ -6,6 +6,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { AdminSession } from "../lib/session";
 
 type Header = { title: string; subtitle: string };
+type HeaderNotification = {
+  id: string;
+  ts: string;
+  title: string;
+  message: string;
+  level?: "info" | "error";
+  href?: string | null;
+};
 
 function getHeader(pathname: string): Header {
   if (pathname === "/") return { title: "Métricas", subtitle: "Ajusta rango y granularidad para leer la evolución de las métricas." };
@@ -41,6 +49,15 @@ function UserMenuIcon({ className }: { className?: string }) {
   );
 }
 
+function BellIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M15 17H5l2-2v-4a5 5 0 1 1 10 0v4l2 2h-4" />
+      <path d="M10 17a2 2 0 0 0 4 0" />
+    </svg>
+  );
+}
+
 function displayNameFromEmail(email: string) {
   const e = String(email || "").trim();
   if (!e) return "Usuario";
@@ -55,8 +72,11 @@ export function TopBar({ session }: { session: AdminSession | null }) {
   const header = useMemo(() => getHeaderWithTab(pathname, headerTab), [pathname, headerTab]);
   const isSuperAdmin = session?.role === "SUPER_ADMIN";
   const [menuOpen, setMenuOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState<HeaderNotification[]>([]);
   const [paymentPulse, setPaymentPulse] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const notifRef = useRef<HTMLDivElement | null>(null);
   const pulseRef = useRef<NodeJS.Timeout | null>(null);
 
   const triggerPaymentPulse = () => {
@@ -70,11 +90,14 @@ export function TopBar({ session }: { session: AdminSession | null }) {
       const t = e.target as Node | null;
       if (!t) return;
       if (menuRef.current && menuRef.current.contains(t)) return;
+      if (notifRef.current && notifRef.current.contains(t)) return;
       setMenuOpen(false);
+      setNotifOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setMenuOpen(false);
+        setNotifOpen(false);
       }
     };
     document.addEventListener("click", onDocClick);
@@ -92,6 +115,27 @@ export function TopBar({ session }: { session: AdminSession | null }) {
       window.removeEventListener("apiflujos:payment-approved", onPayment);
       if (pulseRef.current) clearTimeout(pulseRef.current);
     };
+  }, []);
+
+  useEffect(() => {
+    const storageKey = "apiflujos-notifications-feed";
+    const load = () => {
+      try {
+        const raw = window.localStorage.getItem(storageKey);
+        const parsed = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(parsed)) {
+          setNotifications([]);
+          return;
+        }
+        setNotifications(parsed.slice(0, 20));
+      } catch {
+        setNotifications([]);
+      }
+    };
+    load();
+    const onUpdated = () => load();
+    window.addEventListener("apiflujos:notifications-updated", onUpdated as EventListener);
+    return () => window.removeEventListener("apiflujos:notifications-updated", onUpdated as EventListener);
   }, []);
 
   return (
@@ -115,6 +159,52 @@ export function TopBar({ session }: { session: AdminSession | null }) {
       </div>
 
       <div className="topbarRight" aria-label="Usuario">
+        <div className="topbarNotifications" ref={notifRef}>
+          <button
+            type="button"
+            className="topbarBellBtn"
+            data-loader="off"
+            onClick={() => setNotifOpen((v) => !v)}
+            aria-label="Abrir notificaciones"
+            aria-haspopup="menu"
+            aria-expanded={notifOpen ? "true" : "false"}
+          >
+            <BellIcon className="topbarBellIcon" />
+            {notifications.length ? <span className="topbarBellBadge">{Math.min(notifications.length, 99)}</span> : null}
+          </button>
+          {notifOpen ? (
+            <div className="topbarBellPopover" role="menu" aria-label="Notificaciones">
+              <div className="topbarBellHead">
+                <strong>Notificaciones</strong>
+              </div>
+              <div className="topbarBellList">
+                {notifications.length ? (
+                  notifications.map((n) =>
+                    n.href ? (
+                      <a key={n.id} className="topbarBellItem" href={n.href} data-loader="off">
+                        <div className="topbarBellItemTitle">{n.title || "Evento"}</div>
+                        <div className="topbarBellItemMsg">{n.message || "Sin detalle"}</div>
+                        <div className="topbarBellItemMeta">
+                          {new Date(n.ts).toLocaleString("es-CO", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}
+                        </div>
+                      </a>
+                    ) : (
+                      <div key={n.id} className="topbarBellItem">
+                        <div className="topbarBellItemTitle">{n.title || "Evento"}</div>
+                        <div className="topbarBellItemMsg">{n.message || "Sin detalle"}</div>
+                        <div className="topbarBellItemMeta">
+                          {new Date(n.ts).toLocaleString("es-CO", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}
+                        </div>
+                      </div>
+                    )
+                  )
+                ) : (
+                  <div className="topbarBellEmpty">Sin notificaciones.</div>
+                )}
+              </div>
+            </div>
+          ) : null}
+        </div>
         <div className="userMenu" ref={menuRef}>
           <button
             type="button"

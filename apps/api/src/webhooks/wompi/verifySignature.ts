@@ -18,8 +18,15 @@ export function computeWompiChecksum(event: WompiEvent, eventsSecret: string): s
   const dataRoot = (event as any).data;
   const concatenated = (event.signature?.properties ?? [])
     .map((p) => {
-      // Wompi properties are paths relative to the `data` object (e.g. `transaction.id`)
-      return getByPath(dataRoot, p);
+      // Compatibilidad: Wompi ha usado rutas relativas (`transaction.id`) y absolutas (`data.transaction.id`).
+      const path = String(p || "").trim();
+      if (!path) return "";
+      const rel = getByPath(dataRoot, path);
+      if (rel) return rel;
+      const abs = getByPath(event as any, path);
+      if (abs) return abs;
+      if (path.startsWith("data.")) return getByPath(dataRoot, path.slice(5));
+      return getByPath(event as any, `data.${path}`);
     })
     .join("");
 

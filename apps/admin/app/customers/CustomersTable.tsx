@@ -113,8 +113,6 @@ export function CustomersTable({
   const [tokenModalCustomer, setTokenModalCustomer] = useState<CustomerRow | null>(null);
   const [clearingTokenId, setClearingTokenId] = useState<string | null>(null);
   const [tokenStateByCustomer, setTokenStateByCustomer] = useState<Record<string, boolean>>({});
-  const [sendMenuOpen, setSendMenuOpen] = useState(false);
-  const [sendMenuCustomer, setSendMenuCustomer] = useState<CustomerRow | null>(null);
   const planBaseUrl = String(checkoutConfig?.planBaseUrl || "").trim();
   const subscriptionBaseUrl = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
   const publicBaseUrl = String(checkoutConfig?.planBaseUrl || checkoutConfig?.subscriptionBaseUrl || "").trim();
@@ -406,18 +404,6 @@ export function CustomersTable({
     setSendOk((prev) => ({ ...prev, [customer.id]: "" }));
   }
 
-  function openSendMenu(customer: CustomerRow) {
-    lastActiveRef.current = document.activeElement as HTMLElement | null;
-    setSendMenuCustomer(customer);
-    setSendMenuOpen(true);
-  }
-
-  function closeSendMenu() {
-    setSendMenuOpen(false);
-    setSendMenuCustomer(null);
-    setTimeout(() => lastActiveRef.current?.focus(), 0);
-  }
-
   function closePayModal() {
     setPayModalOpen(false);
     setPayModalCustomer(null);
@@ -570,12 +556,26 @@ export function CustomersTable({
                   </div>
                 </div>
                   <div className="contact-card-top-actions">
-                    <button className="ghost btn-compact btn-noicon" type="button" onClick={() => openTransactions(c)} aria-label="Historial de pagos">
-                      Historial
-                    </button>
-                    <button className="ghost btn-compact btn-noicon" type="button" onClick={() => openEditor(c)} aria-label="Editar">
-                      Editar
-                    </button>
+                    <Link
+                      className="ghost btn-compact btn-link btn-icon-only"
+                      href={`/customers/${c.id}`}
+                      aria-label="Ver detalle"
+                      title="Ver detalle"
+                    />
+                    <button
+                      className="ghost btn-compact btn-history btn-icon-only"
+                      type="button"
+                      onClick={() => openTransactions(c)}
+                      aria-label="Historial de pagos"
+                      title="Historial de pagos"
+                    />
+                    <button
+                      className="ghost btn-compact btn-edit btn-icon-only"
+                      type="button"
+                      onClick={() => openEditor(c)}
+                      aria-label="Editar"
+                      title="Editar"
+                    />
                   <form
                     action={deleteCustomer}
                     className="delete-row"
@@ -675,12 +675,15 @@ export function CustomersTable({
                         {clearingTokenId === c.id ? "Quitando..." : "Quitar token"}
                       </button>
                     ) : null}
-                    <button className="ghost btn-compact btn-noicon btn-send contact-action-btn" type="button" data-modal="true" data-loader="off" onClick={() => openSendMenu(c)}>
-                      Enviar
+                    <button className="ghost btn-compact btn-noicon btn-send contact-action-btn" type="button" data-modal="true" data-loader="off" onClick={() => openPayModal(c)}>
+                      Enviar link de pago
                     </button>
-                    <Link className="ghost btn-compact btn-noicon btn-blue btn-view contact-action-btn" href={`/customers/${c.id}`}>
-                      Ver detalles
-                    </Link>
+                    <button className="ghost btn-compact btn-noicon btn-send contact-action-btn" type="button" data-modal="true" data-loader="off" onClick={() => openTokenModal(c)}>
+                      Enviar débito automático
+                    </button>
+                    <button className="ghost btn-compact btn-noicon btn-send contact-action-btn" type="button" data-modal="true" data-loader="off" onClick={() => openCartModal(c)}>
+                      Enviar catálogo
+                    </button>
                     <button className="ghost btn-compact btn-noicon btn-blue btn-create contact-action-btn" type="button" data-modal="true" data-loader="off" onClick={() => openPlanModal(c)}>
                       Crear suscripción
                     </button>
@@ -1038,67 +1041,6 @@ export function CustomersTable({
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      ) : null}
-
-      {sendMenuOpen && sendMenuCustomer ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel" style={{ maxWidth: 520 }}>
-            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <strong>Enviar</strong>
-              <button className="ghost modal-close" type="button" onClick={closeSendMenu} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                X
-              </button>
-            </div>
-            <div className="panel module">
-              <div className="field-hint" style={{ marginBottom: 12 }}>
-                Selecciona qué deseas enviar al cliente.
-              </div>
-              <div className="send-grid">
-                <button
-                  type="button"
-                  className="ghost btn-noicon send-option"
-                  onClick={() => {
-                    closeSendMenu();
-                    openPayModal(sendMenuCustomer);
-                  }}
-                  data-loader="off"
-                >
-                  <span className="send-icon btn-link" aria-hidden />
-                  <span>Link de pago</span>
-                </button>
-                <button
-                  type="button"
-                  className="ghost btn-noicon send-option"
-                  onClick={() => {
-                    closeSendMenu();
-                    openTokenModal(sendMenuCustomer);
-                  }}
-                  data-loader="off"
-                >
-                  <span className="send-icon btn-lock" aria-hidden />
-                  <span>Tokenización</span>
-                </button>
-                <button
-                  type="button"
-                  className="ghost btn-noicon send-option"
-                  onClick={() => {
-                    closeSendMenu();
-                    openCartModal(sendMenuCustomer);
-                  }}
-                  data-loader="off"
-                >
-                  <span className="send-icon btn-card" aria-hidden />
-                  <span>Catálogo</span>
-                </button>
-              </div>
-              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                <button className="ghost btn-cancel" type="button" onClick={closeSendMenu} data-modal-close="true" data-loader="off">
-                  Cerrar
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       ) : null}

@@ -1,7 +1,6 @@
 import { activateSubscription, cancelSubscription, deleteSubscription, resumeSubscription, suspendSubscription } from "../subscriptions/actions";
 import { DeleteSubscriptionButton } from "./DeleteSubscriptionButton";
-import { DeletePlanButton } from "./DeletePlanButton";
-import { changeSubscriptionPlan, chargeSubscriptionNow, createCustomerFromBilling, createPlanAndSubscription, deletePlanAndSubscription, scheduleCutoff, sendCentralComPaymentLink, sendCentralComTokenizationLink, updateSubscriptionTenants } from "./actions";
+import { changeSubscriptionPlan, chargeSubscriptionNow, createCustomerFromBilling, createPlanAndSubscription, scheduleCutoff, sendCentralComPaymentLink, sendCentralComTokenizationLink, updateSubscriptionTenants } from "./actions";
 import { ChargeStatusModal } from "./ChargeStatusModal";
 import { NewBillingAssignmentForm } from "./NewBillingAssignmentForm";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
@@ -10,8 +9,6 @@ import { LocalDateTime } from "../ui/LocalDateTime";
 import { HelpTip } from "../ui/HelpTip";
 import { CopyButton } from "../ui/CopyButton";
 import { getCsrfToken } from "../lib/csrf";
-import { createTenant } from "../tenants/actions";
-import { ScheduleCutoffButton } from "./ScheduleCutoffButton";
 import { ChangePlanButton, type PlanOption } from "./ChangePlanButton";
 import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { BillingTenantModalButton } from "./BillingTenantModalButton";
@@ -42,6 +39,19 @@ function fmtEvery(intervalUnit: any, intervalCount: any) {
   if (unit === "WEEK") return c === 1 ? "cada semana" : `cada ${c} semanas`;
   if (unit === "MONTH") return c === 1 ? "cada mes" : `cada ${c} meses`;
   return `cada ${c} (personalizado)`;
+}
+
+function toLocalInput(value?: string | null) {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  const mm = pad(d.getMonth() + 1);
+  const dd = pad(d.getDate());
+  const hh = pad(d.getHours());
+  const mi = pad(d.getMinutes());
+  return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
 }
 
 function getTipo(plan: any) {
@@ -263,7 +273,11 @@ export default async function BillingPage({
   const subscriptionBaseUrl = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
   const plans = (plansRes.json?.items ?? []) as any[];
   const planOptions: PlanOption[] = plans.map((p: any): PlanOption => {
-    const catalogItemId = String((p?.metadata as any)?.catalog?.itemId || "");
+    const catalog = (p?.metadata as any)?.catalog ?? {};
+    const kind = String(catalog?.kind || "").toUpperCase() === "SERVICE" ? "SERVICE" : "PRODUCT";
+    const requiresShippingRaw = catalog?.requiresShipping;
+    const requiresShipping = kind === "PRODUCT" && (requiresShippingRaw === true || requiresShippingRaw == null);
+    const catalogItemId = String(catalog?.itemId || "");
     const productName = catalogItemId ? String(productById.get(catalogItemId)?.name || "") : "";
     const displayName = String(p?.metadata?.displayName || productName || p.name || "Plan");
     const sku = String(p?.metadata?.sku || "");
@@ -276,9 +290,9 @@ export default async function BillingPage({
       collectionMode: String(p?.metadata?.collectionMode || p.collectionMode || ""),
       priceInCents: Number(p.priceInCents || 0),
       currency: String(p.currency || "COP"),
-      kind: String((p?.metadata as any)?.catalog?.kind || "").toUpperCase() === "SERVICE" ? "SERVICE" : "PRODUCT",
-      requiresShipping: Boolean((p?.metadata as any)?.catalog?.requiresShipping),
-      shippingInCents: Number((p?.metadata as any)?.catalog?.pricing?.shippingInCents || 0)
+      kind,
+      requiresShipping,
+      shippingInCents: Number(catalog?.pricing?.shippingInCents || 0)
     };
   });
 
@@ -334,7 +348,10 @@ export default async function BillingPage({
         mode: String(plan?.collectionMode || plan?.metadata?.collectionMode || "MANUAL_LINK"),
         tenantName: tenantNameList.length ? tenantNameList.join(", ") : "—",
         currentShippingInCents: Number((plan?.metadata as any)?.catalog?.pricing?.shippingInCents || 0),
-        currentRequiresShipping: Boolean((plan?.metadata as any)?.catalog?.requiresShipping)
+        currentRequiresShipping:
+          String((plan?.metadata as any)?.catalog?.kind || "").toUpperCase() === "PRODUCT" &&
+          ((plan?.metadata as any)?.catalog?.requiresShipping === true ||
+            (plan?.metadata as any)?.catalog?.requiresShipping == null)
       };
     })
     .filter((r) => {
@@ -417,7 +434,7 @@ export default async function BillingPage({
                       placeholder="Buscar por contacto, email o identificación..."
                       aria-label="Buscar suscripciones"
                     />
-                    <button className="ghost btn-icon-only btn-filter" type="submit" aria-label="Buscar" title="Buscar" />
+                    <button className="ghost btn-noicon" type="submit">Buscar</button>
                   </form>
                   <SmartViewsBar
                     scope="billing"
@@ -433,13 +450,7 @@ export default async function BillingPage({
                     compactInline
                   />
                 </div>
-                <form action={createTenant} className="filtersForm">
-                  <input type="hidden" name="csrf" value={csrfToken} />
-                  <input type="hidden" name="returnTo" value={returnTo} />
-                  <input className="input" name="name" placeholder="Nuevo canal" />
-                  <button className="ghost btn-create" type="submit">Crear canal</button>
-                </form>
-                <div className="field-hint">{rows.length} resultados</div>
+                <div className="field-hint tiny-total">{rows.length} resultados</div>
               </div>
             </div>
           </div>
@@ -478,8 +489,7 @@ export default async function BillingPage({
               const chargedForRow = chargeStatus === "ok" && actionSubscriptionId === r.id;
               const cutoffForRow = cutoffScheduled && actionSubscriptionId === r.id;
               const tenantsUpdatedForRow = tenantsUpdated && actionSubscriptionId === r.id;
-              const needsToken = r.mode === "AUTO_DEBIT" && !r.customerTokenized;
-              const canSendToken = needsToken && Boolean(subscriptionBaseUrl);
+              const canSendToken = r.mode === "AUTO_DEBIT" && Boolean(subscriptionBaseUrl);
               return (
                 <div className="billing-card" key={r.id}>
                   <div className="billing-header">
@@ -505,9 +515,6 @@ export default async function BillingPage({
                       />
                     </div>
                     <div className="billing-header-right">
-                      <span className={`pill ${isPlan ? "pill-warn" : "pill-ok"}`} style={{ fontSize: 12 }}>
-                        {isPlan ? "Link de pago" : "Débito automático"}
-                      </span>
                       <div className="billing-header-actions">
                         {r.planId ? (
                           <ChangePlanButton
@@ -525,7 +532,7 @@ export default async function BillingPage({
                           />
                         ) : null}
                         <a
-                          className="ghost btn-compact btn-open btn-icon-only"
+                          className="ghost btn-compact btn-history btn-icon-only"
                           href={`/customers?${new URLSearchParams({
                             tx: r.customerId,
                             ...(r.tenantId ? { tenantId: r.tenantId } : {})
@@ -534,47 +541,6 @@ export default async function BillingPage({
                           title="Historial"
                         />
                         <DeleteSubscriptionButton action={deleteSubscription} csrfToken={csrfToken} subscriptionId={r.id} tenantId={r.tenantId} />
-                        {r.tipoTx === "Link de pago" && r.status === "CANCELED" && r.planId ? (
-                          <DeletePlanButton action={deletePlanAndSubscription} csrfToken={csrfToken} subscriptionId={r.id} planId={r.planId} tenantId={r.tenantId} />
-                        ) : null}
-                        {r.status === "SUSPENDED" ? (
-                          <form action={resumeSubscription}>
-                            <input type="hidden" name="csrf" value={csrfToken} />
-                            <input type="hidden" name="subscriptionId" value={r.id} />
-                            {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                            <button className="ghost btn-compact btn-noicon btn-green" type="submit">
-                              Reanudar
-                            </button>
-                          </form>
-                        ) : r.status === "CANCELED" ? (
-                          <form action={activateSubscription}>
-                            <input type="hidden" name="csrf" value={csrfToken} />
-                            <input type="hidden" name="subscriptionId" value={r.id} />
-                            {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                            <button className="ghost btn-compact btn-noicon btn-green" type="submit">
-                              Activar
-                            </button>
-                          </form>
-                        ) : (
-                          <>
-                            <form action={suspendSubscription}>
-                              <input type="hidden" name="csrf" value={csrfToken} />
-                              <input type="hidden" name="subscriptionId" value={r.id} />
-                              {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                              <button className="ghost btn-compact btn-noicon btn-amber" type="submit">
-                                Suspender
-                              </button>
-                            </form>
-                            <form action={cancelSubscription}>
-                              <input type="hidden" name="csrf" value={csrfToken} />
-                              <input type="hidden" name="subscriptionId" value={r.id} />
-                              {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                              <button className="ghost btn-compact btn-noicon btn-red" type="submit">
-                                Cancelar
-                              </button>
-                            </form>
-                          </>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -602,7 +568,7 @@ export default async function BillingPage({
                     </span>
                   </div>
 
-                  <div className="billing-grid-info" style={{ gridTemplateColumns: "1.9fr 1.2fr 1fr", alignItems: "center" }}>
+                  <div className="billing-grid-info" style={{ gridTemplateColumns: "1.7fr 1.2fr 0.9fr 0.9fr", alignItems: "center" }}>
                     <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                       <div className="product-thumb" style={{ width: 36, height: 36 }}>
                         {r.planImageUrl ? <img src={r.planImageUrl} alt={r.planName} /> : <span>📦</span>}
@@ -613,52 +579,52 @@ export default async function BillingPage({
                       </div>
                     </div>
                     <div>
-                      <span title="Esta fecha es la misma fecha de corte. Se modifica con el botón 'Fecha de cobro'.">
-                        Próximo pago / corte
-                      </span>
-                      <div title="Modificar desde 'Fecha de cobro'">
-                        {r.vencimientoAt ? <LocalDateTime value={r.vencimientoAt} /> : "—"}
-                      </div>
+                      <span>Próximo pago / corte</span>
+                      {r.mode === "AUTO_DEBIT" && r.customerTokenized && r.status !== "CANCELED" ? (
+                        <form action={scheduleCutoff} className="billing-inline-cutoff">
+                          <input type="hidden" name="csrf" value={csrfToken} />
+                          <input type="hidden" name="subscriptionId" value={r.id} />
+                          <input type="hidden" name="returnTo" value={returnTo} />
+                          {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
+                          <input
+                            className="input"
+                            type="datetime-local"
+                            name="cutoffAt"
+                            defaultValue={toLocalInput(r.vencimientoAt)}
+                            required
+                          />
+                          <button className="ghost btn-compact btn-noicon btn-blue" type="submit">
+                            Guardar
+                          </button>
+                        </form>
+                      ) : (
+                        <div>{r.vencimientoAt ? <LocalDateTime value={r.vencimientoAt} /> : "—"}</div>
+                      )}
                     </div>
                     <div>
                       <span>Valor</span>
                       <strong>{fmtMoney(r.montoInCents, r.moneda)}</strong>
                       <div className="field-hint">{r.cada}</div>
                     </div>
+                    <div>
+                      <span>Flete</span>
+                      {r.currentRequiresShipping ? (
+                        <>
+                          <strong>{r.currentShippingInCents > 0 ? fmtMoney(r.currentShippingInCents, r.moneda) : "Gratis"}</strong>
+                          <div className="field-hint">Editar desde el icono lápiz</div>
+                        </>
+                      ) : (
+                        <strong>—</strong>
+                      )}
+                    </div>
                   </div>
 
                   <div className="billing-actions">
-                    {r.mode !== "AUTO_DEBIT" ? (
-                      <form action={sendCentralComPaymentLink}>
-                        <input type="hidden" name="csrf" value={csrfToken} />
-                        <input type="hidden" name="subscriptionId" value={r.id} />
-                        <input type="hidden" name="customerId" value={r.customerId} />
-                        <input type="hidden" name="returnTo" value={returnTo} />
-                        {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                        <button className="ghost btn-compact btn-noicon btn-send" type="submit" title="Enviar por CentralCom">
-                          Enviar link de pago
-                        </button>
-                      </form>
-                    ) : (
-                      <>
-                        {needsToken ? (
-                          canSendToken ? (
-                            <form action={sendCentralComTokenizationLink}>
-                              <input type="hidden" name="csrf" value={csrfToken} />
-                              <input type="hidden" name="customerId" value={r.customerId} />
-                              <input type="hidden" name="planId" value={r.planId} />
-                              <input type="hidden" name="returnTo" value={returnTo} />
-                              {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                              <button className="ghost btn-compact btn-noicon btn-send" type="submit" title="Enviar por CentralCom">
-                                Enviar débito automático
-                              </button>
-                            </form>
-                          ) : (
-                            <a className="ghost btn-compact btn-amber btn-open" href="/settings?tab=checkout-publico">
-                              Crear checkout
-                            </a>
-                          )
-                        ) : null}
+                    <div className="billing-actions-left">
+                      <span className={`pill ${isPlan ? "pill-warn" : "pill-ok"}`} style={{ fontSize: 12 }}>
+                        {isPlan ? "Link de pago" : "Débito automático"}
+                      </span>
+                      {r.mode === "AUTO_DEBIT" ? (
                         <form action={chargeSubscriptionNow}>
                           <input type="hidden" name="csrf" value={csrfToken} />
                           <input type="hidden" name="subscriptionId" value={r.id} />
@@ -678,18 +644,79 @@ export default async function BillingPage({
                             Cobrar
                           </button>
                         </form>
-                        {r.customerTokenized && r.status !== "CANCELED" ? (
-                          <ScheduleCutoffButton
-                            subscriptionId={r.id}
-                            csrfToken={csrfToken}
-                            returnTo={returnTo}
-                            tenantId={r.tenantId}
-                            currentEndAt={r.vencimientoAt}
-                            action={scheduleCutoff}
-                          />
-                        ) : null}
+                      ) : null}
+                    </div>
+                    <div className="billing-actions-right">
+                    {r.mode !== "AUTO_DEBIT" ? (
+                      <form action={sendCentralComPaymentLink}>
+                        <input type="hidden" name="csrf" value={csrfToken} />
+                        <input type="hidden" name="subscriptionId" value={r.id} />
+                        <input type="hidden" name="customerId" value={r.customerId} />
+                        <input type="hidden" name="returnTo" value={returnTo} />
+                        {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
+                        <button className="ghost btn-compact btn-noicon btn-send" type="submit" title="Enviar por CentralCom">
+                          Enviar link de pago
+                        </button>
+                      </form>
+                    ) : (
+                      <>
+                        {canSendToken ? (
+                          <form action={sendCentralComTokenizationLink}>
+                            <input type="hidden" name="csrf" value={csrfToken} />
+                            <input type="hidden" name="customerId" value={r.customerId} />
+                            <input type="hidden" name="planId" value={r.planId} />
+                            <input type="hidden" name="returnTo" value={returnTo} />
+                            {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
+                            <button className="ghost btn-compact btn-noicon btn-send" type="submit" title="Enviar por CentralCom">
+                              Guardar tarjeta
+                            </button>
+                          </form>
+                        ) : (
+                          <a className="ghost btn-compact btn-amber btn-open" href="/settings?tab=checkout-publico">
+                            Crear checkout
+                          </a>
+                        )}
                       </>
                     )}
+                      {r.status === "SUSPENDED" ? (
+                        <form action={resumeSubscription}>
+                          <input type="hidden" name="csrf" value={csrfToken} />
+                          <input type="hidden" name="subscriptionId" value={r.id} />
+                          {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
+                          <button className="ghost btn-compact btn-noicon btn-green" type="submit">
+                            Reanudar
+                          </button>
+                        </form>
+                      ) : r.status === "CANCELED" ? (
+                        <form action={activateSubscription}>
+                          <input type="hidden" name="csrf" value={csrfToken} />
+                          <input type="hidden" name="subscriptionId" value={r.id} />
+                          {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
+                          <button className="ghost btn-compact btn-noicon btn-green" type="submit">
+                            Activar
+                          </button>
+                        </form>
+                      ) : (
+                        <>
+                          <form action={cancelSubscription}>
+                            <input type="hidden" name="csrf" value={csrfToken} />
+                            <input type="hidden" name="subscriptionId" value={r.id} />
+                            {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
+                            <button className="ghost btn-compact btn-noicon btn-red" type="submit">
+                              Cancelar
+                            </button>
+                          </form>
+                          <form action={suspendSubscription}>
+                            <input type="hidden" name="csrf" value={csrfToken} />
+                            <input type="hidden" name="subscriptionId" value={r.id} />
+                            {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
+                            <button className="ghost btn-compact btn-noicon btn-amber" type="submit">
+                              Suspender
+                            </button>
+                          </form>
+                        </>
+                      )}
+                    </div>
                     {(sentForRow || rowCheckoutUrl || rowTokenUrl || chargedForRow || cutoffForRow) ? (
                       <div className="field-hint" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         {sentForRow ? <span>Enviado.</span> : null}
