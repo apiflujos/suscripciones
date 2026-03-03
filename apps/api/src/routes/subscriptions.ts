@@ -351,12 +351,13 @@ subscriptionsRouter.post("/:id/charge-now", async (req, res) => {
 
   const now = new Date();
   const latestApproved = await prisma.payment.findFirst({
-    where: { subscriptionId, status: PaymentStatus.APPROVED, paidAt: { not: null } },
-    orderBy: { paidAt: "desc" },
-    select: { paidAt: true }
+    where: { subscriptionId, status: PaymentStatus.APPROVED },
+    orderBy: [{ paidAt: "desc" }, { updatedAt: "desc" }, { createdAt: "desc" }],
+    select: { paidAt: true, updatedAt: true, createdAt: true }
   });
-  const dueByLastPayment = latestApproved?.paidAt
-    ? addIntervalUtc(latestApproved.paidAt, subscription.plan.intervalUnit, subscription.plan.intervalCount)
+  const lastApprovedAt = latestApproved?.paidAt || latestApproved?.updatedAt || latestApproved?.createdAt || null;
+  const dueByLastPayment = lastApprovedAt
+    ? addIntervalUtc(lastApprovedAt, subscription.plan.intervalUnit, subscription.plan.intervalCount)
     : null;
   const dueByCutoff = subscription.currentPeriodEndAt ? new Date(subscription.currentPeriodEndAt) : null;
   const dueAt =
@@ -678,8 +679,8 @@ subscriptionsRouter.post("/:id/recalculate-cutoff", async (req, res) => {
       plan: true,
       tenantLinks: true,
       payments: {
-        where: { status: PaymentStatus.APPROVED, paidAt: { not: null } },
-        orderBy: { paidAt: "desc" },
+        where: { status: PaymentStatus.APPROVED },
+        orderBy: [{ paidAt: "desc" }, { updatedAt: "desc" }, { createdAt: "desc" }],
         take: 1
       }
     }
@@ -692,7 +693,8 @@ subscriptionsRouter.post("/:id/recalculate-cutoff", async (req, res) => {
   if (!subscription.plan) return res.status(409).json({ error: "plan_not_found" });
 
   const lastPayment = subscription.payments?.[0];
-  const baseStart = lastPayment?.paidAt || subscription.currentPeriodStartAt || subscription.createdAt;
+  const lastApprovedAt = lastPayment?.paidAt || lastPayment?.updatedAt || lastPayment?.createdAt || null;
+  const baseStart = lastApprovedAt || subscription.currentPeriodStartAt || subscription.createdAt;
   const nextEnd = addIntervalUtc(baseStart, subscription.plan.intervalUnit, subscription.plan.intervalCount);
 
   const updated = await prisma.subscription.update({

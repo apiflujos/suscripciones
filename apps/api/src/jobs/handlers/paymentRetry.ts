@@ -64,12 +64,13 @@ export async function paymentRetry(payload: any) {
     }
 
     const latestApproved = await prisma.payment.findFirst({
-      where: { subscriptionId, status: "APPROVED", paidAt: { not: null } },
-      orderBy: { paidAt: "desc" },
-      select: { paidAt: true }
+      where: { subscriptionId, status: "APPROVED" },
+      orderBy: [{ paidAt: "desc" }, { updatedAt: "desc" }, { createdAt: "desc" }],
+      select: { paidAt: true, updatedAt: true, createdAt: true }
     });
-    const dueByLastPayment = latestApproved?.paidAt
-      ? addIntervalUtc(latestApproved.paidAt, sub.plan.intervalUnit, sub.plan.intervalCount)
+    const lastApprovedAt = latestApproved?.paidAt || latestApproved?.updatedAt || latestApproved?.createdAt || null;
+    const dueByLastPayment = lastApprovedAt
+      ? addIntervalUtc(lastApprovedAt, sub.plan.intervalUnit, sub.plan.intervalCount)
       : null;
     const dueByCutoff = sub.currentPeriodEndAt ? new Date(sub.currentPeriodEndAt) : null;
     const dueAt =
