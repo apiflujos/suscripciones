@@ -288,7 +288,12 @@ export function ChangePlanButton({
                 ) : null}
                 <div className="field-hint" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                   <span>Si necesitas otro plan, créalo aquí mismo.</span>
-                  <a className="ghost btn-compact btn-noicon" href="/products" target="_blank" rel="noreferrer">
+                  <a
+                    href="/products"
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ color: "var(--primary)", fontWeight: 700, textDecoration: "none" }}
+                  >
                     Crear plan
                   </a>
                 </div>
