@@ -453,9 +453,12 @@ logsRouter.post("/payments/recollect", async (req, res) => {
     take
   });
 
+  let reconciledNow = 0;
   let queuedProcess = 0;
   let queuedForward = 0;
   let skipped = 0;
+  let failed = 0;
+  const errors: Array<{ webhookEventId: string; tx?: string; reason: string }> = [];
 
   for (const event of events) {
     const payload: any = event.payload;
@@ -485,19 +488,59 @@ logsRouter.post("/payments/recollect", async (req, res) => {
       continue;
     }
 
-    let hasPayment = false;
+    const txStatus = String(tx?.status || "").trim().toUpperCase();
+    const isFinalTx = ["APPROVED", "DECLINED", "VOIDED", "ERROR"].includes(txStatus);
+
+    let matchedPayment: any = null;
     if (txId) {
-      const p = await prisma.payment.findUnique({ where: { wompiTransactionId: txId } });
-      hasPayment = !!p;
+      matchedPayment = await prisma.payment.findUnique({ where: { wompiTransactionId: txId } });
     }
-    if (!hasPayment && paymentLinkId) {
-      const p = await prisma.payment.findUnique({ where: { wompiPaymentLinkId: paymentLinkId } });
-      hasPayment = !!p;
+    if (!matchedPayment && paymentLinkId) {
+      matchedPayment = await prisma.payment.findUnique({ where: { wompiPaymentLinkId: paymentLinkId } });
+    }
+    if (!matchedPayment && reference) {
+      matchedPayment = await prisma.payment.findFirst({
+        where: {
+          reference,
+          ...(event.tenantId ? { tenantId: event.tenantId } : {})
+        },
+        orderBy: { createdAt: "desc" }
+      });
     }
 
-    if (hasPayment) {
+    const paymentIsFinal =
+      matchedPayment &&
+      ["APPROVED", "DECLINED", "VOIDED", "ERROR"].includes(String(matchedPayment.status || "").toUpperCase());
+    const paymentMatchesTxFinalState =
+      Boolean(matchedPayment) &&
+      (!isFinalTx || String(matchedPayment.status || "").toUpperCase() === txStatus);
+
+    if (paymentIsFinal && paymentMatchesTxFinalState) {
       skipped += 1;
       continue;
+    }
+
+    if (txId) {
+      try {
+        const out = await reconcileWompiTransaction({
+          wompiTransactionId: txId,
+          tenantId: event.tenantId || undefined,
+          checksumPrefix: "manual-recollect"
+        });
+        if (out?.ok) {
+          reconciledNow += 1;
+          continue;
+        }
+        skipped += 1;
+        if (out?.reason && out.reason !== "status_not_final") {
+          errors.push({ webhookEventId: event.id, tx: txId, reason: String(out.reason) });
+        }
+        continue;
+      } catch (err: any) {
+        failed += 1;
+        errors.push({ webhookEventId: event.id, tx: txId, reason: String(err?.message || "reconcile_failed") });
+        continue;
+      }
     }
 
     const exists = await prisma.retryJob.findFirst({
@@ -519,12 +562,14 @@ logsRouter.post("/payments/recollect", async (req, res) => {
   await systemLog(LogLevel.INFO, "logs.payments", "Recolectar pagos ejecutado", {
     days,
     take,
+    reconciledNow,
     queuedProcess,
     queuedForward,
-    skipped
+    skipped,
+    failed
   }).catch(() => {});
 
-  res.json({ ok: true, queuedProcess, queuedForward, skipped, days, take });
+  res.json({ ok: true, reconciledNow, queuedProcess, queuedForward, skipped, failed, errors: errors.slice(0, 50), days, take });
 });
 
 logsRouter.post("/payments/reconcile-pending", async (req, res) => {
@@ -603,6 +648,7 @@ logsRouter.post("/payments/reconcile", async (req, res) => {
   const reference = String(req.body?.reference || "").trim();
   const wompiPaymentLinkId = String(req.body?.wompiPaymentLinkId || req.body?.paymentLinkId || "").trim();
   const wompiTransactionId = String(req.body?.wompiTransactionId || req.body?.transactionId || "").trim();
+  const tenantIdFromBody = String(req.body?.tenantId || "").trim();
 
   if (!wompiTransactionId) {
     return res.status(400).json({ error: "missing_transaction_id" });
@@ -615,7 +661,21 @@ logsRouter.post("/payments/reconcile", async (req, res) => {
     (wompiTransactionId ? await prisma.payment.findFirst({ where: { wompiTransactionId } }) : null);
 
   if (!payment) {
-    return res.status(404).json({ error: "payment_not_found" });
+    const reconcile = await reconcileWompiTransaction({
+      wompiTransactionId,
+      tenantId: tenantIdFromBody || undefined,
+      checksumPrefix: "manual-reconcile-no-payment"
+    }).catch((err: any) => ({
+      ok: false as const,
+      reason: "reconcile_failed" as const,
+      message: String(err?.message || err || "reconcile_failed")
+    }));
+    await systemLog(LogLevel.WARN, "logs.payments", "Reconciliar pago sin registro previo de Payment", {
+      wompiTransactionId,
+      ok: reconcile.ok,
+      reason: (reconcile as any)?.reason || null
+    }).catch(() => {});
+    return res.json({ ok: reconcile.ok, reconcile, payment: null });
   }
 
   if (payment.wompiTransactionId !== wompiTransactionId) {
