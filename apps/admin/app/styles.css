@@ -1437,6 +1437,30 @@ a {
   flex-wrap: wrap;
 }
 
+.list-csv-actions {
+  align-self: center;
+}
+
+.import-modal-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.import-ok {
+  color: #166534;
+}
+
+.import-error {
+  color: #b91c1c;
+}
+
+.import-error-list {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+}
+
 .filtersNote {
   font-size: 12px;
   color: var(--text-soft);
@@ -2900,6 +2924,14 @@ textarea.input {
 
 .btn-search {
   --btn-icon: var(--icon-search);
+}
+
+.btn-import {
+  --btn-icon: var(--icon-plus);
+}
+
+.btn-export {
+  --btn-icon: var(--icon-next);
 }
 
 .btn-pay {

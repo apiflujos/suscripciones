@@ -6,6 +6,7 @@ import { CustomersTable } from "./CustomersTable";
 import { getCsrfToken } from "../lib/csrf";
 import { createPlanAndSubscription } from "../billing/actions";
 import { SmartViewsBar } from "../smart-views/SmartViewsBar";
+import { ListCsvActions } from "../ui/ListCsvActions";
 
 export const dynamic = "force-dynamic";
 
@@ -367,6 +368,14 @@ export default async function CustomersPage({
     });
     return `/customers?${sp.toString()}`;
   };
+  const exportHref = `/api/list-csv?${new URLSearchParams({
+    scope: "customers",
+    ...(q ? { q } : {}),
+    ...(tenantId ? { tenantId } : {}),
+    ...(listId ? { list: listId } : {}),
+    ...(viewId ? { viewId } : {}),
+    ...(filters ? { filters } : {})
+  }).toString()}`;
 
   return (
     <main className="page" style={{ maxWidth: "100%" }}>
@@ -449,6 +458,7 @@ export default async function CustomersPage({
                 </div>
               </div>
             </div>
+            <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
           </div>
         </div>
 

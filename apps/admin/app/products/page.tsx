@@ -5,6 +5,7 @@ import { getCsrfToken } from "../lib/csrf";
 import { ProductsModals } from "./ProductsModals";
 import { createCustomerFromBilling, createPlanAndSubscription } from "../billing/actions";
 import { SmartViewsBar } from "../smart-views/SmartViewsBar";
+import { ListCsvActions } from "../ui/ListCsvActions";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +60,13 @@ export default async function ProductsPage({
     ...(viewId ? { viewId } : {}),
     ...(filters ? { filters } : {}),
     ...(Number.isFinite(page) && page > 1 ? { page: String(page) } : {})
+  }).toString()}`;
+  const exportHref = `/api/list-csv?${new URLSearchParams({
+    scope: "products",
+    ...(q ? { q } : {}),
+    ...(tenantId ? { tenantId } : {}),
+    ...(viewId ? { viewId } : {}),
+    ...(filters ? { filters } : {})
   }).toString()}`;
 
   const sp = new URLSearchParams();
@@ -163,6 +171,7 @@ export default async function ProductsPage({
                 <div className="field-hint tiny-total">{productItems.length} resultados</div>
               </div>
             </div>
+            <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="products" />
           </div>
         </div>
 

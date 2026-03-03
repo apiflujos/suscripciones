@@ -13,6 +13,7 @@ import { ChangePlanButton, type PlanOption } from "./ChangePlanButton";
 import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { BillingTenantModalButton } from "./BillingTenantModalButton";
 import { AutoCutoffInlineForm } from "./AutoCutoffInlineForm";
+import { ListCsvActions } from "../ui/ListCsvActions";
 
 export const dynamic = "force-dynamic";
 
@@ -196,6 +197,16 @@ export default async function BillingPage({
         ...(Number.isFinite(page) && page > 1 ? { page: String(page) } : {})
       }).toString()}`
     : ""}`;
+  const exportHref = `/api/list-csv?${new URLSearchParams({
+    scope: "billing",
+    ...(tenantId ? { tenantId } : {}),
+    ...(q ? { q } : {}),
+    ...(tipo ? { tipo } : {}),
+    ...(estado ? { estado } : {}),
+    ...(ordenar ? { ordenar } : {}),
+    ...(viewId ? { viewId } : {}),
+    ...(filters ? { filters } : {})
+  }).toString()}`;
 
   const subParams = new URLSearchParams();
   const take = 20;
@@ -438,6 +449,7 @@ export default async function BillingPage({
                 <div className="field-hint tiny-total">{rows.length} resultados</div>
               </div>
             </div>
+            <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
           </div>
         </div>
 
