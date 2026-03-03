@@ -83,10 +83,26 @@ async function reconcilePendingPayments(formData: FormData) {
   await assertCsrfToken(formData);
   const { apiBase, token } = getConfig();
   if (!token) return;
+  const tenantId = String(formData.get("tenantId") || "").trim();
+  const daysRaw = Number(String(formData.get("days") || "7"));
   const minutesRaw = Number(String(formData.get("minutes") || "720"));
   const takeRaw = Number(String(formData.get("take") || "100"));
+  const days = Number.isFinite(daysRaw) ? Math.min(Math.max(Math.trunc(daysRaw), 1), 30) : 7;
   const minutes = Number.isFinite(minutesRaw) ? Math.min(Math.max(Math.trunc(minutesRaw), 10), 60 * 24 * 30) : 720;
   const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 500) : 100;
+  const recQ = new URLSearchParams({
+    days: String(days),
+    take: String(Math.max(200, take)),
+    ...(tenantId ? { tenantId } : {})
+  });
+  await fetch(`${apiBase}/admin/logs/payments/recollect?${recQ.toString()}`, {
+    method: "POST",
+    cache: "no-store",
+    headers: {
+      authorization: `Bearer ${token}`,
+      "x-admin-token": token
+    }
+  }).catch(() => {});
   await fetch(`${apiBase}/admin/logs/payments/reconcile-pending`, {
     method: "POST",
     cache: "no-store",
@@ -95,9 +111,10 @@ async function reconcilePendingPayments(formData: FormData) {
       "x-admin-token": token,
       "content-type": "application/json"
     },
-    body: JSON.stringify({ minutes, take })
+    body: JSON.stringify({ minutes, take, ...(tenantId ? { tenantId } : {}) })
   }).catch(() => {});
   revalidatePath("/logs");
+  revalidatePath("/payments");
 }
 
 function normalizeLogSource(source: any) {
@@ -646,8 +663,10 @@ export default async function LogsPage({
                     </form>
                     <form action={reconcilePendingPayments} className="filtersForm" style={{ display: "inline-flex" }}>
                       <input type="hidden" name="csrf" value={csrfToken} />
+                      <input type="hidden" name="days" value="7" />
                       <input type="hidden" name="minutes" value="720" />
                       <input type="hidden" name="take" value="150" />
+                      {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
                       <PendingButton className="ghost btn-compact" type="submit" pendingText="Conciliando...">
                         Recolectar pagos
                       </PendingButton>

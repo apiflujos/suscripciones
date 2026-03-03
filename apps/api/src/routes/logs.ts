@@ -1,6 +1,6 @@
 import express from "express";
 import { prisma } from "../db/prisma";
-import { Prisma, RetryJobStatus, RetryJobType, WebhookProvider, WebhookProcessStatus } from "@prisma/client";
+import { PaymentStatus, Prisma, RetryJobStatus, RetryJobType, WebhookProvider, WebhookProcessStatus } from "@prisma/client";
 import { classifyReference } from "../webhooks/wompi/classifyReference";
 import { systemLog } from "../services/systemLog";
 import { LogLevel } from "@prisma/client";
@@ -516,16 +516,16 @@ logsRouter.post("/payments/recollect", async (req, res) => {
 });
 
 logsRouter.post("/payments/reconcile-pending", async (req, res) => {
-  const minutesRaw = Number(req.query.minutes ?? 5);
-  const minutes = Number.isFinite(minutesRaw) ? Math.min(Math.max(Math.trunc(minutesRaw), 1), 24 * 60) : 5;
-  const takeRaw = Number(req.query.take ?? 200);
+  const minutesRaw = Number((req.query.minutes as any) ?? req.body?.minutes ?? 30);
+  const minutes = Number.isFinite(minutesRaw) ? Math.min(Math.max(Math.trunc(minutesRaw), 1), 24 * 60) : 30;
+  const takeRaw = Number((req.query.take as any) ?? req.body?.take ?? 300);
   const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 1000) : 200;
-  const tenantId = String(req.query.tenantId ?? "").trim();
+  const tenantId = String((req.query.tenantId as any) ?? req.body?.tenantId ?? "").trim();
   const before = new Date(Date.now() - minutes * 60 * 1000);
 
   const pending = await prisma.payment.findMany({
     where: {
-      status: "PENDING" as any,
+      status: { in: [PaymentStatus.PENDING, PaymentStatus.ERROR] },
       wompiTransactionId: { not: null },
       createdAt: { lte: before },
       ...(tenantId ? { tenantId } : {})
