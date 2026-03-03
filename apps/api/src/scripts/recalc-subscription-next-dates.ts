@@ -12,13 +12,13 @@ async function main() {
   const subs = await prisma.subscription.findMany({
     where: {
       status: { notIn: [SubscriptionStatus.CANCELED, SubscriptionStatus.EXPIRED] },
-      payments: { some: { status: "APPROVED", paidAt: { not: null } } }
+      payments: { some: { status: "APPROVED" } }
     },
     include: {
       plan: true,
       payments: {
-        where: { status: "APPROVED", paidAt: { not: null } },
-        orderBy: { paidAt: "desc" },
+        where: { status: "APPROVED" },
+        orderBy: [{ paidAt: "desc" }, { updatedAt: "desc" }, { createdAt: "desc" }],
         take: 1
       }
     }
@@ -30,9 +30,9 @@ async function main() {
 
   for (const sub of subs) {
     const lastPayment = sub.payments?.[0];
-    if (!lastPayment?.paidAt || !sub.plan) continue;
+    if (!lastPayment || !sub.plan) continue;
 
-    const startAt = lastPayment.paidAt;
+    const startAt = lastPayment.paidAt || lastPayment.updatedAt || lastPayment.createdAt;
     const endAt = addIntervalUtc(startAt, sub.plan.intervalUnit, sub.plan.intervalCount);
 
     const curStart = normalizeDate(sub.currentPeriodStartAt);
