@@ -526,8 +526,7 @@ export function ProductsTable({
                 </div>
               </div>
             </div>
-              <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between", width: "100%" }}>
-                <div className="product-header-actions">
+              <div className="product-header-actions">
                 <button
                   className="ghost btn-compact btn-history btn-icon-only"
                   type="button"
@@ -547,7 +546,6 @@ export function ProductsTable({
                   title="Editar"
                 />
                 <DeleteProductButton action={deleteProductAction} csrfToken={csrfToken} productId={p.id} tenantId={String(p.tenantId || "")} returnTo={returnTo} />
-                </div>
               </div>
             </div>
             <div className="product-info">
@@ -1055,7 +1053,7 @@ export function ProductsTable({
                   {imageError ? <div className="field-hint" style={{ color: "var(--status-warning)" }}>{imageError}</div> : null}
                 </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
                 <div className="field">
                   <label>Marca / Proveedor</label>
                   <input className="input" name="vendor" value={vendor} onChange={(e) => setVendor(e.target.value)} />
@@ -1070,7 +1068,7 @@ export function ProductsTable({
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
                 <div className="field">
                   <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span>Unidad de recurrencia</span>
@@ -1092,7 +1090,7 @@ export function ProductsTable({
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
                 <div className="field">
                   <label>Moneda</label>
                   <select

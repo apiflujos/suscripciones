@@ -147,7 +147,7 @@ export default async function ProductsPage({
                       placeholder="Buscar producto o servicio..."
                       aria-label="Buscar productos"
                     />
-                    <button className="ghost btn-noicon" type="submit">Buscar</button>
+                    <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
                   </form>
                   <SmartViewsBar
                     scope="products"

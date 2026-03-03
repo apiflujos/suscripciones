@@ -12,6 +12,7 @@ import { getCsrfToken } from "../lib/csrf";
 import { ChangePlanButton, type PlanOption } from "./ChangePlanButton";
 import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { BillingTenantModalButton } from "./BillingTenantModalButton";
+import { AutoCutoffInlineForm } from "./AutoCutoffInlineForm";
 
 export const dynamic = "force-dynamic";
 
@@ -39,19 +40,6 @@ function fmtEvery(intervalUnit: any, intervalCount: any) {
   if (unit === "WEEK") return c === 1 ? "cada semana" : `cada ${c} semanas`;
   if (unit === "MONTH") return c === 1 ? "cada mes" : `cada ${c} meses`;
   return `cada ${c} (personalizado)`;
-}
-
-function toLocalInput(value?: string | null) {
-  if (!value) return "";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const yyyy = d.getFullYear();
-  const mm = pad(d.getMonth() + 1);
-  const dd = pad(d.getDate());
-  const hh = pad(d.getHours());
-  const mi = pad(d.getMinutes());
-  return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
 }
 
 function getTipo(plan: any) {
@@ -348,10 +336,7 @@ export default async function BillingPage({
         mode: String(plan?.collectionMode || plan?.metadata?.collectionMode || "MANUAL_LINK"),
         tenantName: tenantNameList.length ? tenantNameList.join(", ") : "—",
         currentShippingInCents: Number((plan?.metadata as any)?.catalog?.pricing?.shippingInCents || 0),
-        currentRequiresShipping:
-          String((plan?.metadata as any)?.catalog?.kind || "").toUpperCase() === "PRODUCT" &&
-          ((plan?.metadata as any)?.catalog?.requiresShipping === true ||
-            (plan?.metadata as any)?.catalog?.requiresShipping == null)
+        currentRequiresShipping: String((plan?.metadata as any)?.catalog?.kind || "").toUpperCase() === "PRODUCT"
       };
     })
     .filter((r) => {
@@ -434,7 +419,7 @@ export default async function BillingPage({
                       placeholder="Buscar por contacto, email o identificación..."
                       aria-label="Buscar suscripciones"
                     />
-                    <button className="ghost btn-noicon" type="submit">Buscar</button>
+                    <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
                   </form>
                   <SmartViewsBar
                     scope="billing"
@@ -581,22 +566,14 @@ export default async function BillingPage({
                     <div>
                       <span>Próximo pago / corte</span>
                       {r.mode === "AUTO_DEBIT" && r.customerTokenized && r.status !== "CANCELED" ? (
-                        <form action={scheduleCutoff} className="billing-inline-cutoff">
-                          <input type="hidden" name="csrf" value={csrfToken} />
-                          <input type="hidden" name="subscriptionId" value={r.id} />
-                          <input type="hidden" name="returnTo" value={returnTo} />
-                          {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                          <input
-                            className="input"
-                            type="datetime-local"
-                            name="cutoffAt"
-                            defaultValue={toLocalInput(r.vencimientoAt)}
-                            required
-                          />
-                          <button className="ghost btn-compact btn-noicon btn-blue" type="submit">
-                            Guardar
-                          </button>
-                        </form>
+                        <AutoCutoffInlineForm
+                          subscriptionId={r.id}
+                          csrfToken={csrfToken}
+                          returnTo={returnTo}
+                          tenantId={r.tenantId}
+                          currentEndAt={r.vencimientoAt}
+                          action={scheduleCutoff}
+                        />
                       ) : (
                         <div>{r.vencimientoAt ? <LocalDateTime value={r.vencimientoAt} /> : "—"}</div>
                       )}
@@ -672,7 +649,7 @@ export default async function BillingPage({
                             </button>
                           </form>
                         ) : (
-                          <a className="ghost btn-compact btn-amber btn-open" href="/settings?tab=checkout-publico">
+                          <a className="ghost btn-compact btn-amber btn-create" href="/settings?tab=checkout-publico">
                             Crear checkout
                           </a>
                         )}

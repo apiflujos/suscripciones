@@ -2863,6 +2863,14 @@ textarea.input {
   --btn-icon: var(--icon-plus);
 }
 
+.btn-contact {
+  --btn-icon: var(--icon-phone);
+}
+
+.btn-subscription {
+  --btn-icon: var(--icon-refresh);
+}
+
 .btn-save {
   --btn-icon: var(--icon-check);
 }
@@ -2890,6 +2898,10 @@ textarea.input {
   --btn-icon: var(--icon-filter);
 }
 
+.btn-search {
+  --btn-icon: var(--icon-search);
+}
+
 .btn-pay {
   --btn-icon: var(--icon-card);
 }
@@ -2899,7 +2911,7 @@ textarea.input {
 }
 
 .btn-open {
-  --btn-icon: var(--icon-link);
+  --btn-icon: var(--icon-eye);
 }
 
 .btn-history {
@@ -3016,8 +3028,19 @@ textarea.input {
   justify-self: end;
 }
 
-.customer-actions,
+.customer-actions {
+  display: flex;
+  justify-content: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
 .contact-card-top-actions {
+  display: inline-flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
   align-items: center;
 }
 
@@ -7295,6 +7318,8 @@ body.is-global-loading {
   grid-template-columns: 44px 1fr;
   gap: 10px;
   align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .product-title {

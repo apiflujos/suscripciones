@@ -74,7 +74,7 @@ export function NewCatalogItemForm({
             <textarea className="input" name="description" rows={3} placeholder="Describe el producto o servicio (opcional)" />
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
             <div className="field">
               <label>Marca / Proveedor</label>
               <input className="input" name="vendor" placeholder="Ej: Tu marca" />
@@ -89,7 +89,7 @@ export function NewCatalogItemForm({
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
             <div className="field">
               <label>Moneda</label>
               <select

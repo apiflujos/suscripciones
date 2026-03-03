@@ -167,8 +167,6 @@ subscriptionsRouter.post("/", async (req, res) => {
     return null;
   })();
   const hasPaymentSource = Number.isFinite(paymentSourceId as any);
-  const hasCustomerEmail = !!customer.email;
-
   const startAt = parsed.data.startAt ? new Date(parsed.data.startAt) : new Date();
   const computedEnd = addIntervalUtc(startAt, plan.intervalUnit, plan.intervalCount);
   const periodEnd = parsed.data.firstPeriodEndAt ? new Date(parsed.data.firstPeriodEndAt) : computedEnd;
@@ -457,9 +455,8 @@ subscriptionsRouter.post("/:id/change-plan", async (req, res) => {
   const catalog = (plan.metadata as any)?.catalog ?? {};
   const pricing = catalog?.pricing ?? {};
   const isProduct = String(catalog?.kind || "").toUpperCase() === "PRODUCT";
-  const requiresShippingRaw = catalog?.requiresShipping;
-  // Compatibilidad: planes antiguos pueden no tener requiresShipping en metadata.
-  const requiresShipping = isProduct && (requiresShippingRaw === true || requiresShippingRaw == null);
+  // Permite ajustar flete en cualquier plan de tipo PRODUCT, incluso datos antiguos.
+  const requiresShipping = isProduct;
   const defaultShippingInCents = Number(pricing?.shippingInCents || 0);
   const requestedShippingInCents = requiresShipping
     ? (parsed.data.freeShipping ? 0 : Number(parsed.data.shippingInCents ?? defaultShippingInCents))

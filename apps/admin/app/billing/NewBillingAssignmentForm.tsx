@@ -292,7 +292,7 @@ export function NewBillingAssignmentForm({
             <h3 style={{ margin: 0 }}>Crear plan o suscripción para un contacto</h3>
           </div>
           {!forceOpen ? (
-            <button className={open ? "ghost" : "primary"} type="button" data-loader="off" onClick={() => setOpen((v) => !v)}>
+            <button className={open ? "ghost btn-cancel" : "primary btn-subscription"} type="button" data-loader="off" onClick={() => setOpen((v) => !v)}>
               {open ? "Cerrar" : "Crear suscripción"}
             </button>
           ) : null}
@@ -315,7 +315,7 @@ export function NewBillingAssignmentForm({
                   </span>
                 </div>
                 <button
-                  className="ghost"
+                  className="ghost btn-noicon"
                   type="button"
                   onClick={() => {
                     setProductId("");
@@ -345,7 +345,7 @@ export function NewBillingAssignmentForm({
                       <button
                         key={p.id}
                         type="button"
-                        className="ghost"
+                        className="ghost btn-noicon"
                         onClick={() => {
                           setProductId(String(p.id));
                           setProductQ(String(p.name || ""));
@@ -386,7 +386,7 @@ export function NewBillingAssignmentForm({
           <div className="panel module" style={{ margin: 0 }}>
             <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
               <h3 style={{ margin: 0 }}>2) Contacto</h3>
-              <button className="ghost" type="button" onClick={() => setShowNewCustomer((v) => !v)}>
+              <button className={showNewCustomer ? "ghost btn-cancel" : "ghost btn-contact"} type="button" onClick={() => setShowNewCustomer((v) => !v)}>
                 {showNewCustomer ? "Cerrar" : "Crear contacto"}
               </button>
             </div>
@@ -409,7 +409,7 @@ export function NewBillingAssignmentForm({
                   </span>
                 </div>
                 <button
-                  className="ghost"
+                  className="ghost btn-noicon"
                   type="button"
                   onClick={() => {
                     setCustomerId("");
@@ -440,7 +440,7 @@ export function NewBillingAssignmentForm({
                       <button
                         key={c.id}
                         type="button"
-                        className="ghost"
+                        className="ghost btn-noicon"
                         onClick={() => {
                           setCustomerId(String(c.id));
                           setSelectedCustomerOverride(c);
@@ -609,7 +609,7 @@ export function NewBillingAssignmentForm({
                   </span>
                 ) : null}
                 <button
-                  className="ghost btn-send"
+                  className="ghost btn-create"
                   type="submit"
                   name="submitAction"
                   value="CREATE"

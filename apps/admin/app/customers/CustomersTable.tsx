@@ -675,13 +675,13 @@ export function CustomersTable({
                         {clearingTokenId === c.id ? "Quitando..." : "Quitar token"}
                       </button>
                     ) : null}
-                    <button className="ghost btn-compact btn-noicon btn-send contact-action-btn" type="button" data-modal="true" data-loader="off" onClick={() => openPayModal(c)}>
+                    <button className="ghost btn-compact btn-send btn-pay contact-action-btn" type="button" data-modal="true" data-loader="off" onClick={() => openPayModal(c)}>
                       Enviar link de pago
                     </button>
-                    <button className="ghost btn-compact btn-noicon btn-send contact-action-btn" type="button" data-modal="true" data-loader="off" onClick={() => openTokenModal(c)}>
+                    <button className="ghost btn-compact btn-send btn-token contact-action-btn" type="button" data-modal="true" data-loader="off" onClick={() => openTokenModal(c)}>
                       Enviar débito automático
                     </button>
-                    <button className="ghost btn-compact btn-noicon btn-send contact-action-btn" type="button" data-modal="true" data-loader="off" onClick={() => openCartModal(c)}>
+                    <button className="ghost btn-compact btn-send btn-open contact-action-btn" type="button" data-modal="true" data-loader="off" onClick={() => openCartModal(c)}>
                       Enviar catálogo
                     </button>
                     <button className="ghost btn-compact btn-noicon btn-blue btn-create contact-action-btn" type="button" data-modal="true" data-loader="off" onClick={() => openPlanModal(c)}>

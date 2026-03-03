@@ -55,8 +55,7 @@ function formatCurrencyInput(input: string, currency: string) {
 function planRequiresShipping(plan: PlanOption | null | undefined) {
   if (!plan) return false;
   const kind = String(plan.kind || "").toUpperCase();
-  if (kind !== "PRODUCT") return false;
-  return plan.requiresShipping === true || plan.requiresShipping == null;
+  return kind === "PRODUCT";
 }
 
 export function ChangePlanButton({
@@ -165,11 +164,13 @@ export function ChangePlanButton({
 
   const filteredPlans = useMemo(() => {
     const q = query.trim();
-    const source = q.length >= 2 ? remotePlans : localFilteredPlans;
     const merged = new Map<string, PlanOption>();
     const current = plans.find((p) => p.id === currentPlanId);
     if (current) merged.set(current.id, current);
-    for (const p of source) merged.set(p.id, p);
+    for (const p of localFilteredPlans) merged.set(p.id, p);
+    if (q.length >= 2) {
+      for (const p of remotePlans) merged.set(p.id, p);
+    }
     return Array.from(merged.values());
   }, [query, remotePlans, localFilteredPlans, plans, currentPlanId]);
 
@@ -260,7 +261,7 @@ export function ChangePlanButton({
                 ) : null}
                 <div className="field-hint" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                   <span>Si necesitas otro plan, créalo aquí mismo.</span>
-                  <a className="ghost btn-compact" href="/products" target="_blank" rel="noreferrer">
+                  <a className="ghost btn-compact btn-noicon" href="/products" target="_blank" rel="noreferrer">
                     Crear plan
                   </a>
                 </div>
