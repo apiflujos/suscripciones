@@ -423,7 +423,7 @@ export default async function BillingPage({
                       placeholder="Buscar por contacto, email o identificación..."
                       aria-label="Buscar suscripciones"
                     />
-                    <button className="ghost" type="submit">Buscar</button>
+                    <button className="ghost btn-icon-only btn-filter" type="submit" aria-label="Buscar" title="Buscar" />
                   </form>
                   <SmartViewsBar
                     scope="billing"
@@ -439,16 +439,14 @@ export default async function BillingPage({
                     compactInline
                   />
                 </div>
+                <form action={createTenant} className="filtersForm">
+                  <input type="hidden" name="csrf" value={csrfToken} />
+                  <input type="hidden" name="returnTo" value={returnTo} />
+                  <input className="input" name="name" placeholder="Nuevo canal" />
+                  <button className="ghost btn-create" type="submit">Crear canal</button>
+                </form>
+                <div className="field-hint">{rows.length} resultados</div>
               </div>
-            </div>
-            <div className="filtersRight" style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <form action={createTenant} className="filtersForm">
-                <input type="hidden" name="csrf" value={csrfToken} />
-                <input type="hidden" name="returnTo" value={returnTo} />
-                <input className="input" name="name" placeholder="Nuevo canal" />
-                <button className="ghost btn-create" type="submit">Crear canal</button>
-              </form>
-              <span className="pill">{rows.length} resultados</span>
             </div>
           </div>
         </div>

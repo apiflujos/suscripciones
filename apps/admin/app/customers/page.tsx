@@ -434,7 +434,7 @@ export default async function CustomersPage({
                       placeholder="Buscar por nombre, email, teléfono o identificación..."
                       aria-label="Buscar contactos"
                     />
-                    <button className="ghost" type="submit">Buscar</button>
+                    <button className="ghost btn-icon-only btn-filter" type="submit" aria-label="Buscar" title="Buscar" />
                   </form>
                   <SmartViewsBar
                     scope="customers"

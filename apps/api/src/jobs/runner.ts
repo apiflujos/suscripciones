@@ -79,6 +79,7 @@ let lastEnsureSmartListsAtMs = 0;
 let lastLogCleanupAtMs = 0;
 let lastGamificationRecalcAtMs = 0;
 let lastDataTrainerAtMs = 0;
+let lastAutoReconcileAtMs = 0;
 async function ensureMonthlyBillingReportJob() {
   const now = Date.now();
   if (now - lastEnsureAtMs < 60_000) return;
@@ -219,6 +220,101 @@ async function ensureJobsHeartbeat() {
     .catch(() => {});
 }
 
+async function ensurePendingPaymentsAutoReconcile() {
+  const now = Date.now();
+  const intervalSecondsRaw = Number(process.env.PAYMENT_RECONCILE_INTERVAL_SECONDS || 120);
+  const intervalMs = (Number.isFinite(intervalSecondsRaw) ? Math.max(30, Math.trunc(intervalSecondsRaw)) : 120) * 1000;
+  if (now - lastAutoReconcileAtMs < intervalMs) return;
+  lastAutoReconcileAtMs = now;
+
+  const minAgeSecondsRaw = Number(process.env.PAYMENT_RECONCILE_MIN_AGE_SECONDS || 90);
+  const minAgeSeconds = Number.isFinite(minAgeSecondsRaw) ? Math.max(30, Math.trunc(minAgeSecondsRaw)) : 90;
+  const limitRaw = Number(process.env.PAYMENT_RECONCILE_BATCH || 25);
+  const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.trunc(limitRaw), 1), 100) : 25;
+  const maxAttemptsRaw = Number(process.env.PAYMENT_RECONCILE_MAX_ATTEMPTS || 8);
+  const maxAttempts = Number.isFinite(maxAttemptsRaw) ? Math.min(Math.max(Math.trunc(maxAttemptsRaw), 1), 20) : 8;
+  const cooldownMinutesRaw = Number(process.env.PAYMENT_RECONCILE_COOLDOWN_MINUTES || 10);
+  const cooldownMs = (Number.isFinite(cooldownMinutesRaw) ? Math.max(1, Math.trunc(cooldownMinutesRaw)) : 10) * 60 * 1000;
+
+  const olderThan = new Date(now - minAgeSeconds * 1000);
+  const payments = await prisma.payment.findMany({
+    where: {
+      status: PaymentStatus.PENDING,
+      wompiTransactionId: { not: null },
+      createdAt: { lt: olderThan }
+    },
+    orderBy: { createdAt: "asc" },
+    take: limit,
+    select: {
+      id: true,
+      tenantId: true,
+      wompiTransactionId: true,
+      providerResponse: true
+    }
+  });
+  if (!payments.length) return;
+
+  let reconciled = 0;
+  let tried = 0;
+  for (const payment of payments) {
+    const tx = String(payment.wompiTransactionId || "").trim();
+    if (!tx) continue;
+    const provider = payment.providerResponse && typeof payment.providerResponse === "object" ? (payment.providerResponse as any) : {};
+    const autoMeta = provider?.autoReconcile && typeof provider.autoReconcile === "object" ? provider.autoReconcile : {};
+    const attempts = Number(autoMeta.attempts || 0);
+    const lastAt = autoMeta.lastAt ? new Date(String(autoMeta.lastAt)).getTime() : 0;
+    if (attempts >= maxAttempts) continue;
+    if (Number.isFinite(lastAt) && lastAt > 0 && now - lastAt < cooldownMs) continue;
+
+    tried += 1;
+    try {
+      const out = await reconcileWompiTransaction({
+        wompiTransactionId: tx,
+        tenantId: payment.tenantId || undefined,
+        checksumPrefix: "jobs-auto-reconcile"
+      });
+      if (out?.ok) reconciled += 1;
+      const nextProvider = {
+        ...provider,
+        autoReconcile: {
+          attempts: attempts + 1,
+          lastAt: new Date().toISOString(),
+          ok: Boolean(out?.ok),
+          reason: (out as any)?.reason || null
+        }
+      };
+      await prisma.payment.update({
+        where: { id: payment.id },
+        data: { providerResponse: nextProvider as any }
+      });
+    } catch (err: any) {
+      const nextProvider = {
+        ...provider,
+        autoReconcile: {
+          attempts: attempts + 1,
+          lastAt: new Date().toISOString(),
+          ok: false,
+          reason: String(err?.message || "reconcile_failed")
+        }
+      };
+      await prisma.payment.update({
+        where: { id: payment.id },
+        data: { providerResponse: nextProvider as any }
+      });
+    }
+  }
+
+  if (tried > 0) {
+    await systemLog(LogLevel.INFO, "payments.reconcile.auto", "Auto reconcile run", {
+      scanned: payments.length,
+      tried,
+      reconciled,
+      maxAttempts,
+      cooldownMinutes: Math.round(cooldownMs / 60000)
+    }).catch(() => {});
+  }
+}
+
 async function ensureShopifyForwardRetries() {
   const now = Date.now();
   const { enabled, minutes } = await getShopifyForwardRetryConfig();
@@ -313,6 +409,7 @@ async function main() {
       await ensureLogCleanup();
       await ensureShopifyForwardRetries();
       await ensureJobsHeartbeat();
+      await ensurePendingPaymentsAutoReconcile();
       await runOnce();
       await new Promise((r) => setTimeout(r, 1000));
     } catch (err: any) {

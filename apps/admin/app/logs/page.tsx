@@ -78,6 +78,28 @@ async function reconcilePayment(formData: FormData) {
   revalidatePath("/logs");
 }
 
+async function reconcilePendingPayments(formData: FormData) {
+  "use server";
+  await assertCsrfToken(formData);
+  const { apiBase, token } = getConfig();
+  if (!token) return;
+  const minutesRaw = Number(String(formData.get("minutes") || "720"));
+  const takeRaw = Number(String(formData.get("take") || "100"));
+  const minutes = Number.isFinite(minutesRaw) ? Math.min(Math.max(Math.trunc(minutesRaw), 10), 60 * 24 * 30) : 720;
+  const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 500) : 100;
+  await fetch(`${apiBase}/admin/logs/payments/reconcile-pending`, {
+    method: "POST",
+    cache: "no-store",
+    headers: {
+      authorization: `Bearer ${token}`,
+      "x-admin-token": token,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({ minutes, take })
+  }).catch(() => {});
+  revalidatePath("/logs");
+}
+
 function normalizeLogSource(source: any) {
   const s = String(source || "");
   if (s === "settings.shopify") return "configuracion.reenvio";
@@ -610,7 +632,6 @@ export default async function LogsPage({
           ) : tab === "payments" ? (
             <div className="filtersRow">
               <div className="filtersLeft">
-                <div className="filtersNote">Consulta pagos por cliente, referencia o estado (por defecto últimos 30 días).</div>
                 <div className="filtersPanel">
                   <div className="contacts-search-row">
                     <form action="/payments" method="GET" className="filtersForm filtersSearch" data-debounce-form="true">
@@ -621,31 +642,26 @@ export default async function LogsPage({
                         placeholder="Buscar cliente, referencia o transacción..."
                         aria-label="Buscar pagos"
                       />
-                      <select className="select" name="status" defaultValue={status} data-auto-submit="true">
-                        <option value="">Estado: todos</option>
-                        <option value="APPROVED">Pagado</option>
-                        <option value="PENDING">Pendiente</option>
-                        <option value="DECLINED">Declinado</option>
-                        <option value="ERROR">Error</option>
-                        <option value="VOIDED">Anulado</option>
-                      </select>
-                      <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" data-auto-submit="true" />
-                      <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" data-auto-submit="true" />
-                      <button className="ghost" type="submit">Buscar</button>
-                      <div title="Reconciliación manual de una transacción Wompi" style={{ display: "inline-flex", alignItems: "center" }}>
-                        <ReconcilePaymentModal csrfToken={csrfToken} action={reconcilePayment} />
-                      </div>
+                      <button className="ghost btn-icon-only btn-filter" type="submit" aria-label="Buscar" title="Buscar" />
                     </form>
+                    <form action={reconcilePendingPayments} className="filtersForm" style={{ display: "inline-flex" }}>
+                      <input type="hidden" name="csrf" value={csrfToken} />
+                      <input type="hidden" name="minutes" value="720" />
+                      <input type="hidden" name="take" value="150" />
+                      <PendingButton className="ghost btn-compact" type="submit" pendingText="Conciliando...">
+                        Recolectar pagos
+                      </PendingButton>
+                    </form>
+                    <div title="Reconciliación manual de una transacción Wompi" style={{ display: "inline-flex", alignItems: "center" }}>
+                      <ReconcilePaymentModal csrfToken={csrfToken} action={reconcilePayment} />
+                    </div>
                     <SmartViewsBar
                       scope="payments"
                       initialViewId={viewId}
                       initialFilters={filters}
                       compactInline
                       baseParams={{
-                        ...(q ? { q } : {}),
-                        ...(status ? { status } : {}),
-                        ...(from ? { from } : {}),
-                        ...(to ? { to } : {})
+                        ...(q ? { q } : {})
                       }}
                     />
                   </div>
@@ -919,23 +935,11 @@ export default async function LogsPage({
             <div className="panel module" style={{ padding: 0 }}>
               <div className="filtersRow" style={{ padding: "12px 16px 0" }}>
                 <div className="filtersLeft">
-                  <div className="filtersTop">
-                    <div className="filtersNote">Webhooks con trazabilidad de cliente y pago (por defecto últimos 30 días).</div>
-                    <div className="filtersSummary">{paginationSummary}</div>
-                  </div>
                   <div className="filtersPanel">
-                    <form action="/logs" method="GET" className="filtersForm" data-debounce-form="true">
+                    <form action="/logs" method="GET" className="filtersForm filtersSearch" data-debounce-form="true">
                       <input type="hidden" name="tab" value="webhooks" />
                       <input className="input" name="q" defaultValue={q} placeholder="Buscar cliente, referencia o tx..." aria-label="Buscar webhooks" />
-                      <select className="select" name="processStatus" defaultValue={processStatus} data-auto-submit="true">
-                        <option value="">Procesamiento: todos</option>
-                        <option value="PROCESSED">Procesado</option>
-                        <option value="FAILED">Fallido</option>
-                        <option value="SKIPPED">Omitido</option>
-                      </select>
-                      <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" data-auto-submit="true" />
-                      <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" data-auto-submit="true" />
-                      <button className="ghost" type="submit">Filtrar</button>
+                      <button className="ghost btn-icon-only btn-filter" type="submit" aria-label="Buscar" title="Buscar" />
                     </form>
                   </div>
                 </div>

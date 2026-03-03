@@ -252,7 +252,7 @@ export default async function ProductsPage({
                       placeholder="Buscar producto o servicio..."
                       aria-label="Buscar productos"
                     />
-                    <button className="ghost" type="submit">Buscar</button>
+                    <button className="ghost btn-icon-only btn-filter" type="submit" aria-label="Buscar" title="Buscar" />
                   </form>
                   <SmartViewsBar
                     scope="products"
@@ -282,10 +282,8 @@ export default async function ProductsPage({
                   <input className="input" name="name" placeholder="Nuevo canal" />
                   <button className="ghost btn-create" type="submit">Crear canal</button>
                 </form>
+                <div className="field-hint">{productItems.length} resultados</div>
               </div>
-            </div>
-            <div className="filtersRight">
-              <span className="pill">{productItems.length} resultados</span>
             </div>
           </div>
         </div>
