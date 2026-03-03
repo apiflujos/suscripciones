@@ -3,11 +3,7 @@ import { LogLevel, RetryJobStatus, RetryJobType } from "@prisma/client";
 import { createAutoDebitTransactionForSubscription, createPaymentLinkForSubscription } from "../../services/subscriptionBilling";
 import { systemLog } from "../../services/systemLog";
 import { addIntervalUtc } from "../../lib/dates";
-
-function isAutoDebitDisabled() {
-  const raw = String(process.env.AUTO_DEBIT_DISABLED || "").trim().toLowerCase();
-  return raw === "1" || raw === "true" || raw === "yes" || raw === "on";
-}
+import { getAutoDebitConfig } from "../../services/runtimeConfig";
 
 function shouldCreateFallbackLinkWhenAutoDebitDisabled() {
   const raw = String(process.env.AUTO_DEBIT_DISABLED_FALLBACK_LINK || "").trim().toLowerCase();
@@ -114,10 +110,11 @@ export async function paymentRetry(payload: any) {
   }
 
   if (mode === "AUTO_DEBIT") {
-    if (isAutoDebitDisabled()) {
-      await systemLog(LogLevel.WARN, "jobs.payment_retry", "Auto-debit automático deshabilitado; cobro omitido", {
+    const autoDebitConfig = await getAutoDebitConfig();
+    if (!autoDebitConfig.enabled) {
+      await systemLog(LogLevel.WARN, "jobs.payment_retry", "Débito automático deshabilitado desde configuración; cobro omitido", {
         subscriptionId,
-        env: "AUTO_DEBIT_DISABLED"
+        source: "settings.auto_debit.enabled"
       }).catch(() => {});
       if (shouldCreateFallbackLinkWhenAutoDebitDisabled()) {
         await createPaymentLinkForSubscription({ subscriptionId }).catch(() => {});

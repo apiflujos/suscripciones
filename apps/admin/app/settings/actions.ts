@@ -162,6 +162,31 @@ export async function updateShopify(formData: FormData) {
   }
 }
 
+export async function updateAutoDebitConfig(formData: FormData) {
+  await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
+  const enabled = String(formData.get("enabled") || "").trim();
+  const retryEnabled = String(formData.get("retryEnabled") || "").trim();
+  const retryEveryMinutes = String(formData.get("retryEveryMinutes") || "").trim();
+  const maxRetries = String(formData.get("maxRetries") || "").trim();
+
+  try {
+    await adminFetch("/admin/settings/auto-debit", {
+      method: "PUT",
+      body: JSON.stringify({
+        ...(enabled ? { enabled } : {}),
+        ...(retryEnabled ? { retryEnabled } : {}),
+        ...(retryEveryMinutes ? { retryEveryMinutes } : {}),
+        ...(maxRetries ? { maxRetries } : {})
+      })
+    });
+    redirectWith("auto_debit_save", "ok", undefined, returnTo);
+  } catch (err) {
+    if (isNextRedirect(err)) throw err;
+    redirectWith("auto_debit_save", "fail", toShortErrorMessage(err), returnTo);
+  }
+}
+
 export async function deleteShopifyConnection(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);

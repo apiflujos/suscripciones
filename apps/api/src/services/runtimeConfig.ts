@@ -93,6 +93,48 @@ export async function getShopifyForwardRetryConfig(): Promise<{ enabled: boolean
   return { enabled, minutes };
 }
 
+export type AutoDebitConfig = {
+  enabled: boolean;
+  retryEnabled: boolean;
+  retryEveryMinutes: number;
+  maxRetries: number;
+};
+
+function toBool(raw: string | undefined, fallback: boolean) {
+  if (!raw) return fallback;
+  const v = String(raw).trim().toLowerCase();
+  if (!v) return fallback;
+  return !(v === "0" || v === "false" || v === "no" || v === "off");
+}
+
+function toInt(raw: string | undefined, fallback: number, min: number, max: number) {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(Math.max(Math.trunc(n), min), max);
+}
+
+export async function getAutoDebitConfig(): Promise<AutoDebitConfig> {
+  const raw = (await getCredential(CredentialProvider.WOMPI, "AUTO_DEBIT_CONFIG")) || "";
+  let parsed: any = {};
+  try {
+    parsed = raw ? JSON.parse(raw) : {};
+  } catch {
+    parsed = {};
+  }
+
+  const envDisabled = toBool(process.env.AUTO_DEBIT_DISABLED, false);
+  const envRetryEnabled = toBool(process.env.AUTO_DEBIT_RETRY_ENABLED, false);
+  const envRetryMinutes = toInt(process.env.AUTO_DEBIT_RETRY_MINUTES, 60, 1, 10_080);
+  const envMaxRetries = toInt(process.env.AUTO_DEBIT_MAX_RETRIES, 0, 0, 20);
+
+  const enabled = envDisabled ? false : toBool(String(parsed?.enabled ?? ""), true);
+  const retryEnabled = toBool(String(parsed?.retryEnabled ?? ""), envRetryEnabled);
+  const retryEveryMinutes = toInt(String(parsed?.retryEveryMinutes ?? ""), envRetryMinutes, 1, 10_080);
+  const maxRetries = toInt(String(parsed?.maxRetries ?? ""), envMaxRetries, 0, 20);
+
+  return { enabled, retryEnabled: enabled ? retryEnabled : false, retryEveryMinutes, maxRetries };
+}
+
 export async function getChatwootConfig(): Promise<
   | { configured: false }
   | { configured: true; baseUrl: string; accountId: number; apiAccessToken: string; inboxId: number }

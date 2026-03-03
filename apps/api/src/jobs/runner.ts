@@ -7,7 +7,7 @@ import { sendChatwootMessage } from "./handlers/sendChatwootMessage";
 import { paymentRetry } from "./handlers/paymentRetry";
 import { subscriptionReminder } from "./handlers/subscriptionReminder";
 import { systemLog } from "../services/systemLog";
-import { getShopifyForward, getShopifyForwardRetryConfig } from "../services/runtimeConfig";
+import { getAutoDebitConfig, getShopifyForward, getShopifyForwardRetryConfig } from "../services/runtimeConfig";
 import { billingMonthlyReport } from "./handlers/billingMonthlyReport";
 import { sendCampaign } from "./handlers/sendCampaign";
 import { syncSmartLists } from "./handlers/syncSmartLists";
@@ -72,6 +72,11 @@ function nextRunAt(attempts: number) {
   const baseMs = 5_000;
   const delayMs = Math.min(5 * 60_000, baseMs * Math.pow(2, Math.max(0, attempts)));
   return new Date(Date.now() + delayMs);
+}
+
+function nextRunAtMinutes(minutes: number) {
+  const normalized = Number.isFinite(minutes) ? Math.max(1, Math.trunc(minutes)) : 60;
+  return new Date(Date.now() + normalized * 60_000);
 }
 
 let lastEnsureAtMs = 0;
@@ -448,19 +453,21 @@ async function runOnce() {
       });
     } catch (err: any) {
       const attempts = job.attempts + 1;
-      const noAutoRetry = job.type === RetryJobType.PAYMENT_RETRY;
-      const status = noAutoRetry
-        ? RetryJobStatus.FAILED
-        : attempts >= job.maxAttempts
-          ? RetryJobStatus.FAILED
-          : RetryJobStatus.PENDING;
+      let status: RetryJobStatus = attempts >= job.maxAttempts ? RetryJobStatus.FAILED : RetryJobStatus.PENDING;
+      let runAt: Date | undefined = status === RetryJobStatus.PENDING ? nextRunAt(attempts) : undefined;
+      if (job.type === RetryJobType.PAYMENT_RETRY) {
+        const cfg = await getAutoDebitConfig();
+        const canRetry = cfg.enabled && cfg.retryEnabled && attempts <= cfg.maxRetries;
+        status = canRetry ? RetryJobStatus.PENDING : RetryJobStatus.FAILED;
+        runAt = canRetry ? nextRunAtMinutes(cfg.retryEveryMinutes) : undefined;
+      }
       await prisma.retryJob.update({
         where: { id: job.id },
         data: {
           status,
           attempts,
           lastError: err?.message ? String(err.message) : "unknown error",
-          runAt: status === RetryJobStatus.PENDING ? nextRunAt(attempts) : undefined,
+          runAt,
           lockedAt: null,
           lockedBy: null
         }

@@ -48,6 +48,13 @@ const shopifyUpdateSchema = z.object({
   forwardRetryMinutes: z.coerce.number().int().positive().optional()
 });
 
+const autoDebitUpdateSchema = z.object({
+  enabled: z.union([z.boolean(), z.string()]).optional(),
+  retryEnabled: z.union([z.boolean(), z.string()]).optional(),
+  retryEveryMinutes: z.coerce.number().int().min(1).max(10080).optional(),
+  maxRetries: z.coerce.number().int().min(0).max(20).optional()
+});
+
 const chatwootUpdateSchema = z.object({
   environment: envSchema.optional(),
   activeEnv: envSchema.optional(),
@@ -95,6 +102,19 @@ const checkoutConfigUpdateSchema = z.object({
 
 export const settingsRouter = express.Router();
 
+function toBool(raw: unknown, fallback: boolean) {
+  if (raw == null) return fallback;
+  const v = String(raw).trim().toLowerCase();
+  if (!v) return fallback;
+  return !(v === "0" || v === "false" || v === "no" || v === "off");
+}
+
+function toInt(raw: unknown, fallback: number, min: number, max: number) {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(Math.max(Math.trunc(n), min), max);
+}
+
 settingsRouter.get("/", async (req, res) => {
   const encKeyB64 = (process.env.CREDENTIALS_ENCRYPTION_KEY_B64 || "").trim();
   const encryptionKeyConfigured = !!encKeyB64;
@@ -127,7 +147,8 @@ settingsRouter.get("/", async (req, res) => {
       "EVENTS_SECRET_SANDBOX",
       "API_BASE_URL_SANDBOX",
       "CHECKOUT_LINK_BASE_URL_SANDBOX",
-      "REDIRECT_URL_SANDBOX"
+      "REDIRECT_URL_SANDBOX",
+      "AUTO_DEBIT_CONFIG"
     ]),
     getCredentialsBulk(CredentialProvider.SHOPIFY, ["FORWARD_URL", "FORWARD_SECRET", "FORWARD_ORIGIN", "FORWARD_RETRY_ENABLED", "FORWARD_RETRY_MINUTES"]),
     getCredentialsBulk(CredentialProvider.CHATWOOT, [
@@ -244,6 +265,18 @@ settingsRouter.get("/", async (req, res) => {
   const envBases = getCheckoutBaseUrlsFromEnv();
   const storedPlanBaseUrl = String(checkoutConfig?.planBaseUrl || "").trim();
   const storedSubscriptionBaseUrl = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
+  let autoDebitConfigRaw: any = {};
+  try {
+    autoDebitConfigRaw = wompiCreds.get("AUTO_DEBIT_CONFIG") ? JSON.parse(String(wompiCreds.get("AUTO_DEBIT_CONFIG"))) : {};
+  } catch {
+    autoDebitConfigRaw = {};
+  }
+  const autoDebitConfig = {
+    enabled: toBool(autoDebitConfigRaw?.enabled, true),
+    retryEnabled: toBool(autoDebitConfigRaw?.retryEnabled, false),
+    retryEveryMinutes: toInt(autoDebitConfigRaw?.retryEveryMinutes, 60, 1, 10080),
+    maxRetries: toInt(autoDebitConfigRaw?.maxRetries, 0, 0, 20)
+  };
 
   res.json({
     encryptionKeyConfigured,
@@ -259,6 +292,7 @@ settingsRouter.get("/", async (req, res) => {
       forwardRetryEnabled: shopifyForwardRetryEnabled,
       forwardRetryMinutes: shopifyForwardRetryMinutes
     },
+    autoDebit: autoDebitConfig,
     communications: {
       activeEnv: chatwootActiveEnv,
       production: commsProd,
@@ -413,6 +447,42 @@ settingsRouter.put("/shopify", async (req, res) => {
   }
 
   await systemLog(LogLevel.INFO, "configuracion.reenvio", "Configuración de reenvío actualizada").catch(() => {});
+  res.json({ ok: true });
+});
+
+settingsRouter.put("/auto-debit", async (req, res) => {
+  const parsed = autoDebitUpdateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+
+  const currentRaw = (await getCredential(CredentialProvider.WOMPI, "AUTO_DEBIT_CONFIG")) || "";
+  let current: any = {};
+  try {
+    current = currentRaw ? JSON.parse(currentRaw) : {};
+  } catch {
+    current = {};
+  }
+
+  const enabled = parsed.data.enabled != null ? toBool(parsed.data.enabled, true) : toBool(current?.enabled, true);
+  const retryEnabled =
+    parsed.data.retryEnabled != null ? toBool(parsed.data.retryEnabled, false) : toBool(current?.retryEnabled, false);
+  const retryEveryMinutes =
+    parsed.data.retryEveryMinutes != null
+      ? toInt(parsed.data.retryEveryMinutes, 60, 1, 10080)
+      : toInt(current?.retryEveryMinutes, 60, 1, 10080);
+  const maxRetries =
+    parsed.data.maxRetries != null ? toInt(parsed.data.maxRetries, 0, 0, 20) : toInt(current?.maxRetries, 0, 0, 20);
+
+  await setCredential(
+    CredentialProvider.WOMPI,
+    "AUTO_DEBIT_CONFIG",
+    JSON.stringify({ enabled, retryEnabled, retryEveryMinutes, maxRetries })
+  );
+  await systemLog(LogLevel.INFO, "configuracion.auto_debito", "Configuración de débito automático actualizada", {
+    enabled,
+    retryEnabled,
+    retryEveryMinutes,
+    maxRetries
+  }).catch(() => {});
   res.json({ ok: true });
 });
 

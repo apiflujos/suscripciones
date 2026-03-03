@@ -14,7 +14,8 @@ import {
   setCentralActiveEnv,
   updateAiProvider,
   deleteAiProvider,
-  updateGamificationConfig
+  updateGamificationConfig,
+  updateAutoDebitConfig
 } from "./actions";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { normalizeErrorParam } from "../lib/errorParam";
@@ -124,6 +125,7 @@ export default async function SettingsPage({
   const aiProviders = (ai?.providers || {}) as any;
   const aiOpenai = (aiProviders?.openai || {}) as any;
   const aiDeepseek = (aiProviders?.deepseek || {}) as any;
+  const autoDebit = (settings?.autoDebit || {}) as any;
   const aiEnabled = Boolean(ai?.enabled);
   const aiDisableReason = String(ai?.reason || "");
   const aiDisableLabel =
@@ -465,6 +467,73 @@ export default async function SettingsPage({
                 ) : null}
               </div>
 
+            </div>
+          </section>
+
+          <section className="settings-group">
+            <div className="settings-group-header">
+              <div className="panelHeaderRow">
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <h3>Débito automático</h3>
+                  <HelpTip text="Controla si se permite el cobro automático y los reintentos cuando un cobro falla." />
+                </div>
+              </div>
+            </div>
+            <div className="settings-group-body">
+              <form action={updateAutoDebitConfig} className="panel module" style={{ display: "grid", gap: 12 }}>
+                <input type="hidden" name="csrf" value={csrfToken} />
+                <input type="hidden" name="returnTo" value={returnTo} />
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <div className="field">
+                    <label>Cobros automáticos</label>
+                    <select className="select" name="enabled" defaultValue={String(Boolean(autoDebit?.enabled))}>
+                      <option value="true">Encendido</option>
+                      <option value="false">Apagado</option>
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label>Reintentos</label>
+                    <select className="select" name="retryEnabled" defaultValue={String(Boolean(autoDebit?.retryEnabled))}>
+                      <option value="true">Encendido</option>
+                      <option value="false">Apagado</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <div className="field">
+                    <label>Reintentar cada (minutos)</label>
+                    <input
+                      className="input"
+                      type="number"
+                      min={1}
+                      max={10080}
+                      name="retryEveryMinutes"
+                      defaultValue={Number(autoDebit?.retryEveryMinutes || 60)}
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Máximo de reintentos</label>
+                    <input
+                      className="input"
+                      type="number"
+                      min={0}
+                      max={20}
+                      name="maxRetries"
+                      defaultValue={Number(autoDebit?.maxRetries || 0)}
+                    />
+                  </div>
+                </div>
+                <div className="field-hint">Si cobros automáticos está apagado, el job no ejecuta cargos automáticos.</div>
+                <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8, alignItems: "center" }}>
+                  {action === "auto_debit_save" && status === "ok" ? <div className="field-hint">Guardado.</div> : null}
+                  {action === "auto_debit_save" && status === "fail" ? (
+                    <div className="field-hint" style={{ color: "var(--danger)" }}>Error guardando: {errorText || "unknown_error"}</div>
+                  ) : null}
+                  <PendingButton className="primary btn-save" type="submit" pendingText="Guardando...">
+                    Guardar
+                  </PendingButton>
+                </div>
+              </form>
             </div>
           </section>
 
