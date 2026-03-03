@@ -349,6 +349,28 @@ subscriptionsRouter.post("/:id/charge-now", async (req, res) => {
   const collectionMode = String((subscription.plan?.metadata as any)?.collectionMode || "MANUAL_LINK");
   if (collectionMode !== "AUTO_DEBIT") return res.status(409).json({ error: "manual_charge_not_allowed" });
 
+  const now = new Date();
+  const recentPending = await prisma.payment.findFirst({
+    where: {
+      subscriptionId,
+      status: PaymentStatus.PENDING,
+      wompiTransactionId: { not: null },
+      createdAt: { gte: new Date(now.getTime() - 36 * 60 * 60 * 1000) }
+    },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, wompiTransactionId: true, createdAt: true }
+  });
+  if (recentPending) {
+    return res.status(409).json({
+      error: "pending_charge_exists",
+      details: {
+        paymentId: recentPending.id,
+        wompiTransactionId: recentPending.wompiTransactionId,
+        createdAt: recentPending.createdAt
+      }
+    });
+  }
+
   const meta = (subscription.customer?.metadata as any) ?? {};
   const paymentSource =
     meta?.wompi?.paymentSourceId ||

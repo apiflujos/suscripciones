@@ -4,6 +4,7 @@ import { getWompiApiBaseUrl, getWompiCheckoutLinkBaseUrl, getWompiPrivateKey, ge
 import { RetryJobType, WebhookProvider, WebhookProcessStatus } from "@prisma/client";
 import { randomUUID } from "crypto";
 import { processWompiEventLogic } from "../jobs/handlers/processWompiEvent";
+import { getDefaultTenantId } from "./tenantContext";
 
 const FINAL_WOMPI_STATUSES = new Set(["APPROVED", "DECLINED", "VOIDED", "ERROR"]);
 
@@ -22,7 +23,8 @@ export async function reconcileWompiTransaction(args: {
     return { ok: false, reason: "missing_transaction_id" as const };
   }
 
-  const tenantId = String(args.tenantId || "").trim();
+  const requestedTenantId = String(args.tenantId || "").trim();
+  const tenantId = requestedTenantId || String((await getDefaultTenantId()) || "").trim();
   if (!tenantId) {
     return { ok: false, reason: "missing_tenant" as const };
   }
@@ -112,7 +114,8 @@ export async function reconcileWompiByReference(args: {
 }) {
   const reference = String(args.reference || "").trim();
   if (!reference) return { ok: false, reason: "missing_reference" as const };
-  const tenantId = String(args.tenantId || "").trim();
+  const requestedTenantId = String(args.tenantId || "").trim();
+  const tenantId = requestedTenantId || String((await getDefaultTenantId()) || "").trim();
   if (!tenantId) return { ok: false, reason: "missing_tenant" as const };
 
   const publicKey = await getWompiPublicKey();
