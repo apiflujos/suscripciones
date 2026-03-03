@@ -350,6 +350,30 @@ subscriptionsRouter.post("/:id/charge-now", async (req, res) => {
   if (collectionMode !== "AUTO_DEBIT") return res.status(409).json({ error: "manual_charge_not_allowed" });
 
   const now = new Date();
+  const latestApproved = await prisma.payment.findFirst({
+    where: { subscriptionId, status: PaymentStatus.APPROVED, paidAt: { not: null } },
+    orderBy: { paidAt: "desc" },
+    select: { paidAt: true }
+  });
+  const dueByLastPayment = latestApproved?.paidAt
+    ? addIntervalUtc(latestApproved.paidAt, subscription.plan.intervalUnit, subscription.plan.intervalCount)
+    : null;
+  const dueByCutoff = subscription.currentPeriodEndAt ? new Date(subscription.currentPeriodEndAt) : null;
+  const dueAt =
+    dueByCutoff && dueByLastPayment
+      ? (dueByCutoff.getTime() >= dueByLastPayment.getTime() ? dueByCutoff : dueByLastPayment)
+      : (dueByCutoff || dueByLastPayment);
+  if (dueAt && now.getTime() + 5_000 < dueAt.getTime()) {
+    return res.status(409).json({
+      error: "charge_not_due_yet",
+      details: {
+        dueAt: dueAt.toISOString(),
+        currentPeriodEndAt: dueByCutoff ? dueByCutoff.toISOString() : null,
+        expectedByLastPayment: dueByLastPayment ? dueByLastPayment.toISOString() : null
+      }
+    });
+  }
+
   const recentPending = await prisma.payment.findFirst({
     where: {
       subscriptionId,
