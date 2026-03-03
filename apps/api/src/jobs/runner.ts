@@ -448,7 +448,12 @@ async function runOnce() {
       });
     } catch (err: any) {
       const attempts = job.attempts + 1;
-      const status = attempts >= job.maxAttempts ? RetryJobStatus.FAILED : RetryJobStatus.PENDING;
+      const noAutoRetry = job.type === RetryJobType.PAYMENT_RETRY;
+      const status = noAutoRetry
+        ? RetryJobStatus.FAILED
+        : attempts >= job.maxAttempts
+          ? RetryJobStatus.FAILED
+          : RetryJobStatus.PENDING;
       await prisma.retryJob.update({
         where: { id: job.id },
         data: {
