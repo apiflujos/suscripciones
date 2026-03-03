@@ -275,19 +275,25 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     }).catch(() => {});
   }
 
-  let missingSubscriptionFromReference = false;
   if (referenceClassification.kind === "subscription" && inferredSubscriptionId && !paymentMatched) {
     const exists = await db.subscription.findUnique({
       where: { id: inferredSubscriptionId },
       select: { id: true }
     });
     if (!exists) {
-      missingSubscriptionFromReference = true;
-      inferredSubscriptionId = "";
-      await systemLog(LogLevel.WARN, "processWompiEvent", "subscription_reference_not_found: falling back to inference", {
+      await systemLog(LogLevel.WARN, "processWompiEvent", "subscription_reference_not_found", {
         reference,
         subscriptionId: referenceClassification.subscriptionId
       }).catch(() => {});
+      await db.webhookEvent.update({
+        where: { id: webhookEventId },
+        data: {
+          processStatus: WebhookProcessStatus.FAILED,
+          errorMessage: `subscription_reference_not_found:${referenceClassification.subscriptionId}`,
+          processedAt: new Date()
+        }
+      });
+      return;
     }
   }
 
@@ -295,7 +301,6 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     !paymentMatched &&
     !inferredSubscriptionId &&
     (
-      missingSubscriptionFromReference ||
       referenceClassification.kind === "unknown" ||
       (referenceClassification.kind === "order" && !referenceClassification.planId)
     );
@@ -343,18 +348,17 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
       }
 
       if (plans.length > 1) {
-        if (missingPaymentLinkRecord) {
-          await db.webhookEvent.update({
-            where: { id: webhookEventId },
-            data: { processStatus: WebhookProcessStatus.FAILED, errorMessage: "plan_ambiguous_without_link", processedAt: new Date() }
-          });
-          return;
-        }
         await systemLog(LogLevel.WARN, "processWompiEvent", "Ambiguous plan inference by price", {
+          reference,
           amountInCents,
           currency,
           foundPlans: plans.map((p) => ({ id: p.id, name: p.name }))
         }).catch(() => {});
+        await db.webhookEvent.update({
+          where: { id: webhookEventId },
+          data: { processStatus: WebhookProcessStatus.FAILED, errorMessage: "plan_ambiguous_by_price", processedAt: new Date() }
+        });
+        return;
       }
       plan = plans[0];
     }
