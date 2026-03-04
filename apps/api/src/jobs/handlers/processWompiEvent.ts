@@ -80,6 +80,12 @@ function normalizeReference(value: unknown): string | undefined {
   return cleaned || undefined;
 }
 
+function isInternalReference(value: string | undefined): boolean {
+  const ref = String(value || "").trim().toUpperCase();
+  if (!ref) return false;
+  return ref.startsWith("SUB_") || ref.startsWith("ORDER_") || ref.startsWith("WOMPI_") || ref.startsWith("TEST_");
+}
+
 function extractPaymentLinkId(raw: unknown): string | undefined {
   if (!raw) return undefined;
   if (typeof raw === "string") {
@@ -455,6 +461,29 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
       // No cortar el flujo: si no existe suscripción, crear/actualizar contacto y pago en fallback
       // para permitir conciliación manual posterior desde Pagos.
     }
+  }
+
+  const hasLocalCorrelation = Boolean(paymentMatched || paymentLinkRecord || inferredSubscriptionId);
+  const likelyExternalWithoutContext =
+    !hasLocalCorrelation &&
+    (!!paymentLinkId || referenceClassification.kind === "unknown") &&
+    !isInternalReference(reference);
+  if (likelyExternalWithoutContext) {
+    await systemLog(LogLevel.INFO, "webhooks.wompi", "Webhook omitido: referencia externa sin correlación local", {
+      webhookEventId,
+      transactionId,
+      paymentLinkId,
+      reference
+    }).catch(() => {});
+    await db.webhookEvent.update({
+      where: { id: webhookEventId },
+      data: {
+        processStatus: WebhookProcessStatus.SKIPPED,
+        processedAt: new Date(),
+        errorMessage: "external_reference_ignored"
+      }
+    });
+    return;
   }
 
   const subscriptionId = inferredSubscriptionId;

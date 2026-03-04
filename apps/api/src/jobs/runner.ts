@@ -452,6 +452,28 @@ async function runOnce() {
         data: { status: RetryJobStatus.SUCCEEDED, lockedAt: null, lockedBy: null }
       });
     } catch (err: any) {
+      const errMsg = err?.message ? String(err.message) : "unknown error";
+      if (
+        job.type === RetryJobType.PAYMENT_RETRY &&
+        (errMsg === "subscription_canceled" || errMsg === "subscription_not_found")
+      ) {
+        await prisma.retryJob.update({
+          where: { id: job.id },
+          data: {
+            status: RetryJobStatus.SUCCEEDED,
+            attempts: job.attempts + 1,
+            lastError: errMsg,
+            lockedAt: null,
+            lockedBy: null
+          }
+        });
+        await systemLog(LogLevel.INFO, "jobs.runner", "Cobro automático omitido", {
+          jobId: job.id,
+          type: job.type,
+          reason: errMsg
+        }).catch(() => {});
+        continue;
+      }
       const attempts = job.attempts + 1;
       let status: RetryJobStatus = attempts >= job.maxAttempts ? RetryJobStatus.FAILED : RetryJobStatus.PENDING;
       let runAt: Date | undefined = status === RetryJobStatus.PENDING ? nextRunAt(attempts) : undefined;
@@ -466,7 +488,7 @@ async function runOnce() {
         data: {
           status,
           attempts,
-          lastError: err?.message ? String(err.message) : "unknown error",
+          lastError: errMsg,
           runAt,
           lockedAt: null,
           lockedBy: null
@@ -477,7 +499,7 @@ async function runOnce() {
         jobId: job.id,
         type: job.type,
         attempts,
-        err: err?.message || String(err)
+        err: errMsg
       }).catch(
         () => {}
       );
