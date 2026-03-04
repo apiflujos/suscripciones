@@ -2073,7 +2073,7 @@ a {
 }
 
 .logs-table-payments {
-  min-width: 1700px;
+  min-width: 1220px;
 }
 
 .logs-table .log-date-cell {
@@ -2237,11 +2237,17 @@ a {
 }
 
 .logs-table-payments .log-ref-cell {
-  max-width: 220px;
+  max-width: 320px;
 }
 
 .logs-table-payments .log-transaction-cell {
   max-width: 170px;
+}
+
+.logs-table-payments .log-ref-stack {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
 }
 
 .logs-table-payments .log-wompi-stack {
@@ -2268,6 +2274,15 @@ a {
 .logs-table-payments .log-payment-actions {
   white-space: nowrap;
   text-align: right;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.logs-table-payments .log-payment-actions form {
+  margin: 0 !important;
 }
 
 .logs-table-jobs .log-detail-cell {

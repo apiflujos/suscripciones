@@ -923,27 +923,15 @@ export default async function LogsPage({
             <div className="panel module" style={{ padding: 0 }}>
               <div className="payments-table-wrap">
               <table className="table logs-table logs-table-payments" aria-label="Tabla de pagos">
-                <colgroup>
-                  <col style={{ width: "130px" }} />
-                  <col style={{ width: "250px" }} />
-                  <col style={{ width: "210px" }} />
-                  <col style={{ width: "110px" }} />
-                  <col style={{ width: "120px" }} />
-                  <col style={{ width: "240px" }} />
-                  <col style={{ width: "220px" }} />
-                  <col style={{ width: "220px" }} />
-                  <col style={{ width: "190px" }} />
-                </colgroup>
                 <thead>
                   <tr>
                     <th>Fecha</th>
                     <th>Cliente</th>
-                    <th>Plan</th>
+                    <th>Suscripción</th>
                     <th>Estado</th>
-                    <th>Monto</th>
-                    <th>Referencia</th>
-                    <th>IDs Wompi</th>
-                    <th>Motivo fallo</th>
+                    <th>Total</th>
+                    <th>Referencia e IDs</th>
+                    <th>Detalle</th>
                     <th />
                   </tr>
                 </thead>
@@ -970,6 +958,9 @@ export default async function LogsPage({
                             "Sin detalle de Wompi"
                         )
                       : "—";
+                    const detailText = isIgnoredExternal
+                      ? `Externo ignorado${ignoredReason ? ` · ${ignoredReason}` : ""}`
+                      : failureReason;
                     return (
                       <tr key={p.id}>
                         <td className="log-date-cell"><LocalDateTime value={p.paidAt || p.createdAt} variant="stacked" /></td>
@@ -982,21 +973,15 @@ export default async function LogsPage({
                           </span>
                         </td>
                         <td>{formatAmount(p.amountInCents, p.currency)}</td>
-                        <td className="log-ref-cell" title={p.reference || "—"}>
-                          <span className="log-ref-main">{p.reference || "—"}</span>
-                        </td>
-                        <td className="log-transaction-cell" title={`${p.wompiTransactionId || "—"} · ${p.wompiPaymentLinkId || "—"}`}>
-                          <div className="log-wompi-stack">
-                            <span><strong>Tx:</strong> {p.wompiTransactionId || "—"}</span>
-                            <span><strong>Link:</strong> {p.wompiPaymentLinkId || "—"}</span>
+                        <td className="log-ref-cell" title={`${p.reference || "—"} · ${p.wompiTransactionId || "—"} · ${p.wompiPaymentLinkId || "—"}`}>
+                          <div className="log-ref-stack">
+                            <span className="log-ref-main">{p.reference || "—"}</span>
+                            <span className="log-ref-meta"><strong>Tx:</strong> {p.wompiTransactionId || "—"}</span>
+                            <span className="log-ref-meta"><strong>Link:</strong> {p.wompiPaymentLinkId || "—"}</span>
                           </div>
                         </td>
-                        <td className="log-payment-error-cell" title={failureReason}>
-                          {isIgnoredExternal ? (
-                            <span className="muted">Externo ignorado{ignoredReason ? ` · ${ignoredReason}` : ""}</span>
-                          ) : (
-                            failureReason
-                          )}
+                        <td className="log-payment-error-cell" title={detailText}>
+                          {detailText}
                         </td>
                         <td className="log-payment-actions">
                           {!isIgnoredExternal && String(p.status || "").toUpperCase() === "PENDING" ? (
@@ -1041,7 +1026,7 @@ export default async function LogsPage({
                   })}
                   {paymentItems.length === 0 ? (
                     <tr>
-                      <td colSpan={9} style={{ color: "var(--muted)" }}>
+                      <td colSpan={7} style={{ color: "var(--muted)" }}>
                         Sin pagos.
                       </td>
                     </tr>
