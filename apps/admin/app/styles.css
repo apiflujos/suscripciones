@@ -2271,6 +2271,7 @@ a {
 
 .logs-table-webhooks {
   table-layout: fixed;
+  min-width: 1600px;
 }
 
 .logs-table-webhooks th,
@@ -2280,7 +2281,7 @@ a {
 
 .logs-table-webhooks .log-ref-cell,
 .logs-table-webhooks .log-ref-main {
-  max-width: 72px;
+  max-width: 220px;
 }
 
 .logs-table-webhooks .log-error-cell {
@@ -2296,6 +2297,17 @@ a {
   width: auto;
   justify-content: center;
   margin: 0 auto;
+}
+
+.webhooks-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.logs-table-webhooks .log-actions-cell {
+  white-space: nowrap;
+  overflow: visible;
+  min-width: 130px;
 }
 
 .logs-table .log-detail-row td {

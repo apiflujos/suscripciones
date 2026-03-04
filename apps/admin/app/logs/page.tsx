@@ -1039,18 +1039,19 @@ export default async function LogsPage({
                   </div>
                 </div>
               </div>
+              <div className="webhooks-table-wrap">
                   <table className="table logs-table logs-table-webhooks" aria-label="Tabla de webhooks">
                     <colgroup>
-                      <col style={{ width: "8%" }} />
-                      <col style={{ width: "17%" }} />
-                      <col style={{ width: "8%" }} />
-                      <col style={{ width: "10%" }} />
-                      <col style={{ width: "7%" }} />
-                      <col style={{ width: "8%" }} />
-                      <col style={{ width: "12%" }} />
-                      <col style={{ width: "12%" }} />
-                      <col style={{ width: "6%" }} />
-                      <col style={{ width: "12%" }} />
+                      <col style={{ width: "130px" }} />
+                      <col style={{ width: "240px" }} />
+                      <col style={{ width: "120px" }} />
+                      <col style={{ width: "230px" }} />
+                      <col style={{ width: "140px" }} />
+                      <col style={{ width: "190px" }} />
+                      <col style={{ width: "150px" }} />
+                      <col style={{ width: "130px" }} />
+                      <col style={{ width: "130px" }} />
+                      <col style={{ width: "140px" }} />
                     </colgroup>
                 <thead>
                   <tr>
@@ -1119,7 +1120,7 @@ export default async function LogsPage({
                             "—"
                           )}
                         </td>
-                        <td style={{ textAlign: "right" }}>
+                        <td className="log-actions-cell" style={{ textAlign: "right" }}>
                           {contactQuery ? (
                             <Link className="ghost btn-compact btn-view" href={`/customers?q=${encodeURIComponent(String(contactQuery))}`}>
                               Ver cliente
@@ -1138,6 +1139,7 @@ export default async function LogsPage({
                   ) : null}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
 
