@@ -9,7 +9,6 @@ import { systemLog } from "../services/systemLog";
 import { LogLevel } from "@prisma/client";
 import { redactHeaders } from "../lib/redact";
 import { getDefaultTenantId } from "../services/tenantContext";
-import { logger } from "../lib/logger";
 import { processWompiEventLogic } from "../jobs/handlers/processWompiEvent";
 
 function getChecksumHeader(req: Request): string | undefined {
@@ -60,16 +59,8 @@ export async function wompiWebhook(req: Request, res: Response) {
       }
     });
 
-    const tx = (parsed.data as any)?.data?.transaction;
-    await systemLog(LogLevel.INFO, "webhooks.wompi", "Webhook recibido", {
-      event: parsed.data.event,
-      checksum,
-      transactionId: tx?.id,
-      reference: tx?.reference,
-      status: tx?.status
-    }).catch((err) => {
-      logger.warn({ err, checksum }, "wompi webhook: failed to write system log");
-    });
+    // Evita ruido en campanita: el detalle útil se registra en el procesamiento
+    // (pago aprobado/fallido/conciliado), no en cada recepción cruda de webhook.
 
     await prisma.retryJob.create({
       data: {

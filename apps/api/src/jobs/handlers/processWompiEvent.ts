@@ -324,7 +324,8 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   let inferredSubscription: Subscription | null = null;
   
   const missingPaymentLinkRecord = Boolean(paymentLinkId && !paymentByLink && !paymentLinkRecord);
-  if (missingPaymentLinkRecord) {
+  const likelyExternalRefOnly = !paymentMatched && !paymentLinkRecord && referenceClassification.kind === "unknown" && !isInternalReference(reference);
+  if (missingPaymentLinkRecord && !likelyExternalRefOnly) {
     await systemLog(LogLevel.WARN, "processWompiEvent", "payment_link_not_found: proceeding by inference", {
       paymentLinkId,
       reference

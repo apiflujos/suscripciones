@@ -12,6 +12,8 @@ export function normalizeSystemText(value: unknown): string {
     [/sql console execution/gi, "Ejecución de consola SQL"],
     [/webhook reconciled/gi, "Webhook conciliado"],
     [/webhook received/gi, "Webhook recibido"],
+    [/payment_link_not_found/gi, "Link de pago no encontrado"],
+    [/proceeding by inference/gi, "se intentó asociar automáticamente"],
     [/payment retry/gi, "Reintento de pago"],
     [/tokenization_token_expired/gi, "El token de tokenización venció"]
   ];
@@ -29,8 +31,10 @@ export function isNoiseNotification(input: { source?: unknown; title?: unknown; 
   const whole = `${title} ${message}`.trim();
 
   if (source === "sql.console" || source === "data_trainer") return true;
+  if (source === "webhooks.wompi" && /webhook recibido/.test(whole)) return true;
   if (source === "notifications.dispatch" && /procesando notificacion|mensaje en cola para envio|mensaje enviado|tipo de pago no permitido/.test(whole)) return true;
   if (source === "notifications.schedule" && /no hay reglas activas para notificaciones/.test(whole)) return true;
+  if (source === "processwompievent" && /payment_link_not_found|link de pago no encontrado/.test(whole)) return true;
   if (/subscription reference not found|referencia de suscripción no encontrada|ambiguous plan inference by price/.test(whole)) return true;
   if (/forward returned 5xx|reenvío respondió 5xx/.test(whole)) return true;
   if (kind === "heartbeat") return true;
