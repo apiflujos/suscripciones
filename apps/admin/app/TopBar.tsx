@@ -13,6 +13,7 @@ type HeaderNotification = {
   message: string;
   level?: "info" | "error";
   href?: string | null;
+  read?: boolean;
 };
 
 function getHeader(pathname: string): Header {
@@ -66,6 +67,8 @@ function displayNameFromEmail(email: string) {
 }
 
 export function TopBar({ session }: { session: AdminSession | null }) {
+  const FEED_STORAGE_KEY = "apiflujos-notifications-feed";
+  const READ_STORAGE_KEY = "apiflujos-notifications-read-ids";
   const pathname = usePathname() || "/";
   const searchParams = useSearchParams();
   const headerTab = String(searchParams?.get("tab") || "");
@@ -73,11 +76,25 @@ export function TopBar({ session }: { session: AdminSession | null }) {
   const isSuperAdmin = session?.role === "SUPER_ADMIN";
   const [menuOpen, setMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [notifFilter, setNotifFilter] = useState<"all" | "unread" | "read">("unread");
   const [notifications, setNotifications] = useState<HeaderNotification[]>([]);
   const [paymentPulse, setPaymentPulse] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const notifRef = useRef<HTMLDivElement | null>(null);
   const pulseRef = useRef<NodeJS.Timeout | null>(null);
+  const readIdsRef = useRef<Set<string>>(new Set());
+  const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
+  const filteredNotifications = useMemo(() => {
+    if (notifFilter === "read") return notifications.filter((n) => Boolean(n.read));
+    if (notifFilter === "unread") return notifications.filter((n) => !n.read);
+    return notifications;
+  }, [notifications, notifFilter]);
+
+  const saveReadIds = (ids: Set<string>) => {
+    try {
+      window.localStorage.setItem(READ_STORAGE_KEY, JSON.stringify(Array.from(ids)));
+    } catch {}
+  };
 
   const triggerPaymentPulse = () => {
     setPaymentPulse(true);
@@ -118,25 +135,63 @@ export function TopBar({ session }: { session: AdminSession | null }) {
   }, []);
 
   useEffect(() => {
-    const storageKey = "apiflujos-notifications-feed";
+    const loadRead = () => {
+      try {
+        const raw = window.localStorage.getItem(READ_STORAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(parsed)) {
+          readIdsRef.current = new Set();
+          return;
+        }
+        readIdsRef.current = new Set(parsed.map((v) => String(v || "")));
+      } catch {
+        readIdsRef.current = new Set();
+      }
+    };
     const load = () => {
       try {
-        const raw = window.localStorage.getItem(storageKey);
+        const raw = window.localStorage.getItem(FEED_STORAGE_KEY);
         const parsed = raw ? JSON.parse(raw) : [];
         if (!Array.isArray(parsed)) {
           setNotifications([]);
           return;
         }
-        setNotifications(parsed.slice(0, 20));
+        const next = parsed.slice(0, 40).map((item: HeaderNotification) => {
+          const id = String(item?.id || "");
+          return { ...item, read: readIdsRef.current.has(id) };
+        });
+        setNotifications(next);
       } catch {
         setNotifications([]);
       }
     };
+    loadRead();
     load();
     const onUpdated = () => load();
     window.addEventListener("apiflujos:notifications-updated", onUpdated as EventListener);
     return () => window.removeEventListener("apiflujos:notifications-updated", onUpdated as EventListener);
-  }, []);
+  }, [FEED_STORAGE_KEY, READ_STORAGE_KEY]);
+
+  const markNotification = (id: string, read: boolean) => {
+    const next = new Set(readIdsRef.current);
+    if (read) next.add(id);
+    else next.delete(id);
+    readIdsRef.current = next;
+    saveReadIds(next);
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read } : n)));
+  };
+
+  const markAll = (read: boolean) => {
+    const next = new Set(readIdsRef.current);
+    for (const n of notifications) {
+      if (!n?.id) continue;
+      if (read) next.add(n.id);
+      else next.delete(n.id);
+    }
+    readIdsRef.current = next;
+    saveReadIds(next);
+    setNotifications((prev) => prev.map((n) => ({ ...n, read })));
+  };
 
   return (
     <header className="topbar" aria-label="Topbar">
@@ -159,52 +214,6 @@ export function TopBar({ session }: { session: AdminSession | null }) {
       </div>
 
       <div className="topbarRight" aria-label="Usuario">
-        <div className="topbarNotifications" ref={notifRef}>
-          <button
-            type="button"
-            className="topbarBellBtn"
-            data-loader="off"
-            onClick={() => setNotifOpen((v) => !v)}
-            aria-label="Abrir notificaciones"
-            aria-haspopup="menu"
-            aria-expanded={notifOpen ? "true" : "false"}
-          >
-            <BellIcon className="topbarBellIcon" />
-            {notifications.length ? <span className="topbarBellBadge">{Math.min(notifications.length, 99)}</span> : null}
-          </button>
-          {notifOpen ? (
-            <div className="topbarBellPopover" role="menu" aria-label="Notificaciones">
-              <div className="topbarBellHead">
-                <strong>Notificaciones</strong>
-              </div>
-              <div className="topbarBellList">
-                {notifications.length ? (
-                  notifications.map((n) =>
-                    n.href ? (
-                      <a key={n.id} className="topbarBellItem" href={n.href} data-loader="off">
-                        <div className="topbarBellItemTitle">{n.title || "Evento"}</div>
-                        <div className="topbarBellItemMsg">{n.message || "Sin detalle"}</div>
-                        <div className="topbarBellItemMeta">
-                          {new Date(n.ts).toLocaleString("es-CO", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}
-                        </div>
-                      </a>
-                    ) : (
-                      <div key={n.id} className="topbarBellItem">
-                        <div className="topbarBellItemTitle">{n.title || "Evento"}</div>
-                        <div className="topbarBellItemMsg">{n.message || "Sin detalle"}</div>
-                        <div className="topbarBellItemMeta">
-                          {new Date(n.ts).toLocaleString("es-CO", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}
-                        </div>
-                      </div>
-                    )
-                  )
-                ) : (
-                  <div className="topbarBellEmpty">Sin notificaciones.</div>
-                )}
-              </div>
-            </div>
-          ) : null}
-        </div>
         <div className="userMenu" ref={menuRef}>
           <button
             type="button"
@@ -247,6 +256,76 @@ export function TopBar({ session }: { session: AdminSession | null }) {
               <Link className="userMenuItem isDanger" href="/logout" prefetch={false} role="menuitem">
                 Salir
               </Link>
+            </div>
+          ) : null}
+        </div>
+        <div className="topbarNotifications" ref={notifRef}>
+          <button
+            type="button"
+            className="topbarBellBtn"
+            data-loader="off"
+            onClick={() => setNotifOpen((v) => !v)}
+            aria-label="Abrir notificaciones"
+            aria-haspopup="menu"
+            aria-expanded={notifOpen ? "true" : "false"}
+          >
+            <BellIcon className="topbarBellIcon" />
+            {unreadCount ? <span className="topbarBellBadge">{Math.min(unreadCount, 99)}</span> : null}
+          </button>
+          {notifOpen ? (
+            <div className="topbarBellPopover" role="menu" aria-label="Notificaciones">
+              <div className="topbarBellHead">
+                <strong>Notificaciones</strong>
+                <div className="topbarBellFilters">
+                  <button type="button" className={`topbarBellFilter ${notifFilter === "unread" ? "is-active" : ""}`} onClick={() => setNotifFilter("unread")}>
+                    No leídas
+                  </button>
+                  <button type="button" className={`topbarBellFilter ${notifFilter === "read" ? "is-active" : ""}`} onClick={() => setNotifFilter("read")}>
+                    Leídas
+                  </button>
+                  <button type="button" className={`topbarBellFilter ${notifFilter === "all" ? "is-active" : ""}`} onClick={() => setNotifFilter("all")}>
+                    Todas
+                  </button>
+                </div>
+                <div className="topbarBellActions">
+                  <button type="button" className="topbarBellActionBtn" onClick={() => markAll(true)}>
+                    Marcar todo leído
+                  </button>
+                  <button type="button" className="topbarBellActionBtn" onClick={() => markAll(false)}>
+                    Desmarcar
+                  </button>
+                </div>
+              </div>
+              <div className="topbarBellList">
+                {filteredNotifications.length ? (
+                  filteredNotifications.map((n) => (
+                    <div key={n.id} className={`topbarBellItem ${n.read ? "is-read" : "is-unread"}`}>
+                      <div>
+                        <div className="topbarBellItemTitle">{n.title || "Evento"}</div>
+                        <div className="topbarBellItemMsg">{n.message || "Sin detalle"}</div>
+                        <div className="topbarBellItemMeta">
+                          {new Date(n.ts).toLocaleString("es-CO", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}
+                        </div>
+                        {n.href ? (
+                          <a className="topbarBellItemLink" href={n.href} data-loader="off">
+                            Ver detalle
+                          </a>
+                        ) : null}
+                      </div>
+                      <button
+                        type="button"
+                        className="topbarBellToggleRead"
+                        onClick={() => markNotification(n.id, !n.read)}
+                        aria-label={n.read ? "Marcar como no leída" : "Marcar como leída"}
+                      >
+                        {n.read ? "No leída" : "Leída"}
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <div className="topbarBellEmpty">Sin notificaciones en este filtro.</div>
+                )}
+              </div>
             </div>
           ) : null}
         </div>

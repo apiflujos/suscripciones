@@ -825,6 +825,50 @@ a {
 .topbarBellHead {
   padding: 10px 12px;
   border-bottom: 1px solid var(--stroke);
+  display: grid;
+  gap: 8px;
+}
+
+.topbarBellFilters {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.topbarBellFilter {
+  border: 1px solid var(--stroke);
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.topbarBellFilter.is-active {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.topbarBellActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.topbarBellActionBtn {
+  border: 1px solid var(--stroke);
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  cursor: pointer;
 }
 
 .topbarBellList {
@@ -833,6 +877,9 @@ a {
 
 .topbarBellItem {
   display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: start;
+  column-gap: 10px;
   gap: 4px;
   padding: 10px 12px;
   border-bottom: 1px solid var(--stroke);
@@ -842,6 +889,14 @@ a {
 
 .topbarBellItem:hover {
   background: var(--surface-2);
+}
+
+.topbarBellItem.is-unread {
+  background: var(--primary-soft);
+}
+
+.topbarBellItem.is-read {
+  opacity: 0.88;
 }
 
 .topbarBellItemTitle {
@@ -858,6 +913,26 @@ a {
 .topbarBellItemMeta {
   font-size: 11px;
   color: var(--text-faint);
+}
+
+.topbarBellItemLink {
+  display: inline-flex;
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.topbarBellToggleRead {
+  border: 1px solid var(--stroke);
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  cursor: pointer;
 }
 
 .topbarBellEmpty {
