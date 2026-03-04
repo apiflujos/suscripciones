@@ -382,32 +382,10 @@ logsRouter.get("/payments", async (req, res) => {
           }
         };
 
-  const where: Prisma.PaymentWhereInput = {
+  const whereBase: Prisma.PaymentWhereInput = {
     ...(statusFilter ? { status: { in: statusFilter as any } } : {}),
     ...(tenantId ? { tenantId } : {}),
     ...(planId ? { subscription: { planId } } : {}),
-    ...(!includeIgnored
-      ? ({
-          AND: [
-            {
-              OR: [
-                {
-                  providerResponse: {
-                    path: ["reconciliation", "status"],
-                    equals: null
-                  } as any
-                },
-                {
-                  providerResponse: {
-                    path: ["reconciliation", "status"],
-                    not: "IGNORED_EXTERNAL"
-                  } as any
-                }
-              ]
-            }
-          ]
-        } as Prisma.PaymentWhereInput)
-      : {}),
     ...dateWhere,
     ...(q
       ? {
@@ -423,20 +401,47 @@ logsRouter.get("/payments", async (req, res) => {
         }
       : {})
   };
-  const [items, total] = await Promise.all([
-    prisma.payment.findMany({
+  const where = ids.length ? ({ ...whereBase, id: { in: ids } } as Prisma.PaymentWhereInput) : whereBase;
+  const include = {
+    subscription: { include: { plan: true, customer: true } },
+    customer: true,
+    attempts: { orderBy: { createdAt: "desc" }, take: 1 }
+  } as const;
+
+  let items: any[] = [];
+  let total: number | null = null;
+
+  if (includeIgnored) {
+    const [found, counted] = await Promise.all([
+      prisma.payment.findMany({
+        orderBy: { createdAt: "desc" },
+        take,
+        skip,
+        where,
+        include
+      }),
+      withCount ? prisma.payment.count({ where }) : Promise.resolve(null)
+    ]);
+    items = found;
+    total = counted;
+  } else {
+    // Evita falsos vacíos por filtros JSON-path de Prisma con keys ausentes.
+    const cap = Math.max(500, Math.min(5000, skip + take + 1000));
+    const found = await prisma.payment.findMany({
       orderBy: { createdAt: "desc" },
-      take,
-      skip,
-      where: ids.length ? { ...where, id: { in: ids } } : where,
-      include: {
-        subscription: { include: { plan: true, customer: true } },
-        customer: true,
-        attempts: { orderBy: { createdAt: "desc" }, take: 1 }
-      }
-    }),
-    withCount ? prisma.payment.count({ where: ids.length ? { ...where, id: { in: ids } } : where }) : Promise.resolve(null)
-  ]);
+      take: cap,
+      where,
+      include
+    });
+    const filtered = found.filter((item: any) => {
+      const reconciliation = (item?.providerResponse && typeof item.providerResponse === "object"
+        ? (item.providerResponse as any).reconciliation
+        : null) || null;
+      return String(reconciliation?.status || "").toUpperCase() !== "IGNORED_EXTERNAL";
+    });
+    items = filtered.slice(skip, skip + take);
+    total = withCount ? filtered.length : null;
+  }
   const mappedItems = items.map((item: any) => {
     const lastAttempt = Array.isArray(item.attempts) ? item.attempts[0] : null;
     const failureCode =

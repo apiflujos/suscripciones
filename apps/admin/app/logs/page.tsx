@@ -673,7 +673,7 @@ export default async function LogsPage({
             <div className="filtersRow">
               <div className="filtersLeft">
                 <div className="filtersPanel">
-                  <div className="contacts-search-row">
+                  <div className="contacts-search-row payments-search-row">
                     <form action="/payments" method="GET" className="filtersForm filtersSearch payments-search-form" data-debounce-form="true">
                       {includeIgnored ? <input type="hidden" name="includeIgnored" value="1" /> : null}
                       {status ? <input type="hidden" name="status" value={status} /> : null}
@@ -689,7 +689,7 @@ export default async function LogsPage({
                       />
                       <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
                     </form>
-                    <div className="module-search-right">
+                    <div className="module-search-right payments-module-search-right">
                       <SmartViewsBar
                         scope="payments"
                         initialViewId={viewId}

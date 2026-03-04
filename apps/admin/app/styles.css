@@ -1966,9 +1966,24 @@ a {
   width: 100%;
 }
 
+.payments-search-row {
+  grid-template-columns: minmax(360px, 1fr) auto;
+  align-items: center;
+}
+
+.payments-module-search-right {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
 .module-search-right .payments-buttons-wrap {
   justify-content: flex-end;
   flex: 0 0 auto;
+  flex-wrap: nowrap;
 }
 
 @media (max-width: 980px) {
@@ -1992,6 +2007,22 @@ a {
 
   .module-search-right .payments-buttons-wrap {
     width: 100%;
+  }
+
+  .payments-search-row {
+    grid-template-columns: 1fr;
+  }
+
+  .payments-module-search-right {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  .payments-module-search-right .payments-buttons-wrap {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 }
 
