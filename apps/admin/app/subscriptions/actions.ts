@@ -22,6 +22,18 @@ async function adminFetch(path: string, init: RequestInit) {
   return json;
 }
 
+function mergeQuery(path: string, extra: Record<string, string | undefined>) {
+  const raw = String(path || "").trim();
+  const safePath = raw.startsWith("/billing") || raw.startsWith("/customers") || raw.startsWith("/products") ? raw : "/billing";
+  const [pathname, query = ""] = safePath.split("?");
+  const sp = new URLSearchParams(query);
+  Object.entries(extra).forEach(([k, v]) => {
+    if (typeof v === "string" && v.length) sp.set(k, v);
+  });
+  const qs = sp.toString();
+  return qs ? `${pathname}?${qs}` : pathname;
+}
+
 export async function createSubscription(formData: FormData) {
   await assertCsrfToken(formData);
   const customerId = String(formData.get("customerId") || "").trim();
@@ -167,16 +179,16 @@ export async function deleteSubscription(formData: FormData) {
   await assertCsrfToken(formData);
   const subscriptionId = String(formData.get("subscriptionId") || "").trim();
   const tenantId = String(formData.get("tenantId") || "").trim();
+  const returnTo = String(formData.get("returnTo") || "/billing").trim();
   if (!subscriptionId) return redirect(`/billing?error=${encodeURIComponent("invalid_subscription_id")}`);
   try {
     const path = tenantId
-      ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}?tenantId=${encodeURIComponent(tenantId)}&force=1`
-      : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}?force=1`;
+      ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}?tenantId=${encodeURIComponent(tenantId)}&force=1&purgePayments=1`
+      : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}?force=1&purgePayments=1`;
     await adminFetch(path, {
       method: "DELETE"
     });
-    const qs = new URLSearchParams({ deleted: "1", ...(tenantId ? { tenantId } : {}) }).toString();
-    redirect(`/billing?${qs}`);
+    redirect(mergeQuery(returnTo, { deleted: "1", ...(tenantId ? { tenantId } : {}) }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
     const msg = String(err?.message || "delete_subscription_failed");
@@ -194,8 +206,40 @@ export async function deleteSubscription(formData: FormData) {
       }).toString();
       return redirect(`/billing?${qs}`);
     }
-    const qs = new URLSearchParams({ error: msg, ...(tenantId ? { tenantId } : {}) }).toString();
-    redirect(`/billing?${qs}`);
+    redirect(mergeQuery(returnTo, { error: msg, ...(tenantId ? { tenantId } : {}) }));
+  }
+}
+
+export async function mergeDuplicateSubscriptions(formData: FormData) {
+  await assertCsrfToken(formData);
+  const customerId = String(formData.get("customerId") || "").trim();
+  const planId = String(formData.get("planId") || "").trim();
+  const keepSubscriptionId = String(formData.get("keepSubscriptionId") || "").trim();
+  const tenantId = String(formData.get("tenantId") || "").trim();
+  const returnTo = String(formData.get("returnTo") || "/billing").trim();
+  if (!customerId || !planId) {
+    return redirect(mergeQuery(returnTo, { error: "missing_customer_or_plan", ...(tenantId ? { tenantId } : {}) }));
+  }
+  try {
+    const path = tenantId
+      ? `/admin/subscriptions/merge-duplicates?tenantId=${encodeURIComponent(tenantId)}`
+      : "/admin/subscriptions/merge-duplicates";
+    await adminFetch(path, {
+      method: "POST",
+      body: JSON.stringify({
+        customerId,
+        planId,
+        ...(keepSubscriptionId ? { keepSubscriptionId } : {})
+      })
+    });
+    redirect(mergeQuery(returnTo, { mergedSubscriptions: "1", ...(tenantId ? { tenantId } : {}) }));
+  } catch (err: any) {
+    if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
+    const msg = String(err?.message || "merge_duplicates_failed");
+    if (msg.includes("no_duplicates_found")) {
+      return redirect(mergeQuery(returnTo, { error: "No hay suscripciones duplicadas para fusionar.", ...(tenantId ? { tenantId } : {}) }));
+    }
+    return redirect(mergeQuery(returnTo, { error: msg, ...(tenantId ? { tenantId } : {}) }));
   }
 }
 

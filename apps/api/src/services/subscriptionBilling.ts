@@ -32,6 +32,10 @@ type PlanMetadata = {
 
 type SubscriptionMetadata = {
   templateId?: string;
+  pricing?: {
+    totalInCents?: number;
+    currency?: string;
+  };
 };
 
 type CheckoutConfig = {
@@ -88,6 +92,16 @@ function replaceVars(input: string, vars: Record<string, string>) {
     .replaceAll("{fecha_expira}", vars.fecha_expira);
 }
 
+function readSubscriptionTotalInCents(subscriptionMeta: unknown): number | null {
+  if (!subscriptionMeta || typeof subscriptionMeta !== "object") return null;
+  const md = subscriptionMeta as any;
+  const raw = md?.pricing?.totalInCents;
+  const value = Number(raw);
+  if (!Number.isFinite(value)) return null;
+  const total = Math.trunc(value);
+  return total > 0 ? total : 0;
+}
+
 export async function createPaymentLinkForSubscription(args: {
   subscriptionId: string;
   amountInCentsOverride?: number;
@@ -105,7 +119,8 @@ export async function createPaymentLinkForSubscription(args: {
 
   const cycle = sub.currentCycle;
   const reference = `SUB_${sub.id}_${cycle}`;
-  const amountInCents = args.amountInCentsOverride ?? sub.plan.priceInCents;
+  const subscriptionTotal = readSubscriptionTotalInCents(sub.metadata);
+  const amountInCents = args.amountInCentsOverride ?? subscriptionTotal ?? sub.plan.priceInCents;
 
   const subscriptionCycleKey = `${sub.id}:${cycle}`;
   const payment = await prisma.payment.upsert({
@@ -402,7 +417,8 @@ export async function createAutoDebitTransactionForSubscription(args: {
 
   const cycle = sub.currentCycle;
   const reference = `SUB_${sub.id}_${cycle}`;
-  const amountInCents = Math.trunc(args.amountInCentsOverride ?? sub.plan.priceInCents);
+  const subscriptionTotal = readSubscriptionTotalInCents(sub.metadata);
+  const amountInCents = Math.trunc(args.amountInCentsOverride ?? subscriptionTotal ?? sub.plan.priceInCents);
   const currency = validateWompiCurrency(sub.plan.currency);
 
   const subscriptionCycleKey = `${sub.id}:${cycle}`;

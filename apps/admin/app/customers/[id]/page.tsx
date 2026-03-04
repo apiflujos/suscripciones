@@ -134,6 +134,73 @@ function collectionLabel(mode: string) {
   return "Link de pago";
 }
 
+function normalizeSku(value: unknown) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (/^\d{6}$/.test(raw)) return raw;
+  const digits = raw.replace(/\D+/g, "");
+  if (!digits) return "";
+  return digits.length >= 6 ? digits.slice(-6) : digits.padStart(6, "0");
+}
+
+function formatPlanTitle(plan: any) {
+  const md = (plan?.metadata as any) || {};
+  const displayName = String(md?.displayName || "").trim();
+  const rawName = String(plan?.name || "").trim();
+  const cleanName = rawName.replace(/^\s*\[\d+\]\s*/, "").trim();
+  const name = displayName || cleanName || "—";
+  const sku = normalizeSku(md?.sku);
+  return sku ? `SKU ${sku} · ${name}` : name;
+}
+
+function tokenMethodLabel(meta: any) {
+  const wompi = meta?.wompi && typeof meta.wompi === "object" ? meta.wompi : {};
+  const sources = Array.isArray(wompi?.paymentSources) ? wompi.paymentSources : [];
+  const activeId = Number(
+    wompi?.paymentSourceId ??
+    wompi?.payment_source_id ??
+    meta?.paymentSourceId ??
+    meta?.payment_source_id ??
+    0
+  );
+  const active =
+    (Number.isFinite(activeId) && activeId > 0
+      ? sources.find((src: any) => Number(src?.id) === activeId)
+      : null) ||
+    sources[0] ||
+    null;
+  if (!active && !Number.isFinite(activeId)) return "";
+  const methodTypeRaw = String(active?.type || wompi?.paymentSourceType || "").trim().toUpperCase();
+  const methodType =
+    methodTypeRaw === "CARD" ? "Tarjeta" :
+    methodTypeRaw === "NEQUI" ? "Nequi" :
+    methodTypeRaw === "PSE" ? "PSE" :
+    "Método";
+  const brandRaw = String(
+    active?.brand ||
+    active?.cardBrand ||
+    active?.card?.brand ||
+    active?.paymentMethod?.brand ||
+    ""
+  ).trim();
+  const brand = brandRaw ? brandRaw.toUpperCase() : "";
+  const last4Raw = String(
+    active?.last4 ||
+    active?.last_four ||
+    active?.card?.last4 ||
+    active?.card?.last_four ||
+    active?.cardLast4 ||
+    ""
+  ).trim();
+  const last4Digits = last4Raw.replace(/\D+/g, "");
+  const last4 = last4Digits.length >= 4 ? last4Digits.slice(-4) : "";
+  if (brand && last4) return `${methodType} ${brand} · •••• ${last4}`;
+  if (last4) return `${methodType} · •••• ${last4}`;
+  if (brand) return `${methodType} ${brand}`;
+  if (Number.isFinite(activeId) && activeId > 0) return `${methodType} · fuente ${activeId}`;
+  return methodType;
+}
+
 function epochToIso(value: any) {
   const num = Number(value);
   if (!Number.isFinite(num)) return null;
@@ -431,6 +498,8 @@ export default async function CustomerDetailPage({
   const meta = customer?.metadata || {};
   const nextPeriodEnd = activeSub?.currentPeriodEndAt || null;
   const paymentSourceId = meta?.wompi?.paymentSourceId || meta?.wompi?.payment_source_id || null;
+  const activePlanLabel = activeSub ? formatPlanTitle(activeSub?.plan) : "Sin plan activo";
+  const tokenMethod = tokenMethodLabel(meta);
   const chatwootContactId = Number(meta?.chatwoot?.contactId || 0);
 
   const amountSeries = payments
@@ -570,7 +639,10 @@ export default async function CustomerDetailPage({
               </div>
               <div className="contact-tags">
                 {meta?.wompi?.paymentSourceId || meta?.wompi?.payment_source_id ? (
-                  <span className="pill pill-ok pill-sm">Tokenizada</span>
+                  <>
+                    <span className="pill pill-ok pill-sm">Tokenizada</span>
+                    {tokenMethod ? <span className="token-method-hint">{tokenMethod}</span> : null}
+                  </>
                 ) : (
                   <span className="pill pill-bad pill-sm">Sin token</span>
                 )}
@@ -655,7 +727,7 @@ export default async function CustomerDetailPage({
           </div>
           <div className="metric-label">Suscripciones</div>
           <div className="metric-value">{subscriptions.length}</div>
-          <div className="metric-sub">{activeSub ? activeSub.plan?.name || "Suscripción activa" : "Sin suscripción activa"}</div>
+          <div className="metric-sub">{activeSub ? activePlanLabel : "Sin suscripción activa"}</div>
         </div>
       </section>
 
@@ -807,7 +879,7 @@ export default async function CustomerDetailPage({
               <div className="commercial-grid">
                 <div className="commercial-card">
                   <span className="commercial-label">Suscripción activa</span>
-                  <span className="commercial-value">{activeSub?.plan?.name || "Sin plan activo"}</span>
+                  <span className="commercial-value">{activePlanLabel}</span>
                   <span className="commercial-meta">{activeSub ? collectionLabel(String(activeSub?.plan?.collectionMode || activeSub?.plan?.metadata?.collectionMode || "")) : "—"}</span>
                 </div>
                 <div className="commercial-card">
@@ -828,7 +900,7 @@ export default async function CustomerDetailPage({
                 <div className="commercial-card">
                   <span className="commercial-label">Método</span>
                   <span className="commercial-value">{paymentSourceId ? "Tokenizado" : "Sin token"}</span>
-                  <span className="commercial-meta">{paymentSourceId ? "Pago recurrente habilitado" : "Requiere débito automático"}</span>
+                  <span className="commercial-meta">{paymentSourceId ? (tokenMethod || "Pago recurrente habilitado") : "Requiere débito automático"}</span>
                 </div>
                 <div className="commercial-card">
                   <span className="commercial-label">Recencia</span>
@@ -1054,7 +1126,7 @@ export default async function CustomerDetailPage({
                       <td><LocalDateTime value={p.paidAt || p.createdAt} /></td>
                       <td>{formatCopFromCents(Number(p.amountInCents || 0))}</td>
                       <td className="cell-truncate" title={String(p.status || "—")}><span className={`pill pill-sm ${statusPillClass(String(p.status || ""))}`}>{statusLabel(String(p.status || ""))}</span></td>
-                      <td className="cell-truncate" title={p.planName || "—"}>{p.planName || "—"}</td>
+                      <td className="cell-truncate" title={formatPlanTitle({ name: p.planName })}>{formatPlanTitle({ name: p.planName })}</td>
                     </tr>
                   ))}
                 </tbody>

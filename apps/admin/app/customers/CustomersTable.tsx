@@ -12,6 +12,22 @@ function formatCopFromCents(cents: number) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(pesos);
 }
 
+function normalizeSku(value: unknown) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (/^\d{6}$/.test(raw)) return raw;
+  const digits = raw.replace(/\D+/g, "");
+  if (!digits) return "";
+  return digits.length >= 6 ? digits.slice(-6) : digits.padStart(6, "0");
+}
+
+function formatPlanLabel(rawName: unknown, skuRaw?: unknown) {
+  const name = String(rawName || "").replace(/^\s*\[\d+\]\s*/, "").trim();
+  if (!name) return "—";
+  const sku = normalizeSku(skuRaw);
+  return sku ? `SKU ${sku} · ${name}` : name;
+}
+
 type CustomerRow = {
   id: string;
   tenantId?: string | null;
@@ -532,7 +548,7 @@ export function CustomersTable({
             c?.metadata?.document ||
             "";
           const hasPlan = subInfo?.hasPlan ?? false;
-          const planName = subInfo?.planName || "";
+          const planName = formatPlanLabel(subInfo?.planName || "");
           const status = String(subInfo?.status || "");
           const collectionMode = String(subInfo?.collectionMode || "");
           const kindLabel =
@@ -541,6 +557,12 @@ export function CustomersTable({
               : collectionMode === "AUTO_LINK" || collectionMode === "MANUAL_LINK"
                 ? "Link de pago"
                 : "Débito automático";
+          const kindPillClass =
+            collectionMode === "AUTO_DEBIT"
+              ? "pill-mode-debit"
+              : collectionMode === "AUTO_LINK" || collectionMode === "MANUAL_LINK"
+                ? "pill-mode-link"
+                : "pill-mode-debit";
           const statusLabel =
             status === "ACTIVE" ? "Activa" : status === "PAST_DUE" ? "En mora" : status ? "Inactiva" : "";
           const statusPillClass = status === "ACTIVE" ? "pill-ok" : status === "PAST_DUE" ? "pill-bad" : status ? "pill-muted" : "";
@@ -551,7 +573,7 @@ export function CustomersTable({
                   <div className="contact-title">{c.name || "—"}</div>
                   <div className="contact-tags">
                     {hasToken(c) ? <span className="pill pill-ok pill-sm">Tokenizada</span> : <span className="pill pill-bad pill-sm">Sin token</span>}
-                    {hasPlan ? <span className="pill pill-muted pill-sm">{kindLabel}</span> : <span className="pill pill-muted pill-sm">Sin suscripción</span>}
+                    {hasPlan ? <span className={`pill pill-sm ${kindPillClass}`}>{kindLabel}</span> : <span className="pill pill-muted pill-sm">Sin suscripción</span>}
                     {statusLabel && statusPillClass ? <span className={`pill ${statusPillClass} pill-sm`}>{statusLabel}</span> : null}
                   </div>
                 </div>
@@ -1358,7 +1380,7 @@ export function CustomersTable({
                             "—"
                           )}
                         </td>
-                        <td className="cell-truncate" title={t.planName || "—"}>{t.planName || "—"}</td>
+                        <td className="cell-truncate" title={formatPlanLabel(t.planName || "")}>{formatPlanLabel(t.planName || "")}</td>
                         <td className="cell-truncate mono" title={t.reference || "—"}>{t.reference || "—"}</td>
                       </tr>
                     ))}

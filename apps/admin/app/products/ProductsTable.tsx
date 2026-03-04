@@ -532,7 +532,7 @@ export function ProductsTable({
                   <span>·</span>
                   <span>{p.kind === "SERVICE" ? "Servicio" : "Producto"}</span>
                   <span>·</span>
-                  <span className={`pill pill-sm ${String(p.collectionMode || "").toUpperCase() === "AUTO_DEBIT" ? "pill-ok" : "pill-warn"}`}>
+                  <span className={`pill pill-sm ${String(p.collectionMode || "").toUpperCase() === "AUTO_DEBIT" ? "pill-mode-debit" : "pill-mode-link"}`}>
                     {getCollectionModeLabel(p.collectionMode)}
                   </span>
                   {p.tenantName ? (

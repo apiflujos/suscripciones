@@ -3256,6 +3256,11 @@ textarea.input {
   align-items: center;
 }
 
+.token-method-hint {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
 .contact-card-top-actions {
   display: inline-flex;
   gap: 8px;
@@ -5304,6 +5309,18 @@ textarea.input {
 .pill.pill-warn {
   background: rgba(245, 158, 11, 0.16);
   color: #92400e;
+}
+
+.pill.pill-mode-link {
+  background: rgba(29, 78, 216, 0.14);
+  color: #1d4ed8;
+  border-color: rgba(29, 78, 216, 0.34);
+}
+
+.pill.pill-mode-debit {
+  background: rgba(6, 95, 70, 0.14);
+  color: #065f46;
+  border-color: rgba(6, 95, 70, 0.34);
 }
 
 .contact-empty {

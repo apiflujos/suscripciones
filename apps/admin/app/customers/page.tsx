@@ -14,6 +14,25 @@ function getConfig() {
   return getAdminApiConfig();
 }
 
+function normalizeSku(value: unknown) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (/^\d{6}$/.test(raw)) return raw;
+  const digits = raw.replace(/\D+/g, "");
+  if (!digits) return "";
+  return digits.length >= 6 ? digits.slice(-6) : digits.padStart(6, "0");
+}
+
+function formatSubscriptionPlanName(plan: any) {
+  const md = (plan?.metadata as any) || {};
+  const displayName = String(md?.displayName || "").trim();
+  const rawName = String(plan?.name || "").trim();
+  const cleanName = rawName.replace(/^\s*\[\d+\]\s*/, "").trim();
+  const name = displayName || cleanName || "—";
+  const sku = normalizeSku(md?.sku);
+  return sku ? `SKU ${sku} · ${name}` : name;
+}
+
 async function fetchCustomers(opts?: { q?: string; take?: number; page?: number; tenantId?: string; ids?: string[] }) {
   const sp = new URLSearchParams();
   const q = String(opts?.q || "").trim();
@@ -74,7 +93,7 @@ async function fetchCustomerSubscriptions(tenantId?: string) {
     const status = String(item?.status || "");
     if (!status || status === "CANCELED") continue;
     if (map[customerId]) continue;
-    const planName = String(item?.plan?.name || "");
+    const planName = formatSubscriptionPlanName(item?.plan);
     const collectionMode = String(item?.plan?.metadata?.collectionMode || "");
     map[customerId] = { hasPlan: true, planName, status, collectionMode };
   }

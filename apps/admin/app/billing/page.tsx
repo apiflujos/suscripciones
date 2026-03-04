@@ -1,5 +1,6 @@
-import { activateSubscription, cancelSubscription, deleteSubscription, resumeSubscription, suspendSubscription } from "../subscriptions/actions";
+import { activateSubscription, cancelSubscription, deleteSubscription, mergeDuplicateSubscriptions, resumeSubscription, suspendSubscription } from "../subscriptions/actions";
 import { DeleteSubscriptionButton } from "./DeleteSubscriptionButton";
+import { MergeDuplicateSubscriptionsButton } from "./MergeDuplicateSubscriptionsButton";
 import { changeSubscriptionPlan, chargeSubscriptionNow, createCustomerFromBilling, createPlanAndSubscription, scheduleCutoff, sendCentralComPaymentLink, sendCentralComTokenizationLink, updateSubscriptionTenants } from "./actions";
 import { ChargeStatusModal } from "./ChargeStatusModal";
 import { NewBillingAssignmentForm } from "./NewBillingAssignmentForm";
@@ -72,6 +73,16 @@ function getSubscriptionStatusLabel(status: any) {
   if (s === "SUSPENDED") return "Suspendida";
   if (s === "CANCELED") return "Cancelada";
   return s || "—";
+}
+
+function subscriptionRank(status: any) {
+  const s = String(status || "");
+  if (s === "ACTIVE") return 1;
+  if (s === "PAST_DUE") return 2;
+  if (s === "SUSPENDED") return 3;
+  if (s === "EXPIRED") return 4;
+  if (s === "CANCELED") return 5;
+  return 9;
 }
 
 function getPaymentStatusLabel(args: {
@@ -202,6 +213,7 @@ export default async function BillingPage({
   const tenantsUpdated = typeof sp.tenantsUpdated === "string" ? sp.tenantsUpdated : "";
   const error = normalizeErrorParam(typeof sp.error === "string" ? sp.error : undefined);
   const central = typeof sp.central === "string" ? sp.central : "";
+  const mergedSubscriptions = typeof sp.mergedSubscriptions === "string" ? sp.mergedSubscriptions : "";
   const crear = typeof sp.crear === "string" ? sp.crear : "";
   const selectCustomerId = typeof sp.selectCustomerId === "string" ? sp.selectCustomerId : "";
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
@@ -332,8 +344,10 @@ export default async function BillingPage({
 
       const tenantIds = Array.isArray(s.tenantIds) && s.tenantIds.length ? s.tenantIds : [s.tenantId || plan?.tenantId].filter(Boolean);
       const tenantNameList = tenantIds.map((id: string) => tenantById.get(String(id))).filter(Boolean) as string[];
-      const totalInCents = Number(plan?.priceInCents || 0);
-      const shippingInCents = Number(readPlanPricing((plan?.metadata as any) ?? {})?.shippingInCents || 0);
+      const subscriptionPricing = readPlanPricing((s?.metadata as any) ?? {});
+      const planPricing = readPlanPricing((plan?.metadata as any) ?? {});
+      const totalInCents = Number(subscriptionPricing?.totalInCents || plan?.priceInCents || 0);
+      const shippingInCents = Number(subscriptionPricing?.shippingInCents ?? planPricing?.shippingInCents ?? 0);
       const requiresShipping = String((plan?.metadata as any)?.catalog?.kind || "").toUpperCase() !== "SERVICE";
       const shippingAppliedInCents = requiresShipping ? Math.max(0, shippingInCents) : 0;
       const baseValueInCents = Math.max(0, totalInCents - shippingAppliedInCents);
@@ -406,6 +420,34 @@ export default async function BillingPage({
       return ad - bd;
     });
 
+  const duplicateCountByKey = rows.reduce((acc, row) => {
+    const key = `${row.customerId}:${row.planId}`;
+    if (!row.customerId || !row.planId) return acc;
+    acc.set(key, (acc.get(key) || 0) + 1);
+    return acc;
+  }, new Map<string, number>());
+  const duplicateKeepByKey = rows.reduce((acc, row) => {
+    const key = `${row.customerId}:${row.planId}`;
+    if (!row.customerId || !row.planId) return acc;
+    const prev = acc.get(key);
+    if (!prev) {
+      acc.set(key, row);
+      return acc;
+    }
+    const prevRank = subscriptionRank(prev.status);
+    const currRank = subscriptionRank(row.status);
+    if (currRank < prevRank) {
+      acc.set(key, row);
+      return acc;
+    }
+    if (currRank === prevRank) {
+      const prevCutoff = prev.vencimientoAt ? new Date(prev.vencimientoAt).getTime() : 0;
+      const currCutoff = row.vencimientoAt ? new Date(row.vencimientoAt).getTime() : 0;
+      if (currCutoff >= prevCutoff) acc.set(key, row);
+    }
+    return acc;
+  }, new Map<string, any>());
+
   const paginationBase = {
     ...(tenantId ? { tenantId } : {}),
     ...(q ? { q } : {}),
@@ -424,6 +466,7 @@ export default async function BillingPage({
         </div>
       ) : null}
       {contactCreated ? <div className="card cardPad">Contacto creado correctamente.</div> : null}
+      {mergedSubscriptions ? <div className="card cardPad">Suscripciones duplicadas fusionadas correctamente.</div> : null}
       {chargeStatus ? (
         <ChargeStatusModal
           initialStatus={chargeStatus === "processing" ? "processing" : chargeStatus === "ok" ? "ok" : "fail"}
@@ -515,6 +558,9 @@ export default async function BillingPage({
               const cutoffForRow = cutoffScheduled && actionSubscriptionId === r.id;
               const tenantsUpdatedForRow = tenantsUpdated && actionSubscriptionId === r.id;
               const canSendToken = r.mode === "AUTO_DEBIT" && Boolean(subscriptionBaseUrl);
+              const duplicateKey = `${r.customerId}:${r.planId}`;
+              const duplicateCount = duplicateCountByKey.get(duplicateKey) || 1;
+              const keepRowId = duplicateKeepByKey.get(duplicateKey)?.id || r.id;
               const paymentBadgeStatus = paymentStatus === "Pagado" ? "Al día" : paymentStatus;
               const planBadgeStatus = planLinkStatus === "Pagado" ? "Al día" : planLinkStatus;
               return (
@@ -586,7 +632,7 @@ export default async function BillingPage({
                           aria-label="Historial"
                           title="Historial"
                         />
-                        <DeleteSubscriptionButton action={deleteSubscription} csrfToken={csrfToken} subscriptionId={r.id} tenantId={r.tenantId} />
+                        <DeleteSubscriptionButton action={deleteSubscription} csrfToken={csrfToken} subscriptionId={r.id} tenantId={r.tenantId} returnTo={returnTo} />
                       </div>
                     </div>
                   </div>
@@ -598,7 +644,11 @@ export default async function BillingPage({
                         <div className="billing-sub">
                           {r.customerEmail || "—"} · {r.identificacion || "—"}
                         </div>
-                        <div className="field-hint">{isPlan ? "Suscripción link de pago" : "Débito automático"}</div>
+                        <div>
+                          <span className={`pill pill-sm ${isPlan ? "pill-mode-link" : "pill-mode-debit"}`}>
+                            {isPlan ? "Suscripción link de pago" : "Débito automático"}
+                          </span>
+                        </div>
                       </div>
                       <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                         <div className="product-thumb" style={{ width: 32, height: 32 }}>
@@ -648,6 +698,18 @@ export default async function BillingPage({
 
                   <div className="billing-actions">
                     <div className="billing-actions-left">
+                      {duplicateCount > 1 && keepRowId === r.id ? (
+                        <MergeDuplicateSubscriptionsButton
+                          action={mergeDuplicateSubscriptions}
+                          csrfToken={csrfToken}
+                          customerId={r.customerId}
+                          planId={r.planId}
+                          keepSubscriptionId={keepRowId}
+                          tenantId={r.tenantId}
+                          returnTo={returnTo}
+                          duplicatesCount={duplicateCount}
+                        />
+                      ) : null}
                       {r.mode === "AUTO_DEBIT" && r.status === "PAST_DUE" ? (
                         <form action={chargeSubscriptionNow}>
                           <input type="hidden" name="csrf" value={csrfToken} />

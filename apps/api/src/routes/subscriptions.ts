@@ -15,7 +15,14 @@ const createSubscriptionSchema = z.object({
   startAt: z.string().datetime().optional(),
   firstPeriodEndAt: z.string().datetime().optional(),
   createPaymentLink: z.boolean().optional().default(false),
+  allowDuplicate: z.boolean().optional().default(false),
   metadata: z.record(z.any()).optional()
+});
+
+const mergeDuplicateSubscriptionsSchema = z.object({
+  customerId: z.string().uuid(),
+  planId: z.string().uuid().optional(),
+  keepSubscriptionId: z.string().uuid().optional()
 });
 
 export const subscriptionsRouter = express.Router();
@@ -148,6 +155,39 @@ subscriptionsRouter.post("/", async (req, res) => {
       where: { customerId: customer.id, tenantId: { in: effectiveTenantIds } }
     });
     if (!linked) return res.status(409).json({ error: "tenant_mismatch" });
+  }
+  if (!parsed.data.allowDuplicate) {
+    const catalogItemId = String((plan.metadata as any)?.catalog?.itemId || "").trim();
+    const activeStatuses = [
+      SubscriptionStatus.ACTIVE,
+      SubscriptionStatus.PAST_DUE,
+      SubscriptionStatus.SUSPENDED,
+      SubscriptionStatus.EXPIRED
+    ];
+    const duplicateWhere: any = {
+      customerId: parsed.data.customerId,
+      status: { in: activeStatuses }
+    };
+    if (catalogItemId) {
+      duplicateWhere.OR = [
+        { planId: parsed.data.planId },
+        { plan: { metadata: { path: ["catalog", "itemId"], equals: catalogItemId } as any } }
+      ];
+    } else {
+      duplicateWhere.planId = parsed.data.planId;
+    }
+    const duplicatesCount = await prisma.subscription.count({ where: duplicateWhere });
+    if (duplicatesCount > 0) {
+      return res.status(409).json({
+        error: "duplicate_subscription_requires_approval",
+        details: {
+          duplicatesCount,
+          customerId: parsed.data.customerId,
+          planId: parsed.data.planId,
+          catalogItemId: catalogItemId || null
+        }
+      });
+    }
   }
   const tenantId = effectiveTenantIds[0];
 
@@ -507,9 +547,8 @@ subscriptionsRouter.post("/:id/change-plan", async (req, res) => {
     if (!allowedPlan) return res.status(404).json({ error: "plan_not_found" });
   }
 
-  let planForSubscription = plan;
   const planMeta = (plan.metadata as any) ?? {};
-  const sourcePlanId = String(planMeta?.adjustedFromPlanId || plan.id || "");
+  const sourcePlanId = String(plan.id || "");
   const catalog = planMeta?.catalog ?? {};
   const pricing = readPlanPricing(planMeta);
   const kind = String(catalog?.kind || "").toUpperCase();
@@ -524,102 +563,43 @@ subscriptionsRouter.post("/:id/change-plan", async (req, res) => {
     return res.status(400).json({ error: "missing_shipping_amount" });
   }
 
-  const shippingChanged = requiresShipping && requestedShippingInCents !== defaultShippingInCents;
-  if (shippingChanged) {
-    const totals = computePlanTotalInCents({
+  const totals = computePlanTotalInCents({
+    basePriceInCents: Number(pricing?.basePriceInCents || plan.priceInCents || 0),
+    variantDeltaInCents: Number(catalog?.variantDeltaInCents || 0),
+    shippingInCents: requestedShippingInCents,
+    discountType: String(pricing?.discountType || "NONE"),
+    discountValueInCents: Number(pricing?.discountValueInCents || 0),
+    discountPercent: Number(pricing?.discountPercent || 0),
+    taxPercent: Number(pricing?.taxPercent || 0)
+  });
+
+  const subscriptionMetaBase =
+    subscription.metadata && typeof subscription.metadata === "object" ? (subscription.metadata as any) : {};
+  const nextSubscriptionMetadata = {
+    ...subscriptionMetaBase,
+    pricing: {
+      ...(subscriptionMetaBase?.pricing && typeof subscriptionMetaBase.pricing === "object"
+        ? subscriptionMetaBase.pricing
+        : {}),
+      sourcePlanId,
       basePriceInCents: Number(pricing?.basePriceInCents || plan.priceInCents || 0),
       variantDeltaInCents: Number(catalog?.variantDeltaInCents || 0),
       shippingInCents: requestedShippingInCents,
-      discountType: String(pricing?.discountType || "NONE"),
-      discountValueInCents: Number(pricing?.discountValueInCents || 0),
-      discountPercent: Number(pricing?.discountPercent || 0),
-      taxPercent: Number(pricing?.taxPercent || 0)
-    });
-
-    const nextMetadata = {
-      ...(planMeta && typeof planMeta === "object" ? planMeta : {}),
-      adjustedForSubscriptionId: subscriptionId,
-      adjustedFromPlanId: sourcePlanId,
-      catalog: {
-        ...(catalog && typeof catalog === "object" ? catalog : {}),
-        pricing: {
-          ...(pricing && typeof pricing === "object" ? pricing : {}),
-          shippingInCents: requestedShippingInCents,
-          subtotalInCents: totals.subtotalInCents,
-          taxInCents: totals.taxInCents,
-          totalInCents: totals.totalInCents,
-          freeShipping: Boolean(parsed.data.freeShipping)
-        }
-      },
-      pricing: {
-        ...(pricing && typeof pricing === "object" ? pricing : {}),
-        shippingInCents: requestedShippingInCents,
-        subtotalInCents: totals.subtotalInCents,
-        taxInCents: totals.taxInCents,
-        totalInCents: totals.totalInCents,
-        freeShipping: Boolean(parsed.data.freeShipping)
-      }
-    };
-    const adjustedWhere: any = {
-      AND: [
-        { metadata: { path: ["adjustedForSubscriptionId"], equals: subscriptionId } } as any,
-        { metadata: { path: ["adjustedFromPlanId"], equals: sourcePlanId } } as any
-      ]
-    };
-    if (plan.tenantId) adjustedWhere.tenantId = plan.tenantId;
-
-    const existingAdjusted = await prisma.subscriptionPlan.findFirst({
-      where: adjustedWhere,
-      orderBy: { updatedAt: "desc" },
-      include: { tenantLinks: true }
-    });
-
-    if (existingAdjusted) {
-      const updatedAdjusted = await prisma.subscriptionPlan.update({
-        where: { id: existingAdjusted.id },
-        data: {
-          priceInCents: totals.totalInCents,
-          currency: plan.currency,
-          intervalUnit: plan.intervalUnit,
-          intervalCount: plan.intervalCount,
-          planType: plan.planType as any,
-          metadata: nextMetadata as any
-        }
-      });
-      planForSubscription = updatedAdjusted as any;
-    } else {
-      const baseLabel = String((plan.metadata as any)?.displayName || plan.name || "Plan");
-      const suffix = String(subscriptionId || "").slice(0, 8);
-      const created = await prisma.subscriptionPlan.create({
-        data: {
-          tenantId: plan.tenantId,
-          name: `${baseLabel} · envío ajustado · ${suffix}`,
-          priceInCents: totals.totalInCents,
-          currency: plan.currency,
-          intervalUnit: plan.intervalUnit,
-          intervalCount: plan.intervalCount,
-          planType: plan.planType as any,
-          metadata: nextMetadata as any
-        }
-      });
-      const tenantIdsForClone = Array.from(
-        new Set([plan.tenantId, ...(plan.tenantLinks || []).map((t: any) => String(t.tenantId || "")).filter(Boolean)])
-      ) as string[];
-      if (tenantIdsForClone.length) {
-        await prisma.subscriptionPlanTenant.createMany({
-          data: tenantIdsForClone.map((t) => ({ planId: created.id, tenantId: t })),
-          skipDuplicates: true
-        });
-      }
-      planForSubscription = created as any;
+      subtotalInCents: totals.subtotalInCents,
+      taxInCents: totals.taxInCents,
+      totalInCents: totals.totalInCents,
+      freeShipping: Boolean(parsed.data.freeShipping),
+      currency: plan.currency,
+      updatedAt: new Date().toISOString()
     }
-  }
+  };
 
   const now = new Date();
   const updated = await prisma.subscription.update({
     where: { id: subscriptionId },
     data: {
-      planId: planForSubscription.id,
+      planId: plan.id,
+      metadata: nextSubscriptionMetadata as any,
       currentCycle: 1,
       currentPeriodStartAt: now,
       currentPeriodEndAt: cutoffAt
@@ -846,6 +826,100 @@ subscriptionsRouter.post("/:id/activate", async (req, res) => {
   });
   await systemLog(LogLevel.INFO, "subscriptions.activate", "Subscription activated", { subscriptionId }).catch(() => {});
   res.json({ subscription: updated });
+});
+
+subscriptionsRouter.post("/merge-duplicates", async (req, res) => {
+  const parsed = mergeDuplicateSubscriptionsSchema.safeParse(req.body || {});
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+
+  const tenantId = await getEffectiveTenantId(req);
+  const { customerId, planId, keepSubscriptionId } = parsed.data;
+  const where: any = { customerId };
+  if (planId) where.planId = planId;
+  if (tenantId) {
+    where.OR = [{ tenantId }, { tenantLinks: { some: { tenantId } } }];
+  }
+
+  const subscriptions = await prisma.subscription.findMany({
+    where,
+    include: { tenantLinks: true },
+    orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }]
+  });
+  if (subscriptions.length < 2) {
+    return res.status(409).json({ error: "no_duplicates_found" });
+  }
+
+  const rank = (status: SubscriptionStatus) => {
+    if (status === SubscriptionStatus.ACTIVE) return 1;
+    if (status === SubscriptionStatus.PAST_DUE) return 2;
+    if (status === SubscriptionStatus.SUSPENDED) return 3;
+    if (status === SubscriptionStatus.EXPIRED) return 4;
+    if (status === SubscriptionStatus.CANCELED) return 5;
+    return 9;
+  };
+
+  const keep =
+    (keepSubscriptionId ? subscriptions.find((s) => s.id === keepSubscriptionId) : null) ||
+    [...subscriptions].sort((a, b) => {
+      const byStatus = rank(a.status as SubscriptionStatus) - rank(b.status as SubscriptionStatus);
+      if (byStatus !== 0) return byStatus;
+      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+    })[0];
+
+  if (!keep) return res.status(404).json({ error: "subscription_not_found" });
+
+  const mergeSubs = subscriptions.filter((s) => s.id !== keep.id);
+  if (!mergeSubs.length) return res.status(409).json({ error: "no_duplicates_found" });
+  const mergeIds = mergeSubs.map((s) => s.id);
+
+  const tenantIdsToMove = Array.from(
+    new Set(
+      mergeSubs.flatMap((s) => [s.tenantId, ...(s.tenantLinks || []).map((t: any) => t.tenantId)].filter(Boolean))
+    )
+  ) as string[];
+  const keptTenantIds = new Set([keep.tenantId, ...(keep.tenantLinks || []).map((t: any) => t.tenantId)].filter(Boolean));
+  const tenantLinksToCreate = tenantIdsToMove
+    .filter((id) => !keptTenantIds.has(id))
+    .map((id) => ({ subscriptionId: keep.id, tenantId: id }));
+
+  const moved = await prisma.$transaction(async (tx) => {
+    const [payments, paymentLinks, chatwootMessages] = await Promise.all([
+      tx.payment.updateMany({ where: { subscriptionId: { in: mergeIds } }, data: { subscriptionId: keep.id } }),
+      tx.paymentLink.updateMany({ where: { subscriptionId: { in: mergeIds } }, data: { subscriptionId: keep.id } }),
+      tx.chatwootMessage.updateMany({ where: { subscriptionId: { in: mergeIds } }, data: { subscriptionId: keep.id } })
+    ]);
+
+    if (tenantLinksToCreate.length) {
+      await tx.subscriptionTenant.createMany({
+        data: tenantLinksToCreate,
+        skipDuplicates: true
+      });
+    }
+    await tx.subscriptionTenant.deleteMany({ where: { subscriptionId: { in: mergeIds } } });
+    await tx.subscription.deleteMany({ where: { id: { in: mergeIds } } });
+
+    return {
+      payments: Number(payments.count || 0),
+      paymentLinks: Number(paymentLinks.count || 0),
+      chatwootMessages: Number(chatwootMessages.count || 0),
+      subscriptionsDeleted: mergeIds.length
+    };
+  });
+
+  await systemLog(LogLevel.WARN, "subscriptions.merge_duplicates", "Duplicate subscriptions merged", {
+    customerId,
+    planId: planId || null,
+    keepSubscriptionId: keep.id,
+    mergedSubscriptionIds: mergeIds,
+    moved
+  }).catch(() => {});
+
+  return res.json({
+    ok: true,
+    keepSubscriptionId: keep.id,
+    mergedSubscriptionIds: mergeIds,
+    moved
+  });
 });
 
 subscriptionsRouter.delete("/:id", async (req, res) => {

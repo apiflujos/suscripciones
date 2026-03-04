@@ -63,6 +63,7 @@ function humanizeCreateError(raw: string) {
   if (msg.includes("missing_shipping_amount")) return "Debes ingresar el valor del flete o activar envío gratis.";
   if (msg.includes("missing_subscription_base_url")) return "Falta configurar URL base de suscripción en Configuración.";
   if (msg.includes("missing_plan_base_url")) return "Falta configurar URL base de plan en Configuración.";
+  if (msg.includes("duplicate_subscription_requires_approval")) return "Este cliente ya tiene una suscripción activa/en mora para el mismo producto. Debes confirmar creación duplicada.";
   if (msg.includes("create_plan_failed")) return "No se pudo crear el producto de cobro.";
   if (msg.includes("create_subscription_failed")) return "No se pudo crear la suscripción.";
   if (msg.includes("csrf_invalid")) return "La sesión expiró. Recarga la página e intenta de nuevo.";
@@ -523,6 +524,7 @@ export async function createPlanAndSubscription(formData: FormData) {
   const templateIdRaw = String(formData.get("templateId") || "").trim();
   const submitActionRaw = String(formData.get("submitAction") || "").trim().toUpperCase();
   const submitAction = submitActionRaw === "LINK_NOW" ? "LINK_NOW" : "CREATE";
+  const allowDuplicate = String(formData.get("allowDuplicate") || "").trim() === "1";
   const shippingInCentsInput = pesosToCents(String(formData.get("shippingPesos") || ""));
 
   if (!customerId || !productId) {
@@ -685,6 +687,7 @@ export async function createPlanAndSubscription(formData: FormData) {
         ...(template?.id ? { metadata: { templateId: String(template.id) } } : {}),
         ...(startAtValue ? { startAt: startAtValue } : {}),
         ...(endAtValue ? { firstPeriodEndAt: endAtValue } : {}),
+        ...(allowDuplicate ? { allowDuplicate: true } : {}),
         ...(shouldCreateLink ? { createPaymentLink: true } : {})
       })
     });
@@ -975,8 +978,8 @@ export async function deletePlanAndSubscription(formData: FormData) {
 
   try {
     const path = tenantId
-      ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}?tenantId=${encodeURIComponent(tenantId)}&force=1`
-      : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}?force=1`;
+      ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}?tenantId=${encodeURIComponent(tenantId)}&force=1&purgePayments=1`
+      : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}?force=1&purgePayments=1`;
     await adminFetch(path, {
       method: "DELETE"
     });

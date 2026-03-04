@@ -192,6 +192,15 @@ function normalizeNameForMatch(value: unknown): string {
     .toLowerCase();
 }
 
+function readSubscriptionPricingTotalInCents(subscriptionMeta: unknown): number | null {
+  if (!subscriptionMeta || typeof subscriptionMeta !== "object") return null;
+  const raw = (subscriptionMeta as any)?.pricing?.totalInCents;
+  const num = Number(raw);
+  if (!Number.isFinite(num)) return null;
+  const value = Math.trunc(num);
+  return value > 0 ? value : 0;
+}
+
 function getPaidAtFromPayload(payload: WompiPayload): Date | null {
   const tx = getTransactionFromPayload(payload);
   const raw =
@@ -310,17 +319,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   
   const missingPaymentLinkRecord = Boolean(paymentLinkId && !paymentByLink && !paymentLinkRecord);
   if (missingPaymentLinkRecord) {
-    const canProceedByReference =
-      referenceClassification.kind === "subscription" ||
-      (referenceClassification.kind === "order" && referenceClassification.planId);
-    if (!canProceedByReference) {
-      await db.webhookEvent.update({
-        where: { id: webhookEventId },
-        data: { processStatus: WebhookProcessStatus.SKIPPED, errorMessage: "payment_link_external", processedAt: new Date() }
-      });
-      return;
-    }
-    await systemLog(LogLevel.WARN, "processWompiEvent", "payment_link_not_found: proceeding by reference", {
+    await systemLog(LogLevel.WARN, "processWompiEvent", "payment_link_not_found: proceeding by inference", {
       paymentLinkId,
       reference
     }).catch(() => {});
@@ -381,12 +380,53 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         status: { in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE, SubscriptionStatus.SUSPENDED] },
         ...(event.tenantId ? { tenantId: event.tenantId } : {})
       },
-      select: { id: true, customerId: true, status: true, updatedAt: true },
+      include: {
+        plan: {
+          select: {
+            priceInCents: true,
+            currency: true,
+            metadata: true
+          }
+        }
+      },
       orderBy: [{ updatedAt: "desc" }]
     });
 
     if (candidates.length === 1) return { subscriptionId: candidates[0].id, reason: "identity_unique" };
     if (!candidates.length) return { subscriptionId: "", reason: "subscription_not_found_for_identity" };
+
+    const incomingAmount = Number(amountInCents || 0);
+    const incomingCurrency = String(currency || "").trim().toUpperCase();
+    const withExactAmount = candidates.filter((s: any) => {
+      const pricingAmount = readSubscriptionPricingTotalInCents(s?.metadata);
+      const planAmount = Number((pricingAmount ?? s?.plan?.priceInCents) || 0);
+      const planCurrency = String(s?.plan?.currency || "").trim().toUpperCase();
+      if (!incomingAmount || !incomingCurrency) return false;
+      return planAmount === incomingAmount && (!planCurrency || planCurrency === incomingCurrency);
+    });
+    if (withExactAmount.length === 1) {
+      return { subscriptionId: withExactAmount[0].id, reason: "identity_amount_unique" };
+    }
+
+    if (withExactAmount.length > 1) {
+      const statusRank = (status: SubscriptionStatus) => {
+        if (status === SubscriptionStatus.ACTIVE) return 1;
+        if (status === SubscriptionStatus.PAST_DUE) return 2;
+        if (status === SubscriptionStatus.SUSPENDED) return 3;
+        return 9;
+      };
+      const paidAtTs = getPaidAtFromPayload(payload)?.getTime() || Date.now();
+      const scored = withExactAmount
+        .map((s: any) => {
+          const endAt = new Date(s.currentPeriodEndAt || s.updatedAt || s.createdAt).getTime();
+          const distance = Number.isFinite(endAt) ? Math.abs(endAt - paidAtTs) : Number.MAX_SAFE_INTEGER;
+          return { s, scoreA: statusRank(s.status), scoreB: distance };
+        })
+        .sort((a, b) => (a.scoreA - b.scoreA) || (a.scoreB - b.scoreB));
+      const best = scored[0]?.s || null;
+      if (best) return { subscriptionId: best.id, reason: "identity_amount_ranked", count: withExactAmount.length };
+    }
+
     return { subscriptionId: "", reason: "subscription_ambiguous_for_identity", count: candidates.length };
   };
 

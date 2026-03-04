@@ -106,6 +106,9 @@ export function NewBillingAssignmentForm({
   const option2Value = "";
   const [templateId, setTemplateId] = useState("");
   const [shippingCop, setShippingCop] = useState("");
+  const [allowDuplicate, setAllowDuplicate] = useState(false);
+  const [duplicateCount, setDuplicateCount] = useState(0);
+  const [duplicateChecking, setDuplicateChecking] = useState(false);
 
   const startAtIso = "";
   const cutoffAtIso = "";
@@ -118,6 +121,10 @@ export function NewBillingAssignmentForm({
   useEffect(() => {
     setShippingCop("");
   }, [productId]);
+
+  useEffect(() => {
+    setAllowDuplicate(false);
+  }, [customerId, productId, billingType]);
 
   const intervalUnit = (selectedProduct?.intervalUnit || "MONTH") as "DAY" | "WEEK" | "MONTH" | "CUSTOM";
   const intervalCount = Number(selectedProduct?.intervalCount || 1);
@@ -278,6 +285,40 @@ export function NewBillingAssignmentForm({
       clearTimeout(t);
     };
   }, [customerQ]);
+
+  useEffect(() => {
+    if (!customerId || !productId || billingType !== "SUBSCRIPCION") {
+      setDuplicateCount(0);
+      setDuplicateChecking(false);
+      return;
+    }
+    const ac = new AbortController();
+    setDuplicateChecking(true);
+    fetch(
+      `/api/billing/duplicates?${new URLSearchParams({
+        customerId: String(customerId),
+        productId: String(productId),
+        ...(tenantId ? { tenantId } : {})
+      }).toString()}`,
+      { cache: "no-store", signal: ac.signal }
+    )
+      .then(async (r) => ({ ok: r.ok, json: await r.json().catch(() => ({})) }))
+      .then(({ ok, json }) => {
+        if (!ok) {
+          setDuplicateCount(0);
+          return;
+        }
+        setDuplicateCount(Number(json?.duplicatesCount || 0));
+      })
+      .catch(() => {
+        if (!ac.signal.aborted) setDuplicateCount(0);
+      })
+      .finally(() => {
+        if (!ac.signal.aborted) setDuplicateChecking(false);
+      });
+
+    return () => ac.abort();
+  }, [customerId, productId, billingType, tenantId]);
 
   const mustPickTenant = tenants.length > 0;
   const canSubmit = Boolean(productId && customerId && (!mustPickTenant || selectedTenantIds.length > 0));
@@ -515,12 +556,39 @@ export function NewBillingAssignmentForm({
               <h3 style={{ margin: 0 }}>3) Tipo de suscripción</h3>
             </div>
 
-            <form action={createPlanAndSubscription} onKeyDownCapture={enterToNextField} style={{ display: "grid", gap: 10 }}>
+            <form
+              action={createPlanAndSubscription}
+              onKeyDownCapture={enterToNextField}
+              onSubmit={(e) => {
+                if (billingType !== "SUBSCRIPCION") return;
+                const form = e.currentTarget;
+                const allowInput = form.querySelector('input[name="allowDuplicate"]') as HTMLInputElement | null;
+                if (allowDuplicate || allowInput?.value === "1") return;
+                if (duplicateCount <= 0) return;
+                e.preventDefault();
+                const ok = window.confirm(
+                  `Este cliente ya tiene ${duplicateCount} suscripción(es) activa(s)/en mora/suspendida(s) para este mismo producto. ¿Deseas crear otra igual?`
+                );
+                if (!ok) return;
+                if (allowInput) allowInput.value = "1";
+                setAllowDuplicate(true);
+                const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLElement | null;
+                setTimeout(() => {
+                  if (submitter && "click" in submitter) {
+                    (submitter as HTMLButtonElement).click();
+                  } else {
+                    form.requestSubmit();
+                  }
+                }, 0);
+              }}
+              style={{ display: "grid", gap: 10 }}
+            >
               <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="returnTo" value={returnTo} />
               <input type="hidden" name="customerId" value={customerId} />
               <input type="hidden" name="productId" value={productId} />
               <input type="hidden" name="billingType" value={billingType} />
+              <input type="hidden" name="allowDuplicate" value={allowDuplicate ? "1" : "0"} />
               {selectedTenantIds.map((id) => (
                 <input key={id} type="hidden" name="tenantIds" value={id} />
               ))}
@@ -602,6 +670,15 @@ export function NewBillingAssignmentForm({
               ) : (
                 <input type="hidden" name="shippingPesos" value="0" />
               )}
+
+              {billingType === "SUBSCRIPCION" && duplicateCount > 0 ? (
+                <div className="field-hint" style={{ color: "rgba(217, 83, 79, 0.92)" }}>
+                  Atención: este cliente ya tiene {duplicateCount} suscripción(es) del mismo producto. Al guardar se pedirá confirmación.
+                </div>
+              ) : null}
+              {billingType === "SUBSCRIPCION" && duplicateChecking ? (
+                <div className="field-hint">Validando duplicados…</div>
+              ) : null}
 
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                 {!canSubmit ? (
