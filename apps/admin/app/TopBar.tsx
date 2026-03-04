@@ -67,6 +67,18 @@ function displayNameFromEmail(email: string) {
   return local.slice(0, 1).toUpperCase() + local.slice(1);
 }
 
+function normalizeNotif(value: unknown) {
+  return String(value || "")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, " ")
+    .slice(0, 500);
+}
+
+function notifKey(item: Partial<HeaderNotification>) {
+  return `${normalizeNotif(item.level)}|${normalizeNotif(item.title)}|${normalizeNotif(item.message)}|${normalizeNotif(item.href)}`;
+}
+
 export function TopBar({ session }: { session: AdminSession | null }) {
   const FEED_STORAGE_KEY = "apiflujos-notifications-feed";
   const READ_STORAGE_KEY = "apiflujos-notifications-read-ids";
@@ -157,7 +169,27 @@ export function TopBar({ session }: { session: AdminSession | null }) {
           setNotifications([]);
           return;
         }
-        const next = parsed.slice(0, 40).map((item: HeaderNotification) => {
+        const dedup = new Map<string, HeaderNotification>();
+        for (const raw of parsed.slice(0, 120)) {
+          const item = raw as HeaderNotification;
+          const key = notifKey(item);
+          const prev = dedup.get(key);
+          const prevTs = prev ? new Date(prev.ts).getTime() : Number.NaN;
+          const itemTs = new Date(item.ts).getTime();
+          const prevCount = Math.max(1, Number(prev?.duplicateCount || 1));
+          const itemCount = Math.max(1, Number(item?.duplicateCount || 1));
+          const mergedCount = prev ? prevCount + itemCount : itemCount;
+          if (!prev) {
+            dedup.set(key, { ...item, id: key, duplicateCount: mergedCount });
+            continue;
+          }
+          const keepNew = Number.isFinite(itemTs) && (!Number.isFinite(prevTs) || itemTs >= prevTs);
+          dedup.set(key, { ...(keepNew ? item : prev), id: key, duplicateCount: mergedCount });
+        }
+        const compacted = Array.from(dedup.values())
+          .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
+          .slice(0, 40);
+        const next = compacted.map((item: HeaderNotification) => {
           const id = String(item?.id || "");
           return { ...item, read: readIdsRef.current.has(id) };
         });
