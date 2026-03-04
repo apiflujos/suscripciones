@@ -70,6 +70,8 @@ function computeTotalsForCatalog(args: {
 productsRouter.get("/", async (_req, res) => {
   const req = _req as any;
   const tenantId = await getEffectiveTenantId(req);
+  const includeInactiveRaw = String(req?.query?.includeInactive ?? "").trim().toLowerCase();
+  const includeInactive = includeInactiveRaw === "1" || includeInactiveRaw === "true" || includeInactiveRaw === "yes";
   const takeRaw = Number(req?.query?.take ?? 200);
   const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 1000) : 200;
   const skipRaw = Number(req?.query?.skip ?? 0);
@@ -84,6 +86,7 @@ productsRouter.get("/", async (_req, res) => {
   }
 
   const where: any = { metadata: { path: ["kind"], equals: "CATALOG_ITEM" } } as any;
+  if (!includeInactive) where.active = true;
   if (tenantId) {
     const tenantFilter = { OR: [{ tenantId }, { tenantLinks: { some: { tenantId } } }] };
     where.AND = Array.isArray(where.AND) ? [...where.AND, tenantFilter] : [tenantFilter];
