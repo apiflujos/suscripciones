@@ -407,7 +407,7 @@ logsRouter.get("/payments", async (req, res) => {
       skip,
       where: ids.length ? { ...where, id: { in: ids } } : where,
       include: {
-        subscription: { include: { plan: true } },
+        subscription: { include: { plan: true, customer: true } },
         customer: true,
         attempts: { orderBy: { createdAt: "desc" }, take: 1 }
       }

@@ -2054,17 +2054,26 @@ a {
 .logs-table {
   width: 100%;
   table-layout: fixed;
-  font-size: 10.5px;
+  font-size: 12px;
 }
 
 .logs-table th,
 .logs-table td {
-  padding: 5px;
+  padding: 8px 10px;
   overflow: hidden;
   min-width: 0;
   max-width: 0;
   word-break: break-word;
   overflow-wrap: anywhere;
+}
+
+.payments-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.logs-table-payments {
+  min-width: 1700px;
 }
 
 .logs-table .log-date-cell {
@@ -2116,7 +2125,7 @@ a {
 }
 
 .logs-table .log-contact-cell {
-  max-width: 110px;
+  max-width: 250px;
   min-width: 0;
 }
 
@@ -2146,11 +2155,12 @@ a {
 }
 
 .logs-table .log-plan-cell {
-  max-width: 120px;
+  max-width: 190px;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  line-height: 1.3;
 }
 
 .logs-table .log-status-cell {
@@ -2227,15 +2237,15 @@ a {
 }
 
 .logs-table-payments .log-ref-cell {
-  max-width: 56px;
+  max-width: 220px;
 }
 
 .logs-table-payments .log-transaction-cell {
-  max-width: 240px;
+  max-width: 170px;
 }
 
 .logs-table-payments .log-payment-error-cell {
-  max-width: 280px;
+  max-width: 220px;
   white-space: normal;
   word-break: break-word;
   overflow-wrap: anywhere;

@@ -165,14 +165,38 @@ function formatAmount(amountInCents?: number | null, currency?: string | null) {
 }
 
 function renderContactBlock(item: any) {
-  const name = item?.customer?.name || item?.customerName || "—";
-  const email = item?.customer?.email || item?.customerEmail || "";
-  const phone = item?.customer?.phone || item?.customerPhone || "";
-  const meta = [email, phone].filter(Boolean).join(" · ");
+  const tx = item?.providerResponse?.data?.transaction || item?.providerResponse?.transaction || {};
+  const txCustomer = tx?.customer_data || tx?.customerData || tx?.customer || {};
+  const name =
+    item?.customer?.name ||
+    item?.subscription?.customer?.name ||
+    item?.customerName ||
+    txCustomer?.full_name ||
+    txCustomer?.name ||
+    txCustomer?.fullName ||
+    "Cliente sin nombre";
+  const email =
+    item?.customer?.email ||
+    item?.subscription?.customer?.email ||
+    item?.customerEmail ||
+    tx?.customer_email ||
+    tx?.customerEmail ||
+    txCustomer?.email ||
+    "";
+  const phone =
+    item?.customer?.phone ||
+    item?.subscription?.customer?.phone ||
+    item?.customerPhone ||
+    txCustomer?.phone_number ||
+    txCustomer?.phoneNumber ||
+    txCustomer?.phone ||
+    "";
+  const fallbackId = item?.customerId ? `ID ${String(item.customerId).slice(0, 8)}` : "";
+  const meta = [email, phone, fallbackId].filter(Boolean).join(" · ");
   const title = [name, email, phone].filter(Boolean).join(" · ");
   return (
     <div className="log-contact" title={title || "—"}>
-      <span className="log-contact-name">{name || "—"}</span>
+      <span className="log-contact-name">{name || "Cliente sin nombre"}</span>
       {meta ? <span className="log-contact-meta muted">{meta}</span> : null}
     </div>
   );
@@ -877,18 +901,19 @@ export default async function LogsPage({
             </div>
           ) : tab === "payments" ? (
             <div className="panel module" style={{ padding: 0 }}>
+              <div className="payments-table-wrap">
               <table className="table logs-table logs-table-payments" aria-label="Tabla de pagos">
                 <colgroup>
-                  <col style={{ width: "8%" }} />
-                  <col style={{ width: "17%" }} />
-                  <col style={{ width: "9%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "9%" }} />
-                  <col style={{ width: "13%" }} />
-                  <col style={{ width: "11%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "14%" }} />
-                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "130px" }} />
+                  <col style={{ width: "250px" }} />
+                  <col style={{ width: "190px" }} />
+                  <col style={{ width: "110px" }} />
+                  <col style={{ width: "120px" }} />
+                  <col style={{ width: "220px" }} />
+                  <col style={{ width: "170px" }} />
+                  <col style={{ width: "170px" }} />
+                  <col style={{ width: "220px" }} />
+                  <col style={{ width: "130px" }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -907,8 +932,15 @@ export default async function LogsPage({
                 <tbody>
                   {paymentItems.map((p) => {
                     const chip = paymentStatusChip(p.status);
-                    const planName = p.subscription?.plan?.name || "—";
-                    const contactQuery = p.customer?.email || p.customer?.phone || p.customer?.name;
+                    const planName = p.subscription?.plan?.name || "Falta asociar suscripción";
+                    const contactQuery =
+                      p.customer?.email ||
+                      p.customer?.phone ||
+                      p.customer?.name ||
+                      p.subscription?.customer?.email ||
+                      p.subscription?.customer?.phone ||
+                      p.subscription?.customer?.name;
+                    const contactId = String(p.customer?.id || p.subscription?.customer?.id || p.customerId || "").trim();
                     const isFailed = chip.label === "Fallido";
                     const failureReason = isFailed
                       ? String(
@@ -958,7 +990,23 @@ export default async function LogsPage({
                               </PendingButton>
                             </form>
                           ) : null}
-                          {contactQuery ? (
+                          {!p.subscriptionId && (contactId || contactQuery) ? (
+                            <Link
+                              className="ghost btn-compact btn-noicon"
+                              href={`/billing?${new URLSearchParams({
+                                ...(contactId ? { q: contactId } : {}),
+                                ...(!contactId && contactQuery ? { q: String(contactQuery) } : {})
+                              }).toString()}`}
+                              style={{ marginRight: 8 }}
+                            >
+                              Asociar suscripción
+                            </Link>
+                          ) : null}
+                          {contactId ? (
+                            <Link className="ghost btn-compact btn-view" href={`/customers/${encodeURIComponent(contactId)}`}>
+                              Ver cliente
+                            </Link>
+                          ) : contactQuery ? (
                             <Link className="ghost btn-compact btn-view" href={`/customers?q=${encodeURIComponent(String(contactQuery))}`}>
                               Ver cliente
                             </Link>
@@ -976,6 +1024,7 @@ export default async function LogsPage({
                   ) : null}
                 </tbody>
               </table>
+              </div>
             </div>
           ) : (
             <div className="panel module" style={{ padding: 0 }}>

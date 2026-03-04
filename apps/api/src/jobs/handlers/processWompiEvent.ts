@@ -412,15 +412,8 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         },
         windowMinutes: 360
       }).catch(() => {});
-      await db.webhookEvent.update({
-        where: { id: webhookEventId },
-        data: {
-          processStatus: WebhookProcessStatus.FAILED,
-          errorMessage: `referencia_suscripcion_no_encontrada:${referenceClassification.subscriptionId}:${inferred.reason}`,
-          processedAt: new Date()
-        }
-      });
-      return;
+      // No cortar el flujo: si no existe suscripción, crear/actualizar contacto y pago en fallback
+      // para permitir conciliación manual posterior desde Pagos.
     }
   }
 
