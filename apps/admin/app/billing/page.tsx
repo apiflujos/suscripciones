@@ -569,38 +569,46 @@ export default async function BillingPage({
                 <div className="billing-card" key={r.id}>
                   <div className="billing-header">
                     <div className="billing-badges billing-badges-header">
-                      <div className="billing-header-middle">
-                        <span className="billing-header-label">Canal de ventas</span>
-                        <BillingTenantModalButton
-                          triggerId={`tenant-modal-open-${r.id}`}
-                          triggerLabel={r.tenantName || "Sin canal"}
-                          triggerClassName="ghost btn-compact btn-noicon"
-                          subscriptionId={r.id}
-                          scopeTenantId={r.tenantId || ""}
-                          tenantIds={Array.isArray(r.tenantIds) ? r.tenantIds.map(String) : []}
-                          tenants={tenants}
-                          csrfToken={csrfToken}
-                          returnTo={returnTo}
-                          action={updateSubscriptionTenants}
-                        />
+                      <div className="billing-header-meta-grid">
+                        <div className="billing-header-meta-item">
+                          <span className="billing-header-label">Canal de ventas</span>
+                          <BillingTenantModalButton
+                            triggerId={`tenant-modal-open-${r.id}`}
+                            triggerLabel={r.tenantName || "Sin canal"}
+                            triggerClassName="ghost btn-compact btn-noicon"
+                            subscriptionId={r.id}
+                            scopeTenantId={r.tenantId || ""}
+                            tenantIds={Array.isArray(r.tenantIds) ? r.tenantIds.map(String) : []}
+                            tenants={tenants}
+                            csrfToken={csrfToken}
+                            returnTo={returnTo}
+                            action={updateSubscriptionTenants}
+                          />
+                        </div>
+
+                        {!isPlan ? (
+                          <div className="billing-header-meta-item">
+                            <span className="billing-header-label">Estado suscripción</span>
+                            <span className={`pill ${subscriptionStatus === "Activa" ? "pill-ok" : subscriptionStatus === "En mora" ? "pill-warn" : subscriptionStatus === "Suspendida" ? "pill-warn" : subscriptionStatus === "Cancelada" ? "pill-bad" : "pill-muted"}`}>
+                              {subscriptionBadge}
+                            </span>
+                          </div>
+                        ) : null}
+
+                        <div className="billing-header-meta-item">
+                          <span className="billing-header-label">Estado del pago</span>
+                          <span className={`pill ${(isPlan ? planBadgeStatus : paymentBadgeStatus) === "Al día" ? "pill-ok" : (isPlan ? planBadgeStatus : paymentBadgeStatus) === "En mora" ? "pill-warn" : "pill-muted"}`}>
+                            {isPlan ? planBadgeStatus : paymentBadgeStatus}
+                          </span>
+                        </div>
+
+                        <div className="billing-header-meta-item">
+                          <span className="billing-header-label">Tokenización</span>
+                          <span className={`pill ${r.customerTokenized ? "pill-ok" : "pill-bad"}`}>
+                            {r.customerTokenized ? "Tokenizada" : "Sin token"}
+                          </span>
+                        </div>
                       </div>
-                      {isPlan ? (
-                        <span className={`pill ${planBadgeStatus === "Al día" ? "pill-ok" : planBadgeStatus === "En mora" ? "pill-warn" : "pill-muted"}`}>
-                          Estado del pago: {planBadgeStatus}
-                        </span>
-                      ) : (
-                        <>
-                          <span className={`pill ${subscriptionStatus === "Activa" ? "pill-ok" : subscriptionStatus === "En mora" ? "pill-warn" : subscriptionStatus === "Suspendida" ? "pill-warn" : subscriptionStatus === "Cancelada" ? "pill-bad" : "pill-muted"}`}>
-                            {subscriptionBadge}
-                          </span>
-                          <span className={`pill ${paymentBadgeStatus === "Al día" ? "pill-ok" : paymentBadgeStatus === "En mora" ? "pill-warn" : "pill-muted"}`}>
-                            Estado del pago: {paymentBadgeStatus}
-                          </span>
-                        </>
-                      )}
-                      <span className={`pill ${r.customerTokenized ? "pill-ok" : "pill-bad"}`}>
-                        {r.customerTokenized ? "Tokenizada" : "Sin token"}
-                      </span>
                     </div>
                     <div className="billing-header-right">
                       <div className="billing-header-actions">
@@ -732,10 +740,6 @@ export default async function BillingPage({
                       ) : null}
                     </div>
                     <div className="billing-actions-right">
-                    <span className="provider-badge">
-                      <img src="/brand/wompi.png" alt="" />
-                      Wompi
-                    </span>
                     {r.mode !== "AUTO_DEBIT" ? (
                       <form action={sendCentralComPaymentLink}>
                         <input type="hidden" name="csrf" value={csrfToken} />
@@ -805,6 +809,10 @@ export default async function BillingPage({
                           </form>
                         </>
                       )}
+                      <span className="provider-badge">
+                        <img src="/brand/wompi.png" alt="" />
+                        Wompi
+                      </span>
                     </div>
                     {(sentForRow || rowCheckoutUrl || rowTokenUrl || chargedForRow || cutoffForRow) ? (
                       <div className="field-hint" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>

@@ -5561,6 +5561,20 @@ textarea.input {
   min-width: 0;
 }
 
+.billing-header-meta-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  align-items: flex-start;
+}
+
+.billing-header-meta-item {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  min-width: 130px;
+}
+
 .billing-body-left {
   display: grid;
   gap: 4px;
@@ -5630,18 +5644,19 @@ textarea.input {
   border: 1px solid color-mix(in srgb, var(--stroke) 80%, transparent);
   border-radius: 10px;
   background: color-mix(in srgb, var(--panel) 92%, var(--primary-soft) 8%);
-  padding: 6px 8px;
+  padding: 10px 12px;
   display: grid;
-  gap: 3px;
-  min-width: 220px;
-  justify-items: end;
-  text-align: right;
+  gap: 6px;
+  min-width: 250px;
+  text-align: left;
 }
 
 .billing-cost-row {
   display: grid;
-  gap: 2px;
-  justify-items: end;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
 }
 
 .billing-cost-label {
@@ -5653,6 +5668,8 @@ textarea.input {
   color: var(--text);
   font-size: 15px;
   font-weight: 700;
+  justify-self: end;
+  text-align: right;
 }
 
 .billing-cost-total-line {
@@ -5664,6 +5681,7 @@ textarea.input {
   color: var(--text-faint);
   font-size: 11px;
   margin-top: 1px;
+  text-align: left;
 }
 
 .billing-cost-total {
@@ -5671,11 +5689,13 @@ textarea.input {
   font-size: 22px;
   font-weight: 800;
   line-height: 1.1;
+  text-align: right;
 }
 
 .billing-cost-period {
   color: var(--text-soft);
   font-size: 11px;
+  text-align: right;
 }
 
 .billing-actions {
@@ -5696,6 +5716,11 @@ textarea.input {
 
 .billing-actions-right {
   justify-content: flex-end;
+}
+
+.billing-actions-right .provider-badge {
+  margin-left: auto;
+  order: 99;
 }
 
 .billing-inline-cutoff {

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { PendingButton } from "../ui/PendingButton";
 
 function toLocalInput(value?: string | null) {
   if (!value) return "";
@@ -30,16 +31,12 @@ export function AutoCutoffInlineForm({
   currentEndAt?: string | null;
   action: (formData: FormData) => void;
 }) {
-  const [cutoffAt, setCutoffAt] = useState(toLocalInput(currentEndAt));
-  const [isPending, startTransition] = useTransition();
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const latestSubmittedRef = useRef(toLocalInput(currentEndAt));
+  const initialCutoff = useMemo(() => toLocalInput(currentEndAt), [currentEndAt]);
+  const [cutoffAt, setCutoffAt] = useState(initialCutoff);
 
   useEffect(() => {
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, []);
+    setCutoffAt(initialCutoff);
+  }, [initialCutoff]);
 
   return (
     <form action={action} className="billing-inline-cutoff">
@@ -52,25 +49,17 @@ export function AutoCutoffInlineForm({
         type="datetime-local"
         name="cutoffAt"
         value={cutoffAt}
-        onChange={(e) => {
-          const next = e.target.value;
-          setCutoffAt(next);
-          if (!next) return;
-          if (next === latestSubmittedRef.current) return;
-          const form = e.currentTarget.form;
-          if (!form) return;
-          if (timeoutRef.current) clearTimeout(timeoutRef.current);
-          timeoutRef.current = setTimeout(() => {
-            latestSubmittedRef.current = next;
-            startTransition(() => {
-              form.requestSubmit();
-            });
-          }, 450);
-        }}
+        onChange={(e) => setCutoffAt(e.target.value)}
         required
-        disabled={isPending}
       />
-      {isPending ? <span className="field-hint">Guardando...</span> : null}
+      <PendingButton
+        className="ghost btn-compact btn-noicon btn-save"
+        type="submit"
+        pendingText="Guardando..."
+        disabled={!cutoffAt || cutoffAt === initialCutoff}
+      >
+        Guardar
+      </PendingButton>
     </form>
   );
 }
