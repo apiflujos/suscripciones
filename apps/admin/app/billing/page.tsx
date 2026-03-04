@@ -515,15 +515,33 @@ export default async function BillingPage({
               const cutoffForRow = cutoffScheduled && actionSubscriptionId === r.id;
               const tenantsUpdatedForRow = tenantsUpdated && actionSubscriptionId === r.id;
               const canSendToken = r.mode === "AUTO_DEBIT" && Boolean(subscriptionBaseUrl);
+              const paymentBadgeStatus = paymentStatus === "Pagado" ? "Al día" : paymentStatus;
+              const planBadgeStatus = planLinkStatus === "Pagado" ? "Al día" : planLinkStatus;
               return (
                 <div className="billing-card" key={r.id}>
                   <div className="billing-header">
-                    <div className="billing-title">
-                      <div className="billing-name">{r.customerName}</div>
-                      <div className="billing-sub">
-                        {r.customerEmail || "—"} · {r.identificacion || "—"}
-                      </div>
-                      <div className="field-hint">{isPlan ? "Suscripción link de pago" : "Débito automático"}</div>
+                    <div className="billing-badges billing-badges-header">
+                      <span className="provider-badge">
+                        <img src="/brand/wompi.png" alt="" />
+                        Wompi
+                      </span>
+                      {isPlan ? (
+                        <span className={`pill ${planBadgeStatus === "Al día" ? "pill-ok" : planBadgeStatus === "En mora" ? "pill-warn" : "pill-muted"}`}>
+                          Estado del pago: {planBadgeStatus}
+                        </span>
+                      ) : (
+                        <>
+                          <span className={`pill ${subscriptionStatus === "Activa" ? "pill-ok" : subscriptionStatus === "En mora" ? "pill-warn" : subscriptionStatus === "Suspendida" ? "pill-warn" : subscriptionStatus === "Cancelada" ? "pill-bad" : "pill-muted"}`}>
+                            {subscriptionBadge}
+                          </span>
+                          <span className={`pill ${paymentBadgeStatus === "Al día" ? "pill-ok" : paymentBadgeStatus === "En mora" ? "pill-warn" : "pill-muted"}`}>
+                            Estado del pago: {paymentBadgeStatus}
+                          </span>
+                        </>
+                      )}
+                      <span className={`pill ${r.customerTokenized ? "pill-ok" : "pill-bad"}`}>
+                        {r.customerTokenized ? "Tokenizada" : "Sin token"}
+                      </span>
                     </div>
                     <div className="billing-header-middle">
                       <span className="billing-header-label">Canal de ventas</span>
@@ -572,38 +590,24 @@ export default async function BillingPage({
                       </div>
                     </div>
                   </div>
-                  <div className="billing-badges">
-                    <span className="provider-badge">
-                      <img src="/brand/wompi.png" alt="" />
-                      Wompi
-                    </span>
-                    {isPlan ? (
-                      <span className={`pill ${planLinkStatus === "Pagado" ? "pill-ok" : planLinkStatus === "En mora" ? "pill-warn" : "pill-muted"}`}>
-                        {planLinkStatus === "Link enviado" ? "Link enviado" : planLinkStatus}
-                      </span>
-                    ) : (
-                      <>
-                        <span className={`pill ${subscriptionStatus === "Activa" ? "pill-ok" : subscriptionStatus === "En mora" ? "pill-warn" : subscriptionStatus === "Suspendida" ? "pill-warn" : subscriptionStatus === "Cancelada" ? "pill-bad" : "pill-muted"}`}>
-                          {subscriptionBadge}
-                        </span>
-                        <span className={`pill ${paymentStatus === "Pagado" ? "pill-ok" : paymentStatus === "En mora" ? "pill-warn" : "pill-muted"}`}>
-                          Pago {paymentStatus.toLowerCase()}
-                        </span>
-                      </>
-                    )}
-                    <span className={`pill ${r.customerTokenized ? "pill-ok" : "pill-bad"}`}>
-                      {r.customerTokenized ? "Tokenizada" : "Sin token"}
-                    </span>
-                  </div>
 
                   <div className="billing-grid-info" style={{ gridTemplateColumns: "1.7fr 1.2fr 1.3fr", alignItems: "center" }}>
-                    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                      <div className="product-thumb" style={{ width: 36, height: 36 }}>
-                        {r.planImageUrl ? <img src={r.planImageUrl} alt={r.planName} /> : <span>📦</span>}
+                    <div className="billing-body-left">
+                      <div className="billing-title">
+                        <div className="billing-name">{r.customerName}</div>
+                        <div className="billing-sub">
+                          {r.customerEmail || "—"} · {r.identificacion || "—"}
+                        </div>
+                        <div className="field-hint">{isPlan ? "Suscripción link de pago" : "Débito automático"}</div>
                       </div>
-                      <div style={{ display: "grid", gap: 2 }}>
-                        <span>Producto</span>
-                        <strong>{r.planName}</strong>
+                      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                        <div className="product-thumb" style={{ width: 32, height: 32 }}>
+                          {r.planImageUrl ? <img src={r.planImageUrl} alt={r.planName} /> : <span>📦</span>}
+                        </div>
+                        <div style={{ display: "grid", gap: 2 }}>
+                          <span>Producto</span>
+                          <strong>{r.planName}</strong>
+                        </div>
                       </div>
                     </div>
                     <div>
