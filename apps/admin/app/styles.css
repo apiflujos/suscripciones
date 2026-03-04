@@ -3101,14 +3101,7 @@ textarea.input {
 .ghost::before,
 .btn::before,
 .btnLink::before {
-  content: "";
-  width: var(--btn-icon-size);
-  height: var(--btn-icon-size);
-  display: inline-block;
-  flex: 0 0 var(--btn-icon-size);
-  background-color: currentColor;
-  -webkit-mask: var(--btn-icon) no-repeat center / contain;
-  mask: var(--btn-icon) no-repeat center / contain;
+  content: none;
 }
 
 .iconBtn::before,
@@ -3823,6 +3816,18 @@ textarea.input {
   padding: 0 !important;
   font-size: 0 !important;
   gap: 0 !important;
+}
+
+.btn-icon-only::before,
+.btn-delete-icon::before {
+  content: "";
+  width: var(--btn-icon-size);
+  height: var(--btn-icon-size);
+  display: inline-block;
+  flex: 0 0 var(--btn-icon-size);
+  background-color: currentColor;
+  -webkit-mask: var(--btn-icon) no-repeat center / contain;
+  mask: var(--btn-icon) no-repeat center / contain;
 }
 
 /* Estandar global: iconos en headers */

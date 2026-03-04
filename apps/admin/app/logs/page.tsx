@@ -940,6 +940,9 @@ export default async function LogsPage({
                     const chip = paymentStatusChip(p.status);
                     const isIgnoredExternal = Boolean(p.isIgnoredExternal);
                     const ignoredReason = String(p?.reconciliation?.reason || "").trim();
+                    const referenceText = String(p.reference || "").trim();
+                    const wompiTxText = String(p.wompiTransactionId || "").trim();
+                    const wompiLinkText = String(p.wompiPaymentLinkId || "").trim();
                     const planName = isIgnoredExternal ? "Externo ignorado" : (p.subscription?.plan?.name || "Falta asociar suscripción");
                     const contactQuery =
                       p.customer?.email ||
@@ -973,11 +976,14 @@ export default async function LogsPage({
                           </span>
                         </td>
                         <td>{formatAmount(p.amountInCents, p.currency)}</td>
-                        <td className="log-ref-cell" title={`${p.reference || "—"} · ${p.wompiTransactionId || "—"} · ${p.wompiPaymentLinkId || "—"}`}>
+                        <td
+                          className="log-ref-cell"
+                          title={[referenceText || "—", wompiTxText || null, wompiLinkText || null].filter(Boolean).join(" · ")}
+                        >
                           <div className="log-ref-stack">
-                            <span className="log-ref-main">{p.reference || "—"}</span>
-                            <span className="log-ref-meta"><strong>Tx:</strong> {p.wompiTransactionId || "—"}</span>
-                            <span className="log-ref-meta"><strong>Link:</strong> {p.wompiPaymentLinkId || "—"}</span>
+                            <span className="log-ref-main">{referenceText || "—"}</span>
+                            {wompiTxText ? <span className="log-ref-meta">Tx: {wompiTxText}</span> : null}
+                            {wompiLinkText ? <span className="log-ref-meta">Link: {wompiLinkText}</span> : null}
                           </div>
                         </td>
                         <td className="log-payment-error-cell" title={detailText}>
