@@ -2939,6 +2939,11 @@ textarea.input {
   --field-icon: var(--icon-number);
 }
 
+.shipping-currency-input {
+  --field-icon: none;
+  padding-left: 12px;
+}
+
 .input[type="password"] {
   --field-icon: var(--icon-lock);
 }

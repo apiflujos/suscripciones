@@ -367,7 +367,7 @@ export function ChangePlanButton({
                     <HelpTip text="Este valor queda solo para esta suscripción." />
                   </label>
                   <input
-                    className="input"
+                    className="input shipping-currency-input"
                     name="shippingPesos"
                     inputMode="numeric"
                     value={shippingCop}
@@ -376,6 +376,7 @@ export function ChangePlanButton({
                     placeholder="$ 0"
                     required={!freeShipping}
                   />
+                  <div className="field-hint">Moneda: {String(selectedPlan?.currency || "COP")}</div>
                   <label className="field-hint" style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
                     <input
                       type="checkbox"

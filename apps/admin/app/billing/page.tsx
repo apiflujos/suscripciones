@@ -596,7 +596,7 @@ export default async function BillingPage({
                     </span>
                   </div>
 
-                  <div className="billing-grid-info" style={{ gridTemplateColumns: "1.7fr 1.2fr 0.9fr 0.9fr", alignItems: "center" }}>
+                  <div className="billing-grid-info" style={{ gridTemplateColumns: "1.7fr 1.2fr 1.3fr", alignItems: "center" }}>
                     <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                       <div className="product-thumb" style={{ width: 36, height: 36 }}>
                         {r.planImageUrl ? <img src={r.planImageUrl} alt={r.planName} /> : <span>📦</span>}
@@ -622,25 +622,22 @@ export default async function BillingPage({
                       )}
                     </div>
                     <div>
-                      <span>Valor base</span>
-                      <strong>{fmtMoney(r.valorBaseInCents ?? r.montoInCents, r.moneda)}</strong>
-                      <div className="field-hint">{r.cada}</div>
-                    </div>
-                    <div>
-                      <span>Flete</span>
-                      {r.currentRequiresShipping ? (
-                        <>
+                      <span>Costo suscripción</span>
+                      <div style={{ display: "grid", gap: 3 }}>
+                        <div>
+                          <span className="field-hint">Valor base</span>
+                          <strong>{fmtMoney(r.valorBaseInCents ?? r.montoInCents, r.moneda)}</strong>
+                        </div>
+                        <div>
+                          <span className="field-hint">Flete</span>
                           <strong>{r.currentShippingInCents > 0 ? fmtMoney(r.currentShippingInCents, r.moneda) : `Gratis (${fmtMoney(0, r.moneda)})`}</strong>
-                          <div className="field-hint">Total suscripción</div>
+                        </div>
+                        <div>
+                          <span className="field-hint">Total</span>
                           <strong>{fmtMoney(r.totalInCents ?? r.montoInCents, r.moneda)}</strong>
-                        </>
-                      ) : (
-                        <>
-                          <strong>{fmtMoney(0, r.moneda)}</strong>
-                          <div className="field-hint">Total suscripción</div>
-                          <strong>{fmtMoney(r.totalInCents ?? r.montoInCents, r.moneda)}</strong>
-                        </>
-                      )}
+                        </div>
+                        <div className="field-hint">{r.cada}</div>
+                      </div>
                     </div>
                   </div>
 

@@ -509,6 +509,7 @@ subscriptionsRouter.post("/:id/change-plan", async (req, res) => {
 
   let planForSubscription = plan;
   const planMeta = (plan.metadata as any) ?? {};
+  const sourcePlanId = String(planMeta?.adjustedFromPlanId || plan.id || "");
   const catalog = planMeta?.catalog ?? {};
   const pricing = readPlanPricing(planMeta);
   const kind = String(catalog?.kind || "").toUpperCase();
@@ -537,6 +538,8 @@ subscriptionsRouter.post("/:id/change-plan", async (req, res) => {
 
     const nextMetadata = {
       ...(planMeta && typeof planMeta === "object" ? planMeta : {}),
+      adjustedForSubscriptionId: subscriptionId,
+      adjustedFromPlanId: sourcePlanId,
       catalog: {
         ...(catalog && typeof catalog === "object" ? catalog : {}),
         pricing: {
@@ -557,28 +560,59 @@ subscriptionsRouter.post("/:id/change-plan", async (req, res) => {
         freeShipping: Boolean(parsed.data.freeShipping)
       }
     };
-    const created = await prisma.subscriptionPlan.create({
-      data: {
-        tenantId: plan.tenantId,
-        name: `${String((plan.metadata as any)?.displayName || plan.name || "Plan")} · envío ajustado`,
-        priceInCents: totals.totalInCents,
-        currency: plan.currency,
-        intervalUnit: plan.intervalUnit,
-        intervalCount: plan.intervalCount,
-        planType: plan.planType as any,
-        metadata: nextMetadata as any
-      }
+    const adjustedWhere: any = {
+      AND: [
+        { metadata: { path: ["adjustedForSubscriptionId"], equals: subscriptionId } } as any,
+        { metadata: { path: ["adjustedFromPlanId"], equals: sourcePlanId } } as any
+      ]
+    };
+    if (plan.tenantId) adjustedWhere.tenantId = plan.tenantId;
+
+    const existingAdjusted = await prisma.subscriptionPlan.findFirst({
+      where: adjustedWhere,
+      orderBy: { updatedAt: "desc" },
+      include: { tenantLinks: true }
     });
-    const tenantIdsForClone = Array.from(
-      new Set([plan.tenantId, ...(plan.tenantLinks || []).map((t: any) => String(t.tenantId || "")).filter(Boolean)])
-    ) as string[];
-    if (tenantIdsForClone.length) {
-      await prisma.subscriptionPlanTenant.createMany({
-        data: tenantIdsForClone.map((t) => ({ planId: created.id, tenantId: t })),
-        skipDuplicates: true
+
+    if (existingAdjusted) {
+      const updatedAdjusted = await prisma.subscriptionPlan.update({
+        where: { id: existingAdjusted.id },
+        data: {
+          priceInCents: totals.totalInCents,
+          currency: plan.currency,
+          intervalUnit: plan.intervalUnit,
+          intervalCount: plan.intervalCount,
+          planType: plan.planType as any,
+          metadata: nextMetadata as any
+        }
       });
+      planForSubscription = updatedAdjusted as any;
+    } else {
+      const baseLabel = String((plan.metadata as any)?.displayName || plan.name || "Plan");
+      const suffix = String(subscriptionId || "").slice(0, 8);
+      const created = await prisma.subscriptionPlan.create({
+        data: {
+          tenantId: plan.tenantId,
+          name: `${baseLabel} · envío ajustado · ${suffix}`,
+          priceInCents: totals.totalInCents,
+          currency: plan.currency,
+          intervalUnit: plan.intervalUnit,
+          intervalCount: plan.intervalCount,
+          planType: plan.planType as any,
+          metadata: nextMetadata as any
+        }
+      });
+      const tenantIdsForClone = Array.from(
+        new Set([plan.tenantId, ...(plan.tenantLinks || []).map((t: any) => String(t.tenantId || "")).filter(Boolean)])
+      ) as string[];
+      if (tenantIdsForClone.length) {
+        await prisma.subscriptionPlanTenant.createMany({
+          data: tenantIdsForClone.map((t) => ({ planId: created.id, tenantId: t })),
+          skipDuplicates: true
+        });
+      }
+      planForSubscription = created as any;
     }
-    planForSubscription = created as any;
   }
 
   const now = new Date();
