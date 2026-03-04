@@ -631,16 +631,14 @@ export default async function BillingPage({
                       {r.currentRequiresShipping ? (
                         <>
                           <strong>{r.currentShippingInCents > 0 ? fmtMoney(r.currentShippingInCents, r.moneda) : `Gratis (${fmtMoney(0, r.moneda)})`}</strong>
-                          <div className="field-hint">
-                            Total suscripción: {fmtMoney(r.totalInCents ?? r.montoInCents, r.moneda)} ={" "}
-                            {fmtMoney(r.valorBaseInCents ?? r.montoInCents, r.moneda)} + {fmtMoney(r.currentShippingInCents || 0, r.moneda)}
-                          </div>
-                          <div className="field-hint">Editar desde el icono lápiz</div>
+                          <div className="field-hint">Total suscripción</div>
+                          <strong>{fmtMoney(r.totalInCents ?? r.montoInCents, r.moneda)}</strong>
                         </>
                       ) : (
                         <>
                           <strong>{fmtMoney(0, r.moneda)}</strong>
-                          <div className="field-hint">Total suscripción: {fmtMoney(r.totalInCents ?? r.montoInCents, r.moneda)}</div>
+                          <div className="field-hint">Total suscripción</div>
+                          <strong>{fmtMoney(r.totalInCents ?? r.montoInCents, r.moneda)}</strong>
                         </>
                       )}
                     </div>

@@ -274,8 +274,8 @@ export function ChangePlanButton({
         type="button"
         data-loader="off"
         onClick={() => setOpen(true)}
-        aria-label={iconOnly ? "Editar producto/flete" : undefined}
-        title={iconOnly ? "Editar producto/flete" : undefined}
+        aria-label={iconOnly ? "Editar producto, flete y fecha de corte" : undefined}
+        title={iconOnly ? "Editar producto, flete y fecha de corte" : undefined}
       >
         {iconOnly ? null : "Cambiar producto"}
       </button>
