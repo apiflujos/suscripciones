@@ -8,6 +8,41 @@ const executeSqlSchema = z.object({
   sql: z.string().min(1).max(100_000)
 });
 
+const SQL_FIRST_TOKENS = new Set([
+  "select",
+  "with",
+  "show",
+  "explain",
+  "values",
+  "update",
+  "insert",
+  "delete",
+  "create",
+  "alter",
+  "drop",
+  "truncate",
+  "begin",
+  "commit",
+  "rollback",
+  "do"
+]);
+
+function sanitizeSqlInput(input: string) {
+  const raw = String(input || "").trim();
+  if (!raw) return "";
+
+  // Si el usuario pega markdown con ```sql ... ```, tomamos solo el contenido SQL.
+  const fenced = raw.match(/```(?:sql)?\s*([\s\S]*?)```/i);
+  if (fenced && fenced[1]) return String(fenced[1]).trim();
+  return raw;
+}
+
+function firstToken(sql: string) {
+  const n = normalizeForCheck(sql);
+  const m = n.match(/^([a-z_]+)/);
+  return m ? m[1] : "";
+}
+
 function splitSqlStatements(input: string) {
   const out: string[] = [];
   let cur = "";
@@ -126,12 +161,20 @@ export const sqlConsoleRouter = express.Router();
 
 sqlConsoleRouter.post("/execute", async (req, res) => {
   const parsed = executeSqlSchema.safeParse(req.body ?? {});
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+  if (!parsed.success) return res.status(400).json({ error: "cuerpo_invalido", details: parsed.error.flatten() });
 
-  const sql = String(parsed.data.sql || "").trim();
+  const sql = sanitizeSqlInput(parsed.data.sql);
   const statements = splitSqlStatements(sql);
-  if (!statements.length) return res.status(400).json({ error: "empty_sql" });
-  if (statements.length > 30) return res.status(400).json({ error: "too_many_statements", max: 30 });
+  if (!statements.length) return res.status(400).json({ error: "sql_vacio", message: "No se encontró SQL válido para ejecutar." });
+  if (statements.length > 30) return res.status(400).json({ error: "demasiadas_sentencias", max: 30 });
+  const invalid = statements.find((s) => !SQL_FIRST_TOKENS.has(firstToken(s)));
+  if (invalid) {
+    return res.status(400).json({
+      error: "sentencia_no_sql",
+      message: "Se detectó texto que no parece SQL. Pega solo sentencias SQL.",
+      statement: invalid
+    });
+  }
 
   const startedAt = Date.now();
   try {
