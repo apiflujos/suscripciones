@@ -1954,8 +1954,21 @@ a {
   border-radius: 10px;
 }
 
-.payments-actions-row .btn-compact::before {
+.payments-actions-row .btn-compact.btn-noicon::before {
   content: none !important;
+}
+
+.payments-search-form .input {
+  min-width: 0;
+}
+
+.payments-search-form {
+  width: 100%;
+}
+
+.module-search-right .payments-buttons-wrap {
+  justify-content: flex-end;
+  flex: 0 0 auto;
 }
 
 @media (max-width: 980px) {
@@ -1975,6 +1988,10 @@ a {
   .payments-buttons-wrap {
     width: 100%;
     justify-content: flex-start;
+  }
+
+  .module-search-right .payments-buttons-wrap {
+    width: 100%;
   }
 }
 

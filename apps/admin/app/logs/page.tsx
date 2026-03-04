@@ -673,7 +673,7 @@ export default async function LogsPage({
             <div className="filtersRow">
               <div className="filtersLeft">
                 <div className="filtersPanel">
-                  <div className="payments-actions-row">
+                  <div className="contacts-search-row">
                     <form action="/payments" method="GET" className="filtersForm filtersSearch payments-search-form" data-debounce-form="true">
                       {includeIgnored ? <input type="hidden" name="includeIgnored" value="1" /> : null}
                       {status ? <input type="hidden" name="status" value={status} /> : null}
@@ -687,20 +687,18 @@ export default async function LogsPage({
                         placeholder="Buscar cliente, referencia o transacción..."
                         aria-label="Buscar pagos"
                       />
-                      <button className="ghost btn-noicon btn-compact" type="submit">Buscar</button>
+                      <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
                     </form>
-                    <div className="payments-secondary-row">
-                      <div className="payments-views-wrap">
-                        <SmartViewsBar
-                          scope="payments"
-                          initialViewId={viewId}
-                          initialFilters={filters}
-                          compactInline
-                          baseParams={{
-                            ...(q ? { q } : {})
-                          }}
-                        />
-                      </div>
+                    <div className="module-search-right">
+                      <SmartViewsBar
+                        scope="payments"
+                        initialViewId={viewId}
+                        initialFilters={filters}
+                        compactInline
+                        baseParams={{
+                          ...(q ? { q } : {})
+                        }}
+                      />
                       <div className="payments-buttons-wrap">
                         <Link
                           className="ghost btn-compact btn-noicon"
