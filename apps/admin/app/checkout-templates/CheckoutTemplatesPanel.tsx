@@ -860,7 +860,9 @@ export function CheckoutTemplatesPanel({
                 >
                   <input type="hidden" name="csrf" value={csrfToken} />
                   <input type="hidden" name="id" value={t.id} />
-                  <PendingButton className="ghost btn-compact btn-red btn-delete-icon" type="submit" pendingText="Eliminando..." aria-label="Eliminar plantilla" title="Eliminar plantilla" />
+                  <PendingButton className="ghost btn-compact btn-red btn-delete-icon" type="submit" pendingText="Eliminando..." aria-label="Eliminar plantilla" title="Eliminar plantilla">
+                    Eliminar
+                  </PendingButton>
                 </form>
               </div>
             </div>
