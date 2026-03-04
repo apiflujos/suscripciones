@@ -134,6 +134,17 @@ function isTxControlStatement(sql: string) {
   return n === "begin" || n === "begin transaction" || n === "commit" || n === "rollback";
 }
 
+function jsonSafeValue(value: any): any {
+  if (typeof value === "bigint") return value.toString();
+  if (Array.isArray(value)) return value.map((item) => jsonSafeValue(item));
+  if (value && typeof value === "object") {
+    const out: Record<string, any> = {};
+    for (const [k, v] of Object.entries(value)) out[k] = jsonSafeValue(v);
+    return out;
+  }
+  return value;
+}
+
 async function runStatement(
   client: Prisma.TransactionClient | typeof prisma,
   statement: string,
@@ -142,11 +153,12 @@ async function runStatement(
   if (isReadOnlyStatement(statement)) {
     const rows = (await client.$queryRawUnsafe(statement)) as any;
     const arr = Array.isArray(rows) ? rows : [rows];
+    const safeRows = jsonSafeValue(arr) as any[];
     return {
       type: "query" as const,
-      rowCount: arr.length,
-      rows: arr.slice(0, maxRows),
-      truncated: arr.length > maxRows
+      rowCount: safeRows.length,
+      rows: safeRows.slice(0, maxRows),
+      truncated: safeRows.length > maxRows
     };
   }
 
