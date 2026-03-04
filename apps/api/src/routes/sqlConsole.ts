@@ -136,6 +136,7 @@ function isTxControlStatement(sql: string) {
 
 function jsonSafeValue(value: any): any {
   if (typeof value === "bigint") return value.toString();
+  if (value instanceof Date) return value.toISOString();
   if (Array.isArray(value)) return value.map((item) => jsonSafeValue(item));
   if (value && typeof value === "object") {
     const out: Record<string, any> = {};
