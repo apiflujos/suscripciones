@@ -44,6 +44,15 @@ const createProductSchema = z.object({
 
 export const productsRouter = express.Router();
 
+function readPlanPricing(meta: any) {
+  if (!meta || typeof meta !== "object") return {};
+  const root = meta?.pricing;
+  const legacy = meta?.catalog?.pricing;
+  if (root && typeof root === "object") return root;
+  if (legacy && typeof legacy === "object") return legacy;
+  return {};
+}
+
 function computeTotalsForCatalog(args: {
   basePriceInCents: number;
   variantDeltaInCents: number;
@@ -127,6 +136,10 @@ productsRouter.get("/", async (_req, res) => {
   }
   res.json({
     items: items.map((p: any) => ({
+      ...(() => {
+        const pricing = readPlanPricing(p.metadata);
+        return { shippingInCents: Number(pricing?.shippingInCents || 0) };
+      })(),
       id: p.id,
       tenantId: p.tenantId || null,
       tenantIds: Array.from(new Set([p.tenantId, ...(p.tenantLinks || []).map((t: any) => t.tenantId)].filter(Boolean))) as string[],

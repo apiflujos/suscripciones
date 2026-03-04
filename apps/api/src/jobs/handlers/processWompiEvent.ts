@@ -299,16 +299,14 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     }).catch(() => {});
   }
 
+  let missingReferenceSubscriptionId = "";
   if (referenceClassification.kind === "subscription" && inferredSubscriptionId && !paymentMatched) {
     const exists = await db.subscription.findUnique({
       where: { id: inferredSubscriptionId },
       select: { id: true }
     });
     if (!exists) {
-      await systemLog(LogLevel.WARN, "processWompiEvent", "subscription_reference_not_found", {
-        reference,
-        subscriptionId: referenceClassification.subscriptionId
-      }).catch(() => {});
+      missingReferenceSubscriptionId = String(referenceClassification.subscriptionId || inferredSubscriptionId || "");
       inferredSubscriptionId = "";
     }
   }
@@ -375,11 +373,16 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         reason: inferred.reason
       }).catch(() => {});
     } else if (referenceClassification.kind === "subscription") {
+      await systemLog(LogLevel.WARN, "processWompiEvent", "Referencia de suscripción no encontrada", {
+        reference,
+        subscriptionId: missingReferenceSubscriptionId || referenceClassification.subscriptionId || null,
+        reason: inferred.reason
+      }).catch(() => {});
       await db.webhookEvent.update({
         where: { id: webhookEventId },
         data: {
           processStatus: WebhookProcessStatus.FAILED,
-          errorMessage: `subscription_reference_not_found:${referenceClassification.subscriptionId}:${inferred.reason}`,
+          errorMessage: `referencia_suscripcion_no_encontrada:${referenceClassification.subscriptionId}:${inferred.reason}`,
           processedAt: new Date()
         }
       });

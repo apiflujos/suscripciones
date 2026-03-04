@@ -113,6 +113,24 @@ function readPlanPricing(meta: any) {
   return {};
 }
 
+function normalizeSku(value: unknown) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (/^\d{6}$/.test(raw)) return raw;
+  const digits = raw.replace(/\D+/g, "");
+  if (!digits) return "";
+  return digits.length >= 6 ? digits.slice(-6) : digits.padStart(6, "0");
+}
+
+function formatPlanTitle(plan: any) {
+  const md = (plan?.metadata as any) || {};
+  const displayName = String(md?.displayName || "").trim();
+  const rawName = String(plan?.name || "").trim();
+  const name = displayName || rawName.replace(/^\s*\[\d+\]\s*/, "").trim() || "—";
+  const sku = normalizeSku(md?.sku);
+  return sku ? `SKU ${sku} · ${name}` : name;
+}
+
 function buildSmartListRules({
   tipo,
   estado,
@@ -337,7 +355,7 @@ export default async function BillingPage({
         activo,
         status: String(s.status || "—"),
         estadoInfo,
-        planName: String(plan?.name || "—"),
+        planName: formatPlanTitle(plan),
         planImageUrl: String((plan?.metadata as any)?.imageUrl || (productById.get(String((plan?.metadata as any)?.catalog?.itemId || ""))?.imageUrl ?? "")),
         montoInCents: Number(plan?.priceInCents || 0),
         moneda: String(plan?.currency || "COP"),
