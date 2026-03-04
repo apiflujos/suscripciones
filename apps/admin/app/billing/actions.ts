@@ -986,6 +986,9 @@ export async function deletePlanAndSubscription(formData: FormData) {
     if (msg.includes("subscription_must_be_canceled")) {
       return redirect(`/billing?error=${encodeURIComponent("Primero cancela la suscripción para poder eliminarla.")}`);
     }
+    if (msg.includes("subscription_has_payments") || msg.includes("use_purgePayments=1_to_delete_with_payments")) {
+      return redirect(`/billing?error=${encodeURIComponent("No se puede borrar: la suscripción tiene pagos asociados.")}`);
+    }
     if (msg.includes("subscription_has_dependencies")) {
       return redirect(`/billing?error=${encodeURIComponent("No se puede borrar: la suscripción tiene pagos o links asociados.")}`);
     }
