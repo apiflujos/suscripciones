@@ -115,6 +115,33 @@ function getPaymentLinkIdFromPayload(payload: WompiPayload): string | undefined 
   );
 }
 
+async function warnOnceWithDedupe(args: {
+  source: string;
+  message: string;
+  dedupeKey: string;
+  context?: Record<string, unknown>;
+  windowMinutes?: number;
+}) {
+  const windowMinutes = Math.max(1, Number(args.windowMinutes || 360));
+  const since = new Date(Date.now() - windowMinutes * 60 * 1000);
+  const existing = await prisma.systemLog.findFirst({
+    where: {
+      level: LogLevel.WARN,
+      source: args.source,
+      message: args.message,
+      createdAt: { gte: since },
+      context: { path: ["dedupeKey"], equals: args.dedupeKey } as any
+    },
+    select: { id: true }
+  });
+  if (existing) return false;
+  await systemLog(LogLevel.WARN, args.source, args.message, {
+    ...(args.context || {}),
+    dedupeKey: args.dedupeKey
+  });
+  return true;
+}
+
 function getCustomerEmailFromPayload(payload: WompiPayload): string | undefined {
   const tx = getTransactionFromPayload(payload);
   const email =
@@ -373,10 +400,17 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         reason: inferred.reason
       }).catch(() => {});
     } else if (referenceClassification.kind === "subscription") {
-      await systemLog(LogLevel.WARN, "processWompiEvent", "Referencia de suscripción no encontrada", {
-        reference,
-        subscriptionId: missingReferenceSubscriptionId || referenceClassification.subscriptionId || null,
-        reason: inferred.reason
+      const missingSubId = missingReferenceSubscriptionId || referenceClassification.subscriptionId || null;
+      await warnOnceWithDedupe({
+        source: "processWompiEvent",
+        message: "Referencia de suscripción no encontrada",
+        dedupeKey: `${String(missingSubId || "sin_sub")}|${String(reference || "sin_ref")}`,
+        context: {
+          reference,
+          subscriptionId: missingSubId,
+          reason: inferred.reason
+        },
+        windowMinutes: 360
       }).catch(() => {});
       await db.webhookEvent.update({
         where: { id: webhookEventId },
