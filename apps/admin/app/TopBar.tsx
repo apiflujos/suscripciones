@@ -14,6 +14,7 @@ type HeaderNotification = {
   level?: "info" | "error";
   href?: string | null;
   read?: boolean;
+  duplicateCount?: number;
 };
 
 function getHeader(pathname: string): Header {
@@ -301,7 +302,9 @@ export function TopBar({ session }: { session: AdminSession | null }) {
                   filteredNotifications.map((n) => (
                     <div key={n.id} className={`topbarBellItem ${n.read ? "is-read" : "is-unread"}`}>
                       <div>
-                        <div className="topbarBellItemTitle">{n.title || "Evento"}</div>
+                        <div className="topbarBellItemTitle">
+                          {n.title || "Evento"} {Number(n.duplicateCount || 1) > 1 ? `x${Number(n.duplicateCount)}` : ""}
+                        </div>
                         <div className="topbarBellItemMsg">{n.message || "Sin detalle"}</div>
                         <div className="topbarBellItemMeta">
                           {new Date(n.ts).toLocaleString("es-CO", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}

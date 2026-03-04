@@ -19,12 +19,78 @@ type RealtimeEvent = {
   meta?: any;
 };
 
+type StoredNotification = RealtimeEvent & {
+  duplicateCount?: number;
+  dedupeKey?: string;
+};
+
 type Toast = RealtimeEvent & { seenAt: number };
 type RealtimeStatus = "connecting" | "connected" | "disconnected";
 
 const STORAGE_KEY = "apiflujos-realtime-last";
 const NOTIFICATIONS_STORAGE_KEY = "apiflujos-notifications-feed";
 const CASH_SOUND_SRC = "/brand/cashier.mp3";
+
+function normalizeNotifText(value: unknown) {
+  return String(value || "")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, " ")
+    .slice(0, 500);
+}
+
+function notificationDedupeKey(event: Partial<RealtimeEvent>) {
+  const title = normalizeNotifText(event.title);
+  const message = normalizeNotifText(event.message);
+  const href = normalizeNotifText(event.href);
+  const kind = normalizeNotifText(event.kind);
+  const level = normalizeNotifText(event.level);
+  const type = normalizeNotifText(event.type);
+  return `${type}|${level}|${kind}|${title}|${message}|${href}`;
+}
+
+function toStoredNotification(event: RealtimeEvent): StoredNotification {
+  const dedupeKey = notificationDedupeKey(event);
+  return {
+    ...event,
+    id: dedupeKey,
+    dedupeKey,
+    duplicateCount: 1
+  };
+}
+
+function mergeNotificationFeed(incoming: RealtimeEvent[], existing: StoredNotification[]) {
+  const byKey = new Map<string, StoredNotification>();
+  const ordered: string[] = [];
+  const add = (raw: StoredNotification | RealtimeEvent) => {
+    const item: StoredNotification = "dedupeKey" in raw ? (raw as StoredNotification) : toStoredNotification(raw as RealtimeEvent);
+    const key = String(item.dedupeKey || notificationDedupeKey(item));
+    if (!key) return;
+    const prev = byKey.get(key);
+    const prevTs = prev ? new Date(prev.ts).getTime() : Number.NaN;
+    const nextTs = new Date(item.ts).getTime();
+    const prevCount = Math.max(1, Number(prev?.duplicateCount || 1));
+    const nextCount = Math.max(1, Number(item?.duplicateCount || 1));
+    const mergedCount = prev ? prevCount + nextCount : nextCount;
+    if (!prev) {
+      byKey.set(key, { ...item, id: key, dedupeKey: key, duplicateCount: mergedCount });
+      ordered.push(key);
+      return;
+    }
+    const useIncoming = Number.isFinite(nextTs) && (!Number.isFinite(prevTs) || nextTs >= prevTs);
+    byKey.set(key, {
+      ...(useIncoming ? item : prev),
+      id: key,
+      dedupeKey: key,
+      duplicateCount: mergedCount
+    });
+  };
+  for (const item of incoming) add(item);
+  for (const item of existing) add(item);
+  const merged = ordered.map((key) => byKey.get(key)).filter(Boolean) as StoredNotification[];
+  merged.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
+  return merged.slice(0, 80);
+}
 
 export function RealtimeNotifier() {
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -290,10 +356,8 @@ export function RealtimeNotifier() {
       try {
         const existingRaw = window.localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
         const parsedExisting = existingRaw ? JSON.parse(existingRaw) : [];
-        const existing = Array.isArray(parsedExisting) ? (parsedExisting as RealtimeEvent[]) : [];
-        const merged = [...freshEvents, ...existing]
-          .filter((ev, idx, arr) => arr.findIndex((x) => x.id === ev.id) === idx)
-          .slice(0, 80);
+        const existing = Array.isArray(parsedExisting) ? (parsedExisting as StoredNotification[]) : [];
+        const merged = mergeNotificationFeed(freshEvents, existing);
         window.localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(merged));
         window.dispatchEvent(
           new CustomEvent("apiflujos:notifications-updated", { detail: { count: merged.length, items: merged } })
@@ -325,7 +389,8 @@ export function RealtimeNotifier() {
         if (e.sound === "fail") shouldPlayFail = true;
       }
       setToasts((prev) => {
-        const merged = [...freshEvents.map((e) => ({ ...e, seenAt: now })), ...prev];
+        const uniqueFresh = mergeNotificationFeed(freshEvents, []).slice(0, 6);
+        const merged = [...uniqueFresh.map((e) => ({ ...e, seenAt: now })), ...prev];
         return merged.slice(0, 6);
       });
       if (shouldPlayCash) playCashSound(forceCash);
