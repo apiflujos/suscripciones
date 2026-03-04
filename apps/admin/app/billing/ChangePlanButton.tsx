@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PendingButton } from "../ui/PendingButton";
 import { HelpTip } from "../ui/HelpTip";
 
@@ -129,6 +129,7 @@ export function ChangePlanButton({
   const [freeShipping, setFreeShipping] = useState(Boolean(currentRequiresShipping) && Number(currentShippingInCents || 0) <= 0);
   const [remotePlans, setRemotePlans] = useState<PlanOption[]>([]);
   const [searching, setSearching] = useState(false);
+  const appliedDefaultsPlanIdRef = useRef<string>("");
   const currentPlanFallback = useMemo<PlanOption>(
     () => ({
       id: currentPlanId,
@@ -148,6 +149,7 @@ export function ChangePlanButton({
     setQuery("");
     setShippingCop(centsToCurrencyInput(currentShippingInCents || 0, currentPlanCurrency || "COP"));
     setFreeShipping(Boolean(currentRequiresShipping) && Number(currentShippingInCents || 0) <= 0);
+    appliedDefaultsPlanIdRef.current = String(currentPlanId || "");
   }, [open, currentPlanId, initialCutoff, currentShippingInCents, currentRequiresShipping, currentPlanCurrency]);
 
   const localFilteredPlans = useMemo(() => {
@@ -254,17 +256,20 @@ export function ChangePlanButton({
   );
 
   useEffect(() => {
-    const plan = plans.find((p) => String(p.id) === String(planId)) || remotePlans.find((p) => String(p.id) === String(planId));
+    const current = String(planId || "");
+    if (!current || appliedDefaultsPlanIdRef.current === current) return;
+    const plan = plans.find((p) => String(p.id) === current) || remotePlans.find((p) => String(p.id) === current);
     if (!plan) return;
     const requires = planRequiresShipping(plan);
     if (!requires) {
       setFreeShipping(false);
       setShippingCop("");
-      return;
+    } else {
+      const nextShipping = Number(plan.shippingInCents || 0);
+      setFreeShipping(nextShipping <= 0);
+      setShippingCop(centsToCurrencyInput(nextShipping, String(plan.currency || "COP")));
     }
-    const nextShipping = Number(plan.shippingInCents || 0);
-    setFreeShipping(nextShipping <= 0);
-    setShippingCop(centsToCurrencyInput(nextShipping, String(plan.currency || "COP")));
+    appliedDefaultsPlanIdRef.current = current;
   }, [planId, plans, remotePlans]);
 
   return (
