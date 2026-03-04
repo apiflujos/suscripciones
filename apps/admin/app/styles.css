@@ -1904,6 +1904,14 @@ a {
   justify-content: flex-end;
 }
 
+.notificationsPage .notifications-reminders-section {
+  order: 1;
+}
+
+.notificationsPage .notifications-templates-section {
+  order: 2;
+}
+
 .payments-buttons-wrap .filtersForm {
   width: auto;
   flex: 0 0 auto;
@@ -7404,6 +7412,30 @@ html[data-contrast="high"] .payment-point-provider img {
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.checkout-templates-header {
+  align-items: flex-start;
+}
+
+.checkout-templates-header-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.checkout-templates-header-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.template-card-head-actions {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+  align-items: start;
 }
 
 .pill-green {

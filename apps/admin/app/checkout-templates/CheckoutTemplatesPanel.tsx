@@ -784,23 +784,23 @@ export function CheckoutTemplatesPanel({
 
   return (
     <div className="panel module">
-      <div className="panelHeaderRow" style={{ justifyContent: "flex-start" }}>
-        <div>
+      <div className="panelHeaderRow checkout-templates-header">
+        <div className="checkout-templates-header-copy">
           <strong>Plantillas</strong>
           <div className="field-hint">Wizard para crear plantillas de checkout público.</div>
-          <div style={{ display: "flex", gap: 8, marginTop: 8, justifyContent: "flex-start", flexWrap: "wrap" }}>
-            <button className="ghost" type="button" data-modal="true" data-loader="off" onClick={openCreateCatalogWizard}>
-              Crear catálogo
+        </div>
+        <div className="checkout-templates-header-actions">
+          <button className="ghost" type="button" data-modal="true" data-loader="off" onClick={openCreateCatalogWizard}>
+            Crear catálogo
+          </button>
+          {editing ? (
+            <button className="ghost btn-cancel" type="button" onClick={resetWizard} data-loader="off">
+              Cancelar edición
             </button>
-            {editing ? (
-              <button className="ghost btn-cancel" type="button" onClick={resetWizard} data-loader="off">
-                Cancelar edición
-              </button>
-            ) : null}
-            <button className="primary btn-create" type="button" data-modal="true" data-loader="off" onClick={openCreate}>
-              Nueva plantilla
-            </button>
-          </div>
+          ) : null}
+          <button className="primary btn-create" type="button" data-modal="true" data-loader="off" onClick={openCreate}>
+            Nueva plantilla
+          </button>
         </div>
       </div>
 
@@ -844,7 +844,7 @@ export function CheckoutTemplatesPanel({
                 </div>
                 <div className="field-hint">{t.kind === "PLAN" ? "Link de pago" : t.kind === "CART" ? "Catálogo" : "Débito automático"}</div>
               </div>
-              <div style={{ display: "grid", gap: 6, justifyItems: "end" }}>
+              <div className="template-card-head-actions">
                 <span className={`pill ${t.active ? "pill-green" : ""}`}>{t.active ? "Activa" : "Inactiva"}</span>
                 {(() => {
                   const hasProducts = t.allowProductSelect || (t.productIds || []).length > 0;
@@ -852,6 +852,16 @@ export function CheckoutTemplatesPanel({
                   const ready = hasProducts && hasWompi;
                   return ready ? <span className="pill pill-ok pill-sm">Listo</span> : null;
                 })()}
+                <form
+                  action={actions.remove}
+                  onSubmit={(e) => {
+                    if (!confirm("¿Eliminar esta plantilla?")) e.preventDefault();
+                  }}
+                >
+                  <input type="hidden" name="csrf" value={csrfToken} />
+                  <input type="hidden" name="id" value={t.id} />
+                  <PendingButton className="ghost btn-compact btn-red btn-delete-icon" type="submit" pendingText="Eliminando..." aria-label="Eliminar plantilla" title="Eliminar plantilla" />
+                </form>
               </div>
             </div>
             <div className="template-meta template-meta-compact">
@@ -874,18 +884,6 @@ export function CheckoutTemplatesPanel({
                 <input type="hidden" name="csrf" value={csrfToken} />
                 <input type="hidden" name="id" value={t.id} />
                 <PendingButton className="ghost btn-compact" type="submit" pendingText="Duplicando...">Duplicar</PendingButton>
-              </form>
-              <form
-                action={actions.remove}
-                onSubmit={(e) => {
-                  if (!confirm("¿Eliminar esta plantilla?")) e.preventDefault();
-                }}
-              >
-                <input type="hidden" name="csrf" value={csrfToken} />
-                <input type="hidden" name="id" value={t.id} />
-                <PendingButton className="ghost btn-compact btn-red btn-delete-icon" type="submit" pendingText="Eliminando..." aria-label="Eliminar plantilla" title="Eliminar plantilla">
-                  Eliminar
-                </PendingButton>
               </form>
             </div>
           </div>

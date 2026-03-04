@@ -260,7 +260,7 @@ export function NotificationsSimple({
           </div>
         </div>
       ) : null}
-      <section className="settings-group">
+      <section className="settings-group notifications-templates-section">
         <div className="settings-group-header">
           <div className="panelHeaderRow">
             <h3>Notificaciones en tiempo real</h3>
@@ -384,9 +384,18 @@ export function NotificationsSimple({
                   const kind = realtimeKinds[rt.key] || (waName ? "WHATSAPP_TEMPLATE" : "TEXT");
                   return (
                     <div key={`configured-${rt.key}`} className="saved-conn-meta" style={{ borderBottom: "1px solid var(--stroke)", paddingBottom: 8 }}>
-                      <div className="saved-conn-meta-item">
+                    <div className="saved-conn-meta-item">
                         <span className="saved-conn-meta-label">{rt.label}</span>
-                        <span className="pill pill-green">Configurada</span>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                          <span className="pill pill-green">Configurada</span>
+                          <button
+                            className="ghost btn-compact btn-edit"
+                            type="button"
+                            onClick={() => setRealtimeEdit((prev) => ({ ...prev, [rt.key]: true }))}
+                          >
+                            Editar
+                          </button>
+                        </span>
                       </div>
                       <div className="saved-conn-meta-item" style={{ gridColumn: "1 / -1" }}>
                         <span className="saved-conn-meta-label">{kind === "TEXT" ? "Mensaje" : "Plantilla"}</span>
@@ -403,7 +412,7 @@ export function NotificationsSimple({
         </div>
       </section>
 
-      <section className="settings-group">
+      <section className="settings-group notifications-reminders-section">
         <div className="settings-group-header">
           <div className="panelHeaderRow">
             <h3>Recordatorios programados</h3>
@@ -683,7 +692,12 @@ export function NotificationsSimple({
                   <div className="saved-conn-meta" style={{ borderBottom: "1px solid var(--stroke)", paddingBottom: 8 }}>
                     <div className="saved-conn-meta-item">
                       <span className="saved-conn-meta-label">Recordatorio de fecha de pago</span>
-                      <span className="pill pill-green">Configurado</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                        <span className="pill pill-green">Configurado</span>
+                        <button className="ghost btn-compact btn-edit" type="button" onClick={() => setDueEdit(true)}>
+                          Editar
+                        </button>
+                      </span>
                     </div>
                     <div className="saved-conn-meta-item" style={{ gridColumn: "1 / -1" }}>
                       <span className="saved-conn-meta-label">Mensaje</span>
@@ -699,7 +713,12 @@ export function NotificationsSimple({
                   <div className="saved-conn-meta" style={{ borderBottom: "1px solid var(--stroke)", paddingBottom: 8 }}>
                     <div className="saved-conn-meta-item">
                       <span className="saved-conn-meta-label">Recordatorio en mora</span>
-                      <span className="pill pill-green">Configurado</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                        <span className="pill pill-green">Configurado</span>
+                        <button className="ghost btn-compact btn-edit" type="button" onClick={() => setMoraEdit(true)}>
+                          Editar
+                        </button>
+                      </span>
                     </div>
                     <div className="saved-conn-meta-item" style={{ gridColumn: "1 / -1" }}>
                       <span className="saved-conn-meta-label">Mensaje</span>
