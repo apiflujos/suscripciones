@@ -503,24 +503,26 @@ export default async function BillingPage({
                     />
                     <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
                   </form>
-                  <SmartViewsBar
-                    scope="billing"
-                    initialViewId={viewId}
-                    initialFilters={filters}
-                    baseParams={{
-                      ...(tenantId ? { tenantId } : {}),
-                      ...(q ? { q } : {}),
-                      ...(tipo ? { tipo } : {}),
-                      ...(estado ? { estado } : {}),
-                      ...(ordenar ? { ordenar } : {})
-                    }}
-                    compactInline
-                  />
+                  <div className="module-search-right">
+                    <SmartViewsBar
+                      scope="billing"
+                      initialViewId={viewId}
+                      initialFilters={filters}
+                      baseParams={{
+                        ...(tenantId ? { tenantId } : {}),
+                        ...(q ? { q } : {}),
+                        ...(tipo ? { tipo } : {}),
+                        ...(estado ? { estado } : {}),
+                        ...(ordenar ? { ordenar } : {})
+                      }}
+                      compactInline
+                    />
+                    <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
+                  </div>
                 </div>
                 <div className="field-hint tiny-total">{rows.length} resultados</div>
               </div>
             </div>
-            <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
           </div>
         </div>
 
@@ -633,7 +635,7 @@ export default async function BillingPage({
                     </div>
                   </div>
 
-                  <div className="billing-grid-info" style={{ gridTemplateColumns: "1.7fr 1.2fr 1.3fr", alignItems: "start" }}>
+                  <div className="billing-grid-info billing-grid-subscription" style={{ alignItems: "start" }}>
                     <div className="billing-body-left">
                       <div className="billing-title">
                         <div className="billing-name">{r.customerName}</div>
@@ -650,14 +652,16 @@ export default async function BillingPage({
                           <strong>{r.planName}</strong>
                         </div>
                       </div>
-                    </div>
-                    <div>
-                      <span>Tipo de suscripción</span>
-                      <div style={{ marginBottom: 6 }}>
-                        <span className={`pill pill-sm ${isPlan ? "pill-mode-link" : "pill-mode-debit"}`}>
-                          {isPlan ? "Suscripción link de pago" : "Débito automático"}
-                        </span>
+                      <div className="billing-type-block">
+                        <span>Tipo de suscripción</span>
+                        <div>
+                          <span className={`pill pill-sm ${isPlan ? "pill-mode-link" : "pill-mode-debit"}`}>
+                            {isPlan ? "Suscripción link de pago" : "Débito automático"}
+                          </span>
+                        </div>
                       </div>
+                    </div>
+                    <div className="billing-cutoff-block">
                       <span>Próximo pago / corte</span>
                       {r.status !== "CANCELED" ? (
                         <AutoCutoffInlineForm

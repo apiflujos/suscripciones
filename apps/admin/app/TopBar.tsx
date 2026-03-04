@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { AdminSession } from "../lib/session";
+import { isNoiseNotification, normalizeSystemText } from "./lib/logPresentation";
 
 type Header = { title: string; subtitle: string };
 type HeaderNotification = {
@@ -13,6 +14,8 @@ type HeaderNotification = {
   message: string;
   level?: "info" | "error";
   href?: string | null;
+  source?: string | null;
+  kind?: string | null;
   read?: boolean;
   duplicateCount?: number;
 };
@@ -77,6 +80,26 @@ function normalizeNotif(value: unknown) {
 
 function notifKey(item: Partial<HeaderNotification>) {
   return `${normalizeNotif(item.level)}|${normalizeNotif(item.title)}|${normalizeNotif(item.message)}|${normalizeNotif(item.href)}`;
+}
+
+function resolveNotificationHref(item: Partial<HeaderNotification>, role?: string | null) {
+  const href = String(item?.href || "").trim();
+  const title = normalizeSystemText(item?.title || "").toLowerCase();
+  const message = normalizeSystemText(item?.message || "").toLowerCase();
+  const source = String(item?.source || "").toLowerCase().trim();
+  const kind = String(item?.kind || "").toLowerCase().trim();
+  const text = `${title} ${message} ${source} ${kind}`;
+
+  const blockedLogs = role !== "SUPER_ADMIN";
+  if (href && (!blockedLogs || !href.startsWith("/logs"))) return href;
+
+  if (/payment|pago|concili|wompi|webhook/.test(text)) return "/payments";
+  if (/subscription|suscripci|cobro|reintento/.test(text)) return "/billing";
+  if (/customer|cliente|contact/.test(text)) return "/customers";
+  if (/notification|notificaci|mensaje/.test(text)) return "/notifications";
+  if (/producto|product|plan/.test(text)) return "/products";
+  if (blockedLogs) return "/";
+  return href || "/logs";
 }
 
 export function TopBar({ session }: { session: AdminSession | null }) {
@@ -172,19 +195,25 @@ export function TopBar({ session }: { session: AdminSession | null }) {
         const dedup = new Map<string, HeaderNotification>();
         for (const raw of parsed.slice(0, 120)) {
           const item = raw as HeaderNotification;
-          const key = notifKey(item);
+          const normalized: HeaderNotification = {
+            ...item,
+            title: normalizeSystemText(item?.title || ""),
+            message: normalizeSystemText(item?.message || "")
+          };
+          if (isNoiseNotification({ title: normalized.title, message: normalized.message, kind: (raw as any)?.kind })) continue;
+          const key = notifKey(normalized);
           const prev = dedup.get(key);
           const prevTs = prev ? new Date(prev.ts).getTime() : Number.NaN;
-          const itemTs = new Date(item.ts).getTime();
+          const itemTs = new Date(normalized.ts).getTime();
           const prevCount = Math.max(1, Number(prev?.duplicateCount || 1));
-          const itemCount = Math.max(1, Number(item?.duplicateCount || 1));
+          const itemCount = Math.max(1, Number(normalized?.duplicateCount || 1));
           const mergedCount = prev ? prevCount + itemCount : itemCount;
           if (!prev) {
-            dedup.set(key, { ...item, id: key, duplicateCount: mergedCount });
+            dedup.set(key, { ...normalized, id: key, duplicateCount: mergedCount });
             continue;
           }
           const keepNew = Number.isFinite(itemTs) && (!Number.isFinite(prevTs) || itemTs >= prevTs);
-          dedup.set(key, { ...(keepNew ? item : prev), id: key, duplicateCount: mergedCount });
+          dedup.set(key, { ...(keepNew ? normalized : prev), id: key, duplicateCount: mergedCount });
         }
         const compacted = Array.from(dedup.values())
           .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
@@ -331,7 +360,9 @@ export function TopBar({ session }: { session: AdminSession | null }) {
               </div>
               <div className="topbarBellList">
                 {filteredNotifications.length ? (
-                  filteredNotifications.map((n) => (
+                  filteredNotifications.map((n) => {
+                    const destinationHref = resolveNotificationHref(n, session?.role);
+                    return (
                     <div key={n.id} className={`topbarBellItem ${n.read ? "is-read" : "is-unread"}`}>
                       <div>
                         <div className="topbarBellItemTitle">
@@ -341,9 +372,9 @@ export function TopBar({ session }: { session: AdminSession | null }) {
                         <div className="topbarBellItemMeta">
                           {new Date(n.ts).toLocaleString("es-CO", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}
                         </div>
-                        {n.href ? (
-                          <a className="topbarBellItemLink" href={n.href} data-loader="off">
-                            Ver detalle
+                        {destinationHref ? (
+                          <a className="topbarBellItemLink" href={destinationHref} data-loader="off">
+                            Ir al módulo
                           </a>
                         ) : null}
                       </div>
@@ -356,7 +387,8 @@ export function TopBar({ session }: { session: AdminSession | null }) {
                         {n.read ? "No leída" : "Leída"}
                       </button>
                     </div>
-                  ))
+                  );
+                  })
                 ) : (
                   <div className="topbarBellEmpty">Sin notificaciones en este filtro.</div>
                 )}

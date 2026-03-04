@@ -4,6 +4,7 @@ import { AiAssistant } from "../../logs/AiAssistant";
 import { LocalDateTime } from "../../ui/LocalDateTime";
 import { TimelineScroller } from "../../ui/TimelineScroller";
 import { MapModal } from "../../ui/MapModal";
+import { isNoiseNotification, normalizeSystemText } from "../../lib/logPresentation";
 
 export const dynamic = "force-dynamic";
 
@@ -118,7 +119,7 @@ function cleanLogEntity(raw: string, customerLabel: string) {
 }
 
 function cleanLogMessage(raw: string, customerLabel: string) {
-  let out = String(raw || "").trim();
+  let out = normalizeSystemText(raw);
   if (!out) return "—";
   if (customerLabel) {
     const safe = escapeRegex(customerLabel);
@@ -126,6 +127,33 @@ function cleanLogMessage(raw: string, customerLabel: string) {
   }
   out = out.replace(/\s{2,}/g, " ").trim();
   return out || "—";
+}
+
+function isRelevantCustomerLog(log: any) {
+  const source = String(log?.source || "").trim();
+  const title = normalizeSystemText(log?.entity || "");
+  const message = normalizeSystemText(log?.message || "");
+  if (isNoiseNotification({ source, title, message })) return false;
+  return true;
+}
+
+function compactCustomerLogs(items: any[]) {
+  const dedup = new Map<string, any>();
+  for (const item of items) {
+    const key = `${String(item?.source || "").trim().toLowerCase()}|${normalizeSystemText(item?.entity || "").toLowerCase()}|${normalizeSystemText(item?.message || "").toLowerCase()}|${String(item?.level || "").toUpperCase()}`;
+    const prev = dedup.get(key);
+    if (!prev) {
+      dedup.set(key, { ...item, duplicateCount: 1 });
+      continue;
+    }
+    const prevTs = new Date(prev.createdAt || 0).getTime();
+    const currTs = new Date(item?.createdAt || 0).getTime();
+    const base = currTs >= prevTs ? item : prev;
+    dedup.set(key, { ...base, duplicateCount: Number(prev?.duplicateCount || 1) + 1 });
+  }
+  return Array.from(dedup.values()).sort(
+    (a, b) => new Date(b?.createdAt || 0).getTime() - new Date(a?.createdAt || 0).getTime()
+  );
 }
 
 function collectionLabel(mode: string) {
@@ -458,7 +486,8 @@ export default async function CustomerDetailPage({
 
   const payments = (paymentsRes.json?.items ?? []) as any[];
   const subscriptions = (subscriptionsRes.json?.items ?? []) as any[];
-  const logs = (logsRes.json?.items ?? []) as any[];
+  const logsRaw = (logsRes.json?.items ?? []) as any[];
+  const logs = compactCustomerLogs(logsRaw.filter(isRelevantCustomerLog));
   const tenants = (tenantsRes.json?.items ?? []) as Array<{ id: string; name: string }>;
   const aiConfig = settingsRes.ok ? settingsRes.json?.ai : null;
   const aiProviders = aiConfig?.providers || null;
@@ -1191,7 +1220,7 @@ export default async function CustomerDetailPage({
                         aria-label={tooltip}
                       >
                         <div className="customer-log-title">
-                          <span>{entity}</span>
+                          <span>{entity} {Number(l?.duplicateCount || 1) > 1 ? `x${Number(l.duplicateCount)}` : ""}</span>
                           <span className={`pill pill-sm ${logPillClass(String(l.level || ""))}`}>
                             {logLevelLabel(String(l.level || ""))}
                           </span>
@@ -1199,7 +1228,6 @@ export default async function CustomerDetailPage({
                         <div className="customer-log-message">{message}</div>
                         <div className="customer-log-meta">
                           <span><LocalDateTime value={l.createdAt} /></span>
-                          {l.source ? <span>{l.source}</span> : null}
                           <span>{l.actor || "Sistema"}</span>
                         </div>
                       </div>

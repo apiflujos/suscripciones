@@ -464,20 +464,22 @@ export default async function CustomersPage({
                     />
                     <button className="ghost btn-icon-only btn-filter" type="submit" aria-label="Buscar" title="Buscar" />
                   </form>
-                  <SmartViewsBar
-                    scope="customers"
-                    initialViewId={viewId}
-                    initialFilters={filters}
-                    baseParams={{
-                      ...(q ? { q } : {}),
-                      ...(tenantId ? { tenantId } : {})
-                    }}
-                    compactInline
-                  />
+                  <div className="module-search-right">
+                    <SmartViewsBar
+                      scope="customers"
+                      initialViewId={viewId}
+                      initialFilters={filters}
+                      baseParams={{
+                        ...(q ? { q } : {}),
+                        ...(tenantId ? { tenantId } : {})
+                      }}
+                      compactInline
+                    />
+                    <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
+                  </div>
                 </div>
               </div>
             </div>
-            <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
           </div>
         </div>
 

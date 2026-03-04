@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { isNoiseNotification, normalizeSystemText } from "../lib/logPresentation";
 
 type RealtimeEvent = {
   id: string;
@@ -342,12 +343,19 @@ export function RealtimeNotifier() {
     let shouldPlayFail = false;
     let forceCash = false;
     const now = Date.now();
-    const freshEvents = events.filter((e) => {
+    const freshEvents = events
+      .map((e) => ({
+        ...e,
+        title: normalizeSystemText(e?.title || ""),
+        message: normalizeSystemText(e?.message || "")
+      }))
+      .filter((e) => !isNoiseNotification({ title: e.title, message: e.message, kind: e.kind }))
+      .filter((e) => {
       if (!e?.id) return true;
       if (seenIdsRef.current.has(e.id)) return false;
       seenIdsRef.current.add(e.id);
       return true;
-    });
+      });
     if (seenIdsRef.current.size > 300) {
       const trimmed = Array.from(seenIdsRef.current).slice(-200);
       seenIdsRef.current = new Set(trimmed);

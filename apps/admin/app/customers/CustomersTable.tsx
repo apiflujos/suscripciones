@@ -579,10 +579,10 @@ export function CustomersTable({
                 </div>
                   <div className="contact-card-top-actions">
                     <Link
-                      className="ghost btn-compact btn-link btn-icon-only"
+                      className="ghost btn-compact btn-search btn-icon-only"
                       href={`/customers/${c.id}`}
-                      aria-label="Ver detalle"
-                      title="Ver detalle"
+                      aria-label="Abrir ficha"
+                      title="Abrir ficha"
                     />
                     <button
                       className="ghost btn-compact btn-history btn-icon-only"

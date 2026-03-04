@@ -312,9 +312,6 @@ export default async function LogsPage({
       if (ids.length) {
         if (tab === "payments") paymentsParams.set("ids", ids.join(","));
         else systemParams.set("ids", ids.join(","));
-      } else {
-        if (tab === "payments") paymentsParams.set("ids", "__none__");
-        else systemParams.set("ids", "__none__");
       }
     }
   }

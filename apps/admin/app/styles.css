@@ -1854,6 +1854,18 @@ a {
   min-width: 0;
 }
 
+.module-search-right {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.module-search-right .smartViewsBar {
+  min-width: 0;
+}
+
 .payments-totals-row {
   margin-top: 8px;
   display: flex;
@@ -3918,9 +3930,9 @@ textarea.input {
 }
 
 .btn-amber {
-  border-color: var(--stroke-strong);
-  color: var(--text);
-  background: var(--panel);
+  border-color: var(--status-danger);
+  color: var(--status-danger);
+  background: var(--status-danger-bg);
   --btn-icon: var(--icon-alert);
 }
 
@@ -5506,6 +5518,17 @@ textarea.input {
   gap: 4px;
 }
 
+.billing-type-block,
+.billing-cutoff-block {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+}
+
+.billing-grid-subscription {
+  grid-template-columns: 1.7fr 1.2fr 1.3fr;
+}
+
 .billing-grid-info {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -5525,6 +5548,15 @@ textarea.input {
   display: grid;
   align-items: stretch;
   gap: 4px;
+}
+
+.billing-grid-info > .billing-body-left,
+.billing-grid-info > .billing-cutoff-block,
+.billing-grid-info > .billing-cost-panel,
+.billing-grid-info > .billing-type-block {
+  display: grid;
+  gap: 4px;
+  align-content: start;
 }
 
 .billing-grid-info span {
@@ -5554,10 +5586,9 @@ textarea.input {
 }
 
 .billing-cost-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
+  display: grid;
+  gap: 2px;
+  justify-items: start;
 }
 
 .billing-cost-label {
@@ -5567,7 +5598,7 @@ textarea.input {
 
 .billing-cost-value {
   color: var(--text);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
 }
 
@@ -5584,7 +5615,7 @@ textarea.input {
 
 .billing-cost-total {
   color: var(--primary);
-  font-size: 19px;
+  font-size: 22px;
   font-weight: 800;
   line-height: 1.1;
 }
