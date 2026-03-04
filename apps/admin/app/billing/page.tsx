@@ -659,7 +659,7 @@ export default async function BillingPage({
                         </span>
                       </div>
                       <span>Próximo pago / corte</span>
-                      {r.mode === "AUTO_DEBIT" && r.customerTokenized && r.status !== "CANCELED" ? (
+                      {r.status !== "CANCELED" ? (
                         <AutoCutoffInlineForm
                           subscriptionId={r.id}
                           csrfToken={csrfToken}

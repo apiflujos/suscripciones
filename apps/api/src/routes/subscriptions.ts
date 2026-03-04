@@ -493,7 +493,9 @@ subscriptionsRouter.post("/:id/schedule-cutoff", async (req, res) => {
   }
 
   const collectionMode = String((subscription.plan?.metadata as any)?.collectionMode || "MANUAL_LINK");
-  if (collectionMode !== "AUTO_DEBIT") return res.status(409).json({ error: "schedule_cutoff_not_allowed" });
+  if (collectionMode !== "AUTO_DEBIT" && collectionMode !== "AUTO_LINK") {
+    return res.status(409).json({ error: "schedule_cutoff_not_allowed" });
+  }
 
   const updated = await prisma.subscription.update({
     where: { id: subscriptionId },
