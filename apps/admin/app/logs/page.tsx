@@ -248,6 +248,7 @@ export default async function LogsPage({
   const from = typeof sp.from === "string" && sp.from.trim() ? sp.from : defaultFrom;
   const to = typeof sp.to === "string" && sp.to.trim() ? sp.to : defaultTo;
   const tenantId = typeof sp.tenantId === "string" ? sp.tenantId : "";
+  const includeIgnored = ["1", "true", "yes", "on"].includes(String(typeof sp.includeIgnored === "string" ? sp.includeIgnored : "").toLowerCase());
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
   const take = 20;
   const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
@@ -275,7 +276,8 @@ export default async function LogsPage({
     ...(status ? { status } : {}),
     ...(from ? { from } : {}),
     ...(to ? { to } : {}),
-    ...(tenantId ? { tenantId } : {})
+    ...(tenantId ? { tenantId } : {}),
+    ...(includeIgnored ? { includeIgnored: "1" } : {})
   });
   const webhooksParams = new URLSearchParams({
     take: String(take),
@@ -676,6 +678,11 @@ export default async function LogsPage({
                 <div className="filtersPanel">
                   <div className="payments-actions-row">
                     <form action="/payments" method="GET" className="filtersForm filtersSearch payments-search-form" data-debounce-form="true">
+                      {includeIgnored ? <input type="hidden" name="includeIgnored" value="1" /> : null}
+                      {status ? <input type="hidden" name="status" value={status} /> : null}
+                      {from ? <input type="hidden" name="from" value={from} /> : null}
+                      {to ? <input type="hidden" name="to" value={to} /> : null}
+                      {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
                       <input
                         className="input"
                         name="q"
@@ -698,6 +705,19 @@ export default async function LogsPage({
                         />
                       </div>
                       <div className="payments-buttons-wrap">
+                        <Link
+                          className="ghost btn-compact btn-noicon"
+                          href={`/payments?${new URLSearchParams({
+                            ...(q ? { q } : {}),
+                            ...(status ? { status } : {}),
+                            ...(from ? { from } : {}),
+                            ...(to ? { to } : {}),
+                            ...(tenantId ? { tenantId } : {}),
+                            ...(includeIgnored ? {} : { includeIgnored: "1" })
+                          }).toString()}`}
+                        >
+                          {includeIgnored ? "Ocultar externos ignorados" : "Mostrar externos ignorados"}
+                        </Link>
                         <form action={reconcilePendingPayments} className="filtersForm payments-action-form">
                           <input type="hidden" name="csrf" value={csrfToken} />
                           <input type="hidden" name="days" value="7" />
@@ -906,14 +926,13 @@ export default async function LogsPage({
                 <colgroup>
                   <col style={{ width: "130px" }} />
                   <col style={{ width: "250px" }} />
-                  <col style={{ width: "190px" }} />
+                  <col style={{ width: "210px" }} />
                   <col style={{ width: "110px" }} />
                   <col style={{ width: "120px" }} />
+                  <col style={{ width: "240px" }} />
                   <col style={{ width: "220px" }} />
-                  <col style={{ width: "170px" }} />
-                  <col style={{ width: "170px" }} />
                   <col style={{ width: "220px" }} />
-                  <col style={{ width: "130px" }} />
+                  <col style={{ width: "190px" }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -923,8 +942,7 @@ export default async function LogsPage({
                     <th>Estado</th>
                     <th>Monto</th>
                     <th>Referencia</th>
-                    <th>ID pago Wompi</th>
-                    <th>ID link Wompi</th>
+                    <th>IDs Wompi</th>
                     <th>Motivo fallo</th>
                     <th />
                   </tr>
@@ -932,7 +950,9 @@ export default async function LogsPage({
                 <tbody>
                   {paymentItems.map((p) => {
                     const chip = paymentStatusChip(p.status);
-                    const planName = p.subscription?.plan?.name || "Falta asociar suscripción";
+                    const isIgnoredExternal = Boolean(p.isIgnoredExternal);
+                    const ignoredReason = String(p?.reconciliation?.reason || "").trim();
+                    const planName = isIgnoredExternal ? "Externo ignorado" : (p.subscription?.plan?.name || "Falta asociar suscripción");
                     const contactQuery =
                       p.customer?.email ||
                       p.customer?.phone ||
@@ -965,17 +985,21 @@ export default async function LogsPage({
                         <td className="log-ref-cell" title={p.reference || "—"}>
                           <span className="log-ref-main">{p.reference || "—"}</span>
                         </td>
-                        <td className="log-transaction-cell" title={p.wompiTransactionId || "—"}>
-                          {p.wompiTransactionId || "—"}
-                        </td>
-                        <td className="log-transaction-cell" title={p.wompiPaymentLinkId || "—"}>
-                          {p.wompiPaymentLinkId || "—"}
+                        <td className="log-transaction-cell" title={`${p.wompiTransactionId || "—"} · ${p.wompiPaymentLinkId || "—"}`}>
+                          <div className="log-wompi-stack">
+                            <span><strong>Tx:</strong> {p.wompiTransactionId || "—"}</span>
+                            <span><strong>Link:</strong> {p.wompiPaymentLinkId || "—"}</span>
+                          </div>
                         </td>
                         <td className="log-payment-error-cell" title={failureReason}>
-                          {failureReason}
+                          {isIgnoredExternal ? (
+                            <span className="muted">Externo ignorado{ignoredReason ? ` · ${ignoredReason}` : ""}</span>
+                          ) : (
+                            failureReason
+                          )}
                         </td>
-                        <td style={{ textAlign: "right" }}>
-                          {String(p.status || "").toUpperCase() === "PENDING" ? (
+                        <td className="log-payment-actions">
+                          {!isIgnoredExternal && String(p.status || "").toUpperCase() === "PENDING" ? (
                             <form action={reconcilePayment} style={{ display: "inline-flex", marginRight: 8 }}>
                               <input type="hidden" name="csrf" value={csrfToken} />
                               <input type="hidden" name="paymentId" value={String(p.id || "")} />
@@ -990,7 +1014,7 @@ export default async function LogsPage({
                               </PendingButton>
                             </form>
                           ) : null}
-                          {!p.subscriptionId && (contactId || contactQuery) ? (
+                          {!isIgnoredExternal && !p.subscriptionId && (contactId || contactQuery) ? (
                             <Link
                               className="ghost btn-compact btn-noicon"
                               href={`/billing?${new URLSearchParams({
@@ -1017,7 +1041,7 @@ export default async function LogsPage({
                   })}
                   {paymentItems.length === 0 ? (
                     <tr>
-                      <td colSpan={10} style={{ color: "var(--muted)" }}>
+                      <td colSpan={9} style={{ color: "var(--muted)" }}>
                         Sin pagos.
                       </td>
                     </tr>

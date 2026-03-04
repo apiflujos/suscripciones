@@ -353,6 +353,7 @@ logsRouter.get("/payments", async (req, res) => {
   const toRaw = String(req.query.to ?? "").trim();
   const tenantId = String(req.query.tenantId ?? "").trim();
   const planId = String(req.query.planId ?? "").trim();
+  const includeIgnored = ["1", "true", "yes", "on"].includes(String(req.query.includeIgnored ?? "").trim().toLowerCase());
 
   const statusFilter =
     statusRaw === "APPROVED"
@@ -385,6 +386,16 @@ logsRouter.get("/payments", async (req, res) => {
     ...(statusFilter ? { status: { in: statusFilter as any } } : {}),
     ...(tenantId ? { tenantId } : {}),
     ...(planId ? { subscription: { planId } } : {}),
+    ...(!includeIgnored
+      ? ({
+          NOT: {
+            providerResponse: {
+              path: ["reconciliation", "status"],
+              equals: "IGNORED_EXTERNAL"
+            } as any
+          }
+        } as Prisma.PaymentWhereInput)
+      : {}),
     ...dateWhere,
     ...(q
       ? {
@@ -424,10 +435,16 @@ logsRouter.get("/payments", async (req, res) => {
       stringOrNull(lastAttempt?.errorMessage) ||
       pickProviderFailureMessage(item.providerResponse) ||
       null;
+    const reconciliation = (item?.providerResponse && typeof item.providerResponse === "object"
+      ? (item.providerResponse as any).reconciliation
+      : null) || null;
+    const isIgnoredExternal = String(reconciliation?.status || "").toUpperCase() === "IGNORED_EXTERNAL";
     return {
       ...item,
       failureCode,
-      failureReason
+      failureReason,
+      reconciliation,
+      isIgnoredExternal
     };
   });
   res.json({ items: mappedItems, total });

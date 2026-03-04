@@ -2244,12 +2244,30 @@ a {
   max-width: 170px;
 }
 
+.logs-table-payments .log-wompi-stack {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.logs-table-payments .log-wompi-stack span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
 .logs-table-payments .log-payment-error-cell {
   max-width: 220px;
   white-space: normal;
   word-break: break-word;
   overflow-wrap: anywhere;
   line-height: 1.3;
+}
+
+.logs-table-payments .log-payment-actions {
+  white-space: nowrap;
+  text-align: right;
 }
 
 .logs-table-jobs .log-detail-cell {
