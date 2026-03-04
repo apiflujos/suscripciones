@@ -567,10 +567,21 @@ export default async function BillingPage({
                 <div className="billing-card" key={r.id}>
                   <div className="billing-header">
                     <div className="billing-badges billing-badges-header">
-                      <span className="provider-badge">
-                        <img src="/brand/wompi.png" alt="" />
-                        Wompi
-                      </span>
+                      <div className="billing-header-middle">
+                        <span className="billing-header-label">Canal de ventas</span>
+                        <BillingTenantModalButton
+                          triggerId={`tenant-modal-open-${r.id}`}
+                          triggerLabel={r.tenantName || "Sin canal"}
+                          triggerClassName="ghost btn-compact btn-noicon"
+                          subscriptionId={r.id}
+                          scopeTenantId={r.tenantId || ""}
+                          tenantIds={Array.isArray(r.tenantIds) ? r.tenantIds.map(String) : []}
+                          tenants={tenants}
+                          csrfToken={csrfToken}
+                          returnTo={returnTo}
+                          action={updateSubscriptionTenants}
+                        />
+                      </div>
                       {isPlan ? (
                         <span className={`pill ${planBadgeStatus === "Al día" ? "pill-ok" : planBadgeStatus === "En mora" ? "pill-warn" : "pill-muted"}`}>
                           Estado del pago: {planBadgeStatus}
@@ -588,21 +599,6 @@ export default async function BillingPage({
                       <span className={`pill ${r.customerTokenized ? "pill-ok" : "pill-bad"}`}>
                         {r.customerTokenized ? "Tokenizada" : "Sin token"}
                       </span>
-                    </div>
-                    <div className="billing-header-middle">
-                      <span className="billing-header-label">Canal de ventas</span>
-                      <BillingTenantModalButton
-                        triggerId={`tenant-modal-open-${r.id}`}
-                        triggerLabel={r.tenantName || "Sin canal"}
-                        triggerClassName="ghost btn-compact btn-noicon"
-                        subscriptionId={r.id}
-                        scopeTenantId={r.tenantId || ""}
-                        tenantIds={Array.isArray(r.tenantIds) ? r.tenantIds.map(String) : []}
-                        tenants={tenants}
-                        csrfToken={csrfToken}
-                        returnTo={returnTo}
-                        action={updateSubscriptionTenants}
-                      />
                     </div>
                     <div className="billing-header-right">
                       <div className="billing-header-actions">
@@ -644,11 +640,6 @@ export default async function BillingPage({
                         <div className="billing-sub">
                           {r.customerEmail || "—"} · {r.identificacion || "—"}
                         </div>
-                        <div>
-                          <span className={`pill pill-sm ${isPlan ? "pill-mode-link" : "pill-mode-debit"}`}>
-                            {isPlan ? "Suscripción link de pago" : "Débito automático"}
-                          </span>
-                        </div>
                       </div>
                       <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                         <div className="product-thumb" style={{ width: 32, height: 32 }}>
@@ -661,6 +652,12 @@ export default async function BillingPage({
                       </div>
                     </div>
                     <div>
+                      <span>Tipo de suscripción</span>
+                      <div style={{ marginBottom: 6 }}>
+                        <span className={`pill pill-sm ${isPlan ? "pill-mode-link" : "pill-mode-debit"}`}>
+                          {isPlan ? "Suscripción link de pago" : "Débito automático"}
+                        </span>
+                      </div>
                       <span>Próximo pago / corte</span>
                       {r.mode === "AUTO_DEBIT" && r.customerTokenized && r.status !== "CANCELED" ? (
                         <AutoCutoffInlineForm
@@ -731,6 +728,10 @@ export default async function BillingPage({
                       ) : null}
                     </div>
                     <div className="billing-actions-right">
+                    <span className="provider-badge">
+                      <img src="/brand/wompi.png" alt="" />
+                      Wompi
+                    </span>
                     {r.mode !== "AUTO_DEBIT" ? (
                       <form action={sendCentralComPaymentLink}>
                         <input type="hidden" name="csrf" value={csrfToken} />

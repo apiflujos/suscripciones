@@ -5356,7 +5356,7 @@ textarea.input {
 .billing-header-middle {
   display: grid;
   gap: 4px;
-  justify-items: center;
+  justify-items: flex-start;
   align-content: start;
   min-width: 170px;
 }
