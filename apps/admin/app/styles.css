@@ -5378,10 +5378,77 @@ textarea.input {
   flex-wrap: wrap;
 }
 
+.billing-grid-info > .billing-cost-panel {
+  display: grid;
+  align-items: stretch;
+  gap: 4px;
+}
+
 .billing-grid-info span {
   display: inline;
   color: var(--text-faint);
   font-size: 10px;
+}
+
+.billing-cost-panel {
+  display: grid;
+  gap: 4px;
+}
+
+.billing-cost-title {
+  color: var(--text-faint);
+  font-size: 10px;
+}
+
+.billing-cost-box {
+  border: 1px solid color-mix(in srgb, var(--stroke) 80%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel) 92%, var(--primary-soft) 8%);
+  padding: 8px 10px;
+  display: grid;
+  gap: 4px;
+  min-width: 220px;
+}
+
+.billing-cost-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.billing-cost-label {
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.billing-cost-value {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.billing-cost-total-line {
+  border-top: 1px dashed color-mix(in srgb, var(--stroke) 88%, transparent);
+  margin-top: 2px;
+}
+
+.billing-cost-total-label {
+  color: var(--text-faint);
+  font-size: 11px;
+  margin-top: 1px;
+}
+
+.billing-cost-total {
+  color: var(--primary);
+  font-size: 21px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.billing-cost-period {
+  color: var(--text-soft);
+  font-size: 11px;
 }
 
 .billing-actions {
@@ -7980,6 +8047,10 @@ body.is-global-loading {
 @media (max-width: 640px) {
   .billing-grid-info {
     grid-template-columns: 1fr;
+  }
+  .billing-cost-box {
+    min-width: 0;
+    width: 100%;
   }
   .billing-header {
     flex-direction: column;

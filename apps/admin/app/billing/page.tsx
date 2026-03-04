@@ -621,22 +621,23 @@ export default async function BillingPage({
                         <div>{r.vencimientoAt ? <LocalDateTime value={r.vencimientoAt} /> : "—"}</div>
                       )}
                     </div>
-                    <div>
-                      <span>Costo suscripción</span>
-                      <div style={{ display: "grid", gap: 3 }}>
-                        <div>
-                          <span className="field-hint">Valor base</span>
-                          <strong>{fmtMoney(r.valorBaseInCents ?? r.montoInCents, r.moneda)}</strong>
+                    <div className="billing-cost-panel">
+                      <span className="billing-cost-title">Costo suscripción</span>
+                      <div className="billing-cost-box">
+                        <div className="billing-cost-row">
+                          <span className="billing-cost-label">Valor base</span>
+                          <strong className="billing-cost-value">{fmtMoney(r.valorBaseInCents ?? r.montoInCents, r.moneda)}</strong>
                         </div>
-                        <div>
-                          <span className="field-hint">Flete</span>
-                          <strong>{r.currentShippingInCents > 0 ? fmtMoney(r.currentShippingInCents, r.moneda) : `Gratis (${fmtMoney(0, r.moneda)})`}</strong>
+                        <div className="billing-cost-row">
+                          <span className="billing-cost-label">Flete</span>
+                          <strong className="billing-cost-value">
+                            {r.currentShippingInCents > 0 ? fmtMoney(r.currentShippingInCents, r.moneda) : `Gratis (${fmtMoney(0, r.moneda)})`}
+                          </strong>
                         </div>
-                        <div>
-                          <span className="field-hint">Total</span>
-                          <strong>{fmtMoney(r.totalInCents ?? r.montoInCents, r.moneda)}</strong>
-                        </div>
-                        <div className="field-hint">{r.cada}</div>
+                        <div className="billing-cost-total-line" />
+                        <div className="billing-cost-total-label">Total suscripción</div>
+                        <div className="billing-cost-total">{fmtMoney(r.totalInCents ?? r.montoInCents, r.moneda)}</div>
+                        <div className="billing-cost-period">{r.cada}</div>
                       </div>
                     </div>
                   </div>
