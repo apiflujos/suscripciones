@@ -633,7 +633,7 @@ export default async function BillingPage({
                     </div>
                   </div>
 
-                  <div className="billing-grid-info" style={{ gridTemplateColumns: "1.7fr 1.2fr 1.3fr", alignItems: "center" }}>
+                  <div className="billing-grid-info" style={{ gridTemplateColumns: "1.7fr 1.2fr 1.3fr", alignItems: "start" }}>
                     <div className="billing-body-left">
                       <div className="billing-title">
                         <div className="billing-name">{r.customerName}</div>
