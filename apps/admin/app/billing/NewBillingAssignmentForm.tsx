@@ -587,7 +587,7 @@ export function NewBillingAssignmentForm({
                 <div className="field">
                   <label>Flete / envío para este contacto</label>
                   <input
-                    className="input"
+                    className="input shipping-currency-input"
                     name="shippingPesos"
                     value={shippingCop}
                     onChange={(e) => setShippingCop(formatCurrencyInput(e.target.value, selectedProduct.currency || "COP"))}
@@ -597,6 +597,7 @@ export function NewBillingAssignmentForm({
                   <div className="field-hint">
                     Este valor solo se aplica a esta suscripción/plan.
                   </div>
+                  <div className="field-hint">Moneda: {selectedProduct.currency || "COP"}</div>
                 </div>
               ) : (
                 <input type="hidden" name="shippingPesos" value="0" />
