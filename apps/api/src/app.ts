@@ -33,6 +33,8 @@ import { getMediaDir } from "./services/mediaStorage";
 import { aiRouter } from "./routes/ai";
 import { smartViewsRouter } from "./routes/smartViews";
 import { gamificationRouter } from "./routes/gamification";
+import { sqlConsoleRouter } from "./routes/sqlConsole";
+import { requireSaSession } from "./services/superAdminAuth";
 
 export function createApp() {
   const app = express();
@@ -233,6 +235,7 @@ export function createApp() {
   app.use("/admin/ai", requireAdminToken, aiRouter);
   app.use("/admin/auth", requireAdminToken, authRouter);
   app.use("/admin/sa", requireAdminToken, superAdminRouter);
+  app.use("/admin/sa/sql-console", requireAdminToken, requireSaSession, sqlConsoleRouter);
   app.use("/admin/chatwoot", requireAdminToken, chatwootRouter);
   app.use("/admin/smart-views", requireAdminToken, smartViewsRouter);
   app.use("/admin/gamification", requireAdminToken, gamificationRouter);

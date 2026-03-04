@@ -38,6 +38,9 @@ export default async function SaLayout({ children }: { children: React.ReactNode
         <Link className={`btn ${isActive("/sa/usage") ? "is-active" : ""}`} href="/sa/usage" prefetch={false} aria-current={isActive("/sa/usage") ? "page" : undefined}>
           Consumos
         </Link>
+        <Link className={`btn ${isActive("/sa/sql") ? "is-active" : ""}`} href="/sa/sql" prefetch={false} aria-current={isActive("/sa/sql") ? "page" : undefined}>
+          SQL
+        </Link>
       </nav>
 
       {children}
