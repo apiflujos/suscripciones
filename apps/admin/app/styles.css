@@ -5573,16 +5573,16 @@ textarea.input {
   align-content: start;
 }
 
-.billing-grid-subscription {
-  grid-template-columns: 1.7fr 1.2fr 1.3fr;
-}
-
 .billing-grid-info {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 2px 6px;
   font-size: 12px;
   color: var(--text);
+}
+
+.billing-grid-info.billing-grid-subscription {
+  grid-template-columns: minmax(0, 1fr) minmax(260px, auto) minmax(260px, auto);
 }
 
 .billing-grid-info > div {
@@ -5616,6 +5616,9 @@ textarea.input {
 .billing-cost-panel {
   display: grid;
   gap: 4px;
+  justify-self: end;
+  justify-items: end;
+  text-align: right;
 }
 
 .billing-cost-title {
@@ -5631,12 +5634,14 @@ textarea.input {
   display: grid;
   gap: 3px;
   min-width: 220px;
+  justify-items: end;
+  text-align: right;
 }
 
 .billing-cost-row {
   display: grid;
   gap: 2px;
-  justify-items: start;
+  justify-items: end;
 }
 
 .billing-cost-label {
