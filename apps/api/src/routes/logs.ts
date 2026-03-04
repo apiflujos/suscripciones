@@ -388,12 +388,24 @@ logsRouter.get("/payments", async (req, res) => {
     ...(planId ? { subscription: { planId } } : {}),
     ...(!includeIgnored
       ? ({
-          NOT: {
-            providerResponse: {
-              path: ["reconciliation", "status"],
-              equals: "IGNORED_EXTERNAL"
-            } as any
-          }
+          AND: [
+            {
+              OR: [
+                {
+                  providerResponse: {
+                    path: ["reconciliation", "status"],
+                    equals: null
+                  } as any
+                },
+                {
+                  providerResponse: {
+                    path: ["reconciliation", "status"],
+                    not: "IGNORED_EXTERNAL"
+                  } as any
+                }
+              ]
+            }
+          ]
         } as Prisma.PaymentWhereInput)
       : {}),
     ...dateWhere,
