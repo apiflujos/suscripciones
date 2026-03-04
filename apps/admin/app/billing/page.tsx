@@ -332,6 +332,11 @@ export default async function BillingPage({
 
       const tenantIds = Array.isArray(s.tenantIds) && s.tenantIds.length ? s.tenantIds : [s.tenantId || plan?.tenantId].filter(Boolean);
       const tenantNameList = tenantIds.map((id: string) => tenantById.get(String(id))).filter(Boolean) as string[];
+      const totalInCents = Number(plan?.priceInCents || 0);
+      const shippingInCents = Number(readPlanPricing((plan?.metadata as any) ?? {})?.shippingInCents || 0);
+      const requiresShipping = String((plan?.metadata as any)?.catalog?.kind || "").toUpperCase() !== "SERVICE";
+      const shippingAppliedInCents = requiresShipping ? Math.max(0, shippingInCents) : 0;
+      const baseValueInCents = Math.max(0, totalInCents - shippingAppliedInCents);
       return {
         id: String(s.id),
         planId: String(plan?.id || ""),
@@ -357,7 +362,9 @@ export default async function BillingPage({
         estadoInfo,
         planName: formatPlanTitle(plan),
         planImageUrl: String((plan?.metadata as any)?.imageUrl || (productById.get(String((plan?.metadata as any)?.catalog?.itemId || ""))?.imageUrl ?? "")),
-        montoInCents: Number(plan?.priceInCents || 0),
+        montoInCents: totalInCents,
+        valorBaseInCents: baseValueInCents,
+        totalInCents,
         moneda: String(plan?.currency || "COP"),
         cada: fmtEvery(plan?.intervalUnit, plan?.intervalCount),
         pagoAt: s.lastPayment?.paidAt || null,
@@ -367,8 +374,8 @@ export default async function BillingPage({
         periodoFinAt: s.currentPeriodEndAt || null,
         mode: String(plan?.collectionMode || plan?.metadata?.collectionMode || "MANUAL_LINK"),
         tenantName: tenantNameList.length ? tenantNameList.join(", ") : "—",
-        currentShippingInCents: Number(readPlanPricing((plan?.metadata as any) ?? {})?.shippingInCents || 0),
-        currentRequiresShipping: String((plan?.metadata as any)?.catalog?.kind || "").toUpperCase() !== "SERVICE"
+        currentShippingInCents: shippingAppliedInCents,
+        currentRequiresShipping: requiresShipping
       };
     })
     .filter((r) => {
@@ -615,19 +622,26 @@ export default async function BillingPage({
                       )}
                     </div>
                     <div>
-                      <span>Valor</span>
-                      <strong>{fmtMoney(r.montoInCents, r.moneda)}</strong>
+                      <span>Valor base</span>
+                      <strong>{fmtMoney(r.valorBaseInCents ?? r.montoInCents, r.moneda)}</strong>
                       <div className="field-hint">{r.cada}</div>
                     </div>
                     <div>
                       <span>Flete</span>
                       {r.currentRequiresShipping ? (
                         <>
-                          <strong>{r.currentShippingInCents > 0 ? fmtMoney(r.currentShippingInCents, r.moneda) : "Gratis"}</strong>
+                          <strong>{r.currentShippingInCents > 0 ? fmtMoney(r.currentShippingInCents, r.moneda) : `Gratis (${fmtMoney(0, r.moneda)})`}</strong>
+                          <div className="field-hint">
+                            Total suscripción: {fmtMoney(r.totalInCents ?? r.montoInCents, r.moneda)} ={" "}
+                            {fmtMoney(r.valorBaseInCents ?? r.montoInCents, r.moneda)} + {fmtMoney(r.currentShippingInCents || 0, r.moneda)}
+                          </div>
                           <div className="field-hint">Editar desde el icono lápiz</div>
                         </>
                       ) : (
-                        <strong>—</strong>
+                        <>
+                          <strong>{fmtMoney(0, r.moneda)}</strong>
+                          <div className="field-hint">Total suscripción: {fmtMoney(r.totalInCents ?? r.montoInCents, r.moneda)}</div>
+                        </>
                       )}
                     </div>
                   </div>
