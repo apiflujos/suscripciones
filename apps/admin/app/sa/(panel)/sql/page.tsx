@@ -1,1 +1,1 @@
-export { default } from "../../../../__sa/(panel)/sql/page";
+export { default } from "../../../__sa/(panel)/sql/page";

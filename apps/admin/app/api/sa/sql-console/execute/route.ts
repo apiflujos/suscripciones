@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { getAdminApiConfig } from "../../../../../lib/adminApi";
-import { normalizeToken } from "../../../../../lib/normalizeToken";
-import { SA_COOKIE } from "../../../../../__sa/saApi";
+import { getAdminApiConfig } from "../../../../lib/adminApi";
+import { normalizeToken } from "../../../../lib/normalizeToken";
+import { SA_COOKIE } from "../../../../__sa/saApi";
 
 export async function POST(req: Request) {
   const { apiBase } = getAdminApiConfig();
@@ -27,4 +27,3 @@ export async function POST(req: Request) {
   const json = await res.json().catch(() => ({ error: "invalid_response" }));
   return NextResponse.json(json, { status: res.status });
 }
-
