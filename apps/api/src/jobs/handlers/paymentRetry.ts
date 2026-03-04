@@ -78,7 +78,8 @@ export async function paymentRetry(payload: any) {
         ? (dueByCutoff.getTime() >= dueByLastPayment.getTime() ? dueByCutoff : dueByLastPayment)
         : (dueByCutoff || dueByLastPayment);
 
-    if (dueAt && now.getTime() + 5_000 < dueAt.getTime()) {
+    const isPastDue = sub.status === "PAST_DUE";
+    if (!isPastDue && dueAt && now.getTime() + 5_000 < dueAt.getTime()) {
       const alreadyScheduled = await prisma.retryJob.findFirst({
         where: {
           type: RetryJobType.PAYMENT_RETRY,

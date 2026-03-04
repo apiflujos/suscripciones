@@ -404,7 +404,8 @@ subscriptionsRouter.post("/:id/charge-now", async (req, res) => {
   // Si existe currentPeriodEndAt, usamos esa como fecha de próximo cobro.
   // Solo si falta currentPeriodEndAt, usamos el cálculo por último pago.
   const dueAt = dueByCutoff || dueByLastPayment;
-  if (dueAt && now.getTime() + 5_000 < dueAt.getTime()) {
+  const isPastDue = subscription.status === SubscriptionStatus.PAST_DUE;
+  if (!isPastDue && dueAt && now.getTime() + 5_000 < dueAt.getTime()) {
     return res.status(409).json({
       error: "charge_not_due_yet",
       details: {
