@@ -111,6 +111,20 @@ productsRouter.get("/", async (_req, res) => {
     include: { tenantLinks: true }
   });
   const total = await prisma.subscriptionPlan.count({ where });
+  const planIds = items.map((p: any) => String(p.id)).filter(Boolean);
+  const activeSubsByPlan = new Map<string, number>();
+  if (planIds.length) {
+    const grouped = await prisma.subscription.groupBy({
+      by: ["planId"],
+      where: { planId: { in: planIds }, status: SubscriptionStatus.ACTIVE },
+      _count: { _all: true }
+    });
+    for (const row of grouped as any[]) {
+      const planId = String(row?.planId || "");
+      if (!planId) continue;
+      activeSubsByPlan.set(planId, Number(row?._count?._all || 0));
+    }
+  }
   res.json({
     items: items.map((p: any) => ({
       id: p.id,
@@ -139,6 +153,7 @@ productsRouter.get("/", async (_req, res) => {
       option2Name: (p.metadata as any)?.option2Name || null,
       variants: (p.metadata as any)?.variants || null,
       imageUrl: (p.metadata as any)?.imageUrl || null,
+      activeSubscriptions: Number(activeSubsByPlan.get(String(p.id)) || 0),
       createdAt: p.createdAt,
       updatedAt: p.updatedAt
     })),

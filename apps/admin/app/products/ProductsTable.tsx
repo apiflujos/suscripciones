@@ -27,6 +27,15 @@ function getCollectionModeLabel(mode?: string | null) {
   return String(mode || "").toUpperCase() === "AUTO_DEBIT" ? "Débito automático" : "Link de pago";
 }
 
+function formatRecurrence(unit?: "DAY" | "WEEK" | "MONTH" | "CUSTOM", count?: number) {
+  const n = Math.max(1, Number(count || 1));
+  const u = String(unit || "MONTH").toUpperCase();
+  if (u === "DAY") return `${n} ${n === 1 ? "día" : "días"}`;
+  if (u === "WEEK") return `${n} ${n === 1 ? "semana" : "semanas"}`;
+  if (u === "MONTH") return `${n} ${n === 1 ? "mes" : "meses"}`;
+  return `${n} ${n === 1 ? "ciclo" : "ciclos"}`;
+}
+
 type ProductRow = {
   id: string;
   sku: string;
@@ -54,6 +63,7 @@ type ProductRow = {
   variants?: Array<{ option1?: string | null; option2?: string | null; priceDeltaInCents: number }> | null;
   imageUrl?: string | null;
   collectionMode?: string | null;
+  activeSubscriptions?: number;
 };
 
 type ChatwootInbox = {
@@ -582,8 +592,12 @@ export function ProductsTable({
               <div>
                 <span>Recurrencia</span>
                 <strong>
-                  {p.intervalUnit ? `${p.intervalCount || 1} ${String(p.intervalUnit).toLowerCase()}` : "—"}
+                  {p.intervalUnit ? formatRecurrence(p.intervalUnit, p.intervalCount) : "—"}
                 </strong>
+              </div>
+              <div>
+                <span>Suscripciones activas</span>
+                <strong>{Number(p.activeSubscriptions || 0)}</strong>
               </div>
               <div>
                 <span>Tipo de cobro</span>
