@@ -528,19 +528,16 @@ export function ProductsTable({
               <div className="product-title">
                 <div className="product-name">{p.name}</div>
                 <div className="product-sub">
-                  <span className="product-sku">{p.sku}</span>
+                  <span className="product-sku">{p.sku || "SKU —"}</span>
                   <span>·</span>
                   <span>{p.kind === "SERVICE" ? "Servicio" : "Producto"}</span>
-                  <span>·</span>
+                </div>
+                <div className="product-badges">
                   <span className={`pill pill-sm ${String(p.collectionMode || "").toUpperCase() === "AUTO_DEBIT" ? "pill-mode-debit" : "pill-mode-link"}`}>
                     {getCollectionModeLabel(p.collectionMode)}
                   </span>
-                  {p.tenantName ? (
-                    <>
-                      <span>·</span>
-                      <span>{p.tenantName}</span>
-                    </>
-                  ) : null}
+                  {p.tenantName ? <span className="pill pill-sm pill-muted">{p.tenantName}</span> : null}
+                  <span className="pill pill-sm pill-soft">Activas: {Number(p.activeSubscriptions || 0)}</span>
                 </div>
               </div>
             </div>

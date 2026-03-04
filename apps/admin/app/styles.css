@@ -2302,6 +2302,51 @@ a {
   overflow: hidden;
 }
 
+/* ===== Estandar visual de Suscripciones aplicado a Contactos y Productos ===== */
+.contact-card,
+.product-card {
+  padding: 4px 6px;
+  gap: 2px;
+}
+
+.contact-card-top,
+.product-header {
+  padding: 0 2px 6px;
+}
+
+.contact-tags,
+.product-badges {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.contact-left,
+.contact-right,
+.product-info {
+  border: 1px solid color-mix(in srgb, var(--stroke) 84%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel) 93%, var(--primary-soft) 7%);
+  padding: 6px 8px;
+}
+
+.product-info {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px 8px;
+}
+
+.contact-footer,
+.product-footer-actions {
+  border-top: 1px solid var(--stroke);
+  padding-top: 6px;
+  margin-top: 2px;
+}
+
+.product-title {
+  gap: 4px;
+}
+
 .logs-table-webhooks {
   table-layout: fixed;
   min-width: 1600px;
