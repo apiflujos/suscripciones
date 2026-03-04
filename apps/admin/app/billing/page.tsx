@@ -259,14 +259,13 @@ export default async function BillingPage({
     subParams.set("ids", "__none__");
   }
 
-  const [subs, customers, products, templates, tenantsRes, settingsRes, plansRes] = await Promise.all([
+  const [subs, customers, products, templates, tenantsRes, settingsRes] = await Promise.all([
     fetchAdmin(`/admin/subscriptions?${subParams.toString()}`),
     fetchAdmin(tenantId ? `/admin/customers?take=200&tenantId=${encodeURIComponent(tenantId)}` : "/admin/customers?take=200"),
     fetchAdmin(tenantId ? `/admin/products?take=200&tenantId=${encodeURIComponent(tenantId)}` : "/admin/products?take=200"),
     fetchAdmin(tenantId ? `/admin/checkout-templates?tenantId=${encodeURIComponent(tenantId)}` : "/admin/checkout-templates"),
     fetchAdminCached("/admin/tenants", { ttlMs: 1500 }),
-    fetchAdminCached("/admin/settings", { ttlMs: 1500 }),
-    fetchAdmin(tenantId ? `/admin/plans?take=2000&tenantId=${encodeURIComponent(tenantId)}` : "/admin/plans?take=2000")
+    fetchAdminCached("/admin/settings", { ttlMs: 1500 })
   ]);
   const subItems = (subs.json?.items ?? []) as any[];
   const total = Number(subs.json?.total ?? 0);
@@ -279,30 +278,23 @@ export default async function BillingPage({
   const settings = settingsRes.ok ? settingsRes.json : null;
   const checkoutConfig = settings?.checkoutConfig || {};
   const subscriptionBaseUrl = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
-  const plans = (plansRes.json?.items ?? []) as any[];
-  const planOptions: PlanOption[] = plans.map((p: any): PlanOption => {
-    const metadata = (p?.metadata as any) ?? {};
-    const catalog = metadata?.catalog ?? {};
-    const pricing = readPlanPricing(metadata);
-    const kind = String(catalog?.kind || "").toUpperCase() === "SERVICE" ? "SERVICE" : "PRODUCT";
-    const requiresShippingRaw = catalog?.requiresShipping;
-    const requiresShipping = kind === "PRODUCT" && (requiresShippingRaw === true || requiresShippingRaw == null);
-    const catalogItemId = String(catalog?.itemId || "");
-    const productName = catalogItemId ? String(productById.get(catalogItemId)?.name || "") : "";
-    const displayName = String(metadata?.displayName || productName || p.name || "Plan");
-    const sku = String(metadata?.sku || "");
-    const searchText = [displayName, p.name, productName, sku, p.id].filter(Boolean).join(" ").toLowerCase();
+  const planOptions: PlanOption[] = productItems.map((p: any): PlanOption => {
+    const kind = String(p?.kind || "").toUpperCase() === "SERVICE" ? "SERVICE" : "PRODUCT";
+    const requiresShipping = kind === "PRODUCT" && (p?.requiresShipping === true || p?.requiresShipping == null);
+    const displayName = String(p?.name || "Producto");
+    const sku = String(p?.sku || "");
+    const searchText = [displayName, sku, p?.id].filter(Boolean).join(" ").toLowerCase();
     return {
       id: String(p.id),
       name: displayName,
       sku,
       searchText,
-      collectionMode: String(p?.metadata?.collectionMode || p.collectionMode || ""),
-      priceInCents: Number(p.priceInCents || 0),
-      currency: String(p.currency || "COP"),
+      collectionMode: String(p?.collectionMode || ""),
+      priceInCents: Number(p?.basePriceInCents || p?.priceInCents || 0),
+      currency: String(p?.currency || "COP"),
       kind,
       requiresShipping,
-      shippingInCents: Number(pricing?.shippingInCents || 0)
+      shippingInCents: Number(p?.shippingInCents || 0)
     };
   });
 

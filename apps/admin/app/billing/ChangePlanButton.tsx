@@ -30,22 +30,23 @@ function mapPlanFromApi(p: any): PlanOption {
   const metadata = p?.metadata && typeof p.metadata === "object" ? p.metadata : {};
   const catalog = metadata?.catalog && typeof metadata.catalog === "object" ? metadata.catalog : {};
   const pricing = readPlanPricing(metadata);
-  const kind = String(catalog?.kind || "").toUpperCase() === "SERVICE" ? "SERVICE" : "PRODUCT";
-  const requiresShippingRaw = catalog?.requiresShipping;
+  const kindRaw = String(p?.kind || catalog?.kind || "").toUpperCase();
+  const kind = kindRaw === "SERVICE" ? "SERVICE" : "PRODUCT";
+  const requiresShippingRaw = p?.requiresShipping ?? catalog?.requiresShipping;
   return {
     id: String(p?.id || ""),
     name: String(metadata?.displayName || p?.name || "Plan"),
-    sku: String(metadata?.sku || ""),
-    searchText: [metadata?.displayName, p?.name, metadata?.sku, catalog?.name, p?.id]
+    sku: String(p?.sku || metadata?.sku || ""),
+    searchText: [metadata?.displayName, p?.name, p?.sku, metadata?.sku, catalog?.name, p?.id]
       .filter(Boolean)
       .join(" ")
       .toLowerCase(),
-    collectionMode: String(metadata?.collectionMode || p?.collectionMode || ""),
-    priceInCents: Number(p?.priceInCents || 0),
+    collectionMode: String(p?.collectionMode || metadata?.collectionMode || ""),
+    priceInCents: Number(p?.priceInCents || p?.basePriceInCents || 0),
     currency: String(p?.currency || "COP"),
     kind,
     requiresShipping: kind === "PRODUCT" && (requiresShippingRaw === true || requiresShippingRaw == null),
-    shippingInCents: Number(pricing?.shippingInCents || 0)
+    shippingInCents: Number(p?.shippingInCents || pricing?.shippingInCents || 0)
   };
 }
 
@@ -172,7 +173,7 @@ export function ChangePlanButton({
           if (q) qs.set("q", q);
           if (tenantId && opts.scopedTenant) qs.set("tenantId", tenantId);
           qs.set("_ts", String(Date.now()));
-          const res = await fetch(`/api/search/plans?${qs.toString()}`, { cache: "no-store" });
+          const res = await fetch(`/api/search/products?${qs.toString()}`, { cache: "no-store" });
           if (!res.ok) return [] as any[];
           const json = await res.json().catch(() => null);
           return Array.isArray(json?.items) ? json.items : [];

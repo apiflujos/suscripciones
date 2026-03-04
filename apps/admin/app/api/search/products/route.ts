@@ -12,8 +12,6 @@ export async function GET(req: NextRequest) {
   const takeRaw = Number(url.searchParams.get("take") || 50);
   const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 500) : 50;
 
-  if (!q) return NextResponse.json({ items: [] });
-
   const res = await fetch(
     `${apiBase}/admin/products?${new URLSearchParams({ q, take: String(take), ...(tenantId ? { tenantId } : {}) }).toString()}`,
     { cache: "no-store", headers: { authorization: `Bearer ${token}`, "x-admin-token": token } }
