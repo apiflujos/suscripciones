@@ -2,6 +2,12 @@ import { z } from "zod";
 import fs from "node:fs";
 import path from "node:path";
 
+const optionalPositiveIntFromEnv = z.preprocess((value) => {
+  if (value == null) return undefined;
+  if (typeof value === "string" && value.trim() === "") return undefined;
+  return value;
+}, z.coerce.number().int().positive().optional());
+
 const envSchema = z.object({
   NODE_ENV: z.string().default("development"),
   PORT: z.coerce.number().int().positive(),
@@ -19,9 +25,9 @@ const envSchema = z.object({
   SHOPIFY_FORWARD_ORIGIN: z.enum(["shopify", "shopify-native"]).optional(),
   CREDENTIALS_ENCRYPTION_KEY_B64: z.string().optional().or(z.literal("")),
   CHATWOOT_BASE_URL: z.string().url().optional().or(z.literal("")),
-  CHATWOOT_ACCOUNT_ID: z.coerce.number().int().positive().optional(),
+  CHATWOOT_ACCOUNT_ID: optionalPositiveIntFromEnv,
   CHATWOOT_API_ACCESS_TOKEN: z.string().optional().or(z.literal("")),
-  CHATWOOT_INBOX_ID: z.coerce.number().int().positive().optional()
+  CHATWOOT_INBOX_ID: optionalPositiveIntFromEnv
 });
 
 export type Env = z.infer<typeof envSchema>;
