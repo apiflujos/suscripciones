@@ -515,11 +515,4 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
     await consumeApp("payment_links_sent", { amount: 1, source: "jobs:chatwoot.sent", meta: { chatwootMessageId: msg.id } });
   }
 
-  await systemLog(LogLevel.INFO, "chatwoot.send", "Mensaje enviado", {
-    chatwootMessageId,
-    customerId: msg.customerId,
-    type: msg.type
-  }).catch((logErr) => {
-    logger.warn({ err: logErr, chatwootMessageId }, "chatwoot.send: failed to write system log");
-  });
 }

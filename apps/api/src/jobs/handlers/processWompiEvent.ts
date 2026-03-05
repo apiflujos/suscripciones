@@ -86,6 +86,11 @@ function isInternalReference(value: string | undefined): boolean {
   return ref.startsWith("SUB_") || ref.startsWith("ORDER_") || ref.startsWith("WOMPI_") || ref.startsWith("TEST_");
 }
 
+function isOrderContactReference(value: string | undefined): boolean {
+  const ref = String(value || "").trim().toUpperCase();
+  return /^ORDER_CONTACT_[A-Z0-9]+_/i.test(ref);
+}
+
 function extractPaymentLinkId(raw: unknown): string | undefined {
   if (!raw) return undefined;
   if (typeof raw === "string") {
@@ -465,10 +470,12 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   }
 
   const hasLocalCorrelation = Boolean(paymentMatched || paymentLinkRecord || inferredSubscriptionId);
+  const isOrderContactWithoutMatch = !hasLocalCorrelation && isOrderContactReference(reference);
   const likelyExternalWithoutContext =
-    !hasLocalCorrelation &&
-    (!!paymentLinkId || referenceClassification.kind === "unknown") &&
-    !isInternalReference(reference);
+    isOrderContactWithoutMatch ||
+    (!hasLocalCorrelation &&
+      (!!paymentLinkId || referenceClassification.kind === "unknown") &&
+      !isInternalReference(reference));
   if (likelyExternalWithoutContext) {
     await systemLog(LogLevel.INFO, "webhooks.wompi", "Webhook omitido: referencia externa sin correlación local", {
       webhookEventId,

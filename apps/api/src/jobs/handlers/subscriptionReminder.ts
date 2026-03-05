@@ -409,14 +409,6 @@ export async function subscriptionReminder(payload: any) {
         payload: { chatwootMessageId: created.id }
       }
     });
-
-    await systemLog(LogLevel.INFO, "notifications.dispatch", "Mensaje en cola para envio", {
-      trigger: parsed.data.trigger,
-      ruleId: parsed.data.ruleId,
-      chatwootMessageId: created.id,
-      customerId: customer.id,
-      paymentId: effectivePayment?.id ?? null
-    }).catch(() => {});
   }
 
   if (parsed.data.trigger === "PAYMENT_DECLINED" && subscription) {

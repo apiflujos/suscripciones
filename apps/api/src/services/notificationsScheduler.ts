@@ -39,33 +39,6 @@ function applyAtTimeUtc(date: Date, hhmm: string) {
   return d;
 }
 
-async function logNoActiveRulesOnce(args: {
-  trigger: NotificationTrigger;
-  context: Record<string, unknown>;
-  dedupeKey: string;
-  windowMinutes?: number;
-}) {
-  const since = new Date(Date.now() - Math.max(1, Number(args.windowMinutes || 180)) * 60 * 1000);
-  const existing = await prisma.systemLog.findFirst({
-    where: {
-      level: LogLevel.INFO,
-      source: "notifications.schedule",
-      message: "Notificaciones omitidas: no hay reglas activas",
-      createdAt: { gte: since },
-      context: { path: ["dedupeKey"], equals: args.dedupeKey } as any
-    },
-    select: { id: true }
-  });
-  if (existing) return;
-  const env = await getNotificationsActiveEnv();
-  await systemLog(LogLevel.INFO, "notifications.schedule", "Notificaciones omitidas: no hay reglas activas", {
-    trigger: args.trigger,
-    environment: env,
-    dedupeKey: args.dedupeKey,
-    ...args.context
-  }).catch(() => {});
-}
-
 export async function scheduleSubscriptionDueNotifications(args: { subscriptionId: string; forceNow?: boolean }) {
   const subscriptionId = String(args.subscriptionId || "").trim();
   if (!subscriptionId) return { scheduled: 0 };
@@ -84,11 +57,6 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
   const cfg = await getNotificationsConfig();
   const rules = cfg.rules.filter((r) => r.enabled && r.trigger === "SUBSCRIPTION_DUE");
   if (!rules.length) {
-    await logNoActiveRulesOnce({
-      trigger: "SUBSCRIPTION_DUE",
-      context: { subscriptionId: sub.id },
-      dedupeKey: `SUBSCRIPTION_DUE:${sub.id}`
-    });
     return { scheduled: 0 };
   }
 
@@ -150,11 +118,6 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
   const cfg = await getNotificationsConfig();
   const rules = cfg.rules.filter((r) => r.enabled && r.trigger === trigger);
   if (!rules.length) {
-    await logNoActiveRulesOnce({
-      trigger,
-      context: { paymentId: payment.id },
-      dedupeKey: `${trigger}:${payment.id}`
-    });
     return { scheduled: 0 };
   }
 
@@ -218,11 +181,6 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
   const cfg = await getNotificationsConfig();
   const rules = cfg.rules.filter((r) => r.enabled && r.trigger === "PAYMENT_LINK_CREATED");
   if (!rules.length) {
-    await logNoActiveRulesOnce({
-      trigger: "PAYMENT_LINK_CREATED",
-      context: { paymentId: payment.id, customerId: payment.customerId },
-      dedupeKey: `PAYMENT_LINK_CREATED:${payment.id}`
-    });
     return { scheduled: 0, sentNow: 0, rulesActive: false };
   }
 
@@ -283,11 +241,6 @@ export async function scheduleCatalogLinkNotifications(args: { customerId: strin
   const cfg = await getNotificationsConfig();
   const rules = cfg.rules.filter((r) => r.enabled && r.trigger === "CATALOG_LINK_CREATED");
   if (!rules.length) {
-    await logNoActiveRulesOnce({
-      trigger: "CATALOG_LINK_CREATED",
-      context: { customerId },
-      dedupeKey: `CATALOG_LINK_CREATED:${customerId}`
-    });
     return { scheduled: 0, sentNow: 0, rulesActive: false };
   }
 
@@ -346,11 +299,6 @@ export async function scheduleTokenizationLinkNotifications(args: { customerId: 
   const cfg = await getNotificationsConfig();
   const rules = cfg.rules.filter((r) => r.enabled && r.trigger === "TOKENIZATION_LINK_CREATED");
   if (!rules.length) {
-    await logNoActiveRulesOnce({
-      trigger: "TOKENIZATION_LINK_CREATED",
-      context: { customerId },
-      dedupeKey: `TOKENIZATION_LINK_CREATED:${customerId}`
-    });
     return { scheduled: 0, sentNow: 0, rulesActive: false };
   }
 
