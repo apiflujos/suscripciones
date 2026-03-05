@@ -56,6 +56,23 @@ function isNoisySystemLog(source: string, message: string) {
   return false;
 }
 
+function moduleHrefFromEvent(args: { source?: string; kind?: string; message?: string; fallback?: string }) {
+  const source = String(args.source || "").toLowerCase().trim();
+  const kind = String(args.kind || "").toLowerCase().trim();
+  const message = String(args.message || "").toLowerCase();
+
+  if (kind.startsWith("payment_") || source.startsWith("webhooks.wompi") || source.startsWith("payments.")) return "/payments";
+  if (kind.startsWith("subscription_") || source.startsWith("subscriptions.") || source.startsWith("jobs.payment_retry")) return "/billing";
+  if (kind.startsWith("message_") || source.startsWith("notifications.") || source.startsWith("chatwoot.")) return "/notifications";
+  if (source.startsWith("customers.") || source.startsWith("contacts.")) return "/customers";
+  if (source.startsWith("products.") || source.startsWith("plans.")) return "/products";
+  if (source.startsWith("settings.")) return "/settings";
+  if (/pago|payment|wompi|concili/.test(message)) return "/payments";
+  if (/suscrip|cobro|reintento/.test(message)) return "/billing";
+  if (/notific|mensaje|chatwoot|whatsapp/.test(message)) return "/notifications";
+  return args.fallback || "/";
+}
+
 function buildContextSummary(context: any) {
   if (!context || typeof context !== "object") return "";
   const customer = firstText(
@@ -117,15 +134,16 @@ async function collectEvents(apiBase: string, token: string, since: string) {
   const system = Array.isArray(systemJson.items) ? systemJson.items : [];
 
   const events: any[] = [];
-  const buildLogLink = (tab: string, params?: Record<string, string | undefined | null>) => {
-    const qp = new URLSearchParams({ tab });
+  const buildAppLink = (basePath: string, params?: Record<string, string | undefined | null>) => {
+    const qp = new URLSearchParams();
     if (params) {
       for (const [k, v] of Object.entries(params)) {
         if (v == null || v === "") continue;
         qp.set(k, v);
       }
     }
-    return `/logs?${qp.toString()}`;
+    const query = qp.toString();
+    return query ? `${basePath}?${query}` : basePath;
   };
   for (const w of webhooks) {
     const status = String(w.processStatus || "");
@@ -137,13 +155,11 @@ async function collectEvents(apiBase: string, token: string, since: string) {
     const ref = w.reference || w.wompiPaymentLinkId || w.wompiTransactionId || "";
     const typeLabel = w.paymentType || "Pago";
     const planLabel = w.planName ? ` · ${w.planName}` : "";
-    const paymentHref = buildLogLink("payments", {
+    const paymentHref = buildAppLink("/payments", {
       status: isApproved ? "APPROVED" : isFailed ? "FAILED" : "",
       q: ref || w.customerEmail || w.customerPhone || ""
     });
-    const webhookHref = buildLogLink("webhooks", {
-      processStatus: status || ""
-    });
+    const webhookHref = paymentHref;
     events.push({
       id: `wh_${w.id}`,
       type: "webhook",
@@ -187,7 +203,11 @@ async function collectEvents(apiBase: string, token: string, since: string) {
       message: `${type || "JOB"} · ${detail}`,
       sound: null,
       kind: "job_failed",
-      href: buildLogLink("jobs"),
+      href: moduleHrefFromEvent({
+        source: "jobs.runner",
+        kind: "job_failed",
+        message: `${type || "JOB"} ${detail}`
+      }),
       badge: "Job"
     });
   }
@@ -222,7 +242,7 @@ async function collectEvents(apiBase: string, token: string, since: string) {
         message: questionHint || (error ? "Error al generar respuesta." : "Respuesta lista para revisar."),
         sound: null,
         kind: error ? "ai_failed" : "ai_response",
-        href: buildLogLink("system", { q: "ai." }),
+        href: "/logs?tab=system&q=ai.",
         badge: "IA",
         meta: ctx
       });
@@ -239,7 +259,7 @@ async function collectEvents(apiBase: string, token: string, since: string) {
         message: "Se emitió un evento de prueba desde el servidor.",
         sound: "cash",
         kind: "payment_approved",
-        href: buildLogLink("system", { q: source }),
+        href: "/payments",
         badge: "Prueba",
         meta: ctx
       });
@@ -303,7 +323,7 @@ async function collectEvents(apiBase: string, token: string, since: string) {
       message: finalMessage,
       sound: null,
       kind,
-      href: buildLogLink("system", { q: source, level: level === "ERROR" ? "ERROR" : level === "WARN" ? "WARN" : "" }),
+      href: moduleHrefFromEvent({ source, kind, message: finalMessage }),
       badge,
       meta: ctx
     });

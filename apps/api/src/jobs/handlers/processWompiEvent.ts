@@ -331,9 +331,12 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   const missingPaymentLinkRecord = Boolean(paymentLinkId && !paymentByLink && !paymentLinkRecord);
   const likelyExternalRefOnly = !paymentMatched && !paymentLinkRecord && referenceClassification.kind === "unknown" && !isInternalReference(reference);
   if (missingPaymentLinkRecord && !likelyExternalRefOnly) {
-    await systemLog(LogLevel.WARN, "processWompiEvent", "payment_link_not_found: proceeding by inference", {
-      paymentLinkId,
-      reference
+    await warnOnceWithDedupe({
+      source: "processWompiEvent",
+      message: "payment_link_not_found: proceeding by inference",
+      dedupeKey: `${String(paymentLinkId || "sin_link")}|${String(reference || "sin_ref")}`,
+      context: { paymentLinkId, reference },
+      windowMinutes: 360
     }).catch(() => {});
   }
 

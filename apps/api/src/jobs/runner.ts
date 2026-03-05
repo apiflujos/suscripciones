@@ -410,6 +410,8 @@ async function ensureDueCutoffRetries() {
   const toleranceSecondsRaw = Number(process.env.DUE_CUTOFF_TOLERANCE_SECONDS || 30);
   const toleranceSeconds = Number.isFinite(toleranceSecondsRaw) ? Math.max(5, Math.trunc(toleranceSecondsRaw)) : 30;
   const dueUntil = new Date(now + toleranceSeconds * 1000);
+  const retrySpacingMinutes = cfg.retryEnabled ? Math.max(1, Math.trunc(cfg.retryEveryMinutes || 60)) : 60;
+  const retrySpacingSince = new Date(now - retrySpacingMinutes * 60 * 1000);
 
   const candidates = await prisma.subscription.findMany({
     where: {
@@ -441,6 +443,20 @@ async function ensureDueCutoffRetries() {
       select: { id: true }
     });
     if (exists) continue;
+
+    // Evita tormenta de jobs para suscripciones vencidas históricas.
+    // Si ya hubo un intento reciente de cobro/reintento para la misma suscripción,
+    // respetamos la ventana configurada de reintento.
+    const recentRetry = await prisma.retryJob.findFirst({
+      where: {
+        type: RetryJobType.PAYMENT_RETRY,
+        payload: { path: ["subscriptionId"], equals: sub.id } as any,
+        updatedAt: { gte: retrySpacingSince }
+      },
+      orderBy: { updatedAt: "desc" },
+      select: { id: true }
+    });
+    if (recentRetry) continue;
 
     await prisma.retryJob
       .create({
