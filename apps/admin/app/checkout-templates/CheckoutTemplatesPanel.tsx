@@ -845,14 +845,8 @@ export function CheckoutTemplatesPanel({
                 <div className="field-hint">{t.kind === "PLAN" ? "Link de pago" : t.kind === "CART" ? "Catálogo" : "Débito automático"}</div>
               </div>
               <div className="template-card-head-actions">
-                <span className={`pill ${t.active ? "pill-green" : ""}`}>{t.active ? "Activa" : "Inactiva"}</span>
-                {(() => {
-                  const hasProducts = t.allowProductSelect || (t.productIds || []).length > 0;
-                  const hasWompi = Boolean(t.wompiTitle || t.publicTitle) && Boolean(t.wompiDescription || t.publicDescription);
-                  const ready = hasProducts && hasWompi;
-                  return ready ? <span className="pill pill-ok pill-sm">Listo</span> : null;
-                })()}
                 <form
+                  className="template-card-delete"
                   action={actions.remove}
                   onSubmit={(e) => {
                     if (!confirm("¿Eliminar esta plantilla?")) e.preventDefault();
@@ -864,6 +858,15 @@ export function CheckoutTemplatesPanel({
                     Eliminar
                   </PendingButton>
                 </form>
+                <div className="template-card-statuses">
+                  <span className={`pill ${t.active ? "pill-green" : ""}`}>{t.active ? "Activa" : "Inactiva"}</span>
+                  {(() => {
+                    const hasProducts = t.allowProductSelect || (t.productIds || []).length > 0;
+                    const hasWompi = Boolean(t.wompiTitle || t.publicTitle) && Boolean(t.wompiDescription || t.publicDescription);
+                    const ready = hasProducts && hasWompi;
+                    return ready ? <span className="pill pill-ok pill-sm">Listo</span> : null;
+                  })()}
+                </div>
               </div>
             </div>
             <div className="template-meta template-meta-compact">

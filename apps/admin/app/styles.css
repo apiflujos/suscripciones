@@ -7546,10 +7546,24 @@ html[data-contrast="high"] .payment-point-provider img {
 }
 
 .template-card-head-actions {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 6px;
-  justify-items: end;
+  justify-content: flex-start;
   align-items: start;
+  margin-left: auto;
+}
+
+.template-card-delete {
+  align-self: flex-end;
+  margin: 0;
+}
+
+.template-card-statuses {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .pill-green {
