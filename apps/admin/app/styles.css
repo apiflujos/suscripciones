@@ -2141,7 +2141,7 @@ a {
 }
 
 .logs-table-payments {
-  min-width: 1220px;
+  min-width: 1340px;
 }
 
 .logs-table .log-date-cell {
@@ -2340,17 +2340,23 @@ a {
 }
 
 .logs-table-payments .log-payment-actions {
-  white-space: nowrap;
-  text-align: right;
-  display: flex;
-  gap: 8px;
+  width: 100%;
+  display: inline-flex;
   justify-content: flex-end;
   align-items: center;
+  gap: 8px;
+  white-space: nowrap;
   flex-wrap: wrap;
 }
 
 .logs-table-payments .log-payment-actions form {
   margin: 0 !important;
+}
+
+.logs-table-payments .log-payment-actions-cell {
+  width: 220px;
+  max-width: none;
+  overflow: visible;
 }
 
 .logs-table-jobs .log-detail-cell {
@@ -5562,17 +5568,26 @@ textarea.input {
 }
 
 .billing-header-meta-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 12px;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+  gap: 8px;
+  align-items: stretch;
+  width: min(720px, 100%);
 }
 
 .billing-header-meta-item {
   display: grid;
   gap: 4px;
   align-content: start;
-  min-width: 130px;
+  min-width: 0;
+}
+
+.billing-header-meta-item > :is(.pill, .btn-compact) {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
 }
 
 .billing-body-left {
@@ -5596,7 +5611,8 @@ textarea.input {
 }
 
 .billing-grid-info.billing-grid-subscription {
-  grid-template-columns: minmax(0, 1fr) minmax(260px, auto) minmax(260px, auto);
+  grid-template-columns: minmax(300px, 1.25fr) minmax(250px, 0.95fr) minmax(260px, 0.9fr);
+  gap: 8px 14px;
 }
 
 .billing-grid-info > div {
@@ -5629,10 +5645,11 @@ textarea.input {
 
 .billing-cost-panel {
   display: grid;
-  gap: 4px;
+  gap: 6px;
   justify-self: end;
-  justify-items: end;
-  text-align: right;
+  justify-items: stretch;
+  text-align: left;
+  padding-right: 6px;
 }
 
 .billing-cost-title {
@@ -5644,7 +5661,7 @@ textarea.input {
   border: 1px solid color-mix(in srgb, var(--stroke) 80%, transparent);
   border-radius: 10px;
   background: color-mix(in srgb, var(--panel) 92%, var(--primary-soft) 8%);
-  padding: 10px 12px;
+  padding: 12px 18px;
   display: grid;
   gap: 6px;
   min-width: 250px;
@@ -5670,6 +5687,7 @@ textarea.input {
   font-weight: 700;
   justify-self: end;
   text-align: right;
+  padding-left: 10px;
 }
 
 .billing-cost-total-line {
@@ -5681,7 +5699,7 @@ textarea.input {
   color: var(--text-faint);
   font-size: 11px;
   margin-top: 1px;
-  text-align: left;
+  text-align: center;
 }
 
 .billing-cost-total {
@@ -5689,13 +5707,13 @@ textarea.input {
   font-size: 22px;
   font-weight: 800;
   line-height: 1.1;
-  text-align: right;
+  text-align: center;
 }
 
 .billing-cost-period {
   color: var(--text-soft);
   font-size: 11px;
-  text-align: right;
+  text-align: center;
 }
 
 .billing-actions {
@@ -5715,12 +5733,17 @@ textarea.input {
 }
 
 .billing-actions-right {
+  margin-left: auto;
+  flex: 1 1 auto;
   justify-content: flex-end;
 }
 
-.billing-actions-right .provider-badge {
+.billing-provider-slot {
   margin-left: auto;
-  order: 99;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 84px;
 }
 
 .billing-inline-cutoff {
@@ -5728,6 +5751,21 @@ textarea.input {
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
+}
+
+.billing-cutoff-trigger {
+  min-width: 220px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: left;
+  cursor: pointer;
+}
+
+.billing-cutoff-modal-form {
+  display: grid;
+  gap: 10px;
 }
 
 .billing-inline-cutoff .input {

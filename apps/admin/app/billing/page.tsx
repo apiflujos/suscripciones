@@ -671,18 +671,14 @@ export default async function BillingPage({
                     </div>
                     <div className="billing-cutoff-block">
                       <span>Próximo pago / corte</span>
-                      {r.status !== "CANCELED" ? (
-                        <AutoCutoffInlineForm
-                          subscriptionId={r.id}
-                          csrfToken={csrfToken}
-                          returnTo={returnTo}
-                          tenantId={r.tenantId}
-                          currentEndAt={r.vencimientoAt}
-                          action={scheduleCutoff}
-                        />
-                      ) : (
-                        <div>{r.vencimientoAt ? <LocalDateTime value={r.vencimientoAt} /> : "—"}</div>
-                      )}
+                      <AutoCutoffInlineForm
+                        subscriptionId={r.id}
+                        csrfToken={csrfToken}
+                        returnTo={returnTo}
+                        tenantId={r.tenantId}
+                        currentEndAt={r.vencimientoAt}
+                        action={scheduleCutoff}
+                      />
                     </div>
                     <div className="billing-cost-panel">
                       <span className="billing-cost-title">Costo suscripción</span>
@@ -809,6 +805,8 @@ export default async function BillingPage({
                           </form>
                         </>
                       )}
+                    </div>
+                    <div className="billing-provider-slot">
                       <span className="provider-badge">
                         <img src="/brand/wompi.png" alt="" />
                         Wompi

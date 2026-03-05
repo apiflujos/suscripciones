@@ -918,6 +918,16 @@ export default async function LogsPage({
             <div className="panel module" style={{ padding: 0 }}>
               <div className="payments-table-wrap">
               <table className="table logs-table logs-table-payments" aria-label="Tabla de pagos">
+                <colgroup>
+                  <col style={{ width: "110px" }} />
+                  <col style={{ width: "190px" }} />
+                  <col style={{ width: "180px" }} />
+                  <col style={{ width: "110px" }} />
+                  <col style={{ width: "120px" }} />
+                  <col style={{ width: "260px" }} />
+                  <col style={{ width: "220px" }} />
+                  <col style={{ width: "220px" }} />
+                </colgroup>
                 <thead>
                   <tr>
                     <th>Fecha</th>
@@ -984,50 +994,51 @@ export default async function LogsPage({
                         <td className="log-payment-error-cell" title={detailText}>
                           {detailText}
                         </td>
-                        <td className="log-payment-actions">
-                          {!isIgnoredExternal && String(p.status || "").toUpperCase() === "PENDING" ? (
-                            <form action={reconcilePayment} style={{ display: "inline-flex", marginRight: 8 }}>
-                              <input type="hidden" name="csrf" value={csrfToken} />
-                              <input type="hidden" name="paymentId" value={String(p.id || "")} />
-                              <input type="hidden" name="reference" value={String(p.reference || "")} />
-                              <input type="hidden" name="wompiTransactionId" value={String(p.wompiTransactionId || "")} />
-                              <input type="hidden" name="wompiPaymentLinkId" value={String(p.wompiPaymentLinkId || "")} />
-                              <input type="hidden" name="tenantId" value={String(tenantId || p.tenantId || "")} />
-                              <input type="hidden" name="amountInCents" value={String(Number(p.amountInCents || 0))} />
-                              <input type="hidden" name="currency" value={String(p.currency || "COP")} />
-                              <PendingButton className="ghost btn-compact btn-noicon" type="submit" pendingText="Conciliando...">
-                                Conciliar
-                              </PendingButton>
-                            </form>
-                          ) : null}
-                          {!isIgnoredExternal && !p.subscriptionId && (contactId || contactQuery) ? (
-                            <Link
-                              className="ghost btn-compact btn-noicon"
-                              href={`/billing?${new URLSearchParams({
-                                ...(contactId ? { q: contactId } : {}),
-                                ...(!contactId && contactQuery ? { q: String(contactQuery) } : {})
-                              }).toString()}`}
-                              style={{ marginRight: 8 }}
-                            >
-                              Asociar suscripción
-                            </Link>
-                          ) : null}
-                          {contactId ? (
-                            <Link className="ghost btn-compact btn-view" href={`/customers/${encodeURIComponent(contactId)}`}>
-                              Ver cliente
-                            </Link>
-                          ) : contactQuery ? (
-                            <Link className="ghost btn-compact btn-view" href={`/customers?q=${encodeURIComponent(String(contactQuery))}`}>
-                              Ver cliente
-                            </Link>
-                          ) : null}
+                        <td className="log-payment-actions-cell">
+                          <div className="log-payment-actions">
+                            {!isIgnoredExternal && String(p.status || "").toUpperCase() === "PENDING" ? (
+                              <form action={reconcilePayment}>
+                                <input type="hidden" name="csrf" value={csrfToken} />
+                                <input type="hidden" name="paymentId" value={String(p.id || "")} />
+                                <input type="hidden" name="reference" value={String(p.reference || "")} />
+                                <input type="hidden" name="wompiTransactionId" value={String(p.wompiTransactionId || "")} />
+                                <input type="hidden" name="wompiPaymentLinkId" value={String(p.wompiPaymentLinkId || "")} />
+                                <input type="hidden" name="tenantId" value={String(tenantId || p.tenantId || "")} />
+                                <input type="hidden" name="amountInCents" value={String(Number(p.amountInCents || 0))} />
+                                <input type="hidden" name="currency" value={String(p.currency || "COP")} />
+                                <PendingButton className="ghost btn-compact btn-noicon" type="submit" pendingText="Conciliando...">
+                                  Conciliar
+                                </PendingButton>
+                              </form>
+                            ) : null}
+                            {!isIgnoredExternal && !p.subscriptionId && (contactId || contactQuery) ? (
+                              <Link
+                                className="ghost btn-compact btn-noicon"
+                                href={`/billing?${new URLSearchParams({
+                                  ...(contactId ? { q: contactId } : {}),
+                                  ...(!contactId && contactQuery ? { q: String(contactQuery) } : {})
+                                }).toString()}`}
+                              >
+                                Asociar suscripción
+                              </Link>
+                            ) : null}
+                            {contactId ? (
+                              <Link className="ghost btn-compact btn-view" href={`/customers/${encodeURIComponent(contactId)}`}>
+                                Ver cliente
+                              </Link>
+                            ) : contactQuery ? (
+                              <Link className="ghost btn-compact btn-view" href={`/customers?q=${encodeURIComponent(String(contactQuery))}`}>
+                                Ver cliente
+                              </Link>
+                            ) : null}
+                          </div>
                         </td>
                       </tr>
                     );
                   })}
                   {paymentItems.length === 0 ? (
                     <tr>
-                      <td colSpan={7} style={{ color: "var(--muted)" }}>
+                      <td colSpan={8} style={{ color: "var(--muted)" }}>
                         Sin pagos.
                       </td>
                     </tr>
