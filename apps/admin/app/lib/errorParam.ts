@@ -25,6 +25,18 @@ export function normalizeErrorParam(input?: string | null) {
   if (norm.includes("csrf_invalid") || norm.includes("csrf_blocked")) {
     return "La sesión expiró. Recarga la página e intenta de nuevo.";
   }
+  if (norm.includes("wompi_payment_link_failed")) {
+    return "No se pudo generar el link de pago en Wompi. Verifica credenciales, moneda y configuración.";
+  }
+  if (norm.includes("checkout_url_missing")) {
+    return "Se intentó crear el link de pago, pero Wompi no devolvió URL de checkout.";
+  }
+  if (norm.includes("missing_subscription_or_customer")) {
+    return "Faltan datos para enviar el link de pago (suscripción o cliente).";
+  }
+  if (norm.includes("centralcom_send_failed")) {
+    return "No se pudo enviar el mensaje por CentralCom.";
+  }
 
   return raw;
 }

@@ -3050,13 +3050,13 @@ textarea {
   border-radius: var(--radius-lg);
   border: 1px solid var(--form-border);
   background-color: var(--form-bg);
-  background-image: var(--field-icon, var(--input-icon));
+  background-image: var(--field-icon, none);
   background-repeat: no-repeat;
   background-position: 12px 50%;
   background-size: 14px 14px;
   color: var(--text);
   outline: none;
-  padding-left: 36px;
+  padding-left: var(--field-padding-left, var(--control-padding-x));
   font-size: 12.5px;
 }
 
@@ -3078,39 +3078,48 @@ textarea.input {
 
 .input[type="search"] {
   --field-icon: var(--icon-search);
+  --field-padding-left: 36px;
 }
 
 .input[name="q"],
 .input[name*="search"] {
   --field-icon: var(--icon-search);
+  --field-padding-left: 36px;
 }
 
 .input[type="email"] {
   --field-icon: var(--icon-email);
+  --field-padding-left: 36px;
 }
 
 .input[type="tel"] {
   --field-icon: var(--icon-phone);
+  --field-padding-left: 36px;
 }
 
 .input[type="url"] {
   --field-icon: var(--icon-url);
+  --field-padding-left: 36px;
 }
 
 .input[type="date"] {
   --field-icon: var(--icon-date);
+  --field-padding-left: 36px;
 }
 
 .input[type="time"] {
   --field-icon: var(--icon-time);
+  --field-padding-left: 36px;
 }
 
 .input[type="number"] {
   --field-icon: var(--icon-number);
+  --field-padding-left: 36px;
 }
 
 .input[inputmode="numeric"] {
   --field-icon: var(--icon-number);
+  --field-padding-left: 36px;
 }
 
 .input.shipping-currency-input {
@@ -3122,10 +3131,12 @@ textarea.input {
 
 .input[type="password"] {
   --field-icon: var(--icon-lock);
+  --field-padding-left: 36px;
 }
 
 .select {
   --field-icon: var(--icon-select);
+  --field-padding-left: 36px;
   appearance: none;
   background-position: 12px 50%;
 }
@@ -5765,6 +5776,38 @@ textarea.input {
   margin-left: auto;
   flex: 1 1 auto;
   justify-content: flex-end;
+}
+
+.billing-quick-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-2);
+  max-width: 320px;
+}
+
+.billing-quick-link-anchor {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+
+.billing-quick-link .ghost {
+  min-width: 26px;
+  min-height: 26px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  font-size: 13px;
+  line-height: 1;
 }
 
 .billing-provider-slot {

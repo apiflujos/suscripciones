@@ -871,6 +871,7 @@ export async function sendCentralComPaymentLink(formData: FormData) {
     if (!checkoutUrl) return redirect(mergeQuery(returnTo, { error: "checkout_url_missing", ...(tenantId ? { tenantId } : {}) }));
 
     const rulesActive = await hasNotificationRule("PAYMENT_LINK_CREATED");
+    const centralMode = rulesActive === false ? "chatwoot" : "rules";
     if (rulesActive === false) {
       const content = buildChatwootLinkMessage({
         name: "Cliente",
@@ -883,6 +884,7 @@ export async function sendCentralComPaymentLink(formData: FormData) {
     redirect(
       mergeQuery(returnTo, {
         central: "sent",
+        centralMode,
         checkoutUrl,
         customerId,
         ...(tenantId ? { tenantId } : {})

@@ -213,6 +213,7 @@ export default async function BillingPage({
   const tenantsUpdated = typeof sp.tenantsUpdated === "string" ? sp.tenantsUpdated : "";
   const error = normalizeErrorParam(typeof sp.error === "string" ? sp.error : undefined);
   const central = typeof sp.central === "string" ? sp.central : "";
+  const centralMode = typeof sp.centralMode === "string" ? sp.centralMode : "";
   const mergedSubscriptions = typeof sp.mergedSubscriptions === "string" ? sp.mergedSubscriptions : "";
   const crear = typeof sp.crear === "string" ? sp.crear : "";
   const selectCustomerId = typeof sp.selectCustomerId === "string" ? sp.selectCustomerId : "";
@@ -466,6 +467,13 @@ export default async function BillingPage({
           Error: {error}
         </div>
       ) : null}
+      {central === "sent" ? (
+        <div className="card cardPad" style={{ borderColor: "rgba(46, 170, 85, 0.22)", background: "rgba(46, 170, 85, 0.08)" }}>
+          {centralMode === "chatwoot"
+            ? "Link de pago generado y enviado por CentralCom."
+            : "Link de pago generado correctamente."}
+        </div>
+      ) : null}
       {contactCreated ? <div className="card cardPad">Contacto creado correctamente.</div> : null}
       {mergedSubscriptions ? <div className="card cardPad">Suscripciones duplicadas fusionadas correctamente.</div> : null}
       {chargeStatus ? (
@@ -555,6 +563,7 @@ export default async function BillingPage({
               const subscriptionBadge = `Suscripción ${subscriptionStatus.toLowerCase()}`;
               const planLinkStatus = getPlanLinkStatus(r.lastPaymentLink, r.pagoAt);
               const rowCheckoutUrl = checkoutCustomerId && checkoutCustomerId === r.customerId ? checkoutUrl : "";
+              const latestCheckoutUrl = rowCheckoutUrl || String(r.lastPaymentLink?.checkoutUrl || "").trim();
               const rowTokenUrl = checkoutCustomerId && checkoutCustomerId === r.customerId ? tokenUrl : "";
               const sentForRow = central === "sent" && checkoutCustomerId && checkoutCustomerId === r.customerId;
               const chargedForRow = chargeStatus === "ok" && actionSubscriptionId === r.id;
@@ -737,6 +746,14 @@ export default async function BillingPage({
                       ) : null}
                     </div>
                     <div className="billing-actions-right">
+                    {r.mode !== "AUTO_DEBIT" && latestCheckoutUrl ? (
+                      <div className="billing-quick-link">
+                        <a className="billing-quick-link-anchor" href={latestCheckoutUrl} target="_blank" rel="noreferrer">
+                          Link de pago
+                        </a>
+                        <CopyButton text={latestCheckoutUrl} label="⧉" copiedLabel="✓" />
+                      </div>
+                    ) : null}
                     {r.mode !== "AUTO_DEBIT" ? (
                       <form action={sendCentralComPaymentLink}>
                         <input type="hidden" name="csrf" value={csrfToken} />
