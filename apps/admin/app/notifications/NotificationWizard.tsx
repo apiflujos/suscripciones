@@ -383,6 +383,8 @@ export function NotificationWizard({
                           className="ghost"
                           onClick={() => setOffsets((prev) => prev.filter((_, i) => i !== idx))}
                           disabled={offsets.length <= 1}
+                          data-loader="off"
+                          title="Quitar esta regla de tiempo"
                         >
                           Quitar
                         </button>
@@ -393,6 +395,8 @@ export function NotificationWizard({
                         type="button"
                         className="ghost"
                         onClick={() => setOffsets((prev) => [...prev, { direction: "after", amount: "1", unit: "hours" }])}
+                        data-loader="off"
+                        title="Agregar otra regla de recordatorio"
                       >
                         + Agregar otro recordatorio
                       </button>
@@ -450,9 +454,9 @@ export function NotificationWizard({
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                   {VARIABLES.map((v) => (
-                    <button key={v.value} type="button" className="ghost" onClick={() => onVarClick(v.value)} style={{ minHeight: 30 }}>
-                      {v.label}
-                    </button>
+                      <button key={v.value} type="button" className="ghost" onClick={() => onVarClick(v.value)} style={{ minHeight: 30 }} data-loader="off">
+                        {v.label}
+                      </button>
                   ))}
                 </div>
               </div>
@@ -464,7 +468,7 @@ export function NotificationWizard({
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                   {["✅", "❌", "⏰", "💳", "⚠️", "📌", "📅", "🙏"].map((e) => (
-                    <button key={e} type="button" className="ghost" onClick={() => onVarClick(e)} style={{ minHeight: 30, minWidth: 42 }}>
+                    <button key={e} type="button" className="ghost" onClick={() => onVarClick(e)} style={{ minHeight: 30, minWidth: 42 }} data-loader="off">
                       {e}
                     </button>
                   ))}
@@ -516,13 +520,13 @@ export function NotificationWizard({
                               placeholder="Ej: {{customer.name}}"
                             />
                           </div>
-                          <button type="button" className="ghost" onClick={() => setWaParams((prev) => prev.filter((_, i) => i !== idx))}>
+                          <button type="button" className="ghost" onClick={() => setWaParams((prev) => prev.filter((_, i) => i !== idx))} data-loader="off">
                             Quitar
                           </button>
                         </div>
                       ))}
                     </div>
-                    <button type="button" className="ghost" onClick={() => setWaParams((prev) => [...prev, ""])} style={{ marginTop: 8 }}>
+                    <button type="button" className="ghost" onClick={() => setWaParams((prev) => [...prev, ""])} style={{ marginTop: 8 }} data-loader="off" title="Agregar otra variable en orden {{1}}, {{2}}, {{3}}...">
                       + Agregar variable
                     </button>
                   </div>

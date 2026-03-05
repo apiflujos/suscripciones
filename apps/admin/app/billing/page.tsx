@@ -591,27 +591,21 @@ export default async function BillingPage({
                           />
                         </div>
 
-                        {!isPlan ? (
-                          <div className="billing-header-meta-item">
-                            <span className="billing-header-label">Estado suscripción</span>
-                            <span className={`pill ${subscriptionStatus === "Activa" ? "pill-ok" : subscriptionStatus === "En mora" ? "pill-warn" : subscriptionStatus === "Suspendida" ? "pill-warn" : subscriptionStatus === "Cancelada" ? "pill-bad" : "pill-muted"}`}>
-                              {subscriptionBadge}
+                        <div className="billing-header-meta-item billing-header-status-strip">
+                          <span className="billing-header-label">Estados</span>
+                          <div className="billing-status-line" role="group" aria-label="Estados">
+                            {!isPlan ? (
+                              <span className={`pill ${subscriptionStatus === "Activa" ? "pill-ok" : subscriptionStatus === "En mora" ? "pill-warn" : subscriptionStatus === "Suspendida" ? "pill-warn" : subscriptionStatus === "Cancelada" ? "pill-bad" : "pill-muted"}`}>
+                                {subscriptionBadge}
+                              </span>
+                            ) : null}
+                            <span className={`pill ${(isPlan ? planBadgeStatus : paymentBadgeStatus) === "Al día" ? "pill-ok" : (isPlan ? planBadgeStatus : paymentBadgeStatus) === "En mora" ? "pill-warn" : "pill-muted"}`}>
+                              Estado del pago: {isPlan ? planBadgeStatus : paymentBadgeStatus}
+                            </span>
+                            <span className={`pill ${r.customerTokenized ? "pill-ok" : "pill-bad"}`}>
+                              {r.customerTokenized ? "Tokenizada" : "Sin token"}
                             </span>
                           </div>
-                        ) : null}
-
-                        <div className="billing-header-meta-item">
-                          <span className="billing-header-label">Estado del pago</span>
-                          <span className={`pill ${(isPlan ? planBadgeStatus : paymentBadgeStatus) === "Al día" ? "pill-ok" : (isPlan ? planBadgeStatus : paymentBadgeStatus) === "En mora" ? "pill-warn" : "pill-muted"}`}>
-                            {isPlan ? planBadgeStatus : paymentBadgeStatus}
-                          </span>
-                        </div>
-
-                        <div className="billing-header-meta-item">
-                          <span className="billing-header-label">Tokenización</span>
-                          <span className={`pill ${r.customerTokenized ? "pill-ok" : "pill-bad"}`}>
-                            {r.customerTokenized ? "Tokenizada" : "Sin token"}
-                          </span>
                         </div>
                       </div>
                     </div>

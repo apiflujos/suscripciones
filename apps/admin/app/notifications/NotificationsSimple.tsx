@@ -250,7 +250,7 @@ export function NotificationsSimple({
                   const label = typeof item === "string" ? item : item.label;
                   const value = typeof item === "string" ? item : item.value;
                   return (
-                    <button key={value} type="button" className="ghost" onClick={() => onPickValue(value)} style={{ minHeight: 32 }}>
+                    <button key={value} type="button" className="ghost" onClick={() => onPickValue(value)} style={{ minHeight: 32 }} data-loader="off">
                       {label}
                     </button>
                   );
@@ -281,7 +281,10 @@ export function NotificationsSimple({
                 <div key={rt.key} className="saved-conn-card">
                   <div className="saved-conn-header">
                     <div>
-                      <strong>{rt.label}</strong>
+                      <strong style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                        <span>{rt.label}</span>
+                        <HelpTip text="Esta regla se ejecuta cuando ocurre este evento y envía la plantilla configurada." />
+                      </strong>
                       <div className="saved-conn-sub">CentralCom</div>
                     </div>
                     <span className={`pill ${rule?.enabled ? "pill-green" : "pill-muted"}`}>{rule?.enabled ? "Activa" : "Inactiva"}</span>
@@ -295,12 +298,15 @@ export function NotificationsSimple({
                       <div className="field row" style={{ justifyContent: "space-between" }}>
                         <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           <span>Activa</span>
-                          <HelpTip text="Solo una notificación activa por tipo." />
+                          <HelpTip text="Enciende o apaga esta regla. Solo una notificación activa por tipo de evento." />
                         </label>
                         <input type="checkbox" name="enabled" defaultChecked={rule?.enabled ?? true} />
                       </div>
                       <div className="field">
-                        <label>Tipo de mensaje</label>
+                        <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span>Tipo de mensaje</span>
+                          <HelpTip text="Texto: mensaje libre con variables. Plantilla WhatsApp: plantilla aprobada por Meta." />
+                        </label>
                         <select
                           className="select select-compact"
                           name="templateKind"
@@ -328,10 +334,10 @@ export function NotificationsSimple({
                           />
                           <div className="field-hint">Se reemplazan variables del sistema automáticamente.</div>
                           <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-                            <button type="button" className="ghost btn-compact" data-modal="true" onClick={() => setPickerOpen("vars")} aria-label="Variables">
+                            <button type="button" className="ghost btn-compact" data-modal="true" onClick={() => setPickerOpen("vars")} aria-label="Variables" data-loader="off">
                               {`{ }`}
                             </button>
-                            <button type="button" className="ghost btn-compact" data-modal="true" onClick={() => setPickerOpen("emoji")} aria-label="Emojis">
+                            <button type="button" className="ghost btn-compact" data-modal="true" onClick={() => setPickerOpen("emoji")} aria-label="Emojis" data-loader="off">
                               🙂
                             </button>
                           </div>
@@ -358,7 +364,7 @@ export function NotificationsSimple({
                       ) : null}
                       <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
                         {rule ? (
-                          <button className="ghost btn-compact btn-cancel" type="button" onClick={() => setRealtimeEdit((prev) => ({ ...prev, [rt.key]: false }))}>
+                          <button className="ghost btn-compact btn-cancel" type="button" onClick={() => setRealtimeEdit((prev) => ({ ...prev, [rt.key]: false }))} data-loader="off">
                             Cancelar
                           </button>
                         ) : null}
@@ -392,6 +398,7 @@ export function NotificationsSimple({
                             className="ghost btn-compact btn-edit"
                             type="button"
                             onClick={() => setRealtimeEdit((prev) => ({ ...prev, [rt.key]: true }))}
+                            data-loader="off"
                           >
                             Editar
                           </button>
@@ -424,7 +431,10 @@ export function NotificationsSimple({
             <div className="saved-conn-card">
               <div className="saved-conn-header">
                 <div>
-                  <strong>Recordatorio de fecha de pago</strong>
+                  <strong style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <span>Recordatorio de fecha de pago</span>
+                    <HelpTip text="Se envía antes del vencimiento para prevenir que la suscripción caiga en mora." />
+                  </strong>
                   <div className="saved-conn-sub">Antes del vencimiento</div>
                 </div>
               </div>
@@ -434,11 +444,17 @@ export function NotificationsSimple({
                 <input type="hidden" name="kind" value="DUE" />
                 <input type="hidden" name="templateId" value={REMINDER_TPL_DUE} />
                 <div className="field row" style={{ justifyContent: "space-between" }}>
-                  <label>Activa</label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span>Activa</span>
+                    <HelpTip text="Si está apagada, no se enviará este recordatorio." />
+                  </label>
                   <input type="checkbox" name="enabled" defaultChecked={reminderDue?.enabled ?? true} />
                 </div>
                 <div className="field">
-                  <label>Tipo de mensaje</label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span>Tipo de mensaje</span>
+                    <HelpTip text="Texto: mensaje libre con variables. Plantilla WhatsApp: usa plantilla aprobada por Meta." />
+                  </label>
                   <select className="select select-compact" name="templateKind" value={dueKind} onChange={(e) => setDueKind(e.target.value as any)}>
                     <option value="TEXT">Texto</option>
                     <option value="WHATSAPP_TEMPLATE">Plantilla WhatsApp</option>
@@ -460,10 +476,10 @@ export function NotificationsSimple({
                     />
                     <div className="field-hint">Se reemplazan variables del sistema automáticamente.</div>
                     <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-                      <button type="button" className="ghost btn-compact" data-modal="true" onClick={() => setPickerOpen("vars")} aria-label="Variables">
+                      <button type="button" className="ghost btn-compact" data-modal="true" onClick={() => setPickerOpen("vars")} aria-label="Variables" data-loader="off">
                         {`{ }`}
                       </button>
-                      <button type="button" className="ghost btn-compact" data-modal="true" onClick={() => setPickerOpen("emoji")} aria-label="Emojis">
+                      <button type="button" className="ghost btn-compact" data-modal="true" onClick={() => setPickerOpen("emoji")} aria-label="Emojis" data-loader="off">
                         🙂
                       </button>
                     </div>
@@ -496,7 +512,10 @@ export function NotificationsSimple({
                 {dueOffsets.map((item, idx) => (
                   <div key={`due-${idx}`} style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 6, alignItems: "end" }}>
                     <div className="field">
-                      <label>Cada</label>
+                      <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span>Cada</span>
+                        <HelpTip text="Cantidad del recordatorio." />
+                      </label>
                       <input
                         className="input input-compact"
                         value={item.amount}
@@ -509,7 +528,10 @@ export function NotificationsSimple({
                       />
                     </div>
                     <div className="field">
-                      <label>Unidad</label>
+                      <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span>Unidad</span>
+                        <HelpTip text="Unidad de tiempo antes del vencimiento." />
+                      </label>
                       <select
                         className="select select-compact"
                         value={item.unit}
@@ -529,18 +551,19 @@ export function NotificationsSimple({
                       type="button"
                       onClick={() => setDueOffsets(dueOffsets.filter((_, i) => i !== idx))}
                       aria-label="Eliminar"
+                      data-loader="off"
                     >
                       Quitar
                     </button>
                   </div>
                 ))}
                 <input type="hidden" name="offsetsSeconds" value={dueOffsets.map((o) => secondsFromOffset(o, -1)).join(",")} />
-                <button className="ghost btn-compact" type="button" onClick={() => setDueOffsets([...dueOffsets, { amount: "1", unit: "days" }])}>
+                <button className="ghost btn-compact" type="button" onClick={() => setDueOffsets([...dueOffsets, { amount: "1", unit: "days" }])} data-loader="off" title="Agregar otra regla de envío antes del vencimiento">
                   + Agregar recordatorio
                 </button>
                 <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
                   {reminderDue ? (
-                    <button className="ghost btn-compact btn-cancel" type="button" onClick={() => setDueEdit(false)}>
+                    <button className="ghost btn-compact btn-cancel" type="button" onClick={() => setDueEdit(false)} data-loader="off">
                       Cancelar
                     </button>
                   ) : null}
@@ -556,7 +579,10 @@ export function NotificationsSimple({
             <div className="saved-conn-card">
               <div className="saved-conn-header">
                 <div>
-                  <strong>Recordatorio en mora</strong>
+                  <strong style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <span>Recordatorio en mora</span>
+                    <HelpTip text="Se envía después del vencimiento para recuperar pagos atrasados." />
+                  </strong>
                   <div className="saved-conn-sub">Después del vencimiento</div>
                 </div>
               </div>
@@ -566,11 +592,17 @@ export function NotificationsSimple({
                 <input type="hidden" name="kind" value="MORA" />
                 <input type="hidden" name="templateId" value={REMINDER_TPL_MORA} />
                 <div className="field row" style={{ justifyContent: "space-between" }}>
-                  <label>Activa</label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span>Activa</span>
+                    <HelpTip text="Si está apagada, no se enviarán mensajes de mora." />
+                  </label>
                   <input type="checkbox" name="enabled" defaultChecked={reminderMora?.enabled ?? true} />
                 </div>
                 <div className="field">
-                  <label>Tipo de mensaje</label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span>Tipo de mensaje</span>
+                    <HelpTip text="Texto: mensaje libre con variables. Plantilla WhatsApp: usa plantilla aprobada por Meta." />
+                  </label>
                   <select className="select select-compact" name="templateKind" value={moraKind} onChange={(e) => setMoraKind(e.target.value as any)}>
                     <option value="TEXT">Texto</option>
                     <option value="WHATSAPP_TEMPLATE">Plantilla WhatsApp</option>
@@ -592,10 +624,10 @@ export function NotificationsSimple({
                     />
                     <div className="field-hint">Se reemplazan variables del sistema automáticamente.</div>
                     <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-                      <button type="button" className="ghost btn-compact" data-modal="true" onClick={() => setPickerOpen("vars")} aria-label="Variables">
+                      <button type="button" className="ghost btn-compact" data-modal="true" onClick={() => setPickerOpen("vars")} aria-label="Variables" data-loader="off">
                         {`{ }`}
                       </button>
-                      <button type="button" className="ghost btn-compact" data-modal="true" onClick={() => setPickerOpen("emoji")} aria-label="Emojis">
+                      <button type="button" className="ghost btn-compact" data-modal="true" onClick={() => setPickerOpen("emoji")} aria-label="Emojis" data-loader="off">
                         🙂
                       </button>
                     </div>
@@ -628,7 +660,10 @@ export function NotificationsSimple({
                 {moraOffsets.map((item, idx) => (
                   <div key={`mora-${idx}`} style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 6, alignItems: "end" }}>
                     <div className="field">
-                      <label>Cada</label>
+                      <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span>Cada</span>
+                        <HelpTip text="Cantidad del recordatorio." />
+                      </label>
                       <input
                         className="input input-compact"
                         value={item.amount}
@@ -641,7 +676,10 @@ export function NotificationsSimple({
                       />
                     </div>
                     <div className="field">
-                      <label>Unidad</label>
+                      <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span>Unidad</span>
+                        <HelpTip text="Unidad de tiempo después del vencimiento." />
+                      </label>
                       <select
                         className="select select-compact"
                         value={item.unit}
@@ -661,18 +699,19 @@ export function NotificationsSimple({
                       type="button"
                       onClick={() => setMoraOffsets(moraOffsets.filter((_, i) => i !== idx))}
                       aria-label="Eliminar"
+                      data-loader="off"
                     >
                       Quitar
                     </button>
                   </div>
                 ))}
                 <input type="hidden" name="offsetsSeconds" value={moraOffsets.map((o) => secondsFromOffset(o, 1)).join(",")} />
-                <button className="ghost btn-compact" type="button" onClick={() => setMoraOffsets([...moraOffsets, { amount: "1", unit: "days" }])}>
+                <button className="ghost btn-compact" type="button" onClick={() => setMoraOffsets([...moraOffsets, { amount: "1", unit: "days" }])} data-loader="off" title="Agregar otra regla de envío después del vencimiento">
                   + Agregar recordatorio
                 </button>
                 <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
                   {reminderMora ? (
-                    <button className="ghost btn-compact btn-cancel" type="button" onClick={() => setMoraEdit(false)}>
+                    <button className="ghost btn-compact btn-cancel" type="button" onClick={() => setMoraEdit(false)} data-loader="off">
                       Cancelar
                     </button>
                   ) : null}
@@ -694,7 +733,7 @@ export function NotificationsSimple({
                       <span className="saved-conn-meta-label">Recordatorio de fecha de pago</span>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                         <span className="pill pill-green">Configurado</span>
-                        <button className="ghost btn-compact btn-edit" type="button" onClick={() => setDueEdit(true)}>
+                        <button className="ghost btn-compact btn-edit" type="button" onClick={() => setDueEdit(true)} data-loader="off">
                           Editar
                         </button>
                       </span>
@@ -715,7 +754,7 @@ export function NotificationsSimple({
                       <span className="saved-conn-meta-label">Recordatorio en mora</span>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                         <span className="pill pill-green">Configurado</span>
-                        <button className="ghost btn-compact btn-edit" type="button" onClick={() => setMoraEdit(true)}>
+                        <button className="ghost btn-compact btn-edit" type="button" onClick={() => setMoraEdit(true)} data-loader="off">
                           Editar
                         </button>
                       </span>
