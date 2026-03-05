@@ -2,8 +2,12 @@
   "name": "suscripciones-wompi-chatwoot",
   "private": true,
   "dependencies": {
+    "@prisma/client": "^5.22.0",
     "react": "19.2.4",
     "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "prisma": "^5.22.0"
   },
   "workspaces": [
     "apps/*"
