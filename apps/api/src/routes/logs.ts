@@ -91,11 +91,12 @@ logsRouter.get("/system", async (req, res) => {
   const toDate = parseDate(toRaw, { end: true });
   const idsParam = req.query.ids;
   const idsRaw = String(idsParam ?? "").trim();
-  const ids = idsRaw ? idsRaw.split(",").map((v) => v.trim()).filter(Boolean) : [];
-  const idsEmpty = !idsRaw || idsRaw === "__none__" || ids.includes("__none__");
-  if (typeof idsParam !== "undefined" && (idsEmpty || ids.length === 0)) {
-    return res.json({ items: [], total: withCount ? 0 : null });
-  }
+  const ids = idsRaw
+    ? idsRaw
+        .split(",")
+        .map((v) => v.trim())
+        .filter((v) => /^[0-9a-fA-F-]{36}$/.test(v))
+    : [];
   const where: Prisma.SystemLogWhereInput | undefined = q
     ? {
         OR: [
@@ -343,11 +344,12 @@ logsRouter.get("/payments", async (req, res) => {
   const q = String(req.query.q ?? "").trim();
   const idsParam = req.query.ids;
   const idsRaw = String(idsParam ?? "").trim();
-  const ids = idsRaw ? idsRaw.split(",").map((v) => v.trim()).filter(Boolean) : [];
-  const idsEmpty = !idsRaw || idsRaw === "__none__" || ids.includes("__none__");
-  if (typeof idsParam !== "undefined" && (idsEmpty || ids.length === 0)) {
-    return res.json({ items: [], total: withCount ? 0 : null });
-  }
+  const ids = idsRaw
+    ? idsRaw
+        .split(",")
+        .map((v) => v.trim())
+        .filter((v) => /^[0-9a-fA-F-]{36}$/.test(v))
+    : [];
   const statusRaw = String(req.query.status ?? "").trim().toUpperCase();
   const fromRaw = String(req.query.from ?? "").trim();
   const toRaw = String(req.query.to ?? "").trim();
@@ -426,7 +428,7 @@ logsRouter.get("/payments", async (req, res) => {
     total = counted;
   } else {
     // Evita falsos vacíos por filtros JSON-path de Prisma con keys ausentes.
-    const cap = Math.max(500, Math.min(5000, skip + take + 1000));
+    const cap = Math.max(2000, Math.min(50000, skip + take + 20000));
     const found = await prisma.payment.findMany({
       orderBy: { createdAt: "desc" },
       take: cap,
