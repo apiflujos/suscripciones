@@ -1,4 +1,6 @@
 import { z } from "zod";
+import fs from "node:fs";
+import path from "node:path";
 
 const envSchema = z.object({
   NODE_ENV: z.string().default("development"),
@@ -24,10 +26,66 @@ const envSchema = z.object({
 
 export type Env = z.infer<typeof envSchema>;
 
+let envHydrated = false;
+
+function stripWrappedQuotes(value: string) {
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    return value.slice(1, -1);
+  }
+  return value;
+}
+
+function parseDotEnv(content: string) {
+  const parsed: Record<string, string> = {};
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) continue;
+    const eqIndex = line.indexOf("=");
+    if (eqIndex <= 0) continue;
+    const key = line.slice(0, eqIndex).trim();
+    const value = stripWrappedQuotes(line.slice(eqIndex + 1).trim());
+    parsed[key] = value;
+  }
+  return parsed;
+}
+
+function hydrateProcessEnvFromFile(filePath: string) {
+  if (!fs.existsSync(filePath)) return false;
+  const parsed = parseDotEnv(fs.readFileSync(filePath, "utf8"));
+  for (const [k, v] of Object.entries(parsed)) {
+    if (process.env[k] == null || process.env[k] === "") {
+      process.env[k] = v;
+    }
+  }
+  return true;
+}
+
+function ensureProcessEnvHydrated() {
+  if (envHydrated) return;
+
+  const envFileOverride = String(process.env.ENV_FILE || "").trim();
+  const candidates = [
+    envFileOverride,
+    path.resolve(process.cwd(), ".env"),
+    path.resolve(process.cwd(), "apps", "api", ".env"),
+    path.resolve(__dirname, "..", "..", ".env")
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    if (hydrateProcessEnvFromFile(candidate)) break;
+  }
+  envHydrated = true;
+}
+
 export function loadEnv(processEnv: NodeJS.ProcessEnv): Env {
+  ensureProcessEnvHydrated();
   const normalized = {
+    ...process.env,
     ...processEnv,
-    ADMIN_API_TOKEN: processEnv.ADMIN_API_TOKEN
+    ADMIN_API_TOKEN: processEnv.ADMIN_API_TOKEN ?? process.env.ADMIN_API_TOKEN
   } as NodeJS.ProcessEnv;
 
   const parsed = envSchema.safeParse(normalized);
