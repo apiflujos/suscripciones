@@ -490,27 +490,6 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     }
   }
 
-  const hasLocalCorrelation = Boolean(paymentMatched || paymentLinkRecord || inferredSubscriptionId);
-  const isOrderContactWithoutMatch = !hasLocalCorrelation && isOrderContactReference(reference);
-  const likelyExternalWithoutContext = isOrderContactWithoutMatch;
-  if (likelyExternalWithoutContext) {
-    await systemLog(LogLevel.INFO, "webhooks.wompi", "Webhook omitido: referencia externa sin correlación local", {
-      webhookEventId,
-      transactionId,
-      paymentLinkId,
-      reference
-    }).catch(() => {});
-    await db.webhookEvent.update({
-      where: { id: webhookEventId },
-      data: {
-        processStatus: WebhookProcessStatus.SKIPPED,
-        processedAt: new Date(),
-        errorMessage: "external_reference_ignored"
-      }
-    });
-    return;
-  }
-
   const subscriptionId = inferredSubscriptionId;
 
   const isSubscription = !!subscriptionId;
