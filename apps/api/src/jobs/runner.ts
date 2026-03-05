@@ -488,6 +488,9 @@ async function runOnce() {
   for (const job of jobs) {
     try {
       const payload = job.payload as any;
+      let paymentRetryOutcome:
+        | { status: "processed" | "deferred" | "skipped"; reason?: string; nextRunAt?: Date; action?: string }
+        | null = null;
 
       if (job.type === RetryJobType.PROCESS_WOMPI_EVENT) {
         await processWompiEvent(payload.webhookEventId);
@@ -496,7 +499,7 @@ async function runOnce() {
       } else if (job.type === RetryJobType.SEND_CHATWOOT_MESSAGE) {
         await sendChatwootMessage(payload.chatwootMessageId);
       } else if (job.type === RetryJobType.PAYMENT_RETRY) {
-        await paymentRetry(payload);
+        paymentRetryOutcome = await paymentRetry(payload);
       } else if (job.type === RetryJobType.SUBSCRIPTION_REMINDER) {
         await subscriptionReminder(payload);
       } else if (job.type === RetryJobType.BILLING_MONTHLY_REPORT) {
@@ -515,9 +518,28 @@ async function runOnce() {
         logger.warn({ jobId: job.id, type: job.type }, "Unhandled job type");
       }
 
+      if (job.type === RetryJobType.PAYMENT_RETRY && paymentRetryOutcome?.status === "deferred") {
+        await prisma.retryJob.update({
+          where: { id: job.id },
+          data: {
+            status: RetryJobStatus.PENDING,
+            runAt: paymentRetryOutcome.nextRunAt || nextRunAtMinutes(30),
+            lastError: paymentRetryOutcome.reason || "retry_deferred",
+            lockedAt: null,
+            lockedBy: null
+          }
+        });
+        continue;
+      }
+
       await prisma.retryJob.update({
         where: { id: job.id },
-        data: { status: RetryJobStatus.SUCCEEDED, lockedAt: null, lockedBy: null }
+        data: {
+          status: RetryJobStatus.SUCCEEDED,
+          lastError: job.type === RetryJobType.PAYMENT_RETRY ? (paymentRetryOutcome?.reason || null) : null,
+          lockedAt: null,
+          lockedBy: null
+        }
       });
     } catch (err: any) {
       const errMsg = err?.message ? String(err.message) : "unknown error";

@@ -1,5 +1,5 @@
 import { prisma } from "../../db/prisma";
-import { LogLevel, RetryJobStatus, RetryJobType } from "@prisma/client";
+import { LogLevel } from "@prisma/client";
 import { createAutoDebitTransactionForSubscription, createPaymentLinkForSubscription } from "../../services/subscriptionBilling";
 import { systemLog } from "../../services/systemLog";
 import { addIntervalUtc } from "../../lib/dates";
@@ -10,13 +10,29 @@ function shouldCreateFallbackLinkWhenAutoDebitDisabled() {
   return raw === "1" || raw === "true" || raw === "yes" || raw === "on";
 }
 
-export async function paymentRetry(payload: any) {
-  const subscriptionId = String(payload?.subscriptionId || "").trim();
-  if (!subscriptionId) return;
-  const sub = await prisma.subscription.findUnique({ where: { id: subscriptionId }, include: { plan: true } });
-  if (!sub) return;
+export type PaymentRetryResult =
+  | { status: "processed"; mode: "AUTO_DEBIT" | "AUTO_LINK" | "MANUAL_LINK"; action: "AUTO_DEBIT_CHARGE" | "PAYMENT_LINK_CREATED"; subscriptionId: string }
+  | { status: "deferred"; mode: "AUTO_DEBIT" | "AUTO_LINK" | "MANUAL_LINK"; reason: string; subscriptionId: string; nextRunAt: Date }
+  | { status: "skipped"; mode: "AUTO_DEBIT" | "AUTO_LINK" | "MANUAL_LINK"; reason: string; subscriptionId: string };
 
-  const mode = String((sub.plan.metadata as any)?.collectionMode || "MANUAL_LINK");
+function asResultMode(raw: string): "AUTO_DEBIT" | "AUTO_LINK" | "MANUAL_LINK" {
+  const mode = String(raw || "").trim().toUpperCase();
+  if (mode === "AUTO_DEBIT") return "AUTO_DEBIT";
+  if (mode === "AUTO_LINK") return "AUTO_LINK";
+  return "MANUAL_LINK";
+}
+
+export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
+  const subscriptionId = String(payload?.subscriptionId || "").trim();
+  if (!subscriptionId) {
+    throw new Error("subscription_not_found");
+  }
+  const sub = await prisma.subscription.findUnique({ where: { id: subscriptionId }, include: { plan: true } });
+  if (!sub) throw new Error("subscription_not_found");
+  if (sub.status === "CANCELED") throw new Error("subscription_canceled");
+
+  const modeRaw = String((sub.plan.metadata as any)?.collectionMode || "MANUAL_LINK");
+  const mode = asResultMode(modeRaw);
   if (mode === "AUTO_DEBIT" || mode === "AUTO_LINK") {
     const now = new Date();
     const recentPendingAutoCharge = await prisma.payment.findFirst({
@@ -31,27 +47,6 @@ export async function paymentRetry(payload: any) {
     });
     if (recentPendingAutoCharge) {
       const nextRunAt = new Date(now.getTime() + 30 * 60 * 1000);
-      const alreadyScheduled = await prisma.retryJob.findFirst({
-        where: {
-          type: RetryJobType.PAYMENT_RETRY,
-          status: { in: [RetryJobStatus.PENDING, RetryJobStatus.RUNNING] },
-          payload: { path: ["subscriptionId"], equals: subscriptionId } as any,
-          runAt: { gte: new Date(now.getTime() - 60_000) }
-        },
-        select: { id: true }
-      });
-      if (!alreadyScheduled) {
-        await prisma.retryJob
-          .create({
-            data: {
-              type: RetryJobType.PAYMENT_RETRY,
-              runAt: nextRunAt,
-              maxAttempts: 5,
-              payload: { subscriptionId }
-            }
-          })
-          .catch(() => {});
-      }
       await systemLog(LogLevel.WARN, "jobs.payment_retry", "Cobro automático omitido: ya existe cobro pendiente reciente", {
         subscriptionId,
         mode,
@@ -60,7 +55,13 @@ export async function paymentRetry(payload: any) {
         pendingCreatedAt: recentPendingAutoCharge.createdAt?.toISOString?.() || recentPendingAutoCharge.createdAt,
         reScheduledAt: nextRunAt.toISOString()
       }).catch(() => {});
-      return;
+      return {
+        status: "deferred",
+        mode,
+        reason: "pending_charge_exists",
+        subscriptionId,
+        nextRunAt
+      };
     }
 
     const latestApproved = await prisma.payment.findFirst({
@@ -80,25 +81,6 @@ export async function paymentRetry(payload: any) {
 
     const isPastDue = sub.status === "PAST_DUE";
     if (!isPastDue && dueAt && now.getTime() + 5_000 < dueAt.getTime()) {
-      const alreadyScheduled = await prisma.retryJob.findFirst({
-        where: {
-          type: RetryJobType.PAYMENT_RETRY,
-          status: { in: [RetryJobStatus.PENDING, RetryJobStatus.RUNNING] },
-          payload: { path: ["subscriptionId"], equals: subscriptionId } as any,
-          runAt: { gte: new Date(dueAt.getTime() - 60_000) }
-        },
-        select: { id: true }
-      });
-      if (!alreadyScheduled) {
-        await prisma.retryJob.create({
-          data: {
-            type: RetryJobType.PAYMENT_RETRY,
-            runAt: dueAt,
-            maxAttempts: 5,
-            payload: { subscriptionId }
-          }
-        }).catch(() => {});
-      }
       await systemLog(LogLevel.INFO, "jobs.payment_retry", "Cobro automático omitido: aún no es fecha de cobro", {
         subscriptionId,
         mode,
@@ -107,7 +89,13 @@ export async function paymentRetry(payload: any) {
         byCutoff: dueByCutoff ? dueByCutoff.toISOString() : null,
         byLastPayment: dueByLastPayment ? dueByLastPayment.toISOString() : null
       }).catch(() => {});
-      return;
+      return {
+        status: "deferred",
+        mode,
+        reason: "not_due_yet",
+        subscriptionId,
+        nextRunAt: dueAt
+      };
     }
   }
 
@@ -120,11 +108,28 @@ export async function paymentRetry(payload: any) {
       }).catch(() => {});
       if (shouldCreateFallbackLinkWhenAutoDebitDisabled()) {
         await createPaymentLinkForSubscription({ subscriptionId }).catch(() => {});
+        return {
+          status: "processed",
+          mode,
+          action: "PAYMENT_LINK_CREATED",
+          subscriptionId
+        };
       }
-      return;
+      return {
+        status: "skipped",
+        mode,
+        reason: "auto_debit_disabled",
+        subscriptionId
+      };
     }
     try {
       await createAutoDebitTransactionForSubscription({ subscriptionId });
+      return {
+        status: "processed",
+        mode,
+        action: "AUTO_DEBIT_CHARGE",
+        subscriptionId
+      };
     } catch (err: any) {
       const msg = err?.message ? String(err.message) : "unknown error";
       const isMissingSource = msg === "customer_payment_source_missing";
@@ -137,9 +142,20 @@ export async function paymentRetry(payload: any) {
       // Emergency fallback: generate a payment link so the user can pay manually.
       await createPaymentLinkForSubscription({ subscriptionId }).catch(() => {});
       if (!isMissingSource) throw err;
+      return {
+        status: "processed",
+        mode,
+        action: "PAYMENT_LINK_CREATED",
+        subscriptionId
+      };
     }
-    return;
   }
 
   await createPaymentLinkForSubscription({ subscriptionId });
+  return {
+    status: "processed",
+    mode,
+    action: "PAYMENT_LINK_CREATED",
+    subscriptionId
+  };
 }

@@ -824,13 +824,7 @@ export default async function BillingPage({
                         </>
                       )}
                     </div>
-                    <div className="billing-provider-slot">
-                      <span className="provider-badge">
-                        <img src="/brand/wompi.png" alt="" />
-                        Wompi
-                      </span>
-                    </div>
-                    {(sentForRow || rowCheckoutUrl || rowTokenUrl || chargedForRow || cutoffForRow) ? (
+                    {(sentForRow || rowTokenUrl || chargedForRow || cutoffForRow) ? (
                       <div className="field-hint" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         {sentForRow ? <span>Enviado.</span> : null}
                         {chargedForRow ? <span>Cobro manual enviado.</span> : null}
@@ -841,14 +835,6 @@ export default async function BillingPage({
                               Abrir checkout
                             </a>
                             <CopyButton text={rowTokenUrl} />
-                          </>
-                        ) : null}
-                        {rowCheckoutUrl ? (
-                          <>
-                            <a className="ghost btn-compact btn-open" href={rowCheckoutUrl} target="_blank" rel="noreferrer">
-                              Abrir link
-                            </a>
-                            <CopyButton text={rowCheckoutUrl} />
                           </>
                         ) : null}
                       </div>

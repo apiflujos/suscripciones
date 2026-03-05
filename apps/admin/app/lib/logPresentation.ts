@@ -14,6 +14,8 @@ export function normalizeSystemText(value: unknown): string {
     [/webhook received/gi, "Webhook recibido"],
     [/payment_link_not_found/gi, "Link de pago no encontrado"],
     [/proceeding by inference/gi, "se intentó asociar automáticamente"],
+    [/payment_link_not_found:\s*proceeding by inference/gi, "Link de pago no encontrado; se intentó asociar automáticamente"],
+    [/notificaciones omitidas:\s*no hay reglas activas/gi, "Notificaciones omitidas: no hay reglas activas"],
     [/payment retry/gi, "Reintento de pago"],
     [/tokenization_token_expired/gi, "El token de tokenización venció"]
   ];

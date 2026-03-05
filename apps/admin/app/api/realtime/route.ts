@@ -43,6 +43,19 @@ function formatSystemMessage(raw: string) {
   return clean;
 }
 
+function isNoisySystemLog(source: string, message: string) {
+  const s = String(source || "").toLowerCase().trim();
+  const m = String(message || "").toLowerCase();
+
+  if (s === "sql.console" || s === "data_trainer") return true;
+  if (s === "notifications.dispatch" && /procesando notificacion|mensaje en cola para envio|mensaje enviado|tipo de pago no permitido/.test(m)) return true;
+  if (s === "notifications.schedule" && /no hay reglas activas para notificaciones|notificaciones omitidas: no hay reglas activas|notificaciones programadas|notificaciones enviadas/.test(m)) return true;
+  if (s === "processwompievent" && /subscription_reference_not_found|referencia de suscripción no encontrada|payment_link_not_found|link de pago no encontrado|falling back to inference|proceeding by inference/.test(m)) return true;
+  if (/forward returned 5xx|reenvío respondió 5xx/.test(m)) return true;
+
+  return false;
+}
+
 function buildContextSummary(context: any) {
   if (!context || typeof context !== "object") return "";
   const customer = firstText(
@@ -136,6 +149,7 @@ async function collectEvents(apiBase: string, token: string, since: string) {
       type: "webhook",
       level,
       ts: w.receivedAt,
+      source: "webhooks.wompi",
       title: isApproved ? "Pago aprobado" : isFailed ? "Pago fallido" : status === "FAILED" ? "Webhook fallido" : "Webhook recibido",
       message: isApproved
         ? `${customer} · ${typeLabel}${planLabel}`
@@ -157,15 +171,20 @@ async function collectEvents(apiBase: string, token: string, since: string) {
     if (!Number.isFinite(updatedAt) || updatedAt <= sinceMs) continue;
     const status = String(j.status || "");
     if (status !== "FAILED") continue;
+    const type = String(j.type || "");
+    const detail = String(j.lastError || "Sin detalle");
+    if (type === "PAYMENT_RETRY" && /subscription_canceled|subscription_not_found|charge_not_due_yet|not_due_yet/.test(detail)) {
+      continue;
+    }
     const title = "Job fallido";
-    const detail = j.lastError || "Sin detalle";
     events.push({
       id: `job_${j.id}`,
       type: "job",
       level: "error",
       ts: j.updatedAt,
+      source: "jobs.runner",
       title,
-      message: `${j.type || "JOB"} · ${detail}`,
+      message: `${type || "JOB"} · ${detail}`,
       sound: null,
       kind: "job_failed",
       href: buildLogLink("jobs"),
@@ -181,6 +200,7 @@ async function collectEvents(apiBase: string, token: string, since: string) {
     const source = String(s.source || "");
     const ctx = s.context || null;
     const message = formatSystemMessage(String(s.message || s.source || "Evento del sistema"));
+    if (isNoisySystemLog(source, message)) continue;
     const contextSummary = buildContextSummary(ctx);
     const compact = compactText(message, 170);
     const finalMessage = compactText(contextSummary ? `${compact} · ${contextSummary}` : compact, 320);
@@ -197,6 +217,7 @@ async function collectEvents(apiBase: string, token: string, since: string) {
         type: "system",
         level: error ? "error" : "info",
         ts: createdAt,
+        source,
         title: error ? "Asistente falló" : "Asistente listo",
         message: questionHint || (error ? "Error al generar respuesta." : "Respuesta lista para revisar."),
         sound: null,
@@ -213,6 +234,7 @@ async function collectEvents(apiBase: string, token: string, since: string) {
         type: "system",
         level: "info",
         ts: createdAt,
+        source,
         title: "Prueba de sonido",
         message: "Se emitió un evento de prueba desde el servidor.",
         sound: "cash",
@@ -263,6 +285,7 @@ async function collectEvents(apiBase: string, token: string, since: string) {
       type: "system",
       level: level === "ERROR" ? "error" : "info",
       ts: createdAt,
+      source,
       title:
         kind === "message_sent"
           ? "Mensaje enviado"
