@@ -5579,31 +5579,34 @@ textarea.input {
 }
 
 .billing-header-meta-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
-  gap: 8px;
-  align-items: stretch;
-  width: min(720px, 100%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
+  width: 100%;
+  min-width: 0;
 }
 
 .billing-header-meta-item {
-  display: grid;
-  gap: 4px;
-  align-content: start;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
   min-width: 0;
+  flex: 0 0 auto;
 }
 
 .billing-header-status-strip {
-  grid-column: 1 / -1;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .billing-header-status-strip .billing-header-label {
   margin: 0;
   white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 .billing-status-line {
@@ -5613,8 +5616,8 @@ textarea.input {
   flex-wrap: nowrap;
   min-width: 0;
   overflow-x: auto;
-  padding-bottom: 2px;
   scrollbar-width: thin;
+  flex: 1 1 auto;
 }
 
 .billing-status-line .pill {
@@ -5623,11 +5626,11 @@ textarea.input {
 }
 
 .billing-header-meta-item > :is(.pill, .btn-compact) {
-  min-height: 34px;
+  min-height: 32px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
+  width: auto;
 }
 
 .billing-body-left {
@@ -8455,6 +8458,21 @@ body.is-global-loading {
   .billing-header {
     flex-direction: column;
     align-items: flex-start;
+  }
+  .billing-header-meta-grid {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .billing-header-meta-item {
+    flex-wrap: wrap;
+  }
+  .billing-header-status-strip {
+    width: 100%;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .billing-status-line {
+    width: 100%;
   }
   .billing-header-middle {
     justify-items: flex-start;
