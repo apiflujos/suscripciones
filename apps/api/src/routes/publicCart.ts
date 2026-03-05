@@ -4,12 +4,13 @@ import { prisma } from "../db/prisma";
 import { addIntervalUtc } from "../lib/dates";
 import { createPaymentLinkForSubscription } from "../services/subscriptionBilling";
 import { scheduleSubscriptionDueNotifications } from "../services/notificationsScheduler";
-import { CredentialProvider, RetryJobType, SubscriptionStatus, PlanIntervalUnit, LogLevel } from "@prisma/client";
+import { CredentialProvider, SubscriptionStatus, PlanIntervalUnit, LogLevel } from "@prisma/client";
 import { getCredential } from "../services/credentials";
 import { getCheckoutBaseUrlsFromEnv } from "../services/publicBase";
 import { getTenantBrand } from "../services/tenantBrand";
 import { systemLog } from "../services/systemLog";
 import { tokenMeta } from "../lib/tokenMeta";
+import { ensurePaymentRetryJob } from "../services/retryJobScheduler";
 
 function parseCheckoutConfig(raw: string | null) {
   let parsed: CheckoutConfig | null = null;
@@ -262,16 +263,7 @@ publicCartRouter.post("/cart/:token/select", async (req, res) => {
   }
 
   await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});
-  await prisma.retryJob
-    .create({
-      data: {
-        type: RetryJobType.PAYMENT_RETRY,
-        runAt: periodEnd,
-        maxAttempts: 1,
-        payload: { subscriptionId: subscription.id }
-      }
-    })
-    .catch(() => {});
+  await ensurePaymentRetryJob({ subscriptionId: subscription.id, runAt: periodEnd, maxAttempts: 1 }).catch(() => {});
   const linkCreated = await createPaymentLinkForSubscription({ subscriptionId: subscription.id });
   const base = normalizeCheckoutBase(cfg.planBaseUrl, "plan");
   if (!base) return res.status(400).json({ error: "missing_plan_base_url" });

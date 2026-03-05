@@ -4,7 +4,7 @@ import { systemLog } from "../../services/systemLog";
 import { GamificationEntityType, LogLevel, Prisma, type Subscription } from "@prisma/client";
 import { classifyReference } from "../../webhooks/wompi/classifyReference";
 import { postJson } from "../../lib/http";
-import { PaymentLinkStatus, PaymentStatus, RetryJobType, SubscriptionStatus, WebhookProcessStatus } from "@prisma/client";
+import { PaymentLinkStatus, PaymentStatus, SubscriptionStatus, WebhookProcessStatus } from "@prisma/client";
 import { addIntervalUtc } from "../../lib/dates";
 import { getShopifyForward, getWompiCheckoutLinkBaseUrl } from "../../services/runtimeConfig";
 import { schedulePaymentStatusNotifications, scheduleSubscriptionDueNotifications } from "../../services/notificationsScheduler";
@@ -13,6 +13,8 @@ import { syncChatwootAttributesForCustomer } from "../../services/chatwootSync";
 import { getDefaultTenantId } from "../../services/tenantContext";
 import { applyGamificationEvent, GAMIFICATION_EVENT_KINDS } from "../../services/gamification";
 import { GAMIFICATION_WEIGHTS, moneyToPoints } from "../../services/gamificationConfig";
+import { resolveSubscriptionCollectionMode } from "../../services/subscriptionMode";
+import { ensurePaymentRetryJob } from "../../services/retryJobScheduler";
 
 type WompiCustomerData = {
   full_name?: string;
@@ -67,6 +69,7 @@ type WompiPayload = {
   };
   signature?: { checksum?: string };
   event?: string;
+  timestamp?: string | number;
 };
 
 function getTransactionFromPayload(payload: WompiPayload): WompiTransaction | null {
@@ -220,9 +223,24 @@ function getPaidAtFromPayload(payload: WompiPayload): Date | null {
     tx?.finalized_at ||
     tx?.finalizedAt ||
     tx?.created_at ||
-    tx?.createdAt;
+    tx?.createdAt ||
+    payload?.timestamp;
   if (!raw) return null;
-  const dt = new Date(raw);
+  const rawNum = Number(raw);
+  const normalizedRaw =
+    Number.isFinite(rawNum) && rawNum > 0
+      ? (rawNum < 1_000_000_000_000 ? rawNum * 1000 : rawNum)
+      : raw;
+  const dt = new Date(normalizedRaw as any);
+  return Number.isNaN(dt.getTime()) ? null : dt;
+}
+
+function getProviderEventAt(providerTs: bigint | null | undefined): Date | null {
+  if (providerTs == null) return null;
+  const num = Number(providerTs);
+  if (!Number.isFinite(num) || num <= 0) return null;
+  const ms = num < 1_000_000_000_000 ? num * 1000 : num;
+  const dt = new Date(ms);
   return Number.isNaN(dt.getTime()) ? null : dt;
 }
 
@@ -474,11 +492,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
 
   const hasLocalCorrelation = Boolean(paymentMatched || paymentLinkRecord || inferredSubscriptionId);
   const isOrderContactWithoutMatch = !hasLocalCorrelation && isOrderContactReference(reference);
-  const likelyExternalWithoutContext =
-    isOrderContactWithoutMatch ||
-    (!hasLocalCorrelation &&
-      (!!paymentLinkId || referenceClassification.kind === "unknown") &&
-      !isInternalReference(reference));
+  const likelyExternalWithoutContext = isOrderContactWithoutMatch;
   if (likelyExternalWithoutContext) {
     await systemLog(LogLevel.INFO, "webhooks.wompi", "Webhook omitido: referencia externa sin correlación local", {
       webhookEventId,
@@ -537,7 +551,12 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   const wasFailed = prevStatus === PaymentStatus.DECLINED || prevStatus === PaymentStatus.ERROR || prevStatus === PaymentStatus.VOIDED;
 
   const now = new Date();
-  const paidAt = nextStatus === PaymentStatus.APPROVED ? (getPaidAtFromPayload(payload) ?? now) : null;
+  const paidAtFromPayload = getPaidAtFromPayload(payload);
+  const providerEventAt = getProviderEventAt(event.providerTs);
+  const paidAt =
+    nextStatus === PaymentStatus.APPROVED
+      ? (paidAtFromPayload ?? providerEventAt ?? event.receivedAt ?? now)
+      : null;
   const computedFailedAt = nextStatus && nextStatus !== PaymentStatus.APPROVED && nextStatus !== PaymentStatus.PENDING ? now : null;
 
   let paymentResolved = paymentMatched;
@@ -915,30 +934,22 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         return null;
       } else {
         logger.info({ subscriptionId: sub.id, nextEnd }, "Subscription advanced after payment approval");
-        const collectionMode = (sub.plan.metadata as any)?.collectionMode;
+        const collectionMode = resolveSubscriptionCollectionMode(sub);
         // Single attempt at next cutoff (no retries).
         if (collectionMode === "AUTO_LINK") {
-          await tx.retryJob
-            .create({
-              data: {
-                type: RetryJobType.PAYMENT_RETRY,
-                runAt: nextEnd <= new Date(Date.now() + 5_000) ? new Date() : nextEnd,
-                maxAttempts: 1,
-                payload: { subscriptionId: sub.id }
-              }
-            })
-            .catch(() => {});
+          await ensurePaymentRetryJob({
+            subscriptionId: sub.id,
+            runAt: nextEnd <= new Date(Date.now() + 5_000) ? new Date() : nextEnd,
+            maxAttempts: 1,
+            db: tx
+          }).catch(() => {});
         } else if (collectionMode === "AUTO_DEBIT") {
-          await tx.retryJob
-            .create({
-              data: {
-                type: RetryJobType.PAYMENT_RETRY,
-                runAt: nextEnd,
-                maxAttempts: 1,
-                payload: { subscriptionId: sub.id }
-              }
-            })
-            .catch(() => {});
+          await ensurePaymentRetryJob({
+            subscriptionId: sub.id,
+            runAt: nextEnd,
+            maxAttempts: 1,
+            db: tx
+          }).catch(() => {});
         }
         return nextEnd;
       }

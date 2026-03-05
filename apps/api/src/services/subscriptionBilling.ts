@@ -16,6 +16,7 @@ import {
   getWompiRedirectUrl
 } from "./runtimeConfig";
 import { schedulePaymentLinkNotifications } from "./notificationsScheduler";
+import { resolveSubscriptionCollectionMode } from "./subscriptionMode";
 
 const PAYMENT_LINK_LOCK_PREFIX = "payment-link";
 const AUTO_DEBIT_LOCK_PREFIX = "auto-debit";
@@ -397,6 +398,11 @@ export async function createAutoDebitTransactionForSubscription(args: {
   if (sub.status === SubscriptionStatus.CANCELED) throw new Error("subscription_canceled");
   if (sub.status === SubscriptionStatus.SUSPENDED) throw new Error("subscription_suspended");
   if (sub.status === SubscriptionStatus.EXPIRED) throw new Error("subscription_expired");
+
+  const collectionMode = resolveSubscriptionCollectionMode(sub);
+  if (collectionMode !== "AUTO_DEBIT") {
+    throw new Error("auto_debit_not_allowed_for_collection_mode");
+  }
 
   const paymentSourceId = (() => {
     const meta = ((sub.customer.metadata as CustomerMetadata) ?? {}) as CustomerMetadata;

@@ -15,6 +15,8 @@ import { aiAssist } from "./handlers/aiAssist";
 import { gamificationRecalc } from "./handlers/gamificationRecalc";
 import { dataTrainer } from "./handlers/dataTrainer";
 import { reconcileWompiByReference, reconcileWompiTransaction } from "../services/wompiReconcile";
+import { resolveSubscriptionCollectionMode } from "../services/subscriptionMode";
+import { ensurePaymentRetryJob } from "../services/retryJobScheduler";
 
 loadEnv(process.env);
 const workerId = `jobs:${process.pid}`;
@@ -87,6 +89,7 @@ let lastDataTrainerAtMs = 0;
 let lastAutoReconcileAtMs = 0;
 let lastWebhookRecoveryAtMs = 0;
 let lastEnsureDueCutoffRetriesAtMs = 0;
+let lastEnsurePaymentRetryQueueHealthAtMs = 0;
 async function ensureMonthlyBillingReportJob() {
   const now = Date.now();
   if (now - lastEnsureAtMs < 60_000) return;
@@ -430,7 +433,7 @@ async function ensureDueCutoffRetries() {
 
   let queued = 0;
   for (const sub of candidates) {
-    const mode = String((sub.plan?.metadata as any)?.collectionMode || "MANUAL_LINK").toUpperCase();
+    const mode = resolveSubscriptionCollectionMode(sub);
     if (mode !== "AUTO_DEBIT" && mode !== "AUTO_LINK") continue;
 
     const exists = await prisma.retryJob.findFirst({
@@ -458,16 +461,11 @@ async function ensureDueCutoffRetries() {
     });
     if (recentRetry) continue;
 
-    await prisma.retryJob
-      .create({
-        data: {
-          type: RetryJobType.PAYMENT_RETRY,
-          runAt: new Date(),
-          maxAttempts: 5,
-          payload: { subscriptionId: sub.id }
-        }
-      })
-      .catch(() => {});
+    await ensurePaymentRetryJob({
+      subscriptionId: sub.id,
+      runAt: new Date(),
+      maxAttempts: 5
+    }).catch(() => {});
     queued += 1;
   }
 
@@ -477,6 +475,62 @@ async function ensureDueCutoffRetries() {
       queued,
       dueUntil: dueUntil.toISOString()
     }).catch(() => {});
+  }
+}
+
+async function ensurePaymentRetryQueueHealth() {
+  const now = Date.now();
+  if (now - lastEnsurePaymentRetryQueueHealthAtMs < 60_000) return;
+  lastEnsurePaymentRetryQueueHealthAtMs = now;
+
+  // Keep a single active PAYMENT_RETRY per subscription.
+  await prisma.$executeRawUnsafe(`
+    WITH ranked AS (
+      SELECT
+        id,
+        ROW_NUMBER() OVER (
+          PARTITION BY payload->>'subscriptionId'
+          ORDER BY "runAt" ASC, "createdAt" ASC, id ASC
+        ) AS rn
+      FROM "RetryJob"
+      WHERE type = 'PAYMENT_RETRY'
+        AND status IN ('PENDING','RUNNING')
+        AND payload ? 'subscriptionId'
+    )
+    UPDATE "RetryJob" r
+    SET status = 'FAILED',
+        "lastError" = 'dedupe_payment_retry_same_subscription',
+        "updatedAt" = NOW(),
+        "lockedAt" = NULL,
+        "lockedBy" = NULL
+    FROM ranked k
+    WHERE r.id = k.id
+      AND k.rn > 1
+  `);
+
+  // Ensure each AUTO_* subscription has one active job.
+  const subs = await prisma.subscription.findMany({
+    where: { status: { in: ["ACTIVE", "PAST_DUE"] as any } },
+    select: {
+      id: true,
+      status: true,
+      currentPeriodEndAt: true,
+      metadata: true,
+      plan: { select: { metadata: true } }
+    },
+    take: 1000
+  });
+  if (!subs.length) return;
+
+  const nowDate = new Date();
+  const futureToleranceMs = 5_000;
+  for (const sub of subs) {
+    const mode = resolveSubscriptionCollectionMode(sub);
+    if (mode !== "AUTO_DEBIT" && mode !== "AUTO_LINK") continue;
+
+    const cutoffMs = sub.currentPeriodEndAt?.getTime?.() ?? 0;
+    const runAt = cutoffMs > now + futureToleranceMs ? new Date(cutoffMs) : nowDate;
+    await ensurePaymentRetryJob({ subscriptionId: sub.id, runAt, maxAttempts: 1 }).catch(() => {});
   }
 }
 
@@ -628,6 +682,7 @@ async function main() {
       await ensurePendingPaymentsAutoReconcile();
       await ensureWompiWebhookRecoveryJobs();
       await ensureDueCutoffRetries();
+      await ensurePaymentRetryQueueHealth();
       await runOnce();
       await new Promise((r) => setTimeout(r, 1000));
     } catch (err: any) {

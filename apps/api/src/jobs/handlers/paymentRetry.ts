@@ -4,6 +4,7 @@ import { createAutoDebitTransactionForSubscription, createPaymentLinkForSubscrip
 import { systemLog } from "../../services/systemLog";
 import { addIntervalUtc } from "../../lib/dates";
 import { getAutoDebitConfig } from "../../services/runtimeConfig";
+import { resolveSubscriptionCollectionMode } from "../../services/subscriptionMode";
 
 function shouldCreateFallbackLinkWhenAutoDebitDisabled() {
   const raw = String(process.env.AUTO_DEBIT_DISABLED_FALLBACK_LINK || "").trim().toLowerCase();
@@ -31,8 +32,7 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
   if (!sub) throw new Error("subscription_not_found");
   if (sub.status === "CANCELED") throw new Error("subscription_canceled");
 
-  const modeRaw = String((sub.plan.metadata as any)?.collectionMode || "MANUAL_LINK");
-  const mode = asResultMode(modeRaw);
+  const mode = resolveSubscriptionCollectionMode(sub);
   if (mode === "AUTO_DEBIT" || mode === "AUTO_LINK") {
     const now = new Date();
     const recentPendingAutoCharge = await prisma.payment.findFirst({
@@ -79,8 +79,7 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
         ? (dueByCutoff.getTime() >= dueByLastPayment.getTime() ? dueByCutoff : dueByLastPayment)
         : (dueByCutoff || dueByLastPayment);
 
-    const isPastDue = sub.status === "PAST_DUE";
-    if (!isPastDue && dueAt && now.getTime() + 5_000 < dueAt.getTime()) {
+    if (dueAt && now.getTime() + 5_000 < dueAt.getTime()) {
       await systemLog(LogLevel.INFO, "jobs.payment_retry", "Cobro automático omitido: aún no es fecha de cobro", {
         subscriptionId,
         mode,

@@ -9,6 +9,8 @@ import { getAutoDebitConfig } from "../services/runtimeConfig";
 import { scheduleSubscriptionDueNotifications } from "../services/notificationsScheduler";
 import { consumeApp } from "../services/superAdminApp";
 import { getEffectiveTenantId, getEffectiveTenantIds, readTenantIdsFromReq } from "../services/tenantContext";
+import { resolveSubscriptionCollectionMode } from "../services/subscriptionMode";
+import { ensurePaymentRetryJob } from "../services/retryJobScheduler";
 
 const createSubscriptionSchema = z.object({
   customerId: z.string().uuid(),
@@ -214,6 +216,8 @@ subscriptionsRouter.post("/", async (req, res) => {
   if (Number.isNaN(periodEnd.getTime())) return res.status(400).json({ error: "invalid_first_period_end_at" });
   if (periodEnd < startAt) return res.status(400).json({ error: "first_period_end_must_be_after_start" });
 
+  const subscriptionMetaBase =
+    parsed.data.metadata && typeof parsed.data.metadata === "object" ? (parsed.data.metadata as any) : {};
   const subscription = await prisma.subscription.create({
     data: {
       tenantId,
@@ -224,7 +228,10 @@ subscriptionsRouter.post("/", async (req, res) => {
       currentPeriodStartAt: startAt,
       currentPeriodEndAt: periodEnd,
       currentCycle: 1,
-      ...(parsed.data.metadata ? { metadata: parsed.data.metadata } : {})
+      metadata: {
+        ...subscriptionMetaBase,
+        collectionMode
+      } as any
     }
   });
   await prisma.subscriptionTenant.createMany({
@@ -242,16 +249,7 @@ subscriptionsRouter.post("/", async (req, res) => {
 
   // AUTO_* modes: enqueue a single attempt at the cutoff date (no retries).
   if (collectionMode === "AUTO_LINK" || collectionMode === "AUTO_DEBIT") {
-    await prisma.retryJob
-      .create({
-        data: {
-          type: RetryJobType.PAYMENT_RETRY,
-          runAt,
-          maxAttempts: 1,
-          payload: { subscriptionId: subscription.id }
-        }
-      })
-      .catch(() => {});
+    await ensurePaymentRetryJob({ subscriptionId: subscription.id, runAt, maxAttempts: 1 }).catch(() => {});
     // If requested, generate a link right away (useful for first charge or missing token).
     const isDueNow = runAt.getTime() <= Date.now() + 5_000;
     // AUTO_DEBIT must never auto-create payment links on subscription creation.
@@ -387,7 +385,7 @@ subscriptionsRouter.post("/:id/charge-now", async (req, res) => {
     if (!allowed) return res.status(404).json({ error: "subscription_not_found" });
   }
 
-  const collectionMode = String((subscription.plan?.metadata as any)?.collectionMode || "MANUAL_LINK");
+  const collectionMode = resolveSubscriptionCollectionMode(subscription);
   if (collectionMode !== "AUTO_DEBIT") return res.status(409).json({ error: "manual_charge_not_allowed" });
   const autoDebitCfg = await getAutoDebitConfig();
   if (!autoDebitCfg.allowManualCharge) return res.status(409).json({ error: "manual_charge_disabled_by_settings" });
@@ -496,7 +494,7 @@ subscriptionsRouter.post("/:id/schedule-cutoff", async (req, res) => {
     if (!allowed) return res.status(404).json({ error: "subscription_not_found" });
   }
 
-  const collectionMode = String((subscription.plan?.metadata as any)?.collectionMode || "MANUAL_LINK");
+  const collectionMode = resolveSubscriptionCollectionMode(subscription);
   if (collectionMode !== "AUTO_DEBIT" && collectionMode !== "AUTO_LINK") {
     return res.status(409).json({ error: "schedule_cutoff_not_allowed" });
   }
@@ -516,16 +514,11 @@ subscriptionsRouter.post("/:id/schedule-cutoff", async (req, res) => {
 
   await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});
 
-  await prisma.retryJob
-    .create({
-      data: {
-        type: RetryJobType.PAYMENT_RETRY,
-        runAt: cutoffAt <= new Date(Date.now() + 5_000) ? new Date() : cutoffAt,
-        maxAttempts: 1,
-        payload: { subscriptionId }
-      }
-    })
-    .catch(() => {});
+  await ensurePaymentRetryJob({
+    subscriptionId,
+    runAt: cutoffAt <= new Date(Date.now() + 5_000) ? new Date() : cutoffAt,
+    maxAttempts: 1
+  }).catch(() => {});
 
   res.status(200).json({ ok: true, subscription: updated, scheduledAt: cutoffAt.toISOString(), scheduled: true });
 });
@@ -583,6 +576,7 @@ subscriptionsRouter.post("/:id/change-plan", async (req, res) => {
     subscription.metadata && typeof subscription.metadata === "object" ? (subscription.metadata as any) : {};
   const nextSubscriptionMetadata = {
     ...subscriptionMetaBase,
+    collectionMode: String((plan.metadata as any)?.collectionMode || "MANUAL_LINK"),
     pricing: {
       ...(subscriptionMetaBase?.pricing && typeof subscriptionMetaBase.pricing === "object"
         ? subscriptionMetaBase.pricing
@@ -622,16 +616,14 @@ subscriptionsRouter.post("/:id/change-plan", async (req, res) => {
 
   await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});
 
-  await prisma.retryJob
-    .create({
-      data: {
-        type: RetryJobType.PAYMENT_RETRY,
-        runAt: cutoffAt <= new Date(Date.now() + 5_000) ? new Date() : cutoffAt,
-        maxAttempts: 1,
-        payload: { subscriptionId }
-      }
-    })
-    .catch(() => {});
+  const updatedMode = resolveSubscriptionCollectionMode({ metadata: nextSubscriptionMetadata, plan });
+  if (updatedMode === "AUTO_LINK" || updatedMode === "AUTO_DEBIT") {
+    await ensurePaymentRetryJob({
+      subscriptionId,
+      runAt: cutoffAt <= new Date(Date.now() + 5_000) ? new Date() : cutoffAt,
+      maxAttempts: 1
+    }).catch(() => {});
+  }
 
   res.status(200).json({ ok: true, subscription: updated, scheduledAt: cutoffAt.toISOString(), scheduled: true });
 });
@@ -733,18 +725,13 @@ subscriptionsRouter.post("/:id/recalculate-cutoff", async (req, res) => {
     } as any
   });
 
-  const collectionMode = String((subscription.plan?.metadata as any)?.collectionMode || "");
+  const collectionMode = resolveSubscriptionCollectionMode(subscription);
   if (collectionMode === "AUTO_LINK" || collectionMode === "AUTO_DEBIT") {
-    await prisma.retryJob
-      .create({
-        data: {
-          type: RetryJobType.PAYMENT_RETRY,
-          runAt: nextEnd <= new Date(Date.now() + 5_000) ? new Date() : nextEnd,
-          maxAttempts: 1,
-          payload: { subscriptionId }
-        }
-      })
-      .catch(() => {});
+    await ensurePaymentRetryJob({
+      subscriptionId,
+      runAt: nextEnd <= new Date(Date.now() + 5_000) ? new Date() : nextEnd,
+      maxAttempts: 1
+    }).catch(() => {});
   }
 
   await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});

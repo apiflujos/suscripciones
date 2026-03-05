@@ -1,7 +1,9 @@
 import { prisma } from "../db/prisma";
 import { logger } from "../lib/logger";
 import { addIntervalUtc } from "../lib/dates";
-import { SubscriptionStatus, RetryJobType } from "@prisma/client";
+import { SubscriptionStatus } from "@prisma/client";
+import { resolveSubscriptionCollectionMode } from "./subscriptionMode";
+import { ensurePaymentRetryJob } from "./retryJobScheduler";
 
 export async function advanceSubscriptionCycle(params: {
   subscriptionId: string;
@@ -60,16 +62,14 @@ export async function advanceSubscriptionCycle(params: {
     }
 
     logger.info({ subscriptionId: sub.id, nextEnd }, "Subscription advanced after payment approval");
-    const collectionMode = (sub.plan.metadata as any)?.collectionMode;
+    const collectionMode = resolveSubscriptionCollectionMode(sub);
     
     if (collectionMode === "AUTO_LINK" || collectionMode === "AUTO_DEBIT") {
-      await tx.retryJob.create({
-        data: {
-          type: RetryJobType.PAYMENT_RETRY,
-          runAt: collectionMode === "AUTO_LINK" && nextEnd <= new Date(Date.now() + 5_000) ? new Date() : nextEnd,
-          maxAttempts: 1,
-          payload: { subscriptionId: sub.id }
-        }
+      await ensurePaymentRetryJob({
+        subscriptionId: sub.id,
+        runAt: collectionMode === "AUTO_LINK" && nextEnd <= new Date(Date.now() + 5_000) ? new Date() : nextEnd,
+        maxAttempts: 1,
+        db: tx
       }).catch(() => {});
     }
 
