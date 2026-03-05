@@ -5,6 +5,7 @@ import { addIntervalUtc } from "../lib/dates";
 import { LogLevel, PaymentStatus, RetryJobStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
 import { systemLog } from "../services/systemLog";
 import { createAutoDebitTransactionForSubscription, createPaymentLinkForSubscription } from "../services/subscriptionBilling";
+import { getAutoDebitConfig } from "../services/runtimeConfig";
 import { scheduleSubscriptionDueNotifications } from "../services/notificationsScheduler";
 import { consumeApp } from "../services/superAdminApp";
 import { getEffectiveTenantId, getEffectiveTenantIds, readTenantIdsFromReq } from "../services/tenantContext";
@@ -388,6 +389,8 @@ subscriptionsRouter.post("/:id/charge-now", async (req, res) => {
 
   const collectionMode = String((subscription.plan?.metadata as any)?.collectionMode || "MANUAL_LINK");
   if (collectionMode !== "AUTO_DEBIT") return res.status(409).json({ error: "manual_charge_not_allowed" });
+  const autoDebitCfg = await getAutoDebitConfig();
+  if (!autoDebitCfg.allowManualCharge) return res.status(409).json({ error: "manual_charge_disabled_by_settings" });
 
   const now = new Date();
   const latestApproved = await prisma.payment.findFirst({

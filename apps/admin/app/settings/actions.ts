@@ -166,7 +166,11 @@ export async function updateAutoDebitConfig(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);
   const enabled = String(formData.get("enabled") || "").trim();
+  const chargeAtCutoffEnabled = String(formData.get("chargeAtCutoffEnabled") || "").trim();
+  const allowManualCharge = String(formData.get("allowManualCharge") || "").trim();
   const retryEnabled = String(formData.get("retryEnabled") || "").trim();
+  const retryEveryValue = String(formData.get("retryEveryValue") || "").trim();
+  const retryEveryUnit = String(formData.get("retryEveryUnit") || "").trim().toUpperCase();
   const retryEveryMinutes = String(formData.get("retryEveryMinutes") || "").trim();
   const maxRetries = String(formData.get("maxRetries") || "").trim();
 
@@ -175,7 +179,11 @@ export async function updateAutoDebitConfig(formData: FormData) {
       method: "PUT",
       body: JSON.stringify({
         ...(enabled ? { enabled } : {}),
+        ...(chargeAtCutoffEnabled ? { chargeAtCutoffEnabled } : {}),
+        ...(allowManualCharge ? { allowManualCharge } : {}),
         ...(retryEnabled ? { retryEnabled } : {}),
+        ...(retryEveryValue ? { retryEveryValue } : {}),
+        ...(retryEveryUnit ? { retryEveryUnit } : {}),
         ...(retryEveryMinutes ? { retryEveryMinutes } : {}),
         ...(maxRetries ? { maxRetries } : {})
       })

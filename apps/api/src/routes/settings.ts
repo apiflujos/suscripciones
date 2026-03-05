@@ -50,7 +50,11 @@ const shopifyUpdateSchema = z.object({
 
 const autoDebitUpdateSchema = z.object({
   enabled: z.union([z.boolean(), z.string()]).optional(),
+  chargeAtCutoffEnabled: z.union([z.boolean(), z.string()]).optional(),
+  allowManualCharge: z.union([z.boolean(), z.string()]).optional(),
   retryEnabled: z.union([z.boolean(), z.string()]).optional(),
+  retryEveryValue: z.coerce.number().int().min(1).max(10080).optional(),
+  retryEveryUnit: z.enum(["MINUTES", "HOURS", "DAYS"]).optional(),
   retryEveryMinutes: z.coerce.number().int().min(1).max(10080).optional(),
   maxRetries: z.coerce.number().int().min(0).max(20).optional()
 });
@@ -113,6 +117,27 @@ function toInt(raw: unknown, fallback: number, min: number, max: number) {
   const n = Number(raw);
   if (!Number.isFinite(n)) return fallback;
   return Math.min(Math.max(Math.trunc(n), min), max);
+}
+
+function normalizeRetryUnit(raw: unknown): "MINUTES" | "HOURS" | "DAYS" {
+  const unit = String(raw || "")
+    .trim()
+    .toUpperCase();
+  if (unit === "DAYS") return "DAYS";
+  if (unit === "HOURS") return "HOURS";
+  return "MINUTES";
+}
+
+function retryUnitMultiplier(unit: "MINUTES" | "HOURS" | "DAYS") {
+  if (unit === "DAYS") return 24 * 60;
+  if (unit === "HOURS") return 60;
+  return 1;
+}
+
+function deriveRetryUnitAndValue(minutes: number): { retryEveryValue: number; retryEveryUnit: "MINUTES" | "HOURS" | "DAYS" } {
+  if (minutes % (24 * 60) === 0) return { retryEveryValue: Math.max(1, Math.trunc(minutes / (24 * 60))), retryEveryUnit: "DAYS" };
+  if (minutes % 60 === 0) return { retryEveryValue: Math.max(1, Math.trunc(minutes / 60)), retryEveryUnit: "HOURS" };
+  return { retryEveryValue: Math.max(1, Math.trunc(minutes)), retryEveryUnit: "MINUTES" };
 }
 
 settingsRouter.get("/", async (req, res) => {
@@ -273,8 +298,12 @@ settingsRouter.get("/", async (req, res) => {
   }
   const autoDebitConfig = {
     enabled: toBool(autoDebitConfigRaw?.enabled, true),
+    chargeAtCutoffEnabled: toBool(autoDebitConfigRaw?.chargeAtCutoffEnabled, true),
+    allowManualCharge: toBool(autoDebitConfigRaw?.allowManualCharge, true),
     retryEnabled: toBool(autoDebitConfigRaw?.retryEnabled, false),
     retryEveryMinutes: toInt(autoDebitConfigRaw?.retryEveryMinutes, 60, 1, 10080),
+    retryEveryValue: deriveRetryUnitAndValue(toInt(autoDebitConfigRaw?.retryEveryMinutes, 60, 1, 10080)).retryEveryValue,
+    retryEveryUnit: deriveRetryUnitAndValue(toInt(autoDebitConfigRaw?.retryEveryMinutes, 60, 1, 10080)).retryEveryUnit,
     maxRetries: toInt(autoDebitConfigRaw?.maxRetries, 0, 0, 20)
   };
 
@@ -463,23 +492,49 @@ settingsRouter.put("/auto-debit", async (req, res) => {
   }
 
   const enabled = parsed.data.enabled != null ? toBool(parsed.data.enabled, true) : toBool(current?.enabled, true);
+  const chargeAtCutoffEnabled =
+    parsed.data.chargeAtCutoffEnabled != null
+      ? toBool(parsed.data.chargeAtCutoffEnabled, true)
+      : toBool(current?.chargeAtCutoffEnabled, true);
+  const allowManualCharge =
+    parsed.data.allowManualCharge != null ? toBool(parsed.data.allowManualCharge, true) : toBool(current?.allowManualCharge, true);
   const retryEnabled =
     parsed.data.retryEnabled != null ? toBool(parsed.data.retryEnabled, false) : toBool(current?.retryEnabled, false);
+  const retryUnit = parsed.data.retryEveryUnit
+    ? normalizeRetryUnit(parsed.data.retryEveryUnit)
+    : normalizeRetryUnit(current?.retryEveryUnit);
+  const retryValue = parsed.data.retryEveryValue != null ? toInt(parsed.data.retryEveryValue, 1, 1, 10080) : toInt(current?.retryEveryValue, 0, 0, 10080);
   const retryEveryMinutes =
-    parsed.data.retryEveryMinutes != null
+    retryValue > 0
+      ? toInt(retryValue * retryUnitMultiplier(retryUnit), 60, 1, 10080)
+      : parsed.data.retryEveryMinutes != null
       ? toInt(parsed.data.retryEveryMinutes, 60, 1, 10080)
       : toInt(current?.retryEveryMinutes, 60, 1, 10080);
+  const derived = deriveRetryUnitAndValue(retryEveryMinutes);
   const maxRetries =
     parsed.data.maxRetries != null ? toInt(parsed.data.maxRetries, 0, 0, 20) : toInt(current?.maxRetries, 0, 0, 20);
 
   await setCredential(
     CredentialProvider.WOMPI,
     "AUTO_DEBIT_CONFIG",
-    JSON.stringify({ enabled, retryEnabled, retryEveryMinutes, maxRetries })
+    JSON.stringify({
+      enabled,
+      chargeAtCutoffEnabled,
+      allowManualCharge,
+      retryEnabled,
+      retryEveryValue: derived.retryEveryValue,
+      retryEveryUnit: derived.retryEveryUnit,
+      retryEveryMinutes,
+      maxRetries
+    })
   );
   await systemLog(LogLevel.INFO, "configuracion.auto_debito", "Configuración de débito automático actualizada", {
     enabled,
+    chargeAtCutoffEnabled,
+    allowManualCharge,
     retryEnabled,
+    retryEveryValue: derived.retryEveryValue,
+    retryEveryUnit: derived.retryEveryUnit,
     retryEveryMinutes,
     maxRetries
   }).catch(() => {});

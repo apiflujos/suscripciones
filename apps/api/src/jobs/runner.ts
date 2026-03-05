@@ -86,6 +86,7 @@ let lastGamificationRecalcAtMs = 0;
 let lastDataTrainerAtMs = 0;
 let lastAutoReconcileAtMs = 0;
 let lastWebhookRecoveryAtMs = 0;
+let lastEnsureDueCutoffRetriesAtMs = 0;
 async function ensureMonthlyBillingReportJob() {
   const now = Date.now();
   if (now - lastEnsureAtMs < 60_000) return;
@@ -396,6 +397,73 @@ async function ensureWompiWebhookRecoveryJobs() {
   }).catch(() => {});
 }
 
+async function ensureDueCutoffRetries() {
+  const cfg = await getAutoDebitConfig();
+  if (!cfg.enabled || !cfg.chargeAtCutoffEnabled) return;
+
+  const now = Date.now();
+  const everySecondsRaw = Number(process.env.DUE_CUTOFF_SCAN_SECONDS || 30);
+  const everyMs = (Number.isFinite(everySecondsRaw) ? Math.max(15, Math.trunc(everySecondsRaw)) : 30) * 1000;
+  if (now - lastEnsureDueCutoffRetriesAtMs < everyMs) return;
+  lastEnsureDueCutoffRetriesAtMs = now;
+
+  const toleranceSecondsRaw = Number(process.env.DUE_CUTOFF_TOLERANCE_SECONDS || 30);
+  const toleranceSeconds = Number.isFinite(toleranceSecondsRaw) ? Math.max(5, Math.trunc(toleranceSecondsRaw)) : 30;
+  const dueUntil = new Date(now + toleranceSeconds * 1000);
+
+  const candidates = await prisma.subscription.findMany({
+    where: {
+      status: { in: ["ACTIVE", "PAST_DUE"] as any },
+      currentPeriodEndAt: { lte: dueUntil }
+    },
+    orderBy: { currentPeriodEndAt: "asc" },
+    take: 250,
+    select: {
+      id: true,
+      currentPeriodEndAt: true,
+      plan: { select: { metadata: true } }
+    }
+  });
+  if (!candidates.length) return;
+
+  let queued = 0;
+  for (const sub of candidates) {
+    const mode = String((sub.plan?.metadata as any)?.collectionMode || "MANUAL_LINK").toUpperCase();
+    if (mode !== "AUTO_DEBIT" && mode !== "AUTO_LINK") continue;
+
+    const exists = await prisma.retryJob.findFirst({
+      where: {
+        type: RetryJobType.PAYMENT_RETRY,
+        status: { in: [RetryJobStatus.PENDING, RetryJobStatus.RUNNING] },
+        payload: { path: ["subscriptionId"], equals: sub.id } as any,
+        runAt: { gte: new Date(now - 2 * 60 * 1000) }
+      },
+      select: { id: true }
+    });
+    if (exists) continue;
+
+    await prisma.retryJob
+      .create({
+        data: {
+          type: RetryJobType.PAYMENT_RETRY,
+          runAt: new Date(),
+          maxAttempts: 5,
+          payload: { subscriptionId: sub.id }
+        }
+      })
+      .catch(() => {});
+    queued += 1;
+  }
+
+  if (queued > 0) {
+    await systemLog(LogLevel.INFO, "jobs.payment_retry", "Cobros por fecha de corte encolados", {
+      scanned: candidates.length,
+      queued,
+      dueUntil: dueUntil.toISOString()
+    }).catch(() => {});
+  }
+}
+
 async function ensureShopifyForwardRetries() {
   const now = Date.now();
   const { enabled, minutes } = await getShopifyForwardRetryConfig();
@@ -521,6 +589,7 @@ async function main() {
       await ensureJobsHeartbeat();
       await ensurePendingPaymentsAutoReconcile();
       await ensureWompiWebhookRecoveryJobs();
+      await ensureDueCutoffRetries();
       await runOnce();
       await new Promise((r) => setTimeout(r, 1000));
     } catch (err: any) {

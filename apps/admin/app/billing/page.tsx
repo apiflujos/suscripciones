@@ -306,6 +306,7 @@ export default async function BillingPage({
   const tenants = (tenantsRes.json?.items ?? []) as Array<{ id: string; name: string }>;
   const tenantById = new Map(tenants.map((t) => [String(t.id), String(t.name)]));
   const settings = settingsRes.ok ? settingsRes.json : null;
+  const autoDebitSettings = settings?.autoDebit || {};
   const checkoutConfig = settings?.checkoutConfig || {};
   const subscriptionBaseUrl = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
   const planOptions: PlanOption[] = productItems.map((p: any): PlanOption => {
@@ -560,6 +561,10 @@ export default async function BillingPage({
               const cutoffForRow = cutoffScheduled && actionSubscriptionId === r.id;
               const tenantsUpdatedForRow = tenantsUpdated && actionSubscriptionId === r.id;
               const canSendToken = r.mode === "AUTO_DEBIT" && Boolean(subscriptionBaseUrl);
+              const cutoffDueAt = r.vencimientoAt ? new Date(r.vencimientoAt) : null;
+              const isCutoffOverdue = Boolean(cutoffDueAt && !Number.isNaN(cutoffDueAt.getTime()) && cutoffDueAt.getTime() <= Date.now());
+              const manualChargeEnabled = Boolean(autoDebitSettings?.allowManualCharge ?? true);
+              const canChargeNow = manualChargeEnabled && r.mode === "AUTO_DEBIT" && (r.status === "PAST_DUE" || isCutoffOverdue);
               const duplicateKey = `${r.customerId}:${r.planId}`;
               const duplicateCount = duplicateCountByKey.get(duplicateKey) || 1;
               const keepRowId = duplicateKeepByKey.get(duplicateKey)?.id || r.id;
@@ -715,7 +720,7 @@ export default async function BillingPage({
                           duplicatesCount={duplicateCount}
                         />
                       ) : null}
-                      {r.mode === "AUTO_DEBIT" && r.status === "PAST_DUE" ? (
+                      {canChargeNow ? (
                         <form action={chargeSubscriptionNow}>
                           <input type="hidden" name="csrf" value={csrfToken} />
                           <input type="hidden" name="subscriptionId" value={r.id} />
@@ -727,7 +732,9 @@ export default async function BillingPage({
                             title={
                               !r.customerTokenized
                                 ? "Primero debes guardar tarjeta (débito automático)"
-                                : "Cobrar ahora"
+                                : isCutoffOverdue
+                                  ? "Cobrar ahora (fecha de corte vencida)"
+                                  : "Cobrar ahora"
                             }
                           >
                             Cobrar

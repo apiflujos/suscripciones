@@ -492,6 +492,26 @@ export default async function SettingsPage({
                     </select>
                   </div>
                   <div className="field">
+                    <label>Cobrar en fecha/hora de corte</label>
+                    <select
+                      className="select"
+                      name="chargeAtCutoffEnabled"
+                      defaultValue={String(Boolean(autoDebit?.chargeAtCutoffEnabled ?? true))}
+                    >
+                      <option value="true">Encendido</option>
+                      <option value="false">Apagado</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <div className="field">
+                    <label>Habilitar botón de cobro manual</label>
+                    <select className="select" name="allowManualCharge" defaultValue={String(Boolean(autoDebit?.allowManualCharge ?? true))}>
+                      <option value="true">Encendido</option>
+                      <option value="false">Apagado</option>
+                    </select>
+                  </div>
+                  <div className="field">
                     <label>Reintentos</label>
                     <select className="select" name="retryEnabled" defaultValue={String(Boolean(autoDebit?.retryEnabled))}>
                       <option value="true">Encendido</option>
@@ -501,14 +521,36 @@ export default async function SettingsPage({
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   <div className="field">
-                    <label>Reintentar cada (minutos)</label>
+                    <label>Reintentar cada</label>
                     <input
                       className="input"
                       type="number"
                       min={1}
                       max={10080}
-                      name="retryEveryMinutes"
-                      defaultValue={Number(autoDebit?.retryEveryMinutes || 60)}
+                      name="retryEveryValue"
+                      defaultValue={Number(autoDebit?.retryEveryValue || 60)}
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Unidad de reintento</label>
+                    <select className="select" name="retryEveryUnit" defaultValue={String(autoDebit?.retryEveryUnit || "MINUTES")}>
+                      <option value="MINUTES">Minutos</option>
+                      <option value="HOURS">Horas</option>
+                      <option value="DAYS">Días</option>
+                    </select>
+                  </div>
+                </div>
+                <input type="hidden" name="retryEveryMinutes" value={Number(autoDebit?.retryEveryMinutes || 60)} />
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <div className="field">
+                    <label>Intervalo equivalente (minutos)</label>
+                    <input
+                      className="input"
+                      type="number"
+                      min={1}
+                      max={10080}
+                      value={Number(autoDebit?.retryEveryMinutes || 60)}
+                      readOnly
                     />
                   </div>
                   <div className="field">
@@ -523,7 +565,10 @@ export default async function SettingsPage({
                     />
                   </div>
                 </div>
-                <div className="field-hint">Si cobros automáticos está apagado, el job no ejecuta cargos automáticos.</div>
+                <div className="field-hint">
+                  Si cobros automáticos está apagado, no se hacen cargos automáticos.
+                  Si apagas fecha de corte, no se encolan cobros por vencimiento automático.
+                </div>
                 <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8, alignItems: "center" }}>
                   {action === "auto_debit_save" && status === "ok" ? <div className="field-hint">Guardado.</div> : null}
                   {action === "auto_debit_save" && status === "fail" ? (

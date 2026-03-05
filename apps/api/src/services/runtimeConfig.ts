@@ -95,7 +95,11 @@ export async function getShopifyForwardRetryConfig(): Promise<{ enabled: boolean
 
 export type AutoDebitConfig = {
   enabled: boolean;
+  chargeAtCutoffEnabled: boolean;
+  allowManualCharge: boolean;
   retryEnabled: boolean;
+  retryEveryValue: number;
+  retryEveryUnit: "MINUTES" | "HOURS" | "DAYS";
   retryEveryMinutes: number;
   maxRetries: number;
 };
@@ -113,6 +117,31 @@ function toInt(raw: string | undefined, fallback: number, min: number, max: numb
   return Math.min(Math.max(Math.trunc(n), min), max);
 }
 
+function normalizeRetryUnit(raw: unknown): "MINUTES" | "HOURS" | "DAYS" {
+  const unit = String(raw || "")
+    .trim()
+    .toUpperCase();
+  if (unit === "DAYS") return "DAYS";
+  if (unit === "HOURS") return "HOURS";
+  return "MINUTES";
+}
+
+function retryUnitMultiplier(unit: "MINUTES" | "HOURS" | "DAYS") {
+  if (unit === "DAYS") return 24 * 60;
+  if (unit === "HOURS") return 60;
+  return 1;
+}
+
+function deriveRetryUnitAndValue(minutes: number): { retryEveryValue: number; retryEveryUnit: "MINUTES" | "HOURS" | "DAYS" } {
+  if (minutes % (24 * 60) === 0) {
+    return { retryEveryValue: Math.max(1, Math.trunc(minutes / (24 * 60))), retryEveryUnit: "DAYS" };
+  }
+  if (minutes % 60 === 0) {
+    return { retryEveryValue: Math.max(1, Math.trunc(minutes / 60)), retryEveryUnit: "HOURS" };
+  }
+  return { retryEveryValue: Math.max(1, Math.trunc(minutes)), retryEveryUnit: "MINUTES" };
+}
+
 export async function getAutoDebitConfig(): Promise<AutoDebitConfig> {
   const raw = (await getCredential(CredentialProvider.WOMPI, "AUTO_DEBIT_CONFIG")) || "";
   let parsed: any = {};
@@ -128,11 +157,28 @@ export async function getAutoDebitConfig(): Promise<AutoDebitConfig> {
   const envMaxRetries = toInt(process.env.AUTO_DEBIT_MAX_RETRIES, 0, 0, 20);
 
   const enabled = envDisabled ? false : toBool(String(parsed?.enabled ?? ""), true);
+  const chargeAtCutoffEnabled = toBool(String(parsed?.chargeAtCutoffEnabled ?? ""), true);
+  const allowManualCharge = toBool(String(parsed?.allowManualCharge ?? ""), true);
   const retryEnabled = toBool(String(parsed?.retryEnabled ?? ""), envRetryEnabled);
-  const retryEveryMinutes = toInt(String(parsed?.retryEveryMinutes ?? ""), envRetryMinutes, 1, 10_080);
+  const retryUnit = normalizeRetryUnit(parsed?.retryEveryUnit);
+  const retryValueRaw = toInt(String(parsed?.retryEveryValue ?? ""), 0, 0, 10_080);
+  const retryEveryMinutesLegacy = toInt(String(parsed?.retryEveryMinutes ?? ""), envRetryMinutes, 1, 10_080);
+  const retryEveryMinutes = retryValueRaw > 0
+    ? toInt(String(retryValueRaw * retryUnitMultiplier(retryUnit)), envRetryMinutes, 1, 10_080)
+    : retryEveryMinutesLegacy;
+  const derived = deriveRetryUnitAndValue(retryEveryMinutes);
   const maxRetries = toInt(String(parsed?.maxRetries ?? ""), envMaxRetries, 0, 20);
 
-  return { enabled, retryEnabled: enabled ? retryEnabled : false, retryEveryMinutes, maxRetries };
+  return {
+    enabled,
+    chargeAtCutoffEnabled: enabled ? chargeAtCutoffEnabled : false,
+    allowManualCharge,
+    retryEnabled: enabled ? retryEnabled : false,
+    retryEveryValue: derived.retryEveryValue,
+    retryEveryUnit: derived.retryEveryUnit,
+    retryEveryMinutes,
+    maxRetries
+  };
 }
 
 export async function getChatwootConfig(): Promise<
