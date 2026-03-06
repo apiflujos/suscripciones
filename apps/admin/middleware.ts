@@ -63,6 +63,14 @@ export async function middleware(req: NextRequest) {
       homeUrl.searchParams.delete("next");
       return NextResponse.redirect(homeUrl);
     }
+
+    const isSettingsArea = pathname.startsWith("/settings");
+    if (isSettingsArea && session.role === "AGENT") {
+      const homeUrl = req.nextUrl.clone();
+      homeUrl.pathname = "/";
+      homeUrl.searchParams.delete("next");
+      return NextResponse.redirect(homeUrl);
+    }
   }
 
   // Inyectar estado de sesión en headers para layout

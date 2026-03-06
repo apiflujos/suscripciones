@@ -13,6 +13,7 @@ import { subscriptionsRouter } from "./routes/subscriptions";
 import { productsRouter } from "./routes/products";
 import { ordersRouter } from "./routes/orders";
 import { settingsRouter } from "./routes/settings";
+import { settingsUsersRouter } from "./routes/settingsUsers";
 import { logsRouter } from "./routes/logs";
 import { notificationsRouter } from "./routes/notifications";
 import { metricsRouter } from "./routes/metrics";
@@ -227,6 +228,7 @@ export function createApp() {
   app.use("/admin/customers", requireAdminToken, customersRouter);
   app.use("/admin/subscriptions", requireAdminToken, subscriptionsRouter);
   app.use("/admin/payments", requireAdminToken, paymentsRouter);
+  app.use("/admin/settings/users", requireAdminToken, settingsUsersRouter);
   app.use("/admin/settings", requireAdminToken, settingsRouter);
   app.use("/admin/logs", requireAdminToken, logsRouter);
   app.use("/admin/notifications", requireAdminToken, notificationsRouter);

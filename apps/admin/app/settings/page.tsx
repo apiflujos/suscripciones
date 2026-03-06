@@ -33,6 +33,7 @@ import { createTenant, deleteTenant, updateTenant } from "../tenants/actions";
 import { updateCheckoutConfig } from "./actions";
 import { DeleteTenantButton } from "./DeleteTenantButton";
 import { GamificationPanel } from "./GamificationPanel";
+import { UsersPanel } from "./UsersPanel";
 import { AppearanceSelector } from "../ui/AppearanceSelector";
 
 export const dynamic = "force-dynamic";
@@ -96,6 +97,8 @@ export default async function SettingsPage({
       fetchTrending("products", 720)
     ]);
   const settings = settingsRes.ok ? settingsRes.json : null;
+  const usersRes = await fetchAdminCached("/admin/settings/users", { ttlMs: 0 });
+  const users = usersRes.ok ? usersRes.json?.items || [] : [];
   const gamificationConfig = gamificationRes.ok ? gamificationRes.json?.config : null;
   const templates = templatesRes.ok ? templatesRes.json?.items || [] : [];
   const products = productsRes.ok ? productsRes.json?.items || [] : [];
@@ -193,6 +196,9 @@ export default async function SettingsPage({
         <a className={`settings-tab ${tab === "canales" ? "is-active" : ""}`} href="/settings?tab=canales">
           Canales de venta
         </a>
+        <a className={`settings-tab ${tab === "usuarios" ? "is-active" : ""}`} href="/settings?tab=usuarios">
+          Usuarios
+        </a>
         <a className={`settings-tab ${tab === "gamificacion" ? "is-active" : ""}`} href="/settings?tab=gamificacion">
           Gamificación
         </a>
@@ -252,6 +258,15 @@ export default async function SettingsPage({
             <AppearanceSelector cards />
           </div>
         </section>
+      ) : null}
+
+      {tab === "usuarios" ? (
+        <UsersPanel
+          users={users}
+          csrfToken={csrfToken}
+          created={String(sp.created) === "1"}
+          error={normalizeErrorParam(typeof sp.error === "string" ? sp.error : undefined)}
+        />
       ) : null}
 
       {tab === "connections" ? (

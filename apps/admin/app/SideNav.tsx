@@ -394,18 +394,20 @@ export function SideNav({ session }: { session: AdminSession | null }) {
         <NavIcon name="logs" className="nav-icon" />
         <span className="nav-label">Logs de API</span>
       </Link>
-      <Link
-        className={`nav-item ${isActivePath(pathname, "/settings") ? "is-active" : ""}`}
-        href="/settings"
-        prefetch={false}
-        aria-current={isActivePath(pathname, "/settings") ? "page" : undefined}
-        aria-disabled={isActivePath(pathname, "/settings") ? "true" : undefined}
-        data-loader={isActivePath(pathname, "/settings") ? "off" : undefined}
-        tabIndex={isActivePath(pathname, "/settings") ? -1 : undefined}
-      >
-        <NavIcon name="settings" className="nav-icon" />
-        <span className="nav-label">Configuración</span>
-      </Link>
+      {session?.role !== "AGENT" ? (
+        <Link
+          className={`nav-item ${isActivePath(pathname, "/settings") ? "is-active" : ""}`}
+          href="/settings"
+          prefetch={false}
+          aria-current={isActivePath(pathname, "/settings") ? "page" : undefined}
+          aria-disabled={isActivePath(pathname, "/settings") ? "true" : undefined}
+          data-loader={isActivePath(pathname, "/settings") ? "off" : undefined}
+          tabIndex={isActivePath(pathname, "/settings") ? -1 : undefined}
+        >
+          <NavIcon name="settings" className="nav-icon" />
+          <span className="nav-label">Configuración</span>
+        </Link>
+      ) : null}
       <Link
         className={`nav-item ${isSuperAdminPath ? "is-active" : ""}`}
         href="/sa"
