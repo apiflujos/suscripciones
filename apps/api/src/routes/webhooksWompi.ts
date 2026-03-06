@@ -10,10 +10,65 @@ import { LogLevel } from "@prisma/client";
 import { redactHeaders } from "../lib/redact";
 import { getDefaultTenantId } from "../services/tenantContext";
 import { processWompiEventLogic } from "../jobs/handlers/processWompiEvent";
+import { classifyReference } from "../webhooks/wompi/classifyReference";
 
 function getChecksumHeader(req: Request): string | undefined {
   const h = req.header("x-event-checksum") || req.header("x-wompi-checksum");
   return h || undefined;
+}
+
+function normalizeRef(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function getTxFromPayload(payload: any): Record<string, unknown> | null {
+  const tx = payload?.data?.transaction;
+  return tx && typeof tx === "object" ? (tx as Record<string, unknown>) : null;
+}
+
+async function resolveWebhookTenantId(payload: any): Promise<string | null> {
+  const tx = getTxFromPayload(payload);
+  const transactionId = normalizeRef(tx?.id);
+  const reference = normalizeRef(tx?.reference);
+  const paymentLinkId =
+    normalizeRef(tx?.payment_link_id) ||
+    normalizeRef((tx?.payment_link as any)?.id) ||
+    normalizeRef((payload?.data as any)?.payment_link_id);
+
+  if (transactionId) {
+    const byTx = await prisma.payment.findUnique({
+      where: { wompiTransactionId: transactionId },
+      select: { tenantId: true }
+    });
+    if (byTx?.tenantId) return byTx.tenantId;
+  }
+
+  if (paymentLinkId) {
+    const byLink = await prisma.paymentLink.findUnique({
+      where: { wompiPaymentLinkId: paymentLinkId },
+      select: { tenantId: true }
+    });
+    if (byLink?.tenantId) return byLink.tenantId;
+  }
+
+  if (reference) {
+    const classified = classifyReference(reference);
+    if (classified.kind === "subscription" && classified.subscriptionId) {
+      const sub = await prisma.subscription.findUnique({
+        where: { id: classified.subscriptionId },
+        select: { tenantId: true }
+      });
+      if (sub?.tenantId) return sub.tenantId;
+    }
+    const byReference = await prisma.payment.findFirst({
+      where: { reference },
+      orderBy: { createdAt: "desc" },
+      select: { tenantId: true }
+    });
+    if (byReference?.tenantId) return byReference.tenantId;
+  }
+
+  return null;
 }
 
 export async function wompiWebhook(req: Request, res: Response) {
@@ -42,7 +97,7 @@ export async function wompiWebhook(req: Request, res: Response) {
   const checksum = (getChecksumHeader(req) || parsed.data.signature.checksum).trim();
 
   try {
-    const tenantId = await getDefaultTenantId();
+    const tenantId = (await resolveWebhookTenantId(parsed.data)) || (await getDefaultTenantId());
     if (!tenantId) {
       res.status(503).json({ error: "tenant_not_configured" });
       return;

@@ -542,19 +542,51 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     }
 
     const email = getCustomerEmailFromPayload(payload);
-    let customer =
-      (email
-        ? await db.customer.findUnique({ where: { email } })
-        : null) ??
-      null;
+    const phone = getCustomerPhoneFromPayload(payload);
+    let customer = null as any;
+    let emailConflictOtherTenant = false;
+    const byEmail = email ? await db.customer.findUnique({ where: { email } }) : null;
+    if (byEmail) {
+      if (!tenantIdFallback || byEmail.tenantId === tenantIdFallback) {
+        customer = byEmail;
+      } else {
+        const linked = await db.customerTenant.findFirst({
+          where: { customerId: byEmail.id, tenantId: tenantIdFallback },
+          select: { id: true }
+        });
+        if (linked) customer = byEmail;
+        else emailConflictOtherTenant = true;
+      }
+    }
+    if (!customer && phone) {
+      const byPhone = await db.customer.findMany({
+        where: {
+          phone: { not: null },
+          ...(tenantIdFallback
+            ? {
+                OR: [{ tenantId: tenantIdFallback }, { tenantLinks: { some: { tenantId: tenantIdFallback } } }]
+              }
+            : {})
+        },
+        select: { id: true, phone: true },
+        take: 300
+      });
+      const matchedPhone = byPhone.find((c: any) => phonesMatch(c.phone, phone));
+      if (matchedPhone?.id) {
+        customer = await db.customer.findUnique({ where: { id: matchedPhone.id } });
+      }
+    }
     if (!customer) {
+      const fallbackMeta: Record<string, unknown> = { source: "wompi_webhook_fallback" };
+      if (email) fallbackMeta.incomingEmail = email;
+      if (emailConflictOtherTenant) fallbackMeta.emailTenantConflict = true;
       customer = await db.customer.create({
         data: {
           tenantId: tenantIdFallback,
-          email: email ?? null,
+          email: emailConflictOtherTenant ? null : email ?? null,
           name: getCustomerNameFromPayload(payload),
-          phone: getCustomerPhoneFromPayload(payload),
-          metadata: { source: "wompi_webhook_fallback" } as Prisma.InputJsonValue
+          phone,
+          metadata: fallbackMeta as Prisma.InputJsonValue
         }
       });
     }
@@ -680,6 +712,16 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     prevByTx?.checkoutUrl ||
     checkoutUrlResolved;
   const wompiTransactionUpdate = transactionId ? { wompiTransactionId: transactionId } : {};
+  const inferredSubscriptionCycleKey =
+    subscription && Number.isFinite(Number(cycle)) ? `${subscription.id}:${cycle}` : null;
+  let canAssignSubscriptionCycleKey = false;
+  if (paymentResolved?.id && inferredSubscriptionCycleKey) {
+    const sameCycle = await db.payment.findUnique({
+      where: { subscriptionCycleKey: inferredSubscriptionCycleKey },
+      select: { id: true }
+    });
+    canAssignSubscriptionCycleKey = !sameCycle || sameCycle.id === paymentResolved.id;
+  }
 
   const paymentRecord = paymentResolved
     ? await db.payment.update({
@@ -702,9 +744,18 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
           amountInCents: amountInCents ?? paymentResolved.amountInCents,
           currency: currency ?? paymentResolved.currency,
           reference: reference ?? paymentResolved.reference,
+          ...(subscription
+            ? {
+                subscriptionId: subscription.id,
+                customerId: subscription.customerId,
+                cycleNumber: paymentResolved.cycleNumber ?? cycle
+              }
+            : {}),
           ...(resolvedCheckoutUrl ? { checkoutUrl: resolvedCheckoutUrl } : {}),
-          cycleNumber: paymentResolved.cycleNumber ?? cycle,
-          subscriptionCycleKey: paymentResolved.subscriptionId ? subscriptionCycleKey : paymentResolved.subscriptionCycleKey
+          subscriptionCycleKey:
+            subscription && inferredSubscriptionCycleKey && canAssignSubscriptionCycleKey
+              ? inferredSubscriptionCycleKey
+              : paymentResolved.subscriptionCycleKey
         }
       })
     : await db.payment.upsert({

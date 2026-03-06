@@ -616,7 +616,13 @@ async function runOnce() {
       const errMsg = err?.message ? String(err.message) : "unknown error";
       if (
         job.type === RetryJobType.PAYMENT_RETRY &&
-        (errMsg === "subscription_canceled" || errMsg === "subscription_not_found")
+        (
+          errMsg === "subscription_canceled" ||
+          errMsg === "subscription_not_found" ||
+          errMsg === "auto_debit_not_allowed_for_collection_mode" ||
+          errMsg === "wompi_reference_already_used_guard" ||
+          errMsg === "payment_already_approved"
+        )
       ) {
         await prisma.retryJob.update({
           where: { id: job.id },

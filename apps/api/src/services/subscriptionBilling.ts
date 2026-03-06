@@ -608,42 +608,16 @@ export async function createAutoDebitTransactionForSubscription(args: {
       /(ya ha sido usada|already used|already been used)/i.test(errMsg);
 
     if (duplicateReference) {
-      usedReference = `${reference}_${Date.now()}`;
-      await systemLog(LogLevel.WARN, "subscriptions.auto_debit", "Reference duplicada en Wompi; reintentando con nueva referencia", {
+      await systemLog(LogLevel.WARN, "subscriptions.auto_debit", "Reference duplicada en Wompi; bloqueo preventivo para evitar cobro duplicado", {
         subscriptionId: sub.id,
         paymentId: payment.id,
         previousReference: reference,
-        nextReference: usedReference
+        nextReference: null
       }).catch(() => {});
-
-      try {
-        const signed = signFor(usedReference);
-        usedReference = signed.normalizedReference;
-        created = await wompi.createTransaction({
-          amount_in_cents: signed.normalizedAmountInCents,
-          currency: signed.normalizedCurrency,
-          customer_email: sub.customer.email,
-          reference: usedReference,
-          signature: signed.signature,
-          acceptance_token: merchant.acceptanceToken,
-          accept_personal_auth: merchant.acceptPersonalAuth,
-          payment_source_id: paymentSourceId as number,
-          recurrent: true,
-          payment_method: { installments: 1 }
-        });
-      } catch (retryErr: any) {
-        const retryMessage = retryErr?.message ? String(retryErr.message) : "unknown error";
-        await systemLog(LogLevel.ERROR, "subscriptions.auto_debit", "Transaction create failed after reference retry", {
-          subscriptionId: sub.id,
-          paymentId: payment.id,
-          reference: usedReference,
-          amountInCents,
-          currency,
-          signature: signFor(usedReference).signature,
-          err: retryMessage
-        }).catch(() => {});
-        throw retryErr;
-      }
+      // Guard-rail anti-duplicado:
+      // si Wompi indica referencia usada, no intentamos crear un nuevo cargo con otra referencia.
+      // El runner de conciliación se encarga de recuperar el estado real por referencia/transacción.
+      throw new Error("wompi_reference_already_used_guard");
     } else {
       await systemLog(LogLevel.ERROR, "subscriptions.auto_debit", "Transaction create failed (signature details)", {
         subscriptionId: sub.id,
