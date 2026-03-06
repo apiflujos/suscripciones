@@ -382,18 +382,20 @@ export function SideNav({ session }: { session: AdminSession | null }) {
         <NavIcon name="campaigns" className="nav-icon" />
         <span className="nav-label">Mensajes masivos</span>
       </Link>
-      <Link
-        className={`nav-item ${(isActivePath(pathname, "/logs") && !isPaymentsInLogs) ? "is-active" : ""}`}
-        href="/logs"
-        prefetch={false}
-        aria-current={(isActivePath(pathname, "/logs") && !isPaymentsInLogs) ? "page" : undefined}
-        aria-disabled={(isActivePath(pathname, "/logs") && !isPaymentsInLogs) ? "true" : undefined}
-        data-loader={(isActivePath(pathname, "/logs") && !isPaymentsInLogs) ? "off" : undefined}
-        tabIndex={(isActivePath(pathname, "/logs") && !isPaymentsInLogs) ? -1 : undefined}
-      >
-        <NavIcon name="logs" className="nav-icon" />
-        <span className="nav-label">Logs de API</span>
-      </Link>
+      {isSuperAdmin ? (
+        <Link
+          className={`nav-item ${(isActivePath(pathname, "/logs") && !isPaymentsInLogs) ? "is-active" : ""}`}
+          href="/logs"
+          prefetch={false}
+          aria-current={(isActivePath(pathname, "/logs") && !isPaymentsInLogs) ? "page" : undefined}
+          aria-disabled={(isActivePath(pathname, "/logs") && !isPaymentsInLogs) ? "true" : undefined}
+          data-loader={(isActivePath(pathname, "/logs") && !isPaymentsInLogs) ? "off" : undefined}
+          tabIndex={(isActivePath(pathname, "/logs") && !isPaymentsInLogs) ? -1 : undefined}
+        >
+          <NavIcon name="logs" className="nav-icon" />
+          <span className="nav-label">Logs de API</span>
+        </Link>
+      ) : null}
       {session?.role !== "AGENT" ? (
         <Link
           className={`nav-item ${isActivePath(pathname, "/settings") ? "is-active" : ""}`}
@@ -408,18 +410,20 @@ export function SideNav({ session }: { session: AdminSession | null }) {
           <span className="nav-label">Configuración</span>
         </Link>
       ) : null}
-      <Link
-        className={`nav-item ${isSuperAdminPath ? "is-active" : ""}`}
-        href="/sa"
-        prefetch={false}
-        aria-current={isSuperAdminPath ? "page" : undefined}
-        aria-disabled={isSuperAdminPath ? "true" : undefined}
-        data-loader={isSuperAdminPath ? "off" : undefined}
-        tabIndex={isSuperAdminPath ? -1 : undefined}
-      >
-        <ShieldIcon className="nav-icon" />
-        <span className="nav-label">Super Admin</span>
-      </Link>
+      {isSuperAdmin ? (
+        <Link
+          className={`nav-item ${isSuperAdminPath ? "is-active" : ""}`}
+          href="/sa"
+          prefetch={false}
+          aria-current={isSuperAdminPath ? "page" : undefined}
+          aria-disabled={isSuperAdminPath ? "true" : undefined}
+          data-loader={isSuperAdminPath ? "off" : undefined}
+          tabIndex={isSuperAdminPath ? -1 : undefined}
+        >
+          <ShieldIcon className="nav-icon" />
+          <span className="nav-label">Super Admin</span>
+        </Link>
+      ) : null}
       </nav>
 
       <div className="sidebarSpacer" />
