@@ -6482,6 +6482,70 @@ textarea.input {
   color: var(--text-faint);
 }
 
+.metrics-list-details {
+  display: grid;
+  gap: 10px;
+}
+
+.metrics-list-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--text);
+  list-style: none;
+}
+
+.metrics-list-summary::-webkit-details-marker {
+  display: none;
+}
+
+.metrics-list-summary strong {
+  font-size: 12px;
+  color: var(--primary);
+  background: var(--primary-soft);
+  border: 1px solid color-mix(in srgb, var(--primary) 40%, var(--stroke));
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.metrics-list-table-wrap {
+  border: 1px solid var(--stroke);
+  border-radius: 10px;
+  overflow: auto;
+}
+
+.metrics-list-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  min-width: 640px;
+}
+
+.metrics-list-table th,
+.metrics-list-table td {
+  text-align: left;
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--stroke);
+  vertical-align: middle;
+}
+
+.metrics-list-table th {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+  font-weight: 700;
+  background: color-mix(in srgb, var(--panel) 92%, var(--stroke));
+}
+
+.metrics-list-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
 
 .alerts-grid {
   display: grid;

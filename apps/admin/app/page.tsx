@@ -406,6 +406,16 @@ export default async function Home({
         { ttlMs: 1500 }
       )
     : { ok: false, status: 401, json: { error: "missing_admin_token" } };
+  const overdueSubsRes = hasToken
+    ? await fetchAdminCached(`/admin/subscriptions?take=200&estado=mora${tenantId ? `&tenantId=${encodeURIComponent(tenantId)}` : ""}`, {
+        ttlMs: 1500
+      })
+    : { ok: false, status: 401, json: { error: "missing_admin_token" } };
+  const healthySubsRes = hasToken
+    ? await fetchAdminCached(`/admin/subscriptions?take=200&estado=si${tenantId ? `&tenantId=${encodeURIComponent(tenantId)}` : ""}`, {
+        ttlMs: 1500
+      })
+    : { ok: false, status: 401, json: { error: "missing_admin_token" } };
   const settingsRes = hasToken ? await fetchAdminCached("/admin/settings", { ttlMs: 1500 }) : { ok: false, json: null };
   const aiConfig = settingsRes.ok ? settingsRes.json?.ai : null;
   const aiProviders = aiConfig?.providers || null;
@@ -477,6 +487,23 @@ export default async function Home({
   const autoApprovalPct = autoTotal > 0 ? (autoOk / autoTotal) * 100 : 0;
   const autoChurn = metrics.json?.totals?.auto?.churnMonthlyPct ?? null;
   const recentPayments = paymentsRes.ok ? paymentsRes.json?.items || [] : [];
+  const overdueSubs = overdueSubsRes.ok ? overdueSubsRes.json?.items || [] : [];
+  const healthySubs = healthySubsRes.ok ? healthySubsRes.json?.items || [] : [];
+  const modeLabel = (s: any) => {
+    const mode = String(s?.metadata?.collectionMode || s?.plan?.metadata?.collectionMode || "MANUAL_LINK").toUpperCase();
+    if (mode === "AUTO_DEBIT") return "Débito automático";
+    if (mode === "AUTO_LINK") return "Link de pago";
+    return "Manual";
+  };
+  const statusLabel = (status: string) => {
+    const up = String(status || "").toUpperCase();
+    if (up === "PAST_DUE") return "En mora";
+    if (up === "ACTIVE") return "Al día";
+    if (up === "SUSPENDED") return "Suspendida";
+    if (up === "CANCELED") return "Cancelada";
+    if (up === "EXPIRED") return "Expirada";
+    return up || "—";
+  };
 
   const revenueTotalSeries = sum(revenueSeries);
   const revenueAvgSeries = avg(revenueSeries);
@@ -1128,6 +1155,90 @@ export default async function Home({
                           />
                         </div>
                       ) : null}
+                    </div>
+                  </div>
+
+                  <div className="grid2">
+                    <div className="card cardPad chart-card">
+                      <details className="metrics-list-details">
+                        <summary className="metrics-list-summary">
+                          <span>Clientes en mora</span>
+                          <strong>{overdueSubs.length}</strong>
+                        </summary>
+                        <div className="metrics-list-table-wrap">
+                          <table className="metrics-list-table">
+                            <thead>
+                              <tr>
+                                <th>Cliente</th>
+                                <th>Plan</th>
+                                <th>Tipo</th>
+                                <th>Próximo cobro/corte</th>
+                                <th>Estado</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {overdueSubs.length ? (
+                                overdueSubs.map((s: any) => (
+                                  <tr key={`overdue-${s.id}`}>
+                                    <td>{s?.customer?.name || s?.customer?.email || "Cliente"}</td>
+                                    <td>{s?.plan?.name || "—"}</td>
+                                    <td>{modeLabel(s)}</td>
+                                    <td>{s?.currentPeriodEndAt ? fmtDateTimeShort(s.currentPeriodEndAt) : "Sin fecha"}</td>
+                                    <td>
+                                      <span className="pill pill-bad pill-sm">{statusLabel(s?.status)}</span>
+                                    </td>
+                                  </tr>
+                                ))
+                              ) : (
+                                <tr>
+                                  <td colSpan={5} className="muted">No hay suscripciones en mora.</td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </details>
+                    </div>
+
+                    <div className="card cardPad chart-card">
+                      <details className="metrics-list-details">
+                        <summary className="metrics-list-summary">
+                          <span>Clientes al día</span>
+                          <strong>{healthySubs.length}</strong>
+                        </summary>
+                        <div className="metrics-list-table-wrap">
+                          <table className="metrics-list-table">
+                            <thead>
+                              <tr>
+                                <th>Cliente</th>
+                                <th>Plan</th>
+                                <th>Tipo</th>
+                                <th>Próximo cobro/corte</th>
+                                <th>Estado</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {healthySubs.length ? (
+                                healthySubs.map((s: any) => (
+                                  <tr key={`healthy-${s.id}`}>
+                                    <td>{s?.customer?.name || s?.customer?.email || "Cliente"}</td>
+                                    <td>{s?.plan?.name || "—"}</td>
+                                    <td>{modeLabel(s)}</td>
+                                    <td>{s?.currentPeriodEndAt ? fmtDateTimeShort(s.currentPeriodEndAt) : "Sin fecha"}</td>
+                                    <td>
+                                      <span className="pill pill-ok pill-sm">{statusLabel(s?.status)}</span>
+                                    </td>
+                                  </tr>
+                                ))
+                              ) : (
+                                <tr>
+                                  <td colSpan={5} className="muted">No hay suscripciones al día.</td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </details>
                     </div>
                   </div>
                 </>

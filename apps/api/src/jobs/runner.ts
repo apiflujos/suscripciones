@@ -17,6 +17,7 @@ import { dataTrainer } from "./handlers/dataTrainer";
 import { reconcileWompiByReference, reconcileWompiTransaction } from "../services/wompiReconcile";
 import { resolveSubscriptionCollectionMode } from "../services/subscriptionMode";
 import { ensurePaymentRetryJob } from "../services/retryJobScheduler";
+import { handleSubscriptionPaymentFailure, ensureExpiredSubscriptions } from "../services/subscriptionBilling";
 
 loadEnv(process.env);
 const workerId = `jobs:${process.pid}`;
@@ -642,6 +643,13 @@ async function runOnce() {
         const canRetry = cfg.enabled && cfg.retryEnabled && attempts <= cfg.maxRetries;
         status = canRetry ? RetryJobStatus.PENDING : RetryJobStatus.FAILED;
         runAt = canRetry ? nextRunAtMinutes(cfg.retryEveryMinutes) : undefined;
+        
+        if (status === RetryJobStatus.FAILED) {
+          const subId = (job.payload as any)?.subscriptionId;
+          if (subId) {
+            await handleSubscriptionPaymentFailure(subId, errMsg).catch(() => {});
+          }
+        }
       }
       await prisma.retryJob.update({
         where: { id: job.id },
@@ -683,6 +691,7 @@ async function main() {
       await ensureWompiWebhookRecoveryJobs();
       await ensureDueCutoffRetries();
       await ensurePaymentRetryQueueHealth();
+      await ensureExpiredSubscriptions();
       await runOnce();
       await new Promise((r) => setTimeout(r, 1000));
     } catch (err: any) {

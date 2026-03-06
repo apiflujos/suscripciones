@@ -47,13 +47,39 @@ function isNoisySystemLog(source: string, message: string) {
   const s = String(source || "").toLowerCase().trim();
   const m = String(message || "").toLowerCase();
 
-  if (s === "sql.console" || s === "data_trainer") return true;
-  if (s === "notifications.dispatch" && /procesando notificacion|mensaje en cola para envio|mensaje enviado|tipo de pago no permitido/.test(m)) return true;
-  if (s === "notifications.schedule" && /no hay reglas activas para notificaciones|notificaciones omitidas: no hay reglas activas|notificaciones programadas|notificaciones enviadas/.test(m)) return true;
-  if (s === "processwompievent" && /subscription_reference_not_found|referencia de suscripción no encontrada|payment_link_not_found|link de pago no encontrado|falling back to inference|proceeding by inference/.test(m)) return true;
-  if (/forward returned 5xx|reenvío respondió 5xx/.test(m)) return true;
+  // Ignorar ruido técnico y logs de auditoría interna
+  if (s === "sql.console" || s === "data_trainer" || s === "audit.billing") return true;
+  
+  // Ignorar flujo normal de notificaciones y webhooks (solo ruido en la campanita)
+  if (s === "notifications.dispatch" || s === "notifications.schedule") return true;
+  if (s === "chatwoot.send" && m.includes("enviado")) return true;
+  if (s === "webhooks.wompi" && m.includes("recibido")) return true;
+  if (s === "processwompievent" && (m.includes("recibido") || m.includes("concluido") || m.includes("conciliado"))) return true;
+  
+  // Ignorar ruidos de inferencia (ya se manejan en el flujo de pagos)
+  if (m.includes("proceeding by inference") || m.includes("asociar automáticamente")) return true;
 
   return false;
+}
+
+function formatSystemTitle(source: string, message: string, kind: string, level: string): string {
+  const m = message.toLowerCase();
+  const s = source.toLowerCase();
+
+  if (kind === "payment_approved") return "Pago Aprobado";
+  if (kind === "payment_failed") return "Pago Fallido";
+  if (kind === "subscription_failed") return "Error en Suscripción";
+  if (s.includes("jobs.payment_retry")) return "Reintento de Cobro";
+  if (s.includes("subscriptions.lifecycle")) {
+    if (m.includes("past_due")) return "Suscripción en Mora";
+    if (m.includes("expired")) return "Suscripción Expirada";
+  }
+  if (m.includes("link generado") || kind === "link_sent") return "Link de Pago Creado";
+  if (m.includes("mensaje enviado") || kind === "message_sent") return "Mensaje Enviado";
+  
+  if (level === "ERROR") return "Alerta Crítica";
+  if (level === "WARN") return "Advertencia";
+  return "Aviso del Sistema";
 }
 
 function moduleHrefFromEvent(args: { source?: string; kind?: string; message?: string; fallback?: string }) {
@@ -80,35 +106,30 @@ function buildContextSummary(context: any) {
     context.customer,
     context.contactName,
     context.customerEmail,
-    context.customerPhone,
-    context.phone
+    context.customerPhone
   );
   const subscription = firstText(
     context.subscriptionRef,
-    context.subscriptionReference,
-    context.subscriptionId,
-    context.subscription_id
+    context.subscriptionReference
   );
-  const plan = firstText(context.planName, context.planCode, context.planId);
-  const product = firstText(context.productName, context.productId);
+  const plan = firstText(context.planName, context.planCode);
   const reference = firstText(
     context.reference,
     context.txRef,
     context.transactionId,
-    context.paymentId,
-    context.wompiTransactionId,
-    context.paymentLinkId
+    context.wompiTransactionId
   );
-  const actionHint = firstText(context.actionHint, context.hint, context.reasonCode);
+  const actionHint = firstText(context.actionHint, context.reasonCode);
+  
   const parts = [
     customer ? `Cliente: ${customer}` : "",
-    subscription ? `Suscripción: ${subscription}` : "",
+    subscription ? `Sub: ${subscription}` : "",
     plan ? `Plan: ${plan}` : "",
-    product ? `Producto: ${product}` : "",
     reference ? `Ref: ${reference}` : "",
     actionHint ? `Acción: ${actionHint}` : ""
   ].filter(Boolean);
-  return compactText(parts.join(" · "), 260);
+  
+  return compactText(parts.join(" · "), 320);
 }
 
 async function collectEvents(apiBase: string, token: string, since: string) {
@@ -306,20 +327,7 @@ async function collectEvents(apiBase: string, token: string, since: string) {
       level: level === "ERROR" ? "error" : "info",
       ts: createdAt,
       source,
-      title:
-        kind === "message_sent"
-          ? "Mensaje enviado"
-          : kind === "message_failed"
-            ? "Mensaje fallido"
-            : kind === "link_sent"
-              ? "Link generado"
-              : kind === "link_failed"
-                ? "Link fallido"
-                : kind === "subscription_failed"
-                  ? "Suscripción fallida"
-                  : level === "ERROR"
-                    ? "Alerta del sistema"
-                    : "Aviso del sistema",
+      title: formatSystemTitle(source, message, kind, level),
       message: finalMessage,
       sound: null,
       kind,

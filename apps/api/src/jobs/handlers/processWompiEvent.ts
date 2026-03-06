@@ -15,6 +15,7 @@ import { applyGamificationEvent, GAMIFICATION_EVENT_KINDS } from "../../services
 import { GAMIFICATION_WEIGHTS, moneyToPoints } from "../../services/gamificationConfig";
 import { resolveSubscriptionCollectionMode } from "../../services/subscriptionMode";
 import { ensurePaymentRetryJob } from "../../services/retryJobScheduler";
+import { getSubscriptionPricingTotal, getPlanCollectionMode } from "../../lib/metadataSchemas";
 
 type WompiCustomerData = {
   full_name?: string;
@@ -206,13 +207,8 @@ function normalizeNameForMatch(value: unknown): string {
     .toLowerCase();
 }
 
-function readSubscriptionPricingTotalInCents(subscriptionMeta: unknown): number | null {
-  if (!subscriptionMeta || typeof subscriptionMeta !== "object") return null;
-  const raw = (subscriptionMeta as any)?.pricing?.totalInCents;
-  const num = Number(raw);
-  if (!Number.isFinite(num)) return null;
-  const value = Math.trunc(num);
-  return value > 0 ? value : 0;
+function readSubscriptionPricingTotalInCents(subscriptionMeta: unknown, fallback: number): number {
+  return getSubscriptionPricingTotal(subscriptionMeta, fallback);
 }
 
 function getPaidAtFromPayload(payload: WompiPayload): Date | null {
@@ -269,9 +265,21 @@ function resolvePersistedPaymentStatus(
 }
 
 export async function processWompiEventLogic(webhookEventId: string, db: typeof prisma) {
-  const event = await db.webhookEvent.findUnique({ where: { id: webhookEventId } });
-  if (!event) return;
-  if (event.processStatus === WebhookProcessStatus.PROCESSED) return;
+  // Lock to prevent race conditions between inline processing and background worker.
+  const lockKey = `webhook-process:${webhookEventId}`;
+  const lockAcquired = await db.$queryRaw<{ locked: boolean }[]>`
+    SELECT pg_try_advisory_lock(hashtext(${lockKey})) as locked
+  `.then(rows => Boolean(rows?.[0]?.locked)).catch(() => false);
+
+  if (!lockAcquired) {
+    logger.info({ webhookEventId }, "Webhook processing already in progress (lock skip)");
+    return;
+  }
+
+  try {
+    const event = await db.webhookEvent.findUnique({ where: { id: webhookEventId } });
+    if (!event) return;
+    if (event.processStatus === WebhookProcessStatus.PROCESSED) return;
 
   const payload = (event.payload && typeof event.payload === "object" ? event.payload : {}) as WompiPayload;
   const tx = getTransactionFromPayload(payload);
@@ -431,8 +439,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     const incomingAmount = Number(amountInCents || 0);
     const incomingCurrency = String(currency || "").trim().toUpperCase();
     const withExactAmount = candidates.filter((s: any) => {
-      const pricingAmount = readSubscriptionPricingTotalInCents(s?.metadata);
-      const planAmount = Number((pricingAmount ?? s?.plan?.priceInCents) || 0);
+      const planAmount = readSubscriptionPricingTotalInCents(s?.metadata, s?.plan?.priceInCents || 0);
       const planCurrency = String(s?.plan?.currency || "").trim().toUpperCase();
       if (!incomingAmount || !incomingCurrency) return false;
       return planAmount === incomingAmount && (!planCurrency || planCurrency === incomingCurrency);
@@ -442,25 +449,10 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     }
 
     if (withExactAmount.length > 1) {
-      const statusRank = (status: SubscriptionStatus) => {
-        if (status === SubscriptionStatus.ACTIVE) return 1;
-        if (status === SubscriptionStatus.PAST_DUE) return 2;
-        if (status === SubscriptionStatus.SUSPENDED) return 3;
-        return 9;
-      };
-      const paidAtTs = getPaidAtFromPayload(payload)?.getTime() || Date.now();
-      const scored = withExactAmount
-        .map((s: any) => {
-          const endAt = new Date(s.currentPeriodEndAt || s.updatedAt || s.createdAt).getTime();
-          const distance = Number.isFinite(endAt) ? Math.abs(endAt - paidAtTs) : Number.MAX_SAFE_INTEGER;
-          return { s, scoreA: statusRank(s.status), scoreB: distance };
-        })
-        .sort((a, b) => (a.scoreA - b.scoreA) || (a.scoreB - b.scoreB));
-      const best = scored[0]?.s || null;
-      if (best) return { subscriptionId: best.id, reason: "identity_amount_ranked", count: withExactAmount.length };
+      return { subscriptionId: "", reason: "subscription_ambiguous_for_identity", count: withExactAmount.length };
     }
 
-    return { subscriptionId: "", reason: "subscription_ambiguous_for_identity", count: candidates.length };
+    return { subscriptionId: "", reason: "subscription_not_found_for_identity", count: candidates.length };
   };
 
   if (!paymentMatched && !inferredSubscriptionId) {
@@ -800,8 +792,18 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     data: { processStatus: WebhookProcessStatus.PROCESSED, processedAt: new Date() }
   });
 
-  await schedulePaymentStatusNotifications({ paymentId: paymentRecord.id, forceNow: true }).catch(() => {});
-  await syncChatwootAttributesForCustomer(paymentRecord.customerId).catch(() => {});
+  await schedulePaymentStatusNotifications({ paymentId: paymentRecord.id, forceNow: true }).catch((err) => {
+    systemLog(LogLevel.ERROR, "notifications.payment_status", "Fallo al programar notificaciones de pago", {
+      paymentId: paymentRecord.id,
+      error: String(err?.message || err)
+    }).catch(() => {});
+  });
+  await syncChatwootAttributesForCustomer(paymentRecord.customerId).catch((err) => {
+    systemLog(LogLevel.WARN, "chatwoot.sync", "Fallo al sincronizar atributos de Chatwoot", {
+      customerId: paymentRecord.customerId,
+      error: String(err?.message || err)
+    }).catch(() => {});
+  });
 
   const becameApproved = !wasApproved && nextStatus === PaymentStatus.APPROVED;
   const becameFailed = !wasFailed && (nextStatus === PaymentStatus.DECLINED || nextStatus === PaymentStatus.ERROR || nextStatus === PaymentStatus.VOIDED);
@@ -935,13 +937,15 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     });
 
     // Notificaciones: la confirmación de pago se maneja por reglas (PAYMENT_APPROVED).
-    if (advancedTo) {
-      await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});
+          if (advancedTo) {
+          await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});
+        }
+      }
+      } finally {
+        await db.$queryRaw`SELECT pg_advisory_unlock(hashtext(${lockKey}))`.catch(() => {});
+      }
     }
-  }
-}
-
-export async function processWompiEvent(webhookEventId: string) {
+    export async function processWompiEvent(webhookEventId: string) {
   return processWompiEventLogic(webhookEventId, prisma);
 }
 

@@ -28,19 +28,39 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
   if (!subscriptionId) {
     throw new Error("subscription_not_found");
   }
-  const sub = await prisma.subscription.findUnique({ where: { id: subscriptionId }, include: { plan: true } });
-  if (!sub) throw new Error("subscription_not_found");
-  if (sub.status === "CANCELED") throw new Error("subscription_canceled");
+
+  const lockKey = `payment-retry:${subscriptionId}`;
+  const lockAcquired = await prisma.$queryRaw<{ locked: boolean }[]>`
+    SELECT pg_try_advisory_lock(hashtext(${lockKey})) as locked
+  `.then(rows => Boolean(rows?.[0]?.locked)).catch(() => false);
+
+  if (!lockAcquired) {
+    return { status: "deferred", mode: "MANUAL_LINK", reason: "lock_failed", subscriptionId, nextRunAt: new Date(Date.now() + 60_000) };
+  }
+
+  try {
+    const sub = await prisma.subscription.findUnique({ where: { id: subscriptionId }, include: { plan: true } });
+    if (!sub) throw new Error("subscription_not_found");
+    if (sub.status === "CANCELED") throw new Error("subscription_canceled");
 
   const mode = resolveSubscriptionCollectionMode(sub);
   if (mode === "AUTO_DEBIT" || mode === "AUTO_LINK") {
+    const autoDebitConfig = await getAutoDebitConfig();
     const now = new Date();
+    
+    // Safety window: if there's a pending charge within the expected retry duration, skip.
+    // Default to a safe 24h if config is minimal, otherwise use (interval * attempts * 2) as buffer.
+    const retryWindowMinutes = autoDebitConfig.retryEnabled 
+      ? (autoDebitConfig.retryEveryMinutes * Math.max(1, autoDebitConfig.maxRetries) * 2)
+      : 1440; // 24h default buffer if retries disabled
+    const safetyWindowMinutes = Math.max(120, retryWindowMinutes); // At least 2h buffer
+
     const recentPendingAutoCharge = await prisma.payment.findFirst({
       where: {
         subscriptionId,
         status: "PENDING",
         wompiTransactionId: { not: null },
-        createdAt: { gte: new Date(now.getTime() - 36 * 60 * 60 * 1000) }
+        createdAt: { gte: new Date(now.getTime() - safetyWindowMinutes * 60 * 1000) }
       },
       orderBy: { createdAt: "desc" },
       select: { id: true, wompiTransactionId: true, createdAt: true }
@@ -157,4 +177,7 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
     action: "PAYMENT_LINK_CREATED",
     subscriptionId
   };
+  } finally {
+    await prisma.$queryRaw`SELECT pg_advisory_unlock(hashtext(${lockKey}))`.catch(() => {});
+  }
 }
