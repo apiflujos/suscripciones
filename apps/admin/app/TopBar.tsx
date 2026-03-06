@@ -200,7 +200,16 @@ export function TopBar({ session }: { session: AdminSession | null }) {
             title: normalizeSystemText(item?.title || ""),
             message: normalizeSystemText(item?.message || "")
           };
-          if (isNoiseNotification({ title: normalized.title, message: normalized.message, kind: (raw as any)?.kind })) continue;
+          if (
+            isNoiseNotification({
+              source: (raw as any)?.source,
+              title: normalized.title,
+              message: normalized.message,
+              kind: (raw as any)?.kind
+            })
+          ) {
+            continue;
+          }
           const key = notifKey(normalized);
           const prev = dedup.get(key);
           const prevTs = prev ? new Date(prev.ts).getTime() : Number.NaN;

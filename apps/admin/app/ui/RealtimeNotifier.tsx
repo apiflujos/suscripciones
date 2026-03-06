@@ -349,7 +349,7 @@ export function RealtimeNotifier() {
         title: normalizeSystemText(e?.title || ""),
         message: normalizeSystemText(e?.message || "")
       }))
-      .filter((e) => !isNoiseNotification({ title: e.title, message: e.message, kind: e.kind }))
+      .filter((e) => !isNoiseNotification({ source: e.source, title: e.title, message: e.message, kind: e.kind }))
       .filter((e) => {
       if (!e?.id) return true;
       if (seenIdsRef.current.has(e.id)) return false;

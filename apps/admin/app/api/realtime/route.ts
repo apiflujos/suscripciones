@@ -58,6 +58,9 @@ function isNoisySystemLog(source: string, message: string) {
   
   // Ignorar ruidos de inferencia (ya se manejan en el flujo de pagos)
   if (m.includes("proceeding by inference") || m.includes("asociar automáticamente")) return true;
+  if (m.includes("webhook sin suscripción asociada; pago creado en fallback")) return true;
+  if (m.includes("link de pago no encontrado: asociación automática")) return true;
+  if (m.includes("forward returned 5xx but treated as accepted")) return true;
 
   return false;
 }
@@ -210,7 +213,10 @@ async function collectEvents(apiBase: string, token: string, since: string) {
     if (status !== "FAILED") continue;
     const type = String(j.type || "");
     const detail = String(j.lastError || "Sin detalle");
-    if (type === "PAYMENT_RETRY" && /subscription_canceled|subscription_not_found|charge_not_due_yet|not_due_yet/.test(detail)) {
+    if (
+      type === "PAYMENT_RETRY" &&
+      /subscription_canceled|subscription_not_found|charge_not_due_yet|not_due_yet|invalid_mode_not_auto_debit|blocked_non_auto_debit_subscription|disabled_manual_hotfix_mass_fake_success/.test(detail)
+    ) {
       continue;
     }
     const title = "Job fallido";

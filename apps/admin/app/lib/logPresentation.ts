@@ -46,6 +46,16 @@ export function isNoiseNotification(input: { source?: unknown; title?: unknown; 
   // Ignorar avisos informativos genéricos que no sean errores/alertas
   if (kind === "webhook_received" || kind === "heartbeat") return true;
   if (kind === "message_sent" || kind === "link_sent") return true;
+  if (whole.includes("webhook sin suscripción asociada; pago creado en fallback")) return true;
+  if (whole.includes("link de pago no encontrado: asociación automática")) return true;
+  if (whole.includes("forward returned 5xx but treated as accepted")) return true;
+  if (
+    whole.includes("payment_retry · invalid_mode_not_auto_debit") ||
+    whole.includes("payment_retry · blocked_non_auto_debit_subscription") ||
+    whole.includes("payment_retry · disabled_manual_hotfix_mass_fake_success")
+  ) {
+    return true;
+  }
 
   return false;
 }
