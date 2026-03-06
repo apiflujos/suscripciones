@@ -475,6 +475,8 @@ export default async function Home({
   const approvalPct = totalPayments > 0 ? (totalPaymentsOk / totalPayments) * 100 : 0;
   const avgTicket = totalPaymentsOk > 0 ? Math.round(totalRevenue / totalPaymentsOk) : 0;
   const totalActiveSubscriptions = Number(metrics.json?.totals?.totalActiveSubscriptions || 0);
+  const contactsPastDue = Number(metrics.json?.totals?.contactsPastDue ?? 0);
+  const contactsOnTime = Number(metrics.json?.totals?.contactsOnTime ?? 0);
   const linkConversionPctRaw = metrics.json?.totals?.link?.conversionLinkToPayPct ?? null;
   const autoMrr = Number(metrics.json?.totals?.auto?.mrrInCents || 0);
   const autoActive = Number(metrics.json?.totals?.auto?.activeSubscriptions || 0);
@@ -1163,7 +1165,7 @@ export default async function Home({
                       <details className="metrics-list-details">
                         <summary className="metrics-list-summary">
                           <span>Clientes en mora</span>
-                          <strong>{overdueSubs.length}</strong>
+                          <strong>{contactsPastDue}</strong>
                         </summary>
                         <div className="metrics-list-table-wrap">
                           <table className="metrics-list-table">
@@ -1204,7 +1206,7 @@ export default async function Home({
                       <details className="metrics-list-details">
                         <summary className="metrics-list-summary">
                           <span>Clientes al día</span>
-                          <strong>{healthySubs.length}</strong>
+                          <strong>{contactsOnTime}</strong>
                         </summary>
                         <div className="metrics-list-table-wrap">
                           <table className="metrics-list-table">

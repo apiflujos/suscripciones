@@ -279,6 +279,19 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
       ...(hasTenant ? { tenantId } : {})
     }
   });
+  const contactsStatusRow = await prisma.$queryRawUnsafe<
+    Array<{ contacts_on_time: bigint; contacts_past_due: bigint }>
+  >(
+    `SELECT
+       COUNT(DISTINCT s."customerId") FILTER (WHERE s."status" = 'ACTIVE')::bigint AS contacts_on_time,
+       COUNT(DISTINCT s."customerId") FILTER (WHERE s."status" = 'PAST_DUE')::bigint AS contacts_past_due
+     FROM "Subscription" s
+     WHERE s."startAt" < $1::timestamptz
+       AND (s."canceledAt" IS NULL OR s."canceledAt" >= $1::timestamptz)
+       ${tenantFilter("s", 2)}`,
+    to,
+    ...tenantArgs
+  );
 
   const linksTotalsRow = await prisma.$queryRawUnsafe<
     Array<{ links_sent: bigint; links_paid_any: bigint; links_paid_in_range: bigint; link_revenue_cents: bigint; avg_time_to_pay_sec: number | null }>
@@ -569,6 +582,8 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
     totals: {
       totalPlansSold: num(totalsPlansSoldRow[0]?.plans_sold ?? 0),
       totalActiveSubscriptions: activeSubsRow,
+      contactsOnTime: num(contactsStatusRow[0]?.contacts_on_time ?? 0),
+      contactsPastDue: num(contactsStatusRow[0]?.contacts_past_due ?? 0),
       totalPaymentsSuccessful: num(totalsPaymentsRow[0]?.payments_success ?? 0),
       totalPaymentsFailed: num(totalsPaymentsRow[0]?.payments_failed ?? 0),
       totalRevenueInCents: num(totalsPaymentsRow[0]?.revenue_cents ?? 0),
