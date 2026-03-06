@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { fetchAdminCached } from "../../lib/adminApi";
-import { assertCsrfToken } from "../../../lib/csrf";
+import { assertCsrfToken } from "../../lib/csrf";
 
 function toShortErrorMessage(err: unknown) {
   const raw = err instanceof Error ? err.message : String(err);

@@ -1,7 +1,7 @@
 import { fetchAdminCached } from "../../lib/adminApi";
 import { createUser } from "./actions";
-import { getCsrfToken } from "../../../lib/csrf";
-import { normalizeErrorParam } from "../../../lib/errorParam";
+import { getCsrfToken } from "../../lib/csrf";
+import { normalizeErrorParam } from "../../lib/errorParam";
 
 export default async function SettingsUsersPage({
   searchParams
