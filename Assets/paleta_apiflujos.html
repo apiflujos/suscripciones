@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ApiFlujos · Design System</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    (function() {
+      try {
+        const theme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    /* ========== VARIABLES GLOBALES (MARCA) ========== */
+    :root {
+      /* Royal Purple */
+      --royal-purple-50: #f9f7fd;
+      --royal-purple-100: #f1edfa;
+      --royal-purple-200: #e6def6;
+      --royal-purple-300: #d3c3ef;
+      --royal-purple-400: #b89de3;
+      --royal-purple-500: #9c77d5;
+      --royal-purple-600: #8559c4;
+      --royal-purple-700: #6d44a6;
+      --royal-purple-800: #5f3d8c;
+      --royal-purple-900: #4e3271;
+      --royal-purple-950: #331a51;
+      
+      /* Specific UI Colors */
+      --apf-ink-950: #0C0F1A;
+      --apf-ink-900: #1B1022;
+      --apf-cloud-50: #F6F2FA;
+      --apf-white: #FFFFFF;
+      --apf-slate-600: #5B6070;
+      --apf-slate-400: #94A3B8;
+      
+      /* Tipografía */
+      --font-primary: 'Poppins', system-ui, sans-serif;
+      --font-secondary: 'Manrope', system-ui, sans-serif;
+    }
+
+    /* ========== TEMA CLARO (Apiflujos Brand) ========== */
+    :root[data-theme="light"] {
+      --bg-body: var(--apf-cloud-50);
+      --bg-panel: var(--apf-white);
+      --bg-hover: var(--royal-purple-50);
+      
+      --text-heading: var(--apf-ink-950);
+      --text-body: var(--apf-ink-900);
+      --text-muted: var(--apf-slate-600);
+      
+      --border-soft: rgba(15, 23, 42, 0.1);
+      --border-hard: rgba(15, 23, 42, 0.2);
+      
+      --primary: var(--royal-purple-700);
+      --primary-hover: var(--royal-purple-800);
+      --primary-soft: var(--royal-purple-100);
+      --primary-text: var(--royal-purple-950);
+      
+      /* Semánticos Optimizados (Inspirados en Okabe-Ito para contraste AA) */
+      --success: #008561;
+      --success-bg: #e6fcf5;
+      --warning: #bf8500;
+      --warning-bg: #fff9db;
+      --error: #d44000;
+      --error-bg: #fff5f5;
+      --info: #0076b2;
+      --info-bg: #e7f5ff;
+
+      --btn-hover-bg: var(--royal-purple-800);
+      --btn-primary-hover: var(--royal-purple-800);
+      --btn-outline-hover: var(--royal-purple-50);
+      --btn-success-hover: #047857;
+      --btn-danger-hover: #b91c1c;
+
+      --shadow-sm: 0 2px 4px rgba(30, 18, 52, 0.04);
+      --shadow-md: 0 8px 18px rgba(30, 18, 52, 0.08);
+    }
+
+    /* ========== TEMA OSCURO (Apiflujos Dark Brand) ========== */
+    :root[data-theme="dark"] {
+      --bg-body: #0a0510;
+      --bg-panel: #160e22;
+      --bg-hover: #261638;
+      
+      --text-heading: #f9f7fd;
+      --text-body: #e6def6;
+      --text-muted: #b89de3;
+      
+      --border-soft: rgba(255, 255, 255, 0.1);
+      --border-hard: rgba(255, 255, 255, 0.2);
+      
+      --primary: var(--royal-purple-500);
+      --primary-hover: var(--royal-purple-400);
+      --primary-soft: rgba(156, 119, 213, 0.15);
+      --primary-text: var(--royal-purple-50);
+      
+      /* Semánticos Dark (Brillantes para contraste en fondo oscuro) */
+      --success: #63e6be;
+      --success-bg: rgba(0, 158, 115, 0.2);
+      --warning: #ffd43b;
+      --warning-bg: rgba(230, 159, 0, 0.2);
+      --error: #ff8787;
+      --error-bg: rgba(213, 94, 0, 0.2);
+      --info: #74c0fc;
+      --info-bg: rgba(86, 180, 233, 0.2);
+
+      --btn-hover-bg: var(--royal-purple-400);
+      --btn-primary-hover: var(--royal-purple-400);
+      --btn-outline-hover: rgba(255, 255, 255, 0.1);
+      --btn-success-hover: #10b981;
+      --btn-danger-hover: #ef4444;
+
+      --shadow-sm: 0 2px 4px rgba(0,0,0, 0.5);
+      --shadow-md: 0 8px 18px rgba(0,0,0, 0.5);
+    }
+
+    /* ========== ALTO CONTRASTE (Estándar Internacional - NO MARCA) ========== */
+    :root[data-theme="high-contrast"] {
+      --bg-body: #000000;
+      --bg-panel: #000000;
+      --bg-hover: #000000;
+      
+      --text-heading: #ffffff;
+      --text-body: #ffffff;
+      --text-muted: #cccccc;
+      
+      --border-soft: #ffff00;
+      --border-hard: #ffff00;
+      
+      --primary: #ffff00;
+      --primary-hover: #ffffff;
+      --primary-soft: #000000;
+      --primary-text: #000000;
+      
+      /* Semánticos Alto Contraste */
+      --success: #00ff00;
+      --success-bg: #000000;
+      --warning: #ffff00;
+      --warning-bg: #000000;
+      --error: #ff0000;
+      --error-bg: #000000;
+      --info: #00ffff;
+      --info-bg: #000000;
+
+      /* Colores adicionales AAA (≥7:1) sobre negro (#000), curados para alto contraste */
+      --hc-extra-1: #e8d5ff;  /* Purple pastel  · WCAG AAA */
+      --hc-extra-2: #b3e5ff;  /* Sky pastel      · WCAG AAA */
+      --hc-extra-3: #7dffd4;  /* Teal brillante  · WCAG AAA */
+      --hc-extra-5: #ff9e80;  /* Coral brillante · WCAG AAA */
+      --hc-extra-6: #ffb3e6;  /* Pink brillante  · WCAG AAA */
+
+      --btn-hover-bg: #ffffff;
+      --btn-primary-hover: #ffffff;
+      --btn-primary-text-hover: #000000;
+      --btn-outline-hover: #ffff00;
+      --btn-outline-text-hover: #000000;
+      --btn-success-hover: #00ff00;
+      --btn-danger-hover: #ff0000;
+      --btn-border-hover: #ffffff;
+
+      --shadow-sm: none;
+      --shadow-md: none;
+      --hc-border-width: 3px;
+    }
+
+    /* ========== MODO ACCESIBILIDAD (Daltonismo - Okabe Ito) ========== */
+    :root[data-theme="safe"] {
+      --bg-body: #ffffff;
+      --bg-panel: #f8fafc;
+      --bg-hover: #e2e8f0;
+      
+      --text-heading: #000000;
+      --text-body: #000000;
+      --text-muted: #4b5563;
+      
+      --border-soft: #cbd5e1;
+      --border-hard: #94a3b8;
+      
+      --primary: #0072B2; /* Okabe Blue (Vermilion #D55E00 is also good for primary) */
+      --primary-hover: #005f9e;
+      --primary-soft: #e0f2fe;
+      --primary-text: #ffffff;
+      
+      /* Semánticos Safe (Okabe-Ito Palette) */
+      --success: #009E73; /* Bluish Green */
+      --success-bg: #ecfdf5;
+      --warning: #E69F00; /* Orange */
+      --warning-bg: #fffbeb;
+      --error: #D55E00;   /* Vermilion */
+      --error-bg: #fef2f2;
+      --info: #56B4E9;    /* Sky Blue */
+      --info-bg: #f0f9ff;
+
+      /* Hovers Safe */
+      --btn-hover-bg: #005f9e;
+      --btn-primary-hover: #005f9e;
+      --btn-outline-hover: #f1f5f9;
+      --btn-success-hover: #00815d;
+      --btn-danger-hover: #b54f00;
+
+      /* Colores adicionales optimizados para Daltonismo */
+      --safe-extra-1: #351c75; /* Púrpura oscuro */
+      --safe-extra-2: #073763; /* Azul marino */
+      --safe-extra-3: #274e13; /* Verde bosque */
+      --safe-extra-4: #783f04; /* Marrón */
+      --safe-extra-5: #741b47; /* Magenta oscuro */
+      --safe-extra-6: #CC79A7; /* Reddish Purple */
+      --safe-extra-7: #000000;
+
+      --shadow-sm: 0 1px 3px rgba(0,0,0, 0.1);
+      --shadow-md: 0 4px 6px rgba(0,0,0, 0.1);
+    }
+
+    /* ========== ESTILOS BASE ========== */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-primary);
+      background-color: var(--bg-body);
+      color: var(--text-body);
+      line-height: 1.6;
+      padding: 2rem;
+      transition: background-color 0.2s, color 0.2s;
+    }
+    .container { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 3rem; }
+    
+    /* Header & Theme Switcher */
+    header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding-bottom: 1.5rem; border-bottom: 2px solid var(--border-soft);
+      flex-wrap: wrap; gap: 1rem;
+    }
+    .brand-title { font-size: 1.5rem; font-weight: 700; color: var(--text-heading); }
+    .brand-title span { color: var(--primary); }
+    
+    .theme-selector { display: flex; gap: 0.5rem; }
+    .theme-btn {
+      padding: 0.5rem 1rem; background: var(--bg-panel);
+      border: 1px solid var(--border-hard); border-radius: 8px;
+      color: var(--text-body); cursor: pointer; font-weight: 600;
+      font-family: var(--font-primary); font-size: 0.85rem;
+    }
+    .theme-btn.active {
+      background: var(--primary); color: var(--primary-text);
+      border-color: var(--primary);
+    }
+    :root[data-theme="high-contrast"] .theme-btn { border-width: var(--hc-border-width); }
+
+    /* Secciones */
+    .section-title {
+      font-size: 1.25rem; font-weight: 700; color: var(--text-heading);
+      margin-bottom: 1.5rem; text-transform: uppercase; letter-spacing: 0.05em;
+    }
+
+    /* Tipografía */
+    .type-specimen {
+      background: var(--bg-panel); padding: 2rem; border-radius: 16px;
+      border: 1px solid var(--border-soft); box-shadow: var(--shadow-sm);
+      display: grid; gap: 1.5rem;
+    }
+    :root[data-theme="high-contrast"] .type-specimen { border-width: var(--hc-border-width); }
+    .type-specimen h1 { font-size: 2.5rem; color: var(--text-heading); margin-bottom: 0.5rem; }
+    .type-specimen h2 { font-size: 1.75rem; color: var(--text-heading); margin-bottom: 0.5rem; }
+    .type-specimen h3 { font-size: 1.25rem; color: var(--text-heading); margin-bottom: 0.5rem; }
+    .type-specimen p { font-size: 1rem; color: var(--text-body); }
+    .type-specimen .text-muted { font-size: 0.875rem; color: var(--text-muted); }
+
+    /* Paleta */
+    .palette-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 1rem;
+    }
+    .color-swatch {
+      background: var(--bg-panel); border: 1px solid var(--border-soft);
+      border-radius: 12px; overflow: hidden; box-shadow: var(--shadow-sm);
+    }
+    :root[data-theme="high-contrast"] .color-swatch { border-width: var(--hc-border-width); }
+    .swatch-color { height: 60px; width: 100%; border-bottom: 1px solid var(--border-soft); }
+    .swatch-info { padding: 0.75rem; font-size: 0.8rem; }
+    .swatch-name { font-weight: 700; color: var(--text-heading); margin-bottom: 0.25rem; }
+    .swatch-hex { color: var(--text-muted); font-family: monospace; }
+    
+    /* Aislamiento de Temas */
+    .brand-only { transition: opacity 0.3s; }
+    :root[data-theme="high-contrast"] .brand-only,
+    :root[data-theme="safe"] .brand-only { display: none !important; }
+
+    .hc-only { display: none !important; }
+    :root[data-theme="high-contrast"] .hc-only { display: block !important; }
+
+    .safe-only { display: none !important; }
+    :root[data-theme="safe"] .safe-only { display: block !important; }
+    
+    .no-hc { display: block; }
+    :root[data-theme="high-contrast"] .no-hc { display: none !important; }
+
+    .no-safe { display: block; }
+    :root[data-theme="safe"] .no-safe { display: none !important; }
+
+    /* Componentes */
+    .component-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+    }
+    .card {
+      background: var(--bg-panel); border: 1px solid var(--border-soft);
+      border-radius: 16px; padding: 1.2rem; box-shadow: var(--shadow-md);
+    }
+    :root[data-theme="high-contrast"] .card { border-width: var(--hc-border-width); }
+    
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 0.35rem 0.65rem; border-radius: 8px; font-weight: 600;
+      font-family: var(--font-primary); font-size: 12px; cursor: pointer;
+      border: 1px solid transparent; gap: 0.45rem; transition: 0.2s;
+      min-height: 31px;
+    }
+    :root[data-theme="high-contrast"] .btn { border-width: var(--hc-border-width); }
+    .btn-primary { background: var(--primary); color: var(--primary-text); }
+    .btn-primary:hover { background: var(--btn-primary-hover); }
+    :root[data-theme="high-contrast"] .btn-primary:hover { color: var(--btn-primary-text-hover); background: var(--btn-primary-hover); border-color: var(--btn-border-hover); }
+
+    .btn-outline { background: transparent; border-color: var(--primary); color: var(--primary); }
+    .btn-outline:hover { background: var(--btn-outline-hover); }
+    :root[data-theme="high-contrast"] .btn-outline:hover { color: var(--btn-outline-text-hover); background: var(--btn-outline-hover); border-color: var(--btn-border-hover); }
+
+    .btn-success { background: var(--success); color: var(--bg-body); }
+    .btn-success:hover { background: var(--btn-success-hover); }
+    :root[data-theme="high-contrast"] .btn-success:hover { background: var(--btn-success-hover); border-color: var(--btn-border-hover); color: #000000; }
+
+    .btn-danger { background: var(--error); color: var(--bg-body); }
+    .btn-danger:hover { background: var(--btn-danger-hover); }
+    :root[data-theme="high-contrast"] .btn-danger:hover { background: var(--btn-danger-hover); border-color: var(--btn-border-hover); color: #000000; }
+
+    .btn-secondary { background: var(--apf-slate-600); color: white; }
+    .btn-secondary:hover { opacity: 0.9; }
+    
+    .btn-link-action { background: #2563eb; color: white; } /* Azul tipo Link Pago */
+    .btn-link-action:hover { background: #1d4ed8; }
+    
+    .btn-ghost { background: transparent; color: var(--text-heading); border: 1px solid var(--border-soft); }
+    .btn-ghost:hover { background: var(--bg-hover); }
+
+    /* Variantes Extendidas */
+    .btn-indigo { background: #4f46e5; color: white; }
+    .btn-indigo:hover { background: #4338ca; }
+    
+    .btn-teal { background: #0d9488; color: white; }
+    .btn-teal:hover { background: #0f766e; }
+    
+    .btn-amber { background: #d97706; color: white; }
+    .btn-amber:hover { background: #b45309; }
+
+    /* Hovers en HC para nuevas variantes */
+    :root[data-theme="high-contrast"] .btn-indigo:hover,
+    :root[data-theme="high-contrast"] .btn-teal:hover,
+    :root[data-theme="high-contrast"] .btn-amber:hover {
+      background: white; color: black; border-color: white;
+    }
+
+    .btn i, .btn svg { width: 14px; height: 14px; }
+
+    /* Formularios con Icono */
+    .input-with-icon { position: relative; display: flex; align-items: center; }
+    .input-with-icon i, .input-with-icon svg { position: absolute; left: 0.65rem; width: 14px; height: 14px; color: var(--text-muted); }
+    .input-with-icon .input-control { padding-left: 2.2rem; }
+
+    /* CARDS DE PRODUCTO */
+    .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.5rem; }
+    .product-card {
+      background: var(--bg-panel); border: 1px solid var(--border-soft); border-radius: 12px;
+      overflow: hidden; transition: transform 0.2s; box-shadow: var(--shadow-sm);
+      display: flex; flex-direction: column; height: 100%;
+    }
+    .product-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
+    .product-img { height: 140px; background: var(--bg-hover); display: flex; align-items: center; justify-content: center; color: var(--text-muted); flex-shrink: 0; }
+    .product-body { padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; flex-grow: 1; }
+    .product-name { font-weight: 700; color: var(--text-heading); font-size: 0.95rem; }
+    .product-body .btn { margin-top: auto; }
+    .product-price { font-size: 1.15rem; font-weight: 700; color: var(--primary); }
+    .product-stock { font-size: 0.75rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.3rem; margin-bottom: 0.5rem; }
+
+    /* PRODUCTOS EN LISTA (VISTA AVANZADA) */
+    .product-list { display: grid; gap: 0.75rem; }
+    .product-list-item {
+      background: var(--bg-panel); border: 1px solid var(--border-soft); border-radius: 12px;
+      padding: 0.75rem 1rem; display: flex; align-items: center; gap: 1rem; transition: background 0.2s;
+    }
+    .product-list-item:hover { background: var(--bg-hover); }
+    .product-list-img { width: 48px; height: 48px; border-radius: 8px; background: var(--bg-hover); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .product-list-info { flex-grow: 1; }
+    .product-list-actions { display: flex; gap: 0.5rem; }
+
+    /* LOGS Y REPORTES */
+    .log-list { background: var(--bg-panel); border: 1px solid var(--border-soft); border-radius: 8px; font-family: monospace; font-size: 0.75rem; overflow: hidden; }
+    .log-item { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border-soft); display: flex; gap: 1rem; align-items: center; }
+    .log-item:last-child { border-bottom: none; }
+    .log-time { color: var(--text-muted); white-space: nowrap; }
+    .log-level { font-weight: 700; text-transform: uppercase; width: 50px; }
+    .log-level.error { color: var(--error); }
+    .log-level.info { color: var(--info); }
+    
+    .mini-chart { display: flex; align-items: flex-end; gap: 4px; height: 40px; padding: 4px; }
+    .chart-bar { background: var(--primary); width: 8px; border-radius: 2px; transition: height 0.3s; }
+    .chart-bar:hover { filter: brightness(1.2); }
+
+    /* Formularios */
+    .input-group { margin-bottom: 1rem; }
+    .input-label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-heading); }
+    .input-control {
+      width: 100%; padding: 0.35rem 0.65rem; border-radius: 8px;
+      border: 1px solid var(--border-hard); background: var(--bg-body);
+      color: var(--text-body); font-family: var(--font-secondary);
+      font-size: 12.5px; min-height: 31px;
+    }
+    :root[data-theme="high-contrast"] .input-control { border-width: var(--hc-border-width); }
+
+    /* Pills / Badges */
+    .pill {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      padding: 0.25rem 0.75rem; border-radius: 999px;
+      font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+    }
+    :root[data-theme="high-contrast"] .pill { border: var(--hc-border-width) solid currentColor; }
+    
+    .pill-success { background: var(--success-bg); color: var(--success); }
+    .pill-warning { background: var(--warning-bg); color: var(--warning); }
+    .pill-error { background: var(--error-bg); color: var(--error); }
+    .pill-info { background: var(--info-bg); color: var(--info); }
+
+    /* Símbolos para Safe Mode */
+    .safe-icon { display: none; }
+    :root[data-theme="safe"] .safe-icon { display: inline; font-weight: bold; }
+    
+    /* Layout Real (Contactos/Suscripciones) */
+    .list-card {
+      background: var(--bg-panel); border: 1px solid var(--border-soft);
+      border-radius: 12px; display: flex; align-items: center; justify-content: space-between;
+      padding: 0.75rem 1.25rem; box-shadow: var(--shadow-sm); margin-bottom: 0.75rem;
+      flex-wrap: wrap; gap: 1rem; transition: transform 0.2s;
+    }
+    .list-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+    :root[data-theme="high-contrast"] .list-card { border-width: var(--hc-border-width); }
+    
+    .list-card-left { display: flex; align-items: center; gap: 1rem; }
+    .avatar {
+      width: 48px; height: 48px; border-radius: 50%;
+      background: var(--primary-soft); color: var(--primary);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 1.2rem; flex-shrink: 0;
+    }
+    :root[data-theme="high-contrast"] .avatar { border: var(--hc-border-width) solid var(--primary); }
+    
+    .contact-info { display: flex; flex-direction: column; }
+    .contact-name { font-weight: 700; color: var(--text-heading); font-size: 1.05rem; }
+    .contact-meta { font-size: 0.85rem; color: var(--text-muted); }
+    
+    .list-card-right { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
+    .price { font-weight: 700; font-size: 1.1rem; color: var(--text-heading); }
+
+    /* Purple + 7 compatibles (documentación visual) */
+    .compat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 0.8rem;
+      margin-bottom: 1rem;
+    }
+    .compat-chip {
+      border: 1px solid var(--border-soft);
+      background: var(--bg-panel);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+    .compat-color {
+      height: 42px;
+      border-bottom: 1px solid var(--border-soft);
+    }
+    .compat-meta {
+      padding: 0.5rem 0.65rem;
+      display: grid;
+      gap: 0.1rem;
+      font-size: 0.75rem;
+    }
+    .compat-meta strong { color: var(--text-heading); }
+    .compat-meta code { color: var(--text-muted); }
+
+    .compat-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid var(--border-soft);
+      border-radius: 12px;
+      overflow: hidden;
+      background: var(--bg-panel);
+      box-shadow: var(--shadow-sm);
+    }
+    .compat-table th,
+    .compat-table td {
+      padding: 0.65rem 0.75rem;
+      border-bottom: 1px solid var(--border-soft);
+      font-size: 0.8rem;
+      text-align: left;
+    }
+    .compat-table th {
+      color: var(--text-heading);
+      background: var(--bg-hover);
+      font-weight: 700;
+    }
+    .compat-table tbody tr:nth-child(even) td {
+      background: color-mix(in srgb, var(--bg-hover) 55%, var(--bg-panel));
+    }
+    .tone-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      border-radius: 999px;
+      padding: 0.2rem 0.55rem;
+      border: 1px solid var(--border-soft);
+      font-size: 0.73rem;
+      font-weight: 700;
+      color: var(--text-heading);
+      background: var(--bg-panel);
+    }
+    .tone-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      display: inline-block;
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+    }
+
+    /* Preview tipo payments (referencia suscripciones) */
+    .payments-preview {
+      border: 1px solid var(--border-soft);
+      border-radius: 12px;
+      overflow: hidden;
+      background: var(--bg-panel);
+      box-shadow: var(--shadow-sm);
+    }
+    .payments-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.7rem;
+      padding: 0.75rem;
+      border-bottom: 1px solid var(--border-soft);
+      background: var(--bg-hover);
+      flex-wrap: wrap;
+    }
+    .payments-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text-heading);
+    }
+    .payments-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .payments-table th,
+    .payments-table td {
+      padding: 0.65rem 0.75rem;
+      border-bottom: 1px solid var(--border-soft);
+      font-size: 0.79rem;
+      text-align: left;
+      color: var(--text-body);
+      font-family: var(--font-secondary);
+    }
+    .payments-table th {
+      color: var(--text-heading);
+      font-family: var(--font-primary);
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      background: var(--bg-hover);
+    }
+    .payments-table tbody tr:nth-child(even) td {
+      background: color-mix(in srgb, var(--bg-hover) 55%, var(--bg-panel));
+    }
+    .payments-table tbody tr:hover td {
+      background: color-mix(in srgb, var(--primary-soft) 55%, var(--bg-panel));
+    }
+
+    .status-chip {
+      font-size: 0.68rem;
+      padding: 0.18rem 0.48rem;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      border: 1px solid var(--border-soft);
+      white-space: nowrap;
+      font-weight: 700;
+    }
+    .status-chip.is-success { background: var(--success-bg); color: var(--success); border-color: color-mix(in srgb, var(--success) 42%, transparent); }
+    .status-chip.is-warning { background: var(--warning-bg); color: var(--warning); border-color: color-mix(in srgb, var(--warning) 42%, transparent); }
+    .status-chip.is-error { background: var(--error-bg); color: var(--error); border-color: color-mix(in srgb, var(--error) 42%, transparent); }
+    .status-chip.is-info { background: var(--info-bg); color: var(--info); border-color: color-mix(in srgb, var(--info) 42%, transparent); }
+
+    .compliance-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 0.85rem;
+      margin-top: 0.9rem;
+    }
+    .compliance-card {
+      border: 1px solid var(--border-soft);
+      border-radius: 12px;
+      background: var(--bg-panel);
+      box-shadow: var(--shadow-sm);
+      padding: 0.75rem;
+      display: grid;
+      gap: 0.55rem;
+    }
+    .compliance-card h5 {
+      margin: 0;
+      color: var(--text-heading);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .compliance-note {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 0.74rem;
+      line-height: 1.35;
+    }
+    .tone-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(108px, 1fr));
+      gap: 0.45rem;
+    }
+
+    /* Escala de formularios */
+    .density-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 0.9rem;
+    }
+    .density-card {
+      border: 1px solid var(--border-soft);
+      border-radius: 12px;
+      background: var(--bg-panel);
+      box-shadow: var(--shadow-sm);
+      padding: 0.85rem;
+      display: grid;
+      gap: 0.55rem;
+    }
+    .density-card h4 {
+      margin: 0;
+      font-size: 0.85rem;
+      color: var(--text-heading);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .density-preview {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.4rem;
+      --density-height: 34px;
+      --density-font: 12.5px;
+      --density-py: 0.42rem;
+      --density-px: 0.7rem;
+    }
+    .density-preview.density-xs {
+      --density-height: 28px;
+      --density-font: 11px;
+      --density-py: 0.22rem;
+      --density-px: 0.55rem;
+    }
+    .density-preview.density-sm {
+      --density-height: 31px;
+      --density-font: 12px;
+      --density-py: 0.32rem;
+      --density-px: 0.62rem;
+    }
+    .density-preview.density-lg {
+      --density-height: 37px;
+      --density-font: 13px;
+      --density-py: 0.5rem;
+      --density-px: 0.82rem;
+    }
+    .density-preview .input-control,
+    .density-preview .btn {
+      min-height: var(--density-height);
+      font-size: var(--density-font);
+      padding: var(--density-py) var(--density-px);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .density-preview .input-with-icon {
+      flex: 1 1 180px;
+      min-width: 0;
+    }
+    .density-preview .contact-meta {
+      flex: 1 0 100%;
+    }
+    .density-preview .input-control {
+      width: 100%;
+    }
+    .density-preview .btn-indigo {
+      flex: 1 1 140px;
+      min-width: 0;
+    }
+    .density-preview .btn {
+      flex: 0 0 auto;
+    }
+
+    /* Mejora de visibilidad de iconos en HC */
+    :root[data-theme="high-contrast"] i,
+    :root[data-theme="high-contrast"] svg {
+      stroke-width: 3px;
+    }
+
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="brand-title">ApiFlujos <span>Design System</span></div>
+    <div class="theme-selector">
+      <button class="theme-btn active" data-theme="light">Claro</button>
+      <button class="theme-btn" data-theme="dark">Oscuro</button>
+      <button class="theme-btn" data-theme="high-contrast">Alto Contraste</button>
+      <button class="theme-btn" data-theme="safe">Accesibilidad</button>
+    </div>
+  </header>
+
+  <!-- TIPOGRAFÍA -->
+  <section class="no-hc no-safe">
+    <div class="section-title">Tipografía y Textos</div>
+    <div class="type-specimen">
+      <div>
+        <h1><i data-lucide="type"></i> Encabezado Principal H1</h1>
+        <h2><i data-lucide="heading"></i> Subtítulo de Sección H2</h2>
+        <h3><i data-lucide="layout"></i> Título de Tarjeta H3</h3>
+      </div>
+      <div>
+        <p><strong><i data-lucide="info"></i> Texto Principal (Body):</strong> Utilizado para el contenido general de la aplicación. La tipografía principal (Headings y UI) es <strong>Poppins</strong> para dar un toque moderno y geométrico, mientras que <strong>Manrope</strong> se usa para cuerpos de texto extensos y data tabular densa. La jerarquía visual se establece mediante el contraste de colores (Text Heading vs Text Body).</p>
+        <p class="text-muted"><i data-lucide="help-circle"></i> Texto mutado (Text Muted). Ideal para hints de formularios, fechas, meta-información en tarjetas y breadcrumbs.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- TIPOGRAFÍA ALTO CONTRASTE -->
+  <section class="hc-only">
+    <div class="section-title">Tipografía (Sin adornos - Legibilidad Máxima)</div>
+    <div class="type-specimen" style="border-width: var(--hc-border-width); border-color: #ffffff;">
+      <h1 style="color:#ffffff; border-bottom: 2px solid #ffffff; padding-bottom: 0.5rem; margin-bottom: 1rem;">Nivel 1: Títulos de cabecera</h1>
+      <h2 style="color:#ffffff; margin-bottom: 0.5rem;">Nivel 2: Subtítulos de sección</h2>
+      <p style="color:#ffffff; font-size: 1.1rem;">Cuerpo de texto: Máximo contraste sobre negro (#000000). Sin degradados, sin sombras, solo información pura.</p>
+    </div>
+  </section>
+
+  <!-- TIPOGRAFÍA ACCESIBILIDAD -->
+  <section class="safe-only">
+    <div class="section-title">Tipografía (Optimizado para Lectura)</div>
+    <div class="type-specimen">
+      <h1 style="color:var(--text-heading)">Texto de Accesibilidad</h1>
+      <p style="color:var(--text-body)">Texto optimizado con pesos de fuente que mejoran la distinción de caracteres, evitando ambigüedades visuales en condiciones de daltonismo.</p>
+    </div>
+  </section>
+
+  <!-- COLORES SEMÁNTICOS -->
+  <section class="no-hc no-safe">
+    <div class="section-title">Colores de Interfaz (Semánticos)</div>
+    <div class="palette-grid">
+      <div class="color-swatch">
+        <div class="swatch-color" style="background: var(--primary)"></div>
+        <div class="swatch-info">
+          <div class="swatch-name">Primary</div>
+          <div class="swatch-hex">var(--primary)</div>
+        </div>
+      </div>
+      <div class="color-swatch">
+        <div class="swatch-color" style="background: var(--success)"></div>
+        <div class="swatch-info">
+          <div class="swatch-name">Success</div>
+          <div class="swatch-hex">var(--success)</div>
+        </div>
+      </div>
+      <div class="color-swatch">
+        <div class="swatch-color" style="background: var(--warning)"></div>
+        <div class="swatch-info">
+          <div class="swatch-name">Warning</div>
+          <div class="swatch-hex">var(--warning)</div>
+        </div>
+      </div>
+      <div class="color-swatch">
+        <div class="swatch-color" style="background: var(--error)"></div>
+        <div class="swatch-info">
+          <div class="swatch-name">Error</div>
+          <div class="swatch-hex">var(--error)</div>
+        </div>
+      </div>
+      <div class="color-swatch">
+        <div class="swatch-color" style="background: var(--info)"></div>
+        <div class="swatch-info">
+          <div class="swatch-name">Info</div>
+          <div class="swatch-hex">var(--info)</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECCIÓN DE PRODUCTOS (GRID) -->
+  <section class="no-hc">
+    <div class="section-title">Catálogo de Productos (Cuadrícula)</div>
+    <div class="product-grid">
+      <div class="product-card">
+        <div class="product-img"><i data-lucide="package" size="48"></i></div>
+        <div class="product-body">
+          <div class="product-name">Camiseta Premium ApiFlujos</div>
+          <div class="product-price">$25.00</div>
+          <div class="product-stock"><i data-lucide="layers"></i> Stock: 142 unidades</div>
+          <button class="btn btn-indigo"><i data-lucide="shopping-cart"></i> Añadir al Carrito</button>
+        </div>
+      </div>
+      <div class="product-card">
+        <div class="product-img"><i data-lucide="smartphone" size="48"></i></div>
+        <div class="product-body">
+          <div class="product-name">Suscripción SaaS Anual</div>
+          <div class="product-price">$299.00</div>
+          <div class="product-stock"><i data-lucide="check-circle"></i> Servicio Activo</div>
+          <button class="btn btn-link-action"><i data-lucide="send"></i> Enviar Link Pago</button>
+        </div>
+      </div>
+      <div class="product-card">
+        <div class="product-img"><i data-lucide="cpu" size="48"></i></div>
+        <div class="product-body">
+          <div class="product-name">API Key Industrial</div>
+          <div class="product-price">$1,200.00</div>
+          <div class="product-stock"><i data-lucide="alert-triangle" style="color:var(--warning)"></i> Stock Bajo: 3</div>
+          <button class="btn btn-secondary"><i data-lucide="settings"></i> Configurar API</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECCIÓN DE PRODUCTOS (LISTA AVANZADA) -->
+  <section class="no-hc">
+    <div class="section-title">Gestión Avanzada de Productos (Vista Lista)</div>
+    <div class="product-list">
+      <div class="product-list-item">
+        <div class="product-list-img"><i data-lucide="box"></i></div>
+        <div class="product-list-info">
+          <div class="product-name">Licencia Enterprise v14</div>
+          <div class="product-stock">Suscripcion Semestral</div>
+        </div>
+        <div class="product-list-actions">
+          <button class="btn btn-indigo"><i data-lucide="shopping-bag"></i> Enviar Checkout</button>
+          <button class="btn btn-teal"><i data-lucide="external-link"></i> Link Autogestión</button>
+          <button class="btn btn-outline"><i data-lucide="user-plus"></i> Enviar Contacto</button>
+        </div>
+      </div>
+      <div class="product-list-item">
+        <div class="product-list-img"><i data-lucide="database"></i></div>
+        <div class="product-list-info">
+          <div class="product-name">Infraestructura Dedicada 1TB</div>
+          <div class="product-stock">Servicio de Nube</div>
+        </div>
+        <div class="product-list-actions">
+          <button class="btn btn-amber"><i data-lucide="alert-circle"></i> Ver Pendiente</button>
+          <button class="btn btn-link-action"><i data-lucide="send"></i> Checkout</button>
+          <button class="btn btn-ghost"><i data-lucide="eye"></i></button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECCIÓN DE LOGS Y REPORTES (NUEVA) -->
+  <section>
+    <div class="section-title">Auditoría y Reportes en Tiempo Real</div>
+    <div class="component-grid">
+      <div class="card">
+        <h4 style="margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;"><i data-lucide="activity"></i> Logs del Sistema</h4>
+        <div class="log-list">
+          <div class="log-item">
+            <span class="log-time">22:15:01</span>
+            <span class="log-level info">INFO</span>
+            <span class="log-msg">Pago recibido via Wompi #TRX-992</span>
+          </div>
+          <div class="log-item">
+            <span class="log-time">22:14:30</span>
+            <span class="log-level error">ERROR</span>
+            <span class="log-msg">Fallo de sincronización con Shopify</span>
+          </div>
+          <div class="log-item">
+            <span class="log-time">22:12:44</span>
+            <span class="log-level info">INFO</span>
+            <span class="log-msg">Usuario admin@apiflujos.com inició sesión</span>
+          </div>
+        </div>
+        <button class="btn btn-ghost" style="margin-top:1rem; width:100%"><i data-lucide="list"></i> Ver todo el historial</button>
+      </div>
+      
+      <div class="card">
+        <h4 style="margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;"><i data-lucide="bar-chart-2"></i> Reporte de Ventas (7d)</h4>
+        <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom: 2px solid var(--border-soft); padding-bottom:1rem;">
+          <div class="mini-chart">
+            <div class="chart-bar" style="height: 20px;"></div>
+            <div class="chart-bar" style="height: 35px;"></div>
+            <div class="chart-bar" style="height: 15px;"></div>
+            <div class="chart-bar" style="height: 40px;"></div>
+            <div class="chart-bar" style="height: 25px;"></div>
+            <div class="chart-bar" style="height: 32px;"></div>
+            <div class="chart-bar" style="height: 18px;"></div>
+          </div>
+          <div style="text-align:right">
+            <div class="contact-name">+ $14,200</div>
+            <div class="contact-meta"><i data-lucide="trending-up" style="color:var(--success)"></i> +12% vs ayer</div>
+          </div>
+        </div>
+        <div style="margin-top:1rem; display:grid; gap:0.5rem;">
+          <button class="btn btn-outline" style="width:100%"><i data-lucide="download"></i> Descargar PDF</button>
+          <button class="btn btn-link-action" style="width:100%"><i data-lucide="share-2"></i> Compartir con el equipo</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PALETA DE MARCA -->
+  <section class="brand-only">
+    <div class="section-title">Paleta de Marca (Royal Purple)</div>
+    <div class="palette-grid">
+      <div class="color-swatch"><div class="swatch-color" style="background: var(--royal-purple-50)"></div><div class="swatch-info"><div class="swatch-name">Purple 50</div><div class="swatch-hex">#f9f7fd</div></div></div>
+      <div class="color-swatch"><div class="swatch-color" style="background: var(--royal-purple-100)"></div><div class="swatch-info"><div class="swatch-name">Purple 100</div><div class="swatch-hex">#f1edfa</div></div></div>
+      <div class="color-swatch"><div class="swatch-color" style="background: var(--royal-purple-300)"></div><div class="swatch-info"><div class="swatch-name">Purple 300</div><div class="swatch-hex">#d3c3ef</div></div></div>
+      <div class="color-swatch"><div class="swatch-color" style="background: var(--royal-purple-500)"></div><div class="swatch-info"><div class="swatch-name">Purple 500</div><div class="swatch-hex">#9c77d5</div></div></div>
+      <div class="color-swatch"><div class="swatch-color" style="background: var(--royal-purple-700)"></div><div class="swatch-info"><div class="swatch-name">Purple 700</div><div class="swatch-hex">#6d44a6</div></div></div>
+      <div class="color-swatch"><div class="swatch-color" style="background: var(--royal-purple-900)"></div><div class="swatch-info"><div class="swatch-name">Purple 900</div><div class="swatch-hex">#4e3271</div></div></div>
+      <div class="color-swatch"><div class="swatch-color" style="background: var(--royal-purple-950)"></div><div class="swatch-info"><div class="swatch-name">Purple 950</div><div class="swatch-hex">#331a51</div></div></div>
+    </div>
+  </section>
+  <section class="hc-only">
+    <div class="section-title">Aislamiento de Alto Contraste</div>
+    <p><em>* En este modo, se prioriza el contraste 21:1 (Blanco sobre Negro) y 19:1 (Amarillo sobre Negro). Los elementos decorativos de marca han sido removidos para optimizar la carga cognitiva y visual.</em></p>
+  </section>
+  <section class="safe-only">
+    <div class="section-title">Aislamiento de Accesibilidad</div>
+    <p><em>* Los colores de marca (Royal Purple) han sido reemplazados por la paleta Okabe-Ito para garantizar una distinción cromática absoluta, siendo el estándar para usuarios con diversas necesidades visuales.</em></p>
+  </section>
+
+  <!-- PURPLE + 7 COLORES COMPATIBLES -->
+  <section>
+    <div class="section-title">Colores de rol UI — Alto Contraste (referencia de asignación)</div>
+    <div class="compat-grid">
+      <div class="compat-chip"><div class="compat-color" style="background:#6B3CF6"></div><div class="compat-meta"><strong>Brand Purple</strong><code>#6B3CF6</code></div></div>
+      <div class="compat-chip"><div class="compat-color" style="background:#4F46E5"></div><div class="compat-meta"><strong>Indigo</strong><code>#4F46E5</code></div></div>
+      <div class="compat-chip"><div class="compat-color" style="background:#0284C7"></div><div class="compat-meta"><strong>Sky</strong><code>#0284C7</code></div></div>
+      <div class="compat-chip"><div class="compat-color" style="background:#0D9488"></div><div class="compat-meta"><strong>Teal</strong><code>#0D9488</code></div></div>
+      <div class="compat-chip"><div class="compat-color" style="background:#16A34A"></div><div class="compat-meta"><strong>Green</strong><code>#16A34A</code></div></div>
+      <div class="compat-chip"><div class="compat-color" style="background:#D97706"></div><div class="compat-meta"><strong>Amber</strong><code>#D97706</code></div></div>
+      <div class="compat-chip"><div class="compat-color" style="background:#EA580C"></div><div class="compat-meta"><strong>Orange</strong><code>#EA580C</code></div></div>
+      <div class="compat-chip"><div class="compat-color" style="background:#DB2777"></div><div class="compat-meta"><strong>Pink</strong><code>#DB2777</code></div></div>
+    </div>
+    <table class="compat-table">
+      <thead>
+        <tr>
+          <th>Rol UI</th>
+          <th>Alto Contraste (AAA)</th>
+          <th>Uso recomendado</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Header principal</td>
+          <td><span class="tone-pill"><span class="tone-dot" style="background:#FFFFFF"></span>#FFFFFF</span></td>
+          <td>Títulos H1/H2, cabeceras de tarjetas y paneles.</td>
+        </tr>
+        <tr>
+          <td>Header acento / primary</td>
+          <td><span class="tone-pill"><span class="tone-dot" style="background:#FFFF00"></span>#FFFF00</span></td>
+          <td>Tabs activos, subtítulos destacados, acción principal.</td>
+        </tr>
+        <tr>
+          <td>Texto éxito</td>
+          <td><span class="tone-pill"><span class="tone-dot" style="background:#7DFFD4"></span>#7DFFD4</span></td>
+          <td>Confirmaciones, pagos aprobados, estados de sincronización OK.</td>
+        </tr>
+        <tr>
+          <td>Texto advertencia</td>
+          <td><span class="tone-pill"><span class="tone-dot" style="background:#FFE566"></span>#FFE566</span></td>
+          <td>Renovaciones próximas, cupos por vencer, alertas operativas.</td>
+        </tr>
+        <tr>
+          <td>Texto error</td>
+          <td><span class="tone-pill"><span class="tone-dot" style="background:#FF9E80"></span>#FF9E80</span></td>
+          <td>Fallos de pago, rechazo de webhook, validaciones bloqueantes.</td>
+        </tr>
+        <tr>
+          <td>Texto info</td>
+          <td><span class="tone-pill"><span class="tone-dot" style="background:#B3E5FF"></span>#B3E5FF</span></td>
+          <td>Mensajes informativos, trazabilidad y ayuda contextual.</td>
+        </tr>
+        <tr>
+          <td>Acento extra / categorías</td>
+          <td><span class="tone-pill"><span class="tone-dot" style="background:#E8D5FF"></span>#E8D5FF</span></td>
+          <td>Etiquetas de canal, indicadores de módulo premium, color de diferenciación.</td>
+        </tr>
+        <tr>
+          <td>Indicador secundario</td>
+          <td><span class="tone-pill"><span class="tone-dot" style="background:#FFB3E6"></span>#FFB3E6</span></td>
+          <td>Indicadores de estado secundario, badges complementarios.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="compliance-grid">
+      <div class="compliance-card hc-only">
+        <h5>Alto Contraste — Paleta extendida (WCAG AAA ≥ 7:1 sobre #000)</h5>
+        <p class="compliance-note">Estos tonos están curados para superar contraste AAA (≥7:1) sobre fondo negro. Úsalos para etiquetas de categoría, indicadores de canal y elementos diferenciales en la UI de alto contraste. **Interactividad**: Los botones en este modo invierten colores al hover para una respuesta táctil/visual inequívoca.</p>
+        <div class="tone-row">
+          <span class="tone-pill"><span class="tone-dot" style="background:var(--hc-extra-1)"></span>#E8D5FF · Purple</span>
+          <span class="tone-pill"><span class="tone-dot" style="background:var(--hc-extra-2)"></span>#B3E5FF · Sky</span>
+          <span class="tone-pill"><span class="tone-dot" style="background:var(--hc-extra-3)"></span>#7DFFD4 · Teal</span>
+          <span class="tone-pill"><span class="tone-dot" style="background:var(--hc-extra-4)"></span>#FFE566 · Amber</span>
+          <span class="tone-pill"><span class="tone-dot" style="background:var(--hc-extra-5)"></span>#FF9E80 · Coral</span>
+          <span class="tone-pill"><span class="tone-dot" style="background:var(--hc-extra-6)"></span>#FFB3E6 · Pink</span>
+        </div>
+      </div>
+      <div class="compliance-card safe-only">
+        <h5>Modo Accesibilidad — Paleta Okabe-Ito</h5>
+        <p class="compliance-note">Investigación aplicada: Esta paleta es distinguible por protánopes, deuteránopes y tritánopes. Se evitan las combinaciones conflictivas y se integran estos tonos en los temas claro/oscuro para mejorar el contraste semántico global.</p>
+        <div class="tone-row">
+          <span class="tone-pill"><span class="tone-dot" style="background:#E69F00"></span>#E69F00 · Naranja</span>
+          <span class="tone-pill"><span class="tone-dot" style="background:#56B4E9"></span>#56B4E9 · Sky Blue</span>
+          <span class="tone-pill"><span class="tone-dot" style="background:#009E73"></span>#009E73 · Teal</span>
+          <span class="tone-pill"><span class="tone-dot" style="background:#0072B2"></span>#0072B2 · Azul</span>
+          <span class="tone-pill"><span class="tone-dot" style="background:#D55E00"></span>#D55E00 · Rojo</span>
+          <span class="tone-pill"><span class="tone-dot" style="background:#CC79A7"></span>#CC79A7 · Purple</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMPONENTES BÁSICOS -->
+  <section>
+    <div class="section-title">Componentes Base</div>
+    <div class="component-grid">
+      <!-- Galería de Botones (Completa) -->
+      <div class="card" style="grid-column: 1 / -1;">
+        <h4 style="margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;"><i data-lucide="mouse-pointer-2"></i> Galería de Acciones y Variantes</h4>
+        <div style="display:flex; flex-wrap:wrap; gap:1rem;">
+          <button class="btn btn-primary"><i data-lucide="play"></i> Iniciar</button>
+          <button class="btn btn-outline"><i data-lucide="layers"></i> Alternativo</button>
+          <button class="btn btn-success"><i data-lucide="check"></i> Confirmar</button>
+          <button class="btn btn-danger"><i data-lucide="x"></i> Cancelar</button>
+          <button class="btn btn-secondary"><i data-lucide="copy"></i> Duplicar</button>
+          <button class="btn btn-indigo"><i data-lucide="credit-card"></i> Pagar</button>
+          <button class="btn btn-teal"><i data-lucide="refresh-cw"></i> Sincronizar</button>
+          <button class="btn btn-amber"><i data-lucide="alert-circle"></i> Revisar</button>
+          <button class="btn btn-link-action"><i data-lucide="send"></i> Checkout</button>
+          <button class="btn btn-ghost"><i data-lucide="trash-2"></i> Borrar</button>
+        </div>
+      </div>
+      
+      <!-- Densidades con Icono -->
+      <div class="card">
+        <h4 style="margin-bottom:1rem"><i data-lucide="box"></i> Densidades de Botón</h4>
+        <div style="display:grid; gap:1rem;">
+          <div class="density-preview density-xs">
+            <span class="contact-meta">XS</span>
+            <button class="btn btn-indigo"><i data-lucide="zap"></i> Acción</button>
+            <button class="btn btn-outline"><i data-lucide="edit"></i></button>
+          </div>
+          <div class="density-preview density-sm">
+            <span class="contact-meta">SM</span>
+            <button class="btn btn-indigo"><i data-lucide="zap"></i> Acción Estándar</button>
+            <button class="btn btn-outline"><i data-lucide="edit"></i></button>
+          </div>
+          <div class="density-preview density-lg">
+            <span class="contact-meta">LG</span>
+            <button class="btn btn-indigo"><i data-lucide="zap"></i> Acción Cómoda</button>
+            <button class="btn btn-outline"><i data-lucide="edit"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Formularios con Icono -->
+      <div class="card">
+        <h4 style="margin-bottom: 1rem; font-size: 1rem; color: var(--text-heading)"><i data-lucide="form-input"></i> Búsqueda e Inputs</h4>
+        <div class="input-group">
+          <label class="input-label">Búsqueda rápida</label>
+          <div class="input-with-icon">
+            <i data-lucide="search"></i>
+            <input type="text" class="input-control" value="Suscripciones activas" readonly>
+          </div>
+        </div>
+        <div class="input-group">
+          <label class="input-label">Fecha de Auditoría</label>
+          <div class="input-with-icon">
+            <i data-lucide="calendar"></i>
+            <input type="date" class="input-control">
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PREVIEW TABLA PAYMENTS -->
+  <section>
+    <div class="section-title">Preview tipo Payments (referencia Suscripciones)</div>
+    <div class="payments-preview">
+      <div class="payments-toolbar">
+        <div class="payments-title">Pagos recientes · vista compacta</div>
+        <div style="display:flex; gap:0.45rem; align-items:center;">
+          <span class="pill pill-info">Filtro: marzo</span>
+          <button class="btn btn-outline">Actualizar</button>
+        </div>
+      </div>
+      <table class="payments-table">
+        <thead>
+          <tr>
+            <th>Referencia</th>
+            <th>Cliente</th>
+            <th>Monto</th>
+            <th>Estado</th>
+            <th>Actualizado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>PAY-10239</td>
+            <td>Laura Castillo</td>
+            <td>$129.000 COP</td>
+            <td><span class="status-chip is-success"><i data-lucide="check" size="10"></i> Aprobado</span></td>
+            <td>08/03/2026 09:42</td>
+          </tr>
+          <tr>
+            <td>PAY-10240</td>
+            <td>Comercial Nativa SAS</td>
+            <td>$89.000 COP</td>
+            <td><span class="status-chip is-warning"><i data-lucide="clock" size="10"></i> Pendiente</span></td>
+            <td>08/03/2026 10:03</td>
+          </tr>
+          <tr>
+            <td>PAY-10241</td>
+            <td>Hernán Pineda</td>
+            <td>$49.000 COP</td>
+            <td><span class="status-chip is-error"><i data-lucide="alert-circle" size="10"></i> Fallido</span></td>
+            <td>08/03/2026 10:27</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ESCALA FORMULARIOS -->
+  <section>
+    <div class="section-title">Densidades y Tamaños (XS / SM / LG)</div>
+    <div class="density-grid">
+      <div class="density-card">
+        <h4>Extra Small (XS)</h4>
+        <div class="density-preview density-xs">
+          <div class="input-with-icon"><i data-lucide="tag"></i><input type="text" class="input-control" value="xs@apiflujos.com"></div>
+          <button class="btn btn-primary"><i data-lucide="send"></i> Enviar</button>
+        </div>
+      </div>
+      <div class="density-card">
+        <h4>Small (SM - ESTÁNDAR)</h4>
+        <div class="density-preview density-sm">
+          <div class="input-with-icon"><i data-lucide="tag"></i><input type="text" class="input-control" value="sm@apiflujos.com"></div>
+          <button class="btn btn-primary"><i data-lucide="send"></i> Enviar</button>
+        </div>
+        <p class="compliance-note" style="margin-top:0.5rem">Optimizada para alta densidad de pedidos y pagos.</p>
+      </div>
+      <div class="density-card">
+        <h4>Large (LG)</h4>
+        <div class="density-preview density-lg">
+          <div class="input-with-icon"><i data-lucide="tag"></i><input type="text" class="input-control" value="lg@apiflujos.com"></div>
+          <button class="btn btn-primary"><i data-lucide="send"></i> Enviar</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMPONENTES AVANZADOS (LISTAS/PAGOS) -->
+  <section>
+    <div class="section-title">Diseño de Listas Amplias (Contactos, Pagos, Suscripciones)</div>
+    
+    <div class="list-card">
+      <div class="list-card-left">
+        <div class="avatar">JC</div>
+        <div class="contact-info">
+          <div class="contact-name">Juan Carlos Gómez</div>
+          <div class="contact-meta">juan.carlos@empresa.com · Plan Premium</div>
+        </div>
+      </div>
+      <div class="list-card-right">
+        <span class="pill pill-success"><i data-lucide="check" size="14"></i> Al día</span>
+        <div class="price">$149.000 <span class="text-muted">COP</span></div>
+        <button class="btn btn-outline"><i data-lucide="settings-2"></i> Gestionar</button>
+      </div>
+    </div>
+
+    <div class="list-card">
+      <div class="list-card-left">
+        <div class="avatar">AM</div>
+        <div class="contact-info">
+          <div class="contact-name">Ana María Rodríguez</div>
+          <div class="contact-meta">ana.rod@startup.co · Plan Básico</div>
+        </div>
+      </div>
+      <div class="list-card-right">
+        <span class="pill pill-warning"><i data-lucide="help-circle" size="14"></i> Vence pronto</span>
+        <div class="price">$49.000 <span class="text-muted">COP</span></div>
+        <button class="btn btn-outline"><i data-lucide="refresh-ccw"></i> Renovar</button>
+      </div>
+    </div>
+
+    <div class="list-card">
+      <div class="list-card-left">
+        <div class="avatar">LP</div>
+        <div class="contact-info">
+          <div class="contact-name">Luis Pérez (Moroso)</div>
+          <div class="contact-meta">luis@dominio.com · Plan Pro</div>
+        </div>
+      </div>
+      <div class="list-card-right">
+        <span class="pill pill-error"><i data-lucide="alert-octagon" size="14"></i> Pago Fallido</span>
+        <div class="price">$99.000 <span class="text-muted">COP</span></div>
+        <button class="btn btn-danger"><i data-lucide="retry"></i> Reintentar Cobro</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  document.querySelectorAll('.theme-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const theme = this.dataset.theme;
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('theme', theme);
+      
+      document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+    });
+  });
+
+  // Restaurar estado del botón activo
+  const activeTheme = document.documentElement.getAttribute('data-theme');
+  document.querySelectorAll('.theme-btn').forEach(btn => {
+    if(btn.dataset.theme === activeTheme) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+
+  /* Render Lucide Icons */
+  document.addEventListener('DOMContentLoaded', () => {
+    lucide.createIcons();
+  });
+
+  const observer = new MutationObserver(() => {
+    setTimeout(() => lucide.createIcons(), 50);
+  });
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+</script>
+</body>
+</html>
