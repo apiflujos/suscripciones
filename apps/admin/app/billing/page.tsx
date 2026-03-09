@@ -705,6 +705,33 @@ export default async function BillingPage({
                         <div className="billing-cost-total-label">Total suscripción</div>
                         <div className="billing-cost-total">{fmtMoney(r.totalInCents ?? r.montoInCents, r.moneda)}</div>
                         <div className="billing-cost-period">{r.cada}</div>
+                        
+                        {/* FIX: Botón Link de Pago movido aquí - solo visible cuando hay checkoutUrl generado */}
+                        {r.mode !== "AUTO_DEBIT" && latestCheckoutUrl ? (
+                          <div className="billing-payment-link-section" style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--stroke)" }}>
+                            <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between" }}>
+                              <a 
+                                className="primary btn-compact btn-noicon" 
+                                href={latestCheckoutUrl} 
+                                target="_blank" 
+                                rel="noreferrer"
+                                style={{ flex: 1, textAlign: "center" }}
+                              >
+                                Abrir link de pago
+                              </a>
+                              <CopyButton text={latestCheckoutUrl} label="⧉" copiedLabel="✓" />
+                            </div>
+                            <div className="field-hint" style={{ marginTop: 6, textAlign: "center" }}>
+                              Link generado y listo para usar
+                            </div>
+                          </div>
+                        ) : r.mode !== "AUTO_DEBIT" ? (
+                          <div className="billing-payment-link-section" style={{ marginTop: 12, paddingTop: 12, borderTop: "1px dashed var(--stroke)" }}>
+                            <div className="field-hint" style={{ textAlign: "center", fontStyle: "italic" }}>
+                              El link de pago se generará al crear la suscripción
+                            </div>
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -746,26 +773,19 @@ export default async function BillingPage({
                       ) : null}
                     </div>
                     <div className="billing-actions-right">
-                    {r.mode !== "AUTO_DEBIT" && latestCheckoutUrl ? (
-                      <div className="billing-quick-link">
-                        <a className="billing-quick-link-anchor" href={latestCheckoutUrl} target="_blank" rel="noreferrer">
-                          Link de pago
-                        </a>
-                        <CopyButton text={latestCheckoutUrl} label="⧉" copiedLabel="✓" />
-                      </div>
-                    ) : null}
-                    {r.mode !== "AUTO_DEBIT" ? (
-                      <form action={sendCentralComPaymentLink}>
-                        <input type="hidden" name="csrf" value={csrfToken} />
-                        <input type="hidden" name="subscriptionId" value={r.id} />
-                        <input type="hidden" name="customerId" value={r.customerId} />
-                        <input type="hidden" name="returnTo" value={returnTo} />
-                        {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                        <button className="ghost btn-compact btn-noicon btn-send" type="submit" title="Enviar por CentralCom">
-                          Enviar link de pago
-                        </button>
-                      </form>
-                    ) : (
+                      {/* FIX: Botón Link de Pago movido al panel de costo - aquí solo acciones de envío */}
+                      {r.mode !== "AUTO_DEBIT" ? (
+                        <form action={sendCentralComPaymentLink}>
+                          <input type="hidden" name="csrf" value={csrfToken} />
+                          <input type="hidden" name="subscriptionId" value={r.id} />
+                          <input type="hidden" name="customerId" value={r.customerId} />
+                          <input type="hidden" name="returnTo" value={returnTo} />
+                          {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
+                          <button className="ghost btn-compact btn-noicon btn-send" type="submit" title="Enviar por CentralCom">
+                            Enviar link de pago
+                          </button>
+                        </form>
+                      ) : (
                       <>
                         {canSendToken ? (
                           <form action={sendCentralComTokenizationLink}>
