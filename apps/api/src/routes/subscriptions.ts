@@ -535,17 +535,49 @@ subscriptionsRouter.post("/:id/payment-link", async (req, res) => {
 subscriptionsRouter.post("/:id/charge-now", async (req, res) => {
   const subscriptionId = req.params.id;
   const parsed = chargeNowSchema.safeParse(req.body ?? {});
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+  if (!parsed.success) {
+    await systemLog(LogLevel.WARN, "subscriptions.charge_now", "Manual charge blocked: invalid body", {
+      subscriptionId,
+      details: parsed.error.flatten()
+    }).catch(() => {});
+    return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+  }
 
   const tenantId = await getEffectiveTenantId(req);
+  await systemLog(LogLevel.INFO, "subscriptions.charge_now", "Manual charge requested", {
+    subscriptionId,
+    tenantId: tenantId || null,
+    amountInCentsOverride: parsed.data.amountInCents ?? null
+  }).catch(() => {});
   const subscription = await prisma.subscription.findUnique({
     where: { id: subscriptionId },
     include: { plan: true, customer: true, tenantLinks: true }
   });
-  if (!subscription) return res.status(404).json({ error: "subscription_not_found" });
+  if (!subscription) {
+    await systemLog(LogLevel.WARN, "subscriptions.charge_now", "Manual charge blocked: subscription not found", {
+      subscriptionId,
+      tenantId: tenantId || null
+    }).catch(() => {});
+    return res.status(404).json({ error: "subscription_not_found" });
+  }
   if (tenantId) {
     const allowed = subscription.tenantId === tenantId || (subscription.tenantLinks || []).some((t: any) => t.tenantId === tenantId);
-    if (!allowed) return res.status(404).json({ error: "subscription_not_found" });
+    if (!allowed) {
+      await systemLog(LogLevel.WARN, "subscriptions.charge_now", "Manual charge blocked: tenant mismatch", {
+        subscriptionId,
+        requestedTenantId: tenantId,
+        subscriptionTenantId: subscription.tenantId || null,
+        tenantLinks: (subscription.tenantLinks || []).map((t: any) => t.tenantId)
+      }).catch(() => {});
+      return res.status(404).json({
+        error: "subscription_not_found",
+        details: {
+          requestedTenantId: tenantId,
+          subscriptionTenantId: subscription.tenantId || null,
+          tenantLinks: (subscription.tenantLinks || []).map((t: any) => t.tenantId)
+        }
+      });
+    }
   }
 
   const collectionMode = resolveSubscriptionCollectionMode(subscription);
@@ -556,6 +588,12 @@ subscriptionsRouter.post("/:id/charge-now", async (req, res) => {
       errorCode: "manual_charge_not_allowed",
       details: { collectionMode }
     }).catch(() => null);
+    await systemLog(LogLevel.WARN, "subscriptions.charge_now", "Manual charge blocked: invalid collection mode", {
+      subscriptionId,
+      tenantId: tenantId || null,
+      paymentId,
+      collectionMode
+    }).catch(() => {});
     return res.status(409).json({ error: "manual_charge_not_allowed", details: { collectionMode }, ...(paymentId ? { paymentId } : {}) });
   }
   const autoDebitCfg = await getAutoDebitConfig();
@@ -565,6 +603,11 @@ subscriptionsRouter.post("/:id/charge-now", async (req, res) => {
       amountInCentsOverride: parsed.data.amountInCents,
       errorCode: "manual_charge_disabled_by_settings"
     }).catch(() => null);
+    await systemLog(LogLevel.WARN, "subscriptions.charge_now", "Manual charge blocked: disabled by settings", {
+      subscriptionId,
+      tenantId: tenantId || null,
+      paymentId
+    }).catch(() => {});
     return res.status(409).json({ error: "manual_charge_disabled_by_settings", ...(paymentId ? { paymentId } : {}) });
   }
 
@@ -596,6 +639,12 @@ subscriptionsRouter.post("/:id/charge-now", async (req, res) => {
       errorCode: "charge_not_due_yet",
       details
     }).catch(() => null);
+    await systemLog(LogLevel.WARN, "subscriptions.charge_now", "Manual charge blocked: not due yet", {
+      subscriptionId,
+      tenantId: tenantId || null,
+      paymentId,
+      ...details
+    }).catch(() => {});
     return res.status(409).json({
       error: "charge_not_due_yet",
       details,
@@ -625,6 +674,13 @@ subscriptionsRouter.post("/:id/charge-now", async (req, res) => {
       errorCode: "pending_charge_exists",
       details
     }).catch(() => null);
+    await systemLog(LogLevel.WARN, "subscriptions.charge_now", "Manual charge blocked: pending payment exists", {
+      subscriptionId,
+      tenantId: tenantId || null,
+      paymentId: failedPaymentId || recentPending.id,
+      pendingPaymentId: recentPending.id,
+      wompiTransactionId: recentPending.wompiTransactionId
+    }).catch(() => {});
     return res.status(409).json({
       error: "pending_charge_exists",
       details,
@@ -646,6 +702,12 @@ subscriptionsRouter.post("/:id/charge-now", async (req, res) => {
       errorCode: "customer_payment_source_missing",
       details
     }).catch(() => null);
+    await systemLog(LogLevel.WARN, "subscriptions.charge_now", "Manual charge blocked: payment source missing", {
+      subscriptionId,
+      tenantId: tenantId || null,
+      paymentId,
+      ...details
+    }).catch(() => {});
     return res.status(409).json({ error: "customer_payment_source_missing", details, ...(paymentId ? { paymentId } : {}) });
   }
   if (!subscription.customer?.email) {
@@ -654,6 +716,12 @@ subscriptionsRouter.post("/:id/charge-now", async (req, res) => {
       amountInCentsOverride: parsed.data.amountInCents,
       errorCode: "customer_email_required"
     }).catch(() => null);
+    await systemLog(LogLevel.WARN, "subscriptions.charge_now", "Manual charge blocked: customer email missing", {
+      subscriptionId,
+      tenantId: tenantId || null,
+      paymentId,
+      customerId: subscription.customerId
+    }).catch(() => {});
     return res.status(409).json({ error: "customer_email_required", ...(paymentId ? { paymentId } : {}) });
   }
 
@@ -669,12 +737,26 @@ subscriptionsRouter.post("/:id/charge-now", async (req, res) => {
     where: { id: subscriptionId },
     data: { metadata: nextMeta as any }
   });
+  await systemLog(LogLevel.INFO, "subscriptions.charge_now", "Manual charge passed prechecks", {
+    subscriptionId,
+    tenantId: tenantId || null,
+    customerId: subscription.customerId,
+    cycle: subscription.currentCycle ?? 1,
+    collectionMode,
+    paymentSourceId: Number(paymentSource)
+  }).catch(() => {});
 
   try {
     const result = await createAutoDebitTransactionForSubscription({
       subscriptionId,
       amountInCentsOverride: parsed.data.amountInCents
     });
+    await systemLog(LogLevel.INFO, "subscriptions.charge_now", "Manual charge transaction requested", {
+      subscriptionId,
+      tenantId: tenantId || null,
+      paymentId: result.paymentId,
+      wompiTransactionId: result.wompiTransactionId
+    }).catch(() => {});
     res.status(201).json({ ok: true, ...result, manualChargeAt });
   } catch (err: any) {
     const paymentId =
