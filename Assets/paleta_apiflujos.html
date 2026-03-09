@@ -368,6 +368,7 @@
     .input-with-icon { position: relative; display: flex; align-items: center; }
     .input-with-icon i, .input-with-icon svg { position: absolute; left: 0.65rem; width: 14px; height: 14px; color: var(--text-muted); }
     .input-with-icon .input-control { padding-left: 2.2rem; }
+    .input-with-icon > .input-control:first-child:last-child { padding-left: var(--density-px, 0.7rem); }
 
     /* CARDS DE PRODUCTO */
     .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.5rem; }
@@ -1159,14 +1160,14 @@
       <div class="density-card">
         <h4>Extra Small (XS)</h4>
         <div class="density-preview density-xs">
-          <div class="input-with-icon"><i data-lucide="tag"></i><input type="text" class="input-control" value="xs@apiflujos.com"></div>
+          <div class="input-with-icon"><input type="text" class="input-control" value="xs@apiflujos.com"></div>
           <button class="btn btn-primary"><i data-lucide="send"></i> Enviar</button>
         </div>
       </div>
       <div class="density-card">
         <h4>Small (SM - ESTÁNDAR)</h4>
         <div class="density-preview density-sm">
-          <div class="input-with-icon"><i data-lucide="tag"></i><input type="text" class="input-control" value="sm@apiflujos.com"></div>
+          <div class="input-with-icon"><input type="text" class="input-control" value="sm@apiflujos.com"></div>
           <button class="btn btn-primary"><i data-lucide="send"></i> Enviar</button>
         </div>
         <p class="compliance-note" style="margin-top:0.5rem">Optimizada para alta densidad de pedidos y pagos.</p>
@@ -1174,7 +1175,7 @@
       <div class="density-card">
         <h4>Large (LG)</h4>
         <div class="density-preview density-lg">
-          <div class="input-with-icon"><i data-lucide="tag"></i><input type="text" class="input-control" value="lg@apiflujos.com"></div>
+          <div class="input-with-icon"><input type="text" class="input-control" value="lg@apiflujos.com"></div>
           <button class="btn btn-primary"><i data-lucide="send"></i> Enviar</button>
         </div>
       </div>
