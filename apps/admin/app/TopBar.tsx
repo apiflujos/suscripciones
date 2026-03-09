@@ -104,13 +104,67 @@ function resolveNotificationHref(category: NotificationCategory, level: Notifica
   return baseHref;
 }
 
-function getNotificationIcon(level: NotificationLevel): string {
-  switch (level) {
-    case "success": return "✅";
-    case "error": return "❌";
-    case "warning": return "⚠️";
-    default: return "📬";
+function getNotificationIcon({ level, category }: { level: NotificationLevel; category?: NotificationCategory }) {
+  // Íconos SVG genéricos que van con la estética de la plataforma
+  if (category === "pagos") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="5" width="20" height="14" rx="2" />
+        <line x1="2" y1="10" x2="22" y2="10" />
+      </svg>
+    );
   }
+  if (category === "suscripciones") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="23 4 23 10 17 10" />
+        <polyline points="1 20 1 14 7 14" />
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+      </svg>
+    );
+  }
+  if (category === "clientes") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+    );
+  }
+  if (level === "success") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="20 6 9 17 4 12" />
+      </svg>
+    );
+  }
+  if (level === "error") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <line x1="12" y1="8" x2="12" y2="12" />
+        <line x1="12" y1="16" x2="12.01" y2="16" />
+      </svg>
+    );
+  }
+  if (level === "warning") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+        <line x1="12" y1="9" x2="12" y2="13" />
+        <line x1="12" y1="17" x2="12.01" y2="17" />
+      </svg>
+    );
+  }
+  // Ícono default (campana)
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  );
 }
 
 function getNotificationColor(level: NotificationLevel): string {
@@ -119,6 +173,59 @@ function getNotificationColor(level: NotificationLevel): string {
     case "error": return "notification-error";
     case "warning": return "notification-warning";
     default: return "notification-info";
+  }
+}
+
+function getFilterIcon(iconName: string) {
+  switch (iconName) {
+    case "bell":
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+        </svg>
+      );
+    case "check":
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      );
+    case "card":
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="2" y="5" width="20" height="14" rx="2" />
+          <line x1="2" y1="10" x2="22" y2="10" />
+        </svg>
+      );
+    case "refresh":
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="23 4 23 10 17 10" />
+          <polyline points="1 20 1 14 7 14" />
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+        </svg>
+      );
+    case "users":
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      );
+    default:
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="8" y1="6" x2="21" y2="6" />
+          <line x1="8" y1="12" x2="21" y2="12" />
+          <line x1="8" y1="18" x2="21" y2="18" />
+          <line x1="3" y1="6" x2="3.01" y2="6" />
+          <line x1="3" y1="12" x2="3.01" y2="12" />
+          <line x1="3" y1="18" x2="3.01" y2="18" />
+        </svg>
+      );
   }
 }
 
@@ -141,12 +248,12 @@ export function TopBar({ session }: { session: AdminSession | null }) {
   
   // Filtros simplificados
   const filterOptions = useMemo(() => [
-    { key: "unread" as const, label: "No leídas", icon: "🔔" },
-    { key: "read" as const, label: "Leídas", icon: "✅" },
-    { key: "pagos" as const, label: "Pagos", icon: "💳" },
-    { key: "suscripciones" as const, label: "Suscripciones", icon: "🔄" },
-    { key: "clientes" as const, label: "Clientes", icon: "👥" },
-    { key: "all" as const, label: "Todas", icon: "📋" }
+    { key: "unread" as const, label: "No leídas", icon: "bell" },
+    { key: "read" as const, label: "Leídas", icon: "check" },
+    { key: "pagos" as const, label: "Pagos", icon: "card" },
+    { key: "suscripciones" as const, label: "Suscripciones", icon: "refresh" },
+    { key: "clientes" as const, label: "Clientes", icon: "users" },
+    { key: "all" as const, label: "Todas", icon: "list" }
   ], []);
 
   const filteredNotifications = useMemo(() => {
@@ -457,7 +564,7 @@ export function TopBar({ session }: { session: AdminSession | null }) {
                     className={`topbarBellFilter ${notifFilter === opt.key ? "is-active" : ""}`}
                     onClick={() => setNotifFilter(opt.key)}
                   >
-                    <span className="filter-icon">{opt.icon}</span>
+                    <span className="filter-icon">{getFilterIcon(opt.icon)}</span>
                     <span className="filter-label">{opt.label}</span>
                   </button>
                 ))}
@@ -467,7 +574,7 @@ export function TopBar({ session }: { session: AdminSession | null }) {
               <div className="topbarBellList">
                 {filteredNotifications.length > 0 ? (
                   filteredNotifications.map((n) => {
-                    const icon = getNotificationIcon(n.level);
+                    const icon = getNotificationIcon({ level: n.level, category: n.category });
                     const colorClass = getNotificationColor(n.level);
                     const destinationHref = n.href || resolveNotificationHref(n.category, n.level, session?.role);
                     
