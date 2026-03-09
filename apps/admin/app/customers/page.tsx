@@ -462,7 +462,7 @@ export default async function CustomersPage({
                       placeholder="Buscar por nombre, email, teléfono o identificación..."
                       aria-label="Buscar contactos"
                     />
-                    <button className="ghost btn-icon-only btn-filter" type="submit" aria-label="Buscar" title="Buscar" />
+                    <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
                   </form>
                   <div className="module-search-right">
                     <SmartViewsBar

@@ -1067,7 +1067,7 @@ export default async function LogsPage({
                     <form action="/logs" method="GET" className="filtersForm filtersSearch" data-debounce-form="true">
                       <input type="hidden" name="tab" value="webhooks" />
                       <input className="input" name="q" defaultValue={q} placeholder="Buscar cliente, referencia o tx..." aria-label="Buscar webhooks" />
-                      <button className="ghost btn-icon-only btn-filter" type="submit" aria-label="Buscar" title="Buscar" />
+                      <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
                     </form>
                   </div>
                 </div>
