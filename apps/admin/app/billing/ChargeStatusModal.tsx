@@ -21,6 +21,19 @@ function mapStatus(status?: PaymentStatus) {
   return "processing" as const;
 }
 
+function describeChargeError(raw?: string) {
+  const code = String(raw || "").trim();
+  if (!code) return "";
+  if (code === "customer_payment_source_missing") return "El cliente no tiene una tarjeta tokenizada usable para debito automatico.";
+  if (code === "customer_email_required") return "El cliente no tiene email y Wompi lo exige para crear el cobro.";
+  if (code === "charge_not_due_yet") return "La suscripcion todavia no esta en fecha de cobro.";
+  if (code === "pending_charge_exists") return "Ya existe un cobro pendiente reciente para esta suscripcion.";
+  if (code === "manual_charge_disabled_by_settings" || code === "manual_charge_not_allowed") {
+    return "El cobro manual esta deshabilitado para esta configuracion.";
+  }
+  return code.replace(/_/g, " ");
+}
+
 export function ChargeStatusModal({
   initialStatus,
   paymentId,
@@ -32,7 +45,7 @@ export function ChargeStatusModal({
   retryAction
 }: Props) {
   const [status, setStatus] = useState<"processing" | "ok" | "fail">(initialStatus);
-  const [detail, setDetail] = useState<string>(chargeError || "");
+  const [detail, setDetail] = useState<string>(describeChargeError(chargeError));
   const [attempts, setAttempts] = useState(0);
 
   const canPoll = useMemo(() => initialStatus === "processing" && !!paymentId, [initialStatus, paymentId]);
@@ -59,7 +72,7 @@ export function ChargeStatusModal({
           setStatus(next);
           if (next === "fail") {
             const reason = json?.lastAttempt?.errorMessage || json?.lastAttempt?.errorCode || "";
-            setDetail(reason || "El cobro fue rechazado.");
+            setDetail(describeChargeError(reason) || "El cobro fue rechazado.");
           }
           return;
         }

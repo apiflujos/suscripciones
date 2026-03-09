@@ -133,6 +133,20 @@ function normalizeSku(value: unknown) {
   return digits.length >= 6 ? digits.slice(-6) : digits.padStart(6, "0");
 }
 
+function hasUsablePaymentSource(metadata: any) {
+  const candidates = [
+    metadata?.wompi?.paymentSourceId,
+    metadata?.wompi?.payment_source_id,
+    metadata?.paymentSourceId,
+    metadata?.payment_source_id
+  ];
+  return candidates.some((value) => {
+    if (typeof value === "number") return Number.isFinite(value);
+    if (typeof value === "string") return /^\d+$/.test(value.trim());
+    return false;
+  });
+}
+
 function formatPlanTitle(plan: any) {
   const md = (plan?.metadata as any) || {};
   const displayName = String(md?.displayName || "").trim();
@@ -363,13 +377,7 @@ export default async function BillingPage({
         customerId: String(s.customerId || ""),
         customerName: String(customer?.name || customer?.email || s.customerId || "—"),
         customerEmail: String(customer?.email || ""),
-        customerTokenized:
-          (typeof customer?.metadata?.wompi?.paymentSourceId === "number" && Number.isFinite(customer?.metadata?.wompi?.paymentSourceId)) ||
-          (typeof customer?.metadata?.wompi?.paymentSourceId === "string" && /^\d+$/.test(customer?.metadata?.wompi?.paymentSourceId)) ||
-          (typeof customer?.metadata?.wompi?.payment_source_id === "string" && /^\d+$/.test(customer?.metadata?.wompi?.payment_source_id)) ||
-          (typeof customer?.metadata?.paymentSourceId === "string" && /^\d+$/.test(customer?.metadata?.paymentSourceId)) ||
-          (typeof customer?.metadata?.payment_source_id === "string" && /^\d+$/.test(customer?.metadata?.payment_source_id)) ||
-          (Array.isArray(customer?.metadata?.wompi?.paymentSources) && customer?.metadata?.wompi?.paymentSources.length > 0),
+        customerTokenized: hasUsablePaymentSource(customer?.metadata),
         identificacion: String(ident || "—"),
         tipoTx,
         tipoPago: getTipoPago(plan),
