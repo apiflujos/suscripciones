@@ -4,26 +4,28 @@ import { getMetricsOverview } from "../services/metrics";
 import { getReportCache, setReportCache } from "../services/reportCache";
 import { coerceTenantId, getEffectiveTenantId } from "../services/tenantContext";
 
-// Schema de validación mejorado con UUID y límites de rango
+function parseQueryDate(value: unknown): Date | null {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  const normalized = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? `${raw}T00:00:00.000Z` : raw;
+  const parsed = new Date(normalized);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+// Schema de validación tolerante con fecha ISO y YYYY-MM-DD
 const querySchema = z.object({
-  from: z.string().datetime().optional(),
-  to: z.string().datetime().optional(),
+  from: z.string().trim().optional(),
+  to: z.string().trim().optional(),
   granularity: z.enum(["day", "week", "month"]).optional().default("day"),
   tenantId: z.string().uuid().optional().nullable()
 }).refine(data => {
-  // Validar que el rango no exceda 365 días
-  if (data.from && data.to) {
-    try {
-      const from = new Date(data.from);
-      const to = new Date(data.to);
-      if (isNaN(from.getTime()) || isNaN(to.getTime())) {
-        return false;
-      }
-      const days = (to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24);
-      return days <= 365 && days >= 0;
-    } catch {
-      return false;
-    }
+  const from = data.from ? parseQueryDate(data.from) : null;
+  const to = data.to ? parseQueryDate(data.to) : null;
+  if (data.from && !from) return false;
+  if (data.to && !to) return false;
+  if (from && to) {
+    const days = (to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24);
+    return days <= 365 && days >= 0;
   }
   return true;
 }, { message: "El rango de fechas no puede exceder 365 días y debe ser válido" });
@@ -65,8 +67,8 @@ metricsRouter.get("/overview", async (req, res) => {
   }
 
   const d = defaultRange();
-  const from = parsed.data.from ? new Date(parsed.data.from) : d.from;
-  const to = parsed.data.to ? new Date(parsed.data.to) : d.to;
+  const from = parsed.data.from ? (parseQueryDate(parsed.data.from) || d.from) : d.from;
+  const to = parsed.data.to ? (parseQueryDate(parsed.data.to) || d.to) : d.to;
   const hasExplicitRange = Boolean(parsed.data.from || parsed.data.to);
   const cacheTtlSeconds = 300;
   const staleSeconds = 900;
