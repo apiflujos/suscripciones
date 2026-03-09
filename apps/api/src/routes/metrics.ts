@@ -13,11 +13,20 @@ const querySchema = z.object({
 }).refine(data => {
   // Validar que el rango no exceda 365 días
   if (data.from && data.to) {
-    const days = (new Date(data.to).getTime() - new Date(data.from).getTime()) / (1000 * 60 * 60 * 24);
-    return days <= 365;
+    try {
+      const from = new Date(data.from);
+      const to = new Date(data.to);
+      if (isNaN(from.getTime()) || isNaN(to.getTime())) {
+        return false;
+      }
+      const days = (to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24);
+      return days <= 365 && days >= 0;
+    } catch {
+      return false;
+    }
   }
   return true;
-}, { message: "Range cannot exceed 365 days", path: ["to"] });
+}, { message: "El rango de fechas no puede exceder 365 días y debe ser válido" });
 
 function defaultRange() {
   const to = new Date();
@@ -78,8 +87,21 @@ metricsRouter.get("/overview", async (req, res) => {
       const data = await getMetricsOverview({ from: cacheFrom, to: cacheTo, granularity: parsed.data.granularity, tenantId: null });
       return res.json(data);
     } catch (err: any) {
-      console.error('[Metrics] Error fetching metrics (no tenant)', { error: err?.message });
-      return res.status(400).json({ error: "invalid_range", message: err?.message ? String(err.message) : "invalid_range" });
+      console.error('[Metrics] Error fetching metrics (no tenant)', { 
+        error: err?.message,
+        stack: err?.stack,
+        from: cacheFrom,
+        to: cacheTo
+      });
+      return res.status(400).json({ 
+        error: "error_consultando_metricas", 
+        message: err?.message ? String(err.message) : "Error al consultar las métricas. Verifica el rango de fechas.",
+        details: {
+          from: cacheFrom.toISOString(),
+          to: cacheTo.toISOString(),
+          granularity: parsed.data.granularity
+        }
+      });
     }
   }
 
@@ -122,7 +144,21 @@ metricsRouter.get("/overview", async (req, res) => {
     res.setHeader("x-report-cache", "MISS");
     res.json(data);
   } catch (err: any) {
-    console.error('[Metrics] Error fetching metrics', { tenantId: resolvedTenantId, error: err?.message });
-    res.status(400).json({ error: "invalid_range", message: err?.message ? String(err.message) : "invalid_range" });
+    console.error('[Metrics] Error fetching metrics', { 
+      tenantId: resolvedTenantId, 
+      error: err?.message,
+      stack: err?.stack,
+      from: cacheFrom,
+      to: cacheTo
+    });
+    res.status(400).json({ 
+      error: "error_consultando_metricas", 
+      message: err?.message ? String(err.message) : "Error al consultar las métricas. Verifica el rango de fechas y el tenant.",
+      details: {
+        from: cacheFrom.toISOString(),
+        to: cacheTo.toISOString(),
+        granularity: parsed.data.granularity
+      }
+    });
   }
 });
