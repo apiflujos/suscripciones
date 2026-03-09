@@ -75,8 +75,12 @@
   --stroke: rgba(27, 16, 34, 0.12);
   --stroke-strong: rgba(27, 16, 34, 0.18);
   --shadow: 0 12px 26px rgba(30, 18, 52, 0.1);
+  --shadow-card: 0 16px 34px rgba(30, 18, 52, 0.09);
+  --shadow-shell: 0 24px 60px rgba(30, 18, 52, 0.12);
   --surface-2: rgba(27, 16, 34, 0.02);
   --surface-3: rgba(27, 16, 34, 0.05);
+  --surface-brand: linear-gradient(180deg, color-mix(in srgb, var(--panel) 92%, var(--primary-soft) 8%) 0%, var(--panel) 100%);
+  --surface-brand-strong: linear-gradient(180deg, color-mix(in srgb, var(--panel) 84%, var(--primary-soft) 16%) 0%, color-mix(in srgb, var(--panel) 96%, white 4%) 100%);
   --row-alt: rgba(27, 16, 34, 0.02);
   --row-hover: rgba(138, 64, 185, 0.1);
   --radius-md: 10px;
@@ -162,8 +166,12 @@ html[data-theme="dark"] {
   --stroke: rgba(255, 255, 255, 0.12);
   --stroke-strong: rgba(255, 255, 255, 0.2);
   --shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  --shadow-card: 0 20px 44px rgba(0, 0, 0, 0.32);
+  --shadow-shell: 0 28px 72px rgba(0, 0, 0, 0.44);
   --surface-2: rgba(255, 255, 255, 0.03);
   --surface-3: rgba(255, 255, 255, 0.06);
+  --surface-brand: linear-gradient(180deg, color-mix(in srgb, var(--panel) 88%, var(--primary-soft) 12%) 0%, var(--panel) 100%);
+  --surface-brand-strong: linear-gradient(180deg, color-mix(in srgb, var(--panel) 78%, var(--primary-soft) 22%) 0%, color-mix(in srgb, var(--panel) 96%, black 4%) 100%);
   --row-alt: rgba(255, 255, 255, 0.03);
   --row-hover: rgba(159, 97, 200, 0.26);
   --chart-axis: rgba(255, 255, 255, 0.2);
@@ -395,7 +403,10 @@ body {
 body {
   font-family: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 12.5px;
-  background: var(--bg);
+  background:
+    radial-gradient(1200px 540px at 12% -10%, color-mix(in srgb, var(--primary-soft) 80%, transparent) 0%, transparent 55%),
+    radial-gradient(900px 420px at 100% 0%, color-mix(in srgb, var(--accent-soft) 78%, transparent) 0%, transparent 52%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg) 96%, white 4%) 0%, var(--bg) 100%);
   color: var(--text);
 }
 
@@ -419,11 +430,11 @@ body {
 
 .authCard {
   width: 100%;
-  border-radius: 22px;
+  border-radius: 24px;
   overflow: hidden;
-  background: #fff;
-  border: 1px solid rgba(35, 38, 47, 0.08);
-  box-shadow: 0 18px 60px rgba(22, 24, 35, 0.08);
+  background: var(--surface-brand-strong);
+  border: 1px solid color-mix(in srgb, var(--stroke-strong) 80%, transparent);
+  box-shadow: var(--shadow-shell);
 }
 
 .authCardInner {
@@ -596,6 +607,7 @@ a {
   min-height: 100vh;
   display: grid;
   grid-template-columns: 220px 1fr;
+  position: relative;
 }
 
 .app-shell.is-collapsed {
@@ -609,7 +621,9 @@ a {
 .sidebar {
   padding: 18px 16px;
   border-right: 1px solid var(--stroke);
-  background: var(--panel);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--panel) 90%, var(--primary-soft) 10%) 0%, var(--panel) 100%);
+  backdrop-filter: blur(10px);
 }
 
 .sidebarShell {
@@ -715,10 +729,11 @@ a {
   align-items: center;
   gap: 12px;
   padding: 10px 14px;
-  border: 1px solid var(--stroke);
-  border-radius: 12px;
-  background: var(--panel);
-  box-shadow: var(--shadow);
+  border: 1px solid color-mix(in srgb, var(--stroke-strong) 80%, transparent);
+  border-radius: 16px;
+  background: var(--surface-brand);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(10px);
 }
 
 .topbarLeft {
@@ -1454,16 +1469,18 @@ a {
 }
 
 .topbar h1 {
-  font-size: 18px;
-  font-weight: 800;
+  font-size: 19px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
   margin: 0;
-  color: var(--text);
+  color: var(--topbar-title);
 }
 
 .topbar .subtitle {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--text-faint);
-  margin: 2px 0 0;
+  margin: 3px 0 0;
+  line-height: 1.35;
 }
 
 .panelHeaderRow {
@@ -2870,16 +2887,16 @@ html[data-contrast="high"] .filtersPanel {
 /* “Grupos” / Paneles */
 .settings-group {
   width: 100%;
-  border: 2px solid rgba(15, 23, 42, 0.12);
-  border-radius: 16px;
-  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
-  background: var(--panel);
+  border: 1px solid color-mix(in srgb, var(--stroke-strong) 82%, transparent);
+  border-radius: 18px;
+  box-shadow: var(--shadow-card);
+  background: var(--surface-brand);
   overflow: hidden;
 }
 
 .settings-group-header {
   padding: 12px 14px;
-  background: linear-gradient(180deg, rgba(0, 43, 91, 0.06), rgba(0, 43, 91, 0));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--primary-soft) 80%, transparent), transparent);
   border-bottom: 1px solid var(--stroke);
 }
 
@@ -2909,8 +2926,9 @@ html[data-contrast="high"] .filtersPanel {
   width: 100%;
   border-radius: 10px;
   padding: 10px;
-  border: 2px solid rgba(15, 23, 42, 0.12);
-  background: var(--panel);
+  border: 1px solid color-mix(in srgb, var(--stroke-strong) 82%, transparent);
+  background: color-mix(in srgb, var(--panel) 94%, var(--primary-soft) 6%);
+  box-shadow: var(--shadow-card);
 }
 
 .panel.module {
@@ -2941,6 +2959,94 @@ html[data-contrast="high"] .filtersPanel {
 .field-hint {
   font-size: 10.5px;
   color: var(--form-hint);
+}
+
+.ui-stack-lg {
+  display: grid;
+  gap: 20px;
+}
+
+.ui-form-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.ui-form-grid-lg {
+  display: grid;
+  gap: 16px;
+}
+
+.ui-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.ui-grid-2-wide {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 10px;
+}
+
+.ui-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ui-inline-check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  cursor: pointer;
+}
+
+.ui-field-end {
+  display: flex;
+  align-items: flex-end;
+}
+
+.ui-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ui-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ui-title-reset {
+  margin: 0;
+}
+
+.ui-modal-panel-wide {
+  width: min(980px, 96vw);
+  max-height: 90vh;
+  overflow: auto;
+}
+
+.ui-alert-success {
+  color: #fff;
+}
+
+.ui-alert-danger {
+  border-color: var(--status-danger);
+  color: var(--status-danger);
+}
+
+.ui-user-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.ui-user-email {
+  font-weight: 700;
 }
 
 .filter-group {
@@ -3049,7 +3155,7 @@ textarea {
   padding: 0 var(--control-padding-x);
   border-radius: var(--radius-lg);
   border: 1px solid var(--form-border);
-  background-color: var(--form-bg);
+  background-color: color-mix(in srgb, var(--form-bg) 92%, white 8%);
   background-image: var(--field-icon, none);
   background-repeat: no-repeat;
   background-position: 12px 50%;
@@ -3058,13 +3164,17 @@ textarea {
   outline: none;
   padding-left: var(--field-padding-left, var(--control-padding-x));
   font-size: 12.5px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease, transform 0.12s ease;
 }
 
 .input:focus,
 .select:focus {
-  outline: 2px solid var(--primary-soft);
-  outline-offset: 2px;
+  outline: 2px solid color-mix(in srgb, var(--primary-soft) 88%, transparent);
+  outline-offset: 1px;
   border-color: var(--primary);
+  background-color: color-mix(in srgb, var(--form-bg) 86%, white 14%);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary-soft) 42%, transparent);
 }
 
 .input::placeholder,
@@ -3205,7 +3315,7 @@ textarea.input {
 
 .primary,
 .btnPrimary {
-  background: var(--primary);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 92%, white 8%) 0%, color-mix(in srgb, var(--brand-primary-700) 88%, var(--primary) 12%) 100%);
   color: #fff;
   box-shadow: var(--btn-shadow);
   border-color: transparent;
@@ -3214,8 +3324,8 @@ textarea.input {
 
 .ghost,
 .btn {
-  background: var(--panel);
-  border-color: var(--stroke-strong);
+  background: color-mix(in srgb, var(--panel) 92%, var(--primary-soft) 8%);
+  border-color: color-mix(in srgb, var(--stroke-strong) 88%, transparent);
   color: var(--text);
   box-shadow: var(--btn-shadow-soft);
   --btn-icon: var(--icon-next);
@@ -3332,7 +3442,7 @@ textarea.input {
 .primary:hover,
 .btnPrimary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 14px 24px rgba(138, 64, 185, 0.25);
+  box-shadow: 0 16px 28px rgba(138, 64, 185, 0.28);
 }
 
 .ghost:hover,
@@ -3340,7 +3450,8 @@ textarea.input {
 .btnLink:hover {
   border-color: var(--primary);
   color: var(--primary);
-  background: var(--primary-soft);
+  background: color-mix(in srgb, var(--primary-soft) 88%, var(--panel) 12%);
+  transform: translateY(-1px);
 }
 
 .module-choice {
@@ -5504,69 +5615,73 @@ textarea.input {
 }
 
 .billing-card {
-  background: var(--panel);
-  border-radius: 14px;
-  border: 1px solid var(--stroke);
-  box-shadow: var(--shadow);
-  padding: 4px 6px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--panel) 94%, var(--primary-soft) 6%) 0%, var(--panel) 100%);
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--stroke-strong) 78%, transparent);
+  box-shadow: 0 10px 24px rgba(30, 18, 52, 0.08);
+  padding: 2px 4px;
   display: grid;
-  gap: 2px;
+  gap: 0;
   width: 100%;
 }
 
 .billing-header {
   display: flex;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
   align-items: flex-start;
 }
 
 .billing-header-middle {
   display: grid;
-  gap: 4px;
+  gap: 2px;
   justify-items: flex-start;
   align-content: start;
   min-width: 170px;
 }
 
 .billing-header-label {
-  font-size: 10px;
+  font-size: 9px;
   color: var(--text-faint);
+  letter-spacing: 0.02em;
 }
 
 .billing-header-right {
   display: grid;
-  gap: 4px;
+  gap: 2px;
   justify-items: end;
 }
 
 .billing-header-actions {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
 
 .billing-title {
   display: grid;
-  gap: 2px;
+  gap: 1px;
 }
 
 .billing-name {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--text-strong);
+  line-height: 1.15;
 }
 
 .billing-sub {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-soft);
+  line-height: 1.2;
 }
 
 .billing-badges {
   display: inline-flex;
-  gap: 6px;
+  gap: 4px;
   flex-wrap: wrap;
   justify-content: flex-end;
   align-items: center;
@@ -5581,7 +5696,7 @@ textarea.input {
 .billing-header-meta-grid {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: nowrap;
   width: 100%;
   min-width: 0;
@@ -5589,7 +5704,7 @@ textarea.input {
 
 .billing-header-meta-item {
   display: inline-flex;
-  gap: 6px;
+  gap: 4px;
   align-items: center;
   min-width: 0;
   flex: 0 0 auto;
@@ -5598,7 +5713,7 @@ textarea.input {
 .billing-header-status-strip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
   flex: 1 1 auto;
 }
@@ -5612,7 +5727,7 @@ textarea.input {
 .billing-status-line {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   flex-wrap: nowrap;
   min-width: 0;
   overflow-x: auto;
@@ -5626,7 +5741,7 @@ textarea.input {
 }
 
 .billing-header-meta-item > :is(.pill, .btn-compact) {
-  min-height: 32px;
+  min-height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -5635,27 +5750,27 @@ textarea.input {
 
 .billing-body-left {
   display: grid;
-  gap: 4px;
+  gap: 3px;
 }
 
 .billing-type-block,
 .billing-cutoff-block {
   display: grid;
-  gap: 4px;
+  gap: 3px;
   align-content: start;
 }
 
 .billing-grid-info {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 2px 6px;
-  font-size: 12px;
+  gap: 2px 8px;
+  font-size: 11px;
   color: var(--text);
 }
 
 .billing-grid-info.billing-grid-subscription {
-  grid-template-columns: minmax(300px, 1.25fr) minmax(250px, 0.95fr) minmax(260px, 0.9fr);
-  gap: 8px 14px;
+  grid-template-columns: minmax(260px, 1.2fr) minmax(210px, 0.9fr) minmax(220px, 0.82fr);
+  gap: 6px 12px;
 }
 
 .billing-grid-info > div {
@@ -5668,7 +5783,7 @@ textarea.input {
 .billing-grid-info > .billing-cost-panel {
   display: grid;
   align-items: stretch;
-  gap: 4px;
+  gap: 3px;
 }
 
 .billing-grid-info > .billing-body-left,
@@ -5676,38 +5791,38 @@ textarea.input {
 .billing-grid-info > .billing-cost-panel,
 .billing-grid-info > .billing-type-block {
   display: grid;
-  gap: 4px;
+  gap: 3px;
   align-content: start;
 }
 
 .billing-grid-info span {
   display: inline;
   color: var(--text-faint);
-  font-size: 10px;
+  font-size: 9px;
 }
 
 .billing-cost-panel {
   display: grid;
-  gap: 6px;
+  gap: 4px;
   justify-self: end;
   justify-items: stretch;
   text-align: left;
-  padding-right: 6px;
+  padding-right: 2px;
 }
 
 .billing-cost-title {
   color: var(--text-faint);
-  font-size: 10px;
+  font-size: 9px;
 }
 
 .billing-cost-box {
   border: 1px solid color-mix(in srgb, var(--stroke) 80%, transparent);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--panel) 92%, var(--primary-soft) 8%);
-  padding: 12px 18px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--panel) 90%, var(--primary-soft) 10%);
+  padding: 8px 10px;
   display: grid;
-  gap: 6px;
-  min-width: 250px;
+  gap: 4px;
+  min-width: 210px;
   text-align: left;
 }
 
@@ -5715,22 +5830,22 @@ textarea.input {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: baseline;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
 }
 
 .billing-cost-label {
   color: var(--text-faint);
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .billing-cost-value {
   color: var(--text);
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 700;
   justify-self: end;
   text-align: right;
-  padding-left: 10px;
+  padding-left: 8px;
 }
 
 .billing-cost-total-line {
@@ -5740,14 +5855,14 @@ textarea.input {
 
 .billing-cost-total-label {
   color: var(--text-faint);
-  font-size: 11px;
+  font-size: 10px;
   margin-top: 1px;
   text-align: center;
 }
 
 .billing-cost-total {
   color: var(--primary);
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 800;
   line-height: 1.1;
   text-align: center;
@@ -5755,22 +5870,24 @@ textarea.input {
 
 .billing-cost-period {
   color: var(--text-soft);
-  font-size: 11px;
+  font-size: 10px;
   text-align: center;
 }
 
 .billing-actions {
   display: flex;
-  gap: 6px;
+  gap: 4px 6px;
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: flex-start;
+  padding-top: 6px;
+  border-top: 1px solid color-mix(in srgb, var(--stroke) 86%, transparent);
 }
 
 .billing-actions-left,
 .billing-actions-right {
   display: inline-flex;
-  gap: 6px;
+  gap: 4px;
   flex-wrap: wrap;
   align-items: center;
 }
@@ -5779,6 +5896,55 @@ textarea.input {
   margin-left: auto;
   flex: 1 1 auto;
   justify-content: flex-end;
+}
+
+.billing-product-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.billing-product-thumb {
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+}
+
+.billing-product-meta {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+}
+
+.billing-product-meta strong {
+  font-size: 12px;
+  line-height: 1.15;
+}
+
+.billing-payment-link-section {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--stroke);
+}
+
+.billing-payment-link-section.is-empty {
+  border-top-style: dashed;
+}
+
+.billing-payment-link-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.billing-payment-link-hint {
+  margin-top: 4px;
+  text-align: center;
+}
+
+.billing-payment-link-hint.is-empty {
+  font-style: italic;
 }
 
 .billing-quick-link {
@@ -6063,8 +6229,10 @@ textarea.input {
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 10.5px;
-  line-height: 1.25;
+  font-size: 11px;
+  line-height: 1.3;
+  border-radius: 14px;
+  overflow: hidden;
 }
 
 .table-fixed {
@@ -6086,17 +6254,18 @@ textarea.input {
 
 .table th,
 .table td {
-  padding: 6px;
-  border-bottom: 1px solid var(--stroke-strong);
+  padding: 8px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--stroke-strong) 88%, transparent);
   text-align: left;
+  vertical-align: top;
 }
 
 .table thead th {
-  font-size: 9.5px;
+  font-size: 9px;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   color: var(--text-faint);
-  background: var(--surface-3);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-3) 82%, var(--primary-soft) 18%), var(--surface-3));
 }
 
 .table tbody tr:nth-child(even) td {
@@ -6590,21 +6759,26 @@ textarea.input {
 }
 
 .card {
-  background: linear-gradient(180deg, var(--panel) 0%, var(--surface-2) 100%);
-  border: 1px solid var(--stroke-strong);
-  border-radius: 12px;
-  box-shadow: var(--shadow);
+  background: var(--surface-brand);
+  border: 1px solid color-mix(in srgb, var(--stroke-strong) 82%, transparent);
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
 }
 
 .cardPad {
-  padding: 14px;
+  padding: 16px;
 }
 
 .toolbar {
   display: flex;
-  gap: 10px;
+  gap: 8px 10px;
   flex-wrap: wrap;
   align-items: center;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--stroke) 78%, transparent);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--panel) 90%, var(--primary-soft) 10%);
+  box-shadow: var(--shadow-card);
 }
 
 .toolbar .btn.is-active {
@@ -6617,19 +6791,20 @@ textarea.input {
 .pill {
   display: inline-flex;
   align-items: center;
-  height: 22px;
-  padding: 0 10px;
+  min-height: 24px;
+  padding: 0 11px;
   border-radius: 999px;
   font-size: 11px;
   font-weight: 700;
-  border: 1px solid var(--stroke);
+  border: 1px solid color-mix(in srgb, var(--stroke-strong) 84%, transparent);
   color: var(--primary);
-  background: var(--primary-soft);
+  background: color-mix(in srgb, var(--primary-soft) 86%, var(--panel) 14%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
 .pill-soft {
   color: var(--text-faint);
-  border-color: var(--stroke);
+  border-color: color-mix(in srgb, var(--stroke) 86%, transparent);
   background: color-mix(in srgb, var(--primary) 12%, transparent);
   font-weight: 600;
 }
@@ -6643,6 +6818,12 @@ textarea.input {
 /* Responsive */
 @media (max-width: 920px) {
   .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .ui-grid-2,
+  .ui-grid-2-wide,
+  .ui-grid-4 {
     grid-template-columns: 1fr;
   }
 
@@ -6712,10 +6893,10 @@ textarea.input {
 }
 
 .publicCheckoutCard {
-  border-radius: 20px;
-  border: 1px solid var(--stroke);
-  background: var(--panel);
-  box-shadow: var(--shadow);
+  border-radius: 24px;
+  border: 1px solid color-mix(in srgb, var(--stroke-strong) 80%, transparent);
+  background: var(--surface-brand-strong);
+  box-shadow: var(--shadow-shell);
   backdrop-filter: blur(10px);
   animation: publicCheckoutLift 420ms ease both;
   width: 100%;
@@ -6767,11 +6948,11 @@ textarea.input {
 .publicCheckoutSide {
   display: grid;
   gap: 8px;
-  padding: 12px;
-  border-radius: 16px;
-  border: 1px solid var(--stroke);
-  background: var(--panel);
-  box-shadow: var(--shadow);
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--stroke-strong) 80%, transparent);
+  background: color-mix(in srgb, var(--panel) 90%, var(--primary-soft) 10%);
+  box-shadow: var(--shadow-card);
   animation: publicCheckoutLift 620ms ease both;
   min-width: 0;
   overflow: visible;
@@ -6800,8 +6981,8 @@ textarea.input {
   gap: 10px;
   padding: 12px;
   border-radius: 14px;
-  border: 1px dashed var(--stroke);
-  background: var(--surface-2);
+  border: 1px dashed color-mix(in srgb, var(--stroke-strong) 84%, transparent);
+  background: color-mix(in srgb, var(--surface-2) 78%, var(--primary-soft) 22%);
 }
 
 .payment-point-title {
@@ -6892,8 +7073,8 @@ html[data-theme="dark"] .payment-point-provider img {
   gap: 8px;
   padding: 10px 12px;
   border-radius: 14px;
-  border: 1px dashed var(--stroke);
-  background: var(--surface-2);
+  border: 1px dashed color-mix(in srgb, var(--stroke-strong) 84%, transparent);
+  background: color-mix(in srgb, var(--surface-2) 76%, var(--primary-soft) 24%);
 }
 
 .publicCheckoutBrandText {
@@ -8509,10 +8690,16 @@ body.is-global-loading {
   .billing-grid-info {
     grid-template-columns: 1fr 1fr;
   }
+  .billing-grid-info.billing-grid-subscription {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 @media (max-width: 640px) {
   .billing-grid-info {
+    grid-template-columns: 1fr;
+  }
+  .billing-grid-info.billing-grid-subscription {
     grid-template-columns: 1fr;
   }
   .billing-cost-box {
@@ -8541,6 +8728,13 @@ body.is-global-loading {
   .billing-header-middle {
     justify-items: flex-start;
     min-width: 0;
+  }
+  .billing-actions-right {
+    margin-left: 0;
+    justify-content: flex-start;
+  }
+  .billing-payment-link-row {
+    flex-wrap: wrap;
   }
 }
 

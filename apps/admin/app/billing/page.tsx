@@ -461,7 +461,7 @@ export default async function BillingPage({
   };
 
   return (
-    <main className="page pageWide">
+    <main className="page pageWide billing-page">
       {error ? (
         <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
           Error: {error}
@@ -659,11 +659,11 @@ export default async function BillingPage({
                           {r.customerEmail || "—"} · {r.identificacion || "—"}
                         </div>
                       </div>
-                      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                        <div className="product-thumb" style={{ width: 32, height: 32 }}>
+                      <div className="billing-product-row">
+                        <div className="product-thumb billing-product-thumb">
                           {r.planImageUrl ? <img src={r.planImageUrl} alt={r.planName} /> : <span>📦</span>}
                         </div>
-                        <div style={{ display: "grid", gap: 2 }}>
+                        <div className="billing-product-meta">
                           <span>Producto</span>
                           <strong>{r.planName}</strong>
                         </div>
@@ -708,8 +708,8 @@ export default async function BillingPage({
                         
                         {/* FIX: Botón Link de Pago movido aquí - solo visible cuando hay checkoutUrl generado */}
                         {r.mode !== "AUTO_DEBIT" && latestCheckoutUrl ? (
-                          <div className="billing-payment-link-section" style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--stroke)" }}>
-                            <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between" }}>
+                          <div className="billing-payment-link-section">
+                            <div className="billing-payment-link-row">
                               <a 
                                 className="primary btn-compact btn-noicon" 
                                 href={latestCheckoutUrl} 
@@ -721,13 +721,13 @@ export default async function BillingPage({
                               </a>
                               <CopyButton text={latestCheckoutUrl} label="⧉" copiedLabel="✓" />
                             </div>
-                            <div className="field-hint" style={{ marginTop: 6, textAlign: "center" }}>
+                            <div className="field-hint billing-payment-link-hint">
                               Link generado y listo para usar
                             </div>
                           </div>
                         ) : r.mode !== "AUTO_DEBIT" ? (
-                          <div className="billing-payment-link-section" style={{ marginTop: 12, paddingTop: 12, borderTop: "1px dashed var(--stroke)" }}>
-                            <div className="field-hint" style={{ textAlign: "center", fontStyle: "italic" }}>
+                          <div className="billing-payment-link-section is-empty">
+                            <div className="field-hint billing-payment-link-hint is-empty">
                               El link de pago se generará al crear la suscripción
                             </div>
                           </div>

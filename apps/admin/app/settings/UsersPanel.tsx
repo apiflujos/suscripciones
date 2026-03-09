@@ -15,10 +15,10 @@ export function UsersPanel({
   created?: boolean;
 }) {
   return (
-    <div style={{ display: "grid", gap: 20 }}>
-      {created ? <div className="card cardPad pill-green" style={{ color: "white" }}>Usuario creado exitosamente.</div> : null}
+    <div className="ui-stack-lg">
+      {created ? <div className="card cardPad pill-green ui-alert-success">Usuario creado exitosamente.</div> : null}
       {error ? (
-        <div className="card cardPad" style={{ borderColor: "var(--danger)", color: "var(--danger)" }}>
+        <div className="card cardPad ui-alert-danger">
           Error: {error}
         </div>
       ) : null}
@@ -29,10 +29,10 @@ export function UsersPanel({
           <p className="field-hint">Los administradores tienen acceso total. Los asesores solo pueden ver datos y gestionar cobros.</p>
         </div>
         <div className="settings-group-body">
-          <form action={createUser} className="panel module" style={{ display: "grid", gap: 16 }}>
+          <form action={createUser} className="panel module ui-form-grid-lg">
             <input type="hidden" name="csrf" value={csrfToken} />
             
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div className="ui-grid-2">
               <div className="field">
                 <label>Correo Electrónico</label>
                 <input name="email" className="input" placeholder="usuario@empresa.com" autoComplete="off" required />
@@ -44,7 +44,7 @@ export function UsersPanel({
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div className="ui-grid-2">
               <div className="field">
                 <label>Rol</label>
                 <select className="select" name="role" defaultValue="AGENT">
@@ -53,15 +53,15 @@ export function UsersPanel({
                 </select>
               </div>
 
-              <div className="field" style={{ display: "flex", alignItems: "end" }}>
-                <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", height: 38 }}>
+              <div className="field ui-field-end">
+                <label className="ui-inline-check">
                   <input name="active" value="1" type="checkbox" defaultChecked />
                   <span>Activo</span>
                 </label>
               </div>
             </div>
 
-            <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
+            <div className="module-footer">
               <PendingButton className="primary" type="submit" pendingText="Creando...">
                 Crear Usuario
               </PendingButton>
@@ -77,9 +77,9 @@ export function UsersPanel({
         <div className="settings-group-body">
           <div className="stack">
             {users.map((u) => (
-              <div key={u.id} className="card cardPad" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div key={u.id} className="card cardPad ui-user-row">
                 <div>
-                  <div style={{ fontWeight: 700 }}>{u.email}</div>
+                  <div className="ui-user-email">{u.email}</div>
                   <div className="field-hint">
                     {u.role === "ADMIN" ? "Administrador" : "Asesor"} · {u.active ? "Activo" : "Inactivo"}
                   </div>

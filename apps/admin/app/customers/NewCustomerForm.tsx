@@ -113,9 +113,9 @@ export function NewCustomerForm({
   return (
     <div className="panel module">
       {!hidePanelHeader ? (
-        <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <h3 style={{ margin: 0 }}>Nuevo contacto</h3>
+        <div className="panel-header ui-panel-header">
+          <div className="ui-panel-title">
+            <h3 className="ui-title-reset">Nuevo contacto</h3>
             <HelpTip text="Crea un contacto con datos básicos, dirección (DANE) e identificación." />
           </div>
           {alwaysOpen ? null : (
@@ -129,8 +129,8 @@ export function NewCustomerForm({
       {open ? (
         <div className="modal-backdrop">
           <div className="modal-panel">
-            <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-              <h3 style={{ margin: 0 }}>Crear contacto</h3>
+            <div className="panel-header ui-panel-header">
+              <h3 className="ui-title-reset">Crear contacto</h3>
               <button type="button" className="ghost modal-close" onClick={() => setOpen(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">
                 X
               </button>
@@ -141,7 +141,7 @@ export function NewCustomerForm({
               onSubmit={(e) => {
                 e.currentTarget.classList.add("was-validated");
               }}
-              style={{ display: "grid", gap: 10 }}
+              className="ui-form-grid"
             >
               <input type="hidden" name="csrf" value={csrfToken} />
               {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
@@ -180,16 +180,16 @@ export function NewCustomerForm({
             <input className="input" name="email" type="email" placeholder="correo@empresa.com" required />
           </div>
 
-          <div className="panel module" style={{ margin: 0 }}>
-            <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <h3 style={{ margin: 0 }}>Dirección</h3>
+          <div className="panel module">
+            <div className="panel-header ui-panel-header">
+              <div className="ui-panel-title">
+                <h3 className="ui-title-reset">Dirección</h3>
                 <HelpTip text="Selecciona departamento y municipio para guardar los códigos DANE." />
               </div>
             </div>
 
             {loadError ? (
-              <div className="field-hint" style={{ color: "rgba(217, 83, 79, 0.95)" }}>
+              <div className="field-hint ui-alert-danger">
                 No se pudo cargar DANE: {loadError}
               </div>
             ) : null}
@@ -225,15 +225,15 @@ export function NewCustomerForm({
             <input type="hidden" name="dane8" value={selected?.dane8 ?? ""} />
           </div>
 
-          <div className="panel module" style={{ margin: 0 }}>
-            <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <h3 style={{ margin: 0 }}>Identificación</h3>
+          <div className="panel module">
+            <div className="panel-header ui-panel-header">
+              <div className="ui-panel-title">
+                <h3 className="ui-title-reset">Identificación</h3>
                 <HelpTip text="Opcional. Útil para búsquedas y para trazabilidad del cliente." />
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 10 }}>
+            <div className="ui-grid-2-wide">
               <div className="field">
                 <label>Tipo</label>
                 <select className="select" name="idType" value={idType} onChange={(e) => setIdType(e.target.value)}>
@@ -250,7 +250,7 @@ export function NewCustomerForm({
             </div>
           </div>
 
-              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+              <div className="module-footer">
                 <button className="primary btn-save" type="submit">
                   Guardar
                 </button>
