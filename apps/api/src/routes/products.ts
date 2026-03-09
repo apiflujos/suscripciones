@@ -395,69 +395,161 @@ productsRouter.put("/:id", async (req, res) => {
 
 productsRouter.post("/", async (req, res) => {
   const parsed = createProductSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+  if (!parsed.success) {
+    console.error('[Products/Create] Validación fallida', {
+      error: parsed.error.flatten(),
+      body: req.body
+    });
+    return res.status(400).json({ error: "cuerpo_invalido", detalles: parsed.error.flatten() });
+  }
 
   const data = parsed.data;
   const tenantIds = await getEffectiveTenantIds(req);
-  if (!tenantIds.length) return res.status(400).json({ error: "tenant_required" });
+  if (!tenantIds.length) {
+    console.error('[Products/Create] Tenant requerido pero no proporcionado');
+    return res.status(400).json({ error: "tenant_requerido", mensaje: "Debe pertenecer al menos a un tenant" });
+  }
   const primaryTenantId = tenantIds[0];
+  
+  // FIX: Validar SKU duplicado (case-insensitive)
+  const skuNormalizado = data.sku.trim().toUpperCase();
   const existing = await prisma.subscriptionPlan.findFirst({
-    where: { metadata: { path: ["sku"], equals: data.sku }, ...(primaryTenantId ? { tenantId: primaryTenantId } : {}) } as any
+    where: { 
+      metadata: { path: ["sku"], equals: skuNormalizado },
+      ...(primaryTenantId ? { tenantId: primaryTenantId } : {})
+    } as any
   });
-  if (existing) return res.status(409).json({ error: "sku_exists" });
+  if (existing) {
+    console.warn('[Products/Create] SKU duplicado', {
+      sku: skuNormalizado,
+      existingProductId: existing.id,
+      newProductName: data.name
+    });
+    return res.status(409).json({ 
+      error: "sku_ya_existe",
+      mensaje: `El SKU ${skuNormalizado} ya está registrado en el sistema`,
+      productId: existing.id
+    });
+  }
 
-  const product = await prisma.subscriptionPlan.create({
-    data: {
-      tenantId: primaryTenantId,
-      name: `[${data.sku}] ${data.name}`,
-      currency: data.currency,
-      priceInCents: data.basePriceInCents,
-      intervalUnit: data.intervalUnit ?? PlanIntervalUnit.MONTH,
-      intervalCount: data.intervalCount ?? 1,
-      metadata: {
-        ...(data.metadata && typeof data.metadata === "object" ? (data.metadata as any) : {}),
-        kind: "CATALOG_ITEM",
-        sku: data.sku,
-        displayName: data.name,
-        itemKind: data.kind,
-        collectionMode: (data.metadata as any)?.collectionMode || "AUTO_LINK",
-        description: data.description || null,
-        vendor: data.vendor || null,
-        productType: data.productType || null,
-        tags: data.tags || null,
-        unit: data.unit || null,
-        taxable: data.taxable,
-        requiresShipping: data.requiresShipping,
-        taxPercent: data.taxPercent,
-        discountType: data.discountType,
-        discountValueInCents: data.discountValueInCents,
-        discountPercent: data.discountPercent,
-        option1Name: data.option1Name || null,
-        option2Name: data.option2Name || null,
-        variants: data.variants ? (data.variants as any) : null,
-        imageUrl: data.imageUrl || null
-      } as any
+  // FIX: Validar coherencia de intervalo
+  if (data.intervalUnit === PlanIntervalUnit.CUSTOM && data.intervalCount <= 0) {
+    console.error('[Products/Create] Intervalo CUSTOM inválido', {
+      intervalUnit: data.intervalUnit,
+      intervalCount: data.intervalCount
+    });
+    return res.status(400).json({
+      error: "intervalo_invalido",
+      mensaje: "El intervalo CUSTOM debe tener un intervalCount mayor a 0"
+    });
+  }
+
+  // FIX: Validar variants sin precio negativo
+  if (data.variants && data.variants.length > 0) {
+    const variantNegativo = data.variants.find(v => v.priceDeltaInCents < 0);
+    if (variantNegativo) {
+      console.error('[Products/Create] Variante con precio negativo', {
+        sku: skuNormalizado,
+        variant: variantNegativo
+      });
+      return res.status(400).json({
+        error: "variante_invalida",
+        mensaje: "Las variantes no pueden tener priceDeltaInCents negativo"
+      });
     }
-  });
-  await prisma.subscriptionPlanTenant.createMany({
-    data: tenantIds.map((t) => ({ planId: product.id, tenantId: t })),
-    skipDuplicates: true
-  });
-  res.status(201).json({ product: { id: product.id } });
+  }
+
+  try {
+    const product = await prisma.subscriptionPlan.create({
+      data: {
+        tenantId: primaryTenantId,
+        name: `[${skuNormalizado}] ${data.name}`,
+        currency: normalizeCurrencyCode(data.currency) || DEFAULT_CURRENCY,
+        priceInCents: data.basePriceInCents,
+        intervalUnit: data.intervalUnit ?? PlanIntervalUnit.MONTH,
+        intervalCount: data.intervalCount ?? 1,
+        metadata: {
+          ...(data.metadata && typeof data.metadata === "object" ? (data.metadata as any) : {}),
+          kind: "CATALOG_ITEM",
+          sku: skuNormalizado,
+          displayName: data.name,
+          itemKind: data.kind,
+          collectionMode: (data.metadata as any)?.collectionMode || "AUTO_LINK",
+          description: data.description || null,
+          vendor: data.vendor || null,
+          productType: data.productType || null,
+          tags: data.tags || null,
+          unit: data.unit || null,
+          taxable: data.taxable,
+          requiresShipping: data.requiresShipping,
+          taxPercent: data.taxPercent,
+          discountType: data.discountType,
+          discountValueInCents: data.discountValueInCents,
+          discountPercent: data.discountPercent,
+          option1Name: data.option1Name || null,
+          option2Name: data.option2Name || null,
+          variants: data.variants ? (data.variants as any) : null,
+          imageUrl: data.imageUrl || null
+        } as any
+      }
+    });
+    await prisma.subscriptionPlanTenant.createMany({
+      data: tenantIds.map((t) => ({ planId: product.id, tenantId: t })),
+      skipDuplicates: true
+    });
+    console.log('[Products/Create] Producto creado exitosamente', {
+      productId: product.id,
+      sku: skuNormalizado,
+      tenantIds
+    });
+    res.status(201).json({ product: { id: product.id } });
+  } catch (err: any) {
+    if (err?.code === 'P2002') {
+      console.error('[Products/Create] Violación de unicidad en BD', {
+        sku: skuNormalizado,
+        constraint: err?.meta?.target || 'desconocida'
+      });
+      return res.status(409).json({ 
+        error: "registro_duplicado",
+        mensaje: "Ya existe un registro con estos datos",
+        constraint: err?.meta?.target || 'desconocida'
+      });
+    }
+    console.error('[Products/Create] Error creando producto', {
+      sku: skuNormalizado,
+      error: err?.message || String(err),
+      stack: err?.stack
+    });
+    throw err;
+  }
 });
 
 productsRouter.delete("/:id", async (req, res) => {
   const id = String(req.params.id || "").trim();
-  if (!id) return res.status(400).json({ error: "invalid_id" });
+  if (!id) {
+    console.error('[Products/Delete] ID no proporcionado');
+    return res.status(400).json({ error: "id_invalido", mensaje: "El ID del producto es requerido" });
+  }
 
   const plan = await prisma.subscriptionPlan.findUnique({ where: { id }, include: { tenantLinks: true } });
-  if (!plan) return res.status(404).json({ error: "not_found" });
+  if (!plan) {
+    console.warn('[Products/Delete] Producto no encontrado', { id });
+    return res.status(404).json({ error: "producto_no_encontrado", mensaje: `El producto ${id} no existe` });
+  }
+  
   const tenantId = await getEffectiveTenantId(req);
   if (tenantId) {
     const allowed = plan.tenantId === tenantId || (plan.tenantLinks || []).some((t: any) => t.tenantId === tenantId);
-    if (!allowed) return res.status(404).json({ error: "not_found" });
+    if (!allowed) {
+      console.warn('[Products/Delete] Acceso denegado', { id, tenantId });
+      return res.status(404).json({ error: "producto_no_encontrado", mensaje: "No tienes acceso a este producto" });
+    }
   }
-  if ((plan.metadata as any)?.kind !== "CATALOG_ITEM") return res.status(404).json({ error: "not_found" });
+  
+  if ((plan.metadata as any)?.kind !== "CATALOG_ITEM") {
+    console.warn('[Products/Delete] No es un item de catálogo', { id, kind: (plan.metadata as any)?.kind });
+    return res.status(404).json({ error: "producto_no_encontrado", mensaje: "El producto no es un item de catálogo" });
+  }
 
   const dependentPlans = await prisma.subscriptionPlan.findMany({
     where: { metadata: { path: ["catalog", "itemId"], equals: id } as any },
@@ -475,10 +567,15 @@ productsRouter.delete("/:id", async (req, res) => {
     take: 20
   });
   if (activeBlocking.length) {
+    console.warn('[Products/Delete] Producto tiene suscripciones activas', {
+      id,
+      activeCount: activeBlocking.length,
+      statuses: blockingStatuses
+    });
     return res.status(409).json({
-      error: "product_has_active_subscriptions",
-      details: {
-        message: "Debes cancelar suscripciones activas/en mora/suspendidas antes de borrar el producto.",
+      error: "producto_tiene_suscripciones_activas",
+      mensaje: "Debes cancelar suscripciones activas/en mora/suspendidas antes de borrar el producto.",
+      detalles: {
         count: activeBlocking.length,
         statuses: blockingStatuses,
         samples: activeBlocking
@@ -493,37 +590,74 @@ productsRouter.delete("/:id", async (req, res) => {
 
   const force = String((req as any)?.query?.force || "").trim() === "1";
   if (!force && (subscriptionsCount || paymentLinksCount || dependentPlans.length)) {
+    console.warn('[Products/Delete] Producto tiene dependencias', {
+      id,
+      subscriptionsCount,
+      paymentLinksCount,
+      dependentPlansCount: dependentPlans.length,
+      force
+    });
     return res.status(409).json({
-      error: "product_has_dependencies",
-      details: { subscriptionsCount, paymentLinksCount, dependentPlansCount: dependentPlans.length }
+      error: "producto_tiene_dependencias",
+      mensaje: "El producto tiene registros relacionados",
+      detalles: { subscriptionsCount, paymentLinksCount, dependentPlansCount: dependentPlans.length }
     });
   }
 
-  if (force) {
-    const subs = await prisma.subscription.findMany({ where: { planId: { in: relatedPlanIds } }, select: { id: true } });
-    const subIds = subs.map((s: any) => s.id);
-    const payments = await prisma.payment.findMany({ where: { subscriptionId: { in: subIds } }, select: { id: true } });
-    const paymentIds = payments.map((p: any) => p.id);
+  try {
+    if (force) {
+      console.log('[Products/Delete] Iniciando eliminación en cascada', { id });
+      const subs = await prisma.subscription.findMany({ where: { planId: { in: relatedPlanIds } }, select: { id: true } });
+      const subIds = subs.map((s: any) => s.id);
+      const payments = await prisma.payment.findMany({ where: { subscriptionId: { in: subIds } }, select: { id: true } });
+      const paymentIds = payments.map((p: any) => p.id);
 
-    if (paymentIds.length) {
-      await prisma.paymentAttempt.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch(() => {});
+      if (paymentIds.length) {
+        await prisma.paymentAttempt.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch(() => {});
+      }
+      await prisma.chatwootMessage.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch(() => {});
+      await prisma.paymentLink
+        .deleteMany({ where: { OR: [{ subscriptionId: { in: subIds } }, { planId: { in: relatedPlanIds } }] } })
+        .catch(() => {});
+      await prisma.payment.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch(() => {});
+      await prisma.subscriptionTenant.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch(() => {});
+      await prisma.subscription.deleteMany({ where: { id: { in: subIds } } }).catch(() => {});
+      await prisma.subscriptionPlanTenant.deleteMany({ where: { planId: { in: relatedPlanIds } } }).catch(() => {});
+      await prisma.subscriptionPlan.deleteMany({ where: { id: { in: relatedPlanIds } } }).catch(() => {});
+      console.log('[Products/Delete] Eliminación en cascada completada', {
+        id,
+        subscriptionsDeleted: subIds.length,
+        plansDeleted: relatedPlanIds.length
+      });
+    } else {
+      await prisma.subscriptionPlan.delete({ where: { id } });
     }
-    await prisma.chatwootMessage.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch(() => {});
-    await prisma.paymentLink
-      .deleteMany({ where: { OR: [{ subscriptionId: { in: subIds } }, { planId: { in: relatedPlanIds } }] } })
-      .catch(() => {});
-    await prisma.payment.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch(() => {});
-    await prisma.subscriptionTenant.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch(() => {});
-    await prisma.subscription.deleteMany({ where: { id: { in: subIds } } }).catch(() => {});
-    await prisma.subscriptionPlanTenant.deleteMany({ where: { planId: { in: relatedPlanIds } } }).catch(() => {});
-    await prisma.subscriptionPlan.deleteMany({ where: { id: { in: relatedPlanIds } } }).catch(() => {});
-  } else {
-    await prisma.subscriptionPlan.delete({ where: { id } });
+    await systemLog(LogLevel.INFO, "products.delete", "Catalog item deleted", {
+      productId: id,
+      relatedPlanIds,
+      dependentPlansCount: dependentPlans.length
+    }).catch((err) => {
+      console.error('[Products/Delete] Fallo creando systemLog', { id, error: err?.message });
+    });
+    console.log('[Products/Delete] Producto eliminado exitosamente', { id, force });
+    res.json({ ok: true });
+  } catch (err: any) {
+    if (String(err?.code) === "P2025") {
+      console.warn('[Products/Delete] Producto ya no existe', { id });
+      return res.status(404).json({ error: "producto_no_encontrado", mensaje: "El producto ya fue eliminado" });
+    }
+    if (String(err?.code) === "P2003") {
+      console.error('[Products/Delete] Violación de clave foránea', {
+        id,
+        constraint: err?.meta?.constraint_name || 'desconocida'
+      });
+      return res.status(409).json({ error: "producto_tiene_dependencias", mensaje: "El producto tiene registros relacionados que impiden su eliminación" });
+    }
+    console.error('[Products/Delete] Error eliminando producto', {
+      id,
+      error: err?.message || String(err),
+      stack: err?.stack
+    });
+    res.status(500).json({ error: "fallo_eliminacion", mensaje: "No se pudo eliminar el producto" });
   }
-  await systemLog(LogLevel.INFO, "products.delete", "Catalog item deleted", {
-    productId: id,
-    relatedPlanIds,
-    dependentPlansCount: dependentPlans.length
-  }).catch(() => {});
-  res.json({ ok: true });
 });

@@ -3,6 +3,7 @@ import { prisma } from "../db/prisma";
 import { ChatwootClient } from "../providers/chatwoot/client";
 import { getChatwootConfig } from "./runtimeConfig";
 import { systemLog } from "./systemLog";
+import { logger } from "../lib/logger";
 import { applyGamificationEvent } from "./gamification";
 import { GAMIFICATION_PENALTIES } from "./gamificationConfig";
 import { getGamificationConfig } from "./gamificationSettings";
@@ -128,7 +129,9 @@ async function resolveConversationId(client: ChatwootClient, contactId: number) 
 export async function chatwootFollowupTrainer(payload: { followupMinutes?: number; cooldownMinutes?: number; maxCustomers?: number; maxFollowups?: number } | null) {
   const cfg = await getChatwootConfig();
   if (!cfg.configured) {
-    await systemLog(LogLevel.WARN, "data_trainer", "Chatwoot no configurado", {}).catch(() => {});
+    await systemLog(LogLevel.WARN, "data_trainer", "Chatwoot no configurado", {}).catch((err) => {
+      logger.warn({ err }, '[ChatwootTrainer] Fallo creando systemLog');
+    });
     return { processed: 0, nudged: 0, skipped: 0, reason: "chatwoot_not_configured" };
   }
 
@@ -214,7 +217,9 @@ export async function chatwootFollowupTrainer(payload: { followupMinutes?: numbe
         await prisma.customer.update({
           where: { id: customer.id },
           data: { metadata: nextMeta as Prisma.InputJsonValue }
-        }).catch(() => {});
+        }).catch((err) => {
+          logger.warn({ err, customerId: customer.id }, '[ChatwootTrainer] Fallo actualizando customer');
+        });
         await applyGamificationEvent({
           entityType: GamificationEntityType.CUSTOMER,
           entityId: customer.id,
@@ -224,7 +229,9 @@ export async function chatwootFollowupTrainer(payload: { followupMinutes?: numbe
           lifetimeDelta: 0,
           rewardDelta: 0,
           metadata: { reason: "max_followups_reached", followupCount, maxAttempts: maxFollowupsEffective }
-        }).catch(() => {});
+        }).catch((err) => {
+          logger.warn({ err, customerId: customer.id }, '[ChatwootTrainer] Fallo aplicando gamificación');
+        });
       }
       skipped += 1;
       continue;
@@ -269,7 +276,9 @@ export async function chatwootFollowupTrainer(payload: { followupMinutes?: numbe
       await prisma.customer.update({
         where: { id: customer.id },
         data: { metadata: nextMeta as Prisma.InputJsonValue }
-      }).catch(() => {});
+      }).catch((err) => {
+        logger.warn({ err, customerId: customer.id }, '[ChatwootTrainer] Fallo actualizando customer');
+      });
 
       await applyGamificationEvent({
         entityType: GamificationEntityType.CUSTOMER,
@@ -280,7 +289,9 @@ export async function chatwootFollowupTrainer(payload: { followupMinutes?: numbe
         lifetimeDelta: 0,
         rewardDelta: 0,
         metadata: { conversationId, minutesSinceOutgoing }
-      }).catch(() => {});
+      }).catch((err) => {
+        logger.warn({ err, customerId: customer.id }, '[ChatwootTrainer] Fallo aplicando gamificación');
+      });
 
       nudged += 1;
     } catch (err: any) {
@@ -288,7 +299,9 @@ export async function chatwootFollowupTrainer(payload: { followupMinutes?: numbe
         customerId: customer.id,
         conversationId,
         err: String(err?.message || err)
-      }).catch(() => {});
+      }).catch((logErr) => {
+        logger.warn({ logErr, customerId: customer.id }, '[ChatwootTrainer] Fallo creando systemLog');
+      });
     }
   }
 

@@ -115,7 +115,9 @@ async function ensureMonthlyBillingReportJob() {
         payload: { periodKey: next.periodKey }
       } as any
     })
-    .catch(() => {});
+    .catch((err) => {
+      logger.warn({ err, periodKey: next.periodKey }, '[Jobs/Billing] Fallo creando job de reporte mensual');
+    });
 }
 
 async function ensureSmartListsSyncJob() {
@@ -144,7 +146,9 @@ async function ensureSmartListsSyncJob() {
         payload: { reason: "auto" }
       } as any
     })
-    .catch(() => {});
+    .catch((err) => {
+      logger.warn({ err }, '[Jobs/SmartLists] Fallo creando job de sincronización');
+    });
 }
 
 async function ensureLogCleanup() {
@@ -183,7 +187,9 @@ async function ensureGamificationRecalcJob() {
         payload: { scope: "all", reason: "auto" }
       } as any
     })
-    .catch(() => {});
+    .catch((err) => {
+      logger.warn({ err }, '[Jobs/Gamification] Fallo creando job de recálculo');
+    });
 }
 
 async function ensureDataTrainerJob() {
@@ -212,7 +218,9 @@ async function ensureDataTrainerJob() {
         payload: { trainer: "chatwoot_followup" }
       } as any
     })
-    .catch(() => {});
+    .catch((err) => {
+      logger.warn({ err }, '[Jobs/DataTrainer] Fallo creando job de entrenamiento');
+    });
 }
 
 async function ensureJobsHeartbeat() {
@@ -228,7 +236,9 @@ async function ensureJobsHeartbeat() {
       create: { key, lastSeenAt: new Date(now), meta: { workerId } } as any,
       update: { lastSeenAt: new Date(now), meta: { workerId } } as any
     })
-    .catch(() => {});
+    .catch((err) => {
+      logger.warn({ err, key }, '[Jobs/Heartbeat] Fallo actualizando heartbeat');
+    });
 }
 
 async function ensurePendingPaymentsAutoReconcile() {
@@ -336,7 +346,9 @@ async function ensurePendingPaymentsAutoReconcile() {
       reconciled,
       maxAttempts,
       cooldownMinutes: Math.round(cooldownMs / 60000)
-    }).catch(() => {});
+    }).catch((err) => {
+      logger.warn({ err, tried, reconciled }, '[Jobs/Reconcile] Fallo creando systemLog');
+    });
   }
 }
 
@@ -398,7 +410,9 @@ async function ensureWompiWebhookRecoveryJobs() {
     scanned: ids.length,
     queued: toEnqueue.length,
     lookbackMinutes
-  }).catch(() => {});
+  }).catch((err) => {
+    logger.warn({ err, queued: toEnqueue.length }, '[Jobs/WebhookRecovery] Fallo creando systemLog');
+  });
 }
 
 async function ensureDueCutoffRetries() {
@@ -466,7 +480,9 @@ async function ensureDueCutoffRetries() {
       subscriptionId: sub.id,
       runAt: new Date(),
       maxAttempts: 5
-    }).catch(() => {});
+    }).catch((err) => {
+      logger.warn({ err, subscriptionId: sub.id }, '[Jobs/PaymentRetry] Fallo encolando retry');
+    });
     queued += 1;
   }
 
@@ -475,7 +491,9 @@ async function ensureDueCutoffRetries() {
       scanned: candidates.length,
       queued,
       dueUntil: dueUntil.toISOString()
-    }).catch(() => {});
+    }).catch((err) => {
+      logger.warn({ err, queued }, '[Jobs/PaymentRetry] Fallo creando systemLog');
+    });
   }
 }
 
@@ -531,7 +549,9 @@ async function ensurePaymentRetryQueueHealth() {
 
     const cutoffMs = sub.currentPeriodEndAt?.getTime?.() ?? 0;
     const runAt = cutoffMs > now + futureToleranceMs ? new Date(cutoffMs) : nowDate;
-    await ensurePaymentRetryJob({ subscriptionId: sub.id, runAt, maxAttempts: 1 }).catch(() => {});
+    await ensurePaymentRetryJob({ subscriptionId: sub.id, runAt, maxAttempts: 1 }).catch((err) => {
+      logger.warn({ err, subscriptionId: sub.id }, '[Jobs/PaymentRetry] Fallo encolando retry de suscripción');
+    });
   }
 }
 
@@ -638,7 +658,9 @@ async function runOnce() {
           jobId: job.id,
           type: job.type,
           reason: errMsg
-        }).catch(() => {});
+        }).catch((logErr) => {
+          logger.warn({ logErr, jobId: job.id }, '[Jobs/Runner] Fallo creando systemLog');
+        });
         continue;
       }
       const attempts = job.attempts + 1;
@@ -653,7 +675,9 @@ async function runOnce() {
         if (status === RetryJobStatus.FAILED) {
           const subId = (job.payload as any)?.subscriptionId;
           if (subId) {
-            await handleSubscriptionPaymentFailure(subId, errMsg).catch(() => {});
+            await handleSubscriptionPaymentFailure(subId, errMsg).catch((err) => {
+              logger.warn({ err, subscriptionId: subId }, '[Jobs/Runner] Fallo manejando pago fallido');
+            });
           }
         }
       }
@@ -719,7 +743,9 @@ async function main() {
           reasonCode: isDbSlots ? "db_connection_slots_exhausted" : "transient_jobs_failure",
           actionHint: hint
         }
-      ).catch(() => {});
+      ).catch((logErr) => {
+        logger.warn({ logErr, err: msg }, '[Jobs/Runner] Fallo creando systemLog de error');
+      });
       await new Promise((r) => setTimeout(r, 5000));
     }
   }

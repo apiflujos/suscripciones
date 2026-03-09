@@ -74,13 +74,18 @@ async function resolveWebhookTenantId(payload: any): Promise<string | null> {
 export async function wompiWebhook(req: Request, res: Response) {
   const parsed = wompiEventSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "invalid payload" });
+    console.error('[Webhooks/Wompi] Payload inválido', {
+      error: parsed.error.flatten(),
+      body: req.body
+    });
+    res.status(400).json({ error: "payload_invalido", detalles: parsed.error.flatten() });
     return;
   }
 
   const eventsSecret = await getWompiEventsSecret();
   if (!eventsSecret) {
-    res.status(503).json({ error: "wompi_events_secret_not_configured" });
+    console.error('[Webhooks/Wompi] Events secret no configurado');
+    res.status(503).json({ error: "secreto_de_eventos_no_configurado", mensaje: "WOMPI_EVENTS_SECRET no está configurado" });
     return;
   }
 
@@ -90,7 +95,12 @@ export async function wompiWebhook(req: Request, res: Response) {
     checksumHeader: getChecksumHeader(req)
   });
   if (!signature.ok) {
-    res.status(400).json({ error: "invalid signature", reason: signature.reason });
+    console.warn('[Webhooks/Wompi] Firma inválida', {
+      reason: signature.reason,
+      event: parsed.data.event,
+      timestamp: parsed.data.timestamp
+    });
+    res.status(400).json({ error: "firma_invalida", razon: signature.reason });
     return;
   }
 
@@ -99,9 +109,14 @@ export async function wompiWebhook(req: Request, res: Response) {
   try {
     const tenantId = (await resolveWebhookTenantId(parsed.data)) || (await getDefaultTenantId());
     if (!tenantId) {
-      res.status(503).json({ error: "tenant_not_configured" });
+      console.error('[Webhooks/Wompi] Tenant no configurado', {
+        event: parsed.data.event,
+        reference: (parsed.data as any)?.data?.transaction?.reference
+      });
+      res.status(503).json({ error: "tenant_no_configurado", mensaje: "No se pudo resolver el tenant para este webhook" });
       return;
     }
+    
     const webhookEvent = await prisma.webhookEvent.create({
       data: {
         tenantId,
@@ -112,6 +127,13 @@ export async function wompiWebhook(req: Request, res: Response) {
         headers: redactHeaders(req.headers as any) as any,
         payload: parsed.data as any
       }
+    });
+
+    console.log('[Webhooks/Wompi] Webhook recibido', {
+      webhookEventId: webhookEvent.id,
+      event: parsed.data.event,
+      tenantId,
+      transactionId: (parsed.data as any)?.data?.transaction?.id
     });
 
     // Evita ruido en campanita: el detalle útil se registra en el procesamiento
@@ -128,11 +150,18 @@ export async function wompiWebhook(req: Request, res: Response) {
     // even if the background jobs runner is down or delayed.
     try {
       await processWompiEventLogic(webhookEvent.id, prisma);
-    } catch (inlineErr) {
+      console.log('[Webhooks/Wompi] Procesamiento inline exitoso', { webhookEventId: webhookEvent.id });
+    } catch (inlineErr: any) {
+      console.error('[Webhooks/Wompi] Fallo en procesamiento inline', {
+        webhookEventId: webhookEvent.id,
+        error: inlineErr?.message || String(inlineErr)
+      });
       await systemLog(LogLevel.WARN, "webhooks.wompi", "Inline processing failed; queued for retry job", {
         webhookEventId: webhookEvent.id,
         error: String((inlineErr as any)?.message || inlineErr || "unknown_error")
-      }).catch(() => {});
+      }).catch((logErr) => {
+        console.error('[Webhooks/Wompi] Fallo creando systemLog', { error: logErr?.message });
+      });
     }
 
     const shopify = await getShopifyForward();
@@ -143,13 +172,23 @@ export async function wompiWebhook(req: Request, res: Response) {
           payload: { webhookEventId: webhookEvent.id }
         }
       });
+      console.log('[Webhooks/Wompi] Job de forward a Shopify creado', { webhookEventId: webhookEvent.id });
     }
   } catch (err: any) {
     // Idempotencia: checksum unique.
     if (String(err?.code) === "P2002") {
+      console.log('[Webhooks/Wompi] Webhook duplicado (idempotencia)', {
+        checksum,
+        event: parsed.data.event
+      });
       res.json({ ok: true, deduped: true });
       return;
     }
+    console.error('[Webhooks/Wompi] Error procesando webhook', {
+      event: parsed.data.event,
+      error: err?.message || String(err),
+      stack: err?.stack
+    });
     throw err;
   }
 

@@ -23,6 +23,7 @@ import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
 import { HelpTip } from "../ui/HelpTip";
 import { PendingButton } from "../ui/PendingButton";
+import { AppearanceSelector } from "../ui/AppearanceSelector";
 import { getCsrfToken } from "../lib/csrf";
 import { ConnectionsPanel } from "./ConnectionsPanel";
 import { LogoUploadField } from "./LogoUploadField";
@@ -34,7 +35,7 @@ import { updateCheckoutConfig } from "./actions";
 import { DeleteTenantButton } from "./DeleteTenantButton";
 import { GamificationPanel } from "./GamificationPanel";
 import { UsersPanel } from "./UsersPanel";
-import { AppearanceSelector } from "../ui/AppearanceSelector";
+import { UserNotificationsPanel } from "./UserNotificationsPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -199,6 +200,9 @@ export default async function SettingsPage({
         <a className={`settings-tab ${tab === "usuarios" ? "is-active" : ""}`} href="/settings?tab=usuarios">
           Usuarios
         </a>
+        <a className={`settings-tab ${tab === "notificaciones" ? "is-active" : ""}`} href="/settings?tab=notificaciones">
+          🔔 Notificaciones
+        </a>
         <a className={`settings-tab ${tab === "gamificacion" ? "is-active" : ""}`} href="/settings?tab=gamificacion">
           Gamificación
         </a>
@@ -267,6 +271,10 @@ export default async function SettingsPage({
           created={String(sp.created) === "1"}
           error={normalizeErrorParam(typeof sp.error === "string" ? sp.error : undefined)}
         />
+      ) : null}
+
+      {tab === "notificaciones" ? (
+        <UserNotificationsPanel />
       ) : null}
 
       {tab === "connections" ? (

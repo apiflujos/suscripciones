@@ -3,17 +3,34 @@ import { prisma } from "../db/prisma";
 import { getEffectiveTenantId } from "../services/tenantContext";
 import { PaymentStatus } from "@prisma/client";
 import { reconcileWompiTransaction } from "../services/wompiReconcile";
+import { systemLog } from "../services/systemLog";
+import { LogLevel } from "@prisma/client";
 
 export const paymentsRouter = express.Router();
 
 async function reconcilePendingPaymentFromWompi(args: { paymentId: string; wompiTransactionId?: string | null; tenantId?: string | null }) {
   const txId = String(args.wompiTransactionId || "").trim();
   if (!txId) return;
-  await reconcileWompiTransaction({
-    wompiTransactionId: txId,
-    tenantId: args.tenantId || null,
-    checksumPrefix: "poll-reconcile"
-  }).catch(() => {});
+  
+  try {
+    await reconcileWompiTransaction({
+      wompiTransactionId: txId,
+      tenantId: args.tenantId || null,
+      checksumPrefix: "poll-reconcile"
+    });
+    console.log('[PaymentReconcile] Success', { paymentId: args.paymentId, wompiTransactionId: txId });
+  } catch (err: any) {
+    console.error('[PaymentReconcile] Failed', {
+      paymentId: args.paymentId,
+      wompiTransactionId: txId,
+      error: err?.message || String(err)
+    });
+    await systemLog(LogLevel.ERROR, 'payments.reconcile', 'Reconcile failed', {
+      paymentId: args.paymentId,
+      wompiTransactionId: txId,
+      error: err?.message || String(err)
+    }).catch(() => {});
+  }
 }
 
 paymentsRouter.get("/:id", async (req, res) => {

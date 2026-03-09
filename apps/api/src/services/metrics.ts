@@ -1,5 +1,5 @@
 import { prisma } from "../db/prisma";
-import { PaymentStatus, PlanType, SubscriptionStatus } from "@prisma/client";
+import { PaymentStatus, PlanType, SubscriptionStatus, PlanIntervalUnit } from "@prisma/client";
 
 type Granularity = "day" | "week" | "month";
 
@@ -18,6 +18,10 @@ type SeriesPoint = {
   canceledAutoSubscriptions?: number;
   churnMonthlyPct?: number | null;
 };
+
+// ============================================================================
+// CONFIGURACIÓN Y UTILIDADES
+// ============================================================================
 
 function granularityConfig(g: Granularity) {
   if (g === "day") return { trunc: "day", step: "1 day" } as const;
@@ -50,19 +54,96 @@ function num(v: any) {
 }
 
 const ACTIVE_SUBSCRIPTION_STATUSES: SubscriptionStatus[] = [SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE, SubscriptionStatus.SUSPENDED];
+
 function monthBoundsUtc(d: Date) {
   const start = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1, 0, 0, 0, 0));
   const end = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1, 0, 0, 0, 0));
   return { start, end };
 }
 
+// ============================================================================
+// SEGURIDAD: Validación de aliases para SQL (previene SQL Injection)
+// ============================================================================
+
+const VALID_SQL_ALIASES = ['p', 'pl', 's', 'sp', 'w', 'j', 'l', 'm', 'c'] as const;
+type ValidAlias = typeof VALID_SQL_ALIASES[number];
+
+/**
+ * Valida que un alias sea seguro para usar en queries SQL
+ * @param alias - El alias a validar
+ * @returns El alias validado como tipo seguro
+ * @throws Error si el alias no es válido
+ */
+function validateAlias(alias: string): ValidAlias {
+  if (!VALID_SQL_ALIASES.includes(alias as ValidAlias)) {
+    throw new Error(`[Security] Invalid SQL alias: ${alias}. Allowed: ${VALID_SQL_ALIASES.join(', ')}`);
+  }
+  return alias as ValidAlias;
+}
+
+/**
+ * Genera un filtro WHERE seguro para tenantId
+ * @param alias - Alias de la tabla (validado)
+ * @param idx - Índice del parámetro SQL
+ * @param hasTenant - Si hay tenant que filtrar
+ * @returns Cláusula WHERE o string vacío
+ */
+function tenantFilter(alias: string, idx: number, hasTenant: boolean): string {
+  // Validar alias para prevenir SQL injection
+  validateAlias(alias);
+  return hasTenant ? ` AND "${alias}"."tenantId" = $${idx}::uuid` : "";
+}
+
+/**
+ * Factory para crear filtros tenantFilter pre-bindados con hasTenant
+ * @param hasTenant - Si hay tenant que filtrar
+ * @returns Función tenantFilter que solo requiere alias e idx
+ */
+function createTenantFilter(hasTenant: boolean) {
+  return (alias: string, idx: number) => tenantFilter(alias, idx, hasTenant);
+}
+
+// ============================================================================
+// DRY: Fórmula MRR reutilizable
+// ============================================================================
+
+/**
+ * Genera la fórmula SQL para calcular MRR según la unidad de intervalo del plan
+ * @param includeCustom - Si incluir soporte para intervalo CUSTOM (usa metadata.mrrFactor)
+ * @returns Fragmento SQL para cálculo de MRR
+ */
+function buildMrrFormula(includeCustom: boolean = false): string {
+  const customCase = includeCustom 
+    ? `WHEN 'CUSTOM' THEN COALESCE((sp."metadata"->>'mrrFactor')::numeric, 0::numeric)`
+    : `ELSE 0::numeric`;
+    
+  return `CASE sp."intervalUnit"
+    WHEN 'MONTH' THEN (1::numeric / GREATEST(sp."intervalCount", 1))
+    WHEN 'WEEK' THEN (4.34524::numeric / GREATEST(sp."intervalCount", 1))
+    WHEN 'DAY' THEN (30.4375::numeric / GREATEST(sp."intervalCount", 1))
+    ${customCase}
+  END`;
+}
+
+/**
+ * Genera la fórmula SQL completa para cálculo de MRR con ROUND
+ * @param includeCustom - Si incluir soporte para intervalo CUSTOM
+ * @returns Fragmento SQL completo para cálculo de MRR
+ */
+function buildMrrRoundFormula(includeCustom: boolean = false): string {
+  return `ROUND(sp."priceInCents"::numeric * ${buildMrrFormula(includeCustom)})`;
+}
+
 export async function getMetricsOverview(args: { from: Date; to: Date; granularity: Granularity; tenantId?: string | null }) {
+  const startTime = Date.now();
   const { from, to } = clampRange(args.from, args.to);
   const { trunc, step } = granularityConfig(args.granularity);
   const tenantId = String(args.tenantId || "").trim();
   const hasTenant = Boolean(tenantId);
-  const tenantFilter = (alias: string, idx: number) => (hasTenant ? ` AND ${alias}."tenantId" = $${idx}::uuid` : "");
   const tenantArgs = hasTenant ? [tenantId] : [];
+  
+  // Crear función tenantFilter pre-bindada con hasTenant
+  const tf = createTenantFilter(hasTenant);
 
   const buckets = (await prisma.$queryRawUnsafe<BucketRow[]>(
     `SELECT bucket::timestamptz AS bucket
@@ -85,24 +166,73 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
     });
   }
 
-  const paymentsAgg = await prisma.$queryRawUnsafe<
-    Array<{ bucket: Date; payments_success: bigint; revenue_cents: bigint }>
-  >(
-    `SELECT date_trunc('${trunc}', p."paidAt") AS bucket,
-            COUNT(*)::bigint AS payments_success,
-            COALESCE(SUM(p."amountInCents"), 0)::bigint AS revenue_cents
-     FROM "Payment" p
-     WHERE p."status" = 'APPROVED'
-       AND p."paidAt" IS NOT NULL
-       AND p."paidAt" >= $1::timestamptz
-       AND p."paidAt" < $2::timestamptz
-       ${tenantFilter("p", 3)}
-     GROUP BY 1
-     ORDER BY 1 ASC`,
-    from,
-    to,
-    ...tenantArgs
-  );
+  // PERFORMANCE: Ejecutar queries independientes en paralelo
+  const [paymentsAgg, failedAgg, linksSentAgg, linksPaidAgg] = await Promise.all([
+    prisma.$queryRawUnsafe<Array<{ bucket: Date; payments_success: bigint; revenue_cents: bigint }>>(
+      `SELECT date_trunc('${trunc}', "paidAt") AS bucket,
+              COUNT(*)::bigint AS payments_success,
+              COALESCE(SUM("amountInCents"), 0)::bigint AS revenue_cents
+       FROM "Payment"
+       WHERE "status" = 'APPROVED'
+         AND "paidAt" IS NOT NULL
+         AND "paidAt" >= $1::timestamptz
+         AND "paidAt" < $2::timestamptz
+         ${tf("p", 3)}
+       GROUP BY 1
+       ORDER BY 1 ASC`,
+      from,
+      to,
+      ...tenantArgs
+    ),
+
+    prisma.$queryRawUnsafe<Array<{ bucket: Date; payments_failed: bigint }>>(
+      `SELECT date_trunc('${trunc}', COALESCE("failedAt", "updatedAt")) AS bucket,
+              COUNT(*)::bigint AS payments_failed
+       FROM "Payment"
+       WHERE "status" IN ('DECLINED', 'ERROR', 'VOIDED')
+         AND COALESCE("failedAt", "updatedAt") >= $1::timestamptz
+         AND COALESCE("failedAt", "updatedAt") < $2::timestamptz
+         ${tf("p", 3)}
+       GROUP BY 1
+       ORDER BY 1 ASC`,
+      from,
+      to,
+      ...tenantArgs
+    ),
+
+    prisma.$queryRawUnsafe<Array<{ bucket: Date; links_sent: bigint }>>(
+      `SELECT date_trunc('${trunc}', pl."sentAt") AS bucket,
+              COUNT(*)::bigint AS links_sent
+       FROM "PaymentLink" pl
+       JOIN "SubscriptionPlan" sp ON sp."id" = pl."planId"
+       WHERE sp."planType" = 'manual_link'
+         AND pl."sentAt" >= $1::timestamptz
+         AND pl."sentAt" < $2::timestamptz
+         ${tf("pl", 3)}
+       GROUP BY 1
+       ORDER BY 1 ASC`,
+      from,
+      to,
+      ...tenantArgs
+    ),
+
+    prisma.$queryRawUnsafe<Array<{ bucket: Date; links_paid: bigint }>>(
+      `SELECT date_trunc('${trunc}', pl."paidAt") AS bucket,
+              COUNT(*)::bigint AS links_paid
+       FROM "PaymentLink" pl
+       JOIN "SubscriptionPlan" sp ON sp."id" = pl."planId"
+       WHERE sp."planType" = 'manual_link'
+         AND pl."paidAt" IS NOT NULL
+         AND pl."paidAt" >= $1::timestamptz
+         AND pl."paidAt" < $2::timestamptz
+         ${tf("pl", 3)}
+       GROUP BY 1
+       ORDER BY 1 ASC`,
+      from,
+      to,
+      ...tenantArgs
+    )
+  ]);
 
   for (const r of paymentsAgg) {
     const key = iso(r.bucket);
@@ -112,21 +242,6 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
     p.revenueInCents = num(r.revenue_cents);
   }
 
-  const failedAgg = await prisma.$queryRawUnsafe<Array<{ bucket: Date; payments_failed: bigint }>>(
-    `SELECT date_trunc('${trunc}', COALESCE(p."failedAt", p."updatedAt")) AS bucket,
-            COUNT(*)::bigint AS payments_failed
-     FROM "Payment" p
-     WHERE p."status" IN ('DECLINED', 'ERROR', 'VOIDED')
-       AND COALESCE(p."failedAt", p."updatedAt") >= $1::timestamptz
-       AND COALESCE(p."failedAt", p."updatedAt") < $2::timestamptz
-       ${tenantFilter("p", 3)}
-     GROUP BY 1
-     ORDER BY 1 ASC`,
-    from,
-    to,
-    ...tenantArgs
-  );
-
   for (const r of failedAgg) {
     const key = iso(r.bucket);
     const p = baseSeries.get(key);
@@ -134,45 +249,12 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
     p.paymentsFailed = num(r.payments_failed);
   }
 
-  const linksSentAgg = await prisma.$queryRawUnsafe<Array<{ bucket: Date; links_sent: bigint }>>(
-    `SELECT date_trunc('${trunc}', pl."sentAt") AS bucket,
-            COUNT(*)::bigint AS links_sent
-     FROM "PaymentLink" pl
-     JOIN "SubscriptionPlan" sp ON sp."id" = pl."planId"
-     WHERE sp."planType" = 'manual_link'
-       AND pl."sentAt" >= $1::timestamptz
-       AND pl."sentAt" < $2::timestamptz
-       ${tenantFilter("pl", 3)}
-     GROUP BY 1
-     ORDER BY 1 ASC`,
-    from,
-    to,
-    ...tenantArgs
-  );
-
   for (const r of linksSentAgg) {
     const key = iso(r.bucket);
     const p = baseSeries.get(key);
     if (!p) continue;
     p.linksSent = num(r.links_sent);
   }
-
-  const linksPaidAgg = await prisma.$queryRawUnsafe<Array<{ bucket: Date; links_paid: bigint }>>(
-    `SELECT date_trunc('${trunc}', pl."paidAt") AS bucket,
-            COUNT(*)::bigint AS links_paid
-     FROM "PaymentLink" pl
-     JOIN "SubscriptionPlan" sp ON sp."id" = pl."planId"
-     WHERE sp."planType" = 'manual_link'
-       AND pl."paidAt" IS NOT NULL
-       AND pl."paidAt" >= $1::timestamptz
-       AND pl."paidAt" < $2::timestamptz
-       ${tenantFilter("pl", 3)}
-     GROUP BY 1
-     ORDER BY 1 ASC`,
-    from,
-    to,
-    ...tenantArgs
-  );
 
   for (const r of linksPaidAgg) {
     const key = iso(r.bucket);
@@ -189,7 +271,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
      WHERE s."status" IN ('ACTIVE', 'PAST_DUE', 'SUSPENDED')
        AND s."startAt" < $1::timestamptz
        AND (s."canceledAt" IS NULL OR s."canceledAt" >= $1::timestamptz)
-       ${tenantFilter("s", 2)}`,
+       ${tf("s", 2)}`,
     firstBucket,
     ...tenantArgs
   );
@@ -201,7 +283,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
      FROM "Subscription" s
      WHERE s."startAt" >= $1::timestamptz
        AND s."startAt" < $2::timestamptz
-       ${tenantFilter("s", 3)}
+       ${tf("s", 3)}
      GROUP BY 1
      ORDER BY 1 ASC`,
     from,
@@ -216,7 +298,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
      WHERE s."canceledAt" IS NOT NULL
        AND s."canceledAt" >= $1::timestamptz
        AND s."canceledAt" < $2::timestamptz
-       ${tenantFilter("s", 3)}
+       ${tf("s", 3)}
      GROUP BY 1
      ORDER BY 1 ASC`,
     from,
@@ -247,7 +329,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
         COALESCE(SUM(p."amountInCents") FILTER (WHERE p."status" = 'APPROVED' AND p."paidAt" IS NOT NULL AND p."paidAt" >= $1::timestamptz AND p."paidAt" < $2::timestamptz), 0)::bigint AS revenue_cents
       FROM "Payment" p
       WHERE 1=1
-      ${tenantFilter("p", 3)}`,
+      ${tf("p", 3)}`,
     from,
     to,
     ...tenantArgs
@@ -260,7 +342,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
        WHERE p."subscriptionId" IS NOT NULL
          AND p."status" = 'APPROVED'
          AND p."paidAt" IS NOT NULL
-         ${tenantFilter("p", 3)}
+         ${tf("p", 3)}
        GROUP BY p."subscriptionId"
      )
      SELECT COUNT(*)::bigint AS plans_sold
@@ -288,7 +370,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
      FROM "Subscription" s
      WHERE s."startAt" < $1::timestamptz
        AND (s."canceledAt" IS NULL OR s."canceledAt" >= $1::timestamptz)
-       ${tenantFilter("s", 2)}`,
+       ${tf("s", 2)}`,
     to,
     ...tenantArgs
   );
@@ -303,7 +385,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
        WHERE sp."planType" = 'manual_link'
          AND pl."sentAt" >= $1::timestamptz
          AND pl."sentAt" < $2::timestamptz
-         ${tenantFilter("pl", 3)}
+         ${tf("pl", 3)}
      )
      SELECT
        COUNT(*)::bigint AS links_sent,
@@ -356,7 +438,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
       JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
       WHERE sp."planType" = 'auto_subscription'
         AND p."wompiTransactionId" IS NOT NULL
-        ${tenantFilter("p", 3)}`,
+        ${tf("p", 3)}`,
     from,
     to,
     ...tenantArgs
@@ -364,22 +446,14 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
 
   const mrrRow = await prisma.$queryRawUnsafe<Array<{ mrr_cents: number | null }>>(
     `SELECT
-        COALESCE(SUM(ROUND(
-          sp."priceInCents"::numeric *
-          CASE sp."intervalUnit"
-            WHEN 'MONTH' THEN (1::numeric / GREATEST(sp."intervalCount", 1))
-            WHEN 'WEEK' THEN (4.34524::numeric / GREATEST(sp."intervalCount", 1))
-            WHEN 'DAY' THEN (30.4375::numeric / GREATEST(sp."intervalCount", 1))
-            ELSE 0::numeric
-          END
-        )), 0)::numeric AS mrr_cents
+        COALESCE(SUM(${buildMrrRoundFormula(true)}), 0)::numeric AS mrr_cents
       FROM "Subscription" s
       JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
       WHERE sp."planType" = 'auto_subscription'
         AND s."status" IN ('ACTIVE','PAST_DUE','SUSPENDED')
         AND s."startAt" < $1::timestamptz
         AND (s."canceledAt" IS NULL OR s."canceledAt" >= $1::timestamptz)
-        ${tenantFilter("s", 2)}`,
+        ${tf("s", 2)}`,
     to,
     ...tenantArgs
   );
@@ -395,7 +469,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
       FROM "Subscription" s
       JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
       WHERE sp."planType" = 'auto_subscription'
-      ${tenantFilter("s", 3)}`,
+      ${tf("s", 3)}`,
     churnStart,
     churnEnd,
     ...tenantArgs
@@ -415,7 +489,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
        AND p."paidAt" IS NOT NULL
        AND p."paidAt" >= $1::timestamptz
        AND p."paidAt" < $2::timestamptz
-       ${tenantFilter("p", 3)}
+       ${tf("p", 3)}
      GROUP BY 1`,
     from,
     to,
@@ -450,22 +524,14 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
   if (args.granularity === "month" && buckets.length) {
     const initialMrrRow = await prisma.$queryRawUnsafe<Array<{ v: number | null }>>(
       `SELECT
-          COALESCE(SUM(ROUND(
-            sp."priceInCents"::numeric *
-            CASE sp."intervalUnit"
-              WHEN 'MONTH' THEN (1::numeric / GREATEST(sp."intervalCount", 1))
-              WHEN 'WEEK' THEN (4.34524::numeric / GREATEST(sp."intervalCount", 1))
-              WHEN 'DAY' THEN (30.4375::numeric / GREATEST(sp."intervalCount", 1))
-              ELSE 0::numeric
-            END
-          )), 0)::numeric AS v
+          COALESCE(SUM(${buildMrrRoundFormula(true)}), 0)::numeric AS v
         FROM "Subscription" s
         JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
         WHERE sp."planType" = 'auto_subscription'
           AND s."status" IN ('ACTIVE','PAST_DUE','SUSPENDED')
           AND s."startAt" < $1::timestamptz
           AND (s."canceledAt" IS NULL OR s."canceledAt" >= $1::timestamptz)
-          ${tenantFilter("s", 2)}`,
+          ${tf("s", 2)}`,
       firstBucket,
       ...tenantArgs
     );
@@ -473,21 +539,13 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
 
     const mrrStartsAgg = await prisma.$queryRawUnsafe<Array<{ bucket: Date; adds: number | null }>>(
       `SELECT date_trunc('${trunc}', s."startAt") AS bucket,
-              COALESCE(SUM(ROUND(
-                sp."priceInCents"::numeric *
-                CASE sp."intervalUnit"
-                  WHEN 'MONTH' THEN (1::numeric / GREATEST(sp."intervalCount", 1))
-                  WHEN 'WEEK' THEN (4.34524::numeric / GREATEST(sp."intervalCount", 1))
-                  WHEN 'DAY' THEN (30.4375::numeric / GREATEST(sp."intervalCount", 1))
-                  ELSE 0::numeric
-                END
-              )), 0)::numeric AS adds
+              COALESCE(SUM(${buildMrrRoundFormula(true)}), 0)::numeric AS adds
         FROM "Subscription" s
         JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
         WHERE sp."planType" = 'auto_subscription'
           AND s."startAt" >= $1::timestamptz
           AND s."startAt" < $2::timestamptz
-          ${tenantFilter("s", 3)}
+          ${tf("s", 3)}
         GROUP BY 1
         ORDER BY 1 ASC`,
       from,
@@ -497,22 +555,14 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
 
     const mrrCancelsAgg = await prisma.$queryRawUnsafe<Array<{ bucket: Date; subs: number | null }>>(
       `SELECT date_trunc('${trunc}', s."canceledAt") AS bucket,
-              COALESCE(SUM(ROUND(
-                sp."priceInCents"::numeric *
-                CASE sp."intervalUnit"
-                  WHEN 'MONTH' THEN (1::numeric / GREATEST(sp."intervalCount", 1))
-                  WHEN 'WEEK' THEN (4.34524::numeric / GREATEST(sp."intervalCount", 1))
-                  WHEN 'DAY' THEN (30.4375::numeric / GREATEST(sp."intervalCount", 1))
-                  ELSE 0::numeric
-                END
-              )), 0)::numeric AS subs
+              COALESCE(SUM(${buildMrrRoundFormula(true)}), 0)::numeric AS subs
         FROM "Subscription" s
         JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
         WHERE sp."planType" = 'auto_subscription'
           AND s."canceledAt" IS NOT NULL
           AND s."canceledAt" >= $1::timestamptz
           AND s."canceledAt" < $2::timestamptz
-          ${tenantFilter("s", 3)}
+          ${tf("s", 3)}
         GROUP BY 1
         ORDER BY 1 ASC`,
       from,
@@ -548,7 +598,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
              AND s."canceledAt" IS NOT NULL
              AND s."canceledAt" >= m.bucket
              AND s."canceledAt" < (m.bucket + interval '1 month')
-             ${tenantFilter("s", 3)}
+             ${tf("s", 3)}
          ) AS cancels,
          (
            SELECT COUNT(*)::bigint
@@ -557,7 +607,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
            WHERE sp."planType"='auto_subscription'
              AND s."startAt" < m.bucket
              AND (s."canceledAt" IS NULL OR s."canceledAt" >= m.bucket)
-             ${tenantFilter("s", 3)}
+             ${tf("s", 3)}
          ) AS active_start
        FROM months m
        ORDER BY m.bucket ASC`,
@@ -577,7 +627,8 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
   }
 
   const series = Array.from(baseSeries.values()).sort((a, b) => a.at.localeCompare(b.at));
-  return {
+  
+  const result = {
     range: { from: iso(from), to: iso(to), granularity: args.granularity },
     totals: {
       totalPlansSold: num(totalsPlansSoldRow[0]?.plans_sold ?? 0),
@@ -615,4 +666,17 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
     },
     series
   };
+  
+  // Logging estructurado para observabilidad
+  const duration = Date.now() - startTime;
+  console.log('[MetricsOverview]', JSON.stringify({
+    tenantId: hasTenant ? tenantId : null,
+    granularity: args.granularity,
+    rangeDays: Math.round((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)),
+    seriesPoints: series.length,
+    durationMs: duration,
+    slow: duration > 2000 // Alerta si toma más de 2 segundos
+  }));
+  
+  return result;
 }

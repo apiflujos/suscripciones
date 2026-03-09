@@ -1,5 +1,6 @@
 import { prisma } from "../db/prisma";
 import { GamificationEntityType, PaymentStatus, Prisma, SubscriptionStatus } from "@prisma/client";
+import { logger } from "../lib/logger";
 import {
   GAMIFICATION_LEVEL_NAMES,
   GAMIFICATION_LEVEL_THRESHOLDS,
@@ -180,7 +181,9 @@ function computeEffectiveScore(globalScore: number, tenantScore: number, factor:
 
 async function updateLevelForScoreRow(rowId: string, score: number) {
   const { level } = levelForScore(score);
-  await prisma.gamificationScore.update({ where: { id: rowId }, data: { level } }).catch(() => {});
+  await prisma.gamificationScore.update({ where: { id: rowId }, data: { level } }).catch((err) => {
+    logger.warn({ err, rowId, score }, '[Gamification] Fallo actualizando level');
+  });
 }
 
 async function upsertScoreRow(args: {
@@ -230,7 +233,9 @@ async function writeRewardLedger(customerId: string, tenantId: string | null, re
         balance
       }
     })
-    .catch(() => {});
+    .catch((err) => {
+      logger.warn({ err, customerId }, '[Gamification] Fallo creando reward ledger');
+    });
 }
 
 export async function applyGamificationEvent(input: GamificationEventInput) {

@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { LocalDateTime } from "../ui/LocalDateTime";
 import { LogsSystemTable } from "./LogsSystemTable";
@@ -9,6 +11,7 @@ import { getCsrfToken, assertCsrfToken } from "../lib/csrf";
 import { PendingButton } from "../ui/PendingButton";
 import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { ReconcilePaymentModal } from "./ReconcilePaymentModal";
+import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -232,6 +235,15 @@ export default async function LogsPage({
         <p>Configura `ADMIN_API_TOKEN`.</p>
       </main>
     );
+  }
+
+  // VERIFICAR QUE SOLO SUPER ADMIN PUEDE VER LOGS
+  const c = await cookies();
+  const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
+  const session = await verifyAdminSessionToken(sessionToken);
+  if (session?.role !== "SUPER_ADMIN") {
+    // Redirigir usuarios normales a settings (sus notificaciones están allí)
+    redirect("/settings?tab=notificaciones");
   }
 
   const sp = (await searchParams) ?? {};

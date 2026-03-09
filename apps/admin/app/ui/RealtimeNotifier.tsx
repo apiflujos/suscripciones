@@ -11,6 +11,7 @@ type RealtimeEvent = {
   ts: string;
   title: string;
   message: string;
+  source?: string | null;
   paymentStatus?: string | null;
   paymentType?: string | null;
   sound?: "cash" | "fail" | null;
@@ -47,7 +48,9 @@ function notificationDedupeKey(event: Partial<RealtimeEvent>) {
   const kind = normalizeNotifText(event.kind);
   const level = normalizeNotifText(event.level);
   const type = normalizeNotifText(event.type);
-  return `${type}|${level}|${kind}|${title}|${message}|${href}`;
+  // FIX: Incluir fecha (hora) para evitar agrupar notificaciones diferentes del mismo tipo
+  const dateKey = event.ts ? new Date(event.ts).toDateString() : 'unknown';
+  return `${type}|${level}|${kind}|${title}|${message}|${href}|${dateKey}`;
 }
 
 function toStoredNotification(event: RealtimeEvent): StoredNotification {
@@ -63,21 +66,38 @@ function toStoredNotification(event: RealtimeEvent): StoredNotification {
 function mergeNotificationFeed(incoming: RealtimeEvent[], existing: StoredNotification[]) {
   const byKey = new Map<string, StoredNotification>();
   const ordered: string[] = [];
+  
   const add = (raw: StoredNotification | RealtimeEvent) => {
     const item: StoredNotification = "dedupeKey" in raw ? (raw as StoredNotification) : toStoredNotification(raw as RealtimeEvent);
     const key = String(item.dedupeKey || notificationDedupeKey(item));
     if (!key) return;
+    
     const prev = byKey.get(key);
     const prevTs = prev ? new Date(prev.ts).getTime() : Number.NaN;
     const nextTs = new Date(item.ts).getTime();
     const prevCount = Math.max(1, Number(prev?.duplicateCount || 1));
     const nextCount = Math.max(1, Number(item?.duplicateCount || 1));
     const mergedCount = prev ? prevCount + nextCount : nextCount;
+    
+    // FIX: Solo agrupar si son realmente la misma notificación (mismo timestamp)
     if (!prev) {
       byKey.set(key, { ...item, id: key, dedupeKey: key, duplicateCount: mergedCount });
       ordered.push(key);
       return;
     }
+    
+    // Si los timestamps son muy diferentes (> 1 hora), no agrupar
+    const timeDiffMs = Math.abs(nextTs - prevTs);
+    const oneHourMs = 60 * 60 * 1000;
+    if (timeDiffMs > oneHourMs) {
+      // Crear nueva entrada con timestamp más reciente
+      const newKey = `${key}|${nextTs}`;
+      byKey.set(newKey, { ...item, id: newKey, dedupeKey: newKey, duplicateCount: 1 });
+      ordered.push(newKey);
+      return;
+    }
+    
+    // Mismo evento, actualizar contador
     const useIncoming = Number.isFinite(nextTs) && (!Number.isFinite(prevTs) || nextTs >= prevTs);
     byKey.set(key, {
       ...(useIncoming ? item : prev),
@@ -86,11 +106,13 @@ function mergeNotificationFeed(incoming: RealtimeEvent[], existing: StoredNotifi
       duplicateCount: mergedCount
     });
   };
+  
   for (const item of incoming) add(item);
   for (const item of existing) add(item);
+  
   const merged = ordered.map((key) => byKey.get(key)).filter(Boolean) as StoredNotification[];
   merged.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
-  return merged.slice(0, 80);
+  return merged.slice(0, 50); // FIX: Reducir de 80 a 50 para mejor performance
 }
 
 export function RealtimeNotifier() {

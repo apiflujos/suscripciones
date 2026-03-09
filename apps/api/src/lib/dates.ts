@@ -4,9 +4,28 @@ function daysInMonth(year: number, month0: number) {
   return new Date(Date.UTC(year, month0 + 1, 0)).getUTCDate();
 }
 
+/**
+ * Convierte una fecha a UTC explícito para evitar problemas de timezone
+ * @param date - Fecha a convertir (puede estar en timezone local)
+ * @returns Nueva fecha en UTC
+ */
+export function toUtc(date: Date): Date {
+  return new Date(Date.UTC(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    date.getHours(),
+    date.getMinutes(),
+    date.getSeconds(),
+    date.getMilliseconds()
+  ));
+}
+
 export function addIntervalUtc(date: Date, unit: PlanIntervalUnit, count: number): Date {
+  // FIX: Asegurar que la fecha de entrada esté normalizada a UTC
+  const normalizedDate = toUtc(date);
   const c = Math.max(0, Math.trunc(count || 0));
-  const d = new Date(date.getTime());
+  const d = new Date(normalizedDate.getTime());
 
   if (unit === PlanIntervalUnit.DAY) {
     d.setUTCDate(d.getUTCDate() + c);

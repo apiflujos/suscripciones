@@ -2,7 +2,7 @@ import express from "express";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
 import { addIntervalUtc } from "../lib/dates";
-import { LogLevel, PaymentStatus, RetryJobStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
+import { LogLevel, PaymentStatus, RetryJobStatus, RetryJobType, SubscriptionStatus, GamificationEntityType } from "@prisma/client";
 import { systemLog } from "../services/systemLog";
 import { createAutoDebitTransactionForSubscription, createPaymentLinkForSubscription } from "../services/subscriptionBilling";
 import { getAutoDebitConfig } from "../services/runtimeConfig";
@@ -133,31 +133,64 @@ subscriptionsRouter.get("/", async (_req, res) => {
 
 subscriptionsRouter.post("/", async (req, res) => {
   const parsed = createSubscriptionSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+  if (!parsed.success) {
+    console.error('[Subscriptions/Create] Validación fallida', {
+      error: parsed.error.flatten(),
+      body: req.body
+    });
+    return res.status(400).json({ error: "cuerpo_invalido", detalles: parsed.error.flatten() });
+  }
 
   const plan = await prisma.subscriptionPlan.findUnique({ where: { id: parsed.data.planId }, include: { tenantLinks: true } });
-  if (!plan) return res.status(404).json({ error: "plan_not_found" });
+  if (!plan) {
+    console.warn('[Subscriptions/Create] Plan no encontrado', { planId: parsed.data.planId });
+    return res.status(404).json({ error: "plan_no_encontrado", mensaje: `El plan ${parsed.data.planId} no existe` });
+  }
 
   const customer = await prisma.customer.findUnique({ where: { id: parsed.data.customerId } });
-  if (!customer) return res.status(404).json({ error: "customer_not_found" });
+  if (!customer) {
+    console.warn('[Subscriptions/Create] Customer no encontrado', { customerId: parsed.data.customerId });
+    return res.status(404).json({ error: "customer_no_encontrado", mensaje: `El customer ${parsed.data.customerId} no existe` });
+  }
   const planTenantIds = Array.from(new Set([plan.tenantId, ...(plan.tenantLinks || []).map((t: any) => t.tenantId)].filter(Boolean))) as string[];
   const requestedTenantIds = readTenantIdsFromReq(req);
   const fallbackTenantIds = requestedTenantIds.length ? requestedTenantIds : planTenantIds;
   const effectiveTenantIds = fallbackTenantIds.length ? fallbackTenantIds : (await getEffectiveTenantIds(req));
-  if (!effectiveTenantIds.length) return res.status(400).json({ error: "tenant_required" });
+  if (!effectiveTenantIds.length) {
+    console.error('[Subscriptions/Create] Tenant requerido pero no proporcionado');
+    return res.status(400).json({ error: "tenant_requerido", mensaje: "Debe pertenecer al menos a un tenant" });
+  }
 
   if (planTenantIds.length) {
     const invalid = effectiveTenantIds.find((t) => !planTenantIds.includes(t));
-    if (invalid) return res.status(409).json({ error: "tenant_not_allowed_for_plan" });
+    if (invalid) {
+      console.error('[Subscriptions/Create] Tenant no permitido para este plan', {
+        tenantId: invalid,
+        planId: plan.id,
+        allowedTenantIds: planTenantIds
+      });
+      return res.status(409).json({ error: "tenant_no_permitido_para_plan", mensaje: "El tenant no está permitido para este plan" });
+    }
   }
   if (customer.tenantId && !effectiveTenantIds.includes(customer.tenantId)) {
-    return res.status(409).json({ error: "tenant_mismatch" });
+    console.error('[Subscriptions/Create] Mismatch de tenant', {
+      customerId: customer.id,
+      customerTenantId: customer.tenantId,
+      effectiveTenantIds
+    });
+    return res.status(409).json({ error: "tenant_mismatch", mensaje: "El customer no pertenece al tenant especificado" });
   }
   if (!customer.tenantId) {
     const linked = await prisma.customerTenant.findFirst({
       where: { customerId: customer.id, tenantId: { in: effectiveTenantIds } }
     });
-    if (!linked) return res.status(409).json({ error: "tenant_mismatch" });
+    if (!linked) {
+      console.error('[Subscriptions/Create] Customer sin link a tenant', {
+        customerId: customer.id,
+        tenantIds: effectiveTenantIds
+      });
+      return res.status(409).json({ error: "tenant_mismatch", mensaje: "El customer no está vinculado al tenant especificado" });
+    }
   }
   if (!parsed.data.allowDuplicate) {
     const catalogItemId = String((plan.metadata as any)?.catalog?.itemId || "").trim();
@@ -181,9 +214,16 @@ subscriptionsRouter.post("/", async (req, res) => {
     }
     const duplicatesCount = await prisma.subscription.count({ where: duplicateWhere });
     if (duplicatesCount > 0) {
+      console.warn('[Subscriptions/Create] Suscripción duplicada detectada', {
+        customerId: parsed.data.customerId,
+        planId: parsed.data.planId,
+        duplicatesCount,
+        catalogItemId
+      });
       return res.status(409).json({
-        error: "duplicate_subscription_requires_approval",
-        details: {
+        error: "suscripcion_duplicada_requiere_aprobacion",
+        mensaje: "Ya existe una suscripción activa para este customer y plan",
+        detalles: {
           duplicatesCount,
           customerId: parsed.data.customerId,
           planId: parsed.data.planId,
@@ -213,74 +253,129 @@ subscriptionsRouter.post("/", async (req, res) => {
   const startAt = parsed.data.startAt ? new Date(parsed.data.startAt) : new Date();
   const computedEnd = addIntervalUtc(startAt, plan.intervalUnit, plan.intervalCount);
   const periodEnd = parsed.data.firstPeriodEndAt ? new Date(parsed.data.firstPeriodEndAt) : computedEnd;
-  if (Number.isNaN(periodEnd.getTime())) return res.status(400).json({ error: "invalid_first_period_end_at" });
-  if (periodEnd < startAt) return res.status(400).json({ error: "first_period_end_must_be_after_start" });
+  if (Number.isNaN(periodEnd.getTime())) {
+    console.error('[Subscriptions/Create] firstPeriodEndAt inválido', { firstPeriodEndAt: parsed.data.firstPeriodEndAt });
+    return res.status(400).json({ error: "first_period_end_at_invalido", mensaje: "La fecha firstPeriodEndAt no es válida" });
+  }
+  if (periodEnd < startAt) {
+    console.error('[Subscriptions/Create] firstPeriodEndAt anterior a startAt', { startAt, periodEnd });
+    return res.status(400).json({ error: "first_period_end_anterior_a_start", mensaje: "La fecha de fin del período debe ser posterior a la fecha de inicio" });
+  }
 
   const subscriptionMetaBase =
     parsed.data.metadata && typeof parsed.data.metadata === "object" ? (parsed.data.metadata as any) : {};
-  const subscription = await prisma.subscription.create({
-    data: {
-      tenantId,
-      customerId: parsed.data.customerId,
-      planId: plan.id,
-      status: SubscriptionStatus.PAST_DUE,
-      startAt,
-      currentPeriodStartAt: startAt,
-      currentPeriodEndAt: periodEnd,
-      currentCycle: 1,
-      metadata: {
-        ...subscriptionMetaBase,
-        collectionMode
-      } as any
+  
+  try {
+    const subscription = await prisma.subscription.create({
+      data: {
+        tenantId,
+        customerId: parsed.data.customerId,
+        planId: plan.id,
+        status: SubscriptionStatus.PAST_DUE,
+        startAt,
+        currentPeriodStartAt: startAt,
+        currentPeriodEndAt: periodEnd,
+        currentCycle: 1,
+        metadata: {
+          ...subscriptionMetaBase,
+          collectionMode
+        } as any
+      }
+    });
+    await prisma.subscriptionTenant.createMany({
+      data: effectiveTenantIds.map((t) => ({ subscriptionId: subscription.id, tenantId: t })),
+      skipDuplicates: true
+    });
+    await prisma.customerTenant
+      .createMany({ data: effectiveTenantIds.map((t) => ({ customerId: customer.id, tenantId: t })), skipDuplicates: true })
+      .catch(() => {});
+
+    await consumeApp("subscriptions_created", { amount: 1, source: "api:subscriptions.create", meta: { subscriptionId: subscription.id, planId: plan.id } });
+    await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch((err) => {
+      console.error('[Subscriptions/Create] Fallo programando notificaciones', {
+        subscriptionId: subscription.id,
+        error: err?.message
+      });
+    });
+
+    const runAt = periodEnd <= new Date(Date.now() + 5_000) ? new Date() : periodEnd;
+
+    // AUTO_* modes: enqueue a single attempt at the cutoff date (no retries).
+    if (collectionMode === "AUTO_LINK" || collectionMode === "AUTO_DEBIT") {
+      await ensurePaymentRetryJob({ subscriptionId: subscription.id, runAt, maxAttempts: 1 }).catch((err) => {
+        console.error('[Subscriptions/Create] Fallo encolando retry job', {
+          subscriptionId: subscription.id,
+          error: err?.message
+        });
+      });
+      // If requested, generate a link right away (useful for first charge or missing token).
+      const isDueNow = runAt.getTime() <= Date.now() + 5_000;
+      // AUTO_DEBIT must never auto-create payment links on subscription creation.
+      // Tokenization link is a separate explicit action from admin UI.
+      const shouldCreateLinkNow = collectionMode === "AUTO_LINK" ? parsed.data.createPaymentLink && isDueNow : false;
+
+      if (!shouldCreateLinkNow) {
+        console.log('[Subscriptions/Create] Suscripción creada exitosamente', {
+          subscriptionId: subscription.id,
+          scheduled: true,
+          collectionMode
+        });
+        return res.status(201).json({ subscription, scheduled: true });
+      }
+
+      try {
+        const link = await createPaymentLinkForSubscription({ subscriptionId: subscription.id });
+        console.log('[Subscriptions/Create] Suscripción con link de pago creado', {
+          subscriptionId: subscription.id,
+          paymentLinkId: link.wompiPaymentLinkId
+        });
+        return res.status(201).json({ subscription, scheduled: true, ...link, paymentSourceMissing: collectionMode === "AUTO_DEBIT" && !hasPaymentSource });
+      } catch (err: any) {
+        console.error('[Subscriptions/Create] Fallo creando link de pago', {
+          subscriptionId: subscription.id,
+          error: err?.message
+        });
+        await systemLog(LogLevel.ERROR, "subscriptions.create", "Subscription created but payment link failed", {
+          subscriptionId: subscription.id,
+          err: err?.message ? String(err.message) : "unknown error"
+        }).catch(() => {});
+        return res.status(201).json({ subscription, scheduled: true, paymentLinkError: "fallo_creando_link_de_pago" });
+      }
     }
-  });
-  await prisma.subscriptionTenant.createMany({
-    data: effectiveTenantIds.map((t) => ({ subscriptionId: subscription.id, tenantId: t })),
-    skipDuplicates: true
-  });
-  await prisma.customerTenant
-    .createMany({ data: effectiveTenantIds.map((t) => ({ customerId: customer.id, tenantId: t })), skipDuplicates: true })
-    .catch(() => {});
 
-  await consumeApp("subscriptions_created", { amount: 1, source: "api:subscriptions.create", meta: { subscriptionId: subscription.id, planId: plan.id } });
-  await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});
-
-  const runAt = periodEnd <= new Date(Date.now() + 5_000) ? new Date() : periodEnd;
-
-  // AUTO_* modes: enqueue a single attempt at the cutoff date (no retries).
-  if (collectionMode === "AUTO_LINK" || collectionMode === "AUTO_DEBIT") {
-    await ensurePaymentRetryJob({ subscriptionId: subscription.id, runAt, maxAttempts: 1 }).catch(() => {});
-    // If requested, generate a link right away (useful for first charge or missing token).
-    const isDueNow = runAt.getTime() <= Date.now() + 5_000;
-    // AUTO_DEBIT must never auto-create payment links on subscription creation.
-    // Tokenization link is a separate explicit action from admin UI.
-    const shouldCreateLinkNow = collectionMode === "AUTO_LINK" ? parsed.data.createPaymentLink && isDueNow : false;
-
-    if (!shouldCreateLinkNow) return res.status(201).json({ subscription, scheduled: true });
+    if (!parsed.data.createPaymentLink) {
+      console.log('[Subscriptions/Create] Suscripción creada exitosamente', {
+        subscriptionId: subscription.id
+      });
+      return res.status(201).json({ subscription });
+    }
 
     try {
       const link = await createPaymentLinkForSubscription({ subscriptionId: subscription.id });
-      return res.status(201).json({ subscription, scheduled: true, ...link, paymentSourceMissing: collectionMode === "AUTO_DEBIT" && !hasPaymentSource });
+      console.log('[Subscriptions/Create] Suscripción con link de pago creado', {
+        subscriptionId: subscription.id,
+        paymentLinkId: link.wompiPaymentLinkId
+      });
+      return res.status(201).json({ subscription, ...link });
     } catch (err: any) {
+      console.error('[Subscriptions/Create] Fallo creando link de pago', {
+        subscriptionId: subscription.id,
+        error: err?.message
+      });
       await systemLog(LogLevel.ERROR, "subscriptions.create", "Subscription created but payment link failed", {
         subscriptionId: subscription.id,
         err: err?.message ? String(err.message) : "unknown error"
       }).catch(() => {});
-      return res.status(201).json({ subscription, scheduled: true, paymentLinkError: "wompi_payment_link_failed" });
+      return res.status(201).json({ subscription, paymentLinkError: "fallo_creando_link_de_pago" });
     }
-  }
-
-  if (!parsed.data.createPaymentLink) return res.status(201).json({ subscription });
-
-  try {
-    const link = await createPaymentLinkForSubscription({ subscriptionId: subscription.id });
-    return res.status(201).json({ subscription, ...link });
   } catch (err: any) {
-    await systemLog(LogLevel.ERROR, "subscriptions.create", "Subscription created but payment link failed", {
-      subscriptionId: subscription.id,
-      err: err?.message ? String(err.message) : "unknown error"
-    }).catch(() => {});
-    return res.status(201).json({ subscription, paymentLinkError: "wompi_payment_link_failed" });
+    console.error('[Subscriptions/Create] Error creando suscripción', {
+      customerId: parsed.data.customerId,
+      planId: parsed.data.planId,
+      error: err?.message || String(err),
+      stack: err?.stack
+    });
+    throw err;
   }
 });
 
@@ -917,53 +1012,148 @@ subscriptionsRouter.post("/merge-duplicates", async (req, res) => {
 
 subscriptionsRouter.delete("/:id", async (req, res) => {
   const subscriptionId = String(req.params.id || "").trim();
-  if (!subscriptionId) return res.status(400).json({ error: "invalid_id" });
+  if (!subscriptionId) {
+    console.error('[Subscriptions/Delete] ID no proporcionado');
+    return res.status(400).json({ error: "id_invalido", mensaje: "El ID de la suscripción es requerido" });
+  }
+  
   const existing = await prisma.subscription.findUnique({ where: { id: subscriptionId }, include: { tenantLinks: true } });
-  if (!existing) return res.status(404).json({ error: "subscription_not_found" });
+  if (!existing) {
+    console.warn('[Subscriptions/Delete] Suscripción no encontrada', { subscriptionId });
+    return res.status(404).json({ error: "suscripcion_no_encontrada", mensaje: `La suscripción ${subscriptionId} no existe` });
+  }
+  
   const tenantId = await getEffectiveTenantId(req);
   if (tenantId) {
     const allowed = existing.tenantId === tenantId || (existing.tenantLinks || []).some((t: any) => t.tenantId === tenantId);
-    if (!allowed) return res.status(404).json({ error: "subscription_not_found" });
+    if (!allowed) {
+      console.warn('[Subscriptions/Delete] Acceso denegado', { subscriptionId, tenantId });
+      return res.status(404).json({ error: "suscripcion_no_encontrada", mensaje: "No tienes acceso a esta suscripción" });
+    }
   }
+  
   const force = String((req as any)?.query?.force || "").trim() === "1";
   if (!force && existing.status !== SubscriptionStatus.CANCELED) {
-    return res.status(409).json({ error: "subscription_must_be_canceled" });
+    console.warn('[Subscriptions/Delete] Suscripción debe estar cancelada', {
+      subscriptionId,
+      status: existing.status
+    });
+    return res.status(409).json({ 
+      error: "suscripcion_debe_estar_cancelada",
+      mensaje: "La suscripción debe estar cancelada para eliminarla (usa force=1 para forzar)"
+    });
   }
 
-  const [paymentsCount, paymentLinksCount, chatwootCount] = await Promise.all([
+  const [paymentsCount, paymentLinksCount, chatwootCount, gamificationScoreCount, gamificationEventCount] = await Promise.all([
     prisma.payment.count({ where: { subscriptionId } }),
     prisma.paymentLink.count({ where: { subscriptionId } }),
-    prisma.chatwootMessage.count({ where: { subscriptionId } })
+    prisma.chatwootMessage.count({ where: { subscriptionId } }),
+    prisma.gamificationScore.count({ where: { entityType: GamificationEntityType.SUBSCRIPTION, entityId: subscriptionId } }),
+    prisma.gamificationEvent.count({ where: { entityType: GamificationEntityType.SUBSCRIPTION, entityId: subscriptionId } })
   ]);
-  if (!force && (paymentsCount || paymentLinksCount || chatwootCount)) {
+  
+  if (!force && (paymentsCount || paymentLinksCount || chatwootCount || gamificationScoreCount || gamificationEventCount)) {
+    console.warn('[Subscriptions/Delete] Suscripción tiene dependencias', {
+      subscriptionId,
+      paymentsCount,
+      paymentLinksCount,
+      chatwootCount,
+      gamificationScoreCount,
+      gamificationEventCount
+    });
     return res.status(409).json({
-      error: "subscription_has_dependencies",
-      details: { paymentsCount, paymentLinksCount, chatwootCount }
+      error: "suscripcion_tiene_dependencias",
+      mensaje: "La suscripción tiene registros relacionados",
+      detalles: { paymentsCount, paymentLinksCount, chatwootCount, gamificationScoreCount, gamificationEventCount }
     });
   }
 
   const purgePayments = String((req as any)?.query?.purgePayments || "").trim() === "1";
 
-  if (force) {
-    const payments = await prisma.payment.findMany({ where: { subscriptionId }, select: { id: true } });
-    const paymentIds = payments.map((p: any) => p.id);
-    if (paymentIds.length && !purgePayments) {
-      return res.status(409).json({
-        error: "subscription_has_payments",
-        reason: "use_purgePayments=1_to_delete_with_payments"
+  try {
+    if (force) {
+      console.log('[Subscriptions/Delete] Iniciando eliminación en cascada', { subscriptionId });
+      const payments = await prisma.payment.findMany({ where: { subscriptionId }, select: { id: true } });
+      const paymentIds = payments.map((p: any) => p.id);
+      
+      // FIX: Eliminar gamificación primero
+      if (gamificationEventCount > 0) {
+        await prisma.gamificationEvent.deleteMany({
+          where: { entityType: GamificationEntityType.SUBSCRIPTION, entityId: subscriptionId }
+        }).catch((err) => {
+          console.error('[Subscriptions/Delete] Fallo eliminando gamification events', {
+            subscriptionId,
+            error: err?.message
+          });
+        });
+      }
+
+      if (gamificationScoreCount > 0) {
+        await prisma.gamificationScore.deleteMany({
+          where: { entityType: GamificationEntityType.SUBSCRIPTION, entityId: subscriptionId }
+        }).catch((err) => {
+          console.error('[Subscriptions/Delete] Fallo eliminando gamification scores', {
+            subscriptionId,
+            error: err?.message
+          });
+        });
+      }
+      
+      if (paymentIds.length && !purgePayments) {
+        console.warn('[Subscriptions/Delete] Suscripción tiene payments, use purgePayments=1', {
+          subscriptionId,
+          paymentsCount: paymentIds.length
+        });
+        return res.status(409).json({
+          error: "suscripcion_tiene_payments",
+          mensaje: "Use purgePayments=1 para eliminar con payments",
+          paymentsCount: paymentIds.length
+        });
+      }
+      if (paymentIds.length && purgePayments) {
+        await prisma.paymentAttempt.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch(() => {});
+      }
+      await prisma.paymentLink.deleteMany({ where: { subscriptionId } }).catch(() => {});
+      await prisma.chatwootMessage.deleteMany({ where: { subscriptionId } }).catch(() => {});
+      if (purgePayments) {
+        await prisma.payment.deleteMany({ where: { subscriptionId } }).catch(() => {});
+      }
+      console.log('[Subscriptions/Delete] Eliminación en cascada completada', {
+        subscriptionId,
+        paymentsDeleted: paymentIds.length
       });
     }
-    if (paymentIds.length && purgePayments) {
-      await prisma.paymentAttempt.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch(() => {});
-    }
-    await prisma.paymentLink.deleteMany({ where: { subscriptionId } }).catch(() => {});
-    await prisma.chatwootMessage.deleteMany({ where: { subscriptionId } }).catch(() => {});
-    if (purgePayments) {
-      await prisma.payment.deleteMany({ where: { subscriptionId } }).catch(() => {});
-    }
-  }
 
-  await prisma.subscription.delete({ where: { id: subscriptionId } });
-  await systemLog(LogLevel.INFO, "subscriptions.delete", "Subscription deleted", { subscriptionId }).catch(() => {});
-  res.json({ ok: true });
+    await prisma.subscription.delete({ where: { id: subscriptionId } });
+    await systemLog(LogLevel.INFO, "subscriptions.delete", "Subscription deleted", { 
+      subscriptionId,
+      force,
+      purgePayments
+    }).catch((err) => {
+      console.error('[Subscriptions/Delete] Fallo creando systemLog', { 
+        subscriptionId, 
+        error: err?.message 
+      });
+    });
+    console.log('[Subscriptions/Delete] Suscripción eliminada exitosamente', { subscriptionId, force });
+    res.json({ ok: true });
+  } catch (err: any) {
+    if (String(err?.code) === "P2025") {
+      console.warn('[Subscriptions/Delete] Suscripción ya no existe', { subscriptionId });
+      return res.status(404).json({ error: "suscripcion_no_encontrada", mensaje: "La suscripción ya fue eliminada" });
+    }
+    if (String(err?.code) === "P2003") {
+      console.error('[Subscriptions/Delete] Violación de clave foránea', {
+        subscriptionId,
+        constraint: err?.meta?.constraint_name || 'desconocida'
+      });
+      return res.status(409).json({ error: "suscripcion_tiene_dependencias", mensaje: "La suscripción tiene registros relacionados que impiden su eliminación" });
+    }
+    console.error('[Subscriptions/Delete] Error eliminando suscripción', {
+      subscriptionId,
+      error: err?.message || String(err),
+      stack: err?.stack
+    });
+    res.status(500).json({ error: "fallo_eliminacion", mensaje: "No se pudo eliminar la suscripción" });
+  }
 });

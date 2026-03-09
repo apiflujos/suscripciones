@@ -6,6 +6,7 @@ import { syncChatwootAttributesForCustomer } from "./chatwootSync";
 import { getCredential } from "./credentials";
 import { logger } from "../lib/logger";
 import { buildWompiTransactionSignature, validateWompiCurrency } from "../lib/wompiSignature";
+import { toUtc } from "../lib/dates";
 import {
   getChatwootConfig,
   getWompiApiBaseUrl,
@@ -59,20 +60,29 @@ type CustomerMetadata = {
 };
 
 async function tryAcquirePaymentLinkLock(key: string) {
-  const rows = await prisma.$queryRaw<{ locked: boolean }[]>`
-    SELECT pg_try_advisory_lock(hashtext(${key})) as locked
-  `;
-  return Boolean(rows?.[0]?.locked);
+  try {
+    const rows = await prisma.$queryRaw<{ locked: boolean }[]>`
+      SELECT pg_try_advisory_lock(hashtext(${key})) as locked
+    `;
+    return Boolean(rows?.[0]?.locked);
+  } catch (err: any) {
+    console.error('[PaymentLock] Failed to acquire lock', { key, error: err?.message });
+    throw err; // Re-lanzar para que el caller sepa que falló
+  }
 }
 
 async function releasePaymentLinkLock(key: string) {
-  await prisma.$queryRaw`
-    SELECT pg_advisory_unlock(hashtext(${key}))
-  `;
+  try {
+    await prisma.$queryRaw`
+      SELECT pg_advisory_unlock(hashtext(${key}))
+    `;
+  } catch (err: any) {
+    console.error('[PaymentLock] Failed to release lock', { key, error: err?.message });
+  }
 }
 
-function formatCop(amountInCents: number) {
-  const pesos = Math.trunc(Number(amountInCents || 0) / 100);
+function formatCop(amountInCents: number | null | undefined) {
+  const pesos = Math.trunc(Number(amountInCents ?? 0) / 100);
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(pesos);
 }
 
@@ -160,6 +170,9 @@ export async function createPaymentLinkForSubscription(args: {
   if (sub.status === SubscriptionStatus.SUSPENDED) throw new Error("subscription_suspended");
   if (sub.status === SubscriptionStatus.EXPIRED) throw new Error("subscription_expired");
 
+  // FIX: Validar moneda antes de crear payment link
+  const currency = validateWompiCurrency(sub.plan.currency);
+
   const cycle = sub.currentCycle;
   const reference = `SUB_${sub.id}_${cycle}`;
   const amountInCents = args.amountInCentsOverride ?? readSubscriptionTotalInCents(sub.metadata, sub.plan.priceInCents);
@@ -172,7 +185,7 @@ export async function createPaymentLinkForSubscription(args: {
       customerId: sub.customerId,
       subscriptionId: sub.id,
       amountInCents,
-      currency: sub.plan.currency,
+      currency,
       cycleNumber: cycle,
       reference,
       status: PaymentStatus.PENDING,
@@ -181,7 +194,7 @@ export async function createPaymentLinkForSubscription(args: {
     update: {
       tenantId,
       amountInCents,
-      currency: sub.plan.currency,
+      currency,
       reference,
       status: PaymentStatus.PENDING
     }
@@ -326,7 +339,7 @@ export async function createPaymentLinkForSubscription(args: {
         description: wompiDescription,
         single_use: true,
         collect_shipping: false,
-        currency: sub.plan.currency,
+        currency,
         amount_in_cents: amountInCents,
         redirect_url: redirectUrl,
         sku: payment.id
@@ -445,6 +458,11 @@ export async function createAutoDebitTransactionForSubscription(args: {
     throw new Error("auto_debit_not_allowed_for_collection_mode");
   }
 
+  // FIX: Validar email PRIMERO (Wompi lo requiere para transacciones)
+  if (!sub.customer.email) {
+    throw new Error("customer_email_required");
+  }
+
   const paymentSourceId = (() => {
     const meta = ((sub.customer.metadata as CustomerMetadata) ?? {}) as CustomerMetadata;
     const candidates = [
@@ -460,7 +478,6 @@ export async function createAutoDebitTransactionForSubscription(args: {
     return null;
   })();
   if (!Number.isFinite(paymentSourceId as any)) throw new Error("customer_payment_source_missing");
-  if (!sub.customer.email) throw new Error("customer_email_required");
 
   const cycle = sub.currentCycle;
   const reference = `SUB_${sub.id}_${cycle}`;

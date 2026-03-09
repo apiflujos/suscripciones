@@ -1,5 +1,6 @@
 import { LogLevel, PaymentStatus, RetryJobType } from "@prisma/client";
 import { prisma } from "../db/prisma";
+import { logger } from "../lib/logger";
 import { getNotificationsActiveEnv, getNotificationsConfig, NotificationTrigger } from "./notificationsConfig";
 import { systemLog } from "./systemLog";
 import { subscriptionReminder } from "../jobs/handlers/subscriptionReminder";
@@ -96,7 +97,9 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
     environment: await getNotificationsActiveEnv(),
     subscriptionId: sub.id,
     scheduled
-  }).catch(() => {});
+  }).catch((err) => {
+    logger.warn({ err, subscriptionId: sub.id }, '[Notifications/Schedule] Fallo creando systemLog');
+  });
 
   return { scheduled };
 }
@@ -153,7 +156,9 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
         });
         scheduled++;
       } else {
-        await subscriptionReminder(jobPayload).catch(() => {});
+        await subscriptionReminder(jobPayload).catch((err) => {
+          logger.warn({ err, paymentId, trigger }, '[Notifications/Schedule] Fallo en recordatorio inline');
+        });
       }
     }
   }
@@ -163,7 +168,9 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
     environment: await getNotificationsActiveEnv(),
     paymentId: payment.id,
     scheduled
-  }).catch(() => {});
+  }).catch((err) => {
+    logger.warn({ err, paymentId }, '[Notifications/Schedule] Fallo creando systemLog');
+  });
 
   return { scheduled };
 }
@@ -216,7 +223,9 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
         });
         scheduled++;
       } else {
-        await subscriptionReminder(jobPayload).catch(() => {});
+        await subscriptionReminder(jobPayload).catch((err) => {
+          logger.warn({ err, paymentId }, '[Notifications/Schedule] Fallo en envío inline de payment link');
+        });
         sentNow++;
       }
     }
@@ -228,7 +237,9 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
     paymentId: payment.id,
     customerId: payment.customerId,
     scheduled
-  }).catch(() => {});
+  }).catch((err) => {
+    logger.warn({ err, paymentId }, '[Notifications/Schedule] Fallo creando systemLog');
+  });
 
   return { scheduled, sentNow, rulesActive: true };
 }
@@ -275,7 +286,9 @@ export async function scheduleCatalogLinkNotifications(args: { customerId: strin
         });
         scheduled++;
       } else {
-        await subscriptionReminder(jobPayload).catch(() => {});
+        await subscriptionReminder(jobPayload).catch((err) => {
+          logger.warn({ err, customerId }, '[Notifications/Schedule] Fallo en envío inline de catalog link');
+        });
         sentNow++;
       }
     }
@@ -286,7 +299,9 @@ export async function scheduleCatalogLinkNotifications(args: { customerId: strin
     environment: await getNotificationsActiveEnv(),
     customerId,
     scheduled
-  }).catch(() => {});
+  }).catch((err) => {
+    logger.warn({ err, customerId }, '[Notifications/Schedule] Fallo creando systemLog');
+  });
 
   return { scheduled, sentNow, rulesActive: true };
 }

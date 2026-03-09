@@ -7,16 +7,19 @@ import type { AdminSession } from "../lib/session";
 import { isNoiseNotification, normalizeSystemText } from "./lib/logPresentation";
 
 type Header = { title: string; subtitle: string };
+
+type NotificationCategory = "pagos" | "suscripciones" | "clientes" | "sistema";
+type NotificationLevel = "success" | "warning" | "error" | "info";
+
 type HeaderNotification = {
   id: string;
   ts: string;
   title: string;
   message: string;
-  level?: "info" | "error";
-  href?: string | null;
-  source?: string | null;
-  kind?: string | null;
-  read?: boolean;
+  level: NotificationLevel;
+  category: NotificationCategory;
+  href: string;
+  read: boolean;
   duplicateCount?: number;
 };
 
@@ -39,13 +42,6 @@ function getHeader(pathname: string): Header {
   return { title: "Panel", subtitle: "—" };
 }
 
-function getHeaderWithTab(pathname: string, tab: string): Header {
-  if (pathname === "/logs" && tab === "payments") {
-    return { title: "Pagos", subtitle: "Seguimiento de pagos, estados y conciliación." };
-  }
-  return getHeader(pathname);
-}
-
 function UserMenuIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -54,9 +50,9 @@ function UserMenuIcon({ className }: { className?: string }) {
   );
 }
 
-function BellIcon({ className }: { className?: string }) {
+function BellIcon({ className, animated }: { className?: string; animated?: boolean }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+    <svg className={`${className} ${animated ? "bell-shake" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
       <path d="M15 17H5l2-2v-4a5 5 0 1 1 10 0v4l2 2h-4" />
       <path d="M10 17a2 2 0 0 0 4 0" />
     </svg>
@@ -70,49 +66,71 @@ function displayNameFromEmail(email: string) {
   return local.slice(0, 1).toUpperCase() + local.slice(1);
 }
 
-function normalizeNotif(value: unknown) {
-  return String(value || "")
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, " ")
-    .slice(0, 500);
+function categorizeNotification(title: string, message: string, source?: string): NotificationCategory {
+  const text = `${title} ${message} ${source || ""}`.toLowerCase();
+  if (/pago|payment|cobro|wompi|transacci/.test(text)) return "pagos";
+  if (/suscripci|subscription|ciclo|reintento|mora/.test(text)) return "suscripciones";
+  if (/cliente|customer|contact|email|tel/.test(text)) return "clientes";
+  return "sistema";
 }
 
-function notifKey(item: Partial<HeaderNotification>) {
-  return `${normalizeNotif(item.level)}|${normalizeNotif(item.title)}|${normalizeNotif(item.message)}|${normalizeNotif(item.href)}`;
+function levelFromSource(source?: string, title?: string): NotificationLevel {
+  const text = `${source || ""} ${title || ""}`.toLowerCase();
+  if (/aprob|success|ok|pago recibid/.test(text)) return "success";
+  if (/fall|error|declin|fail/.test(text)) return "error";
+  if (/warn|advert|atenci|recordator/.test(text)) return "warning";
+  return "info";
 }
 
-function resolveNotificationHref(item: Partial<HeaderNotification>, role?: string | null) {
-  const href = String(item?.href || "").trim();
-  const title = normalizeSystemText(item?.title || "").toLowerCase();
-  const message = normalizeSystemText(item?.message || "").toLowerCase();
-  const source = String(item?.source || "").toLowerCase().trim();
-  const kind = String(item?.kind || "").toLowerCase().trim();
-  const text = `${title} ${message} ${source} ${kind}`;
+function resolveNotificationHref(category: NotificationCategory, level: NotificationLevel, role?: string | null): string {
+  // Usuarios normales NUNCA ven logs - solo Super Admin
+  const isSuperAdmin = role === "SUPER_ADMIN";
+  
+  // Mapeo directo por categoría
+  const categoryMap: Record<NotificationCategory, string> = {
+    "pagos": "/payments",
+    "suscripciones": "/billing",
+    "clientes": "/customers",
+    "sistema": isSuperAdmin ? "/logs" : "/settings"  // Usuarios → Configuración, Admin → Logs
+  };
+  
+  const baseHref = categoryMap[category];
+  
+  // Solo Super Admin puede ir a logs
+  if (isSuperAdmin && level === "error") {
+    return "/logs?level=ERROR";
+  }
+  
+  return baseHref;
+}
 
-  const blockedLogs = role !== "SUPER_ADMIN";
-  if (href && (!blockedLogs || !href.startsWith("/logs"))) return href;
+function getNotificationIcon(level: NotificationLevel): string {
+  switch (level) {
+    case "success": return "✅";
+    case "error": return "❌";
+    case "warning": return "⚠️";
+    default: return "📬";
+  }
+}
 
-  if (/payment|pago|concili|wompi|webhook/.test(text)) return "/payments";
-  if (/subscription|suscripci|cobro|reintento/.test(text)) return "/billing";
-  if (/customer|cliente|contact/.test(text)) return "/customers";
-  if (/notification|notificaci|mensaje/.test(text)) return "/notifications";
-  if (/producto|product|plan/.test(text)) return "/products";
-  if (blockedLogs) return "/";
-  return href || "/logs";
+function getNotificationColor(level: NotificationLevel): string {
+  switch (level) {
+    case "success": return "notification-success";
+    case "error": return "notification-error";
+    case "warning": return "notification-warning";
+    default: return "notification-info";
+  }
 }
 
 export function TopBar({ session }: { session: AdminSession | null }) {
   const FEED_STORAGE_KEY = "apiflujos-notifications-feed";
   const READ_STORAGE_KEY = "apiflujos-notifications-read-ids";
   const pathname = usePathname() || "/";
-  const searchParams = useSearchParams();
-  const headerTab = String(searchParams?.get("tab") || "");
-  const header = useMemo(() => getHeaderWithTab(pathname, headerTab), [pathname, headerTab]);
+  const header = useMemo(() => getHeader(pathname), [pathname]);
   const isSuperAdmin = session?.role === "SUPER_ADMIN";
   const [menuOpen, setMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [notifFilter, setNotifFilter] = useState<"all" | "unread" | "read">("unread");
+  const [notifFilter, setNotifFilter] = useState<"all" | "unread" | "read" | NotificationCategory>("unread");
   const [notifications, setNotifications] = useState<HeaderNotification[]>([]);
   const [paymentPulse, setPaymentPulse] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -120,10 +138,23 @@ export function TopBar({ session }: { session: AdminSession | null }) {
   const pulseRef = useRef<NodeJS.Timeout | null>(null);
   const readIdsRef = useRef<Set<string>>(new Set());
   const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
+  
+  // Filtros simplificados
+  const filterOptions = useMemo(() => [
+    { key: "unread" as const, label: "No leídas", icon: "🔔" },
+    { key: "read" as const, label: "Leídas", icon: "✅" },
+    { key: "pagos" as const, label: "Pagos", icon: "💳" },
+    { key: "suscripciones" as const, label: "Suscripciones", icon: "🔄" },
+    { key: "clientes" as const, label: "Clientes", icon: "👥" },
+    { key: "all" as const, label: "Todas", icon: "📋" }
+  ], []);
+
   const filteredNotifications = useMemo(() => {
-    if (notifFilter === "read") return notifications.filter((n) => Boolean(n.read));
+    if (notifFilter === "read") return notifications.filter((n) => n.read);
     if (notifFilter === "unread") return notifications.filter((n) => !n.read);
-    return notifications;
+    if (notifFilter === "all") return notifications;
+    // Filtro por categoría
+    return notifications.filter((n) => n.category === notifFilter);
   }, [notifications, notifFilter]);
 
   const saveReadIds = (ids: Set<string>) => {
@@ -175,15 +206,12 @@ export function TopBar({ session }: { session: AdminSession | null }) {
       try {
         const raw = window.localStorage.getItem(READ_STORAGE_KEY);
         const parsed = raw ? JSON.parse(raw) : [];
-        if (!Array.isArray(parsed)) {
-          readIdsRef.current = new Set();
-          return;
-        }
-        readIdsRef.current = new Set(parsed.map((v) => String(v || "")));
+        readIdsRef.current = new Set(parsed.map((v: string) => String(v || "")));
       } catch {
         readIdsRef.current = new Set();
       }
     };
+    
     const load = () => {
       try {
         const raw = window.localStorage.getItem(FEED_STORAGE_KEY);
@@ -192,56 +220,87 @@ export function TopBar({ session }: { session: AdminSession | null }) {
           setNotifications([]);
           return;
         }
-        const dedup = new Map<string, HeaderNotification>();
-        for (const raw of parsed.slice(0, 120)) {
-          const item = raw as HeaderNotification;
-          const normalized: HeaderNotification = {
-            ...item,
-            title: normalizeSystemText(item?.title || ""),
-            message: normalizeSystemText(item?.message || "")
+
+        // FIX: Agrupar notificaciones idénticas con lógica mejorada
+        const grouped = new Map<string, HeaderNotification>();
+        for (const raw of parsed.slice(0, 100)) {
+          const item = raw as any;
+
+          // Filtrar ruido (solo para no super admin)
+          if (!isSuperAdmin && isNoiseNotification({
+            source: item?.source,
+            title: item?.title,
+            message: item?.message,
+            kind: item?.kind
+          })) {
+            continue;
+          }
+
+          // FIX: Clave única incluye categoría y fecha para evitar falsos duplicados
+          const title = normalizeSystemText(item?.title || "");
+          const message = normalizeSystemText(item?.message || "");
+          const category = item?.category || categorizeNotification(title, message, item?.source);
+          const itemDate = item?.ts ? new Date(item.ts).toDateString() : 'unknown';
+          const contentKey = `${title}|${message}|${category}|${itemDate}`;
+
+          const existing = grouped.get(contentKey);
+          const newItem: HeaderNotification = {
+            id: item?.id || contentKey,
+            ts: item?.ts || new Date().toISOString(),
+            title: title,
+            message: message,
+            level: item?.level || levelFromSource(item?.source, item?.title),
+            category: category,
+            href: item?.href || "",
+            read: readIdsRef.current.has(item?.id || contentKey),
+            duplicateCount: existing ? (existing.duplicateCount || 1) + 1 : 1
           };
-          if (
-            isNoiseNotification({
-              source: (raw as any)?.source,
-              title: normalized.title,
-              message: normalized.message,
-              kind: (raw as any)?.kind
-            })
-          ) {
+
+          // FIX: Solo agrupar si son realmente el mismo evento (misma hora)
+          if (!existing) {
+            grouped.set(contentKey, newItem);
             continue;
           }
-          const key = notifKey(normalized);
-          const prev = dedup.get(key);
-          const prevTs = prev ? new Date(prev.ts).getTime() : Number.NaN;
-          const itemTs = new Date(normalized.ts).getTime();
-          const prevCount = Math.max(1, Number(prev?.duplicateCount || 1));
-          const itemCount = Math.max(1, Number(normalized?.duplicateCount || 1));
-          const mergedCount = prev ? prevCount + itemCount : itemCount;
-          if (!prev) {
-            dedup.set(key, { ...normalized, id: key, duplicateCount: mergedCount });
+          
+          // Si los timestamps son muy diferentes (> 1 hora), no agrupar
+          const existingTs = new Date(existing.ts).getTime();
+          const newItemTs = new Date(newItem.ts).getTime();
+          const timeDiffMs = Math.abs(newItemTs - existingTs);
+          const oneHourMs = 60 * 60 * 1000;
+          
+          if (timeDiffMs > oneHourMs) {
+            // Crear entrada separada
+            const newKey = `${contentKey}|${newItemTs}`;
+            grouped.set(newKey, { ...newItem, id: newKey, duplicateCount: 1 });
             continue;
           }
-          const keepNew = Number.isFinite(itemTs) && (!Number.isFinite(prevTs) || itemTs >= prevTs);
-          dedup.set(key, { ...(keepNew ? normalized : prev), id: key, duplicateCount: mergedCount });
+          
+          // Mismo evento, actualizar contador
+          if (newItemTs > existingTs) {
+            newItem.duplicateCount = (existing.duplicateCount || 1) + 1;
+            grouped.set(contentKey, newItem);
+          } else {
+            existing.duplicateCount = (existing.duplicateCount || 1) + 1;
+          }
         }
-        const compacted = Array.from(dedup.values())
+
+        const next = Array.from(grouped.values())
           .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
-          .slice(0, 40);
-        const next = compacted.map((item: HeaderNotification) => {
-          const id = String(item?.id || "");
-          return { ...item, read: readIdsRef.current.has(id) };
-        });
+          .slice(0, 50);
+
         setNotifications(next);
       } catch {
         setNotifications([]);
       }
     };
+    
     loadRead();
     load();
+    
     const onUpdated = () => load();
     window.addEventListener("apiflujos:notifications-updated", onUpdated as EventListener);
     return () => window.removeEventListener("apiflujos:notifications-updated", onUpdated as EventListener);
-  }, [FEED_STORAGE_KEY, READ_STORAGE_KEY]);
+  }, [FEED_STORAGE_KEY, READ_STORAGE_KEY, isSuperAdmin]);
 
   const markNotification = (id: string, read: boolean) => {
     const next = new Set(readIdsRef.current);
@@ -262,6 +321,15 @@ export function TopBar({ session }: { session: AdminSession | null }) {
     readIdsRef.current = next;
     saveReadIds(next);
     setNotifications((prev) => prev.map((n) => ({ ...n, read })));
+  };
+
+  const clearAll = () => {
+    try {
+      window.localStorage.removeItem(FEED_STORAGE_KEY);
+      window.localStorage.removeItem(READ_STORAGE_KEY);
+      readIdsRef.current = new Set();
+      setNotifications([]);
+    } catch {}
   };
 
   return (
@@ -315,14 +383,14 @@ export function TopBar({ session }: { session: AdminSession | null }) {
                 Configuración
               </Link>
               {isSuperAdmin ? (
-                <Link className="userMenuItem" href="/sa" prefetch={false} role="menuitem">
-                  Super Admin
-                </Link>
-              ) : null}
-              {isSuperAdmin ? (
-                <Link className="userMenuItem" href="/sa/users" prefetch={false} role="menuitem">
-                  Usuarios
-                </Link>
+                <>
+                  <Link className="userMenuItem" href="/sa" prefetch={false} role="menuitem">
+                    Super Admin
+                  </Link>
+                  <Link className="userMenuItem" href="/sa/users" prefetch={false} role="menuitem">
+                    Usuarios
+                  </Link>
+                </>
               ) : null}
               <Link className="userMenuItem isDanger" href="/logout" prefetch={false} role="menuitem">
                 Salir
@@ -330,76 +398,125 @@ export function TopBar({ session }: { session: AdminSession | null }) {
             </div>
           ) : null}
         </div>
+        
+        {/* Campana de notificaciones MEJORADA */}
         <div className="topbarNotifications" ref={notifRef}>
           <button
             type="button"
-            className="topbarBellBtn"
+            className={`topbarBellBtn ${unreadCount > 0 ? "has-unread" : ""}`}
             data-loader="off"
             onClick={() => setNotifOpen((v) => !v)}
-            aria-label="Abrir notificaciones"
+            aria-label={`Abrir notificaciones (${unreadCount} no leídas)`}
             aria-haspopup="menu"
             aria-expanded={notifOpen ? "true" : "false"}
           >
-            <BellIcon className="topbarBellIcon" />
-            {unreadCount ? <span className="topbarBellBadge">{Math.min(unreadCount, 99)}</span> : null}
+            <BellIcon className="topbarBellIcon" animated={paymentPulse} />
+            {unreadCount > 0 ? (
+              <span className="topbarBellBadge">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            ) : null}
           </button>
+          
           {notifOpen ? (
             <div className="topbarBellPopover" role="menu" aria-label="Notificaciones">
+              {/* Header con título y acciones */}
               <div className="topbarBellHead">
-                <strong>Notificaciones</strong>
-                <div className="topbarBellFilters">
-                  <button type="button" className={`topbarBellFilter ${notifFilter === "unread" ? "is-active" : ""}`} onClick={() => setNotifFilter("unread")}>
-                    No leídas
-                  </button>
-                  <button type="button" className={`topbarBellFilter ${notifFilter === "read" ? "is-active" : ""}`} onClick={() => setNotifFilter("read")}>
-                    Leídas
-                  </button>
-                  <button type="button" className={`topbarBellFilter ${notifFilter === "all" ? "is-active" : ""}`} onClick={() => setNotifFilter("all")}>
-                    Todas
-                  </button>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <strong>Notificaciones</strong>
+                  {unreadCount > 0 && (
+                    <span className="topbarBellUnreadCount">{unreadCount}</span>
+                  )}
                 </div>
                 <div className="topbarBellActions">
-                  <button type="button" className="topbarBellActionBtn" onClick={() => markAll(true)}>
-                    Marcar todo leído
+                  <button 
+                    type="button" 
+                    className="topbarBellActionBtn topbarBellActionBtnSmall" 
+                    onClick={() => markAll(true)}
+                    title="Marcar todo como leído"
+                  >
+                    ✅
                   </button>
-                  <button type="button" className="topbarBellActionBtn" onClick={() => markAll(false)}>
-                    Desmarcar
+                  <button 
+                    type="button" 
+                    className="topbarBellActionBtn topbarBellActionBtnSmall" 
+                    onClick={clearAll}
+                    title="Limpiar todas"
+                  >
+                    🗑️
                   </button>
                 </div>
               </div>
+              
+              {/* Filtros SIMPLIFICADOS */}
+              <div className="topbarBellFilters">
+                {filterOptions.map((opt) => (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    className={`topbarBellFilter ${notifFilter === opt.key ? "is-active" : ""}`}
+                    onClick={() => setNotifFilter(opt.key)}
+                  >
+                    <span className="filter-icon">{opt.icon}</span>
+                    <span className="filter-label">{opt.label}</span>
+                  </button>
+                ))}
+              </div>
+              
+              {/* Lista de notificaciones */}
               <div className="topbarBellList">
-                {filteredNotifications.length ? (
+                {filteredNotifications.length > 0 ? (
                   filteredNotifications.map((n) => {
-                    const destinationHref = resolveNotificationHref(n, session?.role);
+                    const icon = getNotificationIcon(n.level);
+                    const colorClass = getNotificationColor(n.level);
+                    const destinationHref = n.href || resolveNotificationHref(n.category, n.level, session?.role);
+                    
                     return (
-                    <div key={n.id} className={`topbarBellItem ${n.read ? "is-read" : "is-unread"}`}>
-                      <div>
-                        <div className="topbarBellItemTitle">
-                          {n.title || "Evento"} {Number(n.duplicateCount || 1) > 1 ? `x${Number(n.duplicateCount)}` : ""}
-                        </div>
-                        <div className="topbarBellItemMsg">{n.message || "Sin detalle"}</div>
-                        <div className="topbarBellItemMeta">
-                          {new Date(n.ts).toLocaleString("es-CO", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}
-                        </div>
-                        {destinationHref ? (
-                          <a className="topbarBellItemLink" href={destinationHref} data-loader="off">
-                            Ir al módulo
-                          </a>
-                        ) : null}
-                      </div>
-                      <button
-                        type="button"
-                        className="topbarBellToggleRead"
-                        onClick={() => markNotification(n.id, !n.read)}
-                        aria-label={n.read ? "Marcar como no leída" : "Marcar como leída"}
+                      <Link 
+                        key={n.id} 
+                        href={destinationHref}
+                        prefetch={false}
+                        className={`topbarBellItem ${colorClass} ${n.read ? "is-read" : "is-unread"}`}
+                        onClick={() => markNotification(n.id, true)}
                       >
-                        {n.read ? "No leída" : "Leída"}
-                      </button>
-                    </div>
-                  );
+                        <div className="topbarBellItemIcon">{icon}</div>
+                        <div className="topbarBellItemContent">
+                          <div className="topbarBellItemTitle">
+                            {n.title || "Notificación"}
+                            {n.duplicateCount && n.duplicateCount > 1 ? (
+                              <span className="topbarBellItemDuplicate">×{n.duplicateCount}</span>
+                            ) : null}
+                          </div>
+                          <div className="topbarBellItemMsg">{n.message || "Sin detalle"}</div>
+                          <div className="topbarBellItemMeta">
+                            <span className="category-badge">{n.category}</span>
+                            <span className="time-ago">
+                              {new Date(n.ts).toLocaleString("es-CO", { 
+                                hour: "2-digit", 
+                                minute: "2-digit",
+                                day: "2-digit",
+                                month: "2-digit"
+                              })}
+                            </span>
+                          </div>
+                        </div>
+                        {!n.read && <span className="topbarBellItemDot" />}
+                      </Link>
+                    );
                   })
                 ) : (
-                  <div className="topbarBellEmpty">Sin notificaciones en este filtro.</div>
+                  <div className="topbarBellEmpty">
+                    <div className="empty-icon">🔔</div>
+                    <div className="empty-text">
+                      {notifFilter === "unread" 
+                        ? "¡No tienes notificaciones no leídas!" 
+                        : notifFilter === "read"
+                        ? "No tienes notificaciones leídas"
+                        : typeof notifFilter === "string" && notifFilter !== "all"
+                        ? `No hay notificaciones de ${notifFilter}`
+                        : "Sin notificaciones"}
+                    </div>
+                  </div>
                 )}
               </div>
             </div>

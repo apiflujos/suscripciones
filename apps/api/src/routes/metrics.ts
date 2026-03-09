@@ -4,12 +4,20 @@ import { getMetricsOverview } from "../services/metrics";
 import { getReportCache, setReportCache } from "../services/reportCache";
 import { coerceTenantId, getEffectiveTenantId } from "../services/tenantContext";
 
+// Schema de validación mejorado con UUID y límites de rango
 const querySchema = z.object({
   from: z.string().datetime().optional(),
   to: z.string().datetime().optional(),
   granularity: z.enum(["day", "week", "month"]).optional().default("day"),
-  tenantId: z.string().optional()
-});
+  tenantId: z.string().uuid().optional().nullable()
+}).refine(data => {
+  // Validar que el rango no exceda 365 días
+  if (data.from && data.to) {
+    const days = (new Date(data.to).getTime() - new Date(data.from).getTime()) / (1000 * 60 * 60 * 24);
+    return days <= 365;
+  }
+  return true;
+}, { message: "Range cannot exceed 365 days", path: ["to"] });
 
 function defaultRange() {
   const to = new Date();
@@ -17,11 +25,35 @@ function defaultRange() {
   return { from, to };
 }
 
+/**
+ * Maneja el refresh de cache con proper error handling y logging
+ */
+async function refreshCache(
+  cacheKey: any,
+  data: any,
+  cacheTtlSeconds: number,
+  staleSeconds: number
+) {
+  try {
+    await setReportCache(cacheKey, data, cacheTtlSeconds, staleSeconds);
+    console.log('[MetricsCache] Updated cache', { key: cacheKey.reportKey, tenantId: cacheKey.tenantId });
+  } catch (err: any) {
+    console.error('[MetricsCache] Failed to update cache', { 
+      key: cacheKey.reportKey, 
+      tenantId: cacheKey.tenantId,
+      error: err?.message || String(err) 
+    });
+  }
+}
+
 export const metricsRouter = express.Router();
 
 metricsRouter.get("/overview", async (req, res) => {
   const parsed = querySchema.safeParse(req.query ?? {});
-  if (!parsed.success) return res.status(400).json({ error: "invalid_query", details: parsed.error.flatten() });
+  if (!parsed.success) {
+    console.log('[Metrics] Invalid query params', { errors: parsed.error.flatten() });
+    return res.status(400).json({ error: "invalid_query", details: parsed.error.flatten() });
+  }
 
   const d = defaultRange();
   const from = parsed.data.from ? new Date(parsed.data.from) : d.from;
@@ -46,6 +78,7 @@ metricsRouter.get("/overview", async (req, res) => {
       const data = await getMetricsOverview({ from: cacheFrom, to: cacheTo, granularity: parsed.data.granularity, tenantId: null });
       return res.json(data);
     } catch (err: any) {
+      console.error('[Metrics] Error fetching metrics (no tenant)', { error: err?.message });
       return res.status(400).json({ error: "invalid_range", message: err?.message ? String(err.message) : "invalid_range" });
     }
   }
@@ -67,20 +100,29 @@ metricsRouter.get("/overview", async (req, res) => {
   if (cached.hit && cached.stale) {
     res.setHeader("x-report-cache", "STALE");
     res.json(cached.payload);
-    setTimeout(() => {
-      getMetricsOverview({ from: cacheFrom, to: cacheTo, granularity: parsed.data.granularity, tenantId: resolvedTenantId })
-        .then((data) => setReportCache(cacheKey, data, cacheTtlSeconds, staleSeconds))
-        .catch(() => {});
-    }, 0);
+    // Refresh en background con proper error handling
+    setImmediate(async () => {
+      try {
+        console.log('[Metrics] Refreshing stale cache', { tenantId: resolvedTenantId });
+        const data = await getMetricsOverview({ from: cacheFrom, to: cacheTo, granularity: parsed.data.granularity, tenantId: resolvedTenantId });
+        await refreshCache(cacheKey, data, cacheTtlSeconds, staleSeconds);
+      } catch (err: any) {
+        console.error('[Metrics] Failed to refresh stale cache', { 
+          tenantId: resolvedTenantId, 
+          error: err?.message || String(err) 
+        });
+      }
+    });
     return;
   }
 
   try {
     const data = await getMetricsOverview({ from: cacheFrom, to: cacheTo, granularity: parsed.data.granularity, tenantId: resolvedTenantId });
-    await setReportCache(cacheKey, data, cacheTtlSeconds, staleSeconds);
+    await refreshCache(cacheKey, data, cacheTtlSeconds, staleSeconds);
     res.setHeader("x-report-cache", "MISS");
     res.json(data);
   } catch (err: any) {
+    console.error('[Metrics] Error fetching metrics', { tenantId: resolvedTenantId, error: err?.message });
     res.status(400).json({ error: "invalid_range", message: err?.message ? String(err.message) : "invalid_range" });
   }
 });

@@ -221,19 +221,27 @@ function ChartBars({
   const w = 520;
   const h = height;
   const pad = 10;
+  // FIX: Manejar valores negativos correctamente
+  const min = Math.min(0, ...a, ...b);
   const max = Math.max(1, ...a, ...b);
+  const range = max - min;
   const gridCount = 4;
   const fmtAxis = (v: number) => new Intl.NumberFormat("es-CO").format(Math.round(v));
   const n = Math.max(a.length, b.length);
   const gap = 6;
   const groupW = (w - pad * 2) / Math.max(1, n);
   const barW = Math.max(2, (groupW - gap) / 2);
+  
+  // Calcular línea base (zero line) proporcionalmente
+  const zeroY = min < 0 ? pad + ((0 - min) / range) * (h - pad * 2) : h - pad;
+  
   return (
     <div style={{ display: "grid", gap: 8 }}>
       <svg viewBox={`0 0 ${w} ${h}`} width="100%" height={h} aria-hidden="true">
         {Array.from({ length: gridCount + 1 }).map((_, i) => {
           const y = pad + (i * (h - pad * 2)) / gridCount;
-          const value = max - (i * max) / gridCount;
+          // FIX: Mostrar valores correctos en el eje Y considerando negativos
+          const value = max - (i * range) / gridCount;
           const showLabel = i === 0 || i === Math.floor(gridCount / 2) || i === gridCount;
           return (
             <g key={`grid-${i}`}>
@@ -246,18 +254,43 @@ function ChartBars({
             </g>
           );
         })}
+        {/* Línea de cero cuando hay valores negativos */}
+        {min < 0 && (
+          <line x1="0" y1={zeroY} x2={w} y2={zeroY} stroke="var(--chart-axis)" strokeWidth="1.5" strokeDasharray="4 2" />
+        )}
         {Array.from({ length: n }).map((_, i) => {
           const x0 = pad + i * groupW;
           const va = a[i] ?? 0;
           const vb = b[i] ?? 0;
-          const ha = (Math.max(0, va) * (h - pad * 2)) / max;
-          const hb = (Math.max(0, vb) * (h - pad * 2)) / max;
+          
+          // FIX: Calcular altura y posición correctamente para valores negativos
+          const ha = range > 0 ? (Math.abs(va) * (h - pad * 2)) / range : 0;
+          const hb = range > 0 ? (Math.abs(vb) * (h - pad * 2)) / range : 0;
+          
+          // FIX: Posición Y correcta dependiendo del signo
+          const ya = va >= 0 ? h - pad - ha : zeroY;
+          const yb = vb >= 0 ? h - pad - hb : zeroY;
+          
           return (
             <g key={i}>
-              <rect x={x0} y={h - pad - ha} width={barW} height={ha} fill="var(--chart-a)" rx="3">
+              <rect 
+                x={x0} 
+                y={ya} 
+                width={barW} 
+                height={ha} 
+                fill={va < 0 ? "var(--danger)" : "var(--chart-a)"} 
+                rx="3"
+              >
                 <title>{`${labels?.[i] || ""} · ${aLabel}: ${va}`}</title>
               </rect>
-              <rect x={x0 + barW + gap} y={h - pad - hb} width={barW} height={hb} fill="var(--chart-b)" rx="3">
+              <rect 
+                x={x0 + barW + gap} 
+                y={yb} 
+                width={barW} 
+                height={hb} 
+                fill={vb < 0 ? "var(--danger)" : "var(--chart-b)"} 
+                rx="3"
+              >
                 <title>{`${labels?.[i] || ""} · ${bLabel}: ${vb}`}</title>
               </rect>
             </g>

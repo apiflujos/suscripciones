@@ -118,6 +118,15 @@ export async function reconcileWompiByReference(args: {
   const tenantId = requestedTenantId || String((await getDefaultTenantId()) || "").trim();
   if (!tenantId) return { ok: false, reason: "missing_tenant" as const };
 
+  // FIX: Validar amountInCents si se proporciona (no puede ser 0 o negativo)
+  const expectedAmount = args.amountInCents != null ? Math.trunc(Number(args.amountInCents)) : null;
+  if (expectedAmount != null && expectedAmount <= 0) {
+    console.warn('[WompiReconcile] Invalid amountInCents provided', { amountInCents: args.amountInCents });
+  }
+  
+  const expectedCurrency = String(args.currency || "").trim().toUpperCase();
+  const expectedLink = String(args.paymentLinkId || "").trim();
+
   const publicKey = await getWompiPublicKey();
   const privateKey = await getWompiPrivateKey();
   if (!publicKey && !privateKey) {
@@ -142,10 +151,6 @@ export async function reconcileWompiByReference(args: {
   })();
 
   if (!txs.length) return { ok: false, reason: "transaction_not_found_by_reference" as const };
-
-  const expectedLink = String(args.paymentLinkId || "").trim();
-  const expectedCurrency = String(args.currency || "").trim().toUpperCase();
-  const expectedAmount = Number(args.amountInCents || 0);
   const finalStatuses = new Set(["APPROVED", "DECLINED", "VOIDED", "ERROR"]);
   const candidates = txs
     .map((tx) => {
@@ -154,7 +159,8 @@ export async function reconcileWompiByReference(args: {
       let score = 0;
       if (expectedLink && String(tx.paymentLinkId || "").trim() === expectedLink) score += 100;
       if (expectedCurrency && String(tx.currency || "").trim().toUpperCase() === expectedCurrency) score += 20;
-      if (expectedAmount > 0 && Number(tx.amountInCents || 0) === expectedAmount) score += 20;
+      // FIX: Solo sumar puntos por amount si expectedAmount es válido (> 0)
+      if (expectedAmount != null && expectedAmount > 0 && Number(tx.amountInCents || 0) === expectedAmount) score += 20;
       if (status === "APPROVED") score += 10;
       const ts = Math.max(parseDateLike(tx.finalizedAt), parseDateLike(tx.createdAt));
       return { tx, score, ts };

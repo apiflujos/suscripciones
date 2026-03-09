@@ -4,12 +4,19 @@ import { getCommerceReport, getOperationsReport, getChatwootReport } from "../se
 import { getReportCache, setReportCache } from "../services/reportCache";
 import { coerceTenantId, getEffectiveTenantId } from "../services/tenantContext";
 
+// Schema de validación mejorado con UUID y límites de rango
 const querySchema = z.object({
   from: z.string().datetime().optional(),
   to: z.string().datetime().optional(),
   granularity: z.enum(["day", "week", "month"]).optional().default("day"),
-  tenantId: z.string().optional()
-});
+  tenantId: z.string().uuid().optional().nullable()
+}).refine(data => {
+  if (data.from && data.to) {
+    const days = (new Date(data.to).getTime() - new Date(data.from).getTime()) / (1000 * 60 * 60 * 24);
+    return days <= 365;
+  }
+  return true;
+}, { message: "Range cannot exceed 365 days", path: ["to"] });
 
 function defaultRange() {
   const to = new Date();
@@ -31,6 +38,25 @@ function normalizeCacheRange(
   return { from: alignedFrom, to: alignedTo };
 }
 
+async function refreshCache(
+  cacheKey: any,
+  compute: () => Promise<any>,
+  ttlSeconds: number,
+  staleSeconds: number
+) {
+  try {
+    const payload = await compute();
+    await setReportCache(cacheKey, payload, ttlSeconds, staleSeconds);
+    console.log('[ReportsCache] Updated cache', { key: cacheKey.reportKey, tenantId: cacheKey.tenantId });
+  } catch (err: any) {
+    console.error('[ReportsCache] Failed to update cache', { 
+      key: cacheKey.reportKey, 
+      tenantId: cacheKey.tenantId,
+      error: err?.message || String(err) 
+    });
+  }
+}
+
 async function respondWithCache(
   res: express.Response,
   key: { reportKey: string; tenantId: string; from: Date; to: Date; granularity?: string; version?: string },
@@ -46,11 +72,8 @@ async function respondWithCache(
   if (cached.hit && cached.stale) {
     res.setHeader("x-report-cache", "STALE");
     res.json(cached.payload);
-    setTimeout(() => {
-      compute()
-        .then((payload) => setReportCache(key, payload, ttlSeconds, staleSeconds))
-        .catch(() => {});
-    }, 0);
+    // Refresh en background con proper error handling
+    setImmediate(() => refreshCache(key, compute, ttlSeconds, staleSeconds));
     return;
   }
   const payload = await compute();

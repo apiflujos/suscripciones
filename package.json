@@ -7,7 +7,9 @@
     "react-dom": "19.2.4"
   },
   "devDependencies": {
-    "prisma": "^5.22.0"
+    "@vitest/ui": "^4.0.18",
+    "prisma": "^5.22.0",
+    "vitest": "^4.0.18"
   },
   "workspaces": [
     "apps/*"
@@ -23,7 +25,11 @@
     "start": "npm -w apps/api run start",
     "start:migrate": "npm -w apps/api run start:migrate",
     "jobs:start": "npm -w apps/api run jobs:start",
-    "admin:start": "npm -w apps/admin run start"
+    "admin:start": "npm -w apps/admin run start",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage"
   },
   "overrides": {
     "react": "19.2.4",

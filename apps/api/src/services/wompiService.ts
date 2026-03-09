@@ -1,6 +1,6 @@
 import { prisma } from "../db/prisma";
 import { logger } from "../lib/logger";
-import { addIntervalUtc } from "../lib/dates";
+import { addIntervalUtc, toUtc } from "../lib/dates";
 import { SubscriptionStatus } from "@prisma/client";
 import { resolveSubscriptionCollectionMode } from "./subscriptionMode";
 import { ensurePaymentRetryJob } from "./retryJobScheduler";
@@ -31,9 +31,13 @@ export async function advanceSubscriptionCycle(params: {
     const manualAt = manualAtRaw ? new Date(manualAtRaw) : null;
     const useManualAnchor = Number.isFinite(manualCycle) && manualCycle === cycle && manualAt && !Number.isNaN(manualAt.getTime());
 
+    // FIX: Normalizar fechas a UTC para evitar problemas de timezone
+    const paidAtUtc = paidAt ? toUtc(paidAt) : toUtc(sub.currentPeriodEndAt);
+    const manualAtUtc = manualAt ? toUtc(manualAt) : null;
+    
     const nextStart = useManualAnchor
-      ? (manualAt ?? paidAt ?? sub.currentPeriodEndAt)
-      : (paidAt ?? sub.currentPeriodEndAt);
+      ? (manualAtUtc ?? paidAtUtc)
+      : paidAtUtc;
     const nextEnd = addIntervalUtc(nextStart, sub.plan.intervalUnit, sub.plan.intervalCount);
 
     const nextMeta = useManualAnchor
