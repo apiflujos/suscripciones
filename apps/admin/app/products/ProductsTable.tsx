@@ -940,18 +940,17 @@ export function ProductsTable({
             role="dialog"
             aria-modal="true"
             aria-labelledby="product-edit-title"
-            className="modal-panel"
-            style={{ width: "min(980px, 96vw)", maxHeight: "90vh", overflow: "auto" }}
+            className="modal-panel ui-modal-panel-wide"
             onKeyDown={onModalKeyDown}
           >
-            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 id="product-edit-title" style={{ margin: 0 }}>{modalTitle}</h3>
+            <div className="panel-header ui-panel-header">
+              <h3 id="product-edit-title" className="ui-title-reset">{modalTitle}</h3>
               <button type="button" className="ghost modal-close" onClick={closeEditor} aria-label="Cerrar" data-modal-close="true" data-loader="off">
                 X
               </button>
             </div>
 
-            <form action={updateProduct} style={{ display: "grid", gap: 10 }}>
+            <form action={updateProduct} className="ui-form-grid">
               <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="id" value={editing.id} />
               <input type="hidden" name="currency" value={currency} />
@@ -984,7 +983,7 @@ export function ProductsTable({
                 <div className="field-hint">Define si este producto se cobra por link de pago o débito automático.</div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 10 }}>
+              <div className="ui-grid-2-wide">
                 <div className="field">
                   <label>Nombre</label>
                   <input className="input" name="name" value={name} onChange={(e) => setName(e.target.value)} required />
@@ -1000,19 +999,19 @@ export function ProductsTable({
               {tenants.length > 0 ? (
                 <div className="field">
                   <label>Canal(es)</label>
-                  <div style={{ display: "grid", gap: 6 }}>
+                  <div className="ui-form-grid">
                     {tenants.map((t) => {
                       const id = String(t.id || "");
                       const checked = selectedTenantIds.includes(id);
                       return (
-                        <label key={id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <label key={id} className="ui-inline-check">
                           <input type="checkbox" checked={checked} onChange={(e) => toggleTenantSelection(id, e.target.checked)} />
                           <span>{t.name}</span>
                         </label>
                       );
                     })}
                   </div>
-                  <div className="field" style={{ marginTop: 10 }}>
+                  <div className="field">
                     <label>Canal principal</label>
                     <select className="select" value={primaryTenantId} onChange={(e) => setPrimaryTenantId(String(e.target.value || ""))} disabled={!selectedTenantIds.length}>
                       <option value="">Sin canal principal</option>
@@ -1056,7 +1055,7 @@ export function ProductsTable({
                   </div>
                   <div className="field-hint">Puedes pegar URLs de Shopify, WooCommerce, VTEX, Tiendanube, Exito, Falabella, Magento o Prestashop.</div>
                   {!isPublicImage(imageUrl) && imageUrl ? (
-                    <div className="field-hint" style={{ color: "var(--status-warning)" }}>
+                    <div className="field-hint ui-alert-danger">
                       La imagen actual es un archivo interno; para WhatsApp usa una URL pública.
                     </div>
                   ) : null}
@@ -1073,10 +1072,10 @@ export function ProductsTable({
                     ) : null}
                   </div>
                   {imageUploading ? <div className="field-hint">Subiendo imagen…</div> : null}
-                  {imageError ? <div className="field-hint" style={{ color: "var(--status-warning)" }}>{imageError}</div> : null}
+                  {imageError ? <div className="field-hint ui-alert-danger">{imageError}</div> : null}
                 </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
+              <div className="ui-grid-4">
                 <div className="field">
                   <label>Marca / Proveedor</label>
                   <input className="input" name="vendor" value={vendor} onChange={(e) => setVendor(e.target.value)} />
@@ -1091,7 +1090,7 @@ export function ProductsTable({
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
+              <div className="ui-grid-4">
                 <div className="field">
                   <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span>Unidad de recurrencia</span>
@@ -1113,7 +1112,7 @@ export function ProductsTable({
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
+              <div className="ui-grid-4">
                 <div className="field">
                   <label>Moneda</label>
                   <select
@@ -1173,7 +1172,7 @@ export function ProductsTable({
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div className="ui-grid-2">
                 <div className="field">
                   <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span>Impuesto</span>
@@ -1198,7 +1197,7 @@ export function ProductsTable({
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div className="ui-grid-2">
                 <div className="field">
                   <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span>Descuento (valor)</span>
@@ -1243,7 +1242,7 @@ export function ProductsTable({
                   </div>
 
                   {showVariants ? (
-                    <div style={{ display: "grid", gridTemplateColumns: showOption2 ? "1fr 1fr" : "1fr", gap: 10 }}>
+                    <div className={showOption2 ? "ui-grid-2" : "ui-form-grid"}>
                       <div className="field">
                         <label>{showOption2 ? "Opción 1" : "Nombre de opción"}</label>
                         <input className="input" name="option1Name" value={option1Name} onChange={(e) => setOption1Name(e.target.value)} />

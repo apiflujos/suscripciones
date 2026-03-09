@@ -27,8 +27,16 @@ export async function POST(req: Request) {
   }
   return NextResponse.json({
     ok: true,
+    module: String(json?.module || "sincronizacion_contactos"),
+    platform: String(json?.platform || "Chatwoot"),
+    sourceLabel: String(json?.sourceLabel || "Contactos de ApiFlujos"),
+    targetLabel: String(json?.targetLabel || "Contactos y atributos en Chatwoot"),
+    startedAt: String(json?.startedAt || ""),
+    finishedAt: String(json?.finishedAt || ""),
     synced: Number(json?.synced || 0),
     failed: Number(json?.failed || 0),
+    skipped: Number(json?.skipped || 0),
+    processed: Number(json?.processed || (Number(json?.synced || 0) + Number(json?.failed || 0))),
     limit: Number(json?.limit || safeLimit),
     errors: Array.isArray(json?.errors) ? json.errors : []
   });

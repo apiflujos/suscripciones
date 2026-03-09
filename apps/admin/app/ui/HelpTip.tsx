@@ -5,15 +5,24 @@ import { createPortal } from "react-dom";
 
 /**
  * Componente HelpTip accesible (WCAG 2.1 AA)
- * 
+ *
  * Características de accesibilidad:
  * - Soporte completo para teclado (Tab, Enter, Space, Escape)
  * - ARIA labels y roles apropiados
  * - Focus trap cuando está abierto
  * - Timeout para cierre automático en mobile
  * - Alto contraste y tamaño adecuado
+ * - Posicionamiento inteligente para evitar superposiciones
  */
-export function HelpTip({ text, ariaLabel }: { text: string; ariaLabel?: string }) {
+export function HelpTip({ 
+  text, 
+  ariaLabel,
+  position = "right"
+}: { 
+  text: string; 
+  ariaLabel?: string;
+  position?: "right" | "left" | "top" | "bottom";
+}) {
   const id = useId();
   const label = ariaLabel || "Ayuda";
   const buttonRef = useRef<HTMLButtonElement | null>(null);
@@ -31,10 +40,44 @@ export function HelpTip({ text, ariaLabel }: { text: string; ariaLabel?: string 
     const el = buttonRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    setPos({
-      top: Math.round(rect.bottom + 8),
-      left: Math.round(rect.right)
-    });
+    const tooltip = tooltipRef.current;
+    const tooltipWidth = tooltip?.offsetWidth || 240;
+    const tooltipHeight = tooltip?.offsetHeight || 60;
+    const gap = 8;
+
+    let top = 0;
+    let left = 0;
+
+    switch (position) {
+      case "left":
+        left = Math.round(rect.left - tooltipWidth - gap);
+        top = Math.round(rect.top + rect.height / 2 - tooltipHeight / 2);
+        break;
+      case "top":
+        left = Math.round(rect.left + rect.width / 2 - tooltipWidth / 2);
+        top = Math.round(rect.top - tooltipHeight - gap);
+        break;
+      case "bottom":
+        left = Math.round(rect.left + rect.width / 2 - tooltipWidth / 2);
+        top = Math.round(rect.bottom + gap);
+        break;
+      case "right":
+      default:
+        left = Math.round(rect.right + gap);
+        top = Math.round(rect.top + rect.height / 2 - tooltipHeight / 2);
+        break;
+    }
+
+    // Ajustar para evitar salir de la pantalla
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    if (left < 10) left = 10;
+    if (left + tooltipWidth > viewportWidth - 10) left = viewportWidth - tooltipWidth - 10;
+    if (top < 10) top = 10;
+    if (top + tooltipHeight > viewportHeight - 10) top = viewportHeight - tooltipHeight - 10;
+
+    setPos({ top, left });
   }
 
   function openTooltip() {

@@ -117,16 +117,19 @@ commsRouter.post("/test-connection", async (req, res) => {
 commsRouter.post("/sync-attributes", async (req, res) => {
   const limitRaw = Number((req as any)?.query?.limit ?? 200);
   const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.trunc(limitRaw), 1), 2000) : 200;
+  const startedAt = new Date();
 
   await ensureChatwootCustomAttributes().catch(() => {});
 
   const customers = await prisma.customer.findMany({ orderBy: { createdAt: "desc" }, take: limit });
   let synced = 0;
   let failed = 0;
+  let skipped = 0;
   const errors: Array<{ customerId: string; error: string }> = [];
   for (const c of customers) {
     const out = await syncChatwootAttributesForCustomer(c.id).catch((err) => ({ ok: false, reason: err?.message ? String(err.message) : "sync_failed" } as any));
-    if (out?.ok) synced += 1;
+    if (out?.ok && out?.skipped) skipped += 1;
+    else if (out?.ok) synced += 1;
     else {
       failed += 1;
       if (errors.length < 20) {
@@ -134,7 +137,22 @@ commsRouter.post("/sync-attributes", async (req, res) => {
       }
     }
   }
-  res.json({ ok: true, synced, failed, limit, errors });
+  const processed = synced + failed + skipped;
+  res.json({
+    ok: true,
+    module: "sincronizacion_contactos",
+    platform: "Chatwoot",
+    sourceLabel: "Contactos de ApiFlujos",
+    targetLabel: "Contactos y atributos personalizados en Chatwoot",
+    startedAt: startedAt.toISOString(),
+    finishedAt: new Date().toISOString(),
+    synced,
+    failed,
+    skipped,
+    processed,
+    limit,
+    errors
+  });
 });
 
 commsRouter.post("/bootstrap-attributes", async (_req, res) => {

@@ -710,12 +710,16 @@ export default async function Home({
                       </div>
                       <div className="metric-value">${fmtMoneyCop(totalRevenue)} COP</div>
                       <div className="metric-sub">
-                        Ticket promedio: ${fmtMoneyCop(avgTicket)} COP
-                        <HelpTip text="Promedio por pago aprobado en el rango (ingresos / pagos aprobados)." /> ·
-                        <span className={`delta ${revenueDeltaPct == null ? "flat" : revenueDeltaPct >= 0 ? "up" : "down"}`}>
+                        <span title="Promedio por pago aprobado (ingresos / pagos aprobados)">
+                          Ticket promedio: ${fmtMoneyCop(avgTicket)} COP
+                        </span>{" "}
+                        ·{" "}
+                        <span 
+                          className={`delta ${revenueDeltaPct == null ? "flat" : revenueDeltaPct >= 0 ? "up" : "down"}`}
+                          title="Δ compara el período actual vs el anterior (en %)"
+                        >
                           {fmtDelta(revenueDeltaPct)}
                         </span>
-                        <HelpTip text="Δ compara el período actual vs el anterior (en %)." />
                       </div>
                     </div>
                     <div className="card cardPad metric-card tone-success">
@@ -731,9 +735,16 @@ export default async function Home({
                       </div>
                       <div className="metric-value">{fmtPct(approvalPct)}</div>
                       <div className="metric-sub">
-                        {totalPaymentsOk} OK · {totalPaymentsFail} fallidos ·
-                        <span className={`delta ${approvalDeltaPp == null ? "flat" : approvalDeltaPp >= 0 ? "up" : "down"}`}>{fmtDeltaPp(approvalDeltaPp)}</span>
-                        <HelpTip text="pp = puntos porcentuales de cambio vs el período anterior." />
+                        <span title="Pagos aprobados y fallidos en el período">
+                          {totalPaymentsOk} OK · {totalPaymentsFail} fallidos
+                        </span>{" "}
+                        ·{" "}
+                        <span 
+                          className={`delta ${approvalDeltaPp == null ? "flat" : approvalDeltaPp >= 0 ? "up" : "down"}`}
+                          title="pp = puntos porcentuales de cambio vs el período anterior"
+                        >
+                          {fmtDeltaPp(approvalDeltaPp)}
+                        </span>
                       </div>
                     </div>
                     <div className="card cardPad metric-card tone-warning">
@@ -751,11 +762,16 @@ export default async function Home({
                       <div className="metric-sub">
                         {hasLinkActivity ? (
                           <>
-                            {linksSentTotal} enviados · {linksPaidTotal} pagados ·
-                            <span className={`delta ${linkConversionDeltaPp == null ? "flat" : linkConversionDeltaPp >= 0 ? "up" : "down"}`}>
+                            <span title="Links enviados y pagados en el período">
+                              {linksSentTotal} enviados · {linksPaidTotal} pagados
+                            </span>{" "}
+                            ·{" "}
+                            <span 
+                              className={`delta ${linkConversionDeltaPp == null ? "flat" : linkConversionDeltaPp >= 0 ? "up" : "down"}`}
+                              title="pp = puntos porcentuales de cambio vs el período anterior"
+                            >
                               {fmtDeltaPp(linkConversionDeltaPp)}
                             </span>
-                            <HelpTip text="pp = puntos porcentuales de cambio vs el período anterior." />
                           </>
                         ) : (
                           <>Sin links enviados en el período.</>
@@ -792,10 +808,9 @@ export default async function Home({
                       <div className="metric-value">{autoMrrDisplay == null ? "—" : `$${fmtMoneyCop(autoMrr)} COP`}</div>
                       <div className="metric-sub">
                         {hasAutoActivity ? (
-                          <>
+                          <span title="Porcentaje de autosuscripciones que cancelaron en el último mes">
                             Churn mensual: {fmtPct(autoChurnDisplay)}
-                            <HelpTip text="Porcentaje de autosuscripciones que cancelaron en el último mes." />
-                          </>
+                          </span>
                         ) : (
                           <>Sin autosuscripciones activas.</>
                         )}

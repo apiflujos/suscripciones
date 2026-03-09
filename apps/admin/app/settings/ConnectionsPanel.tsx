@@ -14,6 +14,20 @@ function inlineMsg(actionKey: string, okText: string, failPrefix: string, props:
   return null;
 }
 
+function humanizeSyncError(raw: string) {
+  const msg = String(raw || "").trim();
+  if (!msg) return "Error de sincronización";
+  if (msg === "chatwoot_not_configured") return "Chatwoot no está configurado";
+  if (msg === "customer_phone_required") return "El contacto no tiene teléfono";
+  if (msg === "customer_not_found") return "El contacto no existe";
+  if (msg === "missing_customer_id") return "Falta el identificador del contacto";
+  if (msg === "create_or_search_failed") return "No se pudo crear o encontrar el contacto en Chatwoot";
+  if (msg === "create_failed") return "No se pudo crear el contacto en Chatwoot";
+  if (msg === "sync_failed") return "Falló la sincronización";
+  if (msg === "missing_admin_token") return "Falta el token del administrador";
+  return "Error de sincronización";
+}
+
 export function ConnectionsPanel({
   csrfToken,
   wompiActiveEnv,
@@ -70,11 +84,17 @@ export function ConnectionsPanel({
     running: boolean;
     synced: number;
     failed: number;
+    skipped: number;
+    processed: number;
     limit: number;
     errors: Array<{ customerId: string; error: string }>;
+    platform?: string;
+    sourceLabel?: string;
+    targetLabel?: string;
     error?: string;
+    startedAt?: string;
     lastAt?: string;
-  }>({ running: false, synced: 0, failed: 0, limit: 0, errors: [] });
+  }>({ running: false, synced: 0, failed: 0, skipped: 0, processed: 0, limit: 0, errors: [] });
 
   return (
     <>
@@ -349,8 +369,8 @@ export function ConnectionsPanel({
               <div className="saved-conn-card" style={{ borderStyle: "dashed" }}>
                 <div className="saved-conn-header">
                   <div>
-                    <strong>Sincronización masiva</strong>
-                    <div className="saved-conn-sub">Contactos y atributos en CentralCom</div>
+                    <strong>Sincronización masiva de contactos</strong>
+                    <div className="saved-conn-sub">Origen: ApiFlujos · Destino: Chatwoot</div>
                   </div>
                 </div>
                 <div className="saved-conn-actions">
@@ -365,7 +385,19 @@ export function ConnectionsPanel({
                     onClick={async () => {
                       const input = document.getElementById("centralSyncLimit") as HTMLInputElement | null;
                       const limit = Number(input?.value || 200);
-                      setSyncState({ running: true, synced: 0, failed: 0, limit: Number.isFinite(limit) ? limit : 200, errors: [] });
+                      setSyncState({
+                        running: true,
+                        synced: 0,
+                        failed: 0,
+                        skipped: 0,
+                        processed: 0,
+                        limit: Number.isFinite(limit) ? limit : 200,
+                        platform: "Chatwoot",
+                        sourceLabel: "Contactos de ApiFlujos",
+                        targetLabel: "Contactos y atributos personalizados en Chatwoot",
+                        errors: [],
+                        startedAt: new Date().toISOString()
+                      });
                       try {
                         const res = await fetch("/api/comms/sync-contacts", {
                           method: "POST",
@@ -378,18 +410,29 @@ export function ConnectionsPanel({
                           running: false,
                           synced: Number(json?.synced || 0),
                           failed: Number(json?.failed || 0),
+                          skipped: Number(json?.skipped || 0),
+                          processed: Number(json?.processed || 0),
                           limit: Number(json?.limit || limit || 0),
+                          platform: String(json?.platform || "Chatwoot"),
+                          sourceLabel: String(json?.sourceLabel || "Contactos de ApiFlujos"),
+                          targetLabel: String(json?.targetLabel || "Contactos y atributos personalizados en Chatwoot"),
                           errors: Array.isArray(json?.errors) ? json.errors : [],
-                          lastAt: new Date().toISOString()
+                          startedAt: String(json?.startedAt || ""),
+                          lastAt: String(json?.finishedAt || new Date().toISOString())
                         });
                       } catch (err: any) {
                         setSyncState({
                           running: false,
                           synced: 0,
                           failed: 0,
+                          skipped: 0,
+                          processed: 0,
                           limit: Number.isFinite(limit) ? limit : 200,
                           errors: [],
-                          error: String(err?.message || "sync_failed"),
+                          platform: "Chatwoot",
+                          sourceLabel: "Contactos de ApiFlujos",
+                          targetLabel: "Contactos y atributos personalizados en Chatwoot",
+                          error: humanizeSyncError(String(err?.message || "sync_failed")),
                           lastAt: new Date().toISOString()
                         });
                       }
@@ -399,21 +442,28 @@ export function ConnectionsPanel({
                   </button>
                 </div>
                 <div className="progress-row">
+                  <div className="progress-title-row">
+                    <strong>{syncState.platform || "Chatwoot"}</strong>
+                    <span>{syncState.sourceLabel || "Contactos de ApiFlujos"} -> {syncState.targetLabel || "Contactos y atributos personalizados en Chatwoot"}</span>
+                  </div>
                   <div className="progress-bar">
                     <span
                       className="progress-fill"
                       style={{
-                        width: syncState.limit ? `${Math.min(100, Math.round((syncState.synced / syncState.limit) * 100))}%` : "0%"
+                        width: syncState.limit ? `${Math.min(100, Math.round(((syncState.processed || 0) / syncState.limit) * 100))}%` : "0%"
                       }}
                     />
                   </div>
                   <div className="progress-meta">
-                    <span>{syncState.synced} ok · {syncState.failed} fallidos · {syncState.limit || 0} total</span>
-                    {syncState.lastAt ? <span>Última: {new Date(syncState.lastAt).toLocaleString()}</span> : null}
+                    <span>
+                      {syncState.processed} procesados · {syncState.synced} sincronizados · {syncState.skipped} sin cambios · {syncState.failed} con error · {syncState.limit || 0} totales
+                    </span>
+                    {syncState.lastAt ? <span>Última ejecución: {new Date(syncState.lastAt).toLocaleString()}</span> : null}
                   </div>
+                  {syncState.startedAt ? <div className="field-hint">Inicio: {new Date(syncState.startedAt).toLocaleString()}</div> : null}
                   {syncState.errors.length ? (
                     <div className="field-hint">
-                      Errores recientes: {syncState.errors.map((e) => `${e.customerId.slice(0, 6)}…`).join(", ")}
+                      Errores recientes: {syncState.errors.map((e) => `${e.customerId.slice(0, 6)}… (${humanizeSyncError(e.error)})`).join(", ")}
                     </div>
                   ) : null}
                   {syncState.error ? (
