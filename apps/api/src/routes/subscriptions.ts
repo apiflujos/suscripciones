@@ -4,13 +4,14 @@ import { prisma } from "../db/prisma";
 import { addIntervalUtc } from "../lib/dates";
 import { LogLevel, PaymentStatus, RetryJobStatus, RetryJobType, SubscriptionStatus, GamificationEntityType } from "@prisma/client";
 import { systemLog } from "../services/systemLog";
-import { createAutoDebitTransactionForSubscription, createPaymentLinkForSubscription } from "../services/subscriptionBilling";
+import { createAutoDebitTransactionForSubscription, createPaymentLinkForSubscription, readSubscriptionTotalInCents } from "../services/subscriptionBilling";
 import { getAutoDebitConfig } from "../services/runtimeConfig";
 import { scheduleSubscriptionDueNotifications } from "../services/notificationsScheduler";
 import { consumeApp } from "../services/superAdminApp";
 import { getEffectiveTenantId, getEffectiveTenantIds, readTenantIdsFromReq } from "../services/tenantContext";
 import { resolveSubscriptionCollectionMode } from "../services/subscriptionMode";
 import { ensurePaymentRetryJob } from "../services/retryJobScheduler";
+import { validateWompiCurrency } from "../lib/wompiSignature";
 
 const createSubscriptionSchema = z.object({
   customerId: z.string().uuid(),
@@ -29,6 +30,73 @@ const mergeDuplicateSubscriptionsSchema = z.object({
 });
 
 export const subscriptionsRouter = express.Router();
+
+async function recordManualChargeFailure(args: {
+  subscription: any;
+  amountInCentsOverride?: number;
+  errorCode: string;
+  details?: unknown;
+}) {
+  const subscription = args.subscription;
+  const tenantId = subscription?.tenantId || subscription?.plan?.tenantId;
+  if (!subscription?.id || !subscription?.customerId || !tenantId) return null;
+
+  const cycle = Number(subscription.currentCycle || 1);
+  const reference = `SUB_${subscription.id}_${cycle}`;
+  const subscriptionCycleKey = `${subscription.id}:${cycle}`;
+  const amountInCents = Math.trunc(args.amountInCentsOverride ?? readSubscriptionTotalInCents(subscription.metadata, subscription.plan?.priceInCents ?? 0));
+  const currency = validateWompiCurrency(subscription.plan?.currency);
+  const existing = await prisma.payment.findUnique({
+    where: { subscriptionCycleKey },
+    select: { id: true, status: true }
+  });
+
+  if (existing?.status === PaymentStatus.APPROVED) return existing.id;
+
+  const payment = await prisma.payment.upsert({
+    where: { subscriptionCycleKey },
+    create: {
+      tenantId,
+      customerId: subscription.customerId,
+      subscriptionId: subscription.id,
+      amountInCents,
+      currency,
+      cycleNumber: cycle,
+      reference,
+      status: PaymentStatus.ERROR,
+      failedAt: new Date(),
+      subscriptionCycleKey
+    },
+    update: {
+      tenantId,
+      amountInCents,
+      currency,
+      reference,
+      status: PaymentStatus.ERROR,
+      failedAt: new Date()
+    }
+  });
+
+  const lastAttempt = await prisma.paymentAttempt.findFirst({
+    where: { paymentId: payment.id },
+    orderBy: [{ attemptNo: "desc" }, { createdAt: "desc" }],
+    select: { attemptNo: true }
+  });
+
+  await prisma.paymentAttempt.create({
+    data: {
+      paymentId: payment.id,
+      attemptNo: Number(lastAttempt?.attemptNo || 0) + 1,
+      status: "MANUAL_CHARGE_FAILED",
+      errorCode: args.errorCode,
+      errorMessage: args.errorCode,
+      provider: "apiflujos",
+      response: args.details ? (args.details as any) : undefined
+    }
+  });
+
+  return payment.id;
+}
 
 subscriptionsRouter.get("/", async (_req, res) => {
   const req = _req as any;
@@ -481,9 +549,24 @@ subscriptionsRouter.post("/:id/charge-now", async (req, res) => {
   }
 
   const collectionMode = resolveSubscriptionCollectionMode(subscription);
-  if (collectionMode !== "AUTO_DEBIT") return res.status(409).json({ error: "manual_charge_not_allowed" });
+  if (collectionMode !== "AUTO_DEBIT") {
+    const paymentId = await recordManualChargeFailure({
+      subscription,
+      amountInCentsOverride: parsed.data.amountInCents,
+      errorCode: "manual_charge_not_allowed",
+      details: { collectionMode }
+    }).catch(() => null);
+    return res.status(409).json({ error: "manual_charge_not_allowed", details: { collectionMode }, ...(paymentId ? { paymentId } : {}) });
+  }
   const autoDebitCfg = await getAutoDebitConfig();
-  if (!autoDebitCfg.allowManualCharge) return res.status(409).json({ error: "manual_charge_disabled_by_settings" });
+  if (!autoDebitCfg.allowManualCharge) {
+    const paymentId = await recordManualChargeFailure({
+      subscription,
+      amountInCentsOverride: parsed.data.amountInCents,
+      errorCode: "manual_charge_disabled_by_settings"
+    }).catch(() => null);
+    return res.status(409).json({ error: "manual_charge_disabled_by_settings", ...(paymentId ? { paymentId } : {}) });
+  }
 
   const now = new Date();
   const latestApproved = await prisma.payment.findFirst({
@@ -502,13 +585,21 @@ subscriptionsRouter.post("/:id/charge-now", async (req, res) => {
   const dueAt = dueByCutoff || dueByLastPayment;
   const isPastDue = subscription.status === SubscriptionStatus.PAST_DUE;
   if (!isPastDue && dueAt && now.getTime() + 5_000 < dueAt.getTime()) {
+    const details = {
+      dueAt: dueAt.toISOString(),
+      currentPeriodEndAt: dueByCutoff ? dueByCutoff.toISOString() : null,
+      expectedByLastPayment: dueByLastPayment ? dueByLastPayment.toISOString() : null
+    };
+    const paymentId = await recordManualChargeFailure({
+      subscription,
+      amountInCentsOverride: parsed.data.amountInCents,
+      errorCode: "charge_not_due_yet",
+      details
+    }).catch(() => null);
     return res.status(409).json({
       error: "charge_not_due_yet",
-      details: {
-        dueAt: dueAt.toISOString(),
-        currentPeriodEndAt: dueByCutoff ? dueByCutoff.toISOString() : null,
-        expectedByLastPayment: dueByLastPayment ? dueByLastPayment.toISOString() : null
-      }
+      details,
+      ...(paymentId ? { paymentId } : {})
     });
   }
 
@@ -523,13 +614,21 @@ subscriptionsRouter.post("/:id/charge-now", async (req, res) => {
     select: { id: true, wompiTransactionId: true, createdAt: true }
   });
   if (recentPending) {
+    const details = {
+      paymentId: recentPending.id,
+      wompiTransactionId: recentPending.wompiTransactionId,
+      createdAt: recentPending.createdAt
+    };
+    const failedPaymentId = await recordManualChargeFailure({
+      subscription,
+      amountInCentsOverride: parsed.data.amountInCents,
+      errorCode: "pending_charge_exists",
+      details
+    }).catch(() => null);
     return res.status(409).json({
       error: "pending_charge_exists",
-      details: {
-        paymentId: recentPending.id,
-        wompiTransactionId: recentPending.wompiTransactionId,
-        createdAt: recentPending.createdAt
-      }
+      details,
+      paymentId: failedPaymentId || recentPending.id
     });
   }
 
@@ -539,7 +638,24 @@ subscriptionsRouter.post("/:id/charge-now", async (req, res) => {
     meta?.wompi?.payment_source_id ||
     meta?.paymentSourceId ||
     meta?.payment_source_id;
-  if (!paymentSource) return res.status(409).json({ error: "customer_payment_source_missing" });
+  if (!paymentSource) {
+    const details = { availableKeys: Object.keys(meta || {}), wompiKeys: Object.keys(meta?.wompi || {}) };
+    const paymentId = await recordManualChargeFailure({
+      subscription,
+      amountInCentsOverride: parsed.data.amountInCents,
+      errorCode: "customer_payment_source_missing",
+      details
+    }).catch(() => null);
+    return res.status(409).json({ error: "customer_payment_source_missing", details, ...(paymentId ? { paymentId } : {}) });
+  }
+  if (!subscription.customer?.email) {
+    const paymentId = await recordManualChargeFailure({
+      subscription,
+      amountInCentsOverride: parsed.data.amountInCents,
+      errorCode: "customer_email_required"
+    }).catch(() => null);
+    return res.status(409).json({ error: "customer_email_required", ...(paymentId ? { paymentId } : {}) });
+  }
 
   const manualChargeAt = new Date().toISOString();
   const nextMeta = {
@@ -561,11 +677,19 @@ subscriptionsRouter.post("/:id/charge-now", async (req, res) => {
     });
     res.status(201).json({ ok: true, ...result, manualChargeAt });
   } catch (err: any) {
+    const paymentId =
+      (
+        await prisma.payment.findUnique({
+          where: { subscriptionCycleKey: `${subscription.id}:${Number(subscription.currentCycle || 1)}` },
+          select: { id: true }
+        }).catch(() => null)
+      )?.id || null;
     await systemLog(LogLevel.ERROR, "subscriptions.charge_now", "Manual charge failed", {
       subscriptionId,
+      paymentId,
       err: err?.message ? String(err.message) : "unknown error"
     }).catch(() => {});
-    res.status(502).json({ error: err?.message || "charge_now_failed" });
+    res.status(502).json({ error: err?.message || "charge_now_failed", ...(paymentId ? { paymentId } : {}) });
   }
 });
 

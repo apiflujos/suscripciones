@@ -221,6 +221,7 @@ export default async function BillingPage({
   const tokenUrl = typeof sp.tokenUrl === "string" ? sp.tokenUrl : "";
   const chargeStatus = typeof sp.chargeStatus === "string" ? sp.chargeStatus : "";
   const chargeError = typeof sp.chargeError === "string" ? sp.chargeError : "";
+  const chargeErrorDetails = typeof sp.chargeErrorDetails === "string" ? sp.chargeErrorDetails : "";
   const paymentId = typeof sp.paymentId === "string" ? sp.paymentId : "";
   const actionSubscriptionId = typeof sp.subscriptionId === "string" ? sp.subscriptionId : "";
   const cutoffScheduled = typeof sp.cutoffScheduled === "string" ? sp.cutoffScheduled : "";
@@ -489,6 +490,7 @@ export default async function BillingPage({
           initialStatus={chargeStatus === "processing" ? "processing" : chargeStatus === "ok" ? "ok" : "fail"}
           paymentId={paymentId}
           chargeError={chargeError}
+          chargeErrorDetails={chargeErrorDetails}
           returnTo={returnTo}
           subscriptionId={actionSubscriptionId}
           tenantId={tenantId}

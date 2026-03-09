@@ -104,7 +104,7 @@ function replaceVars(input: string, vars: Record<string, string>) {
     .replaceAll("{fecha_expira}", vars.fecha_expira);
 }
 
-function readSubscriptionTotalInCents(subscriptionMeta: unknown, fallback: number): number {
+export function readSubscriptionTotalInCents(subscriptionMeta: unknown, fallback: number): number {
   return getSubscriptionPricingTotal(subscriptionMeta, fallback);
 }
 
@@ -514,7 +514,9 @@ export async function createAutoDebitTransactionForSubscription(args: {
       tenantId,
       amountInCents,
       currency,
-      reference
+      reference,
+      status: PaymentStatus.PENDING,
+      failedAt: null
     }
   });
 

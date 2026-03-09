@@ -91,6 +91,7 @@ paymentsRouter.get("/:id", async (req, res) => {
               status: lastAttempt.status,
               errorCode: lastAttempt.errorCode,
               errorMessage: lastAttempt.errorMessage,
+              response: lastAttempt.response,
               createdAt: lastAttempt.createdAt
             }
           : null
@@ -113,6 +114,7 @@ paymentsRouter.get("/:id", async (req, res) => {
           status: lastAttempt.status,
           errorCode: lastAttempt.errorCode,
           errorMessage: lastAttempt.errorMessage,
+          response: lastAttempt.response,
           createdAt: lastAttempt.createdAt
         }
       : null

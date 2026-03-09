@@ -42,7 +42,17 @@ async function adminFetch(path: string, init: RequestInit) {
     cache: "no-store"
   });
   const json = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(json?.reason ? `${json?.error || "request_failed"}:${json.reason}` : json?.error || `request_failed_${res.status}`);
+  if (!res.ok) {
+    const error = new Error(json?.reason ? `${json?.error || "request_failed"}:${json.reason}` : json?.error || `request_failed_${res.status}`) as Error & {
+      details?: unknown;
+      paymentId?: string;
+    };
+    if (json && typeof json === "object") {
+      error.details = json?.details;
+      if (json?.paymentId) error.paymentId = String(json.paymentId);
+    }
+    throw error;
+  }
   return json;
 }
 
@@ -385,7 +395,22 @@ export async function chargeSubscriptionNow(formData: FormData) {
     );
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
-    redirect(mergeQuery(returnTo, { chargeStatus: "fail", chargeError: String(err?.message || "charge_now_failed"), subscriptionId, ...(tenantId ? { tenantId } : {}) }));
+    const detailRaw =
+      err?.details && typeof err.details === "object"
+        ? JSON.stringify(err.details)
+        : err?.details
+          ? String(err.details)
+          : "";
+    redirect(
+      mergeQuery(returnTo, {
+        chargeStatus: "fail",
+        chargeError: String(err?.message || "charge_now_failed"),
+        ...(detailRaw ? { chargeErrorDetails: detailRaw } : {}),
+        ...(err?.paymentId ? { paymentId: String(err.paymentId) } : {}),
+        subscriptionId,
+        ...(tenantId ? { tenantId } : {})
+      })
+    );
   }
 }
 

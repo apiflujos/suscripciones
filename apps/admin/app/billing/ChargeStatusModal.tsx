@@ -6,6 +6,7 @@ type Props = {
   initialStatus: "processing" | "ok" | "fail";
   paymentId?: string;
   chargeError?: string;
+  chargeErrorDetails?: string;
   returnTo: string;
   subscriptionId?: string;
   tenantId?: string;
@@ -34,10 +35,22 @@ function describeChargeError(raw?: string) {
   return code.replace(/_/g, " ");
 }
 
+function formatChargeDetails(raw?: string) {
+  const value = String(raw || "").trim();
+  if (!value) return "";
+  try {
+    const parsed = JSON.parse(value);
+    return JSON.stringify(parsed, null, 2);
+  } catch {
+    return value;
+  }
+}
+
 export function ChargeStatusModal({
   initialStatus,
   paymentId,
   chargeError,
+  chargeErrorDetails,
   returnTo,
   subscriptionId,
   tenantId,
@@ -46,6 +59,7 @@ export function ChargeStatusModal({
 }: Props) {
   const [status, setStatus] = useState<"processing" | "ok" | "fail">(initialStatus);
   const [detail, setDetail] = useState<string>(describeChargeError(chargeError));
+  const [technicalDetail, setTechnicalDetail] = useState<string>(formatChargeDetails(chargeErrorDetails));
   const [attempts, setAttempts] = useState(0);
 
   const canPoll = useMemo(() => initialStatus === "processing" && !!paymentId, [initialStatus, paymentId]);
@@ -73,6 +87,11 @@ export function ChargeStatusModal({
           if (next === "fail") {
             const reason = json?.lastAttempt?.errorMessage || json?.lastAttempt?.errorCode || "";
             setDetail(describeChargeError(reason) || "El cobro fue rechazado.");
+            setTechnicalDetail(
+              formatChargeDetails(
+                json?.lastAttempt?.response ? JSON.stringify(json.lastAttempt.response) : json?.lastAttempt?.errorMessage || json?.lastAttempt?.errorCode || ""
+              )
+            );
           }
           return;
         }
@@ -133,6 +152,20 @@ export function ChargeStatusModal({
           }}
         >
           {body}
+          {paymentId ? <div style={{ marginTop: 8, fontSize: 12, color: "#666" }}>Pago asociado: {paymentId}</div> : null}
+          {technicalDetail ? (
+            <pre
+              style={{
+                marginTop: 8,
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+                fontSize: 12,
+                color: "#444"
+              }}
+            >
+              {technicalDetail}
+            </pre>
+          ) : null}
           {footerNote ? <div style={{ marginTop: 8, color: "#666" }}>{footerNote}</div> : null}
         </div>
         <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
