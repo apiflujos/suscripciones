@@ -661,7 +661,7 @@ export default async function BillingPage({
                     </div>
                   </div>
 
-                  <div className="billing-grid-info billing-grid-subscription" style={{ alignItems: "start" }}>
+                  <div className="billing-grid-info billing-grid-subscription">
                     <div className="billing-body-left">
                       <div className="billing-title">
                         <div className="billing-name">{r.customerName}</div>
@@ -671,7 +671,7 @@ export default async function BillingPage({
                       </div>
                       <div className="billing-product-row">
                         <div className="product-thumb billing-product-thumb">
-                          {r.planImageUrl ? <img src={r.planImageUrl} alt={r.planName} /> : <span>📦</span>}
+                          {r.planImageUrl ? <img src={r.planImageUrl} alt={r.planName} /> : <span className="billing-product-fallback">AP</span>}
                         </div>
                         <div className="billing-product-meta">
                           <span>Producto</span>
@@ -701,31 +701,25 @@ export default async function BillingPage({
                     <div className="billing-cost-panel">
                       <span className="billing-cost-title">Costo suscripción</span>
                       <div className="billing-cost-box">
-                        <div className="billing-cost-row">
-                          <span className="billing-cost-label">Valor base</span>
-                          <strong className="billing-cost-value">{fmtMoney(r.valorBaseInCents ?? r.montoInCents, r.moneda)}</strong>
+                        <div className="billing-cost-summary">
+                          <div className="billing-cost-total">{fmtMoney(r.totalInCents ?? r.montoInCents, r.moneda)}</div>
+                          <div className="billing-cost-period">{r.cada}</div>
                         </div>
-                        <div className="billing-cost-row">
-                          <span className="billing-cost-label">Flete</span>
-                          <strong className="billing-cost-value">
-                            {r.currentShippingInCents > 0 ? fmtMoney(r.currentShippingInCents, r.moneda) : `Gratis (${fmtMoney(0, r.moneda)})`}
-                          </strong>
+                        <div className="billing-cost-inline">
+                          <span className="billing-cost-chip">Base {fmtMoney(r.valorBaseInCents ?? r.montoInCents, r.moneda)}</span>
+                          <span className="billing-cost-chip">
+                            Flete {r.currentShippingInCents > 0 ? fmtMoney(r.currentShippingInCents, r.moneda) : "Gratis"}
+                          </span>
                         </div>
-                        <div className="billing-cost-total-line" />
-                        <div className="billing-cost-total-label">Total suscripción</div>
-                        <div className="billing-cost-total">{fmtMoney(r.totalInCents ?? r.montoInCents, r.moneda)}</div>
-                        <div className="billing-cost-period">{r.cada}</div>
-                        
-                        {/* FIX: Botón Link de Pago movido aquí - solo visible cuando hay checkoutUrl generado */}
+
                         {r.mode !== "AUTO_DEBIT" && latestCheckoutUrl ? (
                           <div className="billing-payment-link-section">
                             <div className="billing-payment-link-row">
-                              <a 
-                                className="primary btn-compact btn-noicon" 
-                                href={latestCheckoutUrl} 
-                                target="_blank" 
+                              <a
+                                className="primary btn-compact btn-noicon billing-payment-link-btn"
+                                href={latestCheckoutUrl}
+                                target="_blank"
                                 rel="noreferrer"
-                                style={{ flex: 1, textAlign: "center" }}
                               >
                                 Abrir link de pago
                               </a>
@@ -855,7 +849,7 @@ export default async function BillingPage({
                       )}
                     </div>
                     {(sentForRow || rowTokenUrl || chargedForRow || cutoffForRow) ? (
-                      <div className="field-hint" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <div className="field-hint billing-action-feedback">
                         {sentForRow ? <span>Enviado.</span> : null}
                         {chargedForRow ? <span>Cobro manual enviado.</span> : null}
                         {cutoffForRow ? <span>Fecha de corte actualizada.</span> : null}

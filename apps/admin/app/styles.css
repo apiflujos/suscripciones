@@ -5620,17 +5620,17 @@ textarea.input {
   border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--stroke-strong) 78%, transparent);
   box-shadow: 0 10px 24px rgba(30, 18, 52, 0.08);
-  padding: 2px 4px;
+  padding: 8px 10px;
   display: grid;
-  gap: 0;
+  gap: 8px;
   width: 100%;
 }
 
 .billing-header {
   display: flex;
   justify-content: space-between;
-  gap: 6px;
-  align-items: flex-start;
+  gap: 8px;
+  align-items: center;
 }
 
 .billing-header-middle {
@@ -5750,7 +5750,9 @@ textarea.input {
 
 .billing-body-left {
   display: grid;
-  gap: 3px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto;
+  gap: 6px 12px;
+  align-items: center;
 }
 
 .billing-type-block,
@@ -5769,8 +5771,9 @@ textarea.input {
 }
 
 .billing-grid-info.billing-grid-subscription {
-  grid-template-columns: minmax(260px, 1.2fr) minmax(210px, 0.9fr) minmax(220px, 0.82fr);
-  gap: 6px 12px;
+  grid-template-columns: minmax(0, 1.5fr) minmax(180px, 0.8fr) minmax(200px, 0.74fr);
+  gap: 8px 12px;
+  align-items: start;
 }
 
 .billing-grid-info > div {
@@ -5803,11 +5806,11 @@ textarea.input {
 
 .billing-cost-panel {
   display: grid;
-  gap: 4px;
-  justify-self: end;
+  gap: 3px;
+  justify-self: stretch;
   justify-items: stretch;
   text-align: left;
-  padding-right: 2px;
+  min-width: 0;
 }
 
 .billing-cost-title {
@@ -5819,59 +5822,52 @@ textarea.input {
   border: 1px solid color-mix(in srgb, var(--stroke) 80%, transparent);
   border-radius: 9px;
   background: color-mix(in srgb, var(--panel) 90%, var(--primary-soft) 10%);
-  padding: 8px 10px;
+  padding: 6px 8px;
   display: grid;
-  gap: 4px;
-  min-width: 210px;
+  gap: 5px;
+  min-width: 0;
   text-align: left;
 }
 
-.billing-cost-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+.billing-cost-summary {
+  display: flex;
   align-items: baseline;
+  justify-content: space-between;
   gap: 8px;
-  width: 100%;
-}
-
-.billing-cost-label {
-  color: var(--text-faint);
-  font-size: 10px;
-}
-
-.billing-cost-value {
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 700;
-  justify-self: end;
-  text-align: right;
-  padding-left: 8px;
-}
-
-.billing-cost-total-line {
-  border-top: 1px dashed color-mix(in srgb, var(--stroke) 88%, transparent);
-  margin-top: 2px;
-}
-
-.billing-cost-total-label {
-  color: var(--text-faint);
-  font-size: 10px;
-  margin-top: 1px;
-  text-align: center;
 }
 
 .billing-cost-total {
   color: var(--primary);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 800;
   line-height: 1.1;
-  text-align: center;
+  text-align: left;
 }
 
 .billing-cost-period {
   color: var(--text-soft);
   font-size: 10px;
-  text-align: center;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.billing-cost-inline {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.billing-cost-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-2) 80%, white 20%);
+  border: 1px solid color-mix(in srgb, var(--stroke) 75%, transparent);
+  color: var(--text-soft);
+  font-size: 10px;
+  font-weight: 600;
 }
 
 .billing-actions {
@@ -5901,13 +5897,29 @@ textarea.input {
 .billing-product-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  min-width: 0;
 }
 
 .billing-product-thumb {
-  width: 26px;
-  height: 26px;
-  min-width: 26px;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+}
+
+.billing-product-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .billing-product-meta {
@@ -5922,8 +5934,8 @@ textarea.input {
 }
 
 .billing-payment-link-section {
-  margin-top: 8px;
-  padding-top: 8px;
+  margin-top: 2px;
+  padding-top: 6px;
   border-top: 1px solid var(--stroke);
 }
 
@@ -5936,6 +5948,11 @@ textarea.input {
   gap: 6px;
   align-items: center;
   justify-content: space-between;
+}
+
+.billing-payment-link-btn {
+  flex: 1;
+  text-align: center;
 }
 
 .billing-payment-link-hint {
@@ -6027,11 +6044,17 @@ textarea.input {
 }
 
 .billing-actions .btn-compact {
-  height: 32px;
-  min-width: 130px;
+  height: 30px;
+  min-width: 112px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.billing-action-feedback {
+  display: flex;
+  gap: 6px 8px;
+  flex-wrap: wrap;
 }
 
 /* Estandar Apiflujos en acciones de billing (excepto enviar por WhatsApp). */
@@ -7960,28 +7983,30 @@ html[data-contrast="high"] .payment-point-provider img {
 }
 
 .settings-tabs {
-  display: inline-flex;
-  gap: 8px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
   padding: 6px;
-  border-radius: 12px;
-  background: var(--panel);
-  border: 1px solid var(--stroke);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--panel) 94%, white 6%);
+  border: 1px solid color-mix(in srgb, var(--stroke) 88%, transparent);
   margin: 6px 0 18px;
 }
 
 .settings-tab {
-  padding: 6px 12px;
+  padding: 7px 14px;
   border-radius: 10px;
   text-decoration: none;
   color: var(--text);
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 13px;
   background: transparent;
   border: 1px solid transparent;
 }
 
 .settings-tab.is-active {
   background: var(--primary-soft);
-  border-color: rgba(0, 43, 91, 0.2);
+  border-color: color-mix(in srgb, var(--primary) 24%, var(--stroke));
   color: var(--primary);
 }
 
@@ -8693,6 +8718,10 @@ body.is-global-loading {
   .billing-grid-info.billing-grid-subscription {
     grid-template-columns: 1fr 1fr;
   }
+  .billing-body-left {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
 }
 
 @media (max-width: 640px) {
@@ -8709,6 +8738,9 @@ body.is-global-loading {
   .billing-header {
     flex-direction: column;
     align-items: flex-start;
+  }
+  .billing-body-left {
+    grid-template-columns: 1fr;
   }
   .billing-header-meta-grid {
     flex-wrap: wrap;
@@ -8735,6 +8767,13 @@ body.is-global-loading {
   }
   .billing-payment-link-row {
     flex-wrap: wrap;
+  }
+  .settings-tabs {
+    width: 100%;
+  }
+  .settings-tab {
+    flex: 1 1 calc(50% - 6px);
+    text-align: center;
   }
 }
 

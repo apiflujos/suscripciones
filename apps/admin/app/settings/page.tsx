@@ -201,7 +201,7 @@ export default async function SettingsPage({
           Usuarios
         </a>
         <a className={`settings-tab ${tab === "notificaciones" ? "is-active" : ""}`} href="/settings?tab=notificaciones">
-          🔔 Notificaciones
+          Notificaciones
         </a>
         <a className={`settings-tab ${tab === "gamificacion" ? "is-active" : ""}`} href="/settings?tab=gamificacion">
           Gamificación
