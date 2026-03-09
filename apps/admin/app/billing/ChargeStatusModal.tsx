@@ -25,6 +25,17 @@ function mapStatus(status?: PaymentStatus) {
 function describeChargeError(raw?: string) {
   const code = String(raw || "").trim();
   if (!code) return "";
+  if (code === "No se pudo conectar con el API de suscripciones.") return code;
+  if (code === "No se pudo cobrar la suscripción.") return code;
+  if (code === "No se pudo procesar el cobro.") return code;
+  if (code === "El cliente no tiene una tarjeta tokenizada lista para débito automático.") return code;
+  if (code === "El cliente no tiene correo electrónico y Wompi lo exige para cobrar.") return code;
+  if (code === "La suscripción todavía no está en fecha de cobro.") return code;
+  if (code === "Ya existe un cobro pendiente reciente para esta suscripción.") return code;
+  if (code === "El cobro manual está deshabilitado en la configuración.") return code;
+  if (code === "Esta suscripción no permite cobro manual.") return code;
+  if (code === "No se encontró la suscripción para el canal seleccionado.") return code;
+  if (code === "La solicitud de cobro es inválida.") return code;
   if (code === "customer_payment_source_missing") return "El cliente no tiene una tarjeta tokenizada usable para debito automatico.";
   if (code === "customer_email_required") return "El cliente no tiene email y Wompi lo exige para crear el cobro.";
   if (code === "charge_not_due_yet") return "La suscripcion todavia no esta en fecha de cobro.";
@@ -32,7 +43,11 @@ function describeChargeError(raw?: string) {
   if (code === "manual_charge_disabled_by_settings" || code === "manual_charge_not_allowed") {
     return "El cobro manual esta deshabilitado para esta configuracion.";
   }
-  return code.replace(/_/g, " ");
+  if (code === "subscription_not_found") return "No se encontró la suscripción para el canal seleccionado.";
+  if (code === "fetch_failed") return "No se pudo conectar con el API de suscripciones.";
+  if (code === "auto_debit_in_progress") return "Ya hay un intento de débito automático en proceso.";
+  if (code === "wompi_reference_already_used_guard") return "Se bloqueó el cobro para evitar una transacción duplicada en Wompi.";
+  return "No se pudo cobrar la suscripción.";
 }
 
 function formatChargeDetails(raw?: string) {
@@ -40,9 +55,39 @@ function formatChargeDetails(raw?: string) {
   if (!value) return "";
   try {
     const parsed = JSON.parse(value);
+    const labels: Record<string, string> = {
+      dueAt: "Fecha prevista de cobro",
+      currentPeriodEndAt: "Fecha de corte actual",
+      expectedByLastPayment: "Fecha esperada por último pago",
+      paymentId: "Pago relacionado",
+      wompiTransactionId: "Transacción Wompi",
+      createdAt: "Fecha de creación",
+      requestedTenantId: "Canal solicitado",
+      subscriptionTenantId: "Canal principal de la suscripción",
+      tenantLinks: "Canales asociados",
+      collectionMode: "Modo de cobro",
+      availableKeys: "Campos disponibles en metadata",
+      wompiKeys: "Campos Wompi en metadata"
+    };
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      const out = Object.entries(parsed as Record<string, unknown>)
+        .map(([key, entry]) => `${labels[key] || key}: ${Array.isArray(entry) ? entry.join(", ") : String(entry ?? "")}`)
+        .join("\n");
+      return out || JSON.stringify(parsed, null, 2);
+    }
     return JSON.stringify(parsed, null, 2);
   } catch {
-    return value;
+    return value
+      .replaceAll("requestedTenantId", "Canal solicitado")
+      .replaceAll("subscriptionTenantId", "Canal principal de la suscripción")
+      .replaceAll("tenantLinks", "Canales asociados")
+      .replaceAll("collectionMode", "Modo de cobro")
+      .replaceAll("dueAt", "Fecha prevista de cobro")
+      .replaceAll("currentPeriodEndAt", "Fecha de corte actual")
+      .replaceAll("expectedByLastPayment", "Fecha esperada por último pago")
+      .replaceAll("paymentId", "Pago relacionado")
+      .replaceAll("wompiTransactionId", "Transacción Wompi")
+      .replaceAll("createdAt", "Fecha de creación");
   }
 }
 
