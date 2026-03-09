@@ -366,6 +366,61 @@
   color: var(--muted);
 }
 
+/* ============================================
+   EMPTY STATES - Mensajes cuando no hay datos
+   ============================================ */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-12);
+  text-align: center;
+  color: var(--muted);
+  background: var(--bg);
+  border: 2px dashed var(--stroke);
+  border-radius: var(--radius-lg);
+}
+
+.empty-state-icon {
+  font-size: 48px;
+  margin-bottom: var(--spacing-6);
+  opacity: 0.5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  background: var(--bg-secondary);
+  border-radius: 50%;
+}
+
+.empty-state-icon svg {
+  width: 40px;
+  height: 40px;
+  stroke: var(--muted);
+}
+
+.empty-state-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: var(--spacing-2);
+}
+
+.empty-state-description {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: var(--spacing-6);
+  max-width: 400px;
+}
+
+.empty-state-action {
+  display: flex;
+  gap: var(--spacing-3);
+  flex-wrap: wrap;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .topbarBellPopover {
