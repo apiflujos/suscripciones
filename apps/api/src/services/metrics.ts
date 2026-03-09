@@ -169,14 +169,14 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
   // PERFORMANCE: Ejecutar queries independientes en paralelo
   const [paymentsAgg, failedAgg, linksSentAgg, linksPaidAgg] = await Promise.all([
     prisma.$queryRawUnsafe<Array<{ bucket: Date; payments_success: bigint; revenue_cents: bigint }>>(
-      `SELECT date_trunc('${trunc}', "paidAt") AS bucket,
+      `SELECT date_trunc('${trunc}', p."paidAt") AS bucket,
               COUNT(*)::bigint AS payments_success,
-              COALESCE(SUM("amountInCents"), 0)::bigint AS revenue_cents
-       FROM "Payment"
-       WHERE "status" = 'APPROVED'
-         AND "paidAt" IS NOT NULL
-         AND "paidAt" >= $1::timestamptz
-         AND "paidAt" < $2::timestamptz
+              COALESCE(SUM(p."amountInCents"), 0)::bigint AS revenue_cents
+       FROM "Payment" p
+       WHERE p."status" = 'APPROVED'
+         AND p."paidAt" IS NOT NULL
+         AND p."paidAt" >= $1::timestamptz
+         AND p."paidAt" < $2::timestamptz
          ${tf("p", 3)}
        GROUP BY 1
        ORDER BY 1 ASC`,
@@ -186,12 +186,12 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
     ),
 
     prisma.$queryRawUnsafe<Array<{ bucket: Date; payments_failed: bigint }>>(
-      `SELECT date_trunc('${trunc}', COALESCE("failedAt", "updatedAt")) AS bucket,
+      `SELECT date_trunc('${trunc}', COALESCE(p."failedAt", p."updatedAt")) AS bucket,
               COUNT(*)::bigint AS payments_failed
-       FROM "Payment"
-       WHERE "status" IN ('DECLINED', 'ERROR', 'VOIDED')
-         AND COALESCE("failedAt", "updatedAt") >= $1::timestamptz
-         AND COALESCE("failedAt", "updatedAt") < $2::timestamptz
+       FROM "Payment" p
+       WHERE p."status" IN ('DECLINED', 'ERROR', 'VOIDED')
+         AND COALESCE(p."failedAt", p."updatedAt") >= $1::timestamptz
+         AND COALESCE(p."failedAt", p."updatedAt") < $2::timestamptz
          ${tf("p", 3)}
        GROUP BY 1
        ORDER BY 1 ASC`,
