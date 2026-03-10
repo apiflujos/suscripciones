@@ -661,84 +661,86 @@ export default async function BillingPage({
                     </div>
                   </div>
 
-                  <div className="billing-type-strip">
-                    <span className="billing-header-label">Tipo de suscripción</span>
-                    <span className={`pill pill-sm ${isPlan ? "pill-mode-link" : "pill-mode-debit"}`}>
-                      {isPlan ? "Suscripción link de pago" : "Débito automático"}
-                    </span>
-                  </div>
-
                   <div className="billing-grid-info billing-grid-subscription">
-                    <div className="billing-customer-block">
-                      <div className="billing-title">
-                        <div className="billing-name">{r.customerName}</div>
-                        <div className="billing-sub">
-                          {r.customerEmail || "—"} · {r.identificacion || "—"}
+                    <div className="billing-body-main">
+                      <div className="billing-body-section">
+                        <div className="billing-section-title">Datos personales</div>
+                        <div className="billing-title">
+                          <div className="billing-name">{r.customerName}</div>
+                          <div className="billing-sub">
+                            {r.customerEmail || "—"} · {r.identificacion || "—"}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="billing-product-block">
-                      <div className="billing-product-row">
-                        <div className="product-thumb billing-product-thumb">
-                          {r.planImageUrl ? <img src={r.planImageUrl} alt={r.planName} /> : <span className="billing-product-fallback">AP</span>}
-                        </div>
-                        <div className="billing-product-meta">
-                          <span>Producto</span>
-                          <strong>{r.planName}</strong>
+                      <div className="billing-body-section">
+                        <div className="billing-section-title">Producto</div>
+                        <div className="billing-product-row">
+                          <div className="product-thumb billing-product-thumb">
+                            {r.planImageUrl ? <img src={r.planImageUrl} alt={r.planName} /> : <span className="billing-product-fallback">AP</span>}
+                          </div>
+                          <div className="billing-product-meta">
+                            <strong>{r.planName}</strong>
+                          </div>
                         </div>
                       </div>
+                      <div className="billing-body-section">
+                        <div className="billing-section-title">Fecha de corte</div>
+                        <AutoCutoffInlineForm
+                          subscriptionId={r.id}
+                          csrfToken={csrfToken}
+                          returnTo={returnTo}
+                          tenantId={r.tenantId}
+                          currentEndAt={r.vencimientoAt}
+                          action={scheduleCutoff}
+                        />
+                      </div>
                     </div>
-                    <div className="billing-cutoff-block">
-                      <span>Próximo pago / corte</span>
-                      <AutoCutoffInlineForm
-                        subscriptionId={r.id}
-                        csrfToken={csrfToken}
-                        returnTo={returnTo}
-                        tenantId={r.tenantId}
-                        currentEndAt={r.vencimientoAt}
-                        action={scheduleCutoff}
-                      />
-                    </div>
-                  </div>
+                    <div className="billing-body-side">
+                      <div className="billing-section-title">Tipo de suscripción</div>
+                      <span className={`pill pill-sm ${isPlan ? "pill-mode-link" : "pill-mode-debit"}`}>
+                        {isPlan ? "Suscripción link de pago" : "Débito automático"}
+                      </span>
 
-                  <div className="billing-cost-panel billing-cost-panel-full">
-                    <span className="billing-cost-title">Totales</span>
-                    <div className="billing-cost-box">
-                      <div className="billing-cost-summary">
-                        <div className="billing-cost-total">{fmtMoney(r.totalInCents ?? r.montoInCents, r.moneda)}</div>
-                        <div className="billing-cost-period">{r.cada}</div>
-                      </div>
-                      <div className="billing-cost-inline">
-                        <span className="billing-cost-chip">Base {fmtMoney(r.valorBaseInCents ?? r.montoInCents, r.moneda)}</span>
-                        <span className="billing-cost-chip">
-                          Flete {r.currentShippingInCents > 0 ? fmtMoney(r.currentShippingInCents, r.moneda) : "Gratis"}
-                        </span>
-                      </div>
+                      <div className="billing-cost-panel">
+                        <span className="billing-cost-title">Totales</span>
+                        <div className="billing-cost-box">
+                          <div className="billing-cost-summary">
+                            <div className="billing-cost-total">{fmtMoney(r.totalInCents ?? r.montoInCents, r.moneda)}</div>
+                            <div className="billing-cost-period">{r.cada}</div>
+                          </div>
+                          <div className="billing-cost-inline">
+                            <span className="billing-cost-chip">Base {fmtMoney(r.valorBaseInCents ?? r.montoInCents, r.moneda)}</span>
+                            <span className="billing-cost-chip">
+                              Flete {r.currentShippingInCents > 0 ? fmtMoney(r.currentShippingInCents, r.moneda) : "Gratis"}
+                            </span>
+                          </div>
 
-                      {r.mode !== "AUTO_DEBIT" && latestCheckoutUrl ? (
-                        <div className="billing-payment-link-section">
-                          <div className="billing-payment-link-row">
-                            <a
-                              className="primary btn-compact btn-noicon billing-payment-link-btn"
-                              href={latestCheckoutUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              Abrir link de pago
-                            </a>
-                            <CopyButton text={latestCheckoutUrl} label="⧉" copiedLabel="✓" />
-                          </div>
-                          <div className="field-hint billing-payment-link-hint">
-                            Link generado y listo para usar
-                          </div>
+                          {r.mode !== "AUTO_DEBIT" && latestCheckoutUrl ? (
+                            <div className="billing-payment-link-section">
+                              <div className="billing-payment-link-row">
+                                <a
+                                  className="primary btn-compact btn-noicon billing-payment-link-btn is-compact"
+                                  href={latestCheckoutUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  Abrir link de pago
+                                </a>
+                                <CopyButton text={latestCheckoutUrl} label="⧉" copiedLabel="✓" />
+                              </div>
+                              <div className="field-hint billing-payment-link-hint">
+                                Link generado y listo para usar
+                              </div>
+                            </div>
+                          ) : r.mode !== "AUTO_DEBIT" ? (
+                            <div className="billing-payment-link-section is-empty">
+                              <div className="field-hint billing-payment-link-hint is-empty">
+                                El link de pago se generará al crear la suscripción
+                              </div>
+                            </div>
+                          ) : null}
                         </div>
-                      ) : r.mode !== "AUTO_DEBIT" ? (
-                        <div className="billing-payment-link-section is-empty">
-                          <div className="field-hint billing-payment-link-hint is-empty">
-                            El link de pago se generará al crear la suscripción
-                          </div>
-                        </div>
-                      ) : null}
+                      </div>
                     </div>
                   </div>
 

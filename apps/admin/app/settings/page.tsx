@@ -499,8 +499,8 @@ export default async function SettingsPage({
             <div className="settings-group-header">
               <div className="panelHeaderRow">
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <h3>Configuración de pagos</h3>
-                  <HelpTip text="Define cómo manejar pagos que llegan sin suscripción activa asociada." />
+                  <h3>Reglas de cobro</h3>
+                  <HelpTip text="Configura las reglas de cobro automático, corte, cobro manual y reintentos." />
                 </div>
               </div>
             </div>
@@ -508,11 +508,15 @@ export default async function SettingsPage({
               <form action={updatePaymentsConfig} className="panel module" style={{ display: "grid", gap: 12 }}>
                 <input type="hidden" name="csrf" value={csrfToken} />
                 <input type="hidden" name="returnTo" value={returnTo} />
+                <div className="settings-submodule-header">
+                  <div className="settings-submodule-title">Pagos sin suscripción</div>
+                  <div className="field-hint">Reglas para pagos que llegan sin suscripción activa asociada.</div>
+                </div>
 
                 <div className="toggleRow">
                   <div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <strong>Conciliación automática de pagos</strong>
+                      <strong>Conciliación automática de pagos no asociados</strong>
                       <HelpTip text="Cuando un pago llega sin suscripción, intenta asociarlo automáticamente por nombre, email/teléfono y valor. Útil para pagos que llegan “huérfanos”." />
                     </div>
                     <div className="field-hint">Pagos sin suscripción activa: buscar coincidencia por identidad + monto.</div>
@@ -533,7 +537,7 @@ export default async function SettingsPage({
                 <div className="toggleRow">
                   <div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <strong>Recibir pagos sin suscripción activa</strong>
+                      <strong>Aceptar pagos sin suscripción activa</strong>
                       <HelpTip text="Si lo apagas, los pagos que no se puedan asociar se marcan como ignorados y no aparecen en Pagos ni disparan notificaciones." />
                     </div>
                     <div className="field-hint">Pagos que llegan “sin nada” o no corresponden a ninguna suscripción.</div>
@@ -554,7 +558,7 @@ export default async function SettingsPage({
                 <div className="toggleRow">
                   <div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <strong>Notificar por WhatsApp estos pagos</strong>
+                      <strong>Notificar por WhatsApp pagos no asociados</strong>
                       <HelpTip text="Controla si se envían notificaciones de pago (aprobado/fallido) cuando el pago no tiene suscripción asociada." />
                     </div>
                     <div className="field-hint">Aplica solo a pagos sin `subscriptionId`.</div>
@@ -575,7 +579,7 @@ export default async function SettingsPage({
                 <div className="toggleRow">
                   <div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <strong>Incluir estos pagos en métricas</strong>
+                      <strong>Incluir pagos no asociados en métricas</strong>
                       <HelpTip text="Si lo apagas, los pagos sin suscripción activa no cuentan en las métricas del dashboard." />
                     </div>
                     <div className="field-hint">Impacta “Pagos OK/Fallidos” y “Revenue”.</div>
@@ -603,22 +607,14 @@ export default async function SettingsPage({
                   </PendingButton>
                 </div>
               </form>
-            </div>
-          </section>
 
-          <section className="settings-group">
-            <div className="settings-group-header">
-              <div className="panelHeaderRow">
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <h3>Débito automático</h3>
-                  <HelpTip text="Controla si se permite el cobro automático y los reintentos cuando un cobro falla." />
-                </div>
-              </div>
-            </div>
-            <div className="settings-group-body">
               <form action={updateAutoDebitConfig} className="panel module" style={{ display: "grid", gap: 12 }}>
                 <input type="hidden" name="csrf" value={csrfToken} />
                 <input type="hidden" name="returnTo" value={returnTo} />
+                <div className="settings-submodule-header">
+                  <div className="settings-submodule-title">Débito automático</div>
+                  <div className="field-hint">Cobros automáticos, corte, botón manual y reintentos.</div>
+                </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   <div className="field">
                     <label>Cobros automáticos</label>
