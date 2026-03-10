@@ -101,6 +101,22 @@ html:not([data-theme="dark"]):not([data-theme="pink-dark"]):not([data-theme="hig
   --info: #0076b2;
   --info-bg: #e7f5ff;
 
+  /* Legacy variable mappings (compatibilidad) */
+  --bg: var(--bg-body);
+  --bg-secondary: var(--bg-panel);
+  --panel: var(--bg-panel);
+  --panel-soft: color-mix(in srgb, var(--bg-panel) 88%, var(--primary-soft) 12%);
+  --text: var(--text-body);
+  --muted: var(--text-muted);
+  --danger: var(--error);
+  --line: var(--stroke);
+  --status-success: var(--success);
+  --status-warning: var(--warning);
+  --status-danger: var(--error);
+  --status-info: var(--info);
+  --radius-md: 10px;
+  --radius-lg: 12px;
+
   /* Button hovers */
   --btn-hover-bg: var(--royal-purple-800);
   --btn-primary-hover: var(--royal-purple-800);
@@ -200,6 +216,22 @@ html[data-theme="dark"] {
   --info: #74c0fc;
   --info-bg: rgba(86, 180, 233, 0.2);
 
+  /* Legacy variable mappings (compatibilidad) */
+  --bg: var(--bg-body);
+  --bg-secondary: var(--bg-panel);
+  --panel: var(--bg-panel);
+  --panel-soft: color-mix(in srgb, var(--bg-panel) 86%, var(--primary-soft) 14%);
+  --text: var(--text-body);
+  --muted: var(--text-muted);
+  --danger: var(--error);
+  --line: var(--stroke);
+  --status-success: var(--success);
+  --status-warning: var(--warning);
+  --status-danger: var(--error);
+  --status-info: var(--info);
+  --radius-md: 10px;
+  --radius-lg: 12px;
+
   /* Button hovers */
   --btn-hover-bg: var(--royal-purple-400);
   --btn-primary-hover: var(--royal-purple-400);
@@ -279,6 +311,22 @@ html[data-theme="high-contrast"] {
   --error-bg: #000000;
   --info: #00ffff;
   --info-bg: #000000;
+
+  /* Legacy variable mappings (compatibilidad) */
+  --bg: var(--bg-body);
+  --bg-secondary: var(--bg-panel);
+  --panel: var(--bg-panel);
+  --panel-soft: #000000;
+  --text: var(--text-body);
+  --muted: var(--text-muted);
+  --danger: var(--error);
+  --line: var(--stroke);
+  --status-success: var(--success);
+  --status-warning: var(--warning);
+  --status-danger: var(--error);
+  --status-info: var(--info);
+  --radius-md: 10px;
+  --radius-lg: 12px;
 
   /* Extended colors AAA (≥7:1 on black) */
   --hc-extra-1: #e8d5ff;
@@ -373,6 +421,22 @@ html[data-theme="safe"] {
   --error-bg: #fef2f2;
   --info: #56B4E9; /* Sky Blue */
   --info-bg: #f0f9ff;
+
+  /* Legacy variable mappings (compatibilidad) */
+  --bg: var(--bg-body);
+  --bg-secondary: var(--bg-panel);
+  --panel: var(--bg-panel);
+  --panel-soft: color-mix(in srgb, var(--bg-panel) 90%, var(--primary-soft) 10%);
+  --text: var(--text-body);
+  --muted: var(--text-muted);
+  --danger: var(--error);
+  --line: var(--stroke);
+  --status-success: var(--success);
+  --status-warning: var(--warning);
+  --status-danger: var(--error);
+  --status-info: var(--info);
+  --radius-md: 10px;
+  --radius-lg: 12px;
 
   /* Button hovers */
   --btn-hover-bg: #005f9e;
