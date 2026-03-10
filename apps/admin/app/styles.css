@@ -53,14 +53,14 @@
   --standard-15: var(--apf-19);
 
   /* Tema base (claro) */
-  --brand-primary: #6a54a1;
-  --brand-primary-700: #4b3876;
+  --brand-primary: #6a5aa0;
+  --brand-primary-700: #4a3a75;
   --brand-primary-300: #d8cde9;
   --brand-primary-100: #f7f4fb;
   --brand-ink: var(--apf-02);
   --brand-gray: var(--apf-15);
 
-  --bg: #fdfcff;
+  --bg: #fefeff;
   --panel: var(--apf-14);
   --text: var(--apf-01);
   --muted: var(--apf-15);
@@ -69,20 +69,20 @@
   --text-faint: var(--apf-16);
   --surface-contrast: var(--apf-02);
   --primary: var(--brand-primary);
-  --primary-soft: rgba(106, 84, 161, 0.05);
+  --primary-soft: rgba(106, 90, 160, 0.035);
   --accent: #138f7a;
   --accent-soft: rgba(19, 143, 122, 0.1);
-  --stroke: rgba(27, 16, 34, 0.09);
-  --stroke-strong: rgba(27, 16, 34, 0.12);
+  --stroke: rgba(27, 16, 34, 0.08);
+  --stroke-strong: rgba(27, 16, 34, 0.11);
   --shadow: 0 10px 22px rgba(30, 18, 52, 0.08);
   --shadow-card: 0 14px 30px rgba(30, 18, 52, 0.07);
   --shadow-shell: 0 20px 52px rgba(30, 18, 52, 0.1);
-  --surface-2: rgba(27, 16, 34, 0.012);
-  --surface-3: rgba(27, 16, 34, 0.03);
-  --surface-brand: linear-gradient(180deg, color-mix(in srgb, var(--panel) 99%, #f6f3fb 1%) 0%, #ffffff 100%);
-  --surface-brand-strong: linear-gradient(180deg, color-mix(in srgb, var(--panel) 97%, #f3effa 3%) 0%, color-mix(in srgb, var(--panel) 99.5%, #fdfcff 0.5%) 100%);
-  --row-alt: rgba(27, 16, 34, 0.012);
-  --row-hover: rgba(106, 84, 161, 0.03);
+  --surface-2: rgba(27, 16, 34, 0.01);
+  --surface-3: rgba(27, 16, 34, 0.024);
+  --surface-brand: linear-gradient(180deg, color-mix(in srgb, var(--panel) 99.5%, #f7f4fb 0.5%) 0%, #ffffff 100%);
+  --surface-brand-strong: linear-gradient(180deg, color-mix(in srgb, var(--panel) 98.5%, #f5f2fa 1.5%) 0%, color-mix(in srgb, var(--panel) 99.7%, #fdfcff 0.3%) 100%);
+  --row-alt: rgba(27, 16, 34, 0.01);
+  --row-hover: rgba(106, 90, 160, 0.022);
   --radius-md: 10px;
   --radius-lg: 12px;
   --control-height: 38px;
@@ -404,16 +404,16 @@ body {
   font-family: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 11.75px;
   background:
-    radial-gradient(1200px 540px at 10% -12%, color-mix(in srgb, var(--primary-soft) 22%, transparent) 0%, transparent 56%),
-    radial-gradient(920px 420px at 100% 0%, color-mix(in srgb, var(--accent-soft) 26%, transparent) 0%, transparent 50%),
+    radial-gradient(1200px 540px at 10% -12%, color-mix(in srgb, var(--primary-soft) 16%, transparent) 0%, transparent 56%),
+    radial-gradient(920px 420px at 100% 0%, color-mix(in srgb, var(--accent-soft) 20%, transparent) 0%, transparent 50%),
     linear-gradient(180deg, color-mix(in srgb, var(--bg) 98%, white 2%) 0%, var(--bg) 100%);
   color: var(--text);
 }
 
 .authBody {
   background:
-    radial-gradient(900px 360px at 50% -120px, rgba(106, 84, 161, 0.1), rgba(106, 84, 161, 0) 60%),
-    radial-gradient(700px 320px at 20% 0, rgba(19, 143, 122, 0.05), rgba(19, 143, 122, 0) 55%),
+    radial-gradient(900px 360px at 50% -120px, rgba(106, 90, 160, 0.08), rgba(106, 90, 160, 0) 60%),
+    radial-gradient(700px 320px at 20% 0, rgba(19, 143, 122, 0.04), rgba(19, 143, 122, 0) 55%),
     var(--bg);
 }
 
@@ -1582,7 +1582,7 @@ a {
   padding: 10px;
   border-radius: 12px;
   border: 1px solid var(--stroke);
-  background: color-mix(in srgb, var(--primary-soft) 45%, transparent);
+  background: color-mix(in srgb, var(--primary-soft) 28%, transparent);
   width: 100%;
 }
 
@@ -2904,7 +2904,7 @@ html[data-contrast="high"] .filtersPanel {
 
 .settings-group-header {
   padding: 12px 14px;
-  background: color-mix(in srgb, var(--primary-soft) 35%, transparent);
+  background: color-mix(in srgb, var(--primary-soft) 24%, transparent);
   border-bottom: 1px solid var(--stroke);
 }
 
@@ -5650,9 +5650,9 @@ textarea.input {
   gap: 8px;
   align-items: center;
   padding: 8px 10px;
-  border: 1px solid color-mix(in srgb, var(--stroke) 86%, transparent);
+  border: 1px solid color-mix(in srgb, var(--stroke) 82%, transparent);
   border-radius: 12px;
-  background: var(--panel);
+  background: color-mix(in srgb, var(--panel) 96%, var(--primary-soft) 4%);
   box-shadow: var(--shadow);
 }
 
@@ -5761,29 +5761,67 @@ textarea.input {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 12px;
+  padding: 12px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--primary-soft) 20%, transparent), color-mix(in srgb, var(--panel) 96%, white 4%));
+  --kb-stage-1: color-mix(in srgb, var(--status-success-bg) 70%, white 30%);
+  --kb-stage-1-border: color-mix(in srgb, var(--status-success) 30%, var(--stroke));
+  --kb-stage-1-text: color-mix(in srgb, var(--status-success) 85%, #0b3d20 15%);
+  --kb-stage-2: color-mix(in srgb, var(--status-info-bg) 70%, white 30%);
+  --kb-stage-2-border: color-mix(in srgb, var(--status-info) 30%, var(--stroke));
+  --kb-stage-2-text: color-mix(in srgb, var(--status-info) 85%, #0a375a 15%);
+  --kb-stage-3: color-mix(in srgb, var(--status-warning-bg) 70%, white 30%);
+  --kb-stage-3-border: color-mix(in srgb, var(--status-warning) 35%, var(--stroke));
+  --kb-stage-3-text: color-mix(in srgb, var(--status-warning) 80%, #5c3b00 20%);
 }
 
 .billing-kanban-column {
   display: grid;
+  grid-template-rows: auto 1fr;
   gap: 8px;
-  padding: 8px;
-  border-radius: 12px;
+  border-radius: 16px;
   border: 1px solid color-mix(in srgb, var(--stroke) 86%, transparent);
-  background: color-mix(in srgb, var(--panel) 92%, var(--surface-2) 8%);
+  background: var(--panel);
+  min-height: 380px;
 }
 
 .billing-kanban-title {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--stroke) 86%, transparent);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
   color: var(--text-strong);
+  background: color-mix(in srgb, var(--primary-soft) 40%, transparent);
+}
+
+.billing-kanban-column[data-idx="1"] .billing-kanban-title {
+  background: var(--kb-stage-1);
+  border-color: var(--kb-stage-1-border);
+  color: var(--kb-stage-1-text);
+}
+
+.billing-kanban-column[data-idx="2"] .billing-kanban-title {
+  background: var(--kb-stage-2);
+  border-color: var(--kb-stage-2-border);
+  color: var(--kb-stage-2-text);
+}
+
+.billing-kanban-column[data-idx="3"] .billing-kanban-title {
+  background: var(--kb-stage-3);
+  border-color: var(--kb-stage-3-border);
+  color: var(--kb-stage-3-text);
 }
 
 .billing-kanban-list {
   display: grid;
   gap: 8px;
+  padding: 12px;
+  align-content: start;
 }
 
 .billing-kanban-card summary {
@@ -5794,11 +5832,9 @@ textarea.input {
 .billing-kanban-summary {
   display: grid;
   gap: 4px;
-  padding: 8px;
-  border-radius: 10px;
-  border: 1px solid color-mix(in srgb, var(--stroke) 86%, transparent);
-  background: var(--panel);
-  box-shadow: var(--shadow);
+  padding: 10px 12px 8px;
+  border-bottom: 1px dashed color-mix(in srgb, var(--stroke) 70%, transparent);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--primary-soft) 28%, transparent), transparent);
 }
 
 .billing-kanban-name {
@@ -5826,6 +5862,34 @@ textarea.input {
   color: var(--text-faint);
   padding: 8px;
   text-align: center;
+}
+
+.billing-kanban-card {
+  border: 1.5px solid color-mix(in srgb, var(--primary) 18%, var(--stroke));
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: var(--shadow-card);
+  position: relative;
+  overflow: hidden;
+}
+
+.billing-kanban-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--kb-stage-1-text);
+  opacity: 0.6;
+}
+
+.billing-kanban-column[data-idx="2"] .billing-kanban-card::before {
+  background: var(--kb-stage-2-text);
+}
+
+.billing-kanban-column[data-idx="3"] .billing-kanban-card::before {
+  background: var(--kb-stage-3-text);
 }
 
 .billing-card {
@@ -8570,9 +8634,9 @@ body.is-global-loading {
   gap: 8px;
   align-items: center;
   padding: 8px 10px;
-  border: 1px solid color-mix(in srgb, var(--stroke) 86%, transparent);
+  border: 1px solid color-mix(in srgb, var(--stroke) 82%, transparent);
   border-radius: 12px;
-  background: var(--panel);
+  background: color-mix(in srgb, var(--panel) 96%, var(--primary-soft) 4%);
   box-shadow: var(--shadow);
 }
 

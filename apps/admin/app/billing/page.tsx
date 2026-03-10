@@ -975,8 +975,8 @@ export default async function BillingPage({
               }
               return (
                 <div className="billing-kanban">
-                  {columns.map((col) => (
-                    <div className="billing-kanban-column" key={`kanban-${col}`}>
+                  {columns.map((col, idx) => (
+                    <div className="billing-kanban-column" data-idx={idx + 1} key={`kanban-${col}`}>
                       <div className="billing-kanban-title">
                         <span>{col}</span>
                         <span className="pill pill-sm pill-muted">{grouped.get(col)?.length || 0}</span>
