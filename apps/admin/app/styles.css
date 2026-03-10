@@ -513,6 +513,494 @@ body {
 }
 
 /* ============================================
+   LAYOUT SHELL (compatibilidad Admin UI)
+   ============================================ */
+.authBody {
+  background:
+    radial-gradient(900px 360px at 50% -120px, rgba(123, 83, 178, 0.16), rgba(123, 83, 178, 0) 60%),
+    radial-gradient(700px 320px at 20% 0, rgba(19, 143, 122, 0.08), rgba(19, 143, 122, 0) 55%),
+    var(--bg);
+}
+
+.authShell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 18px 14px;
+}
+
+.authMain {
+  width: min(640px, 100%);
+}
+
+.authCard {
+  width: 100%;
+  border-radius: 24px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--bg-panel) 92%, var(--primary-soft) 8%);
+  border: 1px solid color-mix(in srgb, var(--stroke-strong) 80%, transparent);
+  box-shadow: var(--shadow-xl);
+}
+
+.authCardInner {
+  padding: 28px;
+  display: grid;
+  gap: 16px;
+}
+
+.authBrand {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 2px;
+}
+
+.authLogo {
+  height: 30px;
+  width: auto;
+  display: block;
+}
+
+.authHeader {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+}
+
+.authTitle {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.authSubtitle {
+  color: var(--text-muted);
+  font-size: 13.5px;
+}
+
+.authForm {
+  display: grid;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.authRemember {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.authAlert {
+  border: 1px solid var(--stroke);
+  background: color-mix(in srgb, var(--bg-panel) 92%, var(--stroke) 8%);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.authAlert.is-danger {
+  border-color: color-mix(in srgb, var(--danger) 35%, transparent);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+}
+
+.authFootnote {
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.loginCard {
+  max-width: 620px;
+  margin: 0 auto;
+}
+
+.loginCardInner {
+  padding: 28px 32px 30px;
+}
+
+.loginHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.loginHeaderText {
+  margin-top: 6px;
+}
+
+.loginBot {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  background: var(--bg-panel);
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow-md);
+}
+
+.loginBot img {
+  width: 38px;
+  height: 38px;
+}
+
+.loginForm {
+  display: grid;
+  gap: 12px;
+}
+
+.loginInput {
+  background: color-mix(in srgb, var(--bg-panel) 92%, var(--primary-soft) 8%);
+  border: 1px solid var(--stroke);
+  border-radius: 10px;
+}
+
+.loginInput:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+.loginPasswordWrap {
+  position: relative;
+}
+
+.loginPasswordWrap .loginInput {
+  padding-right: 70px;
+}
+
+.loginToggle {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.loginRemember {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.loginPrimary {
+  width: 100%;
+  height: 44px;
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  position: relative;
+}
+
+.app-shell.is-collapsed {
+  grid-template-columns: 70px 1fr;
+}
+
+.sidebarOverlay {
+  display: none;
+}
+
+.sidebar {
+  padding: 18px 16px;
+  border-right: 1px solid var(--stroke);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--panel) 90%, var(--primary-soft) 10%) 0%, var(--panel) 100%);
+  backdrop-filter: blur(10px);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: auto;
+}
+
+.sidebarShell {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sidebarToggleBtn {
+  height: 44px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: var(--panel);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  cursor: pointer;
+  color: var(--text);
+  font-weight: 700;
+  box-shadow: var(--shadow-sm);
+}
+
+.sidebarToggleBtn .nav-icon {
+  color: var(--text);
+}
+
+.sidebarToggleBtn:hover {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+}
+
+.menuStatusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--status-success);
+  position: absolute;
+  right: 12px;
+  top: 8px;
+  box-shadow: 0 0 0 2px var(--panel);
+}
+
+.sidebarSpacer {
+  flex: 1 1 auto;
+}
+
+.sidebarExit {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.sidebarExit .nav-icon {
+  color: inherit;
+}
+
+.sidebarExit:hover {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  border-color: color-mix(in srgb, var(--danger) 18%, transparent);
+  color: var(--danger);
+}
+
+.content {
+  padding: 20px 24px 32px;
+  display: grid;
+  gap: 16px;
+}
+
+.page {
+  display: grid;
+  gap: 16px;
+  width: 100%;
+  max-width: none;
+}
+
+.pageWide {
+  width: 100%;
+  max-width: none;
+}
+
+.topbar {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--stroke-strong) 80%, transparent);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--bg-panel) 94%, var(--primary-soft) 6%);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(10px);
+}
+
+.topbarLeft {
+  display: grid;
+  min-width: 0;
+}
+
+.topbarLogoLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.topbarLogo {
+  height: 38px;
+  max-width: 200px;
+  width: auto;
+  display: block;
+  object-fit: contain;
+}
+
+.logoStatusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--status-success);
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  box-shadow: 0 0 0 2px var(--panel);
+}
+
+.topbarRight {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
+}
+
+.topbarNotifications {
+  position: relative;
+}
+
+/* Sidebar nav */
+.nav {
+  display: grid;
+  gap: 6px;
+}
+
+.nav-item {
+  padding: 7px 10px;
+  border-radius: 8px;
+  color: var(--muted);
+  border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+
+.nav-icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  color: var(--muted);
+}
+
+.nav-item.is-active .nav-icon,
+.nav-item:hover .nav-icon {
+  color: var(--primary);
+}
+
+.nav-item:hover {
+  background: var(--primary-soft);
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 20%, transparent);
+}
+
+.nav-item.is-active {
+  background: var(--primary-soft);
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 20%, transparent);
+}
+
+.nav-label {
+  display: inline;
+}
+
+.nav-submenu {
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 0 8px 10px;
+}
+
+.nav-item.is-active + .nav-submenu {
+  display: flex;
+}
+
+.app-shell.is-collapsed .nav-label {
+  display: none;
+}
+
+.app-shell.is-collapsed .sidebarToggleBtn .nav-label {
+  display: none;
+}
+
+.app-shell.is-collapsed .sidebarToggleBtn {
+  justify-content: center;
+  padding: 0;
+}
+
+.app-shell.is-collapsed .menuStatusDot {
+  right: 6px;
+  top: 6px;
+}
+
+.app-shell.is-collapsed .nav-submenu {
+  display: none !important;
+}
+
+@media (max-width: 920px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: -260px;
+    width: 240px;
+    height: 100vh;
+    z-index: 2100;
+    transition: left 160ms ease;
+    border-right: 1px solid var(--stroke);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+    background: var(--panel);
+  }
+
+  .app-shell.is-mobile-open .sidebar {
+    left: 0;
+  }
+
+  .sidebarOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.35);
+    z-index: 2000;
+    display: none;
+  }
+
+  .app-shell.is-mobile-open .sidebarOverlay {
+    display: block;
+  }
+
+  .content {
+    padding: 12px 12px 24px;
+  }
+
+  .topbar {
+    grid-template-columns: 1fr auto;
+  }
+
+  .topbar .subtitle {
+    display: none;
+  }
+}
+
+/* ============================================
    TIPOGRAFÍA
    ============================================ */
 h1, h2, h3, h4, h5, h6 {
