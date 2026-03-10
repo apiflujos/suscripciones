@@ -111,10 +111,10 @@ export async function testWompiConnection(formData: FormData) {
         ...(apiBaseUrl ? { apiBaseUrl } : {})
       })
     });
-    redirectWith("wompi_test", "ok", undefined, returnTo);
+    // No redirect - el componente cliente maneja el estado
   } catch (err) {
     if (isNextRedirect(err)) throw err;
-    redirectWith("wompi_test", "fail", toShortErrorMessage(err), returnTo);
+    throw new Error(toShortErrorMessage(err));
   }
 }
 
@@ -655,10 +655,10 @@ export async function testCentralConnection(formData: FormData) {
         ...(inboxId ? { inboxId: Number(inboxId) } : {})
       })
     });
-    redirectWith("central_test", "ok", undefined, returnTo);
+    // No redirect - el componente cliente maneja el estado
   } catch (err) {
     if (isNextRedirect(err)) throw err;
-    redirectWith("central_test", "fail", toShortErrorMessage(err), returnTo);
+    throw new Error(toShortErrorMessage(err));
   }
 }
 

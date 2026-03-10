@@ -9,7 +9,7 @@ type InlineMsgProps = { action: string; status: string; errorText: string };
 
 function inlineMsg(actionKey: string, okText: string, failPrefix: string, props: InlineMsgProps) {
   if (props.action !== actionKey) return null;
-  if (props.status === "ok") return <div className="field-hint">{okText}</div>;
+  if (props.status === "ok") return <div className="field-hint is-success">{okText}</div>;
   if (props.status === "fail") return <div className="field-hint" style={{ color: "var(--danger)" }}>{failPrefix}: {props.errorText || "unknown_error"}</div>;
   return null;
 }
@@ -53,12 +53,12 @@ export function ConnectionsPanel({
   actions: {
     setWompiActiveEnv: (formData: FormData) => void;
     updateWompi: (formData: FormData) => void;
-    testWompiConnection: (formData: FormData) => void;
+    testWompiConnection: (formData: FormData) => Promise<void>;
     deleteWompiConnection: (formData: FormData) => void;
     updateChatwoot: (formData: FormData) => void;
     setCentralActiveEnv: (formData: FormData) => void;
     deleteCentralConnection: (formData: FormData) => void;
-    testCentralConnection: (formData: FormData) => void;
+    testCentralConnection: (formData: FormData) => Promise<void>;
     bootstrapCentralAttributes: (formData: FormData) => void;
     syncCentralAttributes: (formData: FormData) => void;
     updateShopify: (formData: FormData) => void;
@@ -80,6 +80,17 @@ export function ConnectionsPanel({
             ? initialOpen
             : null;
   const [open, setOpen] = useState<null | "wompi_prod" | "wompi_sandbox" | "central" | "shopify">(initial);
+  
+  // Estado local para测试结果 (se mantiene después de guardar/cerrar)
+  const [wompiTestStatus, setWompiTestStatus] = useState<{ PRODUCTION: "ok" | "fail" | null; SANDBOX: "ok" | "fail" | null }>({
+    PRODUCTION: null,
+    SANDBOX: null
+  });
+  const [centralTestStatus, setCentralTestStatus] = useState<{ PRODUCTION: "ok" | "fail" | null; SANDBOX: "ok" | "fail" | null }>({
+    PRODUCTION: null,
+    SANDBOX: null
+  });
+  
   const [syncState, setSyncState] = useState<{
     running: boolean;
     synced: number;
@@ -175,30 +186,9 @@ export function ConnectionsPanel({
             </div>
 
             <div className="modal-body">
-            <form action={actions.setWompiActiveEnv} style={{ display: "grid", gridTemplateColumns: "1fr auto", alignItems: "end", gap: 10 }}>
-              <input type="hidden" name="csrf" value={csrfToken} />
-              {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
-              <div className="field">
-                <label>
-                  Entorno activo
-                  <HelpTip text="Define qué entorno usa el sistema para operaciones por defecto." />
-                </label>
-                <select className="select" name="activeEnv" defaultValue={wompiActiveEnv}>
-                  <option value="PRODUCTION">Producción</option>
-                  <option value="SANDBOX">Sandbox</option>
-                </select>
-              </div>
-              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-                {inlineMsg("wompi_env", "Guardado.", "Error guardando", inlineState)}
-                <PendingButton className="primary btn-save" type="submit" pendingText="Guardando...">
-                  Guardar
-                </PendingButton>
-              </div>
-            </form>
-
             <div className="panel module">
               <div className="panelHeaderRow">
-                <strong>Nueva conexión ({open === "wompi_prod" ? "Producción" : "Sandbox"})</strong>
+                <strong>Conexión ({open === "wompi_prod" ? "Producción" : "Sandbox"})</strong>
               </div>
               <form action={actions.updateWompi} style={{ display: "grid", gap: 10 }}>
                 <input type="hidden" name="csrf" value={csrfToken} />
@@ -232,7 +222,15 @@ export function ConnectionsPanel({
                   </div>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     {inlineMsg("wompi_creds", "Guardado.", "Error guardando", inlineState)}
-                    {inlineMsg("wompi_test", "Conexión exitosa.", "Error conectando", inlineState)}
+                    {/* Estado de测试结果 - se mantiene después de guardar */}
+                    {wompiTestStatus[open === "wompi_prod" ? "PRODUCTION" : "SANDBOX"] === "ok" ? (
+                      <div className="field-hint is-success" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>
+                        Conexión exitosa
+                      </div>
+                    ) : wompiTestStatus[open === "wompi_prod" ? "PRODUCTION" : "SANDBOX"] === "fail" ? (
+                      <div className="field-hint" style={{ color: "var(--danger)" }}>Error conectando</div>
+                    ) : null}
                     <DualActionButtons
                       primaryLabel="Guardar"
                       primaryPendingLabel="Guardando..."
@@ -240,7 +238,14 @@ export function ConnectionsPanel({
                       secondaryLabel="Probar conexión"
                       secondaryPendingLabel="Conectando..."
                       secondaryClassName="ghost"
-                      secondaryFormAction={actions.testWompiConnection}
+                      secondaryFormAction={async (formData: FormData) => {
+                        try {
+                          await actions.testWompiConnection(formData);
+                          setWompiTestStatus(prev => ({ ...prev, [open === "wompi_prod" ? "PRODUCTION" : "SANDBOX"]: "ok" as const }));
+                        } catch (err: any) {
+                          setWompiTestStatus(prev => ({ ...prev, [open === "wompi_prod" ? "PRODUCTION" : "SANDBOX"]: "fail" as const }));
+                        }
+                      }}
                     />
                   </div>
                 </div>
@@ -337,7 +342,15 @@ export function ConnectionsPanel({
                       </div>
                       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                         {inlineMsg("central_save", "Guardado.", "Error guardando", inlineState)}
-                        {inlineMsg("central_test", "Conexión exitosa.", "Error conectando", inlineState)}
+                        {/* Estado de测试结果 - se mantiene después de guardar */}
+                        {centralTestStatus[envKey as "PRODUCTION" | "SANDBOX"] === "ok" ? (
+                          <div className="field-hint is-success" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>
+                            Conexión exitosa
+                          </div>
+                        ) : centralTestStatus[envKey as "PRODUCTION" | "SANDBOX"] === "fail" ? (
+                          <div className="field-hint" style={{ color: "var(--danger)" }}>Error conectando</div>
+                        ) : null}
                         <DualActionButtons
                           primaryLabel="Guardar"
                           primaryPendingLabel="Guardando..."
@@ -345,7 +358,14 @@ export function ConnectionsPanel({
                           secondaryLabel="Probar conexión"
                           secondaryPendingLabel="Conectando..."
                           secondaryClassName="ghost"
-                          secondaryFormAction={actions.testCentralConnection}
+                          secondaryFormAction={async (formData: FormData) => {
+                            try {
+                              await actions.testCentralConnection(formData);
+                              setCentralTestStatus(prev => ({ ...prev, [envKey]: "ok" as const }));
+                            } catch (err: any) {
+                              setCentralTestStatus(prev => ({ ...prev, [envKey]: "fail" as const }));
+                            }
+                          }}
                         />
                       </div>
                     </div>
