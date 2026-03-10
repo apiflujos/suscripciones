@@ -2,6 +2,7 @@ import { LogLevel, PaymentStatus, RetryJobType } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { logger } from "../lib/logger";
 import { getNotificationsActiveEnv, getNotificationsConfig, NotificationTrigger } from "./notificationsConfig";
+import { getPaymentsConfig } from "./runtimeConfig";
 import { systemLog } from "./systemLog";
 import { subscriptionReminder } from "../jobs/handlers/subscriptionReminder";
 
@@ -110,9 +111,17 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
 
   const payment = await prisma.payment.findUnique({
     where: { id: paymentId },
-    select: { id: true, customerId: true, subscriptionId: true, status: true }
+    select: { id: true, customerId: true, subscriptionId: true, status: true, providerResponse: true }
   });
   if (!payment) return { scheduled: 0 };
+
+  const paymentsCfg = await getPaymentsConfig().catch(() => null);
+  const reconciliationStatus = (() => {
+    const resp: any = payment.providerResponse && typeof payment.providerResponse === "object" ? (payment.providerResponse as any) : null;
+    return String(resp?.reconciliation?.status || "").toUpperCase();
+  })();
+  if (reconciliationStatus === "IGNORED_EXTERNAL") return { scheduled: 0 };
+  if (!payment.subscriptionId && paymentsCfg && paymentsCfg.notifyWhatsappForUnlinkedPayments === false) return { scheduled: 0 };
 
   const trigger: NotificationTrigger | null =
     payment.status === PaymentStatus.APPROVED ? "PAYMENT_APPROVED" : payment.status === PaymentStatus.DECLINED ? "PAYMENT_DECLINED" : null;

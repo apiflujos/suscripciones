@@ -15,7 +15,8 @@ import {
   updateAiProvider,
   deleteAiProvider,
   updateGamificationConfig,
-  updateAutoDebitConfig
+  updateAutoDebitConfig,
+  updatePaymentsConfig
 } from "./actions";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { normalizeErrorParam } from "../lib/errorParam";
@@ -130,6 +131,7 @@ export default async function SettingsPage({
   const aiOpenai = (aiProviders?.openai || {}) as any;
   const aiDeepseek = (aiProviders?.deepseek || {}) as any;
   const autoDebit = (settings?.autoDebit || {}) as any;
+  const paymentsConfig = (settings?.paymentsConfig || {}) as any;
   const aiEnabled = Boolean(ai?.enabled);
   const aiDisableReason = String(ai?.reason || "");
   const aiDisableLabel =
@@ -490,6 +492,117 @@ export default async function SettingsPage({
                 ) : null}
               </div>
 
+            </div>
+          </section>
+
+          <section className="settings-group">
+            <div className="settings-group-header">
+              <div className="panelHeaderRow">
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <h3>Configuración de pagos</h3>
+                  <HelpTip text="Define cómo manejar pagos que llegan sin suscripción activa asociada." />
+                </div>
+              </div>
+            </div>
+            <div className="settings-group-body">
+              <form action={updatePaymentsConfig} className="panel module" style={{ display: "grid", gap: 12 }}>
+                <input type="hidden" name="csrf" value={csrfToken} />
+                <input type="hidden" name="returnTo" value={returnTo} />
+
+                <div className="toggleRow">
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <strong>Conciliación automática de pagos</strong>
+                      <HelpTip text="Cuando un pago llega sin suscripción, intenta asociarlo automáticamente por nombre, email/teléfono y valor. Útil para pagos que llegan “huérfanos”." />
+                    </div>
+                    <div className="field-hint">Pagos sin suscripción activa: buscar coincidencia por identidad + monto.</div>
+                  </div>
+                  <label className="toggleControl" aria-label="Conciliación automática de pagos">
+                    <input type="hidden" name="autoReconcileUnlinkedPayments" value="0" />
+                    <input
+                      className="toggleInput"
+                      type="checkbox"
+                      name="autoReconcileUnlinkedPayments"
+                      value="1"
+                      defaultChecked={Boolean(paymentsConfig?.autoReconcileUnlinkedPayments ?? true)}
+                    />
+                    <span className="toggle" aria-hidden="true" />
+                  </label>
+                </div>
+
+                <div className="toggleRow">
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <strong>Recibir pagos sin suscripción activa</strong>
+                      <HelpTip text="Si lo apagas, los pagos que no se puedan asociar se marcan como ignorados y no aparecen en Pagos ni disparan notificaciones." />
+                    </div>
+                    <div className="field-hint">Pagos que llegan “sin nada” o no corresponden a ninguna suscripción.</div>
+                  </div>
+                  <label className="toggleControl" aria-label="Recibir pagos sin suscripción activa">
+                    <input type="hidden" name="acceptUnlinkedPayments" value="0" />
+                    <input
+                      className="toggleInput"
+                      type="checkbox"
+                      name="acceptUnlinkedPayments"
+                      value="1"
+                      defaultChecked={Boolean(paymentsConfig?.acceptUnlinkedPayments ?? true)}
+                    />
+                    <span className="toggle" aria-hidden="true" />
+                  </label>
+                </div>
+
+                <div className="toggleRow">
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <strong>Notificar por WhatsApp estos pagos</strong>
+                      <HelpTip text="Controla si se envían notificaciones de pago (aprobado/fallido) cuando el pago no tiene suscripción asociada." />
+                    </div>
+                    <div className="field-hint">Aplica solo a pagos sin `subscriptionId`.</div>
+                  </div>
+                  <label className="toggleControl" aria-label="Notificar por WhatsApp estos pagos">
+                    <input type="hidden" name="notifyWhatsappForUnlinkedPayments" value="0" />
+                    <input
+                      className="toggleInput"
+                      type="checkbox"
+                      name="notifyWhatsappForUnlinkedPayments"
+                      value="1"
+                      defaultChecked={Boolean(paymentsConfig?.notifyWhatsappForUnlinkedPayments ?? true)}
+                    />
+                    <span className="toggle" aria-hidden="true" />
+                  </label>
+                </div>
+
+                <div className="toggleRow">
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <strong>Incluir estos pagos en métricas</strong>
+                      <HelpTip text="Si lo apagas, los pagos sin suscripción activa no cuentan en las métricas del dashboard." />
+                    </div>
+                    <div className="field-hint">Impacta “Pagos OK/Fallidos” y “Revenue”.</div>
+                  </div>
+                  <label className="toggleControl" aria-label="Incluir estos pagos en métricas">
+                    <input type="hidden" name="includeUnlinkedPaymentsInMetrics" value="0" />
+                    <input
+                      className="toggleInput"
+                      type="checkbox"
+                      name="includeUnlinkedPaymentsInMetrics"
+                      value="1"
+                      defaultChecked={Boolean(paymentsConfig?.includeUnlinkedPaymentsInMetrics ?? true)}
+                    />
+                    <span className="toggle" aria-hidden="true" />
+                  </label>
+                </div>
+
+                <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8, alignItems: "center" }}>
+                  {action === "payments_config_save" && status === "ok" ? <div className="field-hint">Guardado.</div> : null}
+                  {action === "payments_config_save" && status === "fail" ? (
+                    <div className="field-hint" style={{ color: "var(--danger)" }}>Error guardando: {errorText || "unknown_error"}</div>
+                  ) : null}
+                  <PendingButton className="primary btn-save" type="submit" pendingText="Guardando...">
+                    Guardar
+                  </PendingButton>
+                </div>
+              </form>
             </div>
           </section>
 

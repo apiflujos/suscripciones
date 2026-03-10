@@ -104,6 +104,13 @@ export type AutoDebitConfig = {
   maxRetries: number;
 };
 
+export type PaymentsConfig = {
+  autoReconcileUnlinkedPayments: boolean;
+  acceptUnlinkedPayments: boolean;
+  notifyWhatsappForUnlinkedPayments: boolean;
+  includeUnlinkedPaymentsInMetrics: boolean;
+};
+
 function toBool(raw: string | undefined, fallback: boolean) {
   if (!raw) return fallback;
   const v = String(raw).trim().toLowerCase();
@@ -178,6 +185,29 @@ export async function getAutoDebitConfig(): Promise<AutoDebitConfig> {
     retryEveryUnit: derived.retryEveryUnit,
     retryEveryMinutes,
     maxRetries
+  };
+}
+
+export async function getPaymentsConfig(): Promise<PaymentsConfig> {
+  const raw = (await getCredential(CredentialProvider.WOMPI, "PAYMENTS_CONFIG")) || "";
+  let parsed: any = {};
+  try {
+    parsed = raw ? JSON.parse(raw) : {};
+  } catch {
+    parsed = {};
+  }
+
+  // Defaults preserve current behavior.
+  const autoReconcileUnlinkedPayments = toBool(String(parsed?.autoReconcileUnlinkedPayments ?? ""), true);
+  const acceptUnlinkedPayments = toBool(String(parsed?.acceptUnlinkedPayments ?? ""), true);
+  const notifyWhatsappForUnlinkedPayments = toBool(String(parsed?.notifyWhatsappForUnlinkedPayments ?? ""), true);
+  const includeUnlinkedPaymentsInMetrics = toBool(String(parsed?.includeUnlinkedPaymentsInMetrics ?? ""), true);
+
+  return {
+    autoReconcileUnlinkedPayments,
+    acceptUnlinkedPayments,
+    notifyWhatsappForUnlinkedPayments,
+    includeUnlinkedPaymentsInMetrics
   };
 }
 

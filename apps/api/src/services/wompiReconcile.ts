@@ -12,6 +12,24 @@ function normalizeStatus(raw?: string | null) {
   return String(raw || "").trim().toUpperCase();
 }
 
+function extractWompiTransactionFromRaw(raw: unknown): Record<string, unknown> | null {
+  if (!raw || typeof raw !== "object") return null;
+  const root = raw as Record<string, unknown>;
+  const direct = root.data;
+  if (direct && typeof direct === "object" && !Array.isArray(direct)) {
+    return direct as Record<string, unknown>;
+  }
+  const alt = (root as any).transaction;
+  if (alt && typeof alt === "object" && !Array.isArray(alt)) {
+    return alt as Record<string, unknown>;
+  }
+  const nested = (root as any).data?.transaction;
+  if (nested && typeof nested === "object" && !Array.isArray(nested)) {
+    return nested as Record<string, unknown>;
+  }
+  return null;
+}
+
 export async function reconcileWompiTransaction(args: {
   wompiTransactionId: string;
   tenantId?: string | null;
@@ -42,15 +60,19 @@ export async function reconcileWompiTransaction(args: {
     return { ok: false, reason: "status_not_final" as const, status };
   }
 
+  const rawTx = extractWompiTransactionFromRaw(tx.raw);
   const payload = {
     event: "transaction.updated",
     data: {
       transaction: {
+        // Prefer the raw Wompi shape so we preserve fields like `status_message`.
+        // We still override core identifiers to guarantee normalization.
+        ...(rawTx || {}),
         id: tx.id,
         status: tx.status,
+        reference: tx.reference,
         amount_in_cents: tx.amountInCents,
         currency: tx.currency,
-        reference: tx.reference,
         payment_link_id: tx.paymentLinkId,
         customer_email: tx.customerEmail
       }

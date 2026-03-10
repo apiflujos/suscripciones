@@ -445,7 +445,8 @@ export function ConnectionsPanel({
                   <div className="progress-title-row">
                     <strong>{syncState.platform || "Chatwoot"}</strong>
                     <span>
-                      {syncState.sourceLabel || "Contactos de ApiFlujos"} {"→"}{" "}
+                      {syncState.sourceLabel || "Contactos de ApiFlujos"}
+                      {" -> "}
                       {syncState.targetLabel || "Contactos y atributos personalizados en Chatwoot"}
                     </span>
                   </div>

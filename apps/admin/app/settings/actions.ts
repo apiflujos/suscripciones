@@ -195,6 +195,31 @@ export async function updateAutoDebitConfig(formData: FormData) {
   }
 }
 
+export async function updatePaymentsConfig(formData: FormData) {
+  await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
+  const autoReconcileUnlinkedPayments = String(formData.get("autoReconcileUnlinkedPayments") || "").trim();
+  const acceptUnlinkedPayments = String(formData.get("acceptUnlinkedPayments") || "").trim();
+  const notifyWhatsappForUnlinkedPayments = String(formData.get("notifyWhatsappForUnlinkedPayments") || "").trim();
+  const includeUnlinkedPaymentsInMetrics = String(formData.get("includeUnlinkedPaymentsInMetrics") || "").trim();
+
+  try {
+    await adminFetch("/admin/settings/payments-config", {
+      method: "PUT",
+      body: JSON.stringify({
+        ...(autoReconcileUnlinkedPayments ? { autoReconcileUnlinkedPayments } : {}),
+        ...(acceptUnlinkedPayments ? { acceptUnlinkedPayments } : {}),
+        ...(notifyWhatsappForUnlinkedPayments ? { notifyWhatsappForUnlinkedPayments } : {}),
+        ...(includeUnlinkedPaymentsInMetrics ? { includeUnlinkedPaymentsInMetrics } : {})
+      })
+    });
+    redirectWith("payments_config_save", "ok", undefined, returnTo);
+  } catch (err) {
+    if (isNextRedirect(err)) throw err;
+    redirectWith("payments_config_save", "fail", toShortErrorMessage(err), returnTo);
+  }
+}
+
 export async function deleteShopifyConnection(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);

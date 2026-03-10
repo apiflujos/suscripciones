@@ -53,6 +53,30 @@ function describeChargeError(raw?: string) {
 function formatChargeDetails(raw?: string) {
   const value = String(raw || "").trim();
   if (!value) return "";
+  const stringifyValue = (input: unknown) => {
+    if (input === null || input === undefined) return "";
+    if (typeof input === "string") return input;
+    if (typeof input === "number" || typeof input === "boolean") return String(input);
+    if (Array.isArray(input)) {
+      // Render arrays compactly unless they contain objects.
+      if (input.every((v) => v === null || ["string", "number", "boolean"].includes(typeof v))) {
+        return input.map((v) => String(v ?? "")).join(", ");
+      }
+      try {
+        return JSON.stringify(input, null, 2);
+      } catch {
+        return String(input);
+      }
+    }
+    if (typeof input === "object") {
+      try {
+        return JSON.stringify(input, null, 2);
+      } catch {
+        return String(input);
+      }
+    }
+    return String(input);
+  };
   try {
     const parsed = JSON.parse(value);
     const labels: Record<string, string> = {
@@ -71,7 +95,13 @@ function formatChargeDetails(raw?: string) {
     };
     if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
       const out = Object.entries(parsed as Record<string, unknown>)
-        .map(([key, entry]) => `${labels[key] || key}: ${Array.isArray(entry) ? entry.join(", ") : String(entry ?? "")}`)
+        .map(([key, entry]) => {
+          const label = labels[key] || key;
+          const rendered = stringifyValue(entry);
+          if (!rendered) return `${label}:`;
+          // If it's multi-line JSON, show it on the next line for readability.
+          return rendered.includes("\n") ? `${label}:\n${rendered}` : `${label}: ${rendered}`;
+        })
         .join("\n");
       return out || JSON.stringify(parsed, null, 2);
     }

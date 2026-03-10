@@ -6,7 +6,7 @@ import { classifyReference } from "../../webhooks/wompi/classifyReference";
 import { postJson } from "../../lib/http";
 import { PaymentLinkStatus, PaymentStatus, SubscriptionStatus, WebhookProcessStatus } from "@prisma/client";
 import { addIntervalUtc } from "../../lib/dates";
-import { getShopifyForward, getWompiCheckoutLinkBaseUrl } from "../../services/runtimeConfig";
+import { getPaymentsConfig, getShopifyForward, getWompiCheckoutLinkBaseUrl } from "../../services/runtimeConfig";
 import { schedulePaymentStatusNotifications, scheduleSubscriptionDueNotifications } from "../../services/notificationsScheduler";
 import { consumeApp } from "../../services/superAdminApp";
 import { syncChatwootAttributesForCustomer } from "../../services/chatwootSync";
@@ -282,6 +282,12 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     if (event.processStatus === WebhookProcessStatus.PROCESSED) return;
 
   const payload = (event.payload && typeof event.payload === "object" ? event.payload : {}) as WompiPayload;
+  const paymentsCfg = await getPaymentsConfig().catch(() => ({
+    autoReconcileUnlinkedPayments: true,
+    acceptUnlinkedPayments: true,
+    notifyWhatsappForUnlinkedPayments: true,
+    includeUnlinkedPaymentsInMetrics: true
+  }));
   const tx = getTransactionFromPayload(payload);
   const reference: string | undefined = normalizeReference(tx?.reference);
   const transactionId: string | undefined = normalizeReference(tx?.id);
@@ -455,7 +461,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     return { subscriptionId: "", reason: "subscription_not_found_for_identity", count: candidates.length };
   };
 
-  if (!paymentMatched && !inferredSubscriptionId) {
+  if (paymentsCfg.autoReconcileUnlinkedPayments && !paymentMatched && !inferredSubscriptionId) {
     const inferred = await inferSubscriptionByCustomerIdentity();
     if (inferred.subscriptionId) {
       inferredSubscriptionId = inferred.subscriptionId;
@@ -529,6 +535,11 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
       ? (paidAtFromPayload ?? providerEventAt ?? event.receivedAt ?? now)
       : null;
   const computedFailedAt = nextStatus && nextStatus !== PaymentStatus.APPROVED && nextStatus !== PaymentStatus.PENDING ? now : null;
+
+  const shouldIgnoreUnlinked = !subscription && !paymentsCfg.acceptUnlinkedPayments;
+  const reconciliationForUnlinked = shouldIgnoreUnlinked
+    ? { status: "IGNORED_EXTERNAL", reason: "unlinked_payment", at: new Date().toISOString() }
+    : null;
 
   let paymentResolved = paymentMatched;
   if (!paymentResolved && !subscription) {
@@ -612,7 +623,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
             fallbackStatus === PaymentStatus.APPROVED || fallbackStatus === PaymentStatus.PENDING
               ? null
               : computedFailedAt,
-          providerResponse: { webhook: payload } as Prisma.InputJsonValue
+          providerResponse: { webhook: payload, ...(reconciliationForUnlinked ? { reconciliation: reconciliationForUnlinked } : {}) } as Prisma.InputJsonValue
         },
         update: {
           tenantId: tenantIdFallback,
@@ -629,7 +640,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
               : fallbackStatus === PaymentStatus.PENDING
                 ? undefined
                 : computedFailedAt,
-          providerResponse: { webhook: payload } as Prisma.InputJsonValue
+          providerResponse: { webhook: payload, ...(reconciliationForUnlinked ? { reconciliation: reconciliationForUnlinked } : {}) } as Prisma.InputJsonValue
         }
       });
     } else if (paymentLinkId) {
@@ -648,7 +659,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
             fallbackStatus === PaymentStatus.APPROVED || fallbackStatus === PaymentStatus.PENDING
               ? null
               : computedFailedAt,
-          providerResponse: { webhook: payload } as Prisma.InputJsonValue
+          providerResponse: { webhook: payload, ...(reconciliationForUnlinked ? { reconciliation: reconciliationForUnlinked } : {}) } as Prisma.InputJsonValue
         },
         update: {
           tenantId: tenantIdFallback,
@@ -664,7 +675,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
               : fallbackStatus === PaymentStatus.PENDING
                 ? undefined
                 : computedFailedAt,
-          providerResponse: { webhook: payload } as Prisma.InputJsonValue
+          providerResponse: { webhook: payload, ...(reconciliationForUnlinked ? { reconciliation: reconciliationForUnlinked } : {}) } as Prisma.InputJsonValue
         }
       });
     } else {
@@ -681,7 +692,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
             fallbackStatus === PaymentStatus.APPROVED || fallbackStatus === PaymentStatus.PENDING
               ? null
               : computedFailedAt,
-          providerResponse: { webhook: payload } as Prisma.InputJsonValue
+          providerResponse: { webhook: payload, ...(reconciliationForUnlinked ? { reconciliation: reconciliationForUnlinked } : {}) } as Prisma.InputJsonValue
         }
       });
     }
@@ -723,10 +734,10 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     canAssignSubscriptionCycleKey = !sameCycle || sameCycle.id === paymentResolved.id;
   }
 
-  const paymentRecord = paymentResolved
-    ? await db.payment.update({
-        where: { id: paymentResolved.id },
-        data: {
+	  const paymentRecord = paymentResolved
+	    ? await db.payment.update({
+	        where: { id: paymentResolved.id },
+	        data: {
           ...(tenantIdForPayment ? { tenantId: tenantIdForPayment } : {}),
           ...wompiTransactionUpdate,
           ...(nextStatus ? { status: nextStatus } : {}),
@@ -737,13 +748,17 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
               : nextStatus === PaymentStatus.PENDING
                 ? paymentResolved.failedAt ?? null
                 : paymentResolved.failedAt ?? computedFailedAt,
-          providerResponse:
-            paymentResolved.providerResponse && typeof paymentResolved.providerResponse === "object"
-              ? ({ ...(paymentResolved.providerResponse as Record<string, unknown>), webhook: payload } as Prisma.InputJsonValue)
-              : ({ webhook: payload } as Prisma.InputJsonValue),
-          amountInCents: amountInCents ?? paymentResolved.amountInCents,
-          currency: currency ?? paymentResolved.currency,
-          reference: reference ?? paymentResolved.reference,
+	          providerResponse:
+	            paymentResolved.providerResponse && typeof paymentResolved.providerResponse === "object"
+	              ? ({
+	                  ...(paymentResolved.providerResponse as Record<string, unknown>),
+	                  webhook: payload,
+	                  ...(reconciliationForUnlinked ? { reconciliation: reconciliationForUnlinked } : {})
+	                } as Prisma.InputJsonValue)
+	              : ({ webhook: payload, ...(reconciliationForUnlinked ? { reconciliation: reconciliationForUnlinked } : {}) } as Prisma.InputJsonValue),
+	          amountInCents: amountInCents ?? paymentResolved.amountInCents,
+	          currency: currency ?? paymentResolved.currency,
+	          reference: reference ?? paymentResolved.reference,
           ...(subscription
             ? {
                 subscriptionId: subscription.id,

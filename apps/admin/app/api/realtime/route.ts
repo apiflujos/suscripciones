@@ -175,8 +175,12 @@ async function collectEvents(apiBase: string, token: string, since: string) {
     const paymentStatus = String(w.paymentStatus || "").toUpperCase();
     const isApproved = paymentStatus === "APPROVED" && status === "PROCESSED";
     const isFailed = status === "FAILED" || paymentStatus === "DECLINED";
-    const customer = w.customerName || w.customerEmail || w.customerPhone || "Cliente";
     const ref = w.reference || w.wompiPaymentLinkId || w.wompiTransactionId || "";
+    const customer =
+      w.customerName ||
+      w.customerEmail ||
+      w.customerPhone ||
+      (ref ? `Ref ${String(ref).slice(0, 20)}${String(ref).length > 20 ? "…" : ""}` : "Cliente");
     const typeLabel = w.paymentType || "Pago";
     const planLabel = w.planName ? ` · ${w.planName}` : "";
     const paymentHref = buildAppLink("/payments", {

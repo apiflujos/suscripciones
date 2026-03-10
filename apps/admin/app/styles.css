@@ -6157,6 +6157,41 @@ textarea.input {
   outline-offset: 2px;
 }
 
+.toggleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.toggleControl {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.toggleInput {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.toggleInput:focus + .toggle {
+  outline: 2px solid rgba(14, 116, 144, 0.35);
+  outline-offset: 2px;
+}
+
+.toggleInput:checked + .toggle {
+  background: var(--primary);
+  border-color: rgba(0, 43, 91, 0.45);
+}
+
+.toggleInput:checked + .toggle::after {
+  transform: translateX(22px);
+}
+
 /* Multi-select */
 .multi-select {
   border: 1px solid var(--stroke);

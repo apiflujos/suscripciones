@@ -94,12 +94,33 @@ export async function listWebhookEvents(req: Request, res: Response) {
     }),
     withCount && !q ? prisma.webhookEvent.count({ where: baseWhere }) : Promise.resolve(null)
   ]);
+
+  const extractTx = (payload: unknown): Record<string, any> => {
+    if (!payload || typeof payload !== "object") return {};
+    const root = payload as Record<string, any>;
+    const data = root.data;
+    if (data && typeof data === "object") {
+      const tx = (data as any).transaction;
+      if (tx && typeof tx === "object") return tx as Record<string, any>;
+      // Some Wompi-like payloads use `data` as the transaction itself.
+      if ((data as any).id || (data as any).reference) return data as Record<string, any>;
+      const nested = (data as any).data;
+      if (nested && typeof nested === "object" && (((nested as any).id && typeof (nested as any).id !== "object") || (nested as any).reference)) {
+        return nested as Record<string, any>;
+      }
+    }
+    const direct = (root as any).transaction;
+    if (direct && typeof direct === "object") return direct as Record<string, any>;
+    return {};
+  };
+
   const paymentLinkIds = new Set<string>();
   const references = new Set<string>();
   const transactionIds = new Set<string>();
   for (const item of items) {
-    const tx: any = (item.payload as any)?.data?.transaction;
-    if (tx?.payment_link_id) paymentLinkIds.add(String(tx.payment_link_id));
+    const tx: any = extractTx(item.payload);
+    const linkId = tx?.payment_link_id ?? tx?.paymentLinkId ?? tx?.payment_link?.id ?? tx?.paymentLink?.id;
+    if (linkId) paymentLinkIds.add(String(linkId));
     if (tx?.reference) references.add(String(tx.reference));
     if (tx?.id) transactionIds.add(String(tx.id));
   }
@@ -137,8 +158,8 @@ export async function listWebhookEvents(req: Request, res: Response) {
   }
 
   function resolvePayment(item: any) {
-    const tx = (item.payload as any)?.data?.transaction || {};
-    const linkId = tx?.payment_link_id ? String(tx.payment_link_id) : "";
+    const tx = extractTx(item.payload);
+    const linkId = tx?.payment_link_id ? String(tx.payment_link_id) : tx?.paymentLinkId ? String(tx.paymentLinkId) : "";
     const reference = String(tx?.reference || "");
     const txId = tx?.id ? String(tx.id) : "";
     if (linkId && paymentByLink.has(linkId)) return paymentByLink.get(linkId) || null;
@@ -148,8 +169,8 @@ export async function listWebhookEvents(req: Request, res: Response) {
   }
 
   function paymentTypeFor(item: any) {
-    const tx = (item.payload as any)?.data?.transaction || {};
-    const linkId = tx?.payment_link_id ? String(tx.payment_link_id) : "";
+    const tx = extractTx(item.payload);
+    const linkId = tx?.payment_link_id ? String(tx.payment_link_id) : tx?.paymentLinkId ? String(tx.paymentLinkId) : "";
     const reference = String(tx?.reference || "");
     const payment = resolvePayment(item);
 
@@ -172,7 +193,8 @@ export async function listWebhookEvents(req: Request, res: Response) {
   }
 
   const normalized = items.map((item: any) => {
-    const tx = (item.payload as any)?.data?.transaction || {};
+    const tx = extractTx(item.payload);
+    const payloadData = (item.payload && typeof item.payload === "object" ? (item.payload as any).data : null) as any;
     const payment = resolvePayment(item);
     return {
       id: item.id,
@@ -184,8 +206,21 @@ export async function listWebhookEvents(req: Request, res: Response) {
       paymentType: paymentTypeFor(item),
       planName: planNameFor(item),
       customerName: payment?.customer?.name || tx?.customer_data?.full_name || tx?.customer_data?.name || tx?.customer_data?.fullName || null,
-      customerEmail: payment?.customer?.email || tx?.customer_email || tx?.customerEmail || tx?.customer_data?.email || null,
-      customerPhone: payment?.customer?.phone || tx?.customer_data?.phone_number || tx?.customer_data?.phoneNumber || null,
+      customerEmail:
+        payment?.customer?.email ||
+        tx?.customer_email ||
+        tx?.customerEmail ||
+        tx?.customer_data?.email ||
+        payloadData?.customer_email ||
+        payloadData?.customerEmail ||
+        null,
+      customerPhone:
+        payment?.customer?.phone ||
+        tx?.customer_data?.phone_number ||
+        tx?.customer_data?.phoneNumber ||
+        payloadData?.customer_phone ||
+        payloadData?.customerPhone ||
+        null,
       amountInCents: payment?.amountInCents != null ? Number(payment.amountInCents) : tx?.amount_in_cents ?? tx?.amountInCents ?? null,
       currency: payment?.currency || tx?.currency || null,
       reference: payment?.reference || tx?.reference || null,

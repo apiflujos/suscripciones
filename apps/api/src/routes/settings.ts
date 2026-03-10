@@ -59,6 +59,13 @@ const autoDebitUpdateSchema = z.object({
   maxRetries: z.coerce.number().int().min(0).max(20).optional()
 });
 
+const paymentsConfigUpdateSchema = z.object({
+  autoReconcileUnlinkedPayments: z.union([z.boolean(), z.string()]).optional(),
+  acceptUnlinkedPayments: z.union([z.boolean(), z.string()]).optional(),
+  notifyWhatsappForUnlinkedPayments: z.union([z.boolean(), z.string()]).optional(),
+  includeUnlinkedPaymentsInMetrics: z.union([z.boolean(), z.string()]).optional()
+});
+
 const chatwootUpdateSchema = z.object({
   environment: envSchema.optional(),
   activeEnv: envSchema.optional(),
@@ -173,7 +180,8 @@ settingsRouter.get("/", async (req, res) => {
       "API_BASE_URL_SANDBOX",
       "CHECKOUT_LINK_BASE_URL_SANDBOX",
       "REDIRECT_URL_SANDBOX",
-      "AUTO_DEBIT_CONFIG"
+      "AUTO_DEBIT_CONFIG",
+      "PAYMENTS_CONFIG"
     ]),
     getCredentialsBulk(CredentialProvider.SHOPIFY, ["FORWARD_URL", "FORWARD_SECRET", "FORWARD_ORIGIN", "FORWARD_RETRY_ENABLED", "FORWARD_RETRY_MINUTES"]),
     getCredentialsBulk(CredentialProvider.CHATWOOT, [
@@ -307,6 +315,19 @@ settingsRouter.get("/", async (req, res) => {
     maxRetries: toInt(autoDebitConfigRaw?.maxRetries, 0, 0, 20)
   };
 
+  let paymentsConfigRaw: any = {};
+  try {
+    paymentsConfigRaw = wompiCreds.get("PAYMENTS_CONFIG") ? JSON.parse(String(wompiCreds.get("PAYMENTS_CONFIG"))) : {};
+  } catch {
+    paymentsConfigRaw = {};
+  }
+  const paymentsConfig = {
+    autoReconcileUnlinkedPayments: toBool(paymentsConfigRaw?.autoReconcileUnlinkedPayments, true),
+    acceptUnlinkedPayments: toBool(paymentsConfigRaw?.acceptUnlinkedPayments, true),
+    notifyWhatsappForUnlinkedPayments: toBool(paymentsConfigRaw?.notifyWhatsappForUnlinkedPayments, true),
+    includeUnlinkedPaymentsInMetrics: toBool(paymentsConfigRaw?.includeUnlinkedPaymentsInMetrics, true)
+  };
+
   res.json({
     encryptionKeyConfigured,
     encryptionKeyValid,
@@ -322,6 +343,7 @@ settingsRouter.get("/", async (req, res) => {
       forwardRetryMinutes: shopifyForwardRetryMinutes
     },
     autoDebit: autoDebitConfig,
+    paymentsConfig,
     communications: {
       activeEnv: chatwootActiveEnv,
       production: commsProd,
@@ -537,6 +559,54 @@ settingsRouter.put("/auto-debit", async (req, res) => {
     retryEveryUnit: derived.retryEveryUnit,
     retryEveryMinutes,
     maxRetries
+  }).catch(() => {});
+  res.json({ ok: true });
+});
+
+settingsRouter.put("/payments-config", async (req, res) => {
+  const parsed = paymentsConfigUpdateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+
+  const currentRaw = (await getCredential(CredentialProvider.WOMPI, "PAYMENTS_CONFIG")) || "";
+  let current: any = {};
+  try {
+    current = currentRaw ? JSON.parse(currentRaw) : {};
+  } catch {
+    current = {};
+  }
+
+  const autoReconcileUnlinkedPayments =
+    parsed.data.autoReconcileUnlinkedPayments != null
+      ? toBool(parsed.data.autoReconcileUnlinkedPayments, true)
+      : toBool(current?.autoReconcileUnlinkedPayments, true);
+  const acceptUnlinkedPayments =
+    parsed.data.acceptUnlinkedPayments != null
+      ? toBool(parsed.data.acceptUnlinkedPayments, true)
+      : toBool(current?.acceptUnlinkedPayments, true);
+  const notifyWhatsappForUnlinkedPayments =
+    parsed.data.notifyWhatsappForUnlinkedPayments != null
+      ? toBool(parsed.data.notifyWhatsappForUnlinkedPayments, true)
+      : toBool(current?.notifyWhatsappForUnlinkedPayments, true);
+  const includeUnlinkedPaymentsInMetrics =
+    parsed.data.includeUnlinkedPaymentsInMetrics != null
+      ? toBool(parsed.data.includeUnlinkedPaymentsInMetrics, true)
+      : toBool(current?.includeUnlinkedPaymentsInMetrics, true);
+
+  await setCredential(
+    CredentialProvider.WOMPI,
+    "PAYMENTS_CONFIG",
+    JSON.stringify({
+      autoReconcileUnlinkedPayments,
+      acceptUnlinkedPayments,
+      notifyWhatsappForUnlinkedPayments,
+      includeUnlinkedPaymentsInMetrics
+    })
+  );
+  await systemLog(LogLevel.INFO, "configuracion.pagos", "Configuración de pagos actualizada", {
+    autoReconcileUnlinkedPayments,
+    acceptUnlinkedPayments,
+    notifyWhatsappForUnlinkedPayments,
+    includeUnlinkedPaymentsInMetrics
   }).catch(() => {});
   res.json({ ok: true });
 });
