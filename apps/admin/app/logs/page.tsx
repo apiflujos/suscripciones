@@ -168,7 +168,11 @@ function formatAmount(amountInCents?: number | null, currency?: string | null) {
 }
 
 function renderContactBlock(item: any) {
-  const tx = item?.providerResponse?.data?.transaction || item?.providerResponse?.transaction || {};
+  const tx =
+    item?.providerResponse?.data?.transaction ||
+    item?.providerResponse?.transaction ||
+    item?.providerResponse?.webhook?.data?.transaction ||
+    {};
   const txCustomer = tx?.customer_data || tx?.customerData || tx?.customer || {};
   const name =
     item?.customer?.name ||
