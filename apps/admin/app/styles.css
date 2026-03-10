@@ -53,14 +53,14 @@
   --standard-15: var(--apf-19);
 
   /* Tema base (claro) */
-  --brand-primary: #7b53b2;
-  --brand-primary-700: #5d3c8c;
-  --brand-primary-300: #c8b4e5;
-  --brand-primary-100: #f0e9f8;
+  --brand-primary: #6e55a6;
+  --brand-primary-700: #4f3a7d;
+  --brand-primary-300: #d2c6e7;
+  --brand-primary-100: #f5f1fb;
   --brand-ink: var(--apf-02);
   --brand-gray: var(--apf-15);
 
-  --bg: #faf8fc;
+  --bg: #fcfbfe;
   --panel: var(--apf-14);
   --text: var(--apf-01);
   --muted: var(--apf-15);
@@ -69,20 +69,20 @@
   --text-faint: var(--apf-16);
   --surface-contrast: var(--apf-02);
   --primary: var(--brand-primary);
-  --primary-soft: rgba(123, 83, 178, 0.1);
+  --primary-soft: rgba(110, 85, 166, 0.08);
   --accent: #138f7a;
   --accent-soft: rgba(19, 143, 122, 0.1);
-  --stroke: rgba(27, 16, 34, 0.12);
-  --stroke-strong: rgba(27, 16, 34, 0.18);
-  --shadow: 0 12px 26px rgba(30, 18, 52, 0.1);
-  --shadow-card: 0 16px 34px rgba(30, 18, 52, 0.09);
-  --shadow-shell: 0 24px 60px rgba(30, 18, 52, 0.12);
-  --surface-2: rgba(27, 16, 34, 0.02);
-  --surface-3: rgba(27, 16, 34, 0.05);
-  --surface-brand: linear-gradient(180deg, color-mix(in srgb, var(--panel) 97%, #f2edf8 3%) 0%, #ffffff 100%);
-  --surface-brand-strong: linear-gradient(180deg, color-mix(in srgb, var(--panel) 94%, #efe7f8 6%) 0%, color-mix(in srgb, var(--panel) 98%, #fdfcff 2%) 100%);
-  --row-alt: rgba(27, 16, 34, 0.02);
-  --row-hover: rgba(123, 83, 178, 0.07);
+  --stroke: rgba(27, 16, 34, 0.1);
+  --stroke-strong: rgba(27, 16, 34, 0.14);
+  --shadow: 0 10px 22px rgba(30, 18, 52, 0.08);
+  --shadow-card: 0 14px 30px rgba(30, 18, 52, 0.07);
+  --shadow-shell: 0 20px 52px rgba(30, 18, 52, 0.1);
+  --surface-2: rgba(27, 16, 34, 0.015);
+  --surface-3: rgba(27, 16, 34, 0.035);
+  --surface-brand: linear-gradient(180deg, color-mix(in srgb, var(--panel) 98%, #f4f0fa 2%) 0%, #ffffff 100%);
+  --surface-brand-strong: linear-gradient(180deg, color-mix(in srgb, var(--panel) 96%, #f1edf9 4%) 0%, color-mix(in srgb, var(--panel) 99%, #fdfcff 1%) 100%);
+  --row-alt: rgba(27, 16, 34, 0.015);
+  --row-hover: rgba(110, 85, 166, 0.04);
   --radius-md: 10px;
   --radius-lg: 12px;
   --control-height: 38px;
@@ -91,15 +91,15 @@
   --btn-padding-x: 14px;
   --btn-font: 12.5px;
   --btn-icon-size: 16px;
-  --btn-shadow: 0 12px 22px rgba(123, 83, 178, 0.14);
-  --btn-shadow-soft: 0 8px 18px rgba(27, 16, 34, 0.12);
-  --topbar-title: #6a52a0;
+  --btn-shadow: 0 10px 20px rgba(110, 85, 166, 0.12);
+  --btn-shadow-soft: 0 8px 16px rgba(27, 16, 34, 0.1);
+  --topbar-title: #6a5c92;
   --chart-axis: rgba(15, 23, 42, 0.16);
   --chart-track: rgba(15, 23, 42, 0.12);
   --chart-a: var(--apf-24);
   --chart-b: var(--apf-25);
   --chart-c: var(--apf-20);
-  --modal-backdrop: rgba(66, 44, 96, 0.16);
+  --modal-backdrop: rgba(66, 44, 96, 0.12);
   --modal-backdrop-blur: 10px;
 
   --status-success: var(--apf-26);
@@ -402,18 +402,18 @@ body {
 
 body {
   font-family: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  font-size: 12.5px;
+  font-size: 12px;
   background:
-    radial-gradient(1200px 540px at 10% -12%, color-mix(in srgb, var(--primary-soft) 46%, transparent) 0%, transparent 56%),
-    radial-gradient(920px 420px at 100% 0%, color-mix(in srgb, var(--accent-soft) 52%, transparent) 0%, transparent 50%),
+    radial-gradient(1200px 540px at 10% -12%, color-mix(in srgb, var(--primary-soft) 30%, transparent) 0%, transparent 56%),
+    radial-gradient(920px 420px at 100% 0%, color-mix(in srgb, var(--accent-soft) 36%, transparent) 0%, transparent 50%),
     linear-gradient(180deg, color-mix(in srgb, var(--bg) 98%, white 2%) 0%, var(--bg) 100%);
   color: var(--text);
 }
 
 .authBody {
   background:
-    radial-gradient(900px 360px at 50% -120px, rgba(123, 83, 178, 0.16), rgba(123, 83, 178, 0) 60%),
-    radial-gradient(700px 320px at 20% 0, rgba(19, 143, 122, 0.08), rgba(19, 143, 122, 0) 55%),
+    radial-gradient(900px 360px at 50% -120px, rgba(110, 85, 166, 0.12), rgba(110, 85, 166, 0) 60%),
+    radial-gradient(700px 320px at 20% 0, rgba(19, 143, 122, 0.06), rgba(19, 143, 122, 0) 55%),
     var(--bg);
 }
 
@@ -5620,9 +5620,9 @@ textarea.input {
   border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--stroke-strong) 78%, transparent);
   box-shadow: 0 10px 24px rgba(30, 18, 52, 0.08);
-  padding: 8px 10px;
+  padding: 6px 8px;
   display: grid;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
 }
 
@@ -5645,6 +5645,13 @@ textarea.input {
   font-size: 9px;
   color: var(--text-faint);
   letter-spacing: 0.02em;
+}
+
+.billing-type-strip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .billing-header-right {
@@ -5748,15 +5755,9 @@ textarea.input {
   width: auto;
 }
 
-.billing-body-left {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto;
-  gap: 6px 12px;
-  align-items: center;
-}
-
-.billing-type-block,
-.billing-cutoff-block {
+.billing-cutoff-block,
+.billing-customer-block,
+.billing-product-block {
   display: grid;
   gap: 3px;
   align-content: start;
@@ -5771,9 +5772,9 @@ textarea.input {
 }
 
 .billing-grid-info.billing-grid-subscription {
-  grid-template-columns: minmax(0, 1.5fr) minmax(180px, 0.8fr) minmax(200px, 0.74fr);
-  gap: 8px 12px;
-  align-items: start;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(180px, 0.8fr);
+  gap: 6px 10px;
+  align-items: center;
 }
 
 .billing-grid-info > div {
@@ -5792,7 +5793,9 @@ textarea.input {
 .billing-grid-info > .billing-body-left,
 .billing-grid-info > .billing-cutoff-block,
 .billing-grid-info > .billing-cost-panel,
-.billing-grid-info > .billing-type-block {
+.billing-grid-info > .billing-type-block,
+.billing-grid-info > .billing-customer-block,
+.billing-grid-info > .billing-product-block {
   display: grid;
   gap: 3px;
   align-content: start;
@@ -5822,9 +5825,9 @@ textarea.input {
   border: 1px solid color-mix(in srgb, var(--stroke) 80%, transparent);
   border-radius: 9px;
   background: color-mix(in srgb, var(--panel) 90%, var(--primary-soft) 10%);
-  padding: 6px 8px;
+  padding: 4px 6px;
   display: grid;
-  gap: 5px;
+  gap: 4px;
   min-width: 0;
   text-align: left;
 }
@@ -5838,7 +5841,7 @@ textarea.input {
 
 .billing-cost-total {
   color: var(--primary);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 800;
   line-height: 1.1;
   text-align: left;
@@ -5853,21 +5856,28 @@ textarea.input {
 
 .billing-cost-inline {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   flex-wrap: wrap;
 }
 
 .billing-cost-chip {
   display: inline-flex;
   align-items: center;
-  min-height: 24px;
-  padding: 0 8px;
+  min-height: 22px;
+  padding: 0 6px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--surface-2) 80%, white 20%);
   border: 1px solid color-mix(in srgb, var(--stroke) 75%, transparent);
   color: var(--text-soft);
   font-size: 10px;
   font-weight: 600;
+}
+
+.billing-cost-panel-full {
+  display: grid;
+  gap: 4px;
+  padding-top: 4px;
+  border-top: 1px solid color-mix(in srgb, var(--stroke) 86%, transparent);
 }
 
 .billing-actions {
@@ -8753,10 +8763,6 @@ body.is-global-loading {
   .billing-grid-info.billing-grid-subscription {
     grid-template-columns: 1fr 1fr;
   }
-  .billing-body-left {
-    grid-template-columns: 1fr 1fr;
-    align-items: start;
-  }
 }
 
 @media (max-width: 640px) {
@@ -8773,9 +8779,6 @@ body.is-global-loading {
   .billing-header {
     flex-direction: column;
     align-items: flex-start;
-  }
-  .billing-body-left {
-    grid-template-columns: 1fr;
   }
   .billing-header-meta-grid {
     flex-wrap: wrap;
