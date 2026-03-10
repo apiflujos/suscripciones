@@ -76,6 +76,7 @@ type ChatwootInbox = {
 
 export function ProductsTable({
   items,
+  view = "cards",
   csrfToken,
   deleteProductAction,
   tenants,
@@ -87,6 +88,7 @@ export function ProductsTable({
   returnTo
 }: {
   items: ProductRow[];
+  view?: "cards" | "list";
   csrfToken: string;
   deleteProductAction: (formData: FormData) => void | Promise<void>;
   tenants: Array<{ id: string; name: string }>;
@@ -515,33 +517,99 @@ export function ProductsTable({
     return channel ? `${name} · ${channel}` : name;
   }
 
+  const renderProductCard = (p: ProductRow) => (
+    <div className="product-card">
+      <div className="product-img">
+        {p.imageUrl ? <img src={p.imageUrl} alt={p.name} /> : <span>📦</span>}
+      </div>
+      <div className="product-body">
+        <div className="product-name">{p.name}</div>
+        <div className="product-meta">
+          <span className="product-sku">{p.sku || "SKU —"}</span>
+          <span>·</span>
+          <span>{p.kind === "SERVICE" ? "Servicio" : "Producto"}</span>
+        </div>
+        <div className="product-price">{formatMoneyFromCents(p.basePriceInCents, String(p.currency || DEFAULT_CURRENCY))}</div>
+        <div className="product-stock">Activas: {Number(p.activeSubscriptions || 0)}</div>
+        <div className="product-badges">
+          <span className={`pill pill-sm ${String(p.collectionMode || "").toUpperCase() === "AUTO_DEBIT" ? "pill-mode-debit" : "pill-mode-link"}`}>
+            {getCollectionModeLabel(p.collectionMode)}
+          </span>
+          {p.tenantName ? <span className="pill pill-sm pill-muted">{p.tenantName}</span> : null}
+          <span className="pill pill-sm pill-soft">Recurrencia: {p.intervalUnit ? formatRecurrence(p.intervalUnit, p.intervalCount) : "—"}</span>
+        </div>
+        <div className="product-actions">
+          <div className="product-actions-left">
+            <button className="ghost btn-compact btn-send btn-noicon" type="button" data-modal="true" data-loader="off" onClick={() => openSendModal(p)}>
+              Enviar
+            </button>
+            <button className="ghost btn-compact btn-green btn-create btn-noicon" type="button" data-modal="true" data-loader="off" onClick={() => openPlanModal(p)}>
+              Crear suscripción
+            </button>
+          </div>
+          <div className="product-actions-right">
+            <button
+              className="ghost btn-compact btn-history btn-icon-only"
+              type="button"
+              data-modal="true"
+              data-loader="off"
+              onClick={() => openTransactions(p)}
+              aria-label="Historial de transacciones"
+              title="Historial de transacciones"
+            />
+            <button
+              className="ghost btn-compact btn-edit btn-icon-only"
+              type="button"
+              data-modal="true"
+              data-loader="off"
+              onClick={() => openEditor(p)}
+              aria-label="Editar"
+              title="Editar"
+            />
+            <DeleteProductButton action={deleteProductAction} csrfToken={csrfToken} productId={p.id} tenantId={String(p.tenantId || "")} returnTo={returnTo} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <>
-      <div className="product-grid" aria-label="Listado de productos y servicios">
-        {items.map((p) => (
-          <div className="product-card" key={p.id}>
-            <div className="product-header">
-              <div className="product-title-row">
-                <div className="product-thumb">
-                  {p.imageUrl ? <img src={p.imageUrl} alt={p.name} /> : <span>📦</span>}
-                </div>
-              <div className="product-title">
+      {view === "list" ? (
+        <div className="product-list">
+          <div className="product-list-header">
+            <span>Producto</span>
+            <span>Precio</span>
+            <span>Recurrencia</span>
+            <span>Suscripciones</span>
+            <span>Acciones</span>
+          </div>
+          {items.map((p) => (
+            <div className="product-list-row" key={p.id}>
+              <div className="product-list-cell">
                 <div className="product-name">{p.name}</div>
-                <div className="product-sub">
+                <div className="product-meta">
                   <span className="product-sku">{p.sku || "SKU —"}</span>
                   <span>·</span>
                   <span>{p.kind === "SERVICE" ? "Servicio" : "Producto"}</span>
                 </div>
-                <div className="product-badges">
-                  <span className={`pill pill-sm ${String(p.collectionMode || "").toUpperCase() === "AUTO_DEBIT" ? "pill-mode-debit" : "pill-mode-link"}`}>
-                    {getCollectionModeLabel(p.collectionMode)}
-                  </span>
-                  {p.tenantName ? <span className="pill pill-sm pill-muted">{p.tenantName}</span> : null}
-                  <span className="pill pill-sm pill-soft">Activas: {Number(p.activeSubscriptions || 0)}</span>
-                </div>
               </div>
-            </div>
-              <div className="product-header-actions">
+              <div className="product-list-cell">
+                <div className="product-price">{formatMoneyFromCents(p.basePriceInCents, String(p.currency || DEFAULT_CURRENCY))}</div>
+              </div>
+              <div className="product-list-cell">
+                <div className="product-stock">{p.intervalUnit ? formatRecurrence(p.intervalUnit, p.intervalCount) : "—"}</div>
+              </div>
+              <div className="product-list-cell">
+                <div className="product-stock">Activas: {Number(p.activeSubscriptions || 0)}</div>
+              </div>
+              <div className="product-list-cell product-list-actions">
+                <button className="ghost btn-compact btn-send btn-noicon" type="button" data-modal="true" data-loader="off" onClick={() => openSendModal(p)}>
+                  Enviar
+                </button>
+                <button className="ghost btn-compact btn-green btn-create btn-noicon" type="button" data-modal="true" data-loader="off" onClick={() => openPlanModal(p)}>
+                  Crear suscripción
+                </button>
                 <button
                   className="ghost btn-compact btn-history btn-icon-only"
                   type="button"
@@ -563,56 +631,17 @@ export function ProductsTable({
                 <DeleteProductButton action={deleteProductAction} csrfToken={csrfToken} productId={p.id} tenantId={String(p.tenantId || "")} returnTo={returnTo} />
               </div>
             </div>
-            <div className="product-info">
-              <div>
-                <span>Precio</span>
-                <strong>{formatMoneyFromCents(p.basePriceInCents, String(p.currency || DEFAULT_CURRENCY))}</strong>
-              </div>
-              <div>
-                <span>IVA</span>
-                <strong>{p.taxPercent ? `${p.taxPercent}%` : "—"}</strong>
-              </div>
-              <div>
-                <span>Descuento</span>
-                <strong>
-                  {p.discountType === "PERCENT"
-                    ? `${p.discountPercent || 0}%`
-                    : p.discountType === "FIXED"
-                      ? formatMoneyFromCents(p.discountValueInCents || 0, String(p.currency || DEFAULT_CURRENCY))
-                      : "—"}
-                </strong>
-              </div>
-              <div>
-                <span>Variantes</span>
-                <strong>{(p.variants || []).length ? `${(p.variants || []).length}` : "—"}</strong>
-              </div>
-              <div>
-                <span>Recurrencia</span>
-                <strong>
-                  {p.intervalUnit ? formatRecurrence(p.intervalUnit, p.intervalCount) : "—"}
-                </strong>
-              </div>
-              <div>
-                <span>Suscripciones activas</span>
-                <strong>{Number(p.activeSubscriptions || 0)}</strong>
-              </div>
-              <div>
-                <span>Tipo de cobro</span>
-                <strong>{getCollectionModeLabel(p.collectionMode)}</strong>
-              </div>
-            </div>
-            <div className="product-footer-actions">
-              <button className="ghost btn-compact btn-send btn-noicon" type="button" data-modal="true" data-loader="off" onClick={() => openSendModal(p)}>
-                Enviar
-              </button>
-              <button className="ghost btn-compact btn-green btn-create btn-noicon" type="button" data-modal="true" data-loader="off" onClick={() => openPlanModal(p)}>
-                Crear suscripción
-              </button>
-            </div>
-          </div>
-        ))}
-        {items.length === 0 ? <div className="contact-empty">Sin productos/servicios.</div> : null}
-      </div>
+          ))}
+          {items.length === 0 ? <div className="contact-empty">Sin productos/servicios.</div> : null}
+        </div>
+      ) : (
+        <div className="product-grid" aria-label="Listado de productos y servicios">
+          {items.map((p) => (
+            <div key={p.id}>{renderProductCard(p)}</div>
+          ))}
+          {items.length === 0 ? <div className="contact-empty">Sin productos/servicios.</div> : null}
+        </div>
+      )}
 
       {planModalOpen && planModalProduct ? (
         <div className="modal-backdrop">

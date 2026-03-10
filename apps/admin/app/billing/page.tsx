@@ -238,6 +238,8 @@ export default async function BillingPage({
   const estado = typeof sp.estado === "string" ? sp.estado : "todos";
   const q = typeof sp.q === "string" ? sp.q : "";
   const ordenar = typeof sp.ordenar === "string" ? sp.ordenar : "vencimiento";
+  const vistaRaw = typeof sp.vista === "string" ? sp.vista : "cards";
+  const vista = ["cards", "lista", "kanban"].includes(vistaRaw) ? vistaRaw : "cards";
   const viewId = typeof sp.viewId === "string" ? sp.viewId : "";
   const filters = typeof sp.filters === "string" ? sp.filters : "";
   const returnTo = `/billing${tenantId || q || tipo !== "todos" || estado !== "todos" || ordenar !== "vencimiento" || viewId || filters || (Number.isFinite(page) && page > 1)
@@ -247,6 +249,7 @@ export default async function BillingPage({
         ...(tipo ? { tipo } : {}),
         ...(estado ? { estado } : {}),
         ...(ordenar ? { ordenar } : {}),
+        ...(vista ? { vista } : {}),
         ...(viewId ? { viewId } : {}),
         ...(filters ? { filters } : {}),
         ...(Number.isFinite(page) && page > 1 ? { page: String(page) } : {})
@@ -465,8 +468,320 @@ export default async function BillingPage({
     ...(tipo ? { tipo } : {}),
     ...(estado ? { estado } : {}),
     ...(ordenar ? { ordenar } : {}),
+    ...(vista ? { vista } : {}),
     ...(viewId ? { viewId } : {}),
     ...(filters ? { filters } : {})
+  };
+
+  const renderBillingCard = (r: any) => {
+    const isPlan = r.mode !== "AUTO_DEBIT";
+    const paymentStatus = getPaymentStatusLabel({
+      status: r.status,
+      paidAt: r.pagoAt,
+      periodStartAt: r.periodoInicioAt,
+      periodEndAt: r.periodoFinAt
+    });
+    const subscriptionStatus = getSubscriptionStatusLabel(r.status);
+    const subscriptionBadge = `Suscripción ${subscriptionStatus.toLowerCase()}`;
+    const planLinkStatus = getPlanLinkStatus(r.lastPaymentLink, r.pagoAt);
+    const rowCheckoutUrl = checkoutCustomerId && checkoutCustomerId === r.customerId ? checkoutUrl : "";
+    const latestCheckoutUrl = rowCheckoutUrl || String(r.lastPaymentLink?.checkoutUrl || "").trim();
+    const rowTokenUrl = checkoutCustomerId && checkoutCustomerId === r.customerId ? tokenUrl : "";
+    const sentForRow = central === "sent" && checkoutCustomerId && checkoutCustomerId === r.customerId;
+    const chargedForRow = chargeStatus === "ok" && actionSubscriptionId === r.id;
+    const cutoffForRow = cutoffScheduled && actionSubscriptionId === r.id;
+    const tenantsUpdatedForRow = tenantsUpdated && actionSubscriptionId === r.id;
+    const canSendToken = r.mode === "AUTO_DEBIT" && Boolean(subscriptionBaseUrl);
+    const cutoffDueAt = r.vencimientoAt ? new Date(r.vencimientoAt) : null;
+    const isCutoffOverdue = Boolean(cutoffDueAt && !Number.isNaN(cutoffDueAt.getTime()) && cutoffDueAt.getTime() <= Date.now());
+    const manualChargeEnabled = Boolean(autoDebitSettings?.allowManualCharge ?? true);
+    const canChargeNow = manualChargeEnabled && r.mode === "AUTO_DEBIT" && (r.status === "PAST_DUE" || isCutoffOverdue);
+    const duplicateKey = `${r.customerId}:${r.planId}`;
+    const duplicateCount = duplicateCountByKey.get(duplicateKey) || 1;
+    const keepRowId = duplicateKeepByKey.get(duplicateKey)?.id || r.id;
+    const paymentBadgeStatus = paymentStatus === "Pagado" ? "Al día" : paymentStatus;
+    const planBadgeStatus = planLinkStatus === "Pagado" ? "Al día" : planLinkStatus;
+    return (
+      <div className="billing-card">
+        <div className="billing-header">
+          <div className="billing-badges billing-badges-header">
+            <div className="billing-header-meta-grid">
+              <div className="billing-header-meta-item">
+                <span className="billing-header-label">Canal de ventas</span>
+                <BillingTenantModalButton
+                  triggerId={`tenant-modal-open-${r.id}`}
+                  triggerLabel={r.tenantName || "Sin canal"}
+                  triggerClassName="ghost btn-compact btn-noicon"
+                  subscriptionId={r.id}
+                  scopeTenantId={r.tenantId || ""}
+                  tenantIds={Array.isArray(r.tenantIds) ? r.tenantIds.map(String) : []}
+                  tenants={tenants}
+                  csrfToken={csrfToken}
+                  returnTo={returnTo}
+                  action={updateSubscriptionTenants}
+                />
+              </div>
+
+              <div className="billing-header-meta-item billing-header-status-strip">
+                <span className="billing-header-label">Estados</span>
+                <div className="billing-status-line" role="group" aria-label="Estados">
+                  {!isPlan ? (
+                    <span className={`pill ${subscriptionStatus === "Activa" ? "pill-ok" : subscriptionStatus === "En mora" ? "pill-warn" : subscriptionStatus === "Suspendida" ? "pill-warn" : subscriptionStatus === "Cancelada" ? "pill-bad" : "pill-muted"}`}>
+                      {subscriptionBadge}
+                    </span>
+                  ) : null}
+                  <span className={`pill ${(isPlan ? planBadgeStatus : paymentBadgeStatus) === "Al día" ? "pill-ok" : (isPlan ? planBadgeStatus : paymentBadgeStatus) === "En mora" ? "pill-warn" : "pill-muted"}`}>
+                    Estado del pago: {isPlan ? planBadgeStatus : paymentBadgeStatus}
+                  </span>
+                  <span className={`pill ${r.customerTokenized ? "pill-ok" : "pill-bad"}`}>
+                    {r.customerTokenized ? "Tokenizada" : "Sin token"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="billing-header-right">
+            <div className="billing-header-actions">
+              {r.planId ? (
+                <ChangePlanButton
+                  subscriptionId={r.id}
+                  currentPlanId={r.planId}
+                  currentEndAt={r.vencimientoAt}
+                  currentShippingInCents={r.currentShippingInCents}
+                  currentRequiresShipping={r.currentRequiresShipping}
+                  currentPlanName={r.planName}
+                  currentPlanCurrency={r.moneda}
+                  plans={planOptions}
+                  csrfToken={csrfToken}
+                  returnTo={returnTo}
+                  tenantId={r.tenantId}
+                  action={changeSubscriptionPlan}
+                  iconOnly
+                />
+              ) : null}
+              <a
+                className="ghost btn-compact btn-history btn-icon-only"
+                href={`/customers?${new URLSearchParams({
+                  tx: r.customerId,
+                  ...(r.tenantId ? { tenantId: r.tenantId } : {})
+                }).toString()}`}
+                aria-label="Historial"
+                title="Historial"
+              />
+              <DeleteSubscriptionButton action={deleteSubscription} csrfToken={csrfToken} subscriptionId={r.id} tenantId={r.tenantId} returnTo={returnTo} />
+            </div>
+          </div>
+        </div>
+
+        <div className="billing-grid-info billing-grid-subscription">
+          <div className="billing-body-main">
+            <div className="billing-body-section">
+              <div className="billing-section-title">Datos personales</div>
+              <div className="billing-title">
+                <div className="billing-name">{r.customerName}</div>
+                <div className="billing-sub">
+                  {r.customerEmail || "—"} · {r.identificacion || "—"}
+                </div>
+              </div>
+            </div>
+            <div className="billing-body-section">
+              <div className="billing-section-title">Producto</div>
+              <div className="billing-product-row">
+                <div className="product-thumb billing-product-thumb">
+                  {r.planImageUrl ? <img src={r.planImageUrl} alt={r.planName} /> : <span className="billing-product-fallback">AP</span>}
+                </div>
+                <div className="billing-product-meta">
+                  <strong>{r.planName}</strong>
+                </div>
+              </div>
+            </div>
+            <div className="billing-body-section">
+              <div className="billing-section-title">Fecha de corte</div>
+              <AutoCutoffInlineForm
+                subscriptionId={r.id}
+                csrfToken={csrfToken}
+                returnTo={returnTo}
+                tenantId={r.tenantId}
+                currentEndAt={r.vencimientoAt}
+                action={scheduleCutoff}
+              />
+            </div>
+          </div>
+          <div className="billing-body-side">
+            <div className="billing-section-title">Tipo de suscripción</div>
+            <span className={`pill pill-sm ${isPlan ? "pill-mode-link" : "pill-mode-debit"}`}>
+              {isPlan ? "Suscripción link de pago" : "Débito automático"}
+            </span>
+
+            <div className="billing-cost-panel">
+              <span className="billing-cost-title">Totales</span>
+              <div className="billing-cost-box">
+                <div className="billing-cost-summary">
+                  <div className="billing-cost-total">{fmtMoney(r.totalInCents ?? r.montoInCents, r.moneda)}</div>
+                  <div className="billing-cost-period">{r.cada}</div>
+                </div>
+                <div className="billing-cost-inline">
+                  <span className="billing-cost-chip">Base {fmtMoney(r.valorBaseInCents ?? r.montoInCents, r.moneda)}</span>
+                  <span className="billing-cost-chip">
+                    Flete {r.currentShippingInCents > 0 ? fmtMoney(r.currentShippingInCents, r.moneda) : "Gratis"}
+                  </span>
+                </div>
+
+                {r.mode !== "AUTO_DEBIT" && latestCheckoutUrl ? (
+                  <div className="billing-payment-link-section">
+                    <div className="billing-payment-link-row">
+                      <a
+                        className="primary btn-compact btn-noicon billing-payment-link-btn is-compact"
+                        href={latestCheckoutUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Abrir link de pago
+                      </a>
+                      <CopyButton text={latestCheckoutUrl} label="⧉" copiedLabel="✓" />
+                    </div>
+                    <div className="field-hint billing-payment-link-hint">
+                      Link generado y listo para usar
+                    </div>
+                  </div>
+                ) : r.mode !== "AUTO_DEBIT" ? (
+                  <div className="billing-payment-link-section is-empty">
+                    <div className="field-hint billing-payment-link-hint is-empty">
+                      El link de pago se generará al crear la suscripción
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="billing-actions">
+          <div className="billing-actions-left">
+            {duplicateCount > 1 && keepRowId === r.id ? (
+              <MergeDuplicateSubscriptionsButton
+                action={mergeDuplicateSubscriptions}
+                csrfToken={csrfToken}
+                customerId={r.customerId}
+                planId={r.planId}
+                keepSubscriptionId={keepRowId}
+                tenantId={r.tenantId}
+                returnTo={returnTo}
+                duplicatesCount={duplicateCount}
+              />
+            ) : null}
+            {canChargeNow ? (
+              <form action={chargeSubscriptionNow}>
+                <input type="hidden" name="csrf" value={csrfToken} />
+                <input type="hidden" name="subscriptionId" value={r.id} />
+                {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
+                <button
+                  className="ghost btn-compact btn-noicon btn-blue btn-pay"
+                  type="submit"
+                  disabled={!r.customerTokenized}
+                  title={
+                    !r.customerTokenized
+                      ? "Primero debes guardar tarjeta (débito automático)"
+                      : isCutoffOverdue
+                        ? "Cobrar ahora (fecha de corte vencida)"
+                        : "Cobrar ahora"
+                  }
+                >
+                  Cobrar
+                </button>
+              </form>
+            ) : null}
+          </div>
+          <div className="billing-actions-right">
+            {r.mode !== "AUTO_DEBIT" ? (
+              <form action={sendCentralComPaymentLink}>
+                <input type="hidden" name="csrf" value={csrfToken} />
+                <input type="hidden" name="subscriptionId" value={r.id} />
+                <input type="hidden" name="customerId" value={r.customerId} />
+                <input type="hidden" name="returnTo" value={returnTo} />
+                {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
+                <button className="ghost btn-compact btn-noicon btn-send" type="submit" title="Enviar por CentralCom">
+                  Enviar link de pago
+                </button>
+              </form>
+            ) : (
+            <>
+              {canSendToken ? (
+                <form action={sendCentralComTokenizationLink}>
+                  <input type="hidden" name="csrf" value={csrfToken} />
+                  <input type="hidden" name="customerId" value={r.customerId} />
+                  <input type="hidden" name="planId" value={r.planId} />
+                  <input type="hidden" name="returnTo" value={returnTo} />
+                  {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
+                  <button className="ghost btn-compact btn-noicon btn-send" type="submit" title="Enviar por CentralCom">
+                    Guardar tarjeta
+                  </button>
+                </form>
+              ) : (
+                <a className="ghost btn-compact btn-amber btn-create" href="/settings?tab=checkout-publico">
+                  Crear checkout
+                </a>
+              )}
+            </>
+          )}
+            {r.status === "SUSPENDED" ? (
+              <form action={resumeSubscription}>
+                <input type="hidden" name="csrf" value={csrfToken} />
+                <input type="hidden" name="subscriptionId" value={r.id} />
+                {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
+                <button className="ghost btn-compact btn-noicon btn-green" type="submit">
+                  Reanudar
+                </button>
+              </form>
+            ) : r.status === "CANCELED" ? (
+              <form action={activateSubscription}>
+                <input type="hidden" name="csrf" value={csrfToken} />
+                <input type="hidden" name="subscriptionId" value={r.id} />
+                {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
+                <button className="ghost btn-compact btn-noicon btn-green" type="submit">
+                  Activar
+                </button>
+              </form>
+            ) : (
+              <>
+                <form action={cancelSubscription}>
+                  <input type="hidden" name="csrf" value={csrfToken} />
+                  <input type="hidden" name="subscriptionId" value={r.id} />
+                  {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
+                  <button className="ghost btn-compact btn-noicon btn-red" type="submit">
+                    Cancelar
+                  </button>
+                </form>
+                <form action={suspendSubscription}>
+                  <input type="hidden" name="csrf" value={csrfToken} />
+                  <input type="hidden" name="subscriptionId" value={r.id} />
+                  {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
+                  <button className="ghost btn-compact btn-noicon btn-amber" type="submit">
+                    Suspender
+                  </button>
+                </form>
+              </>
+            )}
+          </div>
+          {(sentForRow || rowTokenUrl || chargedForRow || cutoffForRow) ? (
+            <div className="field-hint billing-action-feedback">
+              {sentForRow ? <span>Enviado.</span> : null}
+              {chargedForRow ? <span>Cobro manual enviado.</span> : null}
+              {cutoffForRow ? <span>Fecha de corte actualizada.</span> : null}
+              {rowTokenUrl ? (
+                <>
+                  <a className="ghost btn-compact btn-open" href={rowTokenUrl} target="_blank" rel="noreferrer">
+                    Abrir checkout
+                  </a>
+                  <CopyButton text={rowTokenUrl} />
+                </>
+              ) : null}
+            </div>
+          ) : null}
+          {tenantsUpdatedForRow ? <div className="field-hint">Canales actualizados.</div> : null}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -510,6 +825,7 @@ export default async function BillingPage({
                     {tipo ? <input type="hidden" name="tipo" value={tipo} /> : null}
                     {estado ? <input type="hidden" name="estado" value={estado} /> : null}
                     {ordenar ? <input type="hidden" name="ordenar" value={ordenar} /> : null}
+                    {vista ? <input type="hidden" name="vista" value={vista} /> : null}
                     {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
                     {filters ? <input type="hidden" name="filters" value={filters} /> : null}
                     <input
@@ -536,6 +852,26 @@ export default async function BillingPage({
                       }}
                       compactInline
                     />
+                    <div className="billing-view-switch" role="group" aria-label="Vista de suscripciones">
+                      <a
+                        className={`pill pill-sm ${vista === "cards" ? "pill-ok" : "pill-muted"}`}
+                        href={`/billing?${new URLSearchParams({ ...paginationBase, vista: "cards" }).toString()}`}
+                      >
+                        Tarjetas
+                      </a>
+                      <a
+                        className={`pill pill-sm ${vista === "lista" ? "pill-ok" : "pill-muted"}`}
+                        href={`/billing?${new URLSearchParams({ ...paginationBase, vista: "lista" }).toString()}`}
+                      >
+                        Lista
+                      </a>
+                      <a
+                        className={`pill pill-sm ${vista === "kanban" ? "pill-ok" : "pill-muted"}`}
+                        href={`/billing?${new URLSearchParams({ ...paginationBase, vista: "kanban" }).toString()}`}
+                      >
+                        Kanban
+                      </a>
+                    </div>
                     <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
                   </div>
                 </div>
@@ -560,320 +896,117 @@ export default async function BillingPage({
             createPlanAndSubscription={createPlanAndSubscription}
           />
 
-          <div className="billing-grid">
-            {rows.map((r) => {
-              const isPlan = r.mode !== "AUTO_DEBIT";
-              const paymentStatus = getPaymentStatusLabel({
-                status: r.status,
-                paidAt: r.pagoAt,
-                periodStartAt: r.periodoInicioAt,
-                periodEndAt: r.periodoFinAt
-              });
-              const subscriptionStatus = getSubscriptionStatusLabel(r.status);
-              const subscriptionBadge = `Suscripción ${subscriptionStatus.toLowerCase()}`;
-              const planLinkStatus = getPlanLinkStatus(r.lastPaymentLink, r.pagoAt);
-              const rowCheckoutUrl = checkoutCustomerId && checkoutCustomerId === r.customerId ? checkoutUrl : "";
-              const latestCheckoutUrl = rowCheckoutUrl || String(r.lastPaymentLink?.checkoutUrl || "").trim();
-              const rowTokenUrl = checkoutCustomerId && checkoutCustomerId === r.customerId ? tokenUrl : "";
-              const sentForRow = central === "sent" && checkoutCustomerId && checkoutCustomerId === r.customerId;
-              const chargedForRow = chargeStatus === "ok" && actionSubscriptionId === r.id;
-              const cutoffForRow = cutoffScheduled && actionSubscriptionId === r.id;
-              const tenantsUpdatedForRow = tenantsUpdated && actionSubscriptionId === r.id;
-              const canSendToken = r.mode === "AUTO_DEBIT" && Boolean(subscriptionBaseUrl);
-              const cutoffDueAt = r.vencimientoAt ? new Date(r.vencimientoAt) : null;
-              const isCutoffOverdue = Boolean(cutoffDueAt && !Number.isNaN(cutoffDueAt.getTime()) && cutoffDueAt.getTime() <= Date.now());
-              const manualChargeEnabled = Boolean(autoDebitSettings?.allowManualCharge ?? true);
-              const canChargeNow = manualChargeEnabled && r.mode === "AUTO_DEBIT" && (r.status === "PAST_DUE" || isCutoffOverdue);
-              const duplicateKey = `${r.customerId}:${r.planId}`;
-              const duplicateCount = duplicateCountByKey.get(duplicateKey) || 1;
-              const keepRowId = duplicateKeepByKey.get(duplicateKey)?.id || r.id;
-              const paymentBadgeStatus = paymentStatus === "Pagado" ? "Al día" : paymentStatus;
-              const planBadgeStatus = planLinkStatus === "Pagado" ? "Al día" : planLinkStatus;
-              return (
-                <div className="billing-card" key={r.id}>
-                  <div className="billing-header">
-                    <div className="billing-badges billing-badges-header">
-                      <div className="billing-header-meta-grid">
-                        <div className="billing-header-meta-item">
-                          <span className="billing-header-label">Canal de ventas</span>
-                          <BillingTenantModalButton
-                            triggerId={`tenant-modal-open-${r.id}`}
-                            triggerLabel={r.tenantName || "Sin canal"}
-                            triggerClassName="ghost btn-compact btn-noicon"
-                            subscriptionId={r.id}
-                            scopeTenantId={r.tenantId || ""}
-                            tenantIds={Array.isArray(r.tenantIds) ? r.tenantIds.map(String) : []}
-                            tenants={tenants}
-                            csrfToken={csrfToken}
-                            returnTo={returnTo}
-                            action={updateSubscriptionTenants}
-                          />
-                        </div>
-
-                        <div className="billing-header-meta-item billing-header-status-strip">
-                          <span className="billing-header-label">Estados</span>
-                          <div className="billing-status-line" role="group" aria-label="Estados">
-                            {!isPlan ? (
-                              <span className={`pill ${subscriptionStatus === "Activa" ? "pill-ok" : subscriptionStatus === "En mora" ? "pill-warn" : subscriptionStatus === "Suspendida" ? "pill-warn" : subscriptionStatus === "Cancelada" ? "pill-bad" : "pill-muted"}`}>
-                                {subscriptionBadge}
-                              </span>
-                            ) : null}
-                            <span className={`pill ${(isPlan ? planBadgeStatus : paymentBadgeStatus) === "Al día" ? "pill-ok" : (isPlan ? planBadgeStatus : paymentBadgeStatus) === "En mora" ? "pill-warn" : "pill-muted"}`}>
-                              Estado del pago: {isPlan ? planBadgeStatus : paymentBadgeStatus}
-                            </span>
-                            <span className={`pill ${r.customerTokenized ? "pill-ok" : "pill-bad"}`}>
-                              {r.customerTokenized ? "Tokenizada" : "Sin token"}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
+          {vista === "cards" ? (
+            <div className="billing-grid">
+              {rows.map((r) => (
+                <div key={r.id}>{renderBillingCard(r)}</div>
+              ))}
+              {rows.length === 0 ? <div className="contact-empty">Sin resultados.</div> : null}
+            </div>
+          ) : vista === "lista" ? (
+            <div className="billing-list">
+              <div className="billing-list-header">
+                <span>Datos personales</span>
+                <span>Producto</span>
+                <span>Fecha de corte</span>
+                <span>Estado</span>
+                <span>Acciones</span>
+              </div>
+              {rows.map((r) => {
+                const paymentStatus = getPaymentStatusLabel({
+                  status: r.status,
+                  paidAt: r.pagoAt,
+                  periodStartAt: r.periodoInicioAt,
+                  periodEndAt: r.periodoFinAt
+                });
+                const contactHref = `/customers?${new URLSearchParams({
+                  tx: r.customerId,
+                  ...(r.tenantId ? { tenantId: r.tenantId } : {})
+                }).toString()}`;
+                const productHref = `/products?${new URLSearchParams({
+                  q: r.planName || "",
+                  ...(r.tenantId ? { tenantId: r.tenantId } : {})
+                }).toString()}`;
+                return (
+                  <div className="billing-list-row" key={`list-${r.id}`}>
+                    <div className="billing-list-cell billing-list-person">
+                      <a className="billing-list-name" href={contactHref}>{r.customerName}</a>
+                      <div className="billing-list-sub">{r.customerEmail || "—"} · {r.identificacion || "—"}</div>
                     </div>
-                    <div className="billing-header-right">
-                      <div className="billing-header-actions">
-                        {r.planId ? (
-                          <ChangePlanButton
-                            subscriptionId={r.id}
-                            currentPlanId={r.planId}
-                            currentEndAt={r.vencimientoAt}
-                            currentShippingInCents={r.currentShippingInCents}
-                            currentRequiresShipping={r.currentRequiresShipping}
-                            currentPlanName={r.planName}
-                            currentPlanCurrency={r.moneda}
-                            plans={planOptions}
-                            csrfToken={csrfToken}
-                            returnTo={returnTo}
-                            tenantId={r.tenantId}
-                            action={changeSubscriptionPlan}
-                            iconOnly
-                          />
-                        ) : null}
-                        <a
-                          className="ghost btn-compact btn-history btn-icon-only"
-                          href={`/customers?${new URLSearchParams({
-                            tx: r.customerId,
-                            ...(r.tenantId ? { tenantId: r.tenantId } : {})
-                          }).toString()}`}
-                          aria-label="Historial"
-                          title="Historial"
-                        />
-                        <DeleteSubscriptionButton action={deleteSubscription} csrfToken={csrfToken} subscriptionId={r.id} tenantId={r.tenantId} returnTo={returnTo} />
-                      </div>
+                    <div className="billing-list-cell billing-list-product">
+                      <a className="billing-list-link" href={productHref}>{r.planName || "—"}</a>
+                      <div className="billing-list-sub">{r.tipoTx || "—"}</div>
                     </div>
-                  </div>
-
-                  <div className="billing-grid-info billing-grid-subscription">
-                    <div className="billing-body-main">
-                      <div className="billing-body-section">
-                        <div className="billing-section-title">Datos personales</div>
-                        <div className="billing-title">
-                          <div className="billing-name">{r.customerName}</div>
-                          <div className="billing-sub">
-                            {r.customerEmail || "—"} · {r.identificacion || "—"}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="billing-body-section">
-                        <div className="billing-section-title">Producto</div>
-                        <div className="billing-product-row">
-                          <div className="product-thumb billing-product-thumb">
-                            {r.planImageUrl ? <img src={r.planImageUrl} alt={r.planName} /> : <span className="billing-product-fallback">AP</span>}
-                          </div>
-                          <div className="billing-product-meta">
-                            <strong>{r.planName}</strong>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="billing-body-section">
-                        <div className="billing-section-title">Fecha de corte</div>
-                        <AutoCutoffInlineForm
-                          subscriptionId={r.id}
-                          csrfToken={csrfToken}
-                          returnTo={returnTo}
-                          tenantId={r.tenantId}
-                          currentEndAt={r.vencimientoAt}
-                          action={scheduleCutoff}
-                        />
-                      </div>
+                    <div className="billing-list-cell billing-list-cutoff">
+                      <LocalDateTime value={r.vencimientoAt} variant="short" />
                     </div>
-                    <div className="billing-body-side">
-                      <div className="billing-section-title">Tipo de suscripción</div>
-                      <span className={`pill pill-sm ${isPlan ? "pill-mode-link" : "pill-mode-debit"}`}>
-                        {isPlan ? "Suscripción link de pago" : "Débito automático"}
+                    <div className="billing-list-cell billing-list-status">
+                      <span className={`pill pill-sm ${paymentStatus === "Pagado" ? "pill-ok" : paymentStatus === "En mora" ? "pill-warn" : "pill-muted"}`}>
+                        {paymentStatus}
                       </span>
-
-                      <div className="billing-cost-panel">
-                        <span className="billing-cost-title">Totales</span>
-                        <div className="billing-cost-box">
-                          <div className="billing-cost-summary">
-                            <div className="billing-cost-total">{fmtMoney(r.totalInCents ?? r.montoInCents, r.moneda)}</div>
-                            <div className="billing-cost-period">{r.cada}</div>
-                          </div>
-                          <div className="billing-cost-inline">
-                            <span className="billing-cost-chip">Base {fmtMoney(r.valorBaseInCents ?? r.montoInCents, r.moneda)}</span>
-                            <span className="billing-cost-chip">
-                              Flete {r.currentShippingInCents > 0 ? fmtMoney(r.currentShippingInCents, r.moneda) : "Gratis"}
-                            </span>
-                          </div>
-
-                          {r.mode !== "AUTO_DEBIT" && latestCheckoutUrl ? (
-                            <div className="billing-payment-link-section">
-                              <div className="billing-payment-link-row">
-                                <a
-                                  className="primary btn-compact btn-noicon billing-payment-link-btn is-compact"
-                                  href={latestCheckoutUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                >
-                                  Abrir link de pago
-                                </a>
-                                <CopyButton text={latestCheckoutUrl} label="⧉" copiedLabel="✓" />
-                              </div>
-                              <div className="field-hint billing-payment-link-hint">
-                                Link generado y listo para usar
-                              </div>
-                            </div>
-                          ) : r.mode !== "AUTO_DEBIT" ? (
-                            <div className="billing-payment-link-section is-empty">
-                              <div className="field-hint billing-payment-link-hint is-empty">
-                                El link de pago se generará al crear la suscripción
-                              </div>
-                            </div>
-                          ) : null}
+                    </div>
+                    <div className="billing-list-cell billing-list-more">
+                      <details className="inline-detail billing-pop">
+                        <summary className="ghost btn-compact btn-noicon">Ver más</summary>
+                        <div className="inline-detail-body billing-pop-body">
+                          {renderBillingCard(r)}
                         </div>
-                      </div>
+                      </details>
                     </div>
                   </div>
-
-                  <div className="billing-actions">
-                    <div className="billing-actions-left">
-                      {duplicateCount > 1 && keepRowId === r.id ? (
-                        <MergeDuplicateSubscriptionsButton
-                          action={mergeDuplicateSubscriptions}
-                          csrfToken={csrfToken}
-                          customerId={r.customerId}
-                          planId={r.planId}
-                          keepSubscriptionId={keepRowId}
-                          tenantId={r.tenantId}
-                          returnTo={returnTo}
-                          duplicatesCount={duplicateCount}
-                        />
-                      ) : null}
-                      {canChargeNow ? (
-                        <form action={chargeSubscriptionNow}>
-                          <input type="hidden" name="csrf" value={csrfToken} />
-                          <input type="hidden" name="subscriptionId" value={r.id} />
-                          {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                          <button
-                            className="ghost btn-compact btn-noicon btn-blue btn-pay"
-                            type="submit"
-                            disabled={!r.customerTokenized}
-                            title={
-                              !r.customerTokenized
-                                ? "Primero debes guardar tarjeta (débito automático)"
-                                : isCutoffOverdue
-                                  ? "Cobrar ahora (fecha de corte vencida)"
-                                  : "Cobrar ahora"
-                            }
-                          >
-                            Cobrar
-                          </button>
-                        </form>
-                      ) : null}
-                    </div>
-                    <div className="billing-actions-right">
-                      {/* FIX: Botón Link de Pago movido al panel de costo - aquí solo acciones de envío */}
-                      {r.mode !== "AUTO_DEBIT" ? (
-                        <form action={sendCentralComPaymentLink}>
-                          <input type="hidden" name="csrf" value={csrfToken} />
-                          <input type="hidden" name="subscriptionId" value={r.id} />
-                          <input type="hidden" name="customerId" value={r.customerId} />
-                          <input type="hidden" name="returnTo" value={returnTo} />
-                          {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                          <button className="ghost btn-compact btn-noicon btn-send" type="submit" title="Enviar por CentralCom">
-                            Enviar link de pago
-                          </button>
-                        </form>
-                      ) : (
-                      <>
-                        {canSendToken ? (
-                          <form action={sendCentralComTokenizationLink}>
-                            <input type="hidden" name="csrf" value={csrfToken} />
-                            <input type="hidden" name="customerId" value={r.customerId} />
-                            <input type="hidden" name="planId" value={r.planId} />
-                            <input type="hidden" name="returnTo" value={returnTo} />
-                            {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                            <button className="ghost btn-compact btn-noicon btn-send" type="submit" title="Enviar por CentralCom">
-                              Guardar tarjeta
-                            </button>
-                          </form>
-                        ) : (
-                          <a className="ghost btn-compact btn-amber btn-create" href="/settings?tab=checkout-publico">
-                            Crear checkout
-                          </a>
-                        )}
-                      </>
-                    )}
-                      {r.status === "SUSPENDED" ? (
-                        <form action={resumeSubscription}>
-                          <input type="hidden" name="csrf" value={csrfToken} />
-                          <input type="hidden" name="subscriptionId" value={r.id} />
-                          {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                          <button className="ghost btn-compact btn-noicon btn-green" type="submit">
-                            Reanudar
-                          </button>
-                        </form>
-                      ) : r.status === "CANCELED" ? (
-                        <form action={activateSubscription}>
-                          <input type="hidden" name="csrf" value={csrfToken} />
-                          <input type="hidden" name="subscriptionId" value={r.id} />
-                          {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                          <button className="ghost btn-compact btn-noicon btn-green" type="submit">
-                            Activar
-                          </button>
-                        </form>
-                      ) : (
-                        <>
-                          <form action={cancelSubscription}>
-                            <input type="hidden" name="csrf" value={csrfToken} />
-                            <input type="hidden" name="subscriptionId" value={r.id} />
-                            {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                            <button className="ghost btn-compact btn-noicon btn-red" type="submit">
-                              Cancelar
-                            </button>
-                          </form>
-                          <form action={suspendSubscription}>
-                            <input type="hidden" name="csrf" value={csrfToken} />
-                            <input type="hidden" name="subscriptionId" value={r.id} />
-                            {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                            <button className="ghost btn-compact btn-noicon btn-amber" type="submit">
-                              Suspender
-                            </button>
-                          </form>
-                        </>
-                      )}
-                    </div>
-                    {(sentForRow || rowTokenUrl || chargedForRow || cutoffForRow) ? (
-                      <div className="field-hint billing-action-feedback">
-                        {sentForRow ? <span>Enviado.</span> : null}
-                        {chargedForRow ? <span>Cobro manual enviado.</span> : null}
-                        {cutoffForRow ? <span>Fecha de corte actualizada.</span> : null}
-                        {rowTokenUrl ? (
-                          <>
-                            <a className="ghost btn-compact btn-open" href={rowTokenUrl} target="_blank" rel="noreferrer">
-                              Abrir checkout
-                            </a>
-                            <CopyButton text={rowTokenUrl} />
-                          </>
-                        ) : null}
+                );
+              })}
+              {rows.length === 0 ? <div className="contact-empty">Sin resultados.</div> : null}
+            </div>
+          ) : (
+            (() => {
+              const columns = ["Pagado", "Pendiente", "En mora"];
+              const grouped = new Map<string, any[]>();
+              for (const c of columns) grouped.set(c, []);
+              for (const r of rows) {
+                const paymentStatus = getPaymentStatusLabel({
+                  status: r.status,
+                  paidAt: r.pagoAt,
+                  periodStartAt: r.periodoInicioAt,
+                  periodEndAt: r.periodoFinAt
+                });
+                const key = paymentStatus === "Pagado" ? "Pagado" : paymentStatus === "En mora" ? "En mora" : "Pendiente";
+                grouped.get(key)?.push(r);
+              }
+              return (
+                <div className="billing-kanban">
+                  {columns.map((col) => (
+                    <div className="billing-kanban-column" key={`kanban-${col}`}>
+                      <div className="billing-kanban-title">
+                        <span>{col}</span>
+                        <span className="pill pill-sm pill-muted">{grouped.get(col)?.length || 0}</span>
                       </div>
-                    ) : null}
-                    {tenantsUpdatedForRow ? <div className="field-hint">Canales actualizados.</div> : null}
-                  </div>
+                      <div className="billing-kanban-list">
+                        {(grouped.get(col) || []).map((r) => (
+                          <details className="inline-detail billing-kanban-card" key={`kanban-item-${r.id}`}>
+                            <summary className="billing-kanban-summary">
+                              <div className="billing-kanban-name">{r.customerName}</div>
+                              <div className="billing-kanban-sub">{r.planName || "—"}</div>
+                              <div className="billing-kanban-meta">
+                                <span>{fmtMoney(r.totalInCents ?? r.montoInCents, r.moneda)}</span>
+                                <span>·</span>
+                                <LocalDateTime value={r.vencimientoAt} variant="short" />
+                              </div>
+                            </summary>
+                            <div className="inline-detail-body billing-pop-body">
+                              {renderBillingCard(r)}
+                            </div>
+                          </details>
+                        ))}
+                        {(grouped.get(col) || []).length === 0 ? <div className="billing-kanban-empty">Sin registros</div> : null}
+                      </div>
+                    </div>
+                  ))}
+                  {rows.length === 0 ? <div className="contact-empty">Sin resultados.</div> : null}
                 </div>
               );
-            })}
-            {rows.length === 0 ? <div className="contact-empty">Sin resultados.</div> : null}
-          </div>
+            })()
+          )}
 
           {(() => {
             const currentPage = Math.max(1, Number(page) || 1);

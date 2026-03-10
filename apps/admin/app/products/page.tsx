@@ -52,11 +52,14 @@ export default async function ProductsPage({
   const sent = typeof spParams.sent === "string" ? spParams.sent : "";
   const q = typeof spParams.q === "string" ? spParams.q : "";
   const page = typeof spParams.page === "string" ? Number(spParams.page) : 1;
+  const vistaRaw = typeof spParams.vista === "string" ? spParams.vista : "cards";
+  const vista = ["cards", "lista"].includes(vistaRaw) ? vistaRaw : "cards";
   const viewId = typeof spParams.viewId === "string" ? spParams.viewId : "";
   const filters = typeof spParams.filters === "string" ? spParams.filters : "";
   const returnTo = `/products?${new URLSearchParams({
     ...(tenantId ? { tenantId } : {}),
     ...(q ? { q } : {}),
+    ...(vista ? { vista } : {}),
     ...(viewId ? { viewId } : {}),
     ...(filters ? { filters } : {}),
     ...(Number.isFinite(page) && page > 1 ? { page: String(page) } : {})
@@ -145,6 +148,7 @@ export default async function ProductsPage({
                 <div className="contacts-search-row">
                   <form action="/products" method="GET" className="filtersForm filtersSearch">
                     {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+                    {vista ? <input type="hidden" name="vista" value={vista} /> : null}
                     {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
                     {filters ? <input type="hidden" name="filters" value={filters} /> : null}
                     <input
@@ -168,6 +172,32 @@ export default async function ProductsPage({
                       }}
                       compactInline
                     />
+                    <div className="products-view-switch" role="group" aria-label="Vista de productos">
+                      <a
+                        className={`pill pill-sm ${vista === "cards" ? "pill-ok" : "pill-muted"}`}
+                        href={`/products?${new URLSearchParams({
+                          ...(tenantId ? { tenantId } : {}),
+                          ...(q ? { q } : {}),
+                          ...(viewId ? { viewId } : {}),
+                          ...(filters ? { filters } : {}),
+                          vista: "cards"
+                        }).toString()}`}
+                      >
+                        Tarjetas
+                      </a>
+                      <a
+                        className={`pill pill-sm ${vista === "lista" ? "pill-ok" : "pill-muted"}`}
+                        href={`/products?${new URLSearchParams({
+                          ...(tenantId ? { tenantId } : {}),
+                          ...(q ? { q } : {}),
+                          ...(viewId ? { viewId } : {}),
+                          ...(filters ? { filters } : {}),
+                          vista: "lista"
+                        }).toString()}`}
+                      >
+                        Lista
+                      </a>
+                    </div>
                     <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="products" />
                   </div>
                 </div>
@@ -204,6 +234,7 @@ export default async function ProductsPage({
                   tenantIds: ids
                 };
               })}
+              view={vista === "lista" ? "list" : "cards"}
               csrfToken={csrfToken}
               deleteProductAction={deleteProduct}
               tenants={tenants}
@@ -238,6 +269,7 @@ export default async function ProductsPage({
               const baseParams = {
                 ...(q ? { q } : {}),
                 ...(tenantId ? { tenantId } : {}),
+                ...(vista ? { vista } : {}),
                 ...(viewId ? { viewId } : {}),
                 ...(filters ? { filters } : {})
               };

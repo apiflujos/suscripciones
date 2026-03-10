@@ -1586,6 +1586,14 @@ a {
   width: 100%;
 }
 
+.products-view-switch,
+.contacts-view-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 .smartViewsBar {
   display: flex;
   flex-direction: column;
@@ -5620,11 +5628,204 @@ textarea.input {
   padding: 12px 6px;
 }
 
+.contact-list {
+  display: grid;
+  gap: 8px;
+}
+
+.contact-list-header {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 0.7fr 0.9fr;
+  gap: 8px;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: 0 6px;
+}
+
+.contact-list-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 0.7fr 0.9fr;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--stroke) 86%, transparent);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.contact-list-cell {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.contact-list-name {
+  font-weight: 700;
+  color: var(--text-strong);
+  text-decoration: none;
+}
+
+.contact-list-name:hover {
+  color: var(--primary);
+}
+
+.contact-list-sub {
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+.contact-list-actions {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+}
+
 .billing-grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
   width: 100%;
+}
+
+.billing-view-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.billing-list {
+  display: grid;
+  gap: 8px;
+}
+
+.billing-list-header {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 0.8fr 0.6fr 0.4fr;
+  gap: 8px;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: 0 6px;
+}
+
+.billing-list-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 0.8fr 0.6fr 0.4fr;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--stroke) 86%, transparent);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.billing-list-cell {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.billing-list-name,
+.billing-list-link {
+  font-weight: 700;
+  color: var(--text-strong);
+  text-decoration: none;
+}
+
+.billing-list-name:hover,
+.billing-list-link:hover {
+  color: var(--primary);
+}
+
+.billing-list-sub {
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+.billing-pop .inline-detail-body,
+.billing-kanban-card .inline-detail-body {
+  max-width: 860px;
+  width: min(860px, 92vw);
+  box-shadow: var(--shadow-card);
+}
+
+.billing-kanban {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.billing-kanban-column {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--stroke) 86%, transparent);
+  background: color-mix(in srgb, var(--panel) 92%, var(--surface-2) 8%);
+}
+
+.billing-kanban-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+.billing-kanban-list {
+  display: grid;
+  gap: 8px;
+}
+
+.billing-kanban-card summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.billing-kanban-summary {
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--stroke) 86%, transparent);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.billing-kanban-name {
+  font-weight: 700;
+  color: var(--text-strong);
+  font-size: 12px;
+}
+
+.billing-kanban-sub {
+  font-size: 11px;
+  color: var(--text-soft);
+}
+
+.billing-kanban-meta {
+  font-size: 10px;
+  color: var(--text-faint);
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.billing-kanban-empty {
+  font-size: 11px;
+  color: var(--text-faint);
+  padding: 8px;
+  text-align: center;
 }
 
 .billing-card {
@@ -8341,57 +8542,104 @@ body.is-global-loading {
   margin-top: 6px;
 }
 
- .product-grid {
+.product-grid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.product-list {
+  display: grid;
+  gap: 8px;
+}
+
+.product-list-header {
+  display: grid;
+  grid-template-columns: 1.4fr 0.8fr 0.8fr 0.7fr 0.6fr;
+  gap: 8px;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: 0 6px;
+}
+
+.product-list-row {
+  display: grid;
+  grid-template-columns: 1.4fr 0.8fr 0.8fr 0.7fr 0.6fr;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--stroke) 86%, transparent);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.product-list-cell {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.product-list-actions {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 .product-card {
   background: var(--panel);
-  border-radius: 14px;
-  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--stroke) 85%, transparent);
   box-shadow: var(--shadow);
-  padding: 8px 10px;
-  display: grid;
-  gap: 6px;
-}
-
-.product-header {
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
   display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  align-items: flex-start;
+  flex-direction: column;
+  height: 100%;
 }
 
-.product-header-actions {
-  display: inline-flex;
+.product-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-card);
+}
+
+.product-img {
+  height: 140px;
+  background: var(--surface-2);
+  display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  color: var(--text-faint);
+  flex-shrink: 0;
+  overflow: hidden;
 }
 
-.product-title-row {
-  display: grid;
-  grid-template-columns: 44px 1fr;
-  gap: 10px;
-  align-items: center;
-  flex: 1 1 auto;
-  min-width: 0;
+.product-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-.product-title {
-  display: grid;
-  gap: 2px;
+.product-body {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-grow: 1;
 }
 
 .product-name {
-  font-size: 15px;
+  font-size: 13.5px;
   font-weight: 700;
   color: var(--text-strong);
 }
 
-.product-sub {
-  font-size: 12px;
+.product-meta {
+  font-size: 11px;
   color: var(--text-soft);
   display: inline-flex;
   gap: 6px;
@@ -8401,36 +8649,36 @@ body.is-global-loading {
 
 .product-sku {
   font-family: inherit;
-  font-size: 12px;
-}
-
-.product-info {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 2px 8px;
-  font-size: 13px;
-  color: var(--text);
-}
-
-.product-info > div {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.product-info span {
-  display: inline;
-  color: var(--text-faint);
   font-size: 11px;
 }
 
-.product-footer-actions {
-  display: flex;
-  justify-content: flex-end;
+.product-price {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.product-stock {
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+
+.product-actions {
+  margin-top: auto;
+  display: grid;
   gap: 8px;
+}
+
+.product-actions-left,
+.product-actions-right {
+  display: inline-flex;
+  gap: 6px;
   flex-wrap: wrap;
-  padding-top: 4px;
+  align-items: center;
+}
+
+.product-actions-right {
+  justify-content: flex-end;
 }
 
 .send-product-grid {
@@ -8809,6 +9057,20 @@ body.is-global-loading {
   .billing-body-main {
     grid-template-columns: 1fr 1fr;
   }
+  .billing-list-header {
+    display: none;
+  }
+  .billing-list-row {
+    grid-template-columns: 1fr;
+  }
+  .product-list-header,
+  .contact-list-header {
+    display: none;
+  }
+  .product-list-row,
+  .contact-list-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 640px) {
@@ -8819,6 +9081,9 @@ body.is-global-loading {
     grid-template-columns: 1fr;
   }
   .billing-body-main {
+    grid-template-columns: 1fr;
+  }
+  .billing-kanban {
     grid-template-columns: 1fr;
   }
   .billing-cost-box {

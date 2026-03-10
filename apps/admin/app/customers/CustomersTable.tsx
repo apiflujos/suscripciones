@@ -66,6 +66,7 @@ type TransactionRow = {
 
 export function CustomersTable({
   items,
+  view = "cards",
   latestLinks,
   subscriptionsByCustomer,
   cartTemplates,
@@ -81,6 +82,7 @@ export function CustomersTable({
   initialTxCustomerId
 }: {
   items: CustomerRow[];
+  view?: "cards" | "list";
   latestLinks: Record<string, LatestLink>;
   subscriptionsByCustomer: Record<string, { hasPlan: boolean; planName?: string; status?: string; collectionMode?: string }>;
   cartTemplates: Array<{ id: string; name: string }>;
@@ -536,6 +538,93 @@ export function CustomersTable({
 
   return (
     <>
+      {view === "list" ? (
+        <div className="contact-list" aria-label="Lista compacta de contactos">
+          <div className="contact-list-header">
+            <span>Contacto</span>
+            <span>Suscripción</span>
+            <span>Estado</span>
+            <span>Acciones</span>
+          </div>
+          {items.map((c) => {
+            const subInfo = subscriptionsByCustomer[String(c.id)];
+            const ident =
+              c?.metadata?.identificacion ||
+              c?.metadata?.identificationNumber ||
+              c?.metadata?.documentNumber ||
+              c?.metadata?.document ||
+              "";
+            const planName = formatPlanLabel(subInfo?.planName || "");
+            const status = String(subInfo?.status || "");
+            const collectionMode = String(subInfo?.collectionMode || "");
+            const statusLabel =
+              status === "ACTIVE" ? "Activa" : status === "PAST_DUE" ? "En mora" : status ? "Inactiva" : "—";
+            const statusPillClass = status === "ACTIVE" ? "pill-ok" : status === "PAST_DUE" ? "pill-bad" : status ? "pill-muted" : "pill-muted";
+            const kindLabel =
+              collectionMode === "AUTO_DEBIT"
+                ? "Débito automático"
+                : collectionMode === "AUTO_LINK" || collectionMode === "MANUAL_LINK"
+                  ? "Link de pago"
+                  : "—";
+            return (
+              <div className="contact-list-row" key={`contact-list-${c.id}`}>
+                <div className="contact-list-cell">
+                  <Link className="contact-list-name" href={`/customers/${c.id}`}>
+                    {c.name || "—"}
+                  </Link>
+                  <div className="contact-list-sub">{c.email || "—"} · {c.phone || "—"}</div>
+                </div>
+                <div className="contact-list-cell">
+                  <div className="contact-list-sub">{planName || "—"}</div>
+                  <div className="contact-list-sub">{kindLabel}</div>
+                </div>
+                <div className="contact-list-cell">
+                  <span className={`pill pill-sm ${statusPillClass}`}>{statusLabel}</span>
+                </div>
+                <div className="contact-list-cell contact-list-actions">
+                  <button
+                    className="ghost btn-compact btn-history btn-icon-only"
+                    type="button"
+                    onClick={() => openTransactions(c)}
+                    aria-label="Historial de pagos"
+                    title="Historial de pagos"
+                  />
+                  <button
+                    className="ghost btn-compact btn-edit btn-icon-only"
+                    type="button"
+                    onClick={() => openEditor(c)}
+                    aria-label="Editar"
+                    title="Editar"
+                  />
+                  <form
+                    action={deleteCustomer}
+                    className="delete-row"
+                    onSubmit={(e) => {
+                      if (!confirm("¿Eliminar contacto?")) e.preventDefault();
+                    }}
+                  >
+                    <input type="hidden" name="csrf" value={csrfToken} />
+                    <input type="hidden" name="id" value={c.id} />
+                    <input type="hidden" name="tenantId" value={c.tenantId || ""} />
+                    {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
+                    <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" aria-label="Eliminar contacto" title="Eliminar contacto" />
+                  </form>
+                  <details className="inline-detail">
+                    <summary className="ghost btn-compact btn-noicon">Ver más</summary>
+                    <div className="inline-detail-body">
+                      <div><strong>Email:</strong> {c.email || "—"}</div>
+                      <div><strong>Teléfono:</strong> {c.phone || "—"}</div>
+                      <div><strong>Canal:</strong> {c.tenantName || "—"}</div>
+                      <div><strong>Identificación:</strong> {ident || "—"}</div>
+                    </div>
+                  </details>
+                </div>
+              </div>
+            );
+          })}
+          {items.length === 0 ? <div className="contact-empty">Sin contactos.</div> : null}
+        </div>
+      ) : (
       <div className="contacts-grid" aria-label="Lista de contactos">
         {items.map((c) => {
           const link = latestLinks[String(c.id)];
@@ -741,10 +830,11 @@ export function CustomersTable({
                   {sendOk[c.id] ? <div className="paylink-success">Link enviado.</div> : null}
               </div>
             </div>
-        );
-      })}
+          );
+        })}
         {items.length === 0 ? <div className="contact-empty">Sin contactos.</div> : null}
       </div>
+      )}
 
       {planModalOpen && planModalCustomer ? (
         <div className="modal-backdrop">

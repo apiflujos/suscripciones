@@ -184,12 +184,15 @@ export default async function CustomersPage({
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
   const tenantId = typeof sp.tenantId === "string" ? sp.tenantId : "";
   const txCustomerId = typeof sp.tx === "string" ? sp.tx : "";
+  const vistaRaw = typeof sp.vista === "string" ? sp.vista : "cards";
+  const vista = ["cards", "lista"].includes(vistaRaw) ? vistaRaw : "cards";
   const listId = typeof sp.list === "string" ? sp.list : "";
   const viewId = typeof sp.viewId === "string" ? sp.viewId : "";
   const filters = typeof sp.filters === "string" ? sp.filters : "";
   const returnTo = `/customers?${new URLSearchParams({
     ...(q ? { q } : {}),
     ...(tenantId ? { tenantId } : {}),
+    ...(vista ? { vista } : {}),
     ...(txCustomerId ? { tx: txCustomerId } : {}),
     ...(listId ? { list: listId } : {}),
     ...(viewId ? { viewId } : {}),
@@ -296,6 +299,7 @@ export default async function CustomersPage({
     const baseParams = {
       ...(q ? { q } : {}),
       ...(tenantId ? { tenantId } : {}),
+      ...(vista ? { vista } : {}),
       ...(viewId ? { viewId } : {}),
       ...(filters ? { filters } : {})
     };
@@ -451,6 +455,7 @@ export default async function CustomersPage({
                 <div className="contacts-search-row">
                   <form action="/customers" method="GET" className="filtersForm filtersSearch">
                     {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+                    {vista ? <input type="hidden" name="vista" value={vista} /> : null}
                     {listId ? <input type="hidden" name="list" value={listId} /> : null}
                     {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
                     {filters ? <input type="hidden" name="filters" value={filters} /> : null}
@@ -475,6 +480,34 @@ export default async function CustomersPage({
                       }}
                       compactInline
                     />
+                    <div className="contacts-view-switch" role="group" aria-label="Vista de contactos">
+                      <a
+                        className={`pill pill-sm ${vista === "cards" ? "pill-ok" : "pill-muted"}`}
+                        href={`/customers?${new URLSearchParams({
+                          ...(q ? { q } : {}),
+                          ...(tenantId ? { tenantId } : {}),
+                          ...(listId ? { list: listId } : {}),
+                          ...(viewId ? { viewId } : {}),
+                          ...(filters ? { filters } : {}),
+                          vista: "cards"
+                        }).toString()}`}
+                      >
+                        Tarjetas
+                      </a>
+                      <a
+                        className={`pill pill-sm ${vista === "lista" ? "pill-ok" : "pill-muted"}`}
+                        href={`/customers?${new URLSearchParams({
+                          ...(q ? { q } : {}),
+                          ...(tenantId ? { tenantId } : {}),
+                          ...(listId ? { list: listId } : {}),
+                          ...(viewId ? { viewId } : {}),
+                          ...(filters ? { filters } : {}),
+                          vista: "lista"
+                        }).toString()}`}
+                      >
+                        Lista
+                      </a>
+                    </div>
                     <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
                   </div>
                 </div>
@@ -501,6 +534,7 @@ export default async function CustomersPage({
             csrfToken={csrfToken}
             returnTo={returnTo}
             initialTxCustomerId={txCustomerId}
+            view={vista === "lista" ? "list" : "cards"}
           />
 
           {renderPagination(total)}
