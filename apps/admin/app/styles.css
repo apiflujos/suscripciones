@@ -186,7 +186,8 @@ html:not([data-theme="dark"]):not([data-theme="pink-dark"]):not([data-theme="hig
 /* ============================================
    TEMA OSCURO (Apiflujos Dark Brand)
    ============================================ */
-html[data-theme="dark"] {
+html[data-theme="dark"],
+html[data-theme="pink-dark"] {
   --bg-body: #0a0510;
   --bg-panel: #160e22;
   --bg-hover: #261638;
