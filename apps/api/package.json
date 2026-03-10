@@ -4,7 +4,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@localhost:5432/postgres?schema=public} prisma generate && tsc -p tsconfig.json",
+    "build": "node scripts/prisma-generate.cjs && tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "start:migrate": "prisma migrate deploy && node dist/scripts/seed-default-tenant.js && node dist/scripts/recalc-subscription-next-dates.js && node dist/index.js",
     "jobs": "tsx src/jobs/runner.ts",
@@ -12,7 +12,7 @@
     "seed:default-tenant": "node dist/scripts/seed-default-tenant.js",
     "lint": "eslint .",
     "test": "node --test --experimental-strip-types \"src/**/*.test.ts\" \"src/**/__tests__/**/*.test.ts\"",
-    "prisma:generate": "DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@localhost:5432/postgres?schema=public} prisma generate",
+    "prisma:generate": "node scripts/prisma-generate.cjs",
     "prisma:migrate:dev": "prisma migrate dev --name init"
   },
   "dependencies": {
