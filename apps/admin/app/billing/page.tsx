@@ -15,6 +15,7 @@ import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { BillingTenantModalButton } from "./BillingTenantModalButton";
 import { AutoCutoffInlineForm } from "./AutoCutoffInlineForm";
 import { ListCsvActions } from "../ui/ListCsvActions";
+import { ViewModeToggles } from "../ui/ViewModeToggles";
 
 export const dynamic = "force-dynamic";
 
@@ -852,26 +853,17 @@ export default async function BillingPage({
                       }}
                       compactInline
                     />
-                    <div className="billing-view-switch" role="group" aria-label="Vista de suscripciones">
-                      <a
-                        className={`pill pill-sm ${vista === "cards" ? "pill-ok" : "pill-muted"}`}
-                        href={`/billing?${new URLSearchParams({ ...paginationBase, vista: "cards" }).toString()}`}
-                      >
-                        Tarjetas
-                      </a>
-                      <a
-                        className={`pill pill-sm ${vista === "lista" ? "pill-ok" : "pill-muted"}`}
-                        href={`/billing?${new URLSearchParams({ ...paginationBase, vista: "lista" }).toString()}`}
-                      >
-                        Lista
-                      </a>
-                      <a
-                        className={`pill pill-sm ${vista === "kanban" ? "pill-ok" : "pill-muted"}`}
-                        href={`/billing?${new URLSearchParams({ ...paginationBase, vista: "kanban" }).toString()}`}
-                      >
-                        Kanban
-                      </a>
-                    </div>
+                    <ViewModeToggles
+                      currentMode={vista}
+                      baseParams={{
+                        ...(tenantId ? { tenantId } : {}),
+                        ...(q ? { q } : {}),
+                        ...(tipo ? { tipo } : {}),
+                        ...(estado ? { estado } : {}),
+                        ...(ordenar ? { ordenar } : {})
+                      }}
+                      showKanban
+                    />
                     <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
                   </div>
                 </div>

@@ -2,9 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-type ThemeChoice = "auto" | "light" | "dark";
-type ContrastChoice = "auto" | "normal" | "high";
-type VisionChoice = "standard" | "safe";
+type ThemeChoice = "light" | "dark" | "high-contrast" | "safe";
 
 const THEME_KEY = "apiflujos-theme";
 const CONTRAST_KEY = "apiflujos-contrast";
@@ -15,11 +13,16 @@ function readAppearancePrefs() {
   const contrastRaw = window.localStorage.getItem(CONTRAST_KEY) || "";
   const visionRaw = window.localStorage.getItem(VISION_KEY) || "";
 
-  const theme: ThemeChoice = themeRaw === "dark" || themeRaw === "light" ? themeRaw : "auto";
-  const contrast: ContrastChoice = contrastRaw === "high" ? "high" : contrastRaw === "normal" ? "normal" : "auto";
-  const vision: VisionChoice = visionRaw === "safe" ? "safe" : "standard";
+  const theme: ThemeChoice =
+    themeRaw === "dark" || themeRaw === "high-contrast" || themeRaw === "safe" || themeRaw === "light"
+      ? themeRaw
+      : visionRaw === "safe"
+        ? "safe"
+        : contrastRaw === "high"
+          ? "high-contrast"
+          : "light";
 
-  return { theme, contrast, vision };
+  return { theme };
 }
 
 function writeAppearancePref(key: string, value: string | null) {
@@ -29,16 +32,12 @@ function writeAppearancePref(key: string, value: string | null) {
 }
 
 export function AppearanceSelector({ compact = false, cards = false }: { compact?: boolean; cards?: boolean }) {
-  const [themeChoice, setThemeChoice] = useState<ThemeChoice>("auto");
-  const [contrastChoice, setContrastChoice] = useState<ContrastChoice>("auto");
-  const [visionChoice, setVisionChoice] = useState<VisionChoice>("standard");
+  const [themeChoice, setThemeChoice] = useState<ThemeChoice>("light");
 
   useEffect(() => {
     const sync = () => {
       const prefs = readAppearancePrefs();
       setThemeChoice(prefs.theme);
-      setContrastChoice(prefs.contrast);
-      setVisionChoice(prefs.vision);
     };
     sync();
 
@@ -57,18 +56,19 @@ export function AppearanceSelector({ compact = false, cards = false }: { compact
 
   const setTheme = (next: ThemeChoice) => {
     setThemeChoice(next);
-    writeAppearancePref(THEME_KEY, next === "auto" ? null : next);
-  };
-
-  const setContrast = (next: ContrastChoice) => {
-    setContrastChoice(next);
-    if (next === "auto") writeAppearancePref(CONTRAST_KEY, null);
-    else writeAppearancePref(CONTRAST_KEY, next);
-  };
-
-  const setVision = (next: VisionChoice) => {
-    setVisionChoice(next);
-    writeAppearancePref(VISION_KEY, next === "standard" ? null : "safe");
+    writeAppearancePref(THEME_KEY, next);
+    if (next === "high-contrast") {
+      writeAppearancePref(CONTRAST_KEY, "high");
+      writeAppearancePref(VISION_KEY, null);
+      return;
+    }
+    if (next === "safe") {
+      writeAppearancePref(VISION_KEY, "safe");
+      writeAppearancePref(CONTRAST_KEY, null);
+      return;
+    }
+    writeAppearancePref(CONTRAST_KEY, null);
+    writeAppearancePref(VISION_KEY, null);
   };
 
   return (
@@ -76,39 +76,17 @@ export function AppearanceSelector({ compact = false, cards = false }: { compact
       <div className="appearanceGroup">
         <div className="appearanceLabel">Tema</div>
         <div className="appearanceOptions">
-          <button type="button" className={`appearanceOption ${themeChoice === "auto" ? "is-active" : ""}`} onClick={() => setTheme("auto")} aria-pressed={themeChoice === "auto"} data-loader="off">
-            Sistema
-          </button>
           <button type="button" className={`appearanceOption ${themeChoice === "light" ? "is-active" : ""}`} onClick={() => setTheme("light")} aria-pressed={themeChoice === "light"} data-loader="off">
             Claro
           </button>
           <button type="button" className={`appearanceOption ${themeChoice === "dark" ? "is-active" : ""}`} onClick={() => setTheme("dark")} aria-pressed={themeChoice === "dark"} data-loader="off">
             Oscuro
           </button>
-        </div>
-      </div>
-      <div className="appearanceGroup">
-        <div className="appearanceLabel">Visión</div>
-        <div className="appearanceOptions">
-          <button type="button" className={`appearanceOption ${visionChoice === "standard" ? "is-active" : ""}`} onClick={() => setVision("standard")} aria-pressed={visionChoice === "standard"} data-loader="off">
-            Estándar
+          <button type="button" className={`appearanceOption ${themeChoice === "high-contrast" ? "is-active" : ""}`} onClick={() => setTheme("high-contrast")} aria-pressed={themeChoice === "high-contrast"} data-loader="off">
+            Alto contraste
           </button>
-          <button type="button" className={`appearanceOption ${visionChoice === "safe" ? "is-active" : ""}`} onClick={() => setVision("safe")} aria-pressed={visionChoice === "safe"} data-loader="off">
-            Seguro
-          </button>
-        </div>
-      </div>
-      <div className="appearanceGroup">
-        <div className="appearanceLabel">Contraste</div>
-        <div className="appearanceOptions">
-          <button type="button" className={`appearanceOption ${contrastChoice === "auto" ? "is-active" : ""}`} onClick={() => setContrast("auto")} aria-pressed={contrastChoice === "auto"} data-loader="off">
-            Sistema
-          </button>
-          <button type="button" className={`appearanceOption ${contrastChoice === "normal" ? "is-active" : ""}`} onClick={() => setContrast("normal")} aria-pressed={contrastChoice === "normal"} data-loader="off">
-            Normal
-          </button>
-          <button type="button" className={`appearanceOption ${contrastChoice === "high" ? "is-active" : ""}`} onClick={() => setContrast("high")} aria-pressed={contrastChoice === "high"} data-loader="off">
-            Alto
+          <button type="button" className={`appearanceOption ${themeChoice === "safe" ? "is-active" : ""}`} onClick={() => setTheme("safe")} aria-pressed={themeChoice === "safe"} data-loader="off">
+            Accesibilidad
           </button>
         </div>
       </div>

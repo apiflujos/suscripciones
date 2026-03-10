@@ -7,7 +7,7 @@ export default async function CustomerPaymentMethodSuccessPage({ params }: { par
   return (
     <main className="page" style={{ maxWidth: 720 }}>
       <div className="card cardPad" style={{ display: "grid", gap: 12, justifyItems: "center", textAlign: "center" }}>
-        <img src="/brand/logo_vertical.png" alt="Logo" style={{ height: 56 }} />
+        <img src="/brand/logo_vertical.svg" alt="Logo" style={{ height: 56 }} data-theme-logo="vertical" />
         <h2 style={{ margin: 0 }}>¡Gracias!</h2>
         <div>El método de pago se guardó correctamente.</div>
         <div style={{ display: "flex", gap: 10, marginTop: 8 }}>

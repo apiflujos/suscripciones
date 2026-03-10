@@ -173,6 +173,23 @@ export async function updateAutoDebitConfig(formData: FormData) {
   const retryEveryUnit = String(formData.get("retryEveryUnit") || "").trim().toUpperCase();
   const retryEveryMinutes = String(formData.get("retryEveryMinutes") || "").trim();
   const maxRetries = String(formData.get("maxRetries") || "").trim();
+  const retryEveryValueNumber = Number.parseInt(retryEveryValue, 10);
+  const retryEveryUnitNormalized = retryEveryUnit || "MINUTES";
+  const computedRetryMinutes = Number.isFinite(retryEveryValueNumber) && retryEveryValueNumber > 0
+    ? (() => {
+        switch (retryEveryUnitNormalized) {
+          case "SECONDS":
+            return Math.max(1, Math.ceil(retryEveryValueNumber / 60));
+          case "HOURS":
+            return retryEveryValueNumber * 60;
+          case "DAYS":
+            return retryEveryValueNumber * 60 * 24;
+          case "MINUTES":
+          default:
+            return retryEveryValueNumber;
+        }
+      })()
+    : null;
 
   try {
     await adminFetch("/admin/settings/auto-debit", {
@@ -183,8 +200,8 @@ export async function updateAutoDebitConfig(formData: FormData) {
         ...(allowManualCharge ? { allowManualCharge } : {}),
         ...(retryEnabled ? { retryEnabled } : {}),
         ...(retryEveryValue ? { retryEveryValue } : {}),
-        ...(retryEveryUnit ? { retryEveryUnit } : {}),
-        ...(retryEveryMinutes ? { retryEveryMinutes } : {}),
+        ...(retryEveryUnit ? { retryEveryUnit: retryEveryUnitNormalized } : {}),
+        ...(computedRetryMinutes ? { retryEveryMinutes: String(computedRetryMinutes) } : retryEveryMinutes ? { retryEveryMinutes } : {}),
         ...(maxRetries ? { maxRetries } : {})
       })
     });

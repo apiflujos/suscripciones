@@ -188,6 +188,15 @@ async function collectEvents(apiBase: string, token: string, since: string) {
       q: ref || w.customerEmail || w.customerPhone || ""
     });
     const webhookHref = paymentHref;
+    const customerMeta = {
+      customerName: w.customerName || null,
+      customerEmail: w.customerEmail || null,
+      customerPhone: w.customerPhone || null,
+      tenantId: w.tenantId || w.tenant?.id || null,
+      reference: ref || null,
+      paymentStatus: w.paymentStatus || null,
+      paymentType: w.paymentType || null
+    };
     events.push({
       id: `wh_${w.id}`,
       type: "webhook",
@@ -205,7 +214,8 @@ async function collectEvents(apiBase: string, token: string, since: string) {
       sound: isApproved ? "cash" : isFailed ? "fail" : null,
       kind: isApproved ? "payment_approved" : isFailed ? "payment_failed" : status === "FAILED" ? "webhook_failed" : "webhook_received",
       href: isApproved || isFailed ? paymentHref : webhookHref,
-      badge: isApproved ? "Pago" : isFailed ? "Fallido" : status || "Webhook"
+      badge: isApproved ? "Pago" : isFailed ? "Fallido" : status || "Webhook",
+      meta: customerMeta
     });
   }
 

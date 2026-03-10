@@ -167,10 +167,30 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
 
   try {
     if (!contactId) {
+      const name = String(msg.customer.name || "").trim();
+      const email = String(msg.customer.email || "").trim();
+      const phone = String(msg.customer.phone || "").trim();
+      if (!name || !email || !phone) {
+        await prisma.chatwootMessage.update({
+          where: { id: chatwootMessageId },
+          data: { status: MessageStatus.FAILED, errorMessage: "missing_customer_fields" }
+        });
+        await systemLog(LogLevel.WARN, "chatwoot.send", "Contacto no creado: faltan nombre/email/teléfono", {
+          chatwootMessageId,
+          customerId: msg.customerId,
+          hasName: Boolean(name),
+          hasEmail: Boolean(email),
+          hasPhone: Boolean(phone)
+        }).catch((err) => {
+          logger.warn({ err, chatwootMessageId }, "chatwoot.send: failed to write system log");
+        });
+        return;
+      }
+
       const created = await client.createContact({
-        name: msg.customer.name || undefined,
-        email: msg.customer.email || undefined,
-        phoneNumber: msg.customer.phone || undefined
+        name,
+        email,
+        phoneNumber: phone
       });
       contactId = created.contactId;
       sourceId = created.sourceId;

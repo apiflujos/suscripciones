@@ -142,7 +142,7 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
       };
     }
     try {
-      await createAutoDebitTransactionForSubscription({ subscriptionId });
+      await createAutoDebitTransactionForSubscription({ subscriptionId, forceNewTransaction: false });
       return {
         status: "processed",
         mode,

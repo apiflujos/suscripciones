@@ -383,12 +383,17 @@ export function RealtimeNotifier() {
       seenIdsRef.current = new Set(trimmed);
     }
     if (freshEvents.length) {
+      let merged: StoredNotification[] = [];
       try {
         const existingRaw = window.localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
         const parsedExisting = existingRaw ? JSON.parse(existingRaw) : [];
         const existing = Array.isArray(parsedExisting) ? (parsedExisting as StoredNotification[]) : [];
-        const merged = mergeNotificationFeed(freshEvents, existing);
+        merged = mergeNotificationFeed(freshEvents, existing);
         window.localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(merged));
+      } catch {
+        merged = mergeNotificationFeed(freshEvents, []);
+      }
+      try {
         window.dispatchEvent(
           new CustomEvent("apiflujos:notifications-updated", { detail: { count: merged.length, items: merged } })
         );
@@ -676,30 +681,32 @@ export function RealtimeNotifier() {
               href={toast.href || undefined}
               data-loader={toast.href ? "off" : undefined}
             >
-              <div className={`toast-icon icon-${iconKind}`} aria-label={iconLabel(iconKind)}>
-                <span aria-hidden="true">
-                  {iconKind === "payment-ok"
-                    ? "✓"
-                    : iconKind === "payment-bad"
-                      ? "!"
-                      : iconKind === "ai"
-                        ? "✦"
-                      : iconKind === "message"
-                        ? "✉"
-                        : iconKind === "link"
-                          ? "⛓"
-                          : iconKind === "job"
-                            ? "⚙"
-                            : iconKind === "webhook"
-                              ? "↗"
-                              : iconKind === "subscription"
-                                ? "◎"
-                                : "●"}
-                </span>
-              </div>
               <div className="toast-body">
                 <div className="toast-title-row">
-                  <div className="toast-title">{toast.title}</div>
+                  <div className="toast-title-wrap">
+                    <div className={`toast-icon icon-${iconKind}`} aria-label={iconLabel(iconKind)}>
+                      <span aria-hidden="true">
+                        {iconKind === "payment-ok"
+                          ? "✓"
+                          : iconKind === "payment-bad"
+                            ? "!"
+                            : iconKind === "ai"
+                              ? "✦"
+                            : iconKind === "message"
+                              ? "✉"
+                              : iconKind === "link"
+                                ? "⛓"
+                                : iconKind === "job"
+                                  ? "⚙"
+                                  : iconKind === "webhook"
+                                    ? "↗"
+                                    : iconKind === "subscription"
+                                      ? "◎"
+                                      : "●"}
+                      </span>
+                    </div>
+                    <div className="toast-title">{toast.title}</div>
+                  </div>
                   {toast.badge ? <span className="toast-badge">{toast.badge}</span> : null}
                 </div>
                 <div className="toast-message">{toast.message}</div>

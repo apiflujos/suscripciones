@@ -237,6 +237,16 @@ export async function chatwootWebhook(req: Request, res: Response) {
     if (!tenantId) {
       return res.status(503).json({ error: "tenant_not_configured" });
     }
+    const nameValue = String(name || "").trim();
+    const emailValue = String(email || "").trim();
+    const phoneValue = String(phone || "").trim();
+    if (!nameValue || !emailValue || !phoneValue) {
+      logger.warn(
+        { tenantId, contactId, hasName: Boolean(nameValue), hasEmail: Boolean(emailValue), hasPhone: Boolean(phoneValue) },
+        "chatwoot webhook: missing required fields for customer creation"
+      );
+      return res.json({ ok: true, skipped: "missing_customer_fields" });
+    }
     const merged = {
       chatwoot: {
         contactId: contactId ?? undefined,
@@ -254,9 +264,9 @@ export async function chatwootWebhook(req: Request, res: Response) {
       .create({
         data: {
           tenantId,
-          name: name || undefined,
-          email: email || undefined,
-          phone: phone || undefined,
+          name: nameValue,
+          email: emailValue,
+          phone: phoneValue,
           metadata: merged as Prisma.InputJsonValue
         }
       })

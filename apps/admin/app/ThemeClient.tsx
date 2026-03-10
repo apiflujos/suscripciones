@@ -15,20 +15,70 @@ function applyTheme() {
   const prefersContrast = window.matchMedia("(prefers-contrast: more)").matches;
   const forcedColors = window.matchMedia("(forced-colors: active)").matches;
 
-  const resolvedTheme = theme && theme !== "auto" ? theme : prefersDark ? "dark" : "light";
-  const resolvedContrast = contrast === "high" ? "high" : contrast === "normal" ? "" : prefersContrast || forcedColors ? "high" : "";
-  const resolvedVision = vision && vision !== "standard" ? vision : "";
+  const fallbackTheme = theme === "auto" ? (prefersDark ? "dark" : "light") : theme;
+  const resolvedTheme =
+    fallbackTheme === "high-contrast" || contrast === "high" || prefersContrast || forcedColors
+      ? "high-contrast"
+      : fallbackTheme === "safe" || vision === "safe"
+        ? "safe"
+        : fallbackTheme === "dark"
+          ? "dark"
+          : "light";
 
   root.dataset.theme = resolvedTheme;
 
-  if (resolvedContrast) root.dataset.contrast = resolvedContrast;
+  const logoMap = {
+    horizontal: {
+      light: "/brand/logo_horizontal.svg",
+      dark: "/brand/logo_horizontal_dark.svg",
+      "high-contrast": "/brand/logo_horizontal_high_contrast_white.svg",
+      safe: "/brand/logo_horizontal_safe.svg"
+    },
+    vertical: {
+      light: "/brand/logo_vertical.svg",
+      dark: "/brand/logo_vertical_dark.svg",
+      "high-contrast": "/brand/logo_vertical_high_contrast_white.svg",
+      safe: "/brand/logo_vertical_safe.svg"
+    }
+  } as const;
+
+  const faviconMap = {
+    light: "/brand/isotipo_icono.svg",
+    dark: "/brand/isotipo_icono_dark.svg",
+    "high-contrast": "/brand/isotipo_icono_high_contrast_white.svg",
+    safe: "/brand/isotipo_icono_safe.svg"
+  } as const;
+
+  const updateAssets = (themeName: keyof typeof faviconMap) => {
+    const favicon = document.querySelector<HTMLLinkElement>('link[data-theme-favicon="true"]');
+    if (favicon) favicon.href = faviconMap[themeName] || faviconMap.light;
+
+    document.querySelectorAll<HTMLImageElement>("[data-theme-logo]").forEach((img) => {
+      const kind = img.dataset.themeLogo as "horizontal" | "vertical" | undefined;
+      if (!kind || !logoMap[kind]) return;
+      img.src = logoMap[kind][themeName] || logoMap[kind].light;
+    });
+  };
+
+  updateAssets(resolvedTheme);
+
+  if (resolvedTheme === "high-contrast") {
+    root.dataset.contrast = "high";
+    delete root.dataset.vision;
+    return;
+  }
+
+  if (resolvedTheme === "safe") {
+    root.dataset.vision = "safe";
+    delete root.dataset.contrast;
+    return;
+  }
+
+  if (contrast === "high") root.dataset.contrast = "high";
   else delete root.dataset.contrast;
 
-  if (resolvedVision) {
-    root.dataset.vision = resolvedVision;
-  } else {
-    delete root.dataset.vision;
-  }
+  if (vision === "safe") root.dataset.vision = "safe";
+  else delete root.dataset.vision;
 }
 
 export function ThemeClient() {

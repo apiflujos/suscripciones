@@ -53,6 +53,10 @@ function describeChargeError(raw?: string) {
 function formatChargeDetails(raw?: string) {
   const value = String(raw || "").trim();
   if (!value) return "";
+  const looksJson = value.startsWith("{") || value.startsWith("[") || value.includes("\"");
+  if (looksJson && value.length > 120) {
+    return "Detalle técnico disponible en Logs.";
+  }
   const stringifyValue = (input: unknown) => {
     if (input === null || input === undefined) return "";
     if (typeof input === "string") return input;
@@ -79,6 +83,18 @@ function formatChargeDetails(raw?: string) {
   };
   try {
     const parsed = JSON.parse(value);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      const picked =
+        (parsed as any).errorMessage ||
+        (parsed as any).message ||
+        (parsed as any).error ||
+        (parsed as any).reason ||
+        (parsed as any).status ||
+        (parsed as any).code ||
+        "";
+      if (picked) return String(picked);
+      return "Detalle técnico disponible en Logs.";
+    }
     const labels: Record<string, string> = {
       dueAt: "Fecha prevista de cobro",
       currentPeriodEndAt: "Fecha de corte actual",
@@ -103,10 +119,11 @@ function formatChargeDetails(raw?: string) {
           return rendered.includes("\n") ? `${label}:\n${rendered}` : `${label}: ${rendered}`;
         })
         .join("\n");
-      return out || JSON.stringify(parsed, null, 2);
+      return out || "Detalle técnico disponible en Logs.";
     }
-    return JSON.stringify(parsed, null, 2);
+    return "Detalle técnico disponible en Logs.";
   } catch {
+    if (value.length > 160) return "Detalle técnico disponible en Logs.";
     return value
       .replaceAll("requestedTenantId", "Canal solicitado")
       .replaceAll("subscriptionTenantId", "Canal principal de la suscripción")

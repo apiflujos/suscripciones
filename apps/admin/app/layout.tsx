@@ -87,6 +87,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
 
   return (
     <html lang="es">
+      <head>
+        <link id="theme-favicon" rel="icon" type="image/svg+xml" href="/brand/isotipo_icono.svg" data-theme-favicon="true" />
+      </head>
       <body className={shouldUseAuthShell ? "authBody" : undefined}>
         <Script id="apiflujos-theme-init" strategy="beforeInteractive">{`
 (() => {
@@ -99,12 +102,36 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     const prefersContrast = window.matchMedia("(prefers-contrast: more)").matches;
     const forcedColors = window.matchMedia("(forced-colors: active)").matches;
-    const resolvedTheme = theme && theme !== "auto" ? theme : prefersDark ? "dark" : "light";
-    const resolvedContrast = contrast === "high" ? "high" : contrast === "normal" ? "" : prefersContrast || forcedColors ? "high" : "";
-    const resolvedVision = vision && vision !== "standard" ? vision : "";
+    const fallbackTheme = theme === "auto" ? (prefersDark ? "dark" : "light") : theme;
+    const resolvedTheme =
+      fallbackTheme === "high-contrast" || contrast === "high" || prefersContrast || forcedColors
+        ? "high-contrast"
+        : fallbackTheme === "safe" || vision === "safe"
+          ? "safe"
+          : fallbackTheme === "dark"
+            ? "dark"
+            : "light";
     root.dataset.theme = resolvedTheme;
-    if (resolvedContrast) root.dataset.contrast = resolvedContrast; else delete root.dataset.contrast;
-    if (resolvedVision) root.dataset.vision = resolvedVision; else delete root.dataset.vision;
+    const favicon = document.querySelector('link[data-theme-favicon="true"]');
+    if (favicon) {
+      const map = {
+        light: "/brand/isotipo_icono.svg",
+        dark: "/brand/isotipo_icono_dark.svg",
+        "high-contrast": "/brand/isotipo_icono_high_contrast_white.svg",
+        safe: "/brand/isotipo_icono_safe.svg"
+      };
+      favicon.setAttribute("href", map[resolvedTheme] || map.light);
+    }
+    if (resolvedTheme === "high-contrast") {
+      root.dataset.contrast = "high";
+      delete root.dataset.vision;
+    } else if (resolvedTheme === "safe") {
+      root.dataset.vision = "safe";
+      delete root.dataset.contrast;
+    } else {
+      if (contrast === "high") root.dataset.contrast = "high"; else delete root.dataset.contrast;
+      if (vision === "safe") root.dataset.vision = "safe"; else delete root.dataset.vision;
+    }
   } catch (_) {}
 })();
         `}</Script>

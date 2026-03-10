@@ -7,6 +7,7 @@ import { getCsrfToken } from "../lib/csrf";
 import { createPlanAndSubscription } from "../billing/actions";
 import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { ListCsvActions } from "../ui/ListCsvActions";
+import { ViewModeToggles } from "../ui/ViewModeToggles";
 
 export const dynamic = "force-dynamic";
 
@@ -480,34 +481,16 @@ export default async function CustomersPage({
                       }}
                       compactInline
                     />
-                    <div className="contacts-view-switch" role="group" aria-label="Vista de contactos">
-                      <a
-                        className={`pill pill-sm ${vista === "cards" ? "pill-ok" : "pill-muted"}`}
-                        href={`/customers?${new URLSearchParams({
-                          ...(q ? { q } : {}),
-                          ...(tenantId ? { tenantId } : {}),
-                          ...(listId ? { list: listId } : {}),
-                          ...(viewId ? { viewId } : {}),
-                          ...(filters ? { filters } : {}),
-                          vista: "cards"
-                        }).toString()}`}
-                      >
-                        Tarjetas
-                      </a>
-                      <a
-                        className={`pill pill-sm ${vista === "lista" ? "pill-ok" : "pill-muted"}`}
-                        href={`/customers?${new URLSearchParams({
-                          ...(q ? { q } : {}),
-                          ...(tenantId ? { tenantId } : {}),
-                          ...(listId ? { list: listId } : {}),
-                          ...(viewId ? { viewId } : {}),
-                          ...(filters ? { filters } : {}),
-                          vista: "lista"
-                        }).toString()}`}
-                      >
-                        Lista
-                      </a>
-                    </div>
+                    <ViewModeToggles
+                      currentMode={vista}
+                      baseParams={{
+                        ...(q ? { q } : {}),
+                        ...(tenantId ? { tenantId } : {}),
+                        ...(listId ? { list: listId } : {}),
+                        ...(viewId ? { viewId } : {}),
+                        ...(filters ? { filters } : {})
+                      }}
+                    />
                     <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
                   </div>
                 </div>

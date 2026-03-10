@@ -18,6 +18,7 @@ import {
 } from "./runtimeConfig";
 import { schedulePaymentLinkNotifications } from "./notificationsScheduler";
 import { resolveSubscriptionCollectionMode } from "./subscriptionMode";
+import { reconcileWompiTransaction } from "./wompiReconcile";
 import { getSubscriptionPricingTotal, getPlanCollectionMode } from "../lib/metadataSchemas";
 
 const PAYMENT_LINK_LOCK_PREFIX = "payment-link";
@@ -174,7 +175,7 @@ export async function createPaymentLinkForSubscription(args: {
   const currency = validateWompiCurrency(sub.plan.currency);
 
   const cycle = sub.currentCycle;
-  const reference = `SUB_${sub.id}_${cycle}`;
+  let reference = `SUB_${sub.id}_${cycle}`;
   const amountInCents = args.amountInCentsOverride ?? readSubscriptionTotalInCents(sub.metadata, sub.plan.priceInCents);
 
   const subscriptionCycleKey = `${sub.id}:${cycle}`;
@@ -441,6 +442,7 @@ export async function createPaymentLinkForSubscription(args: {
 export async function createAutoDebitTransactionForSubscription(args: {
   subscriptionId: string;
   amountInCentsOverride?: number;
+  forceNewTransaction?: boolean;
 }): Promise<{ paymentId: string; wompiTransactionId: string }> {
   const sub = await prisma.subscription.findUnique({
     where: { id: args.subscriptionId },
@@ -487,7 +489,7 @@ export async function createAutoDebitTransactionForSubscription(args: {
   const subscriptionCycleKey = `${sub.id}:${cycle}`;
   const existingByCycle = await prisma.payment.findUnique({
     where: { subscriptionCycleKey },
-    select: { id: true, status: true, wompiTransactionId: true }
+    select: { id: true, status: true, wompiTransactionId: true, reference: true }
   });
 
   if (existingByCycle?.status === PaymentStatus.APPROVED) {
@@ -495,6 +497,27 @@ export async function createAutoDebitTransactionForSubscription(args: {
       return { paymentId: existingByCycle.id, wompiTransactionId: existingByCycle.wompiTransactionId };
     }
     throw new Error("payment_already_approved");
+  }
+
+  if (existingByCycle?.wompiTransactionId && existingByCycle.status === PaymentStatus.PENDING) {
+    // Intentar reconciliar para no quedarnos pegados en un pending viejo.
+    await reconcileWompiTransaction({
+      wompiTransactionId: existingByCycle.wompiTransactionId,
+      tenantId,
+      checksumPrefix: "auto-debit-precheck"
+    }).catch(() => {});
+    const refreshed = await prisma.payment.findUnique({
+      where: { id: existingByCycle.id },
+      select: { status: true, wompiTransactionId: true, reference: true }
+    });
+    if (refreshed?.status && refreshed.status !== PaymentStatus.PENDING) {
+      if (refreshed.status === PaymentStatus.APPROVED && refreshed.wompiTransactionId) {
+        return { paymentId: existingByCycle.id, wompiTransactionId: refreshed.wompiTransactionId };
+      }
+      // Si falló, permitimos crear un nuevo intento abajo.
+    } else if (!args.forceNewTransaction) {
+      return { paymentId: existingByCycle.id, wompiTransactionId: existingByCycle.wompiTransactionId };
+    }
   }
 
   const payment = await prisma.payment.upsert({
@@ -520,8 +543,41 @@ export async function createAutoDebitTransactionForSubscription(args: {
     }
   });
 
-  if (payment.wompiTransactionId) {
+  if (payment.wompiTransactionId && !args.forceNewTransaction) {
     return { paymentId: payment.id, wompiTransactionId: payment.wompiTransactionId };
+  }
+
+  if (payment.wompiTransactionId && args.forceNewTransaction) {
+    const attemptCount = await prisma.paymentAttempt.count({
+      where: { paymentId: payment.id }
+    });
+    const retrySuffix = `R${Math.max(1, attemptCount + 1)}`;
+    const nextReference = `${reference}_${retrySuffix}`;
+    reference = nextReference;
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: {
+        reference: nextReference,
+        wompiTransactionId: null,
+        providerResponse:
+          payment.providerResponse && typeof payment.providerResponse === "object"
+            ? ({
+                ...(payment.providerResponse as Record<string, unknown>),
+                retry: {
+                  previousReference: payment.reference,
+                  previousWompiTransactionId: payment.wompiTransactionId,
+                  retriedAt: new Date().toISOString()
+                }
+              } as any)
+            : ({
+                retry: {
+                  previousReference: payment.reference,
+                  previousWompiTransactionId: payment.wompiTransactionId,
+                  retriedAt: new Date().toISOString()
+                }
+              } as any)
+      }
+    });
   }
 
   const lockKey = `${AUTO_DEBIT_LOCK_PREFIX}:${subscriptionCycleKey}`;

@@ -47,6 +47,8 @@ type WompiTransaction = {
   payment_link?: WompiPaymentLinkRef;
   paymentLink?: WompiPaymentLinkRef;
   status?: string;
+  status_message?: string;
+  statusMessage?: string;
   amount_in_cents?: number;
   amountInCents?: number;
   currency?: string;
@@ -76,6 +78,29 @@ type WompiPayload = {
 function getTransactionFromPayload(payload: WompiPayload): WompiTransaction | null {
   const tx = payload?.data?.transaction;
   return tx && typeof tx === "object" ? tx : null;
+}
+
+function firstText(...values: unknown[]) {
+  for (const v of values) {
+    const txt = String(v || "").trim();
+    if (txt) return txt;
+  }
+  return "";
+}
+
+function extractFailureMessage(payload: WompiPayload) {
+  const tx = getTransactionFromPayload(payload);
+  const statusMessage = firstText(
+    (tx as any)?.status_message,
+    (tx as any)?.statusMessage,
+    (tx as any)?.status_reason,
+    (tx as any)?.statusReason
+  );
+  if (statusMessage) return statusMessage;
+  const method = (tx as any)?.payment_method;
+  const extra = method && typeof method === "object" ? (method as any).extra : null;
+  const extraMsg = firstText(extra?.status_message, extra?.statusMessage, extra?.message, extra?.error);
+  return extraMsg;
 }
 
 function normalizeReference(value: unknown): string | undefined {
@@ -591,15 +616,39 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
       }
     }
     if (!customer) {
+      const name = String(getCustomerNameFromPayload(payload) || "").trim();
+      const emailValue = String(email || "").trim();
+      const phoneValue = String(phone || "").trim();
+      if (!name || !emailValue || !phoneValue) {
+        await db.webhookEvent.update({
+          where: { id: webhookEventId },
+          data: {
+            processStatus: WebhookProcessStatus.FAILED,
+            errorMessage: "missing_customer_fields",
+            processedAt: new Date()
+          }
+        });
+        await systemLog(LogLevel.WARN, "wompi.webhook", "No se crea contacto: faltan nombre/email/teléfono", {
+          webhookEventId,
+          tenantId: tenantIdFallback,
+          hasName: Boolean(name),
+          hasEmail: Boolean(emailValue),
+          hasPhone: Boolean(phoneValue)
+        }).catch((err) => {
+          logger.warn({ err, webhookEventId }, "wompi.webhook: failed to write system log");
+        });
+        return;
+      }
+
       const fallbackMeta: Record<string, unknown> = { source: "wompi_webhook_fallback" };
       if (email) fallbackMeta.incomingEmail = email;
       if (emailConflictOtherTenant) fallbackMeta.emailTenantConflict = true;
       customer = await db.customer.create({
         data: {
           tenantId: tenantIdFallback,
-          email: emailConflictOtherTenant ? null : email ?? null,
-          name: getCustomerNameFromPayload(payload),
-          phone,
+          email: emailConflictOtherTenant ? null : emailValue,
+          name,
+          phone: phoneValue,
           metadata: fallbackMeta as Prisma.InputJsonValue
         }
       });
@@ -899,6 +948,27 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     await consumeApp("payments_success", { amount: 1, source: "wompi:webhook", meta: { paymentId: paymentRecord.id } });
   } else if (becameFailed) {
     await consumeApp("payments_failed", { amount: 1, source: "wompi:webhook", meta: { paymentId: paymentRecord.id } });
+  }
+
+  if (becameFailed) {
+    const failureMessage = extractFailureMessage(payload);
+    const lastAttempt = await db.paymentAttempt.findFirst({
+      where: { paymentId: paymentRecord.id },
+      orderBy: { attemptNo: "desc" },
+      select: { attemptNo: true }
+    });
+    const nextAttemptNo = Number.isFinite(lastAttempt?.attemptNo) ? (lastAttempt!.attemptNo + 1) : 1;
+    await db.paymentAttempt.create({
+      data: {
+        paymentId: paymentRecord.id,
+        attemptNo: nextAttemptNo,
+        status: "TRANSACTION_DECLINED",
+        provider: "wompi",
+        errorCode: nextStatus || "DECLINED",
+        errorMessage: failureMessage || "Pago rechazado por el emisor.",
+        response: payload as Prisma.InputJsonValue
+      }
+    }).catch(() => {});
   }
 
   if (becameApproved) {

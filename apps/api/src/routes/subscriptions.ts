@@ -5,6 +5,7 @@ import { addIntervalUtc } from "../lib/dates";
 import { LogLevel, PaymentStatus, RetryJobStatus, RetryJobType, SubscriptionStatus, GamificationEntityType } from "@prisma/client";
 import { systemLog } from "../services/systemLog";
 import { createAutoDebitTransactionForSubscription, createPaymentLinkForSubscription, readSubscriptionTotalInCents } from "../services/subscriptionBilling";
+import { reconcileWompiTransaction } from "../services/wompiReconcile";
 import { getAutoDebitConfig } from "../services/runtimeConfig";
 import { scheduleSubscriptionDueNotifications } from "../services/notificationsScheduler";
 import { consumeApp } from "../services/superAdminApp";
@@ -663,6 +664,46 @@ subscriptionsRouter.post("/:id/charge-now", async (req, res) => {
     select: { id: true, wompiTransactionId: true, createdAt: true }
   });
   if (recentPending) {
+    // FIX: intentar conciliar antes de bloquear si el intento anterior quedó pendiente
+    if (recentPending.wompiTransactionId && tenantId) {
+      await reconcileWompiTransaction({
+        wompiTransactionId: recentPending.wompiTransactionId,
+        tenantId,
+        checksumPrefix: "manual-charge-precheck"
+      }).catch(() => {});
+      const refreshed = await prisma.payment.findUnique({
+        where: { id: recentPending.id },
+        select: { status: true }
+      });
+      if (refreshed && refreshed.status !== PaymentStatus.PENDING) {
+        // Ya no está pendiente, permitir nuevo intento
+        // (no retornamos aquí)
+      } else {
+        const details = {
+          paymentId: recentPending.id,
+          wompiTransactionId: recentPending.wompiTransactionId,
+          createdAt: recentPending.createdAt
+        };
+        const failedPaymentId = await recordManualChargeFailure({
+          subscription,
+          amountInCentsOverride: parsed.data.amountInCents,
+          errorCode: "pending_charge_exists",
+          details
+        }).catch(() => null);
+        await systemLog(LogLevel.WARN, "subscriptions.charge_now", "Manual charge blocked: pending payment exists", {
+          subscriptionId,
+          tenantId: tenantId || null,
+          paymentId: failedPaymentId || recentPending.id,
+          pendingPaymentId: recentPending.id,
+          wompiTransactionId: recentPending.wompiTransactionId
+        }).catch(() => {});
+        return res.status(409).json({
+          error: "pending_charge_exists",
+          details,
+          paymentId: failedPaymentId || recentPending.id
+        });
+      }
+    } else {
     const details = {
       paymentId: recentPending.id,
       wompiTransactionId: recentPending.wompiTransactionId,
@@ -686,6 +727,7 @@ subscriptionsRouter.post("/:id/charge-now", async (req, res) => {
       details,
       paymentId: failedPaymentId || recentPending.id
     });
+    }
   }
 
   const meta = (subscription.customer?.metadata as any) ?? {};
@@ -749,7 +791,8 @@ subscriptionsRouter.post("/:id/charge-now", async (req, res) => {
   try {
     const result = await createAutoDebitTransactionForSubscription({
       subscriptionId,
-      amountInCentsOverride: parsed.data.amountInCents
+      amountInCentsOverride: parsed.data.amountInCents,
+      forceNewTransaction: true
     });
     await systemLog(LogLevel.INFO, "subscriptions.charge_now", "Manual charge transaction requested", {
       subscriptionId,

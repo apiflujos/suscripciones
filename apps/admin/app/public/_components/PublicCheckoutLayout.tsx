@@ -55,7 +55,15 @@ export function PublicCheckoutLayout({
           <div className="publicCheckoutIntro">
             <div className="publicCheckoutIntroTop">
               <div className="publicCheckoutHeader">
-                {logoUrl ? <img src={logoUrl} alt={title} className="publicCheckoutLogo" referrerPolicy="no-referrer" /> : null}
+                {logoUrl ? (
+                  <img
+                    src={logoUrl}
+                    alt={title}
+                    className="publicCheckoutLogo"
+                    referrerPolicy="no-referrer"
+                    data-theme-logo={logoUrl.startsWith("/brand/") ? "horizontal" : undefined}
+                  />
+                ) : null}
                 <div className="publicCheckoutHeaderText">
                   <h1>{title}</h1>
                 </div>
@@ -73,7 +81,7 @@ export function PublicCheckoutLayout({
               <div className="publicCheckoutBrand">
                 <span className="publicCheckoutBrandText">{resolvedBrandText}</span>
                 <div className="publicCheckoutBrandLogos" aria-label="Apiflujos y Wompi">
-                  <img className="publicCheckoutLogoApi" src="/brand/logo.png" alt="Apiflujos" />
+                  <img className="publicCheckoutLogoApi" src="/brand/logo_horizontal.svg" alt="Apiflujos" data-theme-logo="horizontal" />
                   <span aria-hidden="true">+</span>
                   <img className="publicCheckoutLogoWompi" src="/brand/wompi-logo.svg" alt="Wompi" />
                 </div>

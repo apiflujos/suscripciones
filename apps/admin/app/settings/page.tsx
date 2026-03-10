@@ -25,6 +25,7 @@ import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session
 import { HelpTip } from "../ui/HelpTip";
 import { PendingButton } from "../ui/PendingButton";
 import { AppearanceSelector } from "../ui/AppearanceSelector";
+import { AutoSubmitOnChange } from "../ui/AutoSubmitOnChange";
 import { getCsrfToken } from "../lib/csrf";
 import { ConnectionsPanel } from "./ConnectionsPanel";
 import { LogoUploadField } from "./LogoUploadField";
@@ -146,6 +147,11 @@ export default async function SettingsPage({
   const openaiPill = aiOpenai?.configured ? "pill-green" : "pill-muted";
   const deepseekStatus = aiDeepseek?.configured ? "Activa" : "Inactiva";
   const deepseekPill = aiDeepseek?.configured ? "pill-green" : "pill-muted";
+  const retryValueOptions = [1, 2, 3, 4, 5, 10, 15, 20, 30, 45, 60];
+  const maxRetriesOptions = [0, 1, 2, 3, 4, 5, 8, 10, 12, 15, 20];
+  const retryEveryValue = Number(autoDebit?.retryEveryValue || 1);
+  const retryEveryUnit = String(autoDebit?.retryEveryUnit || "MINUTES");
+  const retryEveryMinutes = Number(autoDebit?.retryEveryMinutes || 60);
   const sp = (await searchParams) ?? {};
   const action = String(sp.a || "");
   const status = String(sp.status || "");
@@ -192,6 +198,9 @@ export default async function SettingsPage({
       <div className="settings-tabs">
         <a className={`settings-tab ${tab === "connections" ? "is-active" : ""}`} href="/settings?tab=connections">
           Conexiones
+        </a>
+        <a className={`settings-tab ${tab === "cobros" ? "is-active" : ""}`} href="/settings?tab=cobros">
+          Cobros
         </a>
         <a className={`settings-tab ${tab === "checkout-publico" ? "is-active" : ""}`} href="/settings?tab=checkout-publico">
           Checkout público
@@ -495,225 +504,6 @@ export default async function SettingsPage({
             </div>
           </section>
 
-          <section className="settings-group">
-            <div className="settings-group-header">
-              <div className="panelHeaderRow">
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <h3>Reglas de cobro</h3>
-                  <HelpTip text="Configura las reglas de cobro automático, corte, cobro manual y reintentos." />
-                </div>
-              </div>
-            </div>
-            <div className="settings-group-body">
-              <form action={updatePaymentsConfig} className="panel module" style={{ display: "grid", gap: 12 }}>
-                <input type="hidden" name="csrf" value={csrfToken} />
-                <input type="hidden" name="returnTo" value={returnTo} />
-                <div className="settings-submodule-header">
-                  <div className="settings-submodule-title">Pagos sin suscripción</div>
-                  <div className="field-hint">Reglas para pagos que llegan sin suscripción activa asociada.</div>
-                </div>
-
-                <div className="toggleRow">
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <strong>Conciliación automática de pagos no asociados</strong>
-                      <HelpTip text="Cuando un pago llega sin suscripción, intenta asociarlo automáticamente por nombre, email/teléfono y valor. Útil para pagos que llegan “huérfanos”." />
-                    </div>
-                    <div className="field-hint">Pagos sin suscripción activa: buscar coincidencia por identidad + monto.</div>
-                  </div>
-                  <label className="toggleControl" aria-label="Conciliación automática de pagos">
-                    <input type="hidden" name="autoReconcileUnlinkedPayments" value="0" />
-                    <input
-                      className="toggleInput"
-                      type="checkbox"
-                      name="autoReconcileUnlinkedPayments"
-                      value="1"
-                      defaultChecked={Boolean(paymentsConfig?.autoReconcileUnlinkedPayments ?? true)}
-                    />
-                    <span className="toggle" aria-hidden="true" />
-                  </label>
-                </div>
-
-                <div className="toggleRow">
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <strong>Aceptar pagos sin suscripción activa</strong>
-                      <HelpTip text="Si lo apagas, los pagos que no se puedan asociar se marcan como ignorados y no aparecen en Pagos ni disparan notificaciones." />
-                    </div>
-                    <div className="field-hint">Pagos que llegan “sin nada” o no corresponden a ninguna suscripción.</div>
-                  </div>
-                  <label className="toggleControl" aria-label="Recibir pagos sin suscripción activa">
-                    <input type="hidden" name="acceptUnlinkedPayments" value="0" />
-                    <input
-                      className="toggleInput"
-                      type="checkbox"
-                      name="acceptUnlinkedPayments"
-                      value="1"
-                      defaultChecked={Boolean(paymentsConfig?.acceptUnlinkedPayments ?? true)}
-                    />
-                    <span className="toggle" aria-hidden="true" />
-                  </label>
-                </div>
-
-                <div className="toggleRow">
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <strong>Notificar por WhatsApp pagos no asociados</strong>
-                      <HelpTip text="Controla si se envían notificaciones de pago (aprobado/fallido) cuando el pago no tiene suscripción asociada." />
-                    </div>
-                    <div className="field-hint">Aplica solo a pagos sin `subscriptionId`.</div>
-                  </div>
-                  <label className="toggleControl" aria-label="Notificar por WhatsApp estos pagos">
-                    <input type="hidden" name="notifyWhatsappForUnlinkedPayments" value="0" />
-                    <input
-                      className="toggleInput"
-                      type="checkbox"
-                      name="notifyWhatsappForUnlinkedPayments"
-                      value="1"
-                      defaultChecked={Boolean(paymentsConfig?.notifyWhatsappForUnlinkedPayments ?? true)}
-                    />
-                    <span className="toggle" aria-hidden="true" />
-                  </label>
-                </div>
-
-                <div className="toggleRow">
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <strong>Incluir pagos no asociados en métricas</strong>
-                      <HelpTip text="Si lo apagas, los pagos sin suscripción activa no cuentan en las métricas del dashboard." />
-                    </div>
-                    <div className="field-hint">Impacta “Pagos OK/Fallidos” y “Revenue”.</div>
-                  </div>
-                  <label className="toggleControl" aria-label="Incluir estos pagos en métricas">
-                    <input type="hidden" name="includeUnlinkedPaymentsInMetrics" value="0" />
-                    <input
-                      className="toggleInput"
-                      type="checkbox"
-                      name="includeUnlinkedPaymentsInMetrics"
-                      value="1"
-                      defaultChecked={Boolean(paymentsConfig?.includeUnlinkedPaymentsInMetrics ?? true)}
-                    />
-                    <span className="toggle" aria-hidden="true" />
-                  </label>
-                </div>
-
-                <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8, alignItems: "center" }}>
-                  {action === "payments_config_save" && status === "ok" ? <div className="field-hint">Guardado.</div> : null}
-                  {action === "payments_config_save" && status === "fail" ? (
-                    <div className="field-hint" style={{ color: "var(--danger)" }}>Error guardando: {errorText || "unknown_error"}</div>
-                  ) : null}
-                  <PendingButton className="primary btn-save" type="submit" pendingText="Guardando...">
-                    Guardar
-                  </PendingButton>
-                </div>
-              </form>
-
-              <form action={updateAutoDebitConfig} className="panel module" style={{ display: "grid", gap: 12 }}>
-                <input type="hidden" name="csrf" value={csrfToken} />
-                <input type="hidden" name="returnTo" value={returnTo} />
-                <div className="settings-submodule-header">
-                  <div className="settings-submodule-title">Débito automático</div>
-                  <div className="field-hint">Cobros automáticos, corte, botón manual y reintentos.</div>
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <div className="field">
-                    <label>Cobros automáticos</label>
-                    <select className="select" name="enabled" defaultValue={String(Boolean(autoDebit?.enabled))}>
-                      <option value="true">Encendido</option>
-                      <option value="false">Apagado</option>
-                    </select>
-                  </div>
-                  <div className="field">
-                    <label>Cobrar en fecha/hora de corte</label>
-                    <select
-                      className="select"
-                      name="chargeAtCutoffEnabled"
-                      defaultValue={String(Boolean(autoDebit?.chargeAtCutoffEnabled ?? true))}
-                    >
-                      <option value="true">Encendido</option>
-                      <option value="false">Apagado</option>
-                    </select>
-                  </div>
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <div className="field">
-                    <label>Habilitar botón de cobro manual</label>
-                    <select className="select" name="allowManualCharge" defaultValue={String(Boolean(autoDebit?.allowManualCharge ?? true))}>
-                      <option value="true">Encendido</option>
-                      <option value="false">Apagado</option>
-                    </select>
-                  </div>
-                  <div className="field">
-                    <label>Reintentos</label>
-                    <select className="select" name="retryEnabled" defaultValue={String(Boolean(autoDebit?.retryEnabled))}>
-                      <option value="true">Encendido</option>
-                      <option value="false">Apagado</option>
-                    </select>
-                  </div>
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <div className="field">
-                    <label>Reintentar cada</label>
-                    <input
-                      className="input"
-                      type="number"
-                      min={1}
-                      max={10080}
-                      name="retryEveryValue"
-                      defaultValue={Number(autoDebit?.retryEveryValue || 60)}
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Unidad de reintento</label>
-                    <select className="select" name="retryEveryUnit" defaultValue={String(autoDebit?.retryEveryUnit || "MINUTES")}>
-                      <option value="MINUTES">Minutos</option>
-                      <option value="HOURS">Horas</option>
-                      <option value="DAYS">Días</option>
-                    </select>
-                  </div>
-                </div>
-                <input type="hidden" name="retryEveryMinutes" value={Number(autoDebit?.retryEveryMinutes || 60)} />
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <div className="field">
-                    <label>Intervalo equivalente (minutos)</label>
-                    <input
-                      className="input"
-                      type="number"
-                      min={1}
-                      max={10080}
-                      value={Number(autoDebit?.retryEveryMinutes || 60)}
-                      readOnly
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Máximo de reintentos</label>
-                    <input
-                      className="input"
-                      type="number"
-                      min={0}
-                      max={20}
-                      name="maxRetries"
-                      defaultValue={Number(autoDebit?.maxRetries || 0)}
-                    />
-                  </div>
-                </div>
-                <div className="field-hint">
-                  Si cobros automáticos está apagado, no se hacen cargos automáticos.
-                  Si apagas fecha de corte, no se encolan cobros por vencimiento automático.
-                </div>
-                <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8, alignItems: "center" }}>
-                  {action === "auto_debit_save" && status === "ok" ? <div className="field-hint">Guardado.</div> : null}
-                  {action === "auto_debit_save" && status === "fail" ? (
-                    <div className="field-hint" style={{ color: "var(--danger)" }}>Error guardando: {errorText || "unknown_error"}</div>
-                  ) : null}
-                  <PendingButton className="primary btn-save" type="submit" pendingText="Guardando...">
-                    Guardar
-                  </PendingButton>
-                </div>
-              </form>
-            </div>
-          </section>
-
           {aiEnabled ? (
             <section className="settings-group">
               <div className="settings-group-header">
@@ -819,6 +609,263 @@ export default async function SettingsPage({
             </section>
           )}
 
+        </>
+      ) : null}
+
+      {tab === "cobros" ? (
+        <>
+          <AutoSubmitOnChange />
+          <section className="settings-group">
+            <div className="settings-group-header">
+              <div className="panelHeaderRow">
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <h3>Reglas de cobro</h3>
+                  <HelpTip text="Configura las reglas de cobro automático, corte, cobro manual y reintentos." />
+                </div>
+              </div>
+            </div>
+            <div className="settings-group-body">
+              <form action={updatePaymentsConfig} className="panel module" style={{ display: "grid", gap: 12 }} data-auto-submit-form="true">
+                <input type="hidden" name="csrf" value={csrfToken} />
+                <input type="hidden" name="returnTo" value={returnTo} />
+                <div className="settings-submodule-header">
+                  <div className="settings-submodule-title">Pagos sin suscripción</div>
+                  <div className="field-hint">Reglas para pagos que llegan sin suscripción activa asociada.</div>
+                </div>
+
+                <div className="toggleRow">
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <strong>Conciliación automática de pagos no asociados</strong>
+                      <HelpTip text="Cuando un pago llega sin suscripción, intenta asociarlo automáticamente por nombre, email/teléfono y valor. Útil para pagos que llegan “huérfanos”." />
+                    </div>
+                    <div className="field-hint">Pagos sin suscripción activa: buscar coincidencia por identidad + monto.</div>
+                  </div>
+                  <label className="toggleControl" aria-label="Conciliación automática de pagos">
+                    <input type="hidden" name="autoReconcileUnlinkedPayments" value="0" />
+                    <input
+                      className="toggleInput"
+                      type="checkbox"
+                      name="autoReconcileUnlinkedPayments"
+                      value="1"
+                      defaultChecked={Boolean(paymentsConfig?.autoReconcileUnlinkedPayments ?? true)}
+                      data-auto-submit="true"
+                    />
+                    <span className="toggle" aria-hidden="true" />
+                  </label>
+                </div>
+
+                <div className="toggleRow">
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <strong>Aceptar pagos sin suscripción activa</strong>
+                      <HelpTip text="Si lo apagas, los pagos que no se puedan asociar se marcan como ignorados y no aparecen en Pagos ni disparan notificaciones." />
+                    </div>
+                    <div className="field-hint">Pagos que llegan “sin nada” o no corresponden a ninguna suscripción.</div>
+                  </div>
+                  <label className="toggleControl" aria-label="Recibir pagos sin suscripción activa">
+                    <input type="hidden" name="acceptUnlinkedPayments" value="0" />
+                    <input
+                      className="toggleInput"
+                      type="checkbox"
+                      name="acceptUnlinkedPayments"
+                      value="1"
+                      defaultChecked={Boolean(paymentsConfig?.acceptUnlinkedPayments ?? true)}
+                      data-auto-submit="true"
+                    />
+                    <span className="toggle" aria-hidden="true" />
+                  </label>
+                </div>
+
+                <div className="toggleRow">
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <strong>Notificar por WhatsApp pagos no asociados</strong>
+                      <HelpTip text="Controla si se envían notificaciones de pago (aprobado/fallido) cuando el pago no tiene suscripción asociada." />
+                    </div>
+                    <div className="field-hint">Aplica solo a pagos sin `subscriptionId`.</div>
+                  </div>
+                  <label className="toggleControl" aria-label="Notificar por WhatsApp estos pagos">
+                    <input type="hidden" name="notifyWhatsappForUnlinkedPayments" value="0" />
+                    <input
+                      className="toggleInput"
+                      type="checkbox"
+                      name="notifyWhatsappForUnlinkedPayments"
+                      value="1"
+                      defaultChecked={Boolean(paymentsConfig?.notifyWhatsappForUnlinkedPayments ?? true)}
+                      data-auto-submit="true"
+                    />
+                    <span className="toggle" aria-hidden="true" />
+                  </label>
+                </div>
+
+                <div className="toggleRow">
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <strong>Incluir pagos no asociados en métricas</strong>
+                      <HelpTip text="Si lo apagas, los pagos sin suscripción activa no cuentan en las métricas del dashboard." />
+                    </div>
+                    <div className="field-hint">Impacta “Pagos OK/Fallidos” y “Revenue”.</div>
+                  </div>
+                  <label className="toggleControl" aria-label="Incluir estos pagos en métricas">
+                    <input type="hidden" name="includeUnlinkedPaymentsInMetrics" value="0" />
+                    <input
+                      className="toggleInput"
+                      type="checkbox"
+                      name="includeUnlinkedPaymentsInMetrics"
+                      value="1"
+                      defaultChecked={Boolean(paymentsConfig?.includeUnlinkedPaymentsInMetrics ?? true)}
+                      data-auto-submit="true"
+                    />
+                    <span className="toggle" aria-hidden="true" />
+                  </label>
+                </div>
+              </form>
+            </div>
+          </section>
+
+          <section className="settings-group">
+            <div className="settings-group-header">
+              <div className="panelHeaderRow">
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <h3>Débito automático</h3>
+                  <HelpTip text="Cobros automáticos, corte, botón manual y reintentos." />
+                </div>
+              </div>
+            </div>
+            <div className="settings-group-body">
+              <form action={updateAutoDebitConfig} className="panel module" style={{ display: "grid", gap: 12 }} data-auto-submit-form="true">
+                <input type="hidden" name="csrf" value={csrfToken} />
+                <input type="hidden" name="returnTo" value={returnTo} />
+                <div className="toggleRow">
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <strong>Cobros automáticos</strong>
+                      <HelpTip text="Si está apagado, no se realizan cargos automáticos." />
+                    </div>
+                    <div className="field-hint">Controla la ejecución de cobros recurrentes.</div>
+                  </div>
+                  <label className="toggleControl" aria-label="Cobros automáticos">
+                    <input type="hidden" name="enabled" value="false" />
+                    <input
+                      className="toggleInput"
+                      type="checkbox"
+                      name="enabled"
+                      value="true"
+                      defaultChecked={Boolean(autoDebit?.enabled)}
+                      data-auto-submit="true"
+                    />
+                    <span className="toggle" aria-hidden="true" />
+                  </label>
+                </div>
+                <div className="toggleRow">
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <strong>Cobrar en fecha/hora de corte</strong>
+                      <HelpTip text="Si lo apagas, no se encolan cobros por vencimiento automático." />
+                    </div>
+                    <div className="field-hint">Solo aplica cuando hay corte configurado.</div>
+                  </div>
+                  <label className="toggleControl" aria-label="Cobrar en fecha/hora de corte">
+                    <input type="hidden" name="chargeAtCutoffEnabled" value="false" />
+                    <input
+                      className="toggleInput"
+                      type="checkbox"
+                      name="chargeAtCutoffEnabled"
+                      value="true"
+                      defaultChecked={Boolean(autoDebit?.chargeAtCutoffEnabled ?? true)}
+                      data-auto-submit="true"
+                    />
+                    <span className="toggle" aria-hidden="true" />
+                  </label>
+                </div>
+                <div className="toggleRow">
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <strong>Habilitar botón de cobro manual</strong>
+                      <HelpTip text="Permite ejecutar cobros manuales desde el panel." />
+                    </div>
+                    <div className="field-hint">Útil para cobros puntuales o casos especiales.</div>
+                  </div>
+                  <label className="toggleControl" aria-label="Habilitar botón de cobro manual">
+                    <input type="hidden" name="allowManualCharge" value="false" />
+                    <input
+                      className="toggleInput"
+                      type="checkbox"
+                      name="allowManualCharge"
+                      value="true"
+                      defaultChecked={Boolean(autoDebit?.allowManualCharge ?? true)}
+                      data-auto-submit="true"
+                    />
+                    <span className="toggle" aria-hidden="true" />
+                  </label>
+                </div>
+                <div className="toggleRow">
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <strong>Reintentos</strong>
+                      <HelpTip text="Activa los reintentos automáticos cuando un cobro falla." />
+                    </div>
+                    <div className="field-hint">Configura el intervalo y el máximo abajo.</div>
+                  </div>
+                  <label className="toggleControl" aria-label="Reintentos">
+                    <input type="hidden" name="retryEnabled" value="false" />
+                    <input
+                      className="toggleInput"
+                      type="checkbox"
+                      name="retryEnabled"
+                      value="true"
+                      defaultChecked={Boolean(autoDebit?.retryEnabled)}
+                      data-auto-submit="true"
+                    />
+                    <span className="toggle" aria-hidden="true" />
+                  </label>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <div className="field">
+                    <label>Reintentar cada</label>
+                    <select className="select" name="retryEveryValue" defaultValue={String(retryEveryValue)} data-auto-submit="true">
+                      {retryValueOptions.map((value) => (
+                        <option key={`retry-every-${value}`} value={String(value)}>
+                          {value}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label>Unidad de reintento</label>
+                    <select className="select" name="retryEveryUnit" defaultValue={String(retryEveryUnit)} data-auto-submit="true">
+                      <option value="SECONDS">Segundos</option>
+                      <option value="MINUTES">Minutos</option>
+                      <option value="HOURS">Horas</option>
+                      <option value="DAYS">Días</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <div className="field">
+                    <label>Intervalo equivalente (minutos)</label>
+                    <input className="input" type="text" value={retryEveryMinutes} readOnly />
+                  </div>
+                  <div className="field">
+                    <label>Máximo de reintentos</label>
+                    <select className="select" name="maxRetries" defaultValue={String(autoDebit?.maxRetries ?? 0)} data-auto-submit="true">
+                      {maxRetriesOptions.map((value) => (
+                        <option key={`retry-max-${value}`} value={String(value)}>
+                          {value}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="field-hint">
+                  Si cobros automáticos está apagado, no se hacen cargos automáticos.
+                  Si apagas fecha de corte, no se encolan cobros por vencimiento automático.
+                </div>
+              </form>
+            </div>
+          </section>
         </>
       ) : null}
 

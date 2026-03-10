@@ -6,6 +6,7 @@ import { ProductsModals } from "./ProductsModals";
 import { createCustomerFromBilling, createPlanAndSubscription } from "../billing/actions";
 import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { ListCsvActions } from "../ui/ListCsvActions";
+import { ViewModeToggles } from "../ui/ViewModeToggles";
 
 export const dynamic = "force-dynamic";
 
@@ -172,32 +173,15 @@ export default async function ProductsPage({
                       }}
                       compactInline
                     />
-                    <div className="products-view-switch" role="group" aria-label="Vista de productos">
-                      <a
-                        className={`pill pill-sm ${vista === "cards" ? "pill-ok" : "pill-muted"}`}
-                        href={`/products?${new URLSearchParams({
-                          ...(tenantId ? { tenantId } : {}),
-                          ...(q ? { q } : {}),
-                          ...(viewId ? { viewId } : {}),
-                          ...(filters ? { filters } : {}),
-                          vista: "cards"
-                        }).toString()}`}
-                      >
-                        Tarjetas
-                      </a>
-                      <a
-                        className={`pill pill-sm ${vista === "lista" ? "pill-ok" : "pill-muted"}`}
-                        href={`/products?${new URLSearchParams({
-                          ...(tenantId ? { tenantId } : {}),
-                          ...(q ? { q } : {}),
-                          ...(viewId ? { viewId } : {}),
-                          ...(filters ? { filters } : {}),
-                          vista: "lista"
-                        }).toString()}`}
-                      >
-                        Lista
-                      </a>
-                    </div>
+                    <ViewModeToggles
+                      currentMode={vista}
+                      baseParams={{
+                        ...(tenantId ? { tenantId } : {}),
+                        ...(q ? { q } : {}),
+                        ...(viewId ? { viewId } : {}),
+                        ...(filters ? { filters } : {})
+                      }}
+                    />
                     <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="products" />
                   </div>
                 </div>

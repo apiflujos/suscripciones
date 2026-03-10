@@ -20,7 +20,7 @@ export function PublicErrorPage({
   supportHref,
   supportLabel
 }: PublicErrorPageProps) {
-  const resolvedLogo = String(logoUrl || "").trim() || "/brand/logo.png";
+  const resolvedLogo = String(logoUrl || "").trim() || "/brand/logo_horizontal.svg";
   return (
     <PublicCheckoutLayout
       title={title}

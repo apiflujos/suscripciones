@@ -21,6 +21,7 @@ type HeaderNotification = {
   href: string;
   read: boolean;
   duplicateCount?: number;
+  meta?: any;
 };
 
 function getHeader(pathname: string): Header {
@@ -318,93 +319,105 @@ export function TopBar({ session }: { session: AdminSession | null }) {
         readIdsRef.current = new Set();
       }
     };
-    
+
+    const buildNotifications = (rawItems: any[]) => {
+      if (!Array.isArray(rawItems)) {
+        setNotifications([]);
+        return;
+      }
+
+      // FIX: Agrupar notificaciones idénticas con lógica mejorada
+      const grouped = new Map<string, HeaderNotification>();
+      for (const raw of rawItems.slice(0, 100)) {
+        const item = raw as any;
+
+        // Filtrar ruido (solo para no super admin)
+        if (!isSuperAdmin && isNoiseNotification({
+          source: item?.source,
+          title: item?.title,
+          message: item?.message,
+          kind: item?.kind
+        })) {
+          continue;
+        }
+
+        // FIX: Clave única incluye categoría y fecha para evitar falsos duplicados
+        const title = normalizeSystemText(item?.title || "");
+        const message = normalizeSystemText(item?.message || "");
+        const category = item?.category || categorizeNotification(title, message, item?.source);
+        const itemDate = item?.ts ? new Date(item.ts).toDateString() : "unknown";
+        const contentKey = `${title}|${message}|${category}|${itemDate}`;
+
+        const existing = grouped.get(contentKey);
+        const newItem: HeaderNotification = {
+          id: item?.id || contentKey,
+          ts: item?.ts || new Date().toISOString(),
+          title: title,
+          message: message,
+          level: item?.level || levelFromSource(item?.source, item?.title),
+          category: category,
+          href: item?.href || "",
+          read: readIdsRef.current.has(item?.id || contentKey),
+          duplicateCount: existing ? (existing.duplicateCount || 1) + 1 : 1,
+          meta: item?.meta
+        };
+
+        // FIX: Solo agrupar si son realmente el mismo evento (misma hora)
+        if (!existing) {
+          grouped.set(contentKey, newItem);
+          continue;
+        }
+
+        // Si los timestamps son muy diferentes (> 1 hora), no agrupar
+        const existingTs = new Date(existing.ts).getTime();
+        const newItemTs = new Date(newItem.ts).getTime();
+        const timeDiffMs = Math.abs(newItemTs - existingTs);
+        const oneHourMs = 60 * 60 * 1000;
+
+        if (timeDiffMs > oneHourMs) {
+          // Crear entrada separada
+          const newKey = `${contentKey}|${newItemTs}`;
+          grouped.set(newKey, { ...newItem, id: newKey, duplicateCount: 1 });
+          continue;
+        }
+
+        // Mismo evento, actualizar contador
+        if (newItemTs > existingTs) {
+          newItem.duplicateCount = (existing.duplicateCount || 1) + 1;
+          grouped.set(contentKey, newItem);
+        } else {
+          existing.duplicateCount = (existing.duplicateCount || 1) + 1;
+        }
+      }
+
+      const next = Array.from(grouped.values())
+        .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
+        .slice(0, 50);
+
+      setNotifications(next);
+    };
+
     const load = () => {
       try {
         const raw = window.localStorage.getItem(FEED_STORAGE_KEY);
         const parsed = raw ? JSON.parse(raw) : [];
-        if (!Array.isArray(parsed)) {
-          setNotifications([]);
-          return;
-        }
-
-        // FIX: Agrupar notificaciones idénticas con lógica mejorada
-        const grouped = new Map<string, HeaderNotification>();
-        for (const raw of parsed.slice(0, 100)) {
-          const item = raw as any;
-
-          // Filtrar ruido (solo para no super admin)
-          if (!isSuperAdmin && isNoiseNotification({
-            source: item?.source,
-            title: item?.title,
-            message: item?.message,
-            kind: item?.kind
-          })) {
-            continue;
-          }
-
-          // FIX: Clave única incluye categoría y fecha para evitar falsos duplicados
-          const title = normalizeSystemText(item?.title || "");
-          const message = normalizeSystemText(item?.message || "");
-          const category = item?.category || categorizeNotification(title, message, item?.source);
-          const itemDate = item?.ts ? new Date(item.ts).toDateString() : 'unknown';
-          const contentKey = `${title}|${message}|${category}|${itemDate}`;
-
-          const existing = grouped.get(contentKey);
-          const newItem: HeaderNotification = {
-            id: item?.id || contentKey,
-            ts: item?.ts || new Date().toISOString(),
-            title: title,
-            message: message,
-            level: item?.level || levelFromSource(item?.source, item?.title),
-            category: category,
-            href: item?.href || "",
-            read: readIdsRef.current.has(item?.id || contentKey),
-            duplicateCount: existing ? (existing.duplicateCount || 1) + 1 : 1
-          };
-
-          // FIX: Solo agrupar si son realmente el mismo evento (misma hora)
-          if (!existing) {
-            grouped.set(contentKey, newItem);
-            continue;
-          }
-          
-          // Si los timestamps son muy diferentes (> 1 hora), no agrupar
-          const existingTs = new Date(existing.ts).getTime();
-          const newItemTs = new Date(newItem.ts).getTime();
-          const timeDiffMs = Math.abs(newItemTs - existingTs);
-          const oneHourMs = 60 * 60 * 1000;
-          
-          if (timeDiffMs > oneHourMs) {
-            // Crear entrada separada
-            const newKey = `${contentKey}|${newItemTs}`;
-            grouped.set(newKey, { ...newItem, id: newKey, duplicateCount: 1 });
-            continue;
-          }
-          
-          // Mismo evento, actualizar contador
-          if (newItemTs > existingTs) {
-            newItem.duplicateCount = (existing.duplicateCount || 1) + 1;
-            grouped.set(contentKey, newItem);
-          } else {
-            existing.duplicateCount = (existing.duplicateCount || 1) + 1;
-          }
-        }
-
-        const next = Array.from(grouped.values())
-          .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
-          .slice(0, 50);
-
-        setNotifications(next);
+        buildNotifications(parsed);
       } catch {
         setNotifications([]);
       }
     };
-    
+
     loadRead();
     load();
-    
-    const onUpdated = () => load();
+
+    const onUpdated = (event: Event) => {
+      const detail = (event as CustomEvent)?.detail;
+      if (detail && Array.isArray(detail.items)) {
+        buildNotifications(detail.items);
+        return;
+      }
+      load();
+    };
     window.addEventListener("apiflujos:notifications-updated", onUpdated as EventListener);
     return () => window.removeEventListener("apiflujos:notifications-updated", onUpdated as EventListener);
   }, [FEED_STORAGE_KEY, READ_STORAGE_KEY, isSuperAdmin]);
@@ -439,13 +452,56 @@ export function TopBar({ session }: { session: AdminSession | null }) {
     } catch {}
   };
 
+  const resolveContactPayload = (meta: any) => {
+    if (!meta || typeof meta !== "object") return null;
+    const name = String(meta.customerName || meta.name || meta.customer || "").trim();
+    const email = String(meta.customerEmail || meta.email || "").trim();
+    const phone = String(meta.customerPhone || meta.phone || "").trim();
+    const tenantId = String(meta.tenantId || "").trim();
+    if (!name || !email || !phone) return null;
+    return { name, email, phone, tenantId: tenantId || undefined };
+  };
+
+  const canCreateContact = (n: HeaderNotification) => {
+    if (n.category !== "clientes" && n.category !== "pagos") return false;
+    return Boolean(resolveContactPayload(n.meta));
+  };
+
+  const [creatingContactId, setCreatingContactId] = useState<string | null>(null);
+
+  const createContactFromNotification = async (n: HeaderNotification) => {
+    const payload = resolveContactPayload(n.meta);
+    if (!payload) return;
+    try {
+      setCreatingContactId(n.id);
+      const res = await fetch("/api/customers/create-from-notification", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.ok) {
+        console.warn("create_contact_failed", json?.error || res.status);
+        return;
+      }
+      markNotification(n.id, true);
+      if (json?.customerId) {
+        window.location.href = `/customers/${encodeURIComponent(json.customerId)}`;
+      }
+    } catch (err) {
+      console.warn("create_contact_failed", err);
+    } finally {
+      setCreatingContactId((prev) => (prev === n.id ? null : prev));
+    }
+  };
+
   return (
     <header className="topbar" aria-label="Topbar">
       <div className="topbarLeft">
         <div className="topbarLeftRow">
           <Link href="/" className="topbarLogoLink" prefetch={false} aria-label="Ir al home">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/logo.png" alt="Logo" className="topbarLogo" />
+            <img src="/brand/logo_horizontal.svg" alt="Logo" className="topbarLogo" data-theme-logo="horizontal" />
             <span className="logoStatusDot" aria-hidden="true" />
           </Link>
           <div className="topbarTitleGroup">
@@ -577,38 +633,62 @@ export function TopBar({ session }: { session: AdminSession | null }) {
                     const icon = getNotificationIcon({ level: n.level, category: n.category });
                     const colorClass = getNotificationColor(n.level);
                     const destinationHref = n.href || resolveNotificationHref(n.category, n.level, session?.role);
+                    const contactPayload = resolveContactPayload(n.meta);
+                    const allowCreate = canCreateContact(n) && Boolean(contactPayload);
+                    const isCreating = creatingContactId === n.id;
                     
                     return (
-                      <Link 
-                        key={n.id} 
-                        href={destinationHref}
-                        prefetch={false}
+                      <div
+                        key={n.id}
                         className={`topbarBellItem ${colorClass} ${n.read ? "is-read" : "is-unread"}`}
-                        onClick={() => markNotification(n.id, true)}
                       >
-                        <div className="topbarBellItemIcon">{icon}</div>
-                        <div className="topbarBellItemContent">
-                          <div className="topbarBellItemTitle">
-                            {n.title || "Notificación"}
-                            {n.duplicateCount && n.duplicateCount > 1 ? (
-                              <span className="topbarBellItemDuplicate">×{n.duplicateCount}</span>
-                            ) : null}
+                        <Link
+                          href={destinationHref}
+                          prefetch={false}
+                          className="topbarBellItemLinkWrap"
+                          onClick={() => markNotification(n.id, true)}
+                        >
+                          <div className="topbarBellItemIcon">{icon}</div>
+                          <div className="topbarBellItemContent">
+                            <div className="topbarBellItemTitle">
+                              {n.title || "Notificación"}
+                              {n.duplicateCount && n.duplicateCount > 1 ? (
+                                <span className="topbarBellItemDuplicate">×{n.duplicateCount}</span>
+                              ) : null}
+                            </div>
+                            <div className="topbarBellItemMsg">{n.message || "Sin detalle"}</div>
+                            <div className="topbarBellItemMeta">
+                              <span className="category-badge">{n.category}</span>
+                              <span className="time-ago">
+                                {new Date(n.ts).toLocaleString("es-CO", { 
+                                  hour: "2-digit", 
+                                  minute: "2-digit",
+                                  day: "2-digit",
+                                  month: "2-digit"
+                                })}
+                              </span>
+                            </div>
                           </div>
-                          <div className="topbarBellItemMsg">{n.message || "Sin detalle"}</div>
-                          <div className="topbarBellItemMeta">
-                            <span className="category-badge">{n.category}</span>
-                            <span className="time-ago">
-                              {new Date(n.ts).toLocaleString("es-CO", { 
-                                hour: "2-digit", 
-                                minute: "2-digit",
-                                day: "2-digit",
-                                month: "2-digit"
-                              })}
-                            </span>
+                          {!n.read && <span className="topbarBellItemDot" />}
+                        </Link>
+                        {allowCreate ? (
+                          <div className="topbarBellItemActions">
+                            <button
+                              type="button"
+                              className="topbarBellItemCta"
+                              data-loader="off"
+                              disabled={isCreating}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                createContactFromNotification(n);
+                              }}
+                            >
+                              {isCreating ? "Creando..." : "Crear contacto"}
+                            </button>
                           </div>
-                        </div>
-                        {!n.read && <span className="topbarBellItemDot" />}
-                      </Link>
+                        ) : null}
+                      </div>
                     );
                   })
                 ) : (
