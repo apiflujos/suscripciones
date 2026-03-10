@@ -153,7 +153,7 @@ function formatPlanTitle(plan: any) {
   const rawName = String(plan?.name || "").trim();
   const name = displayName || rawName.replace(/^\s*\[\d+\]\s*/, "").trim() || "—";
   const sku = normalizeSku(md?.sku);
-  return sku ? `SKU ${sku} · ${name}` : name;
+  return sku ? `${name} (SKU ${sku})` : name;
 }
 
 function buildSmartListRules({
@@ -523,15 +523,15 @@ export default async function BillingPage({
               </div>
 
               <div className="billing-header-meta-item billing-header-status-strip">
-                <span className="billing-header-label">Estados</span>
-                <div className="billing-status-line" role="group" aria-label="Estados">
+                <span className="billing-header-label">Estado</span>
+                <div className="billing-status-line" role="group" aria-label="Estado">
                   {!isPlan ? (
                     <span className={`pill ${subscriptionStatus === "Activa" ? "pill-ok" : subscriptionStatus === "En mora" ? "pill-warn" : subscriptionStatus === "Suspendida" ? "pill-warn" : subscriptionStatus === "Cancelada" ? "pill-bad" : "pill-muted"}`}>
                       {subscriptionBadge}
                     </span>
                   ) : null}
                   <span className={`pill ${(isPlan ? planBadgeStatus : paymentBadgeStatus) === "Al día" ? "pill-ok" : (isPlan ? planBadgeStatus : paymentBadgeStatus) === "En mora" ? "pill-warn" : "pill-muted"}`}>
-                    Estado del pago: {isPlan ? planBadgeStatus : paymentBadgeStatus}
+                    {isPlan ? planBadgeStatus : paymentBadgeStatus}
                   </span>
                   <span className={`pill ${r.customerTokenized ? "pill-ok" : "pill-bad"}`}>
                     {r.customerTokenized ? "Tokenizada" : "Sin token"}

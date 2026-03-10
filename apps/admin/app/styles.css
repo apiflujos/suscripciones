@@ -79,8 +79,8 @@
   --shadow-shell: 0 20px 52px rgba(30, 18, 52, 0.1);
   --surface-2: rgba(27, 16, 34, 0.01);
   --surface-3: rgba(27, 16, 34, 0.024);
-  --surface-brand: linear-gradient(180deg, #ffffff 0%, #ffffff 100%);
-  --surface-brand-strong: linear-gradient(180deg, #ffffff 0%, #ffffff 100%);
+  --surface-brand: linear-gradient(180deg, #ffffff 0%, #faf7fc 100%);
+  --surface-brand-strong: linear-gradient(180deg, #ffffff 0%, #f5f0f8 100%);
   --row-alt: rgba(27, 16, 34, 0.01);
   --row-hover: rgba(106, 90, 160, 0.022);
   --radius-md: 10px;
@@ -93,7 +93,7 @@
   --btn-icon-size: 16px;
   --btn-shadow: 0 10px 20px rgba(106, 84, 161, 0.1);
   --btn-shadow-soft: 0 8px 16px rgba(27, 16, 34, 0.1);
-  --topbar-title: var(--text-strong);
+  --topbar-title: #8b6fb8;
   --chart-axis: rgba(15, 23, 42, 0.16);
   --chart-track: rgba(15, 23, 42, 0.12);
   --chart-a: var(--apf-24);
@@ -170,8 +170,8 @@ html[data-theme="dark"] {
   --shadow-shell: 0 28px 72px rgba(0, 0, 0, 0.44);
   --surface-2: rgba(255, 255, 255, 0.03);
   --surface-3: rgba(255, 255, 255, 0.06);
-  --surface-brand: linear-gradient(180deg, color-mix(in srgb, var(--panel) 94%, rgba(161, 121, 209, 0.14) 6%) 0%, var(--panel) 100%);
-  --surface-brand-strong: linear-gradient(180deg, color-mix(in srgb, var(--panel) 88%, rgba(161, 121, 209, 0.16) 12%) 0%, color-mix(in srgb, var(--panel) 97%, black 3%) 100%);
+  --surface-brand: linear-gradient(180deg, color-mix(in srgb, var(--panel) 96%, rgba(139, 111, 184, 0.08) 4%) 0%, var(--panel) 100%);
+  --surface-brand-strong: linear-gradient(180deg, color-mix(in srgb, var(--panel) 92%, rgba(139, 111, 184, 0.12) 8%) 0%, color-mix(in srgb, var(--panel) 97%, black 3%) 100%);
   --row-alt: rgba(255, 255, 255, 0.03);
   --row-hover: rgba(161, 121, 209, 0.18);
   --chart-axis: rgba(255, 255, 255, 0.2);
@@ -179,7 +179,7 @@ html[data-theme="dark"] {
   --chart-a: var(--apf-18);
   --chart-b: var(--apf-25);
   --chart-c: var(--apf-21);
-  --topbar-title: #c8b4e5;
+  --topbar-title: #a78bca;
   --modal-backdrop: rgba(24, 18, 34, 0.3);
   --modal-backdrop-blur: 10px;
 
@@ -702,6 +702,7 @@ a {
   gap: 16px;
   width: 100%;
   max-width: none;
+  border: none;
 }
 
 .pageWide {
@@ -6268,15 +6269,20 @@ textarea.input {
   align-content: start;
   justify-items: end;
   text-align: right;
+  min-width: 220px;
 }
 
 .billing-body-side .billing-cost-panel,
 .billing-body-side .billing-cost-box {
   text-align: right;
+  width: 100%;
+  max-width: 280px;
 }
 
 .billing-body-side .billing-cost-summary {
   justify-content: flex-end;
+  display: grid;
+  gap: 2px;
 }
 
 .billing-section-title {
@@ -8726,8 +8732,9 @@ body.is-global-loading {
 
 .product-sku {
   font-family: inherit;
-  font-size: 9.5px;
-  color: var(--text-faint);
+  font-size: 9px;
+  color: var(--text-soft);
+  font-weight: 500;
 }
 
 .product-price {
