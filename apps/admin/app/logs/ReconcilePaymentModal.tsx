@@ -38,9 +38,13 @@ export function ReconcilePaymentModal({
             <form action={action} style={{ display: "grid", gap: 10 }}>
               <input type="hidden" name="csrf" value={csrfToken} />
 
+              <div className="muted" style={{ fontSize: 12 }}>
+                Ingresa al menos uno: Transacción, Referencia, Payment ID o Link id.
+              </div>
+
               <div className="field">
                 <label>Transacción Wompi</label>
-                <input className="input" name="wompiTransactionId" placeholder="125761-1772468109-43044" required />
+                <input className="input" name="wompiTransactionId" placeholder="125761-1772468109-43044" />
               </div>
               <div className="field">
                 <label>Referencia (opcional)</label>
