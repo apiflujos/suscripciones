@@ -267,9 +267,9 @@ export default async function BillingPage({
   }).toString()}`;
 
   const subParams = new URLSearchParams();
-  const take = 20;
+  const take = vista === "kanban" ? 500 : 20;
   subParams.set("take", String(take));
-  if (Number.isFinite(page) && page > 1) subParams.set("skip", String((Math.trunc(page) - 1) * take));
+  if (vista !== "kanban" && Number.isFinite(page) && page > 1) subParams.set("skip", String((Math.trunc(page) - 1) * take));
   if (q.trim()) subParams.set("q", q.trim());
   if (estado !== "todos") subParams.set("estado", estado);
   if (tipo === "suscripciones") subParams.set("collectionMode", "AUTO_DEBIT");
@@ -631,13 +631,13 @@ export default async function BillingPage({
                   <div className="billing-payment-link-section">
                     <div className="billing-payment-link-row">
                       <a
-                        className="primary btn-compact btn-noicon billing-payment-link-btn is-compact"
+                        className="ghost btn-compact btn-icon-only btn-open"
                         href={latestCheckoutUrl}
                         target="_blank"
                         rel="noreferrer"
-                      >
-                        Abrir link de pago
-                      </a>
+                        aria-label="Abrir link de pago"
+                        title="Abrir link de pago"
+                      />
                       <CopyButton text={latestCheckoutUrl} label="⧉" copiedLabel="✓" />
                     </div>
                     <div className="field-hint billing-payment-link-hint">
@@ -947,7 +947,7 @@ export default async function BillingPage({
                     </div>
                     <div className="billing-list-cell billing-list-more">
                       <details className="inline-detail billing-pop">
-                        <summary className="ghost btn-compact btn-noicon">Ver más</summary>
+                        <summary className="ghost btn-compact btn-icon-only btn-open" aria-label="Ver más" title="Ver más" />
                         <div className="inline-detail-body billing-pop-body">
                           {renderBillingCard(r)}
                         </div>
@@ -1008,7 +1008,7 @@ export default async function BillingPage({
             })()
           )}
 
-          {(() => {
+          {vista === "kanban" ? null : (() => {
             const currentPage = Math.max(1, Number(page) || 1);
             const hasNext = total > 0 ? currentPage < Math.max(1, Math.ceil(total / take)) : rows.length >= take;
             const totalPages = total > 0 ? Math.max(1, Math.ceil(total / take)) : currentPage + (hasNext ? 1 : 0);

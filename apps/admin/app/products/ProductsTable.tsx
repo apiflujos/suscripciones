@@ -604,12 +604,24 @@ export function ProductsTable({
                 <div className="product-stock">Activas: {Number(p.activeSubscriptions || 0)}</div>
               </div>
               <div className="product-list-cell product-list-actions">
-                <button className="ghost btn-compact btn-send btn-noicon" type="button" data-modal="true" data-loader="off" onClick={() => openSendModal(p)}>
-                  Enviar
-                </button>
-                <button className="ghost btn-compact btn-green btn-create btn-noicon" type="button" data-modal="true" data-loader="off" onClick={() => openPlanModal(p)}>
-                  Crear suscripción
-                </button>
+                <button
+                  className="ghost btn-compact btn-icon-only btn-send"
+                  type="button"
+                  data-modal="true"
+                  data-loader="off"
+                  onClick={() => openSendModal(p)}
+                  aria-label="Enviar"
+                  title="Enviar"
+                />
+                <button
+                  className="ghost btn-compact btn-icon-only btn-create"
+                  type="button"
+                  data-modal="true"
+                  data-loader="off"
+                  onClick={() => openPlanModal(p)}
+                  aria-label="Crear suscripción"
+                  title="Crear suscripción"
+                />
                 <button
                   className="ghost btn-compact btn-history btn-icon-only"
                   type="button"

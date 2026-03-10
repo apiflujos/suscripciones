@@ -60,7 +60,7 @@
   --brand-ink: var(--apf-02);
   --brand-gray: var(--apf-15);
 
-  --bg: #fefeff;
+  --bg: #ffffff;
   --panel: var(--apf-14);
   --text: var(--apf-01);
   --muted: var(--apf-15);
@@ -69,7 +69,7 @@
   --text-faint: var(--apf-16);
   --surface-contrast: var(--apf-02);
   --primary: var(--brand-primary);
-  --primary-soft: rgba(106, 90, 160, 0.035);
+  --primary-soft: rgba(106, 90, 160, 0.045);
   --accent: #138f7a;
   --accent-soft: rgba(19, 143, 122, 0.1);
   --stroke: rgba(27, 16, 34, 0.08);
@@ -79,8 +79,8 @@
   --shadow-shell: 0 20px 52px rgba(30, 18, 52, 0.1);
   --surface-2: rgba(27, 16, 34, 0.01);
   --surface-3: rgba(27, 16, 34, 0.024);
-  --surface-brand: linear-gradient(180deg, color-mix(in srgb, var(--panel) 99.5%, #f7f4fb 0.5%) 0%, #ffffff 100%);
-  --surface-brand-strong: linear-gradient(180deg, color-mix(in srgb, var(--panel) 98.5%, #f5f2fa 1.5%) 0%, color-mix(in srgb, var(--panel) 99.7%, #fdfcff 0.3%) 100%);
+  --surface-brand: linear-gradient(180deg, #ffffff 0%, #ffffff 100%);
+  --surface-brand-strong: linear-gradient(180deg, #ffffff 0%, #ffffff 100%);
   --row-alt: rgba(27, 16, 34, 0.01);
   --row-hover: rgba(106, 90, 160, 0.022);
   --radius-md: 10px;
@@ -93,7 +93,7 @@
   --btn-icon-size: 16px;
   --btn-shadow: 0 10px 20px rgba(106, 84, 161, 0.1);
   --btn-shadow-soft: 0 8px 16px rgba(27, 16, 34, 0.1);
-  --topbar-title: #665c88;
+  --topbar-title: var(--text-strong);
   --chart-axis: rgba(15, 23, 42, 0.16);
   --chart-track: rgba(15, 23, 42, 0.12);
   --chart-a: var(--apf-24);
@@ -403,10 +403,7 @@ body {
 body {
   font-family: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 11.75px;
-  background:
-    radial-gradient(1200px 540px at 10% -12%, color-mix(in srgb, var(--primary-soft) 16%, transparent) 0%, transparent 56%),
-    radial-gradient(920px 420px at 100% 0%, color-mix(in srgb, var(--accent-soft) 20%, transparent) 0%, transparent 50%),
-    linear-gradient(180deg, color-mix(in srgb, var(--bg) 98%, white 2%) 0%, var(--bg) 100%);
+  background: #ffffff;
   color: var(--text);
 }
 
@@ -2904,8 +2901,15 @@ html[data-contrast="high"] .filtersPanel {
 
 .settings-group-header {
   padding: 12px 14px;
-  background: color-mix(in srgb, var(--primary-soft) 24%, transparent);
+  background: color-mix(in srgb, var(--primary-soft) 28%, transparent);
   border-bottom: 1px solid var(--stroke);
+}
+
+.settings-group-header h3,
+.settings-group-header h4,
+.panel-header h3,
+.ui-panel-header {
+  color: var(--brand-primary);
 }
 
 .settings-group-header h3,
@@ -5898,16 +5902,16 @@ textarea.input {
   border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--stroke-strong) 78%, transparent);
   box-shadow: 0 10px 24px rgba(30, 18, 52, 0.08);
-  padding: 6px 8px;
+  padding: 4px 6px;
   display: grid;
-  gap: 6px;
+  gap: 4px;
   width: 100%;
 }
 
 .billing-header {
   display: flex;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
 }
 
@@ -5946,14 +5950,14 @@ textarea.input {
 }
 
 .billing-name {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--text-strong);
   line-height: 1.15;
 }
 
 .billing-sub {
-  font-size: 10px;
+  font-size: 9px;
   color: var(--text-soft);
   line-height: 1.2;
 }
@@ -6089,9 +6093,9 @@ textarea.input {
   border: 1px solid color-mix(in srgb, var(--stroke) 80%, transparent);
   border-radius: 9px;
   background: color-mix(in srgb, var(--panel) 90%, var(--primary-soft) 10%);
-  padding: 5px 7px;
+  padding: 4px 5px;
   display: grid;
-  gap: 5px;
+  gap: 4px;
   min-width: 0;
   text-align: left;
 }
@@ -6105,7 +6109,7 @@ textarea.input {
 
 .billing-cost-total {
   color: var(--primary);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 800;
   line-height: 1.1;
   text-align: left;
@@ -6127,13 +6131,13 @@ textarea.input {
 .billing-cost-chip {
   display: inline-flex;
   align-items: center;
-  min-height: 20px;
+  min-height: 18px;
   padding: 0 6px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--surface-2) 80%, white 20%);
   border: 1px solid color-mix(in srgb, var(--stroke) 75%, transparent);
   color: var(--text-soft);
-  font-size: 9.5px;
+  font-size: 9px;
   font-weight: 600;
 }
 
@@ -6176,9 +6180,9 @@ textarea.input {
 }
 
 .billing-product-thumb {
-  width: 24px;
-  height: 24px;
-  min-width: 24px;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
 }
 
 .billing-product-fallback {
@@ -6203,7 +6207,7 @@ textarea.input {
 }
 
 .billing-product-meta strong {
-  font-size: 11.5px;
+  font-size: 11px;
   line-height: 1.15;
 }
 
@@ -6221,7 +6225,16 @@ textarea.input {
   display: flex;
   gap: 6px;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
+}
+
+.billing-payment-link-row .ghost {
+  min-width: 24px;
+  min-height: 24px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  font-size: 11px;
 }
 
 .billing-payment-link-btn {
@@ -6239,13 +6252,13 @@ textarea.input {
 .billing-body-main {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(180px, 0.8fr);
-  gap: 8px 12px;
+  gap: 6px 10px;
   align-items: start;
 }
 
 .billing-body-section {
   display: grid;
-  gap: 4px;
+  gap: 3px;
   align-content: start;
 }
 
@@ -6267,7 +6280,7 @@ textarea.input {
 }
 
 .billing-section-title {
-  font-size: 9px;
+  font-size: 8px;
   color: var(--text-faint);
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -6362,8 +6375,8 @@ textarea.input {
 }
 
 .billing-actions .btn-compact {
-  height: 30px;
-  min-width: 112px;
+  height: 28px;
+  min-width: 96px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -8713,7 +8726,8 @@ body.is-global-loading {
 
 .product-sku {
   font-family: inherit;
-  font-size: 11px;
+  font-size: 9.5px;
+  color: var(--text-faint);
 }
 
 .product-price {
