@@ -373,14 +373,17 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   }
 
   let missingReferenceSubscriptionId = "";
-  if (referenceClassification.kind === "subscription" && inferredSubscriptionId && !paymentMatched) {
+  // FIX: Si la referencia viene de un cobro manual (SUB_xxx_cycle), usar ese subscriptionId directamente
+  // La inferencia por identidad solo debe usarse cuando NO hay referencia estructurada
+  if (referenceClassification.kind === "subscription" && referenceClassification.subscriptionId && !paymentMatched) {
     const exists = await db.subscription.findUnique({
-      where: { id: inferredSubscriptionId },
+      where: { id: referenceClassification.subscriptionId },
       select: { id: true }
     });
     if (!exists) {
-      missingReferenceSubscriptionId = String(referenceClassification.subscriptionId || inferredSubscriptionId || "");
-      inferredSubscriptionId = "";
+      missingReferenceSubscriptionId = referenceClassification.subscriptionId;
+    } else {
+      inferredSubscriptionId = referenceClassification.subscriptionId;
     }
   }
 
@@ -461,30 +464,30 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     return { subscriptionId: "", reason: "subscription_not_found_for_identity", count: candidates.length };
   };
 
+  // FIX: Si la referencia es SUB_xxx_cycle y no hay payment matched, usar el subscriptionId de la referencia
+  // La inferencia por identidad SOLO debe usarse para referencias desconocidas
+  const hasStructuredReference = referenceClassification.kind === "subscription" && referenceClassification.subscriptionId;
+  
   if (paymentsCfg.autoReconcileUnlinkedPayments && !paymentMatched && !inferredSubscriptionId) {
-    const inferred = await inferSubscriptionByCustomerIdentity();
-    if (inferred.subscriptionId) {
-      inferredSubscriptionId = inferred.subscriptionId;
-      await systemLog(LogLevel.INFO, "processWompiEvent", "subscription_inferred_by_customer_identity", {
-        reference,
-        subscriptionId: inferred.subscriptionId,
-        reason: inferred.reason
-      }).catch(() => {});
-    } else if (referenceClassification.kind === "subscription") {
-      const missingSubId = missingReferenceSubscriptionId || referenceClassification.subscriptionId || null;
-      await warnOnceWithDedupe({
-        source: "processWompiEvent",
-        message: "Referencia de suscripción no encontrada",
-        dedupeKey: `${String(missingSubId || "sin_sub")}|${String(reference || "sin_ref")}`,
-        context: {
+    // Solo intentar inferir por identidad si NO hay una referencia estructurada
+    if (!hasStructuredReference) {
+      const inferred = await inferSubscriptionByCustomerIdentity();
+      if (inferred.subscriptionId) {
+        inferredSubscriptionId = inferred.subscriptionId;
+        await systemLog(LogLevel.INFO, "processWompiEvent", "subscription_inferred_by_customer_identity", {
           reference,
-          subscriptionId: missingSubId,
+          subscriptionId: inferred.subscriptionId,
           reason: inferred.reason
-        },
-        windowMinutes: 360
+        }).catch(() => {});
+      }
+    } else {
+      // Hay referencia estructurada (SUB_xxx) pero no se encontró el payment
+      // El fallback creará el pago con el subscriptionId de la referencia
+      await systemLog(LogLevel.INFO, "processWompiEvent", "Payment no encontrado, se usará referencia estructurada", {
+        reference,
+        subscriptionIdFromRef: referenceClassification.subscriptionId,
+        kind: referenceClassification.kind
       }).catch(() => {});
-      // No cortar el flujo: si no existe suscripción, crear/actualizar contacto y pago en fallback
-      // para permitir conciliación manual posterior desde Pagos.
     }
   }
 
@@ -606,12 +609,26 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     const fallbackCurrency = String(currency || "COP").trim().toUpperCase() || "COP";
     const fallbackStatus = nextStatus ?? PaymentStatus.PENDING;
 
+    // FIX: Si hay referencia estructurada SUB_xxx, intentar asignar la suscripción
+    let fallbackSubscriptionId: string | null = null;
+    let fallbackCustomerId: string = customer.id;
+    if (referenceClassification.kind === "subscription" && referenceClassification.subscriptionId) {
+      const subFromRef = await db.subscription.findUnique({
+        where: { id: referenceClassification.subscriptionId },
+        select: { id: true, customerId: true }
+      }).catch(() => null);
+      if (subFromRef) {
+        fallbackSubscriptionId = subFromRef.id;
+        fallbackCustomerId = subFromRef.customerId;
+      }
+    }
+
     if (transactionId) {
       paymentResolved = await db.payment.upsert({
         where: { wompiTransactionId: transactionId },
         create: {
           tenantId: tenantIdFallback,
-          customerId: customer.id,
+          customerId: fallbackCustomerId,
           amountInCents: amountInCents ?? 0,
           currency: fallbackCurrency,
           reference: fallbackReference,
@@ -623,11 +640,12 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
             fallbackStatus === PaymentStatus.APPROVED || fallbackStatus === PaymentStatus.PENDING
               ? null
               : computedFailedAt,
+          subscriptionId: fallbackSubscriptionId,
           providerResponse: { webhook: payload, ...(reconciliationForUnlinked ? { reconciliation: reconciliationForUnlinked } : {}) } as Prisma.InputJsonValue
         },
         update: {
           tenantId: tenantIdFallback,
-          customerId: customer.id,
+          customerId: fallbackCustomerId,
           amountInCents: amountInCents ?? undefined,
           currency: fallbackCurrency,
           reference: fallbackReference,
@@ -640,6 +658,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
               : fallbackStatus === PaymentStatus.PENDING
                 ? undefined
                 : computedFailedAt,
+          subscriptionId: fallbackSubscriptionId ?? undefined,
           providerResponse: { webhook: payload, ...(reconciliationForUnlinked ? { reconciliation: reconciliationForUnlinked } : {}) } as Prisma.InputJsonValue
         }
       });
@@ -648,7 +667,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         where: { wompiPaymentLinkId: paymentLinkId },
         create: {
           tenantId: tenantIdFallback,
-          customerId: customer.id,
+          customerId: fallbackCustomerId,
           amountInCents: amountInCents ?? 0,
           currency: fallbackCurrency,
           reference: fallbackReference,
@@ -659,11 +678,12 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
             fallbackStatus === PaymentStatus.APPROVED || fallbackStatus === PaymentStatus.PENDING
               ? null
               : computedFailedAt,
+          subscriptionId: fallbackSubscriptionId,
           providerResponse: { webhook: payload, ...(reconciliationForUnlinked ? { reconciliation: reconciliationForUnlinked } : {}) } as Prisma.InputJsonValue
         },
         update: {
           tenantId: tenantIdFallback,
-          customerId: customer.id,
+          customerId: fallbackCustomerId,
           amountInCents: amountInCents ?? undefined,
           currency: fallbackCurrency,
           reference: fallbackReference,
@@ -675,6 +695,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
               : fallbackStatus === PaymentStatus.PENDING
                 ? undefined
                 : computedFailedAt,
+          subscriptionId: fallbackSubscriptionId ?? undefined,
           providerResponse: { webhook: payload, ...(reconciliationForUnlinked ? { reconciliation: reconciliationForUnlinked } : {}) } as Prisma.InputJsonValue
         }
       });
@@ -682,7 +703,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
       paymentResolved = await db.payment.create({
         data: {
           tenantId: tenantIdFallback,
-          customerId: customer.id,
+          customerId: fallbackCustomerId,
           amountInCents: amountInCents ?? 0,
           currency: fallbackCurrency,
           reference: fallbackReference,
@@ -692,6 +713,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
             fallbackStatus === PaymentStatus.APPROVED || fallbackStatus === PaymentStatus.PENDING
               ? null
               : computedFailedAt,
+          subscriptionId: fallbackSubscriptionId,
           providerResponse: { webhook: payload, ...(reconciliationForUnlinked ? { reconciliation: reconciliationForUnlinked } : {}) } as Prisma.InputJsonValue
         }
       });
