@@ -6,6 +6,12 @@ type Granularity = "day" | "week" | "month";
 
 type BucketRow = { bucket: Date };
 
+type UnlinkedPaymentsRow = {
+  payments_approved: number | bigint;
+  payments_other: number | bigint;
+  revenue_cents: number | bigint;
+};
+
 type SeriesPoint = {
   at: string;
   revenueInCents: number;
@@ -648,7 +654,26 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
   }
 
   const series = Array.from(baseSeries.values()).sort((a, b) => a.at.localeCompare(b.at));
-  
+
+  // Calcular pagos sin suscripción (one-time, huérfanos, links manuales)
+  const unlinkedPaymentsQuery = `
+    SELECT 
+      COUNT(*) FILTER (WHERE p.status = 'APPROVED') as payments_approved,
+      COUNT(*) FILTER (WHERE p.status IN ('PENDING', 'DECLINED', 'ERROR', 'VOIDED')) as payments_other,
+      COALESCE(SUM(p."amountInCents") FILTER (WHERE p.status = 'APPROVED'), 0) as revenue_cents
+    FROM "Payment" p
+    WHERE p."subscriptionId" IS NULL
+      AND p."createdAt" >= $1
+      AND p."createdAt" < $2
+      ${tenantFilter('p', 3, hasTenant)}
+  `;
+  const unlinkedPaymentsRow = await prisma.$queryRawUnsafe<UnlinkedPaymentsRow[]>(
+    unlinkedPaymentsQuery,
+    iso(from),
+    iso(to),
+    tenantId
+  );
+
   const result = {
     range: { from: iso(from), to: iso(to), granularity: args.granularity },
     totals: {
@@ -677,6 +702,11 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
         autoChargesFailed: num(autoChargesRow[0]?.failed ?? 0),
         mrrInCents: Math.round(num(mrrRow[0]?.mrr_cents ?? 0)),
         churnMonthlyPct
+      },
+      unlinked: {
+        paymentsApproved: num(unlinkedPaymentsRow[0]?.payments_approved ?? 0),
+        paymentsOther: num(unlinkedPaymentsRow[0]?.payments_other ?? 0),
+        revenueInCents: num(unlinkedPaymentsRow[0]?.revenue_cents ?? 0)
       }
     },
     breakdown: {

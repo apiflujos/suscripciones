@@ -521,6 +521,13 @@ export default async function Home({
   const autoTotal = autoOk + autoFail;
   const autoApprovalPct = autoTotal > 0 ? (autoOk / autoTotal) * 100 : 0;
   const autoChurn = metrics.json?.totals?.auto?.churnMonthlyPct ?? null;
+  
+  // Pagos sin suscripción (one-time, huérfanos, links manuales)
+  const unlinkedPaymentsApproved = Number(metrics.json?.totals?.unlinked?.paymentsApproved || 0);
+  const unlinkedPaymentsOther = Number(metrics.json?.totals?.unlinked?.paymentsOther || 0);
+  const unlinkedPaymentsTotal = unlinkedPaymentsApproved + unlinkedPaymentsOther;
+  const unlinkedRevenue = Number(metrics.json?.totals?.unlinked?.revenueInCents || 0);
+  
   const recentPayments = paymentsRes.ok ? paymentsRes.json?.items || [] : [];
   const overdueSubs = overdueSubsRes.ok ? overdueSubsRes.json?.items || [] : [];
   const healthySubs = healthySubsRes.ok ? healthySubsRes.json?.items || [] : [];
@@ -1205,6 +1212,38 @@ export default async function Home({
                           />
                         </div>
                       ) : null}
+                    </div>
+                  </div>
+
+                  {/* Pagos sin suscripción (one-time, huérfanos, links manuales) */}
+                  <div className="grid2">
+                    <div className="card cardPad chart-card">
+                      <div className="chart-header">
+                        <div>
+                          <div className="chart-title">Pagos sin suscripción</div>
+                          <div className="chart-sub">One-time, huérfanos y links manuales sin suscripción asociada.</div>
+                        </div>
+                        <div className="chart-range">{rangeLabel}</div>
+                      </div>
+                      <div className="grid2" style={{ gap: 10 }}>
+                        <div className="card cardPad" style={{ padding: 10 }}>
+                          <div style={{ color: "var(--muted)", fontSize: 12 }}>Aprobados</div>
+                          <div style={{ fontSize: 18, fontWeight: 900 }}>{unlinkedPaymentsApproved}</div>
+                          <div style={{ fontSize: 12, color: "var(--text-faint)" }}>
+                            Total {unlinkedPaymentsTotal} · Otros {unlinkedPaymentsOther}
+                          </div>
+                        </div>
+                        <div className="card cardPad" style={{ padding: 10 }}>
+                          <div style={{ color: "var(--muted)", fontSize: 12 }}>Ingresos</div>
+                          <div style={{ fontSize: 18, fontWeight: 900 }}>${fmtMoneyCop(unlinkedRevenue)} COP</div>
+                          <div style={{ fontSize: 12, color: "var(--text-faint)" }}>
+                            Prom. ${unlinkedPaymentsApproved > 0 ? fmtMoneyCop(Math.round(unlinkedRevenue / unlinkedPaymentsApproved)) : "—"}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="field-hint" style={{ marginTop: 10, fontStyle: "italic" }}>
+                        💡 Estos pagos no están asociados a suscripciones. Pueden ser pagos únicos, links manuales o pagos huérfanos que requieren revisión.
+                      </div>
                     </div>
                   </div>
 
