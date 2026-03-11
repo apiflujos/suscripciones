@@ -492,7 +492,6 @@ export default async function BillingPage({
     const chargedForRow = chargeStatus === "ok" && actionSubscriptionId === r.id;
     const cutoffForRow = cutoffScheduled && actionSubscriptionId === r.id;
     const tenantsUpdatedForRow = tenantsUpdated && actionSubscriptionId === r.id;
-    const canSendToken = r.mode === "AUTO_DEBIT" && Boolean(subscriptionBaseUrl);
     const cutoffDueAt = r.vencimientoAt ? new Date(r.vencimientoAt) : null;
     const isCutoffOverdue = Boolean(cutoffDueAt && !Number.isNaN(cutoffDueAt.getTime()) && cutoffDueAt.getTime() <= Date.now());
     const manualChargeEnabled = Boolean(autoDebitSettings?.allowManualCharge ?? true);
@@ -578,7 +577,7 @@ export default async function BillingPage({
               <div className="billing-title">
                 <div className="billing-name">{r.customerName}</div>
                 <div className="billing-sub">
-                  {r.customerEmail || "—"} · {r.identificacion || "—"}
+                  {r.customerEmail || "—"} {r.identificacion && r.identificacion !== "—" ? `· ${r.identificacion}` : ""}
                 </div>
               </div>
             </div>
@@ -595,9 +594,9 @@ export default async function BillingPage({
             </div>
             <div className="billing-body-section">
               <div className="billing-section-title">Fechas</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                 <div>
-                  <div className="field-hint" style={{ marginBottom: 4 }}>Corte</div>
+                  <div className="field-hint" style={{ marginBottom: 2, fontSize: 11 }}>Corte</div>
                   <AutoCutoffInlineForm
                     subscriptionId={r.id}
                     csrfToken={csrfToken}
@@ -608,7 +607,7 @@ export default async function BillingPage({
                   />
                 </div>
                 <div>
-                  <div className="field-hint" style={{ marginBottom: 4 }}>Reintento</div>
+                  <div className="field-hint" style={{ marginBottom: 2, fontSize: 11 }}>Reintento</div>
                   <RetryDateField
                     subscriptionId={r.id}
                     currentPeriodEndAt={r.vencimientoAt}
@@ -628,37 +627,14 @@ export default async function BillingPage({
                   <div className="billing-cost-total">{fmtMoney(r.totalInCents ?? r.montoInCents, r.moneda)}</div>
                   <div className="billing-cost-period">{r.cada}</div>
                 </div>
-                <div className="billing-cost-inline">
+                <div className="billing-cost-inline" style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                   <span className="billing-cost-chip">Base {fmtMoney(r.valorBaseInCents ?? r.montoInCents, r.moneda)}</span>
-                  <span className="billing-cost-chip">
-                    Flete {r.currentShippingInCents > 0 ? fmtMoney(r.currentShippingInCents, r.moneda) : "Gratis"}
-                  </span>
+                  {r.currentShippingInCents > 0 ? (
+                    <span className="billing-cost-chip">Flete {fmtMoney(r.currentShippingInCents, r.moneda)}</span>
+                  ) : (
+                    <span className="billing-cost-chip">Flete Gratis</span>
+                  )}
                 </div>
-
-                {r.mode !== "AUTO_DEBIT" && latestCheckoutUrl ? (
-                  <div className="billing-payment-link-section">
-                    <div className="billing-payment-link-row">
-                      <a
-                        className="ghost btn-compact btn-icon-only btn-open"
-                        href={latestCheckoutUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        aria-label="Abrir link de pago"
-                        title="Abrir link de pago"
-                      />
-                      <CopyButton text={latestCheckoutUrl} label="⧉" copiedLabel="✓" />
-                    </div>
-                    <div className="field-hint billing-payment-link-hint">
-                      Link generado y listo para usar
-                    </div>
-                  </div>
-                ) : r.mode !== "AUTO_DEBIT" ? (
-                  <div className="billing-payment-link-section is-empty">
-                    <div className="field-hint billing-payment-link-hint is-empty">
-                      El link de pago se generará al crear la suscripción
-                    </div>
-                  </div>
-                ) : null}
               </div>
             </div>
           </div>
@@ -708,27 +684,34 @@ export default async function BillingPage({
                 <input type="hidden" name="customerId" value={r.customerId} />
                 <input type="hidden" name="returnTo" value={returnTo} />
                 {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                <button className="ghost btn-compact btn-send" type="submit" title="Enviar link de pago">
-                  Enviar link
+                <button className="ghost btn-compact btn-send" type="submit" title="Enviar link de pago manual">
+                  Enviar link de pago
                 </button>
               </form>
             ) : (
             <>
-              {canSendToken ? (
+              {r.customerTokenized ? (
                 <form action={sendCentralComTokenizationLink}>
                   <input type="hidden" name="csrf" value={csrfToken} />
                   <input type="hidden" name="customerId" value={r.customerId} />
                   <input type="hidden" name="planId" value={r.planId} />
                   <input type="hidden" name="returnTo" value={returnTo} />
                   {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                  <button className="ghost btn-compact btn-send" type="submit" title="Guardar tarjeta para débito automático">
-                    Guardar tarjeta
+                  <button className="ghost btn-compact btn-send" type="submit" title="Actualizar tarjeta tokenizada">
+                    Actualizar tarjeta
                   </button>
                 </form>
               ) : (
-                <a className="ghost btn-compact btn-amber btn-create" href="/settings?tab=checkout-publico">
-                  Crear checkout
-                </a>
+                <form action={sendCentralComTokenizationLink}>
+                  <input type="hidden" name="csrf" value={csrfToken} />
+                  <input type="hidden" name="customerId" value={r.customerId} />
+                  <input type="hidden" name="planId" value={r.planId} />
+                  <input type="hidden" name="returnTo" value={returnTo} />
+                  {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
+                  <button className="ghost btn-compact btn-send" type="submit" title="Enviar link para guardar tarjeta">
+                    Enviar link de tarjeta
+                  </button>
+                </form>
               )}
             </>
           )}
