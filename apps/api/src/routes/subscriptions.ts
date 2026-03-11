@@ -187,6 +187,23 @@ subscriptionsRouter.get("/", async (_req, res) => {
     }
   }
 
+  const nextRetryJobs = await prisma.retryJob.findMany({
+    where: {
+      type: RetryJobType.PAYMENT_RETRY,
+      status: RetryJobStatus.PENDING,
+      payload: { path: ["subscriptionId"], is_not_null: true } as any
+    },
+    orderBy: { runAt: "asc" },
+    select: { runAt: true, payload: true }
+  });
+  const nextRetryBySub = new Map<string, { runAt: Date }>();
+  for (const r of nextRetryJobs) {
+    const subId = (r.payload as any)?.subscriptionId;
+    if (subId && !nextRetryBySub.has(subId)) {
+      nextRetryBySub.set(subId, { runAt: r.runAt });
+    }
+  }
+
   res.json({
     items: items.map((s: any) => ({
       ...s,
@@ -194,7 +211,8 @@ subscriptionsRouter.get("/", async (_req, res) => {
         new Set([s.tenantId, ...(s.tenantLinks || []).map((t: any) => t.tenantId)].filter(Boolean))
       ) as string[],
       lastPayment: lastPaymentBySub.get(s.id) ?? null,
-      lastPaymentLink: lastLinkBySub.get(s.id) ?? null
+      lastPaymentLink: lastLinkBySub.get(s.id) ?? null,
+      nextRetryJob: nextRetryBySub.get(s.id) ?? null
     })),
     total
   });
@@ -351,6 +369,15 @@ subscriptionsRouter.post("/", async (req, res) => {
         } as any
       }
     });
+
+    // PROGRAMACIÓN AL EVENTO: Agendar el Job exactamente para la fecha de cobro inicial.
+    if (collectionMode === "AUTO_DEBIT" || collectionMode === "AUTO_LINK") {
+      await ensurePaymentRetryJob({ 
+        subscriptionId: subscription.id, 
+        runAt: periodEnd, 
+        maxAttempts: 1 
+      }).catch(() => {});
+    }
     await prisma.subscriptionTenant.createMany({
       data: effectiveTenantIds.map((t) => ({ subscriptionId: subscription.id, tenantId: t })),
       skipDuplicates: true

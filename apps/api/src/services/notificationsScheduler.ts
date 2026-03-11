@@ -3,7 +3,7 @@ import { prisma } from "../db/prisma";
 import { logger } from "../lib/logger";
 import { getNotificationsActiveEnv, getNotificationsConfig, NotificationTrigger } from "./notificationsConfig";
 import { getPaymentsConfig } from "./runtimeConfig";
-import { systemLog } from "./systemLog";
+import { systemLog, SystemActor } from "./systemLog";
 import { subscriptionReminder } from "../jobs/handlers/subscriptionReminder";
 
 type NotificationRule = {
@@ -41,7 +41,7 @@ function applyAtTimeUtc(date: Date, hhmm: string) {
   return d;
 }
 
-export async function scheduleSubscriptionDueNotifications(args: { subscriptionId: string; forceNow?: boolean }) {
+export async function scheduleSubscriptionDueNotifications(args: { subscriptionId: string; forceNow?: boolean; actor?: string }) {
   const subscriptionId = String(args.subscriptionId || "").trim();
   if (!subscriptionId) return { scheduled: 0 };
 
@@ -106,7 +106,7 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
       rulesCount: rules.length,
       scheduled
     },
-    "job:subscriptionReminder"
+    args.actor || SystemActor.JOB_SUBSCRIPTION_REMINDER
   ).catch((err) => {
     logger.warn({ err, subscriptionId: sub.id }, '[Notifications/Schedule] Fallo creando systemLog');
   });
@@ -114,7 +114,7 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
   return { scheduled };
 }
 
-export async function schedulePaymentStatusNotifications(args: { paymentId: string; forceNow?: boolean }) {
+export async function schedulePaymentStatusNotifications(args: { paymentId: string; forceNow?: boolean; actor?: string }) {
   const paymentId = String(args.paymentId || "").trim();
   if (!paymentId) return { scheduled: 0 };
 
@@ -191,7 +191,7 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
       paymentId: payment.id,
       scheduled
     },
-    "Sistema"
+    args.actor || SystemActor.SYSTEM
   ).catch((err) => {
     logger.warn({ err, paymentId }, '[Notifications/Schedule] Fallo creando systemLog');
   });
@@ -199,7 +199,7 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
   return { scheduled };
 }
 
-export async function schedulePaymentLinkNotifications(args: { paymentId: string; forceNow?: boolean }) {
+export async function schedulePaymentLinkNotifications(args: { paymentId: string; forceNow?: boolean; actor?: string }) {
   const paymentId = String(args.paymentId || "").trim();
   if (!paymentId) return { scheduled: 0, sentNow: 0, rulesActive: false };
 
@@ -266,7 +266,7 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
       customerId: payment.customerId,
       scheduled
     },
-    "Sistema"
+    args.actor || SystemActor.SYSTEM
   ).catch((err) => {
     logger.warn({ err, paymentId }, '[Notifications/Schedule] Fallo creando systemLog');
   });
@@ -274,7 +274,7 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
   return { scheduled, sentNow, rulesActive: true };
 }
 
-export async function scheduleCatalogLinkNotifications(args: { customerId: string; catalogUrl: string; forceNow?: boolean; paymentType?: "PLAN" | "SUBSCRIPTION" | "LINK" | "" }) {
+export async function scheduleCatalogLinkNotifications(args: { customerId: string; catalogUrl: string; forceNow?: boolean; paymentType?: "PLAN" | "SUBSCRIPTION" | "LINK" | ""; actor?: string }) {
   const customerId = String(args.customerId || "").trim();
   const catalogUrl = String(args.catalogUrl || "").trim();
   if (!customerId || !catalogUrl) return { scheduled: 0, sentNow: 0, rulesActive: false };
@@ -334,7 +334,7 @@ export async function scheduleCatalogLinkNotifications(args: { customerId: strin
       customerId,
       scheduled
     },
-    "Sistema"
+    args.actor || SystemActor.SYSTEM
   ).catch((err) => {
     logger.warn({ err, customerId }, '[Notifications/Schedule] Fallo creando systemLog');
   });
@@ -342,7 +342,7 @@ export async function scheduleCatalogLinkNotifications(args: { customerId: strin
   return { scheduled, sentNow, rulesActive: true };
 }
 
-export async function scheduleTokenizationLinkNotifications(args: { customerId: string; tokenUrl: string; forceNow?: boolean }) {
+export async function scheduleTokenizationLinkNotifications(args: { customerId: string; tokenUrl: string; forceNow?: boolean; actor?: string }) {
   const customerId = String(args.customerId || "").trim();
   const tokenUrl = String(args.tokenUrl || "").trim();
   if (!customerId || !tokenUrl) return { scheduled: 0, sentNow: 0, rulesActive: false };
@@ -400,7 +400,7 @@ export async function scheduleTokenizationLinkNotifications(args: { customerId: 
       customerId,
       scheduled
     },
-    "Sistema"
+    args.actor || SystemActor.SYSTEM
   ).catch(() => {});
 
   return { scheduled, sentNow, rulesActive: true };

@@ -5,7 +5,6 @@ import { changeSubscriptionPlan, chargeSubscriptionNow, createCustomerFromBillin
 import { ChargeStatusModal } from "./ChargeStatusModal";
 import { NewBillingAssignmentForm } from "./NewBillingAssignmentForm";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
-import { normalizeErrorParam } from "../lib/errorParam";
 import { LocalDateTime } from "../ui/LocalDateTime";
 import { HelpTip } from "../ui/HelpTip";
 import { CopyButton } from "../ui/CopyButton";
@@ -117,6 +116,14 @@ function getPlanLinkStatus(link: any, lastPaidAt: any) {
   return "Link enviado";
 }
 
+function normalizeImageUrl(input: unknown) {
+  const value = String(input || "").trim();
+  if (!value) return "";
+  if (/^https?:\/\//i.test(value)) return value;
+  if (value.startsWith("/")) return value;
+  return "";
+}
+
 function readPlanPricing(meta: any) {
   if (!meta || typeof meta !== "object") return {};
   const root = meta?.pricing;
@@ -217,7 +224,6 @@ export default async function BillingPage({
   const sp = (await searchParams) ?? {};
 
   const tenantId = typeof sp.tenantId === "string" ? sp.tenantId : "";
-  const contactCreated = typeof sp.contactCreated === "string" ? sp.contactCreated : "";
   const checkoutUrl = typeof sp.checkoutUrl === "string" ? sp.checkoutUrl : "";
   const checkoutCustomerId = typeof sp.customerId === "string" ? sp.customerId : "";
   const tokenUrl = typeof sp.tokenUrl === "string" ? sp.tokenUrl : "";
@@ -228,10 +234,8 @@ export default async function BillingPage({
   const actionSubscriptionId = typeof sp.subscriptionId === "string" ? sp.subscriptionId : "";
   const cutoffScheduled = typeof sp.cutoffScheduled === "string" ? sp.cutoffScheduled : "";
   const tenantsUpdated = typeof sp.tenantsUpdated === "string" ? sp.tenantsUpdated : "";
-  const error = normalizeErrorParam(typeof sp.error === "string" ? sp.error : undefined);
   const central = typeof sp.central === "string" ? sp.central : "";
   const centralMode = typeof sp.centralMode === "string" ? sp.centralMode : "";
-  const mergedSubscriptions = typeof sp.mergedSubscriptions === "string" ? sp.mergedSubscriptions : "";
   const crear = typeof sp.crear === "string" ? sp.crear : "";
   const selectCustomerId = typeof sp.selectCustomerId === "string" ? sp.selectCustomerId : "";
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
@@ -397,7 +401,7 @@ export default async function BillingPage({
         status: String(s.status || "—"),
         estadoInfo,
         planName: formatPlanTitle(plan),
-        planImageUrl: String((plan?.metadata as any)?.imageUrl || (productById.get(String((plan?.metadata as any)?.catalog?.itemId || ""))?.imageUrl ?? "")),
+        planImageUrl: normalizeImageUrl((plan?.metadata as any)?.imageUrl || (productById.get(String((plan?.metadata as any)?.catalog?.itemId || ""))?.imageUrl ?? "")),
         montoInCents: totalInCents,
         valorBaseInCents: baseValueInCents,
         totalInCents,
@@ -408,7 +412,7 @@ export default async function BillingPage({
         vencimientoAt: s.currentPeriodEndAt || null,
         periodoInicioAt: s.currentPeriodStartAt || null,
         periodoFinAt: s.currentPeriodEndAt || null,
-        nextRetryAt: (s.metadata as any)?.manualRetry?.nextRetryAt || null,
+        nextRetryAt: s.nextRetryJob?.runAt || (s.metadata as any)?.manualRetry?.nextRetryAt || null,
         mode: String(plan?.collectionMode || plan?.metadata?.collectionMode || "MANUAL_LINK"),
         tenantName: tenantNameList.length ? tenantNameList.join(", ") : "—",
         currentShippingInCents: shippingAppliedInCents,
@@ -484,26 +488,51 @@ export default async function BillingPage({
 
   const renderBillingCard = (r: any) => {
     const isPlan = r.mode !== "AUTO_DEBIT";
+    const isAutoDebit = r.mode === "AUTO_DEBIT";
     const paymentStatus = getPaymentStatusLabel({
       status: r.status,
       paidAt: r.pagoAt,
       periodStartAt: r.periodoInicioAt,
       periodEndAt: r.periodoFinAt
     });
+    const subscriptionStatus = getSubscriptionStatusLabel(r.status);
+    const subscriptionStatusClass =
+      r.status === "ACTIVE"
+        ? "pill-ok"
+        : r.status === "PAST_DUE"
+          ? "pill-bad"
+          : r.status === "SUSPENDED"
+            ? "pill-warn"
+            : r.status === "CANCELED"
+              ? "pill-muted"
+              : "pill-muted";
     const rowCheckoutUrl = checkoutCustomerId && checkoutCustomerId === r.customerId ? checkoutUrl : "";
     const latestCheckoutUrl = rowCheckoutUrl || String(r.lastPaymentLink?.checkoutUrl || "").trim();
     const rowTokenUrl = checkoutCustomerId && checkoutCustomerId === r.customerId ? tokenUrl : "";
+    const hasQuickLinks = Boolean(latestCheckoutUrl || rowTokenUrl);
     const sentForRow = central === "sent" && checkoutCustomerId && checkoutCustomerId === r.customerId;
+    const sentTokenForRow = Boolean(sentForRow && rowTokenUrl);
+    const sentPaymentForRow = Boolean(sentForRow && !rowTokenUrl);
     const chargedForRow = chargeStatus === "ok" && actionSubscriptionId === r.id;
     const cutoffForRow = cutoffScheduled && actionSubscriptionId === r.id;
     const tenantsUpdatedForRow = tenantsUpdated && actionSubscriptionId === r.id;
     const cutoffDueAt = r.vencimientoAt ? new Date(r.vencimientoAt) : null;
     const isCutoffOverdue = Boolean(cutoffDueAt && !Number.isNaN(cutoffDueAt.getTime()) && cutoffDueAt.getTime() <= Date.now());
     const manualChargeEnabled = Boolean(autoDebitSettings?.allowManualCharge ?? true);
-    const canChargeNow = manualChargeEnabled && r.mode === "AUTO_DEBIT" && (r.status === "PAST_DUE" || isCutoffOverdue);
+    const chargeDue = r.status === "PAST_DUE" || isCutoffOverdue;
+    const showChargeButton = manualChargeEnabled && isAutoDebit;
+    const canChargeNow = showChargeButton && r.customerTokenized && chargeDue;
+    const showTokenizationLink = isAutoDebit;
+    const showPaymentLinkButton = !isAutoDebit;
     const duplicateKey = `${r.customerId}:${r.planId}`;
     const duplicateCount = duplicateCountByKey.get(duplicateKey) || 1;
     const keepRowId = duplicateKeepByKey.get(duplicateKey)?.id || r.id;
+    const productInitials = String(r.planName || "Producto")
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part: string) => part[0]?.toUpperCase())
+      .join("") || "PR";
     
     return (
       <div className="billing-card">
@@ -529,6 +558,9 @@ export default async function BillingPage({
               <div className="billing-header-meta-item billing-header-status-strip">
                 <span className="billing-header-label">Estado</span>
                 <div className="billing-status-line" role="group" aria-label="Estado">
+                  <span className={`pill ${subscriptionStatusClass}`} title={`Suscripción: ${subscriptionStatus}`}>
+                    {subscriptionStatus}
+                  </span>
                   <span className={`pill ${paymentStatus === "Pagado" ? "pill-ok" : paymentStatus === "En mora" ? "pill-bad" : "pill-muted"}`}>
                     {paymentStatus}
                   </span>
@@ -597,7 +629,7 @@ export default async function BillingPage({
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     />
                   ) : (
-                    <span className="billing-product-fallback">AP</span>
+                    <span className="billing-product-fallback">{productInitials}</span>
                   )}
                 </div>
                 <div className="billing-product-meta">
@@ -605,9 +637,24 @@ export default async function BillingPage({
                 </div>
               </div>
             </div>
-            <div className="billing-body-section">
+            {hasQuickLinks ? (
+              <div className="billing-body-section billing-section-actions">
+                <div className="billing-section-title">Links</div>
+                <div className="billing-quick-actions">
+                  {latestCheckoutUrl ? (
+                    <a className="ghost btn-compact btn-icon-only btn-open" href={latestCheckoutUrl} target="_blank" rel="noreferrer" title="Abrir link de pago" aria-label="Abrir link de pago" />
+                  ) : null}
+                  {rowTokenUrl ? (
+                    <a className="ghost btn-compact btn-icon-only btn-link" href={rowTokenUrl} target="_blank" rel="noreferrer" title="Abrir link de tokenización" aria-label="Abrir link de tokenización" />
+                  ) : null}
+                  {latestCheckoutUrl ? <CopyButton text={latestCheckoutUrl} /> : null}
+                  {rowTokenUrl ? <CopyButton text={rowTokenUrl} /> : null}
+                </div>
+              </div>
+            ) : null}
+            <div className="billing-body-section billing-section-dates">
               <div className="billing-section-title">Fechas</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <div>
                   <div className="field-hint" style={{ marginBottom: 2, fontSize: 11 }}>Corte</div>
                   <AutoCutoffInlineForm
@@ -620,7 +667,7 @@ export default async function BillingPage({
                   />
                 </div>
                 <div>
-                  <div className="field-hint" style={{ marginBottom: 2, fontSize: 11 }}>Reintento</div>
+                  <div className="field-hint" style={{ marginBottom: 2, fontSize: 11 }}>Próximo intento</div>
                   <RetryDateField
                     subscriptionId={r.id}
                     currentPeriodEndAt={r.vencimientoAt}
@@ -667,7 +714,7 @@ export default async function BillingPage({
                 duplicatesCount={duplicateCount}
               />
             ) : null}
-            {canChargeNow ? (
+            {showChargeButton ? (
               <form action={chargeSubscriptionNow}>
                 <input type="hidden" name="csrf" value={csrfToken} />
                 <input type="hidden" name="subscriptionId" value={r.id} />
@@ -675,13 +722,15 @@ export default async function BillingPage({
                 <button
                   className="ghost btn-compact btn-blue btn-pay"
                   type="submit"
-                  disabled={!r.customerTokenized}
+                  disabled={!canChargeNow}
                   title={
                     !r.customerTokenized
-                      ? "Primero debes guardar tarjeta (débito automático)"
-                      : isCutoffOverdue
-                        ? "Cobrar ahora (fecha de corte vencida)"
-                        : "Cobrar ahora"
+                      ? "Primero debes guardar tarjeta"
+                      : !chargeDue
+                        ? "El cobro estará disponible cuando venza el corte"
+                        : isCutoffOverdue
+                          ? "Cobrar ahora (fecha de corte vencida)"
+                          : "Cobrar ahora"
                   }
                 >
                   Cobrar
@@ -690,7 +739,7 @@ export default async function BillingPage({
             ) : null}
           </div>
           <div className="billing-actions-right">
-            {r.mode !== "AUTO_DEBIT" ? (
+            {showPaymentLinkButton ? (
               <form action={sendCentralComPaymentLink}>
                 <input type="hidden" name="csrf" value={csrfToken} />
                 <input type="hidden" name="subscriptionId" value={r.id} />
@@ -701,33 +750,19 @@ export default async function BillingPage({
                   Enviar link de pago
                 </button>
               </form>
-            ) : (
-            <>
-              {r.customerTokenized ? (
-                <form action={sendCentralComTokenizationLink}>
-                  <input type="hidden" name="csrf" value={csrfToken} />
-                  <input type="hidden" name="customerId" value={r.customerId} />
-                  <input type="hidden" name="planId" value={r.planId} />
-                  <input type="hidden" name="returnTo" value={returnTo} />
-                  {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                  <button className="ghost btn-compact btn-send" type="submit" title="Actualizar tarjeta tokenizada">
-                    Actualizar tarjeta
-                  </button>
-                </form>
-              ) : (
-                <form action={sendCentralComTokenizationLink}>
-                  <input type="hidden" name="csrf" value={csrfToken} />
-                  <input type="hidden" name="customerId" value={r.customerId} />
-                  <input type="hidden" name="planId" value={r.planId} />
-                  <input type="hidden" name="returnTo" value={returnTo} />
-                  {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                  <button className="ghost btn-compact btn-send" type="submit" title="Enviar link para guardar tarjeta">
-                    Enviar link de tarjeta
-                  </button>
-                </form>
-              )}
-            </>
-          )}
+            ) : null}
+            {showTokenizationLink ? (
+              <form action={sendCentralComTokenizationLink}>
+                <input type="hidden" name="csrf" value={csrfToken} />
+                <input type="hidden" name="customerId" value={r.customerId} />
+                <input type="hidden" name="planId" value={r.planId} />
+                <input type="hidden" name="returnTo" value={returnTo} />
+                {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
+                <button className="ghost btn-compact btn-send" type="submit" title="Enviar link de tokenización">
+                  Enviar link de tokenización
+                </button>
+              </form>
+            ) : null}
             {r.status === "SUSPENDED" ? (
               <form action={resumeSubscription}>
                 <input type="hidden" name="csrf" value={csrfToken} />
@@ -769,7 +804,8 @@ export default async function BillingPage({
           </div>
           {(sentForRow || rowTokenUrl || chargedForRow || cutoffForRow) ? (
             <div className="field-hint billing-action-feedback">
-              {sentForRow ? <span>Enviado.</span> : null}
+              {sentTokenForRow ? <span>Link de tarjeta enviado.</span> : null}
+              {sentPaymentForRow ? <span>Link de pago enviado.</span> : null}
               {chargedForRow ? <span>Cobro manual enviado.</span> : null}
               {cutoffForRow ? <span>Fecha de corte actualizada.</span> : null}
               {rowTokenUrl ? (
@@ -790,20 +826,6 @@ export default async function BillingPage({
 
   return (
     <main className="page pageWide billing-page">
-      {error ? (
-        <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
-          Error: {error}
-        </div>
-      ) : null}
-      {central === "sent" ? (
-        <div className="card cardPad" style={{ borderColor: "rgba(46, 170, 85, 0.22)", background: "rgba(46, 170, 85, 0.08)" }}>
-          {centralMode === "chatwoot"
-            ? "Link de pago generado y enviado por CentralCom."
-            : "Link de pago generado correctamente."}
-        </div>
-      ) : null}
-      {contactCreated ? <div className="card cardPad">Contacto creado correctamente.</div> : null}
-      {mergedSubscriptions ? <div className="card cardPad">Suscripciones duplicadas fusionadas correctamente.</div> : null}
       {chargeStatus ? (
         <ChargeStatusModal
           initialStatus={chargeStatus === "processing" ? "processing" : chargeStatus === "ok" ? "ok" : "fail"}

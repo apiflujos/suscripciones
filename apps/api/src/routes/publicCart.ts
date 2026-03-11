@@ -242,6 +242,16 @@ publicCartRouter.post("/cart/:token/select", async (req, res) => {
     }
   });
 
+  // PROGRAMACIÓN AL EVENTO: Agendar el Job exactamente para la fecha de cobro inicial.
+  const collectionMode = getPlanCollectionMode(plan.metadata);
+  if (collectionMode === "AUTO_DEBIT" || collectionMode === "AUTO_LINK") {
+    await ensurePaymentRetryJob({ 
+      subscriptionId: subscription.id, 
+      runAt: periodEnd, 
+      maxAttempts: 1 
+    }).catch(() => {});
+  }
+
   const tenantIds = Array.from(
     new Set(
       [
@@ -263,7 +273,6 @@ publicCartRouter.post("/cart/:token/select", async (req, res) => {
   }
 
   await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});
-  await ensurePaymentRetryJob({ subscriptionId: subscription.id, runAt: periodEnd, maxAttempts: 1 }).catch(() => {});
   const linkCreated = await createPaymentLinkForSubscription({ subscriptionId: subscription.id });
   const base = normalizeCheckoutBase(cfg.planBaseUrl, "plan");
   if (!base) return res.status(400).json({ error: "missing_plan_base_url" });

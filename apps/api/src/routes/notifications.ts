@@ -2,6 +2,7 @@ import express from "express";
 import { z } from "zod";
 import { getNotificationsConfig, getNotificationsConfigForEnv, notificationsConfigSchema, setNotificationsConfig } from "../services/notificationsConfig";
 import { scheduleCatalogLinkNotifications, schedulePaymentStatusNotifications, scheduleSubscriptionDueNotifications, scheduleTokenizationLinkNotifications } from "../services/notificationsScheduler";
+import { getActorFromReq } from "../services/actorContext";
 
 export const notificationsRouter = express.Router();
 
@@ -35,7 +36,8 @@ notificationsRouter.post("/schedule/subscription/:id", async (req, res) => {
   const subscriptionId = String(req.params.id || "").trim();
   if (!subscriptionId) return res.status(400).json({ error: "invalid_subscription_id" });
   const forceNow = String((req.query.forceNow ?? "") as any).trim() === "1";
-  const result = await scheduleSubscriptionDueNotifications({ subscriptionId, forceNow });
+  const actor = getActorFromReq(req);
+  const result = await scheduleSubscriptionDueNotifications({ subscriptionId, forceNow, actor });
   res.json({ ok: true, ...result });
 });
 
@@ -43,7 +45,8 @@ notificationsRouter.post("/schedule/payment/:id", async (req, res) => {
   const paymentId = String(req.params.id || "").trim();
   if (!paymentId) return res.status(400).json({ error: "invalid_payment_id" });
   const forceNow = String((req.query.forceNow ?? "") as any).trim() === "1";
-  const result = await schedulePaymentStatusNotifications({ paymentId, forceNow });
+  const actor = getActorFromReq(req);
+  const result = await schedulePaymentStatusNotifications({ paymentId, forceNow, actor });
   res.json({ ok: true, ...result });
 });
 
@@ -54,7 +57,8 @@ notificationsRouter.post("/schedule/catalog", async (req, res) => {
   const catalogType = catalogTypeRaw === "SUBSCRIPTION" ? "SUBSCRIPTION" : catalogTypeRaw === "PLAN" ? "PLAN" : "";
   if (!customerId || !catalogUrl) return res.status(400).json({ error: "invalid_payload" });
   const forceNow = String((req.query.forceNow ?? "") as any).trim() === "1";
-  const result = await scheduleCatalogLinkNotifications({ customerId, catalogUrl, forceNow, paymentType: catalogType });
+  const actor = getActorFromReq(req);
+  const result = await scheduleCatalogLinkNotifications({ customerId, catalogUrl, forceNow, paymentType: catalogType, actor });
   res.json({ ok: true, ...result });
 });
 
@@ -63,6 +67,7 @@ notificationsRouter.post("/schedule/tokenization", async (req, res) => {
   const tokenUrl = String(req?.body?.tokenUrl || "").trim();
   if (!customerId || !tokenUrl) return res.status(400).json({ error: "invalid_payload" });
   const forceNow = String((req.query.forceNow ?? "") as any).trim() === "1";
-  const result = await scheduleTokenizationLinkNotifications({ customerId, tokenUrl, forceNow });
+  const actor = getActorFromReq(req);
+  const result = await scheduleTokenizationLinkNotifications({ customerId, tokenUrl, forceNow, actor });
   res.json({ ok: true, ...result });
 });

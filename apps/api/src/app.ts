@@ -36,6 +36,8 @@ import { smartViewsRouter } from "./routes/smartViews";
 import { gamificationRouter } from "./routes/gamification";
 import { sqlConsoleRouter } from "./routes/sqlConsole";
 import { requireSaSession } from "./services/superAdminAuth";
+import { runWithActor } from "./services/actorStore";
+import { getActorFromReq } from "./services/actorContext";
 
 export function createApp() {
   const app = express();
@@ -45,6 +47,13 @@ export function createApp() {
   app.set("trust proxy", trustProxy);
 
   app.use(pinoHttp({ logger }));
+
+  // Actor Middleware: Wrap every request in AsyncLocalStorage
+  app.use((req, res, next) => {
+    const actor = getActorFromReq(req);
+    runWithActor(actor, () => next());
+  });
+
   const apiPrefixes = ["/admin", "/webhooks", "/public", "/health", "/healthz"];
   const isApiPath = (path: string) => apiPrefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
 

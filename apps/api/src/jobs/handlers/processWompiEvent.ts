@@ -1074,24 +1074,21 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
       } else {
         logger.info({ subscriptionId: sub.id, nextEnd }, "Subscription advanced after payment approval");
         const collectionMode = resolveSubscriptionCollectionMode(sub);
-        // Single attempt at next cutoff (no retries).
-        if (collectionMode === "AUTO_LINK") {
-          await ensurePaymentRetryJob({
-            subscriptionId: sub.id,
-            runAt: nextEnd <= new Date(Date.now() + 5_000) ? new Date() : nextEnd,
+
+        // PROGRAMACIÓN AL EVENTO: Agendar el Job exactamente para la fecha del próximo corte.
+        if (collectionMode === "AUTO_DEBIT" || collectionMode === "AUTO_LINK") {
+          await ensurePaymentRetryJob({ 
+            subscriptionId: sub.id, 
+            runAt: nextEnd, 
             maxAttempts: 1,
             db: tx
-          }).catch(() => {});
-        } else if (collectionMode === "AUTO_DEBIT") {
-          await ensurePaymentRetryJob({
-            subscriptionId: sub.id,
-            runAt: nextEnd,
-            maxAttempts: 1,
-            db: tx
-          }).catch(() => {});
+          }).catch((err) => {
+            logger.warn({ err, subscriptionId: sub.id }, "Fallo agendando próximo cobro tras avance de periodo");
+          });
         }
         return nextEnd;
       }
+
     });
 
     // Notificaciones: la confirmación de pago se maneja por reglas (PAYMENT_APPROVED).

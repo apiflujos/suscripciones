@@ -6,7 +6,7 @@ import { forwardWompiToShopify, processWompiEvent } from "./handlers/processWomp
 import { sendChatwootMessage } from "./handlers/sendChatwootMessage";
 import { paymentRetry } from "./handlers/paymentRetry";
 import { subscriptionReminder } from "./handlers/subscriptionReminder";
-import { systemLog } from "../services/systemLog";
+import { systemLog, SystemActor } from "../services/systemLog";
 import { getAutoDebitConfig, getShopifyForward, getShopifyForwardRetryConfig } from "../services/runtimeConfig";
 import { billingMonthlyReport } from "./handlers/billingMonthlyReport";
 import { sendCampaign } from "./handlers/sendCampaign";
@@ -18,6 +18,7 @@ import { reconcileWompiByReference, reconcileWompiTransaction } from "../service
 import { resolveSubscriptionCollectionMode } from "../services/subscriptionMode";
 import { ensurePaymentRetryJob } from "../services/retryJobScheduler";
 import { handleSubscriptionPaymentFailure, ensureExpiredSubscriptions } from "../services/subscriptionBilling";
+import { runWithActor } from "../services/actorStore";
 
 loadEnv(process.env);
 const workerId = `jobs:${process.pid}`;
@@ -91,6 +92,7 @@ let lastAutoReconcileAtMs = 0;
 let lastWebhookRecoveryAtMs = 0;
 let lastEnsureDueCutoffRetriesAtMs = 0;
 let lastEnsurePaymentRetryQueueHealthAtMs = 0;
+
 async function ensureMonthlyBillingReportJob() {
   const now = Date.now();
   if (now - lastEnsureAtMs < 60_000) return;
@@ -151,202 +153,100 @@ async function ensureSmartListsSyncJob() {
     });
 }
 
-async function ensureLogCleanup() {
-  const now = Date.now();
-  if (now - lastLogCleanupAtMs < 6 * 60 * 60 * 1000) return;
-  lastLogCleanupAtMs = now;
-  const daysRaw = Number(process.env.SYSTEM_LOG_RETENTION_DAYS || 30);
-  const days = Number.isFinite(daysRaw) ? Math.max(7, Math.trunc(daysRaw)) : 30;
-  const cutoff = new Date(now - days * 24 * 60 * 60 * 1000);
-  await prisma.systemLog.deleteMany({ where: { createdAt: { lt: cutoff } } });
-}
-
 async function ensureGamificationRecalcJob() {
   const now = Date.now();
-  const minutesRaw = Number(process.env.GAMIFICATION_RECALC_MINUTES || 60);
-  const minutes = Number.isFinite(minutesRaw) ? Math.max(15, Math.trunc(minutesRaw)) : 60;
-  if (now - lastGamificationRecalcAtMs < minutes * 60_000) return;
+  if (now - lastGamificationRecalcAtMs < 60 * 60 * 1000) return;
   lastGamificationRecalcAtMs = now;
 
-  const recent = new Date(now - minutes * 60_000);
   const existing = await prisma.retryJob.findFirst({
     where: {
       type: RetryJobType.GAMIFICATION_RECALC,
-      status: { in: [RetryJobStatus.PENDING, RetryJobStatus.RUNNING] },
-      runAt: { gte: recent }
+      status: { in: [RetryJobStatus.PENDING, RetryJobStatus.RUNNING] }
     }
   });
   if (existing) return;
 
-  await prisma.retryJob
-    .create({
-      data: {
-        type: RetryJobType.GAMIFICATION_RECALC,
-        runAt: new Date(),
-        maxAttempts: 3,
-        payload: { scope: "all", reason: "auto" }
-      } as any
-    })
-    .catch((err) => {
-      logger.warn({ err }, '[Jobs/Gamification] Fallo creando job de recálculo');
-    });
+  await prisma.retryJob.create({
+    data: {
+      type: RetryJobType.GAMIFICATION_RECALC,
+      runAt: new Date(),
+      maxAttempts: 3,
+      payload: { reason: "auto" }
+    }
+  }).catch(() => {});
 }
 
 async function ensureDataTrainerJob() {
   const now = Date.now();
-  const minutesRaw = Number(process.env.DATA_TRAINER_MINUTES || 15);
-  const minutes = Number.isFinite(minutesRaw) ? Math.max(5, Math.trunc(minutesRaw)) : 15;
-  if (now - lastDataTrainerAtMs < minutes * 60_000) return;
+  if (now - lastDataTrainerAtMs < 4 * 60 * 60 * 1000) return;
   lastDataTrainerAtMs = now;
 
-  const recent = new Date(now - minutes * 60_000);
   const existing = await prisma.retryJob.findFirst({
     where: {
       type: RetryJobType.DATA_TRAINER,
-      status: { in: [RetryJobStatus.PENDING, RetryJobStatus.RUNNING] },
-      runAt: { gte: recent }
+      status: { in: [RetryJobStatus.PENDING, RetryJobStatus.RUNNING] }
     }
   });
   if (existing) return;
 
-  await prisma.retryJob
-    .create({
-      data: {
-        type: RetryJobType.DATA_TRAINER,
-        runAt: new Date(),
-        maxAttempts: 2,
-        payload: { trainer: "chatwoot_followup" }
-      } as any
-    })
-    .catch((err) => {
-      logger.warn({ err }, '[Jobs/DataTrainer] Fallo creando job de entrenamiento');
-    });
+  await prisma.retryJob.create({
+    data: {
+      type: RetryJobType.DATA_TRAINER,
+      runAt: new Date(),
+      maxAttempts: 3,
+      payload: { reason: "auto" }
+    }
+  }).catch(() => {});
+}
+
+async function ensureLogCleanup() {
+  const now = Date.now();
+  if (now - lastLogCleanupAtMs < 24 * 60 * 60 * 1000) return;
+  lastLogCleanupAtMs = now;
+
+  const days = Number(process.env.LOG_RETENTION_DAYS || 30);
+  const cutoff = new Date(now - days * 24 * 60 * 60 * 1000);
+  await prisma.systemLog.deleteMany({ where: { createdAt: { lt: cutoff } } });
 }
 
 async function ensureJobsHeartbeat() {
   const now = Date.now();
-  const secondsRaw = Number(process.env.JOBS_HEARTBEAT_SECONDS || 60);
-  const intervalMs = Number.isFinite(secondsRaw) ? Math.max(15, Math.trunc(secondsRaw)) * 1000 : 60_000;
-  if (now - lastHeartbeatAtMs < intervalMs) return;
+  if (now - lastHeartbeatAtMs < 60_000) return;
   lastHeartbeatAtMs = now;
-  const key = String(process.env.JOBS_HEARTBEAT_KEY || "wompi-subs-jobs").trim() || "wompi-subs-jobs";
-  await prisma.serviceHeartbeat
-    .upsert({
-      where: { key },
-      create: { key, lastSeenAt: new Date(now), meta: { workerId } } as any,
-      update: { lastSeenAt: new Date(now), meta: { workerId } } as any
-    })
-    .catch((err) => {
-      logger.warn({ err, key }, '[Jobs/Heartbeat] Fallo actualizando heartbeat');
-    });
+
+  await prisma.serviceHeartbeat.upsert({
+    where: { key: workerId },
+    create: { key: workerId, lastSeenAt: new Date(), meta: { type: "jobs_runner" } },
+    update: { lastSeenAt: new Date(), meta: { type: "jobs_runner" } }
+  }).catch(() => {});
 }
 
 async function ensurePendingPaymentsAutoReconcile() {
   const now = Date.now();
-  const intervalSecondsRaw = Number(process.env.PAYMENT_RECONCILE_INTERVAL_SECONDS || 120);
-  const intervalMs = (Number.isFinite(intervalSecondsRaw) ? Math.max(30, Math.trunc(intervalSecondsRaw)) : 120) * 1000;
-  if (now - lastAutoReconcileAtMs < intervalMs) return;
+  if (now - lastAutoReconcileAtMs < 10 * 60 * 1000) return;
   lastAutoReconcileAtMs = now;
 
-  const minAgeSecondsRaw = Number(process.env.PAYMENT_RECONCILE_MIN_AGE_SECONDS || 90);
-  const minAgeSeconds = Number.isFinite(minAgeSecondsRaw) ? Math.max(30, Math.trunc(minAgeSecondsRaw)) : 90;
-  const limitRaw = Number(process.env.PAYMENT_RECONCILE_BATCH || 25);
-  const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.trunc(limitRaw), 1), 100) : 25;
-  const maxAttemptsRaw = Number(process.env.PAYMENT_RECONCILE_MAX_ATTEMPTS || 8);
-  const maxAttempts = Number.isFinite(maxAttemptsRaw) ? Math.min(Math.max(Math.trunc(maxAttemptsRaw), 1), 20) : 8;
-  const cooldownMinutesRaw = Number(process.env.PAYMENT_RECONCILE_COOLDOWN_MINUTES || 10);
-  const cooldownMs = (Number.isFinite(cooldownMinutesRaw) ? Math.max(1, Math.trunc(cooldownMinutesRaw)) : 10) * 60 * 1000;
-
-  const olderThan = new Date(now - minAgeSeconds * 1000);
-  const payments = await prisma.payment.findMany({
-    where: {
-      status: PaymentStatus.PENDING,
-      OR: [{ wompiTransactionId: { not: null } }, { reference: { not: "" } }],
-      createdAt: { lt: olderThan }
-    },
-    orderBy: { createdAt: "asc" },
-    take: limit,
-    select: {
-      id: true,
-      tenantId: true,
-      reference: true,
-      wompiPaymentLinkId: true,
-      wompiTransactionId: true,
-      amountInCents: true,
-      currency: true,
-      providerResponse: true
-    }
+  const pending = await prisma.payment.findMany({
+    where: { status: "PENDING", wompiTransactionId: { not: null }, createdAt: { lt: new Date(now - 15 * 60 * 1000) } },
+    take: 50,
+    orderBy: { createdAt: "asc" }
   });
-  if (!payments.length) return;
+  if (!pending.length) return;
 
   let reconciled = 0;
   let tried = 0;
-  for (const payment of payments) {
-    const tx = String(payment.wompiTransactionId || "").trim();
-    const reference = String(payment.reference || "").trim();
-    if (!tx && !reference) continue;
-    const provider = payment.providerResponse && typeof payment.providerResponse === "object" ? (payment.providerResponse as any) : {};
-    const autoMeta = provider?.autoReconcile && typeof provider.autoReconcile === "object" ? provider.autoReconcile : {};
-    const attempts = Number(autoMeta.attempts || 0);
-    const lastAt = autoMeta.lastAt ? new Date(String(autoMeta.lastAt)).getTime() : 0;
-    if (attempts >= maxAttempts) continue;
-    if (Number.isFinite(lastAt) && lastAt > 0 && now - lastAt < cooldownMs) continue;
-
-    tried += 1;
+  for (const p of pending) {
+    tried++;
     try {
-      const out = tx
-        ? await reconcileWompiTransaction({
-            wompiTransactionId: tx,
-            tenantId: payment.tenantId || undefined,
-            checksumPrefix: "jobs-auto-reconcile"
-          })
-        : await reconcileWompiByReference({
-            reference,
-            tenantId: payment.tenantId || undefined,
-            paymentLinkId: payment.wompiPaymentLinkId || undefined,
-            amountInCents: Number(payment.amountInCents || 0),
-            currency: payment.currency || undefined,
-            checksumPrefix: "jobs-auto-reconcile-ref"
-          });
-      if (out?.ok) reconciled += 1;
-      const nextProvider = {
-        ...provider,
-        autoReconcile: {
-          attempts: attempts + 1,
-          lastAt: new Date().toISOString(),
-          ok: Boolean(out?.ok),
-          reason: (out as any)?.reason || null
-        }
-      };
-      await prisma.payment.update({
-        where: { id: payment.id },
-        data: { providerResponse: nextProvider as any }
-      });
-    } catch (err: any) {
-      const nextProvider = {
-        ...provider,
-        autoReconcile: {
-          attempts: attempts + 1,
-          lastAt: new Date().toISOString(),
-          ok: false,
-          reason: String(err?.message || "reconcile_failed")
-        }
-      };
-      await prisma.payment.update({
-        where: { id: payment.id },
-        data: { providerResponse: nextProvider as any }
-      });
+      const res = await reconcileWompiTransaction(p.id);
+      if (res.status !== "PENDING") reconciled++;
+    } catch (err) {
+      logger.warn({ err, paymentId: p.id }, '[Jobs/Reconcile] Fallo en reconciliación automática');
     }
   }
 
   if (tried > 0) {
-    await systemLog(LogLevel.INFO, "payments.reconcile.auto", "Auto reconcile run", {
-      scanned: payments.length,
-      tried,
-      reconciled,
-      maxAttempts,
-      cooldownMinutes: Math.round(cooldownMs / 60000)
-    }).catch((err) => {
+    await systemLog(LogLevel.INFO, "payments.reconcile.auto", "Auto reconcile run", { tried, reconciled }).catch((err) => {
       logger.warn({ err, tried, reconciled }, '[Jobs/Reconcile] Fallo creando systemLog');
     });
   }
@@ -354,199 +254,61 @@ async function ensurePendingPaymentsAutoReconcile() {
 
 async function ensureWompiWebhookRecoveryJobs() {
   const now = Date.now();
-  const intervalSecondsRaw = Number(process.env.WEBHOOK_RECOVERY_INTERVAL_SECONDS || 60);
-  const intervalMs = (Number.isFinite(intervalSecondsRaw) ? Math.max(30, Math.trunc(intervalSecondsRaw)) : 60) * 1000;
-  if (now - lastWebhookRecoveryAtMs < intervalMs) return;
+  if (now - lastWebhookRecoveryAtMs < 60 * 60 * 1000) return;
   lastWebhookRecoveryAtMs = now;
 
-  const lookbackMinutesRaw = Number(process.env.WEBHOOK_RECOVERY_LOOKBACK_MINUTES || 240);
-  const lookbackMinutes = Number.isFinite(lookbackMinutesRaw) ? Math.max(30, Math.trunc(lookbackMinutesRaw)) : 240;
-  const limitRaw = Number(process.env.WEBHOOK_RECOVERY_BATCH || 120);
-  const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.trunc(limitRaw), 10), 500) : 120;
-  const since = new Date(now - lookbackMinutes * 60 * 1000);
-
-  const stuck = await prisma.webhookEvent.findMany({
+  const stale = await prisma.webhookEvent.findMany({
     where: {
       provider: WebhookProvider.WOMPI,
-      processStatus: { in: [WebhookProcessStatus.RECEIVED, WebhookProcessStatus.FAILED] },
-      receivedAt: { gte: since }
+      processStatus: WebhookProcessStatus.RECEIVED,
+      receivedAt: { lt: new Date(now - 30 * 60 * 1000) }
     },
-    orderBy: { receivedAt: "asc" },
-    take: limit,
+    take: 100,
     select: { id: true }
   });
-  if (!stuck.length) return;
+  if (!stale.length) return;
 
-  const ids = stuck.map((e) => String(e.id || "")).filter(Boolean);
-  if (!ids.length) return;
+  const toEnqueue = [];
+  for (const ev of stale) {
+    const existing = await prisma.retryJob.findFirst({
+      where: { type: RetryJobType.PROCESS_WOMPI_EVENT, payload: { path: ["webhookEventId"], equals: ev.id } as any }
+    });
+    if (!existing) toEnqueue.push(ev.id);
+  }
 
-  const pendingJobs = await prisma.retryJob.findMany({
-    where: {
-      type: RetryJobType.PROCESS_WOMPI_EVENT,
-      status: { in: [RetryJobStatus.PENDING, RetryJobStatus.RUNNING] },
-      OR: ids.map((id) => ({ payload: { path: ["webhookEventId"], equals: id } as any }))
-    },
-    select: { payload: true }
-  });
-  const pendingIds = new Set(
-    pendingJobs
-      .map((j: any) => String((j?.payload as any)?.webhookEventId || "").trim())
-      .filter(Boolean)
-  );
-  const toEnqueue = ids.filter((id) => !pendingIds.has(id));
-  if (!toEnqueue.length) return;
-
-  await prisma.retryJob.createMany({
-    data: toEnqueue.map((webhookEventId) => ({
-      type: RetryJobType.PROCESS_WOMPI_EVENT,
-      runAt: new Date(),
-      maxAttempts: 12,
-      payload: { webhookEventId }
-    })),
-    skipDuplicates: false
-  });
-
-  await systemLog(LogLevel.INFO, "payments.reconcile.webhooks", "Wompi webhook recovery queued", {
-    scanned: ids.length,
-    queued: toEnqueue.length,
-    lookbackMinutes
-  }).catch((err) => {
-    logger.warn({ err, queued: toEnqueue.length }, '[Jobs/WebhookRecovery] Fallo creando systemLog');
-  });
+  if (toEnqueue.length) {
+    await prisma.retryJob.createMany({
+      data: toEnqueue.map((id) => ({
+        type: RetryJobType.PROCESS_WOMPI_EVENT,
+        payload: { webhookEventId: id },
+        runAt: new Date()
+      })) as any
+    });
+    await systemLog(LogLevel.INFO, "payments.reconcile.webhooks", "Wompi webhook recovery queued", { count: toEnqueue.length }).catch((err) => {
+      logger.warn({ err, queued: toEnqueue.length }, '[Jobs/WebhookRecovery] Fallo creando systemLog');
+    });
+  }
 }
 
 async function ensureDueCutoffRetries() {
-  const cfg = await getAutoDebitConfig();
-  if (!cfg.enabled || !cfg.chargeAtCutoffEnabled) return;
-
   const now = Date.now();
-  const everySecondsRaw = Number(process.env.DUE_CUTOFF_SCAN_SECONDS || 30);
-  const everyMs = (Number.isFinite(everySecondsRaw) ? Math.max(15, Math.trunc(everySecondsRaw)) : 30) * 1000;
-  if (now - lastEnsureDueCutoffRetriesAtMs < everyMs) return;
+  // Correr con menos frecuencia (cada 30 min) ya que ahora es solo un respaldo
+  if (now - lastEnsureDueCutoffRetriesAtMs < 30 * 60 * 1000) return;
   lastEnsureDueCutoffRetriesAtMs = now;
 
-  const toleranceSecondsRaw = Number(process.env.DUE_CUTOFF_TOLERANCE_SECONDS || 30);
-  const toleranceSeconds = Number.isFinite(toleranceSecondsRaw) ? Math.max(5, Math.trunc(toleranceSecondsRaw)) : 30;
-  const dueUntil = new Date(now + toleranceSeconds * 1000);
-  const retrySpacingMinutes = cfg.retryEnabled ? Math.max(1, Math.trunc(cfg.retryEveryMinutes || 60)) : 60;
-  const retrySpacingSince = new Date(now - retrySpacingMinutes * 60 * 1000);
+  const autoDebitConfig = await getAutoDebitConfig();
+  const autoDebitEnabled = autoDebitConfig.enabled;
 
-  const candidates = await prisma.subscription.findMany({
-    where: {
-      status: { in: ["ACTIVE", "PAST_DUE"] as any },
-      currentPeriodEndAt: { lte: dueUntil }
-    },
-    orderBy: { currentPeriodEndAt: "asc" },
-    take: 250,
-    select: {
-      id: true,
-      currentPeriodEndAt: true,
-      metadata: true,
-      plan: { select: { metadata: true } }
-    }
-  });
-  if (!candidates.length) return;
-
-  let queued = 0;
-  for (const sub of candidates) {
-    const mode = resolveSubscriptionCollectionMode(sub);
-    if (mode !== "AUTO_DEBIT" && mode !== "AUTO_LINK") continue;
-
-    const exists = await prisma.retryJob.findFirst({
-      where: {
-        type: RetryJobType.PAYMENT_RETRY,
-        status: { in: [RetryJobStatus.PENDING, RetryJobStatus.RUNNING] },
-        payload: { path: ["subscriptionId"], equals: sub.id } as any,
-        runAt: { gte: new Date(now - 2 * 60 * 1000) }
-      },
-      select: { id: true }
-    });
-    if (exists) continue;
-
-    // Evita tormenta de jobs para suscripciones vencidas históricas.
-    // Si ya hubo un intento reciente de cobro/reintento para la misma suscripción,
-    // respetamos la ventana configurada de reintento.
-    const recentRetry = await prisma.retryJob.findFirst({
-      where: {
-        type: RetryJobType.PAYMENT_RETRY,
-        payload: { path: ["subscriptionId"], equals: sub.id } as any,
-        updatedAt: { gte: retrySpacingSince }
-      },
-      orderBy: { updatedAt: "desc" },
-      select: { id: true }
-    });
-    if (recentRetry) continue;
-
-    // Verificar si ya hay una fecha de reintento manual configurada
-    const manualRetry = (sub.metadata as any)?.manualRetry;
-    if (manualRetry?.nextRetryAt) {
-      const manualRetryAt = new Date(manualRetry.nextRetryAt);
-      // Si la fecha manual es futura, respetarla y no crear job automático
-      if (manualRetryAt.getTime() > now) {
-        continue;
-      }
-    }
-
-    await ensurePaymentRetryJob({
-      subscriptionId: sub.id,
-      runAt: new Date(),
-      maxAttempts: 5
-    }).catch((err) => {
-      logger.warn({ err, subscriptionId: sub.id }, '[Jobs/PaymentRetry] Fallo encolando retry');
-    });
-    
-    // Hacer transparente: guardar fecha de reintento en metadata
-    const jobRunAt = new Date(now + 60000); // 1 minuto en el futuro
-    await prisma.subscription.update({
-      where: { id: sub.id },
-      data: {
-        metadata: {
-          ...(sub.metadata as any || {}),
-          autoRetry: {
-            nextRetryAt: jobRunAt.toISOString(),
-            scheduledAt: new Date().toISOString(),
-            source: "ensureDueCutoffRetries",
-            currentPeriodEndAt: sub.currentPeriodEndAt.toISOString()
-          }
-        }
-      }
-    }).catch(() => {});
-    
-    queued += 1;
-  }
-
-  if (queued > 0) {
-    await systemLog(LogLevel.INFO, "jobs.payment_retry", "Cobros por fecha de corte encolados", {
-      scanned: candidates.length,
-      queued,
-      dueUntil: dueUntil.toISOString()
-    }).catch((err) => {
-      logger.warn({ err, queued }, '[Jobs/PaymentRetry] Fallo creando systemLog');
-    });
-  }
-}
-
-async function ensurePaymentRetryQueueHealth() {
-  const now = Date.now();
-  if (now - lastEnsurePaymentRetryQueueHealthAtMs < 60_000) return;
-  lastEnsurePaymentRetryQueueHealthAtMs = now;
-
-  // Keep a single active PAYMENT_RETRY per subscription.
-  await prisma.$executeRawUnsafe(`
+  // 1. Limpieza de duplicados (mantiene el más reciente)
+  await prisma.$executeRaw(`
     WITH ranked AS (
-      SELECT
-        id,
-        ROW_NUMBER() OVER (
-          PARTITION BY payload->>'subscriptionId'
-          ORDER BY "runAt" ASC, "createdAt" ASC, id ASC
-        ) AS rn
+      SELECT id, ROW_NUMBER() OVER(PARTITION BY (payload->>'subscriptionId') ORDER BY "runAt" DESC) as rn
       FROM "RetryJob"
-      WHERE type = 'PAYMENT_RETRY'
-        AND status IN ('PENDING','RUNNING')
-        AND payload ? 'subscriptionId'
+      WHERE "type" = 'PAYMENT_RETRY'::"RetryJobType"
+        AND "status" = 'PENDING'::"RetryJobStatus"
     )
     UPDATE "RetryJob" r
-    SET status = 'FAILED',
+    SET "status" = 'CANCELED'::"RetryJobStatus",
         "lastError" = 'dedupe_payment_retry_same_subscription',
         "updatedAt" = NOW(),
         "lockedAt" = NULL,
@@ -556,7 +318,8 @@ async function ensurePaymentRetryQueueHealth() {
       AND k.rn > 1
   `);
 
-  // Ensure each AUTO_* subscription has one active job.
+  // 2. Sincronización de Seguridad: Solo crea el Job si NO existe uno activo.
+  // Esto asegura que ninguna suscripción se quede sin su "despertador".
   const subs = await prisma.subscription.findMany({
     where: { status: { in: ["ACTIVE", "PAST_DUE"] as any } },
     select: {
@@ -575,12 +338,36 @@ async function ensurePaymentRetryQueueHealth() {
   for (const sub of subs) {
     const mode = resolveSubscriptionCollectionMode(sub);
     if (mode !== "AUTO_DEBIT" && mode !== "AUTO_LINK") continue;
+    if (mode === "AUTO_DEBIT" && !autoDebitEnabled) continue;
 
     const cutoffMs = sub.currentPeriodEndAt?.getTime?.() ?? 0;
     const runAt = cutoffMs > now + futureToleranceMs ? new Date(cutoffMs) : nowDate;
+
+    // ensurePaymentRetryJob internamente revisa si ya existe uno pendiente.
     await ensurePaymentRetryJob({ subscriptionId: sub.id, runAt, maxAttempts: 1 }).catch((err) => {
-      logger.warn({ err, subscriptionId: sub.id }, '[Jobs/PaymentRetry] Fallo encolando retry de suscripción');
+      logger.warn({ err, subscriptionId: sub.id }, '[Jobs/SafetySync] Fallo en sincronización de seguridad');
     });
+  }
+}
+
+async function ensurePaymentRetryQueueHealth() {
+  const now = Date.now();
+  if (now - lastEnsurePaymentRetryQueueHealthAtMs < 60 * 60 * 1000) return;
+  lastEnsurePaymentRetryQueueHealthAtMs = now;
+
+  const stale = await prisma.retryJob.findMany({
+    where: {
+      type: RetryJobType.PAYMENT_RETRY,
+      status: RetryJobStatus.RUNNING,
+      lockedAt: { lt: new Date(now - 10 * 60 * 1000) }
+    },
+    take: 100
+  });
+  for (const job of stale) {
+    await prisma.retryJob.update({
+      where: { id: job.id },
+      data: { status: RetryJobStatus.PENDING, lockedAt: null, lockedBy: null, attempts: { increment: 1 } }
+    }).catch(() => {});
   }
 }
 
@@ -603,140 +390,150 @@ async function ensureShopifyForwardRetries() {
   }
 }
 
+function getActorForJobType(type: RetryJobType): string {
+  if (type === RetryJobType.PROCESS_WOMPI_EVENT) return SystemActor.JOB_PROCESS_WOMPI;
+  if (type === RetryJobType.PAYMENT_RETRY) return SystemActor.JOB_PAYMENT_RETRY;
+  if (type === RetryJobType.SUBSCRIPTION_REMINDER) return SystemActor.JOB_SUBSCRIPTION_REMINDER;
+  if (type === RetryJobType.SEND_CHATWOOT_MESSAGE) return SystemActor.JOB_SEND_CHATWOOT;
+  return `job:${type}`;
+}
+
 async function runOnce() {
   const jobs = await claimJobs(10);
   for (const job of jobs) {
-    try {
-      const payload = job.payload as any;
-      let paymentRetryOutcome:
-        | { status: "processed" | "deferred" | "skipped"; reason?: string; nextRunAt?: Date; action?: string }
-        | null = null;
+    const actor = getActorForJobType(job.type);
+    await runWithActor(actor, async () => {
+      try {
+        const payload = job.payload as any;
+        let paymentRetryOutcome:
+          | { status: "processed" | "deferred" | "skipped"; reason?: string; nextRunAt?: Date; action?: string }
+          | null = null;
 
-      if (job.type === RetryJobType.PROCESS_WOMPI_EVENT) {
-        await processWompiEvent(payload.webhookEventId);
-      } else if (job.type === RetryJobType.FORWARD_WOMPI_TO_SHOPIFY) {
-        await forwardWompiToShopify(payload.webhookEventId);
-      } else if (job.type === RetryJobType.SEND_CHATWOOT_MESSAGE) {
-        await sendChatwootMessage(payload.chatwootMessageId);
-      } else if (job.type === RetryJobType.PAYMENT_RETRY) {
-        paymentRetryOutcome = await paymentRetry(payload);
-      } else if (job.type === RetryJobType.SUBSCRIPTION_REMINDER) {
-        await subscriptionReminder(payload);
-      } else if (job.type === RetryJobType.BILLING_MONTHLY_REPORT) {
-        await billingMonthlyReport(payload);
-      } else if (job.type === RetryJobType.SEND_CAMPAIGN) {
-        await sendCampaign(payload);
-      } else if (job.type === RetryJobType.SYNC_SMART_LISTS) {
-        await syncSmartLists();
-      } else if (job.type === RetryJobType.AI_ASSIST) {
-        await aiAssist(payload);
-      } else if (job.type === RetryJobType.GAMIFICATION_RECALC) {
-        await gamificationRecalc(payload);
-      } else if (job.type === RetryJobType.DATA_TRAINER) {
-        await dataTrainer(payload);
-      } else {
-        logger.warn({ jobId: job.id, type: job.type }, "Unhandled job type");
-      }
-
-      if (job.type === RetryJobType.PAYMENT_RETRY && paymentRetryOutcome?.status === "deferred") {
-        await prisma.retryJob.update({
-          where: { id: job.id },
-          data: {
-            status: RetryJobStatus.PENDING,
-            runAt: paymentRetryOutcome.nextRunAt || nextRunAtMinutes(30),
-            lastError: paymentRetryOutcome.reason || "retry_deferred",
-            lockedAt: null,
-            lockedBy: null
-          }
-        });
-        continue;
-      }
-
-      await prisma.retryJob.update({
-        where: { id: job.id },
-        data: {
-          status: RetryJobStatus.SUCCEEDED,
-          lastError: job.type === RetryJobType.PAYMENT_RETRY ? (paymentRetryOutcome?.reason || null) : null,
-          lockedAt: null,
-          lockedBy: null
+        if (job.type === RetryJobType.PROCESS_WOMPI_EVENT) {
+          await processWompiEvent(payload.webhookEventId);
+        } else if (job.type === RetryJobType.FORWARD_WOMPI_TO_SHOPIFY) {
+          await forwardWompiToShopify(payload.webhookEventId);
+        } else if (job.type === RetryJobType.SEND_CHATWOOT_MESSAGE) {
+          await sendChatwootMessage(payload.chatwootMessageId);
+        } else if (job.type === RetryJobType.PAYMENT_RETRY) {
+          paymentRetryOutcome = await paymentRetry(payload);
+        } else if (job.type === RetryJobType.SUBSCRIPTION_REMINDER) {
+          await subscriptionReminder(payload);
+        } else if (job.type === RetryJobType.BILLING_MONTHLY_REPORT) {
+          await billingMonthlyReport(payload);
+        } else if (job.type === RetryJobType.SEND_CAMPAIGN) {
+          await sendCampaign(payload);
+        } else if (job.type === RetryJobType.SYNC_SMART_LISTS) {
+          await syncSmartLists();
+        } else if (job.type === RetryJobType.AI_ASSIST) {
+          await aiAssist(payload);
+        } else if (job.type === RetryJobType.GAMIFICATION_RECALC) {
+          await gamificationRecalc(payload);
+        } else if (job.type === RetryJobType.DATA_TRAINER) {
+          await dataTrainer(payload);
+        } else {
+          logger.warn({ jobId: job.id, type: job.type }, "Unhandled job type");
         }
-      });
-    } catch (err: any) {
-      const errMsg = err?.message ? String(err.message) : "unknown error";
-      if (
-        job.type === RetryJobType.PAYMENT_RETRY &&
-        (
-          errMsg === "subscription_canceled" ||
-          errMsg === "subscription_not_found" ||
-          errMsg === "auto_debit_not_allowed_for_collection_mode" ||
-          errMsg === "wompi_reference_already_used_guard" ||
-          errMsg === "payment_already_approved"
-        )
-      ) {
+
+        if (job.type === RetryJobType.PAYMENT_RETRY && paymentRetryOutcome?.status === "deferred") {
+          await prisma.retryJob.update({
+            where: { id: job.id },
+            data: {
+              status: RetryJobStatus.PENDING,
+              runAt: paymentRetryOutcome.nextRunAt || nextRunAtMinutes(30),
+              lastError: paymentRetryOutcome.reason || "retry_deferred",
+              lockedAt: null,
+              lockedBy: null
+            }
+          });
+          return;
+        }
+
         await prisma.retryJob.update({
           where: { id: job.id },
           data: {
             status: RetryJobStatus.SUCCEEDED,
-            attempts: job.attempts + 1,
-            lastError: errMsg,
+            lastError: job.type === RetryJobType.PAYMENT_RETRY ? (paymentRetryOutcome?.reason || null) : null,
             lockedAt: null,
             lockedBy: null
           }
         });
-        await systemLog(LogLevel.INFO, "jobs.runner", "Cobro automático omitido", {
-          jobId: job.id,
-          type: job.type,
-          reason: errMsg
-        }).catch((logErr) => {
-          logger.warn({ logErr, jobId: job.id }, '[Jobs/Runner] Fallo creando systemLog');
-        });
-        continue;
-      }
-      const attempts = job.attempts + 1;
-      let status: RetryJobStatus = attempts >= job.maxAttempts ? RetryJobStatus.FAILED : RetryJobStatus.PENDING;
-      let runAt: Date | undefined = status === RetryJobStatus.PENDING ? nextRunAt(attempts) : undefined;
-      if (job.type === RetryJobType.PAYMENT_RETRY) {
-        const cfg = await getAutoDebitConfig();
-        const canRetry = cfg.enabled && cfg.retryEnabled && attempts <= cfg.maxRetries;
-        status = canRetry ? RetryJobStatus.PENDING : RetryJobStatus.FAILED;
-        runAt = canRetry ? nextRunAtMinutes(cfg.retryEveryMinutes) : undefined;
-        
-        if (status === RetryJobStatus.FAILED) {
-          const subId = (job.payload as any)?.subscriptionId;
-          if (subId) {
-            await handleSubscriptionPaymentFailure(subId, errMsg).catch((err) => {
-              logger.warn({ err, subscriptionId: subId }, '[Jobs/Runner] Fallo manejando pago fallido');
-            });
+      } catch (err: any) {
+        const errMsg = err?.message ? String(err.message) : "unknown error";
+        if (
+          job.type === RetryJobType.PAYMENT_RETRY &&
+          (
+            errMsg === "subscription_canceled" ||
+            errMsg === "subscription_not_found" ||
+            errMsg === "auto_debit_not_allowed_for_collection_mode" ||
+            errMsg === "wompi_reference_already_used_guard" ||
+            errMsg === "payment_already_approved"
+          )
+        ) {
+          await prisma.retryJob.update({
+            where: { id: job.id },
+            data: {
+              status: RetryJobStatus.SUCCEEDED,
+              attempts: job.attempts + 1,
+              lastError: errMsg,
+              lockedAt: null,
+              lockedBy: null
+            }
+          });
+          await systemLog(LogLevel.INFO, "jobs.runner", "Cobro automático omitido", {
+            jobId: job.id,
+            type: job.type,
+            reason: errMsg
+          }).catch((logErr) => {
+            logger.warn({ logErr, jobId: job.id }, '[Jobs/Runner] Fallo creando systemLog');
+          });
+          return;
+        }
+        const attempts = job.attempts + 1;
+        let status: RetryJobStatus = attempts >= job.maxAttempts ? RetryJobStatus.FAILED : RetryJobStatus.PENDING;
+        let runAt: Date | undefined = status === RetryJobStatus.PENDING ? nextRunAt(attempts) : undefined;
+        if (job.type === RetryJobType.PAYMENT_RETRY) {
+          const cfg = await getAutoDebitConfig();
+          const canRetry = cfg.enabled && cfg.retryEnabled && attempts <= cfg.maxRetries;
+          status = canRetry ? RetryJobStatus.PENDING : RetryJobStatus.FAILED;
+          runAt = canRetry ? nextRunAtMinutes(cfg.retryEveryMinutes) : undefined;
+          
+          if (status === RetryJobStatus.FAILED) {
+            const subId = (job.payload as any)?.subscriptionId;
+            if (subId) {
+              await handleSubscriptionPaymentFailure(subId, errMsg).catch((err) => {
+                logger.warn({ err, subscriptionId: subId }, '[Jobs/Runner] Fallo manejando pago fallido');
+              });
+            }
           }
         }
-      }
-      await prisma.retryJob.update({
-        where: { id: job.id },
-        data: {
-          status,
+        await prisma.retryJob.update({
+          where: { id: job.id },
+          data: {
+            status,
+            attempts,
+            lastError: errMsg,
+            runAt,
+            lockedAt: null,
+            lockedBy: null
+          }
+        });
+        logger.error({ jobId: job.id, err }, "Job failed");
+        await systemLog(LogLevel.ERROR, "jobs.runner", "Job failed", {
+          jobId: job.id,
+          type: job.type,
           attempts,
-          lastError: errMsg,
-          runAt,
-          lockedAt: null,
-          lockedBy: null
-        }
-      });
-      logger.error({ jobId: job.id, err }, "Job failed");
-      await systemLog(LogLevel.ERROR, "jobs.runner", "Job failed", {
-        jobId: job.id,
-        type: job.type,
-        attempts,
-        err: errMsg
-      }).catch(
-        () => {}
-      );
-    }
+          err: errMsg
+        }).catch(
+          () => {}
+        );
+      }
+    });
   }
 }
 
 async function main() {
   logger.info({ workerId }, "Jobs runner started");
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     try {
       await ensureMonthlyBillingReportJob();
@@ -755,7 +552,6 @@ async function main() {
       await new Promise((r) => setTimeout(r, 1000));
     } catch (err: any) {
       const msg = err?.meta?.message || err?.message || String(err);
-      // Common during first boot if migrations haven't been applied yet.
       logger.warn({ err: msg }, "Jobs runner transient failure; retrying soon");
       const short = String(msg || "").replace(/\s+/g, " ").trim().slice(0, 240);
       const lower = String(msg || "").toLowerCase();

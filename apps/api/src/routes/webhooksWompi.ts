@@ -2,11 +2,10 @@ import type { Request, Response } from "express";
 import { wompiEventSchema } from "../webhooks/wompi/types";
 import { verifyWompiSignature } from "../webhooks/wompi/verifySignature";
 import { prisma } from "../db/prisma";
-import { RetryJobType, WebhookProvider } from "@prisma/client";
+import { RetryJobType, WebhookProvider, LogLevel } from "@prisma/client";
 import { getWompiEventsSecret } from "../services/runtimeConfig";
 import { getShopifyForward } from "../services/runtimeConfig";
-import { systemLog } from "../services/systemLog";
-import { LogLevel } from "@prisma/client";
+import { systemLog, SystemActor } from "../services/systemLog";
 import { redactHeaders } from "../lib/redact";
 import { getDefaultTenantId } from "../services/tenantContext";
 import { processWompiEventLogic } from "../jobs/handlers/processWompiEvent";
@@ -136,9 +135,6 @@ export async function wompiWebhook(req: Request, res: Response) {
       transactionId: (parsed.data as any)?.data?.transaction?.id
     });
 
-    // Evita ruido en campanita: el detalle útil se registra en el procesamiento
-    // (pago aprobado/fallido/conciliado), no en cada recepción cruda de webhook.
-
     await prisma.retryJob.create({
       data: {
         type: RetryJobType.PROCESS_WOMPI_EVENT,
@@ -146,8 +142,6 @@ export async function wompiWebhook(req: Request, res: Response) {
       }
     });
 
-    // Safety net: process immediately so payments are reconciled
-    // even if the background jobs runner is down or delayed.
     try {
       await processWompiEventLogic(webhookEvent.id, prisma);
       console.log('[Webhooks/Wompi] Procesamiento inline exitoso', { webhookEventId: webhookEvent.id });
@@ -159,7 +153,7 @@ export async function wompiWebhook(req: Request, res: Response) {
       await systemLog(LogLevel.WARN, "webhooks.wompi", "Inline processing failed; queued for retry job", {
         webhookEventId: webhookEvent.id,
         error: String((inlineErr as any)?.message || inlineErr || "unknown_error")
-      }).catch((logErr) => {
+      }, SystemActor.WEBHOOK_WOMPI).catch((logErr) => {
         console.error('[Webhooks/Wompi] Fallo creando systemLog', { error: logErr?.message });
       });
     }
@@ -175,7 +169,6 @@ export async function wompiWebhook(req: Request, res: Response) {
       console.log('[Webhooks/Wompi] Job de forward a Shopify creado', { webhookEventId: webhookEvent.id });
     }
   } catch (err: any) {
-    // Idempotencia: checksum unique.
     if (String(err?.code) === "P2002") {
       console.log('[Webhooks/Wompi] Webhook duplicado (idempotencia)', {
         checksum,
