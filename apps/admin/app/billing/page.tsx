@@ -588,13 +588,19 @@ export default async function BillingPage({
                   {r.planImageUrl ? (
                     <img 
                       src={r.planImageUrl} 
-                      alt={r.planName} 
+                      alt={r.planName}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
-                        (e.target as HTMLImageElement).parentElement!.innerHTML = '<span class="billing-product-fallback">AP</span>';
+                        const target = e.currentTarget;
+                        target.style.display = 'none';
+                        const fallback = document.createElement('span');
+                        fallback.className = 'billing-product-fallback';
+                        fallback.textContent = 'AP';
+                        target.parentElement?.appendChild(fallback);
                       }}
                     />
-                  ) : (
+                  ) : null}
+                  {!r.planImageUrl && (
                     <span className="billing-product-fallback">AP</span>
                   )}
                 </div>
