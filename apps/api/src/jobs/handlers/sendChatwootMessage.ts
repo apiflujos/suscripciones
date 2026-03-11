@@ -117,6 +117,7 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
       logger.warn({ err, chatwootMessageId }, "chatwoot.send: failed to update message status");
     });
     await systemLog(LogLevel.WARN, "chatwoot.send", "Cliente sin teléfono", {
+      actor: "job:sendChatwootMessage",
       chatwootMessageId,
       customerId: msg.customerId
     }).catch((err) => {
@@ -132,6 +133,7 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
       data: { status: MessageStatus.FAILED, errorMessage: "chatwoot not configured" }
     });
     await systemLog(LogLevel.WARN, "chatwoot.send", "Chatwoot no configurado", {
+      actor: "job:sendChatwootMessage",
       chatwootMessageId,
       customerId: msg.customerId
     }).catch((err) => {
@@ -176,6 +178,7 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
           data: { status: MessageStatus.FAILED, errorMessage: "missing_customer_fields" }
         });
         await systemLog(LogLevel.WARN, "chatwoot.send", "Contacto no creado: faltan nombre/email/teléfono", {
+          actor: "job:sendChatwootMessage",
           chatwootMessageId,
           customerId: msg.customerId,
           hasName: Boolean(name),
@@ -261,6 +264,7 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
       data: { status: MessageStatus.FAILED, errorMessage: "contact not found/created" }
     });
     await systemLog(LogLevel.WARN, "chatwoot.send", "Contacto no encontrado/creado", {
+      actor: "job:sendChatwootMessage",
       chatwootMessageId,
       customerId: msg.customerId
     }).catch((err) => {
@@ -376,6 +380,7 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
             logger.warn({ err: updateErr, chatwootMessageId }, "chatwoot.send: failed to update message status");
           });
           await systemLog(LogLevel.ERROR, "chatwoot.send", "Error creando conversación", {
+            actor: "job:sendChatwootMessage",
             chatwootMessageId,
             customerId: msg.customerId,
             err: retryMessage
@@ -392,6 +397,7 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
           logger.warn({ err: updateErr, chatwootMessageId }, "chatwoot.send: failed to update message status");
         });
         await systemLog(LogLevel.ERROR, "chatwoot.send", "Error creando conversación", {
+          actor: "job:sendChatwootMessage",
           chatwootMessageId,
           customerId: msg.customerId,
           err: message
@@ -433,6 +439,7 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
       allowTemplate = isWhatsapp;
       if (!isWhatsapp) {
         await systemLog(LogLevel.INFO, "chatwoot.send", "Template omitido: canal no WhatsApp", {
+          actor: "job:sendChatwootMessage",
           chatwootMessageId,
           customerId: msg.customerId,
           channelType,
@@ -470,6 +477,7 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
         });
       } catch (err: any) {
         await systemLog(LogLevel.WARN, "chatwoot.send", "Adjunto falló; enviando solo texto", {
+          actor: "job:sendChatwootMessage",
           chatwootMessageId,
           customerId: msg.customerId,
           err: String(err?.message || err || "attachment_failed")
@@ -491,6 +499,7 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
       logger.warn({ err: updateErr, chatwootMessageId }, "chatwoot.send: failed to update message status");
     });
     await systemLog(LogLevel.ERROR, "chatwoot.send", "Error enviando mensaje", {
+      actor: "job:sendChatwootMessage",
       chatwootMessageId,
       customerId: msg.customerId,
       err: message

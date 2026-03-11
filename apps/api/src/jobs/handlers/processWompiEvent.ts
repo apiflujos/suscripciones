@@ -178,7 +178,7 @@ async function warnOnceWithDedupe(args: {
   await systemLog(LogLevel.WARN, args.source, args.message, {
     ...(args.context || {}),
     dedupeKey: args.dedupeKey
-  });
+  }, "webhook:wompi");
   return true;
 }
 
@@ -503,7 +503,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
           reference,
           subscriptionId: inferred.subscriptionId,
           reason: inferred.reason
-        }).catch(() => {});
+        }, "webhook:wompi").catch(() => {});
       }
     } else {
       // Hay referencia estructurada (SUB_xxx) pero no se encontró el payment
@@ -512,7 +512,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         reference,
         subscriptionIdFromRef: referenceClassification.subscriptionId,
         kind: referenceClassification.kind
-      }).catch(() => {});
+      }, "webhook:wompi").catch(() => {});
     }
   }
 
@@ -634,7 +634,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
           hasName: Boolean(name),
           hasEmail: Boolean(emailValue),
           hasPhone: Boolean(phoneValue)
-        }).catch((err) => {
+        }, "webhook:wompi").catch((err) => {
           logger.warn({ err, webhookEventId }, "wompi.webhook: failed to write system log");
         });
         return;
@@ -775,7 +775,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
       paymentLinkId,
       reference: fallbackReference,
       customerId: customer.id
-    }).catch(() => {});
+    }, "webhook:wompi").catch(() => {});
   }
 
   const tenantIdForPayment =
@@ -922,7 +922,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     wompiPaymentLinkId: paymentRecord.wompiPaymentLinkId,
     reference: paymentRecord.reference,
     subscriptionId: paymentRecord.subscriptionId
-  }).catch(() => {});
+  }, "webhook:wompi").catch(() => {});
 
   await db.webhookEvent.update({
     where: { id: webhookEventId },
@@ -933,13 +933,13 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     systemLog(LogLevel.ERROR, "notifications.payment_status", "Fallo al programar notificaciones de pago", {
       paymentId: paymentRecord.id,
       error: String(err?.message || err)
-    }).catch(() => {});
+    }, "webhook:wompi").catch(() => {});
   });
   await syncChatwootAttributesForCustomer(paymentRecord.customerId).catch((err) => {
     systemLog(LogLevel.WARN, "chatwoot.sync", "Fallo al sincronizar atributos de Chatwoot", {
       customerId: paymentRecord.customerId,
       error: String(err?.message || err)
-    }).catch(() => {});
+    }, "webhook:wompi").catch(() => {});
   });
 
   const becameApproved = !wasApproved && nextStatus === PaymentStatus.APPROVED;
@@ -1155,7 +1155,7 @@ export async function forwardWompiToShopify(webhookEventId: string) {
         status: res.status,
         body: bodyText.slice(0, 2000),
         url: cfg.url
-      }).catch(() => {});
+      }, "webhook:wompi").catch(() => {});
       return;
     }
     await systemLog(LogLevel.ERROR, "shopify.forward", "Forward failed", {
@@ -1163,7 +1163,7 @@ export async function forwardWompiToShopify(webhookEventId: string) {
       status: res.status,
       body: bodyText.slice(0, 2000),
       url: cfg.url
-    }).catch(() => {});
+    }, "webhook:wompi").catch(() => {});
     throw new Error(`forward failed: ${res.status} ${bodyText}`);
   }
 }

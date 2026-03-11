@@ -114,7 +114,7 @@ export async function subscriptionReminder(payload: any) {
   if (!parsed.success) {
     await systemLog(LogLevel.WARN, "notifications.dispatch", "Payload inválido para notificación", {
       errors: parsed.error.flatten()
-    }).catch(() => {});
+    }, "job:subscriptionReminder").catch(() => {});
     return;
   }
 
@@ -124,7 +124,7 @@ export async function subscriptionReminder(payload: any) {
     await systemLog(LogLevel.WARN, "notifications.dispatch", "Regla inactiva o no encontrada", {
       ruleId: parsed.data.ruleId,
       trigger: parsed.data.trigger
-    }).catch(() => {});
+    }, "job:subscriptionReminder").catch(() => {});
     return;
   }
   const template = cfg.templates.find((t) => t.id === rule.templateId);
@@ -133,7 +133,7 @@ export async function subscriptionReminder(payload: any) {
       ruleId: rule.id,
       templateId: rule.templateId,
       trigger: parsed.data.trigger
-    }).catch(() => {});
+    }, "job:subscriptionReminder").catch(() => {});
     return;
   }
 
@@ -144,7 +144,7 @@ export async function subscriptionReminder(payload: any) {
     customerId: parsed.data.customerId || null,
     subscriptionId: parsed.data.subscriptionId || null,
     paymentId: parsed.data.paymentId || null
-  }).catch(() => {});
+  }, "job:subscriptionReminder").catch(() => {});
 
   const subscriptionId = parsed.data.subscriptionId;
   const paymentId = parsed.data.paymentId;
@@ -169,7 +169,7 @@ export async function subscriptionReminder(payload: any) {
       customerId: parsed.data.customerId || null,
       subscriptionId: parsed.data.subscriptionId || null,
       paymentId: parsed.data.paymentId || null
-    }).catch(() => {});
+    }, "job:subscriptionReminder").catch(() => {});
     return;
   }
 
@@ -180,7 +180,7 @@ export async function subscriptionReminder(payload: any) {
       trigger: parsed.data.trigger,
       subscriptionId: subscription.id,
       status: subscription.status
-    }).catch(() => {});
+    }, "job:subscriptionReminder").catch(() => {});
     return;
   }
 
@@ -192,7 +192,7 @@ export async function subscriptionReminder(payload: any) {
         trigger: parsed.data.trigger,
         paymentId: payment.id,
         status: payment.status
-      }).catch(() => {});
+      }, "job:subscriptionReminder").catch(() => {});
       return;
     }
     if (rule.conditions?.requirePaymentStatusIn && !rule.conditions.requirePaymentStatusIn.includes(payment.status as any)) {
@@ -203,7 +203,7 @@ export async function subscriptionReminder(payload: any) {
         paymentId: payment.id,
         status: payment.status,
         required: rule.conditions.requirePaymentStatusIn
-      }).catch(() => {});
+      }, "job:subscriptionReminder").catch(() => {});
       return;
     }
   }
@@ -218,7 +218,7 @@ export async function subscriptionReminder(payload: any) {
         subscriptionId: subscription.id,
         currentCycle: subscription.currentCycle,
         payloadCycle: parsed.data.cycleNumber
-      }).catch(() => {});
+      }, "job:subscriptionReminder").catch(() => {});
       return;
     }
     if (parsed.data.anchorAt) {
@@ -231,7 +231,7 @@ export async function subscriptionReminder(payload: any) {
           subscriptionId: subscription.id,
           currentAnchor: subscription.currentPeriodEndAt.toISOString(),
           payloadAnchor: anchorIso
-        }).catch(() => {});
+        }, "job:subscriptionReminder").catch(() => {});
         return;
       }
     }
@@ -249,7 +249,7 @@ export async function subscriptionReminder(payload: any) {
         trigger: parsed.data.trigger,
         subscriptionId: subscription.id,
         paymentStatus: approved.status
-      }).catch(() => {});
+      }, "job:subscriptionReminder").catch(() => {});
       return;
     }
   }
@@ -259,7 +259,7 @@ export async function subscriptionReminder(payload: any) {
       ruleId: rule.id,
       templateId: template.id,
       trigger: parsed.data.trigger
-    }).catch(() => {});
+    }, "job:subscriptionReminder").catch(() => {});
     return;
   }
 
@@ -268,7 +268,7 @@ export async function subscriptionReminder(payload: any) {
       ruleId: rule.id,
       templateId: template.id,
       trigger: parsed.data.trigger
-    }).catch(() => {});
+    }, "job:subscriptionReminder").catch(() => {});
     return;
   }
 
@@ -287,7 +287,7 @@ export async function subscriptionReminder(payload: any) {
         await systemLog(LogLevel.WARN, "notifications.dispatch", "ensurePaymentLink failed; continuing without link", {
           subscriptionId: subscription.id,
           err: err?.message ? String(err.message) : "unknown error"
-        }).catch(() => {});
+        }, "job:subscriptionReminder").catch(() => {});
       }
     }
   }
@@ -301,7 +301,7 @@ export async function subscriptionReminder(payload: any) {
         templateId: template.id,
         trigger: parsed.data.trigger,
         paymentType
-      }).catch(() => {});
+      }, "job:subscriptionReminder").catch(() => {});
       return;
     }
   }
@@ -332,7 +332,7 @@ export async function subscriptionReminder(payload: any) {
       subscriptionId: subscription?.id ?? null,
       paymentId: effectivePayment?.id ?? null,
       missing
-    }).catch(() => {});
+    }, "job:subscriptionReminder").catch(() => {});
   }
 
   const content = template.content ? renderTemplate(template.content, ctx) : "(template)";
@@ -366,7 +366,7 @@ export async function subscriptionReminder(payload: any) {
       customerId: customer.id,
       subscriptionId: subscription?.id ?? null,
       paymentId: effectivePayment?.id ?? null
-    }).catch(() => {});
+    }, "job:subscriptionReminder").catch(() => {});
     return;
   }
 
@@ -401,7 +401,7 @@ export async function subscriptionReminder(payload: any) {
         customerId: customer.id,
         paymentId: effectivePayment?.id ?? null,
         err: err?.message ? String(err.message) : "unknown_error"
-      }).catch(() => {});
+      }, "job:subscriptionReminder").catch(() => {});
     }
   } else {
     await prisma.retryJob.create({
