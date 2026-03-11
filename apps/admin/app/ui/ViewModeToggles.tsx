@@ -1,25 +1,33 @@
 "use client";
 
-import { CopyButton } from "./CopyButton";
-
-type ViewMode = "cards" | "lista" | "kanban";
-
 export function ViewModeToggles({
   currentMode,
   baseParams,
   showKanban = false
 }: {
-  currentMode: ViewMode;
+  currentMode: "cards" | "lista" | "kanban";
   baseParams: Record<string, string>;
   showKanban?: boolean;
 }) {
-  const modes: Array<{ key: ViewMode; label: string; icon: string }> = [
-    { key: "cards", label: "Cards", icon: "▦" },
-    { key: "lista", label: "Lista", icon: "☰" }
+  const modes: Array<{ key: "cards" | "lista" | "kanban"; label: string; svg: string }> = [
+    {
+      key: "cards",
+      label: "Cards",
+      svg: '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>'
+    },
+    {
+      key: "lista",
+      label: "Lista",
+      svg: '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="3" width="12" height="2" rx="0.5"/><rect x="2" y="7" width="12" height="2" rx="0.5"/><rect x="2" y="11" width="12" height="2" rx="0.5"/></svg>'
+    }
   ];
-  
+
   if (showKanban) {
-    modes.push({ key: "kanban", label: "Kanban", icon: "⊞" });
+    modes.push({
+      key: "kanban",
+      label: "Kanban",
+      svg: '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="2" width="3" height="12" rx="0.5"/><rect x="6.5" y="2" width="3" height="8" rx="0.5"/><rect x="11" y="2" width="3" height="10" rx="0.5"/></svg>'
+    });
   }
 
   return (
@@ -29,7 +37,7 @@ export function ViewModeToggles({
         const params = new URLSearchParams(baseParams);
         params.set("vista", mode.key);
         const href = `?${params.toString()}`;
-        
+
         return (
           <a
             key={mode.key}
@@ -43,13 +51,10 @@ export function ViewModeToggles({
               padding: 0,
               display: "inline-flex",
               alignItems: "center",
-              justifyContent: "center",
-              fontSize: 16,
-              lineHeight: 1
+              justifyContent: "center"
             }}
-          >
-            {mode.icon}
-          </a>
+            dangerouslySetInnerHTML={{ __html: mode.svg }}
+          />
         );
       })}
     </div>

@@ -860,19 +860,22 @@ export default async function BillingPage({
                       }}
                       compactInline
                     />
-                    <ViewModeToggles
-                      currentMode={vistaTyped}
-                      baseParams={{
-                        ...(tenantId ? { tenantId } : {}),
-                        ...(q ? { q } : {}),
-                        ...(tipo ? { tipo } : {}),
-                        ...(estado ? { estado } : {}),
-                        ...(ordenar ? { ordenar } : {})
-                      }}
-                      showKanban
-                    />
                     <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
                   </div>
+                </div>
+                <div className="view-mode-row" style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
+                  <span className="field-hint" style={{ margin: 0 }}>Vista:</span>
+                  <ViewModeToggles
+                    currentMode={vistaTyped}
+                    baseParams={{
+                      ...(tenantId ? { tenantId } : {}),
+                      ...(q ? { q } : {}),
+                      ...(tipo ? { tipo } : {}),
+                      ...(estado ? { estado } : {}),
+                      ...(ordenar ? { ordenar } : {})
+                    }}
+                    showKanban
+                  />
                 </div>
                 <div className="field-hint tiny-total">{rows.length} resultados</div>
               </div>

@@ -174,17 +174,20 @@ export default async function ProductsPage({
                       }}
                       compactInline
                     />
-                    <ViewModeToggles
-                      currentMode={vistaTyped}
-                      baseParams={{
-                        ...(tenantId ? { tenantId } : {}),
-                        ...(q ? { q } : {}),
-                        ...(viewId ? { viewId } : {}),
-                        ...(filters ? { filters } : {})
-                      }}
-                    />
                     <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="products" />
                   </div>
+                </div>
+                <div className="view-mode-row" style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
+                  <span className="field-hint" style={{ margin: 0 }}>Vista:</span>
+                  <ViewModeToggles
+                    currentMode={vistaTyped}
+                    baseParams={{
+                      ...(tenantId ? { tenantId } : {}),
+                      ...(q ? { q } : {}),
+                      ...(viewId ? { viewId } : {}),
+                      ...(filters ? { filters } : {})
+                    }}
+                  />
                 </div>
                 <div className="field-hint tiny-total">{productItems.length} resultados</div>
               </div>

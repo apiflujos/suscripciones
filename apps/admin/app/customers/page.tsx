@@ -482,18 +482,21 @@ export default async function CustomersPage({
                       }}
                       compactInline
                     />
-                    <ViewModeToggles
-                      currentMode={vistaTyped}
-                      baseParams={{
-                        ...(q ? { q } : {}),
-                        ...(tenantId ? { tenantId } : {}),
-                        ...(listId ? { list: listId } : {}),
-                        ...(viewId ? { viewId } : {}),
-                        ...(filters ? { filters } : {})
-                      }}
-                    />
                     <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
                   </div>
+                </div>
+                <div className="view-mode-row" style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
+                  <span className="field-hint" style={{ margin: 0 }}>Vista:</span>
+                  <ViewModeToggles
+                    currentMode={vistaTyped}
+                    baseParams={{
+                      ...(q ? { q } : {}),
+                      ...(tenantId ? { tenantId } : {}),
+                      ...(listId ? { list: listId } : {}),
+                      ...(viewId ? { viewId } : {}),
+                      ...(filters ? { filters } : {})
+                    }}
+                  />
                 </div>
               </div>
             </div>
