@@ -585,7 +585,18 @@ export default async function BillingPage({
               <div className="billing-section-title">Producto</div>
               <div className="billing-product-row">
                 <div className="product-thumb billing-product-thumb">
-                  {r.planImageUrl ? <img src={r.planImageUrl} alt={r.planName} /> : <span className="billing-product-fallback">AP</span>}
+                  {r.planImageUrl ? (
+                    <img 
+                      src={r.planImageUrl} 
+                      alt={r.planName} 
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                        (e.target as HTMLImageElement).parentElement!.innerHTML = '<span class="billing-product-fallback">AP</span>';
+                      }}
+                    />
+                  ) : (
+                    <span className="billing-product-fallback">AP</span>
+                  )}
                 </div>
                 <div className="billing-product-meta">
                   <strong>{r.planName}</strong>
