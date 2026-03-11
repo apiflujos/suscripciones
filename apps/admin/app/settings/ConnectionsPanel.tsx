@@ -238,14 +238,16 @@ export function ConnectionsPanel({
                   </div>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     {inlineMsg("wompi_creds", "Guardado.", "Error guardando", inlineState)}
-                    {/* Estado de测试结果 - se mantiene después de guardar */}
+                    {/* Estado de prueba - se mantiene después de guardar */}
                     {wompiTestStatus[open === "wompi_prod" ? "PRODUCTION" : "SANDBOX"] === "ok" ? (
                       <div className="field-hint is-success" style={{ display: "flex", alignItems: "center", gap: 4 }}>
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>
-                        Conexión exitosa
+                        <span>Conexión exitosa</span>
                       </div>
                     ) : wompiTestStatus[open === "wompi_prod" ? "PRODUCTION" : "SANDBOX"] === "fail" ? (
-                      <div className="field-hint" style={{ color: "var(--danger)" }}>Error conectando</div>
+                      <div className="field-hint" style={{ color: "var(--danger)" }}>
+                        <span>Error conectando</span>
+                      </div>
                     ) : null}
                     <DualActionButtons
                       primaryLabel="Guardar"

@@ -432,13 +432,37 @@ settingsRouter.post("/wompi/test", async (req, res) => {
     (await getCredential(CredentialProvider.WOMPI, "API_BASE_URL")) ||
     (env === "SANDBOX" ? "https://sandbox.wompi.co/v1" : "https://api.wompi.co/v1");
 
-  if (!publicKey) return res.status(400).json({ error: "wompi_public_key_not_configured" });
+  if (!publicKey) return res.status(400).json({ error: "wompi_public_key_not_configured", message: "La llave pública no está configurada" });
 
   try {
     const wompi = new WompiClient({ apiBaseUrl, privateKey: "unused", checkoutLinkBaseUrl: "https://checkout.wompi.co/l/" });
-    await wompi.getMerchant(publicKey);
+    // Intentar obtener merchant info para validar credenciales
+    const merchantInfo = await wompi.getMerchant(publicKey);
+    
+    // Validar que la respuesta sea válida
+    if (!merchantInfo || typeof merchantInfo !== "object") {
+      throw new Error("Respuesta inválida de Wompi");
+    }
+    
+    res.json({ 
+      ok: true, 
+      message: `Conexión exitosa con ${env === "SANDBOX" ? "Sandbox" : "Producción"}`,
+      environment: env
+    });
   } catch (err: any) {
-    return res.status(400).json({ error: "wompi_test_failed", message: String(err?.message || err) });
+    const errorMsg = String(err?.message || err);
+    // Mensajes más descriptivos para errores comunes
+    let userMessage = errorMsg;
+    if (errorMsg.includes("401") || errorMsg.includes("unauthorized")) {
+      userMessage = "Llave pública inválida o expirada";
+    } else if (errorMsg.includes("403")) {
+      userMessage = "Acceso denegado - verifica tus credenciales";
+    } else if (errorMsg.includes("ENOTFOUND") || errorMsg.includes("network")) {
+      userMessage = "No se pudo conectar con Wompi - verifica tu conexión a internet";
+    } else if (env === "SANDBOX" && errorMsg.includes("404")) {
+      userMessage = "Endpoint de Sandbox no encontrado - verifica la URL base";
+    }
+    return res.status(400).json({ error: "wompi_test_failed", message: userMessage });
   }
 
   res.json({ ok: true });
