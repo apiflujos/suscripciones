@@ -690,7 +690,7 @@ export default async function BillingPage({
                 <input type="hidden" name="subscriptionId" value={r.id} />
                 {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
                 <button
-                  className="ghost btn-compact btn-noicon btn-blue btn-pay"
+                  className="ghost btn-compact btn-blue btn-pay"
                   type="submit"
                   disabled={!r.customerTokenized}
                   title={
@@ -701,7 +701,9 @@ export default async function BillingPage({
                         : "Cobrar ahora"
                   }
                 >
-                  Cobrar
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                    💳 Cobrar
+                  </span>
                 </button>
               </form>
             ) : null}
@@ -714,8 +716,10 @@ export default async function BillingPage({
                 <input type="hidden" name="customerId" value={r.customerId} />
                 <input type="hidden" name="returnTo" value={returnTo} />
                 {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                <button className="ghost btn-compact btn-noicon btn-send" type="submit" title="Enviar por CentralCom">
-                  Enviar link de pago
+                <button className="ghost btn-compact btn-send" type="submit" title="Enviar link de pago">
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                    📧 Enviar link
+                  </span>
                 </button>
               </form>
             ) : (
@@ -727,13 +731,17 @@ export default async function BillingPage({
                   <input type="hidden" name="planId" value={r.planId} />
                   <input type="hidden" name="returnTo" value={returnTo} />
                   {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                  <button className="ghost btn-compact btn-noicon btn-send" type="submit" title="Enviar por CentralCom">
-                    Guardar tarjeta
+                  <button className="ghost btn-compact btn-send" type="submit" title="Guardar tarjeta para débito automático">
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      💾 Guardar tarjeta
+                    </span>
                   </button>
                 </form>
               ) : (
                 <a className="ghost btn-compact btn-amber btn-create" href="/settings?tab=checkout-publico">
-                  Crear checkout
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                    🛒 Crear checkout
+                  </span>
                 </a>
               )}
             </>
@@ -743,8 +751,10 @@ export default async function BillingPage({
                 <input type="hidden" name="csrf" value={csrfToken} />
                 <input type="hidden" name="subscriptionId" value={r.id} />
                 {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                <button className="ghost btn-compact btn-noicon btn-green" type="submit">
-                  Reanudar
+                <button className="ghost btn-compact btn-green" type="submit" title="Reanudar suscripción">
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                    ▶️ Reanudar
+                  </span>
                 </button>
               </form>
             ) : r.status === "CANCELED" ? (
@@ -752,8 +762,10 @@ export default async function BillingPage({
                 <input type="hidden" name="csrf" value={csrfToken} />
                 <input type="hidden" name="subscriptionId" value={r.id} />
                 {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                <button className="ghost btn-compact btn-noicon btn-green" type="submit">
-                  Activar
+                <button className="ghost btn-compact btn-green" type="submit" title="Activar suscripción">
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                    ✅ Activar
+                  </span>
                 </button>
               </form>
             ) : (
@@ -762,16 +774,20 @@ export default async function BillingPage({
                   <input type="hidden" name="csrf" value={csrfToken} />
                   <input type="hidden" name="subscriptionId" value={r.id} />
                   {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                  <button className="ghost btn-compact btn-noicon btn-red" type="submit">
-                    Cancelar
+                  <button className="ghost btn-compact btn-red" type="submit" title="Cancelar suscripción">
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      ❌ Cancelar
+                    </span>
                   </button>
                 </form>
                 <form action={suspendSubscription}>
                   <input type="hidden" name="csrf" value={csrfToken} />
                   <input type="hidden" name="subscriptionId" value={r.id} />
                   {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                  <button className="ghost btn-compact btn-noicon btn-amber" type="submit">
-                    Suspender
+                  <button className="ghost btn-compact btn-amber" type="submit" title="Suspender suscripción">
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      ⏸️ Suspender
+                    </span>
                   </button>
                 </form>
               </>
