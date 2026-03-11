@@ -485,9 +485,6 @@ export default async function BillingPage({
       periodStartAt: r.periodoInicioAt,
       periodEndAt: r.periodoFinAt
     });
-    const subscriptionStatus = getSubscriptionStatusLabel(r.status);
-    const subscriptionBadge = `Suscripción ${subscriptionStatus.toLowerCase()}`;
-    const planLinkStatus = getPlanLinkStatus(r.lastPaymentLink, r.pagoAt);
     const rowCheckoutUrl = checkoutCustomerId && checkoutCustomerId === r.customerId ? checkoutUrl : "";
     const latestCheckoutUrl = rowCheckoutUrl || String(r.lastPaymentLink?.checkoutUrl || "").trim();
     const rowTokenUrl = checkoutCustomerId && checkoutCustomerId === r.customerId ? tokenUrl : "";
@@ -503,8 +500,7 @@ export default async function BillingPage({
     const duplicateKey = `${r.customerId}:${r.planId}`;
     const duplicateCount = duplicateCountByKey.get(duplicateKey) || 1;
     const keepRowId = duplicateKeepByKey.get(duplicateKey)?.id || r.id;
-    const paymentBadgeStatus = paymentStatus === "Pagado" ? "Al día" : paymentStatus;
-    const planBadgeStatus = planLinkStatus === "Pagado" ? "Al día" : planLinkStatus;
+    
     return (
       <div className="billing-card">
         <div className="billing-header">
@@ -529,16 +525,14 @@ export default async function BillingPage({
               <div className="billing-header-meta-item billing-header-status-strip">
                 <span className="billing-header-label">Estado</span>
                 <div className="billing-status-line" role="group" aria-label="Estado">
-                  {!isPlan ? (
-                    <span className={`pill ${subscriptionStatus === "Activa" ? "pill-ok" : subscriptionStatus === "En mora" ? "pill-warn" : subscriptionStatus === "Suspendida" ? "pill-warn" : subscriptionStatus === "Cancelada" ? "pill-bad" : "pill-muted"}`}>
-                      {subscriptionBadge}
-                    </span>
-                  ) : null}
-                  <span className={`pill ${(isPlan ? planBadgeStatus : paymentBadgeStatus) === "Al día" ? "pill-ok" : (isPlan ? planBadgeStatus : paymentBadgeStatus) === "En mora" ? "pill-warn" : "pill-muted"}`}>
-                    {isPlan ? planBadgeStatus : paymentBadgeStatus}
+                  <span className={`pill ${paymentStatus === "Pagado" ? "pill-ok" : paymentStatus === "En mora" ? "pill-bad" : "pill-muted"}`}>
+                    {paymentStatus}
                   </span>
                   <span className={`pill ${r.customerTokenized ? "pill-ok" : "pill-bad"}`}>
                     {r.customerTokenized ? "Tokenizada" : "Sin token"}
+                  </span>
+                  <span className={`pill ${isPlan ? "pill-mode-link" : "pill-mode-debit"}`}>
+                    {isPlan ? "Link de pago" : "Débito automático"}
                   </span>
                 </div>
               </div>
@@ -600,33 +594,33 @@ export default async function BillingPage({
               </div>
             </div>
             <div className="billing-body-section">
-              <div className="billing-section-title">Fecha de corte</div>
-              <AutoCutoffInlineForm
-                subscriptionId={r.id}
-                csrfToken={csrfToken}
-                returnTo={returnTo}
-                tenantId={r.tenantId}
-                currentEndAt={r.vencimientoAt}
-                action={scheduleCutoff}
-              />
-            </div>
-            <div className="billing-body-section">
-              <div className="billing-section-title">Fecha de reintento</div>
-              <RetryDateField
-                subscriptionId={r.id}
-                currentPeriodEndAt={r.vencimientoAt}
-                nextRetryAt={r.nextRetryAt}
-                csrfToken={csrfToken}
-                returnTo={returnTo}
-              />
+              <div className="billing-section-title">Fechas</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div>
+                  <div className="field-hint" style={{ marginBottom: 4 }}>Corte</div>
+                  <AutoCutoffInlineForm
+                    subscriptionId={r.id}
+                    csrfToken={csrfToken}
+                    returnTo={returnTo}
+                    tenantId={r.tenantId}
+                    currentEndAt={r.vencimientoAt}
+                    action={scheduleCutoff}
+                  />
+                </div>
+                <div>
+                  <div className="field-hint" style={{ marginBottom: 4 }}>Reintento</div>
+                  <RetryDateField
+                    subscriptionId={r.id}
+                    currentPeriodEndAt={r.vencimientoAt}
+                    nextRetryAt={r.nextRetryAt}
+                    csrfToken={csrfToken}
+                    returnTo={returnTo}
+                  />
+                </div>
+              </div>
             </div>
           </div>
           <div className="billing-body-side">
-            <div className="billing-section-title">Tipo de suscripción</div>
-            <span className={`pill pill-sm ${isPlan ? "pill-mode-link" : "pill-mode-debit"}`}>
-              {isPlan ? "Suscripción link de pago" : "Débito automático"}
-            </span>
-
             <div className="billing-cost-panel">
               <span className="billing-cost-title">Totales</span>
               <div className="billing-cost-box">
