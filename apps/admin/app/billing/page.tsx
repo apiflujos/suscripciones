@@ -319,6 +319,11 @@ export default async function BillingPage({
     fetchAdminCached("/admin/tenants", { ttlMs: 1500 }),
     fetchAdminCached("/admin/settings", { ttlMs: 1500 })
   ]);
+  
+  if (!subs.ok) {
+    throw new Error(subs.json?.error || `Error cargando suscripciones: HTTP ${subs.status}`);
+  }
+  
   const subItems = (subs.json?.items ?? []) as any[];
   const total = Number(subs.json?.total ?? 0);
   const customerItems = (customers.json?.items ?? []) as any[];
@@ -590,17 +595,8 @@ export default async function BillingPage({
                       src={r.planImageUrl} 
                       alt={r.planName}
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      onError={(e) => {
-                        const target = e.currentTarget;
-                        target.style.display = 'none';
-                        const fallback = document.createElement('span');
-                        fallback.className = 'billing-product-fallback';
-                        fallback.textContent = 'AP';
-                        target.parentElement?.appendChild(fallback);
-                      }}
                     />
-                  ) : null}
-                  {!r.planImageUrl && (
+                  ) : (
                     <span className="billing-product-fallback">AP</span>
                   )}
                 </div>
