@@ -26,6 +26,7 @@ import { HelpTip } from "../ui/HelpTip";
 import { PendingButton } from "../ui/PendingButton";
 import { AppearanceSelector } from "../ui/AppearanceSelector";
 import { AutoSubmitOnChange } from "../ui/AutoSubmitOnChange";
+import { AutoSubmitToggle } from "../ui/AutoSubmitToggle";
 import { getCsrfToken } from "../lib/csrf";
 import { ConnectionsPanel } from "./ConnectionsPanel";
 import { LogoUploadField } from "./LogoUploadField";
@@ -734,7 +735,7 @@ export default async function SettingsPage({
               </div>
             </div>
             <div className="settings-group-body">
-              <form action={updateAutoDebitConfig} className="panel module" style={{ display: "grid", gap: 12 }} data-auto-submit-form="true">
+              <form action={updateAutoDebitConfig} className="panel module" style={{ display: "grid", gap: 12 }} data-auto-submit-form="true" id="auto-debit-form">
                 <input type="hidden" name="csrf" value={csrfToken} />
                 <input type="hidden" name="returnTo" value={returnTo} />
                 <div className="toggleRow">
@@ -745,18 +746,14 @@ export default async function SettingsPage({
                     </div>
                     <div className="field-hint">Controla la ejecución de cobros recurrentes.</div>
                   </div>
-                  <label className="toggleControl" aria-label="Cobros automáticos">
-                    <input type="hidden" name="enabled" value="false" />
-                    <input
-                      className="toggleInput"
-                      type="checkbox"
-                      name="enabled"
-                      value="true"
-                      defaultChecked={Boolean(autoDebit?.enabled)}
-                      data-auto-submit="true"
-                    />
-                    <span className="toggle" aria-hidden="true" />
-                  </label>
+                  <AutoSubmitToggle
+                    name="enabled"
+                    checked={Boolean(autoDebit?.enabled)}
+                    requireConfirm={true}
+                    confirmMessage="¿Seguro de cambiar cobros automáticos? Esto activará/desactivará todos los cobros recurrentes."
+                    loadingText="Actualizando..."
+                    form="auto-debit-form"
+                  />
                 </div>
                 <div className="toggleRow">
                   <div>
@@ -766,18 +763,14 @@ export default async function SettingsPage({
                     </div>
                     <div className="field-hint">Solo aplica cuando hay corte configurado.</div>
                   </div>
-                  <label className="toggleControl" aria-label="Cobrar en fecha/hora de corte">
-                    <input type="hidden" name="chargeAtCutoffEnabled" value="false" />
-                    <input
-                      className="toggleInput"
-                      type="checkbox"
-                      name="chargeAtCutoffEnabled"
-                      value="true"
-                      defaultChecked={Boolean(autoDebit?.chargeAtCutoffEnabled ?? true)}
-                      data-auto-submit="true"
-                    />
-                    <span className="toggle" aria-hidden="true" />
-                  </label>
+                  <AutoSubmitToggle
+                    name="chargeAtCutoffEnabled"
+                    checked={Boolean(autoDebit?.chargeAtCutoffEnabled ?? true)}
+                    requireConfirm={true}
+                    confirmMessage="¿Seguro de cambiar cobro en fecha de corte? Esto afecta cuándo se ejecutan los cobros automáticos."
+                    loadingText="Actualizando..."
+                    form="auto-debit-form"
+                  />
                 </div>
                 <div className="toggleRow">
                   <div>
@@ -787,18 +780,12 @@ export default async function SettingsPage({
                     </div>
                     <div className="field-hint">Útil para cobros puntuales o casos especiales.</div>
                   </div>
-                  <label className="toggleControl" aria-label="Habilitar botón de cobro manual">
-                    <input type="hidden" name="allowManualCharge" value="false" />
-                    <input
-                      className="toggleInput"
-                      type="checkbox"
-                      name="allowManualCharge"
-                      value="true"
-                      defaultChecked={Boolean(autoDebit?.allowManualCharge ?? true)}
-                      data-auto-submit="true"
-                    />
-                    <span className="toggle" aria-hidden="true" />
-                  </label>
+                  <AutoSubmitToggle
+                    name="allowManualCharge"
+                    checked={Boolean(autoDebit?.allowManualCharge ?? true)}
+                    loadingText="Actualizando..."
+                    form="auto-debit-form"
+                  />
                 </div>
                 <div className="toggleRow">
                   <div>
@@ -808,18 +795,14 @@ export default async function SettingsPage({
                     </div>
                     <div className="field-hint">Configura el intervalo y el máximo abajo.</div>
                   </div>
-                  <label className="toggleControl" aria-label="Reintentos">
-                    <input type="hidden" name="retryEnabled" value="false" />
-                    <input
-                      className="toggleInput"
-                      type="checkbox"
-                      name="retryEnabled"
-                      value="true"
-                      defaultChecked={Boolean(autoDebit?.retryEnabled)}
-                      data-auto-submit="true"
-                    />
-                    <span className="toggle" aria-hidden="true" />
-                  </label>
+                  <AutoSubmitToggle
+                    name="retryEnabled"
+                    checked={Boolean(autoDebit?.retryEnabled)}
+                    requireConfirm={true}
+                    confirmMessage="¿Seguro de cambiar reintentos? Esto activará/desactivará los cobros automáticos cuando fallen."
+                    loadingText="Actualizando..."
+                    form="auto-debit-form"
+                  />
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
