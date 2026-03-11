@@ -910,7 +910,7 @@ export default async function BillingPage({
             tenantId={tenantId}
             tenants={tenants}
             returnTo={returnTo}
-            defaultOpen={Boolean(crear) || Boolean(selectCustomerId) || Boolean(contactCreated)}
+            defaultOpen={Boolean(crear) || Boolean(selectCustomerId)}
             defaultSelectedCustomerId={selectCustomerId}
             createCustomer={createCustomerFromBilling}
             createPlanAndSubscription={createPlanAndSubscription}

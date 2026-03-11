@@ -243,7 +243,6 @@ publicCartRouter.post("/cart/:token/select", async (req, res) => {
   });
 
   // PROGRAMACIÓN AL EVENTO: Agendar el Job exactamente para la fecha de cobro inicial.
-  const collectionMode = getPlanCollectionMode(plan.metadata);
   if (collectionMode === "AUTO_DEBIT" || collectionMode === "AUTO_LINK") {
     await ensurePaymentRetryJob({ 
       subscriptionId: subscription.id, 

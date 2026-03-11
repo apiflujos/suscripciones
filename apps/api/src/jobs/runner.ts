@@ -238,7 +238,7 @@ async function ensurePendingPaymentsAutoReconcile() {
   for (const p of pending) {
     tried++;
     try {
-      const res = await reconcileWompiTransaction(p.id);
+      const res = await reconcileWompiTransaction({ wompiTransactionId: String(p.wompiTransactionId || "") });
       if (res.status !== "PENDING") reconciled++;
     } catch (err) {
       logger.warn({ err, paymentId: p.id }, '[Jobs/Reconcile] Fallo en reconciliación automática');
@@ -300,7 +300,7 @@ async function ensureDueCutoffRetries() {
   const chargeAtCutoffEnabled = autoDebitConfig.chargeAtCutoffEnabled;
 
   // 1. Limpieza de duplicados (mantiene el más reciente)
-  await prisma.$executeRaw(`
+  await prisma.$executeRawUnsafe(`
     WITH ranked AS (
       SELECT id, ROW_NUMBER() OVER(PARTITION BY (payload->>'subscriptionId') ORDER BY "runAt" DESC) as rn
       FROM "RetryJob"
