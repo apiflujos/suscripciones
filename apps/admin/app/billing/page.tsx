@@ -701,9 +701,7 @@ export default async function BillingPage({
                         : "Cobrar ahora"
                   }
                 >
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                    💳 Cobrar
-                  </span>
+                  Cobrar
                 </button>
               </form>
             ) : null}
@@ -717,9 +715,7 @@ export default async function BillingPage({
                 <input type="hidden" name="returnTo" value={returnTo} />
                 {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
                 <button className="ghost btn-compact btn-send" type="submit" title="Enviar link de pago">
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                    📧 Enviar link
-                  </span>
+                  Enviar link
                 </button>
               </form>
             ) : (
@@ -732,16 +728,12 @@ export default async function BillingPage({
                   <input type="hidden" name="returnTo" value={returnTo} />
                   {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
                   <button className="ghost btn-compact btn-send" type="submit" title="Guardar tarjeta para débito automático">
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                      💾 Guardar tarjeta
-                    </span>
+                    Guardar tarjeta
                   </button>
                 </form>
               ) : (
                 <a className="ghost btn-compact btn-amber btn-create" href="/settings?tab=checkout-publico">
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                    🛒 Crear checkout
-                  </span>
+                  Crear checkout
                 </a>
               )}
             </>
@@ -752,9 +744,7 @@ export default async function BillingPage({
                 <input type="hidden" name="subscriptionId" value={r.id} />
                 {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
                 <button className="ghost btn-compact btn-green" type="submit" title="Reanudar suscripción">
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                    ▶️ Reanudar
-                  </span>
+                  Reanudar
                 </button>
               </form>
             ) : r.status === "CANCELED" ? (
@@ -763,9 +753,7 @@ export default async function BillingPage({
                 <input type="hidden" name="subscriptionId" value={r.id} />
                 {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
                 <button className="ghost btn-compact btn-green" type="submit" title="Activar suscripción">
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                    ✅ Activar
-                  </span>
+                  Activar
                 </button>
               </form>
             ) : (
@@ -775,9 +763,7 @@ export default async function BillingPage({
                   <input type="hidden" name="subscriptionId" value={r.id} />
                   {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
                   <button className="ghost btn-compact btn-red" type="submit" title="Cancelar suscripción">
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                      ❌ Cancelar
-                    </span>
+                    Cancelar
                   </button>
                 </form>
                 <form action={suspendSubscription}>
@@ -785,9 +771,7 @@ export default async function BillingPage({
                   <input type="hidden" name="subscriptionId" value={r.id} />
                   {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
                   <button className="ghost btn-compact btn-amber" type="submit" title="Suspender suscripción">
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                      ⏸️ Suspender
-                    </span>
+                    Suspender
                   </button>
                 </form>
               </>
