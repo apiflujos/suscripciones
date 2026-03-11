@@ -1406,3 +1406,107 @@ subscriptionsRouter.delete("/:id", async (req, res) => {
     res.status(500).json({ error: "fallo_eliminacion", mensaje: "No se pudo eliminar la suscripción" });
   }
 });
+
+// Endpoint para establecer fecha de reintento manual
+subscriptionsRouter.post("/:id/set-retry-date", async (req, res) => {
+  const subscriptionId = String(req.params.id || "").trim();
+  if (!subscriptionId) return res.status(400).json({ error: "invalid_subscription_id" });
+
+  const nextRetryAtRaw = String(req.body?.nextRetryAt || "").trim() || null;
+  const nextRetryAt = nextRetryAtRaw ? new Date(nextRetryAtRaw) : null;
+  
+  if (nextRetryAtRaw && (!nextRetryAt || Number.isNaN(nextRetryAt.getTime()))) {
+    return res.status(400).json({ error: "invalid_date" });
+  }
+
+  try {
+    const subscription = await prisma.subscription.findUnique({
+      where: { id: subscriptionId },
+      select: { id: true, status: true, customerId: true, metadata: true }
+    });
+    
+    if (!subscription) {
+      return res.status(404).json({ error: "subscription_not_found" });
+    }
+
+    // Actualizar metadata con la fecha de reintento
+    const currentMetadata: any = subscription.metadata || {};
+    const updatedMetadata = {
+      ...currentMetadata,
+      manualRetry: nextRetryAt ? {
+        nextRetryAt: nextRetryAt.toISOString(),
+        setAt: new Date().toISOString()
+      } : null
+    };
+
+    await prisma.subscription.update({
+      where: { id: subscriptionId },
+      data: { metadata: updatedMetadata }
+    });
+
+    // Si se estableció una fecha, crear job programado
+    if (nextRetryAt) {
+      // Cancelar jobs de reintento existentes
+      await prisma.retryJob.updateMany({
+        where: {
+          type: RetryJobType.PAYMENT_RETRY,
+          status: { in: ["PENDING", "RUNNING"] },
+          payload: { path: ["subscriptionId"], equals: subscriptionId } as any
+        },
+        data: { status: "CANCELED", lastError: "Replaced by manual retry date" }
+      });
+
+      // Crear nuevo job para la fecha manual
+      await prisma.retryJob.create({
+        data: {
+          type: RetryJobType.PAYMENT_RETRY,
+          runAt: nextRetryAt,
+          payload: {
+            subscriptionId,
+            customerId: subscription.customerId,
+            manual: true,
+            scheduledAt: new Date().toISOString()
+          }
+        }
+      });
+
+      await systemLog(
+        LogLevel.INFO,
+        "subscriptions.retry_date",
+        "Fecha de reintento manual establecida",
+        {
+          subscriptionId,
+          nextRetryAt: nextRetryAt.toISOString(),
+          status: subscription.status
+        },
+        req.body?.actorEmail || "manual"
+      ).catch(() => {});
+    } else {
+      // Si se limpió la fecha, cancelar jobs pendientes
+      await prisma.retryJob.updateMany({
+        where: {
+          type: RetryJobType.PAYMENT_RETRY,
+          status: { in: ["PENDING", "RUNNING"] },
+          payload: { path: ["subscriptionId"], equals: subscriptionId } as any
+        },
+        data: { status: "CANCELED", lastError: "Manual retry date cleared" }
+      });
+
+      await systemLog(
+        LogLevel.INFO,
+        "subscriptions.retry_date",
+        "Fecha de reintento manual limpiada",
+        {
+          subscriptionId,
+          status: subscription.status
+        },
+        req.body?.actorEmail || "manual"
+      ).catch(() => {});
+    }
+
+    res.json({ ok: true, nextRetryAt: nextRetryAt?.toISOString() || null });
+  } catch (err: any) {
+    console.error("[Subscriptions/SetRetryDate] Error:", err);
+    res.status(500).json({ error: "internal_error", message: String(err?.message || err) });
+  }
+});
