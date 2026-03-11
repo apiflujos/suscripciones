@@ -178,9 +178,9 @@ export async function getAutoDebitConfig(): Promise<AutoDebitConfig> {
 
   return {
     enabled,
-    chargeAtCutoffEnabled: enabled ? chargeAtCutoffEnabled : false,
+    chargeAtCutoffEnabled,
     allowManualCharge,
-    retryEnabled: enabled ? retryEnabled : false,
+    retryEnabled,
     retryEveryValue: derived.retryEveryValue,
     retryEveryUnit: derived.retryEveryUnit,
     retryEveryMinutes,

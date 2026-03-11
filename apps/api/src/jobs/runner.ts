@@ -297,7 +297,7 @@ async function ensureDueCutoffRetries() {
   lastEnsureDueCutoffRetriesAtMs = now;
 
   const autoDebitConfig = await getAutoDebitConfig();
-  const autoDebitEnabled = autoDebitConfig.enabled;
+  const chargeAtCutoffEnabled = autoDebitConfig.chargeAtCutoffEnabled;
 
   // 1. Limpieza de duplicados (mantiene el más reciente)
   await prisma.$executeRaw(`
@@ -338,7 +338,9 @@ async function ensureDueCutoffRetries() {
   for (const sub of subs) {
     const mode = resolveSubscriptionCollectionMode(sub);
     if (mode !== "AUTO_DEBIT" && mode !== "AUTO_LINK") continue;
-    if (mode === "AUTO_DEBIT" && !autoDebitEnabled) continue;
+    
+    // Si es AUTO_DEBIT y el cobro en corte está apagado, omitir creación de Job.
+    if (mode === "AUTO_DEBIT" && !chargeAtCutoffEnabled) continue;
 
     const cutoffMs = sub.currentPeriodEndAt?.getTime?.() ?? 0;
     const runAt = cutoffMs > now + futureToleranceMs ? new Date(cutoffMs) : nowDate;
@@ -494,7 +496,7 @@ async function runOnce() {
         let runAt: Date | undefined = status === RetryJobStatus.PENDING ? nextRunAt(attempts) : undefined;
         if (job.type === RetryJobType.PAYMENT_RETRY) {
           const cfg = await getAutoDebitConfig();
-          const canRetry = cfg.enabled && cfg.retryEnabled && attempts <= cfg.maxRetries;
+          const canRetry = cfg.retryEnabled && attempts <= cfg.maxRetries;
           status = canRetry ? RetryJobStatus.PENDING : RetryJobStatus.FAILED;
           runAt = canRetry ? nextRunAtMinutes(cfg.retryEveryMinutes) : undefined;
           
@@ -557,7 +559,7 @@ async function main() {
       const lower = String(msg || "").toLowerCase();
       const isDbSlots = lower.includes("remaining connection slots are reserved");
       const hint = isDbSlots
-        ? "Base de datos sin cupos de conexión. Reduce conexiones/pool del API y worker, o aumenta límites en la BD."
+        ? "Base de datos sin cupos de conexión. Reduce conexiones/pool del API and worker, o aumenta límites en la BD."
         : "Falla transitoria en jobs. Revisa logs y estado de base de datos/credenciales.";
       await systemLog(
         LogLevel.WARN,
