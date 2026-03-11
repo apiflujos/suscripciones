@@ -489,7 +489,6 @@ export function ProductsTable({
         const url = String(json?.url || "").trim();
         if (!url) throw new Error("upload_missing_url");
         setImageUrl(url);
-        setImageUrlInput(url);
       })
       .catch((err) => {
         setImageError(String(err?.message || "No se pudo subir la imagen."));
@@ -1068,7 +1067,7 @@ export function ProductsTable({
                     <input type="file" accept="image/*" onChange={onImageFile} />
                     {imageUrl ? <img src={imageUrl} alt="Producto" className="logo-preview" /> : null}
                     {imageUrl ? (
-                      <button type="button" className="ghost" onClick={() => { setImageUrl(""); setImageUrlInput(""); }}>
+                      <button type="button" className="ghost" onClick={() => { setImageUrl(""); }}>
                         Quitar
                       </button>
                     ) : null}
