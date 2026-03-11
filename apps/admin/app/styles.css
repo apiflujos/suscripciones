@@ -6079,20 +6079,20 @@ textarea.input {
 .billing-card {
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--panel) 94%, var(--primary-soft) 6%) 0%, var(--panel) 100%);
-  border-radius: 12px;
+  border-radius: 14px;
   border: 1px solid color-mix(in srgb, var(--stroke-strong) 78%, transparent);
   box-shadow: 0 10px 24px rgba(30, 18, 52, 0.08);
-  padding: 4px 6px;
+  padding: 12px 14px;
   display: grid;
-  gap: 4px;
+  gap: 10px;
   width: 100%;
 }
 
 .billing-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 6px;
-  align-items: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px 14px;
+  align-items: start;
 }
 
 .billing-header-middle {
@@ -6112,14 +6112,14 @@ textarea.input {
 
 .billing-header-right {
   display: grid;
-  gap: 2px;
+  gap: 6px;
   justify-items: end;
 }
 
 .billing-header-actions {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
@@ -6130,7 +6130,7 @@ textarea.input {
 }
 
 .billing-name {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-strong);
   line-height: 1.15;
@@ -6157,18 +6157,19 @@ textarea.input {
 }
 
 .billing-header-meta-grid {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+  align-items: start;
+  gap: 10px 14px;
   flex-wrap: nowrap;
   width: 100%;
   min-width: 0;
 }
 
 .billing-header-meta-item {
-  display: inline-flex;
+  display: grid;
   gap: 4px;
-  align-items: center;
+  align-items: start;
   min-width: 0;
   flex: 0 0 auto;
 }
@@ -6190,11 +6191,10 @@ textarea.input {
 .billing-status-line {
   display: flex;
   align-items: center;
-  gap: 4px;
-  flex-wrap: nowrap;
+  gap: 6px;
+  flex-wrap: wrap;
   min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: thin;
+  overflow: visible;
   flex: 1 1 auto;
 }
 
@@ -6220,8 +6220,8 @@ textarea.input {
 }
 
 .billing-grid-info.billing-grid-subscription {
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.48fr);
-  gap: 10px 12px;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.55fr);
+  gap: 14px 16px;
   align-items: start;
 }
 
@@ -6236,6 +6236,11 @@ textarea.input {
   display: grid;
   align-items: stretch;
   gap: 3px;
+}
+
+.billing-grid-info > .billing-body-main,
+.billing-grid-info > .billing-body-side {
+  align-items: stretch;
 }
 
 .billing-grid-info > .billing-body-left,
@@ -6257,7 +6262,7 @@ textarea.input {
 
 .billing-cost-panel {
   display: grid;
-  gap: 4px;
+  gap: 6px;
   justify-self: stretch;
   justify-items: stretch;
   text-align: left;
@@ -6271,11 +6276,11 @@ textarea.input {
 
 .billing-cost-box {
   border: 1px solid color-mix(in srgb, var(--stroke) 80%, transparent);
-  border-radius: 9px;
+  border-radius: 12px;
   background: color-mix(in srgb, var(--panel) 90%, var(--primary-soft) 10%);
-  padding: 4px 5px;
+  padding: 8px 10px;
   display: grid;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
   text-align: left;
 }
@@ -6289,7 +6294,7 @@ textarea.input {
 
 .billing-cost-total {
   color: var(--primary);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 800;
   line-height: 1.1;
   text-align: left;
@@ -6311,13 +6316,13 @@ textarea.input {
 .billing-cost-chip {
   display: inline-flex;
   align-items: center;
-  min-height: 18px;
-  padding: 0 6px;
+  min-height: 20px;
+  padding: 0 8px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--surface-2) 80%, white 20%);
   border: 1px solid color-mix(in srgb, var(--stroke) 75%, transparent);
   color: var(--text-soft);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
 }
 
@@ -6330,11 +6335,11 @@ textarea.input {
 
 .billing-actions {
   display: flex;
-  gap: 4px 6px;
+  gap: 8px 10px;
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: flex-start;
-  padding-top: 6px;
+  padding-top: 10px;
   border-top: 1px solid color-mix(in srgb, var(--stroke) 86%, transparent);
 }
 
@@ -6360,9 +6365,9 @@ textarea.input {
 }
 
 .billing-product-thumb {
-  width: 20px;
-  height: 20px;
-  min-width: 20px;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
 }
 
 .billing-product-fallback {
@@ -6371,10 +6376,10 @@ textarea.input {
   justify-content: center;
   width: 100%;
   height: 100%;
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--primary-soft);
   color: var(--primary);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -6387,7 +6392,7 @@ textarea.input {
 }
 
 .billing-product-meta strong {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.15;
 }
 
@@ -6431,41 +6436,84 @@ textarea.input {
 
 .billing-body-main {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(180px, 0.8fr);
-  gap: 6px 10px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px 16px;
   align-items: start;
 }
 
 .billing-body-section {
   display: grid;
-  gap: 3px;
+  gap: 4px;
   align-content: start;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--stroke) 86%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel) 88%, var(--surface-2) 12%);
+}
+
+.billing-section-actions {
+  grid-column: auto;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+.billing-quick-actions {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.billing-quick-actions .btn-compact {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
+
+.billing-section-dates {
+  grid-column: auto;
+}
+
+.billing-section-dates .field-hint {
+  display: block;
+  font-size: 10px;
+  margin-bottom: 6px;
+}
+
+.billing-section-dates .billing-inline-cutoff {
+  width: 100%;
+  gap: 8px;
+}
+
+.billing-section-dates .billing-inline-cutoff .input {
+  width: 100%;
+  min-width: 0;
 }
 
 .billing-body-side {
   display: grid;
-  gap: 8px;
+  gap: 10px;
   align-content: start;
-  justify-items: end;
-  text-align: right;
-  min-width: 220px;
+  justify-items: stretch;
+  text-align: left;
+  min-width: 200px;
 }
 
 .billing-body-side .billing-cost-panel,
 .billing-body-side .billing-cost-box {
-  text-align: right;
+  text-align: left;
   width: 100%;
   max-width: 280px;
 }
 
 .billing-body-side .billing-cost-summary {
-  justify-content: flex-end;
-  display: grid;
-  gap: 2px;
+  justify-content: space-between;
+  display: flex;
+  gap: 6px;
 }
 
 .billing-section-title {
-  font-size: 8px;
+  font-size: 9px;
   color: var(--text-faint);
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -9355,20 +9403,16 @@ body.is-global-loading {
     width: 100%;
   }
   .billing-header {
-    flex-direction: column;
-    align-items: flex-start;
+    grid-template-columns: 1fr;
+    align-items: stretch;
   }
   .billing-header-meta-grid {
-    flex-wrap: wrap;
+    grid-template-columns: 1fr;
     gap: 8px;
-  }
-  .billing-header-meta-item {
-    flex-wrap: wrap;
   }
   .billing-header-status-strip {
     width: 100%;
     align-items: flex-start;
-    flex-wrap: wrap;
   }
   .billing-status-line {
     width: 100%;

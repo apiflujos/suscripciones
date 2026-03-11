@@ -5,6 +5,7 @@ import { LogLevel, PlanIntervalUnit, SubscriptionStatus } from "@prisma/client";
 import { systemLog } from "../services/systemLog";
 import { getEffectiveTenantId, getEffectiveTenantIds, readTenantIdsFromReq } from "../services/tenantContext";
 import { DEFAULT_CURRENCY, isSupportedCurrency, normalizeCurrencyCode } from "../lib/currencies";
+import { getPublicBaseUrlFromEnv } from "../services/publicBase";
 
 const variantRowSchema = z.object({
   option1: z.string().optional().nullable(),
@@ -41,6 +42,27 @@ const createProductSchema = z.object({
   imageUrl: z.string().optional().nullable(),
   metadata: z.any().optional()
 });
+
+function buildPublicBase(req: express.Request) {
+  const envBase = getPublicBaseUrlFromEnv();
+  if (envBase) return envBase;
+  const host = String(req.header("x-forwarded-host") || req.header("host") || "").trim();
+  if (!host) return "";
+  const proto = String(req.header("x-forwarded-proto") || req.protocol || "https").trim();
+  return `${proto}://${host}`;
+}
+
+function normalizeImageUrl(req: express.Request, raw: unknown) {
+  const value = String(raw || "").trim();
+  if (!value) return null;
+  if (/^https?:\/\//i.test(value)) return value;
+  if (value.startsWith("/")) return value;
+  if (!value.includes("/") && /\.(jpe?g|png|webp|gif)$/i.test(value)) {
+    const base = buildPublicBase(req);
+    return base ? `${base}/public/media/${value}` : `/public/media/${value}`;
+  }
+  return null;
+}
 
 export const productsRouter = express.Router();
 
@@ -165,7 +187,7 @@ productsRouter.get("/", async (_req, res) => {
       option1Name: (p.metadata as any)?.option1Name || null,
       option2Name: (p.metadata as any)?.option2Name || null,
       variants: (p.metadata as any)?.variants || null,
-      imageUrl: (p.metadata as any)?.imageUrl || null,
+      imageUrl: normalizeImageUrl(req, (p.metadata as any)?.imageUrl),
       activeSubscriptions: Number(activeSubsByPlan.get(String(p.id)) || 0),
       createdAt: p.createdAt,
       updatedAt: p.updatedAt
@@ -249,7 +271,7 @@ productsRouter.get("/:id", async (req, res) => {
       option1Name: (plan.metadata as any)?.option1Name || null,
       option2Name: (plan.metadata as any)?.option2Name || null,
       variants: (plan.metadata as any)?.variants || null,
-      imageUrl: (plan.metadata as any)?.imageUrl || null,
+      imageUrl: normalizeImageUrl(req, (plan.metadata as any)?.imageUrl),
       createdAt: plan.createdAt,
       updatedAt: plan.updatedAt
     }
@@ -306,7 +328,7 @@ productsRouter.put("/:id", async (req, res) => {
     option1Name: data.option1Name || null,
     option2Name: data.option2Name || null,
     variants: data.variants ? (data.variants as any) : null,
-    imageUrl: data.imageUrl || null
+    imageUrl: normalizeImageUrl(req, data.imageUrl)
   };
 
   const requestedTenantIds = readTenantIdsFromReq(req);
@@ -489,7 +511,7 @@ productsRouter.post("/", async (req, res) => {
           option1Name: data.option1Name || null,
           option2Name: data.option2Name || null,
           variants: data.variants ? (data.variants as any) : null,
-          imageUrl: data.imageUrl || null
+          imageUrl: normalizeImageUrl(req, data.imageUrl)
         } as any
       }
     });

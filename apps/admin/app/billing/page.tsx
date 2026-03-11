@@ -637,26 +637,11 @@ export default async function BillingPage({
                 </div>
               </div>
             </div>
-            {hasQuickLinks ? (
-              <div className="billing-body-section billing-section-actions">
-                <div className="billing-section-title">Links</div>
-                <div className="billing-quick-actions">
-                  {latestCheckoutUrl ? (
-                    <a className="ghost btn-compact btn-icon-only btn-open" href={latestCheckoutUrl} target="_blank" rel="noreferrer" title="Abrir link de pago" aria-label="Abrir link de pago" />
-                  ) : null}
-                  {rowTokenUrl ? (
-                    <a className="ghost btn-compact btn-icon-only btn-link" href={rowTokenUrl} target="_blank" rel="noreferrer" title="Abrir link de tokenización" aria-label="Abrir link de tokenización" />
-                  ) : null}
-                  {latestCheckoutUrl ? <CopyButton text={latestCheckoutUrl} /> : null}
-                  {rowTokenUrl ? <CopyButton text={rowTokenUrl} /> : null}
-                </div>
-              </div>
-            ) : null}
             <div className="billing-body-section billing-section-dates">
               <div className="billing-section-title">Fechas</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <div>
-                  <div className="field-hint" style={{ marginBottom: 2, fontSize: 11 }}>Corte</div>
+                  <div className="field-hint">Corte</div>
                   <AutoCutoffInlineForm
                     subscriptionId={r.id}
                     csrfToken={csrfToken}
@@ -667,7 +652,7 @@ export default async function BillingPage({
                   />
                 </div>
                 <div>
-                  <div className="field-hint" style={{ marginBottom: 2, fontSize: 11 }}>Próximo intento</div>
+                  <div className="field-hint">Próximo intento</div>
                   <RetryDateField
                     subscriptionId={r.id}
                     currentPeriodEndAt={r.vencimientoAt}
@@ -697,6 +682,21 @@ export default async function BillingPage({
                 </div>
               </div>
             </div>
+            {hasQuickLinks ? (
+              <div className="billing-body-section billing-section-actions">
+                <div className="billing-section-title">Links</div>
+                <div className="billing-quick-actions">
+                  {latestCheckoutUrl ? (
+                    <a className="ghost btn-compact btn-icon-only btn-open" href={latestCheckoutUrl} target="_blank" rel="noreferrer" title="Abrir link de pago" aria-label="Abrir link de pago" />
+                  ) : null}
+                  {rowTokenUrl ? (
+                    <a className="ghost btn-compact btn-icon-only btn-link" href={rowTokenUrl} target="_blank" rel="noreferrer" title="Abrir link de tokenización" aria-label="Abrir link de tokenización" />
+                  ) : null}
+                  {latestCheckoutUrl ? <CopyButton text={latestCheckoutUrl} /> : null}
+                  {rowTokenUrl ? <CopyButton text={rowTokenUrl} /> : null}
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
 
