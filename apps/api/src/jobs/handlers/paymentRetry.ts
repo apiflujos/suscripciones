@@ -171,7 +171,12 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
       };
     }
     try {
-      await createAutoDebitTransactionForSubscription({ subscriptionId, forceNewTransaction: false });
+      // CRÍTICO: forceNewTransaction=true para generar referencia única (R1, R2, etc.)
+      // y evitar error "wompi_reference_already_used_guard"
+      await createAutoDebitTransactionForSubscription({ 
+        subscriptionId, 
+        forceNewTransaction: true  // ← ESTO ES CLAVE
+      });
       return {
         status: "processed",
         mode,
