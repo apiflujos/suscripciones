@@ -41,7 +41,7 @@ export function ViewModeToggles({
         return (
           <a
             key={mode.key}
-            className={`ghost btn-compact btn-icon-only ${isActive ? "is-active" : ""}`}
+            className={`ghost btn-compact btn-icon-only btn-noicon ${isActive ? "is-active" : ""}`}
             href={href}
             title={`${mode.label} (clic para cambiar)`}
             style={{

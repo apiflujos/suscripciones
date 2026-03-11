@@ -299,10 +299,23 @@ productsRouter.put("/:id", async (req, res) => {
   }
   if ((existing.metadata as any)?.kind !== "CATALOG_ITEM") return res.status(404).json({ error: "not_found" });
 
-  const sku = String(data.sku || "").trim();
-  if (sku) {
+  const skuRaw = String(data.sku || "").trim();
+  const skuNormalized = skuRaw ? skuRaw.toUpperCase() : "";
+  const existingSku = String((existing.metadata as any)?.sku || "").trim().toUpperCase();
+  const requestedTenantIds = readTenantIdsFromReq(req);
+  const requestedPrimaryTenantId = String((data as any)?.primaryTenantId || "").trim();
+  if (requestedPrimaryTenantId && requestedTenantIds.length && !requestedTenantIds.includes(requestedPrimaryTenantId)) {
+    return res.status(400).json({ error: "primary_tenant_not_in_list" });
+  }
+  const primaryTenantId = requestedPrimaryTenantId || requestedTenantIds[0] || existing.tenantId || null;
+
+  if (skuNormalized && skuNormalized !== existingSku) {
     const clash = await prisma.subscriptionPlan.findFirst({
-      where: { id: { not: id }, metadata: { path: ["sku"], equals: sku } } as any
+      where: {
+        id: { not: id },
+        metadata: { path: ["sku"], equals: skuNormalized } as any,
+        ...(primaryTenantId ? { tenantId: primaryTenantId } : {})
+      } as any
     });
     if (clash) return res.status(409).json({ error: "sku_exists" });
   }
@@ -310,7 +323,7 @@ productsRouter.put("/:id", async (req, res) => {
   const mergedMetadata = {
     ...(existing.metadata && typeof existing.metadata === "object" ? (existing.metadata as any) : {}),
     kind: "CATALOG_ITEM",
-    sku: data.sku,
+    sku: skuNormalized || data.sku,
     displayName: data.name,
     itemKind: data.kind,
     collectionMode: (data.metadata as any)?.collectionMode || (existing.metadata as any)?.collectionMode || "AUTO_LINK",
@@ -331,12 +344,6 @@ productsRouter.put("/:id", async (req, res) => {
     imageUrl: normalizeImageUrl(req, data.imageUrl)
   };
 
-  const requestedTenantIds = readTenantIdsFromReq(req);
-  const requestedPrimaryTenantId = String((data as any)?.primaryTenantId || "").trim();
-  if (requestedPrimaryTenantId && requestedTenantIds.length && !requestedTenantIds.includes(requestedPrimaryTenantId)) {
-    return res.status(400).json({ error: "primary_tenant_not_in_list" });
-  }
-  const primaryTenantId = requestedPrimaryTenantId || requestedTenantIds[0] || existing.tenantId || null;
   const dataForSave: any = { ...(data as any) };
   delete dataForSave.primaryTenantId;
 
@@ -344,7 +351,7 @@ productsRouter.put("/:id", async (req, res) => {
     where: { id },
     data: {
       ...(primaryTenantId ? { tenantId: primaryTenantId } : {}),
-      name: `[${dataForSave.sku}] ${dataForSave.name}`,
+      name: `[${skuNormalized || dataForSave.sku}] ${dataForSave.name}`,
       currency: dataForSave.currency,
       priceInCents: dataForSave.basePriceInCents,
       intervalUnit: dataForSave.intervalUnit ?? PlanIntervalUnit.MONTH,

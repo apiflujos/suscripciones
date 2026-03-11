@@ -8,6 +8,7 @@ type FetchResult = { ok: boolean; status: number; json: any };
 type CacheEntry = { atMs: number; result: FetchResult };
 const cache = new Map<string, CacheEntry>();
 const CACHE_MAX = 200;
+const FETCH_TIMEOUT_MS = 12_000;
 
 function pruneCache() {
   if (cache.size <= CACHE_MAX) return;
@@ -54,12 +55,18 @@ function cacheKey(url: string, token: string) {
 }
 
 async function fetchJson(url: string, init?: RequestInit): Promise<FetchResult> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const res = await fetch(url, init);
+    const res = await fetch(url, { ...init, signal: controller.signal });
     const json = await res.json().catch(() => null);
     return { ok: res.ok, status: res.status, json };
   } catch (err) {
-    return { ok: false, status: 0, json: { error: "fetch_failed", detail: String((err as any)?.message || err) } };
+    const msg = String((err as any)?.message || err);
+    const isAbort = msg.toLowerCase().includes("abort");
+    return { ok: false, status: 0, json: { error: isAbort ? "fetch_timeout" : "fetch_failed", detail: msg } };
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 

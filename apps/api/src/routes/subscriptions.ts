@@ -2,7 +2,7 @@ import express from "express";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
 import { addIntervalUtc } from "../lib/dates";
-import { LogLevel, PaymentStatus, RetryJobStatus, RetryJobType, SubscriptionStatus, GamificationEntityType } from "@prisma/client";
+import { LogLevel, PaymentStatus, RetryJobStatus, RetryJobType, SubscriptionStatus, GamificationEntityType, Prisma } from "@prisma/client";
 import { systemLog } from "../services/systemLog";
 import { createAutoDebitTransactionForSubscription, createPaymentLinkForSubscription, readSubscriptionTotalInCents } from "../services/subscriptionBilling";
 import { reconcileWompiTransaction } from "../services/wompiReconcile";
@@ -191,7 +191,7 @@ subscriptionsRouter.get("/", async (_req, res) => {
     where: {
       type: RetryJobType.PAYMENT_RETRY,
       status: RetryJobStatus.PENDING,
-      payload: { path: ["subscriptionId"], is_not_null: true } as any
+      payload: { path: ["subscriptionId"], not: Prisma.JsonNull } as any
     },
     orderBy: { runAt: "asc" },
     select: { runAt: true, payload: true }
