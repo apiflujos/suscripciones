@@ -113,7 +113,8 @@ export async function subscriptionReminder(payload: any) {
   const parsed = payloadSchema.safeParse(payload);
   if (!parsed.success) {
     await systemLog(LogLevel.WARN, "notifications.dispatch", "Payload inválido para notificación", {
-      errors: parsed.error.flatten()
+      errors: parsed.error.flatten(),
+      rawPayload: payload
     }, "job:subscriptionReminder").catch(() => {});
     return;
   }
@@ -123,7 +124,8 @@ export async function subscriptionReminder(payload: any) {
   if (!rule || !rule.enabled) {
     await systemLog(LogLevel.WARN, "notifications.dispatch", "Regla inactiva o no encontrada", {
       ruleId: parsed.data.ruleId,
-      trigger: parsed.data.trigger
+      trigger: parsed.data.trigger,
+      jobId: (payload as any)?.jobId || null
     }, "job:subscriptionReminder").catch(() => {});
     return;
   }
@@ -143,7 +145,10 @@ export async function subscriptionReminder(payload: any) {
     templateId: template.id,
     customerId: parsed.data.customerId || null,
     subscriptionId: parsed.data.subscriptionId || null,
-    paymentId: parsed.data.paymentId || null
+    paymentId: parsed.data.paymentId || null,
+    offsetSeconds: parsed.data.offsetSeconds,
+    anchorAt: parsed.data.anchorAt,
+    cycleNumber: parsed.data.cycleNumber
   }, "job:subscriptionReminder").catch(() => {});
 
   const subscriptionId = parsed.data.subscriptionId;
