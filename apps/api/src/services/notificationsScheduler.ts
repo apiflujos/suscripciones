@@ -101,9 +101,12 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
       trigger: "SUBSCRIPTION_DUE",
       environment: await getNotificationsActiveEnv(),
       subscriptionId: sub.id,
+      customerId: sub.customerId,
+      currentPeriodEndAt: sub.currentPeriodEndAt.toISOString(),
+      rulesCount: rules.length,
       scheduled
     },
-    "Sistema"
+    "job:subscriptionReminder"
   ).catch((err) => {
     logger.warn({ err, subscriptionId: sub.id }, '[Notifications/Schedule] Fallo creando systemLog');
   });

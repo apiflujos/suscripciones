@@ -122,7 +122,11 @@ export function ConnectionsPanel({
             <span>{wompiActiveEnv === "PRODUCTION" ? "Activo" : "Inactivo"}</span>
             {(() => {
               const ready = Boolean(wompiProduction?.publicKey && wompiProduction?.privateKey && wompiProduction?.integritySecret && wompiProduction?.eventsSecret);
-              return ready && wompiActiveEnv === "PRODUCTION" ? <span className="pill pill-ok pill-sm">Listo</span> : null;
+              return ready && wompiActiveEnv === "PRODUCTION" ? (
+                <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" style={{ color: "var(--success)" }}>
+                  <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
+                </svg>
+              ) : null;
             })()}
           </div>
         </button>
@@ -139,7 +143,11 @@ export function ConnectionsPanel({
             <span>{wompiActiveEnv === "SANDBOX" ? "Activo" : "Inactivo"}</span>
             {(() => {
               const ready = Boolean(wompiSandbox?.publicKey && wompiSandbox?.privateKey && wompiSandbox?.integritySecret && wompiSandbox?.eventsSecret);
-              return ready && wompiActiveEnv === "SANDBOX" ? <span className="pill pill-ok pill-sm">Listo</span> : null;
+              return ready && wompiActiveEnv === "SANDBOX" ? (
+                <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" style={{ color: "var(--success)" }}>
+                  <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
+                </svg>
+              ) : null;
             })()}
           </div>
         </button>
@@ -157,7 +165,11 @@ export function ConnectionsPanel({
             {(() => {
               const env = commsActiveEnv === "PRODUCTION" ? commsProduction : commsSandbox;
               const ready = Boolean(env?.baseUrl && env?.accountId && env?.inboxId);
-              return ready ? <span className="pill pill-ok pill-sm">Listo</span> : null;
+              return ready ? (
+                <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" style={{ color: "var(--success)" }}>
+                  <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
+                </svg>
+              ) : null;
             })()}
           </div>
         </button>
@@ -172,7 +184,11 @@ export function ConnectionsPanel({
           </div>
           <div className="conn-status" style={{ display: "grid", gap: 4, justifyItems: "end" }}>
             <span>{shopify?.forwardUrl ? "Activo" : "Inactivo"}</span>
-            {shopify?.forwardUrl ? <span className="pill pill-ok pill-sm">Listo</span> : null}
+            {shopify?.forwardUrl ? (
+              <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" style={{ color: "var(--success)" }}>
+                <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
+              </svg>
+            ) : null}
           </div>
         </button>
       </div>
