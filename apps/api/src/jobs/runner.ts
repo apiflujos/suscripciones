@@ -441,6 +441,7 @@ async function ensureDueCutoffRetries() {
     select: {
       id: true,
       currentPeriodEndAt: true,
+      metadata: true,
       plan: { select: { metadata: true } }
     }
   });
@@ -476,6 +477,16 @@ async function ensureDueCutoffRetries() {
     });
     if (recentRetry) continue;
 
+    // Verificar si ya hay una fecha de reintento manual configurada
+    const manualRetry = (sub.metadata as any)?.manualRetry;
+    if (manualRetry?.nextRetryAt) {
+      const manualRetryAt = new Date(manualRetry.nextRetryAt);
+      // Si la fecha manual es futura, respetarla y no crear job automático
+      if (manualRetryAt.getTime() > now) {
+        continue;
+      }
+    }
+
     await ensurePaymentRetryJob({
       subscriptionId: sub.id,
       runAt: new Date(),
@@ -483,6 +494,24 @@ async function ensureDueCutoffRetries() {
     }).catch((err) => {
       logger.warn({ err, subscriptionId: sub.id }, '[Jobs/PaymentRetry] Fallo encolando retry');
     });
+    
+    // Hacer transparente: guardar fecha de reintento en metadata
+    const jobRunAt = new Date(now + 60000); // 1 minuto en el futuro
+    await prisma.subscription.update({
+      where: { id: sub.id },
+      data: {
+        metadata: {
+          ...(sub.metadata as any || {}),
+          autoRetry: {
+            nextRetryAt: jobRunAt.toISOString(),
+            scheduledAt: new Date().toISOString(),
+            source: "ensureDueCutoffRetries",
+            currentPeriodEndAt: sub.currentPeriodEndAt.toISOString()
+          }
+        }
+      }
+    }).catch(() => {});
+    
     queued += 1;
   }
 

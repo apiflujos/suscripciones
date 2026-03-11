@@ -19,8 +19,10 @@ export function RetryDateField({
   returnTo
 }: Props) {
   const [isEditing, setIsEditing] = useState(false);
+  // Priorizar manualRetry sobre autoRetry
+  const displayRetryAt = nextRetryAt;
   const [retryLocal, setRetryLocal] = useState(
-    nextRetryAt ? toLocalDateTime(new Date(nextRetryAt)) : ""
+    displayRetryAt ? toLocalDateTime(new Date(displayRetryAt)) : ""
   );
 
   function toLocalDateTime(date: Date): string {
@@ -122,7 +124,7 @@ export function RetryDateField({
         </div>
       ) : hasRetryDate ? (
         <div className="input" style={{ fontWeight: 500 }}>
-          {nextRetryAt ? new Date(nextRetryAt).toLocaleString() : "—"}
+          {displayRetryAt ? new Date(displayRetryAt).toLocaleString() : "—"}
         </div>
       ) : isPastDue ? (
         <div className="field-hint" style={{ color: "var(--warning)" }}>

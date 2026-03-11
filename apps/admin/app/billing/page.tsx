@@ -14,6 +14,7 @@ import { ChangePlanButton, type PlanOption } from "./ChangePlanButton";
 import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { BillingTenantModalButton } from "./BillingTenantModalButton";
 import { AutoCutoffInlineForm } from "./AutoCutoffInlineForm";
+import { RetryDateField } from "./RetryDateField";
 import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 
@@ -402,6 +403,7 @@ export default async function BillingPage({
         vencimientoAt: s.currentPeriodEndAt || null,
         periodoInicioAt: s.currentPeriodStartAt || null,
         periodoFinAt: s.currentPeriodEndAt || null,
+        nextRetryAt: (s.metadata as any)?.manualRetry?.nextRetryAt || null,
         mode: String(plan?.collectionMode || plan?.metadata?.collectionMode || "MANUAL_LINK"),
         tenantName: tenantNameList.length ? tenantNameList.join(", ") : "—",
         currentShippingInCents: shippingAppliedInCents,
@@ -606,6 +608,16 @@ export default async function BillingPage({
                 tenantId={r.tenantId}
                 currentEndAt={r.vencimientoAt}
                 action={scheduleCutoff}
+              />
+            </div>
+            <div className="billing-body-section">
+              <div className="billing-section-title">Fecha de reintento</div>
+              <RetryDateField
+                subscriptionId={r.id}
+                currentPeriodEndAt={r.vencimientoAt}
+                nextRetryAt={r.nextRetryAt}
+                csrfToken={csrfToken}
+                returnTo={returnTo}
               />
             </div>
           </div>
