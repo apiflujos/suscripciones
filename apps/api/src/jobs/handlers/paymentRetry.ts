@@ -39,21 +39,50 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
   }
 
   try {
-    const sub = await prisma.subscription.findUnique({ where: { id: subscriptionId }, include: { plan: true } });
+    const sub = await prisma.subscription.findUnique({ where: { id: subscriptionId }, include: { plan: true, customer: true } });
     if (!sub) throw new Error("subscription_not_found");
     if (sub.status === "CANCELED") throw new Error("subscription_canceled");
+
+    // Validar email del cliente (requerido para Wompi)
+    if (!sub.customer?.email) {
+      await systemLog(LogLevel.ERROR, "jobs.payment_retry", "Cliente sin email - imposible cobrar", {
+        subscriptionId,
+        customerId: sub.customerId
+      }).catch(() => {});
+      throw new Error("customer_email_required");
+    }
+
+    // Validar payment source para AUTO_DEBIT
+    const collectionMode = resolveSubscriptionCollectionMode(sub);
+    if (collectionMode === "AUTO_DEBIT") {
+      const paymentSourceId = (sub.customer.metadata as any)?.wompi?.paymentSourceId;
+      if (!paymentSourceId) {
+        await systemLog(LogLevel.WARN, "jobs.payment_retry", "Cliente sin token - creando link de pago", {
+          subscriptionId,
+          customerId: sub.customerId
+        }).catch(() => {});
+        // Fallback: crear link de pago en vez de fallar
+        await createPaymentLinkForSubscription({ subscriptionId }).catch(() => {});
+        return {
+          status: "processed",
+          mode: collectionMode,
+          action: "PAYMENT_LINK_CREATED",
+          subscriptionId
+        };
+      }
+    }
 
   const mode = resolveSubscriptionCollectionMode(sub);
   if (mode === "AUTO_DEBIT" || mode === "AUTO_LINK") {
     const autoDebitConfig = await getAutoDebitConfig();
     const now = new Date();
-    
-    // Safety window: if there's a pending charge within the expected retry duration, skip.
-    // Default to a safe 24h if config is minimal, otherwise use (interval * attempts * 2) as buffer.
-    const retryWindowMinutes = autoDebitConfig.retryEnabled 
+
+    // Ventana de seguridad reducida: 2 horas en vez de 24h
+    // Permite reintentar más rápido si falla un cobro
+    const retryWindowMinutes = autoDebitConfig.retryEnabled
       ? (autoDebitConfig.retryEveryMinutes * Math.max(1, autoDebitConfig.maxRetries) * 2)
-      : 1440; // 24h default buffer if retries disabled
-    const safetyWindowMinutes = Math.max(120, retryWindowMinutes); // At least 2h buffer
+      : 120; // 2 horas en vez de 24h
+    const safetyWindowMinutes = Math.max(30, retryWindowMinutes); // 30 minutos mínimo
 
     const recentPendingAutoCharge = await prisma.payment.findFirst({
       where: {
@@ -152,12 +181,22 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
     } catch (err: any) {
       const msg = err?.message ? String(err.message) : "unknown error";
       const isMissingSource = msg === "customer_payment_source_missing";
+      
+      // Log detallado del error
       await systemLog(
         isMissingSource ? LogLevel.WARN : LogLevel.ERROR,
         "jobs.payment_retry",
-        isMissingSource ? "Auto-debit sin token; creando link manual" : "Auto-debit charge failed; attempting emergency link",
-        { subscriptionId, err: msg }
+        isMissingSource ? "Auto-debit sin token; creando link manual" : "Fallo en cobro automático",
+        {
+          subscriptionId,
+          customerId: sub.customerId,
+          error: msg,
+          stack: err?.stack,
+          email: sub.customer?.email,
+          hasPaymentSource: Boolean((sub.customer.metadata as any)?.wompi?.paymentSourceId)
+        }
       ).catch(() => {});
+      
       // Emergency fallback: generate a payment link so the user can pay manually.
       await createPaymentLinkForSubscription({ subscriptionId }).catch(() => {});
       if (!isMissingSource) throw err;
