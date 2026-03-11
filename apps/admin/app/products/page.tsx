@@ -55,6 +55,7 @@ export default async function ProductsPage({
   const page = typeof spParams.page === "string" ? Number(spParams.page) : 1;
   const vistaRaw = typeof spParams.vista === "string" ? spParams.vista : "cards";
   const vista = ["cards", "lista"].includes(vistaRaw) ? vistaRaw : "cards";
+  const vistaTyped = vista as "cards" | "lista" | "kanban";
   const viewId = typeof spParams.viewId === "string" ? spParams.viewId : "";
   const filters = typeof spParams.filters === "string" ? spParams.filters : "";
   const returnTo = `/products?${new URLSearchParams({
@@ -174,7 +175,7 @@ export default async function ProductsPage({
                       compactInline
                     />
                     <ViewModeToggles
-                      currentMode={vista}
+                      currentMode={vistaTyped}
                       baseParams={{
                         ...(tenantId ? { tenantId } : {}),
                         ...(q ? { q } : {}),

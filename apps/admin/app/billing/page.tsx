@@ -241,6 +241,7 @@ export default async function BillingPage({
   const ordenar = typeof sp.ordenar === "string" ? sp.ordenar : "vencimiento";
   const vistaRaw = typeof sp.vista === "string" ? sp.vista : "cards";
   const vista = ["cards", "lista", "kanban"].includes(vistaRaw) ? vistaRaw : "cards";
+  const vistaTyped = vista as "cards" | "lista" | "kanban";
   const viewId = typeof sp.viewId === "string" ? sp.viewId : "";
   const filters = typeof sp.filters === "string" ? sp.filters : "";
   const returnTo = `/billing${tenantId || q || tipo !== "todos" || estado !== "todos" || ordenar !== "vencimiento" || viewId || filters || (Number.isFinite(page) && page > 1)
@@ -854,7 +855,7 @@ export default async function BillingPage({
                       compactInline
                     />
                     <ViewModeToggles
-                      currentMode={vista}
+                      currentMode={vistaTyped}
                       baseParams={{
                         ...(tenantId ? { tenantId } : {}),
                         ...(q ? { q } : {}),

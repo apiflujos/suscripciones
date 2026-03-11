@@ -87,7 +87,7 @@ async function main() {
           tenantId: p.tenantId,
           checksumPrefix: "batch-reconcile"
         });
-        console.log(`[ok] ${label} payment=${p.id} tx=${p.wompiTransactionId} -> ${result.status || result.reason}`);
+        console.log(`[ok] ${label} payment=${p.id} tx=${p.wompiTransactionId} -> ${"status" in result ? result.status : result.reason}`);
         ok++;
       } else {
         const result = await reconcileWompiByReference({
@@ -95,7 +95,7 @@ async function main() {
           tenantId: p.tenantId,
           checksumPrefix: "batch-reconcile-ref"
         });
-        console.log(`[ok] ${label} payment=${p.id} ref=${p.reference} -> ${result.status || result.reason}`);
+        console.log(`[ok] ${label} payment=${p.id} ref=${p.reference} -> ${"status" in result ? result.status : result.reason}`);
         ok++;
       }
     } catch (err: any) {

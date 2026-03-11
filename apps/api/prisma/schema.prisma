@@ -368,6 +368,7 @@ model ChatwootMessage {
   providerResp   Json?
   errorMessage   String?
   sentAt         DateTime?
+  actor          String?
   createdAt      DateTime          @default(now())
 
   tenant       SaTenant    @relation(fields: [tenantId], references: [id])
@@ -378,6 +379,7 @@ model ChatwootMessage {
   @@index([status, createdAt])
   @@index([customerId])
   @@index([tenantId])
+  @@index([actor, createdAt])
 }
 
 model ReportCache {
@@ -560,9 +562,11 @@ model SystemLog {
   source    String
   message   String
   context   Json?
+  actor     String?
   createdAt DateTime @default(now())
 
   @@index([level, createdAt])
+  @@index([actor, createdAt])
 }
 
 model GamificationEvent {

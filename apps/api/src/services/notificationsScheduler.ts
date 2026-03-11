@@ -93,12 +93,18 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
     }
   }
 
-  await systemLog(LogLevel.INFO, "notifications.schedule", "Notificaciones programadas", {
-    trigger: "SUBSCRIPTION_DUE",
-    environment: await getNotificationsActiveEnv(),
-    subscriptionId: sub.id,
-    scheduled
-  }).catch((err) => {
+  await systemLog(
+    LogLevel.INFO,
+    "notifications.schedule",
+    "Notificaciones programadas",
+    {
+      trigger: "SUBSCRIPTION_DUE",
+      environment: await getNotificationsActiveEnv(),
+      subscriptionId: sub.id,
+      scheduled
+    },
+    "Sistema"
+  ).catch((err) => {
     logger.warn({ err, subscriptionId: sub.id }, '[Notifications/Schedule] Fallo creando systemLog');
   });
 
@@ -172,12 +178,18 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
     }
   }
 
-  await systemLog(LogLevel.INFO, "notifications.schedule", "Notificaciones programadas", {
-    trigger,
-    environment: await getNotificationsActiveEnv(),
-    paymentId: payment.id,
-    scheduled
-  }).catch((err) => {
+  await systemLog(
+    LogLevel.INFO,
+    "notifications.schedule",
+    "Notificaciones programadas",
+    {
+      trigger,
+      environment: await getNotificationsActiveEnv(),
+      paymentId: payment.id,
+      scheduled
+    },
+    "Sistema"
+  ).catch((err) => {
     logger.warn({ err, paymentId }, '[Notifications/Schedule] Fallo creando systemLog');
   });
 
@@ -240,13 +252,19 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
     }
   }
 
-  await systemLog(LogLevel.INFO, "notifications.schedule", args.forceNow ? "Notificaciones enviadas" : "Notificaciones programadas", {
-    trigger: "PAYMENT_LINK_CREATED",
-    environment: await getNotificationsActiveEnv(),
-    paymentId: payment.id,
-    customerId: payment.customerId,
-    scheduled
-  }).catch((err) => {
+  await systemLog(
+    LogLevel.INFO,
+    "notifications.schedule",
+    args.forceNow ? "Notificaciones enviadas" : "Notificaciones programadas",
+    {
+      trigger: "PAYMENT_LINK_CREATED",
+      environment: await getNotificationsActiveEnv(),
+      paymentId: payment.id,
+      customerId: payment.customerId,
+      scheduled
+    },
+    "Sistema"
+  ).catch((err) => {
     logger.warn({ err, paymentId }, '[Notifications/Schedule] Fallo creando systemLog');
   });
 
@@ -303,12 +321,18 @@ export async function scheduleCatalogLinkNotifications(args: { customerId: strin
     }
   }
 
-  await systemLog(LogLevel.INFO, "notifications.schedule", args.forceNow ? "Notificaciones enviadas" : "Notificaciones programadas", {
-    trigger: "CATALOG_LINK_CREATED",
-    environment: await getNotificationsActiveEnv(),
-    customerId,
-    scheduled
-  }).catch((err) => {
+  await systemLog(
+    LogLevel.INFO,
+    "notifications.schedule",
+    args.forceNow ? "Notificaciones enviadas" : "Notificaciones programadas",
+    {
+      trigger: "CATALOG_LINK_CREATED",
+      environment: await getNotificationsActiveEnv(),
+      customerId,
+      scheduled
+    },
+    "Sistema"
+  ).catch((err) => {
     logger.warn({ err, customerId }, '[Notifications/Schedule] Fallo creando systemLog');
   });
 
@@ -363,12 +387,18 @@ export async function scheduleTokenizationLinkNotifications(args: { customerId: 
     }
   }
 
-  await systemLog(LogLevel.INFO, "notifications.schedule", args.forceNow ? "Notificaciones enviadas" : "Notificaciones programadas", {
-    trigger: "TOKENIZATION_LINK_CREATED",
-    environment: await getNotificationsActiveEnv(),
-    customerId,
-    scheduled
-  }).catch(() => {});
+  await systemLog(
+    LogLevel.INFO,
+    "notifications.schedule",
+    args.forceNow ? "Notificaciones enviadas" : "Notificaciones programadas",
+    {
+      trigger: "TOKENIZATION_LINK_CREATED",
+      environment: await getNotificationsActiveEnv(),
+      customerId,
+      scheduled
+    },
+    "Sistema"
+  ).catch(() => {});
 
   return { scheduled, sentNow, rulesActive: true };
 }

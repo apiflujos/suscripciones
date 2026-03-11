@@ -187,6 +187,7 @@ export default async function CustomersPage({
   const txCustomerId = typeof sp.tx === "string" ? sp.tx : "";
   const vistaRaw = typeof sp.vista === "string" ? sp.vista : "cards";
   const vista = ["cards", "lista"].includes(vistaRaw) ? vistaRaw : "cards";
+  const vistaTyped = vista as "cards" | "lista" | "kanban";
   const listId = typeof sp.list === "string" ? sp.list : "";
   const viewId = typeof sp.viewId === "string" ? sp.viewId : "";
   const filters = typeof sp.filters === "string" ? sp.filters : "";
@@ -482,7 +483,7 @@ export default async function CustomersPage({
                       compactInline
                     />
                     <ViewModeToggles
-                      currentMode={vista}
+                      currentMode={vistaTyped}
                       baseParams={{
                         ...(q ? { q } : {}),
                         ...(tenantId ? { tenantId } : {}),

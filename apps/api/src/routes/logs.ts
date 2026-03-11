@@ -130,7 +130,7 @@ logsRouter.get("/system", async (req, res) => {
       orderBy: { createdAt: "desc" },
       take,
       skip,
-      select: { id: true, level: true, source: true, message: true, context: true, createdAt: true }
+      select: { id: true, level: true, source: true, message: true, context: true, actor: true, createdAt: true }
     }),
     withCount ? prisma.systemLog.count({ where: finalWhere }) : Promise.resolve(null)
   ]);
@@ -197,6 +197,9 @@ logsRouter.get("/system", async (req, res) => {
   const webhookById = new Map(webhooks.map((w) => [String(w.id), w]));
 
   function inferActor(item: any) {
+    // Primero usar el campo actor de la base de datos
+    if (item.actor) return String(item.actor);
+    
     const ctx: any = item.context || {};
     const candidate = ctx.actor || ctx.actorEmail || ctx.userEmail || ctx.adminEmail || ctx.user || ctx.email;
     if (candidate) return String(candidate);
@@ -472,7 +475,7 @@ logsRouter.get("/payments", async (req, res) => {
 logsRouter.post("/system/test", async (_req, res) => {
   await systemLog(LogLevel.WARN, "realtime.test", "Notificación de prueba en tiempo real", {
     createdAt: new Date().toISOString()
-  }).catch(() => {});
+  }, "Sistema").catch(() => {});
   res.json({ ok: true });
 });
 
@@ -595,15 +598,21 @@ logsRouter.post("/payments/recollect", async (req, res) => {
     }
   }
 
-  await systemLog(LogLevel.INFO, "logs.payments", "Recolectar pagos ejecutado", {
-    days,
-    take,
-    reconciledNow,
-    queuedProcess,
-    queuedForward,
-    skipped,
-    failed
-  }).catch(() => {});
+  await systemLog(
+    LogLevel.INFO,
+    "logs.payments",
+    "Recolectar pagos ejecutado",
+    {
+      days,
+      take,
+      reconciledNow,
+      queuedProcess,
+      queuedForward,
+      skipped,
+      failed
+    },
+    "Sistema"
+  ).catch(() => {});
 
   res.json({ ok: true, reconciledNow, queuedProcess, queuedForward, skipped, failed, errors: errors.slice(0, 50), days, take });
 });
@@ -658,14 +667,20 @@ logsRouter.post("/payments/reconcile-pending", async (req, res) => {
     }
   }
 
-  await systemLog(LogLevel.INFO, "logs.payments", "Reconciliar pendientes ejecutado", {
-    minutes,
-    take,
-    scanned: pending.length,
-    reconciled,
-    skipped,
-    failed
-  }).catch(() => {});
+  await systemLog(
+    LogLevel.INFO,
+    "logs.payments",
+    "Reconciliar pendientes ejecutado",
+    {
+      minutes,
+      take,
+      scanned: pending.length,
+      reconciled,
+      skipped,
+      failed
+    },
+    "Sistema"
+  ).catch(() => {});
 
   res.json({
     ok: true,
@@ -734,21 +749,33 @@ logsRouter.post("/payments/reconcile", async (req, res) => {
     }));
   }
 
-  await systemLog(LogLevel.INFO, "logs.payments", "Reconciliar pago ejecutado", {
-    paymentId: payment?.id || null,
-    wompiTransactionId: wompiTransactionId || null,
-    reference: reference || payment?.reference || null,
-    ok: reconcile.ok,
-    reason: (reconcile as any)?.reason || null
-  }).catch(() => {});
+  await systemLog(
+    LogLevel.INFO,
+    "logs.payments",
+    "Reconciliar pago ejecutado",
+    {
+      paymentId: payment?.id || null,
+      wompiTransactionId: wompiTransactionId || null,
+      reference: reference || payment?.reference || null,
+      ok: reconcile.ok,
+      reason: (reconcile as any)?.reason || null
+    },
+    "Sistema"
+  ).catch(() => {});
 
   if (!payment) {
     if (wompiTransactionId) {
-      await systemLog(LogLevel.WARN, "logs.payments", "Reconciliar pago sin registro previo de Payment", {
-        wompiTransactionId,
-        ok: reconcile.ok,
-        reason: (reconcile as any)?.reason || null
-      }).catch(() => {});
+      await systemLog(
+        LogLevel.WARN,
+        "logs.payments",
+        "Reconciliar pago sin registro previo de Payment",
+        {
+          wompiTransactionId,
+          ok: reconcile.ok,
+          reason: (reconcile as any)?.reason || null
+        },
+        "Sistema"
+      ).catch(() => {});
     }
     return res.json({ ok: reconcile.ok, reconcile, payment: null });
   }

@@ -482,7 +482,7 @@ export async function createAutoDebitTransactionForSubscription(args: {
   if (!Number.isFinite(paymentSourceId as any)) throw new Error("customer_payment_source_missing");
 
   const cycle = sub.currentCycle;
-  const reference = `SUB_${sub.id}_${cycle}`;
+  let reference = `SUB_${sub.id}_${cycle}`;
   const amountInCents = Math.trunc(args.amountInCentsOverride ?? readSubscriptionTotalInCents(sub.metadata, sub.plan.priceInCents));
   const currency = validateWompiCurrency(sub.plan.currency);
 

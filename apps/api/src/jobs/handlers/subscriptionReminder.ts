@@ -383,6 +383,7 @@ export async function subscriptionReminder(payload: any) {
       type: template.chatwootType as ChatwootMessageType,
       status: MessageStatus.PENDING,
       content,
+      actor: "Sistema",
       providerResp: template.chatwootTemplate
         ? ({ template_params: renderAny(template.chatwootTemplate, ctx) } as any)
         : null

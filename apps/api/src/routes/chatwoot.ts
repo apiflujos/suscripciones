@@ -254,6 +254,11 @@ chatwootRouter.post("/messages", async (req, res) => {
     const resolvedTenantId =
       customer?.tenantId ?? (await getEffectiveTenantId(req)) ?? (await getDefaultTenantId());
     if (!resolvedTenantId) return res.status(400).json({ error: "tenant_required" });
+    
+    // Obtener actor desde el request (usuario autenticado o sistema)
+    const actorEmail = String(req.body?.actorEmail || req.query?.actorEmail || "").trim() || null;
+    const actor = actorEmail || "Sistema";
+    
     const created = await prisma.chatwootMessage.create({
       data: {
         tenantId: resolvedTenantId,
@@ -261,6 +266,7 @@ chatwootRouter.post("/messages", async (req, res) => {
         type: msgType,
         status: MessageStatus.PENDING,
         content: cleanContent,
+        actor,
         providerResp: Object.keys(providerResp).length ? (providerResp as any) : null
       }
     });
