@@ -3563,6 +3563,19 @@ textarea.input {
   border-color: #16a34a;
 }
 
+/* Botón de tokenización destacado cuando no hay tarjeta */
+.btn-highlight {
+  border-color: #f59e0b !important;
+  color: #92400e !important;
+  background: #fef3c7 !important;
+  font-weight: 600 !important;
+}
+
+.btn-highlight:hover {
+  background: #fde68a !important;
+  border-color: #d97706 !important;
+}
+
 .primary.btn-send,
 .btnPrimary.btn-send {
   background: #22c55e;

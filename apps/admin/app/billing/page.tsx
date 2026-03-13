@@ -500,8 +500,10 @@ export default async function BillingPage({
     const estadoSimple = getEstadoSimple(r.status);
     const rowCheckoutUrl = checkoutCustomerId && checkoutCustomerId === r.customerId ? checkoutUrl : "";
     const latestCheckoutUrl = rowCheckoutUrl || String(r.lastPaymentLink?.checkoutUrl || "").trim();
-    // Mostrar link de tokenización si el cliente está tokenizado O si hay un link central
-    const rowTokenUrl = (checkoutCustomerId && checkoutCustomerId === r.customerId) ? tokenUrl : (r.customerTokenized ? tokenUrl : "");
+    // Link de tokenización: usa el URL del query si coincide el customerId, o el último guardado en el customer
+    const rowTokenUrl = (checkoutCustomerId && checkoutCustomerId === r.customerId && tokenUrl) 
+      ? tokenUrl 
+      : String(customer?.metadata?.tokenizationLink?.url || "").trim();
     const hasQuickLinks = Boolean(latestCheckoutUrl || rowTokenUrl);
     const sentForRow = central === "sent" && checkoutCustomerId && checkoutCustomerId === r.customerId;
     const sentTokenForRow = Boolean(sentForRow && rowTokenUrl);
