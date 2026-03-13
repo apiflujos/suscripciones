@@ -25,6 +25,10 @@ export function RetryDateField({
     displayRetryAt ? toLocalDateTime(new Date(displayRetryAt)) : ""
   );
 
+  // Fallback: si currentPeriodEndAt es null, usar fecha actual (para evitar errores)
+  const cutoffDate = currentPeriodEndAt ? new Date(currentPeriodEndAt) : new Date();
+  const isPastDue = cutoffDate.getTime() < Date.now();
+
   function toLocalDateTime(date: Date): string {
     const pad = (n: number) => String(n).padStart(2, "0");
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
@@ -138,7 +142,7 @@ export function RetryDateField({
 
       {cutoffDate && false && (
         <div className="field-hint" style={{ fontSize: "0.85em", opacity: 0.8 }}>
-          📅 Corte: {cutoffDate ? cutoffDate.toLocaleString() : ""} {isPastDue ? "(vencida)" : ""}
+          📅 Corte: {cutoffDate.toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" })} {isPastDue ? "(vencida)" : ""}
         </div>
       )}
     </div>
