@@ -653,7 +653,7 @@ export default async function Home({
     : [{ label: "Actual", values: linkConversionSeries, color: "var(--chart-c)" }];
 
   return (
-    <main className="page pageWide">
+    <main className="page pageWide metricsPage">
       <section className="settings-group">
         <div className="settings-group-header">
           <div className="filtersRow">

@@ -6,10 +6,72 @@ services:
       POSTGRES_USER: wompi_subs
       POSTGRES_PASSWORD: wompi_subs
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - wompi_network
+    restart: unless-stopped
+
+  api:
+    image: node:20-bookworm
+    working_dir: /app
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - api_node_modules:/app/apps/api/node_modules
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      DATABASE_URL: postgresql://wompi_subs:wompi_subs@postgres:5432/wompi_subs?schema=public
+      ADMIN_API_TOKEN: secret123456
+      ADMIN_SESSION_SECRET: change-me-change-me
+      SUPER_ADMIN_EMAIL: comercial@apiflujos.com
+      SUPER_ADMIN_PASSWORD: Admin12345!
+      SUPER_ADMIN_RESET_PASSWORD: 1
+      SUPER_ADMIN_TENANT_ID: ""
+      DEFAULT_TENANT_NAME: apiflujos
+      CREDENTIALS_ENCRYPTION_KEY_B64: mGBsjs4eVVtlDZ7yhyUlgzsLmvMeHqqGwhQnNfmB8QM=
+    depends_on:
+      - postgres
+    networks:
+      - wompi_network
+    command: sh -c "cd apps/api && export CREDENTIALS_ENCRYPTION_KEY_B64=mGBsjs4eVVtlDZ7yhyUlgzsLmvMeHqqGwhQnNfmB8QM= && npm install && npx prisma generate && npm run dev"
+    restart: unless-stopped
+
+  admin:
+    image: node:20-bookworm
+    working_dir: /app
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - admin_node_modules:/app/apps/admin/node_modules
+      - admin_next_cache:/app/apps/admin/.next
+    ports:
+      - "3002:3002"
+    environment:
+      NODE_ENV: development
+      HOST: 0.0.0.0
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:3001
+      ADMIN_INTERNAL_API_BASE_URL: http://api:3001
+      ADMIN_API_TOKEN: secret123456
+      ADMIN_SESSION_SECRET: change-me-change-me
+      NEXT_PUBLIC_DISABLE_REALTIME: "1"
+    depends_on:
+      - api
+    networks:
+      - wompi_network
+    command: sh -c "cd apps/admin && npm install && npm run dev"
+    restart: unless-stopped
 
 volumes:
   postgres_data:
+  api_node_modules:
+  admin_node_modules:
+  admin_next_cache:
 
+networks:
+  wompi_network:
+    driver: bridge

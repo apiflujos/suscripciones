@@ -1,4 +1,10 @@
-/* Base real del módulo “Productos e inventarios” (guía de estilos) */
+/* 
+ * APIFLUJOS STYLES - v2.1 COMPACT METRICS UPDATE
+ * Generated: 2026-03-12T20:45:00
+ * Changes: Compact metrics layout, smaller fonts, better spacing
+ */
+
+/* Base real del módulo "Productos e inventarios" (guía de estilos) */
 
 @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap");
 
@@ -7188,6 +7194,272 @@ textarea.input {
   font-size: 10.5px;
   color: var(--text-faint);
   font-weight: 600;
+}
+
+/* ============================================
+   METRICS PAGE - LAYOUT COMPACTO
+   ============================================ */
+
+/* Filtros más compactos */
+.metricsPage .filtersForm {
+  gap: 6px;
+}
+
+.metricsPage .field {
+  gap: 3px;
+  font-size: 11px;
+}
+
+.metricsPage .field label {
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.metricsPage .filtersForm .input,
+.metricsPage .filtersForm .select {
+  font-size: 11.5px;
+  padding: 0 10px;
+  min-height: 34px;
+}
+
+.metricsPage .filtersActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.metricsPage .filtersNote {
+  font-size: 11px;
+  color: var(--text-soft);
+  font-weight: 500;
+}
+
+/* Tabs de métricas */
+.metricsPage .metricsTabsRow {
+  margin-top: 8px;
+}
+
+.metricsPage .metricsTab {
+  padding: 5px 11px;
+  font-size: 11.5px;
+}
+
+.metricsPage .metricsTabsMeta {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* Cards de métricas más compactas */
+.metricsPage .metric-card {
+  grid-template-columns: 36px 1fr;
+  gap: 3px 10px;
+}
+
+.metricsPage .metric-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+}
+
+.metricsPage .metric-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.metricsPage .metric-label {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+
+.metricsPage .metric-value {
+  font-size: 19px;
+  font-weight: 900;
+  line-height: 1.15;
+  word-break: break-word;
+}
+
+.metricsPage .metric-sub {
+  font-size: 9.5px;
+  line-height: 1.3;
+}
+
+/* Responsive para móviles */
+@media (max-width: 900px) {
+  .metricsPage .grid3 {
+    grid-template-columns: 1fr;
+  }
+  
+  .metricsPage .metric-card {
+    grid-template-columns: 40px 1fr;
+  }
+  
+  .metricsPage .metric-value {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 600px) {
+  .metricsPage .filtersForm {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .metricsPage .filtersForm .input,
+  .metricsPage .filtersForm .select {
+    width: 100%;
+  }
+  
+  .metricsPage .metricsTabsRow {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* Chart cards */
+.metricsPage .chart-card {
+  gap: 8px;
+}
+
+.metricsPage .chart-title {
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.metricsPage .chart-sub {
+  font-size: 10px;
+}
+
+.metricsPage .chart-range {
+  font-size: 9.5px;
+}
+
+/* Recent payments */
+.metricsPage .recent-payment-row {
+  gap: 10px;
+  padding: 7px 0;
+}
+
+.metricsPage .recent-payment-row .customer-cell {
+  min-width: 180px;
+}
+
+.metricsPage .recent-payment-row .amount-cell {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.metricsPage .recent-payment-row .status-cell {
+  font-size: 10.5px;
+}
+
+.metricsPage .recent-payment-row .date-cell {
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+
+/* ============================================
+   BILLING PAGE - LAYOUT COMPACTO
+   ============================================ */
+
+.billing-page .billing-body {
+  gap: 8px;
+}
+
+.billing-page .billing-body-section {
+  gap: 4px;
+}
+
+.billing-page .billing-section-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  margin-bottom: 2px;
+}
+
+.billing-page .billing-body-main .field-hint {
+  font-size: 9.5px;
+  margin-bottom: 2px;
+}
+
+.billing-page .billing-body-main .input,
+.billing-page .billing-body-main .select {
+  font-size: 11px;
+  padding: 4px 8px;
+  min-height: 28px;
+}
+
+/* Fechas compactas - una al lado de la otra */
+.billing-page .billing-section-dates {
+  margin-top: 0;
+}
+
+.billing-page .billing-section-dates > div {
+  grid-template-columns: 1fr 1fr !important;
+  gap: 6px !important;
+}
+
+.billing-page .billing-section-dates .field-hint {
+  font-size: 9.5px;
+  margin-bottom: 2px;
+}
+
+/* Totales más compactos */
+.billing-page .billing-cost-panel {
+  padding: 8px;
+}
+
+.billing-page .billing-cost-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.billing-page .billing-cost-total {
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.billing-page .billing-cost-period {
+  font-size: 9.5px;
+}
+
+.billing-page .billing-cost-chip {
+  font-size: 9.5px;
+  padding: 2px 6px;
+}
+
+/* Botones compactos */
+.billing-page .billing-quick-actions {
+  gap: 4px;
+}
+
+.billing-page .billing-quick-actions .btn-compact {
+  padding: 3px 6px;
+  font-size: 10px;
+}
+
+/* Canal de ventas compacto */
+.billing-page .billing-channel-chip {
+  font-size: 10px;
+  padding: 2px 6px;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .billing-page .billing-body {
+    grid-template-columns: 1fr;
+  }
+  
+  .billing-page .billing-section-dates > div {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 .recent-payments {

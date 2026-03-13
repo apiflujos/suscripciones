@@ -102,14 +102,13 @@ async function fetchCustomerSubscriptions(tenantId?: string) {
 }
 
 async function fetchSmartLists() {
-  return fetchAdminCached("/admin/comms/smart-lists?take=200", { ttlMs: 1500 });
+  // DESACTIVADO: Smart-lists causan lentitud extrema (50+ requests de 5-7s cada una)
+  return { ok: true, json: { items: [] } };
 }
 
 async function fetchSmartListPreview(id: string, tenantId?: string) {
-  if (!id) return { count: 0 };
-  const tenantParam = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
-  const res = await fetchAdminCached(`/admin/comms/smart-lists/${encodeURIComponent(id)}/preview${tenantParam}`, { ttlMs: 1500 });
-  return res.json || { count: 0 };
+  // DESACTIVADO: Previews causan lentitud extrema
+  return { count: 0 };
 }
 
 async function fetchSmartListMembers(id: string, tenantId?: string) {

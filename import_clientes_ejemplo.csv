@@ -1,0 +1,6 @@
+name,email,phone,idType,idNumber,addressLine1,dept,city,code5,dane8
+Juan Pérez,juan.perez@email.com,3001234567,CC,123456789,Calle 10 #5-20,Antioquia,Medellín,05001,05001001
+María Gómez,maria.gomez@email.com,3109876543,CC,987654321,Carrera 15 #20-30,Cundinamarca,Bogotá,11001,11001001
+Carlos López,carlos.lopez@email.com,3205551234,CE,456789123,Av. 68 #45-67,Valle,Cali,76001,76001001
+Ana Rodríguez,ana.rodriguez@email.com,3154321098,CC,321654987,Calle 72 #10-15,Antioquia,Bello,05002,05002001
+Pedro Sánchez,pedro.sanchez@email.com,3007778888,CC,147258369,Carrera 30 #25-50,Atlántico,Barranquilla,08001,08001001

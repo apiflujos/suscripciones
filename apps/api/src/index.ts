@@ -1,8 +1,12 @@
 import path from "path";
 import { spawn } from "node:child_process";
 import next from "next";
-import { createApp } from "./app";
 import { loadEnv } from "./config/env";
+
+// Cargar variables de entorno ANTES de cualquier otro import
+loadEnv(process.env);
+
+import { createApp } from "./app";
 import { logger } from "./lib/logger";
 import { ensureBootstrapSuperAdmin } from "./services/superAdminAuth";
 import { prisma } from "./db/prisma";

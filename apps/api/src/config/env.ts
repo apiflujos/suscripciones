@@ -62,9 +62,7 @@ function hydrateProcessEnvFromFile(filePath: string) {
   if (!fs.existsSync(filePath)) return false;
   const parsed = parseDotEnv(fs.readFileSync(filePath, "utf8"));
   for (const [k, v] of Object.entries(parsed)) {
-    if (process.env[k] == null || process.env[k] === "") {
-      process.env[k] = v;
-    }
+    process.env[k] = v;
   }
   return true;
 }

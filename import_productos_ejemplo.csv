@@ -1,0 +1,7 @@
+name,sku,kind,price_cop,currency,requiresShipping,taxPercent,discountType,discountValue,discountPercent,description
+Plan Básico,PLAN-001,PRODUCT,50000,COP,false,0,NONE,0,0,Plan de suscripción básico mensual
+Plan Premium,PLAN-002,PRODUCT,100000,COP,false,0,NONE,0,0,Plan de suscripción premium con beneficios adicionales
+Plan Empresarial,PLAN-003,PRODUCT,250000,COP,false,0,PERCENT,10,10,Plan empresarial con descuento del 10%
+Servicio Consultoría,SRV-001,SERVICE,150000,COP,false,19,NONE,0,0,Servicio de consultoría por hora
+Producto Físico,PROD-001,PRODUCT,75000,COP,true,19,FIXED,5000,0,Producto físico con envío requerido
+Suscripción Anual,SUB-ANUAL-001,PRODUCT,1200000,COP,false,0,NONE,0,0,Suscripción anual con pago único

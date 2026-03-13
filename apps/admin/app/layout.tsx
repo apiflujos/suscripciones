@@ -9,9 +9,8 @@ import "./styles.css";
 import "leaflet/dist/leaflet.css";
 import { SideNav } from "./SideNav";
 import { TopBar } from "./TopBar";
-import { GlobalLoader } from "./GlobalLoader";
 import { ThemeClient } from "./ThemeClient";
-import { FormValidation } from "./FormValidation";
+import { ClientProviders } from "./ClientProviders";
 import { RealtimeNotifier } from "./ui/RealtimeNotifier";
 import { fetchAdminCached } from "./lib/adminApi";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../lib/session";
@@ -86,7 +85,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const shouldUseAuthShell = isAuthScreen || !session;
 
   return (
-    <html lang="es">
+    <html lang="es" suppressHydrationWarning>
       <head>
         <link id="theme-favicon" rel="icon" type="image/svg+xml" href="/brand/isotipo_icono.svg" data-theme-favicon="true" />
       </head>
@@ -151,8 +150,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             </div>
           </div>
         )}
-        <GlobalLoader />
-        <FormValidation />
+        <ClientProviders />
         {isPublicRoute ? null : <ThemeClient />}
       </body>
     </html>

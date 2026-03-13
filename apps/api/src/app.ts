@@ -141,8 +141,10 @@ export function createApp() {
     const authHeader = req.header("authorization") || "";
     const adminTokenHeader = req.header("x-admin-token") || "";
     const providedToken = adminTokenHeader || (authHeader.startsWith("Bearer ") ? authHeader.substring(7) : "");
-    
-    const isAdmin = providedToken && providedToken === process.env.ADMIN_API_TOKEN;
+
+    const envToken = process.env.ADMIN_API_TOKEN;
+    console.log("[APP.TS DEBUG] providedToken:", providedToken, "envToken:", envToken, "match:", providedToken === envToken);
+    const isAdmin = providedToken && providedToken === envToken;
     if (isAdmin) return next();
     
     const forwarded = String(req.header("x-forwarded-for") || "").split(",")[0]?.trim();

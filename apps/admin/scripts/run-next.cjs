@@ -20,7 +20,7 @@ if (!cmd || (cmd !== "dev" && cmd !== "start")) {
   process.exit(1);
 }
 
-const port = getArg("PORT", "3000");
+const port = getArg("PORT", "3002");
 const host = getArg("HOST", cmd === "dev" ? "127.0.0.1" : "0.0.0.0");
 
 const nextBin = require.resolve("next/dist/bin/next");
