@@ -482,7 +482,8 @@ export default async function BillingPage({
     const estadoSimple = getEstadoSimple(r.status);
     const rowCheckoutUrl = checkoutCustomerId && checkoutCustomerId === r.customerId ? checkoutUrl : "";
     const latestCheckoutUrl = rowCheckoutUrl || String(r.lastPaymentLink?.checkoutUrl || "").trim();
-    const rowTokenUrl = checkoutCustomerId && checkoutCustomerId === r.customerId ? tokenUrl : "";
+    // Mostrar link de tokenización si el cliente está tokenizado O si hay un link central
+    const rowTokenUrl = (checkoutCustomerId && checkoutCustomerId === r.customerId) ? tokenUrl : (r.customerTokenized ? tokenUrl : "");
     const hasQuickLinks = Boolean(latestCheckoutUrl || rowTokenUrl);
     const sentForRow = central === "sent" && checkoutCustomerId && checkoutCustomerId === r.customerId;
     const sentTokenForRow = Boolean(sentForRow && rowTokenUrl);
@@ -560,12 +561,12 @@ export default async function BillingPage({
               ) : null}
               <a
                 className="ghost btn-compact btn-history btn-icon-only"
-                href={`/customers?${new URLSearchParams({
-                  tx: r.customerId,
+                href={`/payments?${new URLSearchParams({
+                  subscriptionId: r.id,
                   ...(r.tenantId ? { tenantId: r.tenantId } : {})
                 }).toString()}`}
-                aria-label="Historial"
-                title="Historial"
+                aria-label="Historial de pagos"
+                title="Ver historial de pagos de esta suscripción"
               />
               <DeleteSubscriptionButton action={deleteSubscription} csrfToken={csrfToken} subscriptionId={r.id} tenantId={r.tenantId} returnTo={returnTo} />
             </div>
