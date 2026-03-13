@@ -685,7 +685,7 @@ export default async function BillingPage({
               </div>
             </div>
             {hasQuickLinks ? (
-              <div className="billing-quick-actions" style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+              <div className="billing-quick-actions" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '4px', flexWrap: 'nowrap' }}>
                 {latestCheckoutUrl ? (
                   <a className="ghost btn-compact btn-icon-only btn-open" href={latestCheckoutUrl} target="_blank" rel="noreferrer" title="Abrir link de pago" aria-label="Abrir link de pago" />
                 ) : null}
@@ -751,20 +751,47 @@ export default async function BillingPage({
               </form>
             ) : null}
             {showTokenizationLink ? (
-              <form action={sendCentralComTokenizationLink}>
-                <input type="hidden" name="csrf" value={csrfToken} />
-                <input type="hidden" name="customerId" value={r.customerId} />
-                <input type="hidden" name="planId" value={r.planId} />
-                <input type="hidden" name="returnTo" value={returnTo} />
-                {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                <button 
-                  className={`ghost btn-compact btn-send ${needsTokenization ? 'btn-highlight' : ''}`} 
-                  type="submit" 
-                  title={needsTokenization ? "Enviar link para guardar tarjeta del cliente" : "Enviar link para actualizar tarjeta del cliente"}
+              needsTokenization ? (
+                <form action={sendCentralComTokenizationLink}>
+                  <input type="hidden" name="csrf" value={csrfToken} />
+                  <input type="hidden" name="customerId" value={r.customerId} />
+                  <input type="hidden" name="planId" value={r.planId} />
+                  <input type="hidden" name="returnTo" value={returnTo} />
+                  {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
+                  <button
+                    className="ghost btn-compact btn-send btn-highlight"
+                    type="submit"
+                    title="Enviar link para guardar tarjeta del cliente"
+                  >
+                    Guardar tarjeta
+                  </button>
+                </form>
+              ) : rowTokenUrl ? (
+                <a
+                  className="ghost btn-compact btn-send"
+                  href={rowTokenUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Abrir link de tokenización para actualizar tarjeta"
                 >
-                  {needsTokenization ? 'Guardar tarjeta' : 'Actualizar tarjeta'}
-                </button>
-              </form>
+                  Actualizar tarjeta
+                </a>
+              ) : (
+                <form action={sendCentralComTokenizationLink}>
+                  <input type="hidden" name="csrf" value={csrfToken} />
+                  <input type="hidden" name="customerId" value={r.customerId} />
+                  <input type="hidden" name="planId" value={r.planId} />
+                  <input type="hidden" name="returnTo" value={returnTo} />
+                  {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
+                  <button
+                    className="ghost btn-compact btn-send"
+                    type="submit"
+                    title="Enviar link para actualizar tarjeta del cliente"
+                  >
+                    Actualizar tarjeta
+                  </button>
+                </form>
+              )
             ) : null}
             {r.status === "SUSPENDED" ? (
               <form action={resumeSubscription}>
