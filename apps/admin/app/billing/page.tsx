@@ -60,30 +60,14 @@ function getActivo(status: any) {
   return String(status || "") !== "CANCELED";
 }
 
-function getEstado(status: any) {
+function getEstadoSimple(status: any): { label: string; class: string } {
   const s = String(status || "");
-  if (s === "PAST_DUE") return { key: "mora", label: "En mora" };
-  if (s === "ACTIVE") return { key: "si", label: "Sí" };
-  return { key: "no", label: "No" };
-}
-
-function getSubscriptionStatusLabel(status: any) {
-  const s = String(status || "");
-  if (s === "ACTIVE") return "Activa";
-  if (s === "PAST_DUE") return "En mora";
-  if (s === "SUSPENDED") return "Suspendida";
-  if (s === "CANCELED") return "Cancelada";
-  return s || "—";
-}
-
-function subscriptionRank(status: any) {
-  const s = String(status || "");
-  if (s === "ACTIVE") return 1;
-  if (s === "PAST_DUE") return 2;
-  if (s === "SUSPENDED") return 3;
-  if (s === "EXPIRED") return 4;
-  if (s === "CANCELED") return 5;
-  return 9;
+  if (s === "EXPIRED") return { label: "Vencida", class: "pill-bad" };
+  if (s === "PAST_DUE") return { label: "En mora", class: "pill-bad" };
+  if (s === "ACTIVE") return { label: "Activa", class: "pill-ok" };
+  if (s === "SUSPENDED") return { label: "Suspendida", class: "pill-warn" };
+  if (s === "CANCELED") return { label: "Cancelada", class: "pill-muted" };
+  return { label: s || "—", class: "pill-muted" };
 }
 
 function getPaymentStatusLabel(args: {
@@ -495,17 +479,7 @@ export default async function BillingPage({
       periodStartAt: r.periodoInicioAt,
       periodEndAt: r.periodoFinAt
     });
-    const subscriptionStatus = getSubscriptionStatusLabel(r.status);
-    const subscriptionStatusClass =
-      r.status === "ACTIVE"
-        ? "pill-ok"
-        : r.status === "PAST_DUE"
-          ? "pill-bad"
-          : r.status === "SUSPENDED"
-            ? "pill-warn"
-            : r.status === "CANCELED"
-              ? "pill-muted"
-              : "pill-muted";
+    const estadoSimple = getEstadoSimple(r.status);
     const rowCheckoutUrl = checkoutCustomerId && checkoutCustomerId === r.customerId ? checkoutUrl : "";
     const latestCheckoutUrl = rowCheckoutUrl || String(r.lastPaymentLink?.checkoutUrl || "").trim();
     const rowTokenUrl = checkoutCustomerId && checkoutCustomerId === r.customerId ? tokenUrl : "";
@@ -558,17 +532,8 @@ export default async function BillingPage({
               <div className="billing-header-meta-item billing-header-status-strip">
                 <span className="billing-header-label">Estado</span>
                 <div className="billing-status-line" role="group" aria-label="Estado">
-                  <span className={`pill ${subscriptionStatusClass}`} title={`Suscripción: ${subscriptionStatus}`}>
-                    {subscriptionStatus}
-                  </span>
-                  <span className={`pill ${paymentStatus === "Pagado" ? "pill-ok" : paymentStatus === "En mora" ? "pill-bad" : "pill-muted"}`}>
-                    {paymentStatus}
-                  </span>
-                  <span className={`pill ${r.customerTokenized ? "pill-ok" : "pill-bad"}`}>
-                    {r.customerTokenized ? "Tokenizada" : "Sin token"}
-                  </span>
-                  <span className={`pill ${isPlan ? "pill-mode-link" : "pill-mode-debit"}`}>
-                    {isPlan ? "Link de pago" : "Débito automático"}
+                  <span className={`pill pill-sm ${estadoSimple.class}`} title={`Estado: ${estadoSimple.label}`}>
+                    {estadoSimple.label}
                   </span>
                 </div>
               </div>
@@ -669,8 +634,8 @@ export default async function BillingPage({
               </div>
             </div>
           </div>
-          <div className="billing-body-side" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '12px' }}>
-            <div className="billing-cost-panel">
+          <div className="billing-body-side" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
+            <div className="billing-cost-panel" style={{ flex: '1' }}>
               <span className="billing-cost-title">Totales</span>
               <div className="billing-cost-box">
                 <div className="billing-cost-summary">
@@ -688,18 +653,15 @@ export default async function BillingPage({
               </div>
             </div>
             {hasQuickLinks ? (
-              <div className="billing-body-section billing-section-actions">
-                <div className="billing-section-title">Links</div>
-                <div className="billing-quick-actions">
-                  {latestCheckoutUrl ? (
-                    <a className="ghost btn-compact btn-icon-only btn-open" href={latestCheckoutUrl} target="_blank" rel="noreferrer" title="Abrir link de pago" aria-label="Abrir link de pago" />
-                  ) : null}
-                  {rowTokenUrl ? (
-                    <a className="ghost btn-compact btn-icon-only btn-link" href={rowTokenUrl} target="_blank" rel="noreferrer" title="Abrir link de tokenización" aria-label="Abrir link de tokenización" />
-                  ) : null}
-                  {latestCheckoutUrl ? <CopyButton text={latestCheckoutUrl} /> : null}
-                  {rowTokenUrl ? <CopyButton text={rowTokenUrl} /> : null}
-                </div>
+              <div className="billing-quick-actions" style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                {latestCheckoutUrl ? (
+                  <a className="ghost btn-compact btn-icon-only btn-open" href={latestCheckoutUrl} target="_blank" rel="noreferrer" title="Abrir link de pago" aria-label="Abrir link de pago" />
+                ) : null}
+                {rowTokenUrl ? (
+                  <a className="ghost btn-compact btn-icon-only btn-link" href={rowTokenUrl} target="_blank" rel="noreferrer" title="Abrir link de tokenización" aria-label="Abrir link de tokenización" />
+                ) : null}
+                {latestCheckoutUrl ? <CopyButton text={latestCheckoutUrl} /> : null}
+                {rowTokenUrl ? <CopyButton text={rowTokenUrl} /> : null}
               </div>
             ) : null}
           </div>
