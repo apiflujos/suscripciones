@@ -558,6 +558,15 @@ export default async function BillingPage({
                   <span className={`pill pill-sm ${estadoSimple.class}`} title={`Estado: ${estadoSimple.label}`}>
                     {estadoSimple.label}
                   </span>
+                  {r.customerTokenized ? (
+                    <span className="pill pill-ok pill-sm" style={{ marginLeft: '4px' }} title="Tarjeta tokenizada">
+                      Tarjeta guardada
+                    </span>
+                  ) : (
+                    <span className="pill pill-warn pill-sm" style={{ marginLeft: '4px' }} title="Sin tarjeta tokenizada">
+                      Sin tarjeta
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -601,18 +610,7 @@ export default async function BillingPage({
             <div className="billing-body-section" style={{ flex: '0 0 auto' }}>
               <div className="billing-section-title">Contacto</div>
               <div className="billing-title">
-                <div className="billing-name">
-                  {r.customerName}
-                  {r.customerTokenized ? (
-                    <span className="pill pill-ok pill-sm" style={{ marginLeft: '8px' }} title="Tarjeta tokenizada">
-                      Tarjeta guardada
-                    </span>
-                  ) : (
-                    <span className="pill pill-warn pill-sm" style={{ marginLeft: '8px' }} title="Sin tarjeta tokenizada">
-                      Sin tarjeta
-                    </span>
-                  )}
-                </div>
+                <div className="billing-name">{r.customerName}</div>
                 <div className="billing-sub">
                   {r.customerEmail || "—"} {r.identificacion && r.identificacion !== "—" ? `· ${r.identificacion}` : ""}
                 </div>
