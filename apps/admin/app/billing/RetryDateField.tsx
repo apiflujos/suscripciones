@@ -41,9 +41,6 @@ export function RetryDateField({
     return date.toISOString();
   }
 
-  const cutoffDate = currentPeriodEndAt ? new Date(currentPeriodEndAt) : null;
-  const now = new Date();
-  const isPastDue = cutoffDate ? cutoffDate.getTime() < now.getTime() : false;
   const hasRetryDate = Boolean(nextRetryAt);
 
   return (
