@@ -493,7 +493,7 @@ export default async function BillingPage({
     const cutoffDueAt = r.vencimientoAt ? new Date(r.vencimientoAt) : null;
     const isCutoffOverdue = Boolean(cutoffDueAt && !Number.isNaN(cutoffDueAt.getTime()) && cutoffDueAt.getTime() <= Date.now());
     const manualChargeEnabled = Boolean(autoDebitSettings?.allowManualCharge ?? true);
-    const chargeDue = r.status === "PAST_DUE" || isCutoffOverdue;
+    const chargeDue = r.status === "PAST_DUE" || r.status === "EXPIRED" || isCutoffOverdue;
     const showChargeButton = manualChargeEnabled && isAutoDebit;
     const canChargeNow = showChargeButton && r.customerTokenized && chargeDue;
     const showTokenizationLink = isAutoDebit;
