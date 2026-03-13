@@ -63,8 +63,8 @@ function num(v: any) {
 const ACTIVE_SUBSCRIPTION_STATUSES: SubscriptionStatus[] = [SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE, SubscriptionStatus.SUSPENDED];
 
 function monthBoundsUtc(d: Date) {
-  const start = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1, 0, 0, 0, 0));
-  const end = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1, 0, 0, 0, 0));
+  const start = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1, 0, 0, 0) );
+  const end = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1, 0, 0, 0) );
   return { start, end };
 }
 
@@ -126,9 +126,9 @@ function buildMrrFormula(includeCustom: boolean = false): string {
     : `ELSE 0::numeric`;
     
   return `CASE sp."intervalUnit"
-    WHEN 'MONTH' THEN (1::numeric / GREATEST(sp."intervalCount", 1))
-    WHEN 'WEEK' THEN (4.34524::numeric / GREATEST(sp."intervalCount", 1))
-    WHEN 'DAY' THEN (30.4375::numeric / GREATEST(sp."intervalCount", 1))
+    WHEN 'MONTH' THEN (1::numeric / GREATEST(sp."intervalCount") )
+    WHEN 'WEEK' THEN (4.34524::numeric / GREATEST(sp."intervalCount") )
+    WHEN 'DAY' THEN (30.4375::numeric / GREATEST(sp."intervalCount") )
     ${customCase}
   END`;
 }
@@ -194,7 +194,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
       prisma.$queryRawUnsafe<Array<{ bucket: Date; payments_success: bigint; revenue_cents: bigint }>>(
         `SELECT date_trunc('${trunc}', p."paidAt") AS bucket,
                 COUNT(*)::bigint AS payments_success,
-                COALESCE(SUM(p."amountInCents"), 0)::bigint AS revenue_cents
+                COALESCE(SUM(p."amountInCents")) ::bigint AS revenue_cents
          FROM "Payment" p
          WHERE p."status" = 'APPROVED'
            AND p."paidAt" IS NOT NULL
@@ -202,12 +202,11 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
            AND p."paidAt" < $2::timestamptz
            ${paymentReconciliationFilter}
            ${paymentUnlinkedFilter}
-           ${tf("p", 3)}
+           ${tf("p") }
          GROUP BY 1
          ORDER BY 1 ASC`,
         from,
         to,
-        ...tenantArgs
       ),
 
       prisma.$queryRawUnsafe<Array<{ bucket: Date; payments_failed: bigint }>>(
@@ -219,12 +218,11 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
            AND COALESCE(p."failedAt", p."updatedAt") < $2::timestamptz
            ${paymentReconciliationFilter}
            ${paymentUnlinkedFilter}
-           ${tf("p", 3)}
+           ${tf("p") }
          GROUP BY 1
          ORDER BY 1 ASC`,
         from,
         to,
-        ...tenantArgs
       ),
 
       prisma.$queryRawUnsafe<Array<{ bucket: Date; links_sent: bigint }>>(
@@ -235,12 +233,11 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
          WHERE sp."planType" = 'manual_link'
            AND pl."sentAt" >= $1::timestamptz
            AND pl."sentAt" < $2::timestamptz
-           ${tf("pl", 3)}
+           ${tf("pl") }
          GROUP BY 1
          ORDER BY 1 ASC`,
         from,
         to,
-        ...tenantArgs
       ),
 
       prisma.$queryRawUnsafe<Array<{ bucket: Date; links_paid: bigint }>>(
@@ -252,12 +249,11 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
            AND pl."paidAt" IS NOT NULL
            AND pl."paidAt" >= $1::timestamptz
            AND pl."paidAt" < $2::timestamptz
-           ${tf("pl", 3)}
+           ${tf("pl") }
          GROUP BY 1
          ORDER BY 1 ASC`,
         from,
         to,
-        ...tenantArgs
       )
     ]);
   } catch (err) {
@@ -304,9 +300,8 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
        WHERE s."status" IN ('ACTIVE', 'PAST_DUE', 'SUSPENDED')
          AND s."startAt" < $1::timestamptz
          AND (s."canceledAt" IS NULL OR s."canceledAt" >= $1::timestamptz)
-         ${tf("s", 2)}`,
+         ${tf("s") }`,
       firstBucket,
-      ...tenantArgs
     );
   } catch (err) {
     console.error('[Metrics] Error en initialActiveRow:', err);
@@ -322,12 +317,11 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
        INNER JOIN "Customer" c ON c."id" = s."customerId"
        WHERE s."startAt" >= $1::timestamptz
          AND s."startAt" < $2::timestamptz
-         ${tf("s", 3)}
+         ${tf("s") }
        GROUP BY 1
        ORDER BY 1 ASC`,
       from,
       to,
-      ...tenantArgs
     );
   } catch (err) {
     console.error('[Metrics] Error en startsAgg:', err);
@@ -343,12 +337,11 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
        WHERE s."canceledAt" IS NOT NULL
          AND s."canceledAt" >= $1::timestamptz
          AND s."canceledAt" < $2::timestamptz
-         ${tf("s", 3)}
+         ${tf("s") }
        GROUP BY 1
        ORDER BY 1 ASC`,
       from,
       to,
-      ...tenantArgs
     );
   } catch (err) {
     console.error('[Metrics] Error en cancelsAgg:', err);
@@ -376,15 +369,14 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
       `SELECT
           COUNT(*) FILTER (WHERE p."status" = 'APPROVED' AND p."paidAt" IS NOT NULL AND p."paidAt" >= $1::timestamptz AND p."paidAt" < $2::timestamptz)::bigint AS payments_success,
           COUNT(*) FILTER (WHERE p."status" IN ('DECLINED','ERROR','VOIDED') AND COALESCE(p."failedAt", p."updatedAt") >= $1::timestamptz AND COALESCE(p."failedAt", p."updatedAt") < $2::timestamptz)::bigint AS payments_failed,
-          COALESCE(SUM(p."amountInCents") FILTER (WHERE p."status" = 'APPROVED' AND p."paidAt" IS NOT NULL AND p."paidAt" >= $1::timestamptz AND p."paidAt" < $2::timestamptz), 0)::bigint AS revenue_cents
+          COALESCE(SUM(p."amountInCents") FILTER (WHERE p."status" = 'APPROVED' AND p."paidAt" IS NOT NULL AND p."paidAt" >= $1::timestamptz AND p."paidAt" < $2::timestamptz)) ::bigint AS revenue_cents
         FROM "Payment" p
         WHERE 1=1
         ${paymentReconciliationFilter}
         ${paymentUnlinkedFilter}
-        ${tf("p", 3)}`,
+        ${tf("p") }`,
       from,
       to,
-      ...tenantArgs
     );
   } catch (err) {
     console.error('[Metrics] Error en totalsPaymentsRow:', err);
@@ -402,7 +394,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
            AND p."status" = 'APPROVED'
            AND p."paidAt" IS NOT NULL
            ${paymentReconciliationFilter}
-           ${tf("p", 3)}
+           ${tf("p") }
          GROUP BY p."subscriptionId"
        )
        SELECT COUNT(*)::bigint AS plans_sold
@@ -410,7 +402,6 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
        WHERE first_paid_at >= $1::timestamptz AND first_paid_at < $2::timestamptz`,
       from,
       to,
-      ...tenantArgs
     );
   } catch (err) {
     console.error('[Metrics] Error en totalsPlansSoldRow:', err);
@@ -436,9 +427,8 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
        INNER JOIN "Customer" c ON c."id" = s."customerId"
        WHERE s."startAt" < $1::timestamptz
          AND (s."canceledAt" IS NULL OR s."canceledAt" >= $1::timestamptz)
-         ${tf("s", 2)}`,
+         ${tf("s") }`,
       to,
-      ...tenantArgs
     );
   } catch (err) {
     console.error('[Metrics] Error en contactsStatusRow:', err);
@@ -454,19 +444,18 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
        WHERE sp."planType" = 'manual_link'
          AND pl."sentAt" >= $1::timestamptz
          AND pl."sentAt" < $2::timestamptz
-         ${tf("pl", 3)}
+         ${tf("pl") }
      )
      SELECT
        COUNT(*)::bigint AS links_sent,
        COUNT(*) FILTER (WHERE pl."paidAt" IS NOT NULL)::bigint AS links_paid_any,
        COUNT(*) FILTER (WHERE pl."paidAt" IS NOT NULL AND pl."paidAt" >= $1::timestamptz AND pl."paidAt" < $2::timestamptz)::bigint AS links_paid_in_range,
-       COALESCE(SUM(p."amountInCents") FILTER (WHERE p."status"='APPROVED' AND p."paidAt" IS NOT NULL AND p."paidAt" >= $1::timestamptz AND p."paidAt" < $2::timestamptz), 0)::bigint AS link_revenue_cents,
+       COALESCE(SUM(p."amountInCents") FILTER (WHERE p."status"='APPROVED' AND p."paidAt" IS NOT NULL AND p."paidAt" >= $1::timestamptz AND p."paidAt" < $2::timestamptz)) ::bigint AS link_revenue_cents,
        AVG(EXTRACT(EPOCH FROM (pl."paidAt" - pl."sentAt"))) FILTER (WHERE pl."paidAt" IS NOT NULL AND pl."paidAt" >= pl."sentAt") AS avg_time_to_pay_sec
      FROM sent_in_range pl
      LEFT JOIN "Payment" p ON p."id" = pl."paymentId"`,
     from,
     to,
-    ...tenantArgs
   ).catch((err) => {
     console.error("Error in linksTotalsRow:", err);
     return [{ links_sent: 0n, links_paid_any: 0n, links_paid_in_range: 0n, link_revenue_cents: 0n, avg_time_to_pay_sec: null }];
@@ -512,10 +501,9 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
           AND p."wompiTransactionId" IS NOT NULL
           ${paymentReconciliationFilter}
           ${paymentUnlinkedFilter}
-          ${tf("p", 3)}`,
+          ${tf("p") }`,
       from,
       to,
-      ...tenantArgs
     );
   } catch (err) {
     console.error('[Metrics] Error en autoChargesRow:', err);
@@ -523,7 +511,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
 
   const mrrRow = await prisma.$queryRawUnsafe<Array<{ mrr_cents: number | null }>>(
     `SELECT
-        COALESCE(SUM(${buildMrrRoundFormula(true)}), 0)::numeric AS mrr_cents
+        COALESCE(SUM(${buildMrrRoundFormula(true)})) ::numeric AS mrr_cents
       FROM "Subscription" s
       INNER JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
       INNER JOIN "Customer" c ON c."id" = s."customerId"
@@ -531,9 +519,8 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
         AND s."status" IN ('ACTIVE','PAST_DUE','SUSPENDED')
         AND s."startAt" < $1::timestamptz
         AND (s."canceledAt" IS NULL OR s."canceledAt" >= $1::timestamptz)
-        ${tf("s", 3)}`,
+        ${tf("s") }`,
     to,
-    ...tenantArgs
   );
 
   const { start: churnStart, end: churnEnd } = monthBoundsUtc(new Date(to.getTime() - 1));
@@ -550,10 +537,9 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
         INNER JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
         INNER JOIN "Customer" c ON c."id" = s."customerId"
         WHERE sp."planType" = 'auto_subscription'
-        ${tf("s", 4)}`,
+        ${tf("s") }`,
       churnStart,
       churnEnd,
-      ...tenantArgs
     );
   } catch (err) {
     console.error('[Metrics] Error en churnRow:', err);
@@ -567,7 +553,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
   try {
     revenueByPlanType = await prisma.$queryRawUnsafe<Array<{ plan_type: PlanType; revenue_cents: bigint }>>(
       `SELECT sp."planType" AS plan_type,
-              COALESCE(SUM(p."amountInCents"), 0)::bigint AS revenue_cents
+              COALESCE(SUM(p."amountInCents")) ::bigint AS revenue_cents
        FROM "Payment" p
        INNER JOIN "Subscription" s ON s."id" = p."subscriptionId"
        INNER JOIN "Customer" c ON c."id" = s."customerId"
@@ -578,11 +564,10 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
          AND p."paidAt" < $2::timestamptz
          ${paymentReconciliationFilter}
          ${paymentUnlinkedFilter}
-         ${tf("p", 4)}
+         ${tf("p") }
        GROUP BY 1`,
       from,
       to,
-      ...tenantArgs
     );
   } catch (err) {
     console.error('[Metrics] Error en revenueByPlanType:', err);
@@ -629,7 +614,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
     try {
       initialMrrRow = await prisma.$queryRawUnsafe<Array<{ v: number | null }>>(
         `SELECT
-            COALESCE(SUM(${buildMrrRoundFormula(true)}), 0)::numeric AS v
+            COALESCE(SUM(${buildMrrRoundFormula(true)})) ::numeric AS v
           FROM "Subscription" s
           INNER JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
           INNER JOIN "Customer" c ON c."id" = s."customerId"
@@ -637,9 +622,8 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
             AND s."status" IN ('ACTIVE','PAST_DUE','SUSPENDED')
             AND s."startAt" < $1::timestamptz
             AND (s."canceledAt" IS NULL OR s."canceledAt" >= $1::timestamptz)
-            ${tf("s", 3)}`,
+            ${tf("s") }`,
         firstBucket,
-        ...tenantArgs
       );
     } catch (err) {
       console.error('[Metrics] Error en initialMrrRow:', err);
@@ -650,19 +634,18 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
     try {
       mrrStartsAgg = await prisma.$queryRawUnsafe<Array<{ bucket: Date; adds: number | null }>>(
         `SELECT date_trunc('${trunc}', s."startAt") AS bucket,
-                COALESCE(SUM(${buildMrrRoundFormula(true)}), 0)::numeric AS adds
+                COALESCE(SUM(${buildMrrRoundFormula(true)})) ::numeric AS adds
           FROM "Subscription" s
           INNER JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
           INNER JOIN "Customer" c ON c."id" = s."customerId"
           WHERE sp."planType" = 'auto_subscription'
             AND s."startAt" >= $1::timestamptz
             AND s."startAt" < $2::timestamptz
-            ${tf("s", 3)}
+            ${tf("s") }
           GROUP BY 1
           ORDER BY 1 ASC`,
         from,
         to,
-        ...tenantArgs
       );
     } catch (err) {
       console.error('[Metrics] Error en mrrStartsAgg:', err);
@@ -672,7 +655,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
     try {
       mrrCancelsAgg = await prisma.$queryRawUnsafe<Array<{ bucket: Date; subs: number | null }>>(
         `SELECT date_trunc('${trunc}', s."canceledAt") AS bucket,
-                COALESCE(SUM(${buildMrrRoundFormula(true)}), 0)::numeric AS subs
+                COALESCE(SUM(${buildMrrRoundFormula(true)})) ::numeric AS subs
           FROM "Subscription" s
           INNER JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
           INNER JOIN "Customer" c ON c."id" = s."customerId"
@@ -680,12 +663,11 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
             AND s."canceledAt" IS NOT NULL
             AND s."canceledAt" >= $1::timestamptz
             AND s."canceledAt" < $2::timestamptz
-            ${tf("s", 3)}
+            ${tf("s") }
           GROUP BY 1
           ORDER BY 1 ASC`,
         from,
         to,
-        ...tenantArgs
       );
     } catch (err) {
       console.error('[Metrics] Error en mrrCancelsAgg:', err);
@@ -722,7 +704,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
                AND s."canceledAt" IS NOT NULL
                AND s."canceledAt" >= m.bucket
                AND s."canceledAt" < (m.bucket + interval '1 month')
-               ${tf("s", 4)}
+               ${tf("s") }
            ) AS cancels,
            (
              SELECT COUNT(*)::bigint
@@ -732,13 +714,12 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
              WHERE sp."planType"='auto_subscription'
                AND s."startAt" < m.bucket
                AND (s."canceledAt" IS NULL OR s."canceledAt" >= m.bucket)
-               ${tf("s", 4)}
+               ${tf("s") }
            ) AS active_start
          FROM months m
          ORDER BY m.bucket ASC`,
         from,
         to,
-        ...tenantArgs
       );
     } catch (err) {
       console.error('[Metrics] Error en churnAgg:', err);
@@ -761,7 +742,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
     SELECT
       COUNT(*) FILTER (WHERE p.status = 'APPROVED') as payments_approved,
       COUNT(*) FILTER (WHERE p.status IN ('PENDING', 'DECLINED', 'ERROR', 'VOIDED')) as payments_other,
-      COALESCE(SUM(p."amountInCents") FILTER (WHERE p.status = 'APPROVED'), 0) as revenue_cents
+      COALESCE(SUM(p."amountInCents") FILTER (WHERE p.status = 'APPROVED'))  as revenue_cents
     FROM "Payment" p
     INNER JOIN "Customer" c ON c."id" = p."customerId"
     WHERE p."subscriptionId" IS NULL
