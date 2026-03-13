@@ -747,7 +747,7 @@ export default async function BillingPage({
                 <input type="hidden" name="returnTo" value={returnTo} />
                 {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
                 <button className="ghost btn-compact btn-send" type="submit" title="Enviar link de pago manual">
-                  Enviar link de pago
+                  💳 Enviar link de pago
                 </button>
               </form>
             ) : null}
