@@ -78,6 +78,16 @@ function getEstado(status: any): { key: "si" | "no" | "mora"; label: string; cla
   return { key: "no", ...base };
 }
 
+function subscriptionRank(status: any) {
+  const s = String(status || "");
+  if (s === "ACTIVE") return 0;
+  if (s === "PAST_DUE") return 1;
+  if (s === "SUSPENDED") return 2;
+  if (s === "EXPIRED") return 3;
+  if (s === "CANCELED") return 4;
+  return 5;
+}
+
 function getPaymentStatusLabel(args: {
   status: string;
   paidAt: any;
