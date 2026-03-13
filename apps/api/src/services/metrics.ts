@@ -98,8 +98,7 @@ function validateAlias(alias: string): ValidAlias {
 function tenantFilter(alias: string, idx: number, hasTenant: boolean): string {
   // Validar alias para prevenir SQL injection
   validateAlias(alias);
-  // Siempre usamos el mismo índice (3) y filtramos por tenantId IS NOT NULL cuando no hay tenant
-  // Esto evita problemas de parámetros faltantes
+  // Cuando no hay tenant, filtramos por tenantId IS NOT NULL para evitar errores de parámetros
   return hasTenant ? ` AND "${alias}"."tenantId" = $${idx}::uuid` : ` AND "${alias}"."tenantId" IS NOT NULL`;
 }
 
@@ -149,7 +148,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
   const { trunc, step } = granularityConfig(args.granularity);
   const tenantId = String(args.tenantId || "").trim();
   const hasTenant = Boolean(tenantId);
-  const tenantArgs = hasTenant ? [tenantId] : [];
+  const tenantArgs = hasTenant ? [tenantId] : [null];  // SIEMPRE 1 elemento para mantener 3 parámetros
   
   // Crear función tenantFilter pre-bindada con hasTenant
   const tf = createTenantFilter(hasTenant);
