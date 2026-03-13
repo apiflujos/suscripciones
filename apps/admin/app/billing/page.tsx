@@ -396,6 +396,7 @@ export default async function BillingPage({
         customerName: String(customer?.name || customer?.email || s.customerId || "—"),
         customerEmail: String(customer?.email || ""),
         customerTokenized: hasUsablePaymentSource(customer?.metadata),
+        customerMetadata: customer?.metadata || {},
         identificacion: String(ident || "—"),
         tipoTx,
         tipoPago: getTipoPago(plan),
@@ -501,9 +502,9 @@ export default async function BillingPage({
     const rowCheckoutUrl = checkoutCustomerId && checkoutCustomerId === r.customerId ? checkoutUrl : "";
     const latestCheckoutUrl = rowCheckoutUrl || String(r.lastPaymentLink?.checkoutUrl || "").trim();
     // Link de tokenización: usa el URL del query si coincide el customerId, o el último guardado en el customer
-    const rowTokenUrl = (checkoutCustomerId && checkoutCustomerId === r.customerId && tokenUrl) 
-      ? tokenUrl 
-      : String(customer?.metadata?.tokenizationLink?.url || "").trim();
+    const rowTokenUrl = (checkoutCustomerId && checkoutCustomerId === r.customerId && tokenUrl)
+      ? tokenUrl
+      : String(r.customerMetadata?.tokenizationLink?.url || "").trim();
     const hasQuickLinks = Boolean(latestCheckoutUrl || rowTokenUrl);
     const sentForRow = central === "sent" && checkoutCustomerId && checkoutCustomerId === r.customerId;
     const sentTokenForRow = Boolean(sentForRow && rowTokenUrl);
