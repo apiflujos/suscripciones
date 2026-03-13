@@ -148,10 +148,12 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
   const { trunc, step } = granularityConfig(args.granularity);
   const tenantId = String(args.tenantId || "").trim();
   const hasTenant = Boolean(tenantId);
-  const tenantArgs = hasTenant ? [tenantId] : [null];  // SIEMPRE 1 elemento para mantener 3 parámetros
   
-  // Crear función tenantFilter pre-bindada con hasTenant
-  const tf = createTenantFilter(hasTenant);
+  // Crear función tenantFilter pre-bindada - SIEMPRE usa índice 3 y pasa null cuando no hay tenant
+  const tf = (alias: string) => {
+    validateAlias(alias);
+    return hasTenant ? ` AND "${alias}"."tenantId" = '${tenantId}'::uuid` : ` AND "${alias}"."tenantId" IS NOT NULL`;
+  };
 
   const paymentsCfg = await getPaymentsConfig().catch(() => ({
     includeUnlinkedPaymentsInMetrics: true
