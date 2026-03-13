@@ -70,6 +70,14 @@ function getEstadoSimple(status: any): { label: string; class: string } {
   return { label: s || "—", class: "pill-muted" };
 }
 
+function getEstado(status: any): { key: "si" | "no" | "mora"; label: string; class: string } {
+  const s = String(status || "");
+  const base = getEstadoSimple(status);
+  if (s === "ACTIVE") return { key: "si", ...base };
+  if (s === "PAST_DUE") return { key: "mora", ...base };
+  return { key: "no", ...base };
+}
+
 function getPaymentStatusLabel(args: {
   status: string;
   paidAt: any;
