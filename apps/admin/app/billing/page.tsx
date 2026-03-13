@@ -604,11 +604,11 @@ export default async function BillingPage({
                   {r.customerName}
                   {r.customerTokenized ? (
                     <span className="pill pill-ok pill-sm" style={{ marginLeft: '8px' }} title="Tarjeta tokenizada">
-                      🏦 Tarjeta guardada
+                      Tarjeta guardada
                     </span>
                   ) : (
                     <span className="pill pill-warn pill-sm" style={{ marginLeft: '8px' }} title="Sin tarjeta tokenizada">
-                      ⚠️ Sin tarjeta
+                      Sin tarjeta
                     </span>
                   )}
                 </div>
@@ -747,7 +747,7 @@ export default async function BillingPage({
                 <input type="hidden" name="returnTo" value={returnTo} />
                 {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
                 <button className="ghost btn-compact btn-send" type="submit" title="Enviar link de pago manual">
-                  💳 Enviar link de pago
+                  Enviar link de pago
                 </button>
               </form>
             ) : null}
@@ -763,7 +763,7 @@ export default async function BillingPage({
                   type="submit" 
                   title={needsTokenization ? "Enviar link para guardar tarjeta del cliente" : "Enviar link para actualizar tarjeta del cliente"}
                 >
-                  {needsTokenization ? '🏦 Guardar tarjeta' : '🏦 Actualizar tarjeta'}
+                  {needsTokenization ? 'Guardar tarjeta' : 'Actualizar tarjeta'}
                 </button>
               </form>
             ) : null}
