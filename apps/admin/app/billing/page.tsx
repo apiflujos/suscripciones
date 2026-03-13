@@ -517,6 +517,7 @@ export default async function BillingPage({
     const canChargeNow = showChargeButton && r.customerTokenized && chargeDue;
     const showTokenizationLink = isAutoDebit;
     const showPaymentLinkButton = !isAutoDebit;
+    const needsTokenization = isAutoDebit && !r.customerTokenized;
     const duplicateKey = `${r.customerId}:${r.planId}`;
     const duplicateCount = duplicateCountByKey.get(duplicateKey) || 1;
     const keepRowId = duplicateKeepByKey.get(duplicateKey)?.id || r.id;
@@ -597,7 +598,18 @@ export default async function BillingPage({
             <div className="billing-body-section" style={{ flex: '0 0 auto' }}>
               <div className="billing-section-title">Contacto</div>
               <div className="billing-title">
-                <div className="billing-name">{r.customerName}</div>
+                <div className="billing-name">
+                  {r.customerName}
+                  {r.customerTokenized ? (
+                    <span className="pill pill-ok pill-sm" style={{ marginLeft: '8px' }} title="Tarjeta tokenizada">
+                      🏦 Tarjeta guardada
+                    </span>
+                  ) : (
+                    <span className="pill pill-warn pill-sm" style={{ marginLeft: '8px' }} title="Sin tarjeta tokenizada">
+                      ⚠️ Sin tarjeta
+                    </span>
+                  )}
+                </div>
                 <div className="billing-sub">
                   {r.customerEmail || "—"} {r.identificacion && r.identificacion !== "—" ? `· ${r.identificacion}` : ""}
                 </div>
@@ -711,7 +723,7 @@ export default async function BillingPage({
                   disabled={!canChargeNow}
                   title={
                     !r.customerTokenized
-                      ? "Primero debes guardar tarjeta"
+                      ? "Primero debes guardar tarjeta del cliente (usa el botón 'Guardar tarjeta')"
                       : !chargeDue
                         ? "El cobro estará disponible cuando venza el corte"
                         : isCutoffOverdue
@@ -744,8 +756,12 @@ export default async function BillingPage({
                 <input type="hidden" name="planId" value={r.planId} />
                 <input type="hidden" name="returnTo" value={returnTo} />
                 {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                <button className="ghost btn-compact btn-send" type="submit" title="Enviar link de tokenización">
-                  Enviar link de tokenización
+                <button 
+                  className={`ghost btn-compact btn-send ${needsTokenization ? 'btn-highlight' : ''}`} 
+                  type="submit" 
+                  title={needsTokenization ? "Enviar link para guardar tarjeta del cliente" : "Enviar link para actualizar tarjeta del cliente"}
+                >
+                  {needsTokenization ? '🏦 Guardar tarjeta' : '🏦 Actualizar tarjeta'}
                 </button>
               </form>
             ) : null}
