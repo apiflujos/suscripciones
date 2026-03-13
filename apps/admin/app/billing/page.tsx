@@ -518,9 +518,9 @@ export default async function BillingPage({
     const chargeDue = r.status === "PAST_DUE" || r.status === "EXPIRED" || isCutoffOverdue;
     const showChargeButton = manualChargeEnabled && isAutoDebit;
     const canChargeNow = showChargeButton && r.customerTokenized && chargeDue;
-    const showTokenizationLink = isAutoDebit;
     const showPaymentLinkButton = !isAutoDebit;
     const needsTokenization = isAutoDebit && !r.customerTokenized;
+    const showTokenizationLink = needsTokenization;
     const duplicateKey = `${r.customerId}:${r.planId}`;
     const duplicateCount = duplicateCountByKey.get(duplicateKey) || 1;
     const keepRowId = duplicateKeepByKey.get(duplicateKey)?.id || r.id;
@@ -685,7 +685,7 @@ export default async function BillingPage({
               </div>
             </div>
             {hasQuickLinks ? (
-              <div className="billing-quick-actions" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '4px', flexWrap: 'nowrap' }}>
+              <div className="billing-quick-actions" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '4px' }}>
                 {latestCheckoutUrl ? (
                   <a className="ghost btn-compact btn-icon-only btn-open" href={latestCheckoutUrl} target="_blank" rel="noreferrer" title="Abrir link de pago" aria-label="Abrir link de pago" />
                 ) : null}
@@ -751,47 +751,20 @@ export default async function BillingPage({
               </form>
             ) : null}
             {showTokenizationLink ? (
-              needsTokenization ? (
-                <form action={sendCentralComTokenizationLink}>
-                  <input type="hidden" name="csrf" value={csrfToken} />
-                  <input type="hidden" name="customerId" value={r.customerId} />
-                  <input type="hidden" name="planId" value={r.planId} />
-                  <input type="hidden" name="returnTo" value={returnTo} />
-                  {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                  <button
-                    className="ghost btn-compact btn-send btn-highlight"
-                    type="submit"
-                    title="Enviar link para guardar tarjeta del cliente"
-                  >
-                    Guardar tarjeta
-                  </button>
-                </form>
-              ) : rowTokenUrl ? (
-                <a
-                  className="ghost btn-compact btn-send"
-                  href={rowTokenUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  title="Abrir link de tokenización para actualizar tarjeta"
+              <form action={sendCentralComTokenizationLink}>
+                <input type="hidden" name="csrf" value={csrfToken} />
+                <input type="hidden" name="customerId" value={r.customerId} />
+                <input type="hidden" name="planId" value={r.planId} />
+                <input type="hidden" name="returnTo" value={returnTo} />
+                {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
+                <button
+                  className="ghost btn-compact btn-send btn-highlight"
+                  type="submit"
+                  title="Enviar link para guardar tarjeta del cliente"
                 >
-                  Actualizar tarjeta
-                </a>
-              ) : (
-                <form action={sendCentralComTokenizationLink}>
-                  <input type="hidden" name="csrf" value={csrfToken} />
-                  <input type="hidden" name="customerId" value={r.customerId} />
-                  <input type="hidden" name="planId" value={r.planId} />
-                  <input type="hidden" name="returnTo" value={returnTo} />
-                  {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                  <button
-                    className="ghost btn-compact btn-send"
-                    type="submit"
-                    title="Enviar link para actualizar tarjeta del cliente"
-                  >
-                    Actualizar tarjeta
-                  </button>
-                </form>
-              )
+                  Guardar tarjeta
+                </button>
+              </form>
             ) : null}
             {r.status === "SUSPENDED" ? (
               <form action={resumeSubscription}>
