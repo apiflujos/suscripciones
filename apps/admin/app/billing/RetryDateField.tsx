@@ -138,7 +138,7 @@ export function RetryDateField({
 
       {cutoffDate && false && (
         <div className="field-hint" style={{ fontSize: "0.85em", opacity: 0.8 }}>
-          📅 Corte: {cutoffDate.toLocaleString()} {isPastDue ? "(vencida)" : ""}
+          📅 Corte: {cutoffDate ? cutoffDate.toLocaleString() : ""} {isPastDue ? "(vencida)" : ""}
         </div>
       )}
     </div>
