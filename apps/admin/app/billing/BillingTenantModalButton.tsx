@@ -7,6 +7,7 @@ export function BillingTenantModalButton({
   triggerId,
   triggerLabel = "Cambiar canal",
   triggerClassName = "ghost btn-compact btn-noicon",
+  triggerStyle,
   hideTrigger = false,
   subscriptionId,
   scopeTenantId,
@@ -19,6 +20,7 @@ export function BillingTenantModalButton({
   triggerId?: string;
   triggerLabel?: string;
   triggerClassName?: string;
+  triggerStyle?: React.CSSProperties;
   hideTrigger?: boolean;
   subscriptionId: string;
   scopeTenantId?: string;
@@ -35,7 +37,7 @@ export function BillingTenantModalButton({
       <button
         id={triggerId}
         className={triggerClassName}
-        style={hideTrigger ? { display: "none" } : undefined}
+        style={hideTrigger ? { display: "none" } : triggerStyle}
         type="button"
         onClick={() => setOpen(true)}
         data-modal="true"

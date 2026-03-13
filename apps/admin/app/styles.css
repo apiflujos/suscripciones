@@ -7358,107 +7358,341 @@ textarea.input {
 }
 
 /* ============================================
-   BILLING PAGE - LAYOUT COMPACTO
+   BILLING PAGE - CARDS HORIZONTAL COMPACTO
    ============================================ */
 
-.billing-page .billing-body {
-  gap: 8px;
-}
-
-.billing-page .billing-body-section {
-  gap: 4px;
-}
-
-.billing-page .billing-section-title {
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-faint);
-  margin-bottom: 2px;
-}
-
-.billing-page .billing-body-main .field-hint {
-  font-size: 9.5px;
-  margin-bottom: 2px;
-}
-
-.billing-page .billing-body-main .input,
-.billing-page .billing-body-main .select {
-  font-size: 11px;
-  padding: 4px 8px;
-  min-height: 28px;
-}
-
-/* Fechas compactas - una al lado de la otra */
-.billing-page .billing-section-dates {
-  margin-top: 0;
-}
-
-.billing-page .billing-section-dates > div {
-  grid-template-columns: 1fr 1fr !important;
+/* Grid principal */
+.billing-page .billing-grid {
+  display: flex !important;
+  flex-direction: column !important;
   gap: 6px !important;
 }
 
-.billing-page .billing-section-dates .field-hint {
-  font-size: 9.5px;
-  margin-bottom: 2px;
+/* Card - LO MÁS BAJA POSIBLE */
+.billing-page .billing-grid-item {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  min-height: 60px !important;
+  padding: 6px 10px !important;
+  background: var(--panel) !important;
+  border: 1px solid var(--stroke) !important;
+  border-radius: 8px !important;
 }
 
-/* Totales más compactos */
+/* HEADER - Iconos NUNCA en dos filas */
+.billing-page .billing-header {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 6px !important;
+  margin-bottom: 0 !important;
+  flex-wrap: nowrap !important;
+  min-height: 24px !important;
+}
+
+.billing-page .billing-badges-header {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 6px !important;
+  flex-wrap: nowrap !important;
+}
+
+.billing-page .billing-header-meta-grid {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 6px !important;
+  flex-wrap: nowrap !important;
+}
+
+.billing-page .billing-header-meta-item {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 3px !important;
+  white-space: nowrap !important;
+}
+
+.billing-page .billing-header-label {
+  font-size: 8.5px !important;
+  font-weight: 600 !important;
+  color: var(--text-faint) !important;
+  white-space: nowrap !important;
+}
+
+.billing-page .billing-status-line {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 3px !important;
+  flex-wrap: nowrap !important;
+}
+
+.billing-page .billing-status-line .pill {
+  font-size: 8.5px !important;
+  padding: 2px 4px !important;
+  white-space: nowrap !important;
+}
+
+/* SUBMÓDULOS INTERNOS - UNO AL LADO DEL OTRO (HORIZONTAL) */
+.billing-page .billing-body-main {
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+
+/* Cada submódulo - MISMO TAMAÑO */
+.billing-page .billing-body-section {
+  flex: 0 0 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  gap: 2px !important;
+  min-width: auto !important;
+}
+
+/* Títulos de sección */
+.billing-page .billing-section-title {
+  font-size: 8px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  color: var(--text-faint) !important;
+  margin-bottom: 0 !important;
+  white-space: nowrap !important;
+}
+
+/* Datos personales - COMPACTO */
+.billing-page .billing-title {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1px !important;
+}
+
+.billing-page .billing-name {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: 150px !important;
+}
+
+.billing-page .billing-sub {
+  font-size: 9px !important;
+  color: var(--text-soft) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: 150px !important;
+}
+
+/* Producto - COMPACTO */
+.billing-page .billing-product-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+.billing-page .billing-product-thumb {
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px !important;
+  border-radius: 4px !important;
+  overflow: hidden !important;
+}
+
+.billing-page .billing-product-fallback {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  height: 100% !important;
+  font-size: 9px !important;
+  font-weight: 700 !important;
+  color: var(--text-faint) !important;
+  background: var(--surface-2) !important;
+}
+
+.billing-page .billing-product-meta {
+  flex: 0 0 auto !important;
+  min-width: auto !important;
+}
+
+.billing-page .billing-product-meta strong {
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  display: block !important;
+  max-width: 120px !important;
+}
+
+/* Fechas - COMPACTO HORIZONTAL */
+.billing-page .billing-section-dates {
+  flex: 0 0 auto !important;
+}
+
+.billing-page .billing-section-dates > div {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-wrap: nowrap !important;
+}
+
+.billing-page .billing-section-dates .date-item {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1px !important;
+}
+
+.billing-page .billing-section-dates .date-label {
+  font-size: 8px !important;
+  color: var(--text-faint) !important;
+  font-weight: 600 !important;
+  white-space: nowrap !important;
+}
+
+.billing-page .billing-section-dates input,
+.billing-page .billing-section-dates .input {
+  font-size: 9px !important;
+  padding: 2px 4px !important;
+  min-height: 20px !important;
+  white-space: nowrap !important;
+}
+
+/* Columna derecha - Totales + Links */
+.billing-page .billing-body-side {
+  flex: 0 0 auto !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 12px !important;
+  margin-left: 8px !important;
+}
+
+/* Totales - COMPACTO */
 .billing-page .billing-cost-panel {
-  padding: 8px;
+  padding: 4px 8px !important;
+  background: var(--surface-2) !important;
+  border-radius: 6px !important;
 }
 
 .billing-page .billing-cost-title {
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-size: 7.5px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  color: var(--text-faint) !important;
+  margin-bottom: 1px !important;
+  display: block !important;
 }
 
 .billing-page .billing-cost-total {
-  font-size: 16px;
-  font-weight: 900;
+  font-size: 13px !important;
+  font-weight: 900 !important;
+  color: var(--text) !important;
+  line-height: 1 !important;
 }
 
 .billing-page .billing-cost-period {
-  font-size: 9.5px;
+  font-size: 8px !important;
+  color: var(--text-faint) !important;
+  display: inline !important;
+}
+
+.billing-page .billing-cost-inline {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  gap: 3px !important;
+  justify-content: flex-start !important;
+  margin-top: 2px !important;
 }
 
 .billing-page .billing-cost-chip {
-  font-size: 9.5px;
-  padding: 2px 6px;
+  font-size: 8px !important;
+  padding: 1px 3px !important;
+  background: var(--panel) !important;
+  border-radius: 2px !important;
+  color: var(--text-soft) !important;
+  max-width: 80px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
 }
 
-/* Botones compactos */
+/* Links - COMPACTO HORIZONTAL */
+.billing-page .billing-section-actions {
+  flex: 0 0 auto !important;
+  margin-top: 0 !important;
+}
+
 .billing-page .billing-quick-actions {
-  gap: 4px;
+  gap: 3px !important;
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
 }
 
-.billing-page .billing-quick-actions .btn-compact {
-  padding: 3px 6px;
-  font-size: 10px;
+.billing-page .billing-quick-actions button,
+.billing-page .billing-quick-actions a {
+  padding: 2px 4px !important;
+  font-size: 8.5px !important;
+  min-height: 20px !important;
+  min-width: 20px !important;
 }
 
-/* Canal de ventas compacto */
-.billing-page .billing-channel-chip {
-  font-size: 10px;
-  padding: 2px 6px;
-  max-width: 150px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* Estados - NUNCA uno encima del otro */
+.billing-page .billing-status-group {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 4px !important;
+  flex-wrap: nowrap !important;
+}
+
+.billing-page .billing-status-chip {
+  font-size: 8px !important;
+  padding: 1px 4px !important;
+  border-radius: 3px !important;
+  white-space: nowrap !important;
+  display: inline-block !important;
 }
 
 /* Responsive */
 @media (max-width: 900px) {
-  .billing-page .billing-body {
-    grid-template-columns: 1fr;
+  .billing-page .billing-grid-item {
+    flex-wrap: wrap !important;
+    min-height: auto !important;
   }
   
-  .billing-page .billing-section-dates > div {
-    grid-template-columns: 1fr !important;
+  .billing-page .billing-body-main {
+    flex-direction: column !important;
+    width: 100% !important;
+  }
+  
+  .billing-page .billing-body-side {
+    width: 100% !important;
+    justify-content: space-between !important;
+  }
+  
+  .billing-page .billing-header {
+    flex-wrap: nowrap !important;
+  }
+  
+  .billing-page .billing-header-meta-grid {
+    gap: 4px !important;
+  }
+  
+  .billing-page .billing-quick-actions {
+    flex-wrap: nowrap !important;
   }
 }
 

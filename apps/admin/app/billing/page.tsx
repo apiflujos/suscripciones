@@ -608,9 +608,10 @@ export default async function BillingPage({
         </div>
 
         <div className="billing-grid-info billing-grid-subscription">
-          <div className="billing-body-main">
-            <div className="billing-body-section">
-              <div className="billing-section-title">Datos personales</div>
+          <div className="billing-body-main" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '12px' }}>
+            {/* Datos personales */}
+            <div className="billing-body-section" style={{ flex: '0 0 auto' }}>
+              <div className="billing-section-title">Contacto</div>
               <div className="billing-title">
                 <div className="billing-name">{r.customerName}</div>
                 <div className="billing-sub">
@@ -618,13 +619,15 @@ export default async function BillingPage({
                 </div>
               </div>
             </div>
-            <div className="billing-body-section">
+            
+            {/* Producto */}
+            <div className="billing-body-section" style={{ flex: '0 0 auto' }}>
               <div className="billing-section-title">Producto</div>
               <div className="billing-product-row">
                 <div className="product-thumb billing-product-thumb">
                   {r.planImageUrl ? (
-                    <img 
-                      src={r.planImageUrl} 
+                    <img
+                      src={r.planImageUrl}
                       alt={r.planName}
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     />
@@ -637,11 +640,13 @@ export default async function BillingPage({
                 </div>
               </div>
             </div>
-            <div className="billing-body-section billing-section-dates">
-              <div className="billing-section-title">Fechas</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <div>
-                  <div className="field-hint">Corte</div>
+            
+            {/* Fechas - EN LÍNEA HORIZONTAL */}
+            <div className="billing-body-section billing-section-dates" style={{ flex: '0 0 auto' }}>
+              <div className="billing-section-title">Próximo cobro</div>
+              <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px', flexWrap: 'nowrap' }}>
+                <div className="date-item" style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                  <span className="date-label">Corte:</span>
                   <AutoCutoffInlineForm
                     subscriptionId={r.id}
                     csrfToken={csrfToken}
@@ -651,8 +656,8 @@ export default async function BillingPage({
                     action={scheduleCutoff}
                   />
                 </div>
-                <div>
-                  <div className="field-hint">Próximo intento</div>
+                <div className="date-item" style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                  <span className="date-label">Próximo:</span>
                   <RetryDateField
                     subscriptionId={r.id}
                     currentPeriodEndAt={r.vencimientoAt}
@@ -664,7 +669,7 @@ export default async function BillingPage({
               </div>
             </div>
           </div>
-          <div className="billing-body-side">
+          <div className="billing-body-side" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '12px' }}>
             <div className="billing-cost-panel">
               <span className="billing-cost-title">Totales</span>
               <div className="billing-cost-box">
@@ -672,7 +677,7 @@ export default async function BillingPage({
                   <div className="billing-cost-total">{fmtMoney(r.totalInCents ?? r.montoInCents, r.moneda)}</div>
                   <div className="billing-cost-period">{r.cada}</div>
                 </div>
-                <div className="billing-cost-inline" style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                <div className="billing-cost-inline" style={{ display: 'flex', flexWrap: 'nowrap', gap: 3 }}>
                   <span className="billing-cost-chip">Base {fmtMoney(r.valorBaseInCents ?? r.montoInCents, r.moneda)}</span>
                   {r.currentShippingInCents > 0 ? (
                     <span className="billing-cost-chip">Flete {fmtMoney(r.currentShippingInCents, r.moneda)}</span>

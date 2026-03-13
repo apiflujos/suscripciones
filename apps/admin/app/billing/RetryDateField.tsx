@@ -123,20 +123,20 @@ export function RetryDateField({
           </div>
         </div>
       ) : hasRetryDate ? (
-        <div className="input" style={{ fontWeight: 500 }}>
+        <span style={{ fontSize: "10.5px", fontWeight: 500 }}>
           {displayRetryAt ? new Date(displayRetryAt).toLocaleString() : "—"}
-        </div>
+        </span>
       ) : isPastDue ? (
-        <div className="field-hint" style={{ color: "var(--warning)" }}>
-          ⚠️ Sin fecha de reintento programada (pago vencido)
-        </div>
+        <span style={{ fontSize: "9.5px", color: "var(--warning)" }}>
+          ⚠️ Pago vencido
+        </span>
       ) : (
-        <div className="field-hint">
-          — (al día)
-        </div>
+        <span style={{ fontSize: "9.5px", color: "var(--text-faint)" }}>
+          Al día
+        </span>
       )}
 
-      {cutoffDate && (
+      {cutoffDate && false && (
         <div className="field-hint" style={{ fontSize: "0.85em", opacity: 0.8 }}>
           📅 Corte: {cutoffDate.toLocaleString()} {isPastDue ? "(vencida)" : ""}
         </div>
