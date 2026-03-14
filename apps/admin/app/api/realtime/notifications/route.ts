@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../../lib/session";
+import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../../../lib/session";
 import { cookies } from "next/headers";
 
 export const runtime = "nodejs";
