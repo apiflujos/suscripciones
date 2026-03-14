@@ -1,12 +1,16 @@
 import { NextRequest } from "next/server";
-import { getSession } from "../../../lib/session";
+import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../../lib/session";
+import { cookies } from "next/headers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getSession(req);
+    const cookieStore = await cookies();
+    const sessionToken = cookieStore.get(ADMIN_SESSION_COOKIE)?.value || "";
+    const session = await verifyAdminSessionToken(sessionToken);
+    
     if (!session?.user?.email) {
       return new Response(JSON.stringify({ notifications: [] }), {
         status: 200,
