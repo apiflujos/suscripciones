@@ -6607,6 +6607,9 @@ textarea.input {
   justify-content: flex-start;
   text-align: left;
   cursor: pointer;
+  --field-icon: none !important;
+  background-image: none !important;
+  padding-left: 12px !important;
 }
 
 .billing-cutoff-modal-form {
