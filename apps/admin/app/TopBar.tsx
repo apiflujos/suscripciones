@@ -592,21 +592,21 @@ export function TopBar({ session }: { session: AdminSession | null }) {
                   )}
                 </div>
                 <div className="topbarBellActions">
-                  <button 
-                    type="button" 
-                    className="topbarBellActionBtn topbarBellActionBtnSmall" 
+                  <button
+                    type="button"
+                    className="topbarBellActionBtn topbarBellActionBtnSmall"
                     onClick={() => markAll(true)}
                     title="Marcar todo como leído"
                   >
-                    ✅
+                    Leer
                   </button>
-                  <button 
-                    type="button" 
-                    className="topbarBellActionBtn topbarBellActionBtnSmall" 
+                  <button
+                    type="button"
+                    className="topbarBellActionBtn topbarBellActionBtnSmall"
                     onClick={clearAll}
                     title="Limpiar todas"
                   >
-                    🗑️
+                    Limpiar
                   </button>
                 </div>
               </div>
@@ -695,8 +695,8 @@ export function TopBar({ session }: { session: AdminSession | null }) {
                   <div className="topbarBellEmpty">
                     <div className="empty-icon">🔔</div>
                     <div className="empty-text">
-                      {notifFilter === "unread" 
-                        ? "¡No tienes notificaciones no leídas!" 
+                      {notifFilter === "unread"
+                        ? "¡No tienes notificaciones no leídas!"
                         : notifFilter === "read"
                         ? "No tienes notificaciones leídas"
                         : typeof notifFilter === "string" && notifFilter !== "all"
