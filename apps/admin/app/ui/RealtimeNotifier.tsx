@@ -13,7 +13,7 @@ type ToastEvent = {
 
 type RealtimeNotifierProps = {
   children?: React.ReactNode;
-  session?: { user?: { email?: string } } | null;
+  session?: { email?: string } | null;
 };
 
 export function RealtimeNotifier({ children, session }: RealtimeNotifierProps) {
@@ -33,7 +33,7 @@ export function RealtimeNotifier({ children, session }: RealtimeNotifierProps) {
   }, []);
 
   const fetchNotifications = useCallback(async () => {
-    if (!session?.user?.email) return;
+    if (!session?.email) return;
 
     try {
       const res = await fetch("/api/realtime/notifications?limit=5", {
@@ -63,10 +63,10 @@ export function RealtimeNotifier({ children, session }: RealtimeNotifierProps) {
     } catch (err) {
       console.error("Error fetching notifications:", err);
     }
-  }, [session?.user?.email, addToast]);
+  }, [session?.email, addToast]);
 
   useEffect(() => {
-    if (!session?.user?.email) return;
+    if (!session?.email) return;
 
     fetchNotifications();
     pollIntervalRef.current = setInterval(fetchNotifications, 10000);
@@ -76,7 +76,7 @@ export function RealtimeNotifier({ children, session }: RealtimeNotifierProps) {
         clearInterval(pollIntervalRef.current);
       }
     };
-  }, [fetchNotifications, session?.user?.email]);
+  }, [fetchNotifications, session?.email]);
 
   const getToastIcon = (type: string) => {
     switch (type) {

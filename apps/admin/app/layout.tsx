@@ -145,7 +145,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
 
             <div className="content" style={{ alignContent: "start" }}>
               <TopBar session={session} />
-              <RealtimeNotifier session={session} />
+              <RealtimeNotifier session={session ? { email: session.email } : null} />
               {children}
             </div>
           </div>

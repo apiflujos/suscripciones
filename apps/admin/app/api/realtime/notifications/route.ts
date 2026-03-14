@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     const sessionToken = cookieStore.get(ADMIN_SESSION_COOKIE)?.value || "";
     const session = await verifyAdminSessionToken(sessionToken);
     
-    if (!session?.user?.email) {
+    if (!session?.email) {
       return new Response(JSON.stringify({ notifications: [] }), {
         status: 200,
         headers: { "Content-Type": "application/json; charset=utf-8" }
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 
     // Obtener notificaciones del localStorage del servidor (simulado)
     // En producción, esto debería venir de una base de datos o cola de mensajes
-    const notifications = [];
+    const notifications: any[] = [];
 
     return new Response(JSON.stringify({ notifications }), {
       status: 200,
