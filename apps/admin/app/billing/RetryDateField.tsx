@@ -63,7 +63,7 @@ export function RetryDateField({
             onClick={() => setIsEditing(true)}
             title="Editar fecha de reintento"
           >
-            ✏️
+            Editar
           </button>
         ) : null}
       </div>
@@ -87,7 +87,7 @@ export function RetryDateField({
               }}
               title="Limpiar fecha"
             >
-              🗑️
+              Limpiar
             </button>
             <button
               type="button"
@@ -129,7 +129,7 @@ export function RetryDateField({
         </span>
       ) : isPastDue ? (
         <span style={{ fontSize: "9.5px", color: "var(--warning)" }}>
-          ⚠️ Pago vencido
+          Pago vencido
         </span>
       ) : (
         <span style={{ fontSize: "9.5px", color: "var(--text-faint)" }}>
@@ -139,7 +139,7 @@ export function RetryDateField({
 
       {cutoffDate && false && (
         <div className="field-hint" style={{ fontSize: "0.85em", opacity: 0.8 }}>
-          📅 Corte: {cutoffDate.toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" })} {isPastDue ? "(vencida)" : ""}
+          Corte: {cutoffDate.toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" })} {isPastDue ? "(vencida)" : ""}
         </div>
       )}
     </div>
