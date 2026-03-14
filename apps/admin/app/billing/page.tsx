@@ -513,8 +513,7 @@ export default async function BillingPage({
     const isCutoffOverdue = Boolean(cutoffDueAt && !Number.isNaN(cutoffDueAt.getTime()) && cutoffDueAt.getTime() <= Date.now());
     const manualChargeEnabled = Boolean(autoDebitSettings?.allowManualCharge ?? true);
     const chargeDue = r.status === "PAST_DUE" || r.status === "EXPIRED" || isCutoffOverdue;
-    const showChargeButton = manualChargeEnabled && isAutoDebit;
-    const canChargeNow = showChargeButton && r.customerTokenized && chargeDue;
+    const showChargeButton = manualChargeEnabled && isAutoDebit && r.customerTokenized && chargeDue;
     const showPaymentLinkButton = !isAutoDebit;
     const needsTokenization = isAutoDebit && !r.customerTokenized;
     const showTokenizationLink = needsTokenization;
@@ -706,15 +705,10 @@ export default async function BillingPage({
                 <button
                   className="ghost btn-compact btn-blue btn-pay"
                   type="submit"
-                  disabled={!canChargeNow}
                   title={
-                    !r.customerTokenized
-                      ? "Primero debes guardar tarjeta del cliente (usa el botón 'Guardar tarjeta')"
-                      : !chargeDue
-                        ? "El cobro estará disponible cuando venza el corte"
-                        : isCutoffOverdue
-                          ? "Cobrar ahora (fecha de corte vencida)"
-                          : "Cobrar ahora"
+                    isCutoffOverdue
+                      ? "Cobrar ahora (fecha de corte vencida)"
+                      : "Cobrar ahora"
                   }
                 >
                   Cobrar
