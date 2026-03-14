@@ -751,20 +751,32 @@ export default async function BillingPage({
               </form>
             ) : null}
             {showTokenizationLink ? (
-              <form action={sendCentralComTokenizationLink}>
-                <input type="hidden" name="csrf" value={csrfToken} />
-                <input type="hidden" name="customerId" value={r.customerId} />
-                <input type="hidden" name="planId" value={r.planId} />
-                <input type="hidden" name="returnTo" value={returnTo} />
-                {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                <button
+              rowTokenUrl ? (
+                <a
                   className="ghost btn-compact btn-send btn-highlight"
-                  type="submit"
-                  title="Enviar link para guardar tarjeta del cliente"
+                  href={rowTokenUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Abrir link de tokenización"
                 >
                   Guardar tarjeta
-                </button>
-              </form>
+                </a>
+              ) : (
+                <form action={sendCentralComTokenizationLink}>
+                  <input type="hidden" name="csrf" value={csrfToken} />
+                  <input type="hidden" name="customerId" value={r.customerId} />
+                  <input type="hidden" name="planId" value={r.planId} />
+                  <input type="hidden" name="returnTo" value={returnTo} />
+                  {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
+                  <button
+                    className="ghost btn-compact btn-send btn-highlight"
+                    type="submit"
+                    title="Enviar link para guardar tarjeta del cliente"
+                  >
+                    Guardar tarjeta
+                  </button>
+                </form>
+              )
             ) : null}
             {r.status === "SUSPENDED" ? (
               <form action={resumeSubscription}>
