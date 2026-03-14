@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 
 type ToastEvent = {
   id: string;
@@ -18,8 +18,6 @@ type RealtimeNotifierProps = {
 
 export function RealtimeNotifier({ children, session }: RealtimeNotifierProps) {
   const [toasts, setToasts] = useState<ToastEvent[]>([]);
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const lastSeenIdRef = useRef<string>("");
 
   const addToast = useCallback((toast: ToastEvent) => {
     setToasts((prev) => {
@@ -32,51 +30,25 @@ export function RealtimeNotifier({ children, session }: RealtimeNotifierProps) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const fetchNotifications = useCallback(async () => {
-    if (!session?.email) return;
-
-    try {
-      const res = await fetch("/api/realtime/notifications?limit=5", {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include"
-      });
-
-      if (!res.ok) return;
-
-      const data = await res.json();
-      const notifications = data.notifications || [];
-
-      notifications.forEach((n: any) => {
-        if (n.id !== lastSeenIdRef.current) {
-          lastSeenIdRef.current = n.id;
-          addToast({
-            id: n.id,
-            type: n.level === "error" ? "error" : n.level === "success" ? "success" : n.level === "warning" ? "warning" : "info",
-            title: n.title || "Notificación",
-            message: n.message || "",
-            timestamp: n.ts || new Date().toISOString(),
-            href: n.href
-          });
-        }
-      });
-    } catch (err) {
-      console.error("Error fetching notifications:", err);
-    }
-  }, [session?.email, addToast]);
+  // NOTA: El polling está DESACTIVADO para no consumir recursos innecesariamente
+  // Las notificaciones se pueden activar manualmente desde otros componentes
+  // usando window.dispatchEvent(new CustomEvent('notification', { detail: {...} }))
 
   useEffect(() => {
     if (!session?.email) return;
 
-    fetchNotifications();
-    pollIntervalRef.current = setInterval(fetchNotifications, 10000);
+    // Escuchar eventos de notificación personalizados desde otros componentes
+    const handleNotification = (event: Event) => {
+      const customEvent = event as CustomEvent<ToastEvent>;
+      addToast(customEvent.detail);
+    };
+
+    window.addEventListener("notification", handleNotification);
 
     return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-      }
+      window.removeEventListener("notification", handleNotification);
     };
-  }, [fetchNotifications, session?.email]);
+  }, [session?.email, addToast]);
 
   const getToastIcon = (type: string) => {
     switch (type) {
