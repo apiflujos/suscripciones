@@ -500,12 +500,9 @@ export default async function BillingPage({
     });
     const estadoSimple = getEstadoSimple(r.status);
     const rowCheckoutUrl = checkoutCustomerId && checkoutCustomerId === r.customerId ? checkoutUrl : "";
-    const latestCheckoutUrl = rowCheckoutUrl || String(r.lastPaymentLink?.checkoutUrl || "").trim();
-    // Link de tokenización: usa el URL del query si coincide el customerId, o el último guardado en el customer
     const rowTokenUrl = (checkoutCustomerId && checkoutCustomerId === r.customerId && tokenUrl)
       ? tokenUrl
       : String(r.customerMetadata?.tokenizationLink?.url || "").trim();
-    const hasQuickLinks = Boolean(latestCheckoutUrl || rowTokenUrl);
     const sentForRow = central === "sent" && checkoutCustomerId && checkoutCustomerId === r.customerId;
     const sentTokenForRow = Boolean(sentForRow && rowTokenUrl);
     const sentPaymentForRow = Boolean(sentForRow && !rowTokenUrl);
@@ -684,18 +681,6 @@ export default async function BillingPage({
                 </div>
               </div>
             </div>
-            {hasQuickLinks ? (
-              <div className="billing-quick-actions" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '4px' }}>
-                {latestCheckoutUrl ? (
-                  <a className="ghost btn-compact btn-icon-only btn-open" href={latestCheckoutUrl} target="_blank" rel="noreferrer" title="Abrir link de pago" aria-label="Abrir link de pago" />
-                ) : null}
-                {rowTokenUrl ? (
-                  <a className="ghost btn-compact btn-icon-only btn-link" href={rowTokenUrl} target="_blank" rel="noreferrer" title="Abrir link de tokenización" aria-label="Abrir link de tokenización" />
-                ) : null}
-                {latestCheckoutUrl ? <CopyButton text={latestCheckoutUrl} /> : null}
-                {rowTokenUrl ? <CopyButton text={rowTokenUrl} /> : null}
-              </div>
-            ) : null}
           </div>
         </div>
 
