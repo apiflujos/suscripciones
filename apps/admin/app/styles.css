@@ -3417,18 +3417,23 @@ textarea.input {
 }
 
 .input[type="date"] {
-  --field-icon: var(--icon-date);
-  --field-padding-left: 36px;
+  --field-icon: none;
+  padding-left: var(--control-padding-x);
 }
 
 .input[type="time"] {
-  --field-icon: var(--icon-time);
-  --field-padding-left: 36px;
+  --field-icon: none;
+  padding-left: var(--control-padding-x);
 }
 
 .input[type="number"] {
   --field-icon: var(--icon-number);
   --field-padding-left: 36px;
+}
+
+.input[type="datetime-local"] {
+  --field-icon: none;
+  padding-left: var(--control-padding-x);
 }
 
 .input[inputmode="numeric"] {
