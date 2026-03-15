@@ -6227,14 +6227,6 @@ textarea.input {
   flex: 0 0 auto;
 }
 
-.billing-header-meta-item > :is(.pill, .btn-compact) {
-  min-height: 24px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: auto;
-}
-
 .billing-grid-info {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -12250,4 +12242,24 @@ html[data-contrast="high"] .toggle::after {
 /* Badge de tarjeta con gap en lugar de margin */
 .billing-token-badge {
   margin-left: 6px !important;
+}
+
+/* ============================================
+   BILLING BADGES - OVERRIDE TOTAL
+   ============================================ */
+.billing-page .billing-card .billing-header .billing-status-line span.pill,
+.billing-page .billing-card .billing-header .billing-status-line span.pill-sm {
+  font-size: 11px !important;
+  padding: 2px 6px !important;
+  border-radius: 999px !important;
+  font-weight: 700 !important;
+  line-height: normal !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 24px !important;
+  height: auto !important;
+  white-space: nowrap !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
 }
