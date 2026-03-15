@@ -6228,7 +6228,7 @@ textarea.input {
 }
 
 .billing-header-meta-item > :is(.pill, .btn-compact) {
-  min-height: 28px;
+  min-height: 24px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -12191,16 +12191,18 @@ html[data-contrast="high"] .toggle::after {
 }
 
 /* ============================================
-   BILLING BADGES - TAMAÑO IGUAL A CONTACTOS
+   BILLING BADGES - EXACTAMENTE IGUALES A CONTACTOS
    ============================================ */
 .billing-page .billing-header .billing-status-line .pill,
 .billing-page .billing-header .billing-status-line .pill-sm {
   font-size: 11px !important;
   padding: 2px 6px !important;
+  border-radius: 999px !important;
   font-weight: 700 !important;
   min-height: 24px !important;
   display: inline-flex !important;
   align-items: center !important;
+  white-space: nowrap !important;
 }
 
 .billing-page .billing-header .billing-status-line .pill-bad {
