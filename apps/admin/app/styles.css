@@ -12263,3 +12263,47 @@ html[data-contrast="high"] .toggle::after {
   text-transform: none !important;
   letter-spacing: normal !important;
 }
+
+/* ============================================
+   STATUS BADGE - EXACTAMENTE IGUAL A CONTACTOS
+   ============================================ */
+.status-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  padding: 2px 6px !important;
+  border-radius: 999px !important;
+  min-height: 24px !important;
+  white-space: nowrap !important;
+  line-height: 1.5 !important;
+}
+
+.status-badge.status-badge-ok,
+.status-badge.pill-ok {
+  background: #dcfce7 !important;
+  color: #16a34a !important;
+  border: 1px solid #bbf7d0 !important;
+}
+
+.status-badge.status-badge-warn,
+.status-badge.pill-warn {
+  background: #fef3c7 !important;
+  color: #d97706 !important;
+  border: 1px solid #fde68a !important;
+}
+
+.status-badge.status-badge-bad,
+.status-badge.pill-bad {
+  background: #fee2e2 !important;
+  color: #dc2626 !important;
+  border: 1px solid #fecaca !important;
+}
+
+.status-badge.status-badge-muted,
+.status-badge.pill-muted {
+  background: #f3f4f6 !important;
+  color: #6b7280 !important;
+  border: 1px solid #e5e7eb !important;
+}

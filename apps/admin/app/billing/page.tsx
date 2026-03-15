@@ -551,15 +551,15 @@ export default async function BillingPage({
               <div className="billing-header-meta-item billing-header-status-strip">
                 <span className="billing-header-label">Estado</span>
                 <div className="billing-status-line" role="group" aria-label="Estado">
-                  <span className={`pill pill-sm ${estadoSimple.class}`} title={`Estado: ${estadoSimple.label}`}>
+                  <span className={`status-badge ${estadoSimple.class}`} title={`Estado: ${estadoSimple.label}`}>
                     {estadoSimple.label}
                   </span>
                   {r.customerTokenized ? (
-                    <span className="pill pill-ok pill-sm billing-token-badge" title="Tarjeta tokenizada">
+                    <span className="status-badge status-badge-ok" title="Tarjeta tokenizada">
                       Tarjeta guardada
                     </span>
                   ) : (
-                    <span className="pill pill-warn pill-sm billing-token-badge" title="Sin tarjeta tokenizada">
+                    <span className="status-badge status-badge-warn" title="Sin tarjeta tokenizada">
                       Sin tarjeta
                     </span>
                   )}
