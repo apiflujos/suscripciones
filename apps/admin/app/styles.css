@@ -12234,3 +12234,41 @@ html[data-contrast="high"] .toggle::after {
   align-items: start;
   gap: 8px;
 }
+
+/* ============================================
+   BILLING BADGES - TAMAÑO IGUAL A CONTACTOS
+   ============================================ */
+.billing-page .billing-header .billing-status-line .pill,
+.billing-page .billing-header .billing-status-line .pill-sm {
+  font-size: 11px !important;
+  padding: 4px 12px !important;
+  font-weight: 700 !important;
+  min-height: 28px !important;
+  line-height: 1.4 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+.billing-page .billing-header .billing-status-line .pill-bad {
+  background: #fee2e2 !important;
+  color: #dc2626 !important;
+  border: 1px solid #fecaca !important;
+}
+
+.billing-page .billing-header .billing-status-line .pill-ok {
+  background: #dcfce7 !important;
+  color: #16a34a !important;
+  border: 1px solid #bbf7d0 !important;
+}
+
+.billing-page .billing-header .billing-status-line .pill-warn {
+  background: #fef3c7 !important;
+  color: #d97706 !important;
+  border: 1px solid #fde68a !important;
+}
+
+.billing-page .billing-header .billing-status-line .pill-muted {
+  background: #f3f4f6 !important;
+  color: #6b7280 !important;
+  border: 1px solid #e5e7eb !important;
+}
