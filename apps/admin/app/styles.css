@@ -12228,3 +12228,21 @@ html[data-contrast="high"] .toggle::after {
   color: #6b7280 !important;
   border: 1px solid #e5e7eb !important;
 }
+
+/* ============================================
+   BILLING BADGES - IGUALES A CONTACTOS (FINAL)
+   ============================================ */
+.billing-page .billing-card .billing-header .billing-status-line .pill,
+.billing-page .billing-card .billing-header .billing-status-line .pill-sm {
+  font-size: 11px !important;
+  padding: 2px 6px !important;
+  border-radius: 999px !important;
+  font-weight: 700 !important;
+  line-height: 1.5 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 24px !important;
+  height: auto !important;
+  white-space: nowrap !important;
+}
