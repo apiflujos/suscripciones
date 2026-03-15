@@ -7605,7 +7605,7 @@ textarea.input {
 .billing-page .billing-cost-total {
   font-size: 13px !important;
   font-weight: 900 !important;
-  color: var(--text) !important;
+  color: var(--primary) !important;
   line-height: 1 !important;
 }
 
@@ -7628,7 +7628,7 @@ textarea.input {
   padding: 1px 3px !important;
   background: var(--panel) !important;
   border-radius: 2px !important;
-  color: var(--text-soft) !important;
+  color: var(--primary) !important;
   max-width: 80px !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
