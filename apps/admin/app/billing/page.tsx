@@ -555,11 +555,11 @@ export default async function BillingPage({
                     {estadoSimple.label}
                   </span>
                   {r.customerTokenized ? (
-                    <span className="pill pill-ok pill-sm" style={{ marginLeft: '4px' }} title="Tarjeta tokenizada">
+                    <span className="pill pill-ok pill-sm billing-token-badge" title="Tarjeta tokenizada">
                       Tarjeta guardada
                     </span>
                   ) : (
-                    <span className="pill pill-warn pill-sm" style={{ marginLeft: '4px' }} title="Sin tarjeta tokenizada">
+                    <span className="pill pill-warn pill-sm billing-token-badge" title="Sin tarjeta tokenizada">
                       Sin tarjeta
                     </span>
                   )}

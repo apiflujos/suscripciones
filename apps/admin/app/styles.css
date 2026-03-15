@@ -12246,3 +12246,8 @@ html[data-contrast="high"] .toggle::after {
   height: auto !important;
   white-space: nowrap !important;
 }
+
+/* Badge de tarjeta con gap en lugar de margin */
+.billing-token-badge {
+  margin-left: 6px !important;
+}
