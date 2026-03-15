@@ -7448,20 +7448,21 @@ textarea.input {
   display: flex !important;
   flex-direction: row !important;
   align-items: center !important;
-  gap: 3px !important;
+  gap: 6px !important;
   flex-wrap: nowrap !important;
 }
 
 .billing-page .billing-status-line .pill {
-  font-size: 8.5px !important;
-  padding: 2px 6px !important;
+  font-size: 11px !important;
+  padding: 2px 10px !important;
   white-space: nowrap !important;
-  font-weight: 600 !important;
+  font-weight: 700 !important;
+  min-height: 24px !important;
 }
 
 .billing-page .billing-status-line .pill-sm {
-  font-size: 8px !important;
-  padding: 2px 5px !important;
+  font-size: 11px !important;
+  padding: 2px 10px !important;
 }
 
 .billing-page .billing-status-line .pill-bad {
