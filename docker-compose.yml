@@ -18,85 +18,42 @@ services:
       timeout: 5s
       retries: 5
 
-  api:
+  web:
     image: node:20-bookworm
     working_dir: /app
     volumes:
       - .:/app
       - /app/node_modules
-      - api_node_modules:/app/apps/api/node_modules
+      - web_node_modules:/app/apps/web/node_modules
+      - web_prisma:/app/packages/database
     ports:
-      - "3001:3001"
+      - "3000:3000"
     environment:
       NODE_ENV: development
-      PORT: 3001
       DATABASE_URL: postgresql://wompi_subs:wompi_subs@postgres:5432/wompi_subs?schema=public
-      
-      # ======================
-      # IMPORTANTE: Estos valores DEBEN coincidir con el Admin
-      # ======================
       ADMIN_API_TOKEN: dev-token-123456-change-in-production
       ADMIN_SESSION_SECRET: dev-session-secret-change-in-production-abc123xyz
-      
-      # Super Admin (se crea automáticamente)
-      SUPER_ADMIN_EMAIL: admin@localhost.com
-      SUPER_ADMIN_PASSWORD: Admin12345!
-      SUPER_ADMIN_RESET_PASSWORD: 0
-      DEFAULT_TENANT_NAME: apiflujos
-      
-      # Encriptación de secretos (Base64 de 32 bytes)
       CREDENTIALS_ENCRYPTION_KEY_B64: mGBsjs4eVVtlDZ7yhyUlgzsLmvMeHqqGwhQnNfmB8QM=
-      
-      # Wompi (opcional - se puede configurar desde /settings)
-      WOMPI_API_BASE_URL: https://production.wompi.co/v1
       WOMPI_ACTIVE_ENV: PRODUCTION
+      CHATWOOT_ACTIVE_ENV: PRODUCTION
+      JOBS_HEARTBEAT_KEY: wompi-subs-jobs
+      GAMIFICATION_RECALC_MINUTES: 60
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - wompi_network
     command: >
-      sh -c "cd apps/api && 
+      sh -c "cd apps/web && 
       npm install && 
-      npx prisma generate && 
+      npx prisma generate --schema=../../packages/database/prisma/schema.prisma && 
       npm run dev"
-    restart: unless-stopped
-
-  admin:
-    image: node:20-bookworm
-    working_dir: /app
-    volumes:
-      - .:/app
-      - /app/node_modules
-      - admin_node_modules:/app/apps/admin/node_modules
-      - admin_next_cache:/app/apps/admin/.next
-    ports:
-      - "3002:3002"
-    environment:
-      NODE_ENV: development
-      HOST: 0.0.0.0
-      
-      # ======================
-      # IMPORTANTE: Estos valores DEBEN coincidir con el API
-      # ======================
-      NEXT_PUBLIC_API_BASE_URL: http://localhost:3001
-      ADMIN_INTERNAL_API_BASE_URL: http://api:3001
-      ADMIN_API_TOKEN: dev-token-123456-change-in-production
-      ADMIN_SESSION_SECRET: dev-session-secret-change-in-production-abc123xyz
-      
-      NEXT_PUBLIC_DISABLE_REALTIME: "0"
-    depends_on:
-      - api
-    networks:
-      - wompi_network
-    command: sh -c "cd apps/admin && npm install && npm run dev"
     restart: unless-stopped
 
 volumes:
   postgres_data:
-  api_node_modules:
-  admin_node_modules:
-  admin_next_cache:
+  web_node_modules:
+  web_prisma:
 
 networks:
   wompi_network:

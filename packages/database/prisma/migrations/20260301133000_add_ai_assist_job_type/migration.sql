@@ -1,0 +1,2 @@
+-- Add AI_ASSIST to RetryJobType enum
+ALTER TYPE "RetryJobType" ADD VALUE IF NOT EXISTS 'AI_ASSIST';
