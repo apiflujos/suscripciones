@@ -25,7 +25,6 @@ services:
       - .:/app
       - /app/node_modules
       - api_node_modules:/app/apps/api/node_modules
-      - api_prisma:/app/apps/api/prisma
     ports:
       - "3001:3001"
     environment:
@@ -34,7 +33,7 @@ services:
       DATABASE_URL: postgresql://wompi_subs:wompi_subs@postgres:5432/wompi_subs?schema=public
       ADMIN_API_TOKEN: dev-token-123456-change-in-production
       ADMIN_SESSION_SECRET: dev-session-secret-change-in-production-abc123xyz
-      SUPER_ADMIN_EMAIL: admin@localhost.com
+      SUPER_ADMIN_EMAIL: comercial@apiflujos.com
       SUPER_ADMIN_PASSWORD: Admin12345!
       SUPER_ADMIN_RESET_PASSWORD: 0
       DEFAULT_TENANT_NAME: apiflujos
@@ -49,9 +48,9 @@ services:
     networks:
       - wompi_network
     command: >
-      sh -c "cd apps/api && 
-      npm install && 
-      npx prisma generate && 
+      sh -c "cd apps/api &&
+      npm install &&
+      npx prisma generate &&
       npm run dev"
     restart: unless-stopped
 
@@ -85,7 +84,6 @@ volumes:
   api_node_modules:
   admin_node_modules:
   admin_next_cache:
-  api_prisma:
 
 networks:
   wompi_network:

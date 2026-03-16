@@ -743,7 +743,7 @@ export default async function BillingPage({
                   rel="noreferrer"
                   title="Abrir link de tokenización"
                 >
-                  Guardar tarjeta
+                  Abrir link
                 </a>
               ) : (
                 <form action={sendCentralComTokenizationLink}>
@@ -755,9 +755,9 @@ export default async function BillingPage({
                   <button
                     className="ghost btn-compact btn-send btn-highlight"
                     type="submit"
-                    title="Enviar link para guardar tarjeta del cliente"
+                    title="Enviar link para guardar tarjeta"
                   >
-                    Guardar tarjeta
+                    Enviar link
                   </button>
                 </form>
               )
