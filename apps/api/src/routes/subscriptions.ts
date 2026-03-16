@@ -32,6 +32,27 @@ const mergeDuplicateSubscriptionsSchema = z.object({
 
 export const subscriptionsRouter = express.Router();
 
+function hasUsablePaymentSource(metadata: any) {
+  const candidates = [
+    metadata?.wompi?.paymentSourceId,
+    metadata?.wompi?.payment_source_id,
+    metadata?.paymentSourceId,
+    metadata?.payment_source_id
+  ];
+  return candidates.some((value) => {
+    if (typeof value === "number") return Number.isFinite(value);
+    if (typeof value === "string") {
+      const normalized = value.trim();
+      if (!normalized) return false;
+      if (/^(null|undefined)$/i.test(normalized)) return false;
+      if (/^\d+$/.test(normalized)) return true;
+      if (/^src[_-]/i.test(normalized)) return true;
+      return normalized.length >= 6;
+    }
+    return false;
+  });
+}
+
 async function recordManualChargeFailure(args: {
   subscription: any;
   amountInCentsOverride?: number;
@@ -204,16 +225,38 @@ subscriptionsRouter.get("/", async (_req, res) => {
     }
   }
 
+  const autoDebitCfg = await getAutoDebitConfig().catch(() => ({ allowManualCharge: true } as any));
+
   res.json({
-    items: items.map((s: any) => ({
-      ...s,
-      tenantIds: Array.from(
-        new Set([s.tenantId, ...(s.tenantLinks || []).map((t: any) => t.tenantId)].filter(Boolean))
-      ) as string[],
-      lastPayment: lastPaymentBySub.get(s.id) ?? null,
-      lastPaymentLink: lastLinkBySub.get(s.id) ?? null,
-      nextRetryJob: nextRetryBySub.get(s.id) ?? null
-    })),
+    items: items.map((s: any) => {
+      const resolvedMode = resolveSubscriptionCollectionMode(s);
+      const status = String(s.status || "");
+      const isInactive = status === SubscriptionStatus.CANCELED || status === SubscriptionStatus.SUSPENDED;
+      const cutoffDueAt = s.currentPeriodEndAt ? new Date(s.currentPeriodEndAt) : null;
+      const isCutoffOverdue = Boolean(cutoffDueAt && !Number.isNaN(cutoffDueAt.getTime()) && cutoffDueAt.getTime() <= Date.now());
+      const chargeDue = status === SubscriptionStatus.PAST_DUE || status === SubscriptionStatus.EXPIRED || isCutoffOverdue;
+      const customerTokenized = hasUsablePaymentSource(s.customer?.metadata);
+      const canManualCharge =
+        Boolean(autoDebitCfg?.allowManualCharge ?? true) &&
+        resolvedMode === "AUTO_DEBIT" &&
+        chargeDue &&
+        !isInactive &&
+        customerTokenized;
+
+      return {
+        ...s,
+        tenantIds: Array.from(
+          new Set([s.tenantId, ...(s.tenantLinks || []).map((t: any) => t.tenantId)].filter(Boolean))
+        ) as string[],
+        lastPayment: lastPaymentBySub.get(s.id) ?? null,
+        lastPaymentLink: lastLinkBySub.get(s.id) ?? null,
+        nextRetryJob: nextRetryBySub.get(s.id) ?? null,
+        collectionModeResolved: resolvedMode,
+        customerTokenized,
+        chargeDue,
+        canManualCharge
+      };
+    }),
     total
   });
 });

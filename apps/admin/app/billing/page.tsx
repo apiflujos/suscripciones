@@ -379,7 +379,7 @@ export default async function BillingPage({
     .map((s) => {
       const plan = s.plan;
       const customer = s.customer;
-      const collectionMode = resolveCollectionMode(plan, s?.metadata);
+      const collectionMode = String(s?.collectionModeResolved || "").trim().toUpperCase() || resolveCollectionMode(plan, s?.metadata);
       const tipoTx = getTipo(collectionMode);
       const activo = getActivo(s.status);
       const estadoInfo = getEstado(s.status);
@@ -409,7 +409,7 @@ export default async function BillingPage({
         customerId: String(s.customerId || ""),
         customerName: String(customer?.name || customer?.email || s.customerId || "—"),
         customerEmail: String(customer?.email || ""),
-        customerTokenized: hasUsablePaymentSource(customer?.metadata),
+        customerTokenized: typeof s?.customerTokenized === "boolean" ? s.customerTokenized : hasUsablePaymentSource(customer?.metadata),
         customerMetadata: customer?.metadata || {},
         identificacion: String(ident || "—"),
         tipoTx,
@@ -431,6 +431,8 @@ export default async function BillingPage({
         periodoFinAt: s.currentPeriodEndAt || null,
         nextRetryAt: s.nextRetryJob?.runAt || (s.metadata as any)?.manualRetry?.nextRetryAt || null,
         mode: collectionMode,
+        canManualCharge: typeof s?.canManualCharge === "boolean" ? s.canManualCharge : undefined,
+        chargeDue: typeof s?.chargeDue === "boolean" ? s.chargeDue : undefined,
         tenantName: tenantNameList.length ? tenantNameList.join(", ") : "—",
         currentShippingInCents: shippingAppliedInCents,
         currentRequiresShipping: requiresShipping
@@ -536,12 +538,15 @@ export default async function BillingPage({
     const cutoffDueAt = r.vencimientoAt ? new Date(r.vencimientoAt) : null;
     const isCutoffOverdue = Boolean(cutoffDueAt && !Number.isNaN(cutoffDueAt.getTime()) && cutoffDueAt.getTime() <= Date.now());
     const manualChargeEnabled = Boolean(autoDebitSettings?.allowManualCharge ?? true);
-    const chargeDue = r.status === "PAST_DUE" || r.status === "EXPIRED" || isCutoffOverdue;
+    const chargeDue = typeof r.chargeDue === "boolean" ? r.chargeDue : r.status === "PAST_DUE" || r.status === "EXPIRED" || isCutoffOverdue;
     const isCanceled = r.status === "CANCELED";
     const isSuspended = r.status === "SUSPENDED";
     const isInactive = isCanceled || isSuspended;
     // Botón de cobrar: siempre visible para débito automático cuando hay pago vencido
-    const showChargeButton = manualChargeEnabled && isAutoDebit && chargeDue && !isInactive && r.customerTokenized;
+    const showChargeButton =
+      typeof r.canManualCharge === "boolean"
+        ? r.canManualCharge
+        : manualChargeEnabled && isAutoDebit && chargeDue && !isInactive && r.customerTokenized;
     // Botón de enviar link de pago: visible para link de pago manual
     const showPaymentLinkButton = !isAutoDebit && !isInactive;
     // Botón de tokenización: siempre visible para débito automático (independiente del link de pago)

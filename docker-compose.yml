@@ -77,7 +77,7 @@ services:
       - api
     networks:
       - wompi_network
-    command: sh -c "cd apps/admin && npm install && npm run dev"
+    command: sh -c "cd apps/admin && npm install && npm run build && npm run start"
     restart: unless-stopped
 
 volumes:

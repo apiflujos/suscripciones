@@ -582,7 +582,14 @@ export function TopBar({ session }: { session: AdminSession | null }) {
           </button>
           
           {notifOpen ? (
-            <div className="topbarBellPopover" role="menu" aria-label="Notificaciones">
+            <>
+              <button
+                type="button"
+                className="topbarBellBackdrop"
+                aria-label="Cerrar notificaciones"
+                onClick={() => setNotifOpen(false)}
+              />
+              <div className="topbarBellPopover" role="menu" aria-label="Notificaciones">
               {/* Header con título y acciones */}
               <div className="topbarBellHead">
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -706,7 +713,8 @@ export function TopBar({ session }: { session: AdminSession | null }) {
                   </div>
                 )}
               </div>
-            </div>
+              </div>
+            </>
           ) : null}
         </div>
       </div>

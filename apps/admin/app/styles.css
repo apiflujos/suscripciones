@@ -866,6 +866,13 @@ a {
 
 .topbarNotifications {
   position: relative;
+  z-index: 30020;
+}
+
+.topbarBellBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 12, 20, 0.08);
   z-index: 30000;
 }
 
