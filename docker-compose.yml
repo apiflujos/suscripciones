@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_DB: wompi_subs
       POSTGRES_USER: wompi_subs
-      POSTGRES_PASSWORD: wompi_subs
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wompi_subs}
     ports:
       - "5433:5432"
     volumes:
@@ -12,6 +12,11 @@ services:
     networks:
       - wompi_network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wompi_subs -d wompi_subs"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   api:
     image: node:20-bookworm
@@ -23,22 +28,33 @@ services:
     ports:
       - "3001:3001"
     environment:
-      NODE_ENV: development
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: 3001
-      DATABASE_URL: postgresql://wompi_subs:wompi_subs@postgres:5432/wompi_subs?schema=public
-      ADMIN_API_TOKEN: secret123456
-      ADMIN_SESSION_SECRET: change-me-change-me
-      SUPER_ADMIN_EMAIL: comercial@apiflujos.com
-      SUPER_ADMIN_PASSWORD: Admin12345!
-      SUPER_ADMIN_RESET_PASSWORD: 1
-      SUPER_ADMIN_TENANT_ID: ""
-      DEFAULT_TENANT_NAME: apiflujos
-      CREDENTIALS_ENCRYPTION_KEY_B64: mGBsjs4eVVtlDZ7yhyUlgzsLmvMeHqqGwhQnNfmB8QM=
+      DATABASE_URL: postgresql://${POSTGRES_USER:-wompi_subs}:${POSTGRES_PASSWORD:-wompi_subs}@postgres:5432/wompi_subs?schema=public
+      ADMIN_API_TOKEN: ${ADMIN_API_TOKEN:-secret123456}
+      ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:-change-me-change-me}
+      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-comercial@apiflujos.com}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-Admin12345!}
+      SUPER_ADMIN_RESET_PASSWORD: ${SUPER_ADMIN_RESET_PASSWORD:-1}
+      SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID:-}
+      DEFAULT_TENANT_NAME: ${DEFAULT_TENANT_NAME:-apiflujos}
+      CREDENTIALS_ENCRYPTION_KEY_B64: ${CREDENTIALS_ENCRYPTION_KEY_B64:-mGBsjs4eVVtlDZ7yhyUlgzsLmvMeHqqGwhQnNfmB8QM=}
+      WOMPI_EVENTS_SECRET: ${WOMPI_EVENTS_SECRET:-}
+      WOMPI_PRIVATE_KEY: ${WOMPI_PRIVATE_KEY:-}
+      WOMPI_PUBLIC_KEY: ${WOMPI_PUBLIC_KEY:-}
+      WOMPI_API_BASE_URL: ${WOMPI_API_BASE_URL:-https://production.wompi.co/v1}
+      WOMPI_ACTIVE_ENV: ${WOMPI_ACTIVE_ENV:-PRODUCTION}
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - wompi_network
-    command: sh -c "cd apps/api && export CREDENTIALS_ENCRYPTION_KEY_B64=mGBsjs4eVVtlDZ7yhyUlgzsLmvMeHqqGwhQnNfmB8QM= && npm install && npx prisma generate && npm run dev"
+    command: >
+      sh -c "cd apps/api && 
+      export CREDENTIALS_ENCRYPTION_KEY_B64=${CREDENTIALS_ENCRYPTION_KEY_B64:-mGBsjs4eVVtlDZ7yhyUlgzsLmvMeHqqGwhQnNfmB8QM=} && 
+      npm install && 
+      npx prisma generate && 
+      npm run dev"
     restart: unless-stopped
 
   admin:
@@ -52,13 +68,13 @@ services:
     ports:
       - "3002:3002"
     environment:
-      NODE_ENV: development
+      NODE_ENV: ${NODE_ENV:-development}
       HOST: 0.0.0.0
-      NEXT_PUBLIC_API_BASE_URL: http://localhost:3001
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:3001}
       ADMIN_INTERNAL_API_BASE_URL: http://api:3001
-      ADMIN_API_TOKEN: secret123456
-      ADMIN_SESSION_SECRET: change-me-change-me
-      NEXT_PUBLIC_DISABLE_REALTIME: "1"
+      ADMIN_API_TOKEN: ${ADMIN_API_TOKEN:-secret123456}
+      ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:-change-me-change-me}
+      NEXT_PUBLIC_DISABLE_REALTIME: ${NEXT_PUBLIC_DISABLE_REALTIME:-1}
     depends_on:
       - api
     networks:
