@@ -7817,6 +7817,7 @@ textarea.input {
 .billing-page .billing-section-dates {
   flex: 1 1 auto;
   min-width: 280px;
+  max-width: 400px;
 }
 
 .billing-page .billing-section-dates > div {
@@ -7831,7 +7832,8 @@ textarea.input {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  min-width: 120px;
+  min-width: 0;
+  flex: 0 0 auto;
 }
 
 .billing-page .billing-section-dates .date-label {
@@ -7843,13 +7845,36 @@ textarea.input {
   letter-spacing: 0.03em;
 }
 
+/* FORZAR CONTENCIÓN DE INPUTS Y BOTONES */
+.billing-page .billing-section-dates .billing-inline-cutoff,
+.billing-page .billing-section-dates .billing-retry-field {
+  max-width: 160px;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
+.billing-page .billing-section-dates .billing-inline-cutoff .billing-cutoff-trigger,
+.billing-page .billing-section-dates .billing-retry-field .billing-retry-date,
+.billing-page .billing-section-dates .billing-retry-field .billing-retry-status {
+  font-size: 10px;
+  padding: 4px 6px;
+  min-height: 26px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+
 .billing-page .billing-section-dates input,
 .billing-page .billing-section-dates .input {
-  font-size: 11px;
-  padding: 4px 8px;
+  font-size: 10px;
+  padding: 4px 6px;
   min-height: 26px;
+  max-width: 100%;
   white-space: nowrap;
-  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Columna derecha - Totales + Links */
@@ -7860,6 +7885,7 @@ textarea.input {
   align-items: center;
   gap: 12px;
   margin-left: 8px;
+  min-width: 0;
 }
 
 /* Totales - COMPACTO Y ANGOSTO - ALTA ESPECIFICIDAD */
@@ -7882,6 +7908,8 @@ textarea.input {
   align-items: flex-start !important;
   justify-content: flex-start !important;
   gap: 0 !important;
+  min-width: 0;
+  max-width: none;
 }
 
 .billing-page .billing-cost-title {
@@ -7892,6 +7920,7 @@ textarea.input {
   color: var(--text-faint);
   margin-bottom: 2px;
   display: block;
+  white-space: nowrap;
 }
 
 .billing-page .billing-cost-total {
@@ -7899,12 +7928,17 @@ textarea.input {
   font-weight: 900;
   color: var(--primary);
   line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
 }
 
 .billing-page .billing-cost-period {
   font-size: 8px;
   color: var(--text-faint);
   display: inline;
+  white-space: nowrap;
 }
 
 .billing-page .billing-cost-inline {
@@ -7913,6 +7947,7 @@ textarea.input {
   gap: 2px;
   justify-content: flex-start;
   margin-top: 2px;
+  min-width: 0;
 }
 
 .billing-page .billing-cost-chip {
