@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_DB: wompi_subs
       POSTGRES_USER: wompi_subs
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wompi_subs}
+      POSTGRES_PASSWORD: wompi_subs
     ports:
       - "5433:5432"
     volumes:
@@ -28,22 +28,28 @@ services:
     ports:
       - "3001:3001"
     environment:
-      NODE_ENV: ${NODE_ENV:-development}
+      NODE_ENV: development
       PORT: 3001
-      DATABASE_URL: postgresql://${POSTGRES_USER:-wompi_subs}:${POSTGRES_PASSWORD:-wompi_subs}@postgres:5432/wompi_subs?schema=public
-      ADMIN_API_TOKEN: ${ADMIN_API_TOKEN:-secret123456}
-      ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:-change-me-change-me}
-      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-comercial@apiflujos.com}
-      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-Admin12345!}
-      SUPER_ADMIN_RESET_PASSWORD: ${SUPER_ADMIN_RESET_PASSWORD:-1}
-      SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID:-}
-      DEFAULT_TENANT_NAME: ${DEFAULT_TENANT_NAME:-apiflujos}
-      CREDENTIALS_ENCRYPTION_KEY_B64: ${CREDENTIALS_ENCRYPTION_KEY_B64:-mGBsjs4eVVtlDZ7yhyUlgzsLmvMeHqqGwhQnNfmB8QM=}
-      WOMPI_EVENTS_SECRET: ${WOMPI_EVENTS_SECRET:-}
-      WOMPI_PRIVATE_KEY: ${WOMPI_PRIVATE_KEY:-}
-      WOMPI_PUBLIC_KEY: ${WOMPI_PUBLIC_KEY:-}
-      WOMPI_API_BASE_URL: ${WOMPI_API_BASE_URL:-https://production.wompi.co/v1}
-      WOMPI_ACTIVE_ENV: ${WOMPI_ACTIVE_ENV:-PRODUCTION}
+      DATABASE_URL: postgresql://wompi_subs:wompi_subs@postgres:5432/wompi_subs?schema=public
+      
+      # ======================
+      # IMPORTANTE: Estos valores DEBEN coincidir con el Admin
+      # ======================
+      ADMIN_API_TOKEN: dev-token-123456-change-in-production
+      ADMIN_SESSION_SECRET: dev-session-secret-change-in-production-abc123xyz
+      
+      # Super Admin (se crea automáticamente)
+      SUPER_ADMIN_EMAIL: admin@localhost.com
+      SUPER_ADMIN_PASSWORD: Admin12345!
+      SUPER_ADMIN_RESET_PASSWORD: 0
+      DEFAULT_TENANT_NAME: apiflujos
+      
+      # Encriptación de secretos (Base64 de 32 bytes)
+      CREDENTIALS_ENCRYPTION_KEY_B64: mGBsjs4eVVtlDZ7yhyUlgzsLmvMeHqqGwhQnNfmB8QM=
+      
+      # Wompi (opcional - se puede configurar desde /settings)
+      WOMPI_API_BASE_URL: https://production.wompi.co/v1
+      WOMPI_ACTIVE_ENV: PRODUCTION
     depends_on:
       postgres:
         condition: service_healthy
@@ -51,7 +57,6 @@ services:
       - wompi_network
     command: >
       sh -c "cd apps/api && 
-      export CREDENTIALS_ENCRYPTION_KEY_B64=${CREDENTIALS_ENCRYPTION_KEY_B64:-mGBsjs4eVVtlDZ7yhyUlgzsLmvMeHqqGwhQnNfmB8QM=} && 
       npm install && 
       npx prisma generate && 
       npm run dev"
@@ -68,13 +73,18 @@ services:
     ports:
       - "3002:3002"
     environment:
-      NODE_ENV: ${NODE_ENV:-development}
+      NODE_ENV: development
       HOST: 0.0.0.0
-      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:3001}
+      
+      # ======================
+      # IMPORTANTE: Estos valores DEBEN coincidir con el API
+      # ======================
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:3001
       ADMIN_INTERNAL_API_BASE_URL: http://api:3001
-      ADMIN_API_TOKEN: ${ADMIN_API_TOKEN:-secret123456}
-      ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:-change-me-change-me}
-      NEXT_PUBLIC_DISABLE_REALTIME: ${NEXT_PUBLIC_DISABLE_REALTIME:-1}
+      ADMIN_API_TOKEN: dev-token-123456-change-in-production
+      ADMIN_SESSION_SECRET: dev-session-secret-change-in-production-abc123xyz
+      
+      NEXT_PUBLIC_DISABLE_REALTIME: "0"
     depends_on:
       - api
     networks:
