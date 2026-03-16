@@ -7864,11 +7864,17 @@ textarea.input {
 
 /* Totales - COMPACTO Y ANGOSTO */
 .billing-page .billing-cost-panel {
-  padding: 4px 6px;
+  padding: 0;
   background: transparent;
   border-radius: 0;
-  min-width: 90px;
-  max-width: 120px;
+  min-width: 0;
+}
+
+.billing-page .billing-cost-box {
+  padding: 0;
+  border: none;
+  background: transparent;
+  gap: 4px;
 }
 
 .billing-page .billing-cost-title {
@@ -7879,6 +7885,13 @@ textarea.input {
   color: var(--text-faint);
   margin-bottom: 2px;
   display: block;
+}
+
+.billing-page .billing-cost-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
 }
 
 .billing-page .billing-cost-total {
@@ -7913,6 +7926,7 @@ textarea.input {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 600;
+  min-height: auto;
 }
 
 /* Responsive */
