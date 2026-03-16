@@ -7862,19 +7862,26 @@ textarea.input {
   margin-left: 8px;
 }
 
-/* Totales - COMPACTO Y ANGOSTO */
-.billing-page .billing-cost-panel {
-  padding: 0;
-  background: transparent;
-  border-radius: 0;
-  min-width: 0;
+/* Totales - COMPACTO Y ANGOSTO - ALTA ESPECIFICIDAD */
+.billing-page .billing-body-side .billing-cost-panel,
+.billing-page .billing-body-side .billing-cost-box {
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  width: auto !important;
+  gap: 4px !important;
+  text-align: left;
 }
 
-.billing-page .billing-cost-box {
-  padding: 0;
-  border: none;
-  background: transparent;
-  gap: 4px;
+.billing-page .billing-body-side .billing-cost-summary {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+  gap: 0 !important;
 }
 
 .billing-page .billing-cost-title {
@@ -7885,13 +7892,6 @@ textarea.input {
   color: var(--text-faint);
   margin-bottom: 2px;
   display: block;
-}
-
-.billing-page .billing-cost-summary {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0;
 }
 
 .billing-page .billing-cost-total {
@@ -7917,7 +7917,7 @@ textarea.input {
 
 .billing-page .billing-cost-chip {
   font-size: 7px;
-  padding: 1px 3px;
+  padding: 1px 3px !important;
   background: var(--panel);
   border-radius: 2px;
   color: var(--primary);
@@ -7926,7 +7926,7 @@ textarea.input {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 600;
-  min-height: auto;
+  min-height: auto !important;
 }
 
 /* Responsive */
