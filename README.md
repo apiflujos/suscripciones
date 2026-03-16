@@ -1,174 +1,209 @@
-# Wompi Subs - Plataforma Unificada Next.js
+# Wompi Subs - Plataforma de Suscripciones
 
-Plataforma de gestión de suscripciones y pagos con Wompi, unificada en un solo proyecto Next.js.
+Plataforma de gestión de suscripciones y pagos con Wompi.
 
-## 🚀 Stack Tecnológico
+## 🏗️ Arquitectura
 
-- **Frontend & Backend**: Next.js 15 (App Router + API Routes)
-- **Lenguaje**: TypeScript 100%
-- **Base de Datos**: PostgreSQL + Prisma ORM
-- **UI**: React 19 + CSS3
+**2 Servicios Separados:**
+
+```
+┌─────────────┐         HTTP          ┌─────────────┐
+│   Admin     │ ────────────────────> │    API      │
+│  (Next.js)  │    localhost:3001     │  (Express)  │
+│  :3002      │ <──────────────────── │  :3001      │
+└─────────────┘         JSON          └─────────────┘
+                              │
+                              ▼
+                       ┌─────────────┐
+                       │  PostgreSQL │
+                       │   :5432     │
+                       └─────────────┘
+```
 
 ## 📁 Estructura
 
 ```
 wompi_subs/
 ├── apps/
-│   └── web/                    ← Aplicación principal
+│   ├── api/                  ← BACKEND (Express + TypeScript)
+│   │   ├── src/
+│   │   │   ├── routes/      ← Endpoints API REST
+│   │   │   ├── services/    ← Lógica de negocio
+│   │   │   ├── providers/   ← Wompi, Chatwoot
+│   │   │   ├── jobs/        ← Background jobs
+│   │   │   └── webhooks/    ← Webhooks handlers
+│   │   ├── prisma/
+│   │   └── package.json
+│   │
+│   └── admin/                ← FRONTEND (Next.js + React)
 │       ├── app/
-│       │   ├── api/           ← API Routes (reemplaza Express)
-│       │   ├── lib/           ← Lógica de negocio
-│       │   ├── types/         ← Tipos TypeScript
-│       │   └── ...            ← Páginas
-│       ├── middleware.ts      ← Middleware de Next.js
-│       ├── next.config.js
-│       ├── package.json
-│       └── tsconfig.json
+│       │   ├── api/         ← Server Actions
+│       │   ├── lib/         ← Utilidades
+│       │   ├── ui/          ← Componentes
+│       │   └── ...          ← Páginas
+│       ├── middleware.ts
+│       └── package.json
+│
 ├── packages/
-│   └── database/              ← Prisma ORM
-│       ├── prisma/
-│       └── client.ts
+│   └── shared/              ← Tipos compartidos
+│       └── types.ts
+│
 ├── docker-compose.yml
 └── package.json
 ```
 
-## 🛠️ Desarrollo
+## 🚀 Inicio Rápido
 
-### Prerrequisitos
+### Con Docker (Recomendado)
 
-- Node.js 20+
-- Docker (para PostgreSQL)
+```bash
+# 1. Levantar todos los servicios
+docker-compose up -d
 
-### Inicio Rápido
+# 2. Ver logs
+docker-compose logs -f
+
+# 3. Acceder
+# API:   http://localhost:3001
+# Admin: http://localhost:3002
+```
+
+### Local (Sin Docker)
 
 ```bash
 # 1. Instalar dependencias
 npm install
 
-# 2. Levantar PostgreSQL
+# 2. Levantar PostgreSQL (con Docker)
 docker-compose up -d postgres
 
-# 3. Generar Prisma Client
-npm run db:generate
+# 3. Iniciar API (terminal 1)
+npm run dev:api
 
-# 4. Aplicar migraciones
-npm run db:migrate
-
-# 5. Iniciar servidor de desarrollo
-npm run dev
+# 4. Iniciar Admin (terminal 2)
+npm run dev:admin
 ```
-
-La aplicación estará disponible en: http://localhost:3000
 
 ## 📦 Comandos Disponibles
 
 ```bash
 # Desarrollo
-npm run dev              # Iniciar servidor de desarrollo
-npm run build            # Build de producción
-npm run start            # Iniciar en producción
+npm run dev          # Ambos servicios
+npm run dev:api      # Solo API
+npm run dev:admin    # Solo Admin
+
+# Build
+npm run build        # Ambos servicios
+npm run build:api    # Solo API
+npm run build:admin  # Solo Admin
 
 # Base de datos
-npm run db:generate      # Generar Prisma Client
-npm run db:migrate       # Crear/aplicar migraciones
-npm run db:migrate:deploy  # Aplicar migraciones en prod
-npm run db:push          # Push directo (dev)
-npm run db:studio        # Abrir Prisma Studio
+npm run db:generate  # Generar Prisma Client
+npm run db:migrate   # Migraciones
+npm run db:push      # Push directo (dev)
+npm run db:studio    # Prisma Studio
 
-# Calidad
-npm run lint             # ESLint
+# Docker
+npm run docker:up    # Levantar todo
+npm run docker:down  # Detener todo
+npm run docker:logs  # Ver logs
 ```
 
-## 🔐 Variables de Entorno
+## 🔐 Credenciales por Defecto
 
-Crear `.env` en la raíz:
+**Admin:**
+- Email: `admin@localhost.com`
+- Password: `Admin12345!`
 
-```env
-# Base de datos
-DATABASE_URL=postgresql://wompi_subs:wompi_subs@localhost:5433/wompi_subs
+## 📊 Servicios
 
-# Seguridad
-ADMIN_API_TOKEN=dev-token-123456-change-in-production
-ADMIN_SESSION_SECRET=dev-session-secret-change-in-production-abc123xyz
-CREDENTIALS_ENCRYPTION_KEY_B64=mGBsjs4eVVtlDZ7yhyUlgzsLmvMeHqqGwhQnNfmB8QM=
+| Servicio | Puerto | Función |
+|----------|--------|---------|
+| **PostgreSQL** | 5433 | Base de datos |
+| **API** | 3001 | Backend (Express) |
+| **Admin** | 3002 | Frontend (Next.js) |
 
-# Wompi
-WOMPI_ACTIVE_ENV=PRODUCTION
-WOMPI_PUBLIC_KEY=
-WOMPI_PRIVATE_KEY=
-WOMPI_EVENTS_SECRET=
+## 🛠️ Stack Tecnológico
 
-# Chatwoot (opcional)
-CHATWOOT_ACTIVE_ENV=PRODUCTION
-CHATWOOT_BASE_URL=
-CHATWOOT_ACCOUNT_ID=
-CHATWOOT_INBOX_ID=
-CHATWOOT_API_ACCESS_TOKEN=
+### Backend (API)
+- Node.js + Express
+- TypeScript 100%
+- Prisma ORM
+- PostgreSQL
+
+### Frontend (Admin)
+- Next.js 15
+- React 19
+- TypeScript
+- CSS3
+
+### Compartido
+- Tipos TypeScript en `packages/shared/`
+
+## 📝 API Endpoints
+
+### Autenticación
+```
+POST /admin/auth/login
+POST /admin/auth/logout
 ```
 
-## 📊 API Endpoints
+### Pagos
+```
+GET  /admin/payments
+POST /admin/payments
+GET  /admin/payments/:id
+```
 
-### Payments
-- `GET /api/payments` - Listar pagos
-- `POST /api/payments` - Crear pago
+### Clientes
+```
+GET  /admin/customers
+POST /admin/customers
+GET  /admin/customers/:id
+```
 
-### Customers
-- `GET /api/customers` - Listar clientes
-- `POST /api/customers` - Crear cliente
-
-### Settings
-- `GET /api/settings` - Obtener configuración
-- `POST /api/settings` - Actualizar configuración
-
-### Health
-- `GET /api/health` - Health check
+### Suscripciones
+```
+GET  /admin/subscriptions
+POST /admin/subscriptions
+PUT  /admin/subscriptions/:id
+```
 
 ### Webhooks
-- `POST /api/webhooks/wompi` - Webhook de Wompi
-
-## 🐳 Docker
-
-```bash
-# Levantar todo
-docker-compose up -d
-
-# Ver logs
-docker-compose logs -f web
-
-# Reiniciar servicio
-docker-compose restart web
-
-# Detener todo
-docker-compose down
+```
+POST /webhooks/wompi
+POST /webhooks/chatwoot
 ```
 
-## 📝 Migraciones
-
-### Crear nueva migración
-
-```bash
-npx prisma migrate dev --name nombre_migracion
+### Health
+```
+GET /health
 ```
 
-### Aplicar en producción
+## 🔧 Variables de Entorno
 
-```bash
-npx prisma migrate deploy
+### API (`apps/api/.env`)
+```env
+DATABASE_URL=postgresql://...
+PORT=3001
+ADMIN_API_TOKEN=secret123
+ADMIN_SESSION_SECRET=session-secret
+SUPER_ADMIN_EMAIL=admin@example.com
+SUPER_ADMIN_PASSWORD=secure-password
 ```
 
-## 🧪 Testing
-
-```bash
-# Tests unitarios (pendiente de implementar)
-npm test
-
-# Tests E2E (pendiente de implementar)
-npm run test:e2e
+### Admin (`apps/admin/.env.local`)
+```env
+NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
+ADMIN_API_TOKEN=secret123
+ADMIN_SESSION_SECRET=session-secret
 ```
 
-## 📄 Licencia
+## 📄 Documentación
 
-Propietario - Todos los derechos reservados.
+- [Estructura de Servicios](./ESTRUCTURA_SERVICIOS.md)
+- [Migraciones](./MIGRACIONES.md)
+- [Webhooks](./WEBHOOKS.md)
 
 ---
 

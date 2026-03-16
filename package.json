@@ -1,38 +1,34 @@
 {
-  "name": "suscripciones-wompi-chatwoot",
+  "name": "wompi-subs",
+  "version": "2.0.0",
   "private": true,
-  "dependencies": {
-    "@prisma/client": "^5.22.0",
-    "react": "19.2.4",
-    "react-dom": "19.2.4"
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w apps/api & npm run dev -w apps/admin",
+    "dev:api": "npm run dev -w apps/api",
+    "dev:admin": "npm run dev -w apps/admin",
+    "build": "npm run build -w apps/api && npm run build -w apps/admin",
+    "build:api": "npm run build -w apps/api",
+    "build:admin": "npm run build -w apps/admin",
+    "start": "npm run start -w apps/api & npm run start -w apps/admin",
+    "lint": "npm run lint -w apps/api && npm run lint -w apps/admin",
+    "typecheck": "npm run typecheck -w apps/api && npm run typecheck -w apps/admin",
+    "db:generate": "npm run db:generate -w apps/api",
+    "db:migrate": "npm run db:migrate -w apps/api",
+    "db:push": "npm run db:push -w apps/api",
+    "db:studio": "npm run db:studio -w apps/api",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f"
   },
   "devDependencies": {
-    "@vitest/ui": "^4.0.18",
-    "prisma": "^5.22.0",
-    "vitest": "^4.0.18"
+    "@types/node": "^20.17.0",
+    "typescript": "^5.8.0"
   },
-  "workspaces": [
-    "apps/*"
-  ],
   "engines": {
-    "node": "20.x"
-  },
-  "scripts": {
-    "dev": "npm -w apps/api run dev",
-    "dev:admin": "npm -w apps/admin run dev",
-    "build": "npm -w apps/api run build && npm -w apps/admin run build",
-    "lint": "npm -w apps/api run lint && npm -w apps/admin run lint",
-    "start": "npm -w apps/api run start",
-    "start:migrate": "npm -w apps/api run start:migrate",
-    "jobs:start": "npm -w apps/api run jobs:start",
-    "admin:start": "npm -w apps/admin run start",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:ui": "vitest --ui",
-    "test:coverage": "vitest run --coverage"
-  },
-  "overrides": {
-    "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "node": ">=20.0.0"
   }
 }

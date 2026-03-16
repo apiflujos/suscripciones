@@ -1,8 +1,0 @@
-CREATE TABLE IF NOT EXISTS "ServiceHeartbeat" (
-  "key" TEXT NOT NULL,
-  "lastSeenAt" TIMESTAMP(3) NOT NULL,
-  "meta" JSONB,
-  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT "ServiceHeartbeat_pkey" PRIMARY KEY ("key")
-);
