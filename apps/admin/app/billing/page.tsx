@@ -524,7 +524,8 @@ export default async function BillingPage({
     const isCanceled = r.status === "CANCELED";
     const isSuspended = r.status === "SUSPENDED";
     const isInactive = isCanceled || isSuspended;
-    const showChargeButton = manualChargeEnabled && isAutoDebit && r.customerTokenized && chargeDue && !isInactive;
+    // Botón de cobrar: siempre visible para débito automático cuando hay pago vencido
+    const showChargeButton = manualChargeEnabled && isAutoDebit && chargeDue && !isInactive;
     const showPaymentLinkButton = !isAutoDebit && !isInactive;
     const needsTokenization = isAutoDebit && !r.customerTokenized;
     const showTokenizationLink = needsTokenization && !isInactive;
