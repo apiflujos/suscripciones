@@ -985,7 +985,7 @@ a {
 .topbarBellItem {
   display: grid;
   grid-template-columns: 1fr;
-  align-items: start;
+  align-items: flex-start;
   column-gap: 10px;
   gap: 4px;
   padding: 10px 12px;
@@ -997,7 +997,7 @@ a {
 .topbarBellItemLinkWrap {
   display: grid;
   grid-template-columns: auto 1fr auto;
-  align-items: start;
+  align-items: flex-start;
   column-gap: 10px;
   text-decoration: none;
   color: inherit;
@@ -3814,7 +3814,7 @@ textarea.input {
   grid-column: 1 / -1;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
+  align-items: flex-start;
   gap: 8px;
   padding: 4px 6px 0;
 }
@@ -4620,7 +4620,7 @@ textarea.input {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 16px;
-  align-items: start;
+  align-items: flex-start;
 }
 
 .customer-hero-meta {
@@ -4631,7 +4631,7 @@ textarea.input {
 .hero-head {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
+  align-items: flex-start;
   gap: 16px;
 }
 
@@ -4911,7 +4911,7 @@ textarea.input {
   display: grid;
   grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
   gap: 12px;
-  align-items: start;
+  align-items: flex-start;
 }
 
 .gamification-stack {
@@ -5373,7 +5373,7 @@ textarea.input {
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
-  align-items: start;
+  align-items: flex-start;
   text-decoration: none;
   color: inherit;
 }
@@ -6394,7 +6394,7 @@ textarea.input {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px 14px;
-  align-items: start;
+  align-items: flex-start;
 }
 
 .billing-header-middle {
@@ -6468,7 +6468,7 @@ textarea.input {
 .billing-header-meta-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
-  align-items: start;
+  align-items: flex-start;
   gap: 10px 14px;
   flex-wrap: nowrap;
   width: 100%;
@@ -6478,7 +6478,7 @@ textarea.input {
 .billing-header-meta-item {
   display: grid;
   gap: 4px;
-  align-items: start;
+  align-items: flex-start;
   min-width: 0;
   flex: 0 0 auto;
 }
@@ -6523,7 +6523,7 @@ textarea.input {
 .billing-grid-info.billing-grid-subscription {
   grid-template-columns: minmax(0, 1fr) minmax(240px, 0.55fr);
   gap: 14px 16px;
-  align-items: start;
+  align-items: flex-start;
 }
 
 .billing-grid-info > div {
@@ -6744,7 +6744,7 @@ textarea.input {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px 16px;
-  align-items: start;
+  align-items: flex-start;
 }
 
 .billing-body-section {
@@ -8307,7 +8307,7 @@ textarea.input {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 440px);
   gap: 24px;
-  align-items: start;
+  align-items: flex-start;
   width: 100%;
 }
 .publicCheckoutIntro {
@@ -8729,7 +8729,7 @@ html[data-contrast="high"] .payment-point-provider img {
   display: grid;
   grid-template-columns: minmax(0, 0.55fr) minmax(0, 0.45fr);
   gap: 18px;
-  align-items: start;
+  align-items: flex-start;
 }
 .checkout-section {
   display: grid;
@@ -8766,7 +8766,7 @@ html[data-contrast="high"] .payment-point-provider img {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
   gap: 20px;
-  align-items: start;
+  align-items: flex-start;
 }
 .template-modal-left {
   display: grid;
@@ -8786,7 +8786,7 @@ html[data-contrast="high"] .payment-point-provider img {
   display: grid;
   grid-template-columns: 1fr 280px;
   gap: 12px;
-  align-items: start;
+  align-items: flex-start;
 }
 .preview-card {
   border: 1px solid rgba(15, 23, 42, 0.08);
@@ -8800,7 +8800,7 @@ html[data-contrast="high"] .payment-point-provider img {
   display: grid;
   grid-template-columns: minmax(0, 0.58fr) minmax(0, 0.42fr);
   gap: 10px;
-  align-items: start;
+  align-items: flex-start;
 }
 .preview-layout.preview-layout-mobile {
   grid-template-columns: 1fr;
@@ -9295,7 +9295,7 @@ html[data-contrast="high"] .payment-point-provider img {
   flex-direction: column;
   gap: 6px;
   justify-content: flex-start;
-  align-items: start;
+  align-items: flex-start;
   margin-left: auto;
 }
 
@@ -11343,7 +11343,7 @@ html[data-contrast="high"] .toggle::after {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 440px);
   gap: 20px;
-  align-items: start;
+  align-items: flex-start;
   width: 100%;
 }
 .publicCheckoutLayout.is-single {
@@ -11478,7 +11478,7 @@ html[data-contrast="high"] .toggle::after {
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 10px;
-  align-items: start;
+  align-items: flex-start;
   padding: 12px 14px;
   border-radius: 14px;
   border: 1px solid rgba(217, 83, 79, 0.3);
@@ -11697,7 +11697,7 @@ html[data-contrast="high"] .toggle::after {
   display: grid;
   grid-template-columns: minmax(0, 0.55fr) minmax(0, 0.45fr);
   gap: 18px;
-  align-items: start;
+  align-items: flex-start;
 }
 .checkout-section {
   display: grid;
@@ -11734,7 +11734,7 @@ html[data-contrast="high"] .toggle::after {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
   gap: 20px;
-  align-items: start;
+  align-items: flex-start;
 }
 .template-modal-left {
   display: grid;
@@ -11754,7 +11754,7 @@ html[data-contrast="high"] .toggle::after {
   display: grid;
   grid-template-columns: 1fr 280px;
   gap: 12px;
-  align-items: start;
+  align-items: flex-start;
 }
 .preview-card {
   border: 1px solid rgba(15, 23, 42, 0.08);
@@ -11768,7 +11768,7 @@ html[data-contrast="high"] .toggle::after {
   display: grid;
   grid-template-columns: minmax(0, 0.58fr) minmax(0, 0.42fr);
   gap: 10px;
-  align-items: start;
+  align-items: flex-start;
 }
 .preview-layout.preview-layout-mobile {
   grid-template-columns: 1fr;
@@ -12446,7 +12446,7 @@ html[data-contrast="high"] .toggle::after {
 .billing-grid-info > .billing-body-main,
 .billing-grid-info > .billing-body-side {
   display: grid;
-  align-items: start;
+  align-items: flex-start;
   gap: 8px;
 }
 
