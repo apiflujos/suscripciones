@@ -866,6 +866,7 @@ a {
 
 .topbarNotifications {
   position: relative;
+  z-index: 30000;
 }
 
 .topbarBellBtn {
@@ -923,7 +924,7 @@ a {
   border: 1px solid var(--stroke);
   border-radius: 12px;
   box-shadow: var(--shadow);
-  z-index: 2500;
+  z-index: 30010;
 }
 
 .topbarBellHead {

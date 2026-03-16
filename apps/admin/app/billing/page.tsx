@@ -45,15 +45,22 @@ function fmtEvery(intervalUnit: any, intervalCount: any) {
   return `cada ${c} (personalizado)`;
 }
 
-function getTipo(plan: any) {
-  const mode = String(plan?.collectionMode || plan?.metadata?.collectionMode || "MANUAL_LINK");
-  return mode === "AUTO_DEBIT" ? "Débito automático" : "Link de pago";
+function resolveCollectionMode(plan: any, subscriptionMeta?: any) {
+  const meta = subscriptionMeta && typeof subscriptionMeta === "object" ? subscriptionMeta : {};
+  const planMeta = plan?.metadata && typeof plan.metadata === "object" ? plan.metadata : {};
+  const fromSubscription = (meta as any)?.collectionMode ?? (meta as any)?.billing?.collectionMode;
+  if (fromSubscription != null) return String(fromSubscription || "").trim().toUpperCase() || "MANUAL_LINK";
+  const fromPlan = (planMeta as any)?.collectionMode ?? plan?.collectionMode;
+  return String(fromPlan || "MANUAL_LINK").trim().toUpperCase();
 }
 
-function getTipoPago(plan: any) {
-  const mode = String(plan?.collectionMode || plan?.metadata?.collectionMode || "");
-  if (mode === "AUTO_DEBIT") return "Pago suscripción";
-  if (mode === "AUTO_LINK") return "Pago por link de pago";
+function getTipo(collectionMode: string) {
+  return collectionMode === "AUTO_DEBIT" ? "Débito automático" : "Link de pago";
+}
+
+function getTipoPago(collectionMode: string) {
+  if (collectionMode === "AUTO_DEBIT") return "Pago suscripción";
+  if (collectionMode === "AUTO_LINK") return "Pago por link de pago";
   return "Pago por link de pago";
 }
 function getActivo(status: any) {
@@ -372,7 +379,8 @@ export default async function BillingPage({
     .map((s) => {
       const plan = s.plan;
       const customer = s.customer;
-      const tipoTx = getTipo(plan);
+      const collectionMode = resolveCollectionMode(plan, s?.metadata);
+      const tipoTx = getTipo(collectionMode);
       const activo = getActivo(s.status);
       const estadoInfo = getEstado(s.status);
       const ident =
@@ -405,7 +413,7 @@ export default async function BillingPage({
         customerMetadata: customer?.metadata || {},
         identificacion: String(ident || "—"),
         tipoTx,
-        tipoPago: getTipoPago(plan),
+        tipoPago: getTipoPago(collectionMode),
         activo,
         status: String(s.status || "—"),
         estadoInfo,
@@ -422,7 +430,7 @@ export default async function BillingPage({
         periodoInicioAt: s.currentPeriodStartAt || null,
         periodoFinAt: s.currentPeriodEndAt || null,
         nextRetryAt: s.nextRetryJob?.runAt || (s.metadata as any)?.manualRetry?.nextRetryAt || null,
-        mode: String(plan?.collectionMode || plan?.metadata?.collectionMode || "MANUAL_LINK"),
+        mode: collectionMode,
         tenantName: tenantNameList.length ? tenantNameList.join(", ") : "—",
         currentShippingInCents: shippingAppliedInCents,
         currentRequiresShipping: requiresShipping

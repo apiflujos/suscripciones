@@ -94,9 +94,13 @@ plansRouter.post("/", async (req, res) => {
     collectionMode
   };
 
-  const computedPlanType: PlanType = planType ?? (collectionMode === "MANUAL_LINK" ? PlanType.manual_link : PlanType.auto_subscription);
+  const computedPlanType: PlanType =
+    collectionMode === "MANUAL_LINK" ? PlanType.manual_link : PlanType.auto_subscription;
+  const effectivePlanType: PlanType = planType ?? computedPlanType;
+  const finalPlanType: PlanType =
+    collectionMode === "MANUAL_LINK" ? effectivePlanType : PlanType.auto_subscription;
   const plan = await prisma.subscriptionPlan.create({
-    data: { ...(rest as any), tenantId: primaryTenantId, planType: computedPlanType as any, metadata: mergedMetadata as any }
+    data: { ...(rest as any), tenantId: primaryTenantId, planType: finalPlanType as any, metadata: mergedMetadata as any }
   });
   await prisma.subscriptionPlanTenant.createMany({
     data: tenantIds.map((t) => ({ planId: plan.id, tenantId: t })),

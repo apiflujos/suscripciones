@@ -787,6 +787,7 @@ export default async function LogsPage({
                     <span className="pill pill-bad">Fallidos {paymentsSummary.failed}</span>
                   </div>
                   {(() => {
+                    if (tab === "payments") return null;
                     const banners: Array<{ tone: "warn" | "danger" | "info"; text: React.ReactNode; action?: React.ReactNode }> = [];
 
                     // Configuración crítica
