@@ -7813,26 +7813,27 @@ textarea.input {
   max-width: 120px;
 }
 
-/* Fechas - COMPACTO HORIZONTAL */
+/* Fechas - LAYOUT CORRECTO */
 .billing-page .billing-section-dates {
   flex: 1 1 auto;
-  min-width: 280px;
-  max-width: 400px;
+  min-width: 300px;
+  max-width: 500px;
 }
 
 .billing-page .billing-section-dates > div {
   display: flex;
   flex-direction: row;
-  align-items: center;
-  gap: 12px;
+  align-items: flex-start;
+  gap: 16px;
   flex-wrap: nowrap;
 }
 
 .billing-page .billing-section-dates .date-item {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  min-width: 0;
+  gap: 4px;
+  min-width: 140px;
+  max-width: 180px;
   flex: 0 0 auto;
 }
 
@@ -7843,17 +7844,34 @@ textarea.input {
   white-space: nowrap;
   text-transform: uppercase;
   letter-spacing: 0.03em;
+  display: block;
 }
 
-/* FORZAR CONTENCIÓN DE INPUTS Y BOTONES */
-.billing-page .billing-section-dates .billing-inline-cutoff,
-.billing-page .billing-section-dates .billing-retry-field {
-  max-width: 160px;
+/* FORZAR CONTENCIÓN DE COMPONENTES */
+.billing-page .billing-section-dates .billing-inline-cutoff {
+  max-width: 100%;
   min-width: 0;
-  flex: 0 0 auto;
+  width: auto;
 }
 
-.billing-page .billing-section-dates .billing-inline-cutoff .billing-cutoff-trigger,
+.billing-page .billing-section-dates .billing-retry-field {
+  max-width: 100%;
+  min-width: 0;
+  width: auto;
+}
+
+.billing-page .billing-section-dates .billing-inline-cutoff .billing-cutoff-trigger {
+  font-size: 10px;
+  padding: 4px 6px;
+  min-height: 26px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+  width: 100%;
+}
+
 .billing-page .billing-section-dates .billing-retry-field .billing-retry-date,
 .billing-page .billing-section-dates .billing-retry-field .billing-retry-status {
   font-size: 10px;
@@ -7866,6 +7884,22 @@ textarea.input {
   display: block;
 }
 
+.billing-page .billing-section-dates .billing-retry-field .billing-retry-header {
+  margin-bottom: 2px;
+}
+
+.billing-page .billing-section-dates .billing-retry-field .billing-retry-label {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
 .billing-page .billing-section-dates input,
 .billing-page .billing-section-dates .input {
   font-size: 10px;
@@ -7875,6 +7909,8 @@ textarea.input {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* Columna derecha - Totales + Links */
@@ -7882,23 +7918,24 @@ textarea.input {
   flex: 0 0 auto;
   display: flex;
   flex-direction: row;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
-  margin-left: 8px;
+  margin-left: auto;
   min-width: 0;
+  max-width: 200px;
 }
 
-/* Totales - COMPACTO Y ANGOSTO - ALTA ESPECIFICIDAD */
+/* Totales - COMPACTO PERO COMPLETO */
 .billing-page .billing-body-side .billing-cost-panel,
 .billing-page .billing-body-side .billing-cost-box {
-  padding: 0 !important;
-  border: none !important;
-  background: transparent !important;
-  border-radius: 0 !important;
-  min-width: 0 !important;
-  max-width: none !important;
+  padding: 6px 8px !important;
+  border: 1px solid var(--stroke) !important;
+  background: var(--surface-2) !important;
+  border-radius: 6px !important;
+  min-width: 100px !important;
+  max-width: 180px !important;
   width: auto !important;
-  gap: 4px !important;
+  gap: 6px !important;
   text-align: left;
 }
 
@@ -7907,7 +7944,7 @@ textarea.input {
   flex-direction: column !important;
   align-items: flex-start !important;
   justify-content: flex-start !important;
-  gap: 0 !important;
+  gap: 2px !important;
   min-width: 0;
   max-width: none;
 }
@@ -7924,14 +7961,14 @@ textarea.input {
 }
 
 .billing-page .billing-cost-total {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 900;
   color: var(--primary);
-  line-height: 1;
+  line-height: 1.1;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 120px;
+  overflow: visible;
+  text-overflow: clip;
+  max-width: none;
 }
 
 .billing-page .billing-cost-period {
@@ -7943,25 +7980,27 @@ textarea.input {
 
 .billing-page .billing-cost-inline {
   display: flex;
-  flex-wrap: nowrap;
-  gap: 2px;
+  flex-wrap: wrap;
+  gap: 3px;
   justify-content: flex-start;
-  margin-top: 2px;
+  margin-top: 3px;
   min-width: 0;
+  width: 100%;
 }
 
 .billing-page .billing-cost-chip {
   font-size: 7px;
-  padding: 1px 3px !important;
+  padding: 2px 4px !important;
   background: var(--panel);
-  border-radius: 2px;
+  border-radius: 3px;
   color: var(--primary);
-  max-width: 60px;
+  max-width: 80px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 600;
   min-height: auto !important;
+  display: inline-block;
 }
 
 /* Responsive */
