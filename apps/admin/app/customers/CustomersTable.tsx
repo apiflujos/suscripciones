@@ -5,6 +5,7 @@ import Link from "next/link";
 import { deleteCustomer, updateCustomer } from "./actions";
 import { LocalDateTime } from "../ui/LocalDateTime";
 import { NewBillingAssignmentForm } from "../billing/NewBillingAssignmentForm";
+import { ViewLinksModal } from "../ui/ViewLinksModal";
 
 function formatCopFromCents(cents: number) {
   const pesos = Math.trunc(Number(cents || 0) / 100);
@@ -126,6 +127,8 @@ export function CustomersTable({
   const [cartModalMode, setCartModalMode] = useState<"PLAN" | "SUBSCRIPTION">("PLAN");
   const [payModalOpen, setPayModalOpen] = useState(false);
   const [payModalCustomer, setPayModalCustomer] = useState<CustomerRow | null>(null);
+  const [viewLinksOpen, setViewLinksOpen] = useState(false);
+  const [viewLinksItems, setViewLinksItems] = useState<any[]>([]);
   const [payAmount, setPayAmount] = useState("");
   const [tokenModalOpen, setTokenModalOpen] = useState(false);
   const [tokenModalCustomer, setTokenModalCustomer] = useState<CustomerRow | null>(null);
@@ -499,6 +502,48 @@ export function CustomersTable({
     setTimeout(() => lastActiveRef.current?.focus(), 0);
   }
 
+  function openViewLinks(customer: CustomerRow) {
+    lastActiveRef.current = document.activeElement as HTMLElement | null;
+    const links = [];
+    
+    // Payment link from latestLinks
+    const latestLink = latestLinks[String(customer.id)];
+    if (latestLink?.checkoutUrl) {
+      links.push({
+        label: "Link de pago",
+        url: latestLink.checkoutUrl,
+        sentAt: latestLink.createdAt,
+        isValid: latestLink.chatwootStatus !== "failed"
+      });
+    }
+    
+    // Tokenization link from metadata
+    const tokenMeta = (customer.metadata?.tokenizationLink as any) || {};
+    if (tokenMeta?.url) {
+      const usedAt = tokenMeta.usedAt ? Date.parse(String(tokenMeta.usedAt)) : NaN;
+      const expiresAt = tokenMeta.expiresAt ? Date.parse(String(tokenMeta.expiresAt)) : NaN;
+      const now = Date.now();
+      const isValid = !Number.isFinite(usedAt) && (!Number.isFinite(expiresAt) || expiresAt > now);
+      links.push({
+        label: "Link de tokenización",
+        url: tokenMeta.url,
+        sentAt: tokenMeta.createdAt,
+        expiresAt: tokenMeta.expiresAt,
+        usedAt: tokenMeta.usedAt,
+        isValid
+      });
+    }
+    
+    setViewLinksItems(links);
+    setViewLinksOpen(true);
+  }
+
+  function closeViewLinks() {
+    setViewLinksOpen(false);
+    setViewLinksItems([]);
+    setTimeout(() => lastActiveRef.current?.focus(), 0);
+  }
+
   useEffect(() => {
     if (!open) return;
     const el = modalRef.current;
@@ -673,6 +718,15 @@ export function CustomersTable({
                       aria-label="Abrir ficha"
                       title="Abrir ficha"
                     />
+                    <button
+                      className="ghost btn-compact btn-blue btn-icon-only"
+                      type="button"
+                      onClick={() => openViewLinks(c)}
+                      aria-label="Ver links"
+                      title="Ver links generados"
+                    >
+                      🔗
+                    </button>
                     <button
                       className="ghost btn-compact btn-history btn-icon-only"
                       type="button"
@@ -1491,6 +1545,10 @@ export function CustomersTable({
             ) : null}
           </div>
         </div>
+      ) : null}
+
+      {viewLinksOpen ? (
+        <ViewLinksModal links={viewLinksItems} onClose={closeViewLinks} />
       ) : null}
     </>
   );

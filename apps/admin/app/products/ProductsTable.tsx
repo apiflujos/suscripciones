@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, useEffect } from "react";
+import { ViewLinksModal } from "../ui/ViewLinksModal";
 import { sendProductToCustomer, updateProduct } from "./actions";
 import { HelpTip } from "../ui/HelpTip";
 import { VariantsEditor } from "./VariantsEditor";
@@ -120,6 +121,8 @@ export function ProductsTable({
   const [txError, setTxError] = useState("");
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [planModalProduct, setPlanModalProduct] = useState<ProductRow | null>(null);
+  const [viewLinksOpen, setViewLinksOpen] = useState(false);
+  const [viewLinksItems, setViewLinksItems] = useState<any[]>([]);
 
   const [kind, setKind] = useState<"PRODUCT" | "SERVICE">("PRODUCT");
   const [name, setName] = useState("");
@@ -235,6 +238,28 @@ export function ProductsTable({
     setTxProduct(null);
     setTxItems([]);
     setTxError("");
+    setTimeout(() => lastActiveRef.current?.focus(), 0);
+  }
+
+  function openViewLinks(item: ProductRow) {
+    lastActiveRef.current = document.activeElement as HTMLElement | null;
+    const links = [];
+    
+    // Payment/Subscription link based on collection mode
+    const isAutoDebit = String(item.collectionMode || "").toUpperCase() === "AUTO_DEBIT";
+    links.push({
+      label: isAutoDebit ? "Link de suscripción" : "Link de pago",
+      url: `${window.location.origin}/public/${isAutoDebit ? "suscripcion" : "plan"}/${item.id}`,
+      isValid: true
+    });
+    
+    setViewLinksItems(links);
+    setViewLinksOpen(true);
+  }
+
+  function closeViewLinks() {
+    setViewLinksOpen(false);
+    setViewLinksItems([]);
     setTimeout(() => lastActiveRef.current?.focus(), 0);
   }
 
@@ -542,6 +567,9 @@ export function ProductsTable({
         </div>
         <div className="product-actions">
           <div className="product-actions-left">
+            <button className="ghost btn-compact btn-blue btn-noicon" type="button" data-loader="off" onClick={() => openViewLinks(p)} title="Ver link">
+              🔗
+            </button>
             <button className="ghost btn-compact btn-send btn-noicon" type="button" data-modal="true" data-loader="off" onClick={() => openSendModal(p)}>
               Enviar
             </button>
@@ -1367,6 +1395,10 @@ export function ProductsTable({
             ) : null}
           </div>
         </div>
+      ) : null}
+
+      {viewLinksOpen ? (
+        <ViewLinksModal links={viewLinksItems} onClose={closeViewLinks} />
       ) : null}
     </>
   );
