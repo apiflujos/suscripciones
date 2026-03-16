@@ -58,8 +58,11 @@ export function createApp() {
   const isApiPath = (path: string) => apiPrefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
 
   const allowUnsafeInline = String(process.env.CSP_ALLOW_UNSAFE_INLINE || "").trim() === "1" && !isProd;
+  const allowUnsafeInlinePublic = String(process.env.CSP_PUBLIC_ALLOW_UNSAFE_INLINE || "").trim() === "1";
   const scriptSrc = ["'self'", "https://checkout.wompi.co", ...(allowUnsafeInline ? ["'unsafe-inline'"] : [])];
   const styleSrc = ["'self'", "https://fonts.googleapis.com", ...(allowUnsafeInline ? ["'unsafe-inline'"] : [])];
+  const publicScriptSrc = [...scriptSrc, ...(allowUnsafeInlinePublic ? ["'unsafe-inline'"] : [])];
+  const publicStyleSrc = [...styleSrc, ...(allowUnsafeInlinePublic ? ["'unsafe-inline'"] : [])];
   const helmetMw = helmet({
     contentSecurityPolicy: {
       useDefaults: true,
@@ -88,9 +91,9 @@ export function createApp() {
         "object-src": ["'none'"],
         "frame-ancestors": ["'none'"],
         "img-src": ["'self'", "data:", "https:"],
-        "script-src": scriptSrc,
-        "style-src": styleSrc,
-        "style-src-elem": styleSrc,
+        "script-src": publicScriptSrc,
+        "style-src": publicStyleSrc,
+        "style-src-elem": publicStyleSrc,
         "font-src": ["'self'", "data:", "https://fonts.gstatic.com"],
         "frame-src": ["'self'", "https://checkout.wompi.co"],
         "child-src": ["'self'", "https://checkout.wompi.co"],

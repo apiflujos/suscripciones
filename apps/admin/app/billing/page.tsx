@@ -7,7 +7,6 @@ import { NewBillingAssignmentForm } from "./NewBillingAssignmentForm";
 import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { LocalDateTime } from "../ui/LocalDateTime";
 import { HelpTip } from "../ui/HelpTip";
-import { CopyButton } from "../ui/CopyButton";
 import { getCsrfToken } from "../lib/csrf";
 import { ChangePlanButton, type PlanOption } from "./ChangePlanButton";
 import { SmartViewsBar } from "../smart-views/SmartViewsBar";
@@ -154,7 +153,14 @@ function hasUsablePaymentSource(metadata: any) {
   ];
   return candidates.some((value) => {
     if (typeof value === "number") return Number.isFinite(value);
-    if (typeof value === "string") return /^\d+$/.test(value.trim());
+    if (typeof value === "string") {
+      const normalized = value.trim();
+      if (!normalized) return false;
+      if (/^(null|undefined)$/i.test(normalized)) return false;
+      if (/^\d+$/.test(normalized)) return true;
+      if (/^src[_-]/i.test(normalized)) return true;
+      return normalized.length >= 6;
+    }
     return false;
   });
 }
@@ -527,7 +533,7 @@ export default async function BillingPage({
     const isSuspended = r.status === "SUSPENDED";
     const isInactive = isCanceled || isSuspended;
     // Botón de cobrar: siempre visible para débito automático cuando hay pago vencido
-    const showChargeButton = manualChargeEnabled && isAutoDebit && chargeDue && !isInactive;
+    const showChargeButton = manualChargeEnabled && isAutoDebit && chargeDue && !isInactive && r.customerTokenized;
     // Botón de enviar link de pago: visible para link de pago manual
     const showPaymentLinkButton = !isAutoDebit && !isInactive;
     // Botón de tokenización: siempre visible para débito automático (independiente del link de pago)
@@ -805,20 +811,12 @@ export default async function BillingPage({
               </>
             )}
           </div>
-          {(sentForRow || rowTokenUrl || chargedForRow || cutoffForRow) ? (
+          {(sentForRow || chargedForRow || cutoffForRow) ? (
             <div className="field-hint billing-action-feedback">
               {sentTokenForRow ? <span>Link de tarjeta enviado.</span> : null}
               {sentPaymentForRow ? <span>Link de pago enviado.</span> : null}
               {chargedForRow ? <span>Cobro manual enviado.</span> : null}
               {cutoffForRow ? <span>Fecha de corte actualizada.</span> : null}
-              {rowTokenUrl ? (
-                <>
-                  <a className="ghost btn-compact btn-open" href={rowTokenUrl} target="_blank" rel="noreferrer">
-                    Abrir checkout
-                  </a>
-                  <CopyButton text={rowTokenUrl} />
-                </>
-              ) : null}
             </div>
           ) : null}
           {tenantsUpdatedForRow ? <div className="field-hint">Canales actualizados.</div> : null}

@@ -21,28 +21,44 @@ async function fetchPublicToken(token: string, bases: string[]) {
   const uniqueBases = Array.from(new Set(bases.map((base) => String(base || "").trim()).filter(Boolean)));
   if (!uniqueBases.length) return { ok: false, status: 500, json: { error: "missing_next_public_api_base_url" } };
   for (const apiBase of uniqueBases) {
-    const res = await fetch(`${apiBase}/public/tokenization-links/${encodeURIComponent(token)}`, { cache: "no-store" });
-    const json = await res.json().catch(() => null);
-    if (res.ok) return { ok: true, status: res.status, json, apiBase };
+    try {
+      const res = await fetch(`${apiBase}/public/tokenization-links/${encodeURIComponent(token)}`, { cache: "no-store" });
+      const json = await res.json().catch(() => null);
+      if (res.ok) return { ok: true, status: res.status, json, apiBase };
+    } catch {
+      // Continuar con el siguiente base si hay error de red/DNS/TLS
+    }
   }
   const lastBase = uniqueBases[uniqueBases.length - 1];
-  const res = await fetch(`${lastBase}/public/tokenization-links/${encodeURIComponent(token)}`, { cache: "no-store" });
-  const json = await res.json().catch(() => null);
-  return { ok: res.ok, status: res.status, json };
+  try {
+    const res = await fetch(`${lastBase}/public/tokenization-links/${encodeURIComponent(token)}`, { cache: "no-store" });
+    const json = await res.json().catch(() => null);
+    return { ok: res.ok, status: res.status, json };
+  } catch {
+    return { ok: false, status: 0, json: { error: "fetch_failed" } };
+  }
 }
 
 async function fetchCheckoutConfig(bases: string[]) {
   const uniqueBases = Array.from(new Set(bases.map((base) => String(base || "").trim()).filter(Boolean)));
   if (!uniqueBases.length) return { ok: false, json: { error: "missing_next_public_api_base_url" } };
   for (const apiBase of uniqueBases) {
-    const res = await fetch(`${apiBase}/public/checkout-config`, { cache: "no-store" });
-    const json = await res.json().catch(() => null);
-    if (res.ok && json?.config) return { ok: true, json, apiBase };
+    try {
+      const res = await fetch(`${apiBase}/public/checkout-config`, { cache: "no-store" });
+      const json = await res.json().catch(() => null);
+      if (res.ok && json?.config) return { ok: true, json, apiBase };
+    } catch {
+      // Continuar con el siguiente base si hay error de red/DNS/TLS
+    }
   }
   const lastBase = uniqueBases[uniqueBases.length - 1];
-  const res = await fetch(`${lastBase}/public/checkout-config`, { cache: "no-store" });
-  const json = await res.json().catch(() => null);
-  return { ok: res.ok, json };
+  try {
+    const res = await fetch(`${lastBase}/public/checkout-config`, { cache: "no-store" });
+    const json = await res.json().catch(() => null);
+    return { ok: res.ok, json };
+  } catch {
+    return { ok: false, json: { error: "fetch_failed" } };
+  }
 }
 
 export default async function PublicTokenizePage({

@@ -42,6 +42,7 @@ services:
       WOMPI_ACTIVE_ENV: PRODUCTION
       JOBS_HEARTBEAT_KEY: wompi-subs-jobs
       GAMIFICATION_RECALC_MINUTES: 60
+      CSP_PUBLIC_ALLOW_UNSAFE_INLINE: "1"
     depends_on:
       postgres:
         condition: service_healthy
@@ -67,7 +68,7 @@ services:
     environment:
       NODE_ENV: development
       HOST: 0.0.0.0
-      NEXT_PUBLIC_API_BASE_URL: http://api:3001
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:3001
       ADMIN_INTERNAL_API_BASE_URL: http://api:3001
       ADMIN_API_TOKEN: dev-token-123456-change-in-production
       ADMIN_SESSION_SECRET: dev-session-secret-change-in-production-abc123xyz
