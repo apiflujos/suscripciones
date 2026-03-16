@@ -64,6 +64,8 @@ type ProductRow = {
   imageUrl?: string | null;
   collectionMode?: string | null;
   activeSubscriptions?: number;
+  pastDueSubscriptions?: number;
+  totalSubscriptions?: number;
 };
 
 type ChatwootInbox = {
@@ -517,7 +519,20 @@ export function ProductsTable({
           <span>{p.kind === "SERVICE" ? "Servicio" : "Producto"}</span>
         </div>
         <div className="product-price">{formatMoneyFromCents(p.basePriceInCents, String(p.currency || DEFAULT_CURRENCY))}</div>
-        <div className="product-stock">Activas: {Number(p.activeSubscriptions || 0)}</div>
+        <div className="product-stats-grid">
+          <div className="product-stat">
+            <span className="product-stat-label">Activas</span>
+            <span className="product-stat-value product-stat-ok">{Number(p.activeSubscriptions || 0)}</span>
+          </div>
+          <div className="product-stat">
+            <span className="product-stat-label">En mora</span>
+            <span className="product-stat-value product-stat-bad">{Number(p.pastDueSubscriptions || 0)}</span>
+          </div>
+          <div className="product-stat">
+            <span className="product-stat-label">Total</span>
+            <span className="product-stat-value product-stat-total">{Number(p.totalSubscriptions || 0)}</span>
+          </div>
+        </div>
         <div className="product-badges">
           <span className={`pill pill-sm ${String(p.collectionMode || "").toUpperCase() === "AUTO_DEBIT" ? "pill-mode-debit" : "pill-mode-link"}`}>
             {getCollectionModeLabel(p.collectionMode)}

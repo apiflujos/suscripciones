@@ -9846,6 +9846,48 @@ body.is-global-loading {
   color: var(--primary);
 }
 
+.product-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin: 6px 0;
+  padding: 6px 0;
+  border-top: 1px solid var(--stroke);
+  border-bottom: 1px solid var(--stroke);
+}
+
+.product-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+}
+
+.product-stat-label {
+  font-size: 8px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.product-stat-value {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.product-stat-value.product-stat-ok {
+  color: var(--status-success);
+}
+
+.product-stat-value.product-stat-bad {
+  color: var(--status-danger);
+}
+
+.product-stat-value.product-stat-total {
+  color: var(--primary);
+}
+
 .product-stock {
   font-size: 10.5px;
   color: var(--text-faint);

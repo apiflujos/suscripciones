@@ -651,9 +651,26 @@ export function NewBillingAssignmentForm({
               </div>
               ) : null}
 
-              {selectedProduct?.kind === "PRODUCT" && selectedProduct?.requiresShipping ? (
+              {selectedProduct?.kind === "PRODUCT" ? (
                 <div className="field">
-                  <label>Flete / envío para este contacto</label>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                    <label style={{ margin: 0 }}>Flete / envío para este contacto</label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, cursor: "pointer" }}>
+                      <input
+                        type="checkbox"
+                        checked={!selectedProduct?.requiresShipping || shippingCop === "0" || shippingCop === "$ 0"}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setShippingCop("$ 0");
+                          } else {
+                            setShippingCop(formatCurrencyInput("0", selectedProduct.currency || "COP"));
+                          }
+                        }}
+                        disabled={!productId || !customerId}
+                      />
+                      <span>Flete gratis</span>
+                    </label>
+                  </div>
                   <input
                     className="input shipping-currency-input"
                     name="shippingPesos"
@@ -661,9 +678,10 @@ export function NewBillingAssignmentForm({
                     onChange={(e) => setShippingCop(formatCurrencyInput(e.target.value, selectedProduct.currency || "COP"))}
                     inputMode="numeric"
                     placeholder="$ 0"
+                    disabled={!productId || !customerId || shippingCop === "$ 0"}
                   />
                   <div className="field-hint">
-                    Este valor solo se aplica a esta suscripción/plan.
+                    Este valor solo se aplica a esta suscripción/plan. Deja en $0 para envío gratis.
                   </div>
                   <div className="field-hint">Moneda: {selectedProduct.currency || "COP"}</div>
                 </div>

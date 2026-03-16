@@ -84,7 +84,7 @@ export function CustomersTable({
   items: CustomerRow[];
   view?: "cards" | "list";
   latestLinks: Record<string, LatestLink>;
-  subscriptionsByCustomer: Record<string, { hasPlan: boolean; planName?: string; status?: string; collectionMode?: string }>;
+  subscriptionsByCustomer: Record<string, { hasPlan: boolean; planName?: string; status?: string; collectionMode?: string; subscriptionId?: string }>;
   cartTemplates: Array<{ id: string; name: string }>;
   products: any[];
   checkoutTemplates: any[];
@@ -732,9 +732,20 @@ export function CustomersTable({
                     <div className="contact-plan-row">
                       {hasPlan ? (
                         <>
-                          <span className="contact-value contact-value-strong" style={{ fontSize: 13 }}>
-                            {planName ? `${planName}${statusLabel ? ` · ${statusLabel}` : ""}` : statusLabel || "Activa"}
-                          </span>
+                          {subInfo?.subscriptionId ? (
+                            <Link
+                              href={`/billing?subscriptionId=${subInfo.subscriptionId}`}
+                              className="contact-value contact-value-strong"
+                              style={{ fontSize: 13, color: 'var(--primary)', textDecoration: 'underline' }}
+                              title="Ir a la suscripción"
+                            >
+                              {planName ? `${planName}${statusLabel ? ` · ${statusLabel}` : ""}` : statusLabel || "Activa"}
+                            </Link>
+                          ) : (
+                            <span className="contact-value contact-value-strong" style={{ fontSize: 13 }}>
+                              {planName ? `${planName}${statusLabel ? ` · ${statusLabel}` : ""}` : statusLabel || "Activa"}
+                            </span>
+                          )}
                         </>
                       ) : (
                         <span className="contact-value contact-value-strong" style={{ fontSize: 13 }}>—</span>

@@ -86,7 +86,7 @@ async function fetchCustomerSubscriptions(tenantId?: string) {
   const items = Array.isArray(data.items) ? data.items : [];
   const map: Record<
     string,
-    { hasPlan: boolean; planName?: string; status?: string; collectionMode?: string }
+    { hasPlan: boolean; planName?: string; status?: string; collectionMode?: string; subscriptionId?: string }
   > = {};
   for (const item of items) {
     const customerId = String(item?.customerId || item?.customer?.id || "");
@@ -96,7 +96,7 @@ async function fetchCustomerSubscriptions(tenantId?: string) {
     if (map[customerId]) continue;
     const planName = formatSubscriptionPlanName(item?.plan);
     const collectionMode = String(item?.plan?.metadata?.collectionMode || "");
-    map[customerId] = { hasPlan: true, planName, status, collectionMode };
+    map[customerId] = { hasPlan: true, planName, status, collectionMode, subscriptionId: item?.id };
   }
   return map;
 }

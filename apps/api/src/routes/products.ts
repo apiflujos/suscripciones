@@ -143,17 +143,50 @@ productsRouter.get("/", async (_req, res) => {
   });
   const total = await prisma.subscriptionPlan.count({ where });
   const planIds = items.map((p: any) => String(p.id)).filter(Boolean);
+  
+  // Estadísticas de suscripciones por plan
   const activeSubsByPlan = new Map<string, number>();
+  const pastDueSubsByPlan = new Map<string, number>();
+  const totalSubsByPlan = new Map<string, number>();
+  
   if (planIds.length) {
-    const grouped = await prisma.subscription.groupBy({
+    // Suscripciones activas
+    const activeGrouped = await prisma.subscription.groupBy({
       by: ["planId"],
       where: { planId: { in: planIds }, status: SubscriptionStatus.ACTIVE },
       _count: { _all: true }
     });
-    for (const row of grouped as any[]) {
+    for (const row of activeGrouped as any[]) {
       const planId = String(row?.planId || "");
       if (!planId) continue;
       activeSubsByPlan.set(planId, Number(row?._count?._all || 0));
+    }
+    
+    // Suscripciones en mora
+    const pastDueGrouped = await prisma.subscription.groupBy({
+      by: ["planId"],
+      where: { planId: { in: planIds }, status: SubscriptionStatus.PAST_DUE },
+      _count: { _all: true }
+    });
+    for (const row of pastDueGrouped as any[]) {
+      const planId = String(row?.planId || "");
+      if (!planId) continue;
+      pastDueSubsByPlan.set(planId, Number(row?._count?._all || 0));
+    }
+    
+    // Total de suscripciones (activas + en mora + suspendidas)
+    const totalGrouped = await prisma.subscription.groupBy({
+      by: ["planId"],
+      where: { 
+        planId: { in: planIds }, 
+        status: { in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE, SubscriptionStatus.SUSPENDED] }
+      },
+      _count: { _all: true }
+    });
+    for (const row of totalGrouped as any[]) {
+      const planId = String(row?.planId || "");
+      if (!planId) continue;
+      totalSubsByPlan.set(planId, Number(row?._count?._all || 0));
     }
   }
   res.json({
@@ -189,6 +222,8 @@ productsRouter.get("/", async (_req, res) => {
       variants: (p.metadata as any)?.variants || null,
       imageUrl: normalizeImageUrl(req, (p.metadata as any)?.imageUrl),
       activeSubscriptions: Number(activeSubsByPlan.get(String(p.id)) || 0),
+      pastDueSubscriptions: Number(pastDueSubsByPlan.get(String(p.id)) || 0),
+      totalSubscriptions: Number(totalSubsByPlan.get(String(p.id)) || 0),
       createdAt: p.createdAt,
       updatedAt: p.updatedAt
     })),

@@ -500,17 +500,19 @@ export default async function BillingPage({
     });
     const estadoSimple = getEstadoSimple(r.status);
     const rowCheckoutUrl = checkoutCustomerId && checkoutCustomerId === r.customerId ? checkoutUrl : "";
-    const tokenMeta = r.customerMetadata?.tokenizationLink || {};
+    // Leer URL de tokenización del metadata del customer
+    const tokenMeta = (r.customerMetadata?.tokenizationLink as any) || {};
     const tokenMetaUrl = String(tokenMeta?.url || "").trim();
+    const tokenMetaToken = String(tokenMeta?.token || "").trim();
     const tokenMetaUsedAt = tokenMeta?.usedAt ? Date.parse(String(tokenMeta.usedAt)) : NaN;
     const tokenMetaExpiresAt = tokenMeta?.expiresAt ? Date.parse(String(tokenMeta.expiresAt)) : NaN;
+    const now = Date.now();
     const tokenMetaValid =
       Boolean(tokenMetaUrl) &&
       !Number.isFinite(tokenMetaUsedAt) &&
-      (!Number.isFinite(tokenMetaExpiresAt) || tokenMetaExpiresAt > Date.now());
-    const rowTokenUrl = (checkoutCustomerId && checkoutCustomerId === r.customerId && tokenUrl)
-      ? tokenUrl
-      : (tokenMetaValid ? tokenMetaUrl : "");
+      (!Number.isFinite(tokenMetaExpiresAt) || tokenMetaExpiresAt > now);
+    // Prioridad: 1) tokenUrl de query params, 2) tokenMetaUrl válido
+    const rowTokenUrl = tokenUrl || (tokenMetaValid ? tokenMetaUrl : "");
     const sentForRow = central === "sent" && checkoutCustomerId && checkoutCustomerId === r.customerId;
     const sentTokenForRow = Boolean(sentForRow && rowTokenUrl);
     const sentPaymentForRow = Boolean(sentForRow && !rowTokenUrl);
@@ -526,8 +528,10 @@ export default async function BillingPage({
     const isInactive = isCanceled || isSuspended;
     // Botón de cobrar: siempre visible para débito automático cuando hay pago vencido
     const showChargeButton = manualChargeEnabled && isAutoDebit && chargeDue && !isInactive;
+    // Botón de enviar link de pago: visible para link de pago manual
     const showPaymentLinkButton = !isAutoDebit && !isInactive;
-    const needsTokenization = isAutoDebit; // Siempre mostrar opción de tokenización para débito automático
+    // Botón de tokenización: siempre visible para débito automático (independiente del link de pago)
+    const needsTokenization = isAutoDebit && !r.customerTokenized;
     const showTokenizationLink = needsTokenization && !isInactive;
     const duplicateKey = `${r.customerId}:${r.planId}`;
     const duplicateCount = duplicateCountByKey.get(duplicateKey) || 1;
