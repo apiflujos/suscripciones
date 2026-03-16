@@ -32,11 +32,11 @@ export default async function NotificationsPage({
   }
 
   const sp = (await searchParams) ?? {};
-  const env = (String(sp.env || "").trim().toUpperCase() === "SANDBOX" ? "SANDBOX" : "PRODUCTION") as "PRODUCTION" | "SANDBOX";
+  const env = (String(sp.env ?? "").trim().toUpperCase() === "SANDBOX" ? "SANDBOX" : "PRODUCTION") as "PRODUCTION" | "SANDBOX";
   const res = await fetchConfig(env);
-  const config = res.ok ? (res.json?.config || {}) : {};
-  const templates = Array.isArray(config?.templates) ? config.templates : [];
-  const rules = Array.isArray(config?.rules) ? config.rules : [];
+  const config = res.ok && res.json?.config ? res.json.config : { templates: [], rules: [] };
+  const templates = Array.isArray(config.templates) ? config.templates : [];
+  const rules = Array.isArray(config.rules) ? config.rules : [];
 
   return (
     <main className="page pageWide notificationsPage">
@@ -73,7 +73,7 @@ export default async function NotificationsPage({
       {!res.ok ? (
         <div className="card cardPad">
           No se pudo consultar el API (
-          <span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{res.status || "sin respuesta"}</span>). Revisa `NEXT_PUBLIC_API_BASE_URL` y el token del Admin.
+          <span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{res.status ?? "sin respuesta"}</span>). Revisa `NEXT_PUBLIC_API_BASE_URL` y el token del Admin.
         </div>
       ) : null}
 

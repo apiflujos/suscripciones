@@ -1,6 +1,8 @@
 import express from "express";
 import { prisma } from "../db/prisma";
 import { PaymentStatus, Prisma, RetryJobStatus, RetryJobType, WebhookProvider, WebhookProcessStatus } from "@prisma/client";
+import { getWompiEventsSecret } from "../services/runtimeConfig";
+import { getDefaultTenantId } from "../services/tenantContext";
 import { classifyReference } from "../webhooks/wompi/classifyReference";
 import { systemLog } from "../services/systemLog";
 import { LogLevel } from "@prisma/client";
@@ -471,6 +473,57 @@ logsRouter.get("/payments", async (req, res) => {
     };
   });
   res.json({ items: mappedItems, total });
+});
+
+logsRouter.get("/payments/health", async (_req, res) => {
+  const [eventsSecret, defaultTenantId] = await Promise.all([
+    getWompiEventsSecret().catch(() => undefined),
+    getDefaultTenantId().catch(() => null)
+  ]);
+
+  const [pendingCount, failedCount, oldestPending, latestReceived, latestProcessed] = await Promise.all([
+    prisma.webhookEvent.count({
+      where: { provider: WebhookProvider.WOMPI, processStatus: WebhookProcessStatus.RECEIVED }
+    }),
+    prisma.webhookEvent.count({
+      where: { provider: WebhookProvider.WOMPI, processStatus: WebhookProcessStatus.FAILED }
+    }),
+    prisma.webhookEvent.findFirst({
+      where: { provider: WebhookProvider.WOMPI, processStatus: WebhookProcessStatus.RECEIVED },
+      orderBy: { receivedAt: "asc" },
+      select: { receivedAt: true, eventName: true, id: true }
+    }),
+    prisma.webhookEvent.findFirst({
+      where: { provider: WebhookProvider.WOMPI },
+      orderBy: { receivedAt: "desc" },
+      select: { receivedAt: true, eventName: true, processStatus: true, id: true }
+    }),
+    prisma.webhookEvent.findFirst({
+      where: { provider: WebhookProvider.WOMPI, processStatus: WebhookProcessStatus.PROCESSED },
+      orderBy: { receivedAt: "desc" },
+      select: { receivedAt: true, eventName: true, id: true }
+    })
+  ]);
+
+  const oldestPendingAt = oldestPending?.receivedAt ? oldestPending.receivedAt.toISOString() : null;
+  const latestWebhookAt = latestReceived?.receivedAt ? latestReceived.receivedAt.toISOString() : null;
+  const latestWebhookEventName = latestReceived?.eventName || null;
+  const latestWebhookStatus = latestReceived?.processStatus || null;
+  const latestProcessedAt = latestProcessed?.receivedAt ? latestProcessed.receivedAt.toISOString() : null;
+  const latestProcessedEventName = latestProcessed?.eventName || null;
+
+  res.json({
+    wompiEventsSecretConfigured: Boolean(eventsSecret),
+    defaultTenantConfigured: Boolean(defaultTenantId),
+    pendingWebhookEvents: pendingCount,
+    failedWebhookEvents: failedCount,
+    oldestPendingAt,
+    latestWebhookAt,
+    latestWebhookEventName,
+    latestWebhookStatus,
+    latestProcessedAt,
+    latestProcessedEventName
+  });
 });
 
 logsRouter.post("/system/test", async (_req, res) => {

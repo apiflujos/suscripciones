@@ -14,6 +14,7 @@ import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { BillingTenantModalButton } from "./BillingTenantModalButton";
 import { AutoCutoffInlineForm } from "./AutoCutoffInlineForm";
 import { RetryDateField } from "./RetryDateField";
+import { PaymentHistoryButton } from "./PaymentHistoryButton";
 import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 
@@ -212,7 +213,6 @@ export default async function BillingPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  try {
   const csrfToken = await getCsrfToken();
   const { token } = getConfig();
   if (!token) {
@@ -500,9 +500,17 @@ export default async function BillingPage({
     });
     const estadoSimple = getEstadoSimple(r.status);
     const rowCheckoutUrl = checkoutCustomerId && checkoutCustomerId === r.customerId ? checkoutUrl : "";
+    const tokenMeta = r.customerMetadata?.tokenizationLink || {};
+    const tokenMetaUrl = String(tokenMeta?.url || "").trim();
+    const tokenMetaUsedAt = tokenMeta?.usedAt ? Date.parse(String(tokenMeta.usedAt)) : NaN;
+    const tokenMetaExpiresAt = tokenMeta?.expiresAt ? Date.parse(String(tokenMeta.expiresAt)) : NaN;
+    const tokenMetaValid =
+      Boolean(tokenMetaUrl) &&
+      !Number.isFinite(tokenMetaUsedAt) &&
+      (!Number.isFinite(tokenMetaExpiresAt) || tokenMetaExpiresAt > Date.now());
     const rowTokenUrl = (checkoutCustomerId && checkoutCustomerId === r.customerId && tokenUrl)
       ? tokenUrl
-      : String(r.customerMetadata?.tokenizationLink?.url || "").trim();
+      : (tokenMetaValid ? tokenMetaUrl : "");
     const sentForRow = central === "sent" && checkoutCustomerId && checkoutCustomerId === r.customerId;
     const sentTokenForRow = Boolean(sentForRow && rowTokenUrl);
     const sentPaymentForRow = Boolean(sentForRow && !rowTokenUrl);
@@ -513,10 +521,13 @@ export default async function BillingPage({
     const isCutoffOverdue = Boolean(cutoffDueAt && !Number.isNaN(cutoffDueAt.getTime()) && cutoffDueAt.getTime() <= Date.now());
     const manualChargeEnabled = Boolean(autoDebitSettings?.allowManualCharge ?? true);
     const chargeDue = r.status === "PAST_DUE" || r.status === "EXPIRED" || isCutoffOverdue;
-    const showChargeButton = manualChargeEnabled && isAutoDebit && r.customerTokenized && chargeDue;
-    const showPaymentLinkButton = !isAutoDebit;
+    const isCanceled = r.status === "CANCELED";
+    const isSuspended = r.status === "SUSPENDED";
+    const isInactive = isCanceled || isSuspended;
+    const showChargeButton = manualChargeEnabled && isAutoDebit && r.customerTokenized && chargeDue && !isInactive;
+    const showPaymentLinkButton = !isAutoDebit && !isInactive;
     const needsTokenization = isAutoDebit && !r.customerTokenized;
-    const showTokenizationLink = needsTokenization;
+    const showTokenizationLink = needsTokenization && !isInactive;
     const duplicateKey = `${r.customerId}:${r.planId}`;
     const duplicateCount = duplicateCountByKey.get(duplicateKey) || 1;
     const keepRowId = duplicateKeepByKey.get(duplicateKey)?.id || r.id;
@@ -537,7 +548,7 @@ export default async function BillingPage({
                 <BillingTenantModalButton
                   triggerId={`tenant-modal-open-${r.id}`}
                   triggerLabel={r.tenantName || "Sin canal"}
-                  triggerClassName="ghost btn-compact btn-noicon"
+                  triggerClassName="pill pill-sm pill-muted"
                   subscriptionId={r.id}
                   scopeTenantId={r.tenantId || ""}
                   tenantIds={Array.isArray(r.tenantIds) ? r.tenantIds.map(String) : []}
@@ -551,15 +562,15 @@ export default async function BillingPage({
               <div className="billing-header-meta-item billing-header-status-strip">
                 <span className="billing-header-label">Estado</span>
                 <div className="billing-status-line" role="group" aria-label="Estado">
-                  <span className={`status-badge ${estadoSimple.class}`} title={`Estado: ${estadoSimple.label}`}>
+                  <span className={`pill pill-sm ${estadoSimple.class}`} title={`Estado: ${estadoSimple.label}`}>
                     {estadoSimple.label}
                   </span>
                   {r.customerTokenized ? (
-                    <span className="status-badge status-badge-ok" title="Tarjeta tokenizada">
+                    <span className="pill pill-sm pill-ok" title="Tarjeta tokenizada">
                       Tarjeta guardada
                     </span>
                   ) : (
-                    <span className="status-badge status-badge-warn" title="Sin tarjeta tokenizada">
+                    <span className="pill pill-sm pill-warn" title="Sin tarjeta tokenizada">
                       Sin tarjeta
                     </span>
                   )}
@@ -586,27 +597,19 @@ export default async function BillingPage({
                   iconOnly
                 />
               ) : null}
-              <a
-                className="ghost btn-compact btn-history btn-icon-only"
-                href={`/payments?${new URLSearchParams({
-                  subscriptionId: r.id,
-                  ...(r.tenantId ? { tenantId: r.tenantId } : {})
-                }).toString()}`}
-                aria-label="Historial de pagos"
-                title="Ver historial de pagos de esta suscripción"
-              />
+              <PaymentHistoryButton subscriptionId={r.id} tenantId={r.tenantId} />
               <DeleteSubscriptionButton action={deleteSubscription} csrfToken={csrfToken} subscriptionId={r.id} tenantId={r.tenantId} returnTo={returnTo} />
             </div>
           </div>
         </div>
 
         <div className="billing-grid-info billing-grid-subscription">
-          <div className="billing-body-main" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '12px' }}>
+          <div className="billing-body-main">
             {/* Datos personales */}
-            <div className="billing-body-section" style={{ flex: '0 0 auto' }}>
+            <div className="billing-body-section">
               <div className="billing-section-title">Contacto</div>
               <div className="billing-title">
-                <div className="billing-name">{r.customerName}</div>
+                <div className="billing-name billing-value">{r.customerName}</div>
                 <div className="billing-sub">
                   {r.customerEmail || "—"} {r.identificacion && r.identificacion !== "—" ? `· ${r.identificacion}` : ""}
                 </div>
@@ -614,7 +617,7 @@ export default async function BillingPage({
             </div>
             
             {/* Producto */}
-            <div className="billing-body-section" style={{ flex: '0 0 auto' }}>
+            <div className="billing-body-section">
               <div className="billing-section-title">Producto</div>
               <div className="billing-product-row">
                 <div className="product-thumb billing-product-thumb">
@@ -629,16 +632,16 @@ export default async function BillingPage({
                   )}
                 </div>
                 <div className="billing-product-meta">
-                  <strong>{r.planName}</strong>
+                  <strong className="billing-value">{r.planName}</strong>
                 </div>
               </div>
             </div>
             
             {/* Fechas - EN LÍNEA HORIZONTAL */}
-            <div className="billing-body-section billing-section-dates" style={{ flex: '0 0 auto' }}>
+            <div className="billing-body-section billing-section-dates">
               <div className="billing-section-title">Próximo cobro</div>
-              <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px', flexWrap: 'nowrap' }}>
-                <div className="date-item" style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+              <div className="billing-date-row">
+                <div className="date-item">
                   <span className="date-label">Corte:</span>
                   <AutoCutoffInlineForm
                     subscriptionId={r.id}
@@ -649,7 +652,7 @@ export default async function BillingPage({
                     action={scheduleCutoff}
                   />
                 </div>
-                <div className="date-item" style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                <div className="date-item">
                   <span className="date-label">Próximo:</span>
                   <RetryDateField
                     subscriptionId={r.id}
@@ -662,15 +665,15 @@ export default async function BillingPage({
               </div>
             </div>
           </div>
-          <div className="billing-body-side" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
-            <div className="billing-cost-panel" style={{ flex: '1' }}>
+          <div className="billing-body-side">
+            <div className="billing-cost-panel">
               <span className="billing-cost-title">Totales</span>
               <div className="billing-cost-box">
                 <div className="billing-cost-summary">
                   <div className="billing-cost-total">{fmtMoney(r.totalInCents ?? r.montoInCents, r.moneda)}</div>
                   <div className="billing-cost-period">{r.cada}</div>
                 </div>
-                <div className="billing-cost-inline" style={{ display: 'flex', flexWrap: 'nowrap', gap: 3 }}>
+                <div className="billing-cost-inline billing-cost-inline-nowrap">
                   <span className="billing-cost-chip">Base {fmtMoney(r.valorBaseInCents ?? r.montoInCents, r.moneda)}</span>
                   {r.currentShippingInCents > 0 ? (
                     <span className="billing-cost-chip">Flete {fmtMoney(r.currentShippingInCents, r.moneda)}</span>
@@ -701,6 +704,7 @@ export default async function BillingPage({
               <form action={chargeSubscriptionNow}>
                 <input type="hidden" name="csrf" value={csrfToken} />
                 <input type="hidden" name="subscriptionId" value={r.id} />
+                <input type="hidden" name="returnTo" value={returnTo} />
                 {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
                 <button
                   className="ghost btn-compact btn-blue btn-pay"
@@ -933,6 +937,7 @@ export default async function BillingPage({
                   periodStartAt: r.periodoInicioAt,
                   periodEndAt: r.periodoFinAt
                 });
+                const estadoSimple = getEstadoSimple(r.status);
                 const contactHref = `/customers?${new URLSearchParams({
                   tx: r.customerId,
                   ...(r.tenantId ? { tenantId: r.tenantId } : {})
@@ -949,13 +954,16 @@ export default async function BillingPage({
                     </div>
                     <div className="billing-list-cell billing-list-product">
                       <a className="billing-list-link" href={productHref}>{r.planName || "—"}</a>
-                      <div className="billing-list-sub">{r.tipoTx || "—"}</div>
+                      <div className="billing-list-sub">{r.tipoTx || "—"} · Suscripción {estadoSimple.label}</div>
                     </div>
                     <div className="billing-list-cell billing-list-cutoff">
                       <LocalDateTime value={r.vencimientoAt} variant="short" />
                     </div>
                     <div className="billing-list-cell billing-list-status">
-                      <span className={`pill pill-sm ${paymentStatus === "Pagado" ? "pill-ok" : paymentStatus === "En mora" ? "pill-warn" : "pill-muted"}`}>
+                      <span
+                        className={`pill pill-sm ${paymentStatus === "Pagado" ? "pill-ok" : paymentStatus === "En mora" ? "pill-warn" : "pill-muted"}`}
+                        title={`Pago: ${paymentStatus} · Suscripción: ${estadoSimple.label}`}
+                      >
                         {paymentStatus}
                       </span>
                     </div>
@@ -998,13 +1006,18 @@ export default async function BillingPage({
                       <div className="billing-kanban-list">
                         {(grouped.get(col) || []).map((r) => (
                           <details className="inline-detail billing-kanban-card" key={`kanban-item-${r.id}`}>
-                            <summary className="billing-kanban-summary">
+                            <summary className="billing-kanban-summary" title={`Suscripción: ${getEstadoSimple(r.status).label}`}>
                               <div className="billing-kanban-name">{r.customerName}</div>
                               <div className="billing-kanban-sub">{r.planName || "—"}</div>
                               <div className="billing-kanban-meta">
                                 <span>{fmtMoney(r.totalInCents ?? r.montoInCents, r.moneda)}</span>
                                 <span>·</span>
                                 <LocalDateTime value={r.vencimientoAt} variant="short" />
+                              </div>
+                              <div className="billing-kanban-badges">
+                                <span className={`pill pill-sm ${getEstadoSimple(r.status).class}`}>
+                                  {getEstadoSimple(r.status).label}
+                                </span>
                               </div>
                             </summary>
                             <div className="inline-detail-body billing-pop-body">
@@ -1086,11 +1099,4 @@ export default async function BillingPage({
       </section>
     </main>
   );
-  } catch (err) {
-    return (
-      <main className="page pageWide">
-        <p>No pudimos cargar esta sección. Detalle: {String((err as any)?.message || err)}</p>
-      </main>
-    );
-  }
 }

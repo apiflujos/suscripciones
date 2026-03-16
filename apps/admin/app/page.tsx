@@ -527,6 +527,11 @@ export default async function Home({
   const unlinkedPaymentsOther = Number(metrics.json?.totals?.unlinked?.paymentsOther || 0);
   const unlinkedPaymentsTotal = unlinkedPaymentsApproved + unlinkedPaymentsOther;
   const unlinkedRevenue = Number(metrics.json?.totals?.unlinked?.revenueInCents || 0);
+
+  // DESGLOSE POR PLATAFORMA
+  const platformData = metrics.json?.totals?.byPlatform || [];
+  const totalPlatformRevenue = platformData.reduce((sum: number, p: any) => sum + (p.revenueInCents || 0), 0);
+  const totalPlatformPayments = platformData.reduce((sum: number, p: any) => sum + (p.paymentsSuccess || 0), 0);
   
   const recentPayments = paymentsRes.ok ? paymentsRes.json?.items || [] : [];
   const overdueSubs = overdueSubsRes.ok ? overdueSubsRes.json?.items || [] : [];
@@ -844,6 +849,127 @@ export default async function Home({
                       </div>
                     </div>
                   </div>
+
+                  {/* DESGLOSE POR PLATAFORMA */}
+                  {platformData.length > 0 ? (
+                    <>
+                      <div className="card cardPad" style={{ marginBottom: 16 }}>
+                        <h3 style={{ marginTop: 0, marginBottom: 12 }}>Pagos por Plataforma</h3>
+                        <div className="grid3">
+                          {platformData.map((platform: any, idx: number) => {
+                            const source = platform.source || "DIRECT";
+                            const paymentsSuccess = platform.paymentsSuccess || 0;
+                            const paymentsFailed = platform.paymentsFailed || 0;
+                            const revenue = platform.revenueInCents || 0;
+                            const revenuePct = totalPlatformRevenue > 0 ? (revenue / totalPlatformRevenue) * 100 : 0;
+                            const paymentsPct = totalPlatformPayments > 0 ? (paymentsSuccess / totalPlatformPayments) * 100 : 0;
+                            const sourceIcon =
+                              source === "SHOPIFY"
+                                ? "🛍️"
+                                : source === "ALEGRA"
+                                  ? "📦"
+                                  : source === "MANUAL"
+                                    ? "✋"
+                                    : "🌐";
+
+                            return (
+                              <div key={`platform-${idx}`} className="card cardPad" style={{ background: "var(--surface-2)" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                                  <span style={{ fontSize: 24 }}>{sourceIcon}</span>
+                                  <div>
+                                    <div style={{ fontWeight: 600, fontSize: 14 }}>{source}</div>
+                                    <div style={{ fontSize: 11, color: "var(--text-faint)" }}>
+                                      {fmtPct(revenuePct)} del revenue · {fmtPct(paymentsPct)} de los pagos
+                                    </div>
+                                  </div>
+                                </div>
+                                <div style={{ display: "grid", gap: 6, fontSize: 13 }}>
+                                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                    <span style={{ color: "var(--text-faint)" }}>Ingresos:</span>
+                                    <strong>${fmtMoneyCop(revenue)} COP</strong>
+                                  </div>
+                                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                    <span style={{ color: "var(--text-faint)" }}>Pagos OK:</span>
+                                    <span style={{ color: "var(--status-success)" }}>{paymentsSuccess}</span>
+                                  </div>
+                                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                    <span style={{ color: "var(--text-faint)" }}>Pagos fallidos:</span>
+                                    <span style={{ color: "var(--status-danger)" }}>{paymentsFailed}</span>
+                                  </div>
+                                </div>
+                                {/* Barra de progreso de revenue */}
+                                <div style={{ marginTop: 10, height: 6, background: "var(--stroke)", borderRadius: 3, overflow: "hidden" }}>
+                                  <div
+                                    style={{
+                                      width: `${Math.min(100, revenuePct)}%`,
+                                      height: "100%",
+                                      background: idx === 0 ? "var(--status-success)" : idx === 1 ? "var(--chart-a)" : "var(--chart-b)"
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Gráfico de barras comparativo por plataforma */}
+                      <div className="card cardPad" style={{ marginBottom: 16 }}>
+                        <h3 style={{ marginTop: 0, marginBottom: 12 }}>Comparativo de Plataformas</h3>
+                        <div style={{ overflowX: "auto" }}>
+                          <table className="table" style={{ fontSize: 13 }}>
+                            <thead>
+                              <tr>
+                                <th>Plataforma</th>
+                                <th style={{ textAlign: "right" }}>Ingresos</th>
+                                <th style={{ textAlign: "right" }}>% Revenue</th>
+                                <th style={{ textAlign: "right" }}>Pagos OK</th>
+                                <th style={{ textAlign: "right" }}>% Pagos</th>
+                                <th style={{ textAlign: "right" }}>Fallidos</th>
+                                <th style={{ textAlign: "right" }}>Tasa OK</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {platformData.map((platform: any, idx: number) => {
+                                const source = platform.source || "DIRECT";
+                                const revenue = platform.revenueInCents || 0;
+                                const revenuePct = totalPlatformRevenue > 0 ? (revenue / totalPlatformRevenue) * 100 : 0;
+                                const paymentsSuccess = platform.paymentsSuccess || 0;
+                                const paymentsFailed = platform.paymentsFailed || 0;
+                                const paymentsTotal = paymentsSuccess + paymentsFailed;
+                                const paymentsPct = totalPlatformPayments > 0 ? (paymentsSuccess / totalPlatformPayments) * 100 : 0;
+                                const approvalRate = paymentsTotal > 0 ? (paymentsSuccess / paymentsTotal) * 100 : 0;
+
+                                return (
+                                  <tr key={`platform-table-${idx}`}>
+                                    <td>
+                                      <strong>{source}</strong>
+                                    </td>
+                                    <td style={{ textAlign: "right" }}>${fmtMoneyCop(revenue)} COP</td>
+                                    <td style={{ textAlign: "right" }}>
+                                      <span className="pill pill-sm">{fmtPct(revenuePct)}</span>
+                                    </td>
+                                    <td style={{ textAlign: "right" }}>{paymentsSuccess}</td>
+                                    <td style={{ textAlign: "right" }}>
+                                      <span className="pill pill-sm">{fmtPct(paymentsPct)}</span>
+                                    </td>
+                                    <td style={{ textAlign: "right" }}>
+                                      <span style={{ color: "var(--status-danger)" }}>{paymentsFailed}</span>
+                                    </td>
+                                    <td style={{ textAlign: "right" }}>
+                                      <span className={`pill pill-sm ${approvalRate >= 90 ? "pill-ok" : approvalRate >= 70 ? "pill-warn" : "pill-bad"}`}>
+                                        {fmtPct(approvalRate)}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </>
+                  ) : null}
 
                   <div className="grid2">
                     <div className="card cardPad chart-card">

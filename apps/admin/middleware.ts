@@ -3,94 +3,106 @@ import type { NextRequest } from "next/server";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "./lib/session";
 import { CSRF_COOKIE } from "./app/lib/csrf";
 
+// Rutas que NO requieren autenticación
+const PUBLIC_PATHS = [
+  "/login",
+  "/logout",
+  "/public",
+  "/wompi/widget",
+  "/404",
+  "/500",
+  "/_error"
+];
+
+function isPublicPath(pathname: string): boolean {
+  return (
+    PUBLIC_PATHS.includes(pathname) ||
+    pathname.startsWith("/public/") ||
+    pathname.startsWith("/login/")
+  );
+}
+
+function isSuperAdminArea(pathname: string): boolean {
+  return pathname.startsWith("/sa") || pathname.startsWith("/__sa");
+}
+
+function isSettingsArea(pathname: string): boolean {
+  return pathname.startsWith("/settings");
+}
+
+function isLogsArea(pathname: string): boolean {
+  return pathname.startsWith("/logs");
+}
+
 export async function middleware(req: NextRequest) {
   const requestHeaders = new Headers(req.headers);
   const pathname = req.nextUrl.pathname;
   requestHeaders.set("x-app-pathname", pathname);
 
+  // CSRF Token
   const existingCsrf = req.cookies.get(CSRF_COOKIE)?.value || "";
   const csrfToken = existingCsrf || crypto.randomUUID();
   requestHeaders.set("x-csrf-token", csrfToken);
 
-  const url = req.nextUrl.clone();
-  
   // Normalizar rutas de Super Admin (__sa -> sa)
   const shouldRewriteSa = pathname.startsWith("/__sa");
+  const url = shouldRewriteSa
+    ? new URL(req.nextUrl.origin + pathname.replace(/^\/__sa/, "/sa") + req.nextUrl.search)
+    : req.nextUrl.clone();
+
   if (shouldRewriteSa) {
-    url.pathname = pathname.replace(/^\/__sa/, "/sa");
-    requestHeaders.set("x-app-pathname", url.pathname); // Actualizar header si reescribimos
+    requestHeaders.set("x-app-pathname", url.pathname);
   }
 
-  // Definir rutas públicas
-  const isPublic =
-    pathname === "/login" ||
-    pathname === "/logout" ||
-    pathname.startsWith("/login/") || // Soporte para sub-rutas de login si las hubiera
-    pathname === "/sa/login" ||
-    pathname === "/sa/logout" ||
-    pathname === "/__sa/login" ||
-    pathname === "/__sa/logout" ||
-    pathname === "/public" ||
-    pathname.startsWith("/public/") ||
-    pathname === "/wompi/widget" ||
-    pathname === "/404" ||
-    pathname === "/500" ||
-    pathname === "/_error";
-
+  // Debug paths (solo en desarrollo)
   const isDebugPath = pathname.startsWith("/debug") || pathname.startsWith("/__debug");
-  const debugPublic = process.env.NODE_ENV !== "production";
+  const isDebugPublic = process.env.NODE_ENV !== "production";
 
-  let session = null;
+  // Verificar sesión
   const token = req.cookies.get(ADMIN_SESSION_COOKIE)?.value || "";
-  
-  if (token) {
-    session = await verifyAdminSessionToken(token);
+  const session = token ? await verifyAdminSessionToken(token) : null;
+
+  // PROTECCIÓN DE RUTAS
+  const isProtectedRoute = !isPublicPath(pathname) && !(isDebugPath && isDebugPublic);
+
+  if (isProtectedRoute && !session) {
+    // Redirigir al login
+    const loginUrl = new URL(req.nextUrl.origin + "/login");
+    loginUrl.searchParams.set("next", pathname + req.nextUrl.search);
+    return NextResponse.redirect(loginUrl);
   }
 
-  // Validación de Autenticación
-  if (!isPublic && !(isDebugPath && debugPublic)) {
-    if (!session) {
-      const loginUrl = req.nextUrl.clone();
-      loginUrl.pathname = "/login";
-      loginUrl.searchParams.set("next", pathname + req.nextUrl.search);
-      return NextResponse.redirect(loginUrl);
-    }
-
-    const isSuperAdminArea = pathname.startsWith("/sa") || pathname.startsWith("/__sa");
-    if (isSuperAdminArea && session.role !== "SUPER_ADMIN") {
-      const homeUrl = req.nextUrl.clone();
-      homeUrl.pathname = "/";
-      homeUrl.searchParams.delete("next");
-      return NextResponse.redirect(homeUrl);
-    }
-
-    const isSettingsArea = pathname.startsWith("/settings");
-    if (isSettingsArea && session.role === "AGENT") {
-      const homeUrl = req.nextUrl.clone();
-      homeUrl.pathname = "/";
-      homeUrl.searchParams.delete("next");
-      return NextResponse.redirect(homeUrl);
-    }
-
-    const isLogsArea = pathname.startsWith("/logs");
-    if (isLogsArea && session.role !== "SUPER_ADMIN") {
-      const homeUrl = req.nextUrl.clone();
-      homeUrl.pathname = "/";
-      homeUrl.searchParams.delete("next");
-      return NextResponse.redirect(homeUrl);
-    }
-  }
-
-  // Inyectar estado de sesión en headers para layout
+  // VALIDACIÓN DE ROLES
   if (session) {
+    // Super Admin area: solo SUPER_ADMIN
+    if (isSuperAdminArea(pathname) && session.role !== "SUPER_ADMIN") {
+      return NextResponse.redirect(new URL(req.nextUrl.origin + "/"));
+    }
+
+    // Settings area: AGENTS no pueden acceder
+    if (isSettingsArea(pathname) && session.role === "AGENT") {
+      return NextResponse.redirect(new URL(req.nextUrl.origin + "/"));
+    }
+
+    // Logs area: solo SUPER_ADMIN
+    if (isLogsArea(pathname) && session.role !== "SUPER_ADMIN") {
+      return NextResponse.redirect(new URL(req.nextUrl.origin + "/"));
+    }
+
+    // Inyectar información de sesión en headers
     requestHeaders.set("x-auth-user", session.email);
     requestHeaders.set("x-auth-role", session.role);
+    if (session.tenantId) {
+      requestHeaders.set("x-auth-tenant-id", session.tenantId);
+    }
   }
 
+  // Construir respuesta
   const response = shouldRewriteSa
     ? NextResponse.rewrite(url, { request: { headers: requestHeaders } })
     : NextResponse.next({ request: { headers: requestHeaders } });
 
+  // CSRF Cookie
   if (!existingCsrf) {
     response.cookies.set(CSRF_COOKIE, csrfToken, {
       httpOnly: true,
@@ -104,6 +116,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Exclude Next internals and any public static files.
   matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)"]
 };

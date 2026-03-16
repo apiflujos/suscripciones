@@ -19,20 +19,16 @@ function pruneCache() {
 
 export function getAdminApiConfig() {
   const apiBase = getOptionalApiBase();
-  const token = normalizeToken(process.env.ADMIN_API_TOKEN || "");
+  const token = normalizeToken(process.env.ADMIN_API_TOKEN);
   return { apiBase, token };
 }
 
 async function getSessionEmail(): Promise<string | null> {
-  try {
-    const c = await cookies();
-    const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
-    if (!sessionToken) return null;
-    const session = await verifyAdminSessionToken(sessionToken);
-    return session?.email || null;
-  } catch {
-    return null;
-  }
+  const c = await cookies();
+  const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value;
+  if (!sessionToken) return null;
+  const session = await verifyAdminSessionToken(sessionToken);
+  return session?.email ?? null;
 }
 
 export function getRequiredApiBase() {
@@ -44,9 +40,9 @@ export function getRequiredApiBase() {
 }
 
 export function getOptionalApiBase() {
-  const internalBase = process.env.ADMIN_INTERNAL_API_BASE_URL || process.env.INTERNAL_API_BASE_URL || "";
-  const publicBase = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-  return (internalBase || publicBase).trim();
+  const internalBase = process.env.ADMIN_INTERNAL_API_BASE_URL ?? process.env.INTERNAL_API_BASE_URL;
+  const publicBase = process.env.NEXT_PUBLIC_API_BASE_URL;
+  return (internalBase ?? publicBase ?? "").trim();
 }
 
 function cacheKey(url: string, token: string) {
@@ -59,10 +55,10 @@ async function fetchJson(url: string, init?: RequestInit): Promise<FetchResult> 
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
     const res = await fetch(url, { ...init, signal: controller.signal });
-    const json = await res.json().catch(() => null);
+    const json = await res.json();
     return { ok: res.ok, status: res.status, json };
   } catch (err) {
-    const msg = String((err as any)?.message || err);
+    const msg = err instanceof Error ? err.message : String(err);
     const isAbort = msg.toLowerCase().includes("abort");
     return { ok: false, status: 0, json: { error: isAbort ? "fetch_timeout" : "fetch_failed", detail: msg } };
   } finally {

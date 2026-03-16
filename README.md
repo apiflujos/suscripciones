@@ -5,10 +5,44 @@ El repo remoto `apiflujos/suscripciones` estaba **vacío (sin commits)**. Este p
 ## Stack
 
 - **API**: Node.js + TypeScript + Express + Prisma + PostgreSQL
-- **Admin**: Next.js (panel mínimo, autenticación por sesión)
+- **Admin**: Next.js 15 (panel administrativo, autenticación por sesión)
 - **Un solo webhook Wompi**: validación de firma + idempotencia + procesamiento asíncrono
 - **Jobs/reintentos**: tabla `retry_jobs` + runner (sin Redis)
-- **Deploy**: Render Blueprint (`render.yaml`)
+- **Deploy**: Render Blueprint (`render.yaml`) o PM2
+
+## Características Principales
+
+### ✅ Autenticación y Seguridad
+- Login con sesión JWT (HMAC-SHA256)
+- Roles: SUPER_ADMIN, ADMIN, AGENT
+- Protección de rutas por middleware
+- CSRF protection en formularios
+
+### ✅ Métricas y Dashboard
+- **Métricas en tiempo real**: Ingresos, pagos, suscripciones, MRR, churn
+- **Desglose por plataforma**: Shopify, Alegra, Manual, Direct
+- **Comparativo de plataformas**: Tabla con ingresos, pagos y tasas de aprobación
+- **Gráficos por período**: Día, semana, mes
+- **Pagos ignorados configurables**: Control desde Settings
+
+### ✅ Webhooks y Notificaciones
+- Webhook Wompi con validación de firma
+- Idempotencia por checksum
+- Reintentos automáticos
+- Notificaciones por WhatsApp (Chatwoot)
+- Plantillas personalizables
+
+### ✅ Gestión de Pagos
+- Health check de webhooks en tiempo real
+- Estado del runner de jobs
+- Reintento de webhooks fallidos
+- Configuración de pagos externos
+
+### ✅ Listas Inteligentes (Gamificación)
+- Segmentación dinámica de contactos
+- Listas predefinidas (Leyenda, Oro, Plata, Rookie)
+- Reglas personalizables
+- Preview y sync manual
 
 ## Restricción crítica: 1 webhook de Wompi
 

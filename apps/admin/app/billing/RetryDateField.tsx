@@ -44,9 +44,9 @@ export function RetryDateField({
   const hasRetryDate = Boolean(nextRetryAt);
 
   return (
-    <div className="field" style={{ display: "grid", gap: 6 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-        <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+    <div className="field billing-retry-field">
+      <div className="billing-retry-header">
+        <label className="billing-retry-label">
           <span>Fecha de reintento</span>
           <HelpTip 
             text={
@@ -69,7 +69,7 @@ export function RetryDateField({
       </div>
 
       {isEditing ? (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8, alignItems: "end" }}>
+        <div className="billing-retry-editor">
           <input
             className="input"
             type="datetime-local"
@@ -77,7 +77,7 @@ export function RetryDateField({
             onChange={(e) => setRetryLocal(e.target.value)}
             step={60}
           />
-          <div style={{ display: "flex", gap: 6 }}>
+          <div className="billing-retry-actions">
             <button
               type="button"
               className="ghost btn-compact"
@@ -124,15 +124,15 @@ export function RetryDateField({
           </div>
         </div>
       ) : hasRetryDate ? (
-        <span style={{ fontSize: "10.5px", fontWeight: 500 }}>
+        <span className="billing-retry-date billing-value">
           {displayRetryAt ? new Date(displayRetryAt).toLocaleString() : "—"}
         </span>
       ) : isPastDue ? (
-        <span style={{ fontSize: "9.5px", color: "var(--warning)" }}>
+        <span className="billing-retry-status is-overdue">
           Pago vencido
         </span>
       ) : (
-        <span style={{ fontSize: "9.5px", color: "var(--text-faint)" }}>
+        <span className="billing-retry-status is-ok">
           Al día
         </span>
       )}

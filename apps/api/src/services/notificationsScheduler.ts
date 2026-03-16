@@ -167,7 +167,7 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
       if (!args.forceNow && runAt.getTime() > now.getTime()) {
         await prisma.retryJob.create({
           data: {
-            type: RetryJobType.SUBSCRIPTION_REMINDER,
+            type: RetryJobType.SEND_CHATWOOT_MESSAGE,
             runAt,
             payload: jobPayload
           }
@@ -175,7 +175,7 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
         scheduled++;
       } else {
         await subscriptionReminder(jobPayload).catch((err) => {
-          logger.warn({ err, paymentId, trigger }, '[Notifications/Schedule] Fallo en recordatorio inline');
+          logger.warn({ err, paymentId, trigger }, '[Notifications/Schedule] Fallo en envío inline de payment status');
         });
       }
     }
@@ -240,7 +240,7 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
       if (!args.forceNow && runAt.getTime() > now.getTime()) {
         await prisma.retryJob.create({
           data: {
-            type: RetryJobType.SUBSCRIPTION_REMINDER,
+            type: RetryJobType.SEND_CHATWOOT_MESSAGE,
             runAt,
             payload: jobPayload
           }
@@ -309,7 +309,7 @@ export async function scheduleCatalogLinkNotifications(args: { customerId: strin
       if (!args.forceNow && runAt.getTime() > now.getTime()) {
         await prisma.retryJob.create({
           data: {
-            type: RetryJobType.SUBSCRIPTION_REMINDER,
+            type: RetryJobType.SEND_CHATWOOT_MESSAGE,
             runAt,
             payload: jobPayload
           }
@@ -377,7 +377,7 @@ export async function scheduleTokenizationLinkNotifications(args: { customerId: 
       if (!args.forceNow && runAt.getTime() > now.getTime()) {
         await prisma.retryJob.create({
           data: {
-            type: RetryJobType.SUBSCRIPTION_REMINDER,
+            type: RetryJobType.SEND_CHATWOOT_MESSAGE,
             runAt,
             payload: jobPayload
           }

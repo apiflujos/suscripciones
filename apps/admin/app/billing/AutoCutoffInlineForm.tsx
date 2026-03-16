@@ -45,7 +45,7 @@ export function AutoCutoffInlineForm({
       <div className="billing-inline-cutoff">
         <button
           type="button"
-          className="input billing-cutoff-trigger"
+          className="input billing-cutoff-trigger billing-value"
           data-loader="off"
           onClick={() => setOpen(true)}
           aria-label="Editar fecha de corte"

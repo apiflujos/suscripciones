@@ -53,6 +53,20 @@ async function retryWebhook(formData: FormData) {
   revalidatePath("/logs");
 }
 
+async function retryFailedWebhooks(formData: FormData) {
+  "use server";
+  await assertCsrfToken(formData);
+  const { apiBase, token } = getConfig();
+  if (!token) return;
+  await fetch(`${apiBase}/admin/logs/webhooks/retry-failed`, {
+    method: "POST",
+    cache: "no-store",
+    headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
+  }).catch(() => {});
+  revalidatePath("/logs");
+  revalidatePath("/payments");
+}
+
 async function reconcilePayment(formData: FormData) {
   "use server";
   await assertCsrfToken(formData);
@@ -165,6 +179,23 @@ function formatAmount(amountInCents?: number | null, currency?: string | null) {
   const value = Math.round(amountInCents);
   const formatted = new Intl.NumberFormat("es-CO").format(Math.max(0, Math.round(value / 100)));
   return `${formatted} ${currency || "COP"}`;
+}
+
+function formatElapsedLabel(value?: string | Date | null) {
+  if (!value) return null;
+  const d = typeof value === "string" ? new Date(value) : value;
+  if (Number.isNaN(d.getTime())) return null;
+  const diffMs = d.getTime() - Date.now();
+  const absMs = Math.abs(diffMs);
+  const seconds = Math.max(1, Math.floor(absMs / 1000));
+  const minutes = Math.floor(absMs / (60 * 1000));
+  const hours = Math.floor(absMs / (60 * 60 * 1000));
+  const days = Math.floor(absMs / (24 * 60 * 60 * 1000));
+  const prefix = diffMs > 0 ? "en" : "hace";
+  if (days >= 1) return `${prefix} ${days} d`;
+  if (hours >= 1) return `${prefix} ${hours} h`;
+  if (minutes >= 1) return `${prefix} ${minutes} min`;
+  return `${prefix} ${seconds} s`;
 }
 
 function renderContactBlock(item: any) {
@@ -334,10 +365,12 @@ export default async function LogsPage({
   const empty = { ok: true, status: 200, json: { items: [], total: null } } as const;
   const system = tab === "system" ? await fetchAdmin(`/admin/logs/system?${systemParams.toString()}`) : empty;
   const jobs = tab === "jobs" ? await fetchAdmin(`/admin/logs/jobs?${baseParams.toString()}`) : empty;
-  const jobsHealth = tab === "jobs" ? await fetchAdmin("/admin/logs/jobs/health") : empty;
   const webhooks = tab === "webhooks" ? await fetchAdmin(`/admin/webhook-events?${webhooksParams.toString()}`) : empty;
   const messages = tab === "messages" ? await fetchAdmin(`/admin/logs/messages?${baseParams.toString()}`) : empty;
   const payments = tab === "payments" ? await fetchAdmin(`/admin/logs/payments?${paymentsParams.toString()}`) : empty;
+  const paymentsHealth = tab === "payments" ? await fetchAdmin("/admin/logs/payments/health") : empty;
+  const paymentsSettings = tab === "payments" ? await fetchAdmin("/admin/settings") : empty;
+  const jobsHealth = tab === "jobs" || tab === "payments" ? await fetchAdmin("/admin/logs/jobs/health") : empty;
   const settingsRes = await fetchAdmin("/admin/settings");
   const aiConfig = settingsRes.ok ? settingsRes.json?.ai : null;
   const aiProviders = aiConfig?.providers || null;
@@ -400,16 +433,8 @@ export default async function LogsPage({
   );
 
   const jobsHealthInfo = jobsHealth?.ok ? jobsHealth.json : null;
-  const jobsHeartbeatLabel =
-    jobsHealthInfo?.lastSeenAt ? <LocalDateTime value={jobsHealthInfo.lastSeenAt} variant="short" /> : "—";
-  const jobsNextLabel =
-    jobsHealthInfo?.nextJobAt ? (
-      <>
-        {normalizeJobType(jobsHealthInfo?.nextJobType)} · <LocalDateTime value={jobsHealthInfo.nextJobAt} variant="short" />
-      </>
-    ) : (
-      "—"
-    );
+  const paymentsHealthInfo = paymentsHealth?.ok ? paymentsHealth.json : null;
+  const paymentsConfig = paymentsSettings?.ok ? paymentsSettings.json?.paymentsConfig : null;
 
   const filtered = q
     ? sysItems.filter((l) => String(l.message || "").toLowerCase().includes(q.toLowerCase()) || String(l.source || "").toLowerCase().includes(q.toLowerCase()))
@@ -663,7 +688,9 @@ export default async function LogsPage({
                   <div className="jobs-health-grid">
                     <div>
                       <span className="jobs-health-label">Último ping</span>
-                      <span className="jobs-health-value">{jobsHeartbeatLabel}</span>
+                      <span className="jobs-health-value">
+                        {jobsHealthInfo?.lastSeenAt ? <LocalDateTime value={jobsHealthInfo.lastSeenAt} variant="short" /> : "—"}
+                      </span>
                     </div>
                     <div>
                       <span className="jobs-health-label">Pendientes</span>
@@ -679,7 +706,15 @@ export default async function LogsPage({
                     </div>
                     <div className="jobs-health-wide">
                       <span className="jobs-health-label">Próximo job</span>
-                      <span className="jobs-health-value">{jobsNextLabel}</span>
+                      <span className="jobs-health-value">
+                        {jobsHealthInfo?.nextJobAt ? (
+                          <>
+                            {normalizeJobType(jobsHealthInfo.nextJobType)} · <LocalDateTime value={jobsHealthInfo.nextJobAt} variant="short" />
+                          </>
+                        ) : (
+                          "—"
+                        )}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -751,6 +786,172 @@ export default async function LogsPage({
                     <span className="pill pill-warn">Pendientes {paymentsSummary.pending}</span>
                     <span className="pill pill-bad">Fallidos {paymentsSummary.failed}</span>
                   </div>
+                  {(() => {
+                    const banners: Array<{ tone: "warn" | "danger" | "info"; text: React.ReactNode; action?: React.ReactNode }> = [];
+
+                    // Configuración crítica
+                    if (paymentsHealthInfo && !paymentsHealthInfo.wompiEventsSecretConfigured) {
+                      banners.push({
+                        tone: "danger",
+                        text: "Wompi Events Secret no configurado. Los webhooks serán rechazados.",
+                        action: (
+                          <a className="ghost btn-compact btn-noicon" href="/settings?tab=cobros">
+                            Configurar
+                          </a>
+                        )
+                      });
+                    }
+                    if (paymentsHealthInfo && !paymentsHealthInfo.defaultTenantConfigured) {
+                      banners.push({
+                        tone: "danger",
+                        text: "No hay tenant por defecto. Los pagos entrantes pueden fallar.",
+                        action: (
+                          <a className="ghost btn-compact btn-noicon" href="/settings?tab=cobros">
+                            Configurar
+                          </a>
+                        )
+                      });
+                    }
+
+                    // Estado del Runner
+                    if (jobsHealthInfo && !jobsHealthInfo.healthy) {
+                      const lastSeenLabel = jobsHealthInfo.lastSeenAt ? formatElapsedLabel(jobsHealthInfo.lastSeenAt) : null;
+                      const nextJobLabel = jobsHealthInfo.nextJobAt ? formatElapsedLabel(jobsHealthInfo.nextJobAt) : null;
+
+                      const parts: React.ReactNode[] = ["Runner inactivo."];
+                      if (jobsHealthInfo.lastSeenAt) {
+                        parts.push(`Última actividad: ${lastSeenLabel}`);
+                      }
+                      if (jobsHealthInfo.pending) parts.push(`${jobsHealthInfo.pending} pendientes`);
+                      if (jobsHealthInfo.failed) parts.push(`${jobsHealthInfo.failed} fallidos`);
+                      if (nextJobLabel) parts.push(`Próximo: ${nextJobLabel}`);
+
+                      banners.push({
+                        tone: "warn",
+                        text: parts.join(" · "),
+                        action: (
+                          <a className="ghost btn-compact btn-noicon" href="/logs?tab=jobs">
+                            Ver jobs
+                          </a>
+                        )
+                      });
+                    } else if (jobsHealthInfo?.healthy && (jobsHealthInfo.pending || jobsHealthInfo.nextJobAt)) {
+                      const nextJobLabel = jobsHealthInfo.nextJobAt ? formatElapsedLabel(jobsHealthInfo.nextJobAt) : null;
+                      const parts: React.ReactNode[] = ["Runner activo"];
+                      if (jobsHealthInfo.pending) parts.push(`${jobsHealthInfo.pending} pendientes`);
+                      if (nextJobLabel) parts.push(`Próximo: ${nextJobLabel}`);
+                      banners.push({ tone: "info", text: parts.join(" · ") });
+                    }
+
+                    // Webhooks recientes
+                    if (paymentsHealthInfo?.latestWebhookAt) {
+                      const ageLabel = formatElapsedLabel(paymentsHealthInfo.latestWebhookAt);
+                      const eventName = paymentsHealthInfo.latestWebhookEventName || "Evento";
+                      const status = paymentsHealthInfo.latestWebhookStatus || "RECEIVED";
+                      const statusLabel = status === "PROCESSED" ? "OK" : status === "FAILED" ? "Fallido" : "Pendiente";
+                      const statusCls = status === "PROCESSED" ? "is-success" : status === "FAILED" ? "is-error" : "is-warning";
+
+                      banners.push({
+                        tone: "info",
+                        text: (
+                          <>
+                            Último webhook: <strong>{eventName}</strong>{" "}
+                            <span className={`pill pill-sm pill-${statusCls}`}>{statusLabel}</span>{" "}
+                            <LocalDateTime value={paymentsHealthInfo.latestWebhookAt} variant="short" />
+                            {ageLabel && <span className="muted"> · {ageLabel}</span>}
+                          </>
+                        )
+                      });
+                    }
+                    if (paymentsHealthInfo?.latestProcessedAt) {
+                      const ageLabel = formatElapsedLabel(paymentsHealthInfo.latestProcessedAt);
+                      const eventName = paymentsHealthInfo.latestProcessedEventName || "Evento";
+                      banners.push({
+                        tone: "info",
+                        text: (
+                          <>
+                            Último procesado: <strong>{eventName}</strong>{" "}
+                            <LocalDateTime value={paymentsHealthInfo.latestProcessedAt} variant="short" />
+                            {ageLabel && <span className="muted"> · {ageLabel}</span>}
+                          </>
+                        )
+                      });
+                    }
+
+                    // Cola de webhooks
+                    if (paymentsHealthInfo && paymentsHealthInfo.pendingWebhookEvents > 0) {
+                      banners.push({
+                        tone: "warn",
+                        text: `${paymentsHealthInfo.pendingWebhookEvents} webhooks pendientes`
+                      });
+                    }
+                    if (paymentsHealthInfo && paymentsHealthInfo.failedWebhookEvents > 0) {
+                      banners.push({
+                        tone: "warn",
+                        text: `${paymentsHealthInfo.failedWebhookEvents} webhooks fallidos`,
+                        action: (
+                          <form action={retryFailedWebhooks} className="payments-health-action">
+                            <input type="hidden" name="csrf" value={csrfToken} />
+                            <PendingButton className="ghost btn-compact btn-noicon" type="submit" pendingText="Reintentando...">
+                              Reintentar
+                            </PendingButton>
+                          </form>
+                        )
+                      });
+                    }
+
+                    // Configuración de pagos
+                    if (paymentsConfig) {
+                      const accept = paymentsConfig.acceptUnlinkedPayments !== false;
+                      const include = paymentsConfig.includeUnlinkedPaymentsInMetrics !== false;
+                      const notifyWhatsapp = paymentsConfig.notifyWhatsappForUnlinkedPayments !== false;
+
+                      if (!accept) {
+                        banners.push({
+                          tone: "warn",
+                          text: (
+                            <>
+                              <strong>Pagos externos ignorados:</strong> Se marcan como <code>IGNORED_EXTERNAL</code>.
+                              Usa <code>includeIgnored=1</code> para verlos.
+                            </>
+                          ),
+                          action: (
+                            <a className="ghost btn-compact btn-noicon" href="/settings?tab=cobros">
+                              Configurar
+                            </a>
+                          )
+                        });
+                      }
+                      if (!include) {
+                        banners.push({
+                          tone: "info",
+                          text: <><strong>Métricas:</strong> Pagos sin suscripción no se incluyen.</>,
+                          action: (
+                            <a className="ghost btn-compact btn-noicon" href="/settings?tab=cobros">
+                              Configurar
+                            </a>
+                          )
+                        });
+                      }
+                      if (!notifyWhatsapp && !accept) {
+                        banners.push({
+                          tone: "info",
+                          text: <><strong>WhatsApp:</strong> No se notifican pagos no asociados.</>
+                        });
+                      }
+                    }
+
+                    return banners.length ? (
+                      <div className="payments-health-stack">
+                        {banners.map((b, idx) => (
+                          <div key={`pay-banner-${idx}`} className={`payments-health-banner is-${b.tone}`}>
+                            <span>{b.text}</span>
+                            {b.action ?? null}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
               </div>
             </div>

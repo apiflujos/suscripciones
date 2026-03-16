@@ -54,42 +54,41 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
-export default async function RootLayout({ children }: { children: ReactNode }) {
-  const h = await headers();
-  // Middleware inyecta x-app-pathname y x-auth-user
-  const pathname = h.get("x-app-pathname") || "";
-  const authUser = h.get("x-auth-user");
-  const isPublicRoute = pathname.startsWith("/public/");
-  
-  // Rutas de autenticación
-  const isAuthScreen =
-    !pathname ||
+function isPublicRoutePath(pathname: string): boolean {
+  return (
     pathname === "/login" ||
-    pathname.startsWith("/login/") ||
-    pathname.startsWith("/sa/login") ||
-    pathname.startsWith("/__sa/login") ||
+    pathname === "/logout" ||
+    pathname.startsWith("/public/") ||
+    pathname === "/wompi/widget" ||
     pathname === "/404" ||
     pathname === "/500" ||
-    pathname === "/_error";
+    pathname === "/_error"
+  );
+}
 
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const h = await headers();
+  const pathname = h.get("x-app-pathname") || "";
+  const authUser = h.get("x-auth-user");
+  
+  // El middleware ya verificó autenticación y redirigió si era necesario
+  // Aquí solo necesitamos la sesión para UI (TopBar, SideNav, permisos)
   let session = null;
   if (authUser) {
-    // Si el middleware ya validó, podemos confiar o re-verificar rápido.
-    // Para mayor seguridad y obtener el objeto completo, re-verificamos el token de la cookie
-    // ya que el header solo trae strings simples.
     const c = await cookies();
     const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
     session = await verifyAdminSessionToken(sessionToken);
   }
 
-  const shouldUseAuthShell = isAuthScreen || !session;
+  const isPublicRoute = isPublicRoutePath(pathname);
+  const shouldShowShell = !isPublicRoute && session;
 
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
         <link id="theme-favicon" rel="icon" type="image/svg+xml" href="/brand/isotipo_icono.svg" data-theme-favicon="true" />
       </head>
-      <body className={shouldUseAuthShell ? "authBody" : undefined}>
+      <body className={isPublicRoute ? "authBody" : undefined}>
         <Script id="apiflujos-theme-init" strategy="beforeInteractive">{`
 (() => {
   try {
@@ -134,9 +133,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   } catch (_) {}
 })();
         `}</Script>
-        {shouldUseAuthShell ? (
+        {isPublicRoute ? (
           <div className="authShell">{children}</div>
-        ) : (
+        ) : shouldShowShell ? (
           <div className="app-shell">
             <aside className="sidebar" aria-label="Sidebar">
               <SideNav session={session} />
@@ -149,9 +148,24 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               {children}
             </div>
           </div>
+        ) : (
+          // Caso fallback: middleware debería haber redirigido, pero por seguridad mostramos login
+          <div className="authShell">
+            <div className="authCard loginCard">
+              <div className="authCardInner loginCardInner">
+                <div className="authHeader loginHeaderText">
+                  <h1 className="authTitle">Sesión expirada</h1>
+                  <div className="authSubtitle">Por favor, inicia sesión nuevamente.</div>
+                </div>
+                <div className="authAlert">
+                  Redirigiendo al login...
+                </div>
+              </div>
+            </div>
+          </div>
         )}
         <ClientProviders />
-        {isPublicRoute ? null : <ThemeClient />}
+        {!isPublicRoute && <ThemeClient />}
       </body>
     </html>
   );

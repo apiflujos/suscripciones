@@ -12,6 +12,13 @@ type UnlinkedPaymentsRow = {
   revenue_cents: number | bigint;
 };
 
+type PlatformBreakdownRow = {
+  source: string;
+  payments_success: number | bigint;
+  payments_failed: number | bigint;
+  revenue_cents: number | bigint;
+};
+
 type SeriesPoint = {
   at: string;
   revenueInCents: number;
@@ -380,6 +387,35 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
     );
   } catch (err) {
     console.error('[Metrics] Error en totalsPaymentsRow:', err);
+  }
+
+  // DESGLOSE POR PLATAFORMA (Shopify, Alegra, Manual, Direct, etc.)
+  let platformBreakdown: Array<{ source: string; payments_success: bigint; payments_failed: bigint; revenue_cents: bigint }> = [];
+  try {
+    platformBreakdown = await prisma.$queryRawUnsafe<
+      Array<{ source: string; payments_success: bigint; payments_failed: bigint; revenue_cents: bigint }>
+    >(
+      `SELECT
+          COALESCE(p."providerResponse"->>'source', 'DIRECT') AS source,
+          COUNT(*) FILTER (WHERE p."status" = 'APPROVED' AND p."paidAt" IS NOT NULL AND p."paidAt" >= $1::timestamptz AND p."paidAt" < $2::timestamptz)::bigint AS payments_success,
+          COUNT(*) FILTER (WHERE p."status" IN ('DECLINED','ERROR','VOIDED') AND COALESCE(p."failedAt", p."updatedAt") >= $1::timestamptz AND COALESCE(p."failedAt", p."updatedAt") < $2::timestamptz)::bigint AS payments_failed,
+          COALESCE(SUM(p."amountInCents") FILTER (WHERE p."status" = 'APPROVED' AND p."paidAt" IS NOT NULL AND p."paidAt" >= $1::timestamptz AND p."paidAt" < $2::timestamptz)) ::bigint AS revenue_cents
+        FROM "Payment" p
+        WHERE (p."paidAt" IS NOT NULL OR p."status" IN ('DECLINED','ERROR','VOIDED'))
+          AND COALESCE(p."failedAt", p."updatedAt") >= $1::timestamptz
+          AND COALESCE(p."failedAt", p."updatedAt") < $2::timestamptz
+          AND p."createdAt" >= $1::timestamptz
+          AND p."createdAt" < $2::timestamptz
+          ${paymentReconciliationFilter}
+          ${paymentUnlinkedFilter}
+          ${tf("p") }
+        GROUP BY 1
+        ORDER BY payments_success DESC`,
+      from,
+      to,
+    );
+  } catch (err) {
+    console.error('[Metrics] Error en platformBreakdown:', err);
   }
 
   let totalsPlansSoldRow: Array<{ plans_sold: bigint }> = [{ plans_sold: 0n }];
@@ -795,7 +831,13 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
         paymentsApproved: num(unlinkedPaymentsRow[0]?.payments_approved ?? 0),
         paymentsOther: num(unlinkedPaymentsRow[0]?.payments_other ?? 0),
         revenueInCents: num(unlinkedPaymentsRow[0]?.revenue_cents ?? 0)
-      }
+      },
+      byPlatform: platformBreakdown.map((r) => ({
+        source: r.source,
+        paymentsSuccess: num(r.payments_success),
+        paymentsFailed: num(r.payments_failed),
+        revenueInCents: num(r.revenue_cents)
+      }))
     },
     breakdown: {
       revenueByPlanTypeInCents
