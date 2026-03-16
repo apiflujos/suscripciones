@@ -527,7 +527,7 @@ export default async function BillingPage({
     // Botón de cobrar: siempre visible para débito automático cuando hay pago vencido
     const showChargeButton = manualChargeEnabled && isAutoDebit && chargeDue && !isInactive;
     const showPaymentLinkButton = !isAutoDebit && !isInactive;
-    const needsTokenization = isAutoDebit && !r.customerTokenized;
+    const needsTokenization = isAutoDebit; // Siempre mostrar opción de tokenización para débito automático
     const showTokenizationLink = needsTokenization && !isInactive;
     const duplicateKey = `${r.customerId}:${r.planId}`;
     const duplicateCount = duplicateCountByKey.get(duplicateKey) || 1;

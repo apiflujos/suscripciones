@@ -6452,17 +6452,20 @@ textarea.input {
 }
 
 .billing-badges {
-  display: inline-flex;
-  gap: 4px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
   align-items: center;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .billing-badges-header {
   justify-content: flex-start;
   align-self: center;
   min-width: 0;
+  overflow: hidden;
 }
 
 .billing-header-meta-grid {
@@ -6484,20 +6487,41 @@ textarea.input {
 }
 
 .billing-header-status-strip {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
   flex: 1 1 auto;
+  overflow: hidden;
 }
 
 .billing-header-status-strip .billing-header-label {
   margin: 0;
   white-space: nowrap;
   flex: 0 0 auto;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .billing-status-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
+.billing-status-line .pill,
+.billing-status-line .pill-sm {
+  flex: 0 0 auto;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
   display: flex;
   align-items: center;
   gap: 6px;
