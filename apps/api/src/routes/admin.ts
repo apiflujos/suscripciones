@@ -21,10 +21,6 @@ export function requireAdminToken(req: Request, res: Response, next: NextFunctio
     .map((t) => normalizeToken(t))
     .filter(Boolean);
 
-  console.log("[DEBUG AUTH] received token:", token, "length:", token.length);
-  console.log("[DEBUG AUTH] expected tokens:", expectedTokens);
-  console.log("[DEBUG AUTH] process.env.ADMIN_API_TOKEN:", process.env.ADMIN_API_TOKEN);
-
   const matchesToken = expectedTokens.some((expected) => {
     if (expected.length !== token.length) return false;
     try {
@@ -36,7 +32,6 @@ export function requireAdminToken(req: Request, res: Response, next: NextFunctio
 
   if (!token || !expectedTokens.length || !matchesToken) {
     const reason = !expectedTokens.length ? "expected_not_configured" : !token ? "missing_token" : "token_mismatch";
-    console.log("[DEBUG AUTH] reason:", reason, "matchesToken:", matchesToken);
     const debugAuth = (process.env.DEBUG_AUTH || "").trim() === "1" && process.env.NODE_ENV !== "production";
     res.status(401).json(
       debugAuth

@@ -143,7 +143,6 @@ export function createApp() {
     const providedToken = adminTokenHeader || (authHeader.startsWith("Bearer ") ? authHeader.substring(7) : "");
 
     const envToken = process.env.ADMIN_API_TOKEN;
-    console.log("[APP.TS DEBUG] providedToken:", providedToken, "envToken:", envToken, "match:", providedToken === envToken);
     const isAdmin = providedToken && providedToken === envToken;
     if (isAdmin) return next();
     
