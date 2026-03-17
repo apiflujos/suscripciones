@@ -28,7 +28,7 @@ services:
     ports:
       - "3001:3001"
     environment:
-      NODE_ENV: development
+      NODE_ENV: production
       PORT: 3001
       DATABASE_URL: postgresql://wompi_subs:wompi_subs@postgres:5432/wompi_subs?schema=public
       ADMIN_API_TOKEN: dev-token-123456-change-in-production
@@ -66,18 +66,19 @@ services:
     ports:
       - "3002:3002"
     environment:
-      NODE_ENV: development
+      NODE_ENV: production
       HOST: 0.0.0.0
       NEXT_PUBLIC_API_BASE_URL: http://localhost:3001
       ADMIN_INTERNAL_API_BASE_URL: http://api:3001
       ADMIN_API_TOKEN: dev-token-123456-change-in-production
       ADMIN_SESSION_SECRET: dev-session-secret-change-in-production-abc123xyz
       NEXT_PUBLIC_DISABLE_REALTIME: "0"
+      NPM_CONFIG_PRODUCTION: "false"
     depends_on:
       - api
     networks:
       - wompi_network
-    command: sh -c "cd apps/admin && npm install && npm run build && npm run start"
+    command: sh -c "cd apps/admin && npm install --include=dev && npm run build && npm run start"
     restart: unless-stopped
 
 volumes:
