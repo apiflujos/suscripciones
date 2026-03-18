@@ -81,7 +81,7 @@ npm i -g pm2
 ```
 
 ## 2) Variables de entorno (obligatorias)
-Crear `.env` en el root del repo:
+Crear `.env` en el root del repo. **Este archivo es fuente única** para admin + jobs.
 
 ```ini
 DATABASE_URL=postgresql://USER:PASS@HOST:PORT/DB
@@ -175,7 +175,17 @@ pm2 start ecosystem.config.js
 pm2 save
 ```
 
-## 6) Proxy (Nginx)
+## 6) URLs clave
+- Login Admin: `/login`
+- Login Super Admin: `/sa/login`
+- Health público: `/health` y `/healthz`
+
+Ejemplo:
+```
+https://mdv.sus.apiflujos.com/login
+```
+
+## 7) Proxy (Nginx)
 Asegura que `/_next` **no** pase por auth y no se bloquee:
 
 ```nginx
@@ -192,12 +202,12 @@ location / {
 }
 ```
 
-## 7) Health check
+## 8) Health check
 ```bash
 curl -I http://localhost:3002/health
 ```
 
-## 8) Realtime (WebSocket)
+## 9) Realtime (WebSocket)
 - WS endpoint: `ws://<host>:3002/ws`
 - Autenticación: `Authorization: Bearer <JWT>` o `?token=JWT`
 

@@ -67,7 +67,7 @@ Frontend:
 
 Backend:
 - Node.js 20
-- Express 4
+- Next.js (API Routes + Server Actions)
 - Prisma 5.22
 - PostgreSQL
 
@@ -111,7 +111,10 @@ npm run build
 # 2. Migraciones
 npm -w packages/database run prisma:migrate:deploy
 
-# 3. Iniciar con PM2
+# 3. Iniciar con PM2 (carga .env)
+set -a
+source /srv/apiflujos/mdv/suscripciones/.env
+set +a
 pm2 start ecosystem.config.js
 
 # 4. Verificar
@@ -254,7 +257,7 @@ grep "\[PaymentReconcile\]" logs/*.log
 
 ```bash
 curl http://localhost:3001/health
-# Response: {"ok": true}
+# Response: {"ok": true, "status": "up"}
 ```
 
 ---
@@ -275,7 +278,7 @@ docker-compose restart postgres
 
 ```bash
 # Matar proceso en puerto
-lsof -ti:3001 | xargs kill -9
+lsof -ti:3002 | xargs kill -9
 ```
 
 ### Error: Migration failed
