@@ -5,6 +5,7 @@ import { systemLog, SystemActor } from "../../services/systemLog";
 import { addIntervalUtc } from "../../lib/dates";
 import { getAutoDebitConfig } from "../../services/runtimeConfig";
 import { resolveSubscriptionCollectionMode } from "../../services/subscriptionMode";
+import { publishRealtime } from "../../services/realtimePublisher";
 
 function shouldCreateFallbackLinkWhenAutoDebitDisabled() {
   const raw = String(process.env.AUTO_DEBIT_DISABLED_FALLBACK_LINK || "").trim().toLowerCase();
@@ -61,6 +62,12 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
           subscriptionId,
           customerId: sub.customerId
         }, SystemActor.JOB_PAYMENT_RETRY).catch(() => {});
+        void publishRealtime("payments", {
+          type: "payment_retry_missing_token",
+          subscriptionId,
+          customerId: sub.customerId,
+          updatedAt: new Date().toISOString()
+        });
         // Fallback: crear link de pago en vez de fallar
         await createPaymentLinkForSubscription({ subscriptionId }).catch(() => {});
         return {
@@ -102,6 +109,13 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
           pendingCreatedAt: recentPendingAutoCharge.createdAt?.toISOString?.() || recentPendingAutoCharge.createdAt,
           reScheduledAt: nextRunAt.toISOString()
         }, SystemActor.JOB_PAYMENT_RETRY).catch(() => {});
+        void publishRealtime("payments", {
+          type: "payment_retry_deferred_pending",
+          subscriptionId,
+          customerId: sub.customerId,
+          pendingPaymentId: recentPendingAutoCharge.id,
+          updatedAt: new Date().toISOString()
+        });
         return {
           status: "deferred",
           mode,
@@ -135,6 +149,13 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
           byCutoff: dueByCutoff ? dueByCutoff.toISOString() : null,
           byLastPayment: dueByLastPayment ? dueByLastPayment.toISOString() : null
         }, SystemActor.JOB_PAYMENT_RETRY).catch(() => {});
+        void publishRealtime("payments", {
+          type: "payment_retry_deferred_not_due",
+          subscriptionId,
+          customerId: sub.customerId,
+          dueAt: dueAt.toISOString(),
+          updatedAt: new Date().toISOString()
+        });
         return {
           status: "deferred",
           mode,
@@ -153,6 +174,12 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
             subscriptionId,
             source: "settings.auto_debit.enabled"
           }, SystemActor.JOB_PAYMENT_RETRY).catch(() => {});
+          void publishRealtime("payments", {
+            type: "payment_retry_auto_debit_disabled",
+            subscriptionId,
+            customerId: sub.customerId,
+            updatedAt: new Date().toISOString()
+          });
           await createPaymentLinkForSubscription({ subscriptionId }).catch(() => {});
           return {
             status: "processed",
@@ -172,6 +199,12 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
         await createAutoDebitTransactionForSubscription({ 
           subscriptionId, 
           forceNewTransaction: true
+        });
+        void publishRealtime("payments", {
+          type: "payment_retry_charge_created",
+          subscriptionId,
+          customerId: sub.customerId,
+          updatedAt: new Date().toISOString()
         });
         return {
           status: "processed",
@@ -195,6 +228,13 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
             email: sub.customer?.email,
             hasPaymentSource: Boolean((sub.customer.metadata as any)?.wompi?.paymentSourceId)
           }, SystemActor.JOB_PAYMENT_RETRY).catch(() => {});
+        void publishRealtime("payments", {
+          type: isMissingSource ? "payment_retry_missing_token" : "payment_retry_failed",
+          subscriptionId,
+          customerId: sub.customerId,
+          error: msg,
+          updatedAt: new Date().toISOString()
+        });
         
         await createPaymentLinkForSubscription({ subscriptionId }).catch(() => {});
         if (!isMissingSource) throw err;
