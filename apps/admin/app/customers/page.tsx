@@ -457,7 +457,6 @@ export default async function CustomersPage({
         </div>
 
         <div className="settings-group-body">
-          {renderPagination(total)}
 
           <CustomersTable
             items={items.map((c) => ({ ...c, tenantName: tenantById.get(String(c.tenantId || "")) || "—" }))}
