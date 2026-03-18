@@ -5,8 +5,6 @@ npm-debug.log
 *.md
 .env
 .env.*
-!apps/api/.env
-!apps/admin/.env.local
 logs
 dist
 .next
