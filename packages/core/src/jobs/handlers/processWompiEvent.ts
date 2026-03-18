@@ -14,6 +14,7 @@ import { getDefaultTenantId } from "../../services/tenantContext";
 import { applyGamificationEvent, GAMIFICATION_EVENT_KINDS } from "../../services/gamification";
 import { GAMIFICATION_WEIGHTS, moneyToPoints } from "../../services/gamificationConfig";
 import { resolveSubscriptionCollectionMode } from "../../services/subscriptionMode";
+import { publishRealtime } from "../../services/realtimePublisher";
 import { ensurePaymentRetryJob } from "../../services/retryJobScheduler";
 import { getSubscriptionPricingTotal, getPlanCollectionMode } from "../../lib/metadataSchemas";
 
@@ -923,6 +924,18 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     reference: paymentRecord.reference,
     subscriptionId: paymentRecord.subscriptionId
   }, "webhook:wompi").catch(() => {});
+  void publishRealtime("payments", {
+    type: "payment_status",
+    paymentId: paymentRecord.id,
+    status: paymentRecord.status,
+    wompiTransactionId: paymentRecord.wompiTransactionId,
+    wompiPaymentLinkId: paymentRecord.wompiPaymentLinkId,
+    reference: paymentRecord.reference,
+    subscriptionId: paymentRecord.subscriptionId,
+    customerId: paymentRecord.customerId,
+    amountInCents: paymentRecord.amountInCents,
+    updatedAt: new Date().toISOString()
+  });
 
   await db.webhookEvent.update({
     where: { id: webhookEventId },
@@ -946,8 +959,27 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   const becameFailed = !wasFailed && (nextStatus === PaymentStatus.DECLINED || nextStatus === PaymentStatus.ERROR || nextStatus === PaymentStatus.VOIDED);
   if (becameApproved) {
     await consumeApp("payments_success", { amount: 1, source: "wompi:webhook", meta: { paymentId: paymentRecord.id } });
+    void publishRealtime("payments", {
+      type: "payment_approved",
+      paymentId: paymentRecord.id,
+      status: paymentRecord.status,
+      subscriptionId: paymentRecord.subscriptionId,
+      customerId: paymentRecord.customerId,
+      amountInCents: paymentRecord.amountInCents,
+      paidAt: paymentRecord.paidAt || null,
+      updatedAt: new Date().toISOString()
+    });
   } else if (becameFailed) {
     await consumeApp("payments_failed", { amount: 1, source: "wompi:webhook", meta: { paymentId: paymentRecord.id } });
+    void publishRealtime("payments", {
+      type: "payment_failed",
+      paymentId: paymentRecord.id,
+      status: paymentRecord.status,
+      subscriptionId: paymentRecord.subscriptionId,
+      customerId: paymentRecord.customerId,
+      amountInCents: paymentRecord.amountInCents,
+      updatedAt: new Date().toISOString()
+    });
   }
 
   if (becameFailed) {
