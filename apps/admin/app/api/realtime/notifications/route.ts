@@ -1,22 +1,13 @@
 import { NextRequest } from "next/server";
-import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../../../lib/session";
-import { cookies } from "next/headers";
+import { requireApiSession } from "../../_lib/requireApiSession";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const sessionToken = cookieStore.get(ADMIN_SESSION_COOKIE)?.value || "";
-    const session = await verifyAdminSessionToken(sessionToken);
-    
-    if (!session?.email) {
-      return new Response(JSON.stringify({ notifications: [] }), {
-        status: 200,
-        headers: { "Content-Type": "application/json; charset=utf-8" }
-      });
-    }
+    const auth = await requireApiSession(req);
+    if (!auth.ok) return auth.response;
 
     const searchParams = req.nextUrl.searchParams;
     const limit = parseInt(searchParams.get("limit") || "5", 10);

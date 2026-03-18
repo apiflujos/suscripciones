@@ -132,6 +132,17 @@ export async function middleware(req: NextRequest) {
       pathname === "/admin/sa/refresh" ||
       pathname === "/admin/sa/bootstrap";
     if (authBypass) {
+      const bootstrapToken = String(process.env.BOOTSTRAP_TOKEN || "").trim();
+      if (bootstrapToken) {
+        const provided = req.headers.get("x-bootstrap-token") || "";
+        if (provided !== bootstrapToken) {
+          const res = new NextResponse(JSON.stringify({ error: "unauthorized" }), {
+            status: 401,
+            headers: { "Content-Type": "application/json" }
+          });
+          return applySecurityHeaders(res, pathname);
+        }
+      }
       const res = NextResponse.next({ request: { headers: requestHeaders } });
       const allowOrigin = origin || "*";
       if (origin) {
