@@ -118,8 +118,10 @@ set +a
 npm run prisma:migrate:deploy -w packages/database
 ```
 
-## 5) Arranque con PM2
-Ejemplo de `ecosystem.config.js`:
+## 5) Arranque con PM2 (óptimo)
+Se usa **`.env` en el root** como fuente principal. El worker y el admin reciben `DATABASE_URL` y secrets explícitos.
+
+Ejemplo de `ecosystem.config.js` (alineado con producción):
 
 ```js
 module.exports = {
@@ -144,9 +146,9 @@ module.exports = {
     },
     {
       name: "crm-sus-jobs-mdv",
-      cwd: "/srv/apiflujos/mdv/suscripciones",
+      cwd: "/srv/apiflujos/mdv/suscripciones/apps/worker",
       script: "npm",
-      args: "run jobs",
+      args: "run start",
       env: {
         NODE_ENV: "production",
         DATABASE_URL: process.env.DATABASE_URL,
@@ -227,4 +229,3 @@ ws.onopen = () => ws.send(JSON.stringify({ action: "subscribe", channel: "paymen
 ## 🧩 Notas de despliegue
 - Si los chunks devuelven 400/404, es cache/CDN o proxy. Purga CDN y valida `_next/static` directo.
 - PM2 requiere que la shell cargue `.env` antes de arrancar.
-

@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
+const rootEnvFile = './.env';
 const adminEnvFile = './apps/admin/.env.local';
 
 const applyEnvFile = (filePath) => {
@@ -22,6 +23,7 @@ const applyEnvFile = (filePath) => {
   });
 };
 
+applyEnvFile(rootEnvFile);
 applyEnvFile(adminEnvFile);
 
 const stackName = process.env.PM2_APP_PREFIX || process.env.APP_STACK_NAME || 'crm-sus';
@@ -37,10 +39,17 @@ const apps = [
     cwd: './apps/worker',
     script: 'npm',
     args: 'run start',
-    env_file: adminEnvFile,
+    env_file: rootEnvFile,
     env: {
       NODE_ENV: 'production',
       JOBS_HEARTBEAT_KEY: process.env.JOBS_HEARTBEAT_KEY || nameFor('jobs'),
+      DATABASE_URL: process.env.DATABASE_URL,
+      JWT_SECRET: process.env.JWT_SECRET,
+      JWT_ISSUER: process.env.JWT_ISSUER,
+      JWT_AUDIENCE: process.env.JWT_AUDIENCE,
+      CREDENTIALS_ENCRYPTION_KEY_B64: process.env.CREDENTIALS_ENCRYPTION_KEY_B64,
+      REALTIME_PUBLISH_URL: process.env.REALTIME_PUBLISH_URL,
+      REALTIME_PUBLISH_TOKEN: process.env.REALTIME_PUBLISH_TOKEN,
     },
     error_file: `../../logs/${logBaseFor('jobs')}-error.log`,
     out_file: `../../logs/${logBaseFor('jobs')}-out.log`,
@@ -57,9 +66,19 @@ if (enableAdmin) {
     cwd: './apps/admin',
     script: 'npm',
     args: 'run start',
-    env_file: adminEnvFile,
+    env_file: rootEnvFile,
     env: {
       NODE_ENV: 'production',
+      PORT: process.env.PORT || 3002,
+      HOST: process.env.HOST || '0.0.0.0',
+      DATABASE_URL: process.env.DATABASE_URL,
+      JWT_SECRET: process.env.JWT_SECRET,
+      JWT_ISSUER: process.env.JWT_ISSUER,
+      JWT_AUDIENCE: process.env.JWT_AUDIENCE,
+      ADMIN_SESSION_SECRET: process.env.ADMIN_SESSION_SECRET,
+      CREDENTIALS_ENCRYPTION_KEY_B64: process.env.CREDENTIALS_ENCRYPTION_KEY_B64,
+      REALTIME_PUBLISH_URL: process.env.REALTIME_PUBLISH_URL,
+      REALTIME_PUBLISH_TOKEN: process.env.REALTIME_PUBLISH_TOKEN,
     },
     error_file: `../../logs/${logBaseFor('admin')}-error.log`,
     out_file: `../../logs/${logBaseFor('admin')}-out.log`,
