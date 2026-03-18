@@ -35,6 +35,13 @@ services:
       ADMIN_INTERNAL_API_BASE_URL: http://admin:3002
       ADMIN_API_TOKEN: ${ADMIN_API_TOKEN}
       ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ISSUER: ${JWT_ISSUER:-suscripciones}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-admin}
+      JWT_TTL_SECONDS: ${JWT_TTL_SECONDS:-1800}
+      JWT_REFRESH_TTL_DAYS: ${JWT_REFRESH_TTL_DAYS:-14}
+      JWT_REFRESH_ROTATE: ${JWT_REFRESH_ROTATE:-1}
+      BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN}
       SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL}
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD}
       SUPER_ADMIN_RESET_PASSWORD: ${SUPER_ADMIN_RESET_PASSWORD:-0}
@@ -44,6 +51,8 @@ services:
       WOMPI_ACTIVE_ENV: ${WOMPI_ACTIVE_ENV:-PRODUCTION}
       JOBS_HEARTBEAT_KEY: ${JOBS_HEARTBEAT_KEY:-wompi-subs-jobs}
       GAMIFICATION_RECALC_MINUTES: ${GAMIFICATION_RECALC_MINUTES:-60}
+      REALTIME_PUBLISH_TOKEN: ${REALTIME_PUBLISH_TOKEN}
+      REALTIME_PUBLISH_URL: ${REALTIME_PUBLISH_URL:-http://admin:3002/api/realtime/publish}
       CSP_PUBLIC_ALLOW_UNSAFE_INLINE: ${CSP_PUBLIC_ALLOW_UNSAFE_INLINE:-1}
       NEXT_PUBLIC_DISABLE_REALTIME: ${NEXT_PUBLIC_DISABLE_REALTIME:-0}
     depends_on:
@@ -55,17 +64,21 @@ services:
 
   jobs:
     container_name: wompi-jobs
-    image: node:20-slim
-    working_dir: /app
-    volumes:
-      - .:/app
-      - /app/node_modules
-      - jobs_node_modules:/app/apps/worker/node_modules
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://wompi_subs:${POSTGRES_PASSWORD:-wompi_subs}@postgres:5432/wompi_subs?schema=public
       ADMIN_API_TOKEN: ${ADMIN_API_TOKEN}
       ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ISSUER: ${JWT_ISSUER:-suscripciones}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-admin}
+      JWT_TTL_SECONDS: ${JWT_TTL_SECONDS:-1800}
+      JWT_REFRESH_TTL_DAYS: ${JWT_REFRESH_TTL_DAYS:-14}
+      JWT_REFRESH_ROTATE: ${JWT_REFRESH_ROTATE:-1}
+      BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN}
       SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL}
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD}
       SUPER_ADMIN_RESET_PASSWORD: ${SUPER_ADMIN_RESET_PASSWORD:-0}
@@ -75,17 +88,17 @@ services:
       WOMPI_ACTIVE_ENV: ${WOMPI_ACTIVE_ENV:-PRODUCTION}
       JOBS_HEARTBEAT_KEY: ${JOBS_HEARTBEAT_KEY:-wompi-subs-jobs}
       GAMIFICATION_RECALC_MINUTES: ${GAMIFICATION_RECALC_MINUTES:-60}
+      REALTIME_PUBLISH_TOKEN: ${REALTIME_PUBLISH_TOKEN}
+      REALTIME_PUBLISH_URL: ${REALTIME_PUBLISH_URL:-http://admin:3002/api/realtime/publish}
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - wompi_network
-    command: sh -c "npm install --include=dev && npm -w packages/database run prisma:generate && npm -w apps/worker run start"
     restart: unless-stopped
 
 volumes:
   postgres_data:
-  jobs_node_modules:
 
 networks:
   wompi_network:
