@@ -19,6 +19,7 @@
     "db:migrate": "npm run prisma:migrate:dev -w packages/database",
     "db:push": "npm run prisma:push -w packages/database",
     "db:studio": "npm run prisma:studio -w packages/database",
+    "audit": "npm audit --audit-level=high",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "docker:logs": "docker-compose logs -f"

@@ -39,7 +39,7 @@ La aplicación **cumple parcialmente** con los requisitos de seguridad exigidos.
 ### 6. Configuración de seguridad (headers, CORS, rate limiting, fail2ban, npm audit)
 - **Cumple (parcial)**.
 - Evidencias: `apps/admin/middleware.ts`, `apps/admin/lib/rateLimit.ts`.
-- Hallazgos: rate limit distribuido soportado vía Upstash (si se configura); no hay evidencia de npm audit en CI.
+- Hallazgos: rate limit distribuido soportado vía Upstash (si se configura); se añadió script `npm run audit` para integrarlo en CI.
 
 ### 7. Protección de archivos y sanitización
 - **Cumple (parcial)**.
