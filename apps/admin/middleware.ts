@@ -127,6 +127,10 @@ export async function middleware(req: NextRequest) {
     }
 
     const authBypass =
+      pathname === "/health" ||
+      pathname === "/healthz" ||
+      pathname.startsWith("/health/") ||
+      pathname.startsWith("/healthz/") ||
       pathname === "/admin/auth/login" ||
       pathname === "/admin/sa/login" ||
       pathname === "/admin/sa/refresh" ||
