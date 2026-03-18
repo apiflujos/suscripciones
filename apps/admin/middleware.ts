@@ -64,13 +64,16 @@ function applySecurityHeaders(res: NextResponse, pathname: string) {
   const allowUnsafeInline = String(process.env.CSP_ALLOW_UNSAFE_INLINE || "0").trim() === "1";
   const allowUnsafeInlinePublic = String(process.env.CSP_PUBLIC_ALLOW_UNSAFE_INLINE || "0").trim() === "1";
   const isPublic = pathname.startsWith("/public/") || pathname.startsWith("/wompi/");
+  const isLogin = pathname === "/login" || pathname.startsWith("/login/");
   const unsafe = isPublic ? allowUnsafeInlinePublic : allowUnsafeInline;
+  const scriptUnsafe = unsafe || isLogin;
   const csp = [
     "default-src 'self'",
     "img-src 'self' data: blob: https:",
-    "style-src 'self' 'unsafe-inline'",
-    `script-src 'self'${unsafe ? " 'unsafe-inline'" : ""}`,
-    "connect-src 'self' https:",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com data:",
+    `script-src 'self'${scriptUnsafe ? " 'unsafe-inline'" : ""}`,
+    "connect-src 'self' https: ws: wss:",
     "frame-ancestors 'none'"
   ].join("; ");
   res.headers.set("Content-Security-Policy", csp);
