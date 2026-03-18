@@ -1,6 +1,8 @@
 import path from "path";
 import fs from "fs/promises";
 import { getMediaDir } from "@suscripciones/core/services/mediaStorage";
+import { verifyMediaToken } from "../../../../lib/mediaAuth";
+import { normalizeBearer } from "../../../../lib/jwt";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,13 +15,22 @@ const MIME_BY_EXT: Record<string, string> = {
   gif: "image/gif"
 };
 
-export async function GET(_req: Request, ctx: { params: Promise<{ filename: string }> }) {
+export async function GET(req: Request, ctx: { params: Promise<{ filename: string }> }) {
   const params = await ctx.params;
   const raw = String(params?.filename || "").trim();
   if (!raw) return Response.json({ error: "not_found" }, { status: 404 });
 
   const safe = path.basename(raw);
   if (safe !== raw) return Response.json({ error: "not_found" }, { status: 404 });
+
+  const url = new URL(req.url);
+  const tokenFromQuery = String(url.searchParams.get("token") || "").trim();
+  const auth = req.headers.get("authorization") || "";
+  const tokenFromHeader = normalizeBearer(auth);
+  const token = tokenFromHeader || tokenFromQuery;
+  if (!token) return Response.json({ error: "unauthorized" }, { status: 401 });
+  const claims = await verifyMediaToken(token, safe);
+  if (!claims) return Response.json({ error: "unauthorized" }, { status: 401 });
 
   const filePath = path.join(getMediaDir(), safe);
 

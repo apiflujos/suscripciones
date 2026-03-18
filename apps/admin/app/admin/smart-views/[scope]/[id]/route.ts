@@ -25,7 +25,7 @@ const updateSchema = z.object({
 
 export async function GET(req: Request, ctx: { params: Promise<{ scope: string; id: string }> }) {
   const params = await ctx.params;
-  const auth = requireAdminToken(req);
+  const auth = await requireAdminToken(req);
   if (!auth.ok) return auth.response;
 
   const scope = normalizeSmartViewScope(String(params?.scope || ""));
@@ -41,7 +41,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ scope: string; 
 
 export async function PUT(req: Request, ctx: { params: Promise<{ scope: string; id: string }> }) {
   const params = await ctx.params;
-  const auth = requireAdminToken(req);
+  const auth = await requireAdminToken(req);
   if (!auth.ok) return auth.response;
 
   const scope = normalizeSmartViewScope(String(params?.scope || ""));
@@ -80,7 +80,7 @@ export async function PUT(req: Request, ctx: { params: Promise<{ scope: string; 
 
 export async function DELETE(req: Request, ctx: { params: Promise<{ scope: string; id: string }> }) {
   const params = await ctx.params;
-  const auth = requireAdminToken(req);
+  const auth = await requireAdminToken(req);
   if (!auth.ok) return auth.response;
 
   const scope = normalizeSmartViewScope(String(params?.scope || ""));

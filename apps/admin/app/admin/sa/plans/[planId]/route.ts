@@ -17,7 +17,7 @@ const planCreateSchema = z.object({
 
 export async function PUT(req: Request, ctx: { params: Promise<{ planId: string }> }) {
   const params = await ctx.params;
-  const auth = requireAdminToken(req);
+  const auth = await requireAdminToken(req);
   if (!auth.ok) return auth.response;
 
   const sa = await requireSaSession(req);

@@ -3,7 +3,7 @@ import { requireApiSession } from "../../_lib/requireApiSession";
 import { searchPlans } from "../../../admin/_services/search";
 
 export async function GET(req: Request) {
-  const auth = await requireApiSession();
+  const auth = await requireApiSession(req);
   if (!auth.ok) return auth.response;
 
   const { searchParams } = new URL(req.url);

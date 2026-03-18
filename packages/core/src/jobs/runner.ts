@@ -204,7 +204,7 @@ async function ensureLogCleanup() {
   if (now - lastLogCleanupAtMs < 24 * 60 * 60 * 1000) return;
   lastLogCleanupAtMs = now;
 
-  const days = Number(process.env.LOG_RETENTION_DAYS || 30);
+  const days = Number(process.env.AUDIT_LOG_RETENTION_DAYS || process.env.LOG_RETENTION_DAYS || 60);
   const cutoff = new Date(now - days * 24 * 60 * 60 * 1000);
   await prisma.systemLog.deleteMany({ where: { createdAt: { lt: cutoff } } });
 }

@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { prisma } from "@suscripciones/database";
 import { SaUserRole } from "@prisma/client";
-import { requireAdminToken } from "../../_lib/requireAdminToken";
 import { createSaSession, hashPassword } from "@suscripciones/core/services/superAdminAuth";
 import { getDefaultTenantId } from "@suscripciones/core/services/tenantContext";
 
@@ -14,9 +13,6 @@ const bootstrapSchema = z.object({
 });
 
 export async function POST(req: Request) {
-  const auth = requireAdminToken(req);
-  if (!auth.ok) return auth.response;
-
   const body = await req.json().catch(() => null);
   const parsed = bootstrapSchema.safeParse(body ?? {});
   if (!parsed.success) {

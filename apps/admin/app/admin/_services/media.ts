@@ -17,5 +17,5 @@ export async function uploadProductImage(args: { req: Request; dataUrl: string; 
   const saved = await saveDataUrlToFile(args.dataUrl, "product", maxBytes);
   const base = buildPublicBase(args.req);
   const url = base ? `${base}/public/media/${saved.filename}` : `/public/media/${saved.filename}`;
-  return { url, bytes: saved.bytes, mime: saved.mime };
+  return { url, filename: saved.filename, bytes: saved.bytes, mime: saved.mime };
 }

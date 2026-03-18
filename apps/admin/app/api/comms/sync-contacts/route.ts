@@ -5,7 +5,7 @@ import { syncContactsAttributes } from "../../../admin/_services/comms";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
-  const auth = await requireApiSession();
+  const auth = await requireApiSession(req);
   if (!auth.ok) return auth.response;
 
   let body: any = {};

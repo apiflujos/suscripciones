@@ -34,7 +34,6 @@ export function getSessionSecret() {
   return (
     normalizeSecret(process.env.ADMIN_SESSION_SECRET) ||
     normalizeSecret(process.env.ADMIN_SESSION_SALT) ||
-    normalizeSecret(process.env.ADMIN_API_TOKEN) ||
     ""
   );
 }

@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { requireAdminToken } from "../../_lib/requireAdminToken";
 import { refreshSaSession } from "@suscripciones/core/services/superAdminAuth";
 
 export const runtime = "nodejs";
@@ -10,9 +9,6 @@ const refreshSchema = z.object({
 });
 
 export async function POST(req: Request) {
-  const auth = requireAdminToken(req);
-  if (!auth.ok) return auth.response;
-
   const body = await req.json().catch(() => null);
   const parsed = refreshSchema.safeParse(body ?? {});
   if (!parsed.success) {

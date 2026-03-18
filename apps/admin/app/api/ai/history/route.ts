@@ -4,7 +4,7 @@ import { coerceTenantId, getEffectiveTenantId } from "@suscripciones/core/servic
 import { getAiHistory } from "../../../admin/_services/ai";
 
 export async function GET(req: Request) {
-  const auth = await requireApiSession();
+  const auth = await requireApiSession(req);
   if (!auth.ok) return auth.response;
 
   const url = new URL(req.url);

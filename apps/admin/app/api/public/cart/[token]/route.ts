@@ -3,6 +3,7 @@ import { LogLevel, PlanIntervalUnit } from "@prisma/client";
 import { getTenantBrand } from "@suscripciones/core/services/tenantBrand";
 import { systemLog } from "@suscripciones/core/services/systemLog";
 import { tokenMeta } from "@suscripciones/core/lib/tokenMeta";
+import { verifyPublicToken } from "../../../../lib/publicTokens";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,6 +34,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
   const params = await ctx.params;
   const token = String(params?.token || "").trim();
   if (!token) return Response.json({ error: "missing_token" }, { status: 400 });
+
+  const jwt = await verifyPublicToken(token, "cart");
+  if (!jwt) return Response.json({ error: "unauthorized" }, { status: 401 });
 
   const ip = String(req.headers.get("x-forwarded-for") || "").split(",")[0].trim();
 

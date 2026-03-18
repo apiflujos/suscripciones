@@ -4,7 +4,7 @@ import { requireApiSession } from "../../_lib/requireApiSession";
 import { searchCustomers } from "../../../admin/_services/search";
 
 export async function GET(req: NextRequest) {
-  const auth = await requireApiSession();
+  const auth = await requireApiSession(req);
   if (!auth.ok) return auth.response;
 
   const url = new URL(req.url);

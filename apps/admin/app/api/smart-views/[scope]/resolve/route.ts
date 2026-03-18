@@ -11,7 +11,7 @@ const getParam = async (paramsPromise: RouteContext["params"], key: "scope") => 
 };
 
 export async function POST(req: Request, ctx: RouteContext) {
-  const auth = await requireApiSession();
+  const auth = await requireApiSession(req);
   if (!auth.ok) return auth.response;
 
   const scope = await getParam(ctx.params, "scope");

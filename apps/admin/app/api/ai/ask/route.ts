@@ -15,7 +15,7 @@ const askSchema = z.object({
 });
 
 export async function POST(req: Request) {
-  const auth = await requireApiSession();
+  const auth = await requireApiSession(req);
   if (!auth.ok) return auth.response;
 
   const body = await req.json().catch(() => null);

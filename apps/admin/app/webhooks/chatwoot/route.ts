@@ -7,6 +7,8 @@ import { redactHeaders } from "@suscripciones/core/lib/redact";
 import { logger } from "@suscripciones/core/lib/logger";
 import { getDefaultTenantId } from "@suscripciones/core/services/tenantContext";
 import { applyGamificationEvent, GAMIFICATION_EVENT_KINDS } from "@suscripciones/core/services/gamification";
+import { tokenMeta } from "@suscripciones/core/lib/tokenMeta";
+import { normalizeBearer, verifyJwt } from "../../../lib/jwt";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -128,6 +130,15 @@ function messageTimestamp(payload: ChatwootPayload) {
 }
 
 export async function POST(req: Request) {
+  const authHeader = req.headers.get("authorization") || "";
+  const tokenFromAuth = authHeader.toLowerCase().startsWith("bearer ") ? authHeader : "";
+  const tokenFromHeader = req.headers.get("x-auth-token") || "";
+  const token = normalizeBearer(tokenFromAuth || tokenFromHeader || "");
+  const claims: any = token ? await verifyJwt(token) : null;
+  if (!claims || !Array.isArray(claims.permissions) || !claims.permissions.includes("webhook:receive")) {
+    return Response.json({ error: "unauthorized" }, { status: 401 });
+  }
+
   const body = await req.json().catch(() => null);
   const parsed = chatwootWebhookSchema.safeParse(body);
   if (!parsed.success) {
@@ -293,6 +304,8 @@ export async function POST(req: Request) {
     contactId,
     conversationId,
     hasContact: !!contact,
+    actor: claims.sub || null,
+    ...tokenMeta(token),
     headers: redactHeaders(Object.fromEntries(req.headers.entries()) as Record<string, string | string[] | number | boolean | null | undefined>)
   }).catch((err) => {
     logger.warn({ err, event }, "chatwoot webhook: failed to write system log");

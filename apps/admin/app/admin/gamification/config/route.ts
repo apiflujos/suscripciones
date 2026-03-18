@@ -10,7 +10,7 @@ const updateConfigSchema = z.object({
 });
 
 export async function GET(req: Request) {
-  const auth = requireAdminToken(req);
+  const auth = await requireAdminToken(req);
   if (!auth.ok) return auth.response;
 
   const cfg = await getGamificationConfig();
@@ -18,7 +18,7 @@ export async function GET(req: Request) {
 }
 
 export async function PUT(req: Request) {
-  const auth = requireAdminToken(req);
+  const auth = await requireAdminToken(req);
   if (!auth.ok) return auth.response;
 
   const body = await req.json().catch(() => null);

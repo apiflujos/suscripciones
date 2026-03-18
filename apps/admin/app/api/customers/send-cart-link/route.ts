@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import crypto from "crypto";
 import { requireApiSession } from "../../_lib/requireApiSession";
 import { getCheckoutConfig } from "../../../admin/_services/settings";
 import { getActiveCheckoutTemplates } from "../../../admin/_services/checkoutTemplates";
 import { getCustomerById, updateCustomerMetadata } from "../../../admin/_services/customers";
 import { scheduleCatalogLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
 import { sendChatwootMessageForCustomer } from "../../../admin/_services/chatwoot";
+import { signPublicToken } from "../../../../lib/publicTokens";
 
 function buildChatwootLinkMessage(args: { name?: string; lead: string; url: string }) {
   const safeName = String(args.name || "Cliente").trim() || "Cliente";
@@ -29,7 +29,7 @@ function buildPublicUrl(base: string, path: string, utm: string) {
 }
 
 export async function POST(req: Request) {
-  const auth = await requireApiSession();
+  const auth = await requireApiSession(req);
   if (!auth.ok) return auth.response;
 
   let body: any = null;
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "missing_cart_template" }, { status: 400 });
   }
 
-  const linkToken = crypto.randomBytes(18).toString("hex");
+  const linkToken = await signPublicToken({ sub: customerId, scope: "cart", ttlSeconds: hours * 60 * 60 });
   const utm = String(checkoutConfig?.defaultUtmParams || "").trim();
   const publicUrl = buildPublicUrl(base, `/public/cart/${linkToken}`, utm);
 

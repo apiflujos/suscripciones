@@ -18,7 +18,7 @@ function toCsv(headers: string[], rows: Array<Record<string, unknown>>) {
 
 export async function GET(req: Request) {
   try {
-    const auth = await requireApiSession();
+    const auth = await requireApiSession(req);
     if (!auth.ok) return auth.response;
 
     const { searchParams } = new URL(req.url);

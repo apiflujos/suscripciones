@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { assertSameOrigin } from "../../../lib/csrf";
 import { requireApiSession } from "../../_lib/requireApiSession";
 import { uploadProductImage } from "../../../admin/_services/media";
+import { signMediaToken } from "../../../../lib/mediaAuth";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
-  const auth = await requireApiSession();
+  const auth = await requireApiSession(req);
   if (!auth.ok) return auth.response;
 
   try {
@@ -34,7 +35,9 @@ export async function POST(req: Request) {
   const dataUrl = `data:${file.type};base64,${buffer.toString("base64")}`;
   try {
     const saved = await uploadProductImage({ req, dataUrl, maxBytes: 2 * 1024 * 1024 });
-    return NextResponse.json({ url: saved.url });
+    const token = await signMediaToken(saved.filename, 10 * 60);
+    const url = `${saved.url}?token=${encodeURIComponent(token)}`;
+    return NextResponse.json({ url, expiresInSeconds: 600 });
   } catch (err: any) {
     return NextResponse.json({ error: "upload_failed", details: String(err?.message || err) }, { status: 400 });
   }

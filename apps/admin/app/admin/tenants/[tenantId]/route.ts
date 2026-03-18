@@ -23,7 +23,7 @@ const updateTenantSchema = z.object({
 
 export async function PUT(req: Request, ctx: { params: Promise<{ tenantId: string }> }) {
   const params = await ctx.params;
-  const auth = requireAdminToken(req);
+  const auth = await requireAdminToken(req);
   if (!auth.ok) return auth.response;
 
   const tenantId = String(params?.tenantId || "").trim();
@@ -62,7 +62,7 @@ export async function PUT(req: Request, ctx: { params: Promise<{ tenantId: strin
 
 export async function DELETE(req: Request, ctx: { params: Promise<{ tenantId: string }> }) {
   const params = await ctx.params;
-  const auth = requireAdminToken(req);
+  const auth = await requireAdminToken(req);
   if (!auth.ok) return auth.response;
 
   const tenantId = String(params?.tenantId || "").trim();

@@ -3,6 +3,7 @@ import { prisma } from "@suscripciones/database";
 import { getCheckoutConfig } from "../../../../admin/_services/settings";
 import { createWompiPaymentSource, consumeTokenizationLink, updateCustomerProfile } from "../../../../admin/_services/customers";
 import { createSubscription } from "../../../../admin/_services/subscriptions";
+import { verifyPublicToken } from "../../../../../lib/publicTokens";
 
 function getRedirectBase(req: Request) {
   const envBase =
@@ -54,6 +55,10 @@ function tokenToType(token: string): "CARD" | "NEQUI" | "PSE" {
 
 export async function POST(req: Request, ctx: { params: Promise<{ token: string }> }) {
   const { token: linkToken } = await ctx.params;
+  const jwt = await verifyPublicToken(linkToken, "tokenization");
+  if (!jwt) {
+    return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=unauthorized`, getRedirectBase(req)));
+  }
   let redirectBase = getRedirectBase(req);
 
   try {

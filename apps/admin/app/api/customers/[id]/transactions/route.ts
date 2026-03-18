@@ -6,7 +6,7 @@ import { getCustomerPayments } from "../../../../admin/_services/payments";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest, context: any) {
-  const auth = await requireApiSession();
+  const auth = await requireApiSession(req);
   if (!auth.ok) return auth.response;
 
   const id = String(context?.params?.id || "").trim();

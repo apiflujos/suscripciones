@@ -2,7 +2,6 @@ import { z } from "zod";
 import { prisma } from "@suscripciones/database";
 import { SaUserRole } from "@prisma/client";
 import { createSaSession, verifyPassword } from "@suscripciones/core/services/superAdminAuth";
-import { requireAdminToken } from "../../_lib/requireAdminToken";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,9 +43,6 @@ function checkRateLimit(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const auth = requireAdminToken(req);
-  if (!auth.ok) return auth.response;
-
   const rate = checkRateLimit(req);
   if (!rate.ok) {
     return Response.json({ error: "rate_limited", retryAfterMs: rate.retryAfterMs }, { status: 429 });

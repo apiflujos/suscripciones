@@ -11,7 +11,7 @@ const labelsSchema = z.object({
 
 export async function GET(req: Request, ctx: { params: Promise<{ contactId: string }> }) {
   const params = await ctx.params;
-  const auth = requireAdminToken(req);
+  const auth = await requireAdminToken(req);
   if (!auth.ok) return auth.response;
 
   const contactId = Number(params?.contactId);
@@ -25,7 +25,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ contactId: stri
 
 export async function POST(req: Request, ctx: { params: Promise<{ contactId: string }> }) {
   const params = await ctx.params;
-  const auth = requireAdminToken(req);
+  const auth = await requireAdminToken(req);
   if (!auth.ok) return auth.response;
 
   const contactId = Number(params?.contactId);

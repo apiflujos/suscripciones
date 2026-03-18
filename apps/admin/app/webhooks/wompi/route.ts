@@ -8,6 +8,8 @@ import { redactHeaders } from "@suscripciones/core/lib/redact";
 import { getDefaultTenantId } from "@suscripciones/core/services/tenantContext";
 import { processWompiEventLogic } from "@suscripciones/core/jobs/handlers/processWompiEvent";
 import { classifyReference } from "@suscripciones/core/webhooks/wompi/classifyReference";
+import { tokenMeta } from "@suscripciones/core/lib/tokenMeta";
+import { normalizeBearer, verifyJwt } from "../../../lib/jwt";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -72,6 +74,15 @@ async function resolveWebhookTenantId(payload: any): Promise<string | null> {
 }
 
 export async function POST(req: Request) {
+  const authHeader = req.headers.get("authorization") || "";
+  const tokenFromAuth = authHeader.toLowerCase().startsWith("bearer ") ? authHeader : "";
+  const tokenFromHeader = req.headers.get("x-auth-token") || "";
+  const token = normalizeBearer(tokenFromAuth || tokenFromHeader || "");
+  const claims: any = token ? await verifyJwt(token) : null;
+  if (!claims || !Array.isArray(claims.permissions) || !claims.permissions.includes("webhook:receive")) {
+    return Response.json({ error: "unauthorized" }, { status: 401 });
+  }
+
   const body = await req.json().catch(() => null);
   const parsed = wompiEventSchema.safeParse(body);
   if (!parsed.success) {
@@ -133,6 +144,19 @@ export async function POST(req: Request) {
         payload: parsed.data as any
       }
     });
+
+    await systemLog(
+      LogLevel.INFO,
+      "webhooks.wompi",
+      "webhook_received",
+      {
+        webhookEventId: webhookEvent.id,
+        tenantId,
+        actor: claims.sub || null,
+        ...tokenMeta(token)
+      },
+      SystemActor.WEBHOOK_WOMPI
+    ).catch(() => {});
 
     console.log("[Webhooks/Wompi] Webhook recibido", {
       webhookEventId: webhookEvent.id,

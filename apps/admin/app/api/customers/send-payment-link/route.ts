@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import crypto from "crypto";
 import { requireApiSession } from "../../_lib/requireApiSession";
 import { createManualOrder } from "../../../admin/_services/orders";
 import { getCheckoutConfig } from "../../../admin/_services/settings";
 import { getActiveCheckoutTemplates } from "../../../admin/_services/checkoutTemplates";
 import { getCustomerById, updateCustomerMetadata } from "../../../admin/_services/customers";
 import { sendChatwootMessageForCustomer } from "../../../admin/_services/chatwoot";
+import { signPublicToken } from "../../../../lib/publicTokens";
 
 function buildChatwootLinkMessage(args: { name?: string; lead: string; url: string }) {
   const safeName = String(args.name || "Cliente").trim() || "Cliente";
@@ -24,7 +24,7 @@ function pesosToCents(input: string): number {
 }
 
 export async function POST(req: Request) {
-  const auth = await requireApiSession();
+  const auth = await requireApiSession(req);
   if (!auth.ok) return auth.response;
 
   let body: any = null;
@@ -78,7 +78,7 @@ export async function POST(req: Request) {
         resolvedTemplateId = selected ? String((selected as any).id || "") : "";
       }
 
-      const tokenValue = crypto.randomBytes(18).toString("hex");
+      const tokenValue = await signPublicToken({ sub: customerId, scope: "payment", ttlSeconds: hours * 60 * 60 });
       const normalized = base.replace(/\/$/, "");
       const hasPlanPath = /\/public\/plan$/i.test(normalized);
       const baseUrl = `${normalized}${hasPlanPath ? "" : "/public/plan"}/${tokenValue}`;

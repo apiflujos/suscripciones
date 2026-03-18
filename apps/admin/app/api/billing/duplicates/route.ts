@@ -6,7 +6,7 @@ import { prisma } from "@suscripciones/database";
 const ACTIVE_STATUSES = new Set(["ACTIVE", "PAST_DUE", "SUSPENDED", "EXPIRED"]);
 
 export async function GET(req: NextRequest) {
-  const auth = await requireApiSession();
+  const auth = await requireApiSession(req);
   if (!auth.ok) return auth.response;
 
   const url = new URL(req.url);

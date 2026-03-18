@@ -4,7 +4,7 @@ import { requireApiSession } from "../../_lib/requireApiSession";
 import { setSubscriptionRetryDate } from "../../../admin/_services/subscriptions";
 
 export async function POST(req: Request) {
-  const auth = await requireApiSession();
+  const auth = await requireApiSession(req);
   if (!auth.ok) return auth.response;
 
   const formData = await req.formData();

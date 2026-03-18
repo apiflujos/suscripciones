@@ -130,7 +130,6 @@ export default async function PublicTokenizePage({
     const msg = "Este link no existe o ya no es válido. Solicita uno nuevo.";
     console.info("public_tokenize_error", {
       status: tokenRes.status,
-      token,
       message: msg
     });
     return (

@@ -52,13 +52,13 @@ const campaignUpdateSchema = z.object({
 });
 
 export async function GET(req: Request) {
-  const auth = requireAdminToken(req);
+  const auth = await requireAdminToken(req);
   if (!auth.ok) return auth.response;
   return Response.json({ error: "not_found" }, { status: 404 });
 }
 
 export async function POST(req: Request) {
-  const auth = requireAdminToken(req);
+  const auth = await requireAdminToken(req);
   if (!auth.ok) return auth.response;
 
   const url = new URL(req.url);

@@ -3,7 +3,7 @@ import { requireApiSession } from "../../_lib/requireApiSession";
 import { clearCustomerPaymentSource } from "../../../admin/_services/customers";
 
 export async function POST(req: Request) {
-  const auth = await requireApiSession();
+  const auth = await requireApiSession(req);
   if (!auth.ok) return auth.response;
 
   let body: any = null;

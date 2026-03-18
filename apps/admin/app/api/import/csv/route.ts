@@ -63,7 +63,7 @@ function toBool(value: string, fallback = false) {
 
 export async function POST(req: Request) {
   try {
-    const auth = await requireApiSession();
+    const auth = await requireApiSession(req);
     if (!auth.ok) return auth.response;
 
     const formData = await req.formData();

@@ -1,7 +1,6 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import crypto from "crypto";
 import { assertCsrfToken } from "../lib/csrf";
 import { DEFAULT_CURRENCY, normalizeSupportedCurrency } from "../lib/currencies";
 import { createCustomer as createCustomerService, getCustomerById, updateCustomerProfile } from "../admin/_services/customers";
@@ -22,6 +21,7 @@ import { getAdminSettings } from "../admin/_services/settings";
 import { getCheckoutTemplateById } from "../admin/_services/checkoutTemplates";
 import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
 import { scheduleTokenizationLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
+import { signPublicToken } from "../lib/publicTokens";
 
 function safeReturnTo(formData: FormData) {
   const raw = String(formData.get("returnTo") || "").trim();
@@ -738,7 +738,11 @@ export async function createPlanAndSubscription(formData: FormData) {
 
     if (billingType === "PLAN" && checkoutUrl) {
       const base = planBase;
-      const token = crypto.randomBytes(18).toString("hex");
+      const token = await signPublicToken({
+        sub: customerId || "customer",
+        scope: "payment",
+        ttlSeconds: (expiryHours ? expiryHours * 60 * 60 : 24 * 60 * 60)
+      });
       const baseUrl = `${base.replace(/\/$/, "")}/public/plan/${token}`;
     const utm = String(template?.utmParams || checkoutConfig?.defaultUtmParams || "").trim();
       const url = utm ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${utm.replace(/^\?+/, "")}` : baseUrl;
@@ -790,7 +794,11 @@ export async function createPlanAndSubscription(formData: FormData) {
         redirect(mergeQuery(returnTo, { created: "1", customerId, ...(tenantId ? { tenantId } : {}) }));
       }
       const base = subBase;
-      const token = crypto.randomBytes(18).toString("hex");
+      const token = await signPublicToken({
+        sub: customerId || "customer",
+        scope: "tokenization",
+        ttlSeconds: (expiryHours ? expiryHours * 60 * 60 : 24 * 60 * 60)
+      });
       const baseUrl = `${base.replace(/\/$/, "")}/public/suscripcion/${token}`;
       const utm = String(template?.utmParams || checkoutConfig?.defaultUtmParams || "").trim();
       const url = utm ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${utm.replace(/^\?+/, "")}` : baseUrl;
@@ -934,7 +942,11 @@ export async function sendCentralComTokenizationLink(formData: FormData) {
       return redirect(mergeQuery(returnTo, { error: "missing_subscription_base_url", ...(tenantId ? { tenantId } : {}) }));
     }
 
-    const token = crypto.randomBytes(18).toString("hex");
+    const token = await signPublicToken({
+      sub: customerId || "customer",
+      scope: "tokenization",
+      ttlSeconds: (expiryHours ? expiryHours * 60 * 60 : 24 * 60 * 60)
+    });
     const baseUrl = `${base.replace(/\/$/, "")}/public/suscripcion/${token}`;
     const utm = String(checkoutConfig?.defaultUtmParams || "").trim();
     const url = utm ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${utm.replace(/^\?+/, "")}` : baseUrl;

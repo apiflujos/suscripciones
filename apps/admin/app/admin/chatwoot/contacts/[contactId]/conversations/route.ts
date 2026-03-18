@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 type RouteContext = { params: Promise<{ contactId: string }> };
 
 export async function GET(req: Request, ctx: RouteContext) {
-  const auth = requireAdminToken(req);
+  const auth = await requireAdminToken(req);
   if (!auth.ok) return auth.response;
 
   const { contactId } = await ctx.params;

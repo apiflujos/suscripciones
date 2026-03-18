@@ -12,7 +12,7 @@ const resetSchema = z.object({
 });
 
 export async function POST(req: Request) {
-  const auth = requireAdminToken(req);
+  const auth = await requireAdminToken(req);
   if (!auth.ok) return auth.response;
 
   const sa = await requireSaSession(req);

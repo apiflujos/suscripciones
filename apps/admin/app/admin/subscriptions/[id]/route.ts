@@ -184,7 +184,7 @@ async function recordManualChargeFailure(args: {
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const params = await ctx.params;
-  const auth = requireAdminToken(req);
+  const auth = await requireAdminToken(req);
   if (!auth.ok) return auth.response;
 
   const subscriptionId = String(params?.id || "").trim();

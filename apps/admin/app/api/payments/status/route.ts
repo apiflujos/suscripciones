@@ -3,7 +3,7 @@ import { requireApiSession } from "../../_lib/requireApiSession";
 import { getPaymentStatus } from "../../../admin/_services/payments";
 
 export async function GET(req: Request) {
-  const auth = await requireApiSession();
+  const auth = await requireApiSession(req);
   if (!auth.ok) return auth.response;
 
   const url = new URL(req.url);

@@ -4,7 +4,7 @@ import { requireSaSessionFromCookie } from "../../../_lib/requireSaSession";
 import { executeSqlConsole } from "../../../../admin/_services/sqlConsole";
 
 export async function POST(req: Request) {
-  const auth = await requireApiSession({ roles: ["SUPER_ADMIN"] });
+  const auth = await requireApiSession(req, { roles: ["SUPER_ADMIN"] });
   if (!auth.ok) return auth.response;
 
   const sa = await requireSaSessionFromCookie();

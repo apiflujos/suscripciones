@@ -33,7 +33,7 @@ function resolveTenantId(sessionTenantId: string | null | undefined, paramTenant
 }
 
 export async function GET(req: Request, ctx: RouteContext) {
-  const auth = await requireApiSession();
+  const auth = await requireApiSession(req);
   if (!auth.ok) return auth.response;
 
   const scope = await getParam(ctx.params, "scope");
@@ -50,7 +50,7 @@ export async function GET(req: Request, ctx: RouteContext) {
 }
 
 export async function POST(req: Request, ctx: RouteContext) {
-  const auth = await requireApiSession();
+  const auth = await requireApiSession(req);
   if (!auth.ok) return auth.response;
 
   const scope = await getParam(ctx.params, "scope");

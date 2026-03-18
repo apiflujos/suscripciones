@@ -1,4 +1,3 @@
-import crypto from "crypto";
 import { prisma } from "@suscripciones/database";
 import { CredentialProvider, PlanIntervalUnit, SubscriptionStatus } from "@prisma/client";
 import { addIntervalUtc } from "@suscripciones/core/lib/dates";
@@ -7,6 +6,7 @@ import { scheduleSubscriptionDueNotifications } from "@suscripciones/core/servic
 import { getCredential } from "@suscripciones/core/services/credentials";
 import { getCheckoutBaseUrlsFromEnv } from "@suscripciones/core/services/publicBase";
 import { ensurePaymentRetryJob } from "@suscripciones/core/services/retryJobScheduler";
+import { signPublicToken, verifyPublicToken } from "../../../../lib/publicTokens";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -76,6 +76,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   const token = String(params?.token || "").trim();
   if (!token) return Response.json({ error: "missing_token" }, { status: 400 });
 
+  const jwt = await verifyPublicToken(token, "cart");
+  if (!jwt) return Response.json({ error: "unauthorized" }, { status: 401 });
+
   const customer = await prisma.customer.findFirst({
     where: { metadata: { path: ["cartLink", "token"], equals: token } as any }
   });
@@ -111,7 +114,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   if (collectionMode === "AUTO_DEBIT") {
     const base = normalizeCheckoutBase(cfg.subscriptionBaseUrl, "suscripcion");
     if (!base) return Response.json({ error: "missing_subscription_base_url" }, { status: 400 });
-    const linkToken = crypto.randomBytes(18).toString("hex");
+    const linkToken = await signPublicToken({
+      sub: customer.id,
+      scope: "tokenization",
+      ttlSeconds: (Number.isFinite(cfg.tokenExpiryHours) && cfg.tokenExpiryHours > 0 ? Math.trunc(cfg.tokenExpiryHours) : 24) * 60 * 60
+    });
     const nextUrl = buildPublicUrl(base, `/public/suscripcion/${linkToken}`, cfg.defaultUtmParams);
     const expiryHours = Number.isFinite(cfg.tokenExpiryHours) && cfg.tokenExpiryHours > 0 ? Math.min(Math.max(Math.trunc(cfg.tokenExpiryHours), 1), 168) : 24;
     const expiresAt = new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString();
@@ -177,7 +184,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   const linkCreated = await createPaymentLinkForSubscription({ subscriptionId: subscription.id });
   const base = normalizeCheckoutBase(cfg.planBaseUrl, "plan");
   if (!base) return Response.json({ error: "missing_plan_base_url" }, { status: 400 });
-  const linkToken = crypto.randomBytes(18).toString("hex");
+  const linkToken = await signPublicToken({
+    sub: customer.id,
+    scope: "payment",
+    ttlSeconds: (Number.isFinite(cfg.tokenExpiryHours) && cfg.tokenExpiryHours > 0 ? Math.trunc(cfg.tokenExpiryHours) : 24) * 60 * 60
+  });
   const publicUrl = buildPublicUrl(base, `/public/plan/${linkToken}`, cfg.defaultUtmParams);
 
   const nextMeta = {

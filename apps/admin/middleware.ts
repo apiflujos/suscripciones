@@ -2,24 +2,15 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "./lib/session";
 import { CSRF_COOKIE } from "./app/lib/csrf";
+import { signJwt, verifyJwt, normalizeBearer } from "./lib/jwt";
+import { permissionsForPath, hasPermissions } from "./lib/rbac";
+import { checkRateLimit } from "./lib/rateLimit";
+import { verifyPublicToken } from "./lib/publicTokens";
 
-// Rutas que NO requieren autenticación
-const PUBLIC_PATHS = [
-  "/login",
-  "/logout",
-  "/public",
-  "/wompi/widget",
-  "/404",
-  "/500",
-  "/_error"
-];
+const PUBLIC_PATHS = ["/login", "/logout", "/public", "/wompi/widget", "/404", "/500", "/_error"];
 
 function isPublicPath(pathname: string): boolean {
-  return (
-    PUBLIC_PATHS.includes(pathname) ||
-    pathname.startsWith("/public/") ||
-    pathname.startsWith("/login/")
-  );
+  return PUBLIC_PATHS.includes(pathname) || pathname.startsWith("/public/") || pathname.startsWith("/login/");
 }
 
 function isApiPath(pathname: string): boolean {
@@ -32,8 +23,6 @@ function isApiPath(pathname: string): boolean {
     pathname.startsWith("/api/") ||
     pathname === "/webhooks" ||
     pathname.startsWith("/webhooks/") ||
-    pathname === "/public" ||
-    pathname.startsWith("/public/") ||
     pathname === "/admin" ||
     pathname.startsWith("/admin/")
   );
@@ -51,22 +40,169 @@ function isLogsArea(pathname: string): boolean {
   return pathname.startsWith("/logs");
 }
 
+function getClientIp(req: NextRequest) {
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (!forwarded) return "unknown";
+  return forwarded.split(",")[0].trim() || "unknown";
+}
+
+function allowedOrigins() {
+  const raw = String(process.env.CORS_ALLOWED_ORIGINS || "").trim();
+  if (!raw) return [] as string[];
+  return raw.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean);
+}
+
+function applySecurityHeaders(res: NextResponse, pathname: string) {
+  if (String(process.env.SECURITY_HEADERS_ENABLED || "1").trim() === "0") return res;
+  res.headers.set("X-Frame-Options", "DENY");
+  res.headers.set("X-Content-Type-Options", "nosniff");
+  res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.headers.set("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
+  const hstsAge = String(process.env.HSTS_MAX_AGE || "63072000");
+  res.headers.set("Strict-Transport-Security", `max-age=${hstsAge}; includeSubDomains; preload`);
+
+  const allowUnsafeInline = String(process.env.CSP_ALLOW_UNSAFE_INLINE || "0").trim() === "1";
+  const allowUnsafeInlinePublic = String(process.env.CSP_PUBLIC_ALLOW_UNSAFE_INLINE || "0").trim() === "1";
+  const isPublic = pathname.startsWith("/public/") || pathname.startsWith("/wompi/");
+  const unsafe = isPublic ? allowUnsafeInlinePublic : allowUnsafeInline;
+  const csp = [
+    "default-src 'self'",
+    "img-src 'self' data: blob: https:",
+    "style-src 'self' 'unsafe-inline'",
+    `script-src 'self'${unsafe ? " 'unsafe-inline'" : ""}`,
+    "connect-src 'self' https:",
+    "frame-ancestors 'none'"
+  ].join("; ");
+  res.headers.set("Content-Security-Policy", csp);
+
+  return res;
+}
+
 export async function middleware(req: NextRequest) {
   const requestHeaders = new Headers(req.headers);
   const pathname = req.nextUrl.pathname;
   requestHeaders.set("x-app-pathname", pathname);
 
-  // Skip UI middleware for API endpoints (admin/public/webhooks/health)
-  if (isApiPath(pathname)) {
-    return NextResponse.next({ request: { headers: requestHeaders } });
+  const isApi = isApiPath(pathname);
+
+  if (isApi) {
+    const origin = req.headers.get("origin") || "";
+    if (origin) {
+      const allowed = allowedOrigins();
+      if (allowed.length && !allowed.includes(origin)) {
+        return new NextResponse(JSON.stringify({ error: "cors_blocked" }), {
+          status: 403,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+    }
+
+    if (req.method === "OPTIONS") {
+      const res = new NextResponse(null, { status: 204 });
+      const allowOrigin = origin || "*";
+      res.headers.set("Access-Control-Allow-Origin", allowOrigin);
+      res.headers.set("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
+      res.headers.set("Access-Control-Allow-Headers", "Authorization, X-Auth-Token, Content-Type");
+      res.headers.set("Access-Control-Max-Age", "600");
+      return applySecurityHeaders(res, pathname);
+    }
+
+    const ip = getClientIp(req);
+    const key = `${ip}:${pathname.split("/")[1] || "root"}`;
+    const rate = checkRateLimit(key);
+    if (!rate.ok) {
+      return new NextResponse(JSON.stringify({ error: "rate_limited" }), {
+        status: 429,
+        headers: {
+          "Content-Type": "application/json",
+          "Retry-After": String(Math.max(1, Math.ceil((rate.resetAt - Date.now()) / 1000)))
+        }
+      });
+    }
+
+    const authBypass =
+      pathname === "/admin/auth/login" ||
+      pathname === "/admin/sa/login" ||
+      pathname === "/admin/sa/refresh" ||
+      pathname === "/admin/sa/bootstrap";
+    if (authBypass) {
+      const res = NextResponse.next({ request: { headers: requestHeaders } });
+      const allowOrigin = origin || "*";
+      if (origin) {
+        res.headers.set("Access-Control-Allow-Origin", allowOrigin);
+        res.headers.set("Vary", "Origin");
+      }
+      return applySecurityHeaders(res, pathname);
+    }
+
+    // Public API tokens (cart/payment/tokenization)
+    if (pathname.startsWith("/api/public/cart/")) {
+      const token = pathname.split("/").pop() || "";
+      const publicClaims = token ? await verifyPublicToken(token, "cart") : null;
+      if (!publicClaims) {
+        const res = new NextResponse(JSON.stringify({ error: "unauthorized" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" }
+        });
+        return applySecurityHeaders(res, pathname);
+      }
+      requestHeaders.set("x-auth-user", publicClaims.sub || "public");
+      requestHeaders.set("x-auth-role", "PUBLIC");
+      const res = NextResponse.next({ request: { headers: requestHeaders } });
+      return applySecurityHeaders(res, pathname);
+    }
+
+    const auth = req.headers.get("authorization") || "";
+    const tokenFromAuth = auth.toLowerCase().startsWith("bearer ") ? auth : "";
+    const tokenFromHeader = req.headers.get("x-auth-token") || "";
+    const token = normalizeBearer(tokenFromAuth || tokenFromHeader || "");
+
+    let claims = token ? await verifyJwt(token) : null;
+
+    if (!claims) {
+      const sessionToken = req.cookies.get(ADMIN_SESSION_COOKIE)?.value || "";
+      const session = sessionToken ? await verifyAdminSessionToken(sessionToken) : null;
+      if (session) {
+        const jwt = await signJwt({ sub: session.email, role: session.role as any, tenantId: session.tenantId || null });
+        requestHeaders.set("authorization", `Bearer ${jwt}`);
+        claims = await verifyJwt(jwt);
+      }
+    }
+
+    if (!claims) {
+      const res = new NextResponse(JSON.stringify({ error: "unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" }
+      });
+      return applySecurityHeaders(res, pathname);
+    }
+
+    const required = permissionsForPath(pathname, req.method);
+    if (required && !hasPermissions(required, claims.permissions)) {
+      const res = new NextResponse(JSON.stringify({ error: "forbidden" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json" }
+      });
+      return applySecurityHeaders(res, pathname);
+    }
+
+    requestHeaders.set("x-auth-user", claims.sub);
+    requestHeaders.set("x-auth-role", claims.role);
+    if (claims.tenantId) requestHeaders.set("x-auth-tenant-id", String(claims.tenantId));
+
+    const res = NextResponse.next({ request: { headers: requestHeaders } });
+    const allowOrigin = origin || "*";
+    if (origin) {
+      res.headers.set("Access-Control-Allow-Origin", allowOrigin);
+      res.headers.set("Vary", "Origin");
+    }
+    return applySecurityHeaders(res, pathname);
   }
 
-  // CSRF Token
   const existingCsrf = req.cookies.get(CSRF_COOKIE)?.value || "";
   const csrfToken = existingCsrf || crypto.randomUUID();
   requestHeaders.set("x-csrf-token", csrfToken);
 
-  // Normalizar rutas de Super Admin (__sa -> sa)
   const shouldRewriteSa = pathname.startsWith("/__sa");
   const url = shouldRewriteSa
     ? new URL(req.nextUrl.origin + pathname.replace(/^\/__sa/, "/sa") + req.nextUrl.search)
@@ -76,55 +212,46 @@ export async function middleware(req: NextRequest) {
     requestHeaders.set("x-app-pathname", url.pathname);
   }
 
-  // Debug paths (solo en desarrollo)
   const isDebugPath = pathname.startsWith("/debug") || pathname.startsWith("/__debug");
   const isDebugPublic = process.env.NODE_ENV !== "production";
 
-  // Verificar sesión
   const token = req.cookies.get(ADMIN_SESSION_COOKIE)?.value || "";
   const session = token ? await verifyAdminSessionToken(token) : null;
 
-  // PROTECCIÓN DE RUTAS
   const isProtectedRoute = !isPublicPath(pathname) && !(isDebugPath && isDebugPublic);
 
   if (isProtectedRoute && !session) {
-    // Redirigir al login
     const loginUrl = new URL(req.nextUrl.origin + "/login");
     loginUrl.searchParams.set("next", pathname + req.nextUrl.search);
-    return NextResponse.redirect(loginUrl);
+    const res = NextResponse.redirect(loginUrl);
+    return applySecurityHeaders(res, pathname);
   }
 
-  // VALIDACIÓN DE ROLES
   if (session) {
-    // Super Admin area: solo SUPER_ADMIN
     if (isSuperAdminArea(pathname) && session.role !== "SUPER_ADMIN") {
-      return NextResponse.redirect(new URL(req.nextUrl.origin + "/"));
+      const res = NextResponse.redirect(new URL(req.nextUrl.origin + "/"));
+      return applySecurityHeaders(res, pathname);
     }
 
-    // Settings area: AGENTS no pueden acceder
     if (isSettingsArea(pathname) && session.role === "AGENT") {
-      return NextResponse.redirect(new URL(req.nextUrl.origin + "/"));
+      const res = NextResponse.redirect(new URL(req.nextUrl.origin + "/"));
+      return applySecurityHeaders(res, pathname);
     }
 
-    // Logs area: solo SUPER_ADMIN
     if (isLogsArea(pathname) && session.role !== "SUPER_ADMIN") {
-      return NextResponse.redirect(new URL(req.nextUrl.origin + "/"));
+      const res = NextResponse.redirect(new URL(req.nextUrl.origin + "/"));
+      return applySecurityHeaders(res, pathname);
     }
 
-    // Inyectar información de sesión en headers
     requestHeaders.set("x-auth-user", session.email);
     requestHeaders.set("x-auth-role", session.role);
-    if (session.tenantId) {
-      requestHeaders.set("x-auth-tenant-id", session.tenantId);
-    }
+    if (session.tenantId) requestHeaders.set("x-auth-tenant-id", session.tenantId);
   }
 
-  // Construir respuesta
   const response = shouldRewriteSa
     ? NextResponse.rewrite(url, { request: { headers: requestHeaders } })
     : NextResponse.next({ request: { headers: requestHeaders } });
 
-  // CSRF Cookie
   if (!existingCsrf) {
     response.cookies.set(CSRF_COOKIE, csrfToken, {
       httpOnly: true,
@@ -134,7 +261,7 @@ export async function middleware(req: NextRequest) {
     });
   }
 
-  return response;
+  return applySecurityHeaders(response, pathname);
 }
 
 export const config = {

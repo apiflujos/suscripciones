@@ -1,7 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
-import { normalizeToken } from "./normalizeToken";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
+import { signJwt } from "../../lib/jwt";
 
 type FetchResult = { ok: boolean; status: number; json: any };
 
@@ -19,8 +19,7 @@ function pruneCache() {
 
 export function getAdminApiConfig() {
   const apiBase = getOptionalApiBase();
-  const token = normalizeToken(process.env.ADMIN_API_TOKEN);
-  return { apiBase, token };
+  return { apiBase };
 }
 
 async function getSessionEmail(): Promise<string | null> {
@@ -29,6 +28,15 @@ async function getSessionEmail(): Promise<string | null> {
   if (!sessionToken) return null;
   const session = await verifyAdminSessionToken(sessionToken);
   return session?.email ?? null;
+}
+
+async function getSessionJwt(): Promise<string | null> {
+  const c = await cookies();
+  const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value;
+  if (!sessionToken) return null;
+  const session = await verifyAdminSessionToken(sessionToken);
+  if (!session) return null;
+  return signJwt({ sub: session.email, role: session.role as any, tenantId: session.tenantId || null });
 }
 
 export function getRequiredApiBase() {
@@ -98,33 +106,32 @@ export async function fetchPublicCached(path: string, opts?: { ttlMs?: number })
 }
 
 export async function fetchAdminCached(path: string, opts?: { ttlMs?: number }): Promise<FetchResult> {
-  const { apiBase, token } = getAdminApiConfig();
+  const { apiBase } = getAdminApiConfig();
   if (!apiBase) return { ok: false, status: 500, json: { error: "missing_api_base" } };
   const url = `${apiBase}${path}`;
   const ttlMs = Math.max(0, Number(opts?.ttlMs ?? 1500));
   const sessionEmail = await getSessionEmail();
+  const jwt = await getSessionJwt();
 
-  if (!token) return { ok: false, status: 401, json: { error: "missing_admin_token" } };
+  if (!jwt) return { ok: false, status: 401, json: { error: "missing_jwt" } };
   if (ttlMs === 0) {
     return fetchJson(url, {
       cache: "no-store",
       headers: {
-        authorization: `Bearer ${token}`,
-        "x-admin-token": token,
+        authorization: `Bearer ${jwt}`,
         ...(sessionEmail ? { "x-admin-user-email": sessionEmail } : {})
       }
     });
   }
 
-  const key = cacheKey(url, token);
+  const key = cacheKey(url, jwt);
   const hit = cache.get(key);
   if (hit && Date.now() - hit.atMs < ttlMs) return hit.result;
 
   let result = await fetchJson(url, {
     cache: "no-store",
     headers: {
-      authorization: `Bearer ${token}`,
-      "x-admin-token": token,
+      authorization: `Bearer ${jwt}`,
       ...(sessionEmail ? { "x-admin-user-email": sessionEmail } : {})
     }
   });
@@ -133,8 +140,7 @@ export async function fetchAdminCached(path: string, opts?: { ttlMs?: number }):
     result = await fetchJson(url, {
       cache: "no-store",
       headers: {
-        authorization: `Bearer ${token}`,
-        "x-admin-token": token,
+        authorization: `Bearer ${jwt}`,
         ...(sessionEmail ? { "x-admin-user-email": sessionEmail } : {})
       }
     });

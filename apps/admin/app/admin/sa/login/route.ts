@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { requireAdminToken } from "../../_lib/requireAdminToken";
 import { createSaSession } from "@suscripciones/core/services/superAdminAuth";
 
 export const runtime = "nodejs";
@@ -42,9 +41,6 @@ function checkRateLimit(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const auth = requireAdminToken(req);
-  if (!auth.ok) return auth.response;
-
   const rate = checkRateLimit(req);
   if (!rate.ok) {
     return Response.json({ error: "rate_limited", retryAfterMs: rate.retryAfterMs }, { status: 429 });

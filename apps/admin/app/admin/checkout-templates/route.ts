@@ -55,7 +55,7 @@ const templateSchema = z.object({
 });
 
 export async function GET(req: Request) {
-  const auth = requireAdminToken(req);
+  const auth = await requireAdminToken(req);
   if (!auth.ok) return auth.response;
 
   const compatReq = reqToCompat(req);
@@ -70,7 +70,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const auth = requireAdminToken(req);
+  const auth = await requireAdminToken(req);
   if (!auth.ok) return auth.response;
 
   const body = await req.json().catch(() => null);

@@ -5,7 +5,7 @@ import { getEffectiveTenantIds } from "@suscripciones/core/services/tenantContex
 import { createCustomer, createCustomerSchema } from "../../../admin/_services/customers";
 
 export async function POST(req: Request) {
-  const auth = await requireApiSession();
+  const auth = await requireApiSession(req);
   if (!auth.ok) return auth.response;
 
   let body: any = null;

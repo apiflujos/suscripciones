@@ -4,7 +4,7 @@ import { requireApiSession } from "../_lib/requireApiSession";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  const auth = await requireApiSession();
+  const auth = await requireApiSession(req);
   if (!auth.ok) return auth.response;
 
   const startedAt = Date.now();

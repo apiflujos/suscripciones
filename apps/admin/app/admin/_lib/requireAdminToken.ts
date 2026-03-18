@@ -1,54 +1,29 @@
-import crypto from "node:crypto";
+import { permissionsForPath, hasPermissions } from "../../../lib/rbac";
+import { normalizeBearer, verifyJwt } from "../../../lib/jwt";
 
-function normalizeToken(value: string) {
-  let v = String(value || "").trim();
-  v = v.replace(/^Bearer\s+/i, "").trim();
-  if ((v.startsWith("\"") && v.endsWith("\"")) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
-  return v.trim();
-}
-
-export function requireAdminToken(req: Request): { ok: true; token: string } | { ok: false; response: Response } {
+export async function requireAdminToken(req: Request): Promise<
+  | { ok: true; claims: { sub: string; role: string; permissions: string[]; tenantId?: string | null } }
+  | { ok: false; response: Response }
+> {
   const auth = req.headers.get("authorization") || "";
-  const tokenFromAuth = auth.startsWith("Bearer ") ? auth : "";
-  const tokenFromHeader = req.headers.get("x-admin-token") || "";
-  const token = normalizeToken(tokenFromAuth || tokenFromHeader || "");
+  const tokenFromAuth = auth.toLowerCase().startsWith("bearer ") ? auth : "";
+  const tokenFromHeader = req.headers.get("x-auth-token") || "";
+  const token = normalizeBearer(tokenFromAuth || tokenFromHeader || "");
 
-  const expectedRaw = process.env.ADMIN_API_TOKEN || "";
-  const expectedTokens = String(expectedRaw || "")
-    .split(/[,\n]/)
-    .map((t) => normalizeToken(t))
-    .filter(Boolean);
-
-  const matchesToken = expectedTokens.some((expected) => {
-    if (expected.length !== token.length) return false;
-    try {
-      return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(token));
-    } catch {
-      return false;
-    }
-  });
-
-  if (!token || !expectedTokens.length || !matchesToken) {
-    const reason = !expectedTokens.length ? "expected_not_configured" : !token ? "missing_token" : "token_mismatch";
-    const debugAuth = (process.env.DEBUG_AUTH || "").trim() === "1" && process.env.NODE_ENV !== "production";
-    const payload = debugAuth
-      ? {
-          error: "unauthorized",
-          reason,
-          hasAuthorization: !!auth,
-          hasXAdminToken: !!tokenFromHeader,
-          receivedLength: token.length,
-          expectedCount: expectedTokens.length,
-          expectedLengths: expectedTokens.map((t) => t.length)
-        }
-      : {
-          error: "unauthorized",
-          reason,
-          hasAuthorization: !!auth,
-          hasXAdminToken: !!tokenFromHeader
-        };
-    return { ok: false, response: Response.json(payload, { status: 401 }) };
+  if (!token) {
+    return { ok: false, response: Response.json({ error: "unauthorized", reason: "missing_token" }, { status: 401 }) };
   }
 
-  return { ok: true, token };
+  const claims = await verifyJwt(token);
+  if (!claims) {
+    return { ok: false, response: Response.json({ error: "unauthorized", reason: "invalid_token" }, { status: 401 }) };
+  }
+
+  const pathname = new URL(req.url).pathname;
+  const required = permissionsForPath(pathname, req.method);
+  if (required && !hasPermissions(required, claims.permissions)) {
+    return { ok: false, response: Response.json({ error: "forbidden", reason: "missing_permissions" }, { status: 403 }) };
+  }
+
+  return { ok: true, claims };
 }
