@@ -83,6 +83,12 @@ export async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
   requestHeaders.set("x-app-pathname", pathname);
 
+  // Allow Next.js static assets and public files without auth checks.
+  if (pathname.startsWith("/_next/") || pathname.startsWith("/favicon") || pathname.startsWith("/robots.txt")) {
+    const res = NextResponse.next({ request: { headers: requestHeaders } });
+    return applySecurityHeaders(res, pathname);
+  }
+
   const isApi = isApiPath(pathname);
 
   if (isApi) {
