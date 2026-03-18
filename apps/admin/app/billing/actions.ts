@@ -21,7 +21,7 @@ import { getAdminSettings } from "../admin/_services/settings";
 import { getCheckoutTemplateById } from "../admin/_services/checkoutTemplates";
 import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
 import { scheduleTokenizationLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
-import { signPublicToken } from "../lib/publicTokens";
+import { signPublicToken } from "../../lib/publicTokens";
 
 function safeReturnTo(formData: FormData) {
   const raw = String(formData.get("returnTo") || "").trim();
@@ -943,19 +943,19 @@ export async function sendCentralComTokenizationLink(formData: FormData) {
       return redirect(mergeQuery(returnTo, { error: "missing_subscription_base_url", ...(tenantId ? { tenantId } : {}) }));
     }
 
-    const token = await signPublicToken({
-      sub: customerId || "customer",
-      scope: "tokenization",
-      ttlSeconds: (expiryHours ? expiryHours * 60 * 60 : 24 * 60 * 60)
-    });
-    const baseUrl = `${base.replace(/\/$/, "")}/public/suscripcion/${token}`;
-    const utm = String(checkoutConfig?.defaultUtmParams || "").trim();
-    const url = utm ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${utm.replace(/^\?+/, "")}` : baseUrl;
     const expiryHours =
       Number.isFinite(Number(checkoutConfig?.tokenExpiryHours)) && Number(checkoutConfig?.tokenExpiryHours) > 0
         ? Math.min(Math.max(Math.trunc(Number(checkoutConfig?.tokenExpiryHours)), 1), 168)
         : 24;
     const expiresAt = new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString();
+    const token = await signPublicToken({
+      sub: customerId || "customer",
+      scope: "tokenization",
+      ttlSeconds: expiryHours * 60 * 60
+    });
+    const baseUrl = `${base.replace(/\/$/, "")}/public/suscripcion/${token}`;
+    const utm = String(checkoutConfig?.defaultUtmParams || "").trim();
+    const url = utm ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${utm.replace(/^\?+/, "")}` : baseUrl;
 
     const customer = (customerRes || {}) as any;
     const prevMeta =

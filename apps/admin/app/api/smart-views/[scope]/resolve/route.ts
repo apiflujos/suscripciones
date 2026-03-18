@@ -25,7 +25,7 @@ export async function POST(req: Request, ctx: RouteContext) {
   const ids = await resolveSmartViewIds(
     normalizedScope,
     auth.session.tenantId || null,
-    auth.session.email || null,
+    auth.session.sub || null,
     viewId || undefined,
     rules || undefined
   );

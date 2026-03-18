@@ -3,7 +3,7 @@ import { LogLevel, PlanIntervalUnit } from "@prisma/client";
 import { getTenantBrand } from "@suscripciones/core/services/tenantBrand";
 import { systemLog } from "@suscripciones/core/services/systemLog";
 import { tokenMeta } from "@suscripciones/core/lib/tokenMeta";
-import { verifyPublicToken } from "../../../../lib/publicTokens";
+import { verifyPublicToken } from "../../../../../lib/publicTokens";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -273,7 +273,9 @@ export async function createPaymentLinkForSubscription(args: {
   };
 
   let created: Awaited<ReturnType<WompiClient["createPaymentLink"]>>;
-  let updated: { id: string; checkoutUrl: string | null; wompiPaymentLinkId: string | null } | null = null;
+  let updated:
+    | { id: string; checkoutUrl: string | null; wompiPaymentLinkId: string | null; status?: PaymentStatus; amountInCents?: number | null }
+    | null = null;
   try {
     const existing = await prisma.payment.findUnique({
       where: { id: payment.id },

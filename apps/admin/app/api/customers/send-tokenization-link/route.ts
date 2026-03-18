@@ -73,7 +73,7 @@ export async function POST(req: Request) {
     customerId,
     tokenUrl: link,
     forceNow: true,
-    actor: auth.session.email
+    actor: auth.session.sub
   });
   const rulesActive = Boolean(schedule?.rulesActive);
 
@@ -86,7 +86,7 @@ export async function POST(req: Request) {
       url: link
     });
     try {
-        const chatRes = await sendChatwootMessageForCustomer({ customerId, content: msg, actor: auth.session.email });
+        const chatRes = await sendChatwootMessageForCustomer({ customerId, content: msg, actor: auth.session.sub });
         if (!chatRes.ok) {
           chatwootError = String((chatRes as any)?.error || "chatwoot_error");
         } else {

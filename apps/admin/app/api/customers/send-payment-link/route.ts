@@ -115,7 +115,7 @@ export async function POST(req: Request) {
           lead: "Aquí está tu link de pago:",
           url: publicUrl
         });
-        const chatRes = await sendChatwootMessageForCustomer({ customerId, content: msg, actor: auth.session.email });
+        const chatRes = await sendChatwootMessageForCustomer({ customerId, content: msg, actor: auth.session.sub });
         if (!chatRes.ok) {
           chatwootError = String((chatRes as any)?.error || "chatwoot_error");
         } else {

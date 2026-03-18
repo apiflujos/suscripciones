@@ -6,7 +6,7 @@ import { scheduleSubscriptionDueNotifications } from "@suscripciones/core/servic
 import { getCredential } from "@suscripciones/core/services/credentials";
 import { getCheckoutBaseUrlsFromEnv } from "@suscripciones/core/services/publicBase";
 import { ensurePaymentRetryJob } from "@suscripciones/core/services/retryJobScheduler";
-import { signPublicToken, verifyPublicToken } from "../../../../lib/publicTokens";
+import { signPublicToken, verifyPublicToken } from "../../../../../lib/publicTokens";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

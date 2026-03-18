@@ -95,7 +95,7 @@ export async function POST(req: Request) {
     catalogUrl: publicUrl,
     forceNow: true,
     paymentType: catalogType,
-    actor: auth.session.email
+    actor: auth.session.sub
   });
   const rulesActive = Boolean(schedule?.rulesActive);
 
@@ -107,7 +107,7 @@ export async function POST(req: Request) {
       lead: "Aquí está tu link de catálogo:",
       url: publicUrl
     });
-    const chatRes = await sendChatwootMessageForCustomer({ customerId, content: msg, actor: auth.session.email });
+    const chatRes = await sendChatwootMessageForCustomer({ customerId, content: msg, actor: auth.session.sub });
     if (!chatRes.ok) {
       chatwootError = String((chatRes as any)?.error || "chatwoot_error");
     } else {

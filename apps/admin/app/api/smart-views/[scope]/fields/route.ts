@@ -10,7 +10,7 @@ const getParam = async (paramsPromise: RouteContext["params"], key: "scope") => 
   return String(raw).trim();
 };
 
-export async function GET(_: Request, ctx: RouteContext) {
+export async function GET(req: Request, ctx: RouteContext) {
   const auth = await requireApiSession(req);
   if (!auth.ok) return auth.response;
 

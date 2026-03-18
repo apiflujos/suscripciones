@@ -45,7 +45,7 @@ export async function GET(req: Request, ctx: RouteContext) {
   if (!resolved.ok) return NextResponse.json({ error: "tenant_forbidden" }, { status: 403 });
   if (!resolved.tenantId) return NextResponse.json({ error: "tenant_required" }, { status: 400 });
 
-  const items = await listSmartViews(normalizedScope, resolved.tenantId, auth.session.email || "");
+  const items = await listSmartViews(normalizedScope, resolved.tenantId, auth.session.sub || "");
   return NextResponse.json({ items });
 }
 
@@ -76,7 +76,7 @@ export async function POST(req: Request, ctx: RouteContext) {
       visibility,
       type,
       filters: parsed.data.filters ?? null,
-      createdByEmail: auth.session.email || null
+      createdByEmail: auth.session.sub || null
     }
   });
 
