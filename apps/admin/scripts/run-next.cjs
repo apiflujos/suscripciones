@@ -13,7 +13,7 @@ const crypto = require("node:crypto");
 const next = require("next");
 const { WebSocketServer } = require("ws");
 const { PrismaClient } = require("@prisma/client");
-const { setWsHub } = require("../lib/wsHub");
+const { setWsHub } = require("../lib/wsHub.cjs");
 
 function getArg(name, fallback) {
   const v = String(process.env[name] || "").trim();
