@@ -31,3 +31,27 @@ export async function GET(req: NextRequest) {
     });
   }
 }
+
+export async function POST(req: NextRequest) {
+  const auth = await requireApiSession(req);
+  if (!auth.ok) return auth.response;
+  if (!auth.session.permissions.includes("notifications:write")) {
+    return new Response(JSON.stringify({ error: "forbidden" }), { status: 403 });
+  }
+
+  let body: any = null;
+  try {
+    body = await req.json();
+  } catch {
+    return new Response(JSON.stringify({ error: "invalid_json" }), { status: 400 });
+  }
+
+  const payload = body?.payload ?? {};
+  const { publishToChannel } = await import("../../../../lib/wsHub");
+  const delivered = publishToChannel("notifications", payload);
+
+  return new Response(JSON.stringify({ ok: true, delivered }), {
+    status: 200,
+    headers: { "Content-Type": "application/json; charset=utf-8" }
+  });
+}

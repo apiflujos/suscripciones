@@ -13,6 +13,7 @@ const crypto = require("node:crypto");
 const next = require("next");
 const { WebSocketServer } = require("ws");
 const { PrismaClient } = require("@prisma/client");
+const { setWsHub } = require("../lib/wsHub");
 
 function getArg(name, fallback) {
   const v = String(process.env[name] || "").trim();
@@ -114,6 +115,7 @@ function parseToken(req) {
 app.prepare().then(() => {
   const server = http.createServer((req, res) => handle(req, res));
   const wss = new WebSocketServer({ noServer: true });
+  setWsHub({ wss });
 
   server.on("upgrade", (req, socket, head) => {
     if (!req.url || !req.url.startsWith("/ws")) return socket.destroy();
