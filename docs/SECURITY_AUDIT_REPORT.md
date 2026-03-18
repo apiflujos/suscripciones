@@ -29,7 +29,7 @@ La aplicación **cumple parcialmente** con los requisitos de seguridad exigidos.
 
 ### 4. WebSockets
 - **Cumple**.
-- Evidencias: servidor WS integrado en `apps/admin/scripts/run-next.cjs` (`/ws`), validación JWT + RBAC y auditoría.
+- Evidencias: servidor WS integrado en `apps/admin/scripts/run-next.cjs` (`/ws`), validación JWT + RBAC y auditoría. Publicador HTTP en `/api/realtime/publish`.
 
 ### 5. Logging y auditoría
 - **Cumple (parcial)**.

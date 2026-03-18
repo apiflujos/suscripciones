@@ -25,6 +25,8 @@ const envSchema = z.object({
   JWT_AUDIENCE: z.string().optional().or(z.literal("")),
   JWT_TTL_SECONDS: z.coerce.number().optional(),
   JWT_REFRESH_TTL_DAYS: z.coerce.number().optional(),
+  REALTIME_PUBLISH_URL: z.string().url().optional().or(z.literal("")),
+  REALTIME_PUBLISH_TOKEN: z.string().optional().or(z.literal("")),
   SHOPIFY_FORWARD_URL: z.string().url().optional().or(z.literal("")),
   SHOPIFY_FORWARD_SECRET: z.string().optional().or(z.literal("")),
   SHOPIFY_FORWARD_ORIGIN: z.enum(["shopify", "shopify-native"]).optional(),

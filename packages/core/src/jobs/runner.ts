@@ -19,6 +19,7 @@ import { resolveSubscriptionCollectionMode } from "../services/subscriptionMode"
 import { ensurePaymentRetryJob } from "../services/retryJobScheduler";
 import { handleSubscriptionPaymentFailure, ensureExpiredSubscriptions } from "../services/subscriptionBilling";
 import { runWithActor } from "../services/actorStore";
+import { publishRealtime } from "../services/realtimePublisher";
 
 loadEnv(process.env);
 const workerId = `jobs:${process.pid}`;
@@ -460,6 +461,13 @@ async function runOnce() {
             lockedBy: null
           }
         });
+        void publishRealtime("jobs", {
+          jobId: job.id,
+          type: job.type,
+          status: "SUCCEEDED",
+          attempts: job.attempts + 1,
+          updatedAt: new Date().toISOString()
+        });
       } catch (err: any) {
         const errMsg = err?.message ? String(err.message) : "unknown error";
         if (
@@ -529,6 +537,14 @@ async function runOnce() {
         }).catch(
           () => {}
         );
+        void publishRealtime("jobs", {
+          jobId: job.id,
+          type: job.type,
+          status: status === RetryJobStatus.FAILED ? "FAILED" : "PENDING",
+          attempts,
+          err: errMsg,
+          updatedAt: new Date().toISOString()
+        });
       }
     });
   }

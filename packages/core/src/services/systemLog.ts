@@ -1,6 +1,7 @@
 import { LogLevel } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { getContextActor } from "./actorStore";
+import { publishRealtime } from "./realtimePublisher";
 
 export const SystemActor = {
   SYSTEM: "sistema",
@@ -29,5 +30,13 @@ export async function systemLog(
       context: context as any,
       actor: finalActor
     }
+  });
+
+  void publishRealtime("logs", {
+    level,
+    source,
+    message,
+    actor: finalActor,
+    createdAt: new Date().toISOString()
   });
 }

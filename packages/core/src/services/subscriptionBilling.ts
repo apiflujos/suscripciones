@@ -17,6 +17,7 @@ import {
   getWompiRedirectUrl
 } from "./runtimeConfig";
 import { schedulePaymentLinkNotifications } from "./notificationsScheduler";
+import { publishRealtime } from "./realtimePublisher";
 import { resolveSubscriptionCollectionMode } from "./subscriptionMode";
 import { reconcileWompiTransaction } from "./wompiReconcile";
 import { getSubscriptionPricingTotal, getPlanCollectionMode } from "../lib/metadataSchemas";
@@ -415,6 +416,17 @@ export async function createPaymentLinkForSubscription(args: {
       wompiPaymentLinkId: created.id
     }).catch((err) => {
       logIgnored(err, "payment link: failed to write system log", { subscriptionId: sub.id, paymentId: updatedId });
+    });
+    void publishRealtime("payments", {
+      type: "payment_link_created",
+      subscriptionId: sub.id,
+      paymentId: updatedId,
+      wompiPaymentLinkId: created.id,
+      status: updated?.status || PaymentStatus.PENDING,
+      amountInCents: updated?.amountInCents,
+      customerId: sub.customerId,
+      checkoutUrl: updated?.checkoutUrl || created.checkoutUrl || null,
+      createdAt: new Date().toISOString()
     });
   } finally {
     await releaseLock();
