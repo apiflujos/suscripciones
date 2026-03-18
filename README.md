@@ -217,6 +217,20 @@ const ws = new WebSocket("wss://mdv.sus.apiflujos.com/ws?token=JWT");
 ws.onopen = () => ws.send(JSON.stringify({ action: "subscribe", channel: "payments" }));
 ```
 
+## 10) Troubleshooting
+- **401 en /health:** revisar middleware. `/health` debe ser público.
+- **Chunks 400/404:** limpiar CDN/cache y verificar `_next/static` directo.
+- **Jobs fallan:** verificar `DATABASE_URL`, `CREDENTIALS_ENCRYPTION_KEY_B64` y que no exista `.env.local` dentro de `apps/admin`.
+
+## 11) Comandos útiles PM2
+```bash
+pm2 status
+pm2 logs crm-sus-api-mdv --lines 200
+pm2 logs crm-sus-jobs-mdv --lines 200
+pm2 restart crm-sus-api-mdv
+pm2 restart crm-sus-jobs-mdv
+```
+
 ---
 
 ## 🛠️ Stack
