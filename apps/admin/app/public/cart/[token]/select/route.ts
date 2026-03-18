@@ -190,6 +190,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
     ttlSeconds: (Number.isFinite(cfg.tokenExpiryHours) && cfg.tokenExpiryHours > 0 ? Math.trunc(cfg.tokenExpiryHours) : 24) * 60 * 60
   });
   const publicUrl = buildPublicUrl(base, `/public/plan/${linkToken}`, cfg.defaultUtmParams);
+  const expiryHours = Number.isFinite(cfg.tokenExpiryHours) && cfg.tokenExpiryHours > 0 ? Math.min(Math.max(Math.trunc(cfg.tokenExpiryHours), 1), 168) : 24;
+  const expiresAt = new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString();
 
   const nextMeta = {
     ...meta,
@@ -201,7 +203,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
       templateId: null,
       utmParams: cfg.defaultUtmParams || null,
       createdAt: new Date().toISOString(),
-      expiresAt: null,
+      expiresAt,
       usedAt: null
     }
   };

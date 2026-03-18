@@ -39,7 +39,7 @@ La aplicación **cumple parcialmente** con los requisitos de seguridad exigidos.
 ### 6. Configuración de seguridad (headers, CORS, rate limiting, fail2ban, npm audit)
 - **Cumple (parcial)**.
 - Evidencias: `apps/admin/middleware.ts`, `apps/admin/lib/rateLimit.ts`.
-- Hallazgos: rate limit es in-memory, no distribuido; no hay evidencia de npm audit en CI.
+- Hallazgos: rate limit distribuido soportado vía Upstash (si se configura); no hay evidencia de npm audit en CI.
 
 ### 7. Protección de archivos y sanitización
 - **Cumple (parcial)**.
@@ -60,7 +60,7 @@ La aplicación **cumple parcialmente** con los requisitos de seguridad exigidos.
 
 | ID | Descripción | Criticidad | Archivo/Línea | Recomendación |
 | --- | --- | --- | --- | --- |
-| V1 | Rate limiting in-memory (no distribuido) | Alta | `apps/admin/lib/rateLimit.ts` | Migrar a Redis/Upstash |
+| V1 | Rate limiting in-memory si no se configura Upstash | Alta | `apps/admin/lib/rateLimit.ts` | Configurar `UPSTASH_REDIS_REST_*` |
 | V2 | Login/refresh sin 2FA/secret extra (mitigado con `BOOTSTRAP_TOKEN`) | Media | `apps/admin/middleware.ts` | Mantener token en producción o allowlist IP |
 | V3 | Auditoría incompleta | Media | `packages/core/src/services/systemLog.ts` | Unificar auditoría y permisos |
 | V4 | Uso de `any` | Media | `apps/admin/app/admin/_services/*` | Migrar a `unknown` + Zod |
@@ -68,7 +68,7 @@ La aplicación **cumple parcialmente** con los requisitos de seguridad exigidos.
 ## Plan de acción priorizado
 
 ### Inmediato (criticidad alta)
-- Implementar rate limit distribuido (Redis/Upstash).
+- Configurar rate limit distribuido (Upstash) en producción.
 - Mantener `BOOTSTRAP_TOKEN` activo en producción para login/refresh.
 
 ### Corto plazo (criticidad media)

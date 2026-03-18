@@ -115,7 +115,7 @@ export async function middleware(req: NextRequest) {
 
     const ip = getClientIp(req);
     const key = `${ip}:${pathname.split("/")[1] || "root"}`;
-    const rate = checkRateLimit(key);
+    const rate = await checkRateLimit(key);
     if (!rate.ok) {
       return new NextResponse(JSON.stringify({ error: "rate_limited" }), {
         status: 429,

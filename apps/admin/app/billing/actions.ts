@@ -735,18 +735,19 @@ export async function createPlanAndSubscription(formData: FormData) {
           ? Math.min(Math.max(Math.trunc(Number(templateExpiryHours)), 1), 168)
           : null)
       : configExpiryHours;
+    const ttlHours = Number.isFinite(Number(expiryHours)) && Number(expiryHours) > 0 ? Math.min(Math.max(Math.trunc(Number(expiryHours)), 1), 168) : 24;
 
     if (billingType === "PLAN" && checkoutUrl) {
       const base = planBase;
       const token = await signPublicToken({
         sub: customerId || "customer",
         scope: "payment",
-        ttlSeconds: (expiryHours ? expiryHours * 60 * 60 : 24 * 60 * 60)
+        ttlSeconds: ttlHours * 60 * 60
       });
       const baseUrl = `${base.replace(/\/$/, "")}/public/plan/${token}`;
     const utm = String(template?.utmParams || checkoutConfig?.defaultUtmParams || "").trim();
       const url = utm ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${utm.replace(/^\?+/, "")}` : baseUrl;
-      const expiresAt = expiryHours ? new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString() : null;
+      const expiresAt = new Date(Date.now() + ttlHours * 60 * 60 * 1000).toISOString();
       const prevMeta =
         customer?.metadata && typeof customer.metadata === "object" && !Array.isArray(customer.metadata) ? customer.metadata : {};
       const nextMeta = {
@@ -797,12 +798,12 @@ export async function createPlanAndSubscription(formData: FormData) {
       const token = await signPublicToken({
         sub: customerId || "customer",
         scope: "tokenization",
-        ttlSeconds: (expiryHours ? expiryHours * 60 * 60 : 24 * 60 * 60)
+        ttlSeconds: ttlHours * 60 * 60
       });
       const baseUrl = `${base.replace(/\/$/, "")}/public/suscripcion/${token}`;
       const utm = String(template?.utmParams || checkoutConfig?.defaultUtmParams || "").trim();
       const url = utm ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${utm.replace(/^\?+/, "")}` : baseUrl;
-      const expiresAt = expiryHours ? new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString() : null;
+      const expiresAt = new Date(Date.now() + ttlHours * 60 * 60 * 1000).toISOString();
       const prevMeta =
         customer?.metadata && typeof customer.metadata === "object" && !Array.isArray(customer.metadata) ? customer.metadata : {};
       const nextMeta = {
@@ -953,8 +954,8 @@ export async function sendCentralComTokenizationLink(formData: FormData) {
     const expiryHours =
       Number.isFinite(Number(checkoutConfig?.tokenExpiryHours)) && Number(checkoutConfig?.tokenExpiryHours) > 0
         ? Math.min(Math.max(Math.trunc(Number(checkoutConfig?.tokenExpiryHours)), 1), 168)
-        : null;
-    const expiresAt = expiryHours ? new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString() : null;
+        : 24;
+    const expiresAt = new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString();
 
     const customer = (customerRes || {}) as any;
     const prevMeta =

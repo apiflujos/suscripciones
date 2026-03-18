@@ -66,6 +66,8 @@ export async function POST(req: Request) {
   let resolvedTemplateId = templateIdInput || "";
   try {
     const checkoutConfig = await getCheckoutConfig();
+    const expiryHours = Number(checkoutConfig?.tokenExpiryHours || 24);
+    const hours = Number.isFinite(expiryHours) && expiryHours > 0 ? Math.min(Math.max(Math.trunc(expiryHours), 1), 168) : 24;
     const baseFromSettings = String(checkoutConfig?.planBaseUrl || "").trim();
     if (!baseFromSettings) {
       return NextResponse.json({ ok: false, error: "missing_plan_base_url" }, { status: 400 });
@@ -99,7 +101,7 @@ export async function POST(req: Request) {
           templateId: resolvedTemplateId || null,
           utmParams: checkoutConfig?.defaultUtmParams || null,
           createdAt: new Date().toISOString(),
-          expiresAt: null,
+          expiresAt: new Date(Date.now() + hours * 60 * 60 * 1000).toISOString(),
           usedAt: null
         }
       };

@@ -64,6 +64,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "missing_cart_template" }, { status: 400 });
   }
 
+  const expiryHours = Number((selectedTemplate as any)?.expiryHours || 0);
+  const hours = Number.isFinite(expiryHours) && expiryHours > 0 ? Math.min(Math.max(Math.trunc(expiryHours), 1), 168) : 24;
+  const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
   const linkToken = await signPublicToken({ sub: customerId, scope: "cart", ttlSeconds: hours * 60 * 60 });
   const utm = String(checkoutConfig?.defaultUtmParams || "").trim();
   const publicUrl = buildPublicUrl(base, `/public/cart/${linkToken}`, utm);
@@ -72,9 +75,6 @@ export async function POST(req: Request) {
   if (!customer) return NextResponse.json({ ok: false, error: "customer_not_found" }, { status: 404 });
   const prevMeta =
     customer?.metadata && typeof customer.metadata === "object" && !Array.isArray(customer.metadata) ? customer.metadata : {};
-  const expiryHours = Number((selectedTemplate as any)?.expiryHours || 0);
-  const hours = Number.isFinite(expiryHours) && expiryHours > 0 ? Math.min(Math.max(Math.trunc(expiryHours), 1), 168) : 24;
-  const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
 
   const nextMeta = {
     ...prevMeta,

@@ -41,6 +41,9 @@ export async function POST(req: Request) {
     return `https://${value.replace(/^\/+/, "")}`;
   };
 
+  const expiryHours = Number(checkoutConfig?.tokenExpiryHours || 24);
+  const hours = Number.isFinite(expiryHours) && expiryHours > 0 ? Math.min(Math.max(Math.trunc(expiryHours), 1), 168) : 24;
+  const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
   const linkToken = await signPublicToken({ sub: customerId, scope: "tokenization", ttlSeconds: hours * 60 * 60 });
   const normalized = ensureHttps(base).replace(/\/$/, "");
   const hasSubPath = /\/public\/suscripcion$/i.test(normalized);
@@ -49,9 +52,6 @@ export async function POST(req: Request) {
   const existing = await getCustomerById(customerId);
   if (!existing) return NextResponse.json({ ok: false, error: "customer_not_found" }, { status: 404 });
   const prevMeta = (existing?.metadata ?? {}) as any;
-  const expiryHours = Number(checkoutConfig?.tokenExpiryHours || 24);
-  const hours = Number.isFinite(expiryHours) && expiryHours > 0 ? Math.min(Math.max(Math.trunc(expiryHours), 1), 168) : 24;
-  const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
 
   const nextMeta = {
     ...prevMeta,
