@@ -1,5 +1,4 @@
 import { createProduct, deleteProduct } from "./actions";
-import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { ProductsTable } from "./ProductsTable";
 import { getCsrfToken } from "../lib/csrf";
 import { ProductsModals } from "./ProductsModals";
@@ -7,25 +6,16 @@ import { createCustomerFromBilling, createPlanAndSubscription } from "../billing
 import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
+import { listCatalogProducts } from "../admin/_services/products";
+import { listTenants } from "../admin/_services/tenants";
+import { listCustomers } from "../admin/_services/customers";
+import { listCheckoutTemplates } from "../admin/_services/checkoutTemplates";
+import { listChatwootInboxes } from "../admin/_services/chatwoot";
+import { cookies } from "next/headers";
+import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
+import { resolveSmartViewIds, parseFiltersParam } from "@suscripciones/core/services/smartViews";
 
 export const dynamic = "force-dynamic";
-
-function getConfig() {
-  return getAdminApiConfig();
-}
-
-async function fetchAdmin(path: string) {
-  return fetchAdminCached(path, { ttlMs: 1500 });
-}
-
-async function fetchChatwootInboxes() {
-  try {
-    const res = await fetchAdminCached("/admin/chatwoot/inboxes", { ttlMs: 1500 });
-    return res.json || { items: [] as any[] };
-  } catch {
-    return { items: [] as any[] };
-  }
-}
 
 export default async function ProductsPage({
   searchParams
@@ -33,15 +23,6 @@ export default async function ProductsPage({
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const csrfToken = await getCsrfToken();
-  const { token } = getConfig();
-  if (!token) {
-    return (
-      <main className="page pageWide">
-        <p>Configura `ADMIN_API_TOKEN` en el Admin para poder consultar el API.</p>
-      </main>
-    );
-  }
-
   const spParams = (await searchParams) ?? {};
   const created = typeof spParams.created === "string" ? spParams.created : "";
   const contactCreated = typeof spParams.contactCreated === "string" ? spParams.contactCreated : "";
@@ -74,59 +55,40 @@ export default async function ProductsPage({
     ...(filters ? { filters } : {})
   }).toString()}`;
 
-  const sp = new URLSearchParams();
-  if (tenantId) sp.set("tenantId", tenantId);
-  if (q.trim()) sp.set("q", q.trim());
+  const c = await cookies();
+  const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
+  const session = await verifyAdminSessionToken(sessionToken);
   const take = 20;
-  sp.set("take", String(take));
-  if (Number.isFinite(page) && page > 1) sp.set("skip", String((Math.trunc(page) - 1) * take));
-  let resolvedIds: string[] = [];
+  const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
   const usingSmartFilters = Boolean(viewId || filters);
-  if (viewId) {
-    const res = await fetch(`/api/smart-views/products/resolve`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ viewId })
-    });
-    const json = await res.json().catch(() => ({}));
-    resolvedIds = Array.isArray(json?.ids) ? json.ids : [];
-  } else if (filters) {
-    let parsed: any = null;
-    try {
-      parsed = JSON.parse(filters);
-    } catch {
-      parsed = null;
-    }
-    if (parsed) {
-      const res = await fetch(`/api/smart-views/products/resolve`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ filters: parsed })
-      });
-      const json = await res.json().catch(() => ({}));
-      resolvedIds = Array.isArray(json?.ids) ? json.ids : [];
-    }
+  let resolvedIds: string[] | null = null;
+  if (viewId || filters) {
+    const parsedFilters = filters ? parseFiltersParam(filters) : null;
+    resolvedIds = await resolveSmartViewIds("products", tenantId || session?.tenantId || null, null, viewId || undefined, parsedFilters || undefined);
   }
-  if (usingSmartFilters && resolvedIds.length === 0) {
-    resolvedIds = ["__none__"];
-  }
-
-  if (resolvedIds.length) sp.set("ids", resolvedIds.join(","));
-
-  const [products, tenantsRes, customersRes, templatesRes, chatwootInboxesRes] = await Promise.all([
-    fetchAdmin(`/admin/products?${sp.toString()}`),
-    fetchAdminCached("/admin/tenants", { ttlMs: 1500 }),
-    fetchAdminCached(tenantId ? `/admin/customers?take=200&tenantId=${encodeURIComponent(tenantId)}` : "/admin/customers?take=200", { ttlMs: 1500 }),
-    fetchAdminCached(tenantId ? `/admin/checkout-templates?tenantId=${encodeURIComponent(tenantId)}` : "/admin/checkout-templates", { ttlMs: 1500 }),
-    fetchChatwootInboxes()
+  const ids = usingSmartFilters && resolvedIds && resolvedIds.length === 0 ? ["__none__"] : resolvedIds || undefined;
+  const products = await listCatalogProducts({
+    tenantId: tenantId || session?.tenantId || null,
+    includeInactive: false,
+    take,
+    skip,
+    q: q.trim(),
+    ids
+  });
+  const [tenants, customersRes, templatesRes, chatwootInboxesRes] = await Promise.all([
+    listTenants(),
+    listCustomers({ take: 200, tenantId: tenantId || session?.tenantId || null }),
+    listCheckoutTemplates({ tenantId: tenantId || session?.tenantId || null }),
+    listChatwootInboxes()
   ]);
 
-  const productItems = (products.json?.items ?? []) as any[];
-  const total = Number(products.json?.total ?? productItems.length);
-  const tenants = (tenantsRes.json?.items ?? []) as Array<{ id: string; name: string }>;
-  const tenantById = new Map(tenants.map((t) => [String(t.id), String(t.name)]));
-  const filteredCustomers = (customersRes.json?.items ?? []) as any[];
-  const chatwootInboxes = (chatwootInboxesRes.items ?? chatwootInboxesRes.json?.items ?? []) as any[];
+  const productItems = (products.items ?? []) as any[];
+  const total = Number(products.total ?? productItems.length);
+  const tenantList = (tenants ?? []) as Array<{ id: string; name: string }>;
+  const tenantsFiltered = tenantList.filter((t: any) => t?.active !== false);
+  const tenantById = new Map(tenantList.map((t) => [String(t.id), String(t.name)]));
+  const filteredCustomers = (customersRes.items ?? []) as any[];
+  const chatwootInboxes = chatwootInboxesRes.ok ? (chatwootInboxesRes.items ?? []) : [];
 
   return (
     <main className="page pageWide">
@@ -189,7 +151,21 @@ export default async function ProductsPage({
                     }}
                   />
                 </div>
-                <div className="field-hint tiny-total">{productItems.length} resultados</div>
+                <div className="page-actions">
+                  <ProductsModals
+                    customers={filteredCustomers}
+                    products={productItems}
+                    checkoutTemplates={templatesRes ?? []}
+                    csrfToken={csrfToken}
+                    tenants={tenantsFiltered}
+                    tenantId={tenantId}
+                    createProduct={createProduct}
+                    createCustomer={createCustomerFromBilling}
+                    createPlanAndSubscription={createPlanAndSubscription}
+                    returnTo={returnTo}
+                  />
+                  <div className="page-actions-summary">{productItems.length} resultados</div>
+                </div>
               </div>
             </div>
           </div>
@@ -197,19 +173,6 @@ export default async function ProductsPage({
 
         <div className="settings-group-body">
           <div style={{ display: "grid", gap: 14 }}>
-            <ProductsModals
-              customers={filteredCustomers}
-              products={productItems}
-              checkoutTemplates={templatesRes.json?.items ?? []}
-              csrfToken={csrfToken}
-              tenants={tenants}
-              tenantId={tenantId}
-              createProduct={createProduct}
-              createCustomer={createCustomerFromBilling}
-              createPlanAndSubscription={createPlanAndSubscription}
-              returnTo={returnTo}
-            />
-
             <ProductsTable
               items={productItems.map((p) => {
                 const ids = Array.isArray(p.tenantIds) && p.tenantIds.length ? p.tenantIds : [p.tenantId].filter(Boolean);
@@ -225,10 +188,10 @@ export default async function ProductsPage({
               view={vista === "lista" ? "list" : "cards"}
               csrfToken={csrfToken}
               deleteProductAction={deleteProduct}
-              tenants={tenants}
+              tenants={tenantsFiltered}
               customers={filteredCustomers}
               inboxes={chatwootInboxes}
-              checkoutTemplates={templatesRes.json?.items ?? []}
+              checkoutTemplates={templatesRes ?? []}
               createCustomer={createCustomerFromBilling}
               createPlanAndSubscription={createPlanAndSubscription}
               returnTo={returnTo}

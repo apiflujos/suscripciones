@@ -18,7 +18,6 @@ import {
   updateAutoDebitConfig,
   updatePaymentsConfig
 } from "./actions";
-import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { normalizeErrorParam } from "../lib/errorParam";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
@@ -39,37 +38,14 @@ import { DeleteTenantButton } from "./DeleteTenantButton";
 import { GamificationPanel } from "./GamificationPanel";
 import { UsersPanel } from "./UsersPanel";
 import { UserNotificationsPanel } from "./UserNotificationsPanel";
+import { getAdminSettings } from "../admin/_services/settings";
+import { listCheckoutTemplates } from "../admin/_services/checkoutTemplates";
+import { listCatalogProducts } from "../admin/_services/products";
+import { listTenants } from "../admin/_services/tenants";
+import { getGamificationConfig, listGamificationTrending } from "../admin/_services/gamification";
+import { listAdminUsers } from "../admin/_services/adminUsers";
 
 export const dynamic = "force-dynamic";
-
-function getConfig() {
-  return getAdminApiConfig();
-}
-
-async function fetchSettings() {
-  return fetchAdminCached("/admin/settings", { ttlMs: 0 });
-}
-
-async function fetchCheckoutTemplates() {
-  return fetchAdminCached("/admin/checkout-templates", { ttlMs: 0 });
-}
-
-async function fetchProducts() {
-  return fetchAdminCached("/admin/products?take=200", { ttlMs: 1500 });
-}
-
-async function fetchTenants() {
-  return fetchAdminCached("/admin/tenants", { ttlMs: 0 });
-}
-
-async function fetchGamificationConfig() {
-  return fetchAdminCached("/admin/gamification/config", { ttlMs: 1500 });
-}
-
-async function fetchTrending(scope: string, hours: number) {
-  const sp = new URLSearchParams({ scope, windowHours: String(hours) });
-  return fetchAdminCached(`/admin/gamification/trending?${sp.toString()}`, { ttlMs: 1500 });
-}
 
 export default async function SettingsPage({
   searchParams
@@ -77,48 +53,27 @@ export default async function SettingsPage({
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const csrfToken = await getCsrfToken();
-  const { token } = getConfig();
-  if (!token) {
-    return (
-      <main className="page pageWide">
-        <p>Configura `ADMIN_API_TOKEN` en el Admin para poder guardar credenciales.</p>
-      </main>
-    );
-  }
-
-  const settingsRes = await fetchSettings();
-  const templatesRes = await fetchCheckoutTemplates();
-  const productsRes = await fetchProducts();
-  const tenantsRes = await fetchTenants();
-  const gamificationRes = await fetchGamificationConfig();
-  const [trendCustomers24h, trendCustomers7d, trendCustomers30d, trendProducts24h, trendProducts7d, trendProducts30d] =
-    await Promise.all([
-      fetchTrending("customers", 24),
-      fetchTrending("customers", 168),
-      fetchTrending("customers", 720),
-      fetchTrending("products", 24),
-      fetchTrending("products", 168),
-      fetchTrending("products", 720)
-    ]);
-  const settings = settingsRes.ok ? settingsRes.json : null;
-  const usersRes = await fetchAdminCached("/admin/settings/users", { ttlMs: 0 });
-  const users = usersRes.ok ? usersRes.json?.items || [] : [];
-  const gamificationConfig = gamificationRes.ok ? gamificationRes.json?.config : null;
-  const templates = templatesRes.ok ? templatesRes.json?.items || [] : [];
-  const products = productsRes.ok ? productsRes.json?.items || [] : [];
-  const tenants = (tenantsRes.ok ? tenantsRes.json?.items || [] : []).filter((t: any) => t?.active !== false);
   const c = await cookies();
   const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
   const session = await verifyAdminSessionToken(sessionToken);
-  const showTokenInfo = process.env.NODE_ENV !== "production" || session?.role === "SUPER_ADMIN";
-
-  const tokenInfo = (() => {
-    const raw = String(process.env.ADMIN_API_TOKEN || "");
-    const normalized = raw.replace(/^Bearer\\s+/i, "").trim().replace(/^\"|\"$/g, "").replace(/^'|'$/g, "").trim();
-    const last4 = normalized ? normalized.slice(-4) : "";
-    return normalized ? `longitud ${normalized.length} · termina en ${last4}` : "no detectado";
-  })();
-
+  const settings = await getAdminSettings();
+  const templates = await listCheckoutTemplates({ wantsAll: true });
+  const productsRes = await listCatalogProducts({ take: 200, includeInactive: false });
+  const tenants = (await listTenants()).filter((t: any) => t?.active !== false);
+  const gamificationRes = await getGamificationConfig();
+  const [trendCustomers24h, trendCustomers7d, trendCustomers30d, trendProducts24h, trendProducts7d, trendProducts30d] =
+    await Promise.all([
+      listGamificationTrending({ scope: "customers", hours: 24 }),
+      listGamificationTrending({ scope: "customers", hours: 168 }),
+      listGamificationTrending({ scope: "customers", hours: 720 }),
+      listGamificationTrending({ scope: "products", hours: 24 }),
+      listGamificationTrending({ scope: "products", hours: 168 }),
+      listGamificationTrending({ scope: "products", hours: 720 })
+    ]);
+  const usersRes = await listAdminUsers(session);
+  const users = usersRes.ok ? usersRes.items || [] : [];
+  const gamificationConfig = gamificationRes.ok ? gamificationRes.config : null;
+  const products = productsRes.items || [];
   const wompiActiveEnv = (settings?.wompi?.activeEnv || "PRODUCTION") as "PRODUCTION" | "SANDBOX";
   const wompiProduction = (settings?.wompi?.production || settings?.wompi || {}) as any;
   const wompiSandbox = (settings?.wompi?.sandbox || {}) as any;
@@ -223,21 +178,13 @@ export default async function SettingsPage({
         </a>
       </div>
 
-      {!settingsRes.ok ? (
-        <div className="card cardPad">
-          No se pudo consultar el API (<span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{settingsRes.status || "sin respuesta"}</span>
-          ). Revisa `NEXT_PUBLIC_API_BASE_URL` y que el token del Admin coincida con `ADMIN_API_TOKEN` del API.
-          {showTokenInfo ? <div style={{ marginTop: 8, color: "#666" }}>Token (Admin): {tokenInfo}.</div> : null}
-        </div>
-      ) : null}
-
-      {settingsRes.ok && !settings?.encryptionKeyConfigured ? (
+      {!settings?.encryptionKeyConfigured ? (
         <div className="card cardPad">
           Falta `CREDENTIALS_ENCRYPTION_KEY_B64` en el API (Base64 de 32 bytes). Sin esto no se guardan secretos. Usa el mismo valor también en el servicio de jobs (`wompi-subs-jobs`).
         </div>
       ) : null}
 
-      {settingsRes.ok && settings?.encryptionKeyConfigured && settings?.encryptionKeyValid === false ? (
+      {settings?.encryptionKeyConfigured && settings?.encryptionKeyValid === false ? (
         <div className="card cardPad">
           `CREDENTIALS_ENCRYPTION_KEY_B64` está configurada pero es inválida. Debe ser Base64 de <strong>32 bytes</strong> (no 32 caracteres).
         </div>
@@ -249,12 +196,12 @@ export default async function SettingsPage({
           config={gamificationConfig}
           view={gamificationView}
           trending={{
-            customers24h: trendCustomers24h.ok ? trendCustomers24h.json?.items || [] : [],
-            customers7d: trendCustomers7d.ok ? trendCustomers7d.json?.items || [] : [],
-            customers30d: trendCustomers30d.ok ? trendCustomers30d.json?.items || [] : [],
-            products24h: trendProducts24h.ok ? trendProducts24h.json?.items || [] : [],
-            products7d: trendProducts7d.ok ? trendProducts7d.json?.items || [] : [],
-            products30d: trendProducts30d.ok ? trendProducts30d.json?.items || [] : []
+            customers24h: trendCustomers24h.ok ? trendCustomers24h.items || [] : [],
+            customers7d: trendCustomers7d.ok ? trendCustomers7d.items || [] : [],
+            customers30d: trendCustomers30d.ok ? trendCustomers30d.items || [] : [],
+            products24h: trendProducts24h.ok ? trendProducts24h.items || [] : [],
+            products7d: trendProducts7d.ok ? trendProducts7d.items || [] : [],
+            products30d: trendProducts30d.ok ? trendProducts30d.items || [] : []
           }}
           actions={{ updateGamificationConfig }}
         />

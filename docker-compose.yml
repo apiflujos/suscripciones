@@ -1,10 +1,11 @@
 services:
   postgres:
+    container_name: wompi-postgres
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: wompi_subs
-      POSTGRES_USER: wompi_subs
-      POSTGRES_PASSWORD: wompi_subs
+      POSTGRES_USER: ${POSTGRES_USER:-wompi_subs}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wompi_subs}
     ports:
       - "5433:5432"
     volumes:
@@ -13,79 +14,78 @@ services:
       - wompi_network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U wompi_subs -d wompi_subs"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-wompi_subs} -d wompi_subs"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  api:
-    image: node:20-bookworm
-    working_dir: /app
-    volumes:
-      - .:/app
-      - /app/node_modules
-      - api_node_modules:/app/apps/api/node_modules
-    ports:
-      - "3001:3001"
-    environment:
-      NODE_ENV: production
-      PORT: 3001
-      DATABASE_URL: postgresql://wompi_subs:wompi_subs@postgres:5432/wompi_subs?schema=public
-      ADMIN_API_TOKEN: dev-token-123456-change-in-production
-      ADMIN_SESSION_SECRET: dev-session-secret-change-in-production-abc123xyz
-      SUPER_ADMIN_EMAIL: comercial@apiflujos.com
-      SUPER_ADMIN_PASSWORD: Admin12345!
-      SUPER_ADMIN_RESET_PASSWORD: 0
-      DEFAULT_TENANT_NAME: apiflujos
-      CREDENTIALS_ENCRYPTION_KEY_B64: mGBsjs4eVVtlDZ7yhyUlgzsLmvMeHqqGwhQnNfmB8QM=
-      WOMPI_API_BASE_URL: https://production.wompi.co/v1
-      WOMPI_ACTIVE_ENV: PRODUCTION
-      JOBS_HEARTBEAT_KEY: wompi-subs-jobs
-      GAMIFICATION_RECALC_MINUTES: 60
-      CSP_PUBLIC_ALLOW_UNSAFE_INLINE: "1"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - wompi_network
-    command: >
-      sh -c "cd apps/api &&
-      npm install &&
-      npx prisma generate &&
-      npm run dev"
-    restart: unless-stopped
-
   admin:
-    image: node:20-bookworm
-    working_dir: /app
-    volumes:
-      - .:/app
-      - /app/node_modules
-      - admin_node_modules:/app/apps/admin/node_modules
-      - admin_next_cache:/app/apps/admin/.next
+    container_name: wompi-admin
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
     ports:
       - "3002:3002"
     environment:
       NODE_ENV: production
       HOST: 0.0.0.0
-      NEXT_PUBLIC_API_BASE_URL: http://localhost:3001
-      ADMIN_INTERNAL_API_BASE_URL: http://api:3001
-      ADMIN_API_TOKEN: dev-token-123456-change-in-production
-      ADMIN_SESSION_SECRET: dev-session-secret-change-in-production-abc123xyz
-      NEXT_PUBLIC_DISABLE_REALTIME: "0"
-      NPM_CONFIG_PRODUCTION: "false"
+      PORT: 3002
+      DATABASE_URL: postgresql://wompi_subs:${POSTGRES_PASSWORD:-wompi_subs}@postgres:5432/wompi_subs?schema=public
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:3002
+      ADMIN_INTERNAL_API_BASE_URL: http://admin:3002
+      ADMIN_API_TOKEN: ${ADMIN_API_TOKEN}
+      ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET}
+      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD}
+      SUPER_ADMIN_RESET_PASSWORD: ${SUPER_ADMIN_RESET_PASSWORD:-0}
+      DEFAULT_TENANT_NAME: ${DEFAULT_TENANT_NAME:-apiflujos}
+      CREDENTIALS_ENCRYPTION_KEY_B64: ${CREDENTIALS_ENCRYPTION_KEY_B64}
+      WOMPI_API_BASE_URL: ${WOMPI_API_BASE_URL:-https://production.wompi.co/v1}
+      WOMPI_ACTIVE_ENV: ${WOMPI_ACTIVE_ENV:-PRODUCTION}
+      JOBS_HEARTBEAT_KEY: ${JOBS_HEARTBEAT_KEY:-wompi-subs-jobs}
+      GAMIFICATION_RECALC_MINUTES: ${GAMIFICATION_RECALC_MINUTES:-60}
+      CSP_PUBLIC_ALLOW_UNSAFE_INLINE: ${CSP_PUBLIC_ALLOW_UNSAFE_INLINE:-1}
+      NEXT_PUBLIC_DISABLE_REALTIME: ${NEXT_PUBLIC_DISABLE_REALTIME:-0}
     depends_on:
-      - api
+      postgres:
+        condition: service_healthy
     networks:
       - wompi_network
-    command: sh -c "cd apps/admin && npm install --include=dev && npm run build && npm run start"
+    restart: unless-stopped
+
+  jobs:
+    container_name: wompi-jobs
+    image: node:20-slim
+    working_dir: /app
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - jobs_node_modules:/app/apps/worker/node_modules
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://wompi_subs:${POSTGRES_PASSWORD:-wompi_subs}@postgres:5432/wompi_subs?schema=public
+      ADMIN_API_TOKEN: ${ADMIN_API_TOKEN}
+      ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET}
+      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD}
+      SUPER_ADMIN_RESET_PASSWORD: ${SUPER_ADMIN_RESET_PASSWORD:-0}
+      DEFAULT_TENANT_NAME: ${DEFAULT_TENANT_NAME:-apiflujos}
+      CREDENTIALS_ENCRYPTION_KEY_B64: ${CREDENTIALS_ENCRYPTION_KEY_B64}
+      WOMPI_API_BASE_URL: ${WOMPI_API_BASE_URL:-https://production.wompi.co/v1}
+      WOMPI_ACTIVE_ENV: ${WOMPI_ACTIVE_ENV:-PRODUCTION}
+      JOBS_HEARTBEAT_KEY: ${JOBS_HEARTBEAT_KEY:-wompi-subs-jobs}
+      GAMIFICATION_RECALC_MINUTES: ${GAMIFICATION_RECALC_MINUTES:-60}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - wompi_network
+    command: sh -c "npm install --include=dev && npm -w packages/database run prisma:generate && npm -w apps/worker run start"
     restart: unless-stopped
 
 volumes:
   postgres_data:
-  api_node_modules:
-  admin_node_modules:
-  admin_next_cache:
+  jobs_node_modules:
 
 networks:
   wompi_network:

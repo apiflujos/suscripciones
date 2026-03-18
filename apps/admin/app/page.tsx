@@ -1,5 +1,11 @@
 import Link from "next/link";
-import { fetchAdminCached, fetchPublicCached, getAdminApiConfig } from "./lib/adminApi";
+import { listTenants } from "./admin/_services/tenants";
+import { getMetricsOverviewCached } from "./admin/_services/metrics";
+import { getOperationsReportCached, getChatwootReportCached } from "./admin/_services/reports";
+import { listPaymentLogs } from "./admin/_services/logs";
+import { listSubscriptions } from "./admin/_services/subscriptions";
+import { getAdminSettings } from "./admin/_services/settings";
+import { resolveTenantId } from "./admin/_services/tenantResolver";
 import { MetricsFilters } from "./ui/MetricsFilters";
 import { HelpTip } from "./ui/HelpTip";
 import { AiAssistant } from "./logs/AiAssistant";
@@ -353,11 +359,6 @@ export default async function Home({
 }: {
   searchParams?: Promise<{ from?: string; to?: string; g?: string; tenantId?: string; view?: string }>;
 }) {
-  const health = await fetchPublicCached("/health", { ttlMs: 3000 });
-
-  const { token } = getAdminApiConfig();
-  const hasToken = !!token;
-
   const now = new Date();
   const defaultTo = isoDateUtc(now);
   const defaultFrom = isoDateUtc(new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000));
@@ -374,8 +375,8 @@ export default async function Home({
   const periodLabel = g === "day" ? "Diario" : g === "week" ? "Semanal" : "Mensual";
   const rangeLabel = `${fmtShortDate(fromDate)} → ${fmtShortDate(toDate)}`;
 
-  const tenantsRes = hasToken ? await fetchAdminCached("/admin/tenants", { ttlMs: 1500 }) : { ok: false, json: { items: [] } };
-  const tenants = Array.isArray(tenantsRes?.json?.items) ? tenantsRes.json.items : [];
+  const resolvedTenantId = await resolveTenantId(tenantId || null);
+  const tenants = await listTenants();
   const tenantLabel = tenantId ? (tenants.find((t: any) => String(t.id) === String(tenantId))?.name || "Canal") : "Todos";
 
   const viewTabs = [
@@ -398,64 +399,29 @@ export default async function Home({
     return `/?${params.toString()}`;
   };
 
-  const metricsQuery = new URLSearchParams({
-    from: fromIso,
-    to: toIso,
-    granularity: g,
-    ...(tenantId ? { tenantId } : {})
-  });
-
-  const metrics = hasToken
-    ? await fetchAdminCached(`/admin/metrics/overview?${metricsQuery.toString()}`, { ttlMs: 1500 })
-    : { ok: false, status: 401, json: { error: "missing_admin_token" } };
-
   const periodMs = Math.max(24 * 60 * 60 * 1000, new Date(toIso).getTime() - new Date(fromIso).getTime());
   const prevFromIso = new Date(new Date(fromIso).getTime() - periodMs).toISOString();
   const prevToIso = new Date(fromIso).toISOString();
-  const prevMetricsQuery = new URLSearchParams({
-    from: prevFromIso,
-    to: prevToIso,
-    granularity: g,
-    ...(tenantId ? { tenantId } : {})
-  });
-  const prevMetrics = hasToken
-    ? await fetchAdminCached(`/admin/metrics/overview?${prevMetricsQuery.toString()}`, { ttlMs: 1500 })
-    : { ok: false, status: 401, json: { error: "missing_admin_token" } };
-  const reportsQuery = new URLSearchParams({
-    from: fromIso,
-    to: toIso,
-    granularity: g,
-    ...(tenantId ? { tenantId } : {})
-  });
-  const opsRes = hasToken
-    ? await fetchAdminCached(`/admin/reports/operations?${reportsQuery.toString()}`, { ttlMs: 1500 })
-    : { ok: false, status: 401, json: { error: "missing_admin_token" } };
-  const chatwootRes = hasToken
-    ? await fetchAdminCached(`/admin/reports/chatwoot?${reportsQuery.toString()}`, { ttlMs: 1500 })
-    : { ok: false, status: 401, json: { error: "missing_admin_token" } };
-  const paymentsRes = hasToken
-    ? await fetchAdminCached(
-        `/admin/logs/payments?take=6&status=APPROVED${tenantId ? `&tenantId=${encodeURIComponent(tenantId)}` : ""}`,
-        { ttlMs: 1500 }
-      )
-    : { ok: false, status: 401, json: { error: "missing_admin_token" } };
-  const overdueSubsRes = hasToken
-    ? await fetchAdminCached(`/admin/subscriptions?take=200&estado=mora${tenantId ? `&tenantId=${encodeURIComponent(tenantId)}` : ""}`, {
-        ttlMs: 1500
-      })
-    : { ok: false, status: 401, json: { error: "missing_admin_token" } };
-  const healthySubsRes = hasToken
-    ? await fetchAdminCached(`/admin/subscriptions?take=200&estado=si${tenantId ? `&tenantId=${encodeURIComponent(tenantId)}` : ""}`, {
-        ttlMs: 1500
-      })
-    : { ok: false, status: 401, json: { error: "missing_admin_token" } };
-  const settingsRes = hasToken ? await fetchAdminCached("/admin/settings", { ttlMs: 1500 }) : { ok: false, json: null };
-  const aiConfig = settingsRes.ok ? settingsRes.json?.ai : null;
+  const [metrics, prevMetrics, opsRes, chatwootRes, paymentsRes, overdueSubsRes, healthySubsRes, settingsRes] = await Promise.all([
+    getMetricsOverviewCached({ from: fromIso, to: toIso, granularity: g, tenantId: resolvedTenantId || undefined }),
+    getMetricsOverviewCached({ from: prevFromIso, to: prevToIso, granularity: g, tenantId: resolvedTenantId || undefined }),
+    getOperationsReportCached({ from: fromIso, to: toIso, granularity: g, tenantId: resolvedTenantId || undefined }),
+    getChatwootReportCached({ from: fromIso, to: toIso, granularity: g, tenantId: resolvedTenantId || undefined }),
+    listPaymentLogs({ take: 6, status: "APPROVED", tenantId: resolvedTenantId || undefined }),
+    listSubscriptions({ take: 200, estado: "mora", tenantId: resolvedTenantId || undefined }),
+    listSubscriptions({ take: 200, estado: "si", tenantId: resolvedTenantId || undefined }),
+    getAdminSettings()
+  ]);
+  const aiConfig = settingsRes?.ai || null;
   const aiProviders = aiConfig?.providers || null;
   const aiEnabled = Boolean(aiConfig?.enabled && (aiProviders?.openai?.configured || aiProviders?.deepseek?.configured));
+  const metricsData = metrics.ok ? metrics.data : null;
+  const prevMetricsData = prevMetrics.ok ? prevMetrics.data : null;
+  const opsData = opsRes.ok ? opsRes.data : null;
+  const chatData = chatwootRes.ok ? chatwootRes.data : null;
 
-  const series: any[] = metrics.ok ? metrics.json?.series || [] : [];
-  const prevSeries: any[] = prevMetrics.ok ? prevMetrics.json?.series || [] : [];
+  const series: any[] = metricsData?.series || [];
+  const prevSeries: any[] = prevMetricsData?.series || [];
   const revenueSeries = series.map((p) => Number(p?.revenueInCents ?? 0));
   const prevRevenueSeries = alignSeries(prevSeries.map((p) => Number(p?.revenueInCents ?? 0)), revenueSeries.length);
   const okSeries = series.map((p) => Number(p?.paymentsSuccess ?? 0));
@@ -471,19 +437,19 @@ export default async function Home({
   const mrrSeries = series.map((p) => (p?.mrrInCents == null ? null : Number(p.mrrInCents)));
   const prevMrrSeries = alignSeries(prevSeries.map((p) => Number(p?.mrrInCents ?? 0)), mrrSeries.length);
   const bucketLabels = series.map((p) => fmtBucketLabel(String(p?.at || ""), g));
-  const opsSeries: any[] = opsRes.ok ? opsRes.json?.series || [] : [];
+  const opsSeries: any[] = opsData?.series || [];
   const opsLabels = opsSeries.map((p) => fmtBucketLabel(String(p?.at || ""), g));
   const webhookProcessed = opsSeries.map((p) => Number(p?.webhooks?.processed || 0));
   const webhookFailed = opsSeries.map((p) => Number(p?.webhooks?.failed || 0));
   const jobsCreated = opsSeries.map((p) => Number(p?.jobs?.created || 0));
   const jobsFailed = opsSeries.map((p) => Number(p?.jobs?.failed || 0));
-  const chatSeries: any[] = chatwootRes.ok ? chatwootRes.json?.series || [] : [];
+  const chatSeries: any[] = chatData?.series || [];
   const chatLabels = chatSeries.map((p) => fmtBucketLabel(String(p?.at || ""), g));
   const chatSent = chatSeries.map((p) => Number(p?.sent || 0));
   const chatFailed = chatSeries.map((p) => Number(p?.failed || 0));
   const chatPending = chatSeries.map((p) => Number(p?.pending || 0));
-  const opsTotals = opsRes.ok ? opsRes.json?.totals || null : null;
-  const chatTotals = chatwootRes.ok ? chatwootRes.json?.totals || null : null;
+  const opsTotals = opsData?.totals || null;
+  const chatTotals = chatData?.totals || null;
   const approvalRateSeries = okSeries.map((ok, i) => {
     const total = ok + (failSeries[i] ?? 0);
     return total > 0 ? (ok / total) * 100 : 0;
@@ -501,41 +467,41 @@ export default async function Home({
     return sent > 0 ? (paid / sent) * 100 : 0;
   });
 
-  const totalRevenue = Number(metrics.json?.totals?.totalRevenueInCents || 0);
-  const totalPaymentsOk = Number(metrics.json?.totals?.totalPaymentsSuccessful || 0);
-  const totalPaymentsFail = Number(metrics.json?.totals?.totalPaymentsFailed || 0);
+  const totalRevenue = Number(metricsData?.totals?.totalRevenueInCents || 0);
+  const totalPaymentsOk = Number(metricsData?.totals?.totalPaymentsSuccessful || 0);
+  const totalPaymentsFail = Number(metricsData?.totals?.totalPaymentsFailed || 0);
   const totalPayments = totalPaymentsOk + totalPaymentsFail;
   const approvalPct = totalPayments > 0 ? (totalPaymentsOk / totalPayments) * 100 : 0;
   const avgTicket = totalPaymentsOk > 0 ? Math.round(totalRevenue / totalPaymentsOk) : 0;
-  const totalActiveSubscriptions = Number(metrics.json?.totals?.totalActiveSubscriptions || 0);
-  const contactsPastDue = Number(metrics.json?.totals?.contactsPastDue ?? 0);
-  const contactsOnTime = Number(metrics.json?.totals?.contactsOnTime ?? 0);
-  const linkConversionPctRaw = metrics.json?.totals?.link?.conversionLinkToPayPct ?? null;
-  const autoMrr = Number(metrics.json?.totals?.auto?.mrrInCents || 0);
-  const autoActive = Number(metrics.json?.totals?.auto?.activeSubscriptions || 0);
-  const autoNew = Number(metrics.json?.totals?.auto?.newSubscriptions || 0);
-  const autoCancels = Number(metrics.json?.totals?.auto?.cancellations || 0);
+  const totalActiveSubscriptions = Number(metricsData?.totals?.totalActiveSubscriptions || 0);
+  const contactsPastDue = Number(metricsData?.totals?.contactsPastDue ?? 0);
+  const contactsOnTime = Number(metricsData?.totals?.contactsOnTime ?? 0);
+  const linkConversionPctRaw = metricsData?.totals?.link?.conversionLinkToPayPct ?? null;
+  const autoMrr = Number(metricsData?.totals?.auto?.mrrInCents || 0);
+  const autoActive = Number(metricsData?.totals?.auto?.activeSubscriptions || 0);
+  const autoNew = Number(metricsData?.totals?.auto?.newSubscriptions || 0);
+  const autoCancels = Number(metricsData?.totals?.auto?.cancellations || 0);
   const autoNet = autoNew - autoCancels;
-  const autoOk = Number(metrics.json?.totals?.auto?.autoChargesSuccessful || 0);
-  const autoFail = Number(metrics.json?.totals?.auto?.autoChargesFailed || 0);
+  const autoOk = Number(metricsData?.totals?.auto?.autoChargesSuccessful || 0);
+  const autoFail = Number(metricsData?.totals?.auto?.autoChargesFailed || 0);
   const autoTotal = autoOk + autoFail;
   const autoApprovalPct = autoTotal > 0 ? (autoOk / autoTotal) * 100 : 0;
-  const autoChurn = metrics.json?.totals?.auto?.churnMonthlyPct ?? null;
+  const autoChurn = metricsData?.totals?.auto?.churnMonthlyPct ?? null;
   
   // Pagos sin suscripción (one-time, huérfanos, links manuales)
-  const unlinkedPaymentsApproved = Number(metrics.json?.totals?.unlinked?.paymentsApproved || 0);
-  const unlinkedPaymentsOther = Number(metrics.json?.totals?.unlinked?.paymentsOther || 0);
+  const unlinkedPaymentsApproved = Number(metricsData?.totals?.unlinked?.paymentsApproved || 0);
+  const unlinkedPaymentsOther = Number(metricsData?.totals?.unlinked?.paymentsOther || 0);
   const unlinkedPaymentsTotal = unlinkedPaymentsApproved + unlinkedPaymentsOther;
-  const unlinkedRevenue = Number(metrics.json?.totals?.unlinked?.revenueInCents || 0);
+  const unlinkedRevenue = Number(metricsData?.totals?.unlinked?.revenueInCents || 0);
 
   // DESGLOSE POR PLATAFORMA
-  const platformData = metrics.json?.totals?.byPlatform || [];
+  const platformData = metricsData?.totals?.byPlatform || [];
   const totalPlatformRevenue = platformData.reduce((sum: number, p: any) => sum + (p.revenueInCents || 0), 0);
   const totalPlatformPayments = platformData.reduce((sum: number, p: any) => sum + (p.paymentsSuccess || 0), 0);
   
-  const recentPayments = paymentsRes.ok ? paymentsRes.json?.items || [] : [];
-  const overdueSubs = overdueSubsRes.ok ? overdueSubsRes.json?.items || [] : [];
-  const healthySubs = healthySubsRes.ok ? healthySubsRes.json?.items || [] : [];
+  const recentPayments = paymentsRes.items || [];
+  const overdueSubs = overdueSubsRes.items || [];
+  const healthySubs = healthySubsRes.items || [];
   const modeLabel = (s: any) => {
     const mode = String(s?.metadata?.collectionMode || s?.plan?.metadata?.collectionMode || "MANUAL_LINK").toUpperCase();
     if (mode === "AUTO_DEBIT") return "Débito automático";
@@ -575,13 +541,13 @@ export default async function Home({
   const linkConversionLast = hasLinkActivity ? (linkConversionSeries[linkConversionSeries.length - 1] ?? 0) : null;
   const linkConversionMax = hasLinkActivity ? Math.max(0, ...linkConversionSeries) : null;
 
-  const revenueLink = Number(metrics.json?.breakdown?.revenueByPlanTypeInCents?.manual_link || 0);
-  const revenueAuto = Number(metrics.json?.breakdown?.revenueByPlanTypeInCents?.auto_subscription || 0);
+  const revenueLink = Number(metricsData?.breakdown?.revenueByPlanTypeInCents?.manual_link || 0);
+  const revenueAuto = Number(metricsData?.breakdown?.revenueByPlanTypeInCents?.auto_subscription || 0);
   const revenueByTypeTotal = revenueLink + revenueAuto;
   const revenueLinkPct = revenueByTypeTotal > 0 ? (revenueLink / revenueByTypeTotal) * 100 : 0;
   const revenueAutoPct = revenueByTypeTotal > 0 ? (revenueAuto / revenueByTypeTotal) * 100 : 0;
 
-  const prevTotals = prevMetrics.ok ? prevMetrics.json?.totals || {} : {};
+  const prevTotals = prevMetricsData?.totals || {};
   const hasPrev = prevMetrics.ok;
   const prevRevenue = Number(prevTotals?.totalRevenueInCents || 0);
   const prevPaymentsOk = Number(prevTotals?.totalPaymentsSuccessful || 0);
@@ -610,7 +576,7 @@ export default async function Home({
     hasPrev && linkConversionPct != null && prevLinkConversionRaw != null && prevHasLinkActivity
       ? linkConversionPct - Number(prevLinkConversionRaw)
       : null;
-  const plansDeltaPct = hasPrev ? pctChange(metrics.json?.totals?.totalPlansSold || 0, prevPlansSold) : null;
+  const plansDeltaPct = hasPrev ? pctChange(metricsData?.totals?.totalPlansSold || 0, prevPlansSold) : null;
   const autoActiveDelta = hasPrev ? autoActive - prevAutoActive : null;
   const autoActiveDeltaPct = hasPrev ? pctChange(autoActive, prevAutoActive) : null;
   const autoNetDelta = hasPrev ? autoNet - prevAutoNet : null;
@@ -622,7 +588,7 @@ export default async function Home({
   const autoChurnDeltaPp =
     hasPrev && hasAutoActivity && autoChurn != null && prevAutoChurn != null ? Number(autoChurn) - Number(prevAutoChurn) : null;
 
-  const firstDataAt = metrics.ok ? isoDateFromTimestamp(metrics.json?.meta?.firstDataAt || null) : "";
+  const firstDataAt = metricsData ? isoDateFromTimestamp(metricsData?.meta?.firstDataAt || null) : "";
   const maxDate = defaultTo;
 
   const revenueLineSeries = hasPrev
@@ -695,13 +661,9 @@ export default async function Home({
         </div>
 
         <div className="settings-group-body">
-          {!hasToken ? (
+          {!metrics.ok ? (
             <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>
-              Falta <code>ADMIN_API_TOKEN</code> en el Admin para consultar el API de métricas.
-            </div>
-          ) : !metrics.ok ? (
-            <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>
-              Error consultando métricas: {metrics.json?.error || `HTTP ${metrics.status}`}
+              Error consultando métricas: {metrics.error || metrics.message || "No se pudo consultar métricas"}
             </div>
           ) : (
             <>
@@ -840,7 +802,7 @@ export default async function Home({
                         Planes vendidos
                         <HelpTip text="Suscripciones cuyo primer pago aprobado ocurrió en el rango." />
                       </div>
-                      <div className="metric-value">{metrics.json?.totals?.totalPlansSold || 0}</div>
+                      <div className="metric-value">{metricsData?.totals?.totalPlansSold || 0}</div>
                       <div className="metric-sub">
                         Rango: {rangeLabel} ·
                         <span className={`delta ${plansDeltaPct == null ? "flat" : plansDeltaPct >= 0 ? "up" : "down"}`}>
@@ -1174,9 +1136,9 @@ export default async function Home({
                       )}
                       <div className="chart-kpis">
                         <span className="chart-kpi">Conversión <strong>{fmtPct(linkConversionPct)}</strong></span>
-                        <span className="chart-kpi">Ingresos <strong>${fmtMoneyCop(metrics.json?.totals?.link?.revenueInCents || 0)} COP</strong></span>
+                        <span className="chart-kpi">Ingresos <strong>${fmtMoneyCop(metricsData?.totals?.link?.revenueInCents || 0)} COP</strong></span>
                         <span className="chart-kpi">
-                          Tiempo prom. <strong>{metrics.json?.totals?.link?.avgTimeToPaySec == null ? "—" : `${Math.round(Number(metrics.json.totals.link.avgTimeToPaySec) / 60)} min`}</strong>
+                          Tiempo prom. <strong>{metricsData?.totals?.link?.avgTimeToPaySec == null ? "—" : `${Math.round(Number(metricsData.totals.link.avgTimeToPaySec) / 60)} min`}</strong>
                         </span>
                       </div>
                     </div>

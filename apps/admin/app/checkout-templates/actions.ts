@@ -1,31 +1,17 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { normalizeToken } from "../lib/normalizeToken";
-import { getRequiredApiBase } from "../lib/adminApi";
 import { assertCsrfToken } from "../lib/csrf";
-
-async function adminFetch(path: string, init: RequestInit) {
-  const API_BASE = getRequiredApiBase();
-  const TOKEN = normalizeToken(process.env.ADMIN_API_TOKEN || "");
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: {
-      ...(TOKEN ? { authorization: `Bearer ${TOKEN}`, "x-admin-token": TOKEN } : {}),
-      "content-type": "application/json",
-      ...(init.headers ?? {})
-    },
-    cache: "no-store"
-  });
-  const json = await res.json().catch(() => null);
-  if (!res.ok) {
-    if (json?.details) {
-      throw new Error(`${json?.error || "request_failed"}:${JSON.stringify(json.details)}`);
-    }
-    throw new Error(json?.error || "request_failed");
-  }
-  return json;
-}
+import {
+  createCheckoutTemplate as createCheckoutTemplateService,
+  updateCheckoutTemplate as updateCheckoutTemplateService,
+  deleteCheckoutTemplate as deleteCheckoutTemplateService,
+  getCheckoutTemplateById,
+  listCheckoutTemplates
+} from "../admin/_services/checkoutTemplates";
+import { listTenants } from "../admin/_services/tenants";
+import { getAdminSettings } from "../admin/_services/settings";
+import { listCatalogProducts } from "../admin/_services/products";
 
 function redirectWith(action: string, status: "ok" | "fail", error?: string) {
   const qp = new URLSearchParams({ a: action, status, tab: "checkout-publico" });
@@ -58,6 +44,9 @@ export async function createCheckoutTemplate(formData: FormData) {
     if (!name || (kind !== "PLAN" && kind !== "SUBSCRIPTION" && kind !== "CART")) {
       return redirectWith("checkout_template_create", "fail", "invalid_body");
     }
+    if (!tenantId) {
+      return redirectWith("checkout_template_create", "fail", "tenant_required");
+    }
     if (!allowProductSelect && productIds.length === 0) {
       return redirectWith("checkout_template_create", "fail", "invalid_body");
     }
@@ -69,7 +58,7 @@ export async function createCheckoutTemplate(formData: FormData) {
       active: String(formData.get("active") || "") === "on",
       allowProductSelect,
       productIds,
-      ...(tenantId ? { tenantId } : {}),
+      tenantId,
       expiryHours: Number.isFinite(expiryHoursNum) ? expiryHoursNum : undefined,
       logoUrl: String(formData.get("logoUrl") || "").trim(),
       publicTitle: String(formData.get("publicTitle") || "").trim(),
@@ -79,7 +68,8 @@ export async function createCheckoutTemplate(formData: FormData) {
       utmParams: String(formData.get("utmParams") || "").trim(),
       layout
     };
-    await adminFetch("/admin/checkout-templates", { method: "POST", body: JSON.stringify(payload) });
+    const res = await createCheckoutTemplateService(payload as any);
+    if (!res.ok) throw new Error(res.error);
     redirectWith("checkout_template_create", "ok");
   } catch (err: any) {
     if (isNextRedirect(err)) throw err;
@@ -130,7 +120,8 @@ export async function updateCheckoutTemplate(formData: FormData) {
       utmParams: String(formData.get("utmParams") || "").trim(),
       layout
     };
-    await adminFetch(`/admin/checkout-templates/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+    const res = await updateCheckoutTemplateService({ id, ...payload } as any);
+    if (!res.ok) throw new Error(res.error);
     redirectWith("checkout_template_update", "ok");
   } catch (err: any) {
     if (isNextRedirect(err)) throw err;
@@ -143,7 +134,8 @@ export async function deleteCheckoutTemplate(formData: FormData) {
     await assertCsrfToken(formData);
     const id = String(formData.get("id") || "").trim();
     if (!id) return redirectWith("checkout_template_delete", "fail", "missing_id");
-    await adminFetch(`/admin/checkout-templates/${id}`, { method: "DELETE" });
+    const res = await deleteCheckoutTemplateService({ id });
+    if (!res.ok) throw new Error(res.error);
     redirectWith("checkout_template_delete", "ok");
   } catch (err: any) {
     if (isNextRedirect(err)) throw err;
@@ -156,9 +148,10 @@ export async function duplicateCheckoutTemplate(formData: FormData) {
     await assertCsrfToken(formData);
     const id = String(formData.get("id") || "").trim();
     if (!id) return redirectWith("checkout_template_duplicate", "fail", "missing_id");
-    const existing = await adminFetch(`/admin/checkout-templates/${id}`, { method: "GET" });
-    const template = existing?.item;
+    const existing = await getCheckoutTemplateById({ id });
+    const template = existing.ok ? existing.item : null;
     if (!template) return redirectWith("checkout_template_duplicate", "fail", "not_found");
+    if (!template.tenantId) return redirectWith("checkout_template_duplicate", "fail", "tenant_required");
 
     const payload = {
       name: `Copia - ${template.name || "Plantilla"}`,
@@ -166,7 +159,7 @@ export async function duplicateCheckoutTemplate(formData: FormData) {
       active: template.active,
       allowProductSelect: template.allowProductSelect,
       productIds: template.productIds || [],
-      tenantId: template.tenantId || undefined,
+      tenantId: template.tenantId,
       expiryHours: template.expiryHours ?? undefined,
       logoUrl: template.logoUrl || "",
       publicTitle: template.publicTitle || "",
@@ -176,7 +169,8 @@ export async function duplicateCheckoutTemplate(formData: FormData) {
       utmParams: template.utmParams || "",
       layout: template.layout || undefined
     };
-    await adminFetch("/admin/checkout-templates", { method: "POST", body: JSON.stringify(payload) });
+    const created = await createCheckoutTemplateService(payload as any);
+    if (!created.ok) throw new Error(created.error);
     redirectWith("checkout_template_duplicate", "ok");
   } catch (err: any) {
     if (isNextRedirect(err)) throw err;
@@ -190,13 +184,12 @@ export async function createCheckoutTemplateDefaults(formData: FormData) {
     const tenantIdInput = String(formData.get("tenantId") || "").trim();
     const modeRaw = String(formData.get("mode") || "").trim().toUpperCase();
     const mode = modeRaw === "PLAN" || modeRaw === "SUBSCRIPTION" || modeRaw === "BOTH" ? modeRaw : "BOTH";
-    const tenantsRes = await adminFetch("/admin/tenants", { method: "GET" });
-    const tenants = Array.isArray(tenantsRes?.items) ? tenantsRes.items : [];
+    const tenants = await listTenants();
     const selectedTenants = tenantIdInput ? tenants.filter((t: any) => String(t.id) === tenantIdInput) : tenants;
     if (!selectedTenants.length) return redirectWith("checkout_template_defaults", "fail", "tenant_required");
 
-    const settingsRes = await adminFetch("/admin/settings", { method: "GET" });
-    const checkoutConfig = settingsRes?.checkoutConfig || {};
+    const settingsRes = await getAdminSettings();
+    const checkoutConfig = (settingsRes as any)?.checkoutConfig || {};
     const logoUrl = String(checkoutConfig?.logoUrl || "").trim();
     const utmParams = String(checkoutConfig?.defaultUtmParams || "").trim();
     const planTitle = String(checkoutConfig?.planTitle || "Paga tu plan").trim();
@@ -209,7 +202,7 @@ export async function createCheckoutTemplateDefaults(formData: FormData) {
     let createdCount = 0;
     for (const tenant of selectedTenants) {
       const tenantId = String(tenant.id);
-      const productsRes = await adminFetch(`/admin/products?take=500&tenantId=${encodeURIComponent(tenantId)}`, { method: "GET" });
+      const productsRes = await listCatalogProducts({ tenantId, take: 500 });
       const products = Array.isArray(productsRes?.items) ? productsRes.items : [];
       const planProducts = products.filter((p: any) => {
         const mode = String(p?.collectionMode || p?.metadata?.collectionMode || "");
@@ -218,8 +211,7 @@ export async function createCheckoutTemplateDefaults(formData: FormData) {
       const subProducts = products.filter((p: any) => String(p?.collectionMode || p?.metadata?.collectionMode || "") === "AUTO_DEBIT");
       if (!planProducts.length && !subProducts.length) continue;
 
-      const templatesRes = await adminFetch(`/admin/checkout-templates?tenantId=${encodeURIComponent(tenantId)}`, { method: "GET" });
-      const templates = Array.isArray(templatesRes?.items) ? templatesRes.items : [];
+      const templates = await listCheckoutTemplates({ tenantId });
       const cartTemplates = templates.filter((t: any) => String(t?.kind || "") === "CART");
 
       const existingPlan = cartTemplates.find((t: any) => {
@@ -227,7 +219,7 @@ export async function createCheckoutTemplateDefaults(formData: FormData) {
         let hasPlan = false;
         let hasSub = false;
         for (const id of ids) {
-          const p = products.find((prod: any) => String(prod.id) === String(id));
+          const p = products.find((prod: any) => String(prod.id) === String(id)) as any;
           const mode = String(p?.collectionMode || p?.metadata?.collectionMode || "");
           if (!mode || mode === "AUTO_LINK" || mode === "MANUAL_LINK") hasPlan = true;
           if (mode === "AUTO_DEBIT") hasSub = true;
@@ -239,7 +231,7 @@ export async function createCheckoutTemplateDefaults(formData: FormData) {
         let hasPlan = false;
         let hasSub = false;
         for (const id of ids) {
-          const p = products.find((prod: any) => String(prod.id) === String(id));
+          const p = products.find((prod: any) => String(prod.id) === String(id)) as any;
           const mode = String(p?.collectionMode || p?.metadata?.collectionMode || "");
           if (!mode || mode === "AUTO_LINK" || mode === "MANUAL_LINK") hasPlan = true;
           if (mode === "AUTO_DEBIT") hasSub = true;
@@ -248,43 +240,37 @@ export async function createCheckoutTemplateDefaults(formData: FormData) {
       });
 
       if (mode !== "SUBSCRIPTION" && !existingPlan && planProducts.length) {
-        await adminFetch("/admin/checkout-templates", {
-          method: "POST",
-          body: JSON.stringify({
-            name: "Catálogo planes",
-            kind: "CART",
-            active: true,
-            allowProductSelect: true,
-            productIds: planProducts.map((p: any) => p.id),
-            tenantId,
-            logoUrl,
-            publicTitle: planTitle,
-            publicDescription: planDescription,
-            wompiTitle: planTitle,
-            wompiDescription: planDescription,
-            utmParams
-          })
-        });
+        await createCheckoutTemplateService({
+          name: "Catálogo planes",
+          kind: "CART",
+          active: true,
+          allowProductSelect: true,
+          productIds: planProducts.map((p: any) => p.id),
+          tenantId,
+          logoUrl,
+          publicTitle: planTitle,
+          publicDescription: planDescription,
+          wompiTitle: planTitle,
+          wompiDescription: planDescription,
+          utmParams
+        } as any);
         createdCount += 1;
       }
       if (mode !== "PLAN" && !existingSub && subProducts.length) {
-        await adminFetch("/admin/checkout-templates", {
-          method: "POST",
-          body: JSON.stringify({
-            name: "Catálogo suscripciones",
-            kind: "CART",
-            active: true,
-            allowProductSelect: true,
-            productIds: subProducts.map((p: any) => p.id),
-            tenantId,
-            logoUrl,
-            publicTitle: subTitle,
-            publicDescription: subDescription,
-            wompiTitle: subTitle,
-            wompiDescription: subDescription,
-            utmParams
-          })
-        });
+        await createCheckoutTemplateService({
+          name: "Catálogo suscripciones",
+          kind: "CART",
+          active: true,
+          allowProductSelect: true,
+          productIds: subProducts.map((p: any) => p.id),
+          tenantId,
+          logoUrl,
+          publicTitle: subTitle,
+          publicDescription: subDescription,
+          wompiTitle: subTitle,
+          wompiDescription: subDescription,
+          utmParams
+        } as any);
         createdCount += 1;
       }
     }

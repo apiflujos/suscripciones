@@ -34,11 +34,13 @@ export function NewCatalogItemForm({
 
   return (
     <div className="panel module">
-      <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-        <h3>Nuevo producto o servicio</h3>
-        <button type="button" className={show ? "btnLink" : "primary"} onClick={() => setShow((v) => !v)}>
-          {show ? "Cerrar" : "Crear producto o servicio"}
-        </button>
+      <div className="panel-header ui-panel-header ui-panel-header-left">
+        <div className="ui-panel-title">
+          <h3>Nuevo producto o servicio</h3>
+          <button type="button" className={show ? "btnLink" : "primary"} onClick={() => setShow((v) => !v)}>
+            {show ? "Cerrar" : "Crear producto o servicio"}
+          </button>
+        </div>
       </div>
 
       {show ? (

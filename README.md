@@ -138,7 +138,7 @@ npm run docker:logs  # Ver logs
 - CSS3
 
 ### Compartido
-- Tipos TypeScript en `packages/shared/`
+- Tipos TypeScript compartidos en `packages/core/` (unificados)
 
 ## 📝 API Endpoints
 
@@ -182,19 +182,19 @@ GET /health
 
 ## 🔧 Variables de Entorno
 
-### API (`apps/api/.env`)
+### Backend (Next.js) (`apps/admin/.env.local`)
 ```env
 DATABASE_URL=postgresql://...
-PORT=3001
+PORT=3002
 ADMIN_API_TOKEN=secret123
 ADMIN_SESSION_SECRET=session-secret
 SUPER_ADMIN_EMAIL=admin@example.com
 SUPER_ADMIN_PASSWORD=secure-password
 ```
 
-### Admin (`apps/admin/.env.local`)
+### Frontend (misma app)
 ```env
-NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
+NEXT_PUBLIC_API_BASE_URL=http://localhost:3002
 ADMIN_API_TOKEN=secret123
 ADMIN_SESSION_SECRET=session-secret
 ```

@@ -1,4 +1,8 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@suscripciones/database";
+import { getCheckoutConfig } from "../../../../admin/_services/settings";
+import { createWompiPaymentSource, consumeTokenizationLink, updateCustomerProfile } from "../../../../admin/_services/customers";
+import { createSubscription } from "../../../../admin/_services/subscriptions";
 
 function getRedirectBase(req: Request) {
   const envBase =
@@ -26,17 +30,6 @@ function normalizeRedirectBase(raw: string) {
   }
 }
 
-function getConfig() {
-  const raw = String(process.env.ADMIN_API_TOKEN || "");
-  const token = raw.replace(/^Bearer\s+/i, "").trim().replace(/^\"|\"$/g, "").replace(/^'|'$/g, "").trim();
-  const apiBase = String(process.env.NEXT_PUBLIC_API_BASE_URL || "").trim();
-  if (!apiBase) throw new Error("missing_next_public_api_base_url");
-  return {
-    apiBase,
-    token
-  };
-}
-
 function detectToken(formData: FormData): string {
   const direct =
     String(formData.get("token") || "").trim() ||
@@ -62,38 +55,39 @@ function tokenToType(token: string): "CARD" | "NEQUI" | "PSE" {
 export async function POST(req: Request, ctx: { params: Promise<{ token: string }> }) {
   const { token: linkToken } = await ctx.params;
   let redirectBase = getRedirectBase(req);
-  let apiBase = "";
-  let token = "";
+
   try {
-    const cfg = getConfig();
-    apiBase = cfg.apiBase;
-    token = cfg.token;
-    const configRes = await fetch(`${apiBase}/public/checkout-config`, { cache: "no-store" }).catch(() => null);
-    const configJson = configRes && "ok" in configRes ? await (configRes as any).json().catch(() => null) : null;
-    const configBase = String(configJson?.config?.subscriptionBaseUrl || "").trim();
+    const checkoutConfig = await getCheckoutConfig();
+    const configBase = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
     const normalized = normalizeRedirectBase(configBase);
     if (normalized) redirectBase = normalized;
   } catch (err: any) {
     const msg = err?.message ? String(err.message) : "missing_next_public_api_base_url";
     return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=${encodeURIComponent(msg)}`, redirectBase));
   }
-  if (!token) return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=missing_admin_token`, redirectBase));
 
-  const tokenRes = await fetch(`${apiBase}/public/tokenization-links/${encodeURIComponent(linkToken)}`, { cache: "no-store" });
-  const tokenJson = await tokenRes.json().catch(() => null);
-  if (!tokenRes.ok) {
-    const msg = tokenJson?.error || `request_failed_${tokenRes.status}`;
-    return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=${encodeURIComponent(msg)}`, redirectBase));
+  const customer = await prisma.customer.findFirst({
+    where: { metadata: { path: ["tokenizationLink", "token"], equals: linkToken } as any }
+  });
+  if (!customer) {
+    return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=token_not_found`, redirectBase));
   }
 
-  const customerId = String(tokenJson?.customer?.id || "").trim();
-  const customerEmail = String(tokenJson?.customer?.email || "").trim();
-  const linkPlanId = String(tokenJson?.link?.planId || tokenJson?.template?.planId || "").trim();
-  const linkKind = String(tokenJson?.link?.kind || tokenJson?.template?.kind || "").trim();
-  const usedAt = String(tokenJson?.link?.usedAt || "").trim();
+  const meta = (customer.metadata ?? {}) as any;
+  const link = meta?.tokenizationLink ?? {};
+  const usedAt = String(link?.usedAt || "").trim();
+  const expiresAt = link?.expiresAt ? new Date(link.expiresAt) : null;
   if (usedAt) {
     return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=token_used`, redirectBase));
   }
+  if (expiresAt && Number.isFinite(expiresAt.getTime()) && expiresAt.getTime() < Date.now()) {
+    return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=token_expired`, redirectBase));
+  }
+
+  const customerId = String(customer?.id || "").trim();
+  const customerEmail = String(customer?.email || "").trim();
+  const linkPlanId = String(link?.planId || "").trim();
+  const linkKind = String(link?.kind || "").trim();
   if (!customerId) return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=customer_not_found`, redirectBase));
   if (!customerEmail) {
     return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=customer_email_required`, redirectBase));
@@ -113,86 +107,45 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   const type = tokenToType(wompiToken);
 
   try {
-    const res = await fetch(`${apiBase}/admin/customers/${customerId}/wompi/payment-source`, {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${token}`,
-        "x-admin-token": token,
-        "content-type": "application/json"
-      },
-      body: JSON.stringify({ type, token: wompiToken }),
-      cache: "no-store"
-    });
-    const json = await res.json().catch(() => null);
+    const res = await createWompiPaymentSource({ customerId, type, token: wompiToken });
     if (!res.ok) {
-      const msg = json?.error || `request_failed_${res.status}`;
-      return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=${encodeURIComponent(msg)}`, redirectBase));
+      const error = res.error ? String(res.error) : "No se pudo registrar el método de pago.";
+      return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=${encodeURIComponent(error)}`, redirectBase));
     }
 
-    await fetch(`${apiBase}/admin/customers/tokenization-links/${encodeURIComponent(linkToken)}/consume`, {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${token}`,
-        "x-admin-token": token
-      },
-      cache: "no-store"
-    }).catch(() => null);
+    await consumeTokenizationLink({ token: linkToken }).catch(() => null);
 
-    const existing = await fetch(`${apiBase}/admin/customers/${customerId}`, {
-      headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
-    })
-      .then((r) => r.json())
-      .catch(() => null);
-    const prevMeta = existing?.customer?.metadata ?? {};
-    const prevTokenizationLink = prevMeta?.tokenizationLink || {};
+    const prevMeta = customer?.metadata ?? {};
+    const prevTokenizationLink = (prevMeta as any)?.tokenizationLink || {};
     const nextMeta = {
-      ...prevMeta,
+      ...(prevMeta as any),
       tokenizationLink: {
         ...prevTokenizationLink,
         usedAt: prevTokenizationLink?.usedAt || new Date().toISOString()
       }
     };
 
-    await fetch(`${apiBase}/admin/customers/${customerId}`, {
-      method: "PUT",
-      headers: {
-        authorization: `Bearer ${token}`,
-        "x-admin-token": token,
-        "content-type": "application/json"
-      },
-      body: JSON.stringify({ metadata: nextMeta })
-    });
+    await updateCustomerProfile({ customerId, metadata: nextMeta }).catch(() => {});
 
     if (linkKind === "SUBSCRIPTION" && linkPlanId) {
       try {
-        const subRes = await fetch(`${apiBase}/admin/subscriptions`, {
-          method: "POST",
-          headers: {
-            authorization: `Bearer ${token}`,
-            "x-admin-token": token,
-            "content-type": "application/json"
-          },
-          body: JSON.stringify({ customerId, planId: linkPlanId, createPaymentLink: false }),
-          cache: "no-store"
+        const tenantFromLink = String(link?.tenantId || "").trim();
+        const tenantIds = tenantFromLink ? [tenantFromLink] : customer.tenantId ? [String(customer.tenantId)] : [];
+        const subRes = await createSubscription({
+          customerId,
+          planId: linkPlanId,
+          tenantIds,
+          createPaymentLink: false
         });
-        const subJson = await subRes.json().catch(() => null);
-        if (subRes.ok && subJson?.subscription?.id) {
+        if (subRes.ok && (subRes as any)?.subscription?.id) {
           const finalMeta = {
             ...nextMeta,
             tokenizationLink: {
-              ...(nextMeta?.tokenizationLink || {}),
-              subscriptionId: subJson.subscription.id
+              ...(nextMeta as any)?.tokenizationLink,
+              subscriptionId: (subRes as any).subscription.id
             }
           };
-          await fetch(`${apiBase}/admin/customers/${customerId}`, {
-            method: "PUT",
-            headers: {
-              authorization: `Bearer ${token}`,
-              "x-admin-token": token,
-              "content-type": "application/json"
-            },
-            body: JSON.stringify({ metadata: finalMeta })
-          });
+          await updateCustomerProfile({ customerId, metadata: finalMeta }).catch(() => {});
         }
       } catch {}
     }

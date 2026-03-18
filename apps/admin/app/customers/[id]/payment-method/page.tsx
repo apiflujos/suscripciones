@@ -1,19 +1,12 @@
 import Link from "next/link";
-import { fetchAdminCached, getAdminApiConfig } from "../../../lib/adminApi";
 import { normalizeErrorParam } from "../../../lib/errorParam";
 import { fetchWompiAcceptanceLinks } from "../../../lib/wompiMerchant";
 import { HelpTip } from "../../../ui/HelpTip";
 import { WompiTokenizeWidget } from "./WompiTokenizeWidget";
+import { getAdminSettings } from "../../../admin/_services/settings";
+import { getCustomerById } from "../../../admin/_services/customers";
 
 export const dynamic = "force-dynamic";
-
-function getConfig() {
-  return getAdminApiConfig();
-}
-
-async function fetchAdmin(path: string) {
-  return fetchAdminCached(path, { ttlMs: 1500 });
-}
 
 export default async function CustomerPaymentMethodPage({
   params,
@@ -23,23 +16,10 @@ export default async function CustomerPaymentMethodPage({
   searchParams?: Promise<{ error?: string }>;
 }) {
   const p = await params;
-  const { token } = getConfig();
-  if (!token) {
-    return (
-      <main className="page">
-        <div className="card cardPad">Configura `ADMIN_API_TOKEN` en el Admin para poder consultar el API.</div>
-      </main>
-    );
-  }
-
   const sp = (await searchParams) ?? {};
-  const [settings, customerRes] = await Promise.all([
-    fetchAdmin("/admin/settings"),
-    fetchAdmin(`/admin/customers/${encodeURIComponent(p.id)}`)
-  ]);
-  const activeEnv = String(settings.json?.wompi?.activeEnv || "PRODUCTION").toUpperCase();
-  const wompiEnv =
-    activeEnv === "SANDBOX" ? settings.json?.wompi?.sandbox : settings.json?.wompi?.production;
+  const [settings, customer] = await Promise.all([getAdminSettings(), getCustomerById(p.id)]);
+  const activeEnv = String((settings as any)?.wompi?.activeEnv || "PRODUCTION").toUpperCase();
+  const wompiEnv = activeEnv === "SANDBOX" ? (settings as any)?.wompi?.sandbox : (settings as any)?.wompi?.production;
   const publicKey = (() => {
     const raw = String(wompiEnv?.publicKey || "").trim();
     if (!raw || raw.toLowerCase() === "undefined" || raw.toLowerCase() === "null") return "";
@@ -49,7 +29,6 @@ export default async function CustomerPaymentMethodPage({
     String(wompiEnv?.apiBaseUrl || "").trim() ||
     (activeEnv === "SANDBOX" ? "https://sandbox.wompi.co/v1" : "https://api.wompi.co/v1");
   const acceptanceLinks = publicKey ? await fetchWompiAcceptanceLinks({ apiBaseUrl, publicKey }) : null;
-  const customer = customerRes.ok ? (customerRes.json?.customer ?? null) : null;
 
   if (!customer) {
     return (
@@ -63,18 +42,15 @@ export default async function CustomerPaymentMethodPage({
   }
 
   const hasToken = (() => {
-    const meta = customer?.metadata ?? {};
-    const candidates = [
-      meta?.wompi?.paymentSourceId,
-      meta?.wompi?.payment_source_id,
-      meta?.paymentSourceId,
-      meta?.payment_source_id
-    ];
+    const meta =
+      (customer?.metadata && typeof customer.metadata === "object" && !Array.isArray(customer.metadata) ? customer.metadata : {}) as any;
+    const wompiMeta = meta?.wompi || {};
+    const candidates = [wompiMeta?.paymentSourceId, wompiMeta?.payment_source_id, meta?.paymentSourceId, meta?.payment_source_id];
     const hasPrimary = candidates.some(
       (v: any) => (typeof v === "number" && Number.isFinite(v)) || (typeof v === "string" && /^\d+$/.test(v))
     );
     if (hasPrimary) return true;
-    const sources = meta?.wompi?.paymentSources;
+    const sources = wompiMeta?.paymentSources;
     return Array.isArray(sources) && sources.length > 0;
   })();
 

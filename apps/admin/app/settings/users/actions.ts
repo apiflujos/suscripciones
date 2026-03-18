@@ -1,8 +1,10 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { fetchAdminCached } from "../../lib/adminApi";
 import { assertCsrfToken } from "../../lib/csrf";
+import { cookies } from "next/headers";
+import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../../lib/session";
+import { createAdminUser } from "../../admin/_services/adminUsers";
 
 function toShortErrorMessage(err: unknown) {
   const raw = err instanceof Error ? err.message : String(err);
@@ -22,14 +24,11 @@ export async function createUser(formData: FormData) {
   const active = String(formData.get("active") || "").trim() === "1";
 
   try {
-    const res = await fetchAdminCached("/admin/settings/users", {
-      ttlMs: 0,
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email, password, role, active })
-    } as any);
-    
-    if (!res.ok) throw new Error(res.json?.error || `request_failed_${res.status}`);
+    const c = await cookies();
+    const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
+    const session = await verifyAdminSessionToken(sessionToken);
+    const res = await createAdminUser(session, { email, password, role, active });
+    if (!res.ok) throw new Error(res.error || "request_failed");
     redirect(`/settings/users?created=1`);
   } catch (err) {
     if (isNextRedirect(err)) throw err;

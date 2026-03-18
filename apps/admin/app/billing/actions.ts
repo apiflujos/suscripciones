@@ -2,9 +2,26 @@
 
 import { redirect } from "next/navigation";
 import crypto from "crypto";
-import { getAdminApiConfig } from "../lib/adminApi";
 import { assertCsrfToken } from "../lib/csrf";
 import { DEFAULT_CURRENCY, normalizeSupportedCurrency } from "../lib/currencies";
+import { createCustomer as createCustomerService, getCustomerById, updateCustomerProfile } from "../admin/_services/customers";
+import { createCatalogProduct, getCatalogProductById } from "../admin/_services/products";
+import { createPlan as createPlanService, updatePlanRecurrence as updatePlanRecurrenceService, deletePlan as deletePlanService } from "../admin/_services/plans";
+import {
+  createSubscription,
+  createSubscriptionPaymentLink,
+  chargeSubscriptionNow as chargeSubscriptionNowService,
+  scheduleSubscriptionCutoff,
+  recalcSubscriptionCutoff,
+  updateSubscriptionTenants as updateSubscriptionTenantsService,
+  changeSubscriptionPlan as changeSubscriptionPlanService,
+  deleteSubscription as deleteSubscriptionService
+} from "../admin/_services/subscriptions";
+import { sendChatwootMessageForCustomer } from "../admin/_services/chatwoot";
+import { getAdminSettings } from "../admin/_services/settings";
+import { getCheckoutTemplateById } from "../admin/_services/checkoutTemplates";
+import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
+import { scheduleTokenizationLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
 
 function safeReturnTo(formData: FormData) {
   const raw = String(formData.get("returnTo") || "").trim();
@@ -28,32 +45,6 @@ function normalizeCheckoutBase(raw: string, kind: "plan" | "suscripcion") {
   const suffix = kind === "plan" ? "/public/plan" : "/public/suscripcion";
   if (base.toLowerCase().endsWith(suffix)) return base.slice(0, -suffix.length);
   return base;
-}
-
-async function adminFetch(path: string, init: RequestInit) {
-  const { apiBase, token } = getAdminApiConfig();
-  const res = await fetch(`${apiBase}${path}`, {
-    ...init,
-    headers: {
-      ...(token ? { authorization: `Bearer ${token}`, "x-admin-token": token } : {}),
-      "content-type": "application/json",
-      ...(init.headers ?? {})
-    },
-    cache: "no-store"
-  });
-  const json = await res.json().catch(() => null);
-  if (!res.ok) {
-    const error = new Error(json?.reason ? `${json?.error || "request_failed"}:${json.reason}` : json?.error || `request_failed_${res.status}`) as Error & {
-      details?: unknown;
-      paymentId?: string;
-    };
-    if (json && typeof json === "object") {
-      error.details = json?.details;
-      if (json?.paymentId) error.paymentId = String(json.paymentId);
-    }
-    throw error;
-  }
-  return json;
 }
 
 function pesosToCents(input: string): number {
@@ -119,8 +110,8 @@ function buildChatwootLinkMessage(args: { name?: string; lead: string; url: stri
 
 async function hasNotificationRule(trigger: string): Promise<boolean | null> {
   try {
-    const cfg = await adminFetch("/admin/notifications/config", { method: "GET" });
-    const rules = Array.isArray(cfg?.config?.rules) ? cfg.config.rules : [];
+    const cfg = await getNotificationsConfigForEnv("PRODUCTION");
+    const rules = Array.isArray((cfg as any)?.rules) ? (cfg as any).rules : [];
     return rules.some((r: any) => r?.enabled && r?.trigger === trigger);
   } catch {
     return null;
@@ -129,10 +120,7 @@ async function hasNotificationRule(trigger: string): Promise<boolean | null> {
 
 async function sendChatwootMessageSafe(args: { customerId: string; content: string }) {
   try {
-    await adminFetch("/admin/chatwoot/messages", {
-      method: "POST",
-      body: JSON.stringify({ customerId: args.customerId, content: args.content })
-    });
+    await sendChatwootMessageForCustomer({ customerId: args.customerId, content: args.content });
   } catch {
     // best effort
   }
@@ -204,11 +192,17 @@ export async function createCustomerFromBilling(formData: FormData) {
   const metadata = address || idMeta ? { ...(address ? { address } : {}), ...(idMeta ? idMeta : {}) } : undefined;
 
   try {
-    const json = await adminFetch("/admin/customers", {
-      method: "POST",
-      body: JSON.stringify({ name, email: email || undefined, phone: phone || undefined, metadata, tenantId })
+    const res = await createCustomerService({
+      data: {
+        name: name || undefined,
+        email: email || undefined,
+        phone: phone || undefined,
+        metadata
+      } as any,
+      tenantIds: tenantId ? [tenantId] : []
     });
-    const id = json?.customer?.id ? String(json.customer.id) : "";
+    if (!res.ok) throw new Error(res.error);
+    const id = res?.customer?.id ? String(res.customer.id) : "";
     redirect(mergeQuery(returnTo, { contactCreated: "1", ...(id ? { selectCustomerId: id } : {}), ...(tenantId ? { tenantId } : {}) }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
@@ -225,6 +219,7 @@ export async function createPlanTemplate(formData: FormData) {
   const intervalUnit = String(formData.get("intervalUnit") || "MONTH").trim();
   const intervalCountRaw = Number(String(formData.get("intervalCount") || "1"));
   const intervalCount = Number.isFinite(intervalCountRaw) && intervalCountRaw > 0 ? Math.trunc(intervalCountRaw) : 1;
+  const tenantIds = readTenantIds(formData);
 
   const catalogMode = String(formData.get("catalogMode") || "EXISTING").trim();
   const catalogItemId = String(formData.get("catalogItemId") || "").trim();
@@ -257,26 +252,28 @@ export async function createPlanTemplate(formData: FormData) {
       if (!itemName || !itemSku) throw new Error("producto_incompleto");
       if (!basePriceInCents || basePriceInCents <= 0) throw new Error("precio_requerido");
 
-      const created = await adminFetch("/admin/products", {
-        method: "POST",
-        body: JSON.stringify({
-          name: itemName,
-          sku: itemSku,
-          kind: itemKind,
-          currency: itemCurrency,
-          basePriceInCents,
-          taxPercent,
-          discountType,
-          discountValueInCents,
-          discountPercent,
-          taxable: true,
-          requiresShipping: itemKind === "PRODUCT",
+      const tenantId = tenantIds[0] || "";
+      const created = await createCatalogProduct({
+        tenantIds: tenantId ? [tenantId] : [],
+        name: itemName,
+        sku: itemSku,
+        kind: itemKind === "SERVICE" ? "SERVICE" : "PRODUCT",
+        currency: itemCurrency,
+        basePriceInCents,
+        taxPercent,
+        discountType,
+        discountValueInCents,
+        discountPercent,
+        taxable: true,
+        requiresShipping: itemKind === "PRODUCT",
+        metadata: {
           option1Name: option1Name || null,
           option2Name: option2Name || null,
           variants: variants || null
-        })
+        }
       });
-      const createdItemId = created?.product?.id ? String(created.product.id) : "";
+      if (!created.ok) throw new Error(created.error);
+      const createdItemId = (created as any)?.productId ? String((created as any).productId) : "";
       if (!createdItemId) throw new Error("crear_producto_failed");
 
       item = {
@@ -296,12 +293,9 @@ export async function createPlanTemplate(formData: FormData) {
       };
     } else {
       if (!catalogItemId) throw new Error("producto_no_encontrado");
-      try {
-        const product = await adminFetch(`/admin/products/${encodeURIComponent(catalogItemId)}`, { method: "GET" });
-        item = product?.item ?? null;
-      } catch {
-        item = null;
-      }
+      const tenantId = tenantIds[0] || "";
+      const product = await getCatalogProductById({ productId: catalogItemId, tenantId: tenantId || null });
+      item = product.ok ? product.item : null;
       if (!item) throw new Error("producto_no_encontrado");
     }
 
@@ -324,43 +318,43 @@ export async function createPlanTemplate(formData: FormData) {
     if (!totals.totalInCents || totals.totalInCents <= 0) throw new Error("monto_invalido");
 
     const collectionMode = billingType === "PLAN" ? "AUTO_LINK" : "AUTO_DEBIT";
+    const tenantId = tenantIds[0] || "";
 
-    const createdPlan = await adminFetch("/admin/plans", {
-      method: "POST",
-      body: JSON.stringify({
-        name: name || `${billingType === "PLAN" ? "Plan" : "Suscripción"} - ${item.name}`,
-        priceInCents: totals.totalInCents,
-        currency: item.currency || "COP",
-        intervalUnit,
-        intervalCount,
-        collectionMode,
-        metadata: {
-          catalog: {
-            itemId: item.id,
-            sku: item.sku,
-            name: item.name,
-            kind: item.kind,
-            option1Name: item.option1Name || null,
-            option2Name: item.option2Name || null,
-            option1Value: option1Value || null,
-            option2Value: option2Value || null,
-            variantDeltaInCents: delta || 0
-          },
-          pricing: {
-            basePriceInCents: Number(item.basePriceInCents || 0),
-            subtotalInCents: totals.subtotalInCents,
-            taxPercent: Number(item.taxPercent || 0),
-            taxInCents: totals.taxInCents,
-            discountType: item.discountType || "NONE",
-            discountValueInCents: Number(item.discountValueInCents || 0),
-            discountPercent: Number(item.discountPercent || 0),
-            totalInCents: totals.totalInCents
-          }
+    const createdPlan = await createPlanService({
+      tenantIds: tenantId ? [tenantId] : [],
+      name: name || `${billingType === "PLAN" ? "Plan" : "Suscripción"} - ${item.name}`,
+      priceInCents: totals.totalInCents,
+      currency: item.currency || "COP",
+      intervalUnit: intervalUnit as any,
+      intervalCount,
+      collectionMode,
+      metadata: {
+        catalog: {
+          itemId: item.id,
+          sku: item.sku,
+          name: item.name,
+          kind: item.kind,
+          option1Name: item.option1Name || null,
+          option2Name: item.option2Name || null,
+          option1Value: option1Value || null,
+          option2Value: option2Value || null,
+          variantDeltaInCents: delta || 0
+        },
+        pricing: {
+          basePriceInCents: Number(item.basePriceInCents || 0),
+          subtotalInCents: totals.subtotalInCents,
+          taxPercent: Number(item.taxPercent || 0),
+          taxInCents: totals.taxInCents,
+          discountType: item.discountType || "NONE",
+          discountValueInCents: Number(item.discountValueInCents || 0),
+          discountPercent: Number(item.discountPercent || 0),
+          totalInCents: totals.totalInCents
         }
-      })
+      }
     });
+    if (!createdPlan.ok) throw new Error(createdPlan.error);
 
-    const planId = createdPlan?.plan?.id ? String(createdPlan.plan.id) : "";
+    const planId = (createdPlan as any)?.plan?.id ? String((createdPlan as any).plan.id) : "";
     redirect(mergeQuery(returnTo, { planCreated: "1", ...(planId ? { selectPlanId: planId } : {}) }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
@@ -381,10 +375,13 @@ export async function updatePlanRecurrence(formData: FormData) {
   if (!planId) return redirect(mergeQuery(returnTo, { error: "missing_plan_id", ...(tenantId ? { tenantId } : {}) }));
 
   try {
-    await adminFetch(`/admin/plans/${encodeURIComponent(planId)}`, {
-      method: "PUT",
-      body: JSON.stringify({ intervalUnit, intervalCount })
+    const res = await updatePlanRecurrenceService({
+      planId,
+      intervalUnit: intervalUnit as any,
+      intervalCount,
+      tenantId: tenantId || null
     });
+    if (!res.ok) throw new Error(res.error);
     redirect(mergeQuery(returnTo, { planUpdated: "1", ...(tenantId ? { tenantId } : {}) }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
@@ -401,11 +398,12 @@ export async function chargeSubscriptionNow(formData: FormData) {
   if (!subscriptionId) return redirect(mergeQuery(returnTo, { error: "missing_subscription_id" }));
 
   try {
-    const path = tenantId
-      ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/charge-now?tenantId=${encodeURIComponent(tenantId)}`
-      : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/charge-now`;
-    const res = await adminFetch(path, { method: "POST", body: JSON.stringify({}) });
-    const paymentId = res?.paymentId ? String(res.paymentId) : "";
+    const res = await chargeSubscriptionNowService({
+      subscriptionId,
+      tenantId: tenantId || null
+    });
+    if (!res.ok) throw new Error(res.error);
+    const paymentId = (res as any)?.paymentId ? String((res as any).paymentId) : "";
     redirect(
       mergeQuery(returnTo, {
         chargeStatus: "processing",
@@ -452,10 +450,8 @@ export async function scheduleCutoff(formData: FormData) {
   if (!subscriptionId || !cutoffAt) return redirect(mergeQuery(returnTo, { error: "missing_cutoff_date", ...(tenantId ? { tenantId } : {}) }));
 
   try {
-    const path = tenantId
-      ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/schedule-cutoff?tenantId=${encodeURIComponent(tenantId)}`
-      : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/schedule-cutoff`;
-    await adminFetch(path, { method: "POST", body: JSON.stringify({ cutoffAt }) });
+    const res = await scheduleSubscriptionCutoff({ subscriptionId, cutoffAt, tenantId: tenantId || null });
+    if (!res.ok) throw new Error(res.error);
     redirect(mergeQuery(returnTo, { cutoffScheduled: "1", subscriptionId, ...(tenantId ? { tenantId } : {}) }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
@@ -472,10 +468,8 @@ export async function recalcCutoff(formData: FormData) {
   if (!subscriptionId) return redirect(mergeQuery(returnTo, { error: "missing_subscription_id", ...(tenantId ? { tenantId } : {}) }));
 
   try {
-    const path = tenantId
-      ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/recalculate-cutoff?tenantId=${encodeURIComponent(tenantId)}`
-      : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/recalculate-cutoff`;
-    await adminFetch(path, { method: "POST", body: JSON.stringify({}) });
+    const res = await recalcSubscriptionCutoff({ subscriptionId, tenantId: tenantId || null });
+    if (!res.ok) throw new Error(res.error);
     redirect(mergeQuery(returnTo, { cutoffRecalc: "1", subscriptionId, ...(tenantId ? { tenantId } : {}) }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
@@ -497,16 +491,13 @@ export async function updateSubscriptionTenants(formData: FormData) {
     return redirect(mergeQuery(returnTo, { error: "missing_subscription_id", ...(scopeTenantId ? { tenantId: scopeTenantId } : {}) }));
   }
   try {
-    const path = scopeTenantId
-      ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/tenants?tenantId=${encodeURIComponent(scopeTenantId)}`
-      : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/tenants`;
-    await adminFetch(path, {
-      method: "PUT",
-      body: JSON.stringify({
-        tenantIds,
-        primaryTenantId: primaryTenantId || ""
-      })
+    const res = await updateSubscriptionTenantsService({
+      subscriptionId,
+      tenantId: scopeTenantId || null,
+      tenantIds,
+      primaryTenantId: primaryTenantId || null
     });
+    if (!res.ok) throw new Error(res.error);
     redirect(
       mergeQuery(returnTo, {
         tenantsUpdated: "1",
@@ -540,18 +531,15 @@ export async function changeSubscriptionPlan(formData: FormData) {
   }
 
   try {
-    const path = tenantId
-      ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/change-plan?tenantId=${encodeURIComponent(tenantId)}`
-      : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/change-plan`;
-    await adminFetch(path, {
-      method: "POST",
-      body: JSON.stringify({
-        planId,
-        cutoffAt,
-        shippingInCents,
-        freeShipping
-      })
+    const res = await changeSubscriptionPlanService({
+      subscriptionId,
+      planId,
+      cutoffAt,
+      shippingInCents,
+      freeShipping,
+      tenantId: tenantId || null
     });
+    if (!res.ok) throw new Error(res.error);
     redirect(mergeQuery(returnTo, { planChanged: "1", subscriptionId, ...(tenantId ? { tenantId } : {}) }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
@@ -586,8 +574,7 @@ export async function createPlanAndSubscription(formData: FormData) {
 
   try {
     await assertCsrfToken(formData);
-    const customerRes = await adminFetch(`/admin/customers/${customerId}`, { method: "GET" }).catch(() => null);
-    const customer = customerRes?.customer || {};
+    const customer = (await getCustomerById(customerId)) as any;
     if (tenantIds.length) {
       const customerTenantId = String(customer?.tenantId || "").trim();
       if (customerTenantId && !tenantIds.includes(customerTenantId)) {
@@ -608,8 +595,8 @@ export async function createPlanAndSubscription(formData: FormData) {
       meta?.payment_source_id;
     const hasToken = Boolean(paymentSource);
 
-    const settings = await adminFetch("/admin/settings", { method: "GET" }).catch(() => null);
-    const checkoutConfig = settings?.checkoutConfig || {};
+    const settings = await getAdminSettings().catch(() => null);
+    const checkoutConfig = (settings as any)?.checkoutConfig || {};
     const planBase = normalizeCheckoutBase(String(checkoutConfig?.planBaseUrl || "").trim(), "plan");
     const subBase = normalizeCheckoutBase(String(checkoutConfig?.subscriptionBaseUrl || "").trim(), "suscripcion");
     if (billingType === "PLAN" && !planBase) {
@@ -631,11 +618,8 @@ export async function createPlanAndSubscription(formData: FormData) {
       );
     }
 
-    const product = await adminFetch(
-      tenantId ? `/admin/products/${encodeURIComponent(productId)}?tenantId=${encodeURIComponent(tenantId)}` : `/admin/products/${encodeURIComponent(productId)}`,
-      { method: "GET" }
-    );
-    const item = product?.item ?? null;
+    const product = await getCatalogProductById({ productId, tenantId: tenantId || null });
+    const item = product.ok ? product.item : null;
     if (!item) throw new Error("producto_no_encontrado");
 
     const variants = Array.isArray(item.variants) ? item.variants : [];
@@ -674,12 +658,9 @@ export async function createPlanAndSubscription(formData: FormData) {
     const collectionMode = billingType === "PLAN" ? "AUTO_LINK" : "AUTO_DEBIT";
 
     const templateCandidate = templateIdRaw
-      ? await adminFetch(
-          tenantId
-            ? `/admin/checkout-templates/${encodeURIComponent(templateIdRaw)}?tenantId=${encodeURIComponent(tenantId)}`
-            : `/admin/checkout-templates/${encodeURIComponent(templateIdRaw)}`,
-          { method: "GET" }
-        ).then((r) => r?.item ?? null).catch(() => null)
+      ? await getCheckoutTemplateById({ id: templateIdRaw, tenantId: tenantId || null })
+          .then((r) => (r.ok ? r.item : null))
+          .catch(() => null)
       : null;
     const template =
       templateCandidate &&
@@ -688,66 +669,62 @@ export async function createPlanAndSubscription(formData: FormData) {
         : null;
 
     const nameSuffix = `${new Date().toISOString().slice(11, 19).replace(/:/g, "")}-${customerId.slice(0, 6)}`;
-    const createdPlan = await adminFetch("/admin/plans", {
-      method: "POST",
-      body: JSON.stringify({
-        ...(tenantIds.length ? { tenantIds } : {}),
-        name: `${billingType === "PLAN" ? "Plan" : "Suscripción"} - ${item.name} - ${nameSuffix}`,
-        priceInCents: totals.totalInCents,
-        currency: item.currency || "COP",
-        intervalUnit,
-        intervalCount,
-        collectionMode,
-        metadata: {
-          catalog: {
-            itemId: item.id,
-            sku: item.sku,
-            name: item.name,
-            kind: item.kind,
-            option1Name: item.option1Name || null,
-            option2Name: item.option2Name || null,
-            option1Value: option1Value || null,
-            option2Value: option2Value || null,
-            variantDeltaInCents: delta || 0
-          },
-          pricing: {
-            basePriceInCents: Number(item.basePriceInCents || 0),
-            subtotalInCents: totals.subtotalInCents,
-            taxPercent: Number(item.taxPercent || 0),
-            taxInCents: totals.taxInCents,
-            discountType: item.discountType || "NONE",
-            discountValueInCents: Number(item.discountValueInCents || 0),
-            discountPercent: Number(item.discountPercent || 0),
-            shippingInCents: shippingForThisSubscription,
-            totalInCents: totals.totalInCents
-          }
+    const createdPlan = await createPlanService({
+      tenantIds,
+      name: `${billingType === "PLAN" ? "Plan" : "Suscripción"} - ${item.name} - ${nameSuffix}`,
+      priceInCents: totals.totalInCents,
+      currency: item.currency || "COP",
+      intervalUnit: intervalUnit as any,
+      intervalCount,
+      collectionMode,
+      metadata: {
+        catalog: {
+          itemId: item.id,
+          sku: item.sku,
+          name: item.name,
+          kind: item.kind,
+          option1Name: item.option1Name || null,
+          option2Name: item.option2Name || null,
+          option1Value: option1Value || null,
+          option2Value: option2Value || null,
+          variantDeltaInCents: delta || 0
+        },
+        pricing: {
+          basePriceInCents: Number(item.basePriceInCents || 0),
+          subtotalInCents: totals.subtotalInCents,
+          taxPercent: Number(item.taxPercent || 0),
+          taxInCents: totals.taxInCents,
+          discountType: item.discountType || "NONE",
+          discountValueInCents: Number(item.discountValueInCents || 0),
+          discountPercent: Number(item.discountPercent || 0),
+          shippingInCents: shippingForThisSubscription,
+          totalInCents: totals.totalInCents
         }
-      })
+      }
     });
+    if (!createdPlan.ok) throw new Error(createdPlan.error);
 
-    const planId = createdPlan?.plan?.id ? String(createdPlan.plan.id) : "";
+    const planId = (createdPlan as any)?.plan?.id ? String((createdPlan as any).plan.id) : "";
     if (!planId) throw new Error("create_plan_failed");
 
     const shouldCreateLink = billingType === "PLAN" && submitAction === "LINK_NOW";
     let startAtValue = startAt || "";
     let endAtValue = firstPeriodEndAt || "";
-    const sub = await adminFetch("/admin/subscriptions", {
-      method: "POST",
-      body: JSON.stringify({
-        customerId,
-        planId,
-        ...(tenantIds.length ? { tenantIds } : {}),
-        ...(template?.id ? { metadata: { templateId: String(template.id) } } : {}),
-        ...(startAtValue ? { startAt: startAtValue } : {}),
-        ...(endAtValue ? { firstPeriodEndAt: endAtValue } : {}),
-        ...(allowDuplicate ? { allowDuplicate: true } : {}),
-        ...(shouldCreateLink ? { createPaymentLink: true } : {})
-      })
+    const sub = await createSubscription({
+      customerId,
+      planId,
+      tenantIds,
+      metadata: template?.id ? { templateId: String(template.id) } : undefined,
+      startAt: startAtValue || undefined,
+      firstPeriodEndAt: endAtValue || undefined,
+      allowDuplicate,
+      createPaymentLink: shouldCreateLink
     });
-    const subscriptionId = String(sub?.subscription?.id || "").trim();
+    if (!sub.ok) throw new Error(sub.error);
+    const subscriptionId = String((sub as any)?.subscription?.id || "").trim();
     if (!subscriptionId) throw new Error("create_subscription_failed");
 
-    const checkoutUrl = sub?.checkoutUrl ? String(sub.checkoutUrl) : "";
+    const checkoutUrl = (sub as any)?.checkoutUrl ? String((sub as any).checkoutUrl) : "";
     const templateExpiryHours = template?.expiryHours ?? null;
     const configExpiryHours =
       Number.isFinite(Number(checkoutConfig?.tokenExpiryHours)) && Number(checkoutConfig?.tokenExpiryHours) > 0
@@ -766,7 +743,8 @@ export async function createPlanAndSubscription(formData: FormData) {
     const utm = String(template?.utmParams || checkoutConfig?.defaultUtmParams || "").trim();
       const url = utm ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${utm.replace(/^\?+/, "")}` : baseUrl;
       const expiresAt = expiryHours ? new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString() : null;
-      const prevMeta = customer?.metadata ?? {};
+      const prevMeta =
+        customer?.metadata && typeof customer.metadata === "object" && !Array.isArray(customer.metadata) ? customer.metadata : {};
       const nextMeta = {
         ...prevMeta,
         paymentLink: {
@@ -782,10 +760,7 @@ export async function createPlanAndSubscription(formData: FormData) {
           usedAt: null
         }
       };
-      await adminFetch(`/admin/customers/${customerId}`, {
-        method: "PUT",
-        body: JSON.stringify({ metadata: nextMeta })
-      }).catch(() => {});
+      await updateCustomerProfile({ customerId, metadata: nextMeta }).catch(() => {});
 
       const rulesActive = await hasNotificationRule("PAYMENT_LINK_CREATED");
       if (rulesActive === false) {
@@ -820,7 +795,8 @@ export async function createPlanAndSubscription(formData: FormData) {
       const utm = String(template?.utmParams || checkoutConfig?.defaultUtmParams || "").trim();
       const url = utm ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${utm.replace(/^\?+/, "")}` : baseUrl;
       const expiresAt = expiryHours ? new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString() : null;
-      const prevMeta = customer?.metadata ?? {};
+      const prevMeta =
+        customer?.metadata && typeof customer.metadata === "object" && !Array.isArray(customer.metadata) ? customer.metadata : {};
       const nextMeta = {
         ...prevMeta,
         tokenizationLink: {
@@ -835,17 +811,11 @@ export async function createPlanAndSubscription(formData: FormData) {
           usedAt: null
         }
       };
-      await adminFetch(`/admin/customers/${customerId}`, {
-        method: "PUT",
-        body: JSON.stringify({ metadata: nextMeta })
-      }).catch(() => {});
+      await updateCustomerProfile({ customerId, metadata: nextMeta }).catch(() => {});
 
       let rulesActive: boolean | null = null;
       try {
-        const scheduled = await adminFetch("/admin/notifications/schedule/tokenization?forceNow=1", {
-          method: "POST",
-          body: JSON.stringify({ customerId, tokenUrl: url })
-        });
+        const scheduled = await scheduleTokenizationLinkNotifications({ customerId, tokenUrl: url, forceNow: true });
         rulesActive = Boolean(scheduled?.rulesActive);
       } catch {
         rulesActive = null;
@@ -894,10 +864,7 @@ export async function sendChatwootPaymentLink(formData: FormData) {
   });
 
   try {
-    await adminFetch("/admin/chatwoot/messages", {
-      method: "POST",
-      body: JSON.stringify({ customerId, content })
-    });
+    await sendChatwootMessageForCustomer({ customerId, content });
     redirect(mergeQuery(returnTo, { created: "1", central: "sent", customerId, checkoutUrl }));
   } catch (err: any) {
     redirect(mergeQuery(returnTo, { error: String(err?.message || "chatwoot_send_failed") }));
@@ -916,11 +883,9 @@ export async function sendCentralComPaymentLink(formData: FormData) {
   }
 
   try {
-    const path = tenantId
-      ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/payment-link?tenantId=${encodeURIComponent(tenantId)}`
-      : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/payment-link`;
-    const json = await adminFetch(path, { method: "POST", body: JSON.stringify({}) });
-    const checkoutUrl = String(json?.checkoutUrl || "").trim();
+    const res = await createSubscriptionPaymentLink({ subscriptionId, tenantId: tenantId || null });
+    if (!res.ok) throw new Error(res.error);
+    const checkoutUrl = String((res as any)?.checkoutUrl || "").trim();
     if (!checkoutUrl) return redirect(mergeQuery(returnTo, { error: "checkout_url_missing", ...(tenantId ? { tenantId } : {}) }));
 
     const rulesActive = await hasNotificationRule("PAYMENT_LINK_CREATED");
@@ -960,10 +925,10 @@ export async function sendCentralComTokenizationLink(formData: FormData) {
 
   try {
     const [settings, customerRes] = await Promise.all([
-      adminFetch("/admin/settings", { method: "GET" }).catch(() => null),
-      adminFetch(`/admin/customers/${encodeURIComponent(customerId)}`, { method: "GET" }).catch(() => null)
+      getAdminSettings().catch(() => null),
+      getCustomerById(customerId).catch(() => null)
     ]);
-    const checkoutConfig = settings?.checkoutConfig || {};
+    const checkoutConfig = (settings as any)?.checkoutConfig || {};
     const base = normalizeCheckoutBase(String(checkoutConfig?.subscriptionBaseUrl || "").trim(), "suscripcion");
     if (!base) {
       return redirect(mergeQuery(returnTo, { error: "missing_subscription_base_url", ...(tenantId ? { tenantId } : {}) }));
@@ -979,8 +944,9 @@ export async function sendCentralComTokenizationLink(formData: FormData) {
         : null;
     const expiresAt = expiryHours ? new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString() : null;
 
-    const customer = customerRes?.customer || {};
-    const prevMeta = customer?.metadata ?? {};
+    const customer = (customerRes || {}) as any;
+    const prevMeta =
+      customer?.metadata && typeof customer.metadata === "object" && !Array.isArray(customer.metadata) ? customer.metadata : {};
     const nextMeta = {
       ...prevMeta,
       tokenizationLink: {
@@ -993,17 +959,11 @@ export async function sendCentralComTokenizationLink(formData: FormData) {
         usedAt: null
       }
     };
-    await adminFetch(`/admin/customers/${encodeURIComponent(customerId)}`, {
-      method: "PUT",
-      body: JSON.stringify({ metadata: nextMeta })
-    }).catch(() => {});
+    await updateCustomerProfile({ customerId, metadata: nextMeta }).catch(() => {});
 
     let rulesActive: boolean | null = null;
     try {
-      const scheduled = await adminFetch("/admin/notifications/schedule/tokenization?forceNow=1", {
-        method: "POST",
-        body: JSON.stringify({ customerId, tokenUrl: url })
-      });
+      const scheduled = await scheduleTokenizationLinkNotifications({ customerId, tokenUrl: url, forceNow: true });
       rulesActive = Boolean(scheduled?.rulesActive);
     } catch {
       rulesActive = null;
@@ -1032,12 +992,13 @@ export async function deletePlanAndSubscription(formData: FormData) {
   if (!subscriptionId || !planId) return redirect("/billing?error=missing_plan_or_subscription");
 
   try {
-    const path = tenantId
-      ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}?tenantId=${encodeURIComponent(tenantId)}&force=1&purgePayments=1`
-      : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}?force=1&purgePayments=1`;
-    await adminFetch(path, {
-      method: "DELETE"
+    const res = await deleteSubscriptionService({
+      subscriptionId,
+      tenantId: tenantId || null,
+      force: true,
+      purgePayments: true
     });
+    if (!res.ok) throw new Error(res.error);
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
     const msg = String(err?.message || "delete_subscription_failed");
@@ -1054,10 +1015,8 @@ export async function deletePlanAndSubscription(formData: FormData) {
   }
 
   try {
-    const path = tenantId
-      ? `/admin/plans/${encodeURIComponent(planId)}?tenantId=${encodeURIComponent(tenantId)}&force=1`
-      : `/admin/plans/${encodeURIComponent(planId)}?force=1`;
-    await adminFetch(path, { method: "DELETE" });
+    const res = await deletePlanService({ planId, tenantId: tenantId || null, force: true });
+    if (!res.ok) throw new Error(res.error);
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
     const msg = String(err?.message || "delete_plan_failed");

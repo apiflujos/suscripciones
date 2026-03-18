@@ -11,6 +11,7 @@ type Props = {
   defaultOpen?: boolean;
   mode?: "toggle" | "always_open";
   hidePanelHeader?: boolean;
+  useModal?: boolean;
   returnTo?: string;
   csrfToken: string;
   tenantId?: string;
@@ -22,6 +23,7 @@ export function NewCustomerForm({
   defaultOpen = false,
   mode = "toggle",
   hidePanelHeader = false,
+  useModal = true,
   returnTo,
   csrfToken,
   tenantId,
@@ -113,39 +115,40 @@ export function NewCustomerForm({
   return (
     <div className="panel module">
       {!hidePanelHeader ? (
-        <div className="panel-header ui-panel-header">
+        <div className="panel-header ui-panel-header ui-panel-header-left">
           <div className="ui-panel-title">
             <h3 className="ui-title-reset">Nuevo contacto</h3>
             <HelpTip text="Crea un contacto con datos básicos, dirección (DANE) e identificación." />
+            {alwaysOpen ? null : (
+              <button className="primary btn-create" type="button" onClick={() => setOpen(true)}>
+                Crear contacto
+              </button>
+            )}
           </div>
-          {alwaysOpen ? null : (
-            <button className="primary btn-create" type="button" onClick={() => setOpen(true)}>
-              Crear contacto
-            </button>
-          )}
         </div>
       ) : null}
 
       {open ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel">
-            <div className="panel-header ui-panel-header">
-              <h3 className="ui-title-reset">Crear contacto</h3>
-              <button type="button" className="ghost modal-close" onClick={() => setOpen(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                X
-              </button>
-            </div>
-            <form
-              action={createCustomer}
-              onKeyDownCapture={enterToNextField}
-              onSubmit={(e) => {
-                e.currentTarget.classList.add("was-validated");
-              }}
-              className="ui-form-grid"
-            >
-              <input type="hidden" name="csrf" value={csrfToken} />
-              {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
-          <div className="field">
+        useModal ? (
+          <div className="modal-backdrop">
+            <div className="modal-panel ui-modal-panel-wide">
+              <div className="panel-header ui-panel-header">
+                <h3 className="ui-title-reset">Crear contacto</h3>
+                <button type="button" className="ghost modal-close" onClick={() => setOpen(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">
+                  X
+                </button>
+              </div>
+              <form
+                action={createCustomer}
+                onKeyDownCapture={enterToNextField}
+                onSubmit={(e) => {
+                  e.currentTarget.classList.add("was-validated");
+                }}
+                className="ui-form-grid ui-grid-2 compact-form"
+              >
+                <input type="hidden" name="csrf" value={csrfToken} />
+                {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
+          <div className="field grid-span-2">
             <label>Canal de ventas</label>
             <select
               className="select select-compact"
@@ -180,7 +183,7 @@ export function NewCustomerForm({
             <input className="input" name="email" type="email" placeholder="correo@empresa.com" required />
           </div>
 
-          <div className="panel module">
+          <div className="panel module grid-span-2">
             <div className="panel-header ui-panel-header">
               <div className="ui-panel-title">
                 <h3 className="ui-title-reset">Dirección</h3>
@@ -225,7 +228,7 @@ export function NewCustomerForm({
             <input type="hidden" name="dane8" value={selected?.dane8 ?? ""} />
           </div>
 
-          <div className="panel module">
+          <div className="panel module grid-span-2">
             <div className="panel-header ui-panel-header">
               <div className="ui-panel-title">
                 <h3 className="ui-title-reset">Identificación</h3>
@@ -250,14 +253,137 @@ export function NewCustomerForm({
             </div>
           </div>
 
-              <div className="module-footer">
-                <button className="primary btn-save" type="submit">
-                  Guardar
-                </button>
-              </div>
-            </form>
+                <div className="module-footer grid-span-2">
+                  <button className="primary btn-save" type="submit">
+                    Guardar
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
+        ) : (
+          <form
+            action={createCustomer}
+            onKeyDownCapture={enterToNextField}
+            onSubmit={(e) => {
+              e.currentTarget.classList.add("was-validated");
+            }}
+            className="ui-form-grid ui-grid-2 compact-form"
+          >
+            <input type="hidden" name="csrf" value={csrfToken} />
+            {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
+          <div className="field grid-span-2">
+            <label>Canal de ventas</label>
+            <select
+              className="select select-compact"
+              name="tenantId"
+              value={selectedTenant}
+              onChange={(e) => setSelectedTenant(e.target.value)}
+              required
+            >
+              <option value="" disabled>
+                Selecciona un canal
+              </option>
+              {tenants.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+            <div className="field-hint">
+              {selectedTenantName ? `Seleccionado: ${selectedTenantName}` : "Selecciona un canal para continuar."}
+            </div>
+          </div>
+          <div className="field">
+            <label>Nombre</label>
+            <input ref={nameRef} className="input" name="name" placeholder="Nombre" required />
+          </div>
+          <div className="field">
+            <label>Teléfono</label>
+            <input className="input" name="phone" placeholder="+57..." required />
+          </div>
+          <div className="field">
+            <label>Email</label>
+            <input className="input" name="email" type="email" placeholder="correo@empresa.com" required />
+          </div>
+
+          <div className="panel module grid-span-2">
+            <div className="panel-header ui-panel-header">
+              <div className="ui-panel-title">
+                <h3 className="ui-title-reset">Dirección</h3>
+                <HelpTip text="Selecciona departamento y municipio para guardar los códigos DANE." />
+              </div>
+            </div>
+
+            {loadError ? (
+              <div className="field-hint ui-alert-danger">
+                No se pudo cargar DANE: {loadError}
+              </div>
+            ) : null}
+
+            <div className="field">
+              <label>Dirección</label>
+              <input className="input" name="addressLine1" placeholder="Calle 123 # 45-67" />
+            </div>
+            <div className="field">
+              <label>Departamento</label>
+              <select className="select" name="dept" value={dept} disabled={loading} onChange={(e) => setDept(e.target.value)} required>
+                <option value="">{loading ? "Cargando..." : "Selecciona"}</option>
+                {depts.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label>Municipio</label>
+              <select className="select" name="city" value={city} disabled={loading || !dept} onChange={(e) => setCity(e.target.value)} required>
+                <option value="">{!dept ? "Selecciona departamento" : loading ? "Cargando..." : "Selecciona"}</option>
+                {cities.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <input type="hidden" name="code5" value={selected?.code5 ?? ""} />
+            <input type="hidden" name="dane8" value={selected?.dane8 ?? ""} />
+          </div>
+
+          <div className="panel module grid-span-2">
+            <div className="panel-header ui-panel-header">
+              <div className="ui-panel-title">
+                <h3 className="ui-title-reset">Identificación</h3>
+                <HelpTip text="Opcional. Útil para búsquedas y para trazabilidad del cliente." />
+              </div>
+            </div>
+
+            <div className="ui-grid-2-wide">
+              <div className="field">
+                <label>Tipo</label>
+                <select className="select" name="idType" value={idType} onChange={(e) => setIdType(e.target.value)}>
+                  <option value="CC">CC</option>
+                  <option value="NIT">NIT</option>
+                  <option value="CE">CE</option>
+                  <option value="PP">PP</option>
+                </select>
+              </div>
+              <div className="field">
+                <label>Número</label>
+                <input className="input" name="idNumber" value={idNumber} onChange={(e) => setIdNumber(e.target.value)} placeholder="123456789" />
+              </div>
+            </div>
+          </div>
+
+            <div className="module-footer grid-span-2">
+              <button className="primary btn-save" type="submit">
+                Guardar
+              </button>
+            </div>
+          </form>
+        )
       ) : null}
     </div>
   );

@@ -1,7 +1,9 @@
-import { fetchAdminCached } from "../../lib/adminApi";
 import { createUser } from "./actions";
 import { getCsrfToken } from "../../lib/csrf";
 import { normalizeErrorParam } from "../../lib/errorParam";
+import { cookies } from "next/headers";
+import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../../lib/session";
+import { listAdminUsers } from "../../admin/_services/adminUsers";
 
 export default async function SettingsUsersPage({
   searchParams
@@ -13,8 +15,11 @@ export default async function SettingsUsersPage({
   const error = normalizeErrorParam(sp.error);
   const created = String(sp.created || "").trim() === "1";
 
-  const usersRes = await fetchAdminCached("/admin/settings/users", { ttlMs: 0 });
-  const users: any[] = usersRes.ok ? usersRes.json?.items || [] : [];
+  const c = await cookies();
+  const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
+  const session = await verifyAdminSessionToken(sessionToken);
+  const usersRes = await listAdminUsers(session);
+  const users: any[] = usersRes.ok ? usersRes.items || [] : [];
 
   return (
     <div style={{ display: "grid", gap: 12 }}>
@@ -37,7 +42,7 @@ export default async function SettingsUsersPage({
         <div className="settings-group-body">
           {!usersRes.ok && (
             <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>
-              Error cargando usuarios: {usersRes.status}
+              Error cargando usuarios: {usersRes.error}
             </div>
           )}
 

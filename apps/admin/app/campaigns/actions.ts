@@ -1,8 +1,10 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { getAdminApiConfig } from "../lib/adminApi";
 import { assertCsrfToken } from "../lib/csrf";
+import { cookies } from "next/headers";
+import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
+import { createCampaign as createCampaignService, runCampaign as runCampaignService } from "../admin/_services/campaigns";
 
 function toShortErrorMessage(err: unknown) {
   const raw = err instanceof Error ? err.message : String(err);
@@ -15,25 +17,11 @@ function isNextRedirect(err: unknown) {
   return typeof digest === "string" && digest.startsWith("NEXT_REDIRECT");
 }
 
-async function adminFetch(path: string, init: RequestInit) {
-  const { apiBase, token } = getAdminApiConfig();
-  if (!token) throw new Error("missing_admin_token");
-  const res = await fetch(`${apiBase}${path}`, {
-    ...init,
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${token}`,
-      "x-admin-token": token,
-      ...(init.headers || {})
-    },
-    cache: "no-store"
-  });
-  const json = await res.json().catch(() => null);
-  if (!res.ok) {
-    const apiErr = String(json?.error || "").trim();
-    throw new Error(apiErr || `request_failed_${res.status}`);
-  }
-  return json;
+async function getSessionTenantId() {
+  const c = await cookies();
+  const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
+  const session = await verifyAdminSessionToken(sessionToken);
+  return session?.tenantId || null;
 }
 
 export async function createCampaign(formData: FormData) {
@@ -66,15 +54,17 @@ export async function createCampaign(formData: FormData) {
   }
 
   try {
-    await adminFetch("/admin/comms/campaigns", {
-      method: "POST",
-      body: JSON.stringify({
+    const tenantId = await getSessionTenantId();
+    const out = await createCampaignService({
+      tenantId,
+      input: {
         name,
         smartListId: smartListId || undefined,
         content,
         templateParams
-      })
+      }
     });
+    if (!out.ok) throw new Error(out.error || "create_failed");
     redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}created=1`);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
@@ -88,7 +78,8 @@ export async function runCampaign(formData: FormData) {
   const id = String(formData.get("id") || "").trim();
   if (!id) return redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=missing_id`);
   try {
-    await adminFetch(`/admin/comms/campaigns/${encodeURIComponent(id)}/run`, { method: "POST" });
+    const out = await runCampaignService(id);
+    if (!out.ok) throw new Error(out.error || "run_failed");
     redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}running=${encodeURIComponent(id)}`);
   } catch (err) {
     if (isNextRedirect(err)) throw err;

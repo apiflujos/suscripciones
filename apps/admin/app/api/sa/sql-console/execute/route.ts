@@ -1,29 +1,22 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { getAdminApiConfig } from "../../../../lib/adminApi";
-import { normalizeToken } from "../../../../lib/normalizeToken";
-import { SA_COOKIE } from "../../../../__sa/saApi";
+import { requireApiSession } from "../../../_lib/requireApiSession";
+import { requireSaSessionFromCookie } from "../../../_lib/requireSaSession";
+import { executeSqlConsole } from "../../../../admin/_services/sqlConsole";
 
 export async function POST(req: Request) {
-  const { apiBase } = getAdminApiConfig();
-  const token = normalizeToken(process.env.ADMIN_API_TOKEN || "");
-  if (!token) return NextResponse.json({ error: "missing_admin_token" }, { status: 401 });
+  const auth = await requireApiSession({ roles: ["SUPER_ADMIN"] });
+  if (!auth.ok) return auth.response;
 
-  const c = await cookies();
-  const saToken = normalizeToken(c.get(SA_COOKIE)?.value || "");
-  if (!saToken) return NextResponse.json({ error: "missing_sa_session" }, { status: 401 });
+  const sa = await requireSaSessionFromCookie();
+  if (!sa.ok) return sa.response;
 
-  const body = await req.text();
-  const res = await fetch(`${apiBase}/admin/sa/sql-console/execute`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${token}`,
-      "x-admin-token": token,
-      "x-sa-session": saToken
-    },
-    body
-  });
-  const json = await res.json().catch(() => ({ error: "invalid_response" }));
-  return NextResponse.json(json, { status: res.status });
+  const body = await req.json().catch(() => null);
+  const result = await executeSqlConsole(body);
+  if (!result.ok) {
+    return NextResponse.json(
+      { error: result.error, message: result.message, details: result.details, statement: result.statement, max: result.max, durationMs: result.durationMs },
+      { status: result.status }
+    );
+  }
+  return NextResponse.json(result.payload, { status: result.status });
 }

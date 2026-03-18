@@ -1,29 +1,45 @@
-import { getRequiredApiBase } from "../../../lib/adminApi";
-import { normalizeToken } from "../../../lib/normalizeToken";
+import { z } from "zod";
+import { requireApiSession } from "../../_lib/requireApiSession";
+import { reqToCompat } from "../../../admin/_lib/reqCompat";
+import { coerceTenantId, getEffectiveTenantId } from "@suscripciones/core/services/tenantContext";
+import { queueAiAssistRequest } from "../../../admin/_services/ai";
+
+const askSchema = z.object({
+  question: z.string().min(3).max(2000),
+  from: z.string().optional(),
+  to: z.string().optional(),
+  tenantId: z.string().optional(),
+  customerId: z.string().optional(),
+  productId: z.string().optional(),
+  scope: z.string().optional()
+});
 
 export async function POST(req: Request) {
-  const API_BASE = getRequiredApiBase();
-  const token = normalizeToken(process.env.ADMIN_API_TOKEN || "");
-  if (!token) return new Response(JSON.stringify({ error: "missing_admin_token" }), { status: 401 });
+  const auth = await requireApiSession();
+  if (!auth.ok) return auth.response;
 
   const body = await req.json().catch(() => null);
-  if (!body || typeof body !== "object") {
-    return new Response(JSON.stringify({ error: "invalid_body" }), { status: 400 });
+  const parsed = askSchema.safeParse(body);
+  if (!parsed.success) {
+    return Response.json({ error: "invalid_body", details: parsed.error.flatten() }, { status: 400 });
   }
 
-  const res = await fetch(`${API_BASE}/admin/ai/ask`, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${token}`,
-      "x-admin-token": token,
-      "content-type": "application/json"
-    },
-    body: JSON.stringify(body),
-    cache: "no-store"
+  const tenantId =
+    coerceTenantId(parsed.data.tenantId) ??
+    (await getEffectiveTenantId(reqToCompat(req, parsed.data))) ??
+    null;
+
+  const result = await queueAiAssistRequest({
+    question: parsed.data.question,
+    from: parsed.data.from || null,
+    to: parsed.data.to || null,
+    tenantId: tenantId || null,
+    customerId: parsed.data.customerId || null,
+    productId: parsed.data.productId || null,
+    scope: parsed.data.scope || null
   });
-  const json = await res.json().catch(() => ({}));
-  return new Response(JSON.stringify(json), {
-    status: res.status,
-    headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }
-  });
+  if (!result.ok) {
+    return Response.json({ error: result.error, reason: result.reason }, { status: result.status });
+  }
+  return Response.json({ requestId: result.requestId });
 }

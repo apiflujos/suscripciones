@@ -1,23 +1,16 @@
 import { NextResponse } from "next/server";
-import { getAdminApiConfig } from "../../../lib/adminApi";
+import { requireApiSession } from "../../_lib/requireApiSession";
+import { searchPlans } from "../../../admin/_services/search";
 
 export async function GET(req: Request) {
-  const { apiBase, token } = getAdminApiConfig();
-  if (!token) return NextResponse.json({ error: "missing_admin_token" }, { status: 401 });
+  const auth = await requireApiSession();
+  if (!auth.ok) return auth.response;
 
   const { searchParams } = new URL(req.url);
   const q = String(searchParams.get("q") || "").trim();
   const tenantId = String(searchParams.get("tenantId") || "").trim();
   const take = String(searchParams.get("take") || "80").trim();
-  const qs = new URLSearchParams();
-  if (q) qs.set("q", q);
-  if (take) qs.set("take", take);
-  if (tenantId) qs.set("tenantId", tenantId);
-
-  const res = await fetch(`${apiBase}/admin/plans?${qs.toString()}`, {
-    cache: "no-store",
-    headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
-  });
-  const json = await res.json().catch(() => null);
-  return NextResponse.json(json ?? { error: "invalid_response" }, { status: res.status });
+  const takeNum = Number(take);
+  const items = await searchPlans({ q, take: Number.isFinite(takeNum) ? takeNum : 80, tenantId: tenantId || auth.session.tenantId || null });
+  return NextResponse.json({ items });
 }

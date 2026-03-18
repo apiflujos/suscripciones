@@ -1,9 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { normalizeToken } from "../lib/normalizeToken";
 import { assertCsrfToken } from "../lib/csrf";
-import { getRequiredApiBase } from "../lib/adminApi";
+import { createTenant as createTenantService, updateTenant as updateTenantService, deleteTenant as deleteTenantService } from "../admin/_services/tenants";
 
 function mergeQuery(path: string, extra: Record<string, string | undefined>) {
   const url = new URL(path || "/", "http://localhost");
@@ -11,23 +10,6 @@ function mergeQuery(path: string, extra: Record<string, string | undefined>) {
     if (value) url.searchParams.set(key, value);
   }
   return `${url.pathname}${url.search}`;
-}
-
-async function adminFetch(path: string, init: RequestInit) {
-  const API_BASE = getRequiredApiBase();
-  const TOKEN = normalizeToken(process.env.ADMIN_API_TOKEN || "");
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: {
-      ...(TOKEN ? { authorization: `Bearer ${TOKEN}`, "x-admin-token": TOKEN } : {}),
-      "content-type": "application/json",
-      ...(init.headers ?? {})
-    },
-    cache: "no-store"
-  });
-  const json = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(json?.reason ? `${json?.error || "request_failed"}:${json.reason}` : json?.error || `request_failed_${res.status}`);
-  return json;
 }
 
 export async function createTenant(formData: FormData) {
@@ -38,7 +20,8 @@ export async function createTenant(formData: FormData) {
   if (!name) return redirect(mergeQuery(returnTo, { error: "tenant_name_required" }));
 
   try {
-    const res = await adminFetch("/admin/tenants", { method: "POST", body: JSON.stringify({ name, logoUrl }) });
+    const res = await createTenantService({ name, logoUrl });
+    if (!res.ok) throw new Error(res.error);
     const tenantId = res?.tenant?.id ? String(res.tenant.id) : "";
     const url = new URL(returnTo, "http://localhost");
     if (tenantId) url.searchParams.set("tenantId", tenantId);
@@ -71,20 +54,19 @@ export async function updateTenant(formData: FormData) {
   const followupMaxAttempts = followupMaxAttemptsRaw ? Number(followupMaxAttemptsRaw) : undefined;
 
   try {
-    await adminFetch(`/admin/tenants/${encodeURIComponent(tenantId)}`, {
-      method: "PUT",
-      body: JSON.stringify({
-        name,
-        logoUrl,
-        gamification: {
-          ...(Number.isFinite(factor as any) ? { factor } : {}),
-          ...(Number.isFinite(bonus as any) ? { bonus } : {}),
-          ...(Number.isFinite(followupMinutes as any) ? { followupMinutes } : {}),
-          ...(Number.isFinite(followupCooldownMinutes as any) ? { followupCooldownMinutes } : {}),
-          ...(Number.isFinite(followupMaxAttempts as any) ? { followupMaxAttempts } : {})
-        }
-      })
+    const updated = await updateTenantService({
+      tenantId,
+      name,
+      logoUrl,
+      gamification: {
+        ...(Number.isFinite(factor as any) ? { factor } : {}),
+        ...(Number.isFinite(bonus as any) ? { bonus } : {}),
+        ...(Number.isFinite(followupMinutes as any) ? { followupMinutes } : {}),
+        ...(Number.isFinite(followupCooldownMinutes as any) ? { followupCooldownMinutes } : {}),
+        ...(Number.isFinite(followupMaxAttempts as any) ? { followupMaxAttempts } : {})
+      }
     });
+    if (!updated.ok) throw new Error(updated.error);
     redirect(mergeQuery(returnTo, { saved: "1" }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
@@ -99,35 +81,23 @@ export async function deleteTenant(formData: FormData) {
   if (!tenantId) return redirect(mergeQuery(returnTo, { error: "missing_tenant_id" }));
 
   try {
-    const API_BASE = getRequiredApiBase();
-    const TOKEN = normalizeToken(process.env.ADMIN_API_TOKEN || "");
-    const res = await fetch(`${API_BASE}/admin/tenants/${encodeURIComponent(tenantId)}`, {
-      method: "DELETE",
-      headers: {
-        ...(TOKEN ? { authorization: `Bearer ${TOKEN}`, "x-admin-token": TOKEN } : {}),
-        "content-type": "application/json"
-      },
-      cache: "no-store"
-    });
-    const json = await res.json().catch(() => null);
-    if (!res.ok) {
-      if (res.status === 409 && json?.error === "tenant_has_data") {
-        const details = json?.details || {};
-        return redirect(
-          mergeQuery(returnTo, {
-            tenantDeleteBlocked: "1",
-            tenantCustomers: details.customers ? String(details.customers) : undefined,
-            tenantPlans: details.plans ? String(details.plans) : undefined,
-            tenantSubscriptions: details.subscriptions ? String(details.subscriptions) : undefined,
-            tenantPayments: details.payments ? String(details.payments) : undefined,
-            tenantPaymentLinks: details.paymentLinks ? String(details.paymentLinks) : undefined,
-            tenantCheckoutTemplates: details.checkoutTemplates ? String(details.checkoutTemplates) : undefined
-          })
-        );
-      }
-      throw new Error(json?.reason ? `${json?.error || "request_failed"}:${json.reason}` : json?.error || `request_failed_${res.status}`);
+    const res = await deleteTenantService({ tenantId });
+    if (!res.ok && res.status === 409 && res.error === "tenant_has_data") {
+      const details = (res as any).details || {};
+      return redirect(
+        mergeQuery(returnTo, {
+          tenantDeleteBlocked: "1",
+          tenantCustomers: details.customers ? String(details.customers) : undefined,
+          tenantPlans: details.plans ? String(details.plans) : undefined,
+          tenantSubscriptions: details.subscriptions ? String(details.subscriptions) : undefined,
+          tenantPayments: details.payments ? String(details.payments) : undefined,
+          tenantPaymentLinks: details.paymentLinks ? String(details.paymentLinks) : undefined,
+          tenantCheckoutTemplates: details.checkoutTemplates ? String(details.checkoutTemplates) : undefined
+        })
+      );
     }
-    if (json?.archived) {
+    if (!res.ok) throw new Error(res.error);
+    if ((res as any).archived) {
       return redirect(mergeQuery(returnTo, { deleted: "1", tenantArchived: "1" }));
     }
     redirect(mergeQuery(returnTo, { deleted: "1" }));

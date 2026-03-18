@@ -19,8 +19,8 @@ Documentación técnica del módulo de métricas del sistema de suscripciones.
 El módulo de métricas proporciona reportes agregados sobre el desempeño del sistema de suscripciones y pagos. Los datos se calculan en tiempo real con caché estratégico para optimizar performance.
 
 **Archivos principales:**
-- `apps/api/src/services/metrics.ts` - Lógica de negocio y cálculos
-- `apps/api/src/routes/metrics.ts` - Endpoints HTTP
+- `packages/core/src/services/metrics.ts` - Lógica de negocio y cálculos
+- `packages/core/src/routes/metrics.ts` - Endpoints HTTP
 - `apps/admin/app/page.tsx` - Dashboard frontend
 - `apps/admin/app/lib/metricsFormat.ts` - Utilidades de formateo
 

@@ -14,7 +14,7 @@ Tienes **pagos huérfanos** (sin suscripción) y **contactos huérfanos** que:
 
 ### 1. Script Automático de Limpieza
 
-**Archivo:** `apps/api/src/scripts/cleanup-database.ts`
+**Archivo:** `packages/core/src/scripts/cleanup-database.ts`
 
 **Qué limpia:**
 - ✅ Pagos sin suscripción (antiguos, sin transacción Wompi)
@@ -79,12 +79,12 @@ curl "https://tu-dominio.com/api/logs/payments/orphaned?days=30&limit=100"
 psql -h <host> -U <user> -d <database>
 
 # Ejecutar análisis
-\i apps/api/scripts/sql/analyze-orphan-payments.sql
+\i packages/core/scripts/sql/analyze-orphan-payments.sql
 ```
 
 **Opción C - Script Dry-Run:**
 ```bash
-cd apps/api
+cd /path/to/wompi_subs
 npx tsx src/scripts/cleanup-database.ts --dry-run --days=30
 ```
 
@@ -95,15 +95,15 @@ npx tsx src/scripts/cleanup-database.ts --dry-run --days=30
 **En Producción (PM2):**
 ```bash
 # Dry-run primero
-pm2 exec 0 "npx tsx apps/api/src/scripts/cleanup-database.ts --dry-run"
+pm2 exec 0 "npx tsx packages/core/src/scripts/cleanup-database.ts --dry-run"
 
 # Limpieza real
-pm2 exec 0 "npx tsx apps/api/src/scripts/cleanup-database.ts --days=30"
+pm2 exec 0 "npx tsx packages/core/src/scripts/cleanup-database.ts --days=30"
 ```
 
 **En Local:**
 ```bash
-cd apps/api
+cd /path/to/wompi_subs
 npx tsx src/scripts/cleanup-database.ts --days=30
 ```
 
@@ -275,7 +275,7 @@ ORDER BY p."createdAt" ASC;
 **Solución:** Los pagos eliminados NO se pueden recuperar. Siempre hacer dry-run primero.
 
 ```bash
-npx tsx apps/api/src/scripts/cleanup-dleanup-database.ts --dry-run --days=30
+npx tsx packages/core/src/scripts/cleanup-dleanup-database.ts --dry-run --days=30
 ```
 
 ### "Hay pagos con transacción Wompi que no tienen match"
@@ -299,7 +299,7 @@ WHERE id = 'uuid-del-pago';
 **Solución:** Los contactos en Chatwoot son independientes. Sincronizar:
 
 ```bash
-npx tsx apps/api/src/scripts/sync-chatwoot-contacts.ts
+npx tsx packages/core/src/scripts/sync-chatwoot-contacts.ts
 ```
 
 ---

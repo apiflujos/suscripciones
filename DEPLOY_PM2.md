@@ -64,14 +64,16 @@ export GAMIFICATION_RECALC_MINUTES=60
 ### Copiar a archivos específicos
 
 ```bash
-# API
-cp .env apps/api/.env
-
-# Admin
+# Admin (incluye backend y frontend)
 cat > apps/admin/.env.local << EOF
-NEXT_PUBLIC_API_BASE_URL=https://tudominio.com
+DATABASE_URL=$DATABASE_URL
+PORT=3002
+NODE_ENV=production
 ADMIN_API_TOKEN=$ADMIN_API_TOKEN
 ADMIN_SESSION_SECRET=$ADMIN_SESSION_SECRET
+SUPER_ADMIN_EMAIL=$SUPER_ADMIN_EMAIL
+SUPER_ADMIN_PASSWORD=$SUPER_ADMIN_PASSWORD
+NEXT_PUBLIC_API_BASE_URL=https://tudominio.com
 EOF
 ```
 
@@ -83,8 +85,8 @@ EOF
 # Instalar dependencias
 npm ci --production
 
-# Build de API
-cd apps/api
+# Build de Admin (incluye backend)
+cd apps/admin
 npm ci --production
 npm run build
 cd ../..
@@ -101,7 +103,7 @@ cd ../..
 ## 📋 Paso 4: Migraciones de Base de Datos
 
 ```bash
-cd apps/api
+cd apps/admin
 
 # Generar Prisma Client
 npx prisma generate
@@ -125,21 +127,6 @@ cd ../..
 module.exports = {
   apps: [
     {
-      name: 'wompi-subs-api',
-      cwd: './apps/api',
-      script: 'npm',
-      args: 'run start',
-      env: {
-        NODE_ENV: 'production',
-        PORT: 3001
-      },
-      instances: 2,
-      exec_mode: 'cluster',
-      error_file: './logs/api-error.log',
-      out_file: './logs/api-out.log',
-      log_date_format: 'YYYY-MM-DD HH:mm:ss'
-    },
-    {
       name: 'wompi-subs-admin',
       cwd: './apps/admin',
       script: 'npm',
@@ -153,6 +140,20 @@ module.exports = {
       exec_mode: 'fork',
       error_file: './logs/admin-error.log',
       out_file: './logs/admin-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss'
+    },
+    {
+      name: 'wompi-subs-jobs',
+      cwd: './apps/worker',
+      script: 'npm',
+      args: 'run start',
+      env: {
+        NODE_ENV: 'production'
+      },
+      instances: 1,
+      exec_mode: 'fork',
+      error_file: './logs/jobs-error.log',
+      out_file: './logs/jobs-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss'
     }
   ]
@@ -396,7 +397,7 @@ pm2 logs wompi-subs-api --err
 pm2 show wompi-subs-api
 
 # Revisar .env
-cat apps/api/.env | grep DATABASE_URL
+cat apps/admin/.env.local | grep DATABASE_URL
 ```
 
 ### Admin no carga
@@ -412,7 +413,7 @@ pm2 restart wompi-subs-admin
 
 ```bash
 # Verificar conexión
-cd apps/api
+cd apps/admin
 npx prisma db pull
 
 # Regenerar client

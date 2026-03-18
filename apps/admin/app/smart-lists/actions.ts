@@ -1,8 +1,10 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { getAdminApiConfig } from "../lib/adminApi";
 import { assertCsrfToken } from "../lib/csrf";
+import { cookies } from "next/headers";
+import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
+import { createSmartList as createSmartListService, syncSmartList as syncSmartListService } from "../admin/_services/smartLists";
 
 function toShortErrorMessage(err: unknown) {
   const raw = err instanceof Error ? err.message : String(err);
@@ -15,25 +17,11 @@ function isNextRedirect(err: unknown) {
   return typeof digest === "string" && digest.startsWith("NEXT_REDIRECT");
 }
 
-async function adminFetch(path: string, init: RequestInit) {
-  const { apiBase, token } = getAdminApiConfig();
-  if (!token) throw new Error("missing_admin_token");
-  const res = await fetch(`${apiBase}${path}`, {
-    ...init,
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${token}`,
-      "x-admin-token": token,
-      ...(init.headers || {})
-    },
-    cache: "no-store"
-  });
-  const json = await res.json().catch(() => null);
-  if (!res.ok) {
-    const apiErr = String(json?.error || "").trim();
-    throw new Error(apiErr || `request_failed_${res.status}`);
-  }
-  return json;
+async function getSessionTenantId() {
+  const c = await cookies();
+  const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
+  const session = await verifyAdminSessionToken(sessionToken);
+  return session?.tenantId || null;
 }
 
 export async function createSmartList(formData: FormData) {
@@ -51,10 +39,9 @@ export async function createSmartList(formData: FormData) {
   }
 
   try {
-    await adminFetch("/admin/comms/smart-lists", {
-      method: "POST",
-      body: JSON.stringify({ name, description, rules, enabled })
-    });
+    const tenantId = await getSessionTenantId();
+    const out = await createSmartListService({ tenantId, name, description, rules, enabled });
+    if (!out.ok) throw new Error(out.error || "create_failed");
     redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}created=1`);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
@@ -77,8 +64,9 @@ export async function syncSmartList(formData: FormData) {
   if (!id) return redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=missing_id`);
 
   try {
-    const json = await adminFetch(`/admin/comms/smart-lists/${encodeURIComponent(id)}/sync`, { method: "POST" });
-    const msg = `agregados:${json?.added ?? 0},removidos:${json?.removed ?? 0}`;
+    const out = await syncSmartListService({ id });
+    if (!out.ok) throw new Error(out.error || "sync_failed");
+    const msg = `agregados:${out.added ?? 0},removidos:${out.removed ?? 0}`;
     redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}synced=${encodeURIComponent(msg)}`);
   } catch (err) {
     if (isNextRedirect(err)) throw err;

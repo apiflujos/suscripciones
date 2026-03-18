@@ -1,26 +1,15 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { normalizeToken } from "../lib/normalizeToken";
 import { assertCsrfToken } from "../lib/csrf";
-import { getRequiredApiBase } from "../lib/adminApi";
-
-async function adminFetch(path: string, init: RequestInit) {
-  const API_BASE = getRequiredApiBase();
-  const TOKEN = normalizeToken(process.env.ADMIN_API_TOKEN || "");
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: {
-      ...(TOKEN ? { authorization: `Bearer ${TOKEN}`, "x-admin-token": TOKEN } : {}),
-      "content-type": "application/json",
-      ...(init.headers ?? {})
-    },
-    cache: "no-store"
-  });
-  const json = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(json?.reason ? `${json?.error || "request_failed"}:${json.reason}` : json?.error || `request_failed_${res.status}`);
-  return json;
-}
+import {
+  createSubscription as createSubscriptionService,
+  createSubscriptionPaymentLink,
+  updateSubscriptionStatus,
+  deleteSubscription as deleteSubscriptionService,
+  mergeDuplicateSubscriptions as mergeDuplicateSubscriptionsService
+} from "../admin/_services/subscriptions";
+import { createPlan as createPlanService } from "../admin/_services/plans";
 
 function mergeQuery(path: string, extra: Record<string, string | undefined>) {
   const raw = String(path || "").trim();
@@ -44,19 +33,16 @@ export async function createSubscription(formData: FormData) {
   const createPaymentLink = String(formData.get("createPaymentLink") || "") === "on";
 
   try {
-    const json = await adminFetch("/admin/subscriptions", {
-      method: "POST",
-      body: JSON.stringify({
-        customerId,
-        planId,
-        ...(tenantId ? { tenantId } : {}),
-        ...(startAt ? { startAt } : {}),
-        ...(firstPeriodEndAt ? { firstPeriodEndAt } : {}),
-        createPaymentLink
-      })
+    const res = await createSubscriptionService({
+      customerId,
+      planId,
+      tenantIds: tenantId ? [tenantId] : [],
+      startAt: startAt || undefined,
+      firstPeriodEndAt: firstPeriodEndAt || undefined,
+      createPaymentLink
     });
-
-    const checkoutUrl = json?.checkoutUrl;
+    if (!res.ok) throw new Error(res.error);
+    const checkoutUrl = (res as any)?.checkoutUrl;
     if (checkoutUrl) {
       const qs = new URLSearchParams({ created: "1", linkSent: "1", checkoutUrl, customerId, ...(tenantId ? { tenantId } : {}) }).toString();
       redirect(`/billing?${qs}`);
@@ -76,15 +62,15 @@ export async function createPaymentLink(formData: FormData) {
   const customerId = String(formData.get("customerId") || "").trim();
   const tenantId = String(formData.get("tenantId") || "").trim();
   try {
-    const path = tenantId ? `/admin/subscriptions/${subscriptionId}/payment-link?tenantId=${encodeURIComponent(tenantId)}` : `/admin/subscriptions/${subscriptionId}/payment-link`;
-    const json = await adminFetch(path, {
-      method: "POST",
-      body: JSON.stringify({})
+    const res = await createSubscriptionPaymentLink({
+      subscriptionId,
+      tenantId: tenantId || null
     });
+    if (!res.ok) throw new Error(res.error);
     const qp = new URLSearchParams();
     qp.set("created", "1");
     qp.set("linkSent", "1");
-    if (json.checkoutUrl) qp.set("checkoutUrl", json.checkoutUrl);
+    if ((res as any).checkoutUrl) qp.set("checkoutUrl", String((res as any).checkoutUrl));
     if (customerId) qp.set("customerId", customerId);
     if (tenantId) qp.set("tenantId", tenantId);
     redirect(`/billing?${qp.toString()}`);
@@ -101,11 +87,8 @@ export async function suspendSubscription(formData: FormData) {
   const tenantId = String(formData.get("tenantId") || "").trim();
   if (!subscriptionId) return redirect(`/billing?error=${encodeURIComponent("invalid_subscription_id")}`);
   try {
-    const path = tenantId ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/suspend?tenantId=${encodeURIComponent(tenantId)}` : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/suspend`;
-    await adminFetch(path, {
-      method: "POST",
-      body: JSON.stringify({})
-    });
+    const res = await updateSubscriptionStatus({ subscriptionId, tenantId: tenantId || null, action: "suspend" });
+    if (!res.ok) throw new Error(res.error);
     const qs = new URLSearchParams({ suspended: "1", ...(tenantId ? { tenantId } : {}) }).toString();
     redirect(`/billing?${qs}`);
   } catch (err: any) {
@@ -121,11 +104,8 @@ export async function cancelSubscription(formData: FormData) {
   const tenantId = String(formData.get("tenantId") || "").trim();
   if (!subscriptionId) return redirect(`/billing?error=${encodeURIComponent("invalid_subscription_id")}`);
   try {
-    const path = tenantId ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/cancel?tenantId=${encodeURIComponent(tenantId)}` : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/cancel`;
-    await adminFetch(path, {
-      method: "POST",
-      body: JSON.stringify({})
-    });
+    const res = await updateSubscriptionStatus({ subscriptionId, tenantId: tenantId || null, action: "cancel" });
+    if (!res.ok) throw new Error(res.error);
     const qs = new URLSearchParams({ canceled: "1", ...(tenantId ? { tenantId } : {}) }).toString();
     redirect(`/billing?${qs}`);
   } catch (err: any) {
@@ -141,11 +121,8 @@ export async function resumeSubscription(formData: FormData) {
   const tenantId = String(formData.get("tenantId") || "").trim();
   if (!subscriptionId) return redirect(`/billing?error=${encodeURIComponent("invalid_subscription_id")}`);
   try {
-    const path = tenantId ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/resume?tenantId=${encodeURIComponent(tenantId)}` : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/resume`;
-    await adminFetch(path, {
-      method: "POST",
-      body: JSON.stringify({})
-    });
+    const res = await updateSubscriptionStatus({ subscriptionId, tenantId: tenantId || null, action: "resume" });
+    if (!res.ok) throw new Error(res.error);
     const qs = new URLSearchParams({ resumed: "1", ...(tenantId ? { tenantId } : {}) }).toString();
     redirect(`/billing?${qs}`);
   } catch (err: any) {
@@ -161,11 +138,8 @@ export async function activateSubscription(formData: FormData) {
   const tenantId = String(formData.get("tenantId") || "").trim();
   if (!subscriptionId) return redirect(`/billing?error=${encodeURIComponent("invalid_subscription_id")}`);
   try {
-    const path = tenantId ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/activate?tenantId=${encodeURIComponent(tenantId)}` : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/activate`;
-    await adminFetch(path, {
-      method: "POST",
-      body: JSON.stringify({})
-    });
+    const res = await updateSubscriptionStatus({ subscriptionId, tenantId: tenantId || null, action: "activate" });
+    if (!res.ok) throw new Error(res.error);
     const qs = new URLSearchParams({ activated: "1", ...(tenantId ? { tenantId } : {}) }).toString();
     redirect(`/billing?${qs}`);
   } catch (err: any) {
@@ -182,12 +156,13 @@ export async function deleteSubscription(formData: FormData) {
   const returnTo = String(formData.get("returnTo") || "/billing").trim();
   if (!subscriptionId) return redirect(`/billing?error=${encodeURIComponent("invalid_subscription_id")}`);
   try {
-    const path = tenantId
-      ? `/admin/subscriptions/${encodeURIComponent(subscriptionId)}?tenantId=${encodeURIComponent(tenantId)}&force=1&purgePayments=1`
-      : `/admin/subscriptions/${encodeURIComponent(subscriptionId)}?force=1&purgePayments=1`;
-    await adminFetch(path, {
-      method: "DELETE"
+    const res = await deleteSubscriptionService({
+      subscriptionId,
+      tenantId: tenantId || null,
+      force: true,
+      purgePayments: true
     });
+    if (!res.ok) throw new Error(res.error);
     redirect(mergeQuery(returnTo, { deleted: "1", ...(tenantId ? { tenantId } : {}) }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
@@ -221,17 +196,13 @@ export async function mergeDuplicateSubscriptions(formData: FormData) {
     return redirect(mergeQuery(returnTo, { error: "missing_customer_or_plan", ...(tenantId ? { tenantId } : {}) }));
   }
   try {
-    const path = tenantId
-      ? `/admin/subscriptions/merge-duplicates?tenantId=${encodeURIComponent(tenantId)}`
-      : "/admin/subscriptions/merge-duplicates";
-    await adminFetch(path, {
-      method: "POST",
-      body: JSON.stringify({
-        customerId,
-        planId,
-        ...(keepSubscriptionId ? { keepSubscriptionId } : {})
-      })
+    const res = await mergeDuplicateSubscriptionsService({
+      customerId,
+      planId,
+      keepSubscriptionId: keepSubscriptionId || undefined,
+      tenantId: tenantId || null
     });
+    if (!res.ok) throw new Error(res.error);
     redirect(mergeQuery(returnTo, { mergedSubscriptions: "1", ...(tenantId ? { tenantId } : {}) }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
@@ -251,12 +222,20 @@ export async function createPlan(formData: FormData) {
   const intervalUnit = String(formData.get("intervalUnit") || "MONTH").trim();
   const intervalCount = Number(String(formData.get("intervalCount") || "1"));
   const collectionMode = String(formData.get("collectionMode") || "MANUAL_LINK").trim();
+  const tenantId = String(formData.get("tenantId") || "").trim();
+  const tenantIds = tenantId ? [tenantId] : [];
 
   try {
-    await adminFetch("/admin/plans", {
-      method: "POST",
-      body: JSON.stringify({ name, priceInCents, currency, intervalUnit, intervalCount, collectionMode })
+    const res = await createPlanService({
+      tenantIds,
+      name,
+      priceInCents,
+      currency,
+      intervalUnit: intervalUnit as any,
+      intervalCount,
+      collectionMode: collectionMode as any
     });
+    if (!res.ok) throw new Error(res.error);
     redirect("/billing?created=1");
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;

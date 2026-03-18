@@ -26,11 +26,11 @@ packages/database/          ← Prisma ORM compartido
 
 | De | A | Estado |
 |----|---|--------|
-| `apps/api/src/routes/*` | `apps/web/app/api/*` | ✅ |
-| `apps/api/src/services/*` | `apps/web/app/lib/*` | ✅ |
-| `apps/api/src/providers/*` | `apps/web/app/lib/providers/*` | ✅ |
-| `apps/api/src/jobs/*` | `apps/web/app/lib/jobs/*` | ✅ |
-| `apps/api/prisma/*` | `packages/database/prisma/*` | ✅ |
+| `packages/core/src/routes/*` | `apps/web/app/api/*` | ✅ |
+| `packages/core/src/services/*` | `apps/web/app/lib/*` | ✅ |
+| `packages/core/src/providers/*` | `apps/web/app/lib/providers/*` | ✅ |
+| `packages/core/src/jobs/*` | `apps/web/app/lib/jobs/*` | ✅ |
+| `packages/database/prisma/*` | `packages/database/prisma/*` | ✅ |
 | `apps/admin/app/*` | `apps/web/app/*` | ✅ |
 | `apps/admin/middleware.ts` | `apps/web/middleware.ts` | ✅ |
 

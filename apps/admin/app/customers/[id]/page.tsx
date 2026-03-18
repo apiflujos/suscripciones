@@ -1,5 +1,13 @@
 import Link from "next/link";
-import { fetchAdminCached, getAdminApiConfig } from "../../lib/adminApi";
+import { getCustomerWithGamification } from "../../admin/_services/customers";
+import { getCustomerPayments } from "../../admin/_services/payments";
+import { listSubscriptions } from "../../admin/_services/subscriptions";
+import { listSystemLogs } from "../../admin/_services/logs";
+import { listTenants } from "../../admin/_services/tenants";
+import { getAdminSettings } from "../../admin/_services/settings";
+import { listChatwootContactConversations } from "../../admin/_services/chatwoot";
+import { listCustomerGamificationEvents, getCustomerRewards } from "../../admin/_services/gamification";
+import { resolveTenantId } from "../../admin/_services/tenantResolver";
 import { AiAssistant } from "../../logs/AiAssistant";
 import { LocalDateTime } from "../../ui/LocalDateTime";
 import { TimelineScroller } from "../../ui/TimelineScroller";
@@ -354,51 +362,50 @@ function MiniDonut({
   );
 }
 
-async function fetchCustomer(id: string) {
-  return fetchAdminCached(`/admin/customers/${encodeURIComponent(id)}`, { ttlMs: 1500 });
+async function fetchCustomer(id: string, tenantId?: string | null) {
+  return getCustomerWithGamification({ customerId: id, tenantId: tenantId || null });
 }
 
-async function fetchPayments(id: string) {
-  return fetchAdminCached(`/admin/customers/${encodeURIComponent(id)}/payments?take=40`, { ttlMs: 1500 });
+async function fetchPayments(id: string, tenantId?: string | null) {
+  return getCustomerPayments({ customerId: id, tenantId: tenantId || null, take: 40, skip: 0 });
 }
 
-async function fetchSubscriptions(id: string) {
-  return fetchAdminCached(`/admin/subscriptions?customerId=${encodeURIComponent(id)}&take=40`, { ttlMs: 1500 });
+async function fetchSubscriptions(id: string, tenantId?: string | null) {
+  return listSubscriptions({ customerId: id, tenantId: tenantId || null, take: 40 });
 }
 
 async function fetchLogs(id: string, opts?: { take?: number; from?: string; to?: string }) {
-  const params = new URLSearchParams({
+  return listSystemLogs({
     customerId: id,
-    take: String(opts?.take ?? 20),
-    ...(opts?.from ? { from: opts.from } : {}),
-    ...(opts?.to ? { to: opts.to } : {})
+    take: opts?.take ?? 20,
+    from: opts?.from,
+    to: opts?.to
   });
-  return fetchAdminCached(`/admin/logs/system?${params.toString()}`, { ttlMs: 1500 });
 }
 
 async function fetchTenants() {
-  return fetchAdminCached("/admin/tenants", { ttlMs: 1500 });
+  return listTenants();
 }
 
 async function fetchSettings() {
-  return fetchAdminCached("/admin/settings", { ttlMs: 1500 });
+  return getAdminSettings();
 }
 
 async function fetchChatwootConversations(contactId: number) {
-  return fetchAdminCached(`/admin/chatwoot/contacts/${contactId}/conversations`, { ttlMs: 1500 });
+  return listChatwootContactConversations(contactId);
 }
 
 async function fetchGamificationEvents(id: string, opts?: { take?: number; tenantId?: string; includeGlobal?: boolean }) {
-  const params = new URLSearchParams({
-    take: String(opts?.take ?? 30),
-    ...(opts?.tenantId ? { tenantId: opts.tenantId } : {}),
-    includeGlobal: opts?.includeGlobal === false ? "0" : "1"
+  return listCustomerGamificationEvents({
+    customerId: id,
+    take: opts?.take,
+    tenantId: opts?.tenantId || null,
+    includeGlobal: opts?.includeGlobal
   });
-  return fetchAdminCached(`/admin/gamification/customers/${encodeURIComponent(id)}/events?${params.toString()}`, { ttlMs: 1500 });
 }
 
 async function fetchGamificationRewards(id: string) {
-  return fetchAdminCached(`/admin/gamification/customers/${encodeURIComponent(id)}/rewards`, { ttlMs: 1500 });
+  return getCustomerRewards({ customerId: id });
 }
 
 async function geocodeAddress(address: string) {
@@ -432,16 +439,8 @@ export default async function CustomerDetailPage({
   params: Promise<{ id: string }>;
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { token } = getAdminApiConfig();
-  if (!token) {
-    return (
-      <main className="page">
-        <div className="card cardPad">Configura `ADMIN_API_TOKEN` para consultar contactos.</div>
-      </main>
-    );
-  }
-
   const { id } = await params;
+  const resolvedTenantId = await resolveTenantId(null);
   const rawSearch = (await searchParams) || {};
   const logsPage = Math.max(1, Number(rawSearch.logsPage ?? 1));
   const logsWindowDays = 30;
@@ -451,13 +450,13 @@ export default async function CustomerDetailPage({
   logsFrom.setDate(logsFrom.getDate() - logsWindowDays * logsPage);
   const logsTake = 20;
   const [customerRes, paymentsRes, subscriptionsRes, logsRes, tenantsRes, settingsRes, gamificationEventsRes, gamificationRewardsRes] = await Promise.all([
-    fetchCustomer(id),
-    fetchPayments(id),
-    fetchSubscriptions(id),
+    fetchCustomer(id, resolvedTenantId),
+    fetchPayments(id, resolvedTenantId),
+    fetchSubscriptions(id, resolvedTenantId),
     fetchLogs(id, { take: logsTake, from: logsFrom.toISOString(), to: logsTo.toISOString() }),
     fetchTenants(),
     fetchSettings(),
-    fetchGamificationEvents(id, { take: 25 }),
+    fetchGamificationEvents(id, { take: 25, tenantId: resolvedTenantId || undefined }),
     fetchGamificationRewards(id)
   ]);
 
@@ -470,11 +469,11 @@ export default async function CustomerDetailPage({
     );
   }
 
-  const customer = customerRes.json?.customer || null;
-  const gamification = customerRes.json?.gamification || null;
+  const customer = customerRes.ok ? customerRes.customer : null;
+  const gamification = customerRes.ok ? customerRes.gamification : null;
   const gamificationGlobal = gamification?.global || null;
-  const gamificationEvents = gamificationEventsRes?.ok ? gamificationEventsRes.json?.items ?? [] : [];
-  const rewards = gamificationRewardsRes?.ok ? gamificationRewardsRes.json ?? {} : {};
+  const gamificationEvents = gamificationEventsRes?.ok ? gamificationEventsRes.items ?? [] : [];
+  const rewards = gamificationRewardsRes?.ok ? { global: gamificationRewardsRes.global, byTenant: gamificationRewardsRes.byTenant } : {};
   if (!customer) {
     return (
       <main className="page">
@@ -484,12 +483,12 @@ export default async function CustomerDetailPage({
     );
   }
 
-  const payments = (paymentsRes.json?.items ?? []) as any[];
-  const subscriptions = (subscriptionsRes.json?.items ?? []) as any[];
-  const logsRaw = (logsRes.json?.items ?? []) as any[];
+  const payments = (paymentsRes.ok ? paymentsRes.items : []) as any[];
+  const subscriptions = (subscriptionsRes.items ?? []) as any[];
+  const logsRaw = (logsRes.items ?? []) as any[];
   const logs = compactCustomerLogs(logsRaw.filter(isRelevantCustomerLog));
-  const tenants = (tenantsRes.json?.items ?? []) as Array<{ id: string; name: string }>;
-  const aiConfig = settingsRes.ok ? settingsRes.json?.ai : null;
+  const tenants = (tenantsRes ?? []) as Array<{ id: string; name: string }>;
+  const aiConfig = settingsRes?.ai || null;
   const aiProviders = aiConfig?.providers || null;
   const aiEnabled = Boolean(aiConfig?.enabled && (aiProviders?.openai?.configured || aiProviders?.deepseek?.configured));
   const tenantName = tenants.find((t) => String(t.id) === String(customer.tenantId))?.name || "";
@@ -524,12 +523,15 @@ export default async function CustomerDetailPage({
     { label: "Otras", value: subsOtherCount, color: "var(--chart-b)" }
   ].filter((item) => item.value > 0);
   const lastPaymentAt = lastPayment?.paidAt || lastPayment?.createdAt || null;
-  const meta = customer?.metadata || {};
+  const meta =
+    (customer?.metadata && typeof customer.metadata === "object" && !Array.isArray(customer.metadata) ? customer.metadata : {}) as any;
   const nextPeriodEnd = activeSub?.currentPeriodEndAt || null;
-  const paymentSourceId = meta?.wompi?.paymentSourceId || meta?.wompi?.payment_source_id || null;
+  const wompiMeta = (meta as any)?.wompi || {};
+  const paymentSourceId = wompiMeta?.paymentSourceId || wompiMeta?.payment_source_id || null;
   const activePlanLabel = activeSub ? formatPlanTitle(activeSub?.plan) : "Sin plan activo";
   const tokenMethod = tokenMethodLabel(meta);
-  const chatwootContactId = Number(meta?.chatwoot?.contactId || 0);
+  const chatwootMeta = (meta as any)?.chatwoot || {};
+  const chatwootContactId = Number(chatwootMeta?.contactId || 0);
 
   const amountSeries = payments
     .slice(0, 12)
@@ -565,10 +567,10 @@ export default async function CustomerDetailPage({
   }).length;
 
   const addressParts = [
-    customer?.metadata?.address?.line1,
-    customer?.metadata?.address?.city,
-    customer?.metadata?.address?.dept,
-    customer?.metadata?.address?.code5
+    (meta as any)?.address?.line1,
+    (meta as any)?.address?.city,
+    (meta as any)?.address?.dept,
+    (meta as any)?.address?.code5
   ].filter(Boolean);
   const addressLabel = addressParts.join(", ");
   const directLat = Number(meta?.address?.lat ?? meta?.geo?.lat ?? meta?.location?.lat);
@@ -634,7 +636,7 @@ export default async function CustomerDetailPage({
   );
 
   const chatwootRes = chatwootContactId ? await fetchChatwootConversations(chatwootContactId) : null;
-  const chatwootConvos = chatwootRes?.ok && Array.isArray(chatwootRes.json?.payload) ? chatwootRes.json.payload : [];
+  const chatwootConvos = chatwootRes?.ok && Array.isArray(chatwootRes.payload?.payload) ? chatwootRes.payload.payload : [];
   const chatwootConvosSorted = [...chatwootConvos].sort((a, b) => {
     const aT = Number(a?.last_activity_at || a?.updated_at || a?.created_at || 0);
     const bT = Number(b?.last_activity_at || b?.updated_at || b?.created_at || 0);
@@ -667,7 +669,7 @@ export default async function CustomerDetailPage({
                 ID <span className="mono">{customer.id}</span>
               </div>
               <div className="contact-tags">
-                {meta?.wompi?.paymentSourceId || meta?.wompi?.payment_source_id ? (
+                {wompiMeta?.paymentSourceId || wompiMeta?.payment_source_id ? (
                   <>
                     <span className="pill pill-ok pill-sm">Tokenizada</span>
                     {tokenMethod ? <span className="token-method-hint">{tokenMethod}</span> : null}

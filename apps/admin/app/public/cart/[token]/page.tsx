@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 async function fetchCart(token: string) {
   const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "";
   if (!apiBase) return { ok: false, status: 500, json: { error: "missing_next_public_api_base_url" } };
-  const res = await fetch(`${apiBase}/public/cart/${encodeURIComponent(token)}`, { cache: "no-store" });
+  const res = await fetch(`${apiBase}/api/public/cart/${encodeURIComponent(token)}`, { cache: "no-store" });
   const json = await res.json().catch(() => null);
   return { ok: res.ok, status: res.status, json };
 }
@@ -132,7 +132,7 @@ export default async function PublicCartPage({
                     <div className="field-hint">{formatInterval(p.intervalUnit, p.intervalCount)}</div>
                   </div>
                 </div>
-                <form method="POST" action={`/public/cart/${encodeURIComponent(token)}/select`}>
+                <form method="POST" action={`/api/public/cart/${encodeURIComponent(token)}/select`}>
                   <input type="hidden" name="planId" value={p.id} />
                   <button className="primary" type="submit">
                     Continuar

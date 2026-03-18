@@ -12,7 +12,7 @@ import { TopBar } from "./TopBar";
 import { ThemeClient } from "./ThemeClient";
 import { ClientProviders } from "./ClientProviders";
 import { RealtimeNotifier } from "./ui/RealtimeNotifier";
-import { fetchAdminCached } from "./lib/adminApi";
+import { listTenants } from "./admin/_services/tenants";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../lib/session";
 
 const APP_ICONS: Metadata["icons"] = {
@@ -28,9 +28,7 @@ const APP_ICONS: Metadata["icons"] = {
 
 async function resolveTenantName(tenantId: string | null) {
   if (!tenantId) return "";
-  const tenantsRes = await fetchAdminCached("/admin/tenants", { ttlMs: 1500 });
-  if (!tenantsRes.ok) return "";
-  const tenants = Array.isArray(tenantsRes.json?.items) ? tenantsRes.json.items : [];
+  const tenants = await listTenants();
   const match = tenants.find((tenant: any) => String(tenant?.id || "") === String(tenantId));
   return String(match?.name || "").trim();
 }

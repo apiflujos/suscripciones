@@ -1,6 +1,16 @@
 import { createCustomer } from "./actions";
 import { CustomersModals } from "./CustomersModals";
-import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
+import { listCustomers, getCustomerById } from "../admin/_services/customers";
+import { listManualOrders } from "../admin/_services/orders";
+import { listSubscriptions } from "../admin/_services/subscriptions";
+import { listCheckoutTemplates } from "../admin/_services/checkoutTemplates";
+import { listCatalogProducts } from "../admin/_services/products";
+import { listTenants } from "../admin/_services/tenants";
+import { getAdminSettings } from "../admin/_services/settings";
+import { resolveTenantId } from "../admin/_services/tenantResolver";
+import { listSmartListMembers } from "../admin/_services/smartLists";
+import { getNotificationsConfig } from "@suscripciones/core/services/notificationsConfig";
+import { resolveSmartViewIds, parseFiltersParam } from "@suscripciones/core/services/smartViews";
 import { normalizeErrorParam } from "../lib/errorParam";
 import { CustomersTable } from "./CustomersTable";
 import { getCsrfToken } from "../lib/csrf";
@@ -10,10 +20,6 @@ import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 
 export const dynamic = "force-dynamic";
-
-function getConfig() {
-  return getAdminApiConfig();
-}
 
 function normalizeSku(value: unknown) {
   const raw = String(value || "").trim();
@@ -35,32 +41,19 @@ function formatSubscriptionPlanName(plan: any) {
 }
 
 async function fetchCustomers(opts?: { q?: string; take?: number; page?: number; tenantId?: string; ids?: string[] }) {
-  const sp = new URLSearchParams();
   const q = String(opts?.q || "").trim();
   const take = Number(opts?.take ?? 10);
   const page = Number(opts?.page ?? 1);
   const tenantId = String(opts?.tenantId || "").trim();
   const ids = Array.isArray(opts?.ids) ? opts?.ids : [];
-  if (q) sp.set("q", q);
-  if (tenantId) sp.set("tenantId", tenantId);
-  if (Number.isFinite(take) && take > 0) sp.set("take", String(Math.min(Math.trunc(take), 500)));
-  if (Number.isFinite(page) && page > 1) sp.set("skip", String((Math.trunc(page) - 1) * Math.min(Math.trunc(take), 500)));
-  if (ids.length) sp.set("ids", ids.join(","));
-
-  const path = sp.size ? `/admin/customers?${sp.toString()}` : "/admin/customers";
-  const res = await fetchAdminCached(path, { ttlMs: 1500 });
-  return res.json || { items: [] as any[] };
+  const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * Math.min(Math.trunc(take), 500) : 0;
+  return listCustomers({ q, take, skip, tenantId: tenantId || null, ids });
 }
 
 
 async function fetchPaymentLinks(q: string, tenantId?: string) {
-  const sp = new URLSearchParams();
-  sp.set("take", "200");
-  if (q.trim()) sp.set("q", q.trim());
-  if (tenantId) sp.set("tenantId", tenantId);
-  const res = await fetchAdminCached(`/admin/orders?${sp.toString()}`, { ttlMs: 1500 });
-  const data = res.json || { items: [] as any[] };
-  const items = Array.isArray(data.items) ? data.items : [];
+  const res = await listManualOrders({ tenantId: tenantId || null, take: 200, q: q.trim() });
+  const items = Array.isArray(res.items) ? res.items : [];
   const latestByCustomer = new Map<string, { checkoutUrl: string; createdAt: string; chatwootStatus: string; chatwootError?: string }>();
   for (const item of items) {
     const customerId = String(item?.customer?.id || item?.customerId || "");
@@ -78,12 +71,8 @@ async function fetchPaymentLinks(q: string, tenantId?: string) {
 }
 
 async function fetchCustomerSubscriptions(tenantId?: string) {
-  const sp = new URLSearchParams();
-  sp.set("take", "300");
-  if (tenantId) sp.set("tenantId", tenantId);
-  const res = await fetchAdminCached(`/admin/subscriptions?${sp.toString()}`, { ttlMs: 1500 });
-  const data = res.json || { items: [] as any[] };
-  const items = Array.isArray(data.items) ? data.items : [];
+  const res = await listSubscriptions({ tenantId: tenantId || null, take: 300 });
+  const items = Array.isArray(res.items) ? res.items : [];
   const map: Record<
     string,
     { hasPlan: boolean; planName?: string; status?: string; collectionMode?: string; subscriptionId?: string }
@@ -113,19 +102,13 @@ async function fetchSmartListPreview(id: string, tenantId?: string) {
 
 async function fetchSmartListMembers(id: string, tenantId?: string) {
   if (!id) return { items: [] as any[] };
-  const tenantParam = tenantId ? `&tenantId=${encodeURIComponent(tenantId)}` : "";
-  const res = await fetchAdminCached(`/admin/comms/smart-lists/${encodeURIComponent(id)}/members?active=1&take=200${tenantParam}`, { ttlMs: 1500 });
-  return res.json || { items: [] as any[] };
+  const res = await listSmartListMembers({ id, take: 200, active: true, tenantId: tenantId || null });
+  if (!res.ok) return { items: [] as any[] };
+  return { items: res.items || [] };
 }
 
 async function fetchCartTemplates(tenantId?: string) {
-  const sp = new URLSearchParams();
-  if (tenantId) sp.set("tenantId", tenantId);
-  const res = await fetchAdminCached(`/admin/checkout-templates?${sp.toString()}`, { ttlMs: 1500 });
-  const data = res.json || { items: [] as any[] };
-  const items = Array.isArray(data.items)
-    ? (data.items as Array<{ id?: string; name?: string; kind?: string; active?: boolean }>)
-    : [];
+  const items = await listCheckoutTemplates({ tenantId: tenantId || null });
   return items
     .filter((t) => String(t?.kind || "") === "CART" && Boolean(t?.active))
     .map((t) => ({ id: String(t?.id || ""), name: String(t?.name || "") }))
@@ -133,36 +116,25 @@ async function fetchCartTemplates(tenantId?: string) {
 }
 
 async function fetchProducts(tenantId?: string) {
-  const sp = new URLSearchParams();
-  sp.set("take", "300");
-  if (tenantId) sp.set("tenantId", tenantId);
-  const res = await fetchAdminCached(`/admin/products?${sp.toString()}`, { ttlMs: 1500 });
-  return res.json || { items: [] as any[] };
+  return listCatalogProducts({ tenantId: tenantId || null, take: 300 });
 }
 
 async function fetchSettings() {
-  const res = await fetchAdminCached("/admin/settings", { ttlMs: 1500 });
-  return res.json || null;
+  return getAdminSettings();
 }
 
 async function fetchCheckoutTemplates(tenantId?: string) {
-  const sp = new URLSearchParams();
-  if (tenantId) sp.set("tenantId", tenantId);
-  else sp.set("tenantId", "all");
-  const res = await fetchAdminCached(`/admin/checkout-templates?${sp.toString()}`, { ttlMs: 1500 });
-  return res.json || { items: [] as any[] };
+  return { items: await listCheckoutTemplates({ tenantId: tenantId || null }) };
 }
 
 async function fetchNotificationsConfig() {
-  const res = await fetchAdminCached("/admin/notifications/config", { ttlMs: 1500 });
-  return res.json || { config: null };
+  const config = await getNotificationsConfig();
+  return { config };
 }
 
 async function fetchCustomerById(id: string) {
   if (!id) return null;
-  const res = await fetchAdminCached(`/admin/customers/${encodeURIComponent(id)}`, { ttlMs: 1500 });
-  if (!res?.ok) return null;
-  return res.json?.customer || null;
+  return getCustomerById(id);
 }
 
 export default async function CustomersPage({
@@ -171,14 +143,6 @@ export default async function CustomersPage({
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const csrfToken = await getCsrfToken();
-  const { token } = getConfig();
-  if (!token) {
-    return (
-      <main className="page">
-        <div className="card cardPad">Configura `ADMIN_API_TOKEN` para consultar contactos.</div>
-      </main>
-    );
-  }
   const sp = (await searchParams) ?? {};
   const q = typeof sp.q === "string" ? sp.q : "";
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
@@ -190,6 +154,7 @@ export default async function CustomersPage({
   const listId = typeof sp.list === "string" ? sp.list : "";
   const viewId = typeof sp.viewId === "string" ? sp.viewId : "";
   const filters = typeof sp.filters === "string" ? sp.filters : "";
+  const resolvedTenantId = await resolveTenantId(tenantId || null);
   const returnTo = `/customers?${new URLSearchParams({
     ...(q ? { q } : {}),
     ...(tenantId ? { tenantId } : {}),
@@ -208,13 +173,7 @@ export default async function CustomersPage({
     const rows = Array.isArray(res?.items) ? res.items : [];
     resolvedIds = rows.map((row: any) => String(row?.customer?.id || row?.customerId || row?.id || "")).filter(Boolean);
   } else if (viewId) {
-    const res = await fetch(`/api/smart-views/customers/resolve`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ viewId })
-    });
-    const json = await res.json().catch(() => ({}));
-    resolvedIds = Array.isArray(json?.ids) ? json.ids : [];
+    resolvedIds = (await resolveSmartViewIds("customers", resolvedTenantId, null, viewId)) || [];
   } else if (filters) {
     let parsed: any = null;
     try {
@@ -223,13 +182,8 @@ export default async function CustomersPage({
       parsed = null;
     }
     if (parsed) {
-      const res = await fetch(`/api/smart-views/customers/resolve`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ filters: parsed })
-      });
-      const json = await res.json().catch(() => ({}));
-      resolvedIds = Array.isArray(json?.ids) ? json.ids : [];
+      const rules = parseFiltersParam(parsed);
+      resolvedIds = (await resolveSmartViewIds("customers", resolvedTenantId, null, undefined, rules)) || [];
     }
   }
   if (usingSmartFilters && resolvedIds.length === 0) {
@@ -237,11 +191,11 @@ export default async function CustomersPage({
   }
 
   const [data, tenantsRes, txCustomer, productsRes, templatesRes, settingsRes, notificationsRes, smartListsRes] = await Promise.all([
-    fetchCustomers({ q, take, page, tenantId, ids: resolvedIds }),
-    fetchAdminCached("/admin/tenants", { ttlMs: 1500 }),
+    fetchCustomers({ q, take, page, tenantId: resolvedTenantId || "", ids: resolvedIds }),
+    listTenants(),
     txCustomerId ? fetchCustomerById(txCustomerId) : Promise.resolve(null),
-    fetchProducts(tenantId),
-    fetchCheckoutTemplates(tenantId),
+    fetchProducts(resolvedTenantId || ""),
+    fetchCheckoutTemplates(resolvedTenantId || ""),
     fetchSettings(),
     fetchNotificationsConfig(),
     fetchSmartLists()
@@ -251,7 +205,7 @@ export default async function CustomersPage({
   if (txCustomer && !items.some((c) => String(c.id) === String(txCustomer.id))) {
     items.unshift(txCustomer);
   }
-  const tenants = (tenantsRes.json?.items ?? []) as Array<{ id: string; name: string }>;
+  const tenants = (tenantsRes ?? []) as Array<{ id: string; name: string }>;
   const checkoutConfig = settingsRes?.checkoutConfig || {};
   const notificationsConfig = notificationsRes?.config || null;
   const smartListsRaw = smartListsRes?.ok ? smartListsRes.json?.items ?? [] : [];
@@ -264,9 +218,9 @@ export default async function CustomersPage({
   });
   const tenantById = new Map(tenants.map((t) => [String(t.id), String(t.name)]));
   const [latestLinks, subscriptionsByCustomer, cartTemplates] = await Promise.all([
-    fetchPaymentLinks(q, tenantId),
-    fetchCustomerSubscriptions(tenantId),
-    fetchCartTemplates(tenantId)
+    fetchPaymentLinks(q, resolvedTenantId || ""),
+    fetchCustomerSubscriptions(resolvedTenantId || ""),
+    fetchCartTemplates(resolvedTenantId || "")
   ]);
   const latestLinksObj = Object.fromEntries(latestLinks.entries());
 
@@ -415,21 +369,6 @@ export default async function CustomersPage({
       {paymentLink ? <div className="card cardPad">Link de pago enviado.</div> : null}
       <section className="settings-group">
         <div className="settings-group-header">
-          <div className="contacts-toolbar">
-            <div className="contacts-toolbar-summary">{summaryLabel}</div>
-            <CustomersModals
-              customers={items}
-              products={productsRes?.items ?? []}
-              checkoutTemplates={templatesRes?.items ?? []}
-              csrfToken={csrfToken}
-              tenants={tenants}
-              tenantId={tenantId}
-              createCustomer={createCustomer}
-              createPlanAndSubscription={createPlanAndSubscription}
-              returnTo={returnTo}
-              actionsClassName="contacts-toolbar-actions"
-            />
-          </div>
           <div className="filtersRow">
             <div className="filtersLeft">
               <div className="filtersPanel">
@@ -496,6 +435,21 @@ export default async function CustomersPage({
                       ...(filters ? { filters } : {})
                     }}
                   />
+                </div>
+                <div className="page-actions">
+                  <CustomersModals
+                    customers={items}
+                    products={productsRes?.items ?? []}
+                    checkoutTemplates={templatesRes?.items ?? []}
+                    csrfToken={csrfToken}
+                    tenants={tenants}
+                    tenantId={tenantId}
+                    createCustomer={createCustomer}
+                    createPlanAndSubscription={createPlanAndSubscription}
+                    returnTo={returnTo}
+                    actionsClassName="customer-actions"
+                  />
+                  <div className="page-actions-summary">{summaryLabel}</div>
                 </div>
               </div>
             </div>

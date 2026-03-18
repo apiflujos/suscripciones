@@ -3,8 +3,14 @@ import { DeleteSubscriptionButton } from "./DeleteSubscriptionButton";
 import { MergeDuplicateSubscriptionsButton } from "./MergeDuplicateSubscriptionsButton";
 import { changeSubscriptionPlan, chargeSubscriptionNow, createCustomerFromBilling, createPlanAndSubscription, scheduleCutoff, sendCentralComPaymentLink, sendCentralComTokenizationLink, updateSubscriptionTenants } from "./actions";
 import { ChargeStatusModal } from "./ChargeStatusModal";
-import { NewBillingAssignmentForm } from "./NewBillingAssignmentForm";
-import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
+import { BillingModals } from "./BillingModals";
+import { listSubscriptions } from "../admin/_services/subscriptions";
+import { listCustomers } from "../admin/_services/customers";
+import { listCatalogProducts } from "../admin/_services/products";
+import { listCheckoutTemplates } from "../admin/_services/checkoutTemplates";
+import { listTenants } from "../admin/_services/tenants";
+import { getAdminSettings } from "../admin/_services/settings";
+import { resolveTenantId } from "../admin/_services/tenantResolver";
 import { LocalDateTime } from "../ui/LocalDateTime";
 import { HelpTip } from "../ui/HelpTip";
 import { getCsrfToken } from "../lib/csrf";
@@ -18,14 +24,6 @@ import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 
 export const dynamic = "force-dynamic";
-
-function getConfig() {
-  return getAdminApiConfig();
-}
-
-async function fetchAdmin(path: string) {
-  return fetchAdminCached(path, { ttlMs: 1500 });
-}
 
 function fmtMoney(cents: any, currency = "COP") {
   const v = Number(cents);
@@ -227,15 +225,6 @@ export default async function BillingPage({
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const csrfToken = await getCsrfToken();
-  const { token } = getConfig();
-  if (!token) {
-    return (
-      <main className="page pageWide">
-        <p>Configura `ADMIN_API_TOKEN` en el Admin para poder consultar el API.</p>
-      </main>
-    );
-  }
-
   const sp = (await searchParams) ?? {};
 
   const tenantId = typeof sp.tenantId === "string" ? sp.tenantId : "";
@@ -260,6 +249,7 @@ export default async function BillingPage({
   const q = typeof sp.q === "string" ? sp.q : "";
   const ordenar = typeof sp.ordenar === "string" ? sp.ordenar : "vencimiento";
   const vistaRaw = typeof sp.vista === "string" ? sp.vista : "cards";
+  const resolvedTenantId = await resolveTenantId(tenantId || null);
   const vista = ["cards", "lista", "kanban"].includes(vistaRaw) ? vistaRaw : "cards";
   const vistaTyped = vista as "cards" | "lista" | "kanban";
   const viewId = typeof sp.viewId === "string" ? sp.viewId : "";
@@ -330,28 +320,32 @@ export default async function BillingPage({
     subParams.set("ids", "__none__");
   }
 
-  const [subs, customers, products, templates, tenantsRes, settingsRes] = await Promise.all([
-    fetchAdmin(`/admin/subscriptions?${subParams.toString()}`),
-    fetchAdmin(tenantId ? `/admin/customers?take=200&tenantId=${encodeURIComponent(tenantId)}` : "/admin/customers?take=200"),
-    fetchAdmin(tenantId ? `/admin/products?take=200&tenantId=${encodeURIComponent(tenantId)}` : "/admin/products?take=200"),
-    fetchAdmin(tenantId ? `/admin/checkout-templates?tenantId=${encodeURIComponent(tenantId)}` : "/admin/checkout-templates"),
-    fetchAdminCached("/admin/tenants", { ttlMs: 1500 }),
-    fetchAdminCached("/admin/settings", { ttlMs: 1500 })
+  const [subs, customers, products, templates, tenantsRes, settings] = await Promise.all([
+    listSubscriptions({
+      tenantId: resolvedTenantId || undefined,
+      take: Number(subParams.get("take") || 50),
+      skip: Number(subParams.get("skip") || 0),
+      q: subParams.get("q") || "",
+      estado: subParams.get("estado") || "",
+      collectionMode: subParams.get("collectionMode") || "",
+      customerId: subParams.get("customerId") || "",
+      ids: subParams.get("ids") ? String(subParams.get("ids") || "").split(",").filter(Boolean) : []
+    }),
+    listCustomers({ tenantId: resolvedTenantId || undefined, take: 200 }),
+    listCatalogProducts({ tenantId: resolvedTenantId || undefined, take: 200 }),
+    listCheckoutTemplates({ tenantId: resolvedTenantId || undefined }),
+    listTenants(),
+    getAdminSettings()
   ]);
-  
-  if (!subs.ok) {
-    throw new Error(subs.json?.error || `Error cargando suscripciones: HTTP ${subs.status}`);
-  }
-  
-  const subItems = (subs.json?.items ?? []) as any[];
-  const total = Number(subs.json?.total ?? 0);
-  const customerItems = (customers.json?.items ?? []) as any[];
-  const productItems = (products.json?.items ?? []) as any[];
+
+  const subItems = (subs.items ?? []) as any[];
+  const total = Number(subs.total ?? 0);
+  const customerItems = (customers.items ?? []) as any[];
+  const productItems = (products.items ?? []) as any[];
   const productById = new Map(productItems.map((p: any) => [String(p.id), p]));
-  const checkoutTemplates = (templates.json?.items ?? []) as any[];
-  const tenants = (tenantsRes.json?.items ?? []) as Array<{ id: string; name: string }>;
+  const checkoutTemplates = (templates ?? []) as any[];
+  const tenants = (tenantsRes ?? []) as Array<{ id: string; name: string }>;
   const tenantById = new Map(tenants.map((t) => [String(t.id), String(t.name)]));
-  const settings = settingsRes.ok ? settingsRes.json : null;
   const autoDebitSettings = settings?.autoDebit || {};
   const checkoutConfig = settings?.checkoutConfig || {};
   const subscriptionBaseUrl = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
@@ -378,16 +372,17 @@ export default async function BillingPage({
   const rows = subItems
     .map((s) => {
       const plan = s.plan;
-      const customer = s.customer;
+      const customer = (s.customer as any) || {};
+      const customerMeta = (customer?.metadata ?? {}) as any;
       const collectionMode = String(s?.collectionModeResolved || "").trim().toUpperCase() || resolveCollectionMode(plan, s?.metadata);
       const tipoTx = getTipo(collectionMode);
       const activo = getActivo(s.status);
       const estadoInfo = getEstado(s.status);
       const ident =
-        customer?.metadata?.identificacion ||
-        customer?.metadata?.identificationNumber ||
-        customer?.metadata?.documentNumber ||
-        customer?.metadata?.document ||
+        customerMeta?.identificacion ||
+        customerMeta?.identificationNumber ||
+        customerMeta?.documentNumber ||
+        customerMeta?.document ||
         "";
 
       const tenantIds = Array.isArray(s.tenantIds) && s.tenantIds.length ? s.tenantIds : [s.tenantId || plan?.tenantId].filter(Boolean);
@@ -409,8 +404,8 @@ export default async function BillingPage({
         customerId: String(s.customerId || ""),
         customerName: String(customer?.name || customer?.email || s.customerId || "—"),
         customerEmail: String(customer?.email || ""),
-        customerTokenized: typeof s?.customerTokenized === "boolean" ? s.customerTokenized : hasUsablePaymentSource(customer?.metadata),
-        customerMetadata: customer?.metadata || {},
+        customerTokenized: typeof s?.customerTokenized === "boolean" ? s.customerTokenized : hasUsablePaymentSource(customerMeta),
+        customerMetadata: customerMeta || {},
         identificacion: String(ident || "—"),
         tipoTx,
         tipoPago: getTipoPago(collectionMode),
@@ -909,27 +904,28 @@ export default async function BillingPage({
                     showKanban
                   />
                 </div>
-                <div className="field-hint tiny-total">{rows.length} resultados</div>
+                <div className="page-actions">
+                  <BillingModals
+                    customers={customerItems}
+                    catalogItems={productItems}
+                    checkoutTemplates={checkoutTemplates}
+                    csrfToken={csrfToken}
+                    tenantId={tenantId}
+                    tenants={tenants}
+                    returnTo={returnTo}
+                    defaultOpen={Boolean(crear) || Boolean(selectCustomerId)}
+                    defaultSelectedCustomerId={selectCustomerId}
+                    createCustomer={createCustomerFromBilling}
+                    createPlanAndSubscription={createPlanAndSubscription}
+                  />
+                  <div className="page-actions-summary">{rows.length} resultados</div>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
         <div className="settings-group-body">
-          <NewBillingAssignmentForm
-            customers={customerItems}
-            catalogItems={productItems}
-            checkoutTemplates={checkoutTemplates}
-            csrfToken={csrfToken}
-            tenantId={tenantId}
-            tenants={tenants}
-            returnTo={returnTo}
-            defaultOpen={Boolean(crear) || Boolean(selectCustomerId)}
-            defaultSelectedCustomerId={selectCustomerId}
-            createCustomer={createCustomerFromBilling}
-            createPlanAndSubscription={createPlanAndSubscription}
-          />
-
           {vista === "cards" ? (
             <div className="billing-grid">
               {rows.map((r) => (

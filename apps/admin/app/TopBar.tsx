@@ -238,7 +238,7 @@ export function TopBar({ session }: { session: AdminSession | null }) {
   const isSuperAdmin = session?.role === "SUPER_ADMIN";
   const [menuOpen, setMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [notifFilter, setNotifFilter] = useState<"all" | "unread" | "read" | NotificationCategory>("unread");
+  const [notifFilter, setNotifFilter] = useState<"unread" | "read">("unread");
   const [notifications, setNotifications] = useState<HeaderNotification[]>([]);
   const [paymentPulse, setPaymentPulse] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -250,19 +250,12 @@ export function TopBar({ session }: { session: AdminSession | null }) {
   // Filtros simplificados
   const filterOptions = useMemo(() => [
     { key: "unread" as const, label: "No leídas", icon: "bell" },
-    { key: "read" as const, label: "Leídas", icon: "check" },
-    { key: "pagos" as const, label: "Pagos", icon: "card" },
-    { key: "suscripciones" as const, label: "Suscripciones", icon: "refresh" },
-    { key: "clientes" as const, label: "Clientes", icon: "users" },
-    { key: "all" as const, label: "Todas", icon: "list" }
+    { key: "read" as const, label: "Leídas", icon: "check" }
   ], []);
 
   const filteredNotifications = useMemo(() => {
     if (notifFilter === "read") return notifications.filter((n) => n.read);
-    if (notifFilter === "unread") return notifications.filter((n) => !n.read);
-    if (notifFilter === "all") return notifications;
-    // Filtro por categoría
-    return notifications.filter((n) => n.category === notifFilter);
+    return notifications.filter((n) => !n.read);
   }, [notifications, notifFilter]);
 
   const saveReadIds = (ids: Set<string>) => {

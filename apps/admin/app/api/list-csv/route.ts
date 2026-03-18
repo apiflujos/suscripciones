@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getAdminApiConfig } from "../../lib/adminApi";
+import { prisma } from "@suscripciones/database";
+import { requireApiSession } from "../_lib/requireApiSession";
 
 function escapeCsv(value: unknown) {
   const raw = String(value ?? "");
@@ -15,33 +16,11 @@ function toCsv(headers: string[], rows: Array<Record<string, unknown>>) {
   return `${header}\n${body}\n`;
 }
 
-async function adminFetch(path: string) {
-  const { apiBase, token } = getAdminApiConfig();
-  const res = await fetch(`${apiBase}${path}`, {
-    cache: "no-store",
-    headers: { ...(token ? { authorization: `Bearer ${token}`, "x-admin-token": token } : {}) }
-  });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(String(json?.error || `request_failed_${res.status}`));
-  return json;
-}
-
-async function fetchAll(pathBase: string, take = 500, cap = 5000) {
-  const out: any[] = [];
-  let skip = 0;
-  while (out.length < cap) {
-    const join = pathBase.includes("?") ? "&" : "?";
-    const json = await adminFetch(`${pathBase}${join}take=${take}&skip=${skip}`);
-    const items = Array.isArray(json?.items) ? json.items : [];
-    out.push(...items);
-    if (items.length < take) break;
-    skip += take;
-  }
-  return out.slice(0, cap);
-}
-
 export async function GET(req: Request) {
   try {
+    const auth = await requireApiSession();
+    if (!auth.ok) return auth.response;
+
     const { searchParams } = new URL(req.url);
     const scope = String(searchParams.get("scope") || "").trim().toLowerCase();
     const q = String(searchParams.get("q") || "").trim();
@@ -50,11 +29,31 @@ export async function GET(req: Request) {
     const estado = String(searchParams.get("estado") || "").trim();
     const ordenar = String(searchParams.get("ordenar") || "").trim();
 
+    const effectiveTenantId = tenantId || auth.session.tenantId || "";
+
     if (scope === "customers") {
-      const qs = new URLSearchParams();
-      if (q) qs.set("q", q);
-      if (tenantId) qs.set("tenantId", tenantId);
-      const items = await fetchAll(`/admin/customers${qs.size ? `?${qs.toString()}` : ""}`);
+      const where: any = {};
+      if (effectiveTenantId) {
+        where.AND = [{ OR: [{ tenantId: effectiveTenantId }, { tenantLinks: { some: { tenantId: effectiveTenantId } } }] }];
+      }
+      if (q) {
+        const digits = q.replace(/[^\d]/g, "");
+        const or: any[] = [
+          { name: { contains: q, mode: "insensitive" } },
+          { email: { contains: q, mode: "insensitive" } }
+        ];
+        if (digits.length >= 4) or.push({ phone: { contains: digits } });
+        else or.push({ phone: { contains: q, mode: "insensitive" } });
+        or.push({ metadata: { path: ["identificacion"], string_contains: q } } as any);
+        or.push({ metadata: { path: ["identificacionNumero"], string_contains: q } } as any);
+        or.push({ metadata: { path: ["documentNumber"], string_contains: q } } as any);
+        where.OR = or;
+      }
+      const items = await prisma.customer.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take: 5000
+      });
       const csv = toCsv(
         ["id", "name", "email", "phone", "identificacion", "tenantId", "createdAt"],
         items.map((c: any) => ({
@@ -76,22 +75,34 @@ export async function GET(req: Request) {
     }
 
     if (scope === "products") {
-      const qs = new URLSearchParams();
-      if (q) qs.set("q", q);
-      if (tenantId) qs.set("tenantId", tenantId);
-      const items = await fetchAll(`/admin/products${qs.size ? `?${qs.toString()}` : ""}`);
+      const where: any = { metadata: { path: ["kind"], equals: "CATALOG_ITEM" } } as any;
+      if (effectiveTenantId) {
+        where.AND = [{ OR: [{ tenantId: effectiveTenantId }, { tenantLinks: { some: { tenantId: effectiveTenantId } } }] }];
+      }
+      if (q) {
+        where.OR = [
+          { name: { contains: q, mode: "insensitive" } },
+          { metadata: { path: ["displayName"], string_contains: q } } as any,
+          { metadata: { path: ["sku"], string_contains: q } } as any
+        ];
+      }
+      const items = await prisma.subscriptionPlan.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take: 5000
+      });
       const csv = toCsv(
         ["id", "name", "sku", "kind", "price_cop", "currency", "requiresShipping", "taxPercent", "discountType", "createdAt"],
         items.map((p: any) => ({
           id: p?.id,
-          name: p?.name,
-          sku: p?.sku,
-          kind: p?.kind,
-          price_cop: Math.trunc(Number(p?.basePriceInCents || 0) / 100),
+          name: (p?.metadata as any)?.displayName || p?.name,
+          sku: (p?.metadata as any)?.sku || "",
+          kind: (p?.metadata as any)?.itemKind || "PRODUCT",
+          price_cop: Math.trunc(Number(p?.priceInCents || 0) / 100),
           currency: p?.currency || "COP",
-          requiresShipping: p?.requiresShipping ? "true" : "false",
-          taxPercent: p?.taxPercent || 0,
-          discountType: p?.discountType || "NONE",
+          requiresShipping: (p?.metadata as any)?.requiresShipping ? "true" : "false",
+          taxPercent: (p?.metadata as any)?.taxPercent || 0,
+          discountType: (p?.metadata as any)?.discountType || "NONE",
           createdAt: p?.createdAt || ""
         }))
       );
@@ -104,14 +115,32 @@ export async function GET(req: Request) {
     }
 
     if (scope === "billing") {
-      const qs = new URLSearchParams();
-      if (q) qs.set("q", q);
-      if (tenantId) qs.set("tenantId", tenantId);
-      if (estado && estado !== "todos") qs.set("estado", estado);
-      if (tipo === "suscripciones") qs.set("collectionMode", "AUTO_DEBIT");
-      if (tipo === "planes") qs.set("collectionMode", "MANUAL_LINK");
-      if (ordenar) qs.set("ordenar", ordenar);
-      const items = await fetchAll(`/admin/subscriptions${qs.size ? `?${qs.toString()}` : ""}`, 300, 3000);
+      const where: any = {};
+      if (effectiveTenantId) {
+        where.AND = [{ OR: [{ tenantId: effectiveTenantId }, { tenantLinks: { some: { tenantId: effectiveTenantId } } }] }];
+      }
+      if (estado && estado !== "todos") {
+        where.status = estado.toUpperCase();
+      }
+      if (q) {
+        where.OR = [
+          { customer: { name: { contains: q, mode: "insensitive" } } },
+          { customer: { email: { contains: q, mode: "insensitive" } } },
+          { plan: { name: { contains: q, mode: "insensitive" } } }
+        ];
+      }
+      if (tipo === "suscripciones") {
+        where.plan = { metadata: { path: ["collectionMode"], equals: "AUTO_DEBIT" } } as any;
+      }
+      if (tipo === "planes") {
+        where.plan = { metadata: { path: ["collectionMode"], equals: "MANUAL_LINK" } } as any;
+      }
+      const items = await prisma.subscription.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take: 3000,
+        include: { customer: true, plan: true }
+      });
       const csv = toCsv(
         ["id", "customerId", "customerName", "planId", "planName", "status", "collectionMode", "amount_cop", "currency", "periodEndAt"],
         items.map((s: any) => ({
@@ -121,7 +150,7 @@ export async function GET(req: Request) {
           planId: s?.planId || s?.plan?.id || "",
           planName: s?.plan?.name || "",
           status: s?.status || "",
-          collectionMode: s?.plan?.collectionMode || s?.plan?.metadata?.collectionMode || "",
+          collectionMode: s?.plan?.metadata?.collectionMode || "",
           amount_cop: Math.trunc(Number(s?.plan?.priceInCents || 0) / 100),
           currency: s?.plan?.currency || "COP",
           periodEndAt: s?.currentPeriodEndAt || ""

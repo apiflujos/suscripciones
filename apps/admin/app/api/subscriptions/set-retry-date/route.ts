@@ -1,26 +1,12 @@
 import { NextResponse } from "next/server";
 import { assertCsrfToken } from "../../../lib/csrf";
-import { getAdminApiConfig } from "../../../lib/adminApi";
-
-async function adminFetch(path: string, init: RequestInit) {
-  const { apiBase, token } = getAdminApiConfig();
-  const res = await fetch(`${apiBase}${path}`, {
-    ...init,
-    headers: {
-      ...(token ? { authorization: `Bearer ${token}`, "x-admin-token": token } : {}),
-      "content-type": "application/json",
-      ...(init.headers ?? {})
-    },
-    cache: "no-store"
-  });
-  const json = await res.json().catch(() => null);
-  if (!res.ok) {
-    return { ok: false, status: res.status, json };
-  }
-  return { ok: true, status: res.status, json };
-}
+import { requireApiSession } from "../../_lib/requireApiSession";
+import { setSubscriptionRetryDate } from "../../../admin/_services/subscriptions";
 
 export async function POST(req: Request) {
+  const auth = await requireApiSession();
+  if (!auth.ok) return auth.response;
+
   const formData = await req.formData();
   try {
     await assertCsrfToken(formData);
@@ -35,17 +21,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "invalid_subscription_id" }, { status: 400 });
   }
 
-  const res = await adminFetch(`/admin/subscriptions/${encodeURIComponent(subscriptionId)}/set-retry-date`, {
-    method: "POST",
-    body: JSON.stringify({ nextRetryAt: nextRetryAt || null })
+  const result = await setSubscriptionRetryDate({
+    subscriptionId,
+    nextRetryAt: nextRetryAt || null,
+    tenantId: auth.session.tenantId || null
   });
-
-  if (!res.ok) {
-    return NextResponse.json(
-      { error: res.json?.error || "set_retry_failed", details: res.json },
-      { status: res.status || 500 }
-    );
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.status || 500 });
   }
-
-  return NextResponse.json(res.json || { ok: true });
+  return NextResponse.json({ ok: true, subscription: result.subscription });
 }

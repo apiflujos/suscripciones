@@ -1,7 +1,6 @@
 const fs = require('fs');
 const path = require('path');
 
-const apiEnvFile = './apps/api/.env';
 const adminEnvFile = './apps/admin/.env.local';
 
 const applyEnvFile = (filePath) => {
@@ -23,7 +22,7 @@ const applyEnvFile = (filePath) => {
   });
 };
 
-applyEnvFile(apiEnvFile);
+applyEnvFile(adminEnvFile);
 
 const stackName = process.env.PM2_APP_PREFIX || process.env.APP_STACK_NAME || 'crm-sus';
 const clientSlug = process.env.CLIENT_SLUG || '';
@@ -34,27 +33,11 @@ const logBaseFor = (role) => (clientSlug ? `${stackName}-${role}-${clientSlug}` 
 
 const apps = [
   {
-    name: nameFor('api'),
-    cwd: './apps/api',
-    script: 'npm',
-    args: 'run start:migrate',
-    env_file: apiEnvFile,
-    env: {
-      NODE_ENV: 'production',
-    },
-    error_file: `../../logs/${logBaseFor('api')}-error.log`,
-    out_file: `../../logs/${logBaseFor('api')}-out.log`,
-    log_date_format: 'YYYY-MM-DD HH:mm:ss',
-    autorestart: true,
-    watch: false,
-    max_memory_restart: '500M'
-  },
-  {
     name: nameFor('jobs'),
-    cwd: './apps/api',
+    cwd: './apps/worker',
     script: 'npm',
-    args: 'run jobs:start',
-    env_file: apiEnvFile,
+    args: 'run start',
+    env_file: adminEnvFile,
     env: {
       NODE_ENV: 'production',
       JOBS_HEARTBEAT_KEY: process.env.JOBS_HEARTBEAT_KEY || nameFor('jobs'),

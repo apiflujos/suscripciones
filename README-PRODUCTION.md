@@ -95,7 +95,7 @@ cp .env.example .env
 docker-compose up -d
 
 # 4. Migraciones
-npm -w apps/api run prisma:migrate:dev
+npm -w packages/database run prisma:migrate:dev
 
 # 5. Correr proyecto
 npm run dev
@@ -109,7 +109,7 @@ npm install
 npm run build
 
 # 2. Migraciones
-npm -w apps/api run prisma:migrate:deploy
+npm -w packages/database run prisma:migrate:deploy
 
 # 3. Iniciar con PM2
 pm2 start ecosystem.config.js
@@ -282,7 +282,7 @@ lsof -ti:3001 | xargs kill -9
 
 ```bash
 # Resetear migraciones
-npm -w apps/api run prisma:migrate:reset
+npm -w packages/database run prisma:migrate:reset
 ```
 
 ---

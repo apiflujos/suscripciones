@@ -6,7 +6,7 @@ Existen **programaciones silenciosas** en el backend que ejecutan cobros sin mos
 
 ### Jobs Silenciosos Encontrados
 
-#### 1. `ensureDueCutoffRetries()` - `apps/api/src/jobs/runner.ts`
+#### 1. `ensureDueCutoffRetries()` - `packages/core/src/jobs/runner.ts`
 
 **Qué hace:** Escanea suscripciones activas/past_due cuya fecha de corte (`currentPeriodEndAt`) está próxima o vencida, y crea jobs de cobro automático **sin notificar**.
 
@@ -130,11 +130,11 @@ Contexto: { subscriptionId, nextRetryAt, status }
 
 ### 4. Script de Limpieza
 
-**Archivo:** `apps/api/src/scripts/cleanup-orphan-notification-jobs.ts`
+**Archivo:** `packages/core/src/scripts/cleanup-orphan-notification-jobs.ts`
 
 **Ejecución:**
 ```bash
-npx tsx apps/api/src/scripts/cleanup-orphan-notification-jobs.ts
+npx tsx packages/core/src/scripts/cleanup-orphan-notification-jobs.ts
 ```
 
 **Limpia:**
@@ -168,7 +168,7 @@ Agregar en `renderBillingCard`:
 
 ### 2. Agregar `nextRetryAt` al Backend de Billing
 
-**Archivo:** `apps/api/src/routes/billing.ts` (o donde se construyen las filas)
+**Archivo:** `packages/core/src/routes/billing.ts` (o donde se construyen las filas)
 
 Incluir en la respuesta:
 ```typescript
@@ -265,7 +265,7 @@ curl "https://api.tu-dominio.com/api/logs/notifications/jobs?subscriptionId=UUID
 
 ### Limpiar jobs huérfanos
 ```bash
-pm2 exec 0 "npx tsx apps/api/src/scripts/cleanup-orphan-notification-jobs.ts"
+pm2 exec 0 "npx tsx packages/core/src/scripts/cleanup-orphan-notification-jobs.ts"
 ```
 
 ### Establecer fecha de reintento

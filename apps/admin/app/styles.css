@@ -12,7 +12,7 @@
   --font-primary: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-secondary: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 
-  /* Tokens base (design-system-package/apiflujos-design-system.html) */
+  /* Tokens base (documentación de diseño) */
   --royal-purple-50: #f9f7fd;
   --royal-purple-100: #f1edfa;
   --royal-purple-200: #e6def6;
@@ -872,7 +872,8 @@ a {
 .topbarBellBackdrop {
   position: fixed;
   inset: 0;
-  background: rgba(10, 12, 20, 0.08);
+  background: rgba(10, 12, 20, 0.35);
+  backdrop-filter: blur(2px);
   z-index: 30000;
 }
 
@@ -924,7 +925,7 @@ a {
   position: absolute;
   right: 0;
   top: calc(100% + 8px);
-  width: min(420px, 92vw);
+  width: min(320px, 92vw);
   max-height: 440px;
   overflow: auto;
   background: var(--panel);
@@ -3003,23 +3004,37 @@ html[data-theme="dark"] .payments-health-banner code {
 
 .contacts-toolbar {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   gap: 12px;
   margin-bottom: 10px;
+  flex-wrap: wrap;
 }
 
 .contacts-toolbar-actions {
   display: inline-flex;
   gap: 8px;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 .contacts-toolbar-summary {
   font-size: 12px;
   color: var(--text-faint);
   white-space: nowrap;
+}
+
+.page-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.page-actions-summary {
+  font-size: 12px;
+  color: var(--text-faint);
 }
 
 .contact-edit-modal {
@@ -3312,6 +3327,11 @@ html[data-contrast="high"] .filtersPanel {
   gap: 10px;
 }
 
+.ui-panel-header-left {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
 .ui-panel-title {
   display: flex;
   align-items: center;
@@ -3465,6 +3485,31 @@ textarea {
   font-size: 12.5px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease, transform 0.12s ease;
+}
+
+.compact-form .input,
+.compact-form .select {
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.compact-form .input.no-icon {
+  --field-icon: none;
+  --field-padding-left: var(--control-padding-x);
+}
+
+.compact-form textarea.input {
+  min-height: 70px;
+}
+
+.compact-form .field-hint {
+  font-size: 11px;
+}
+
+.grid-span-2 {
+  grid-column: span 2;
 }
 
 .input:focus,
@@ -11067,6 +11112,12 @@ html[data-contrast="high"] .toggle::after {
 }
 
 /* Tooltips (icono "?") */
+.helpTipWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
 .helpTip {
   width: 18px;
   height: 18px;
@@ -11095,10 +11146,8 @@ html[data-contrast="high"] .toggle::after {
 }
 
 .helpTipBubble {
-  position: fixed;
-  z-index: 9999;
-  top: 0;
-  left: 0;
+  position: absolute;
+  z-index: 50;
   min-width: 220px;
   max-width: 360px;
   padding: 10px 12px;
@@ -11111,7 +11160,7 @@ html[data-contrast="high"] .toggle::after {
   white-space: pre-line;
   box-shadow: var(--shadow);
   opacity: 0;
-  transform: translate(-100%, -4px);
+  transform: translateY(-4px);
   pointer-events: none;
   transition: opacity 120ms ease, transform 120ms ease;
 }
@@ -11120,7 +11169,7 @@ html[data-contrast="high"] .toggle::after {
   content: "";
   position: absolute;
   top: -6px;
-  right: 10px;
+  right: 12px;
   width: 10px;
   height: 10px;
   transform: rotate(45deg);
@@ -11131,7 +11180,27 @@ html[data-contrast="high"] .toggle::after {
 
 .helpTipBubble.is-open {
   opacity: 1;
-  transform: translate(-100%, 0);
+  transform: translateY(0);
+}
+
+.helpTipBubble.pos-right {
+  top: calc(100% + 6px);
+  right: 0;
+}
+
+.helpTipBubble.pos-left {
+  top: calc(100% + 6px);
+  left: 0;
+}
+
+.helpTipBubble.pos-top {
+  bottom: calc(100% + 6px);
+  right: 0;
+}
+
+.helpTipBubble.pos-bottom {
+  top: calc(100% + 6px);
+  right: 0;
 }
 
 /* Toggle */

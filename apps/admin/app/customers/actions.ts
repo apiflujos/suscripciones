@@ -1,26 +1,9 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { normalizeToken } from "../lib/normalizeToken";
 import { assertCsrfToken } from "../lib/csrf";
-import { getRequiredApiBase } from "../lib/adminApi";
-
-async function adminFetch(path: string, init: RequestInit) {
-  const API_BASE = getRequiredApiBase();
-  const TOKEN = normalizeToken(process.env.ADMIN_API_TOKEN || "");
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: {
-      ...(TOKEN ? { authorization: `Bearer ${TOKEN}`, "x-admin-token": TOKEN } : {}),
-      "content-type": "application/json",
-      ...(init.headers ?? {})
-    },
-    cache: "no-store"
-  });
-  const json = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(json?.reason ? `${json?.error || "request_failed"}:${json.reason}` : json?.error || `request_failed_${res.status}`);
-  return json;
-}
+import { createCustomer as createCustomerService, updateCustomerProfile, deleteCustomerProfile } from "../admin/_services/customers";
+import { createManualOrderForAdmin } from "../admin/_services/orders";
 
 function pesosToCents(input: string): number {
   const digits = String(input || "").replace(/[^\d-]/g, "");
@@ -84,7 +67,16 @@ export async function createCustomer(formData: FormData) {
     const name = nameRaw || undefined;
     const email = emailRaw || undefined;
     const phone = phoneRaw || undefined;
-    await adminFetch("/admin/customers", { method: "POST", body: JSON.stringify({ name, email, phone, metadata, tenantId }) });
+    const res = await createCustomerService({
+      data: {
+        name,
+        email: email || undefined,
+        phone: phone || undefined,
+        metadata
+      } as any,
+      tenantIds: tenantId ? [tenantId] : []
+    });
+    if (!res.ok) throw new Error(res.error);
     redirect(mergeQuery(returnTo, { created: "1", ...(tenantId ? { tenantId } : {}) }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
@@ -103,17 +95,15 @@ export async function sendPaymentLinkForCustomer(formData: FormData) {
   try {
     const reference = `CONTACT_${customerId.slice(0, 6)}_${Date.now()}`;
     const customerName = String(formData.get("customerName") || "").trim() || "Cliente";
-    await adminFetch("/admin/orders", {
-      method: "POST",
-      body: JSON.stringify({
-        customerId,
-        reference,
-        currency: "COP",
-        lineItems: [{ name: `Pago de ${customerName}`, quantity: 1, unitPriceInCents: amountInCents }],
-        sendChatwoot: true,
-        source: "MANUAL"
-      })
+    const orderRes = await createManualOrderForAdmin({
+      customerId,
+      reference,
+      currency: "COP",
+      lineItems: [{ name: `Pago de ${customerName}`, quantity: 1, unitPriceInCents: amountInCents }],
+      sendChatwoot: true,
+      source: "MANUAL"
     });
+    if (!orderRes.ok) throw new Error(orderRes.error);
     redirect("/customers?paymentLink=sent");
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
@@ -162,17 +152,17 @@ export async function updateCustomer(formData: FormData) {
 
     const metadata = address || idMeta ? { ...(address ? { address } : {}), ...(idMeta ? idMeta : {}) } : undefined;
 
-    await adminFetch(`/admin/customers/${encodeURIComponent(id)}`, {
-      method: "PUT",
-      body: JSON.stringify({
-        tenantIds,
-        primaryTenantId: primaryTenantId || "",
-        name: name || "",
-        email: email || "",
-        phone: phone || "",
-        ...(metadata ? { metadata } : {})
-      })
+    const updated = await updateCustomerProfile({
+      customerId: id,
+      tenantId: scopeTenantId || null,
+      tenantIds,
+      primaryTenantId: primaryTenantId || null,
+      name: name || "",
+      email: email || "",
+      phone: phone || "",
+      ...(metadata ? { metadata } : {})
     });
+    if (!updated.ok) throw new Error(updated.error);
     redirect(mergeQuery(returnTo, { updated: "1", ...(scopeTenantId ? { tenantId: scopeTenantId } : {}) }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
@@ -187,10 +177,8 @@ export async function deleteCustomer(formData: FormData) {
   const tenantId = String(formData.get("tenantId") || "").trim();
   if (!id) return redirect(mergeQuery(returnTo, { error: "invalid_id" }));
   try {
-    const path = tenantId
-      ? `/admin/customers/${encodeURIComponent(id)}?tenantId=${encodeURIComponent(tenantId)}&force=1`
-      : `/admin/customers/${encodeURIComponent(id)}?force=1`;
-    await adminFetch(path, { method: "DELETE" });
+    const res = await deleteCustomerProfile({ customerId: id, tenantId: tenantId || null, force: true });
+    if (!res.ok) throw new Error(res.error);
     redirect(mergeQuery(returnTo, { deleted: "1", ...(tenantId ? { tenantId } : {}) }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;

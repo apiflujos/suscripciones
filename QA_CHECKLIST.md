@@ -10,7 +10,7 @@
 - [x] API: Express + TypeScript (puerto 3001)
 - [x] Admin: Next.js + React (puerto 3002)
 - [x] PostgreSQL: Puerto 5433
-- [x] Tipos compartidos en `packages/shared/types.ts`
+- [x] Tipos compartidos unificados en `packages/core/`
 - [x] Docker Compose configurado correctamente
 
 ---
@@ -23,8 +23,8 @@
 - [x] Patrones consistentes entre servicios
 
 ### Archivos Corregidos
-- `apps/api/src/app.ts` - Debug log removido
-- `apps/api/src/routes/admin.ts` - Debug logs removidos
+- `packages/core/src/app.ts` - Debug log removido
+- `packages/core/src/routes/admin.ts` - Debug logs removidos
 
 ---
 
@@ -122,7 +122,7 @@
 
 ## 7. ✅ Variables de Entorno
 
-### API (apps/api/.env)
+### API (apps/admin/.env.local)
 ```env
 NODE_ENV=production
 PORT=3001
@@ -243,7 +243,7 @@ docker-compose down
 | Issue | Solución | Estado |
 |-------|----------|--------|
 | Debug console.log en producción | Removidos de app.ts y admin.ts | ✅ |
-| Tipos duplicados | Movidos a packages/shared/ | ✅ |
+| Tipos duplicados | Unificados en packages/core/ | ✅ |
 | Estructura confusa | 2 servicios claros (API + Admin) | ✅ |
 | Fallbacks innecesarios | Eliminados del frontend | ✅ |
 | Loaders excesivos | GlobalLoader optimizado | ✅ |

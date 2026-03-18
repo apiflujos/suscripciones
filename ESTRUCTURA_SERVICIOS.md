@@ -125,7 +125,7 @@ GET  /health
 
 ### API (Backend)
 ```bash
-cd apps/api
+cd apps/admin
 npm install
 npm run dev          # Desarrollo
 npm run build        # Build
@@ -170,10 +170,10 @@ ADMIN_API_TOKEN=secret123
 
 ## 🎯 Tipos Compartidos
 
-Para evitar duplicación, los tipos van en `packages/shared/types.ts`:
+Para evitar duplicación, los tipos van unificados en `packages/core/`:
 
 ```typescript
-// packages/shared/types.ts
+// packages/core/src/types.ts (ejemplo)
 export interface Payment {
   id: string;
   status: 'PENDING' | 'APPROVED' | 'DECLINED';
@@ -187,16 +187,16 @@ export interface Customer {
 }
 ```
 
-**Uso en API:**
+**Uso en Backend (Next.js API):**
 ```typescript
-// apps/api/src/routes/payments.ts
-import { Payment } from '@wompi/shared/types';
+// apps/admin/app/admin/payments/[id]/route.ts
+import { Payment } from '@suscripciones/core/types';
 ```
 
 **Uso en Admin:**
 ```typescript
 // apps/admin/app/payments/page.tsx
-import { Payment } from '@wompi/shared/types';
+import { Payment } from '@suscripciones/core/types';
 ```
 
 ---

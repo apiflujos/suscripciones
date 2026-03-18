@@ -59,6 +59,7 @@ export function CustomersModals({
               defaultOpen
               hidePanelHeader
               mode="always_open"
+              useModal={false}
             />
           </div>
         </div>

@@ -51,9 +51,9 @@ if (referenceClassification.kind === "subscription" && referenceClassification.s
 - Mensajes específicos por cada tipo de error
 
 ## Archivos Modificados
-- `apps/api/src/jobs/handlers/processWompiEvent.ts`
+- `packages/core/src/jobs/handlers/processWompiEvent.ts`
 - `apps/admin/app/logs/ReconcilePaymentModal.tsx`
-- `apps/api/src/routes/logs.ts`
+- `packages/core/src/routes/logs.ts`
 - `vitest.config.ts`
 
 ## Resultado

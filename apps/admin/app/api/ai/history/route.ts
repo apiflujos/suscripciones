@@ -1,24 +1,23 @@
-import { getRequiredApiBase } from "../../../lib/adminApi";
-import { normalizeToken } from "../../../lib/normalizeToken";
+import { requireApiSession } from "../../_lib/requireApiSession";
+import { reqToCompat } from "../../../admin/_lib/reqCompat";
+import { coerceTenantId, getEffectiveTenantId } from "@suscripciones/core/services/tenantContext";
+import { getAiHistory } from "../../../admin/_services/ai";
 
 export async function GET(req: Request) {
-  const API_BASE = getRequiredApiBase();
-  const token = normalizeToken(process.env.ADMIN_API_TOKEN || "");
-  if (!token) return new Response(JSON.stringify({ error: "missing_admin_token" }), { status: 401 });
+  const auth = await requireApiSession();
+  if (!auth.ok) return auth.response;
 
   const url = new URL(req.url);
-  const take = url.searchParams.get("take") || "10";
+  const take = Math.min(50, Math.max(1, Number(url.searchParams.get("take") ?? 20)));
+  const tenantId =
+    coerceTenantId(url.searchParams.get("tenantId")) ?? (await getEffectiveTenantId(reqToCompat(req)));
+  const scope = String(url.searchParams.get("scope") || "").trim();
+  const customerId = String(url.searchParams.get("customerId") || "").trim();
+  const productId = String(url.searchParams.get("productId") || "").trim();
 
-  const res = await fetch(`${API_BASE}/admin/ai/history?take=${encodeURIComponent(take)}`, {
-    headers: {
-      authorization: `Bearer ${token}`,
-      "x-admin-token": token
-    },
-    cache: "no-store"
-  });
-  const json = await res.json().catch(() => ({}));
-  return new Response(JSON.stringify(json), {
-    status: res.status,
-    headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }
-  });
+  const result = await getAiHistory({ tenantId, take, scope, customerId, productId });
+  if (!result.ok) {
+    return Response.json({ error: result.error, reason: result.reason }, { status: result.status });
+  }
+  return Response.json({ items: result.items }, { headers: { "Cache-Control": "no-store" } });
 }

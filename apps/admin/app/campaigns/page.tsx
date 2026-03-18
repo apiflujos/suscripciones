@@ -1,9 +1,13 @@
-import { fetchAdminCached } from "../lib/adminApi";
 import { normalizeErrorParam } from "../lib/errorParam";
 import { getCsrfToken } from "../lib/csrf";
 import { createCampaign, runCampaign } from "./actions";
 import { RunCampaignButton } from "./RunCampaignButton";
 import { NewMassMessageModal } from "./NewMassMessageModal";
+import { listSmartLists } from "../admin/_services/smartLists";
+import { listCampaigns } from "../admin/_services/campaigns";
+import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
+import { cookies } from "next/headers";
+import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
 
 function buildMessageOptions(templates: any[]) {
   const findByName = (name: string) =>
@@ -42,12 +46,13 @@ export default async function CampaignsPage({
   searchParams?: Promise<Record<string, string | undefined>>;
 }) {
   const csrfToken = await getCsrfToken();
-  const listsRes = await fetchAdminCached("/admin/comms/smart-lists?take=200", { ttlMs: 0 });
-  const lists = Array.isArray(listsRes?.json?.items) ? listsRes.json.items : [];
-  const notificationsRes = await fetchAdminCached("/admin/notifications/config?environment=PRODUCTION", { ttlMs: 0 });
-  const notificationsTemplates = Array.isArray(notificationsRes?.json?.config?.templates)
-    ? notificationsRes.json.config.templates
-    : [];
+  const c = await cookies();
+  const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
+  const session = await verifyAdminSessionToken(sessionToken);
+  const listsRes = await listSmartLists({ tenantId: session?.tenantId || null, take: 200, skip: 0 });
+  const lists = listsRes.ok ? listsRes.items : [];
+  const notificationsConfig = await getNotificationsConfigForEnv("PRODUCTION");
+  const notificationsTemplates = Array.isArray((notificationsConfig as any)?.templates) ? (notificationsConfig as any).templates : [];
   const messageOptions = buildMessageOptions(notificationsTemplates);
   const sp = (await searchParams) ?? {};
   const returnTo = `/campaigns?${new URLSearchParams(
@@ -57,9 +62,9 @@ export default async function CampaignsPage({
   const take = 20;
   const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
   const params = new URLSearchParams({ take: String(take), skip: String(skip) });
-  const campaignsRes = await fetchAdminCached(`/admin/comms/campaigns?${params.toString()}`, { ttlMs: 0 });
-  const items = Array.isArray(campaignsRes?.json?.items) ? campaignsRes.json.items : [];
-  const total = Number(campaignsRes?.json?.total ?? items.length);
+  const campaignsRes = await listCampaigns({ take, skip });
+  const items = campaignsRes.ok ? campaignsRes.items : [];
+  const total = campaignsRes.ok ? Number(campaignsRes.total ?? items.length) : items.length;
 
   return (
     <div className="page pageWide">

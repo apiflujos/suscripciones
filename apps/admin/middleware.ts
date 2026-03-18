@@ -22,6 +22,23 @@ function isPublicPath(pathname: string): boolean {
   );
 }
 
+function isApiPath(pathname: string): boolean {
+  return (
+    pathname === "/health" ||
+    pathname === "/healthz" ||
+    pathname.startsWith("/health/") ||
+    pathname.startsWith("/healthz/") ||
+    pathname === "/api" ||
+    pathname.startsWith("/api/") ||
+    pathname === "/webhooks" ||
+    pathname.startsWith("/webhooks/") ||
+    pathname === "/public" ||
+    pathname.startsWith("/public/") ||
+    pathname === "/admin" ||
+    pathname.startsWith("/admin/")
+  );
+}
+
 function isSuperAdminArea(pathname: string): boolean {
   return pathname.startsWith("/sa") || pathname.startsWith("/__sa");
 }
@@ -38,6 +55,11 @@ export async function middleware(req: NextRequest) {
   const requestHeaders = new Headers(req.headers);
   const pathname = req.nextUrl.pathname;
   requestHeaders.set("x-app-pathname", pathname);
+
+  // Skip UI middleware for API endpoints (admin/public/webhooks/health)
+  if (isApiPath(pathname)) {
+    return NextResponse.next({ request: { headers: requestHeaders } });
+  }
 
   // CSRF Token
   const existingCsrf = req.cookies.get(CSRF_COOKIE)?.value || "";

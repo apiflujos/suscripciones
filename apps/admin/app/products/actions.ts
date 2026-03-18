@@ -1,27 +1,20 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { normalizeToken } from "../lib/normalizeToken";
-import { getRequiredApiBase } from "../lib/adminApi";
 import { assertCsrfToken } from "../lib/csrf";
 import { DEFAULT_CURRENCY, normalizeSupportedCurrency } from "../lib/currencies";
-
-async function adminFetch(path: string, init: RequestInit) {
-  const API_BASE = getRequiredApiBase();
-  const TOKEN = normalizeToken(process.env.ADMIN_API_TOKEN || "");
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: {
-      ...(TOKEN ? { authorization: `Bearer ${TOKEN}`, "x-admin-token": TOKEN } : {}),
-      "content-type": "application/json",
-      ...(init.headers ?? {})
-    },
-    cache: "no-store"
-  });
-  const json = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(json?.reason ? `${json?.error || "request_failed"}:${json.reason}` : json?.error || `request_failed_${res.status}`);
-  return json;
-}
+import {
+  createCatalogProduct,
+  deleteCatalogProduct,
+  getCatalogProductById,
+  listCatalogProducts,
+  updateCatalogProduct
+} from "../admin/_services/products";
+import { getCustomerById } from "../admin/_services/customers";
+import { createManualOrderForAdmin } from "../admin/_services/orders";
+import { sendChatwootMessageForCustomer } from "../admin/_services/chatwoot";
+import { getAdminSettings } from "../admin/_services/settings";
+import { createPlan } from "../admin/_services/plans";
 
 function pesosToCents(input: string): number {
   const digits = String(input || "").replace(/[^\d-]/g, "");
@@ -174,37 +167,35 @@ export async function createProduct(formData: FormData) {
   }
 
   try {
-    await adminFetch("/admin/products", {
-      method: "POST",
-      body: JSON.stringify({
-        ...(tenantIds.length ? { tenantIds } : {}),
-        name,
-        sku,
-        kind,
-        currency,
-        basePriceInCents,
-        intervalUnit,
-        intervalCount,
-        taxPercent,
-        discountType,
-        discountValueInCents,
-        discountPercent,
-        description: description || null,
-        vendor: vendor || null,
-        productType: productType || null,
-        tags: tags || null,
-        unit: unit || null,
-        taxable,
-        requiresShipping,
+    const created = await createCatalogProduct({
+      tenantIds,
+      name,
+      sku,
+      kind: kind === "SERVICE" ? "SERVICE" : "PRODUCT",
+      currency,
+      basePriceInCents,
+      intervalUnit: intervalUnit as any,
+      intervalCount,
+      taxPercent,
+      discountType,
+      discountValueInCents,
+      discountPercent,
+      description: description || null,
+      vendor: vendor || null,
+      productType: productType || null,
+      tags: tags || null,
+      unit: unit || null,
+      taxable,
+      requiresShipping,
+      metadata: {
+        collectionMode,
+        imageUrl: imageUrl || null,
         option1Name: option1Name || null,
         option2Name: option2Name || null,
-        variants: variants || null,
-        imageUrl: imageUrl || null,
-        metadata: {
-          collectionMode
-        }
-      })
+        variants: variants || null
+      }
     });
+    if (!created.ok) throw new Error(created.error);
     redirect(mergeQuery(returnTo, { created: "1" }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
@@ -258,38 +249,38 @@ export async function updateProduct(formData: FormData) {
   }
 
   try {
-    await adminFetch(`/admin/products/${encodeURIComponent(id)}`, {
-      method: "PUT",
-      body: JSON.stringify({
-        ...(tenantIds.length ? { tenantIds } : tenantId ? { tenantId } : {}),
-        ...(primaryTenantId ? { primaryTenantId } : {}),
-        name,
-        sku,
-        kind,
-        currency,
-        basePriceInCents,
-        intervalUnit,
-        intervalCount,
-        taxPercent,
-        discountType,
-        discountValueInCents,
-        discountPercent,
-        description: description || null,
-        vendor: vendor || null,
-        productType: productType || null,
-        tags: tags || null,
-        unit: unit || null,
-        taxable,
-        requiresShipping,
-        option1Name: option1Name || null,
-        option2Name: option2Name || null,
-        variants: variants || null,
-        imageUrl: imageUrl || null,
-        metadata: {
-          collectionMode
-        }
-      })
+    const updated = await updateCatalogProduct({
+      productId: id,
+      tenantId: tenantId || null,
+      tenantIds,
+      primaryTenantId: primaryTenantId || null,
+      name,
+      sku,
+      kind: kind === "SERVICE" ? "SERVICE" : "PRODUCT",
+      currency,
+      basePriceInCents,
+      intervalUnit: intervalUnit as any,
+      intervalCount,
+      taxPercent,
+      discountType,
+      discountValueInCents,
+      discountPercent,
+      description: description || null,
+      vendor: vendor || null,
+      productType: productType || null,
+      tags: tags || null,
+      unit: unit || null,
+      taxable,
+      requiresShipping,
+      option1Name: option1Name || null,
+      option2Name: option2Name || null,
+      variants: variants || null,
+      imageUrl: imageUrl || null,
+      metadata: {
+        collectionMode
+      }
     });
+    if (!updated.ok) throw new Error(updated.error);
     redirect(mergeQuery(returnTo, { updated: "1", ...(tenantId ? { tenantId } : {}) }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
@@ -315,15 +306,14 @@ export async function sendProductToCustomer(formData: FormData) {
   let product: any = null;
   let customer: any = null;
   try {
-    const productRes = await adminFetch(`/admin/products/${encodeURIComponent(productId)}`, { method: "GET" });
-    product = productRes?.item || null;
+    const productRes = await getCatalogProductById({ productId });
+    product = productRes.ok ? productRes.item : null;
   } catch (err: any) {
     return redirect(mergeQuery(returnTo, { error: String(err?.message || "product_fetch_failed") }));
   }
 
   try {
-    const customerRes = await adminFetch(`/admin/customers/${encodeURIComponent(customerId)}`, { method: "GET" });
-    customer = customerRes?.customer || null;
+    customer = await getCustomerById(customerId);
   } catch (err: any) {
     return redirect(mergeQuery(returnTo, { error: String(err?.message || "customer_fetch_failed") }));
   }
@@ -350,34 +340,32 @@ export async function sendProductToCustomer(formData: FormData) {
   const attachmentUrl = includeImageSafe ? imageUrl : "";
   if (includePaymentLink) {
     try {
-      const orderRes = await adminFetch("/admin/orders", {
-        method: "POST",
-        body: JSON.stringify({
-          customerId,
-          reference: buildOrderReference(product),
-          currency: String(product.currency || "COP"),
-          discountType: product.discountType || "NONE",
-          discountValueInCents: Number(product.discountValueInCents || 0),
-          discountPercent: Number(product.discountPercent || 0),
-          taxPercent: Number(product.taxPercent || 0),
-          lineItems: [
-            {
-              sku: product.sku || undefined,
-              name: product.name || "Producto",
-              quantity: 1,
-              unitPriceInCents: Number(product.basePriceInCents || 0)
-            }
-          ],
-          sendChatwoot: false
-        })
+      const orderRes = await createManualOrderForAdmin({
+        customerId,
+        reference: buildOrderReference(product),
+        currency: String(product.currency || "COP"),
+        discountType: product.discountType || "NONE",
+        discountValueInCents: Number(product.discountValueInCents || 0),
+        discountPercent: Number(product.discountPercent || 0),
+        taxPercent: Number(product.taxPercent || 0),
+        lineItems: [
+          {
+            sku: product.sku || undefined,
+            name: product.name || "Producto",
+            quantity: 1,
+            unitPriceInCents: Number(product.basePriceInCents || 0)
+          }
+        ],
+        sendChatwoot: false
       });
-      checkoutUrl = String(orderRes?.checkoutUrl || "");
+      if (!orderRes.ok) throw new Error(orderRes.error);
+      checkoutUrl = String((orderRes as any)?.checkoutUrl || "");
     } catch (err: any) {
       return redirect(mergeQuery(returnTo, { error: String(err?.message || "order_create_failed") }));
     }
 
     try {
-      const settingsRes = await adminFetch("/admin/settings", { method: "GET" });
+      const settingsRes = await getAdminSettings();
       const comms = settingsRes?.communications || null;
       const activeEnv = String(comms?.activeEnv || "PRODUCTION").toUpperCase() === "SANDBOX" ? "SANDBOX" : "PRODUCTION";
       const envCfg = activeEnv === "SANDBOX" ? comms?.sandbox : comms?.production;
@@ -421,17 +409,15 @@ export async function sendProductToCustomer(formData: FormData) {
   if (!message) return redirect(mergeQuery(returnTo, { error: "empty_message" }));
 
   try {
-    await adminFetch("/admin/chatwoot/messages", {
-      method: "POST",
-      body: JSON.stringify({
-        customerId,
-        content: message,
-        type: "PAYMENT_LINK",
-        ...(Number.isFinite(inboxId) ? { inboxId } : {}),
-        ...(templateParams ? { templateParams } : {}),
-        ...(attachmentUrl ? { attachmentUrl } : {})
-      })
+    const sent = await sendChatwootMessageForCustomer({
+      customerId,
+      content: message,
+      type: "PAYMENT_LINK",
+      ...(Number.isFinite(inboxId) ? { inboxId } : {}),
+      ...(templateParams ? { templateParams } : {}),
+      ...(attachmentUrl ? { attachmentUrl } : {})
     });
+    if (!sent.ok) throw new Error(sent.error);
   } catch (err: any) {
     return redirect(mergeQuery(returnTo, { error: String(err?.message || "chatwoot_send_failed") }));
   }
@@ -448,12 +434,8 @@ export async function deleteProduct(formData: FormData) {
   if (!id) return redirect(mergeQuery(returnTo, { error: "missing_id" }));
 
   try {
-    const path = tenantId
-      ? `/admin/products/${encodeURIComponent(id)}?tenantId=${encodeURIComponent(tenantId)}&force=1`
-      : `/admin/products/${encodeURIComponent(id)}?force=1`;
-    await adminFetch(path, {
-      method: "DELETE"
-    });
+    const result = await deleteCatalogProduct({ productId: id, tenantId: tenantId || null, force: true });
+    if (!result.ok) throw new Error(result.error);
     redirect(mergeQuery(returnTo, { deleted: "1", ...(tenantId ? { tenantId } : {}) }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
@@ -516,31 +498,29 @@ export async function createPlanTemplate(formData: FormData) {
       if (!itemName || !itemSku) throw new Error("producto_incompleto");
       if (!basePriceInCents || basePriceInCents <= 0) throw new Error("precio_requerido");
 
-      const created = await adminFetch("/admin/products", {
-        method: "POST",
-        body: JSON.stringify({
-          ...(tenantIds.length ? { tenantIds } : {}),
-          name: itemName,
-          sku: itemSku,
-          kind: itemKind,
-          currency: itemCurrency,
-          basePriceInCents,
-          taxPercent,
-          discountType,
-          discountValueInCents,
-          discountPercent,
-          taxable: true,
-          requiresShipping: itemKind === "PRODUCT",
+      const created = await createCatalogProduct({
+        tenantIds,
+        name: itemName,
+        sku: itemSku,
+        kind: itemKind === "SERVICE" ? "SERVICE" : "PRODUCT",
+        currency: itemCurrency,
+        basePriceInCents,
+        taxPercent,
+        discountType,
+        discountValueInCents,
+        discountPercent,
+        taxable: true,
+        requiresShipping: itemKind === "PRODUCT",
+        metadata: {
+          collectionMode: billingType === "PLAN" ? "AUTO_LINK" : "AUTO_DEBIT",
           option1Name: option1Name || null,
           option2Name: option2Name || null,
           variants: variants || null,
-          imageUrl: imageUrl || null,
-          metadata: {
-            collectionMode: billingType === "PLAN" ? "AUTO_LINK" : "AUTO_DEBIT"
-          }
-        })
+          imageUrl: imageUrl || null
+        }
       });
-      const createdItemId = created?.product?.id ? String(created.product.id) : "";
+      if (!created.ok) throw new Error(created.error);
+      const createdItemId = (created as any)?.productId ? String((created as any).productId) : "";
       if (!createdItemId) throw new Error("crear_producto_failed");
 
       item = {
@@ -560,8 +540,8 @@ export async function createPlanTemplate(formData: FormData) {
         imageUrl: imageUrl || null
       };
     } else {
-      const products = await adminFetch(tenantId ? `/admin/products?tenantId=${encodeURIComponent(tenantId)}` : "/admin/products", { method: "GET" });
-      item = (products?.items ?? []).find((p: any) => String(p.id) === catalogItemId);
+      const productsRes = await listCatalogProducts({ tenantId: tenantId || undefined });
+      item = (productsRes?.items ?? []).find((p: any) => String(p.id) === catalogItemId);
       if (!item) throw new Error("producto_no_encontrado");
     }
 
@@ -584,41 +564,39 @@ export async function createPlanTemplate(formData: FormData) {
 
     const collectionMode = billingType === "PLAN" ? "AUTO_LINK" : "AUTO_DEBIT";
 
-    await adminFetch("/admin/plans", {
-      method: "POST",
-      body: JSON.stringify({
-        ...(tenantIds.length ? { tenantIds } : {}),
-        name: name || `${billingType === "PLAN" ? "Plan" : "Suscripción"} - ${item.name}`,
-        priceInCents: totals.totalInCents,
-        currency: item.currency || "COP",
-        intervalUnit,
-        intervalCount,
-        collectionMode,
-        metadata: {
-          catalog: {
-            itemId: item.id,
-            sku: item.sku,
-            name: item.name,
-            kind: item.kind,
-            option1Name: item.option1Name || null,
-            option2Name: item.option2Name || null,
-            option1Value: option1Value || null,
-            option2Value: option2Value || null,
-            variantDeltaInCents: delta || 0
-          },
-          pricing: {
-            basePriceInCents: Number(item.basePriceInCents || 0),
-            subtotalInCents: totals.subtotalInCents,
-            taxPercent: Number(item.taxPercent || 0),
-            taxInCents: totals.taxInCents,
-            discountType: item.discountType || "NONE",
-            discountValueInCents: Number(item.discountValueInCents || 0),
-            discountPercent: Number(item.discountPercent || 0),
-            totalInCents: totals.totalInCents
-          }
+    const createdPlan = await createPlan({
+      tenantIds,
+      name: name || `${billingType === "PLAN" ? "Plan" : "Suscripción"} - ${item.name}`,
+      priceInCents: totals.totalInCents,
+      currency: item.currency || "COP",
+      intervalUnit: intervalUnit as any,
+      intervalCount,
+      collectionMode,
+      metadata: {
+        catalog: {
+          itemId: item.id,
+          sku: item.sku,
+          name: item.name,
+          kind: item.kind,
+          option1Name: item.option1Name || null,
+          option2Name: item.option2Name || null,
+          option1Value: option1Value || null,
+          option2Value: option2Value || null,
+          variantDeltaInCents: delta || 0
+        },
+        pricing: {
+          basePriceInCents: Number(item.basePriceInCents || 0),
+          subtotalInCents: totals.subtotalInCents,
+          taxPercent: Number(item.taxPercent || 0),
+          taxInCents: totals.taxInCents,
+          discountType: item.discountType || "NONE",
+          discountValueInCents: Number(item.discountValueInCents || 0),
+          discountPercent: Number(item.discountPercent || 0),
+          totalInCents: totals.totalInCents
         }
-      })
+      }
     });
+    if (!createdPlan.ok) throw new Error(createdPlan.error);
 
     const qs = new URLSearchParams({ created: "1", ...(tenantId ? { tenantId } : {}) }).toString();
     redirect(`/products?${qs}`);

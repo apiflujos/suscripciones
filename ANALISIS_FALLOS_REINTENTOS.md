@@ -86,7 +86,7 @@ if (dueAt && now.getTime() + 5_000 < dueAt.getTime()) {
 
 ### 1. Reducir Ventana de Seguridad
 
-**Archivo:** `apps/api/src/jobs/handlers/paymentRetry.ts`
+**Archivo:** `packages/core/src/jobs/handlers/paymentRetry.ts`
 
 **Problema:** 24h es demasiado. Si falla a las 9 PM, no reintenta hasta las 9 PM del día siguiente.
 

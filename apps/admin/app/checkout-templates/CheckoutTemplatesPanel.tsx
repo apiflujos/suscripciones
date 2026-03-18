@@ -25,7 +25,7 @@ type Template = {
   active: boolean;
   tenantId?: string | null;
   allowProductSelect: boolean;
-  productIds?: string[] | null;
+  productIds?: any;
   expiryHours?: number | null;
   logoUrl?: string | null;
   publicTitle?: string | null;
@@ -33,7 +33,7 @@ type Template = {
   wompiTitle?: string | null;
   wompiDescription?: string | null;
   utmParams?: string | null;
-  layout?: Layout | null;
+  layout?: any;
 };
 
 type Product = { id: string; name: string; sku?: string; collectionMode?: string | null; metadata?: any };
@@ -873,7 +873,11 @@ export function CheckoutTemplatesPanel({
               <div>
                 <div className="field-hint">Productos</div>
                 <div className="template-meta-value">
-                  {t.allowProductSelect ? "Selector" : (t.productIds || []).map((id) => productById.get(id)?.name || "—").join(", ") || "—"}
+                  {t.allowProductSelect
+                    ? "Selector"
+                    : (Array.isArray(t.productIds) ? t.productIds : [])
+                        .map((id: any) => productById.get(String(id))?.name || "—")
+                        .join(", ") || "—"}
                 </div>
               </div>
               <div>

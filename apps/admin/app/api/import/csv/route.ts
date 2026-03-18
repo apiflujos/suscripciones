@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { getAdminApiConfig } from "../../../lib/adminApi";
+import { requireApiSession } from "../../_lib/requireApiSession";
+import { createCustomer, createCustomerSchema } from "../../../admin/_services/customers";
+import { createCatalogProduct } from "../../../admin/_services/products";
 
 function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
@@ -59,27 +61,11 @@ function toBool(value: string, fallback = false) {
   return fallback;
 }
 
-async function adminFetch(path: string, init: RequestInit) {
-  const { apiBase, token } = getAdminApiConfig();
-  const res = await fetch(`${apiBase}${path}`, {
-    ...init,
-    cache: "no-store",
-    headers: {
-      ...(token ? { authorization: `Bearer ${token}`, "x-admin-token": token } : {}),
-      "content-type": "application/json",
-      ...(init.headers ?? {})
-    }
-  });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const reason = String(json?.reason || json?.error || `request_failed_${res.status}`);
-    throw new Error(reason);
-  }
-  return json;
-}
-
 export async function POST(req: Request) {
   try {
+    const auth = await requireApiSession();
+    if (!auth.ok) return auth.response;
+
     const formData = await req.formData();
     const entity = String(formData.get("entity") || "").trim().toLowerCase();
     const tenantId = String(formData.get("tenantId") || "").trim();
@@ -134,16 +120,17 @@ export async function POST(req: Request) {
             };
           }
 
-          await adminFetch("/admin/customers", {
-            method: "POST",
-            body: JSON.stringify({
-              ...(tenantId ? { tenantId } : {}),
-              ...(name ? { name } : {}),
-              email,
-              phone,
-              ...(Object.keys(metadata).length ? { metadata } : {})
-            })
+          const parsed = createCustomerSchema.safeParse({
+            ...(name ? { name } : {}),
+            email,
+            phone,
+            ...(Object.keys(metadata).length ? { metadata } : {})
           });
+          if (!parsed.success) throw new Error("cuerpo_invalido");
+
+          const tenantIds = [tenantId || auth.session.tenantId || ""].filter(Boolean);
+          const res = await createCustomer({ data: parsed.data, tenantIds });
+          if (!res.ok) throw new Error(res.error || "create_failed");
         } else if (entity === "products") {
           const name = String(line[idx.get("name") ?? -1] || "").trim();
           const sku = String(line[idx.get("sku") ?? -1] || "").trim();
@@ -161,23 +148,22 @@ export async function POST(req: Request) {
 
           if (!name || !sku || priceCop <= 0) throw new Error("name_sku_price_requeridos");
 
-          await adminFetch("/admin/products", {
-            method: "POST",
-            body: JSON.stringify({
-              ...(tenantId ? { tenantId } : {}),
-              name,
-              sku,
-              kind,
-              currency,
-              basePriceInCents: Math.trunc(priceCop) * 100,
-              taxPercent,
-              discountType,
-              discountValueInCents: discountValue * 100,
-              discountPercent,
-              requiresShipping,
-              description: description || null
-            })
+          const tenantIds = [tenantId || auth.session.tenantId || ""].filter(Boolean);
+          const res = await createCatalogProduct({
+            tenantIds,
+            name,
+            sku,
+            kind: kind as any,
+            currency,
+            basePriceInCents: Math.trunc(priceCop) * 100,
+            taxPercent,
+            discountType,
+            discountValueInCents: discountValue * 100,
+            discountPercent,
+            requiresShipping,
+            description: description || null
           });
+          if (!res.ok) throw new Error(res.error || "create_failed");
         } else {
           throw new Error("entity_invalida");
         }

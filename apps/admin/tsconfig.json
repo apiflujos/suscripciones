@@ -21,7 +21,19 @@
       {
         "name": "next"
       }
-    ]
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "@suscripciones/core/*": [
+        "../../packages/core/src/*"
+      ],
+      "@suscripciones/database": [
+        "../../packages/database/src/index.ts"
+      ],
+      "@suscripciones/database/*": [
+        "../../packages/database/src/*"
+      ]
+    }
   },
   "include": [
     "next-env.d.ts",

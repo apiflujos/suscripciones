@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useId, useRef, useState } from "react";
 
 /**
  * Componente HelpTip accesible (WCAG 2.1 AA)
@@ -26,59 +25,16 @@ export function HelpTip({
   const id = useId();
   const label = ariaLabel || "Ayuda";
   const buttonRef = useRef<HTMLButtonElement | null>(null);
-  const tooltipRef = useRef<HTMLSpanElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    setIsMounted(true);
+    return () => {
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current);
+      }
+    };
   }, []);
-
-  function recomputePosition() {
-    const el = buttonRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const tooltip = tooltipRef.current;
-    const tooltipWidth = tooltip?.offsetWidth || 240;
-    const tooltipHeight = tooltip?.offsetHeight || 60;
-    const gap = 8;
-
-    let top = 0;
-    let left = 0;
-
-    switch (position) {
-      case "left":
-        left = Math.round(rect.left - tooltipWidth - gap);
-        top = Math.round(rect.top + rect.height / 2 - tooltipHeight / 2);
-        break;
-      case "top":
-        left = Math.round(rect.left + rect.width / 2 - tooltipWidth / 2);
-        top = Math.round(rect.top - tooltipHeight - gap);
-        break;
-      case "bottom":
-        left = Math.round(rect.left + rect.width / 2 - tooltipWidth / 2);
-        top = Math.round(rect.bottom + gap);
-        break;
-      case "right":
-      default:
-        left = Math.round(rect.right + gap);
-        top = Math.round(rect.top + rect.height / 2 - tooltipHeight / 2);
-        break;
-    }
-
-    // Ajustar para evitar salir de la pantalla
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-
-    if (left < 10) left = 10;
-    if (left + tooltipWidth > viewportWidth - 10) left = viewportWidth - tooltipWidth - 10;
-    if (top < 10) top = 10;
-    if (top + tooltipHeight > viewportHeight - 10) top = viewportHeight - tooltipHeight - 10;
-
-    setPos({ top, left });
-  }
 
   function openTooltip() {
     setIsOpen(true);
@@ -104,70 +60,20 @@ export function HelpTip({
     setIsOpen(false);
   }
 
-  useLayoutEffect(() => {
-    if (!isOpen) return;
-    recomputePosition();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const onAnyScroll = () => recomputePosition();
-    const onResize = () => recomputePosition();
-    window.addEventListener("scroll", onAnyScroll, true);
-    window.addEventListener("resize", onResize);
-    return () => {
-      window.removeEventListener("scroll", onAnyScroll, true);
-      window.removeEventListener("resize", onResize);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
-
   useEffect(() => {
     if (!isOpen) return;
     const onDocPointerDown = (e: PointerEvent) => {
       const btn = buttonRef.current;
       if (!btn) return;
       if (btn.contains(e.target as Node)) return;
-      // Cerrar si click fuera del tooltip también
-      const tooltip = tooltipRef.current;
-      if (tooltip && !tooltip.contains(e.target as Node)) {
-        forceCloseTooltip();
-      }
+      forceCloseTooltip();
     };
     document.addEventListener("pointerdown", onDocPointerDown);
     return () => document.removeEventListener("pointerdown", onDocPointerDown);
   }, [isOpen]);
 
-  // Limpiar timeout al desmontar
-  useEffect(() => {
-    return () => {
-      if (closeTimeoutRef.current) {
-        clearTimeout(closeTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  const bubble =
-    isMounted && isOpen && pos
-      ? createPortal(
-          <span
-            ref={tooltipRef}
-            id={id}
-            role="tooltip"
-            className="helpTipBubble is-open"
-            style={{ top: `${pos.top}px`, left: `${pos.left}px` }}
-            aria-live="polite"
-          >
-            {text}
-          </span>,
-          document.body
-        )
-      : null;
-
   return (
-    <>
+    <span className="helpTipWrap">
       <button
         ref={buttonRef}
         type="button"
@@ -194,7 +100,11 @@ export function HelpTip({
       >
         ?
       </button>
-      {bubble}
-    </>
+      {isOpen ? (
+        <span id={id} role="tooltip" className={`helpTipBubble is-open pos-${position}`} aria-live="polite">
+          {text}
+        </span>
+      ) : null}
+    </span>
   );
 }

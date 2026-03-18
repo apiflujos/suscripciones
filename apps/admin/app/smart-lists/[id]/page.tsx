@@ -1,10 +1,12 @@
-import { fetchAdminCached } from "../../lib/adminApi";
 import Link from "next/link";
+import { listSmartListMembers, getSmartListById } from "../../admin/_services/smartLists";
+import { cookies } from "next/headers";
+import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../../lib/session";
 
-async function fetchMembers(id: string, page = 1) {
+async function fetchMembers(id: string, tenantId: string | null, page = 1) {
   const take = 20;
   const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
-  return fetchAdminCached(`/admin/comms/smart-lists/${encodeURIComponent(id)}/members?active=1&take=${take}&skip=${skip}`, { ttlMs: 0 });
+  return listSmartListMembers({ id, tenantId, active: true, take, skip });
 }
 
 export default async function SmartListDetail({
@@ -18,12 +20,15 @@ export default async function SmartListDetail({
   const sp = (await searchParams) ?? {};
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
   const take = 20;
-  const listRes = await fetchAdminCached(`/admin/comms/smart-lists/${encodeURIComponent(id)}`, { ttlMs: 0 });
-  const list = listRes.ok ? listRes.json?.smartList : null;
+  const c = await cookies();
+  const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
+  const session = await verifyAdminSessionToken(sessionToken);
+  const listRes = await getSmartListById({ id, tenantId: session?.tenantId || null });
+  const list = listRes.ok ? (listRes.smartList as any) : null;
 
-  const membersRes = await fetchMembers(id, page);
-  const items = Array.isArray(membersRes?.json?.items) ? membersRes.json.items : [];
-  const total = Number(membersRes?.json?.total ?? items.length);
+  const membersRes = await fetchMembers(id, session?.tenantId || null, page);
+  const items: any[] = membersRes.ok ? (membersRes.items || []) : [];
+  const total = membersRes.ok ? Number(membersRes.total ?? items.length) : items.length;
 
   if (!list) {
     return (
@@ -45,7 +50,7 @@ export default async function SmartListDetail({
         <div className="panelHeaderRow">
           <div>
             <div className="pageTitle">{list.name}</div>
-            <div className="pageSub">Label: {list.chatwootLabel}</div>
+            <div className="pageSub">Label: {list.chatwootLabel || "—"}</div>
           </div>
           <Link href="/smart-lists" className="ghost no-icon">Volver</Link>
         </div>

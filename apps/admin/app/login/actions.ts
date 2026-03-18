@@ -2,9 +2,9 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { getAdminApiConfig } from "../lib/adminApi";
 import { assertCsrfToken } from "../lib/csrf";
 import { ADMIN_SESSION_COOKIE, signAdminSession } from "../../lib/session";
+import { bootstrapSuperAdmin as bootstrapSuperAdminService, loginAdminUser } from "../admin/_services/adminAuth";
 
 function safeNextPath(value: unknown) {
   const v = String(value || "").trim();
@@ -50,31 +50,16 @@ export async function adminLogin(formData: FormData) {
   const nextPath = safeNextPath(formData.get("next"));
 
   try {
-    const { apiBase, token } = getAdminApiConfig();
-    if (!token) throw new Error("missing_admin_token");
-
-    const res = await fetch(`${apiBase}/admin/auth/login`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${token}`,
-        "x-admin-token": token
-      },
-      body: JSON.stringify({ email, password }),
-      cache: "no-store"
-    });
-    const json = await res.json().catch(() => null);
+    const res = await loginAdminUser({ email, password });
     if (!res.ok) {
-      const apiErr = String(json?.error || "").trim();
-      const apiReason = String(json?.reason || "").trim();
-      if (res.status === 401 && apiErr === "unauthorized" && apiReason) throw new Error(`admin_api_${apiReason}`);
-      throw new Error(apiErr || `login_failed_${res.status}`);
+      const msg = res.error === "unauthorized" ? "unauthorized" : res.error;
+      throw new Error(msg);
     }
 
-    const kind = String(json?.kind || "").trim();
-    const role = kind === "super_admin" ? "SUPER_ADMIN" : String(json?.role || "").trim();
-    const tenantId = json?.tenantId ?? null;
-    const sessionEmail = String(json?.email || email || "").trim();
+    const kind = String(res.kind || "").trim();
+    const role = kind === "super_admin" ? "SUPER_ADMIN" : String((res as any)?.role || "").trim();
+    const tenantId = (res as any)?.tenantId ?? null;
+    const sessionEmail = String((res as any)?.email || email || "").trim();
     if (!sessionEmail || !role) throw new Error("invalid_login_response");
 
     const sessionToken = await signAdminSession({ email: sessionEmail, role: role as any, tenantId }, { ttlSeconds: remember ? 60 * 60 * 24 * 30 : 60 * 60 * 12 });
@@ -87,7 +72,7 @@ export async function adminLogin(formData: FormData) {
       ...(remember ? { maxAge: 60 * 60 * 24 * 30 } : {})
     });
 
-    const saToken = kind === "super_admin" ? String(json?.saToken || "").trim() : "";
+    const saToken = kind === "super_admin" ? String((res as any)?.saToken || "").trim() : "";
     if (saToken) {
       cookieStore.set("sa_session", saToken, {
         httpOnly: true,
@@ -112,23 +97,10 @@ export async function bootstrapSuperAdmin(formData: FormData) {
   const nextPath = safeNextPath(formData.get("next"));
 
   try {
-    const { apiBase, token } = getAdminApiConfig();
-    if (!token) throw new Error("missing_admin_token");
+    const res = await bootstrapSuperAdminService({ email, password });
+    if (!res.ok) throw new Error(String(res.error || "bootstrap_failed").trim());
 
-    const res = await fetch(`${apiBase}/admin/sa/bootstrap`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${token}`,
-        "x-admin-token": token
-      },
-      body: JSON.stringify({ email, password }),
-      cache: "no-store"
-    });
-    const json = await res.json().catch(() => null);
-    if (!res.ok) throw new Error(String(json?.error || `bootstrap_failed_${res.status}`).trim());
-
-    const saToken = String(json?.token || "").trim();
+    const saToken = String((res as any)?.token || "").trim();
     if (!saToken) throw new Error("missing_sa_token");
 
     const sessionToken = await signAdminSession({ email, role: "SUPER_ADMIN", tenantId: null }, { ttlSeconds: 60 * 60 * 12 });

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
+import { listChatwootMessages, listPaymentLogs, listRetryJobs, listSystemLogs, listWebhookEvents, getJobsHealth, getPaymentsHealth } from "../admin/_services/logs";
 import { LocalDateTime } from "../ui/LocalDateTime";
 import { LogsSystemTable } from "./LogsSystemTable";
 import { AiAssistant } from "./AiAssistant";
@@ -12,57 +12,51 @@ import { PendingButton } from "../ui/PendingButton";
 import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { ReconcilePaymentModal } from "./ReconcilePaymentModal";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
+import { getAdminSettings } from "../admin/_services/settings";
+import { resolveSmartViewIds, parseFiltersParam } from "@suscripciones/core/services/smartViews";
+import {
+  recollectPayments,
+  reconcilePayment as reconcilePaymentAction,
+  reconcilePendingPayments as reconcilePendingPaymentsAction,
+  retryFailedWebhooks as retryFailedWebhooksAction,
+  retryJobById,
+  retryWebhookById
+} from "../admin/_services/logsActions";
 
 export const dynamic = "force-dynamic";
 
-function getConfig() {
-  return getAdminApiConfig();
-}
-
-async function fetchAdmin(path: string) {
-  return fetchAdminCached(path, { ttlMs: 1500 });
+async function assertSuperAdminSession() {
+  const c = await cookies();
+  const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
+  const session = await verifyAdminSessionToken(sessionToken);
+  return session?.role === "SUPER_ADMIN";
 }
 
 async function retryJob(formData: FormData) {
   "use server";
   await assertCsrfToken(formData);
-  const { apiBase, token } = getConfig();
-  if (!token) return;
+  if (!(await assertSuperAdminSession())) return;
   const id = String(formData.get("id") || "").trim();
   if (!id) return;
-  await fetch(`${apiBase}/admin/logs/jobs/${encodeURIComponent(id)}/retry`, {
-    method: "POST",
-    cache: "no-store",
-    headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
-  }).catch(() => {});
+  await retryJobById(id);
   revalidatePath("/logs");
 }
 
 async function retryWebhook(formData: FormData) {
   "use server";
   await assertCsrfToken(formData);
-  const { apiBase, token } = getConfig();
-  if (!token) return;
+  if (!(await assertSuperAdminSession())) return;
   const id = String(formData.get("id") || "").trim();
   if (!id) return;
-  await fetch(`${apiBase}/admin/logs/webhooks/${encodeURIComponent(id)}/retry`, {
-    method: "POST",
-    cache: "no-store",
-    headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
-  }).catch(() => {});
+  await retryWebhookById(id);
   revalidatePath("/logs");
 }
 
 async function retryFailedWebhooks(formData: FormData) {
   "use server";
   await assertCsrfToken(formData);
-  const { apiBase, token } = getConfig();
-  if (!token) return;
-  await fetch(`${apiBase}/admin/logs/webhooks/retry-failed`, {
-    method: "POST",
-    cache: "no-store",
-    headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
-  }).catch(() => {});
+  if (!(await assertSuperAdminSession())) return;
+  await retryFailedWebhooksAction();
   revalidatePath("/logs");
   revalidatePath("/payments");
 }
@@ -70,8 +64,7 @@ async function retryFailedWebhooks(formData: FormData) {
 async function reconcilePayment(formData: FormData) {
   "use server";
   await assertCsrfToken(formData);
-  const { apiBase, token } = getConfig();
-  if (!token) return;
+  if (!(await assertSuperAdminSession())) return;
   const wompiTransactionId = String(formData.get("wompiTransactionId") || "").trim();
   const reference = String(formData.get("reference") || "").trim();
   const paymentId = String(formData.get("paymentId") || "").trim();
@@ -81,24 +74,15 @@ async function reconcilePayment(formData: FormData) {
   const amountInCents = Number.isFinite(amountInCentsRaw) ? Math.trunc(amountInCentsRaw) : 0;
   const currency = String(formData.get("currency") || "").trim().toUpperCase();
   if (!wompiTransactionId && !reference && !wompiPaymentLinkId && !paymentId) return;
-  await fetch(`${apiBase}/admin/logs/payments/reconcile`, {
-    method: "POST",
-    cache: "no-store",
-    headers: {
-      authorization: `Bearer ${token}`,
-      "x-admin-token": token,
-      "content-type": "application/json"
-    },
-    body: JSON.stringify({
-      wompiTransactionId: wompiTransactionId || undefined,
-      reference: reference || undefined,
-      paymentId: paymentId || undefined,
-      wompiPaymentLinkId: wompiPaymentLinkId || undefined,
-      tenantId: tenantId || undefined,
-      amountInCents: amountInCents > 0 ? amountInCents : undefined,
-      currency: currency || undefined
-    })
-  }).catch(() => {});
+  await reconcilePaymentAction({
+    wompiTransactionId: wompiTransactionId || undefined,
+    reference: reference || undefined,
+    paymentId: paymentId || undefined,
+    wompiPaymentLinkId: wompiPaymentLinkId || undefined,
+    tenantId: tenantId || undefined,
+    amountInCents: amountInCents > 0 ? amountInCents : undefined,
+    currency: currency || undefined
+  });
   revalidatePath("/logs");
   revalidatePath("/payments");
 }
@@ -106,8 +90,7 @@ async function reconcilePayment(formData: FormData) {
 async function reconcilePendingPayments(formData: FormData) {
   "use server";
   await assertCsrfToken(formData);
-  const { apiBase, token } = getConfig();
-  if (!token) return;
+  if (!(await assertSuperAdminSession())) return;
   const tenantId = String(formData.get("tenantId") || "").trim();
   const daysRaw = Number(String(formData.get("days") || "7"));
   const minutesRaw = Number(String(formData.get("minutes") || "720"));
@@ -115,29 +98,8 @@ async function reconcilePendingPayments(formData: FormData) {
   const days = Number.isFinite(daysRaw) ? Math.min(Math.max(Math.trunc(daysRaw), 1), 30) : 7;
   const minutes = Number.isFinite(minutesRaw) ? Math.min(Math.max(Math.trunc(minutesRaw), 10), 60 * 24 * 30) : 720;
   const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 500) : 100;
-  const recQ = new URLSearchParams({
-    days: String(days),
-    take: String(Math.max(200, take)),
-    ...(tenantId ? { tenantId } : {})
-  });
-  await fetch(`${apiBase}/admin/logs/payments/recollect?${recQ.toString()}`, {
-    method: "POST",
-    cache: "no-store",
-    headers: {
-      authorization: `Bearer ${token}`,
-      "x-admin-token": token
-    }
-  }).catch(() => {});
-  await fetch(`${apiBase}/admin/logs/payments/reconcile-pending`, {
-    method: "POST",
-    cache: "no-store",
-    headers: {
-      authorization: `Bearer ${token}`,
-      "x-admin-token": token,
-      "content-type": "application/json"
-    },
-    body: JSON.stringify({ minutes, take, ...(tenantId ? { tenantId } : {}) })
-  }).catch(() => {});
+  await recollectPayments({ days, take: Math.max(200, take) });
+  await reconcilePendingPaymentsAction({ minutes, take, ...(tenantId ? { tenantId } : {}) });
   revalidatePath("/logs");
   revalidatePath("/payments");
 }
@@ -263,15 +225,6 @@ export default async function LogsPage({
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const csrfToken = await getCsrfToken();
-  const { token } = getConfig();
-  if (!token) {
-    return (
-      <main className="page">
-        <p>Configura `ADMIN_API_TOKEN`.</p>
-      </main>
-    );
-  }
-
   // VERIFICAR QUE SOLO SUPER ADMIN PUEDE VER LOGS
   const c = await cookies();
   const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
@@ -299,94 +252,46 @@ export default async function LogsPage({
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
   const take = 20;
   const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
-  const baseParams = new URLSearchParams({
-    take: String(take),
-    count: "1",
-    ...(Number.isFinite(skip) && skip > 0 ? { skip: String(skip) } : {}),
-    ...(from ? { from } : {}),
-    ...(to ? { to } : {})
-  });
-  const systemParams = new URLSearchParams({
-    take: String(take),
-    count: "1",
-    ...(Number.isFinite(skip) && skip > 0 ? { skip: String(skip) } : {}),
-    ...(q ? { q } : {}),
-    ...(level ? { level } : {}),
-    ...(from ? { from } : {}),
-    ...(to ? { to } : {})
-  });
-  const paymentsParams = new URLSearchParams({
-    take: String(take),
-    count: "1",
-    ...(Number.isFinite(skip) && skip > 0 ? { skip: String(skip) } : {}),
-    ...(q ? { q } : {}),
-    ...(status ? { status } : {}),
-    ...(from ? { from } : {}),
-    ...(to ? { to } : {}),
-    ...(tenantId ? { tenantId } : {}),
-    ...(includeIgnored ? { includeIgnored: "1" } : {})
-  });
-  const webhooksParams = new URLSearchParams({
-    take: String(take),
-    count: "1",
-    ...(Number.isFinite(skip) && skip > 0 ? { skip: String(skip) } : {}),
-    ...(q ? { q } : {}),
-    ...(processStatus ? { processStatus } : {}),
-    ...(from ? { from } : {}),
-    ...(to ? { to } : {}),
-    ...(tenantId ? { tenantId } : {})
-  });
-
+  let resolvedIds: string[] | null = null;
   if ((viewId || filters) && (tab === "system" || tab === "payments")) {
     const scope = tab === "payments" ? "payments" : "logs";
-    let payload: any = null;
-    if (viewId) payload = { viewId };
-    else if (filters) {
-      try {
-        payload = { filters: JSON.parse(filters) };
-      } catch {
-        payload = null;
-      }
-    }
-    if (payload) {
-      const res = await fetch(`/api/smart-views/${scope}/resolve`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      const json = await res.json().catch(() => ({}));
-      const ids = Array.isArray(json?.ids) ? json.ids : [];
-      if (ids.length) {
-        if (tab === "payments") paymentsParams.set("ids", ids.join(","));
-        else systemParams.set("ids", ids.join(","));
-      }
-    }
+    const parsedFilters = filters ? parseFiltersParam(filters) : null;
+    resolvedIds = await resolveSmartViewIds(scope, tenantId || null, null, viewId || undefined, parsedFilters || undefined);
   }
-  const empty = { ok: true, status: 200, json: { items: [], total: null } } as const;
-  const system = tab === "system" ? await fetchAdmin(`/admin/logs/system?${systemParams.toString()}`) : empty;
-  const jobs = tab === "jobs" ? await fetchAdmin(`/admin/logs/jobs?${baseParams.toString()}`) : empty;
-  const webhooks = tab === "webhooks" ? await fetchAdmin(`/admin/webhook-events?${webhooksParams.toString()}`) : empty;
-  const messages = tab === "messages" ? await fetchAdmin(`/admin/logs/messages?${baseParams.toString()}`) : empty;
-  const payments = tab === "payments" ? await fetchAdmin(`/admin/logs/payments?${paymentsParams.toString()}`) : empty;
-  const paymentsHealth = tab === "payments" ? await fetchAdmin("/admin/logs/payments/health") : empty;
-  const paymentsSettings = tab === "payments" ? await fetchAdmin("/admin/settings") : empty;
-  const jobsHealth = tab === "jobs" || tab === "payments" ? await fetchAdmin("/admin/logs/jobs/health") : empty;
-  const settingsRes = await fetchAdmin("/admin/settings");
-  const aiConfig = settingsRes.ok ? settingsRes.json?.ai : null;
+
+  const systemIds = tab === "system" && resolvedIds && resolvedIds.length ? resolvedIds : undefined;
+  const paymentIds = tab === "payments" && resolvedIds && resolvedIds.length ? resolvedIds : undefined;
+
+  const emptyList = { items: [], total: null };
+  const system = tab === "system" ? await listSystemLogs({ take, skip, q, level, from, to, ids: systemIds, withCount: true }) : emptyList;
+  const jobs = tab === "jobs" ? await listRetryJobs({ take, skip, from, to, withCount: true }) : emptyList;
+  const webhooks =
+    tab === "webhooks"
+      ? await listWebhookEvents({ take, skip, q, processStatus, from, to, tenantId, withCount: true })
+      : { items: [], total: null };
+  const messages = tab === "messages" ? await listChatwootMessages({ take, skip, from, to, withCount: true }) : emptyList;
+  const payments =
+    tab === "payments"
+      ? await listPaymentLogs({ take, skip, q, status, from, to, tenantId, includeIgnored, ids: paymentIds, withCount: true })
+      : emptyList;
+  const paymentsHealth = tab === "payments" ? await getPaymentsHealth() : null;
+  const jobsHealth = tab === "jobs" || tab === "payments" ? await getJobsHealth() : null;
+  const settingsRes = await getAdminSettings();
+  const aiConfig = settingsRes?.ai || null;
   const aiProviders = aiConfig?.providers || null;
   const aiEnabled = Boolean(aiConfig?.enabled && (aiProviders?.openai?.configured || aiProviders?.deepseek?.configured));
 
-  const sysItems = (system.json?.items ?? []) as any[];
-  const jobItems = (jobs.json?.items ?? []) as any[];
-  const webhookItems = (webhooks.json?.items ?? []) as any[];
-  const messageItems = (messages.json?.items ?? []) as any[];
-  const paymentItems = (payments.json?.items ?? []) as any[];
+  const sysItems = (system.items ?? []) as any[];
+  const jobItems = (jobs.items ?? []) as any[];
+  const webhookItems = (webhooks.items ?? []) as any[];
+  const messageItems = (messages.items ?? []) as any[];
+  const paymentItems = (payments.items ?? []) as any[];
   const totals = {
-    system: typeof system.json?.total === "number" ? system.json.total : null,
-    jobs: typeof jobs.json?.total === "number" ? jobs.json.total : null,
-    webhooks: typeof webhooks.json?.total === "number" ? webhooks.json.total : null,
-    messages: typeof messages.json?.total === "number" ? messages.json.total : null,
-    payments: typeof payments.json?.total === "number" ? payments.json.total : null
+    system: typeof system.total === "number" ? system.total : null,
+    jobs: typeof jobs.total === "number" ? jobs.total : null,
+    webhooks: typeof webhooks.total === "number" ? webhooks.total : null,
+    messages: typeof messages.total === "number" ? messages.total : null,
+    payments: typeof payments.total === "number" ? payments.total : null
   };
   const failedJobsCount = jobItems.filter((j) => String(j.status) === "FAILED").length;
   const jobSummary = jobItems.reduce(
@@ -432,9 +337,9 @@ export default async function LogsPage({
     { processed: 0, failed: 0, skipped: 0, total: 0 }
   );
 
-  const jobsHealthInfo = jobsHealth?.ok ? jobsHealth.json : null;
-  const paymentsHealthInfo = paymentsHealth?.ok ? paymentsHealth.json : null;
-  const paymentsConfig = paymentsSettings?.ok ? paymentsSettings.json?.paymentsConfig : null;
+  const jobsHealthInfo = jobsHealth || null;
+  const paymentsHealthInfo = paymentsHealth || null;
+  const paymentsConfig = settingsRes?.paymentsConfig || null;
 
   const filtered = q
     ? sysItems.filter((l) => String(l.message || "").toLowerCase().includes(q.toLowerCase()) || String(l.source || "").toLowerCase().includes(q.toLowerCase()))

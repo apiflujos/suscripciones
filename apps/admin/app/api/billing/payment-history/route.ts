@@ -1,25 +1,11 @@
 import { NextResponse } from "next/server";
-import { getAdminApiConfig } from "../../../lib/adminApi";
-
-async function adminFetch(path: string, init: RequestInit) {
-  const { apiBase, token } = getAdminApiConfig();
-  const res = await fetch(`${apiBase}${path}`, {
-    ...init,
-    headers: {
-      ...(token ? { authorization: `Bearer ${token}`, "x-admin-token": token } : {}),
-      "content-type": "application/json",
-      ...(init.headers ?? {})
-    },
-    cache: "no-store"
-  });
-  const json = await res.json().catch(() => null);
-  if (!res.ok) {
-    return { ok: false, status: res.status, json };
-  }
-  return { ok: true, status: res.status, json };
-}
+import { requireApiSession } from "../../_lib/requireApiSession";
+import { getSubscriptionPaymentHistory } from "../../../admin/_services/payments";
 
 export async function GET(req: Request) {
+  const auth = await requireApiSession();
+  if (!auth.ok) return auth.response;
+
   const url = new URL(req.url);
   const subscriptionId = String(url.searchParams.get("subscriptionId") || "").trim();
   const tenantId = String(url.searchParams.get("tenantId") || "").trim();
@@ -33,18 +19,20 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "invalid_subscription_id" }, { status: 400 });
   }
 
-  const qs = new URLSearchParams({ take: String(take), page: String(page) });
-  if (tenantId) qs.set("tenantId", tenantId);
-  if (status) qs.set("status", status);
-  const path = `/admin/payments/subscription/${encodeURIComponent(subscriptionId)}/history?${qs.toString()}`;
-  const res = await adminFetch(path, { method: "GET" });
-
-  if (!res.ok) {
-    return NextResponse.json(
-      { error: res.json?.error || "history_failed", details: res.json },
-      { status: res.status || 500 }
-    );
+  const result = await getSubscriptionPaymentHistory({
+    subscriptionId,
+    tenantId: tenantId || auth.session.tenantId || null,
+    take,
+    page,
+    status
+  });
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.status || 500 });
   }
-
-  return NextResponse.json(res.json || { items: [] });
+  return NextResponse.json({
+    total: result.total,
+    page: result.page,
+    take: result.take,
+    items: result.items
+  });
 }

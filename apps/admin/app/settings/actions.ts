@@ -1,9 +1,24 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { normalizeToken } from "../lib/normalizeToken";
-import { getRequiredApiBase } from "../lib/adminApi";
 import { assertCsrfToken } from "../lib/csrf";
+import {
+  deleteAiProvider as deleteAiProviderAction,
+  deleteChatwootSettings,
+  deleteShopifySettings,
+  deleteWompiSettings,
+  testShopifyForward as testShopifyForwardAction,
+  testWompiConnection as testWompiConnectionAction,
+  updateAiProvider as updateAiProviderAction,
+  updateAutoDebitConfig as updateAutoDebitConfigAction,
+  updateChatwootSettings,
+  updateCheckoutConfig as updateCheckoutConfigAction,
+  updatePaymentsConfig as updatePaymentsConfigAction,
+  updateShopifySettings,
+  updateWompiSettings
+} from "../admin/_services/settingsActions";
+import { bootstrapChatwootAttributes, syncContactsAttributes, testChatwootConnection } from "../admin/_services/comms";
+import { updateGamificationConfig as updateGamificationConfigAction } from "../admin/_services/gamification";
 
 function toShortErrorMessage(err: unknown) {
   const raw = err instanceof Error ? err.message : String(err);
@@ -36,30 +51,10 @@ function normalizeUrl(input: string) {
   return `https://${v}`;
 }
 
-async function adminFetch(path: string, init: RequestInit) {
-  const API_BASE = getRequiredApiBase();
-  const TOKEN = normalizeToken(process.env.ADMIN_API_TOKEN || "");
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: {
-      ...(TOKEN ? { authorization: `Bearer ${TOKEN}`, "x-admin-token": TOKEN } : {}),
-      "content-type": "application/json",
-      ...(init.headers ?? {})
-    },
-    cache: "no-store"
-  });
-  const json = await res.json().catch(() => null);
-  if (!res.ok) {
-    const status = res.status;
-    const details =
-      json?.error && json?.status && json?.text
-        ? `${json.error} (status ${json.status}): ${json.text}`
-        : json?.reason
-          ? `${json?.error || "request_failed"}:${json.reason}`
-          : json?.message || json?.error || `request_failed_${status}`;
-    throw new Error(details);
-  }
-  return json;
+function assertOk(result: { ok: boolean; error?: string; message?: string; status?: number; details?: any }) {
+  if (result.ok) return;
+  const err = result.error || result.message || `request_failed_${result.status || 400}`;
+  throw new Error(err);
 }
 
 export async function updateWompi(formData: FormData) {
@@ -75,19 +70,17 @@ export async function updateWompi(formData: FormData) {
   const redirectUrl = String(formData.get("redirectUrl") || "").trim();
 
   try {
-    await adminFetch("/admin/settings/wompi", {
-      method: "PUT",
-      body: JSON.stringify({
-        ...(environment ? { environment } : {}),
-        ...(publicKey ? { publicKey } : {}),
-        ...(privateKey ? { privateKey } : {}),
-        ...(integritySecret ? { integritySecret } : {}),
-        ...(eventsSecret ? { eventsSecret } : {}),
-        ...(apiBaseUrl ? { apiBaseUrl } : {}),
-        ...(checkoutLinkBaseUrl ? { checkoutLinkBaseUrl } : {}),
-        ...(redirectUrl != null ? { redirectUrl } : {})
-      })
+    const out = await updateWompiSettings({
+      ...(environment ? { environment } : {}),
+      ...(publicKey ? { publicKey } : {}),
+      ...(privateKey ? { privateKey } : {}),
+      ...(integritySecret ? { integritySecret } : {}),
+      ...(eventsSecret ? { eventsSecret } : {}),
+      ...(apiBaseUrl ? { apiBaseUrl } : {}),
+      ...(checkoutLinkBaseUrl ? { checkoutLinkBaseUrl } : {}),
+      ...(redirectUrl != null ? { redirectUrl } : {})
     });
+    assertOk(out as any);
     redirectWith("wompi_creds", "ok", undefined, returnTo);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
@@ -103,14 +96,12 @@ export async function testWompiConnection(formData: FormData) {
   const apiBaseUrl = String(formData.get("apiBaseUrl") || "").trim();
 
   try {
-    await adminFetch("/admin/settings/wompi/test", {
-      method: "POST",
-      body: JSON.stringify({
-        ...(environment ? { environment } : {}),
-        ...(publicKey ? { publicKey } : {}),
-        ...(apiBaseUrl ? { apiBaseUrl } : {})
-      })
+    const out = await testWompiConnectionAction({
+      ...(environment ? { environment } : {}),
+      ...(publicKey ? { publicKey } : {}),
+      ...(apiBaseUrl ? { apiBaseUrl } : {})
     });
+    assertOk(out as any);
     // No redirect - el componente cliente maneja el estado
   } catch (err) {
     if (isNextRedirect(err)) throw err;
@@ -124,10 +115,8 @@ export async function deleteWompiConnection(formData: FormData) {
   const environment = String(formData.get("environment") || "").trim();
 
   try {
-    await adminFetch("/admin/settings/wompi", {
-      method: "DELETE",
-      body: JSON.stringify({ environment: environment || "PRODUCTION" })
-    });
+    const out = await deleteWompiSettings({ environment: environment || "PRODUCTION" });
+    assertOk(out as any);
     redirectWith("wompi_delete", "ok", undefined, returnTo);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
@@ -145,16 +134,14 @@ export async function updateShopify(formData: FormData) {
   const forwardRetryMinutes = String(formData.get("forwardRetryMinutes") || "").trim();
 
   try {
-    await adminFetch("/admin/settings/shopify", {
-      method: "PUT",
-      body: JSON.stringify({
-        ...(forwardUrl ? { forwardUrl } : {}),
-        ...(forwardSecret ? { forwardSecret } : {}),
-        ...(forwardOrigin ? { forwardOrigin } : {}),
-        ...(forwardRetryEnabled ? { forwardRetryEnabled } : {}),
-        ...(forwardRetryMinutes ? { forwardRetryMinutes } : {})
-      })
+    const out = await updateShopifySettings({
+      ...(forwardUrl ? { forwardUrl } : {}),
+      ...(forwardSecret ? { forwardSecret } : {}),
+      ...(forwardOrigin ? { forwardOrigin } : {}),
+      ...(forwardRetryEnabled ? { forwardRetryEnabled } : {}),
+      ...(forwardRetryMinutes ? { forwardRetryMinutes } : {})
     });
+    assertOk(out as any);
     redirectWith("shopify_save", "ok", undefined, returnTo);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
@@ -192,19 +179,17 @@ export async function updateAutoDebitConfig(formData: FormData) {
     : null;
 
   try {
-    await adminFetch("/admin/settings/auto-debit", {
-      method: "PUT",
-      body: JSON.stringify({
-        ...(enabled ? { enabled } : {}),
-        ...(chargeAtCutoffEnabled ? { chargeAtCutoffEnabled } : {}),
-        ...(allowManualCharge ? { allowManualCharge } : {}),
-        ...(retryEnabled ? { retryEnabled } : {}),
-        ...(retryEveryValue ? { retryEveryValue } : {}),
-        ...(retryEveryUnit ? { retryEveryUnit: retryEveryUnitNormalized } : {}),
-        ...(computedRetryMinutes ? { retryEveryMinutes: String(computedRetryMinutes) } : retryEveryMinutes ? { retryEveryMinutes } : {}),
-        ...(maxRetries ? { maxRetries } : {})
-      })
+    const out = await updateAutoDebitConfigAction({
+      ...(enabled ? { enabled } : {}),
+      ...(chargeAtCutoffEnabled ? { chargeAtCutoffEnabled } : {}),
+      ...(allowManualCharge ? { allowManualCharge } : {}),
+      ...(retryEnabled ? { retryEnabled } : {}),
+      ...(retryEveryValue ? { retryEveryValue } : {}),
+      ...(retryEveryUnit ? { retryEveryUnit: retryEveryUnitNormalized } : {}),
+      ...(computedRetryMinutes ? { retryEveryMinutes: String(computedRetryMinutes) } : retryEveryMinutes ? { retryEveryMinutes } : {}),
+      ...(maxRetries ? { maxRetries } : {})
     });
+    assertOk(out as any);
     redirectWith("auto_debit_save", "ok", undefined, returnTo);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
@@ -221,15 +206,13 @@ export async function updatePaymentsConfig(formData: FormData) {
   const includeUnlinkedPaymentsInMetrics = String(formData.get("includeUnlinkedPaymentsInMetrics") || "").trim();
 
   try {
-    await adminFetch("/admin/settings/payments-config", {
-      method: "PUT",
-      body: JSON.stringify({
-        ...(autoReconcileUnlinkedPayments ? { autoReconcileUnlinkedPayments } : {}),
-        ...(acceptUnlinkedPayments ? { acceptUnlinkedPayments } : {}),
-        ...(notifyWhatsappForUnlinkedPayments ? { notifyWhatsappForUnlinkedPayments } : {}),
-        ...(includeUnlinkedPaymentsInMetrics ? { includeUnlinkedPaymentsInMetrics } : {})
-      })
+    const out = await updatePaymentsConfigAction({
+      ...(autoReconcileUnlinkedPayments ? { autoReconcileUnlinkedPayments } : {}),
+      ...(acceptUnlinkedPayments ? { acceptUnlinkedPayments } : {}),
+      ...(notifyWhatsappForUnlinkedPayments ? { notifyWhatsappForUnlinkedPayments } : {}),
+      ...(includeUnlinkedPaymentsInMetrics ? { includeUnlinkedPaymentsInMetrics } : {})
     });
+    assertOk(out as any);
     redirectWith("payments_config_save", "ok", undefined, returnTo);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
@@ -241,7 +224,8 @@ export async function deleteShopifyConnection(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);
   try {
-    await adminFetch("/admin/settings/shopify", { method: "DELETE" });
+    const out = await deleteShopifySettings();
+    assertOk(out as any);
     redirectWith("shopify_delete", "ok", undefined, returnTo);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
@@ -256,14 +240,12 @@ export async function testShopifyForward(formData: FormData) {
   const forwardSecret = String(formData.get("forwardSecret") || "").trim();
   const forwardOrigin = String(formData.get("forwardOrigin") || "").trim();
   try {
-    await adminFetch("/admin/settings/shopify/test-forward", {
-      method: "POST",
-      body: JSON.stringify({
-        ...(forwardUrl ? { forwardUrl } : {}),
-        ...(forwardSecret ? { forwardSecret } : {}),
-        ...(forwardOrigin ? { forwardOrigin } : {})
-      })
+    const out = await testShopifyForwardAction({
+      ...(forwardUrl ? { forwardUrl } : {}),
+      ...(forwardSecret ? { forwardSecret } : {}),
+      ...(forwardOrigin ? { forwardOrigin } : {})
     });
+    assertOk(out as any);
     redirectWith("shopify_test", "ok", undefined, returnTo);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
@@ -284,18 +266,16 @@ export async function updateChatwoot(formData: FormData) {
   const productTemplateLang = String(formData.get("productTemplateLang") || "").trim();
 
   try {
-    await adminFetch("/admin/settings/chatwoot", {
-      method: "PUT",
-      body: JSON.stringify({
-        ...(environment ? { environment } : {}),
-        ...(baseUrl ? { baseUrl } : {}),
-        ...(apiAccessToken ? { apiAccessToken } : {}),
-        ...(accountId ? { accountId: Number(accountId) } : {}),
-        ...(inboxId ? { inboxId: Number(inboxId) } : {}),
-        ...(productTemplateName ? { productTemplateName } : {}),
-        ...(productTemplateLang ? { productTemplateLang } : {})
-      })
+    const out = await updateChatwootSettings({
+      ...(environment ? { environment } : {}),
+      ...(baseUrl ? { baseUrl } : {}),
+      ...(apiAccessToken ? { apiAccessToken } : {}),
+      ...(accountId ? { accountId: Number(accountId) } : {}),
+      ...(inboxId ? { inboxId: Number(inboxId) } : {}),
+      ...(productTemplateName ? { productTemplateName } : {}),
+      ...(productTemplateLang ? { productTemplateLang } : {})
     });
+    assertOk(out as any);
     redirectWith("central_save", "ok", undefined, returnTo);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
@@ -495,10 +475,8 @@ export async function updateGamificationConfig(formData: FormData) {
           }
         };
 
-    await adminFetch("/admin/gamification/config", {
-      method: "PUT",
-      body: JSON.stringify({ config })
-    });
+    const out = await updateGamificationConfigAction(config);
+    assertOk(out as any);
     redirectWith("gamification_save", "ok", undefined, returnTo);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
@@ -518,13 +496,11 @@ export async function updateAiProvider(formData: FormData) {
   }
 
   try {
-    await adminFetch("/admin/settings/ai", {
-      method: "PUT",
-      body: JSON.stringify({
-        provider,
-        ...(apiKey ? { apiKey } : {})
-      })
+    const out = await updateAiProviderAction({
+      provider,
+      ...(apiKey ? { apiKey } : {})
     });
+    assertOk(out as any);
     redirectWith("ai_save", "ok", undefined, returnTo);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
@@ -538,10 +514,8 @@ export async function deleteAiProvider(formData: FormData) {
   const provider = String(formData.get("provider") || "").trim().toUpperCase();
 
   try {
-    await adminFetch("/admin/settings/ai", {
-      method: "DELETE",
-      body: JSON.stringify({ provider })
-    });
+    const out = await deleteAiProviderAction({ provider });
+    assertOk(out as any);
     redirectWith("ai_delete", "ok", undefined, returnTo);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
@@ -584,10 +558,8 @@ export async function updateCheckoutConfig(formData: FormData) {
   setString("tokenizationReturnUrl");
 
   try {
-    await adminFetch("/admin/settings/checkout-config", {
-      method: "PUT",
-      body: JSON.stringify(payload)
-    });
+    const out = await updateCheckoutConfigAction(payload);
+    assertOk(out as any);
     redirectWith("checkout_config", "ok", undefined, returnTo);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
@@ -600,10 +572,8 @@ export async function setWompiActiveEnv(formData: FormData) {
   const returnTo = safeReturnTo(formData);
   const activeEnv = String(formData.get("activeEnv") || "").trim().toUpperCase();
   try {
-    await adminFetch("/admin/settings/wompi", {
-      method: "PUT",
-      body: JSON.stringify({ activeEnv })
-    });
+    const out = await updateWompiSettings({ activeEnv });
+    assertOk(out as any);
     redirectWith("wompi_env", "ok", undefined, returnTo);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
@@ -616,10 +586,8 @@ export async function setCentralActiveEnv(formData: FormData) {
   const returnTo = safeReturnTo(formData);
   const activeEnv = String(formData.get("activeEnv") || "").trim().toUpperCase();
   try {
-    await adminFetch("/admin/settings/chatwoot", {
-      method: "PUT",
-      body: JSON.stringify({ activeEnv })
-    });
+    const out = await updateChatwootSettings({ activeEnv });
+    assertOk(out as any);
     redirectWith("central_env", "ok", undefined, returnTo);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
@@ -631,7 +599,8 @@ export async function bootstrapCentralAttributes(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);
   try {
-    await adminFetch("/admin/comms/bootstrap-attributes", { method: "POST" });
+    const out = await bootstrapChatwootAttributes();
+    assertOk(out as any);
     redirectWith("central_bootstrap", "ok", undefined, returnTo);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
@@ -645,7 +614,9 @@ export async function syncCentralAttributes(formData: FormData) {
   const limit = String(formData.get("limit") || "").trim();
   const qp = limit ? `?limit=${encodeURIComponent(limit)}` : "";
   try {
-    await adminFetch(`/admin/comms/sync-attributes${qp}`, { method: "POST" });
+    const limitVal = limit ? Number(limit) : undefined;
+    const out = await syncContactsAttributes(Number.isFinite(Number(limitVal)) ? Number(limitVal) : 200);
+    assertOk(out as any);
     redirectWith("central_sync", "ok", undefined, returnTo);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
@@ -663,15 +634,13 @@ export async function testCentralConnection(formData: FormData) {
   const apiAccessToken = String(formData.get("apiAccessToken") || "").trim();
 
   try {
-    await adminFetch("/admin/comms/test-connection", {
-      method: "POST",
-      body: JSON.stringify({
-        ...(baseUrl ? { baseUrl } : {}),
-        ...(apiAccessToken ? { apiAccessToken } : {}),
-        ...(accountId ? { accountId: Number(accountId) } : {}),
-        ...(inboxId ? { inboxId: Number(inboxId) } : {})
-      })
+    const out = await testChatwootConnection({
+      ...(baseUrl ? { baseUrl } : {}),
+      ...(apiAccessToken ? { apiAccessToken } : {}),
+      ...(accountId ? { accountId: Number(accountId) } : {}),
+      ...(inboxId ? { inboxId: Number(inboxId) } : {})
     });
+    assertOk(out as any);
     // No redirect - el componente cliente maneja el estado
   } catch (err) {
     if (isNextRedirect(err)) throw err;
@@ -684,10 +653,8 @@ export async function deleteCentralConnection(formData: FormData) {
   const returnTo = safeReturnTo(formData);
   const environment = String(formData.get("environment") || "").trim();
   try {
-    await adminFetch("/admin/settings/chatwoot", {
-      method: "DELETE",
-      body: JSON.stringify({ environment: environment || "PRODUCTION" })
-    });
+    const out = await deleteChatwootSettings({ environment: environment || "PRODUCTION" });
+    assertOk(out as any);
     redirectWith("central_delete", "ok", undefined, returnTo);
   } catch (err) {
     if (isNextRedirect(err)) throw err;

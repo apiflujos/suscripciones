@@ -1,19 +1,18 @@
 import { NextResponse } from "next/server";
+import { requireApiSession } from "../_lib/requireApiSession";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-  if (!apiBase) {
-    return Response.json({ ok: false, error: "missing_next_public_api_base_url" }, { status: 500 });
-  }
-  const token = (process.env.ADMIN_API_TOKEN || "").trim();
+export async function GET(req: Request) {
+  const auth = await requireApiSession();
+  if (!auth.ok) return auth.response;
 
   const startedAt = Date.now();
   let health: { ok: boolean; status?: number; error?: string; ms?: number } = { ok: false };
 
   try {
-    const res = await fetch(`${apiBase}/health`, { cache: "no-store" });
+    const healthUrl = new URL("/health", req.url);
+    const res = await fetch(healthUrl, { cache: "no-store" });
     const ms = Date.now() - startedAt;
     health = { ok: res.ok, status: res.status, ms };
   } catch (err: any) {
@@ -21,10 +20,5 @@ export async function GET() {
     health = { ok: false, error: String(err?.message || err), ms };
   }
 
-  return NextResponse.json({
-    apiBase,
-    hasAdminToken: !!token,
-    adminTokenLength: token.length,
-    health
-  });
+  return NextResponse.json({ health });
 }

@@ -1,20 +1,12 @@
 import Link from "next/link";
-import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { HelpTip } from "../ui/HelpTip";
 import { getCsrfToken } from "../lib/csrf";
 import { NotificationsSimple } from "./NotificationsSimple";
 import { saveReminder, saveRealtime } from "./actions";
 import { normalizeErrorParam } from "../lib/errorParam";
+import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
 
 export const dynamic = "force-dynamic";
-
-function getConfig() {
-  return getAdminApiConfig();
-}
-
-async function fetchConfig(environment: "PRODUCTION" | "SANDBOX") {
-  return fetchAdminCached(`/admin/notifications/config?environment=${encodeURIComponent(environment)}`, { ttlMs: 1500 });
-}
 
 export default async function NotificationsPage({
   searchParams
@@ -22,19 +14,9 @@ export default async function NotificationsPage({
   searchParams?: Promise<{ env?: string; saved?: string; error?: string; scheduled?: string }>;
 }) {
   const csrfToken = await getCsrfToken();
-  const { token } = getConfig();
-  if (!token) {
-    return (
-      <main className="page pageWide">
-        <p>Configura `ADMIN_API_TOKEN` en el Admin.</p>
-      </main>
-    );
-  }
-
   const sp = (await searchParams) ?? {};
   const env = (String(sp.env ?? "").trim().toUpperCase() === "SANDBOX" ? "SANDBOX" : "PRODUCTION") as "PRODUCTION" | "SANDBOX";
-  const res = await fetchConfig(env);
-  const config = res.ok && res.json?.config ? res.json.config : { templates: [], rules: [] };
+  const config = (await getNotificationsConfigForEnv(env)) || { templates: [], rules: [] };
   const templates = Array.isArray(config.templates) ? config.templates : [];
   const rules = Array.isArray(config.rules) ? config.rules : [];
 
@@ -70,22 +52,7 @@ export default async function NotificationsPage({
         </div>
       ) : null}
 
-      {!res.ok ? (
-        <div className="card cardPad">
-          No se pudo consultar el API (
-          <span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{res.status ?? "sin respuesta"}</span>). Revisa `NEXT_PUBLIC_API_BASE_URL` y el token del Admin.
-        </div>
-      ) : null}
-
-      {res.ok ? (
-        <NotificationsSimple
-          env={env}
-          csrfToken={csrfToken}
-          templates={templates}
-          rules={rules}
-          actions={{ saveRealtime, saveReminder }}
-        />
-      ) : null}
+      <NotificationsSimple env={env} csrfToken={csrfToken} templates={templates} rules={rules} actions={{ saveRealtime, saveReminder }} />
     </main>
   );
 }

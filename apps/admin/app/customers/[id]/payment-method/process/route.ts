@@ -1,14 +1,5 @@
 import { NextResponse } from "next/server";
-import { getRequiredApiBase } from "../../../../lib/adminApi";
-
-function getConfig() {
-  const raw = String(process.env.ADMIN_API_TOKEN || "");
-  const token = raw.replace(/^Bearer\\s+/i, "").trim().replace(/^\"|\"$/g, "").replace(/^'|'$/g, "").trim();
-  return {
-    apiBase: getRequiredApiBase(),
-    token
-  };
-}
+import { createWompiPaymentSource } from "../../../../admin/_services/customers";
 
 function detectToken(formData: FormData): string {
   const direct =
@@ -34,17 +25,6 @@ function tokenToType(token: string): "CARD" | "NEQUI" | "PSE" {
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
-  let apiBase = "";
-  let token = "";
-  try {
-    const cfg = getConfig();
-    apiBase = cfg.apiBase;
-    token = cfg.token;
-  } catch (err: any) {
-    const msg = err?.message ? String(err.message) : "missing_next_public_api_base_url";
-    return NextResponse.redirect(new URL(`/customers/${id}/payment-method?error=${encodeURIComponent(msg)}`, req.url));
-  }
-  if (!token) return NextResponse.redirect(new URL(`/customers/${id}/payment-method?error=missing_admin_token`, req.url));
 
   const formData = await req.formData().catch(() => null);
   if (!formData) return NextResponse.redirect(new URL(`/customers/${id}/payment-method?error=invalid_form`, req.url));
@@ -60,22 +40,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const type = tokenToType(wompiToken);
 
   try {
-    const res = await fetch(`${apiBase}/admin/customers/${id}/wompi/payment-source`, {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${token}`,
-        "x-admin-token": token,
-        "content-type": "application/json"
-      },
-      body: JSON.stringify({ type, token: wompiToken }),
-      cache: "no-store"
-    });
-    const json = await res.json().catch(() => null);
+    const res = await createWompiPaymentSource({ customerId: id, type, token: wompiToken });
     if (!res.ok) {
-      const msg = json?.error || `request_failed_${res.status}`;
-      return NextResponse.redirect(new URL(`/customers/${id}/payment-method?error=${encodeURIComponent(msg)}`, req.url));
+      const error = res.error ? String(res.error) : "No se pudo registrar el método de pago.";
+      return NextResponse.redirect(new URL(`/customers/${id}/payment-method?error=${encodeURIComponent(error)}`, req.url));
     }
-
     return NextResponse.redirect(new URL(`/customers/${id}/payment-method/success`, req.url));
   } catch (err: any) {
     const msg = err?.message ? String(err.message) : "request_failed";

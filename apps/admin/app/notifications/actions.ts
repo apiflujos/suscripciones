@@ -1,9 +1,15 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { normalizeToken } from "../lib/normalizeToken";
 import { assertCsrfToken } from "../lib/csrf";
-import { getRequiredApiBase } from "../lib/adminApi";
+import {
+  getNotificationsConfigForEnv,
+  notificationsConfigSchema,
+  setNotificationsConfig
+} from "@suscripciones/core/services/notificationsConfig";
+import { scheduleSubscriptionDueNotifications } from "@suscripciones/core/services/notificationsScheduler";
+import { cookies } from "next/headers";
+import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
 
 function toShortErrorMessage(err: unknown) {
   const raw = err instanceof Error ? err.message : String(err);
@@ -15,34 +21,13 @@ function isNextRedirect(err: unknown) {
   return typeof digest === "string" && digest.startsWith("NEXT_REDIRECT");
 }
 
-async function adminFetch(path: string, init: RequestInit) {
-  const API_BASE = getRequiredApiBase();
-  const TOKEN = normalizeToken(process.env.ADMIN_API_TOKEN || "");
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: {
-      ...(TOKEN ? { authorization: `Bearer ${TOKEN}`, "x-admin-token": TOKEN } : {}),
-      "content-type": "application/json",
-      ...(init.headers ?? {})
-    },
-    cache: "no-store"
-  });
-  const json = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(json?.message || json?.error || `request_failed_${res.status}`);
-  return json;
-}
-
 async function getNotificationsConfig(environment: "PRODUCTION" | "SANDBOX") {
-  const qs = `?environment=${encodeURIComponent(environment)}`;
-  const res = await adminFetch(`/admin/notifications/config${qs}`, { method: "GET" });
-  return res?.config as any;
+  return (await getNotificationsConfigForEnv(environment)) as any;
 }
 
 async function putNotificationsConfig(environment: "PRODUCTION" | "SANDBOX", config: any) {
-  return adminFetch("/admin/notifications/config", {
-    method: "PUT",
-    body: JSON.stringify({ environment, config })
-  });
+  const normalized = notificationsConfigSchema.parse(config);
+  return setNotificationsConfig(normalized, { environment });
 }
 
 function normalizeEnv(value: unknown): "PRODUCTION" | "SANDBOX" {
@@ -65,6 +50,13 @@ function slugifyId(input: string) {
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "")
     .slice(0, 48);
+}
+
+async function getActorEmail() {
+  const c = await cookies();
+  const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
+  const session = await verifyAdminSessionToken(sessionToken);
+  return session?.email || undefined;
 }
 
 function chatwootTypeForTrigger(trigger: string) {
@@ -234,13 +226,7 @@ export async function saveNotificationsConfig(formData: FormData) {
 
   try {
     const parsed = raw ? JSON.parse(raw) : null;
-    await adminFetch("/admin/notifications/config", {
-      method: "PUT",
-      body: JSON.stringify({
-        ...(environment === "PRODUCTION" || environment === "SANDBOX" ? { environment } : {}),
-        config: parsed
-      })
-    });
+    await putNotificationsConfig(env, parsed);
     redirect(`/notifications?env=${env}&saved=1`);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
@@ -746,8 +732,8 @@ export async function scheduleSubscription(formData: FormData) {
   if (!subscriptionId) return redirect(`/notifications?env=${environment}&error=missing_subscription_id`);
 
   try {
-    const qs = forceNow ? "?forceNow=1" : "";
-    const result = await adminFetch(`/admin/notifications/schedule/subscription/${encodeURIComponent(subscriptionId)}${qs}`, { method: "POST" });
+    const actor = await getActorEmail();
+    const result = await scheduleSubscriptionDueNotifications({ subscriptionId, forceNow, actor });
     redirect(`/notifications?env=${environment}&scheduled=${encodeURIComponent(String(result?.scheduled ?? 0))}`);
   } catch (err) {
     if (isNextRedirect(err)) throw err;

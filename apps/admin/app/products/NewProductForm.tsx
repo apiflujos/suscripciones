@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { HelpTip } from "../ui/HelpTip";
 import { PendingButton } from "../ui/PendingButton";
 import { DEFAULT_CURRENCY, SUPPORTED_CURRENCIES, normalizeSupportedCurrency } from "../lib/currencies";
 
@@ -75,7 +74,7 @@ export function NewProductForm({
   }
 
   return (
-    <form action={action} className="panel module" style={{ display: "grid", gap: 10 }}>
+    <form action={action} className="panel module compact-form" style={{ display: "grid", gap: 8 }}>
       <input type="hidden" name="csrf" value={csrfToken} />
       {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
       <input type="hidden" name="imageUrl" value={imageUrl} />
@@ -88,7 +87,7 @@ export function NewProductForm({
         <div className="field-hint">Define el ítem recurrente. Luego lo puedes usar en planes y suscripciones.</div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
         <div className="field">
           <label>Tipo</label>
           <select className="select" name="kind" value={kind} onChange={(e) => setKind(e.target.value as any)}>
@@ -138,7 +137,7 @@ export function NewProductForm({
         </div>
       ) : null}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
         <div className="field">
           <label>Moneda</label>
           <select
@@ -159,19 +158,13 @@ export function NewProductForm({
           </select>
         </div>
         <div className="field">
-          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span>SKU</span>
-            <HelpTip text="Código único para identificar el ítem." />
-          </label>
+          <label>SKU</label>
           <input className="input" name="sku" value={sku} onChange={(e) => setSku(e.target.value)} required />
         </div>
         <div className="field">
-          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span>Precio base</span>
-            <HelpTip text="Antes de impuestos/descuentos." />
-          </label>
+          <label>Precio base</label>
           <input
-            className="input"
+            className="input no-icon"
             name="basePricePesos"
             inputMode="numeric"
             value={priceCop}
@@ -181,12 +174,9 @@ export function NewProductForm({
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
         <div className="field">
-          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span>Recurrencia</span>
-            <HelpTip text="Cada cuánto se cobra este producto/servicio." />
-          </label>
+          <label>Recurrencia</label>
           <select className="select" name="intervalUnit" value={intervalUnit} onChange={(e) => setIntervalUnit(e.target.value as any)}>
             <option value="DAY">Día</option>
             <option value="WEEK">Semana</option>
@@ -195,15 +185,12 @@ export function NewProductForm({
           </select>
         </div>
         <div className="field">
-          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span>Cada</span>
-            <HelpTip text="Cantidad de unidades por ciclo." />
-          </label>
-          <input className="input" name="intervalCount" value={intervalCount} onChange={(e) => setIntervalCount(e.target.value)} inputMode="numeric" />
+          <label>Cada</label>
+          <input className="input no-icon" name="intervalCount" value={intervalCount} onChange={(e) => setIntervalCount(e.target.value)} inputMode="numeric" />
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
         <div className="field">
           <label>Impuesto</label>
           <select className="select" name="taxPercent" value={taxPercent} onChange={(e) => setTaxPercent(e.target.value)}>
@@ -241,7 +228,7 @@ export function NewProductForm({
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
         <div className="field">
           <label>Marca / Proveedor</label>
           <input className="input" name="vendor" value={vendor} onChange={(e) => setVendor(e.target.value)} />
@@ -261,7 +248,7 @@ export function NewProductForm({
         <textarea className="input" name="description" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
       </div>
 
-      <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
+      <div className="module-footer">
         <PendingButton className="primary btn-create" type="submit" pendingText="Guardando...">
           Crear producto/servicio
         </PendingButton>

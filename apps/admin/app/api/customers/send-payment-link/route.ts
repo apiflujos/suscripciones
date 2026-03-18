@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
-import { normalizeToken } from "../../../lib/normalizeToken";
-import { getRequiredApiBase } from "../../../lib/adminApi";
+import { requireApiSession } from "../../_lib/requireApiSession";
+import { createManualOrder } from "../../../admin/_services/orders";
+import { getCheckoutConfig } from "../../../admin/_services/settings";
+import { getActiveCheckoutTemplates } from "../../../admin/_services/checkoutTemplates";
+import { getCustomerById, updateCustomerMetadata } from "../../../admin/_services/customers";
+import { sendChatwootMessageForCustomer } from "../../../admin/_services/chatwoot";
 
 function buildChatwootLinkMessage(args: { name?: string; lead: string; url: string }) {
   const safeName = String(args.name || "Cliente").trim() || "Cliente";
@@ -20,9 +24,8 @@ function pesosToCents(input: string): number {
 }
 
 export async function POST(req: Request) {
-  const API_BASE = getRequiredApiBase();
-  const token = normalizeToken(process.env.ADMIN_API_TOKEN || "");
-  if (!token) return NextResponse.json({ ok: false, error: "missing_admin_token" }, { status: 401 });
+  const auth = await requireApiSession();
+  if (!auth.ok) return auth.response;
 
   let body: any = null;
   try {
@@ -41,15 +44,9 @@ export async function POST(req: Request) {
   }
 
   const reference = `CONTACT_${customerId.slice(0, 6)}_${Date.now()}`;
-
-  const res = await fetch(`${API_BASE}/admin/orders`, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${token}`,
-      "x-admin-token": token,
-      "content-type": "application/json"
-    },
-    body: JSON.stringify({
+  const orderResult = await createManualOrder({
+    req,
+    body: {
       customerId,
       reference,
       currency: "COP",
@@ -57,28 +54,18 @@ export async function POST(req: Request) {
       ...(tenantId ? { tenantId } : {}),
       sendChatwoot: false,
       source: "MANUAL"
-    })
+    }
   });
-
-  const json = await res.json().catch(() => null);
-  if (!res.ok) {
-    return NextResponse.json({ ok: false, error: json?.error || "request_failed" }, { status: res.status });
+  if (!orderResult.ok) {
+    return NextResponse.json({ ok: false, error: orderResult.error || "request_failed" }, { status: orderResult.status });
   }
 
-  const checkoutUrl = String(json?.checkoutUrl || "").trim();
-  const rulesActive = Boolean(json?.notificationsRulesActive);
+  const checkoutUrl = String(orderResult.checkoutUrl || "").trim();
+  const rulesActive = Boolean(orderResult.notificationsRulesActive);
   let publicUrl: string | null = null;
   let resolvedTemplateId = templateIdInput || "";
   try {
-    const settingsRes = await fetch(`${API_BASE}/admin/settings`, {
-      headers: {
-        authorization: `Bearer ${token}`,
-        "x-admin-token": token
-      },
-      cache: "no-store"
-    });
-    const settingsJson = await settingsRes.json().catch(() => null);
-    const checkoutConfig = settingsJson?.checkoutConfig || {};
+    const checkoutConfig = await getCheckoutConfig();
     const baseFromSettings = String(checkoutConfig?.planBaseUrl || "").trim();
     if (!baseFromSettings) {
       return NextResponse.json({ ok: false, error: "missing_plan_base_url" }, { status: 400 });
@@ -86,20 +73,9 @@ export async function POST(req: Request) {
     const base = baseFromSettings;
     if (base) {
       if (!resolvedTemplateId) {
-        const templatesRes = await fetch(
-          `${API_BASE}/admin/checkout-templates${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""}`,
-          {
-            headers: { authorization: `Bearer ${token}`, "x-admin-token": token },
-            cache: "no-store"
-          }
-        );
-        const templatesJson = await templatesRes.json().catch(() => null);
-        if (templatesRes.ok) {
-          const items = Array.isArray(templatesJson?.items) ? templatesJson.items : [];
-          const planTemplates = items.filter((t: any) => String(t?.kind || "") === "PLAN" && Boolean(t?.active));
-          const selected = planTemplates[0] || null;
-          resolvedTemplateId = selected ? String(selected.id || "") : "";
-        }
+        const items = await getActiveCheckoutTemplates({ tenantId: tenantId || null, kind: "PLAN" as any });
+        const selected = items?.[0] || null;
+        resolvedTemplateId = selected ? String((selected as any).id || "") : "";
       }
 
       const tokenValue = crypto.randomBytes(18).toString("hex");
@@ -109,11 +85,10 @@ export async function POST(req: Request) {
       const utm = String(checkoutConfig?.defaultUtmParams || "").trim();
       publicUrl = utm ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${utm.replace(/^\?+/, "")}` : baseUrl;
 
-      const customerRes = await fetch(`${API_BASE}/admin/customers/${encodeURIComponent(customerId)}`, {
-        headers: { authorization: `Bearer ${token}`, "x-admin-token": token }
-      });
-      const customerJson = await customerRes.json().catch(() => null);
-      const prevMeta = customerJson?.customer?.metadata ?? {};
+      const customer = await getCustomerById(customerId);
+      if (!customer) return NextResponse.json({ ok: false, error: "customer_not_found" }, { status: 404 });
+      const prevMeta =
+        customer?.metadata && typeof customer.metadata === "object" && !Array.isArray(customer.metadata) ? customer.metadata : {};
       const nextMeta = {
         ...prevMeta,
         paymentLink: {
@@ -128,15 +103,7 @@ export async function POST(req: Request) {
           usedAt: null
         }
       };
-      await fetch(`${API_BASE}/admin/customers/${encodeURIComponent(customerId)}`, {
-        method: "PUT",
-        headers: {
-          authorization: `Bearer ${token}`,
-          "x-admin-token": token,
-          "content-type": "application/json"
-        },
-        body: JSON.stringify({ metadata: nextMeta })
-      });
+      await updateCustomerMetadata({ customerId, metadata: nextMeta });
 
       let chatwootError: string | null = null;
       let fallbackSent = false;
@@ -146,24 +113,11 @@ export async function POST(req: Request) {
           lead: "Aquí está tu link de pago:",
           url: publicUrl
         });
-        try {
-          const chatRes = await fetch(`${API_BASE}/admin/chatwoot/messages`, {
-            method: "POST",
-            headers: {
-              authorization: `Bearer ${token}`,
-              "x-admin-token": token,
-              "content-type": "application/json"
-            },
-            body: JSON.stringify({ customerId, content: msg })
-          });
-          if (!chatRes.ok) {
-            const chatJson = await chatRes.json().catch(() => null);
-            chatwootError = String(chatJson?.error || chatJson?.message || `chatwoot_error_${chatRes.status}`);
-          } else {
-            fallbackSent = true;
-          }
-        } catch (err: any) {
-          chatwootError = String(err?.message || "chatwoot_request_failed");
+        const chatRes = await sendChatwootMessageForCustomer({ customerId, content: msg, actor: auth.session.email });
+        if (!chatRes.ok) {
+          chatwootError = String((chatRes as any)?.error || "chatwoot_error");
+        } else {
+          fallbackSent = true;
         }
       }
 
@@ -171,8 +125,8 @@ export async function POST(req: Request) {
         ok: true,
         checkoutUrl: checkoutUrl || null,
         publicUrl,
-        notificationsScheduled: typeof json?.notificationsScheduled === "number" ? json.notificationsScheduled : null,
-        notificationsSent: typeof json?.notificationsSent === "number" ? json.notificationsSent : null,
+        notificationsScheduled: typeof orderResult.notificationsScheduled === "number" ? orderResult.notificationsScheduled : null,
+        notificationsSent: typeof orderResult.notificationsSent === "number" ? orderResult.notificationsSent : null,
         notificationsRulesActive: rulesActive,
         chatwootError,
         fallbackSent
@@ -186,8 +140,8 @@ export async function POST(req: Request) {
     ok: true,
     checkoutUrl: checkoutUrl || null,
     publicUrl,
-    notificationsScheduled: typeof json?.notificationsScheduled === "number" ? json.notificationsScheduled : null,
-    notificationsSent: typeof json?.notificationsSent === "number" ? json.notificationsSent : null,
+    notificationsScheduled: typeof orderResult.notificationsScheduled === "number" ? orderResult.notificationsScheduled : null,
+    notificationsSent: typeof orderResult.notificationsSent === "number" ? orderResult.notificationsSent : null,
     notificationsRulesActive: rulesActive,
     chatwootError: null,
     fallbackSent: false

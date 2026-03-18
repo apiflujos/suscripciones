@@ -1,32 +1,28 @@
-import { getAdminApiConfig } from "../lib/adminApi";
-
 export const dynamic = "force-dynamic";
 
-async function computeDiag(apiBase: string, token: string) {
+async function computeDiag(apiBase: string) {
   const startedAt = Date.now();
   try {
     const res = await fetch(`${apiBase}/health`, { cache: "no-store" });
     const ms = Date.now() - startedAt;
     return {
       apiBase,
-      hasAdminToken: !!token,
-      adminTokenLength: token.length,
       health: { ok: res.ok, status: res.status, ms }
     };
   } catch (err: any) {
     const ms = Date.now() - startedAt;
     return {
       apiBase,
-      hasAdminToken: !!token,
-      adminTokenLength: token.length,
       health: { ok: false, error: String(err?.message || err), ms }
     };
   }
 }
 
 export default async function DebugPage() {
-  const { apiBase, token } = getAdminApiConfig();
-  const diag = await computeDiag(apiBase, token);
+  const apiBase = String(
+    process.env.ADMIN_INTERNAL_API_BASE_URL || process.env.INTERNAL_API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL || ""
+  ).trim();
+  const diag = apiBase ? await computeDiag(apiBase) : { apiBase, health: { ok: false, error: "missing_api_base", ms: 0 } };
 
   return (
     <main className="page">

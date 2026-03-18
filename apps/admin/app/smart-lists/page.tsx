@@ -1,22 +1,21 @@
-import { fetchAdminCached, getAdminApiConfig } from "../lib/adminApi";
 import { normalizeErrorParam } from "../lib/errorParam";
 import { HelpTip } from "../ui/HelpTip";
 import { getCsrfToken } from "../lib/csrf";
 import { createSmartList, previewSmartList, syncSmartList } from "./actions";
 import { SmartListCreateModal } from "./SmartListCreateModal";
+import { listSmartLists, previewSmartList as previewSmartListService } from "../admin/_services/smartLists";
+import { cookies } from "next/headers";
+import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
 
 type Preview = { count: number; sample: Array<{ id: string; name?: string; email?: string; phone?: string }> } | null;
 
 async function fetchPreview(id: string): Promise<Preview> {
-  const { apiBase, token } = getAdminApiConfig();
-  if (!token) return null;
-  const res = await fetch(`${apiBase}/admin/comms/smart-lists/${encodeURIComponent(id)}/preview`, {
-    method: "POST",
-    headers: { authorization: `Bearer ${token}`, "x-admin-token": token },
-    cache: "no-store"
-  });
-  if (!res.ok) return null;
-  return res.json().catch(() => null);
+  const c = await cookies();
+  const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
+  const session = await verifyAdminSessionToken(sessionToken);
+  const out = await previewSmartListService({ id, tenantId: session?.tenantId || null });
+  if (!out.ok) return null;
+  return { count: out.count, sample: out.sample };
 }
 
 export default async function SmartListsPage({
@@ -39,9 +38,12 @@ export default async function SmartListsPage({
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
   const take = 20;
   const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
-  const listsRes = await fetchAdminCached(`/admin/comms/smart-lists?take=${take}&skip=${skip}`, { ttlMs: 0 });
-  const items = Array.isArray(listsRes?.json?.items) ? listsRes.json.items : [];
-  const total = Number(listsRes?.json?.total ?? items.length);
+  const c = await cookies();
+  const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
+  const session = await verifyAdminSessionToken(sessionToken);
+  const listsRes = await listSmartLists({ tenantId: session?.tenantId || null, take, skip });
+  const items = listsRes.ok ? listsRes.items : [];
+  const total = listsRes.ok ? Number(listsRes.total ?? items.length) : items.length;
   const previewId = String(sp.preview || "").trim();
   const preview = previewId ? await fetchPreview(previewId) : null;
   const preset = String(sp.preset || "").trim();

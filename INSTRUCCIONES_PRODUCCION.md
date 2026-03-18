@@ -25,7 +25,7 @@
 ### 1. Aplicar Migración de Prisma
 
 ```bash
-cd /path/to/wompi_subs/apps/api
+cd /path/to/wompi_subs/apps/admin
 
 # Aplicar migración
 npx prisma migrate deploy
@@ -58,7 +58,7 @@ pm2 restart crm-sus-jobs-<cliente>
 
 ```bash
 # Ejecutar script de limpieza
-pm2 exec 0 "npx tsx apps/api/src/scripts/cleanup-orphan-notification-jobs.ts"
+pm2 exec 0 "npx tsx packages/core/src/scripts/cleanup-orphan-notification-jobs.ts"
 ```
 
 **Esto eliminará:**
@@ -176,7 +176,7 @@ DUE_CUTOFF_SCAN_SECONDS=30
 
 4. **Si hay jobs huérfanos:**
    ```bash
-   pm2 exec 0 "npx tsx apps/api/src/scripts/cleanup-orphan-notification-jobs.ts"
+   pm2 exec 0 "npx tsx packages/core/src/scripts/cleanup-orphan-notification-jobs.ts"
    ```
 
 ---

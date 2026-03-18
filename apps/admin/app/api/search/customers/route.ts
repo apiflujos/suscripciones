@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { getAdminApiConfig } from "../../../lib/adminApi";
+import { requireApiSession } from "../../_lib/requireApiSession";
+import { searchCustomers } from "../../../admin/_services/search";
 
 export async function GET(req: NextRequest) {
-  const { apiBase, token } = getAdminApiConfig();
-  if (!token) return NextResponse.json({ error: "missing_admin_token" }, { status: 401 });
+  const auth = await requireApiSession();
+  if (!auth.ok) return auth.response;
 
   const url = new URL(req.url);
   const q = String(url.searchParams.get("q") || "").trim();
@@ -14,10 +15,6 @@ export async function GET(req: NextRequest) {
 
   if (!q) return NextResponse.json({ items: [] });
 
-  const res = await fetch(
-    `${apiBase}/admin/customers?${new URLSearchParams({ q, take: String(take), ...(tenantId ? { tenantId } : {}) }).toString()}`,
-    { cache: "no-store", headers: { authorization: `Bearer ${token}`, "x-admin-token": token } }
-  );
-  const json = await res.json().catch(() => ({ error: "invalid_json" }));
-  return NextResponse.json(json, { status: res.status });
+  const items = await searchCustomers({ q, take, tenantId: tenantId || auth.session.tenantId || null });
+  return NextResponse.json({ items });
 }

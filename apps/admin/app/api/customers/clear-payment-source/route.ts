@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { normalizeToken } from "../../../lib/normalizeToken";
-import { getRequiredApiBase } from "../../../lib/adminApi";
+import { requireApiSession } from "../../_lib/requireApiSession";
+import { clearCustomerPaymentSource } from "../../../admin/_services/customers";
 
 export async function POST(req: Request) {
-  const API_BASE = getRequiredApiBase();
-  const token = normalizeToken(process.env.ADMIN_API_TOKEN || "");
-  if (!token) return NextResponse.json({ ok: false, error: "missing_admin_token" }, { status: 401 });
+  const auth = await requireApiSession();
+  if (!auth.ok) return auth.response;
 
   let body: any = null;
   try {
@@ -18,19 +17,12 @@ export async function POST(req: Request) {
   const sourceId = Number(body?.sourceId || 0);
   if (!customerId) return NextResponse.json({ ok: false, error: "missing_customer_id" }, { status: 400 });
 
-  const res = await fetch(`${API_BASE}/admin/customers/${customerId}/wompi/payment-source/clear`, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${token}`,
-      "x-admin-token": token,
-      "content-type": "application/json"
-    },
-    body: JSON.stringify(Number.isFinite(sourceId) && sourceId > 0 ? { sourceId } : {})
+  const result = await clearCustomerPaymentSource({
+    customerId,
+    sourceId: Number.isFinite(sourceId) && sourceId > 0 ? sourceId : null
   });
-  const json = await res.json().catch(() => null);
-  if (!res.ok) {
-    return NextResponse.json({ ok: false, error: json?.error || "request_failed" }, { status: res.status });
+  if (!result.ok) {
+    return NextResponse.json({ ok: false, error: result.error }, { status: result.status });
   }
-
-  return NextResponse.json({ ok: true, paymentSourceId: json?.paymentSourceId ?? null, customer: json?.customer ?? null });
+  return NextResponse.json({ ok: true, paymentSourceId: result.paymentSourceId, customer: result.customer });
 }
