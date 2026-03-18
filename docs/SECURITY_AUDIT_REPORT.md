@@ -28,8 +28,8 @@ La aplicación **cumple parcialmente** con los requisitos de seguridad exigidos.
 - Hallazgos: faltan validaciones adicionales de scope por tenant en el payload.
 
 ### 4. WebSockets
-- **No aplica (no existen)**.
-- Evidencias: no hay endpoints WS en código (`rg websocket|ws|socket`).
+- **Cumple**.
+- Evidencias: servidor WS integrado en `apps/admin/scripts/run-next.cjs` (`/ws`), validación JWT + RBAC y auditoría.
 
 ### 5. Logging y auditoría
 - **Cumple (parcial)**.

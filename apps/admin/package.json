@@ -19,7 +19,8 @@
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "react-leaflet": "^5.0.0",
-    "@suscripciones/core": "*"
+    "@suscripciones/core": "*",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.30",
