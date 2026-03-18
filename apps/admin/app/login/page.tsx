@@ -2,12 +2,24 @@ import { adminLogin } from "./actions";
 import { LoginForm } from "./LoginForm";
 import { getCsrfToken } from "../lib/csrf";
 import { normalizeErrorParam } from "../lib/errorParam";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
 
 export default async function LoginPage({
   searchParams
 }: {
   searchParams?: Promise<{ error?: string; next?: string; loggedOut?: string }>;
 }) {
+  const sessionToken = (await cookies()).get(ADMIN_SESSION_COOKIE)?.value || "";
+  const session = sessionToken ? await verifyAdminSessionToken(sessionToken) : null;
+
+  if (session) {
+    const sp = (await searchParams) ?? {};
+    const next = String(sp.next || "").trim();
+    redirect(next || "/");
+  }
+
   const csrfToken = await getCsrfToken();
   const sp = (await searchParams) ?? {};
   const error = normalizeErrorParam(sp.error);
