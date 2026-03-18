@@ -782,16 +782,16 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
     FROM "Payment" p
     INNER JOIN "Customer" c ON c."id" = p."customerId"
     WHERE p."subscriptionId" IS NULL
-      AND p."createdAt" >= $1
-      AND p."createdAt" < $2
+      AND p."createdAt" >= $1::timestamptz
+      AND p."createdAt" < $2::timestamptz
       ${tenantFilter('p', 3, hasTenant)}
   `;
   let unlinkedPaymentsRow: UnlinkedPaymentsRow[] = [{ payments_approved: 0n, payments_other: 0n, revenue_cents: 0n }];
   try {
     unlinkedPaymentsRow = await prisma.$queryRawUnsafe<UnlinkedPaymentsRow[]>(
       unlinkedPaymentsQuery,
-      iso(from),
-      iso(to),
+      from,
+      to,
       tenantId
     );
   } catch (err) {
