@@ -247,8 +247,12 @@ export async function middleware(req: NextRequest) {
   if (session) {
     if (isSuperAdminArea(pathname) && session.role !== "SUPER_ADMIN") {
       const res = NextResponse.redirect(new URL(req.nextUrl.origin + "/"));
-      return applySecurityHeaders(res, pathname);
-    }
+  return applySecurityHeaders(res, pathname);
+}
+
+export const config = {
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt).*)"]
+};
 
     if (isSettingsArea(pathname) && session.role === "AGENT") {
       const res = NextResponse.redirect(new URL(req.nextUrl.origin + "/"));
