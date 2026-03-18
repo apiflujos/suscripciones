@@ -107,6 +107,7 @@ npm install
 npm run db:generate
 npm run build -w apps/admin
 ```
+> Importante: **no usar `npm install --omit=dev`** en producción. Next necesita TypeScript/typings para el build.
 
 ## 4) Migraciones en producción
 **Usar siempre `migrate:deploy`:**
