@@ -35,10 +35,24 @@ export function CustomersModals({
   return (
     <>
       <div className={actionsClassName || "customer-actions"}>
-        <button className="primary btn-contact" type="button" data-modal="true" data-loader="off" onClick={() => setOpenCustomer(true)}>
+        <button
+          className="primary btn-contact"
+          type="button"
+          data-modal="true"
+          data-loader="off"
+          onClick={() => setOpenCustomer(true)}
+          title="Crea un nuevo contacto con datos básicos y canal"
+        >
           Crear contacto
         </button>
-        <button className="primary btn-subscription" type="button" data-modal="true" data-loader="off" onClick={() => setOpenPlan(true)}>
+        <button
+          className="primary btn-subscription"
+          type="button"
+          data-modal="true"
+          data-loader="off"
+          onClick={() => setOpenPlan(true)}
+          title="Crea un plan o una suscripción para un contacto o empresa"
+        >
           Crear suscripción
         </button>
       </div>

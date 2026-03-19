@@ -19,6 +19,7 @@ import { createPlanAndSubscription } from "../billing/actions";
 import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
+import { HelpTip } from "../ui/HelpTip";
 
 export const dynamic = "force-dynamic";
 
@@ -377,7 +378,10 @@ export default async function CustomersPage({
               <div className="filtersPanel">
                 {smartLists.length ? (
                   <div className="filtersQuickRow">
-                    <div className="filter-label">Listas inteligentes</div>
+                    <div className="filter-label">
+                      Listas inteligentes
+                      <HelpTip text="Accesos rápidos a segmentos guardados (filtrados por comportamiento o atributos)." />
+                    </div>
                     <div className="filtersQuick">
                       {smartLists.map((list: any) => (
                         <a
@@ -409,6 +413,7 @@ export default async function CustomersPage({
                       defaultValue={q}
                       placeholder="Buscar por nombre, email, teléfono o identificación..."
                       aria-label="Buscar contactos"
+                      title="Busca por nombre, email, teléfono o identificación"
                     />
                     <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
                   </form>
@@ -427,7 +432,10 @@ export default async function CustomersPage({
                   </div>
                 </div>
                 <div className="view-mode-row" style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
-                  <span className="field-hint" style={{ margin: 0 }}>Vista:</span>
+                  <span className="field-hint" style={{ margin: 0 }}>
+                    Vista:
+                    <HelpTip text="Alterna entre tarjetas y lista para ver contactos." />
+                  </span>
                   <ViewModeToggles
                     currentMode={vistaTyped}
                     baseParams={{

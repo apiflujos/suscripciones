@@ -6,6 +6,7 @@ import { createCustomerFromBilling, createPlanAndSubscription } from "../billing
 import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
+import { HelpTip } from "../ui/HelpTip";
 import { listCatalogProducts } from "../admin/_services/products";
 import { listTenants } from "../admin/_services/tenants";
 import { listCustomers } from "../admin/_services/customers";
@@ -125,6 +126,7 @@ export default async function ProductsPage({
                       defaultValue={q}
                       placeholder="Buscar producto o servicio..."
                       aria-label="Buscar productos"
+                      title="Busca por nombre, SKU o tipo de producto"
                     />
                     <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
                   </form>
@@ -143,7 +145,10 @@ export default async function ProductsPage({
                   </div>
                 </div>
                 <div className="view-mode-row" style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
-                  <span className="field-hint" style={{ margin: 0 }}>Vista:</span>
+                  <span className="field-hint" style={{ margin: 0 }}>
+                    Vista:
+                    <HelpTip text="Alterna entre tarjetas y lista para ver productos." />
+                  </span>
                   <ViewModeToggles
                     currentMode={vistaTyped}
                     baseParams={{

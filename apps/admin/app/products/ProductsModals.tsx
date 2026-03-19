@@ -35,10 +35,24 @@ export function ProductsModals({
   return (
     <>
       <div className="customer-actions">
-        <button className="primary btn-create" type="button" data-modal="true" data-loader="off" onClick={() => setOpenProduct(true)}>
+        <button
+          className="primary btn-create"
+          type="button"
+          data-modal="true"
+          data-loader="off"
+          onClick={() => setOpenProduct(true)}
+          title="Crea un producto o servicio del catálogo"
+        >
           Crear producto
         </button>
-        <button className="primary btn-subscription" type="button" data-modal="true" data-loader="off" onClick={() => setOpenPlan(true)}>
+        <button
+          className="primary btn-subscription"
+          type="button"
+          data-modal="true"
+          data-loader="off"
+          onClick={() => setOpenPlan(true)}
+          title="Crea un plan o una suscripción desde este producto"
+        >
           Crear suscripción
         </button>
       </div>

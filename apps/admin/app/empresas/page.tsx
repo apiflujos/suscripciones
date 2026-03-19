@@ -1,6 +1,7 @@
 import { listEmpresas } from "../admin/_services/companies";
 import { getCsrfToken } from "../lib/csrf";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
+import { HelpTip } from "../ui/HelpTip";
 import { deleteEmpresa } from "./actions";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
@@ -80,18 +81,22 @@ export default async function EmpresasPage({
                       defaultValue={q}
                       placeholder="Buscar empresa por nombre, email o teléfono..."
                       aria-label="Buscar empresas"
+                      title="Busca por nombre, email o teléfono"
                     />
                     <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
                   </form>
                   <div className="products-search-right">
                     <div className="view-mode-row" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span className="field-hint" style={{ margin: 0 }}>Vista:</span>
+                      <span className="field-hint" style={{ margin: 0 }}>
+                        Vista:
+                        <HelpTip text="Alterna entre tarjetas y lista para ver empresas." />
+                      </span>
                       <ViewModeToggles currentMode={vistaTyped} baseParams={baseParams} />
                     </div>
                   </div>
                 </div>
                 <div className="page-actions">
-                  <a className="primary btn-create" href="/empresas/new">
+                  <a className="primary btn-create" href="/empresas/new" title="Crea una empresa y define su contacto principal">
                     Crear empresa
                   </a>
                   <div className="page-actions-summary">{items.length} resultados</div>
