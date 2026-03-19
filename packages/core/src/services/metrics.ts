@@ -18,6 +18,12 @@ type PlatformBreakdownRow = {
   payments_failed: number | bigint;
   revenue_cents: number | bigint;
 };
+type PaymentsByPlanTypeRow = {
+  plan_type: PlanType;
+  payments_success: number | bigint;
+  payments_failed: number | bigint;
+  revenue_cents: number | bigint;
+};
 
 type SeriesPoint = {
   at: string;
@@ -389,6 +395,46 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
     console.error('[Metrics] Error en totalsPaymentsRow:', err);
   }
 
+  let paymentsByPlanType: PaymentsByPlanTypeRow[] = [];
+  try {
+    paymentsByPlanType = await prisma.$queryRawUnsafe<PaymentsByPlanTypeRow[]>(
+      `SELECT
+          sp."planType" AS plan_type,
+          COUNT(*) FILTER (WHERE p."status"='APPROVED' AND p."paidAt" IS NOT NULL AND p."paidAt" >= $1::timestamptz AND p."paidAt" < $2::timestamptz)::bigint AS payments_success,
+          COUNT(*) FILTER (WHERE p."status" IN ('DECLINED','ERROR','VOIDED') AND COALESCE(p."failedAt", p."updatedAt") >= $1::timestamptz AND COALESCE(p."failedAt", p."updatedAt") < $2::timestamptz)::bigint AS payments_failed,
+          COALESCE(SUM(p."amountInCents") FILTER (WHERE p."status"='APPROVED' AND p."paidAt" IS NOT NULL AND p."paidAt" >= $1::timestamptz AND p."paidAt" < $2::timestamptz)) ::bigint AS revenue_cents
+        FROM "Payment" p
+        INNER JOIN "Subscription" s ON s."id" = p."subscriptionId"
+        INNER JOIN "Customer" c ON c."id" = s."customerId"
+        INNER JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
+        WHERE p."subscriptionId" IS NOT NULL
+          AND (
+            (p."paidAt" IS NOT NULL AND p."paidAt" >= $1::timestamptz AND p."paidAt" < $2::timestamptz)
+            OR (COALESCE(p."failedAt", p."updatedAt") >= $1::timestamptz AND COALESCE(p."failedAt", p."updatedAt") < $2::timestamptz)
+          )
+          ${paymentReconciliationFilter}
+          ${paymentUnlinkedFilter}
+          ${tf("p") }
+        GROUP BY 1`,
+      from,
+      to,
+    );
+  } catch (err) {
+    console.error('[Metrics] Error en paymentsByPlanType:', err);
+  }
+  const paymentsByPlanTypeTotals: Record<string, { paymentsSuccess: number; paymentsFailed: number; revenueInCents: number }> = {
+    manual_link: { paymentsSuccess: 0, paymentsFailed: 0, revenueInCents: 0 },
+    auto_subscription: { paymentsSuccess: 0, paymentsFailed: 0, revenueInCents: 0 }
+  };
+  for (const r of paymentsByPlanType) {
+    const key = String(r.plan_type);
+    paymentsByPlanTypeTotals[key] = {
+      paymentsSuccess: num(r.payments_success),
+      paymentsFailed: num(r.payments_failed),
+      revenueInCents: num(r.revenue_cents)
+    };
+  }
+
   // DESGLOSE POR PLATAFORMA (Shopify, Alegra, Manual, Direct, etc.)
   let platformBreakdown: Array<{ source: string; payments_success: bigint; payments_failed: bigint; revenue_cents: bigint }> = [];
   try {
@@ -396,7 +442,12 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
       Array<{ source: string; payments_success: bigint; payments_failed: bigint; revenue_cents: bigint }>
     >(
       `SELECT
-          COALESCE(p."providerResponse"->>'source', 'DIRECT') AS source,
+          COALESCE(
+            p."providerResponse"->>'source',
+            p."providerResponse"->'order'->>'source',
+            p."providerResponse"->'webhook'->'data'->'transaction'->>'source',
+            'DIRECT'
+          ) AS source,
           COUNT(*) FILTER (WHERE p."status" = 'APPROVED' AND p."paidAt" IS NOT NULL AND p."paidAt" >= $1::timestamptz AND p."paidAt" < $2::timestamptz)::bigint AS payments_success,
           COUNT(*) FILTER (WHERE p."status" IN ('DECLINED','ERROR','VOIDED') AND COALESCE(p."failedAt", p."updatedAt") >= $1::timestamptz AND COALESCE(p."failedAt", p."updatedAt") < $2::timestamptz)::bigint AS payments_failed,
           COALESCE(SUM(p."amountInCents") FILTER (WHERE p."status" = 'APPROVED' AND p."paidAt" IS NOT NULL AND p."paidAt" >= $1::timestamptz AND p."paidAt" < $2::timestamptz)) ::bigint AS revenue_cents
@@ -832,6 +883,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
         paymentsOther: num(unlinkedPaymentsRow[0]?.payments_other ?? 0),
         revenueInCents: num(unlinkedPaymentsRow[0]?.revenue_cents ?? 0)
       },
+      byPlanType: paymentsByPlanTypeTotals,
       byPlatform: platformBreakdown.map((r) => ({
         source: r.source,
         paymentsSuccess: num(r.payments_success),

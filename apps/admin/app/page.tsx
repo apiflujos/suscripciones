@@ -478,10 +478,23 @@ export default async function Home({
   const unlinkedPaymentsTotal = unlinkedPaymentsApproved + unlinkedPaymentsOther;
   const unlinkedRevenue = Number(metricsData?.totals?.unlinked?.revenueInCents || 0);
 
+  const paymentsByPlanType = metricsData?.totals?.byPlanType || {};
+  const paymentsAuto = paymentsByPlanType?.auto_subscription || {};
+  const paymentsLink = paymentsByPlanType?.manual_link || {};
+  const paymentsAutoOk = Number(paymentsAuto?.paymentsSuccess || 0);
+  const paymentsAutoFail = Number(paymentsAuto?.paymentsFailed || 0);
+  const paymentsAutoRevenue = Number(paymentsAuto?.revenueInCents || 0);
+  const paymentsLinkOk = Number(paymentsLink?.paymentsSuccess || 0);
+  const paymentsLinkFail = Number(paymentsLink?.paymentsFailed || 0);
+  const paymentsLinkRevenue = Number(paymentsLink?.revenueInCents || 0);
+
   // DESGLOSE POR PLATAFORMA
   const platformData = metricsData?.totals?.byPlatform || [];
   const totalPlatformRevenue = platformData.reduce((sum: number, p: any) => sum + (p.revenueInCents || 0), 0);
   const totalPlatformPayments = platformData.reduce((sum: number, p: any) => sum + (p.paymentsSuccess || 0), 0);
+  const shopifyPlatform = platformData.find((p: any) => String(p?.source || "").toUpperCase() === "SHOPIFY");
+  const shopifyRevenue = Number(shopifyPlatform?.revenueInCents || 0);
+  const shopifyPayments = Number(shopifyPlatform?.paymentsSuccess || 0);
   
   const recentPayments = paymentsRes.items || [];
   const overdueSubs = overdueSubsRes.items || [];
@@ -825,6 +838,45 @@ export default async function Home({
                           {fmtDelta(plansDeltaPct)}
                         </span>
                       </div>
+                    </div>
+                  </div>
+
+                  <div className="card cardPad" style={{ marginBottom: 16 }}>
+                    <h3 style={{ marginTop: 0, marginBottom: 12 }}>Ingresos por tipo de cobro</h3>
+                    <div className="grid3">
+                      <div className="card cardPad" style={{ background: "var(--surface-2)" }}>
+                        <div className="metric-label">
+                          Débito automático
+                          <HelpTip text="Pagos provenientes de suscripciones con débito automático." />
+                        </div>
+                        <div className="metric-value">${fmtMoneyCop(paymentsAutoRevenue)} COP</div>
+                        <div className="metric-sub">
+                          OK: {paymentsAutoOk} · Fallidos: {paymentsAutoFail}
+                        </div>
+                      </div>
+                      <div className="card cardPad" style={{ background: "var(--surface-2)" }}>
+                        <div className="metric-label">
+                          Link de pago
+                          <HelpTip text="Pagos de suscripciones con link de pago (manual_link)." />
+                        </div>
+                        <div className="metric-value">${fmtMoneyCop(paymentsLinkRevenue)} COP</div>
+                        <div className="metric-sub">
+                          OK: {paymentsLinkOk} · Fallidos: {paymentsLinkFail}
+                        </div>
+                      </div>
+                      <div className="card cardPad" style={{ background: "var(--surface-2)" }}>
+                        <div className="metric-label">
+                          Externos sin suscripción
+                          <HelpTip text="Pagos sin suscripción asociada (one-time o externos)." />
+                        </div>
+                        <div className="metric-value">${fmtMoneyCop(unlinkedRevenue)} COP</div>
+                        <div className="metric-sub">
+                          Total: {unlinkedPaymentsTotal} · OK: {unlinkedPaymentsApproved}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ marginTop: 10, color: "var(--text-faint)", fontSize: 12 }}>
+                      Shopify: ${fmtMoneyCop(shopifyRevenue)} COP · Pagos OK: {shopifyPayments}
                     </div>
                   </div>
 
