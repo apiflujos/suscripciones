@@ -29,7 +29,6 @@ export async function listPaymentLogs(args: {
   const toRaw = String(args.to ?? "").trim();
   const tenantId = String(args.tenantId ?? "").trim();
   const planId = String(args.planId ?? "").trim();
-  const includeIgnored = Boolean(args.includeIgnored);
 
   const statusFilter =
     statusRaw === "APPROVED"
@@ -43,20 +42,26 @@ export async function listPaymentLogs(args: {
   const fromDate = parseDate(fromRaw) ?? defaultFromDate();
   const toDate = parseDate(toRaw, { end: true });
 
+  const dateRange = {
+    gte: fromDate,
+    ...(toDate ? { lt: toDate } : {})
+  };
   const dateWhere: Prisma.PaymentWhereInput =
     statusRaw === "APPROVED"
-      ? {
-          paidAt: {
-            gte: fromDate,
-            ...(toDate ? { lt: toDate } : {})
+      ? { paidAt: dateRange }
+      : statusRaw === "FAILED"
+        ? {
+            OR: [
+              { failedAt: dateRange },
+              {
+                failedAt: null,
+                createdAt: dateRange
+              }
+            ]
           }
-        }
-      : {
-          createdAt: {
-            gte: fromDate,
-            ...(toDate ? { lt: toDate } : {})
-          }
-        };
+        : {
+            OR: [{ createdAt: dateRange }, { paidAt: dateRange }, { failedAt: dateRange }]
+          };
 
   const whereBase: Prisma.PaymentWhereInput = {
     ...(statusFilter ? { status: { in: statusFilter as any } } : {}),
@@ -87,36 +92,18 @@ export async function listPaymentLogs(args: {
   let items: any[] = [];
   let total: number | null = null;
 
-  if (includeIgnored) {
-    const [found, counted] = await Promise.all([
-      prisma.payment.findMany({
-        orderBy: { createdAt: "desc" },
-        take,
-        skip,
-        where,
-        include
-      }),
-      withCount ? prisma.payment.count({ where }) : Promise.resolve(null)
-    ]);
-    items = found;
-    total = counted;
-  } else {
-    const cap = Math.max(2000, Math.min(50000, skip + take + 20000));
-    const found = await prisma.payment.findMany({
+  const [found, counted] = await Promise.all([
+    prisma.payment.findMany({
       orderBy: { createdAt: "desc" },
-      take: cap,
+      take,
+      skip,
       where,
       include
-    });
-    const filtered = found.filter((item: any) => {
-      const reconciliation =
-        (item?.providerResponse && typeof item.providerResponse === "object" ? (item.providerResponse as any).reconciliation : null) ||
-        null;
-      return String(reconciliation?.status || "").toUpperCase() !== "IGNORED_EXTERNAL";
-    });
-    items = filtered.slice(skip, skip + take);
-    total = withCount ? filtered.length : null;
-  }
+    }),
+    withCount ? prisma.payment.count({ where }) : Promise.resolve(null)
+  ]);
+  items = found;
+  total = counted;
 
   const mappedItems = items.map((item: any) => {
     const lastAttempt = Array.isArray(item.attempts) ? item.attempts[0] : null;

@@ -235,12 +235,11 @@ export default async function LogsPage({
   const processStatus = typeof sp.processStatus === "string" ? sp.processStatus : "";
   const viewId = typeof sp.viewId === "string" ? sp.viewId : "";
   const filters = typeof sp.filters === "string" ? sp.filters : "";
-  const defaultFrom = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const defaultFrom = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const defaultTo = new Date().toISOString().slice(0, 10);
   const from = typeof sp.from === "string" && sp.from.trim() ? sp.from : defaultFrom;
   const to = typeof sp.to === "string" && sp.to.trim() ? sp.to : defaultTo;
   const tenantId = typeof sp.tenantId === "string" ? sp.tenantId : "";
-  const includeIgnored = ["1", "true", "yes", "on"].includes(String(typeof sp.includeIgnored === "string" ? sp.includeIgnored : "").toLowerCase());
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
   const take = 20;
   const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
@@ -263,7 +262,7 @@ export default async function LogsPage({
   const messages = tab === "messages" ? await listChatwootMessages({ take, skip, from, to, withCount: true }) : emptyList;
   const payments =
     tab === "payments"
-      ? await listPaymentLogs({ take, skip, q, status, from, to, tenantId, includeIgnored, ids: paymentIds, withCount: true })
+      ? await listPaymentLogs({ take, skip, q, status, from, to, tenantId, ids: paymentIds, withCount: true })
       : emptyList;
   const paymentsHealth = tab === "payments" ? await getPaymentsHealth() : null;
   const settingsRes = await getAdminSettings();
@@ -539,7 +538,6 @@ export default async function LogsPage({
                 <div className="filtersPanel">
                   <div className="contacts-search-row payments-search-row">
                     <form action="/payments" method="GET" className="filtersForm filtersSearch payments-search-form" data-debounce-form="true">
-                      {includeIgnored ? <input type="hidden" name="includeIgnored" value="1" /> : null}
                       {status ? <input type="hidden" name="status" value={status} /> : null}
                       {from ? <input type="hidden" name="from" value={from} /> : null}
                       {to ? <input type="hidden" name="to" value={to} /> : null}
@@ -565,20 +563,6 @@ export default async function LogsPage({
                         }}
                       />
                       <div className="payments-buttons-wrap">
-                        <Link
-                          className="ghost btn-compact btn-noicon"
-                          href={`/payments?${new URLSearchParams({
-                            ...(q ? { q } : {}),
-                            ...(status ? { status } : {}),
-                            ...(from ? { from } : {}),
-                            ...(to ? { to } : {}),
-                            ...(tenantId ? { tenantId } : {}),
-                            ...(includeIgnored ? {} : { includeIgnored: "1" })
-                          }).toString()}`}
-                          title="Oculta o muestra pagos externos marcados como ignorados"
-                        >
-                          {includeIgnored ? "Ocultar externos ignorados" : "Mostrar externos ignorados"}
-                        </Link>
                         <form action={reconcilePendingPayments} className="filtersForm payments-action-form">
                           <input type="hidden" name="csrf" value={csrfToken} />
                           <input type="hidden" name="days" value="7" />
@@ -692,22 +676,6 @@ export default async function LogsPage({
                       const include = paymentsConfig.includeUnlinkedPaymentsInMetrics !== false;
                       const notifyWhatsapp = paymentsConfig.notifyWhatsappForUnlinkedPayments !== false;
 
-                      if (!accept) {
-                        banners.push({
-                          tone: "warn",
-                          text: (
-                            <>
-                              <strong>Pagos externos ignorados:</strong> Se marcan como <code>IGNORED_EXTERNAL</code>.
-                              Usa <code>includeIgnored=1</code> para verlos.
-                            </>
-                          ),
-                          action: (
-                            <a className="ghost btn-compact btn-noicon" href="/settings?tab=cobros">
-                              Configurar
-                            </a>
-                          )
-                        });
-                      }
                       if (!include) {
                         banners.push({
                           tone: "info",
@@ -844,7 +812,7 @@ export default async function LogsPage({
                     const referenceText = String(p.reference || "").trim();
                     const wompiTxText = String(p.wompiTransactionId || "").trim();
                     const wompiLinkText = String(p.wompiPaymentLinkId || "").trim();
-                    const planName = isIgnoredExternal ? "Externo ignorado" : (p.subscription?.plan?.name || "Falta asociar suscripción");
+                    const planName = isIgnoredExternal ? "Pago externo (sin suscripción)" : (p.subscription?.plan?.name || "Falta asociar suscripción");
                     const contactQuery =
                       p.customer?.email ||
                       p.customer?.phone ||
@@ -863,7 +831,7 @@ export default async function LogsPage({
                         )
                       : "—";
                     const detailText = isIgnoredExternal
-                      ? `Externo ignorado${ignoredReason ? ` · ${ignoredReason}` : ""}`
+                      ? `Pago externo${ignoredReason ? ` · ${ignoredReason}` : ""}`
                       : failureReason;
                     return (
                       <tr key={p.id}>
@@ -892,7 +860,7 @@ export default async function LogsPage({
                         </td>
                         <td className="log-payment-actions-cell">
                           <div className="log-payment-actions">
-                            {!isIgnoredExternal && String(p.status || "").toUpperCase() === "PENDING" ? (
+                            {String(p.status || "").toUpperCase() === "PENDING" ? (
                               <form action={reconcilePayment}>
                                 <input type="hidden" name="csrf" value={csrfToken} />
                                 <input type="hidden" name="paymentId" value={String(p.id || "")} />
@@ -907,7 +875,7 @@ export default async function LogsPage({
                                 </PendingButton>
                               </form>
                             ) : null}
-                            {!isIgnoredExternal && !p.subscriptionId && (contactId || contactQuery) ? (
+                            {!p.subscriptionId && (contactId || contactQuery) ? (
                               <Link
                                 className="ghost btn-compact btn-noicon"
                                 href={`/billing?${new URLSearchParams({

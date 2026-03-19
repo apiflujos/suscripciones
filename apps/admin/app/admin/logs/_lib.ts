@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 
-export const DEFAULT_LOG_WINDOW_DAYS = 30;
+export const DEFAULT_LOG_WINDOW_DAYS = 90;
 
 export function parseDate(raw: string, opts?: { end?: boolean }) {
   if (!raw) return null;

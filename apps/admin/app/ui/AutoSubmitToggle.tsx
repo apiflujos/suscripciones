@@ -71,7 +71,11 @@ export function AutoSubmitToggle({
   };
 
   return (
-    <label className="toggleControl" aria-label={name} style={{ opacity: isPending ? 0.7 : 1, pointerEvents: isPending || disabled ? "none" : "auto" }}>
+    <label
+      className="toggleControl"
+      aria-label={name}
+      style={{ opacity: isPending ? 0.7 : 1, pointerEvents: isPending || disabled ? "none" : "auto" }}
+    >
       <input
         className="toggleInput"
         type="checkbox"
@@ -81,24 +85,8 @@ export function AutoSubmitToggle({
         data-auto-submit="true"
       />
       <span className="toggle" aria-hidden="true" style={{ position: "relative" }}>
-        {isPending && (
-          <span style={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            fontSize: "10px",
-            color: "var(--muted)"
-          }}>
-            ⏳
-          </span>
-        )}
+        {isPending ? <span className="toggleSpinner" aria-hidden="true" /> : null}
       </span>
-      {isPending && (
-        <span className="field-hint" style={{ marginLeft: 8, fontStyle: "italic" }}>
-          {loadingText}
-        </span>
-      )}
     </label>
   );
 }

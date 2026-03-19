@@ -38,6 +38,7 @@ type SmartView = {
   visibility: "ORG" | "PRIVATE";
   type: "DYNAMIC" | "STATIC";
   filters?: any;
+  builtin?: boolean;
 };
 
 type Rule =
@@ -143,6 +144,73 @@ export function SmartViewsBar({
     });
     return Array.from(map.entries());
   }, [fields]);
+
+  const presetViews = useMemo<SmartView[]>(() => {
+    if (scope !== "billing") return [];
+    return [
+      {
+        id: "builtin:billing:auto_debit_ok",
+        name: "Débito automático · Al día",
+        visibility: "ORG",
+        type: "DYNAMIC",
+        builtin: true,
+        filters: {
+          op: "and",
+          rules: [
+            { field: "plan.collectionMode", op: "equals", value: "AUTO_DEBIT" },
+            { field: "subscription.status", op: "equals", value: "ACTIVE" }
+          ]
+        }
+      },
+      {
+        id: "builtin:billing:auto_debit_due",
+        name: "Débito automático · En mora",
+        visibility: "ORG",
+        type: "DYNAMIC",
+        builtin: true,
+        filters: {
+          op: "and",
+          rules: [
+            { field: "plan.collectionMode", op: "equals", value: "AUTO_DEBIT" },
+            { field: "subscription.status", op: "equals", value: "PAST_DUE" }
+          ]
+        }
+      },
+      {
+        id: "builtin:billing:auto_link_ok",
+        name: "Link de pago · Al día",
+        visibility: "ORG",
+        type: "DYNAMIC",
+        builtin: true,
+        filters: {
+          op: "and",
+          rules: [
+            { field: "plan.collectionMode", op: "equals", value: "AUTO_LINK" },
+            { field: "subscription.status", op: "equals", value: "ACTIVE" }
+          ]
+        }
+      },
+      {
+        id: "builtin:billing:auto_link_due",
+        name: "Link de pago · En mora",
+        visibility: "ORG",
+        type: "DYNAMIC",
+        builtin: true,
+        filters: {
+          op: "and",
+          rules: [
+            { field: "plan.collectionMode", op: "equals", value: "AUTO_LINK" },
+            { field: "subscription.status", op: "equals", value: "PAST_DUE" }
+          ]
+        }
+      }
+    ];
+  }, [scope]);
+
+  const mergedViews = useMemo(() => {
+    if (!presetViews.length) return views;
+    return [...presetViews, ...views];
+  }, [presetViews, views]);
 
   useEffect(() => {
     const load = async () => {
@@ -471,6 +539,14 @@ export function SmartViewsBar({
   const applyView = (id: string) => {
     setActiveViewId(id);
     setEditingId("");
+    if (id.startsWith("builtin:")) {
+      const view = presetViews.find((v) => v.id === id);
+      if (view?.filters) {
+        const serialized = encodeURIComponent(JSON.stringify(view.filters));
+        window.location.href = buildHref({ filters: serialized, viewId: undefined });
+        return;
+      }
+    }
     window.location.href = buildHref({ viewId: id || undefined, filters: undefined });
   };
 
@@ -486,7 +562,9 @@ export function SmartViewsBar({
                 data-loader="off"
                 aria-label="Filtros avanzados"
                 title="Filtros avanzados"
-                onClick={() => {
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   setMode("filters");
                   setActiveViewId("");
                   setEditingId("");
@@ -503,7 +581,7 @@ export function SmartViewsBar({
               >
                 Todas
               </button>
-              {views.map((view) => (
+              {mergedViews.map((view) => (
                 <button
                   key={view.id}
                   type="button"
@@ -526,7 +604,7 @@ export function SmartViewsBar({
               onChange={(e) => applyView(e.target.value)}
             >
               <option value="">Todas las vistas</option>
-              {views.map((view) => (
+              {mergedViews.map((view) => (
                 <option key={view.id} value={view.id}>
                   {view.name} {view.visibility === "PRIVATE" ? "(Privada)" : ""}
                 </option>
@@ -534,12 +612,12 @@ export function SmartViewsBar({
             </select>
           </div>
         )}
-        {activeViewId ? (
+        {activeViewId && !activeViewId.startsWith("builtin:") ? (
           <button
             className="ghost"
             type="button"
             onClick={() => {
-              const view = views.find((v) => v.id === activeViewId);
+              const view = mergedViews.find((v) => v.id === activeViewId);
               if (!view) return;
               setEditingId(view.id);
               setName(view.name || "");
@@ -557,7 +635,7 @@ export function SmartViewsBar({
             Editar
           </button>
         ) : null}
-        {activeViewId ? (
+        {activeViewId && !activeViewId.startsWith("builtin:") ? (
           <button className="ghost btn-compact btn-red btn-delete-icon" type="button" onClick={() => deleteView(activeViewId)} aria-label="Eliminar vista" title="Eliminar vista" />
         ) : null}
         {!compactInline ? (
@@ -566,7 +644,9 @@ export function SmartViewsBar({
               className="primary btn-compact"
               type="button"
               data-loader="off"
-              onClick={() => {
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 setMode("filters");
                 setActiveViewId("");
                 setEditingId("");

@@ -337,10 +337,12 @@ export function getSmartViewFields(scope: SmartViewScope): SmartField[] {
       { key: "address.city", label: "Ciudad", group: "Cliente", type: "enum", operators: ["equals", "in"], optionsSource: "customer_city" },
       { key: "address.dept", label: "Departamento", group: "Cliente", type: "enum", operators: ["equals", "in"], optionsSource: "customer_dept" },
       { key: "plan.name", label: "Plan", group: "Plan", type: "enum", operators: ["equals", "in"], optionsSource: "plan_names" },
+      { key: "plan.collectionMode", label: "Tipo de cobro", group: "Plan", type: "enum", operators: ["equals", "in"], options: ["AUTO_DEBIT", "AUTO_LINK"].map((v) => ({ value: v, label: v })) },
       { key: "plan.priceInCents", label: "Precio plan (COP)", group: "Plan", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] },
       { key: "plan.intervalUnit", label: "Unidad periodicidad", group: "Plan", type: "enum", operators: ["equals", "in"], options: ["DAY", "WEEK", "MONTH"].map((v) => ({ value: v, label: v })) },
       { key: "plan.intervalCount", label: "Cada (intervalo)", group: "Plan", type: "number", operators: ["equals", "gt", "gte", "lt", "lte"] },
       { key: "subscription.status", label: "Estado suscripción", group: "Suscripción", type: "enum", operators: ["equals", "in"], options: ["ACTIVE", "PAST_DUE", "EXPIRED", "CANCELED", "SUSPENDED"].map((v) => ({ value: v, label: v })) },
+      { key: "subscription.inMora", label: "En mora", group: "Suscripción", type: "boolean", operators: ["equals"] },
       { key: "subscription.nextBillingDate", label: "Próximo pago", group: "Suscripción", type: "date", operators: ["before", "after", "between", "within_last", "within_next", "older_than", "newer_than"] },
       { key: "subscription.daysPastDue", label: "Días en mora", group: "Suscripción", type: "number", operators: ["equals", "gt", "gte", "lt", "lte"] },
       { key: "payments.lastStatus", label: "Estado último pago", group: "Pago", type: "enum", operators: ["equals", "in"], options: ["PENDING", "APPROVED", "DECLINED", "ERROR", "VOIDED"].map((v) => ({ value: v, label: v })) },
@@ -652,6 +654,8 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
           currentPeriodEndAt && currentPeriodEndAt.getTime() < now
             ? Math.floor((now - currentPeriodEndAt.getTime()) / 86_400_000)
             : 0;
+        const planMeta = asRecord(s.plan?.metadata);
+        const collectionMode = (planMeta.collectionMode as string) || null;
         const customerMeta = asRecord(s.customer?.metadata);
         const addressMeta = asRecord(customerMeta.address);
         const ctx: Record<string, unknown> = {
@@ -666,6 +670,7 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
           },
           plan: {
             name: s.plan?.name ?? null,
+            collectionMode,
             priceInCents: s.plan?.priceInCents ?? null,
             intervalUnit: s.plan?.intervalUnit ?? null,
             intervalCount: s.plan?.intervalCount ?? null
@@ -673,7 +678,8 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
           subscription: {
             status: s.status,
             nextBillingDate: currentPeriodEndAt,
-            daysPastDue
+            daysPastDue,
+            inMora: s.status === SubscriptionStatus.PAST_DUE || daysPastDue > 0
           },
           payments: {
             lastStatus: s.payments?.[0]?.status ?? null,
