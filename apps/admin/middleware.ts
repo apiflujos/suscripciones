@@ -61,12 +61,13 @@ function applySecurityHeaders(res: NextResponse, pathname: string) {
   const hstsAge = String(process.env.HSTS_MAX_AGE || "63072000");
   res.headers.set("Strict-Transport-Security", `max-age=${hstsAge}; includeSubDomains; preload`);
 
-  const allowUnsafeInline = String(process.env.CSP_ALLOW_UNSAFE_INLINE || "0").trim() === "1";
+  const allowUnsafeInline = String(process.env.CSP_ALLOW_UNSAFE_INLINE || "1").trim() === "1";
   const allowUnsafeInlinePublic = String(process.env.CSP_PUBLIC_ALLOW_UNSAFE_INLINE || "0").trim() === "1";
   const isPublic = pathname.startsWith("/public/") || pathname.startsWith("/wompi/");
   const isLogin = pathname === "/login" || pathname.startsWith("/login/");
   const unsafe = isPublic ? allowUnsafeInlinePublic : allowUnsafeInline;
-  const scriptUnsafe = unsafe || isLogin;
+  // Next.js requiere inline scripts (hydration). Si quieres CSP estricto, implementar nonces.
+  const scriptUnsafe = true;
   const csp = [
     "default-src 'self'",
     "img-src 'self' data: blob: https:",
