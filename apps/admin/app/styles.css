@@ -9937,7 +9937,7 @@ body.is-global-loading {
 
 .entity-card-counts {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
 }
 

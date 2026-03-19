@@ -556,7 +556,15 @@ export function ProductsTable({
         <div className="entity-card-grid">
           <div>
             <div className="field-hint">Tipo de cobro</div>
-            <div>{getCollectionModeLabel(p.collectionMode)}</div>
+            <div>
+              <span
+                className={`pill pill-sm ${
+                  String(p.collectionMode || "").toUpperCase() === "AUTO_DEBIT" ? "pill-ok" : "pill-muted"
+                }`}
+              >
+                {getCollectionModeLabel(p.collectionMode)}
+              </span>
+            </div>
           </div>
           <div>
             <div className="field-hint">Canal</div>
