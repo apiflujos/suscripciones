@@ -1,8 +1,11 @@
 import "server-only";
 
+import fs from "fs/promises";
+import path from "path";
 import { prisma } from "@suscripciones/database";
 import { PlanIntervalUnit, SubscriptionStatus } from "@prisma/client";
 import { DEFAULT_CURRENCY, normalizeCurrencyCode } from "@suscripciones/core/lib/currencies";
+import { getMediaDir } from "@suscripciones/core/services/mediaStorage";
 import { getPublicBaseUrlFromEnv } from "@suscripciones/core/services/publicBase";
 
 function normalizeSku(input: string) {
@@ -117,6 +120,43 @@ function normalizeImageUrl(raw: unknown) {
   return null;
 }
 
+function extractPublicMediaFilename(raw: string) {
+  const value = String(raw || "").trim();
+  if (!value) return null;
+  let pathname = value;
+  if (/^https?:\/\//i.test(value)) {
+    try {
+      pathname = new URL(value).pathname;
+    } catch {
+      return null;
+    }
+  }
+  if (!pathname.startsWith("/public/media/")) return null;
+  const tail = pathname.slice("/public/media/".length);
+  const decoded = decodeURIComponent(tail.split("?")[0]?.split("#")[0] || "");
+  const safe = path.basename(decoded);
+  if (!safe || safe !== decoded) return null;
+  return safe;
+}
+
+async function mediaFileExists(filename: string) {
+  try {
+    await fs.access(path.join(getMediaDir(), filename));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function normalizeImageUrlForOutput(raw: unknown) {
+  const normalized = normalizeImageUrl(raw);
+  if (!normalized) return null;
+  const filename = extractPublicMediaFilename(normalized);
+  if (!filename) return normalized;
+  const exists = await mediaFileExists(filename);
+  return exists ? normalized : null;
+}
+
 function computeTotalsForCatalog(args: {
   basePriceInCents: number;
   variantDeltaInCents: number;
@@ -151,6 +191,7 @@ export async function getCatalogProductById(args: { productId: string; tenantId?
     const allowed = plan.tenantId === args.tenantId || (plan.tenantLinks || []).some((t: any) => t.tenantId === args.tenantId);
     if (!allowed) return { ok: false, status: 404, error: "not_found" as const };
   }
+  const imageUrl = await normalizeImageUrlForOutput((plan.metadata as any)?.imageUrl);
 
   return {
     ok: true,
@@ -179,7 +220,7 @@ export async function getCatalogProductById(args: { productId: string; tenantId?
       option1Name: (plan.metadata as any)?.option1Name || null,
       option2Name: (plan.metadata as any)?.option2Name || null,
       variants: (plan.metadata as any)?.variants || null,
-      imageUrl: normalizeImageUrl((plan.metadata as any)?.imageUrl),
+      imageUrl,
       createdAt: plan.createdAt,
       updatedAt: plan.updatedAt
     }
@@ -522,8 +563,7 @@ export async function listCatalogProducts(args: {
     }
   }
 
-  return {
-    items: items.map((p: any) => ({
+  const mappedItems = await Promise.all(items.map(async (p: any) => ({
       ...(() => {
         const pricing = readPlanPricing(p.metadata);
         return { shippingInCents: Number(pricing?.shippingInCents || 0) };
@@ -553,13 +593,16 @@ export async function listCatalogProducts(args: {
       option1Name: (p.metadata as any)?.option1Name || null,
       option2Name: (p.metadata as any)?.option2Name || null,
       variants: (p.metadata as any)?.variants || null,
-      imageUrl: normalizeImageUrl((p.metadata as any)?.imageUrl),
+      imageUrl: await normalizeImageUrlForOutput((p.metadata as any)?.imageUrl),
       activeSubscriptions: Number(activeSubsByPlan.get(String(p.id)) || 0),
       pastDueSubscriptions: Number(pastDueSubsByPlan.get(String(p.id)) || 0),
       totalSubscriptions: Number(totalSubsByPlan.get(String(p.id)) || 0),
       createdAt: p.createdAt,
       updatedAt: p.updatedAt
-    })),
+    })));
+
+  return {
+    items: mappedItems,
     total
   };
 }
