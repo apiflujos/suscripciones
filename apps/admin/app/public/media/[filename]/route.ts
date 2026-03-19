@@ -30,15 +30,21 @@ export async function GET(req: Request, ctx: { params: Promise<{ filename: strin
   const auth = req.headers.get("authorization") || "";
   const tokenFromHeader = normalizeBearer(auth);
   const token = tokenFromHeader || tokenFromQuery;
+  let authorized = false;
+
   if (token) {
     const claims = await verifyMediaToken(token, safe);
-    if (!claims) return Response.json({ error: "unauthorized" }, { status: 401 });
-  } else {
+    authorized = Boolean(claims);
+  }
+
+  if (!authorized) {
     const cookieStore = await cookies();
     const raw = cookieStore.get(ADMIN_SESSION_COOKIE)?.value || "";
     const session = raw ? await verifyAdminSessionToken(raw) : null;
-    if (!session) return Response.json({ error: "unauthorized" }, { status: 401 });
+    authorized = Boolean(session);
   }
+
+  if (!authorized) return Response.json({ error: "unauthorized" }, { status: 401 });
 
   const filePath = path.join(getMediaDir(), safe);
 

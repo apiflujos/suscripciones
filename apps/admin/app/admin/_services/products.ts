@@ -97,8 +97,19 @@ export async function createCatalogProduct(args: {
 function normalizeImageUrl(raw: unknown) {
   const value = String(raw || "").trim();
   if (!value) return null;
-  if (/^https?:\/\//i.test(value)) return value;
-  if (value.startsWith("/")) return value;
+  if (/^https?:\/\//i.test(value)) {
+    try {
+      const parsed = new URL(value);
+      if (parsed.pathname.startsWith("/public/media/")) return `${parsed.origin}${parsed.pathname}`;
+    } catch {
+      // Keep original URL if parsing fails.
+    }
+    return value;
+  }
+  if (value.startsWith("/")) {
+    if (value.startsWith("/public/media/")) return value.split("?")[0]?.split("#")[0] || value;
+    return value;
+  }
   if (!value.includes("/") && /\.(jpe?g|png|webp|gif)$/i.test(value)) {
     const base = getPublicBaseUrlFromEnv();
     return base ? `${base}/public/media/${value}` : `/public/media/${value}`;

@@ -15,6 +15,7 @@ import { createManualOrderForAdmin } from "../admin/_services/orders";
 import { sendChatwootMessageForCustomer } from "../admin/_services/chatwoot";
 import { getAdminSettings } from "../admin/_services/settings";
 import { createPlan } from "../admin/_services/plans";
+import { signMediaToken } from "../../lib/mediaAuth";
 
 function pesosToCents(input: string): number {
   const digits = String(input || "").replace(/[^\d-]/g, "");
@@ -124,6 +125,21 @@ function normalizePublicUrl(input: string) {
   if (!value) return "";
   if (/^https?:\/\//i.test(value)) return value;
   return "";
+}
+
+async function withFreshMediaToken(input: string) {
+  const raw = String(input || "").trim();
+  if (!raw) return "";
+  try {
+    const parsed = new URL(raw);
+    if (!parsed.pathname.startsWith("/public/media/")) return raw;
+    const filename = decodeURIComponent(parsed.pathname.slice("/public/media/".length));
+    if (!filename || filename.includes("/")) return raw;
+    const token = await signMediaToken(filename, 60 * 60 * 24 * 30);
+    return `${parsed.origin}${parsed.pathname}?token=${encodeURIComponent(token)}`;
+  } catch {
+    return raw;
+  }
 }
 
 export async function createProduct(formData: FormData) {
@@ -333,7 +349,8 @@ export async function sendProductToCustomer(formData: FormData) {
 
   const customerName = String(customer?.name || customer?.email || customer?.phone || "Cliente").trim();
 
-  const imageUrl = normalizePublicUrl(String(product.imageUrl || ""));
+  const imageUrlRaw = normalizePublicUrl(String(product.imageUrl || ""));
+  const imageUrl = includeImage ? await withFreshMediaToken(imageUrlRaw) : "";
   const includeImageSafe = includeImage && Boolean(imageUrl);
   let checkoutUrl = "";
   let templateParams: any = null;
