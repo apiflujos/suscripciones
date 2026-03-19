@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/run-next.cjs dev",
-    "build": "NODE_OPTIONS=\"--require ./lib/force-next-document.cjs\" __NEXT_DOCUMENT__=true NEXT_IGNORE_INCORRECT_LOCKFILE=1 NEXT_DISABLE_TYPESCRIPT=1 next build",
+    "build": "node ../../node_modules/.bin/prisma generate --schema ../../packages/database/prisma/schema.prisma && NODE_OPTIONS=\"--require ./lib/force-next-document.cjs\" __NEXT_DOCUMENT__=true NEXT_IGNORE_INCORRECT_LOCKFILE=1 NEXT_DISABLE_TYPESCRIPT=1 next build",
     "start": "node scripts/run-next.cjs start",
     "start:standalone": "node .next/standalone/apps/admin/server.js",
     "lint": "next lint"
