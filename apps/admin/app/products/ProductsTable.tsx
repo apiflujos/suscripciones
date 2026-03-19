@@ -576,8 +576,8 @@ export function ProductsTable({
           </div>
           <div>
             <div className="field-hint">Suscripciones</div>
-            <div className="entity-card-counts">
-              <span className="pill pill-sm pill-ok">Activas {Number(p.activeSubscriptions || 0)}</span>
+            <div className="entity-card-counts entity-card-span">
+              <span className="pill pill-sm pill-ok">Act {Number(p.activeSubscriptions || 0)}</span>
               <span className="pill pill-sm pill-warn">Mora {Number(p.pastDueSubscriptions || 0)}</span>
               <span className="pill pill-sm pill-muted">Total {Number(p.totalSubscriptions || 0)}</span>
             </div>

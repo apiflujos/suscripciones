@@ -9942,8 +9942,16 @@ body.is-global-loading {
 
 .entity-card-counts {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 6px;
+}
+
+.entity-card-grid > div {
+  min-width: 0;
+}
+
+.entity-card-span {
+  grid-column: 1 / -1;
 }
 
 .entity-card-actions {
