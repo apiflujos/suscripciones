@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { assertCsrfToken } from "../lib/csrf";
 import { prisma } from "@suscripciones/database";
 import { cookies } from "next/headers";
-import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../lib/session";
+import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
 
 type ContactInput = {
   id?: string;

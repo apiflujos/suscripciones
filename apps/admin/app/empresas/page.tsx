@@ -3,7 +3,7 @@ import { getCsrfToken } from "../lib/csrf";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { deleteEmpresa } from "./actions";
 import { cookies } from "next/headers";
-import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../lib/session";
+import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
 
 export const dynamic = "force-dynamic";
 
