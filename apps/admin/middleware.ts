@@ -52,7 +52,15 @@ function allowedOrigins() {
   return raw.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean);
 }
 
-function applySecurityHeaders(res: NextResponse, pathname: string) {
+function createCspNonce() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+
+function applySecurityHeaders(res: NextResponse, pathname: string, nonce: string) {
   if (String(process.env.SECURITY_HEADERS_ENABLED || "1").trim() === "0") return res;
   res.headers.set("X-Frame-Options", "DENY");
   res.headers.set("X-Content-Type-Options", "nosniff");
@@ -61,23 +69,24 @@ function applySecurityHeaders(res: NextResponse, pathname: string) {
   const hstsAge = String(process.env.HSTS_MAX_AGE || "63072000");
   res.headers.set("Strict-Transport-Security", `max-age=${hstsAge}; includeSubDomains; preload`);
 
-  const allowUnsafeInline = String(process.env.CSP_ALLOW_UNSAFE_INLINE || "1").trim() === "1";
+  const allowUnsafeInline = String(process.env.CSP_ALLOW_UNSAFE_INLINE || "0").trim() === "1";
   const allowUnsafeInlinePublic = String(process.env.CSP_PUBLIC_ALLOW_UNSAFE_INLINE || "0").trim() === "1";
   const isPublic = pathname.startsWith("/public/") || pathname.startsWith("/wompi/");
   const isLogin = pathname === "/login" || pathname.startsWith("/login/");
   const unsafe = isPublic ? allowUnsafeInlinePublic : allowUnsafeInline;
-  // Next.js requiere inline scripts (hydration). Si quieres CSP estricto, implementar nonces.
-  const scriptUnsafe = true;
+  const scriptUnsafe = unsafe || isLogin;
+  const nonceDirective = nonce ? ` 'nonce-${nonce}'` : "";
   const csp = [
     "default-src 'self'",
     "img-src 'self' data: blob: https:",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com data:",
-    `script-src 'self'${scriptUnsafe ? " 'unsafe-inline'" : ""}`,
+    `script-src 'self'${nonceDirective}${scriptUnsafe ? " 'unsafe-inline'" : ""}`,
     "connect-src 'self' https: ws: wss:",
     "frame-ancestors 'none'"
   ].join("; ");
   res.headers.set("Content-Security-Policy", csp);
+  res.headers.set("x-nonce", nonce);
 
   return res;
 }
@@ -85,12 +94,14 @@ function applySecurityHeaders(res: NextResponse, pathname: string) {
 export async function middleware(req: NextRequest) {
   const requestHeaders = new Headers(req.headers);
   const pathname = req.nextUrl.pathname;
+  const cspNonce = createCspNonce();
+  requestHeaders.set("x-nonce", cspNonce);
   requestHeaders.set("x-app-pathname", pathname);
 
   // Allow Next.js static assets and public files without auth checks.
   if (pathname.startsWith("/_next/") || pathname.startsWith("/favicon") || pathname.startsWith("/robots.txt")) {
     const res = NextResponse.next({ request: { headers: requestHeaders } });
-    return applySecurityHeaders(res, pathname);
+    return applySecurityHeaders(res, pathname, cspNonce);
   }
 
   const isApi = isApiPath(pathname);
@@ -114,7 +125,7 @@ export async function middleware(req: NextRequest) {
       res.headers.set("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
       res.headers.set("Access-Control-Allow-Headers", "Authorization, X-Auth-Token, Content-Type");
       res.headers.set("Access-Control-Max-Age", "600");
-      return applySecurityHeaders(res, pathname);
+      return applySecurityHeaders(res, pathname, cspNonce);
     }
 
     const ip = getClientIp(req);
@@ -148,7 +159,7 @@ export async function middleware(req: NextRequest) {
             status: 401,
             headers: { "Content-Type": "application/json" }
           });
-          return applySecurityHeaders(res, pathname);
+          return applySecurityHeaders(res, pathname, cspNonce);
         }
       }
       const res = NextResponse.next({ request: { headers: requestHeaders } });
@@ -157,7 +168,7 @@ export async function middleware(req: NextRequest) {
         res.headers.set("Access-Control-Allow-Origin", allowOrigin);
         res.headers.set("Vary", "Origin");
       }
-      return applySecurityHeaders(res, pathname);
+      return applySecurityHeaders(res, pathname, cspNonce);
     }
 
     // Public API tokens (cart/payment/tokenization)
@@ -169,12 +180,12 @@ export async function middleware(req: NextRequest) {
           status: 401,
           headers: { "Content-Type": "application/json" }
         });
-        return applySecurityHeaders(res, pathname);
+        return applySecurityHeaders(res, pathname, cspNonce);
       }
       requestHeaders.set("x-auth-user", publicClaims.sub || "public");
       requestHeaders.set("x-auth-role", "PUBLIC");
       const res = NextResponse.next({ request: { headers: requestHeaders } });
-      return applySecurityHeaders(res, pathname);
+      return applySecurityHeaders(res, pathname, cspNonce);
     }
 
     const auth = req.headers.get("authorization") || "";
@@ -199,7 +210,7 @@ export async function middleware(req: NextRequest) {
         status: 401,
         headers: { "Content-Type": "application/json" }
       });
-      return applySecurityHeaders(res, pathname);
+      return applySecurityHeaders(res, pathname, cspNonce);
     }
 
     const required = permissionsForPath(pathname, req.method);
@@ -208,7 +219,7 @@ export async function middleware(req: NextRequest) {
         status: 403,
         headers: { "Content-Type": "application/json" }
       });
-      return applySecurityHeaders(res, pathname);
+      return applySecurityHeaders(res, pathname, cspNonce);
     }
 
     requestHeaders.set("x-auth-user", claims.sub);
@@ -221,7 +232,7 @@ export async function middleware(req: NextRequest) {
       res.headers.set("Access-Control-Allow-Origin", allowOrigin);
       res.headers.set("Vary", "Origin");
     }
-    return applySecurityHeaders(res, pathname);
+    return applySecurityHeaders(res, pathname, cspNonce);
   }
 
   const existingCsrf = req.cookies.get(CSRF_COOKIE)?.value || "";
@@ -249,23 +260,23 @@ export async function middleware(req: NextRequest) {
     const loginUrl = new URL(req.nextUrl.origin + "/login");
     loginUrl.searchParams.set("next", pathname + req.nextUrl.search);
     const res = NextResponse.redirect(loginUrl);
-    return applySecurityHeaders(res, pathname);
+    return applySecurityHeaders(res, pathname, cspNonce);
   }
 
   if (session) {
     if (isSuperAdminArea(pathname) && session.role !== "SUPER_ADMIN") {
       const res = NextResponse.redirect(new URL(req.nextUrl.origin + "/"));
-      return applySecurityHeaders(res, pathname);
+      return applySecurityHeaders(res, pathname, cspNonce);
     }
 
     if (isSettingsArea(pathname) && session.role === "AGENT") {
       const res = NextResponse.redirect(new URL(req.nextUrl.origin + "/"));
-      return applySecurityHeaders(res, pathname);
+      return applySecurityHeaders(res, pathname, cspNonce);
     }
 
     if (isLogsArea(pathname) && session.role !== "SUPER_ADMIN") {
       const res = NextResponse.redirect(new URL(req.nextUrl.origin + "/"));
-      return applySecurityHeaders(res, pathname);
+      return applySecurityHeaders(res, pathname, cspNonce);
     }
 
     requestHeaders.set("x-auth-user", session.email);
@@ -286,7 +297,7 @@ export async function middleware(req: NextRequest) {
     });
   }
 
-  return applySecurityHeaders(response, pathname);
+  return applySecurityHeaders(response, pathname, cspNonce);
 }
 
 export const config = {
