@@ -6,10 +6,11 @@
     "dev": "tsx watch src/runner.ts"
   },
   "dependencies": {
-    "@suscripciones/core": "*"
+    "@suscripciones/core": "*",
+    "@suscripciones/database": "*",
+    "tsx": "^4.16.2"
   },
   "devDependencies": {
-    "tsx": "^4.16.2",
     "typescript": "^5.6.3"
   }
 }
