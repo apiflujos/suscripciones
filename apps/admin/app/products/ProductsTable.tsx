@@ -579,7 +579,7 @@ export function ProductsTable({
             <div className="entity-card-counts">
               <span className="pill pill-sm pill-ok">Activas {Number(p.activeSubscriptions || 0)}</span>
               <span className="pill pill-sm pill-warn">Mora {Number(p.pastDueSubscriptions || 0)}</span>
-              <span className="pill pill-sm">Total {Number(p.totalSubscriptions || 0)}</span>
+              <span className="pill pill-sm pill-muted">Total {Number(p.totalSubscriptions || 0)}</span>
             </div>
           </div>
         </div>

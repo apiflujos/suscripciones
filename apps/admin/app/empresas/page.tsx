@@ -124,7 +124,7 @@ export default async function EmpresasPage({
                     <div className="company-contact">{formatContactLabel(e.contactoPrincipal)}</div>
                   </div>
                   <div className="company-list-cell">
-                    <span className="pill">{Number(e?._count?.contactos || 0)} contactos</span>
+                    <span className="pill pill-muted">{Number(e?._count?.contactos || 0)} contactos</span>
                   </div>
                   <div className="company-list-cell company-list-actions">
                     <a className="ghost btn-compact btn-icon-only btn-edit" href={`/empresas/${e.id}`} aria-label="Editar" title="Editar" />
