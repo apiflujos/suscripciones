@@ -125,7 +125,8 @@ export function WompiTokenizeWidget({
     if (!normalizedPublicKey || !canTokenize) return;
 
     const script = document.createElement("script");
-    script.src = "https://checkout.wompi.co/widget.js";
+    // Load through same-origin route to remain compatible with strict proxy CSPs.
+    script.src = "/wompi/widget";
     script.setAttribute("data-render", "button");
     script.setAttribute("data-widget-operation", "tokenize");
     script.setAttribute("data-public-key", normalizedPublicKey);
