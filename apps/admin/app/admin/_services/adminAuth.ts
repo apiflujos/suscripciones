@@ -36,11 +36,13 @@ export async function loginAdminUser(input: unknown) {
   if (user.role === SaUserRole.SUPER_ADMIN) {
     try {
       const session = await createSaSession({ email: user.email, password, ip: null, userAgent: null });
+      const tenantId = user.tenantId ?? (await getDefaultTenantId());
       return {
         ok: true as const,
         kind: "super_admin",
         email: user.email,
         role: "SUPER_ADMIN",
+        tenantId: tenantId ?? null,
         saToken: session.token,
         saRefreshToken: session.refreshToken,
         expiresAt: session.expiresAt.toISOString(),
