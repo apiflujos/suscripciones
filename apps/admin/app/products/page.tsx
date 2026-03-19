@@ -9,6 +9,7 @@ import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { listCatalogProducts } from "../admin/_services/products";
 import { listTenants } from "../admin/_services/tenants";
 import { listCustomers } from "../admin/_services/customers";
+import { listEmpresas } from "../admin/_services/companies";
 import { listCheckoutTemplates } from "../admin/_services/checkoutTemplates";
 import { listChatwootInboxes } from "../admin/_services/chatwoot";
 import { cookies } from "next/headers";
@@ -75,10 +76,11 @@ export default async function ProductsPage({
     q: q.trim(),
     ids
   });
-  const [tenants, customersRes, templatesRes, chatwootInboxesRes] = await Promise.all([
+  const [tenants, customersRes, templatesRes, empresasRes, chatwootInboxesRes] = await Promise.all([
     listTenants(),
     listCustomers({ take: 200, tenantId: tenantId || session?.tenantId || null }),
     listCheckoutTemplates({ tenantId: tenantId || session?.tenantId || null }),
+    listEmpresas({ tenantId: tenantId || session?.tenantId || null, take: 200 }),
     listChatwootInboxes()
   ]);
 
@@ -88,6 +90,7 @@ export default async function ProductsPage({
   const tenantsFiltered = tenantList.filter((t: any) => t?.active !== false);
   const tenantById = new Map(tenantList.map((t) => [String(t.id), String(t.name)]));
   const filteredCustomers = (customersRes.items ?? []) as any[];
+  const empresas = (empresasRes?.items ?? []) as any[];
   const chatwootInboxes = chatwootInboxesRes.ok ? (chatwootInboxesRes.items ?? []) : [];
 
   return (
@@ -154,6 +157,7 @@ export default async function ProductsPage({
                 <div className="page-actions">
                   <ProductsModals
                     customers={filteredCustomers}
+                    empresas={empresas}
                     products={productItems}
                     checkoutTemplates={templatesRes ?? []}
                     csrfToken={csrfToken}
@@ -190,6 +194,7 @@ export default async function ProductsPage({
               deleteProductAction={deleteProduct}
               tenants={tenantsFiltered}
               customers={filteredCustomers}
+              empresas={empresas}
               inboxes={chatwootInboxes}
               checkoutTemplates={templatesRes ?? []}
               createCustomer={createCustomerFromBilling}

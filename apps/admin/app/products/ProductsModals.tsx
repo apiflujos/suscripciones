@@ -6,6 +6,7 @@ import { NewBillingAssignmentForm } from "../billing/NewBillingAssignmentForm";
 
 export function ProductsModals({
   customers,
+  empresas,
   products,
   checkoutTemplates,
   csrfToken,
@@ -17,6 +18,7 @@ export function ProductsModals({
   returnTo
 }: {
   customers: any[];
+  empresas: any[];
   products: any[];
   checkoutTemplates: any[];
   csrfToken: string;
@@ -66,6 +68,7 @@ export function ProductsModals({
             </div>
             <NewBillingAssignmentForm
               customers={customers}
+              empresas={empresas}
               catalogItems={products}
               checkoutTemplates={checkoutTemplates}
               csrfToken={csrfToken}

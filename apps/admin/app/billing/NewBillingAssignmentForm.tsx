@@ -12,6 +12,24 @@ type Customer = {
   metadata?: any;
 };
 
+type EmpresaContact = {
+  id: string;
+  nombre: string;
+  cargo: string;
+  email?: string | null;
+  telefono?: string | null;
+};
+
+type Empresa = {
+  id: string;
+  nombre: string;
+  email?: string | null;
+  telefono?: string | null;
+  direccion?: string | null;
+  sitioWeb?: string | null;
+  contactoPrincipal?: EmpresaContact | null;
+};
+
 type CatalogItem = {
   id: string;
   sku: string;
@@ -56,6 +74,7 @@ function formatCurrencyInput(input: string, currency: string): string {
 
 export function NewBillingAssignmentForm({
   customers,
+  empresas,
   catalogItems,
   checkoutTemplates,
   csrfToken,
@@ -71,6 +90,7 @@ export function NewBillingAssignmentForm({
   createPlanAndSubscription
 }: {
   customers: Customer[];
+  empresas: Empresa[];
   catalogItems: CatalogItem[];
   checkoutTemplates: CheckoutTemplate[];
   csrfToken: string;
@@ -100,6 +120,7 @@ export function NewBillingAssignmentForm({
   const [customerSearching, setCustomerSearching] = useState(false);
   const [customerSearchError, setCustomerSearchError] = useState("");
   const [selectedCustomerOverride, setSelectedCustomerOverride] = useState<Customer | null>(null);
+  const [selectedEmpresaId, setSelectedEmpresaId] = useState("");
 
   const [billingType, setBillingType] = useState<BillingType>("SUBSCRIPCION");
   const option1Value = "";
@@ -146,6 +167,13 @@ export function NewBillingAssignmentForm({
       null
     );
   }, [customers, customerHits, customerId, selectedCustomerOverride]);
+
+  const selectedEmpresa = useMemo(() => {
+    if (!selectedEmpresaId) return null;
+    return empresas.find((e) => String(e.id) === String(selectedEmpresaId)) || null;
+  }, [empresas, selectedEmpresaId]);
+
+  const selectedContactFromEmpresa = selectedEmpresa?.contactoPrincipal || null;
 
   const hasToken = useMemo(() => {
     const meta = selectedCustomer?.metadata ?? {};
@@ -205,6 +233,15 @@ export function NewBillingAssignmentForm({
       .filter((c) => `${c.name || ""} ${c.email || ""} ${c.phone || ""} ${c.metadata?.identificacion || ""} ${c.id}`.toLowerCase().includes(q))
       .slice(0, 200);
   }, [customers, customerHits, customerQ]);
+
+  const filteredEmpresas = useMemo(() => {
+    const q = customerQ.trim().toLowerCase();
+    const list = empresas.slice().sort((a, b) => String(a.nombre || "").localeCompare(String(b.nombre || ""), "es"));
+    if (!q) return list.slice(0, 200);
+    return list
+      .filter((e) => `${e.nombre || ""} ${e.email || ""} ${e.telefono || ""}`.toLowerCase().includes(q))
+      .slice(0, 200);
+  }, [empresas, customerQ]);
 
   useEffect(() => {
     const q = productQ.trim();
@@ -321,7 +358,12 @@ export function NewBillingAssignmentForm({
   }, [customerId, productId, billingType, tenantId]);
 
   const mustPickTenant = tenants.length > 0;
-  const canSubmit = Boolean(productId && customerId && (!mustPickTenant || selectedTenantIds.length > 0));
+  const canSubmit = Boolean(
+    productId &&
+      (customerId || selectedEmpresaId) &&
+      (!selectedEmpresaId || Boolean(selectedContactFromEmpresa)) &&
+      (!mustPickTenant || selectedTenantIds.length > 0)
+  );
 
   const isOpen = forceOpen ? true : open;
 
@@ -432,22 +474,43 @@ export function NewBillingAssignmentForm({
               </button>
             </div>
 
-            {selectedCustomer ? (
+            {selectedCustomer || selectedEmpresa ? (
               <div className="card cardPad" style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
                 <div style={{ display: "grid" }}>
-                  <strong style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                    <span>{selectedCustomer.name || selectedCustomer.email || selectedCustomer.id}</span>
-                    {hasToken ? (
-                      <span className="pill pill-ok">Tokenizada</span>
-                    ) : (
-                      <span className="pill pill-bad">Sin token</span>
-                    )}
-                  </strong>
-                  <span className="field-hint">
-                    {selectedCustomer.metadata?.identificacion || "—"}
-                    {selectedCustomer.email ? ` · ${selectedCustomer.email}` : ""}
-                    {selectedCustomer.phone ? ` · ${selectedCustomer.phone}` : ""}
-                  </span>
+                  {selectedCustomer ? (
+                    <>
+                      <strong style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <span>{selectedCustomer.name || selectedCustomer.email || selectedCustomer.id}</span>
+                        {hasToken ? (
+                          <span className="pill pill-ok">Tokenizada</span>
+                        ) : (
+                          <span className="pill pill-bad">Sin token</span>
+                        )}
+                      </strong>
+                      <span className="field-hint">
+                        {selectedCustomer.metadata?.identificacion || "—"}
+                        {selectedCustomer.email ? ` · ${selectedCustomer.email}` : ""}
+                        {selectedCustomer.phone ? ` · ${selectedCustomer.phone}` : ""}
+                      </span>
+                    </>
+                  ) : selectedEmpresa ? (
+                    <>
+                      <strong style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <span>{selectedEmpresa.nombre}</span>
+                        <span className="pill">Empresa</span>
+                      </strong>
+                      <span className="field-hint">
+                        {selectedEmpresa.email ? `${selectedEmpresa.email} · ` : ""}
+                        {selectedEmpresa.telefono || "Sin teléfono"}
+                      </span>
+                      <span className="field-hint">
+                        Contacto principal:{" "}
+                        {selectedContactFromEmpresa
+                          ? `${selectedContactFromEmpresa.nombre} · ${selectedContactFromEmpresa.cargo}`
+                          : "Sin contacto principal"}
+                      </span>
+                    </>
+                  ) : null}
                 </div>
                 <button
                   className="ghost btn-noicon"
@@ -457,6 +520,7 @@ export function NewBillingAssignmentForm({
                     setCustomerQ("");
                     setCustomerHits([]);
                     setSelectedCustomerOverride(null);
+                    setSelectedEmpresaId("");
                   }}
                 >
                   Cambiar
@@ -468,24 +532,25 @@ export function NewBillingAssignmentForm({
                   className="input"
                   value={customerQ}
                   onChange={(e) => setCustomerQ(e.target.value)}
-                  placeholder="Buscar por nombre, email o identificación…"
-                  aria-label="Buscar contacto"
+                  placeholder="Buscar contacto o empresa…"
+                  aria-label="Buscar contacto o empresa"
                 />
                 <div aria-live="polite">
                   {customerSearching ? <div className="field-hint">Buscando…</div> : null}
                   {customerSearchError ? <div className="field-hint" style={{ color: "rgba(217, 83, 79, 0.92)" }}>{customerSearchError}</div> : null}
                 </div>
-                {customerQ.trim().length >= 2 && filteredCustomers.length > 0 ? (
+                {customerQ.trim().length >= 2 && (filteredCustomers.length > 0 || filteredEmpresas.length > 0) ? (
                   <div style={{ display: "grid", gap: 6 }}>
-                    {filteredCustomers.slice(0, 8).map((c) => (
+                    {filteredCustomers.slice(0, 6).map((c) => (
                       <button
-                        key={c.id}
+                        key={`customer-${c.id}`}
                         type="button"
                         className="ghost btn-noicon"
                         onClick={() => {
                           setCustomerId(String(c.id));
                           setSelectedCustomerOverride(c);
                           setCustomerQ(String(c.name || c.email || ""));
+                          setSelectedEmpresaId("");
                           setShowNewCustomer(false);
                         }}
                         style={{ textAlign: "left" }}
@@ -500,6 +565,24 @@ export function NewBillingAssignmentForm({
                           : "Sin token"}
                       </button>
                     ))}
+                    {filteredEmpresas.slice(0, 6).map((e) => (
+                      <button
+                        key={`empresa-${e.id}`}
+                        type="button"
+                        className="ghost btn-noicon"
+                        onClick={() => {
+                          setSelectedEmpresaId(String(e.id));
+                          setCustomerId("");
+                          setSelectedCustomerOverride(null);
+                          setCustomerQ(String(e.nombre || ""));
+                          setShowNewCustomer(false);
+                        }}
+                        style={{ textAlign: "left" }}
+                      >
+                        {e.nombre} · {e.email || e.telefono || "Sin contacto"} ·{" "}
+                        {e.contactoPrincipal ? `${e.contactoPrincipal.nombre} · ${e.contactoPrincipal.cargo}` : "Sin contacto principal"}
+                      </button>
+                    ))}
                   </div>
                 ) : null}
                 <select
@@ -510,6 +593,7 @@ export function NewBillingAssignmentForm({
                     setCustomerId(id);
                     const picked = filteredCustomers.find((c) => String(c.id) === String(id)) || null;
                     setSelectedCustomerOverride(picked);
+                    setSelectedEmpresaId("");
                     setShowNewCustomer(false);
                   }}
                 >
@@ -529,11 +613,17 @@ export function NewBillingAssignmentForm({
                 </select>
                 {!customerSearching && filteredCustomers.length === 0 ? (
                   <div className="field-hint">
-                    {customerQ.trim().length >= 2 ? "Sin resultados. Prueba con otro término." : "No se encontraron contactos."}
+                    {customerQ.trim().length >= 2 ? "Sin resultados. Prueba con otro término." : "No se encontraron contactos ni empresas."}
                   </div>
                 ) : null}
               </div>
             )}
+
+            {selectedEmpresa && !selectedContactFromEmpresa ? (
+              <div className="field-hint" style={{ color: "rgba(217, 83, 79, 0.92)", marginTop: 8 }}>
+                La empresa no tiene contacto principal. Asigna uno en Empresas para poder crear la suscripción.
+              </div>
+            ) : null}
 
             {showNewCustomer ? (
               <div className="modal-backdrop">
@@ -595,6 +685,8 @@ export function NewBillingAssignmentForm({
               <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="returnTo" value={returnTo} />
               <input type="hidden" name="customerId" value={customerId} />
+              <input type="hidden" name="empresaId" value={selectedEmpresaId} />
+              <input type="hidden" name="contactoId" value={selectedContactFromEmpresa?.id || ""} />
               <input type="hidden" name="productId" value={productId} />
               <input type="hidden" name="billingType" value={billingType} />
               <input type="hidden" name="allowDuplicate" value={allowDuplicate ? "1" : "0"} />
@@ -611,7 +703,12 @@ export function NewBillingAssignmentForm({
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div className="field">
                   <label>Tipo</label>
-                  <select className="select" value={billingType} onChange={(e) => setBillingType(e.target.value === "PLAN" ? "PLAN" : "SUBSCRIPCION")} disabled={!productId || !customerId}>
+                  <select
+                    className="select"
+                    value={billingType}
+                    onChange={(e) => setBillingType(e.target.value === "PLAN" ? "PLAN" : "SUBSCRIPCION")}
+                    disabled={!productId || !(customerId || selectedEmpresaId)}
+                  >
                     <option value="SUBSCRIPCION">Débito automático</option>
                     <option value="PLAN">Link de pago</option>
                   </select>
@@ -625,7 +722,7 @@ export function NewBillingAssignmentForm({
                   name="templateId"
                   value={templateId}
                   onChange={(e) => setTemplateId(e.target.value)}
-                  disabled={!productId || !customerId}
+                  disabled={!productId || !(customerId || selectedEmpresaId)}
                 >
                   <option value="">Usar configuración global</option>
                   {templatesForType.map((t) => (
@@ -647,7 +744,7 @@ export function NewBillingAssignmentForm({
                       const value = String(e.target.value || "").trim();
                       setSelectedTenantIds(value ? [value] : []);
                     }}
-                    disabled={!productId || !customerId}
+                    disabled={!productId || !(customerId || selectedEmpresaId)}
                   >
                     <option value="">Selecciona un canal…</option>
                     {tenants.map((t) => (

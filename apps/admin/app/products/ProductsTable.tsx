@@ -84,6 +84,7 @@ export function ProductsTable({
   deleteProductAction,
   tenants,
   customers,
+  empresas,
   inboxes,
   checkoutTemplates,
   createCustomer,
@@ -96,6 +97,7 @@ export function ProductsTable({
   deleteProductAction: (formData: FormData) => void | Promise<void>;
   tenants: Array<{ id: string; name: string }>;
   customers: any[];
+  empresas: any[];
   inboxes: ChatwootInbox[];
   checkoutTemplates: any[];
   createCustomer: (formData: FormData) => Promise<void>;
@@ -544,9 +546,9 @@ export function ProductsTable({
           <span>{p.kind === "SERVICE" ? "Servicio" : "Producto"}</span>
         </div>
         <div className="product-price">{formatMoneyFromCents(p.basePriceInCents, String(p.currency || DEFAULT_CURRENCY))}</div>
-        <div className="product-info">
+        <div className="product-info product-info-compact">
           <div>
-            <div className="field-hint">Tipo</div>
+            <div className="field-hint">Tipo de suscripción</div>
             <div>{getCollectionModeLabel(p.collectionMode)}</div>
           </div>
           <div>
@@ -556,10 +558,6 @@ export function ProductsTable({
           <div>
             <div className="field-hint">Recurrencia</div>
             <div>{p.intervalUnit ? formatRecurrence(p.intervalUnit, p.intervalCount) : "—"}</div>
-          </div>
-          <div>
-            <div className="field-hint">SKU</div>
-            <div>{p.sku || "—"}</div>
           </div>
         </div>
         <div className="product-stats-grid">
@@ -707,6 +705,7 @@ export function ProductsTable({
             </div>
             <NewBillingAssignmentForm
               customers={customers}
+              empresas={empresas}
               catalogItems={items}
               checkoutTemplates={checkoutTemplates}
               csrfToken={csrfToken}

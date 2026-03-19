@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { listTenants } from "./admin/_services/tenants";
 import { getMetricsOverviewCached } from "./admin/_services/metrics";
-import { getOperationsReportCached, getChatwootReportCached } from "./admin/_services/reports";
 import { listPaymentLogs } from "./admin/_services/logs";
 import { listSubscriptions } from "./admin/_services/subscriptions";
 import { getAdminSettings } from "./admin/_services/settings";
+import { countEmpresasAndContactos } from "./admin/_services/companies";
 import { resolveTenantId } from "./admin/_services/tenantResolver";
 import { MetricsFilters } from "./ui/MetricsFilters";
 import { HelpTip } from "./ui/HelpTip";
@@ -369,7 +369,7 @@ export default async function Home({
   const toDate = sp.to || defaultTo;
   const tenantId = typeof sp.tenantId === "string" ? sp.tenantId : "";
   const viewRaw = typeof sp.view === "string" ? sp.view : "";
-  const view = ["overview", "revenue", "conversion", "subscriptions", "operations"].includes(viewRaw) ? viewRaw : "overview";
+  const view = ["overview", "revenue", "conversion", "subscriptions"].includes(viewRaw) ? viewRaw : "overview";
   const fromIso = toUtcIsoStart(fromDate) || toUtcIsoStart(defaultFrom)!;
   const toIso = toUtcIsoEndExclusive(toDate) || toUtcIsoEndExclusive(defaultTo)!;
   const periodLabel = g === "day" ? "Diario" : g === "week" ? "Semanal" : "Mensual";
@@ -383,8 +383,7 @@ export default async function Home({
     { id: "overview", label: "Resumen" },
     { id: "revenue", label: "Ingresos" },
     { id: "conversion", label: "Conversión" },
-    { id: "subscriptions", label: "Suscripciones" },
-    { id: "operations", label: "Operación" }
+    { id: "subscriptions", label: "Suscripciones" }
   ];
 
   const baseParams = new URLSearchParams({
@@ -402,24 +401,20 @@ export default async function Home({
   const periodMs = Math.max(24 * 60 * 60 * 1000, new Date(toIso).getTime() - new Date(fromIso).getTime());
   const prevFromIso = new Date(new Date(fromIso).getTime() - periodMs).toISOString();
   const prevToIso = new Date(fromIso).toISOString();
-  const [metrics, prevMetrics, opsRes, chatwootRes, paymentsRes, overdueSubsRes, healthySubsRes, settingsRes] = await Promise.all([
+  const [metrics, prevMetrics, paymentsRes, overdueSubsRes, healthySubsRes, settingsRes, companiesCount] = await Promise.all([
     getMetricsOverviewCached({ from: fromIso, to: toIso, granularity: g, tenantId: resolvedTenantId || undefined }),
     getMetricsOverviewCached({ from: prevFromIso, to: prevToIso, granularity: g, tenantId: resolvedTenantId || undefined }),
-    getOperationsReportCached({ from: fromIso, to: toIso, granularity: g, tenantId: resolvedTenantId || undefined }),
-    getChatwootReportCached({ from: fromIso, to: toIso, granularity: g, tenantId: resolvedTenantId || undefined }),
     listPaymentLogs({ take: 6, status: "APPROVED", tenantId: resolvedTenantId || undefined }),
     listSubscriptions({ take: 200, estado: "mora", tenantId: resolvedTenantId || undefined }),
     listSubscriptions({ take: 200, estado: "si", tenantId: resolvedTenantId || undefined }),
-    getAdminSettings()
+    getAdminSettings(),
+    countEmpresasAndContactos(resolvedTenantId || null)
   ]);
   const aiConfig = settingsRes?.ai || null;
   const aiProviders = aiConfig?.providers || null;
   const aiEnabled = Boolean(aiConfig?.enabled && (aiProviders?.openai?.configured || aiProviders?.deepseek?.configured));
   const metricsData = metrics.ok ? metrics.data : null;
   const prevMetricsData = prevMetrics.ok ? prevMetrics.data : null;
-  const opsData = opsRes.ok ? opsRes.data : null;
-  const chatData = chatwootRes.ok ? chatwootRes.data : null;
-
   const series: any[] = metricsData?.series || [];
   const prevSeries: any[] = prevMetricsData?.series || [];
   const revenueSeries = series.map((p) => Number(p?.revenueInCents ?? 0));
@@ -437,19 +432,6 @@ export default async function Home({
   const mrrSeries = series.map((p) => (p?.mrrInCents == null ? null : Number(p.mrrInCents)));
   const prevMrrSeries = alignSeries(prevSeries.map((p) => Number(p?.mrrInCents ?? 0)), mrrSeries.length);
   const bucketLabels = series.map((p) => fmtBucketLabel(String(p?.at || ""), g));
-  const opsSeries: any[] = opsData?.series || [];
-  const opsLabels = opsSeries.map((p) => fmtBucketLabel(String(p?.at || ""), g));
-  const webhookProcessed = opsSeries.map((p) => Number(p?.webhooks?.processed || 0));
-  const webhookFailed = opsSeries.map((p) => Number(p?.webhooks?.failed || 0));
-  const jobsCreated = opsSeries.map((p) => Number(p?.jobs?.created || 0));
-  const jobsFailed = opsSeries.map((p) => Number(p?.jobs?.failed || 0));
-  const chatSeries: any[] = chatData?.series || [];
-  const chatLabels = chatSeries.map((p) => fmtBucketLabel(String(p?.at || ""), g));
-  const chatSent = chatSeries.map((p) => Number(p?.sent || 0));
-  const chatFailed = chatSeries.map((p) => Number(p?.failed || 0));
-  const chatPending = chatSeries.map((p) => Number(p?.pending || 0));
-  const opsTotals = opsData?.totals || null;
-  const chatTotals = chatData?.totals || null;
   const approvalRateSeries = okSeries.map((ok, i) => {
     const total = ok + (failSeries[i] ?? 0);
     return total > 0 ? (ok / total) * 100 : 0;
@@ -476,6 +458,8 @@ export default async function Home({
   const totalActiveSubscriptions = Number(metricsData?.totals?.totalActiveSubscriptions || 0);
   const contactsPastDue = Number(metricsData?.totals?.contactsPastDue ?? 0);
   const contactsOnTime = Number(metricsData?.totals?.contactsOnTime ?? 0);
+  const totalEmpresas = Number(companiesCount?.empresas || 0);
+  const totalContactos = Number(companiesCount?.contactos || 0);
   const linkConversionPctRaw = metricsData?.totals?.link?.conversionLinkToPayPct ?? null;
   const autoMrr = Number(metricsData?.totals?.auto?.mrrInCents || 0);
   const autoActive = Number(metricsData?.totals?.auto?.activeSubscriptions || 0);
@@ -767,6 +751,38 @@ export default async function Home({
                       </div>
                       <div className="metric-value">{totalActiveSubscriptions}</div>
                       <div className="metric-sub">Δ {activeDelta >= 0 ? "+" : ""}{activeDelta} ({fmtPct(activeDeltaPct)})</div>
+                    </div>
+                    <div className="card cardPad metric-card tone-primary">
+                      <span className="metric-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M4 21V7a2 2 0 0 1 2-2h6v16" />
+                          <path d="M14 21V3h4a2 2 0 0 1 2 2v16" />
+                          <path d="M8 11h2" />
+                          <path d="M8 15h2" />
+                          <path d="M16 11h2" />
+                          <path d="M16 15h2" />
+                        </svg>
+                      </span>
+                      <div className="metric-label">
+                        Empresas activas
+                        <HelpTip text="Total de empresas registradas en el canal seleccionado." />
+                      </div>
+                      <div className="metric-value">{totalEmpresas}</div>
+                      <div className="metric-sub">Contactos asociados: {totalContactos}</div>
+                    </div>
+                    <div className="card cardPad metric-card tone-info">
+                      <span className="metric-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                          <circle cx="12" cy="7" r="4" />
+                        </svg>
+                      </span>
+                      <div className="metric-label">
+                        Contactos registrados
+                        <HelpTip text="Número total de contactos asociados a empresas en el canal seleccionado." />
+                      </div>
+                      <div className="metric-value">{totalContactos}</div>
+                      <div className="metric-sub">Empresas: {totalEmpresas}</div>
                     </div>
                     <div className="card cardPad metric-card tone-primary">
                       <span className="metric-icon" aria-hidden="true">
@@ -1421,108 +1437,6 @@ export default async function Home({
                 </>
               ) : null}
 
-              {view === "operations" ? (
-                <>
-                  <div className="grid2">
-                    <div className="card cardPad chart-card">
-                      <div className="chart-header">
-                        <div>
-                          <div className="chart-title">Webhooks: procesados vs fallidos</div>
-                          <div className="chart-sub">Salud operativa por {periodLabel.toLowerCase()}.</div>
-                        </div>
-                        <div className="chart-range">{rangeLabel} · {periodLabel}</div>
-                      </div>
-                      {opsRes.ok ? (
-                        <>
-                          <ChartBars a={webhookProcessed} b={webhookFailed} aLabel="Procesados" bLabel="Fallidos" labels={opsLabels} />
-                          <div className="chart-kpis">
-                            <span className="chart-kpi">Procesados <strong>{opsTotals?.webhooks?.processed ?? 0}</strong></span>
-                            <span className="chart-kpi">Fallidos <strong>{opsTotals?.webhooks?.failed ?? 0}</strong></span>
-                            <span className="chart-kpi">Total <strong>{opsTotals?.webhooks?.total ?? 0}</strong></span>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="muted">No pudimos cargar operaciones.</div>
-                      )}
-                    </div>
-
-                    <div className="card cardPad chart-card">
-                      <div className="chart-header">
-                        <div>
-                          <div className="chart-title">Jobs: creados vs fallidos</div>
-                          <div className="chart-sub">Cola y reintentos en el período.</div>
-                        </div>
-                        <div className="chart-range">{rangeLabel} · {periodLabel}</div>
-                      </div>
-                      {opsRes.ok ? (
-                        <>
-                          <ChartBars a={jobsCreated} b={jobsFailed} aLabel="Creados" bLabel="Fallidos" labels={opsLabels} />
-                          <div className="chart-kpis">
-                            <span className="chart-kpi">Pendientes <strong>{opsTotals?.jobs?.pending ?? 0}</strong></span>
-                            <span className="chart-kpi">Fallidos <strong>{opsTotals?.jobs?.failed ?? 0}</strong></span>
-                            <span className="chart-kpi">Running <strong>{opsTotals?.jobs?.running ?? 0}</strong></span>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="muted">No pudimos cargar operaciones.</div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="grid2">
-                    <div className="card cardPad chart-card">
-                      <div className="chart-header">
-                        <div>
-                          <div className="chart-title">Chatwoot: enviados vs fallidos</div>
-                          <div className="chart-sub">Mensajes salientes del período.</div>
-                        </div>
-                        <div className="chart-range">{rangeLabel} · {periodLabel}</div>
-                      </div>
-                      {chatwootRes.ok ? (
-                        <>
-                          <ChartBars a={chatSent} b={chatFailed} aLabel="Enviados" bLabel="Fallidos" labels={chatLabels} />
-                          <div className="chart-kpis">
-                            <span className="chart-kpi">Enviados <strong>{chatTotals?.sent ?? 0}</strong></span>
-                            <span className="chart-kpi">Fallidos <strong>{chatTotals?.failed ?? 0}</strong></span>
-                            <span className="chart-kpi">Pendientes <strong>{chatTotals?.pending ?? 0}</strong></span>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="muted">No pudimos cargar Chatwoot.</div>
-                      )}
-                    </div>
-
-                    <div className="card cardPad chart-card">
-                      <div className="chart-header">
-                        <div>
-                          <div className="chart-title">Logs críticos</div>
-                          <div className="chart-sub">Errores y alertas recientes.</div>
-                        </div>
-                        <div className="chart-range">{rangeLabel} · {periodLabel}</div>
-                      </div>
-                      {opsRes.ok ? (
-                        <>
-                          <ChartLines
-                            series={[
-                              { label: "Errores", values: opsSeries.map((p) => Number(p?.logs?.error || 0)), color: "var(--status-danger)" },
-                              { label: "Alertas", values: opsSeries.map((p) => Number(p?.logs?.warn || 0)), color: "var(--status-warning)", dashed: true }
-                            ]}
-                            labels={opsLabels}
-                            tooltipLabel={(v, i, label) => `${opsLabels[i] || ""} · ${label}: ${v}`}
-                          />
-                          <div className="chart-kpis">
-                            <span className="chart-kpi">Errores <strong>{opsTotals?.logs?.error ?? 0}</strong></span>
-                            <span className="chart-kpi">Alertas <strong>{opsTotals?.logs?.warn ?? 0}</strong></span>
-                            <span className="chart-kpi">Info <strong>{opsTotals?.logs?.info ?? 0}</strong></span>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="muted">No pudimos cargar logs.</div>
-                      )}
-                    </div>
-                  </div>
-                </>
-              ) : null}
             </>
           )}
           {aiEnabled ? (

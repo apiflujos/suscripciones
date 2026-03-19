@@ -5,6 +5,7 @@ import { listManualOrders } from "../admin/_services/orders";
 import { listSubscriptions } from "../admin/_services/subscriptions";
 import { listCheckoutTemplates } from "../admin/_services/checkoutTemplates";
 import { listCatalogProducts } from "../admin/_services/products";
+import { listEmpresas } from "../admin/_services/companies";
 import { listTenants } from "../admin/_services/tenants";
 import { getAdminSettings } from "../admin/_services/settings";
 import { resolveTenantId } from "../admin/_services/tenantResolver";
@@ -190,12 +191,13 @@ export default async function CustomersPage({
     resolvedIds = ["__none__"];
   }
 
-  const [data, tenantsRes, txCustomer, productsRes, templatesRes, settingsRes, notificationsRes, smartListsRes] = await Promise.all([
+  const [data, tenantsRes, txCustomer, productsRes, templatesRes, empresasRes, settingsRes, notificationsRes, smartListsRes] = await Promise.all([
     fetchCustomers({ q, take, page, tenantId: resolvedTenantId || "", ids: resolvedIds }),
     listTenants(),
     txCustomerId ? fetchCustomerById(txCustomerId) : Promise.resolve(null),
     fetchProducts(resolvedTenantId || ""),
     fetchCheckoutTemplates(resolvedTenantId || ""),
+    listEmpresas({ tenantId: resolvedTenantId || "", take: 200 }),
     fetchSettings(),
     fetchNotificationsConfig(),
     fetchSmartLists()
@@ -206,6 +208,7 @@ export default async function CustomersPage({
     items.unshift(txCustomer);
   }
   const tenants = (tenantsRes ?? []) as Array<{ id: string; name: string }>;
+  const empresas = (empresasRes?.items ?? []) as any[];
   const checkoutConfig = settingsRes?.checkoutConfig || {};
   const notificationsConfig = notificationsRes?.config || null;
   const smartListsRaw = smartListsRes?.ok ? smartListsRes.json?.items ?? [] : [];
@@ -439,6 +442,7 @@ export default async function CustomersPage({
                 <div className="page-actions">
                   <CustomersModals
                     customers={items}
+                    empresas={empresas}
                     products={productsRes?.items ?? []}
                     checkoutTemplates={templatesRes?.items ?? []}
                     csrfToken={csrfToken}
@@ -464,6 +468,7 @@ export default async function CustomersPage({
             subscriptionsByCustomer={subscriptionsByCustomer}
             cartTemplates={cartTemplates}
             products={productsRes?.items ?? []}
+            empresas={empresas}
             checkoutTemplates={templatesRes?.items ?? []}
             checkoutConfig={checkoutConfig}
             notificationsConfig={notificationsConfig}

@@ -323,6 +323,8 @@ export async function listSubscriptions(args: {
 
 export async function createSubscription(args: {
   customerId: string;
+  empresaId?: string | null;
+  contactoId?: string | null;
   planId: string;
   tenantIds: string[];
   startAt?: string;
@@ -395,6 +397,8 @@ export async function createSubscription(args: {
     data: {
       tenantId,
       customerId: args.customerId,
+      empresaId: args.empresaId || null,
+      contactoId: args.contactoId || null,
       planId: plan.id,
       status: SubscriptionStatus.PAST_DUE,
       startAt,

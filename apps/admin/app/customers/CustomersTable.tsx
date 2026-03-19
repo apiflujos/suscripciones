@@ -72,6 +72,7 @@ export function CustomersTable({
   subscriptionsByCustomer,
   cartTemplates,
   products,
+  empresas,
   checkoutTemplates,
   checkoutConfig,
   notificationsConfig,
@@ -88,6 +89,7 @@ export function CustomersTable({
   subscriptionsByCustomer: Record<string, { hasPlan: boolean; planName?: string; status?: string; collectionMode?: string; subscriptionId?: string }>;
   cartTemplates: Array<{ id: string; name: string }>;
   products: any[];
+  empresas: any[];
   checkoutTemplates: any[];
   checkoutConfig?: any;
   notificationsConfig?: any;
@@ -912,6 +914,7 @@ export function CustomersTable({
             </div>
             <NewBillingAssignmentForm
               customers={items}
+              empresas={empresas}
               catalogItems={products}
               checkoutTemplates={checkoutTemplates}
               csrfToken={csrfToken}

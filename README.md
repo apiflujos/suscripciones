@@ -69,6 +69,23 @@ npm run db:migrate     # Migraciones (dev)
 
 ---
 
+# 🧪 Local (Docker + Seed)
+
+Esta guía es **solo para local**. El seed NO se usa en producción.
+
+```bash
+cp .env.example .env
+docker compose up -d
+docker exec -it -w /app wompi-admin npm -w packages/database run prisma:migrate:deploy
+docker exec -it -w /app wompi-admin node scripts/seed_local.js
+```
+
+URLs:
+- Admin: http://localhost:3002/login
+- Super Admin: http://localhost:3002/sa/login
+
+---
+
 # 🚀 Producción con PM2 (Guía detallada)
 
 ## 1) Requisitos

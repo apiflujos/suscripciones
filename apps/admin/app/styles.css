@@ -1115,6 +1115,7 @@ a {
 :is(
   .contact-card,
   .product-card,
+  .company-card,
   .billing-card,
   .saved-conn-card,
   .settingsPage .saved-conn-card,
@@ -2699,8 +2700,14 @@ html[data-theme="dark"] .payments-health-banner code {
 
 .product-info {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 4px 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px 10px;
+}
+
+.product-info-compact .field-hint {
+  font-size: 10px;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
 }
 
 .contact-footer,
@@ -2708,6 +2715,22 @@ html[data-theme="dark"] .payments-health-banner code {
   border-top: 1px solid var(--stroke);
   padding-top: 6px;
   margin-top: 2px;
+}
+
+.product-footer-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.product-actions-left,
+.product-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .product-title {
@@ -9784,7 +9807,18 @@ body.is-global-loading {
   gap: 16px;
 }
 
+.company-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
 .product-list {
+  display: grid;
+  gap: 8px;
+}
+
+.company-list {
   display: grid;
   gap: 8px;
 }
@@ -9810,6 +9844,93 @@ body.is-global-loading {
   border-radius: 12px;
   background: color-mix(in srgb, var(--panel) 96%, var(--primary-soft) 4%);
   box-shadow: var(--shadow);
+}
+
+.company-list-header {
+  display: grid;
+  grid-template-columns: 1.4fr 1.1fr 0.5fr 0.6fr;
+  gap: 8px;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: 0 6px;
+}
+
+.company-list-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1.1fr 0.5fr 0.6fr;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--stroke) 82%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel) 96%, var(--primary-soft) 4%);
+  box-shadow: var(--shadow);
+}
+
+.company-list-cell {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.company-list-actions {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.company-card {
+  background: var(--panel);
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--stroke) 85%, transparent);
+  box-shadow: var(--shadow);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.company-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.company-card-body {
+  display: grid;
+  gap: 10px;
+}
+
+.company-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.company-name {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.company-meta {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.company-contact {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.company-field {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
 }
 
 .product-list-cell {

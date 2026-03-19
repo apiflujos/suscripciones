@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { assertCsrfToken } from "../lib/csrf";
 import { DEFAULT_CURRENCY, normalizeSupportedCurrency } from "../lib/currencies";
 import { createCustomer as createCustomerService, getCustomerById, updateCustomerProfile } from "../admin/_services/customers";
+import { prisma } from "@suscripciones/database";
 import { createCatalogProduct, getCatalogProductById } from "../admin/_services/products";
 import { createPlan as createPlanService, updatePlanRecurrence as updatePlanRecurrenceService, deletePlan as deletePlanService } from "../admin/_services/plans";
 import {
@@ -550,6 +551,8 @@ export async function changeSubscriptionPlan(formData: FormData) {
 export async function createPlanAndSubscription(formData: FormData) {
   const returnTo = safeReturnTo(formData);
   const customerId = String(formData.get("customerId") || "").trim();
+  const empresaId = String(formData.get("empresaId") || "").trim();
+  const contactoId = String(formData.get("contactoId") || "").trim();
   const productId = String(formData.get("productId") || "").trim();
   const tenantIds = readTenantIds(formData);
   const tenantId = tenantIds[0] || "";
@@ -568,20 +571,114 @@ export async function createPlanAndSubscription(formData: FormData) {
   const allowDuplicate = String(formData.get("allowDuplicate") || "").trim() === "1";
   const shippingInCentsInput = pesosToCents(String(formData.get("shippingPesos") || ""));
 
-  if (!customerId || !productId) {
-    return redirect(mergeQuery(returnTo, { error: "missing_customer_or_product" }));
+  if ((!customerId && !empresaId && !contactoId) || !productId) {
+    return redirect(mergeQuery(returnTo, { error: "missing_contact_or_company_or_product" }));
   }
 
   try {
     await assertCsrfToken(formData);
-    const customer = (await getCustomerById(customerId)) as any;
+    let resolvedCustomerId = customerId;
+    let resolvedEmpresaId = empresaId;
+    let resolvedContactoId = contactoId;
+
+    if (!resolvedCustomerId && (resolvedEmpresaId || resolvedContactoId)) {
+      if (resolvedEmpresaId) {
+        const empresa = await prisma.empresa.findUnique({
+          where: { id: resolvedEmpresaId },
+          include: { contactoPrincipal: true }
+        });
+        if (!empresa) {
+          return redirect(mergeQuery(returnTo, { error: "empresa_no_encontrada" }));
+        }
+        if (tenantIds.length) {
+          const empresaTenantId = String(empresa.tenantId || "").trim();
+          if (empresaTenantId && !tenantIds.includes(empresaTenantId)) {
+            return redirect(mergeQuery(returnTo, { error: "empresa_no_pertenece_canal" }));
+          }
+        }
+        if (!empresa.contactoPrincipal) {
+          return redirect(mergeQuery(returnTo, { error: "empresa_sin_contacto_principal" }));
+        }
+        resolvedContactoId = empresa.contactoPrincipal.id;
+        const contact = empresa.contactoPrincipal;
+        const existingCustomer =
+          (contact.email
+            ? await prisma.customer.findFirst({ where: { email: contact.email } })
+            : null) ||
+          (contact.telefono
+            ? await prisma.customer.findFirst({ where: { phone: contact.telefono } })
+            : null);
+        if (existingCustomer) {
+          resolvedCustomerId = existingCustomer.id;
+        } else {
+          const created = await prisma.customer.create({
+            data: {
+              name: contact.nombre,
+              email: contact.email || null,
+              phone: contact.telefono || null,
+              tenantId: tenantIds[0] || null,
+              metadata: {
+                empresaId: empresa.id,
+                contactoId: contact.id
+              }
+            }
+          });
+          resolvedCustomerId = created.id;
+        }
+      } else if (resolvedContactoId) {
+        const contacto = await prisma.contacto.findUnique({
+          where: { id: resolvedContactoId },
+          include: { empresa: true }
+        });
+        if (!contacto) {
+          return redirect(mergeQuery(returnTo, { error: "contacto_no_encontrado" }));
+        }
+        if (tenantIds.length) {
+          const contactoTenantId = String(contacto?.empresa?.tenantId || "").trim();
+          if (contactoTenantId && !tenantIds.includes(contactoTenantId)) {
+            return redirect(mergeQuery(returnTo, { error: "contacto_no_pertenece_canal" }));
+          }
+        }
+        resolvedEmpresaId = contacto.empresaId;
+        const existingCustomer =
+          (contacto.email
+            ? await prisma.customer.findFirst({ where: { email: contacto.email } })
+            : null) ||
+          (contacto.telefono
+            ? await prisma.customer.findFirst({ where: { phone: contacto.telefono } })
+            : null);
+        if (existingCustomer) {
+          resolvedCustomerId = existingCustomer.id;
+        } else {
+          const created = await prisma.customer.create({
+            data: {
+              name: contacto.nombre,
+              email: contacto.email || null,
+              phone: contacto.telefono || null,
+              tenantId: tenantIds[0] || null,
+              metadata: {
+                empresaId: contacto.empresaId,
+                contactoId: contacto.id
+              }
+            }
+          });
+          resolvedCustomerId = created.id;
+        }
+      }
+    }
+
+    if (!resolvedCustomerId) {
+      return redirect(mergeQuery(returnTo, { error: "customer_required" }));
+    }
+
+    const customer = (await getCustomerById(resolvedCustomerId)) as any;
     if (tenantIds.length) {
       const customerTenantId = String(customer?.tenantId || "").trim();
       if (customerTenantId && !tenantIds.includes(customerTenantId)) {
         return redirect(
           mergeQuery(returnTo, {
             error: "El contacto no pertenece al canal seleccionado.",
-            customerId,
+            customerId: resolvedCustomerId,
             ...(tenantId ? { tenantId } : {})
           })
         );
@@ -603,7 +700,7 @@ export async function createPlanAndSubscription(formData: FormData) {
       return redirect(
         mergeQuery(returnTo, {
           error: "missing_plan_base_url",
-          customerId,
+          customerId: resolvedCustomerId,
           ...(tenantId ? { tenantId } : {})
         })
       );
@@ -612,7 +709,7 @@ export async function createPlanAndSubscription(formData: FormData) {
       return redirect(
         mergeQuery(returnTo, {
           error: "missing_subscription_base_url",
-          customerId,
+          customerId: resolvedCustomerId,
           ...(tenantId ? { tenantId } : {})
         })
       );
@@ -636,7 +733,7 @@ export async function createPlanAndSubscription(formData: FormData) {
       return redirect(
         mergeQuery(returnTo, {
           error: "missing_shipping_amount",
-          customerId,
+          customerId: resolvedCustomerId,
           ...(tenantId ? { tenantId } : {})
         })
       );
@@ -668,7 +765,7 @@ export async function createPlanAndSubscription(formData: FormData) {
         ? templateCandidate
         : null;
 
-    const nameSuffix = `${new Date().toISOString().slice(11, 19).replace(/:/g, "")}-${customerId.slice(0, 6)}`;
+    const nameSuffix = `${new Date().toISOString().slice(11, 19).replace(/:/g, "")}-${resolvedCustomerId.slice(0, 6)}`;
     const createdPlan = await createPlanService({
       tenantIds,
       name: `${billingType === "PLAN" ? "Plan" : "Suscripción"} - ${item.name} - ${nameSuffix}`,
@@ -711,7 +808,9 @@ export async function createPlanAndSubscription(formData: FormData) {
     let startAtValue = startAt || "";
     let endAtValue = firstPeriodEndAt || "";
     const sub = await createSubscription({
-      customerId,
+      customerId: resolvedCustomerId,
+      empresaId: resolvedEmpresaId || undefined,
+      contactoId: resolvedContactoId || undefined,
       planId,
       tenantIds,
       metadata: template?.id ? { templateId: String(template.id) } : undefined,
@@ -740,7 +839,7 @@ export async function createPlanAndSubscription(formData: FormData) {
     if (billingType === "PLAN" && checkoutUrl) {
       const base = planBase;
       const token = await signPublicToken({
-        sub: customerId || "customer",
+        sub: resolvedCustomerId || "customer",
         scope: "payment",
         ttlSeconds: ttlHours * 60 * 60
       });
@@ -765,7 +864,7 @@ export async function createPlanAndSubscription(formData: FormData) {
           usedAt: null
         }
       };
-      await updateCustomerProfile({ customerId, metadata: nextMeta }).catch(() => {});
+      await updateCustomerProfile({ customerId: resolvedCustomerId, metadata: nextMeta }).catch(() => {});
 
       const rulesActive = await hasNotificationRule("PAYMENT_LINK_CREATED");
       if (rulesActive === false) {
@@ -774,14 +873,14 @@ export async function createPlanAndSubscription(formData: FormData) {
           lead: "Aquí está tu link de pago:",
           url
         });
-        await sendChatwootMessageSafe({ customerId, content });
+        await sendChatwootMessageSafe({ customerId: resolvedCustomerId, content });
       }
 
       redirect(
         mergeQuery(returnTo, {
           created: "1",
           checkoutUrl: url,
-          customerId,
+          customerId: resolvedCustomerId,
           ...(tenantId ? { tenantId } : {})
         })
       );
@@ -789,14 +888,14 @@ export async function createPlanAndSubscription(formData: FormData) {
 
     if (billingType === "SUBSCRIPCION") {
       if (hasToken) {
-        redirect(mergeQuery(returnTo, { created: "1", customerId, ...(tenantId ? { tenantId } : {}) }));
+        redirect(mergeQuery(returnTo, { created: "1", customerId: resolvedCustomerId, ...(tenantId ? { tenantId } : {}) }));
       }
       if (submitAction !== "LINK_NOW") {
-        redirect(mergeQuery(returnTo, { created: "1", customerId, ...(tenantId ? { tenantId } : {}) }));
+        redirect(mergeQuery(returnTo, { created: "1", customerId: resolvedCustomerId, ...(tenantId ? { tenantId } : {}) }));
       }
       const base = subBase;
       const token = await signPublicToken({
-        sub: customerId || "customer",
+        sub: resolvedCustomerId || "customer",
         scope: "tokenization",
         ttlSeconds: ttlHours * 60 * 60
       });
@@ -820,11 +919,11 @@ export async function createPlanAndSubscription(formData: FormData) {
           usedAt: null
         }
       };
-      await updateCustomerProfile({ customerId, metadata: nextMeta }).catch(() => {});
+      await updateCustomerProfile({ customerId: resolvedCustomerId, metadata: nextMeta }).catch(() => {});
 
       let rulesActive: boolean | null = null;
       try {
-        const scheduled = await scheduleTokenizationLinkNotifications({ customerId, tokenUrl: url, forceNow: true });
+        const scheduled = await scheduleTokenizationLinkNotifications({ customerId: resolvedCustomerId, tokenUrl: url, forceNow: true });
         rulesActive = Boolean(scheduled?.rulesActive);
       } catch {
         rulesActive = null;
@@ -835,10 +934,10 @@ export async function createPlanAndSubscription(formData: FormData) {
           lead: "Activa tu suscripción guardando tu método de pago aquí:",
           url
         });
-        await sendChatwootMessageSafe({ customerId, content });
+        await sendChatwootMessageSafe({ customerId: resolvedCustomerId, content });
       }
 
-      redirect(mergeQuery(returnTo, { created: "1", checkoutUrl: url, customerId, ...(tenantId ? { tenantId } : {}) }));
+      redirect(mergeQuery(returnTo, { created: "1", checkoutUrl: url, customerId: resolvedCustomerId, ...(tenantId ? { tenantId } : {}) }));
     }
 
     if (checkoutUrl) {
@@ -846,7 +945,7 @@ export async function createPlanAndSubscription(formData: FormData) {
         mergeQuery(returnTo, {
           created: "1",
           checkoutUrl,
-          customerId,
+          customerId: resolvedCustomerId,
           ...(tenantId ? { tenantId } : {})
         })
       );

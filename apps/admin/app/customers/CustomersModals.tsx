@@ -6,6 +6,7 @@ import { NewBillingAssignmentForm } from "../billing/NewBillingAssignmentForm";
 
 export function CustomersModals({
   customers,
+  empresas,
   products,
   checkoutTemplates,
   csrfToken,
@@ -17,6 +18,7 @@ export function CustomersModals({
   actionsClassName
 }: {
   customers: any[];
+  empresas: any[];
   products: any[];
   checkoutTemplates: any[];
   csrfToken: string;
@@ -76,6 +78,7 @@ export function CustomersModals({
             </div>
             <NewBillingAssignmentForm
               customers={customers}
+              empresas={empresas}
               catalogItems={products}
               checkoutTemplates={checkoutTemplates}
               csrfToken={csrfToken}

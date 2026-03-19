@@ -8,6 +8,7 @@ import { listSubscriptions } from "../admin/_services/subscriptions";
 import { listCustomers } from "../admin/_services/customers";
 import { listCatalogProducts } from "../admin/_services/products";
 import { listCheckoutTemplates } from "../admin/_services/checkoutTemplates";
+import { listEmpresas } from "../admin/_services/companies";
 import { listTenants } from "../admin/_services/tenants";
 import { getAdminSettings } from "../admin/_services/settings";
 import { resolveTenantId } from "../admin/_services/tenantResolver";
@@ -320,7 +321,7 @@ export default async function BillingPage({
     subParams.set("ids", "__none__");
   }
 
-  const [subs, customers, products, templates, tenantsRes, settings] = await Promise.all([
+  const [subs, customers, products, templates, empresasRes, tenantsRes, settings] = await Promise.all([
     listSubscriptions({
       tenantId: resolvedTenantId || undefined,
       take: Number(subParams.get("take") || 50),
@@ -334,6 +335,7 @@ export default async function BillingPage({
     listCustomers({ tenantId: resolvedTenantId || undefined, take: 200 }),
     listCatalogProducts({ tenantId: resolvedTenantId || undefined, take: 200 }),
     listCheckoutTemplates({ tenantId: resolvedTenantId || undefined }),
+    listEmpresas({ tenantId: resolvedTenantId || undefined, take: 200 }),
     listTenants(),
     getAdminSettings()
   ]);
@@ -342,6 +344,7 @@ export default async function BillingPage({
   const total = Number(subs.total ?? 0);
   const customerItems = (customers.items ?? []) as any[];
   const productItems = (products.items ?? []) as any[];
+  const empresas = (empresasRes?.items ?? []) as any[];
   const productById = new Map(productItems.map((p: any) => [String(p.id), p]));
   const checkoutTemplates = (templates ?? []) as any[];
   const tenants = (tenantsRes ?? []) as Array<{ id: string; name: string }>;
@@ -907,6 +910,7 @@ export default async function BillingPage({
                 <div className="page-actions">
                   <BillingModals
                     customers={customerItems}
+                    empresas={empresas}
                     catalogItems={productItems}
                     checkoutTemplates={checkoutTemplates}
                     csrfToken={csrfToken}

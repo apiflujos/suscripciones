@@ -38,21 +38,33 @@ async function main() {
 
   const productCount = 10;
   const customerCount = 30;
+  const empresaCount = 6;
   const subscriptionCount = 40;
   const paymentCount = 80;
 
   console.log("Seeding local DB", { tenantId, tenantName: tenant.name });
 
-  // Customers
+  // Customers (some with saved card metadata)
   const customers = [];
   for (let i = 1; i <= customerCount; i += 1) {
     const email = `dummy_${seedTag}_${pad(i)}@example.com`;
+    const hasCard = i % 4 === 0;
+    const cardSourceId = hasCard ? 100000 + i : null;
     const customer = await prisma.customer.create({
       data: {
         tenantId,
         name: `Cliente ${pad(i)}`,
         email,
-        phone: `300000${pad(i)}`
+        phone: `300000${pad(i)}`,
+        metadata: hasCard
+          ? {
+              wompi: {
+                paymentSourceId: cardSourceId,
+                paymentSourceType: "CARD",
+                paymentSources: [{ id: cardSourceId, type: "CARD", createdAt: new Date().toISOString() }]
+              }
+            }
+          : undefined
       }
     });
     await prisma.customerTenant.create({
@@ -61,13 +73,51 @@ async function main() {
     customers.push(customer);
   }
 
+  // Empresas + Contactos
+  const empresas = [];
+  const contactos = [];
+  for (let i = 1; i <= empresaCount; i += 1) {
+    const empresa = await prisma.empresa.create({
+      data: {
+        tenantId,
+        nombre: `Empresa ${pad(i)} · Mercado de vinos`,
+        email: `empresa_${seedTag}_${pad(i)}@empresa.com`,
+        telefono: `320000${pad(i)}`,
+        direccion: `Calle ${10 + i} #${i} - ${20 + i}`,
+        sitioWeb: `https://empresa${pad(i)}.local`
+      }
+    });
+    const contactsForEmpresa = [];
+    const totalContacts = 2 + (i % 3);
+    for (let j = 1; j <= totalContacts; j += 1) {
+      const contact = await prisma.contacto.create({
+        data: {
+          empresaId: empresa.id,
+          nombre: `Contacto ${pad(i)}-${pad(j)}`,
+          email: `contacto_${seedTag}_${pad(i)}_${pad(j)}@empresa.com`,
+          telefono: `310${pad(i)}${pad(j)}${pad(j)}`.slice(0, 10),
+          cargo: j === 1 ? "Gerente" : j === 2 ? "Compras" : "Administración"
+        }
+      });
+      contactsForEmpresa.push(contact);
+      contactos.push(contact);
+    }
+    if (contactsForEmpresa.length) {
+      await prisma.empresa.update({
+        where: { id: empresa.id },
+        data: { contactoPrincipalId: contactsForEmpresa[0].id }
+      });
+    }
+    empresas.push(empresa);
+  }
+
   // Catalog products (stored as SubscriptionPlan with metadata.kind = CATALOG_ITEM)
   const catalogPlans = [];
   for (let i = 1; i <= productCount; i += 1) {
     const sku = `SKU-${seedTag}-${pad(i)}`;
     const itemKind = i % 3 === 0 ? "SERVICE" : "PRODUCT";
     const requiresShipping = itemKind === "PRODUCT" && i % 2 === 0;
-    const shippingInCents = requiresShipping ? 20000 : 0;
+    const shippingInCents = requiresShipping ? (i % 4 === 0 ? 0 : 20000) : 0;
     const basePriceInCents = 25000 + i * 1500;
     const plan = await prisma.subscriptionPlan.create({
       data: {
@@ -109,7 +159,7 @@ async function main() {
     const basePriceInCents = 40000 + i * 5000;
     const itemKind = i % 2 === 0 ? "PRODUCT" : "SERVICE";
     const requiresShipping = itemKind === "PRODUCT";
-    const shippingInCents = requiresShipping ? 20000 : 0;
+    const shippingInCents = requiresShipping ? (i % 3 === 0 ? 0 : 20000) : 0;
     const plan = await prisma.subscriptionPlan.create({
       data: {
         tenantId,
@@ -146,6 +196,10 @@ async function main() {
     const customer = rand(customers);
     const picked = rand(plans);
     const status = rand(statuses);
+    const attachCompany = i % 3 === 0 && contactos.length > 0;
+    const contact = attachCompany ? rand(contactos) : null;
+    const empresaId = contact ? contact.empresaId : null;
+    const contactoId = contact ? contact.id : null;
     const now = new Date();
     const currentPeriodEndAt =
       status === "ACTIVE" ? nowPlusDays(15) : status === "PAST_DUE" ? nowPlusDays(-10) : nowPlusDays(-30);
@@ -153,6 +207,8 @@ async function main() {
       data: {
         tenantId,
         customerId: customer.id,
+        empresaId,
+        contactoId,
         planId: picked.plan.id,
         status,
         startAt: now,
@@ -170,7 +226,10 @@ async function main() {
             totalInCents: picked.plan.priceInCents + picked.shippingInCents,
             currency
           },
-          collectionMode: picked.plan.planType === "auto_subscription" ? "AUTO_DEBIT" : "MANUAL_LINK"
+          collectionMode: picked.plan.planType === "auto_subscription" ? "AUTO_DEBIT" : "MANUAL_LINK",
+          paymentSourceId: (customer.metadata && customer.metadata.wompi && customer.metadata.wompi.paymentSourceId) || null,
+          empresaId,
+          contactoId
         }
       }
     });
