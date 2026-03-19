@@ -544,7 +544,7 @@ export default async function BillingPage({
     const showChargeButton =
       typeof r.canManualCharge === "boolean"
         ? r.canManualCharge
-        : manualChargeEnabled && isAutoDebit && chargeDue && !isInactive && r.customerTokenized;
+        : isAutoDebit && !isInactive && r.customerTokenized && (chargeDue || r.status === "PAST_DUE") && (manualChargeEnabled || chargeDue);
     // Botón de enviar link de pago: visible para link de pago manual
     const showPaymentLinkButton = !isAutoDebit && !isInactive;
     // Botón de tokenización: siempre visible para débito automático (independiente del link de pago)
