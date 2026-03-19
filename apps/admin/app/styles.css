@@ -9971,6 +9971,14 @@ body.is-global-loading {
   flex-wrap: wrap;
 }
 
+.entity-card-footer {
+  border-top: 1px solid color-mix(in srgb, var(--stroke) 65%, transparent);
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .entity-card-actions-left,
 .entity-card-actions-right {
   display: inline-flex;

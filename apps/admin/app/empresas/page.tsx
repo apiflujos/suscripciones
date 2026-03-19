@@ -158,9 +158,6 @@ export default async function EmpresasPage({
                       <div className="company-name entity-card-title">{e.nombre}</div>
                       <div className="company-meta entity-card-sub">{e.email || "Sin email"}</div>
                     </div>
-                    <span className="pill pill-sm pill-muted company-count-pill">
-                      {Number(e?._count?.contactos || 0)} contactos
-                    </span>
                   </div>
                   <div className="entity-card-grid">
                     <div>
@@ -188,6 +185,14 @@ export default async function EmpresasPage({
                         <input type="hidden" name="id" value={e.id} />
                         <button className="ghost btn-compact btn-danger btn-noicon" type="submit">Eliminar</button>
                       </form>
+                    </div>
+                  </div>
+                  <div className="entity-card-footer">
+                    <div className="field-hint">Contactos</div>
+                    <div className="entity-card-counts">
+                      <span className="pill pill-sm pill-muted">
+                        {Number(e?._count?.contactos || 0)} contactos
+                      </span>
                     </div>
                   </div>
                 </div>

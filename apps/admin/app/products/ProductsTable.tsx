@@ -574,14 +574,6 @@ export function ProductsTable({
             <div className="field-hint">Recurrencia</div>
             <div>{p.intervalUnit ? formatRecurrence(p.intervalUnit, p.intervalCount) : "—"}</div>
           </div>
-          <div>
-            <div className="field-hint">Suscripciones</div>
-            <div className="entity-card-counts entity-card-span">
-              <span className="pill pill-sm pill-ok">Act {Number(p.activeSubscriptions || 0)}</span>
-              <span className="pill pill-sm pill-warn">Mora {Number(p.pastDueSubscriptions || 0)}</span>
-              <span className="pill pill-sm pill-muted">Total {Number(p.totalSubscriptions || 0)}</span>
-            </div>
-          </div>
         </div>
 
         <div className="entity-card-actions">
@@ -592,6 +584,14 @@ export function ProductsTable({
             <button className="ghost btn-compact btn-green btn-create btn-noicon" type="button" data-modal="true" data-loader="off" onClick={() => openPlanModal(p)}>
               Crear suscripción
             </button>
+          </div>
+        </div>
+        <div className="entity-card-footer">
+          <div className="field-hint">Suscripciones</div>
+          <div className="entity-card-counts">
+            <span className="pill pill-sm pill-ok">Act {Number(p.activeSubscriptions || 0)}</span>
+            <span className="pill pill-sm pill-warn">Mora {Number(p.pastDueSubscriptions || 0)}</span>
+            <span className="pill pill-sm pill-muted">Total {Number(p.totalSubscriptions || 0)}</span>
           </div>
         </div>
       </div>
