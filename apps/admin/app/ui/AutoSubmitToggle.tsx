@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 
 type AutoSubmitToggleProps = {
   name: string;
@@ -28,6 +28,9 @@ export function AutoSubmitToggle({
 }: AutoSubmitToggleProps) {
   const [isPending, startTransition] = useTransition();
   const [localChecked, setLocalChecked] = useState(checked);
+  useEffect(() => {
+    setLocalChecked(checked);
+  }, [checked]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newChecked = e.target.checked;
@@ -69,12 +72,9 @@ export function AutoSubmitToggle({
 
   return (
     <label className="toggleControl" aria-label={name} style={{ opacity: isPending ? 0.7 : 1, pointerEvents: isPending || disabled ? "none" : "auto" }}>
-      <input type="hidden" name={name} value="false" />
       <input
         className="toggleInput"
         type="checkbox"
-        name={name}
-        value="true"
         checked={localChecked}
         onChange={handleChange}
         disabled={disabled || isPending}

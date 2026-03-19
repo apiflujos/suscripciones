@@ -152,10 +152,10 @@ export async function updateShopify(formData: FormData) {
 export async function updateAutoDebitConfig(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);
-  const enabled = String(formData.get("enabled") || "").trim();
-  const chargeAtCutoffEnabled = String(formData.get("chargeAtCutoffEnabled") || "").trim();
-  const allowManualCharge = String(formData.get("allowManualCharge") || "").trim();
-  const retryEnabled = String(formData.get("retryEnabled") || "").trim();
+  const enabled = getLastValue(formData, "enabled");
+  const chargeAtCutoffEnabled = getLastValue(formData, "chargeAtCutoffEnabled");
+  const allowManualCharge = getLastValue(formData, "allowManualCharge");
+  const retryEnabled = getLastValue(formData, "retryEnabled");
   const retryEveryValue = String(formData.get("retryEveryValue") || "").trim();
   const retryEveryUnit = String(formData.get("retryEveryUnit") || "").trim().toUpperCase();
   const retryEveryMinutes = String(formData.get("retryEveryMinutes") || "").trim();
@@ -200,10 +200,10 @@ export async function updateAutoDebitConfig(formData: FormData) {
 export async function updatePaymentsConfig(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);
-  const autoReconcileUnlinkedPayments = String(formData.get("autoReconcileUnlinkedPayments") || "").trim();
-  const acceptUnlinkedPayments = String(formData.get("acceptUnlinkedPayments") || "").trim();
-  const notifyWhatsappForUnlinkedPayments = String(formData.get("notifyWhatsappForUnlinkedPayments") || "").trim();
-  const includeUnlinkedPaymentsInMetrics = String(formData.get("includeUnlinkedPaymentsInMetrics") || "").trim();
+  const autoReconcileUnlinkedPayments = getLastValue(formData, "autoReconcileUnlinkedPayments");
+  const acceptUnlinkedPayments = getLastValue(formData, "acceptUnlinkedPayments");
+  const notifyWhatsappForUnlinkedPayments = getLastValue(formData, "notifyWhatsappForUnlinkedPayments");
+  const includeUnlinkedPaymentsInMetrics = getLastValue(formData, "includeUnlinkedPaymentsInMetrics");
 
   try {
     const out = await updatePaymentsConfigAction({
@@ -218,6 +218,13 @@ export async function updatePaymentsConfig(formData: FormData) {
     if (isNextRedirect(err)) throw err;
     redirectWith("payments_config_save", "fail", toShortErrorMessage(err), returnTo);
   }
+}
+
+function getLastValue(formData: FormData, name: string) {
+  const values = formData.getAll(name);
+  if (!values.length) return "";
+  const last = values[values.length - 1];
+  return String(last ?? "").trim();
 }
 
 export async function deleteShopifyConnection(formData: FormData) {
