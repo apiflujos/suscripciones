@@ -48,7 +48,15 @@ export async function listPaymentLogs(args: {
   };
   const dateWhere: Prisma.PaymentWhereInput =
     statusRaw === "APPROVED"
-      ? { paidAt: dateRange }
+      ? {
+          OR: [
+            { paidAt: dateRange },
+            {
+              paidAt: null,
+              createdAt: dateRange
+            }
+          ]
+        }
       : statusRaw === "FAILED"
         ? {
             OR: [

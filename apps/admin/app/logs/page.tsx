@@ -808,11 +808,35 @@ export default async function LogsPage({
                   {paymentItems.map((p) => {
                     const chip = paymentStatusChip(p.status);
                     const isIgnoredExternal = Boolean(p.isIgnoredExternal);
+                    const providerResponse =
+                      p.providerResponse && typeof p.providerResponse === "object" ? (p.providerResponse as any) : null;
+                    const reconciliation = providerResponse?.reconciliation && typeof providerResponse.reconciliation === "object"
+                      ? providerResponse.reconciliation
+                      : null;
+                    const sourceRaw = String(
+                      reconciliation?.source ||
+                        reconciliation?.origin ||
+                        providerResponse?.provider ||
+                        providerResponse?.source ||
+                        ""
+                    ).toLowerCase();
+                    const externalSourceLabel = sourceRaw.includes("shopify")
+                      ? "Shopify"
+                      : sourceRaw.includes("wompi")
+                        ? "Wompi"
+                        : sourceRaw
+                          ? sourceRaw.toUpperCase()
+                          : "Sin identificar";
                     const ignoredReason = String(p?.reconciliation?.reason || "").trim();
                     const referenceText = String(p.reference || "").trim();
                     const wompiTxText = String(p.wompiTransactionId || "").trim();
                     const wompiLinkText = String(p.wompiPaymentLinkId || "").trim();
-                    const planName = isIgnoredExternal ? "Pago externo (sin suscripción)" : (p.subscription?.plan?.name || "Falta asociar suscripción");
+                    const isExternal = !p.subscriptionId;
+                    const planName = p.subscription?.plan?.name
+                      ? p.subscription.plan.name
+                      : isExternal
+                        ? `Pago externo (${externalSourceLabel})`
+                        : "Falta asociar suscripción";
                     const contactQuery =
                       p.customer?.email ||
                       p.customer?.phone ||
@@ -831,7 +855,7 @@ export default async function LogsPage({
                         )
                       : "—";
                     const detailText = isIgnoredExternal
-                      ? `Pago externo${ignoredReason ? ` · ${ignoredReason}` : ""}`
+                      ? `Pago externo (${externalSourceLabel})${ignoredReason ? ` · ${ignoredReason}` : ""}`
                       : failureReason;
                     return (
                       <tr key={p.id}>
