@@ -392,3 +392,66 @@ export async function recollectPayments(args: { days?: number; take?: number }) 
     take
   };
 }
+
+export async function enqueueShopifyForwardForPayment(args: { paymentId: string }) {
+  const paymentId = String(args.paymentId || "").trim();
+  if (!paymentId) return { ok: false, error: "missing_payment_id" as const };
+
+  const payment = await prisma.payment.findUnique({
+    where: { id: paymentId },
+    select: {
+      id: true,
+      tenantId: true,
+      reference: true,
+      wompiTransactionId: true,
+      wompiPaymentLinkId: true,
+      providerResponse: true
+    }
+  });
+  if (!payment) return { ok: false, error: "payment_not_found" as const };
+
+  const reference = String(payment.reference || "").trim();
+  const classification = classifyReference(reference);
+  const providerResponse = payment.providerResponse && typeof payment.providerResponse === "object" ? (payment.providerResponse as any) : null;
+  const sourceRaw = String(
+    providerResponse?.reconciliation?.source ||
+      providerResponse?.origin ||
+      providerResponse?.provider ||
+      providerResponse?.source ||
+      ""
+  ).toLowerCase();
+  const isShopify = classification.kind === "shopify" || sourceRaw.includes("shopify");
+  if (!isShopify) return { ok: false, error: "not_shopify_payment" as const };
+
+  const events = await prisma.webhookEvent.findMany({
+    where: { provider: "WOMPI", ...(payment.tenantId ? { tenantId: payment.tenantId } : {}) },
+    orderBy: { receivedAt: "desc" },
+    take: 500
+  });
+
+  const txId = String(payment.wompiTransactionId || "").trim();
+  const linkId = String(payment.wompiPaymentLinkId || "").trim();
+  const match = events.find((event) => {
+    const payload: any = event.payload as any;
+    const tx = payload?.data?.transaction || payload?.data?.tx || payload?.transaction || null;
+    const evRef = String(tx?.reference || "").trim();
+    const evTx = String(tx?.id || "").trim();
+    const evLink = String(tx?.payment_link_id || tx?.paymentLinkId || "").trim();
+    return (txId && evTx === txId) || (linkId && evLink === linkId) || (reference && evRef === reference);
+  });
+
+  if (!match) return { ok: false, error: "webhook_event_not_found" as const };
+
+  const existing = await prisma.retryJob.findFirst({
+    where: {
+      type: RetryJobType.FORWARD_WOMPI_TO_SHOPIFY,
+      payload: { path: ["webhookEventId"], equals: match.id } as any
+    }
+  });
+  if (existing) return { ok: true, queued: false, webhookEventId: match.id };
+
+  await prisma.retryJob.create({
+    data: { type: RetryJobType.FORWARD_WOMPI_TO_SHOPIFY, payload: { webhookEventId: match.id } }
+  });
+  return { ok: true, queued: true, webhookEventId: match.id };
+}

@@ -19,9 +19,11 @@ import {
   recollectPayments,
   reconcilePayment as reconcilePaymentAction,
   reconcilePendingPayments as reconcilePendingPaymentsAction,
+  enqueueShopifyForwardForPayment,
   retryFailedWebhooks as retryFailedWebhooksAction,
   retryWebhookById
 } from "../admin/_services/logsActions";
+import { classifyReference } from "@suscripciones/core/webhooks/wompi/classifyReference";
 
 export const dynamic = "force-dynamic";
 
@@ -92,6 +94,30 @@ async function reconcilePendingPayments(formData: FormData) {
   await reconcilePendingPaymentsAction({ minutes, take, ...(tenantId ? { tenantId } : {}) });
   revalidatePath("/logs");
   revalidatePath("/payments");
+}
+
+function safeReturnToLogs(formData: FormData) {
+  const raw = String(formData.get("returnTo") || "").trim();
+  if (raw.startsWith("/logs") || raw.startsWith("/payments")) return raw;
+  return "/logs?tab=payments";
+}
+
+async function forwardShopifyPayment(formData: FormData) {
+  "use server";
+  await assertCsrfToken(formData);
+  if (!(await assertSuperAdminSession())) return;
+  const paymentId = String(formData.get("paymentId") || "").trim();
+  const returnTo = safeReturnToLogs(formData);
+  if (!paymentId) return;
+  const res = await enqueueShopifyForwardForPayment({ paymentId });
+  if (!res.ok) {
+    redirect(
+      `${returnTo}${returnTo.includes("?") ? "&" : "?"}shopifyError=${encodeURIComponent(res.error)}`
+    );
+  }
+  redirect(
+    `${returnTo}${returnTo.includes("?") ? "&" : "?"}shopifyResent=${encodeURIComponent(res.queued ? "queued" : "exists")}`
+  );
 }
 
 function normalizeLogSource(source: any) {
@@ -240,6 +266,8 @@ export default async function LogsPage({
   const from = typeof sp.from === "string" && sp.from.trim() ? sp.from : defaultFrom;
   const to = typeof sp.to === "string" && sp.to.trim() ? sp.to : defaultTo;
   const tenantId = typeof sp.tenantId === "string" ? sp.tenantId : "";
+  const shopifyResent = typeof sp.shopifyResent === "string" ? sp.shopifyResent : "";
+  const shopifyError = typeof sp.shopifyError === "string" ? sp.shopifyError : "";
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
   const take = 20;
   const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
@@ -269,6 +297,20 @@ export default async function LogsPage({
   const aiConfig = settingsRes?.ai || null;
   const aiProviders = aiConfig?.providers || null;
   const aiEnabled = Boolean(aiConfig?.enabled && (aiProviders?.openai?.configured || aiProviders?.deepseek?.configured));
+
+  const returnTo = `${routeBase}?${new URLSearchParams({
+    tab,
+    ...(q ? { q } : {}),
+    ...(status ? { status } : {}),
+    ...(level ? { level } : {}),
+    ...(processStatus ? { processStatus } : {}),
+    ...(viewId ? { viewId } : {}),
+    ...(filters ? { filters } : {}),
+    ...(from ? { from } : {}),
+    ...(to ? { to } : {}),
+    ...(tenantId ? { tenantId } : {}),
+    ...(Number.isFinite(page) && page > 1 ? { page: String(page) } : {})
+  }).toString()}`;
 
   const sysItems = (system.items ?? []) as any[];
   const webhookItems = (webhooks.items ?? []) as any[];
@@ -438,6 +480,14 @@ export default async function LogsPage({
   return (
     <main className="page">
       <LogsFiltersAutoSubmit />
+      {shopifyResent ? (
+        <div className="card cardPad">Reenvío a Shopify encolado.</div>
+      ) : null}
+      {shopifyError ? (
+        <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>
+          Error Shopify: {shopifyError}
+        </div>
+      ) : null}
       <section className="settings-group">
         <div className="settings-group-header">
           <div className="panelHeaderRow">
@@ -827,6 +877,7 @@ export default async function LogsPage({
                         : sourceRaw
                           ? sourceRaw.toUpperCase()
                           : "Sin identificar";
+                    const isShopifyPayment = sourceRaw.includes("shopify") || (referenceText ? classifyReference(referenceText).kind === "shopify" : false);
                     const ignoredReason = String(p?.reconciliation?.reason || "").trim();
                     const referenceText = String(p.reference || "").trim();
                     const wompiTxText = String(p.wompiTransactionId || "").trim();
@@ -896,6 +947,16 @@ export default async function LogsPage({
                                 <input type="hidden" name="currency" value={String(p.currency || "COP")} />
                                 <PendingButton className="ghost btn-compact btn-noicon" type="submit" pendingText="Conciliando...">
                                   Conciliar
+                                </PendingButton>
+                              </form>
+                            ) : null}
+                            {isShopifyPayment ? (
+                              <form action={forwardShopifyPayment}>
+                                <input type="hidden" name="csrf" value={csrfToken} />
+                                <input type="hidden" name="paymentId" value={String(p.id || "")} />
+                                <input type="hidden" name="returnTo" value={returnTo} />
+                                <PendingButton className="ghost btn-compact btn-noicon" type="submit" pendingText="Reenviando...">
+                                  Reenviar a Shopify
                                 </PendingButton>
                               </form>
                             ) : null}
