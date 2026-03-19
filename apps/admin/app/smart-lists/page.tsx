@@ -73,7 +73,9 @@ export default async function SmartListsPage({
       <div className="panel module" style={{ marginBottom: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
           <div>
-            <h3 style={{ marginTop: 0, marginBottom: 4 }}>Gamificación</h3>
+            <h3 style={{ marginTop: 0, marginBottom: 4 }}>
+              Gamificación <HelpTip text="Listas dinámicas que se recalculan según reglas para campañas y segmentación." />
+            </h3>
             <div className="muted">Segmentos dinámicos de contactos para campañas.</div>
           </div>
           <SmartListCreateModal
@@ -103,18 +105,24 @@ export default async function SmartListsPage({
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <a className="ghost btn-view" href={`/smart-lists/${item.id}`}>Ver contactos</a>
+                  <a className="ghost btn-view" href={`/smart-lists/${item.id}`} title="Ver contactos que pertenecen a esta lista">
+                    Ver contactos
+                  </a>
                   <form action={previewSmartList}>
                     <input type="hidden" name="csrf" value={csrfToken} />
                     <input type="hidden" name="id" value={item.id} />
                     <input type="hidden" name="returnTo" value={returnTo} />
-                    <button className="ghost" type="submit">Preview</button>
+                    <button className="ghost" type="submit" title="Previsualizar muestra de contactos">
+                      Preview
+                    </button>
                   </form>
                   <form action={syncSmartList}>
                     <input type="hidden" name="csrf" value={csrfToken} />
                     <input type="hidden" name="id" value={item.id} />
                     <input type="hidden" name="returnTo" value={returnTo} />
-                    <button className="ghost" type="submit">Recalcular</button>
+                    <button className="ghost" type="submit" title="Recalcular miembros de la lista ahora">
+                      Recalcular
+                    </button>
                   </form>
                 </div>
               </div>

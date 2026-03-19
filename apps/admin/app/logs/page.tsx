@@ -10,6 +10,7 @@ import { LogsFiltersAutoSubmit } from "./LogsFiltersAutoSubmit";
 import { getCsrfToken, assertCsrfToken } from "../lib/csrf";
 import { PendingButton } from "../ui/PendingButton";
 import { SmartViewsBar } from "../smart-views/SmartViewsBar";
+import { HelpTip } from "../ui/HelpTip";
 import { ReconcilePaymentModal } from "./ReconcilePaymentModal";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
 import { getAdminSettings } from "../admin/_services/settings";
@@ -475,6 +476,7 @@ export default async function LogsPage({
                 <Link
                   className={`ghost no-icon panel-tab ${tab === "system" ? "is-active" : ""}`}
                   href={`/logs?${new URLSearchParams({ tab: "system" })}`}
+                  title="Eventos internos y auditoría"
                   prefetch={false}
                   data-loader={tab === "system" ? "off" : undefined}
                   aria-disabled={tab === "system" ? "true" : undefined}
@@ -485,6 +487,7 @@ export default async function LogsPage({
                 <Link
                   className={`ghost no-icon panel-tab ${tab === "webhooks" ? "is-active" : ""}`}
                   href={`/logs?${new URLSearchParams({ tab: "webhooks" })}`}
+                  title="Entradas y reintentos de webhooks"
                   prefetch={false}
                   data-loader={tab === "webhooks" ? "off" : undefined}
                   aria-disabled={tab === "webhooks" ? "true" : undefined}
@@ -495,6 +498,7 @@ export default async function LogsPage({
                 <Link
                   className={`ghost no-icon panel-tab ${tab === "messages" ? "is-active" : ""}`}
                   href={`/logs?${new URLSearchParams({ tab: "messages" })}`}
+                  title="Mensajes enviados por integraciones"
                   prefetch={false}
                   data-loader={tab === "messages" ? "off" : undefined}
                   aria-disabled={tab === "messages" ? "true" : undefined}
@@ -505,6 +509,7 @@ export default async function LogsPage({
                 <Link
                   className={`ghost no-icon panel-tab ${tab === "jobs" ? "is-active" : ""}`}
                   href={`/logs?${new URLSearchParams({ tab: "jobs" })}`}
+                  title="Reintentos y cola de jobs"
                   prefetch={false}
                   data-loader={tab === "jobs" ? "off" : undefined}
                   aria-disabled={tab === "jobs" ? "true" : undefined}
@@ -556,6 +561,7 @@ export default async function LogsPage({
                 <div className="filtersTop">
                   <div className="filtersNote">
                     Busca por evento o fuente (por defecto últimos 30 días). <span className="muted">Vistas = filtros guardados.</span>
+                    <HelpTip text="Filtra por fecha, nivel y texto. Smart Views aplica reglas avanzadas." />
                   </div>
                   <div className="filtersSummary">{paginationSummary}</div>
                 </div>
@@ -642,6 +648,7 @@ export default async function LogsPage({
                         defaultValue={q}
                         placeholder="Buscar cliente, referencia o transacción..."
                         aria-label="Buscar pagos"
+                        title="Busca por cliente, referencia o transacción"
                       />
                       <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
                     </form>
@@ -666,6 +673,7 @@ export default async function LogsPage({
                             ...(tenantId ? { tenantId } : {}),
                             ...(includeIgnored ? {} : { includeIgnored: "1" })
                           }).toString()}`}
+                          title="Oculta o muestra pagos externos marcados como ignorados"
                         >
                           {includeIgnored ? "Ocultar externos ignorados" : "Mostrar externos ignorados"}
                         </Link>
@@ -675,7 +683,7 @@ export default async function LogsPage({
                           <input type="hidden" name="minutes" value="720" />
                           <input type="hidden" name="take" value="150" />
                           {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-                          <PendingButton className="ghost btn-compact btn-noicon" type="submit" pendingText="Conciliando...">
+                          <PendingButton className="ghost btn-compact btn-noicon" type="submit" pendingText="Conciliando..." title="Reintenta conciliación de pagos pendientes">
                             Recolectar pagos
                           </PendingButton>
                         </form>

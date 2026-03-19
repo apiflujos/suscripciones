@@ -152,28 +152,28 @@ export default async function SettingsPage({
   return (
     <main className="page pageWide settingsPage">
       <div className="settings-tabs">
-        <a className={`settings-tab ${tab === "connections" ? "is-active" : ""}`} href="/settings?tab=connections">
+        <a className={`settings-tab ${tab === "connections" ? "is-active" : ""}`} href="/settings?tab=connections" title="Integraciones y conexiones externas">
           Conexiones
         </a>
-        <a className={`settings-tab ${tab === "cobros" ? "is-active" : ""}`} href="/settings?tab=cobros">
+        <a className={`settings-tab ${tab === "cobros" ? "is-active" : ""}`} href="/settings?tab=cobros" title="Configuración de cobros y pagos">
           Cobros
         </a>
-        <a className={`settings-tab ${tab === "checkout-publico" ? "is-active" : ""}`} href="/settings?tab=checkout-publico">
+        <a className={`settings-tab ${tab === "checkout-publico" ? "is-active" : ""}`} href="/settings?tab=checkout-publico" title="Plantillas y configuración del checkout público">
           Checkout público
         </a>
-        <a className={`settings-tab ${tab === "canales" ? "is-active" : ""}`} href="/settings?tab=canales">
+        <a className={`settings-tab ${tab === "canales" ? "is-active" : ""}`} href="/settings?tab=canales" title="Canales de venta y asignación de tenants">
           Canales de venta
         </a>
-        <a className={`settings-tab ${tab === "usuarios" ? "is-active" : ""}`} href="/settings?tab=usuarios">
+        <a className={`settings-tab ${tab === "usuarios" ? "is-active" : ""}`} href="/settings?tab=usuarios" title="Gestión de usuarios y roles">
           Usuarios
         </a>
-        <a className={`settings-tab ${tab === "notificaciones" ? "is-active" : ""}`} href="/settings?tab=notificaciones">
+        <a className={`settings-tab ${tab === "notificaciones" ? "is-active" : ""}`} href="/settings?tab=notificaciones" title="Reglas y canales de notificación">
           Notificaciones
         </a>
-        <a className={`settings-tab ${tab === "gamificacion" ? "is-active" : ""}`} href="/settings?tab=gamificacion">
+        <a className={`settings-tab ${tab === "gamificacion" ? "is-active" : ""}`} href="/settings?tab=gamificacion" title="Métricas y configuraciones de gamificación">
           Gamificación
         </a>
-        <a className={`settings-tab ${tab === "apariencia" ? "is-active" : ""}`} href="/settings?tab=apariencia">
+        <a className={`settings-tab ${tab === "apariencia" ? "is-active" : ""}`} href="/settings?tab=apariencia" title="Tema, logo y apariencia general">
           Apariencia
         </a>
       </div>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { HelpTip } from "../../ui/HelpTip";
 import { listSmartListMembers, getSmartListById } from "../../admin/_services/smartLists";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../../lib/session";
@@ -52,13 +53,17 @@ export default async function SmartListDetail({
             <div className="pageTitle">{list.name}</div>
             <div className="pageSub">Label: {list.chatwootLabel || "—"}</div>
           </div>
-          <Link href="/smart-lists" className="ghost no-icon">Volver</Link>
+          <Link href="/smart-lists" className="ghost no-icon" title="Volver al listado de listas">
+            Volver
+          </Link>
         </div>
       </div>
 
       <div className="panel module">
         <div className="panelHeaderRow" style={{ marginBottom: 8 }}>
-          <div className="pageTitle">Contactos activos</div>
+          <div className="pageTitle">
+            Contactos activos <HelpTip text="Miembros actuales de la lista (solo activos)." />
+          </div>
         </div>
         {items.length === 0 ? <div className="muted">Sin contactos.</div> : null}
         <div style={{ display: "grid", gap: 8 }}>
