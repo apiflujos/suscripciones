@@ -2,6 +2,7 @@ import { getEmpresaById } from "../../admin/_services/companies";
 import { EmpresaForm } from "../EmpresaForm";
 import { getCsrfToken } from "../../lib/csrf";
 import { createEmpresa, updateEmpresa, deleteEmpresa } from "../actions";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,10 @@ export default async function EmpresaDetailPage({
   const csrfToken = await getCsrfToken();
 
   const isNew = id === "new";
-  const empresa = isNew ? null : await getEmpresaById(id);
+  if (isNew) {
+    redirect("/empresas");
+  }
+  const empresa = await getEmpresaById(id);
   const contactos = empresa?.contactos || [];
 
   return (
@@ -59,6 +63,7 @@ export default async function EmpresaDetailPage({
         updateEmpresa={updateEmpresa}
         deleteEmpresa={deleteEmpresa}
         returnTo="/empresas"
+        tenantId={empresa?.tenantId || null}
       />
     </main>
   );

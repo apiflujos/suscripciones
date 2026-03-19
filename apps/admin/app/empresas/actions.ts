@@ -117,21 +117,39 @@ export async function createEmpresa(formData: FormData) {
       });
 
       const createdContacts: Array<{ id: string; tempId?: string }> = [];
+      const attachedContacts: string[] = [];
       for (const c of contacts) {
-        const created = await tx.contacto.create({
-          data: {
-            empresaId: empresa.id,
-            nombre: c.nombre,
-            cargo: c.cargo,
-            email: c.email || null,
-            telefono: c.telefono || null
-          }
-        });
-        createdContacts.push({ id: created.id, tempId: c.tempId });
+        if (c.id) {
+          await tx.contacto.update({
+            where: { id: c.id },
+            data: {
+              empresaId: empresa.id,
+              nombre: c.nombre,
+              cargo: c.cargo,
+              email: c.email || null,
+              telefono: c.telefono || null
+            }
+          });
+          attachedContacts.push(c.id);
+        } else {
+          const created = await tx.contacto.create({
+            data: {
+              empresaId: empresa.id,
+              nombre: c.nombre,
+              cargo: c.cargo,
+              email: c.email || null,
+              telefono: c.telefono || null
+            }
+          });
+          createdContacts.push({ id: created.id, tempId: c.tempId });
+        }
       }
 
       let principalId: string | null = null;
       if (contactoPrincipalKey) {
+        if (attachedContacts.includes(contactoPrincipalKey)) {
+          principalId = contactoPrincipalKey;
+        }
         const byTemp = createdContacts.find((c) => c.tempId && c.tempId === contactoPrincipalKey);
         if (byTemp) principalId = byTemp.id;
       }
@@ -210,6 +228,17 @@ export async function updateEmpresa(formData: FormData) {
               telefono: c.telefono || null
             }
           });
+        } else if (c.id) {
+          await tx.contacto.update({
+            where: { id: c.id },
+            data: {
+              empresaId: id,
+              nombre: c.nombre,
+              cargo: c.cargo,
+              email: c.email || null,
+              telefono: c.telefono || null
+            }
+          });
         }
       }
 
@@ -231,7 +260,7 @@ export async function updateEmpresa(formData: FormData) {
 
       let principalId: string | null = null;
       if (contactoPrincipalKey) {
-        if (existingIds.has(contactoPrincipalKey)) {
+        if (existingIds.has(contactoPrincipalKey) || payloadIds.has(contactoPrincipalKey)) {
           principalId = contactoPrincipalKey;
         }
         if (!principalId) {

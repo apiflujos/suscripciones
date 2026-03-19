@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { enterToNextField } from "../../lib/enterToNext";
 
 type ContactRow = {
@@ -10,6 +10,7 @@ type ContactRow = {
   email?: string;
   telefono?: string;
   cargo: string;
+  empresaNombre?: string;
 };
 
 type Empresa = {
@@ -29,7 +30,8 @@ export function EmpresaForm({
   createEmpresa,
   updateEmpresa,
   deleteEmpresa,
-  returnTo
+  returnTo,
+  tenantId
 }: {
   empresa: Empresa | null;
   contactos: ContactRow[];
@@ -38,6 +40,7 @@ export function EmpresaForm({
   updateEmpresa: (formData: FormData) => Promise<void>;
   deleteEmpresa: (formData: FormData) => Promise<void>;
   returnTo?: string;
+  tenantId?: string | null;
 }) {
   const [nombre, setNombre] = useState(empresa?.nombre || "");
   const [email, setEmail] = useState(empresa?.email || "");
@@ -54,6 +57,10 @@ export function EmpresaForm({
     }))
   );
   const [principalKey, setPrincipalKey] = useState<string>(empresa?.contactoPrincipalId || "");
+  const [search, setSearch] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchResults, setSearchResults] = useState<ContactRow[]>([]);
 
   const contactOptions = useMemo(
     () =>
@@ -64,6 +71,58 @@ export function EmpresaForm({
       }),
     [contacts]
   );
+
+  useEffect(() => {
+    const q = search.trim();
+    if (q.length < 2) {
+      setSearchResults([]);
+      setSearchError(null);
+      return;
+    }
+    let cancelled = false;
+    setSearching(true);
+    setSearchError(null);
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams({ q });
+      if (tenantId) params.set("tenantId", tenantId);
+      fetch(`/api/search/contactos?${params.toString()}`)
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error("search_failed"))))
+        .then((data) => {
+          if (cancelled) return;
+          const items = Array.isArray(data?.items) ? data.items : [];
+          setSearchResults(items);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setSearchError("No se pudo buscar contactos.");
+        })
+        .finally(() => {
+          if (!cancelled) setSearching(false);
+        });
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [search, tenantId]);
+
+  function addExistingContact(item: ContactRow) {
+    if (!item?.id) return;
+    setContacts((prev) => {
+      if (prev.some((c) => c.id === item.id)) return prev;
+      return [
+        ...prev,
+        {
+          id: item.id,
+          nombre: item.nombre || "",
+          email: item.email || "",
+          telefono: item.telefono || "",
+          cargo: item.cargo || "",
+          empresaNombre: item.empresaNombre
+        }
+      ];
+    });
+  }
 
   function addContact() {
     setContacts((prev) => [
@@ -115,6 +174,7 @@ export function EmpresaForm({
       >
         <input type="hidden" name="csrf" value={csrfToken} />
         {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
+        {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
         <input type="hidden" name="contactsJson" value={contactsJson} />
         <input type="hidden" name="contactoPrincipalKey" value={principalKey} />
         {empresa ? <input type="hidden" name="id" value={empresa.id} /> : null}
@@ -149,6 +209,54 @@ export function EmpresaForm({
               Agregar contacto
             </button>
           </div>
+
+          <div className="field" style={{ marginTop: 6 }}>
+            <label>Buscar contacto existente</label>
+            <input
+              className="input"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Nombre, email, teléfono o cargo..."
+            />
+            <div className="field-hint">Escribe 2+ caracteres para buscar en el tenant.</div>
+          </div>
+          {searching ? <div className="field-hint">Buscando...</div> : null}
+          {searchError ? <div className="field-hint" style={{ color: "var(--bad)" }}>{searchError}</div> : null}
+          {searchResults.length ? (
+            <div className="table-wrap" style={{ marginTop: 8 }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Contacto</th>
+                    <th>Cargo</th>
+                    <th>Empresa</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {searchResults.map((c) => (
+                    <tr key={c.id || c.tempId}>
+                      <td>
+                        <div style={{ fontWeight: 600 }}>{c.nombre || "Sin nombre"}</div>
+                        <div className="field-hint">{c.email || c.telefono || "—"}</div>
+                      </td>
+                      <td>{c.cargo || "—"}</td>
+                      <td>{c.empresaNombre || "—"}</td>
+                      <td>
+                        <button
+                          className="ghost btn-compact btn-noicon"
+                          type="button"
+                          onClick={() => addExistingContact(c)}
+                        >
+                          Agregar
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
 
           {hasContacts ? (
             <div className="table-wrap">

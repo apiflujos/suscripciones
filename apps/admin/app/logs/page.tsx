@@ -2,7 +2,7 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { listChatwootMessages, listPaymentLogs, listRetryJobs, listSystemLogs, listWebhookEvents, getJobsHealth, getPaymentsHealth } from "../admin/_services/logs";
+import { listChatwootMessages, listPaymentLogs, listSystemLogs, listWebhookEvents, getPaymentsHealth } from "../admin/_services/logs";
 import { LocalDateTime } from "../ui/LocalDateTime";
 import { LogsSystemTable } from "./LogsSystemTable";
 import { AiAssistant } from "./AiAssistant";
@@ -20,7 +20,6 @@ import {
   reconcilePayment as reconcilePaymentAction,
   reconcilePendingPayments as reconcilePendingPaymentsAction,
   retryFailedWebhooks as retryFailedWebhooksAction,
-  retryJobById,
   retryWebhookById
 } from "../admin/_services/logsActions";
 
@@ -31,16 +30,6 @@ async function assertSuperAdminSession() {
   const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
   const session = await verifyAdminSessionToken(sessionToken);
   return session?.role === "SUPER_ADMIN";
-}
-
-async function retryJob(formData: FormData) {
-  "use server";
-  await assertCsrfToken(formData);
-  if (!(await assertSuperAdminSession())) return;
-  const id = String(formData.get("id") || "").trim();
-  if (!id) return;
-  await retryJobById(id);
-  revalidatePath("/logs");
 }
 
 async function retryWebhook(formData: FormData) {
@@ -236,7 +225,9 @@ export default async function LogsPage({
   }
 
   const sp = (await searchParams) ?? {};
-  const tab = typeof sp.tab === "string" ? sp.tab : "system";
+  const tabRaw = typeof sp.tab === "string" ? sp.tab : "system";
+  const allowedTabs = new Set(["system", "webhooks", "messages", "payments"]);
+  const tab = allowedTabs.has(tabRaw) ? tabRaw : "system";
   const routeBase = tab === "payments" ? "/payments" : "/logs";
   const q = typeof sp.q === "string" ? sp.q : "";
   const status = typeof sp.status === "string" ? sp.status : "";
@@ -265,7 +256,6 @@ export default async function LogsPage({
 
   const emptyList = { items: [], total: null };
   const system = tab === "system" ? await listSystemLogs({ take, skip, q, level, from, to, ids: systemIds, withCount: true }) : emptyList;
-  const jobs = tab === "jobs" ? await listRetryJobs({ take, skip, from, to, withCount: true }) : emptyList;
   const webhooks =
     tab === "webhooks"
       ? await listWebhookEvents({ take, skip, q, processStatus, from, to, tenantId, withCount: true })
@@ -276,35 +266,21 @@ export default async function LogsPage({
       ? await listPaymentLogs({ take, skip, q, status, from, to, tenantId, includeIgnored, ids: paymentIds, withCount: true })
       : emptyList;
   const paymentsHealth = tab === "payments" ? await getPaymentsHealth() : null;
-  const jobsHealth = tab === "jobs" || tab === "payments" ? await getJobsHealth() : null;
   const settingsRes = await getAdminSettings();
   const aiConfig = settingsRes?.ai || null;
   const aiProviders = aiConfig?.providers || null;
   const aiEnabled = Boolean(aiConfig?.enabled && (aiProviders?.openai?.configured || aiProviders?.deepseek?.configured));
 
   const sysItems = (system.items ?? []) as any[];
-  const jobItems = (jobs.items ?? []) as any[];
   const webhookItems = (webhooks.items ?? []) as any[];
   const messageItems = (messages.items ?? []) as any[];
   const paymentItems = (payments.items ?? []) as any[];
   const totals = {
     system: typeof system.total === "number" ? system.total : null,
-    jobs: typeof jobs.total === "number" ? jobs.total : null,
     webhooks: typeof webhooks.total === "number" ? webhooks.total : null,
     messages: typeof messages.total === "number" ? messages.total : null,
     payments: typeof payments.total === "number" ? payments.total : null
   };
-  const failedJobsCount = jobItems.filter((j) => String(j.status) === "FAILED").length;
-  const jobSummary = jobItems.reduce(
-    (acc: { ok: number; pending: number; failed: number }, j: any) => {
-      const s = String(j.status || "").toUpperCase();
-      if (s === "FAILED") acc.failed += 1;
-      else if (s === "PENDING" || s === "RUNNING") acc.pending += 1;
-      else acc.ok += 1;
-      return acc;
-    },
-    { ok: 0, pending: 0, failed: 0 }
-  );
   const messageSummary = messageItems.reduce(
     (acc: { sent: number; pending: number; failed: number }, m: any) => {
       const s = String(m.status || "").toUpperCase();
@@ -338,7 +314,6 @@ export default async function LogsPage({
     { processed: 0, failed: 0, skipped: 0, total: 0 }
   );
 
-  const jobsHealthInfo = jobsHealth || null;
   const paymentsHealthInfo = paymentsHealth || null;
   const paymentsConfig = settingsRes?.paymentsConfig || null;
 
@@ -358,9 +333,7 @@ export default async function LogsPage({
         ? normalized.length
         : tab === "messages"
           ? messageItems.length
-          : tab === "jobs"
-            ? jobItems.length
-            : tab === "payments"
+          : tab === "payments"
               ? paymentItems.length
               : webhookItems.length;
     const totalCount =
@@ -368,9 +341,7 @@ export default async function LogsPage({
         ? totals.system
         : tab === "messages"
           ? totals.messages
-          : tab === "jobs"
-            ? totals.jobs
-            : tab === "payments"
+          : tab === "payments"
               ? totals.payments
               : totals.webhooks;
     const hasNext = totalCount != null ? (currentPage - 1) * take + countOnPage < totalCount : countOnPage >= take;
@@ -506,17 +477,6 @@ export default async function LogsPage({
                 >
                   Mensajes
                 </Link>
-                <Link
-                  className={`ghost no-icon panel-tab ${tab === "jobs" ? "is-active" : ""}`}
-                  href={`/logs?${new URLSearchParams({ tab: "jobs" })}`}
-                  title="Reintentos y cola de jobs"
-                  prefetch={false}
-                  data-loader={tab === "jobs" ? "off" : undefined}
-                  aria-disabled={tab === "jobs" ? "true" : undefined}
-                  tabIndex={tab === "jobs" ? -1 : undefined}
-                >
-                  Jobs
-                </Link>
               </div>
             ) : null}
             <div className="panelHeaderPills">
@@ -542,14 +502,6 @@ export default async function LogsPage({
                   <span className="pill pill-ok">Enviados {messageSummary.sent}</span>
                   <span className="pill pill-warn">Pendientes {messageSummary.pending}</span>
                   <span className="pill pill-bad">Fallidos {messageSummary.failed}</span>
-                </>
-              ) : null}
-              {tab === "jobs" ? (
-                <>
-                  <span className="pill">Total {totals.jobs ?? jobItems.length}</span>
-                  <span className="pill pill-ok">Procesados {jobSummary.ok}</span>
-                  <span className="pill pill-warn">Pendientes {jobSummary.pending}</span>
-                  <span className="pill pill-bad">Fallidos {jobSummary.failed}</span>
                 </>
               ) : null}
             </div>
@@ -578,56 +530,6 @@ export default async function LogsPage({
                       ...(to ? { to } : {})
                     }}
                   />
-                </div>
-              </div>
-            </div>
-          ) : tab === "jobs" ? (
-            <div className="filtersRow">
-              <div className="filtersLeft">
-                <div className="filter-group">
-                  <div className="filter-label">Jobs</div>
-                  <div style={{ color: "var(--muted)", fontSize: 13 }}>Reintentos uno a uno o masivos.</div>
-                </div>
-              </div>
-              <div className="filtersRight">
-                <div className={`jobs-health-card ${jobsHealthInfo?.healthy ? "is-ok" : "is-warn"}`}>
-                  <div className="jobs-health-header">
-                    <span className="jobs-health-dot" aria-hidden="true" />
-                    <span>Runner</span>
-                    <span className="jobs-health-badge">{jobsHealthInfo?.healthy ? "Activo" : "Sin latido"}</span>
-                  </div>
-                  <div className="jobs-health-grid">
-                    <div>
-                      <span className="jobs-health-label">Último ping</span>
-                      <span className="jobs-health-value">
-                        {jobsHealthInfo?.lastSeenAt ? <LocalDateTime value={jobsHealthInfo.lastSeenAt} variant="short" /> : "—"}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="jobs-health-label">Pendientes</span>
-                      <span className="jobs-health-value">{jobsHealthInfo?.pending ?? "—"}</span>
-                    </div>
-                    <div>
-                      <span className="jobs-health-label">Corriendo</span>
-                      <span className="jobs-health-value">{jobsHealthInfo?.running ?? "—"}</span>
-                    </div>
-                    <div>
-                      <span className="jobs-health-label">Fallidos</span>
-                      <span className="jobs-health-value">{jobsHealthInfo?.failed ?? "—"}</span>
-                    </div>
-                    <div className="jobs-health-wide">
-                      <span className="jobs-health-label">Próximo job</span>
-                      <span className="jobs-health-value">
-                        {jobsHealthInfo?.nextJobAt ? (
-                          <>
-                            {normalizeJobType(jobsHealthInfo.nextJobType)} · <LocalDateTime value={jobsHealthInfo.nextJobAt} variant="short" />
-                          </>
-                        ) : (
-                          "—"
-                        )}
-                      </span>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
@@ -725,36 +627,6 @@ export default async function LogsPage({
                           </a>
                         )
                       });
-                    }
-
-                    // Estado del Runner
-                    if (jobsHealthInfo && !jobsHealthInfo.healthy) {
-                      const lastSeenLabel = jobsHealthInfo.lastSeenAt ? formatElapsedLabel(jobsHealthInfo.lastSeenAt) : null;
-                      const nextJobLabel = jobsHealthInfo.nextJobAt ? formatElapsedLabel(jobsHealthInfo.nextJobAt) : null;
-
-                      const parts: React.ReactNode[] = ["Runner inactivo."];
-                      if (jobsHealthInfo.lastSeenAt) {
-                        parts.push(`Última actividad: ${lastSeenLabel}`);
-                      }
-                      if (jobsHealthInfo.pending) parts.push(`${jobsHealthInfo.pending} pendientes`);
-                      if (jobsHealthInfo.failed) parts.push(`${jobsHealthInfo.failed} fallidos`);
-                      if (nextJobLabel) parts.push(`Próximo: ${nextJobLabel}`);
-
-                      banners.push({
-                        tone: "warn",
-                        text: parts.join(" · "),
-                        action: (
-                          <a className="ghost btn-compact btn-noicon" href="/logs?tab=jobs">
-                            Ver jobs
-                          </a>
-                        )
-                      });
-                    } else if (jobsHealthInfo?.healthy && (jobsHealthInfo.pending || jobsHealthInfo.nextJobAt)) {
-                      const nextJobLabel = jobsHealthInfo.nextJobAt ? formatElapsedLabel(jobsHealthInfo.nextJobAt) : null;
-                      const parts: React.ReactNode[] = ["Runner activo"];
-                      if (jobsHealthInfo.pending) parts.push(`${jobsHealthInfo.pending} pendientes`);
-                      if (nextJobLabel) parts.push(`Próximo: ${nextJobLabel}`);
-                      banners.push({ tone: "info", text: parts.join(" · ") });
                     }
 
                     // Webhooks recientes
@@ -932,113 +804,6 @@ export default async function LogsPage({
                     <tr>
                       <td colSpan={5} style={{ color: "var(--muted)" }}>
                         Sin mensajes.
-                      </td>
-                    </tr>
-                  ) : null}
-                </tbody>
-              </table>
-            </div>
-          ) : tab === "jobs" ? (
-            <div className="panel module" style={{ padding: 0 }}>
-              <table className="table logs-table logs-table-jobs" aria-label="Tabla de jobs">
-                <colgroup>
-                  <col style={{ width: "8%" }} />
-                  <col style={{ width: "12%" }} />
-                  <col style={{ width: "14%" }} />
-                  <col style={{ width: "6%" }} />
-                  <col style={{ width: "20%" }} />
-                  <col style={{ width: "30%" }} />
-                  <col style={{ width: "10%" }} />
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th>Fecha</th>
-                    <th>Tipo</th>
-                    <th>Estado</th>
-                    <th>Intentos</th>
-                    <th>Objetivo</th>
-                    <th>Detalle</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {jobItems.map((j) => {
-                    const status = String(j.status || "");
-                    const chip =
-                      status === "FAILED"
-                        ? { cls: "is-error", label: "Fallido" }
-                        : status === "PENDING"
-                          ? { cls: "is-warning", label: "Pendiente" }
-                          : { cls: "is-success", label: "Procesado" };
-                    const attemptsRaw = Number(j.attempts ?? 0);
-                    const maxAttempts = Number(j.maxAttempts ?? 0);
-                    const attemptsShown = status === "SUCCEEDED" && attemptsRaw === 0 ? 1 : attemptsRaw;
-                    const target = j.targetLabel || j.payload?.subscriptionId || j.payload?.paymentId || j.payload?.customerId || j.payload?.webhookEventId || "—";
-                    const webhookNote =
-                      j.webhookProcessStatus === "FAILED"
-                        ? `Webhook fallido: ${j.webhookErrorMessage || "sin detalle"}`
-                        : j.webhookProcessStatus === "PROCESSED"
-                          ? "Webhook procesado"
-                          : null;
-                    const detailRaw = String(j.lastError || webhookNote || "—");
-                    const detail = detailRaw.length > 260 ? `${detailRaw.slice(0, 260)}…` : detailRaw;
-                    const scheduleAt =
-                      status === "PENDING"
-                        ? j.runAt
-                        : status === "RUNNING"
-                          ? j.lockedAt
-                          : status === "FAILED"
-                            ? j.updatedAt
-                            : null;
-                    const scheduleLabel =
-                      status === "PENDING"
-                        ? "Programado"
-                        : status === "RUNNING"
-                          ? "En ejecución"
-                          : status === "FAILED"
-                            ? "Falló"
-                            : "Actualizado";
-                    return (
-                      <tr key={j.id}>
-                        <td className="log-date-cell"><LocalDateTime value={j.updatedAt} variant="stacked" /></td>
-                        <td title={normalizeJobType(j.type)}>{normalizeJobType(j.type)}</td>
-                        <td className="log-status-cell">
-                          <span className={`status-chip ${chip.cls}`}>
-                            <span className={`status-led ${chip.cls === "is-success" ? "is-ok" : ""}`} />
-                            {chip.label}
-                          </span>
-                        </td>
-                        <td>{attemptsShown} / {maxAttempts}</td>
-                        <td className="log-target-cell" title={target}>{target}</td>
-                        <td className="log-detail-cell" title={detailRaw}>
-                          <span className="log-message-text">{detail}</span>
-                          {scheduleAt ? (
-                            <span className="log-detail-meta muted">
-                              {scheduleLabel}: <LocalDateTime value={scheduleAt} variant="short" />
-                            </span>
-                          ) : null}
-                          {j.lockedBy ? (
-                            <span className="log-detail-meta muted">Worker: {j.lockedBy}</span>
-                          ) : null}
-                        </td>
-                        <td style={{ textAlign: "right" }}>
-                          {status === "FAILED" ? (
-                            <form action={retryJob}>
-                              <input type="hidden" name="csrf" value={csrfToken} />
-                              <input type="hidden" name="id" value={j.id} />
-                              <PendingButton className="ghost btn-retry" type="submit" pendingText="Reintentando...">
-                                Reintentar
-                              </PendingButton>
-                            </form>
-                          ) : null}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {jobItems.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} style={{ color: "var(--muted)" }}>
-                        Sin jobs.
                       </td>
                     </tr>
                   ) : null}

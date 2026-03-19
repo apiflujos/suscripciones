@@ -1,0 +1,29 @@
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { requireApiSession } from "../../_lib/requireApiSession";
+import { listContactos } from "../../../admin/_services/companies";
+
+export async function GET(req: NextRequest) {
+  const auth = await requireApiSession(req);
+  if (!auth.ok) return auth.response;
+
+  const url = new URL(req.url);
+  const q = String(url.searchParams.get("q") || "").trim();
+  const tenantId = String(url.searchParams.get("tenantId") || "").trim();
+  const takeRaw = Number(url.searchParams.get("take") || 50);
+  const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 200) : 50;
+
+  if (!q) return NextResponse.json({ items: [] });
+
+  const res = await listContactos({ q, take, tenantId: tenantId || auth.session.tenantId || null });
+  const items = (res.items || []).map((c: any) => ({
+    id: c.id,
+    nombre: c.nombre,
+    cargo: c.cargo,
+    email: c.email,
+    telefono: c.telefono,
+    empresaId: c.empresaId,
+    empresaNombre: c.empresa?.nombre || null
+  }));
+  return NextResponse.json({ items });
+}

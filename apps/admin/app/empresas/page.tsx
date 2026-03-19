@@ -2,7 +2,8 @@ import { listEmpresas } from "../admin/_services/companies";
 import { getCsrfToken } from "../lib/csrf";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { HelpTip } from "../ui/HelpTip";
-import { deleteEmpresa } from "./actions";
+import { deleteEmpresa, createEmpresa, updateEmpresa } from "./actions";
+import { EmpresaCreateModal } from "./EmpresaCreateModal";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
 
@@ -96,9 +97,14 @@ export default async function EmpresasPage({
                   </div>
                 </div>
                 <div className="page-actions">
-                  <a className="primary btn-create" href="/empresas/new" title="Crea una empresa y define su contacto principal">
-                    Crear empresa
-                  </a>
+                  <EmpresaCreateModal
+                    csrfToken={csrfToken}
+                    createEmpresa={createEmpresa}
+                    updateEmpresa={updateEmpresa}
+                    deleteEmpresa={deleteEmpresa}
+                    returnTo={`/empresas?${new URLSearchParams(baseParams).toString()}`}
+                    tenantId={session?.tenantId || null}
+                  />
                   <div className="page-actions-summary">{items.length} resultados</div>
                 </div>
               </div>
