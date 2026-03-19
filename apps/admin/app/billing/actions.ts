@@ -985,6 +985,8 @@ export async function sendCentralComPaymentLink(formData: FormData) {
   const returnTo = safeReturnTo(formData);
   const subscriptionId = String(formData.get("subscriptionId") || "").trim();
   const customerId = String(formData.get("customerId") || "").trim();
+  const amountPesosRaw = String(formData.get("amountPesos") || "").trim();
+  const sendNow = String(formData.get("sendNow") || "").trim() === "1";
   const tenantIds = readTenantIds(formData);
   const tenantId = tenantIds[0] || "";
   if (!subscriptionId || !customerId) {
@@ -992,25 +994,32 @@ export async function sendCentralComPaymentLink(formData: FormData) {
   }
 
   try {
-    const res = await createSubscriptionPaymentLink({ subscriptionId, tenantId: tenantId || null });
+    const amountInCents = amountPesosRaw ? pesosToCents(amountPesosRaw) : undefined;
+    if (amountPesosRaw && (!amountInCents || amountInCents <= 0)) {
+      return redirect(mergeQuery(returnTo, { error: "invalid_amount", ...(tenantId ? { tenantId } : {}) }));
+    }
+    const res = await createSubscriptionPaymentLink({ subscriptionId, tenantId: tenantId || null, ...(amountInCents ? { amountInCents } : {}) });
     if (!res.ok) throw new Error(res.error);
     const checkoutUrl = String((res as any)?.checkoutUrl || "").trim();
     if (!checkoutUrl) return redirect(mergeQuery(returnTo, { error: "checkout_url_missing", ...(tenantId ? { tenantId } : {}) }));
 
-    const rulesActive = await hasNotificationRule("PAYMENT_LINK_CREATED");
-    const centralMode = rulesActive === false ? "chatwoot" : "rules";
-    if (rulesActive === false) {
-      const content = buildChatwootLinkMessage({
-        name: "Cliente",
-        lead: "Aquí está tu link de pago:",
-        url: checkoutUrl
-      });
-      await sendChatwootMessageSafe({ customerId, content });
+    let centralMode = "created";
+    if (sendNow) {
+      const rulesActive = await hasNotificationRule("PAYMENT_LINK_CREATED");
+      centralMode = rulesActive === false ? "chatwoot" : "rules";
+      if (rulesActive === false) {
+        const content = buildChatwootLinkMessage({
+          name: "Cliente",
+          lead: "Aquí está tu link de pago:",
+          url: checkoutUrl
+        });
+        await sendChatwootMessageSafe({ customerId, content });
+      }
     }
 
     redirect(
       mergeQuery(returnTo, {
-        central: "sent",
+        central: sendNow ? "sent" : "created",
         centralMode,
         checkoutUrl,
         customerId,

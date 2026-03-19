@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { PendingButton } from "../ui/PendingButton";
 import { HelpTip } from "../ui/HelpTip";
+import { NotificationWizard } from "./NotificationWizard";
 
 type Env = "PRODUCTION" | "SANDBOX";
 
@@ -69,8 +70,7 @@ const REALTIME_TYPES: Array<{
   { key: "payment_success_plan", label: "Pago exitoso (plan)", trigger: "PAYMENT_APPROVED", chatwootType: "PAYMENT_CONFIRMED", paymentType: "PLAN" },
   { key: "payment_success_link", label: "Pago recibido por link de pago", trigger: "PAYMENT_APPROVED", chatwootType: "PAYMENT_CONFIRMED", paymentType: "LINK" },
   { key: "payment_failed_subscription", label: "Pago fallido (suscripción)", trigger: "PAYMENT_DECLINED", chatwootType: "PAYMENT_FAILED", paymentType: "SUBSCRIPTION" },
-  { key: "payment_failed_plan", label: "Pago fallido (plan)", trigger: "PAYMENT_DECLINED", chatwootType: "PAYMENT_FAILED", paymentType: "PLAN" },
-  { key: "payment_failed_link", label: "Pago fallido (link de pago)", trigger: "PAYMENT_DECLINED", chatwootType: "PAYMENT_FAILED", paymentType: "LINK" }
+  { key: "payment_failed_plan", label: "Pago fallido (plan)", trigger: "PAYMENT_DECLINED", chatwootType: "PAYMENT_FAILED", paymentType: "PLAN" }
 ];
 
 const REMINDER_TPL_DUE = "tpl_reminder_due";
@@ -204,7 +204,8 @@ export function NotificationsSimple({
   csrfToken,
   templates,
   rules,
-  actions
+  actions,
+  createNotification
 }: {
   env: Env;
   csrfToken: string;
@@ -214,7 +215,9 @@ export function NotificationsSimple({
     saveRealtime: (formData: FormData) => void;
     saveReminder: (formData: FormData) => void;
   };
+  createNotification: (formData: FormData) => Promise<{ ok: true } | { ok: false; error: string }>;
 }) {
+  const [wizardOpen, setWizardOpen] = useState(false);
   const templateById = useMemo(() => {
     const map = new Map<string, Template>();
     templates.forEach((t) => map.set(String(t.id), t));
@@ -328,6 +331,15 @@ export function NotificationsSimple({
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
+      <div className="panelHeaderRow" style={{ justifyContent: "space-between", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <h3 style={{ margin: 0 }}>Notificaciones</h3>
+          <HelpTip text="Crea notificaciones personalizadas por evento y configura los recordatorios automáticos." />
+        </div>
+        <button className="primary btn-compact" type="button" onClick={() => setWizardOpen(true)} data-modal="true" data-loader="off">
+          Nueva notificación
+        </button>
+      </div>
       {pickerOpen ? (
         <div className="modal-backdrop">
           <div className="modal-panel" style={{ maxWidth: 640 }}>
@@ -834,6 +846,21 @@ export function NotificationsSimple({
           ) : null}
         </div>
       </section>
+      {wizardOpen ? (
+        <div className="modal-backdrop">
+          <div className="modal-panel" style={{ maxWidth: 860 }}>
+            <div className="panel-header ui-panel-header">
+              <strong>Nueva notificación</strong>
+              <button className="ghost modal-close" type="button" onClick={() => setWizardOpen(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">
+                X
+              </button>
+            </div>
+            <div className="modal-body">
+              <NotificationWizard envDefault={env} createNotification={createNotification} csrfToken={csrfToken} />
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

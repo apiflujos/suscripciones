@@ -16,6 +16,7 @@ import { normalizeErrorParam } from "../lib/errorParam";
 import { CustomersTable } from "./CustomersTable";
 import { getCsrfToken } from "../lib/csrf";
 import { createPlanAndSubscription } from "../billing/actions";
+import { prisma } from "@suscripciones/database";
 import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
@@ -53,7 +54,7 @@ async function fetchCustomers(opts?: { q?: string; take?: number; page?: number;
 }
 
 
-async function fetchPaymentLinks(q: string, tenantId?: string) {
+async function fetchPaymentLinks(q: string, tenantId?: string, ids?: string[]) {
   const res = await listManualOrders({ tenantId: tenantId || null, take: 200, q: q.trim() });
   const items = Array.isArray(res.items) ? res.items : [];
   const latestByCustomer = new Map<string, { checkoutUrl: string; createdAt: string; chatwootStatus: string; chatwootError?: string }>();
@@ -67,6 +68,31 @@ async function fetchPaymentLinks(q: string, tenantId?: string) {
     const prev = latestByCustomer.get(customerId);
     if (!prev || (createdAt && createdAt > prev.createdAt)) {
       latestByCustomer.set(customerId, { checkoutUrl, createdAt, chatwootStatus, chatwootError: chatwootError || undefined });
+    }
+  }
+  const linkWhere: any = {};
+  if (tenantId) linkWhere.tenantId = tenantId;
+  if (Array.isArray(ids) && ids.length) {
+    linkWhere.payment = { customerId: { in: ids } };
+  }
+  const subscriptionLinks = await prisma.paymentLink.findMany({
+    where: linkWhere,
+    orderBy: { sentAt: "desc" },
+    take: 300,
+    select: {
+      checkoutUrl: true,
+      sentAt: true,
+      payment: { select: { customerId: true } }
+    }
+  });
+  for (const link of subscriptionLinks) {
+    const customerId = String(link?.payment?.customerId || "");
+    const checkoutUrl = String(link?.checkoutUrl || "");
+    const createdAt = link?.sentAt ? new Date(link.sentAt).toISOString() : "";
+    if (!customerId || !checkoutUrl) continue;
+    const prev = latestByCustomer.get(customerId);
+    if (!prev || (createdAt && createdAt > prev.createdAt)) {
+      latestByCustomer.set(customerId, { checkoutUrl, createdAt, chatwootStatus: "", chatwootError: undefined });
     }
   }
   return latestByCustomer;
@@ -222,7 +248,7 @@ export default async function CustomersPage({
   });
   const tenantById = new Map(tenants.map((t) => [String(t.id), String(t.name)]));
   const [latestLinks, subscriptionsByCustomer, cartTemplates] = await Promise.all([
-    fetchPaymentLinks(q, resolvedTenantId || ""),
+    fetchPaymentLinks(q, resolvedTenantId || "", items.map((c) => String(c.id))),
     fetchCustomerSubscriptions(resolvedTenantId || ""),
     fetchCartTemplates(resolvedTenantId || "")
   ]);

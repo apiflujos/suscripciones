@@ -21,6 +21,7 @@ import { BillingTenantModalButton } from "./BillingTenantModalButton";
 import { AutoCutoffInlineForm } from "./AutoCutoffInlineForm";
 import { RetryDateField } from "./RetryDateField";
 import { PaymentHistoryButton } from "./PaymentHistoryButton";
+import { PaymentLinkModalButton } from "./PaymentLinkModalButton";
 import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 
@@ -431,6 +432,7 @@ export default async function BillingPage({
         mode: collectionMode,
         canManualCharge: typeof s?.canManualCharge === "boolean" ? s.canManualCharge : undefined,
         chargeDue: typeof s?.chargeDue === "boolean" ? s.chargeDue : undefined,
+        lastPaidInCurrentPeriod: typeof s?.lastPaidInCurrentPeriod === "boolean" ? s.lastPaidInCurrentPeriod : false,
         tenantName: tenantNameList.length ? tenantNameList.join(", ") : "—",
         currentShippingInCents: shippingAppliedInCents,
         currentRequiresShipping: requiresShipping
@@ -540,11 +542,12 @@ export default async function BillingPage({
     const isCanceled = r.status === "CANCELED";
     const isSuspended = r.status === "SUSPENDED";
     const isInactive = isCanceled || isSuspended;
+    const alreadyPaidCurrentPeriod = Boolean(r.lastPaidInCurrentPeriod);
     // Botón de cobrar: siempre visible para débito automático cuando hay pago vencido
     const showChargeButton =
       typeof r.canManualCharge === "boolean"
-        ? r.canManualCharge
-        : isAutoDebit && !isInactive && r.customerTokenized && (chargeDue || r.status === "PAST_DUE") && (manualChargeEnabled || chargeDue);
+        ? r.canManualCharge && !alreadyPaidCurrentPeriod
+        : isAutoDebit && !isInactive && r.customerTokenized && (chargeDue || r.status === "PAST_DUE") && (manualChargeEnabled || chargeDue) && !alreadyPaidCurrentPeriod;
     // Botón de enviar link de pago: visible para link de pago manual
     const showPaymentLinkButton = !isAutoDebit && !isInactive;
     // Botón de tokenización: siempre visible para débito automático (independiente del link de pago)
@@ -756,16 +759,15 @@ export default async function BillingPage({
           </div>
           <div className="billing-actions-right">
             {showPaymentLinkButton ? (
-              <form action={sendCentralComPaymentLink}>
-                <input type="hidden" name="csrf" value={csrfToken} />
-                <input type="hidden" name="subscriptionId" value={r.id} />
-                <input type="hidden" name="customerId" value={r.customerId} />
-                <input type="hidden" name="returnTo" value={returnTo} />
-                {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                <button className="ghost btn-compact btn-send" type="submit" title="Enviar link de pago manual">
-                  Enviar link de pago
-                </button>
-              </form>
+              <PaymentLinkModalButton
+                subscriptionId={r.id}
+                customerId={r.customerId}
+                tenantId={r.tenantId}
+                csrfToken={csrfToken}
+                returnTo={returnTo}
+                defaultAmountPesos={Math.trunc(Number(r.totalInCents || r.montoInCents || 0) / 100)}
+                action={sendCentralComPaymentLink}
+              />
             ) : null}
             {showTokenizationLink ? (
               rowTokenUrl ? (

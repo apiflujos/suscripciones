@@ -299,11 +299,26 @@ export async function listSubscriptions(args: {
     const nextRetry = nextRetryBySub.get(String(s.id)) || null;
     const resolvedMode = resolveSubscriptionCollectionMode(s);
     const customerTokenized = hasUsablePaymentSource(s.customer?.metadata);
-    const chargeDue = s.currentPeriodEndAt ? s.currentPeriodEndAt <= new Date(Date.now() + 5_000) : false;
+    const periodStartAt = s.currentPeriodStartAt ? new Date(s.currentPeriodStartAt) : null;
+    const periodEndAt = s.currentPeriodEndAt ? new Date(s.currentPeriodEndAt) : null;
+    const lastPaidAt = lastPayment?.paidAt ? new Date(lastPayment.paidAt) : null;
+    const lastPaidInCurrentPeriod =
+      Boolean(lastPaidAt && periodStartAt && periodEndAt) &&
+      lastPaidAt!.getTime() >= periodStartAt!.getTime() &&
+      lastPaidAt!.getTime() <= periodEndAt!.getTime();
+    const dueByCutoff = periodEndAt;
+    const dueByLastPayment = lastPaidAt ? addIntervalUtc(lastPaidAt, s.plan.intervalUnit, s.plan.intervalCount) : null;
+    const dueAt = dueByCutoff || dueByLastPayment;
+    const chargeDue = dueAt ? dueAt.getTime() <= Date.now() + 5_000 : false;
     const isInactive =
       s.status === SubscriptionStatus.CANCELED || s.status === SubscriptionStatus.EXPIRED || s.status === SubscriptionStatus.SUSPENDED;
     const canManualCharge =
-      Boolean(autoDebitCfg?.allowManualCharge ?? true) && resolvedMode === "AUTO_DEBIT" && chargeDue && !isInactive && customerTokenized;
+      Boolean(autoDebitCfg?.allowManualCharge ?? true) &&
+      resolvedMode === "AUTO_DEBIT" &&
+      chargeDue &&
+      !isInactive &&
+      customerTokenized &&
+      !lastPaidInCurrentPeriod;
 
     return {
       ...s,
@@ -314,7 +329,8 @@ export async function listSubscriptions(args: {
       collectionModeResolved: resolvedMode,
       customerTokenized,
       chargeDue,
-      canManualCharge
+      canManualCharge,
+      lastPaidInCurrentPeriod
     };
   });
 
@@ -544,6 +560,25 @@ export async function chargeSubscriptionNow(args: { subscriptionId: string; tena
   const dueByLastPayment = lastApprovedAt ? addIntervalUtc(lastApprovedAt, subscription.plan.intervalUnit, subscription.plan.intervalCount) : null;
   const dueByCutoff = subscription.currentPeriodEndAt ? new Date(subscription.currentPeriodEndAt) : null;
   const dueAt = dueByCutoff || dueByLastPayment;
+  const periodStartAt = subscription.currentPeriodStartAt ? new Date(subscription.currentPeriodStartAt) : null;
+  const periodEndAt = subscription.currentPeriodEndAt ? new Date(subscription.currentPeriodEndAt) : null;
+  const lastPaidInCurrentPeriod =
+    Boolean(lastApprovedAt && periodStartAt && periodEndAt) &&
+    new Date(lastApprovedAt).getTime() >= periodStartAt!.getTime() &&
+    new Date(lastApprovedAt).getTime() <= periodEndAt!.getTime();
+  if (lastPaidInCurrentPeriod) {
+    const paymentId = await recordManualChargeFailure({
+      subscription,
+      amountInCentsOverride: args.amountInCents,
+      errorCode: "payment_already_approved",
+      details: {
+        paidAt: new Date(lastApprovedAt as any).toISOString(),
+        currentPeriodStartAt: periodStartAt?.toISOString() || null,
+        currentPeriodEndAt: periodEndAt?.toISOString() || null
+      }
+    }).catch(() => null);
+    return { ok: false, status: 409, error: "payment_already_approved", ...(paymentId ? { paymentId } : {}) };
+  }
   const isPastDue = subscription.status === SubscriptionStatus.PAST_DUE;
   if (!isPastDue && dueAt && now.getTime() + 5_000 < dueAt.getTime()) {
     const details = {

@@ -15,7 +15,6 @@ type NotificationKind =
   | "PAYMENT_APPROVED_LINK"
   | "PAYMENT_DECLINED_SUBSCRIPTION"
   | "PAYMENT_DECLINED_PLAN"
-  | "PAYMENT_DECLINED_LINK"
   | "REMINDER_DUE"
   | "REMINDER_MORA";
 
@@ -210,12 +209,6 @@ export function NotificationWizard({
       setOffsets([{ direction: "after", amount: "0", unit: "minutes" }]);
       return;
     }
-    if (next === "PAYMENT_DECLINED_LINK") {
-      setTrigger("PAYMENT_DECLINED");
-      setPaymentType("LINK");
-      setOffsets([{ direction: "after", amount: "0", unit: "minutes" }]);
-      return;
-    }
     if (next === "REMINDER_MORA") {
       setTrigger("SUBSCRIPTION_DUE");
       setPaymentType("ANY");
@@ -295,10 +288,6 @@ export function NotificationWizard({
                   <button type="button" className={`ghost module-choice ${notificationKind === "PAYMENT_DECLINED_PLAN" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_DECLINED_PLAN")}>
                     <span>Pago fallido (plan)</span>
                     {lastCreatedKind === "PAYMENT_DECLINED_PLAN" ? <span className="module-check">✓ Lista</span> : null}
-                  </button>
-                  <button type="button" className={`ghost module-choice ${notificationKind === "PAYMENT_DECLINED_LINK" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_DECLINED_LINK")}>
-                    <span>Pago fallido (link de pago)</span>
-                    {lastCreatedKind === "PAYMENT_DECLINED_LINK" ? <span className="module-check">✓ Lista</span> : null}
                   </button>
                 </div>
               </div>
