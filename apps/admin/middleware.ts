@@ -81,8 +81,9 @@ function applySecurityHeaders(res: NextResponse, pathname: string, nonce: string
     "img-src 'self' data: blob: https:",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com data:",
-    `script-src 'self'${nonceDirective}${scriptUnsafe ? " 'unsafe-inline'" : ""}`,
-    "connect-src 'self' https: ws: wss:",
+    `script-src 'self' https://checkout.wompi.co${nonceDirective}${scriptUnsafe ? " 'unsafe-inline'" : ""}`,
+    "connect-src 'self' https: ws: wss: https://checkout.wompi.co",
+    "frame-src https://checkout.wompi.co",
     "frame-ancestors 'none'"
   ].join("; ");
   res.headers.set("Content-Security-Policy", csp);
