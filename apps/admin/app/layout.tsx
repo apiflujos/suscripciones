@@ -80,57 +80,15 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
 
   const isPublicRoute = isPublicRoutePath(pathname);
   const shouldShowShell = !isPublicRoute && session;
+  const forceSystemTheme = isPublicRoute ? "1" : "0";
 
   return (
-    <html lang="es" suppressHydrationWarning>
+    <html lang="es" suppressHydrationWarning data-force-system-theme={forceSystemTheme}>
       <head>
         <link id="theme-favicon" rel="icon" type="image/svg+xml" href="/brand/isotipo_icono.svg" data-theme-favicon="true" />
       </head>
       <body className={isPublicRoute ? "authBody" : undefined}>
-        <Script id="apiflujos-theme-init" strategy="beforeInteractive">{`
-(() => {
-  try {
-    const root = document.documentElement;
-    const forceSystem = ${isPublicRoute ? "true" : "false"};
-    const theme = forceSystem ? "" : (localStorage.getItem("apiflujos-theme") || "");
-    const contrast = forceSystem ? "" : (localStorage.getItem("apiflujos-contrast") || "");
-    const vision = forceSystem ? "" : (localStorage.getItem("apiflujos-vision") || "");
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const prefersContrast = window.matchMedia("(prefers-contrast: more)").matches;
-    const forcedColors = window.matchMedia("(forced-colors: active)").matches;
-    const fallbackTheme = theme === "auto" ? (prefersDark ? "dark" : "light") : theme;
-    const resolvedTheme =
-      fallbackTheme === "high-contrast" || contrast === "high" || prefersContrast || forcedColors
-        ? "high-contrast"
-        : fallbackTheme === "safe" || vision === "safe"
-          ? "safe"
-          : fallbackTheme === "dark"
-            ? "dark"
-            : "light";
-    root.dataset.theme = resolvedTheme;
-    const favicon = document.querySelector('link[data-theme-favicon="true"]');
-    if (favicon) {
-      const map = {
-        light: "/brand/isotipo_icono.svg",
-        dark: "/brand/isotipo_icono_dark.svg",
-        "high-contrast": "/brand/isotipo_icono_high_contrast_white.svg",
-        safe: "/brand/isotipo_icono_safe.svg"
-      };
-      favicon.setAttribute("href", map[resolvedTheme] || map.light);
-    }
-    if (resolvedTheme === "high-contrast") {
-      root.dataset.contrast = "high";
-      delete root.dataset.vision;
-    } else if (resolvedTheme === "safe") {
-      root.dataset.vision = "safe";
-      delete root.dataset.contrast;
-    } else {
-      if (contrast === "high") root.dataset.contrast = "high"; else delete root.dataset.contrast;
-      if (vision === "safe") root.dataset.vision = "safe"; else delete root.dataset.vision;
-    }
-  } catch (_) {}
-})();
-        `}</Script>
+        <Script id="apiflujos-theme-init" src="/theme-init.js" strategy="beforeInteractive" />
         {isPublicRoute ? (
           <div className="authShell">{children}</div>
         ) : shouldShowShell ? (
