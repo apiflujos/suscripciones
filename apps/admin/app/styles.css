@@ -9942,12 +9942,22 @@ body.is-global-loading {
 
 .entity-card-counts {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .entity-card-grid > div {
   min-width: 0;
+}
+
+.entity-card-counts .pill {
+  white-space: nowrap;
+  padding: 2px 6px;
+  font-size: 11px;
 }
 
 .entity-card-span {
