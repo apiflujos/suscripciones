@@ -13,6 +13,7 @@ export async function GET(req: NextRequest) {
   const takeRaw = Number(url.searchParams.get("take") || 50);
   const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 500) : 50;
 
-  const items = await searchProducts({ q, take, tenantId: tenantId || auth.session.tenantId || null });
+  const effectiveTenantId = tenantId || (auth.session.role === "SUPER_ADMIN" ? null : auth.session.tenantId || null);
+  const items = await searchProducts({ q, take, tenantId: effectiveTenantId });
   return NextResponse.json({ items });
 }

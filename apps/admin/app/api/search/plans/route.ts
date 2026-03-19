@@ -11,6 +11,7 @@ export async function GET(req: Request) {
   const tenantId = String(searchParams.get("tenantId") || "").trim();
   const take = String(searchParams.get("take") || "80").trim();
   const takeNum = Number(take);
-  const items = await searchPlans({ q, take: Number.isFinite(takeNum) ? takeNum : 80, tenantId: tenantId || auth.session.tenantId || null });
+  const effectiveTenantId = tenantId || (auth.session.role === "SUPER_ADMIN" ? null : auth.session.tenantId || null);
+  const items = await searchPlans({ q, take: Number.isFinite(takeNum) ? takeNum : 80, tenantId: effectiveTenantId });
   return NextResponse.json({ items });
 }

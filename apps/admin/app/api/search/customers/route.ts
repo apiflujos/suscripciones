@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
 
   if (!q) return NextResponse.json({ items: [] });
 
-  const items = await searchCustomers({ q, take, tenantId: tenantId || auth.session.tenantId || null });
+  const effectiveTenantId = tenantId || (auth.session.role === "SUPER_ADMIN" ? null : auth.session.tenantId || null);
+  const items = await searchCustomers({ q, take, tenantId: effectiveTenantId });
   return NextResponse.json({ items });
 }

@@ -60,17 +60,19 @@ export default async function ProductsPage({
   const c = await cookies();
   const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
   const session = await verifyAdminSessionToken(sessionToken);
+  const isSuperAdmin = session?.role === "SUPER_ADMIN";
+  const effectiveTenantId = tenantId ? tenantId : isSuperAdmin ? null : session?.tenantId || null;
   const take = 20;
   const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
   const usingSmartFilters = Boolean(viewId || filters);
   let resolvedIds: string[] | null = null;
   if (viewId || filters) {
     const parsedFilters = filters ? parseFiltersParam(filters) : null;
-    resolvedIds = await resolveSmartViewIds("products", tenantId || session?.tenantId || null, null, viewId || undefined, parsedFilters || undefined);
+    resolvedIds = await resolveSmartViewIds("products", effectiveTenantId, null, viewId || undefined, parsedFilters || undefined);
   }
   const ids = usingSmartFilters && resolvedIds && resolvedIds.length === 0 ? ["__none__"] : resolvedIds || undefined;
   const products = await listCatalogProducts({
-    tenantId: tenantId || session?.tenantId || null,
+    tenantId: effectiveTenantId,
     includeInactive: false,
     take,
     skip,
@@ -79,9 +81,9 @@ export default async function ProductsPage({
   });
   const [tenants, customersRes, templatesRes, empresasRes, chatwootInboxesRes] = await Promise.all([
     listTenants(),
-    listCustomers({ take: 200, tenantId: tenantId || session?.tenantId || null }),
-    listCheckoutTemplates({ tenantId: tenantId || session?.tenantId || null }),
-    listEmpresas({ tenantId: tenantId || session?.tenantId || null, take: 200 }),
+    listCustomers({ take: 200, tenantId: effectiveTenantId }),
+    listCheckoutTemplates({ tenantId: effectiveTenantId }),
+    listEmpresas({ tenantId: effectiveTenantId, take: 200 }),
     listChatwootInboxes()
   ]);
 
