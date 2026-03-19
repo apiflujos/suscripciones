@@ -16,7 +16,11 @@ function isNextRedirect(err: unknown) {
 
 export async function createUser(formData: FormData) {
   await assertCsrfToken(formData);
-  const tenantId = String(formData.get("tenantId") || "").trim();
+  const tenantIds = formData
+    .getAll("tenantIds")
+    .map((v) => String(v || "").trim())
+    .filter(Boolean);
+  const tenantId = tenantIds[0] || "";
   const email = String(formData.get("email") || "").trim();
   const password = String(formData.get("password") || "");
   const role = String(formData.get("role") || "").trim();
@@ -26,7 +30,7 @@ export async function createUser(formData: FormData) {
     const res = await saAdminFetch("/admin/sa/users", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ tenantId, email, password, role, active })
+      body: JSON.stringify({ tenantIds, email, password, role, active })
     });
     if (!res.ok) throw new Error(res.json?.error || `request_failed_${res.status}`);
     redirect(`/sa/users?tenantId=${encodeURIComponent(tenantId)}&created=1`);

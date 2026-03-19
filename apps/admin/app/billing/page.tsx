@@ -249,7 +249,7 @@ export default async function BillingPage({
   const q = typeof sp.q === "string" ? sp.q : "";
   const ordenar = typeof sp.ordenar === "string" ? sp.ordenar : "vencimiento";
   const vistaRaw = typeof sp.vista === "string" ? sp.vista : "cards";
-  const resolvedTenantId = await resolveTenantId(tenantId || null);
+  const resolvedTenantId = tenantId ? await resolveTenantId(tenantId) : null;
   const vista = ["cards", "lista", "kanban"].includes(vistaRaw) ? vistaRaw : "cards";
   const vistaTyped = vista as "cards" | "lista" | "kanban";
   const viewId = typeof sp.viewId === "string" ? sp.viewId : "";

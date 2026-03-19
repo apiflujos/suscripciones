@@ -4,6 +4,7 @@ import { normalizeErrorParam } from "../../lib/errorParam";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../../lib/session";
 import { listAdminUsers } from "../../admin/_services/adminUsers";
+import { listTenants } from "../../admin/_services/tenants";
 
 export default async function SettingsUsersPage({
   searchParams
@@ -20,6 +21,9 @@ export default async function SettingsUsersPage({
   const session = await verifyAdminSessionToken(sessionToken);
   const usersRes = await listAdminUsers(session);
   const users: any[] = usersRes.ok ? usersRes.items || [] : [];
+  const tenants = (await listTenants()).filter((t: any) => t?.active !== false);
+  const isSuperAdmin = session?.role === "SUPER_ADMIN";
+  const defaultTenantId = String(session?.tenantId || "").trim();
 
   return (
     <div style={{ display: "grid", gap: 12 }}>
@@ -71,6 +75,33 @@ export default async function SettingsUsersPage({
                 <div className="field-hint">Los asesores no pueden ver la configuración ni gestionar usuarios.</div>
               </div>
 
+              <div className="field">
+                <label>Canales / Tenants</label>
+                {isSuperAdmin ? (
+                  <div style={{ display: "grid", gap: 8 }}>
+                    {(tenants || []).map((t: any) => (
+                      <label key={t.id} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <input
+                          type="checkbox"
+                          name="tenantIds"
+                          value={t.id}
+                          defaultChecked={Boolean(defaultTenantId && String(t.id) === defaultTenantId)}
+                        />
+                        <span>{t.name}</span>
+                      </label>
+                    ))}
+                    {!tenants.length ? <div className="field-hint">No hay tenants activos.</div> : null}
+                  </div>
+                ) : (
+                  <div className="field-hint">
+                    {defaultTenantId
+                      ? `Asignado a: ${(tenants || []).find((t: any) => String(t.id) === defaultTenantId)?.name || "Tenant actual"}`
+                      : "No hay tenant asociado a tu sesión."}
+                    {defaultTenantId ? <input type="hidden" name="tenantIds" value={defaultTenantId} /> : null}
+                  </div>
+                )}
+              </div>
+
               <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer" }}>
                 <input name="active" value="1" type="checkbox" defaultChecked />
                 <span>Usuario Activo</span>
@@ -85,17 +116,24 @@ export default async function SettingsUsersPage({
           <div style={{ display: "grid", gap: 10, marginTop: 20 }}>
             <h4 style={{ marginBottom: 4 }}>Usuarios Existentes</h4>
             {users.map((u) => (
-              <div key={u.id} className="card cardPad" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-                <div style={{ display: "grid", gap: 2 }}>
-                  <div style={{ fontWeight: 700 }}>{u.email}</div>
-                  <div style={{ color: "var(--muted)", fontSize: 12 }}>
-                    Creado el {new Date(u.createdAt).toLocaleDateString()}
+              <div key={u.id}>
+                <div className="card cardPad" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                  <div style={{ display: "grid", gap: 2 }}>
+                    <div style={{ fontWeight: 700 }}>{u.email}</div>
+                    <div style={{ color: "var(--muted)", fontSize: 12 }}>
+                      Creado el {new Date(u.createdAt).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <span className={`pill ${u.role === "ADMIN" ? "pillPrimary" : ""}`}>{u.role}</span>
+                    <span className={`pill ${u.active ? "" : "pillDanger"}`}>{u.active ? "Activo" : "Inactivo"}</span>
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <span className={`pill ${u.role === "ADMIN" ? "pillPrimary" : ""}`}>{u.role}</span>
-                  <span className={`pill ${u.active ? "" : "pillDanger"}`}>{u.active ? "Activo" : "Inactivo"}</span>
-                </div>
+                {u?.tenantNames?.length ? (
+                  <div style={{ marginTop: 8, color: "var(--muted)", fontSize: 12 }}>
+                    Canales: {u.tenantNames.join(", ")}
+                  </div>
+                ) : null}
               </div>
             ))}
             {!users.length ? <div className="card cardPad">No hay usuarios registrados.</div> : null}

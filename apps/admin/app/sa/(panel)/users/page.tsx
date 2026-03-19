@@ -19,7 +19,8 @@ export default async function SaUsersPage({
   if (tenantId) qp.set("tenantId", tenantId);
   const usersRes = await saAdminFetch(`/admin/sa/users${qp.toString() ? `?${qp.toString()}` : ""}`, { method: "GET" });
 
-  const tenants: any[] = tenantsRes.ok ? tenantsRes.json?.items || [] : [];
+  const tenantsRaw: any[] = tenantsRes.ok ? tenantsRes.json?.items || [] : [];
+  const tenants = Array.from(new Map(tenantsRaw.map((t) => [String(t.id), t])).values());
   const users: any[] = usersRes.ok ? usersRes.json?.items || [] : [];
 
   return (
@@ -67,17 +68,21 @@ export default async function SaUsersPage({
           <form action={createUser} className="panel module" style={{ display: "grid", gap: 10 }}>
             <input type="hidden" name="csrf" value={csrfToken} />
             <div className="field">
-              <label>Tenant</label>
-              <select className="select" name="tenantId" defaultValue={tenantId || ""} required>
-                <option value="" disabled>
-                  Selecciona…
-                </option>
+              <label>Tenants</label>
+              <div style={{ display: "grid", gap: 8 }}>
                 {tenants.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
+                  <label key={t.id} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <input
+                      type="checkbox"
+                      name="tenantIds"
+                      value={t.id}
+                      defaultChecked={tenantId ? String(t.id) === tenantId : false}
+                    />
+                    <span>{t.name}</span>
+                  </label>
                 ))}
-              </select>
+                {!tenants.length ? <div className="field-hint">No hay tenants activos.</div> : null}
+              </div>
             </div>
 
             <div className="field">

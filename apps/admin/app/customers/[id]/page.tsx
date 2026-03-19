@@ -440,7 +440,7 @@ export default async function CustomerDetailPage({
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { id } = await params;
-  const resolvedTenantId = await resolveTenantId(null);
+  const resolvedTenantId = null;
   const rawSearch = (await searchParams) || {};
   const logsPage = Math.max(1, Number(rawSearch.logsPage ?? 1));
   const logsWindowDays = 30;

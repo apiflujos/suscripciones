@@ -22,12 +22,16 @@ export async function createUser(formData: FormData) {
   const password = String(formData.get("password") || "");
   const role = String(formData.get("role") || "").trim();
   const active = String(formData.get("active") || "").trim() === "1";
+  const tenantIds = formData
+    .getAll("tenantIds")
+    .map((v) => String(v || "").trim())
+    .filter(Boolean);
 
   try {
     const c = await cookies();
     const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
     const session = await verifyAdminSessionToken(sessionToken);
-    const res = await createAdminUser(session, { email, password, role, active });
+    const res = await createAdminUser(session, { email, password, role, active, tenantIds });
     if (!res.ok) throw new Error(res.error || "request_failed");
     redirect(`/settings/users?created=1`);
   } catch (err) {

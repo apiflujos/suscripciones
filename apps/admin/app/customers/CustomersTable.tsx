@@ -1035,6 +1035,14 @@ export function CustomersTable({
                   </div>
                 ) : null}
               </div>
+              {checkoutTemplates.filter((t: any) => String(t?.kind || "") === "PLAN").length === 0 ? (
+                <div className="card cardPad" style={{ borderColor: "var(--danger)", display: "grid", gap: 8 }}>
+                  <div>Debes crear una plantilla de plan antes de enviar links de pago.</div>
+                  <a className="primary" href="/settings?tab=checkout-publico&kind=PLAN&step=form" data-loader="off">
+                    Crear plantilla de plan
+                  </a>
+                </div>
+              ) : null}
               <div className="field">
                 <label>Monto</label>
                 <input
@@ -1190,6 +1198,14 @@ export function CustomersTable({
                   </div>
                 ) : null}
               </div>
+              {checkoutTemplates.filter((t: any) => String(t?.kind || "") === "CART" && inferTemplateMode(t) === cartModalMode).length === 0 ? (
+                <div className="card cardPad" style={{ borderColor: "var(--danger)", display: "grid", gap: 8 }}>
+                  <div>Debes crear una plantilla de catálogo antes de enviar.</div>
+                  <a className="primary" href="/settings?tab=checkout-publico&kind=CART&step=form" data-loader="off">
+                    Crear plantilla de catálogo
+                  </a>
+                </div>
+              ) : null}
               <div className="field">
                 <label>Plantilla de mensaje</label>
                 <textarea
@@ -1311,6 +1327,14 @@ export function CustomersTable({
                   </div>
                 ) : null}
               </div>
+              {checkoutTemplates.filter((t: any) => String(t?.kind || "") === "SUBSCRIPTION").length === 0 ? (
+                <div className="card cardPad" style={{ borderColor: "var(--danger)", display: "grid", gap: 8 }}>
+                  <div>Debes crear una plantilla de suscripción antes de enviar débito automático.</div>
+                  <a className="primary" href="/settings?tab=checkout-publico&kind=SUBSCRIPTION&step=form" data-loader="off">
+                    Crear plantilla de suscripción
+                  </a>
+                </div>
+              ) : null}
               <div className="field">
                 <label>Plantilla de mensaje</label>
                 <textarea

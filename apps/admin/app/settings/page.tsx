@@ -229,6 +229,9 @@ export default async function SettingsPage({
           csrfToken={csrfToken}
           created={String(sp.created) === "1"}
           error={normalizeErrorParam(typeof sp.error === "string" ? sp.error : undefined)}
+          tenants={tenants}
+          isSuperAdmin={session?.role === "SUPER_ADMIN"}
+          defaultTenantId={String(session?.tenantId || "").trim()}
         />
       ) : null}
 

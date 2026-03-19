@@ -375,7 +375,7 @@ export default async function Home({
   const periodLabel = g === "day" ? "Diario" : g === "week" ? "Semanal" : "Mensual";
   const rangeLabel = `${fmtShortDate(fromDate)} → ${fmtShortDate(toDate)}`;
 
-  const resolvedTenantId = await resolveTenantId(tenantId || null);
+  const resolvedTenantId = tenantId ? await resolveTenantId(tenantId) : null;
   const tenants = await listTenants();
   const tenantLabel = tenantId ? (tenants.find((t: any) => String(t.id) === String(tenantId))?.name || "Canal") : "Todos";
 

@@ -7,12 +7,18 @@ export function UsersPanel({
   users,
   csrfToken,
   error,
-  created
+  created,
+  tenants,
+  isSuperAdmin,
+  defaultTenantId
 }: {
   users: any[];
   csrfToken: string;
   error?: string | null;
   created?: boolean;
+  tenants: Array<{ id: string; name: string }>;
+  isSuperAdmin: boolean;
+  defaultTenantId: string;
 }) {
   return (
     <div className="ui-stack-lg">
@@ -61,6 +67,33 @@ export function UsersPanel({
               </div>
             </div>
 
+            <div className="field">
+              <label>Canales / Tenants</label>
+              {isSuperAdmin ? (
+                <div className="ui-stack-sm">
+                  {(tenants || []).map((t) => (
+                    <label key={t.id} className="ui-inline-check">
+                      <input
+                        type="checkbox"
+                        name="tenantIds"
+                        value={t.id}
+                        defaultChecked={Boolean(defaultTenantId && String(t.id) === defaultTenantId)}
+                      />
+                      <span>{t.name}</span>
+                    </label>
+                  ))}
+                  {!tenants.length ? <div className="field-hint">No hay tenants activos.</div> : null}
+                </div>
+              ) : (
+                <div className="field-hint">
+                  {defaultTenantId
+                    ? `Asignado a: ${tenants.find((t) => String(t.id) === defaultTenantId)?.name || "Tenant actual"}`
+                    : "No hay tenant asociado a tu sesión."}
+                  {defaultTenantId ? <input type="hidden" name="tenantIds" value={defaultTenantId} /> : null}
+                </div>
+              )}
+            </div>
+
             <div className="module-footer">
               <PendingButton className="primary" type="submit" pendingText="Creando...">
                 Crear Usuario
@@ -83,6 +116,9 @@ export function UsersPanel({
                   <div className="field-hint">
                     {u.role === "ADMIN" ? "Administrador" : "Asesor"} · {u.active ? "Activo" : "Inactivo"}
                   </div>
+                  {u?.tenantNames?.length ? (
+                    <div className="field-hint">Canales: {u.tenantNames.join(", ")}</div>
+                  ) : null}
                 </div>
                 <span className={`pill ${u.role === "ADMIN" ? "pill-blue" : "pill-muted"}`}>
                   {u.role}

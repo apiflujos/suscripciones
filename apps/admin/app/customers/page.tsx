@@ -154,7 +154,7 @@ export default async function CustomersPage({
   const listId = typeof sp.list === "string" ? sp.list : "";
   const viewId = typeof sp.viewId === "string" ? sp.viewId : "";
   const filters = typeof sp.filters === "string" ? sp.filters : "";
-  const resolvedTenantId = await resolveTenantId(tenantId || null);
+  const resolvedTenantId = tenantId ? await resolveTenantId(tenantId) : null;
   const returnTo = `/customers?${new URLSearchParams({
     ...(q ? { q } : {}),
     ...(tenantId ? { tenantId } : {}),
