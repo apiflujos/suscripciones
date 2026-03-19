@@ -147,7 +147,9 @@ export default async function EmpresasPage({
                       <div className="company-name entity-card-title">{e.nombre}</div>
                       <div className="company-meta entity-card-sub">{e.email || "Sin email"}</div>
                     </div>
-                    <span className="pill pill-sm">{Number(e?._count?.contactos || 0)} contactos</span>
+                    <span className="pill pill-sm pill-muted company-count-pill">
+                      {Number(e?._count?.contactos || 0)} contactos
+                    </span>
                   </div>
                   <div className="entity-card-grid">
                     <div>

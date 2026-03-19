@@ -9905,6 +9905,11 @@ body.is-global-loading {
   gap: 12px;
 }
 
+.company-card.entity-card {
+  padding: 12px;
+  gap: 10px;
+}
+
 .entity-card-header {
   display: flex;
   align-items: flex-start;
@@ -9993,6 +9998,12 @@ body.is-global-loading {
   display: grid;
   gap: 4px;
   font-size: 13px;
+}
+
+.company-count-pill {
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 30%, transparent);
 }
 
 .product-list-cell {
