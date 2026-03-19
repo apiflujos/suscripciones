@@ -189,13 +189,14 @@ model Empresa {
   telefono             String?
   direccion            String?
   sitioWeb             String?
-  contactoPrincipalId  String?   @db.Uuid
+  contactoPrincipalId  String?   @unique @db.Uuid
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
   tenant              SaTenant? @relation(fields: [tenantId], references: [id])
   contactos           Contacto[]
   contactoPrincipal   Contacto? @relation("EmpresaContactoPrincipal", fields: [contactoPrincipalId], references: [id])
+  subscriptions       Subscription[]
 
   @@index([tenantId])
   @@index([contactoPrincipalId])
@@ -213,6 +214,7 @@ model Contacto {
 
   empresa     Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   principalDe Empresa? @relation("EmpresaContactoPrincipal")
+  subscriptions Subscription[]
 
   @@index([empresaId])
 }
@@ -743,6 +745,7 @@ model SaTenant {
   subscriptions Subscription[]
   payments Payment[]
   paymentLinks PaymentLink[]
+  empresas Empresa[]
   webhookEvents WebhookEvent[]
   chatwootMessages ChatwootMessage[]
   smartLists SmartList[]
