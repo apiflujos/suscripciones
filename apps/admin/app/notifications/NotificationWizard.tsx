@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { HelpTip } from "../ui/HelpTip";
 import { useRouter } from "next/navigation";
 
@@ -32,6 +32,14 @@ const VARIABLES = [
   { label: "Link catálogo", value: "{{catalog.url}}" },
   { label: "Tipo de pago", value: "{{paymentType}}" }
 ];
+
+type ChatwootTemplate = {
+  id?: string | number;
+  name: string;
+  language?: string;
+  category?: string;
+  status?: string;
+};
 
 function unitToSeconds(unit: string, amount: number) {
   if (!Number.isFinite(amount)) return 0;
@@ -88,10 +96,43 @@ export function NotificationWizard({
   const [message, setMessage] = useState("");
 
   const [waTemplateName, setWaTemplateName] = useState("");
-  const [waLanguage] = useState("es");
+  const [waLanguage, setWaLanguage] = useState("es");
   const [waParams, setWaParams] = useState<string[]>([]);
+  const [waTemplates, setWaTemplates] = useState<ChatwootTemplate[]>([]);
+  const [waTemplatesLoading, setWaTemplatesLoading] = useState(false);
+  const [waTemplatesError, setWaTemplatesError] = useState("");
 
   const lastFocusableRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    if (templateKind !== "WHATSAPP_TEMPLATE") return;
+    let mounted = true;
+    setWaTemplatesLoading(true);
+    setWaTemplatesError("");
+    fetch("/admin/comms?op=whatsapp_templates", { cache: "no-store" })
+      .then((res) => res.json().catch(() => ({})))
+      .then((json) => {
+        if (!mounted) return;
+        if (!json?.ok || !Array.isArray(json?.templates)) {
+          setWaTemplatesError(String(json?.error || "sync_failed"));
+          setWaTemplates([]);
+          return;
+        }
+        setWaTemplates(json.templates);
+      })
+      .catch((err) => {
+        if (!mounted) return;
+        setWaTemplatesError(String(err?.message || "sync_failed"));
+        setWaTemplates([]);
+      })
+      .finally(() => {
+        if (!mounted) return;
+        setWaTemplatesLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [templateKind]);
 
   const computedOffsetsSeconds = useMemo(() => {
     return offsets
@@ -480,6 +521,30 @@ export function NotificationWizard({
               ) : (
                 <>
                   <div className="field">
+                    <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <span>Plantillas disponibles</span>
+                      <HelpTip text="Se cargan desde Chatwoot. Selecciona una plantilla para autocompletar el nombre y el idioma." />
+                    </label>
+                    <select
+                      className="select"
+                      defaultValue=""
+                      onChange={(e) => {
+                        const [tplName, tplLang] = String(e.target.value || "").split("::");
+                        if (tplName) setWaTemplateName(tplName);
+                        if (tplLang) setWaLanguage(tplLang);
+                      }}
+                      disabled={waTemplatesLoading}
+                    >
+                      <option value="">{waTemplatesLoading ? "Cargando..." : "Selecciona una plantilla"}</option>
+                      {waTemplates.map((t) => (
+                        <option key={`${t.name}:${t.language || "es"}`} value={`${t.name}::${t.language || "es"}`}>
+                          {t.name} · {t.language || "es"}
+                        </option>
+                      ))}
+                    </select>
+                    {waTemplatesError ? <div className="field-hint" style={{ color: "var(--danger)" }}>Error: {waTemplatesError}</div> : null}
+                  </div>
+                  <div className="field">
                     <label>ID de plantilla (Meta)</label>
                     <input
                       className="input"
@@ -488,7 +553,17 @@ export function NotificationWizard({
                       onFocus={(e) => (lastFocusableRef.current = e.target)}
                       placeholder="nombre_template"
                     />
-                    <div className="field-hint">El idioma se envía como <code>es</code> (si necesitas otro, lo habilitamos).</div>
+                  </div>
+                  <div className="field">
+                    <label>Idioma</label>
+                    <input
+                      className="input"
+                      value={waLanguage}
+                      onChange={(e) => setWaLanguage(e.target.value)}
+                      onFocus={(e) => (lastFocusableRef.current = e.target)}
+                      placeholder="es"
+                    />
+                    <div className="field-hint">Ej: es, es_CO.</div>
                   </div>
 
                   <div className="field">
