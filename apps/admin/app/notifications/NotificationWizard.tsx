@@ -212,6 +212,35 @@ export function NotificationWizard({
     });
   }
 
+  const selectedTemplate = waTemplateName
+    ? waTemplates.find((t) => t.name === waTemplateName && (!t.language || t.language === waLanguage)) ||
+      waTemplates.find((t) => t.name === waTemplateName) ||
+      null
+    : null;
+  const headerParamCount = useMemo(() => {
+    const comps = selectedTemplate?.components;
+    if (!Array.isArray(comps)) return 0;
+    const header = comps.find((c: any) => String(c?.type || "").toUpperCase() === "HEADER");
+    if (!header) return 0;
+    const fmt = String(header?.format || header?.format_type || "").toUpperCase();
+    if (fmt && fmt !== "TEXT") return 0;
+    return Array.isArray(header?.example?.header_text) ? header.example.header_text.length : 0;
+  }, [selectedTemplate]);
+  const bodyParamCount = useMemo(() => {
+    const comps = selectedTemplate?.components;
+    if (!Array.isArray(comps)) return 0;
+    const body = comps.find((c: any) => String(c?.type || "").toUpperCase() === "BODY");
+    if (!body) return 0;
+    return Array.isArray(body?.example?.body_text) ? (body.example.body_text[0]?.length || 0) : 0;
+  }, [selectedTemplate]);
+  const buttonParamCount = useMemo(() => {
+    const comps = selectedTemplate?.components;
+    if (!Array.isArray(comps)) return 0;
+    const buttons = comps.find((c: any) => String(c?.type || "").toUpperCase() === "BUTTONS");
+    if (!buttons || !Array.isArray(buttons?.buttons)) return 0;
+    return buttons.buttons.filter((b: any) => String(b?.type || "").toUpperCase() === "URL").length;
+  }, [selectedTemplate]);
+
   function applyKind(next: NotificationKind) {
     setNotificationKind(next);
     if (next === "PAYMENT_LINK") {
@@ -552,6 +581,7 @@ export function NotificationWizard({
                       onChange={(e) => setWaTemplateName(e.target.value)}
                       onFocus={(e) => (lastFocusableRef.current = e.target)}
                       placeholder="nombre_template"
+                      readOnly={Boolean(selectedTemplate)}
                     />
                   </div>
                   <div className="field">
@@ -562,37 +592,75 @@ export function NotificationWizard({
                       onChange={(e) => setWaLanguage(e.target.value)}
                       onFocus={(e) => (lastFocusableRef.current = e.target)}
                       placeholder="es"
+                      readOnly={Boolean(selectedTemplate)}
                     />
                     <div className="field-hint">Ej: es, es_CO.</div>
                   </div>
 
                   <div className="field">
                     <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                      <span>Variables de la plantilla (opcional)</span>
-                      <HelpTip text="Si tu plantilla tiene variables en el body ({{1}}, {{2}}, ...), agrégalas aquí en orden.\nSi no tiene variables, deja esto vacío." />
+                      <span>Variables de la plantilla</span>
+                      <HelpTip text="Completa los valores en el orden en que tu plantilla los requiere (body, header, botones URL)." />
                     </label>
                     <div style={{ display: "grid", gap: 6 }}>
-                      {waParams.map((v, idx) => (
-                        <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "end" } as any}>
-                          <div className="field" style={{ margin: 0 }}>
-                            <label>Variable #{idx + 1}</label>
-                            <input
-                              className="input"
-                              value={v}
-                              onChange={(e) => setWaParams((prev) => prev.map((x, i) => (i === idx ? e.target.value : x)))}
-                              onFocus={(e) => (lastFocusableRef.current = e.target)}
-                              placeholder="Ej: {{customer.name}}"
-                            />
-                          </div>
-                          <button type="button" className="ghost" onClick={() => setWaParams((prev) => prev.filter((_, i) => i !== idx))} data-loader="off">
-                            Quitar
-                          </button>
+                      {Array.from({ length: Math.max(bodyParamCount, 0) }).map((_, idx) => (
+                        <div key={`body-${idx}`} style={{ display: "grid", gridTemplateColumns: "1fr", gap: 6 }}>
+                          <label>Body #{idx + 1}</label>
+                          <input
+                            className="input"
+                            value={waParams[idx] || ""}
+                            onChange={(e) => setWaParams((prev) => {
+                              const next = prev.slice();
+                              next[idx] = e.target.value;
+                              return next;
+                            })}
+                            onFocus={(e) => (lastFocusableRef.current = e.target)}
+                            placeholder="Ej: {{customer.name}}"
+                          />
                         </div>
                       ))}
+                      {Array.from({ length: Math.max(headerParamCount, 0) }).map((_, idx) => {
+                        const base = bodyParamCount + idx;
+                        return (
+                          <div key={`header-${idx}`} style={{ display: "grid", gridTemplateColumns: "1fr", gap: 6 }}>
+                            <label>Header #{idx + 1}</label>
+                            <input
+                              className="input"
+                              value={waParams[base] || ""}
+                              onChange={(e) => setWaParams((prev) => {
+                                const next = prev.slice();
+                                next[base] = e.target.value;
+                                return next;
+                              })}
+                              onFocus={(e) => (lastFocusableRef.current = e.target)}
+                              placeholder="Ej: {{subscription.currentPeriodEndAt}}"
+                            />
+                          </div>
+                        );
+                      })}
+                      {Array.from({ length: Math.max(buttonParamCount, 0) }).map((_, idx) => {
+                        const base = bodyParamCount + headerParamCount + idx;
+                        return (
+                          <div key={`button-${idx}`} style={{ display: "grid", gridTemplateColumns: "1fr", gap: 6 }}>
+                            <label>Botón URL #{idx + 1}</label>
+                            <input
+                              className="input"
+                              value={waParams[base] || ""}
+                              onChange={(e) => setWaParams((prev) => {
+                                const next = prev.slice();
+                                next[base] = e.target.value;
+                                return next;
+                              })}
+                              onFocus={(e) => (lastFocusableRef.current = e.target)}
+                              placeholder="Ej: {{payment.checkoutUrl}}"
+                            />
+                          </div>
+                        );
+                      })}
+                      {!bodyParamCount && !headerParamCount && !buttonParamCount ? (
+                        <div className="field-hint">Esta plantilla no requiere variables.</div>
+                      ) : null}
                     </div>
-                    <button type="button" className="ghost" onClick={() => setWaParams((prev) => [...prev, ""])} style={{ marginTop: 8 }} data-loader="off" title="Agregar otra variable en orden {{1}}, {{2}}, {{3}}...">
-                      + Agregar variable
-                    </button>
                   </div>
                 </>
               )}
