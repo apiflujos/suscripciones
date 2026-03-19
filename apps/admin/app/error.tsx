@@ -10,17 +10,39 @@ export default function Error({
   reset: () => void;
 }) {
   const isRedirect = String(error?.digest || "").startsWith("NEXT_REDIRECT") || String(error?.message || "").includes("NEXT_REDIRECT");
+
   useEffect(() => {
-    // Log the error to the console for easier debugging
     if (isRedirect) {
-      // Avoid showing the error UI for redirects
-      reset();
+      try {
+        const nextPath = `${window.location.pathname}${window.location.search}`;
+        window.location.replace(`/login?next=${encodeURIComponent(nextPath)}`);
+      } catch {
+        window.location.replace("/login");
+      }
       return;
     }
     console.error("Global Error Boundary caught:", error);
   }, [error, isRedirect, reset]);
 
-  if (isRedirect) return null;
+  if (isRedirect) {
+    return (
+      <div style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: "300px",
+        padding: "20px",
+        textAlign: "center",
+        gap: "12px"
+      }}>
+        <h2 style={{ margin: 0 }}>Redirigiendo…</h2>
+        <p style={{ color: "var(--muted)", margin: 0 }}>
+          Validando sesión.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div style={{
