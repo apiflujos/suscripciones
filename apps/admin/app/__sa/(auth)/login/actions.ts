@@ -16,37 +16,13 @@ function toShortErrorMessage(err: unknown) {
   return raw.replace(/\s+/g, " ").trim().slice(0, 220) || "unknown_error";
 }
 
-export async function saLogin(formData: FormData) {
-  await assertCsrfToken(formData);
-  const email = String(formData.get("email") || "").trim();
-  const password = String(formData.get("password") || "");
-
-  try {
-    const res = await adminFetchNoSa("/admin/sa/login", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email, password })
-    });
-    if (!res.ok) throw new Error(res.json?.error || `login_failed_${res.status}`);
-
-    const token = String(res.json?.token || "").trim();
-    if (!token) throw new Error("missing_token");
-    const cookieStore = await cookies();
-    cookieStore.set(SA_COOKIE, token, {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-      secure: process.env.NODE_ENV === "production"
-    });
-    redirect("/sa");
-  } catch (err) {
-    if (isRedirectError(err)) throw err;
-    redirect(`/sa/login?error=${encodeURIComponent(toShortErrorMessage(err))}`);
-  }
+export async function saLogin() {
+  // Unificado: todos los accesos pasan por /login
+  redirect("/login?next=%2Fsa");
 }
 
 export async function saLogout() {
   const cookieStore = await cookies();
   cookieStore.delete(SA_COOKIE);
-  redirect("/sa/login?loggedOut=1");
+  redirect("/login?loggedOut=1");
 }
