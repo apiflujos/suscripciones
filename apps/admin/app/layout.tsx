@@ -65,7 +65,9 @@ function isPublicRoutePath(pathname: string): boolean {
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const h = await headers();
-  const pathname = h.get("x-app-pathname") || "";
+  const forwardedUri = h.get("x-forwarded-uri") || h.get("x-original-uri") || h.get("x-rewrite-url") || "";
+  const forwardedPath = forwardedUri.split("?")[0] || "";
+  const pathname = h.get("x-app-pathname") || forwardedPath || "";
   const authUser = h.get("x-auth-user");
   
   // El middleware ya verificó autenticación y redirigió si era necesario
