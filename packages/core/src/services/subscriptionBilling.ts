@@ -507,6 +507,9 @@ export async function createAutoDebitTransactionForSubscription(args: {
   });
 
   if (existingByCycle?.status === PaymentStatus.APPROVED) {
+    if (args.forceNewTransaction) {
+      throw new Error("payment_already_approved");
+    }
     if (existingByCycle.wompiTransactionId) {
       return { paymentId: existingByCycle.id, wompiTransactionId: existingByCycle.wompiTransactionId };
     }

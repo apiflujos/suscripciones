@@ -1802,11 +1802,16 @@ a {
   flex-wrap: wrap;
 }
 
-.smartViewsPills {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
+.smartViewsQuickSelect {
+  flex: 1 1 220px;
+  min-width: 200px;
+}
+
+.smartViewsQuickSelect .select {
+  width: 100%;
+  min-height: 36px;
+  border-radius: 12px;
+  background: var(--panel);
 }
 
 .smartViewsBarInline .smartViewsTop > .ghost {
@@ -6395,6 +6400,76 @@ textarea.input {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.billing-history-table-wrap {
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--panel);
+}
+
+.billing-history-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.billing-history-table th,
+.billing-history-table td {
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--stroke);
+  font-size: 12px;
+}
+
+.billing-history-table th {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  background: var(--panel-soft);
+}
+
+.billing-history-table .billing-history-date {
+  font-size: 11px;
+}
+
+.billing-history-ref,
+.billing-history-wompi,
+.billing-history-detail {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.billing-history-attempts-row td {
+  background: color-mix(in srgb, var(--panel) 90%, white);
+}
+
+.billing-history-attempts {
+  display: grid;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.billing-history-attempt {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--text);
+}
+
+.billing-history-attempt-date {
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+
+.billing-history-attempt-error {
+  font-size: 10.5px;
+  color: var(--status-danger);
 }
 
 .billing-history-page-info {

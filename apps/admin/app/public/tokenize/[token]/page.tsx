@@ -24,7 +24,7 @@ async function fetchPublicToken(token: string, bases: string[]) {
     try {
       const res = await fetch(`${apiBase}/public/tokenization-links/${encodeURIComponent(token)}`, { cache: "no-store" });
       const json = await res.json().catch(() => null);
-      if (res.ok) return { ok: true, status: res.status, json, apiBase };
+      if (res.ok && json?.ok) return { ok: true, status: res.status, json, apiBase };
     } catch {
       // Continuar con el siguiente base si hay error de red/DNS/TLS
     }
@@ -71,7 +71,7 @@ export default async function PublicTokenizePage({
   const { token } = await params;
   const sp = (await searchParams) ?? {};
   const requestBase = await getRequestBase();
-  const apiBases = [process.env.NEXT_PUBLIC_API_BASE_URL || "", requestBase];
+  const apiBases = [requestBase, process.env.NEXT_PUBLIC_PUBLIC_BASE_URL || "", process.env.NEXT_PUBLIC_API_BASE_URL || ""];
   const tokenRes = await fetchPublicToken(token, apiBases);
   const configRes = await fetchCheckoutConfig(apiBases);
   const config = configRes.ok ? configRes.json?.config || {} : {};
@@ -127,7 +127,17 @@ export default async function PublicTokenizePage({
   const acceptanceLinks = publicKey ? await fetchWompiAcceptanceLinks({ apiBaseUrl, publicKey }) : null;
 
   if (!tokenRes.ok) {
-    const msg = "Este link no existe o ya no es válido. Solicita uno nuevo.";
+    const errorKey = String(tokenRes.json?.error || "").trim();
+    const msg =
+      errorKey === "token_expired"
+        ? "Este link expiró. Solicita uno nuevo."
+        : errorKey === "token_used"
+          ? "Este link ya fue usado. Solicita uno nuevo."
+          : errorKey === "token_not_found"
+            ? "Este link no existe. Solicita uno nuevo."
+            : errorKey === "unauthorized"
+              ? "Este link no es válido. Solicita uno nuevo."
+              : "Este link no existe o ya no es válido. Solicita uno nuevo.";
     console.info("public_tokenize_error", {
       status: tokenRes.status,
       message: msg

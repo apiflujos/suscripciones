@@ -573,25 +573,15 @@ export function SmartViewsBar({
                 }}
               />
             </div>
-            <div className="smartViewsPills">
-              <button
-                type="button"
-                className={`pill quick-pill ${!activeViewId ? "is-active" : ""}`}
-                onClick={() => applyView("")}
-              >
-                Todas
-              </button>
-              {mergedViews.map((view) => (
-                <button
-                  key={view.id}
-                  type="button"
-                  className={`pill quick-pill ${activeViewId === view.id ? "is-active" : ""}`}
-                  onClick={() => applyView(view.id)}
-                  title={view.visibility === "PRIVATE" ? `${view.name} (Privada)` : view.name}
-                >
-                  {view.name}
-                </button>
-              ))}
+            <div className="smartViewsQuickSelect">
+              <select className="select" value={activeViewId} onChange={(e) => applyView(e.target.value)}>
+                <option value="">Todas</option>
+                {mergedViews.map((view) => (
+                  <option key={view.id} value={view.id}>
+                    {view.name} {view.visibility === "PRIVATE" ? "(Privada)" : ""}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
         ) : (

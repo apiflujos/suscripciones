@@ -256,7 +256,7 @@ export async function getSubscriptionPaymentHistory(args: {
     prisma.payment.count({ where }),
     prisma.payment.findMany({
       where,
-      orderBy: [{ createdAt: "desc" }],
+      orderBy: [{ paidAt: "desc" }, { failedAt: "desc" }, { createdAt: "desc" }],
       skip,
       take,
       include: {

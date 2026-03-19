@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { LocalDateTime } from "../ui/LocalDateTime";
 
 type Attempt = {
@@ -174,39 +174,62 @@ export function PaymentHistoryButton({ subscriptionId, tenantId }: Props) {
               {error ? <div className="muted">{error}</div> : null}
               {!loading && !error && items.length === 0 ? <div className="muted">Sin pagos registrados.</div> : null}
               {!loading && !error && items.length > 0 ? (
-                <div className="billing-history-list">
-                  {items.map((p) => (
-                    <div key={p.id} className="billing-history-item">
-                      <div className="billing-history-main">
-                        <span className={`pill pill-sm ${statusClass(p.status)}`}>{statusLabel(p.status)}</span>
-                        <span className="billing-history-amount">{fmtMoney(p.amountInCents, p.currency)}</span>
-                        <span className="billing-history-date">
-                          <LocalDateTime value={p.paidAt || p.failedAt || p.createdAt || null} variant="short" />
-                        </span>
-                      </div>
-                      <div className="billing-history-meta">
-                        {p.reference ? <span>Ref {p.reference}</span> : null}
-                        {p.wompiTransactionId ? <span>Wompi {p.wompiTransactionId}</span> : null}
-                      </div>
-                      {Array.isArray(p.attempts) && p.attempts.length ? (
-                        <div className="billing-history-attempts">
-                          {p.attempts.slice(0, 3).map((a) => (
-                            <div key={a.id} className="billing-history-attempt">
-                              <span className={`pill pill-sm ${statusClass(a.status)}`}>{statusLabel(a.status)}</span>
-                              <span className="billing-history-attempt-date">
-                                <LocalDateTime value={a.createdAt || null} variant="short" />
-                              </span>
-                              {a.errorMessage || a.errorCode ? (
-                                <span className="billing-history-attempt-error">
-                                  {a.errorMessage || a.errorCode}
-                                </span>
-                              ) : null}
-                            </div>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                  ))}
+                <div className="billing-history-table-wrap">
+                  <table className="table billing-history-table" aria-label="Historial de pagos">
+                    <thead>
+                      <tr>
+                        <th>Estado</th>
+                        <th>Monto</th>
+                        <th>Fecha</th>
+                        <th>Referencia</th>
+                        <th>Wompi</th>
+                        <th>Detalle</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map((p) => (
+                        <Fragment key={p.id}>
+                          <tr key={p.id}>
+                            <td>
+                              <span className={`pill pill-sm ${statusClass(p.status)}`}>{statusLabel(p.status)}</span>
+                            </td>
+                            <td className="billing-history-amount">{fmtMoney(p.amountInCents, p.currency)}</td>
+                            <td className="billing-history-date">
+                              <LocalDateTime value={p.paidAt || p.failedAt || p.createdAt || null} variant="short" />
+                            </td>
+                            <td className="billing-history-ref">{p.reference || "—"}</td>
+                            <td className="billing-history-wompi">{p.wompiTransactionId || "—"}</td>
+                            <td className="billing-history-detail">
+                              {Array.isArray(p.attempts) && p.attempts.length
+                                ? `${p.attempts.length} intento${p.attempts.length > 1 ? "s" : ""}`
+                                : "—"}
+                            </td>
+                          </tr>
+                          {Array.isArray(p.attempts) && p.attempts.length ? (
+                            <tr key={`${p.id}-attempts`} className="billing-history-attempts-row">
+                              <td colSpan={6}>
+                                <div className="billing-history-attempts">
+                                  {p.attempts.map((a) => (
+                                    <div key={a.id} className="billing-history-attempt">
+                                      <span className={`pill pill-sm ${statusClass(a.status)}`}>{statusLabel(a.status)}</span>
+                                      <span className="billing-history-attempt-date">
+                                        <LocalDateTime value={a.createdAt || null} variant="short" />
+                                      </span>
+                                      {a.errorMessage || a.errorCode ? (
+                                        <span className="billing-history-attempt-error">
+                                          {a.errorMessage || a.errorCode}
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                  ))}
+                                </div>
+                              </td>
+                            </tr>
+                          ) : null}
+                        </Fragment>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               ) : null}
             </div>

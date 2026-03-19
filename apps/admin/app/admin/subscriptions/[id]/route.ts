@@ -12,6 +12,7 @@ import { reqToCompat } from "../../_lib/reqCompat";
 import { addIntervalUtc } from "@suscripciones/core/lib/dates";
 import { systemLog } from "@suscripciones/core/services/systemLog";
 import { createAutoDebitTransactionForSubscription, createPaymentLinkForSubscription, readSubscriptionTotalInCents } from "@suscripciones/core/services/subscriptionBilling";
+import { advanceSubscriptionCycle } from "@suscripciones/core/services/wompiService";
 import { reconcileWompiTransaction } from "@suscripciones/core/services/wompiReconcile";
 import { getAutoDebitConfig } from "@suscripciones/core/services/runtimeConfig";
 import { scheduleSubscriptionDueNotifications } from "@suscripciones/core/services/notificationsScheduler";
@@ -235,7 +236,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       tenantId: tenantId || null,
       amountInCentsOverride: (parsed as any).data.amountInCents ?? null
     }).catch(() => {});
-    const subscription = await prisma.subscription.findUnique({
+    let subscription = await prisma.subscription.findUnique({
       where: { id: subscriptionId },
       include: { plan: true, customer: true, tenantLinks: true }
     });
@@ -299,6 +300,37 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     }
 
     const now = new Date();
+    const approvedForCycle = await prisma.payment.findUnique({
+      where: { subscriptionCycleKey: `${subscription.id}:${subscription.currentCycle ?? 1}` },
+      select: { id: true, status: true, paidAt: true, updatedAt: true, createdAt: true }
+    });
+    if (approvedForCycle?.status === PaymentStatus.APPROVED) {
+      const approvedAt = approvedForCycle.paidAt || approvedForCycle.updatedAt || approvedForCycle.createdAt || now;
+      const currentEnd = subscription.currentPeriodEndAt ? new Date(subscription.currentPeriodEndAt) : null;
+      if (currentEnd && now.getTime() + 5_000 >= currentEnd.getTime()) {
+        await advanceSubscriptionCycle({
+          subscriptionId: subscription.id,
+          cycle: subscription.currentCycle ?? 1,
+          paidAt: new Date(approvedAt)
+        }).catch(() => {});
+        const refreshed = await prisma.subscription.findUnique({
+          where: { id: subscription.id },
+          include: { plan: true, customer: true, tenantLinks: true }
+        });
+        if (refreshed) {
+          subscription = refreshed;
+        }
+      } else {
+        return Response.json(
+          {
+            error: "payment_already_approved",
+            paymentId: approvedForCycle.id,
+            paidAt: approvedAt instanceof Date ? approvedAt.toISOString() : approvedAt
+          },
+          { status: 409 }
+        );
+      }
+    }
     const latestApproved = await prisma.payment.findFirst({
       where: { subscriptionId, status: PaymentStatus.APPROVED },
       orderBy: [{ paidAt: "desc" }, { updatedAt: "desc" }, { createdAt: "desc" }],

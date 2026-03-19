@@ -691,6 +691,15 @@ export async function scheduleSubscriptionCutoff(args: { subscriptionId: string;
     return { ok: false, status: 409, error: "schedule_cutoff_not_allowed" as const };
   }
 
+  // Si la suscripción está al día, solo permitir mover el corte hacia el futuro.
+  if (
+    subscription.status === SubscriptionStatus.ACTIVE &&
+    subscription.currentPeriodEndAt &&
+    cutoffAt.getTime() < new Date(subscription.currentPeriodEndAt).getTime()
+  ) {
+    return { ok: false, status: 409, error: "cutoff_cannot_move_backwards" as const };
+  }
+
   const updated = await prisma.subscription.update({
     where: { id: subscriptionId },
     data: { currentPeriodEndAt: cutoffAt }
@@ -711,6 +720,23 @@ export async function scheduleSubscriptionCutoff(args: { subscriptionId: string;
     runAt: cutoffAt <= new Date(Date.now() + 5_000) ? new Date() : cutoffAt,
     maxAttempts: 1
   }).catch(() => {});
+
+  // Si el corte ya está vencido y el cobro en corte está activo, intentamos cobrar inmediatamente.
+  const autoDebitConfig = await getAutoDebitConfig();
+  if (collectionMode === "AUTO_DEBIT" && autoDebitConfig.chargeAtCutoffEnabled && cutoffAt <= new Date(Date.now() + 5_000)) {
+    await createAutoDebitTransactionForSubscription({
+      subscriptionId,
+      forceNewTransaction: true
+    }).catch((err: any) => {
+      const msg = String(err?.message || "");
+      if (!msg.includes("payment_already_approved")) {
+        systemLog(LogLevel.WARN, "subscriptions.cutoff", "Immediate cutoff charge failed", {
+          subscriptionId,
+          err: msg
+        }).catch(() => {});
+      }
+    });
+  }
 
   return { ok: true, subscription: updated, scheduledAt: cutoffAt.toISOString(), scheduled: true };
 }

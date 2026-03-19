@@ -64,16 +64,14 @@ export async function POST(req: Request) {
   const rulesActive = Boolean(orderResult.notificationsRulesActive);
   let publicUrl: string | null = null;
   let resolvedTemplateId = templateIdInput || "";
+  let chatwootError: string | null = null;
+  let fallbackSent = false;
   try {
     const checkoutConfig = await getCheckoutConfig();
     const expiryHours = Number(checkoutConfig?.tokenExpiryHours || 24);
     const hours = Number.isFinite(expiryHours) && expiryHours > 0 ? Math.min(Math.max(Math.trunc(expiryHours), 1), 168) : 24;
     const baseFromSettings = String(checkoutConfig?.planBaseUrl || "").trim();
-    if (!baseFromSettings) {
-      return NextResponse.json({ ok: false, error: "missing_plan_base_url" }, { status: 400 });
-    }
-    const base = baseFromSettings;
-    if (base) {
+    if (baseFromSettings) {
       if (!resolvedTemplateId) {
         const items = await getActiveCheckoutTemplates({ tenantId: tenantId || null, kind: "PLAN" as any });
         const selected = items?.[0] || null;
@@ -81,7 +79,7 @@ export async function POST(req: Request) {
       }
 
       const tokenValue = await signPublicToken({ sub: customerId, scope: "payment", ttlSeconds: hours * 60 * 60 });
-      const normalized = base.replace(/\/$/, "");
+      const normalized = baseFromSettings.replace(/\/$/, "");
       const hasPlanPath = /\/public\/plan$/i.test(normalized);
       const baseUrl = `${normalized}${hasPlanPath ? "" : "/public/plan"}/${tokenValue}`;
       const utm = String(checkoutConfig?.defaultUtmParams || "").trim();
@@ -106,36 +104,26 @@ export async function POST(req: Request) {
         }
       };
       await updateCustomerMetadata({ customerId, metadata: nextMeta });
-
-      let chatwootError: string | null = null;
-      let fallbackSent = false;
-      if (!rulesActive && publicUrl) {
-        const msg = buildChatwootLinkMessage({
-          name: customerName || "Cliente",
-          lead: "Aquí está tu link de pago:",
-          url: publicUrl
-        });
-        const chatRes = await sendChatwootMessageForCustomer({ customerId, content: msg, actor: auth.session.sub });
-        if (!chatRes.ok) {
-          chatwootError = String((chatRes as any)?.error || "chatwoot_error");
-        } else {
-          fallbackSent = true;
-        }
-      }
-
-      return NextResponse.json({
-        ok: true,
-        checkoutUrl: checkoutUrl || null,
-        publicUrl,
-        notificationsScheduled: typeof orderResult.notificationsScheduled === "number" ? orderResult.notificationsScheduled : null,
-        notificationsSent: typeof orderResult.notificationsSent === "number" ? orderResult.notificationsSent : null,
-        notificationsRulesActive: rulesActive,
-        chatwootError,
-        fallbackSent
-      });
     }
   } catch {
     // ignore best-effort public link
+  }
+
+  if (!rulesActive) {
+    const url = publicUrl || checkoutUrl;
+    if (url) {
+      const msg = buildChatwootLinkMessage({
+        name: customerName || "Cliente",
+        lead: "Aquí está tu link de pago:",
+        url
+      });
+      const chatRes = await sendChatwootMessageForCustomer({ customerId, content: msg, actor: auth.session.sub });
+      if (!chatRes.ok) {
+        chatwootError = String((chatRes as any)?.error || "chatwoot_error");
+      } else {
+        fallbackSent = true;
+      }
+    }
   }
 
   return NextResponse.json({
@@ -145,7 +133,7 @@ export async function POST(req: Request) {
     notificationsScheduled: typeof orderResult.notificationsScheduled === "number" ? orderResult.notificationsScheduled : null,
     notificationsSent: typeof orderResult.notificationsSent === "number" ? orderResult.notificationsSent : null,
     notificationsRulesActive: rulesActive,
-    chatwootError: null,
-    fallbackSent: false
+    chatwootError,
+    fallbackSent
   });
 }

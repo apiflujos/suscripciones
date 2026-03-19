@@ -58,6 +58,10 @@ export async function POST(req: Request) {
     tokenizationLink: {
       url: link,
       token: linkToken,
+      ...(prevMeta?.tokenizationLink?.token ? { previousToken: prevMeta.tokenizationLink.token } : {}),
+      ...(prevMeta?.tokenizationLink?.expiresAt ? { previousExpiresAt: prevMeta.tokenizationLink.expiresAt } : {}),
+      ...(prevMeta?.tokenizationLink?.usedAt ? { previousUsedAt: prevMeta.tokenizationLink.usedAt } : {}),
+      ...(prevMeta?.tokenizationLink?.createdAt ? { previousCreatedAt: prevMeta.tokenizationLink.createdAt } : {}),
       ...(templateId ? { templateId } : {}),
       createdAt: new Date().toISOString(),
       expiresAt,
