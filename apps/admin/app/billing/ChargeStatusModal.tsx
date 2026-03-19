@@ -215,12 +215,15 @@ export function ChargeStatusModal({
 
   const title = status === "processing" ? "Procesando cobro" : status === "ok" ? "Cobro exitoso" : "Cobro fallido";
   const toneOk = status === "processing" || status === "ok";
+  const baseFailMessage = "No se pudo cobrar la suscripción.";
+  const safeDetail =
+    detail && detail !== baseFailMessage ? detail : "";
   const body =
     status === "processing"
       ? `Esperando confirmación de Wompi. Este proceso puede tardar algunos segundos.${detail ? ` ${detail}` : ""}`
       : status === "ok"
         ? "El cobro se confirmó correctamente."
-        : `No se pudo cobrar la suscripción. ${detail || ""}`;
+        : `${baseFailMessage}${safeDetail ? ` ${safeDetail}` : ""}`;
 
   const footerNote =
     status === "processing" && attempts > 6
