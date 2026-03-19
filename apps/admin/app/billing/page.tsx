@@ -566,7 +566,10 @@ export default async function BillingPage({
           <div className="billing-badges billing-badges-header">
             <div className="billing-header-meta-grid">
               <div className="billing-header-meta-item">
-                <span className="billing-header-label">Canal de ventas</span>
+                <span className="billing-header-label">
+                  Canal de ventas
+                  <HelpTip text="Define el canal o tenant con el que se reporta y factura esta suscripción." />
+                </span>
                 <BillingTenantModalButton
                   triggerId={`tenant-modal-open-${r.id}`}
                   triggerLabel={r.tenantName || "Sin canal"}
@@ -582,7 +585,10 @@ export default async function BillingPage({
               </div>
 
               <div className="billing-header-meta-item billing-header-status-strip">
-                <span className="billing-header-label">Estado</span>
+                <span className="billing-header-label">
+                  Estado
+                  <HelpTip text="Resume el estado de la suscripción y si la tarjeta está tokenizada." />
+                </span>
                 <div className="billing-status-line" role="group" aria-label="Estado">
                   <span className={`pill pill-sm ${estadoSimple.class}`} title={`Estado: ${estadoSimple.label}`}>
                     {estadoSimple.label}
@@ -661,7 +667,10 @@ export default async function BillingPage({
             
             {/* Fechas - EN LÍNEA HORIZONTAL */}
             <div className="billing-body-section billing-section-dates">
-              <div className="billing-section-title">Próximo cobro</div>
+              <div className="billing-section-title">
+                Próximo cobro
+                <HelpTip text="Corte define el final del ciclo. Próximo indica el siguiente intento de cobro." />
+              </div>
               <div className="billing-date-row">
                 <div className="date-item">
                   <span className="date-label">Corte:</span>
@@ -689,7 +698,10 @@ export default async function BillingPage({
           </div>
           <div className="billing-body-side">
             <div className="billing-cost-panel">
-              <span className="billing-cost-title">Totales</span>
+              <span className="billing-cost-title">
+                Totales
+                <HelpTip text="Incluye base + flete según configuración del plan y del ciclo actual." />
+              </span>
               <div className="billing-cost-box">
                 <div className="billing-cost-summary">
                   <div className="billing-cost-total">{fmtMoney(r.totalInCents ?? r.montoInCents, r.moneda)}</div>
