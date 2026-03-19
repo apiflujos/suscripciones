@@ -534,21 +534,28 @@ export function ProductsTable({
   }
 
   const renderProductCard = (p: ProductRow) => (
-    <div className="product-card">
-      <div className="product-img">
+    <div className="product-card entity-card">
+      <div className="product-img entity-card-media">
         {p.imageUrl ? <img src={p.imageUrl} alt={p.name} /> : <span>📦</span>}
       </div>
-      <div className="product-body">
-        <div className="product-name">{p.name}</div>
-        <div className="product-meta">
-          <span className="product-sku">{p.sku || "SKU —"}</span>
-          <span>·</span>
-          <span>{p.kind === "SERVICE" ? "Servicio" : "Producto"}</span>
-        </div>
-        <div className="product-price">{formatMoneyFromCents(p.basePriceInCents, String(p.currency || DEFAULT_CURRENCY))}</div>
-        <div className="product-info product-info-compact">
+      <div className="product-body entity-card-body">
+        <div className="entity-card-header">
           <div>
-            <div className="field-hint">Tipo de suscripción</div>
+            <div className="product-name entity-card-title">{p.name}</div>
+            <div className="product-meta entity-card-sub">
+              <span className="product-sku">{p.sku || "SKU —"}</span>
+              <span>·</span>
+              <span>{p.kind === "SERVICE" ? "Servicio" : "Producto"}</span>
+            </div>
+          </div>
+          <div className="product-price entity-card-price">
+            {formatMoneyFromCents(p.basePriceInCents, String(p.currency || DEFAULT_CURRENCY))}
+          </div>
+        </div>
+
+        <div className="entity-card-grid">
+          <div>
+            <div className="field-hint">Tipo de cobro</div>
             <div>{getCollectionModeLabel(p.collectionMode)}</div>
           </div>
           <div>
@@ -559,53 +566,24 @@ export function ProductsTable({
             <div className="field-hint">Recurrencia</div>
             <div>{p.intervalUnit ? formatRecurrence(p.intervalUnit, p.intervalCount) : "—"}</div>
           </div>
-        </div>
-        <div className="product-stats-grid">
-          <div className="product-stat">
-            <span className="product-stat-label">Activas</span>
-            <span className="product-stat-value product-stat-ok">{Number(p.activeSubscriptions || 0)}</span>
-          </div>
-          <div className="product-stat">
-            <span className="product-stat-label">En mora</span>
-            <span className="product-stat-value product-stat-bad">{Number(p.pastDueSubscriptions || 0)}</span>
-          </div>
-          <div className="product-stat">
-            <span className="product-stat-label">Total</span>
-            <span className="product-stat-value product-stat-total">{Number(p.totalSubscriptions || 0)}</span>
+          <div>
+            <div className="field-hint">Suscripciones</div>
+            <div className="entity-card-counts">
+              <span className="pill pill-sm pill-ok">Activas {Number(p.activeSubscriptions || 0)}</span>
+              <span className="pill pill-sm pill-warn">Mora {Number(p.pastDueSubscriptions || 0)}</span>
+              <span className="pill pill-sm">Total {Number(p.totalSubscriptions || 0)}</span>
+            </div>
           </div>
         </div>
-        <div className="product-footer-actions">
-          <div className="product-actions-left">
-            <button className="ghost btn-compact btn-blue btn-noicon" type="button" data-loader="off" onClick={() => openViewLinks(p)} title="Ver link">
-              🔗
-            </button>
+
+        <div className="entity-card-actions">
+          <div className="entity-card-actions-left">
             <button className="ghost btn-compact btn-send btn-noicon" type="button" data-modal="true" data-loader="off" onClick={() => openSendModal(p)}>
               Enviar
             </button>
             <button className="ghost btn-compact btn-green btn-create btn-noicon" type="button" data-modal="true" data-loader="off" onClick={() => openPlanModal(p)}>
               Crear suscripción
             </button>
-          </div>
-          <div className="product-actions-right">
-            <button
-              className="ghost btn-compact btn-history btn-icon-only"
-              type="button"
-              data-modal="true"
-              data-loader="off"
-              onClick={() => openTransactions(p)}
-              aria-label="Historial de transacciones"
-              title="Historial de transacciones"
-            />
-            <button
-              className="ghost btn-compact btn-edit btn-icon-only"
-              type="button"
-              data-modal="true"
-              data-loader="off"
-              onClick={() => openEditor(p)}
-              aria-label="Editar"
-              title="Editar"
-            />
-            <DeleteProductButton action={deleteProductAction} csrfToken={csrfToken} productId={p.id} tenantId={String(p.tenantId || "")} returnTo={returnTo} />
           </div>
         </div>
       </div>
