@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { headers } from "next/headers";
 import { cookies } from "next/headers";
-import Script from "next/script";
 
 import "./globals.css";
 import "./styles.css";
@@ -86,9 +85,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html lang="es" suppressHydrationWarning data-force-system-theme={forceSystemTheme}>
       <head>
         <link id="theme-favicon" rel="icon" type="image/svg+xml" href="/brand/isotipo_icono.svg" data-theme-favicon="true" />
+        <script src="/theme-init.js" />
       </head>
       <body className={isPublicRoute ? "authBody" : undefined}>
-        <Script id="apiflujos-theme-init" src="/theme-init.js" strategy="beforeInteractive" />
         {isPublicRoute ? (
           <div className="authShell">{children}</div>
         ) : shouldShowShell ? (
