@@ -8,6 +8,7 @@ import {
   normalizeSmartViewVisibility,
   setSmartViewItems
 } from "@suscripciones/core/services/smartViews";
+import { getDefaultTenantId } from "@suscripciones/core/services/tenantContext";
 
 type RouteContext = { params: Promise<{ scope: string; id: string }> };
 
@@ -25,10 +26,13 @@ const updateSchema = z.object({
   staticIds: z.array(z.string()).optional()
 });
 
-function resolveTenantId(sessionTenantId: string | null | undefined, paramTenantId: string) {
+async function resolveTenantId(sessionTenantId: string | null | undefined, paramTenantId: string) {
   const param = String(paramTenantId || "").trim();
   if (sessionTenantId && param && param !== sessionTenantId) return { ok: false as const, tenantId: null };
-  return { ok: true as const, tenantId: sessionTenantId || param || "" };
+  if (sessionTenantId) return { ok: true as const, tenantId: sessionTenantId };
+  if (param) return { ok: true as const, tenantId: param };
+  const fallback = await getDefaultTenantId();
+  return { ok: true as const, tenantId: fallback || "" };
 }
 
 export async function DELETE(req: Request, ctx: RouteContext) {
@@ -41,7 +45,7 @@ export async function DELETE(req: Request, ctx: RouteContext) {
   if (!normalizedScope) return NextResponse.json({ error: "invalid_scope" }, { status: 400 });
 
   const url = new URL(req.url);
-  const resolved = resolveTenantId(auth.session.tenantId || null, String(url.searchParams.get("tenantId") || ""));
+  const resolved = await resolveTenantId(auth.session.tenantId || null, String(url.searchParams.get("tenantId") || ""));
   if (!resolved.ok) return NextResponse.json({ error: "tenant_forbidden" }, { status: 403 });
   if (!resolved.tenantId) return NextResponse.json({ error: "tenant_required" }, { status: 400 });
 
@@ -63,7 +67,7 @@ export async function PUT(req: Request, ctx: RouteContext) {
   if (!normalizedScope) return NextResponse.json({ error: "invalid_scope" }, { status: 400 });
 
   const url = new URL(req.url);
-  const resolved = resolveTenantId(auth.session.tenantId || null, String(url.searchParams.get("tenantId") || ""));
+  const resolved = await resolveTenantId(auth.session.tenantId || null, String(url.searchParams.get("tenantId") || ""));
   if (!resolved.ok) return NextResponse.json({ error: "tenant_forbidden" }, { status: 403 });
   if (!resolved.tenantId) return NextResponse.json({ error: "tenant_required" }, { status: 400 });
 

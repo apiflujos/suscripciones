@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireApiSession } from "../../../_lib/requireApiSession";
 import { resolveSmartViewIds, normalizeSmartViewScope, parseFiltersParam } from "@suscripciones/core/services/smartViews";
+import { getDefaultTenantId } from "@suscripciones/core/services/tenantContext";
 
 type RouteContext = { params: Promise<{ scope: string }> };
 
@@ -22,9 +23,10 @@ export async function POST(req: Request, ctx: RouteContext) {
   const viewId = String(body?.id || body?.viewId || "").trim();
   const rules = body?.filters ? parseFiltersParam(body?.filters) : null;
 
+  const tenantId = auth.session.tenantId || (await getDefaultTenantId()) || null;
   const ids = await resolveSmartViewIds(
     normalizedScope,
-    auth.session.tenantId || null,
+    tenantId,
     auth.session.sub || null,
     viewId || undefined,
     rules || undefined

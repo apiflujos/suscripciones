@@ -3,6 +3,8 @@ import fs from "fs/promises";
 import { getMediaDir } from "@suscripciones/core/services/mediaStorage";
 import { verifyMediaToken } from "../../../../lib/mediaAuth";
 import { normalizeBearer } from "../../../../lib/jwt";
+import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../../../lib/session";
+import { cookies } from "next/headers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,9 +30,15 @@ export async function GET(req: Request, ctx: { params: Promise<{ filename: strin
   const auth = req.headers.get("authorization") || "";
   const tokenFromHeader = normalizeBearer(auth);
   const token = tokenFromHeader || tokenFromQuery;
-  if (!token) return Response.json({ error: "unauthorized" }, { status: 401 });
-  const claims = await verifyMediaToken(token, safe);
-  if (!claims) return Response.json({ error: "unauthorized" }, { status: 401 });
+  if (token) {
+    const claims = await verifyMediaToken(token, safe);
+    if (!claims) return Response.json({ error: "unauthorized" }, { status: 401 });
+  } else {
+    const cookieStore = await cookies();
+    const raw = cookieStore.get(ADMIN_SESSION_COOKIE)?.value || "";
+    const session = raw ? await verifyAdminSessionToken(raw) : null;
+    if (!session) return Response.json({ error: "unauthorized" }, { status: 401 });
+  }
 
   const filePath = path.join(getMediaDir(), safe);
 

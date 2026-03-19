@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireApiSession } from "../../../_lib/requireApiSession";
 import { getSmartViewOptions, normalizeSmartViewScope } from "@suscripciones/core/services/smartViews";
+import { getDefaultTenantId } from "@suscripciones/core/services/tenantContext";
 
 type RouteContext = { params: Promise<{ scope: string }> };
 
@@ -22,6 +23,7 @@ export async function GET(req: Request, ctx: RouteContext) {
   const field = url.searchParams.get("field") || "";
   if (!field) return NextResponse.json({ items: [] });
 
-  const items = await getSmartViewOptions(normalizedScope, String(field), auth.session.tenantId || null);
+  const tenantId = auth.session.tenantId || (await getDefaultTenantId()) || null;
+  const items = await getSmartViewOptions(normalizedScope, String(field), tenantId);
   return NextResponse.json({ items });
 }
