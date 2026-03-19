@@ -2698,6 +2698,7 @@ html[data-theme="dark"] .payments-health-banner code {
 }
 
 .product-info {
+  display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 4px 8px;
 }

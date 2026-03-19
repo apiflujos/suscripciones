@@ -544,6 +544,24 @@ export function ProductsTable({
           <span>{p.kind === "SERVICE" ? "Servicio" : "Producto"}</span>
         </div>
         <div className="product-price">{formatMoneyFromCents(p.basePriceInCents, String(p.currency || DEFAULT_CURRENCY))}</div>
+        <div className="product-info">
+          <div>
+            <div className="field-hint">Tipo</div>
+            <div>{getCollectionModeLabel(p.collectionMode)}</div>
+          </div>
+          <div>
+            <div className="field-hint">Canal</div>
+            <div>{p.tenantName || "—"}</div>
+          </div>
+          <div>
+            <div className="field-hint">Recurrencia</div>
+            <div>{p.intervalUnit ? formatRecurrence(p.intervalUnit, p.intervalCount) : "—"}</div>
+          </div>
+          <div>
+            <div className="field-hint">SKU</div>
+            <div>{p.sku || "—"}</div>
+          </div>
+        </div>
         <div className="product-stats-grid">
           <div className="product-stat">
             <span className="product-stat-label">Activas</span>
@@ -558,14 +576,7 @@ export function ProductsTable({
             <span className="product-stat-value product-stat-total">{Number(p.totalSubscriptions || 0)}</span>
           </div>
         </div>
-        <div className="product-badges">
-          <span className={`pill pill-sm ${String(p.collectionMode || "").toUpperCase() === "AUTO_DEBIT" ? "pill-mode-debit" : "pill-mode-link"}`}>
-            {getCollectionModeLabel(p.collectionMode)}
-          </span>
-          {p.tenantName ? <span className="pill pill-sm pill-muted">{p.tenantName}</span> : null}
-          <span className="pill pill-sm pill-soft">Recurrencia: {p.intervalUnit ? formatRecurrence(p.intervalUnit, p.intervalCount) : "—"}</span>
-        </div>
-        <div className="product-actions">
+        <div className="product-footer-actions">
           <div className="product-actions-left">
             <button className="ghost btn-compact btn-blue btn-noicon" type="button" data-loader="off" onClick={() => openViewLinks(p)} title="Ver link">
               🔗
