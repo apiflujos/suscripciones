@@ -11,7 +11,6 @@ import {
   updateShopify,
   updateWompi,
   deleteWompiConnection,
-  setCentralActiveEnv,
   updateAiProvider,
   deleteAiProvider,
   updateGamificationConfig,
@@ -81,8 +80,6 @@ export default async function SettingsPage({
   const comms = (settings?.communications || null) as any;
   const commsProduction = (comms?.production || settings?.chatwoot || {}) as any;
   const appPublicBaseUrl = String(process.env.APP_PUBLIC_BASE_URL || "").trim();
-  const commsSandbox = (comms?.sandbox || {}) as any;
-  const commsActiveEnv = (comms?.activeEnv || "PRODUCTION") as "PRODUCTION" | "SANDBOX";
   const ai = (settings?.ai || {}) as any;
   const aiProviders = (ai?.providers || {}) as any;
   const aiOpenai = (aiProviders?.openai || {}) as any;
@@ -257,8 +254,6 @@ export default async function SettingsPage({
                 wompiProduction={wompiProduction}
                 wompiSandbox={wompiSandbox}
                 commsProduction={commsProduction}
-                commsSandbox={commsSandbox}
-                commsActiveEnv={commsActiveEnv}
                 shopify={settings?.shopify || {}}
                 actions={{
                   setWompiActiveEnv,
@@ -266,7 +261,6 @@ export default async function SettingsPage({
                   testWompiConnection,
                   deleteWompiConnection,
                   updateChatwoot,
-                  setCentralActiveEnv,
                   deleteCentralConnection,
                   testCentralConnection,
                   bootstrapCentralAttributes,
@@ -356,61 +350,54 @@ export default async function SettingsPage({
                   </div>
                 ))}
 
-                {([
-                  ["PRODUCTION", "Producción", commsProduction],
-                  ["SANDBOX", "Sandbox", commsSandbox]
-                ] as const)
-                  .filter(([envKey]) => envKey === commsActiveEnv)
-                  .map(([envKey, envLabel, comms]) => (
-                  <div className="saved-conn-card" key={`central-${envKey}`}>
-                    <div className="saved-conn-header">
-                      <div>
-                        <strong>Central · {envLabel}</strong>
-                        <div className="saved-conn-sub">{comms?.baseUrl && comms?.accountId && comms?.inboxId ? "Configurada" : "Sin configurar"}</div>
-                      </div>
-                      <span
-                        className={`pill ${
-                          envKey === commsActiveEnv && comms?.baseUrl && comms?.accountId && comms?.inboxId ? "pill-green" : "pill-muted"
-                        }`}
-                      >
-                        {envKey === commsActiveEnv && comms?.baseUrl && comms?.accountId && comms?.inboxId ? "Activa" : "Inactiva"}
-                      </span>
+                <div className="saved-conn-card">
+                  <div className="saved-conn-header">
+                    <div>
+                      <strong>Central · Chatwoot</strong>
+                      <div className="saved-conn-sub">{commsProduction?.baseUrl && commsProduction?.accountId && commsProduction?.inboxId ? "Configurada" : "Sin configurar"}</div>
                     </div>
-                    <div className="saved-conn-actions">
-                      <a className="ghost btn-compact btn-blue" href="/settings?tab=connections&open=central">Editar</a>
-                      <form action={testCentralConnection}>
-                        <input type="hidden" name="csrf" value={csrfToken} />
-                        <input type="hidden" name="baseUrl" value={comms?.baseUrl || ""} />
-                        <input type="hidden" name="accountId" value={comms?.accountId || ""} />
-                        <input type="hidden" name="inboxId" value={comms?.inboxId || ""} />
-                        <input type="hidden" name="returnTo" value={returnTo} />
-                        <button className="ghost btn-compact btn-amber" type="submit" disabled={!comms?.baseUrl || !comms?.accountId || !comms?.inboxId}>
-                          Probar
-                        </button>
-                      </form>
-                      <form action={deleteCentralConnection}>
-                        <input type="hidden" name="csrf" value={csrfToken} />
-                        <input type="hidden" name="environment" value={envKey} />
-                        <input type="hidden" name="returnTo" value={returnTo} />
-                        <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" aria-label="Eliminar conexión" title="Eliminar conexión" />
-                      </form>
+                    <span
+                      className={`pill ${
+                        commsProduction?.baseUrl && commsProduction?.accountId && commsProduction?.inboxId ? "pill-green" : "pill-muted"
+                      }`}
+                    >
+                      {commsProduction?.baseUrl && commsProduction?.accountId && commsProduction?.inboxId ? "Activa" : "Inactiva"}
+                    </span>
+                  </div>
+                  <div className="saved-conn-actions">
+                    <a className="ghost btn-compact btn-blue" href="/settings?tab=connections&open=central">Editar</a>
+                    <form action={testCentralConnection}>
+                      <input type="hidden" name="csrf" value={csrfToken} />
+                      <input type="hidden" name="baseUrl" value={commsProduction?.baseUrl || ""} />
+                      <input type="hidden" name="accountId" value={commsProduction?.accountId || ""} />
+                      <input type="hidden" name="inboxId" value={commsProduction?.inboxId || ""} />
+                      <input type="hidden" name="returnTo" value={returnTo} />
+                      <button className="ghost btn-compact btn-amber" type="submit" disabled={!commsProduction?.baseUrl || !commsProduction?.accountId || !commsProduction?.inboxId}>
+                        Probar
+                      </button>
+                    </form>
+                    <form action={deleteCentralConnection}>
+                      <input type="hidden" name="csrf" value={csrfToken} />
+                      <input type="hidden" name="environment" value="PRODUCTION" />
+                      <input type="hidden" name="returnTo" value={returnTo} />
+                      <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" aria-label="Eliminar conexión" title="Eliminar conexión" />
+                    </form>
+                  </div>
+                  <div className="saved-conn-meta">
+                    <div className="saved-conn-meta-item">
+                      <span className="saved-conn-meta-label">Base URL</span>
+                      <span className="saved-conn-meta-value">{commsProduction?.baseUrl || "—"}</span>
                     </div>
-                    <div className="saved-conn-meta">
-                      <div className="saved-conn-meta-item">
-                        <span className="saved-conn-meta-label">Base URL</span>
-                        <span className="saved-conn-meta-value">{comms?.baseUrl || "—"}</span>
-                      </div>
-                      <div className="saved-conn-meta-item">
-                        <span className="saved-conn-meta-label">Cuenta</span>
-                        <span className="saved-conn-meta-value">{comms?.accountId || "—"}</span>
-                      </div>
-                      <div className="saved-conn-meta-item">
-                        <span className="saved-conn-meta-label">Bandeja</span>
-                        <span className="saved-conn-meta-value">{comms?.inboxId || "—"}</span>
-                      </div>
+                    <div className="saved-conn-meta-item">
+                      <span className="saved-conn-meta-label">Cuenta</span>
+                      <span className="saved-conn-meta-value">{commsProduction?.accountId || "—"}</span>
+                    </div>
+                    <div className="saved-conn-meta-item">
+                      <span className="saved-conn-meta-label">Bandeja</span>
+                      <span className="saved-conn-meta-value">{commsProduction?.inboxId || "—"}</span>
                     </div>
                   </div>
-                ))}
+                </div>
 
                 {settings?.shopify?.forwardUrl ? (
                   <div className="saved-conn-card">

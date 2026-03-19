@@ -251,6 +251,29 @@ export class ChatwootClient {
     return { ok: res.ok, status: res.status, json };
   }
 
+  async listWhatsappTemplates() {
+    const res = await this.request(`/api/v1/accounts/${this.opts.accountId}/whatsapp_templates`, {
+      method: "GET"
+    });
+    if (!res.ok) throw new Error(`Chatwoot list templates failed: ${res.status} ${JSON.stringify(res.json)}`);
+    const payload = (res.json && (res.json.payload ?? res.json.data ?? res.json)) || [];
+    const list = Array.isArray(payload?.whatsapp_templates)
+      ? payload.whatsapp_templates
+      : Array.isArray(payload?.templates)
+        ? payload.templates
+        : Array.isArray(payload)
+          ? payload
+          : [];
+    return list.map((tpl: any) => ({
+      id: tpl.id ?? tpl.template_id ?? tpl.uuid ?? tpl.name,
+      name: String(tpl.name || tpl.template_name || "").trim(),
+      language: String(tpl.language || tpl.locale || "es").trim(),
+      category: String(tpl.category || tpl.template_category || "").trim(),
+      status: String(tpl.status || "").trim(),
+      components: tpl.components ?? tpl.content ?? null
+    })).filter((tpl: any) => tpl.name);
+  }
+
   async createContact(input: { name?: string; email?: string; phoneNumber?: string }) {
     const phoneNumber = this.normalizePhoneNumber(input.phoneNumber);
     const body: any = {

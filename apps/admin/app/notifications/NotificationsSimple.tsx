@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { PendingButton } from "../ui/PendingButton";
 import { HelpTip } from "../ui/HelpTip";
@@ -18,6 +18,14 @@ type Template = {
     language: string;
     processed_params?: { body?: Array<{ key: string; value: string }> };
   } | null;
+};
+
+type ChatwootTemplate = {
+  id?: string | number;
+  name: string;
+  language?: string;
+  category?: string;
+  status?: string;
 };
 
 type Rule = {
@@ -119,6 +127,62 @@ function isTemplateConfigured(template: Template | null | undefined, kind: "TEXT
   return Boolean(content && content !== "(template)");
 }
 
+function WaTemplateFields({
+  templates,
+  defaultName,
+  defaultLang,
+  defaultParams
+}: {
+  templates: ChatwootTemplate[];
+  defaultName?: string;
+  defaultLang?: string;
+  defaultParams?: string;
+}) {
+  const [name, setName] = useState(defaultName || "");
+  const [lang, setLang] = useState(defaultLang || "es");
+  const [params, setParams] = useState(defaultParams || "");
+
+  const onSelect = (value: string) => {
+    if (!value) return;
+    const [tplName, tplLang] = value.split("::");
+    setName(tplName || "");
+    setLang(tplLang || "es");
+  };
+
+  return (
+    <>
+      {templates.length ? (
+        <div className="field">
+          <label>Plantillas disponibles</label>
+          <select className="select select-compact" defaultValue="" onChange={(e) => onSelect(e.target.value)}>
+            <option value="">Selecciona una plantilla</option>
+            {templates.map((t) => (
+              <option key={`${t.name}:${t.language || "es"}`} value={`${t.name}::${t.language || "es"}`}>
+                {t.name} · {t.language || "es"}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
+      <div className="field">
+        <label>Template WhatsApp</label>
+        <input className="input input-compact" name="waTemplateName" value={name} onChange={(e) => setName(e.target.value)} placeholder="nombre_template" />
+      </div>
+      <div className="field">
+        <label>Idioma</label>
+        <input className="input input-compact" name="waLanguage" value={lang} onChange={(e) => setLang(e.target.value)} placeholder="es" />
+      </div>
+      <div className="field">
+        <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span>Parámetros (separados por |)</span>
+          <HelpTip text="Son los valores que reemplazan {{1}}, {{2}}, {{3}} en tu plantilla. Ej: 'Hola {{1}}, recibimos {{2}}' → Juan|$10.000" />
+        </label>
+        <input className="input input-compact" name="waParams" value={params} onChange={(e) => setParams(e.target.value)} placeholder="Juan|$10000" />
+      </div>
+    </>
+  );
+}
+
 function secondsFromOffset(item: OffsetItem, sign: 1 | -1) {
   const amount = Number(item.amount || 0);
   const base = item.unit === "days" ? amount * 24 * 60 * 60 : item.unit === "hours" ? amount * 60 * 60 : amount * 60;
@@ -211,6 +275,33 @@ export function NotificationsSimple({
   const [dueEdit, setDueEdit] = useState(false);
   const [moraEdit, setMoraEdit] = useState(false);
 
+  const [waTemplates, setWaTemplates] = useState<ChatwootTemplate[]>([]);
+  const [waLoading, setWaLoading] = useState(false);
+  const [waError, setWaError] = useState("");
+  const loadWaTemplates = useCallback(async () => {
+    setWaLoading(true);
+    setWaError("");
+    try {
+      const res = await fetch("/admin/comms?op=whatsapp_templates", { cache: "no-store" });
+      const json = await res.json().catch(() => null);
+      if (res.ok && json?.ok && Array.isArray(json.templates)) {
+        setWaTemplates(json.templates);
+      } else {
+        setWaTemplates([]);
+        setWaError(String(json?.error || "No se pudieron cargar las plantillas"));
+      }
+    } catch (err: any) {
+      setWaTemplates([]);
+      setWaError(String(err?.message || "No se pudieron cargar las plantillas"));
+    } finally {
+      setWaLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadWaTemplates();
+  }, [loadWaTemplates, env]);
+
   useEffect(() => {
     setDueKind(reminderDueTemplate?.chatwootTemplate?.name ? "WHATSAPP_TEMPLATE" : "TEXT");
   }, [reminderDueTemplate?.chatwootTemplate?.name]);
@@ -264,6 +355,12 @@ export function NotificationsSimple({
         <div className="settings-group-header">
           <div className="panelHeaderRow">
             <h3>Notificaciones en tiempo real</h3>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button className="ghost btn-compact" type="button" onClick={loadWaTemplates} data-loader="off">
+                {waLoading ? "Sincronizando..." : "Sincronizar plantillas WhatsApp"}
+              </button>
+              {waError ? <span className="muted" style={{ fontSize: 12 }}>{waError}</span> : null}
+            </div>
           </div>
         </div>
         <div className="settings-group-body">
@@ -345,21 +442,12 @@ export function NotificationsSimple({
                       ) : null}
                       {kind === "WHATSAPP_TEMPLATE" ? (
                         <>
-                          <div className="field">
-                            <label>Template WhatsApp</label>
-                            <input className="input input-compact" name="waTemplateName" defaultValue={waName} placeholder="nombre_template" />
-                          </div>
-                          <div className="field">
-                            <label>Idioma</label>
-                            <input className="input input-compact" name="waLanguage" defaultValue={waLang} placeholder="es" />
-                          </div>
-                          <div className="field">
-                            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                              <span>Parámetros (separados por |)</span>
-                              <HelpTip text="Son los valores que reemplazan {{1}}, {{2}}, {{3}} en tu plantilla. Ej: 'Hola {{1}}, recibimos {{2}}' → Juan|$10.000" />
-                            </label>
-                            <input className="input input-compact" name="waParams" defaultValue={waParams.map((p) => p.value).join("|")} placeholder="Juan|$10000" />
-                          </div>
+                          <WaTemplateFields
+                            templates={waTemplates}
+                            defaultName={waName}
+                            defaultLang={waLang}
+                            defaultParams={waParams.map((p) => p.value).join("|")}
+                          />
                         </>
                       ) : null}
                       <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
@@ -485,30 +573,16 @@ export function NotificationsSimple({
                     </div>
                   </div>
                 ) : null}
-                {dueKind === "WHATSAPP_TEMPLATE" ? (
-                  <>
-                    <div className="field">
-                      <label>Template WhatsApp</label>
-                      <input className="input input-compact" name="waTemplateName" defaultValue={reminderDueTemplate?.chatwootTemplate?.name || ""} placeholder="nombre_template" />
-                    </div>
-                    <div className="field">
-                      <label>Idioma</label>
-                      <input className="input input-compact" name="waLanguage" defaultValue={reminderDueTemplate?.chatwootTemplate?.language || "es"} placeholder="es" />
-                    </div>
-                    <div className="field">
-                      <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span>Parámetros (separados por |)</span>
-                        <HelpTip text="Son los valores que reemplazan {{1}}, {{2}}, {{3}} en tu plantilla. Ej: 'Hola {{1}}, recibimos {{2}}' → Juan|$10.000" />
-                      </label>
-                      <input
-                        className="input input-compact"
-                        name="waParams"
-                        defaultValue={(reminderDueTemplate?.chatwootTemplate?.processed_params?.body || []).map((p) => p.value).join("|")}
-                        placeholder="Juan|$10000"
-                      />
-                    </div>
-                  </>
-                ) : null}
+                    {dueKind === "WHATSAPP_TEMPLATE" ? (
+                      <>
+                        <WaTemplateFields
+                          templates={waTemplates}
+                          defaultName={reminderDueTemplate?.chatwootTemplate?.name || ""}
+                          defaultLang={reminderDueTemplate?.chatwootTemplate?.language || "es"}
+                          defaultParams={(reminderDueTemplate?.chatwootTemplate?.processed_params?.body || []).map((p) => p.value).join("|")}
+                        />
+                      </>
+                    ) : null}
                 {dueOffsets.map((item, idx) => (
                   <div key={`due-${idx}`} style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 6, alignItems: "end" }}>
                     <div className="field">
@@ -635,26 +709,12 @@ export function NotificationsSimple({
                 ) : null}
                 {moraKind === "WHATSAPP_TEMPLATE" ? (
                   <>
-                    <div className="field">
-                      <label>Template WhatsApp</label>
-                      <input className="input input-compact" name="waTemplateName" defaultValue={reminderMoraTemplate?.chatwootTemplate?.name || ""} placeholder="nombre_template" />
-                    </div>
-                    <div className="field">
-                      <label>Idioma</label>
-                      <input className="input input-compact" name="waLanguage" defaultValue={reminderMoraTemplate?.chatwootTemplate?.language || "es"} placeholder="es" />
-                    </div>
-                    <div className="field">
-                      <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span>Parámetros (separados por |)</span>
-                        <HelpTip text="Son los valores que reemplazan {{1}}, {{2}}, {{3}} en tu plantilla. Ej: 'Hola {{1}}, recibimos {{2}}' → Juan|$10.000" />
-                      </label>
-                      <input
-                        className="input input-compact"
-                        name="waParams"
-                        defaultValue={(reminderMoraTemplate?.chatwootTemplate?.processed_params?.body || []).map((p) => p.value).join("|")}
-                        placeholder="Juan|$10000"
-                      />
-                    </div>
+                    <WaTemplateFields
+                      templates={waTemplates}
+                      defaultName={reminderMoraTemplate?.chatwootTemplate?.name || ""}
+                      defaultLang={reminderMoraTemplate?.chatwootTemplate?.language || "es"}
+                      defaultParams={(reminderMoraTemplate?.chatwootTemplate?.processed_params?.body || []).map((p) => p.value).join("|")}
+                    />
                   </>
                 ) : null}
                 {moraOffsets.map((item, idx) => (

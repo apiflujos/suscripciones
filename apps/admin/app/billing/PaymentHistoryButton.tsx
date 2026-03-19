@@ -148,27 +148,7 @@ export function PaymentHistoryButton({ subscriptionId, tenantId }: Props) {
                     <option value="VOIDED">Anulado</option>
                   </select>
                 </label>
-                <div className="billing-history-pages">
-                  <button
-                    type="button"
-                    className="ghost btn-compact"
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page <= 1 || loading}
-                  >
-                    Anterior
-                  </button>
-                  <span className="billing-history-page-info">
-                    Página {page} de {totalPages}
-                  </span>
-                  <button
-                    type="button"
-                    className="ghost btn-compact"
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={page >= totalPages || loading}
-                  >
-                    Siguiente
-                  </button>
-                </div>
+                {/* Paginación oculta: se mantiene el primer page internamente */}
               </div>
               {loading ? <div className="muted">Cargando historial...</div> : null}
               {error ? <div className="muted">{error}</div> : null}

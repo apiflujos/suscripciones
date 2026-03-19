@@ -54,6 +54,17 @@ const campaignUpdateSchema = z.object({
 export async function GET(req: Request) {
   const auth = await requireAdminToken(req);
   if (!auth.ok) return auth.response;
+  const url = new URL(req.url);
+  const op = String(url.searchParams.get("op") || "").trim();
+  if (op === "whatsapp_templates") {
+    try {
+      const client = await getChatwootClient();
+      const templates = await client.listWhatsappTemplates();
+      return Response.json({ ok: true, templates });
+    } catch (err: any) {
+      return Response.json({ ok: false, error: String(err?.message || "chatwoot_templates_failed") }, { status: 400 });
+    }
+  }
   return Response.json({ error: "not_found" }, { status: 404 });
 }
 

@@ -636,9 +636,7 @@ export function TopBar({ session }: { session: AdminSession | null }) {
                     const icon = getNotificationIcon({ level: n.level, category: n.category });
                     const colorClass = getNotificationColor(n.level);
                     const destinationHref = n.href || resolveNotificationHref(n.category, n.level, session?.role);
-                    const contactPayload = resolveContactPayload(n.meta);
-                    const allowCreate = canCreateContact(n) && Boolean(contactPayload);
-                    const isCreating = creatingContactId === n.id;
+                    // acciones de notificación removidas
                     
                     return (
                       <div
@@ -674,23 +672,7 @@ export function TopBar({ session }: { session: AdminSession | null }) {
                           </div>
                           {!n.read && <span className="topbarBellItemDot" />}
                         </Link>
-                        {allowCreate ? (
-                          <div className="topbarBellItemActions">
-                            <button
-                              type="button"
-                              className="topbarBellItemCta"
-                              data-loader="off"
-                              disabled={isCreating}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                createContactFromNotification(n);
-                              }}
-                            >
-                              {isCreating ? "Creando..." : "Crear contacto"}
-                            </button>
-                          </div>
-                        ) : null}
+                        {/* acciones removidas para evitar botones flotantes */}
                       </div>
                     );
                   })

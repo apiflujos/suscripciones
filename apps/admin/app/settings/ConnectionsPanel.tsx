@@ -34,8 +34,6 @@ export function ConnectionsPanel({
   wompiProduction,
   wompiSandbox,
   commsProduction,
-  commsSandbox,
-  commsActiveEnv,
   shopify,
   actions,
   inlineState,
@@ -47,8 +45,6 @@ export function ConnectionsPanel({
   wompiProduction: any;
   wompiSandbox: any;
   commsProduction: any;
-  commsSandbox: any;
-  commsActiveEnv: "PRODUCTION" | "SANDBOX";
   shopify: any;
   actions: {
     setWompiActiveEnv: (formData: FormData) => void;
@@ -56,7 +52,6 @@ export function ConnectionsPanel({
     testWompiConnection: (formData: FormData) => Promise<void>;
     deleteWompiConnection: (formData: FormData) => void;
     updateChatwoot: (formData: FormData) => void;
-    setCentralActiveEnv: (formData: FormData) => void;
     deleteCentralConnection: (formData: FormData) => void;
     testCentralConnection: (formData: FormData) => Promise<void>;
     bootstrapCentralAttributes: (formData: FormData) => void;
@@ -86,10 +81,8 @@ export function ConnectionsPanel({
     PRODUCTION: null,
     SANDBOX: null
   });
-  const [centralTestStatus, setCentralTestStatus] = useState<{ PRODUCTION: "ok" | "fail" | null; SANDBOX: "ok" | "fail" | null }>({
-    PRODUCTION: null,
-    SANDBOX: null
-  });
+  const [centralTestStatus, setCentralTestStatus] = useState<"ok" | "fail" | null>(null);
+  const [templatesSync, setTemplatesSync] = useState<{ running: boolean; count: number; error: string }>({ running: false, count: 0, error: "" });
   
   const [syncState, setSyncState] = useState<{
     running: boolean;
@@ -161,10 +154,9 @@ export function ConnectionsPanel({
             <div className="conn-sub">Comunicaciones</div>
           </div>
           <div className="conn-status" style={{ display: "grid", gap: 4, justifyItems: "end" }}>
-            <span>{commsActiveEnv === "PRODUCTION" ? "Activo" : "Inactivo"}</span>
+            <span>{commsProduction?.baseUrl ? "Activo" : "Inactivo"}</span>
             {(() => {
-              const env = commsActiveEnv === "PRODUCTION" ? commsProduction : commsSandbox;
-              const ready = Boolean(env?.baseUrl && env?.accountId && env?.inboxId);
+              const ready = Boolean(commsProduction?.baseUrl && commsProduction?.accountId && commsProduction?.inboxId);
               return ready ? (
                 <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" style={{ color: "var(--success)" }}>
                   <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
@@ -283,114 +275,120 @@ export function ConnectionsPanel({
             </div>
 
             <div className="modal-body">
-              <form action={actions.setCentralActiveEnv} style={{ display: "grid", gridTemplateColumns: "1fr auto", alignItems: "end", gap: 10 }}>
-                <input type="hidden" name="csrf" value={csrfToken} />
-                {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
-              <div className="field">
-                <label>
-                  Entorno activo
-                  <HelpTip text="Define qué entorno usa el sistema para comunicaciones por defecto." />
-                </label>
-                <select className="select" name="activeEnv" defaultValue={commsActiveEnv}>
-                  <option value="PRODUCTION">Producción</option>
-                  <option value="SANDBOX">Sandbox</option>
-                </select>
-              </div>
-              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-                {inlineMsg("central_env", "Guardado.", "Error guardando", inlineState)}
-                <PendingButton className="primary btn-save" type="submit" pendingText="Guardando...">
-                  Guardar
-                </PendingButton>
-              </div>
-            </form>
-
-            <div className="modal-split">
-              {([
-                ["PRODUCTION", "Producción", commsProduction],
-                ["SANDBOX", "Sandbox", commsSandbox]
-              ] as const).map(([envKey, envLabel, comms]) => (
-                <div key={envKey} className="panel module">
-                  <div className="panelHeaderRow">
-                    <strong>CentralCom ({envLabel})</strong>
-                  </div>
-                  <form action={actions.updateChatwoot} style={{ display: "grid", gap: 10 }}>
-                    <input type="hidden" name="csrf" value={csrfToken} />
-                    {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
-                    <input type="hidden" name="environment" value={envKey} />
-                    <div className="field">
-                      <label>URL base</label>
-                      <input className="input" name="baseUrl" placeholder="https://central.tu-dominio.com" defaultValue={comms?.baseUrl || ""} />
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-                      <div className="field">
-                        <label>ID de cuenta</label>
-                        <input className="input" name="accountId" defaultValue={comms?.accountId || ""} />
-                      </div>
-                      <div className="field">
-                        <label>ID de bandeja</label>
-                        <input className="input" name="inboxId" defaultValue={comms?.inboxId || ""} />
-                      </div>
-                      <div className="field">
-                        <label>Token API</label>
-                        <input className="input" name="apiAccessToken" type="password" placeholder="••••••••" />
-                        <div className="field-hint">Déjalo vacío para conservar el token actual.</div>
-                      </div>
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 10 }}>
-                      <div className="field">
-                        <label>Plantilla WhatsApp (producto)</label>
-                        <input
-                          className="input"
-                          name="productTemplateName"
-                          placeholder="apiflujos_producto_link"
-                          defaultValue={comms?.productTemplateName || ""}
-                        />
-                        <div className="field-hint">Recomendado: plantilla con 4 variables en body (cliente, producto, precio, link).</div>
-                      </div>
-                      <div className="field">
-                        <label>Idioma plantilla</label>
-                        <input className="input" name="productTemplateLang" placeholder="es" defaultValue={comms?.productTemplateLang || ""} />
-                        <div className="field-hint">Ej: es, es_CO.</div>
-                      </div>
-                    </div>
-                    <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                        {inlineMsg("central_delete", "Eliminado.", "Error eliminando", inlineState)}
-                        <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" formAction={actions.deleteCentralConnection} aria-label="Eliminar conexión CentralCom" title="Eliminar conexión CentralCom" />
-                      </div>
-                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                        {inlineMsg("central_save", "Guardado.", "Error guardando", inlineState)}
-                        {/* Estado de测试结果 - se mantiene después de guardar */}
-                        {centralTestStatus[envKey as "PRODUCTION" | "SANDBOX"] === "ok" ? (
-                          <div className="field-hint is-success" style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>
-                            Conexión exitosa
-                          </div>
-                        ) : centralTestStatus[envKey as "PRODUCTION" | "SANDBOX"] === "fail" ? (
-                          <div className="field-hint" style={{ color: "var(--danger)" }}>Error conectando</div>
-                        ) : null}
-                        <DualActionButtons
-                          primaryLabel="Guardar"
-                          primaryPendingLabel="Guardando..."
-                          primaryClassName="primary"
-                          secondaryLabel="Probar conexión"
-                          secondaryPendingLabel="Conectando..."
-                          secondaryClassName="ghost"
-                          secondaryFormAction={async (formData: FormData) => {
-                            try {
-                              await actions.testCentralConnection(formData);
-                              setCentralTestStatus(prev => ({ ...prev, [envKey]: "ok" as const }));
-                            } catch (err: any) {
-                              setCentralTestStatus(prev => ({ ...prev, [envKey]: "fail" as const }));
-                            }
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </form>
+              <div className="panel module">
+                <div className="panelHeaderRow">
+                  <strong>CentralCom · Chatwoot</strong>
                 </div>
-              ))}
-            </div>
+                <form action={actions.updateChatwoot} style={{ display: "grid", gap: 10 }}>
+                  <input type="hidden" name="csrf" value={csrfToken} />
+                  {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
+                  <input type="hidden" name="environment" value="PRODUCTION" />
+                  <div className="field">
+                    <label>URL base</label>
+                    <input className="input" name="baseUrl" placeholder="https://central.tu-dominio.com" defaultValue={commsProduction?.baseUrl || ""} />
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                    <div className="field">
+                      <label>ID de cuenta</label>
+                      <input className="input" name="accountId" defaultValue={commsProduction?.accountId || ""} />
+                    </div>
+                    <div className="field">
+                      <label>ID de bandeja</label>
+                      <input className="input" name="inboxId" defaultValue={commsProduction?.inboxId || ""} />
+                    </div>
+                    <div className="field">
+                      <label>Token API</label>
+                      <input className="input" name="apiAccessToken" type="password" placeholder="••••••••" />
+                      <div className="field-hint">Déjalo vacío para conservar el token actual.</div>
+                    </div>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 10 }}>
+                    <div className="field">
+                      <label>Plantilla WhatsApp (producto)</label>
+                      <input
+                        className="input"
+                        name="productTemplateName"
+                        placeholder="apiflujos_producto_link"
+                        defaultValue={commsProduction?.productTemplateName || ""}
+                      />
+                      <div className="field-hint">Recomendado: plantilla con 4 variables en body (cliente, producto, precio, link).</div>
+                    </div>
+                    <div className="field">
+                      <label>Idioma plantilla</label>
+                      <input className="input" name="productTemplateLang" placeholder="es" defaultValue={commsProduction?.productTemplateLang || ""} />
+                      <div className="field-hint">Ej: es, es_CO.</div>
+                    </div>
+                  </div>
+                  <div className="field">
+                    <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span>Plantillas WhatsApp</span>
+                      <HelpTip text="Sincroniza las plantillas aprobadas en Chatwoot para poder seleccionarlas en notificaciones." />
+                    </label>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                      <button
+                        className="ghost btn-compact"
+                        type="button"
+                        disabled={templatesSync.running}
+                        onClick={async () => {
+                          setTemplatesSync({ running: true, count: 0, error: "" });
+                          try {
+                            const res = await fetch("/admin/comms?op=whatsapp_templates", { cache: "no-store" });
+                            const json = await res.json().catch(() => null);
+                            if (!res.ok || !json?.ok) throw new Error(json?.error || "sync_failed");
+                            const count = Array.isArray(json?.templates) ? json.templates.length : 0;
+                            setTemplatesSync({ running: false, count, error: "" });
+                          } catch (err: any) {
+                            setTemplatesSync({ running: false, count: 0, error: String(err?.message || "sync_failed") });
+                          }
+                        }}
+                      >
+                        {templatesSync.running ? "Sincronizando..." : "Sincronizar plantillas"}
+                      </button>
+                      <span className="field-hint">
+                        {templatesSync.count ? `Sincronizadas: ${templatesSync.count}` : "Trae las plantillas activas desde Chatwoot."}
+                      </span>
+                    </div>
+                    {templatesSync.error ? (
+                      <div className="field-hint" style={{ color: "var(--danger)" }}>
+                        Error: {templatesSync.error}
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      {inlineMsg("central_delete", "Eliminado.", "Error eliminando", inlineState)}
+                      <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" formAction={actions.deleteCentralConnection} aria-label="Eliminar conexión CentralCom" title="Eliminar conexión CentralCom" />
+                    </div>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      {inlineMsg("central_save", "Guardado.", "Error guardando", inlineState)}
+                      {centralTestStatus === "ok" ? (
+                        <div className="field-hint is-success" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>
+                          Conexión exitosa
+                        </div>
+                      ) : centralTestStatus === "fail" ? (
+                        <div className="field-hint" style={{ color: "var(--danger)" }}>Error conectando</div>
+                      ) : null}
+                      <DualActionButtons
+                        primaryLabel="Guardar"
+                        primaryPendingLabel="Guardando..."
+                        primaryClassName="primary"
+                        secondaryLabel="Probar conexión"
+                        secondaryPendingLabel="Conectando..."
+                        secondaryClassName="ghost"
+                        secondaryFormAction={async (formData: FormData) => {
+                          try {
+                            await actions.testCentralConnection(formData);
+                            setCentralTestStatus("ok");
+                          } catch (err: any) {
+                            setCentralTestStatus("fail");
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                </form>
+              </div>
 
             <div className="panel module" style={{ display: "grid", gap: 10 }}>
               <div className="panelHeaderRow">
