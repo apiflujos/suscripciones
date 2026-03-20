@@ -1177,16 +1177,6 @@ export async function forwardWompiToShopify(webhookEventId: string) {
 
   if (!res.ok) {
     const bodyText = res.text || "";
-    const looksLikeSoftFail = res.status >= 500 && /internal server error/i.test(bodyText) && /"success"\s*:\s*false/i.test(bodyText);
-    if (looksLikeSoftFail) {
-      await systemLog(LogLevel.WARN, "shopify.forward", "Forward returned 5xx but treated as accepted", {
-        webhookEventId,
-        status: res.status,
-        body: bodyText.slice(0, 2000),
-        url: cfg.url
-      }, "webhook:wompi").catch(() => {});
-      return;
-    }
     await systemLog(LogLevel.ERROR, "shopify.forward", "Forward failed", {
       webhookEventId,
       status: res.status,
