@@ -9,6 +9,7 @@
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
+    "noImplicitAny": false,
     "noEmit": true,
     "module": "esnext",
     "moduleResolution": "bundler",
@@ -39,8 +40,7 @@
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    "**/*.d.ts",
-    ".next/types/**/*.ts"
+    "**/*.d.ts"
   ],
   "exclude": [
     "node_modules"

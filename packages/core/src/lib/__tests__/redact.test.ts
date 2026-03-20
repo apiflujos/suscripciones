@@ -1,5 +1,4 @@
-import test from "node:test";
-import assert from "node:assert/strict";
+import { test, expect } from "vitest";
 import { redactHeaders } from "../redact";
 
 test("redactHeaders: redacts sensitive header names", () => {
@@ -8,7 +7,7 @@ test("redactHeaders: redacts sensitive header names", () => {
     "x-api-key": "abc",
     "x-custom": "ok"
   });
-  assert.equal(out.authorization, "[redacted]");
-  assert.equal(out["x-api-key"], "[redacted]");
-  assert.equal(out["x-custom"], "ok");
+  expect(out.authorization).toBe("[redacted]");
+  expect(out["x-api-key"]).toBe("[redacted]");
+  expect(out["x-custom"]).toBe("ok");
 });

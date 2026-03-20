@@ -12,6 +12,7 @@ import { ThemeClient } from "./ThemeClient";
 import { ClientProviders } from "./ClientProviders";
 import { RealtimeNotifier } from "./ui/RealtimeNotifier";
 import { listTenants } from "./admin/_services/tenants";
+import type { AdminSession } from "../lib/session";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../lib/session";
 
 const APP_ICONS: Metadata["icons"] = {
@@ -72,7 +73,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   
   // El middleware ya verificó autenticación y redirigió si era necesario
   // Aquí solo necesitamos la sesión para UI (TopBar, SideNav, permisos)
-  let session = null;
+  let session: AdminSession | null = null;
   if (authUser) {
     const c = await cookies();
     const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";

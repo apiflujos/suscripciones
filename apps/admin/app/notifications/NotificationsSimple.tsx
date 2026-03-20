@@ -27,6 +27,7 @@ type ChatwootTemplate = {
   language?: string;
   category?: string;
   status?: string;
+  components?: any[];
 };
 
 type Rule = {

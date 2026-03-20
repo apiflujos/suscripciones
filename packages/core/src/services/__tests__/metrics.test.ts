@@ -36,6 +36,8 @@ vi.mock('../../db/prisma', () => ({
 describe('getMetricsOverview', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(prisma.$queryRawUnsafe).mockResolvedValue([] as any);
+    vi.mocked(prisma.subscription.count).mockResolvedValue(0 as any);
   });
 
   afterEach(() => {
@@ -248,6 +250,9 @@ describe('getMetricsOverview', () => {
     it('should calculate conversion percentage correctly', async () => {
       // 100 links enviados, 25 pagados → 25% conversión
       (prisma.$queryRawUnsafe as any).mockImplementation((query: string) => {
+        if (query.includes('links_paid_in_range')) {
+          return Promise.resolve([{ links_sent: 100n, links_paid_in_range: 25n }]);
+        }
         if (query.includes('links_sent')) {
           return Promise.resolve([{ links_sent: 100n }]);
         }

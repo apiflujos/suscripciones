@@ -10,6 +10,18 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { reconcileWompiTransaction, reconcileWompiByReference } from '../wompiReconcile';
 import { prisma } from '../../db/prisma';
+import { getWompiApiBaseUrl, getWompiCheckoutLinkBaseUrl, getWompiPrivateKey, getWompiPublicKey } from '../runtimeConfig';
+import { getDefaultTenantId } from '../tenantContext';
+
+const getTransactionMock = vi.hoisted(() => vi.fn());
+const listTransactionsMock = vi.hoisted(() => vi.fn());
+
+vi.mock('../../providers/wompi/client', () => ({
+  WompiClient: vi.fn().mockImplementation(() => ({
+    getTransaction: getTransactionMock,
+    listTransactionsByReference: listTransactionsMock
+  }))
+}));
 
 // Mock de Prisma
 vi.mock('../../db/prisma', () => ({
@@ -29,13 +41,46 @@ vi.mock('../runtimeConfig', () => ({
   getWompiApiBaseUrl: vi.fn(() => Promise.resolve('https://sandbox.wompi.co/v1')),
   getWompiCheckoutLinkBaseUrl: vi.fn(() => Promise.resolve('https://checkout.wompi.co/l/')),
   getWompiPrivateKey: vi.fn(() => Promise.resolve('test-private-key')),
-  getWompiPublicKey: vi.fn(() => Promise.resolve('test-public-key')),
+  getWompiPublicKey: vi.fn(() => Promise.resolve('test-public-key'))
+}));
+
+vi.mock('../tenantContext', () => ({
   getDefaultTenantId: vi.fn(() => Promise.resolve('test-tenant-id'))
 }));
 
 describe('reconcileWompiTransaction', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getTransactionMock.mockResolvedValue({
+      id: '12345',
+      status: 'APPROVED',
+      amountInCents: 10000,
+      currency: 'COP',
+      reference: 'TEST_123',
+      paymentLinkId: 'pl_123',
+      customerEmail: 'test@example.com',
+      raw: {}
+    });
+    listTransactionsMock.mockResolvedValue([
+      {
+        id: '12345',
+        status: 'APPROVED',
+        amountInCents: 10000,
+        currency: 'COP',
+        reference: 'TEST_123',
+        paymentLinkId: 'pl_123',
+        customerEmail: 'test@example.com',
+        finalizedAt: '2026-03-01T00:00:00Z',
+        createdAt: '2026-02-28T00:00:00Z'
+      }
+    ]);
+    vi.mocked(prisma.webhookEvent.create).mockResolvedValue({ id: 'webhook-123' } as any);
+    vi.mocked(prisma.retryJob.create).mockResolvedValue({} as any);
+    vi.mocked(getWompiPublicKey).mockResolvedValue('test-public-key');
+    vi.mocked(getWompiPrivateKey).mockResolvedValue('test-private-key');
+    vi.mocked(getWompiApiBaseUrl).mockResolvedValue('https://sandbox.wompi.co/v1');
+    vi.mocked(getWompiCheckoutLinkBaseUrl).mockResolvedValue('https://checkout.wompi.co/l/');
+    vi.mocked(getDefaultTenantId).mockResolvedValue('test-tenant-id');
   });
 
   describe('Validación de parámetros', () => {
@@ -60,40 +105,35 @@ describe('reconcileWompiTransaction', () => {
     });
 
     it('should reject when tenant is missing', async () => {
-      // Mock getDefaultTenantId para retornar null
-      vi.mocked(prisma.webhookEvent.create).mockRejectedValue(new Error('missing_tenant'));
+      vi.mocked(getDefaultTenantId).mockResolvedValueOnce(null);
 
       const result = await reconcileWompiTransaction({
         wompiTransactionId: '12345',
         tenantId: null
       });
 
-      // El resultado depende de cómo maneja el error getDefaultTenantId
       expect(result.ok).toBe(false);
+      expect(result.reason).toBe('missing_tenant');
     });
   });
 
   describe('Conciliación de transacciones', () => {
     it('should reject transactions with non-final status', async () => {
-      // Mock de WompiClient para retornar status PENDING
-      const mockGetTransaction = vi.fn().mockResolvedValue({
+      getTransactionMock.mockResolvedValueOnce({
         id: '12345',
         status: 'PENDING',
         amountInCents: 10000,
         currency: 'COP',
         reference: 'TEST_123',
         paymentLinkId: 'pl_123',
-        customerEmail: 'test@example.com'
-      });
-
-      // Simular que el mock se usa
-      vi.mocked(prisma.webhookEvent.create).mockImplementation(async () => {
-        throw new Error('status_not_final');
+        customerEmail: 'test@example.com',
+        raw: {}
       });
 
       const result = await reconcileWompiTransaction({
         wompiTransactionId: '12345',
-        tenantId: 'test-tenant'
+        tenantId: 'test-tenant',
+        processNow: false
       });
 
       expect(result.ok).toBe(false);
@@ -143,12 +183,12 @@ describe('reconcileWompiTransaction', () => {
 
   describe('Wompi API integration', () => {
     it('should reject when Wompi API is unavailable', async () => {
-      // Simular error de red
-      const mockGetTransaction = vi.fn().mockRejectedValue(new Error('Network error'));
+      getTransactionMock.mockRejectedValueOnce(new Error('Network error'));
 
       const result = await reconcileWompiTransaction({
         wompiTransactionId: '12345',
-        tenantId: 'test-tenant'
+        tenantId: 'test-tenant',
+        processNow: false
       });
 
       // Debería fallar gracefully
@@ -156,11 +196,12 @@ describe('reconcileWompiTransaction', () => {
     });
 
     it('should reject when public key is not configured', async () => {
-      vi.mocked(prisma.webhookEvent.create).mockRejectedValue(new Error('wompi_public_key_not_configured'));
+      vi.mocked(getWompiPublicKey).mockResolvedValueOnce('');
 
       const result = await reconcileWompiTransaction({
         wompiTransactionId: '12345',
-        tenantId: 'test-tenant'
+        tenantId: 'test-tenant',
+        processNow: false
       });
 
       expect(result.ok).toBe(false);
@@ -172,13 +213,34 @@ describe('reconcileWompiTransaction', () => {
 describe('reconcileWompiByReference', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    listTransactionsMock.mockResolvedValue([
+      {
+        id: '12345',
+        status: 'APPROVED',
+        amountInCents: 10000,
+        currency: 'COP',
+        reference: 'SUB_test_1',
+        paymentLinkId: 'pl_123',
+        customerEmail: 'test@example.com',
+        finalizedAt: '2026-03-01T00:00:00Z',
+        createdAt: '2026-02-28T00:00:00Z'
+      }
+    ]);
+    vi.mocked(prisma.webhookEvent.create).mockResolvedValue({ id: 'webhook-123' } as any);
+    vi.mocked(prisma.retryJob.create).mockResolvedValue({} as any);
+    vi.mocked(getWompiPublicKey).mockResolvedValue('test-public-key');
+    vi.mocked(getWompiPrivateKey).mockResolvedValue('test-private-key');
+    vi.mocked(getWompiApiBaseUrl).mockResolvedValue('https://sandbox.wompi.co/v1');
+    vi.mocked(getWompiCheckoutLinkBaseUrl).mockResolvedValue('https://checkout.wompi.co/l/');
+    vi.mocked(getDefaultTenantId).mockResolvedValue('test-tenant-id');
   });
 
   describe('Validación de parámetros', () => {
     it('should reject missing reference', async () => {
       const result = await reconcileWompiByReference({
         reference: '',
-        tenantId: 'test-tenant'
+        tenantId: 'test-tenant',
+        processNow: false
       });
 
       expect(result.ok).toBe(false);
@@ -188,7 +250,8 @@ describe('reconcileWompiByReference', () => {
     it('should reject null reference', async () => {
       const result = await reconcileWompiByReference({
         reference: null as any,
-        tenantId: 'test-tenant'
+        tenantId: 'test-tenant',
+        processNow: false
       });
 
       expect(result.ok).toBe(false);
@@ -198,12 +261,12 @@ describe('reconcileWompiByReference', () => {
 
   describe('Búsqueda por referencia', () => {
     it('should reject when no transactions found by reference', async () => {
-      // Mock que retorna lista vacía
-      vi.mocked(prisma.webhookEvent.create).mockRejectedValue(new Error('transaction_not_found_by_reference'));
+      listTransactionsMock.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
 
       const result = await reconcileWompiByReference({
         reference: 'SUB_test_1',
-        tenantId: 'test-tenant'
+        tenantId: 'test-tenant',
+        processNow: false
       });
 
       expect(result.ok).toBe(false);
@@ -211,11 +274,24 @@ describe('reconcileWompiByReference', () => {
     });
 
     it('should reject when all transactions have non-final status', async () => {
-      vi.mocked(prisma.webhookEvent.create).mockRejectedValue(new Error('status_not_final'));
+      listTransactionsMock.mockResolvedValueOnce([
+        {
+          id: 'tx_pending',
+          status: 'PENDING',
+          amountInCents: 10000,
+          currency: 'COP',
+          reference: 'SUB_test_1',
+          paymentLinkId: 'pl_123',
+          customerEmail: 'test@example.com',
+          finalizedAt: '2026-03-01T00:00:00Z',
+          createdAt: '2026-02-28T00:00:00Z'
+        }
+      ]);
 
       const result = await reconcileWompiByReference({
         reference: 'SUB_test_1',
-        tenantId: 'test-tenant'
+        tenantId: 'test-tenant',
+        processNow: false
       });
 
       expect(result.ok).toBe(false);
@@ -227,29 +303,52 @@ describe('reconcileWompiByReference', () => {
     it('should prefer transactions with matching paymentLinkId', async () => {
       // Este test valida el scoring de candidatos
       // La implementación debería preferir la transacción con paymentLinkId matching
-      vi.mocked(prisma.webhookEvent.create).mockRejectedValue(new Error('transaction_not_found_by_reference'));
-
       const result = await reconcileWompiByReference({
         reference: 'SUB_test_1',
         tenantId: 'test-tenant',
-        paymentLinkId: 'pl_expected'
+        paymentLinkId: 'pl_expected',
+        processNow: false
       });
 
       // El scoring es interno, pero el resultado debería reflejar la selección correcta
-      expect(result.ok).toBe(false); // Fallback a error de no encontrada
+      expect(result.ok).toBe(true);
     });
 
     it('should score higher for matching amount and currency', async () => {
-      vi.mocked(prisma.webhookEvent.create).mockRejectedValue(new Error('transaction_not_found_by_reference'));
+      listTransactionsMock.mockResolvedValueOnce([
+        {
+          id: 'tx_1',
+          status: 'APPROVED',
+          amountInCents: 50000,
+          currency: 'COP',
+          reference: 'SUB_test_1',
+          paymentLinkId: 'pl_123',
+          customerEmail: 'test@example.com',
+          finalizedAt: '2026-03-01T00:00:00Z',
+          createdAt: '2026-02-28T00:00:00Z'
+        },
+        {
+          id: 'tx_2',
+          status: 'APPROVED',
+          amountInCents: 40000,
+          currency: 'USD',
+          reference: 'SUB_test_1',
+          paymentLinkId: 'pl_123',
+          customerEmail: 'test@example.com',
+          finalizedAt: '2026-03-01T00:00:00Z',
+          createdAt: '2026-02-28T00:00:00Z'
+        }
+      ]);
 
       const result = await reconcileWompiByReference({
         reference: 'SUB_test_1',
         tenantId: 'test-tenant',
         amountInCents: 50000,
-        currency: 'COP'
+        currency: 'COP',
+        processNow: false
       });
 
-      expect(result.ok).toBe(false);
+      expect(result.ok).toBe(true);
     });
   });
 });

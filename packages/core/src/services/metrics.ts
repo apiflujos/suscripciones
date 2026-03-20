@@ -68,6 +68,13 @@ function iso(d: Date) {
   return d.toISOString();
 }
 
+function bucketKey(raw: any): string | null {
+  if (!raw) return null;
+  const d = raw instanceof Date ? raw : new Date(raw);
+  if (Number.isNaN(d.getTime())) return null;
+  return iso(d);
+}
+
 function num(v: any) {
   const n = typeof v === "bigint" ? Number(v) : Number(v ?? 0);
   return Number.isFinite(n) ? n : 0;
@@ -79,6 +86,36 @@ function monthBoundsUtc(d: Date) {
   const start = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1, 0, 0, 0) );
   const end = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1, 0, 0, 0) );
   return { start, end };
+}
+
+function truncateUtc(d: Date, g: Granularity) {
+  if (g === "month") return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1, 0, 0, 0));
+  if (g === "week") {
+    const day = d.getUTCDay(); // 0=Sun..6=Sat
+    const diff = (day + 6) % 7; // Monday=0
+    return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - diff, 0, 0, 0));
+  }
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0));
+}
+
+function addStepUtc(d: Date, g: Granularity) {
+  if (g === "month") return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1, 0, 0, 0));
+  const stepDays = g === "week" ? 7 : 1;
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + stepDays, 0, 0, 0));
+}
+
+function buildBucketsFallback(from: Date, to: Date, g: Granularity): BucketRow[] {
+  const out: BucketRow[] = [];
+  let cursor = truncateUtc(from, g);
+  const end = truncateUtc(to, g);
+  const maxIters = 4000;
+  let i = 0;
+  while (cursor <= end && i < maxIters) {
+    out.push({ bucket: new Date(cursor) });
+    cursor = addStepUtc(cursor, g);
+    i += 1;
+  }
+  return out;
 }
 
 // ============================================================================
@@ -175,18 +212,28 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
   const paymentReconciliationFilter = ` AND COALESCE((p."providerResponse"->'reconciliation'->>'status')::text, '') <> 'IGNORED_EXTERNAL'`;
   const paymentUnlinkedFilter = includeUnlinkedPayments ? "" : ` AND p."subscriptionId" IS NOT NULL`;
 
-  const buckets = (await prisma.$queryRawUnsafe<BucketRow[]>(
-    `SELECT bucket::timestamptz AS bucket
-     FROM generate_series(date_trunc('${trunc}', $1::timestamptz), date_trunc('${trunc}', $2::timestamptz), interval '${step}') AS bucket
-     ORDER BY bucket ASC`,
-    from,
-    to
-  )) as BucketRow[];
+  let buckets: BucketRow[] = [];
+  try {
+    buckets = (await prisma.$queryRawUnsafe<BucketRow[]>(
+      `SELECT bucket::timestamptz AS bucket
+       FROM generate_series(date_trunc('${trunc}', $1::timestamptz), date_trunc('${trunc}', $2::timestamptz), interval '${step}') AS bucket
+       ORDER BY bucket ASC`,
+      from,
+      to
+    )) as BucketRow[];
+  } catch (err) {
+    console.error('[Metrics] Error en buckets:', err);
+  }
+  if (!Array.isArray(buckets) || buckets.length === 0) {
+    buckets = buildBucketsFallback(from, to, args.granularity);
+  }
 
   const baseSeries = new Map<string, SeriesPoint>();
   for (const b of buckets) {
-    baseSeries.set(iso(b.bucket), {
-      at: iso(b.bucket),
+    const key = bucketKey(b.bucket);
+    if (!key) continue;
+    baseSeries.set(key, {
+      at: key,
       revenueInCents: 0,
       paymentsSuccess: 0,
       paymentsFailed: 0,
@@ -272,9 +319,14 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
   } catch (err) {
     console.error('[Metrics] Error en queries paralelas:', err);
   }
+  paymentsAgg = Array.isArray(paymentsAgg) ? paymentsAgg : [];
+  failedAgg = Array.isArray(failedAgg) ? failedAgg : [];
+  linksSentAgg = Array.isArray(linksSentAgg) ? linksSentAgg : [];
+  linksPaidAgg = Array.isArray(linksPaidAgg) ? linksPaidAgg : [];
 
   for (const r of paymentsAgg) {
-    const key = iso(r.bucket);
+    const key = bucketKey(r.bucket);
+    if (!key) continue;
     const p = baseSeries.get(key);
     if (!p) continue;
     p.paymentsSuccess = num(r.payments_success);
@@ -282,21 +334,24 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
   }
 
   for (const r of failedAgg) {
-    const key = iso(r.bucket);
+    const key = bucketKey(r.bucket);
+    if (!key) continue;
     const p = baseSeries.get(key);
     if (!p) continue;
     p.paymentsFailed = num(r.payments_failed);
   }
 
   for (const r of linksSentAgg) {
-    const key = iso(r.bucket);
+    const key = bucketKey(r.bucket);
+    if (!key) continue;
     const p = baseSeries.get(key);
     if (!p) continue;
     p.linksSent = num(r.links_sent);
   }
 
   for (const r of linksPaidAgg) {
-    const key = iso(r.bucket);
+    const key = bucketKey(r.bucket);
+    if (!key) continue;
     const p = baseSeries.get(key);
     if (!p) continue;
     p.linksPaid = num(r.links_paid);
@@ -361,12 +416,19 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
   }
 
   const startsByBucket = new Map<string, number>();
-  for (const r of startsAgg) startsByBucket.set(iso(r.bucket), num(r.starts));
+  for (const r of startsAgg) {
+    const key = bucketKey(r.bucket);
+    if (key) startsByBucket.set(key, num(r.starts));
+  }
   const cancelsByBucket = new Map<string, number>();
-  for (const r of cancelsAgg) cancelsByBucket.set(iso(r.bucket), num(r.cancels));
+  for (const r of cancelsAgg) {
+    const key = bucketKey(r.bucket);
+    if (key) cancelsByBucket.set(key, num(r.cancels));
+  }
 
   for (const b of buckets) {
-    const key = iso(b.bucket);
+    const key = bucketKey(b.bucket);
+    if (!key) continue;
     activeSoFar += startsByBucket.get(key) ?? 0;
     activeSoFar -= cancelsByBucket.get(key) ?? 0;
     const p = baseSeries.get(key);
@@ -761,12 +823,19 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
     }
 
     const mrrAddsByBucket = new Map<string, number>();
-    for (const r of mrrStartsAgg) mrrAddsByBucket.set(iso(r.bucket), Math.round(num(r.adds ?? 0)));
+    for (const r of mrrStartsAgg) {
+      const key = bucketKey(r.bucket);
+      if (key) mrrAddsByBucket.set(key, Math.round(num(r.adds ?? 0)));
+    }
     const mrrSubsByBucket = new Map<string, number>();
-    for (const r of mrrCancelsAgg) mrrSubsByBucket.set(iso(r.bucket), Math.round(num(r.subs ?? 0)));
+    for (const r of mrrCancelsAgg) {
+      const key = bucketKey(r.bucket);
+      if (key) mrrSubsByBucket.set(key, Math.round(num(r.subs ?? 0)));
+    }
 
     for (const b of buckets) {
-      const key = iso(b.bucket);
+      const key = bucketKey(b.bucket);
+      if (!key) continue;
       mrrSoFar += mrrAddsByBucket.get(key) ?? 0;
       mrrSoFar -= mrrSubsByBucket.get(key) ?? 0;
       const p = baseSeries.get(key);
@@ -813,7 +882,8 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
     }
 
     for (const r of churnAgg) {
-      const key = iso(r.bucket);
+      const key = bucketKey(r.bucket);
+      if (!key) continue;
       const p = baseSeries.get(key);
       if (!p) continue;
       const c = num(r.cancels);
@@ -861,10 +931,10 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
       totalRevenueInCents: num(totalsPaymentsRow[0]?.revenue_cents ?? 0),
       link: {
         linksSent: num(linksTotalsRow[0]?.links_sent ?? 0),
-        linksPaid: num(linksTotalsRow[0]?.links_paid_in_range ?? 0),
+        linksPaid: num(linksTotalsRow[0]?.links_paid_in_range ?? (linksTotalsRow[0] as any)?.links_paid ?? 0),
         conversionLinkToPayPct:
           num(linksTotalsRow[0]?.links_sent ?? 0) > 0
-            ? (num(linksTotalsRow[0]?.links_paid_in_range ?? 0) / num(linksTotalsRow[0]?.links_sent ?? 0)) * 100
+            ? (num(linksTotalsRow[0]?.links_paid_in_range ?? (linksTotalsRow[0] as any)?.links_paid ?? 0) / num(linksTotalsRow[0]?.links_sent ?? 0)) * 100
             : null,
         revenueInCents: num(linksTotalsRow[0]?.link_revenue_cents ?? 0),
         avgTimeToPaySec: linksTotalsRow[0]?.avg_time_to_pay_sec == null ? null : Number(linksTotalsRow[0]?.avg_time_to_pay_sec)

@@ -498,7 +498,14 @@ export function CustomersTable({
 
   function openViewLinks(customer: CustomerRow) {
     lastActiveRef.current = document.activeElement as HTMLElement | null;
-    const links = [];
+    const links: Array<{
+      label: string;
+      url: string;
+      sentAt?: string;
+      expiresAt?: string;
+      usedAt?: string;
+      isValid: boolean;
+    }> = [];
     
     // Payment link from latestLinks
     const latestLink = latestLinks[String(customer.id)];

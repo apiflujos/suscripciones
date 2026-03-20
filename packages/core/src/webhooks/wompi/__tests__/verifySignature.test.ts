@@ -1,5 +1,4 @@
-import test from "node:test";
-import assert from "node:assert/strict";
+import { test, expect } from "vitest";
 import { computeWompiChecksum, verifyWompiSignature } from "../verifySignature";
 import type { WompiEvent } from "../types";
 
@@ -26,19 +25,19 @@ test("computeWompiChecksum + verifyWompiSignature: valid checksum", () => {
   const checksum = computeWompiChecksum(event, secret);
   event.signature = { ...event.signature, checksum };
   const res = verifyWompiSignature({ event, eventsSecret: secret });
-  assert.deepEqual(res, { ok: true });
+  expect(res).toEqual({ ok: true });
 });
 
 test("verifyWompiSignature: missing checksum", () => {
   const event = baseEvent();
   event.signature = { ...event.signature, checksum: "" };
   const res = verifyWompiSignature({ event, eventsSecret: "secret" });
-  assert.deepEqual(res, { ok: false, reason: "missing checksum" });
+  expect(res).toEqual({ ok: false, reason: "missing checksum" });
 });
 
 test("verifyWompiSignature: checksum mismatch", () => {
   const event = baseEvent();
   event.signature = { ...event.signature, checksum: "bad" };
   const res = verifyWompiSignature({ event, eventsSecret: "secret" });
-  assert.deepEqual(res, { ok: false, reason: "checksum mismatch" });
+  expect(res).toEqual({ ok: false, reason: "checksum mismatch" });
 });

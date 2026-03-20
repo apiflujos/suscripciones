@@ -112,7 +112,7 @@ async function forwardShopifyPayment(formData: FormData) {
   const res = await enqueueShopifyForwardForPayment({ paymentId });
   if (!res.ok) {
     redirect(
-      `${returnTo}${returnTo.includes("?") ? "&" : "?"}shopifyError=${encodeURIComponent(res.error)}`
+      `${returnTo}${returnTo.includes("?") ? "&" : "?"}shopifyError=${encodeURIComponent(String(res.error || "unknown_error"))}`
     );
   }
   redirect(
@@ -394,7 +394,7 @@ export default async function LogsPage({
       end = totalPages;
       start = Math.max(1, end - (desktopWindow - 1));
     }
-    const pages = [];
+    const pages: number[] = [];
     for (let i = start; i <= end; i += 1) pages.push(i);
     const mobileWindow = 5;
     let mobileStart = Math.max(1, currentPage - 2);

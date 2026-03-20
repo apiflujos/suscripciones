@@ -557,45 +557,27 @@ export async function chargeSubscriptionNow(args: { subscriptionId: string; tena
     select: { paidAt: true, updatedAt: true, createdAt: true }
   });
   const lastApprovedAt = latestApproved?.paidAt || latestApproved?.updatedAt || latestApproved?.createdAt || null;
-  const dueByLastPayment = lastApprovedAt ? addIntervalUtc(lastApprovedAt, subscription.plan.intervalUnit, subscription.plan.intervalCount) : null;
-  const dueByCutoff = subscription.currentPeriodEndAt ? new Date(subscription.currentPeriodEndAt) : null;
-  const dueAt = dueByCutoff || dueByLastPayment;
+  const lastApprovedAtDate = lastApprovedAt ? new Date(lastApprovedAt) : null;
   const periodStartAt = subscription.currentPeriodStartAt ? new Date(subscription.currentPeriodStartAt) : null;
   const periodEndAt = subscription.currentPeriodEndAt ? new Date(subscription.currentPeriodEndAt) : null;
-  const approvedAt = lastApprovedAt;
+  const approvedAt = lastApprovedAtDate;
   const lastPaidInCurrentPeriod =
-    approvedAt !== null &&
-    periodStartAt !== null &&
-    periodEndAt !== null &&
-    approvedAt.getTime() >= periodStartAt.getTime() &&
-    approvedAt.getTime() <= periodEndAt.getTime();
+    lastApprovedAtDate && periodStartAt && periodEndAt
+      ? lastApprovedAtDate.getTime() >= periodStartAt.getTime() &&
+        lastApprovedAtDate.getTime() <= periodEndAt.getTime()
+      : false;
   if (lastPaidInCurrentPeriod) {
     const paymentId = await recordManualChargeFailure({
       subscription,
       amountInCentsOverride: args.amountInCents,
       errorCode: "payment_already_approved",
       details: {
-        paidAt: approvedAt.toISOString(),
+        paidAt: approvedAt ? approvedAt.toISOString() : null,
         currentPeriodStartAt: periodStartAt?.toISOString() || null,
         currentPeriodEndAt: periodEndAt?.toISOString() || null
       }
     }).catch(() => null);
     return { ok: false, status: 409, error: "payment_already_approved", ...(paymentId ? { paymentId } : {}) };
-  }
-  const isPastDue = subscription.status === SubscriptionStatus.PAST_DUE;
-  if (!isPastDue && dueAt && now.getTime() + 5_000 < dueAt.getTime()) {
-    const details = {
-      dueAt: dueAt.toISOString(),
-      currentPeriodEndAt: dueByCutoff ? dueByCutoff.toISOString() : null,
-      expectedByLastPayment: dueByLastPayment ? dueByLastPayment.toISOString() : null
-    };
-    const paymentId = await recordManualChargeFailure({
-      subscription,
-      amountInCentsOverride: args.amountInCents,
-      errorCode: "charge_not_due_yet",
-      details
-    }).catch(() => null);
-    return { ok: false, status: 409, error: "charge_not_due_yet", details, ...(paymentId ? { paymentId } : {}) };
   }
 
   const recentPending = await prisma.payment.findFirst({

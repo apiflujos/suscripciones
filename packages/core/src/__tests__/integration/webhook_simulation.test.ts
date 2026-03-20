@@ -2,23 +2,78 @@
  * Test de integración simulado para la lógica de Webhooks de Wompi.
  * 
  * Requisitos de ejecución:
- * Este test utiliza `node:test` nativo con `--experimental-strip-types`.
- * Si encuentra errores de resolución de módulos (ERR_MODULE_NOT_FOUND) debido a imports sin extensión .js/.ts en el código fuente,
- * se recomienda ejecutarlo usando `tsx`:
- * 
- *   npx tsx --test packages/core/src/__tests__/integration/webhook_simulation.test.ts
- * 
- * Asegúrese de que las dependencias nativas (esbuild) estén correctamente instaladas para su plataforma (ej. `npm rebuild`).
+ * Este test se ejecuta con Vitest desde la raíz del repo:
+ *
+ *   npm run test
  */
-import test from "node:test";
-import assert from "node:assert/strict";
+import { test, expect, vi } from "vitest";
 import { processWompiEventLogic } from "../../jobs/handlers/processWompiEvent";
 import { PaymentStatus, WebhookProcessStatus } from "@prisma/client";
+
+vi.mock("../../services/runtimeConfig", () => ({
+  getPaymentsConfig: vi.fn(() =>
+    Promise.resolve({
+      autoReconcileUnlinkedPayments: true,
+      acceptUnlinkedPayments: true,
+      notifyWhatsappForUnlinkedPayments: true,
+      includeUnlinkedPaymentsInMetrics: true
+    })
+  ),
+  getShopifyForward: vi.fn(() => Promise.resolve({ enabled: false })),
+  getWompiCheckoutLinkBaseUrl: vi.fn(() => Promise.resolve("https://checkout.wompi.co/l/"))
+}));
+
+vi.mock("../../services/systemLog", () => ({
+  systemLog: vi.fn(() => Promise.resolve())
+}));
+
+vi.mock("../../services/notificationsScheduler", () => ({
+  schedulePaymentStatusNotifications: vi.fn(() => Promise.resolve()),
+  scheduleSubscriptionDueNotifications: vi.fn(() => Promise.resolve())
+}));
+
+vi.mock("../../services/superAdminApp", () => ({
+  consumeApp: vi.fn(() => Promise.resolve())
+}));
+
+vi.mock("../../services/chatwootSync", () => ({
+  syncChatwootAttributesForCustomer: vi.fn(() => Promise.resolve())
+}));
+
+vi.mock("../../services/tenantContext", () => ({
+  getDefaultTenantId: vi.fn(() => Promise.resolve("tenant-1"))
+}));
+
+vi.mock("../../services/gamification", () => ({
+  applyGamificationEvent: vi.fn(() => Promise.resolve()),
+  GAMIFICATION_EVENT_KINDS: { PAYMENT_RECEIVED: "payment_received" }
+}));
+
+vi.mock("../../services/gamificationConfig", () => ({
+  GAMIFICATION_WEIGHTS: {},
+  moneyToPoints: vi.fn(() => 0)
+}));
+
+vi.mock("../../services/subscriptionMode", () => ({
+  resolveSubscriptionCollectionMode: vi.fn(() => "auto")
+}));
+
+vi.mock("../../services/realtimePublisher", () => ({
+  publishRealtime: vi.fn(() => Promise.resolve())
+}));
+
+vi.mock("../../services/retryJobScheduler", () => ({
+  ensurePaymentRetryJob: vi.fn(() => Promise.resolve())
+}));
+
+vi.mock("../../lib/http", () => ({
+  postJson: vi.fn(() => Promise.resolve({ ok: true }))
+}));
 
 // Mock mínimo de Prisma
 function createMockPrisma() {
   const store: any = {
-    webhookEvent: { "evt-1": { id: "evt-1", payload: {}, processStatus: "RECEIVED" } },
+    webhookEvent: { "evt-1": { id: "evt-1", tenantId: "tenant-1", payload: {}, processStatus: "RECEIVED" } },
     subscriptionPlan: [],
     customer: {},
     subscription: {},
@@ -29,6 +84,7 @@ function createMockPrisma() {
   };
 
   const db: any = {
+    $queryRaw: async () => [{ locked: true }],
     webhookEvent: {
       findUnique: async ({ where }: any) => store.webhookEvent[where.id] || null,
       update: async ({ where, data }: any) => {
@@ -47,6 +103,12 @@ function createMockPrisma() {
             return Object.values(store.payment).find((p: any) => p.wompiTransactionId === where.wompiTransactionId) || null;
         }
         return null;
+      },
+      findFirst: async () => null,
+      create: async ({ data }: any) => {
+        const id = "pay-" + Math.random();
+        store.payment[id] = { id, ...data };
+        return store.payment[id];
       },
       upsert: async ({ create }: any) => {
         const id = "pay-" + Math.random();
@@ -69,11 +131,15 @@ function createMockPrisma() {
     },
     customer: {
         findUnique: async ({ where }: any) => Object.values(store.customer).find((c: any) => c.email === where.email) || null,
+        findMany: async () => [],
         create: async ({ data }: any) => {
             const id = "cust-" + Math.random();
             store.customer[id] = { id, ...data };
             return store.customer[id];
         }
+    },
+    customerTenant: {
+        findFirst: async () => null
     },
     subscription: {
         create: async ({ data }: any) => {
@@ -81,9 +147,11 @@ function createMockPrisma() {
             store.subscription[id] = { id, ...data };
             return store.subscription[id];
         },
-        findUnique: async ({ where }: any) => store.subscription[where.id] || null
+        findUnique: async ({ where }: any) => store.subscription[where.id] || null,
+        findMany: async () => []
     },
     paymentLink: {
+        findUnique: async () => null,
         upsert: async () => {} 
     },
     $transaction: async (fn: any) => fn(db) // Ejecutar directamente
@@ -92,7 +160,7 @@ function createMockPrisma() {
   return { db, store };
 }
 
-test("processWompiEventLogic: crea suscripción desde pago manual", async () => {
+test("processWompiEventLogic: registra pago manual sin suscripción", async () => {
   const { db, store } = createMockPrisma();
 
   // 1. Configurar datos
@@ -117,7 +185,7 @@ test("processWompiEventLogic: crea suscripción desde pago manual", async () => 
         currency: "COP",
         reference: "pago_manual_ref",
         customer_email: "test@example.com",
-        customer_data: { full_name: "Test User" }
+        customer_data: { full_name: "Test User", phone_number: "+57 3000000000" }
       }
     },
     timestamp: Date.now()
@@ -130,25 +198,24 @@ test("processWompiEventLogic: crea suscripción desde pago manual", async () => 
 
   // 3. Verificar resultados
   const evt = store.webhookEvent["evt-1"];
-  assert.equal(evt.processStatus, WebhookProcessStatus.PROCESSED);
+  expect(evt.processStatus).toBe(WebhookProcessStatus.PROCESSED);
 
   // Verificar cliente creado
   const customers = Object.values(store.customer);
-  assert.equal(customers.length, 1);
-  assert.equal((customers[0] as any).email, "test@example.com");
+  expect(customers.length).toBe(1);
+  expect((customers[0] as any).email).toBe("test@example.com");
 
-  // Verificar suscripción creada
+  // No debe crear suscripción automática en el fallback
   const subs = Object.values(store.subscription);
-  assert.equal(subs.length, 1);
-  assert.equal((subs[0] as any).planId, "plan-1");
+  expect(subs.length).toBe(0);
 
   // Verificar pago registrado
   const payments = Object.values(store.payment);
-  assert.equal(payments.length, 1);
-  assert.equal((payments[0] as any).status, PaymentStatus.APPROVED);
+  expect(payments.length).toBe(1);
+  expect((payments[0] as any).status).toBe(PaymentStatus.APPROVED);
 });
 
-test("processWompiEventLogic: detecta ambigüedad de precios", async () => {
+test("processWompiEventLogic: procesa sin suscripción cuando el plan es ambiguo", async () => {
     const { db, store } = createMockPrisma();
   
     // Dos planes con mismo precio
@@ -158,14 +225,23 @@ test("processWompiEventLogic: detecta ambigüedad de precios", async () => {
     );
   
     const payload = {
-      data: { transaction: { amount_in_cents: 10000, currency: "COP", customer_email: "a@b.com" } }
+      data: {
+        transaction: {
+          amount_in_cents: 10000,
+          currency: "COP",
+          customer_email: "a@b.com",
+          customer_data: { full_name: "Test User", phone_number: "+57 3000000000" }
+        }
+      }
     };
     store.webhookEvent["evt-ambiguo"] = { id: "evt-ambiguo", payload, processStatus: "RECEIVED" };
   
     await processWompiEventLogic("evt-ambiguo", db);
   
-    // Debería procesar (tomando el primero) pero el sistema de logs (que no estamos mockeando aquí explícitamente pero se llama)
-    // recibiría el aviso. En este test unitario validamos que NO falle catastróficamente y cree una suscripción.
+    const evt = store.webhookEvent["evt-ambiguo"];
+    expect(evt.processStatus).toBe(WebhookProcessStatus.PROCESSED);
     const subs = Object.values(store.subscription);
-    assert.equal(subs.length, 1);
+    expect(subs.length).toBe(0);
+    const payments = Object.values(store.payment);
+    expect(payments.length).toBe(1);
 });

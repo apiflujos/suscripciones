@@ -54,7 +54,13 @@ export async function reconcileWompiTransaction(args: {
   const apiBaseUrl = await getWompiApiBaseUrl();
   const checkoutLinkBaseUrl = await getWompiCheckoutLinkBaseUrl();
   const wompi = new WompiClient({ apiBaseUrl, privateKey: "unused", checkoutLinkBaseUrl });
-  const tx = await wompi.getTransaction(txId, publicKey);
+  let tx: Awaited<ReturnType<typeof wompi.getTransaction>>;
+  try {
+    tx = await wompi.getTransaction(txId, publicKey);
+  } catch (err) {
+    console.error('[WompiReconcile] Error fetching transaction', err);
+    return { ok: false, reason: "wompi_api_unavailable" as const };
+  }
   const status = normalizeStatus(tx.status);
   if (!FINAL_WOMPI_STATUSES.has(status)) {
     return { ok: false, reason: "status_not_final" as const, status };

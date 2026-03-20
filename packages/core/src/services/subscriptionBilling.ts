@@ -385,18 +385,23 @@ export async function createPaymentLinkForSubscription(args: {
         checkoutUrl: created.checkoutUrl
       }
     });
-    const updatedId = updated?.id ?? payment.id;
+    const updatedPayment = updated ?? {
+      id: payment.id,
+      checkoutUrl: created.checkoutUrl,
+      wompiPaymentLinkId: created.id
+    };
+    const updatedId = updatedPayment.id;
 
     await prisma.paymentLink
       .upsert({
-        where: { paymentId: updated.id },
-      create: {
+        where: { paymentId: updatedPayment.id },
+        create: {
           tenantId,
           planId: sub.planId,
           subscriptionId: sub.id,
-          paymentId: updated.id,
+          paymentId: updatedPayment.id,
           wompiPaymentLinkId: created.id,
-          checkoutUrl: updated.checkoutUrl || created.checkoutUrl,
+          checkoutUrl: updatedPayment.checkoutUrl || created.checkoutUrl,
           status: PaymentLinkStatus.SENT,
           sentAt: new Date()
         },
@@ -405,7 +410,7 @@ export async function createPaymentLinkForSubscription(args: {
           planId: sub.planId,
           subscriptionId: sub.id,
           wompiPaymentLinkId: created.id,
-          checkoutUrl: updated.checkoutUrl || created.checkoutUrl
+          checkoutUrl: updatedPayment.checkoutUrl || created.checkoutUrl
         }
       })
       .catch((err) => {

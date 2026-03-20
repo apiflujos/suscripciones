@@ -191,12 +191,12 @@ export async function updateEmpresa(formData: FormData) {
   try {
     await prisma.$transaction(async (tx) => {
       const existing = await tx.contacto.findMany({ where: { empresaId: id } });
-      const existingIds = new Set(existing.map((c) => c.id));
-      const payloadIds = new Set(contacts.map((c) => c.id).filter(Boolean) as string[]);
-      const toDelete = existing.filter((c) => !payloadIds.has(c.id));
+      const existingIds = new Set(existing.map((c: { id: string }) => c.id));
+      const payloadIds = new Set(contacts.map((c: ContactInput) => c.id).filter(Boolean) as string[]);
+      const toDelete = existing.filter((c: { id: string }) => !payloadIds.has(c.id));
 
       if (toDelete.length) {
-        await tx.contacto.deleteMany({ where: { id: { in: toDelete.map((c) => c.id) } } });
+        await tx.contacto.deleteMany({ where: { id: { in: toDelete.map((c: { id: string }) => c.id) } } });
       }
 
       for (const c of contacts) {

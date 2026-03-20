@@ -1,22 +1,21 @@
-import test from "node:test";
-import assert from "node:assert/strict";
+import { test, expect } from "vitest";
 import { hashPassword, verifyPassword, normalizeSaToken } from "../superAdminAuth";
 
 test("hashPassword + verifyPassword roundtrip", () => {
   const stored = hashPassword("secret");
-  assert.ok(stored.startsWith("pbkdf2_sha256$"));
-  assert.equal(verifyPassword("secret", stored), true);
-  assert.equal(verifyPassword("wrong", stored), false);
+  expect(stored.startsWith("pbkdf2_sha256$")).toBe(true);
+  expect(verifyPassword("secret", stored)).toBe(true);
+  expect(verifyPassword("wrong", stored)).toBe(false);
 });
 
 test("verifyPassword: invalid formats are rejected", () => {
-  assert.equal(verifyPassword("secret", ""), false);
-  assert.equal(verifyPassword("secret", "pbkdf2_sha256$1$abc$def"), false);
-  assert.equal(verifyPassword("secret", "md5$1$abc$def"), false);
+  expect(verifyPassword("secret", "")).toBe(false);
+  expect(verifyPassword("secret", "pbkdf2_sha256$1$abc$def")).toBe(false);
+  expect(verifyPassword("secret", "md5$1$abc$def")).toBe(false);
 });
 
 test("normalizeSaToken strips Bearer", () => {
-  assert.equal(normalizeSaToken("Bearer abc"), "abc");
-  assert.equal(normalizeSaToken("abc"), "abc");
-  assert.equal(normalizeSaToken(""), "");
+  expect(normalizeSaToken("Bearer abc")).toBe("abc");
+  expect(normalizeSaToken("abc")).toBe("abc");
+  expect(normalizeSaToken("")).toBe("");
 });

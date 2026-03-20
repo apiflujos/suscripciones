@@ -245,7 +245,7 @@ export function ProductsTable({
 
   function openViewLinks(item: ProductRow) {
     lastActiveRef.current = document.activeElement as HTMLElement | null;
-    const links = [];
+    const links: Array<{ label: string; url: string; isValid: boolean }> = [];
     
     // Payment/Subscription link based on collection mode
     const isAutoDebit = String(item.collectionMode || "").toUpperCase() === "AUTO_DEBIT";

@@ -47,7 +47,7 @@ export default async function EmpresaDetailPage({
               }
             : null
         }
-        contactos={contactos.map((c) => ({
+        contactos={contactos.map((c: { id: string; nombre: string; email?: string | null; telefono?: string | null; cargo: string }) => ({
           id: c.id,
           nombre: c.nombre,
           email: c.email || "",

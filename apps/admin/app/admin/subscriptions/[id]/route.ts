@@ -331,37 +331,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         );
       }
     }
-    const latestApproved = await prisma.payment.findFirst({
-      where: { subscriptionId, status: PaymentStatus.APPROVED },
-      orderBy: [{ paidAt: "desc" }, { updatedAt: "desc" }, { createdAt: "desc" }],
-      select: { paidAt: true, updatedAt: true, createdAt: true }
-    });
-    const lastApprovedAt = latestApproved?.paidAt || latestApproved?.updatedAt || latestApproved?.createdAt || null;
-    const dueByLastPayment = lastApprovedAt ? addIntervalUtc(lastApprovedAt, subscription.plan.intervalUnit, subscription.plan.intervalCount) : null;
-    const dueByCutoff = subscription.currentPeriodEndAt ? new Date(subscription.currentPeriodEndAt) : null;
-    const dueAt = dueByCutoff || dueByLastPayment;
-    const isPastDue = subscription.status === SubscriptionStatus.PAST_DUE;
-    if (!isPastDue && dueAt && now.getTime() + 5_000 < dueAt.getTime()) {
-      const details = {
-        dueAt: dueAt.toISOString(),
-        currentPeriodEndAt: dueByCutoff ? dueByCutoff.toISOString() : null,
-        expectedByLastPayment: dueByLastPayment ? dueByLastPayment.toISOString() : null
-      };
-      const paymentId = await recordManualChargeFailure({
-        subscription,
-        amountInCentsOverride: (parsed as any).data.amountInCents,
-        errorCode: "charge_not_due_yet",
-        details
-      }).catch(() => null);
-      await systemLog(LogLevel.WARN, "subscriptions.charge_now", "Manual charge blocked: not due yet", {
-        subscriptionId,
-        tenantId: tenantId || null,
-        paymentId,
-        ...details
-      }).catch(() => {});
-      return Response.json({ error: "charge_not_due_yet", details, ...(paymentId ? { paymentId } : {}) }, { status: 409 });
-    }
-
     const recentPending = await prisma.payment.findFirst({
       where: {
         subscriptionId,

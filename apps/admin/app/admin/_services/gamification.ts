@@ -100,7 +100,12 @@ async function loadTrending(entityType: GamificationEntityType, tenantId: string
   if (!ids.length) return [] as any[];
 
   if (entityType === GamificationEntityType.CUSTOMER) {
-    const customers = await prisma.customer.findMany({ where: { id: { in: ids } } });
+    const customers = await prisma.customer.findMany({ where: { id: { in: ids } } }) as Array<{
+      id: string;
+      name?: string | null;
+      email?: string | null;
+      phone?: string | null;
+    }>;
     const map = new Map(customers.map((c) => [String(c.id), c]));
     return rows.map((row) => {
       const customer = map.get(String(row.entityId));
@@ -114,7 +119,11 @@ async function loadTrending(entityType: GamificationEntityType, tenantId: string
     });
   }
 
-  const plans = await prisma.subscriptionPlan.findMany({ where: { id: { in: ids } } });
+  const plans = await prisma.subscriptionPlan.findMany({ where: { id: { in: ids } } }) as Array<{
+    id: string;
+    name?: string | null;
+    metadata?: any;
+  }>;
   const map = new Map(plans.map((p) => [String(p.id), p]));
   return rows.map((row) => {
     const plan = map.get(String(row.entityId));
