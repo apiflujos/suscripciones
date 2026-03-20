@@ -506,64 +506,88 @@ export async function createAutoDebitTransactionForSubscription(args: {
   const currency = validateWompiCurrency(sub.plan.currency);
 
   const subscriptionCycleKey = `${sub.id}:${cycle}`;
-  const existingByCycle = await prisma.payment.findUnique({
-    where: { subscriptionCycleKey },
-    select: { id: true, status: true, wompiTransactionId: true, reference: true }
+  const existingApproved = await prisma.payment.findFirst({
+    where: { subscriptionId: sub.id, cycleNumber: cycle, status: PaymentStatus.APPROVED },
+    select: { id: true, wompiTransactionId: true }
   });
-
-  if (existingByCycle?.status === PaymentStatus.APPROVED) {
-    if (args.forceNewTransaction) {
-      throw new Error("payment_already_approved");
-    }
-    if (existingByCycle.wompiTransactionId) {
-      return { paymentId: existingByCycle.id, wompiTransactionId: existingByCycle.wompiTransactionId };
-    }
+  if (existingApproved) {
     throw new Error("payment_already_approved");
   }
 
-  if (existingByCycle?.wompiTransactionId && existingByCycle.status === PaymentStatus.PENDING) {
-    // Intentar reconciliar para no quedarnos pegados en un pending viejo.
-    await reconcileWompiTransaction({
-      wompiTransactionId: existingByCycle.wompiTransactionId,
-      tenantId,
-      checksumPrefix: "auto-debit-precheck"
-    }).catch(() => {});
-    const refreshed = await prisma.payment.findUnique({
-      where: { id: existingByCycle.id },
-      select: { status: true, wompiTransactionId: true, reference: true }
+  if (!args.forceNewTransaction) {
+    const existingByCycle = await prisma.payment.findUnique({
+      where: { subscriptionCycleKey },
+      select: { id: true, status: true, wompiTransactionId: true, reference: true }
     });
-    if (refreshed?.status && refreshed.status !== PaymentStatus.PENDING) {
-      if (refreshed.status === PaymentStatus.APPROVED && refreshed.wompiTransactionId) {
-        return { paymentId: existingByCycle.id, wompiTransactionId: refreshed.wompiTransactionId };
+
+    if (existingByCycle?.wompiTransactionId && existingByCycle.status === PaymentStatus.PENDING) {
+      // Intentar reconciliar para no quedarnos pegados en un pending viejo.
+      await reconcileWompiTransaction({
+        wompiTransactionId: existingByCycle.wompiTransactionId,
+        tenantId,
+        checksumPrefix: "auto-debit-precheck"
+      }).catch(() => {});
+      const refreshed = await prisma.payment.findUnique({
+        where: { id: existingByCycle.id },
+        select: { status: true, wompiTransactionId: true, reference: true }
+      });
+      if (refreshed?.status && refreshed.status !== PaymentStatus.PENDING) {
+        if (refreshed.status === PaymentStatus.APPROVED && refreshed.wompiTransactionId) {
+          return { paymentId: existingByCycle.id, wompiTransactionId: refreshed.wompiTransactionId };
+        }
+        // Si falló, permitimos crear un nuevo intento abajo.
+      } else {
+        return { paymentId: existingByCycle.id, wompiTransactionId: existingByCycle.wompiTransactionId };
       }
-      // Si falló, permitimos crear un nuevo intento abajo.
-    } else if (!args.forceNewTransaction) {
-      return { paymentId: existingByCycle.id, wompiTransactionId: existingByCycle.wompiTransactionId };
     }
   }
 
-  const payment = await prisma.payment.upsert({
-    where: { subscriptionCycleKey },
-    create: {
-      tenantId,
-      customerId: sub.customerId,
-      subscriptionId: sub.id,
-      amountInCents,
-      currency,
-      cycleNumber: cycle,
-      reference,
-      status: PaymentStatus.PENDING,
-      subscriptionCycleKey
-    },
-    update: {
-      tenantId,
-      amountInCents,
-      currency,
-      reference,
-      status: PaymentStatus.PENDING,
-      failedAt: null
-    }
-  });
+  let payment:
+    | { id: string; wompiTransactionId: string | null; status: PaymentStatus; reference: string }
+    | any;
+  if (args.forceNewTransaction) {
+    const attemptCount = await prisma.payment.count({ where: { subscriptionId: sub.id, cycleNumber: cycle } });
+    const retrySuffix = `R${Math.max(1, attemptCount + 1)}`;
+    reference = `${reference}_${retrySuffix}`;
+    payment = await prisma.payment.create({
+      data: {
+        tenantId,
+        customerId: sub.customerId,
+        subscriptionId: sub.id,
+        amountInCents,
+        currency,
+        cycleNumber: cycle,
+        reference,
+        status: PaymentStatus.PENDING,
+        subscriptionCycleKey: null
+      },
+      select: { id: true, wompiTransactionId: true, status: true, reference: true }
+    });
+  } else {
+    payment = await prisma.payment.upsert({
+      where: { subscriptionCycleKey },
+      create: {
+        tenantId,
+        customerId: sub.customerId,
+        subscriptionId: sub.id,
+        amountInCents,
+        currency,
+        cycleNumber: cycle,
+        reference,
+        status: PaymentStatus.PENDING,
+        subscriptionCycleKey
+      },
+      update: {
+        tenantId,
+        amountInCents,
+        currency,
+        reference,
+        status: PaymentStatus.PENDING,
+        failedAt: null
+      },
+      select: { id: true, wompiTransactionId: true, status: true, reference: true }
+    });
+  }
 
   if (payment.wompiTransactionId && !args.forceNewTransaction) {
     return { paymentId: payment.id, wompiTransactionId: payment.wompiTransactionId };

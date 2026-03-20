@@ -2,7 +2,7 @@ import Link from "next/link";
 import { HelpTip } from "../ui/HelpTip";
 import { getCsrfToken } from "../lib/csrf";
 import { NotificationsSimple } from "./NotificationsSimple";
-import { createNotification, saveReminder, saveRealtime } from "./actions";
+import { saveReminder, saveRealtime } from "./actions";
 import { normalizeErrorParam } from "../lib/errorParam";
 import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
 
@@ -52,7 +52,7 @@ export default async function NotificationsPage({
         </div>
       ) : null}
 
-      <NotificationsSimple env={env} csrfToken={csrfToken} templates={templates} rules={rules} actions={{ saveRealtime, saveReminder }} createNotification={createNotification} />
+      <NotificationsSimple env={env} csrfToken={csrfToken} templates={templates} rules={rules} actions={{ saveRealtime, saveReminder }} />
     </main>
   );
 }
