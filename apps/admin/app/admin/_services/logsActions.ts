@@ -395,7 +395,7 @@ export async function recollectPayments(args: { days?: number; take?: number }) 
 
 export async function enqueueShopifyForwardForPayment(args: { paymentId: string }) {
   const paymentId = String(args.paymentId || "").trim();
-  if (!paymentId) return { ok: false, error: "missing_payment_id" as const };
+  if (!paymentId) return { ok: false as const, error: "missing_payment_id" as const };
 
   const payment = await prisma.payment.findUnique({
     where: { id: paymentId },
@@ -408,7 +408,7 @@ export async function enqueueShopifyForwardForPayment(args: { paymentId: string 
       providerResponse: true
     }
   });
-  if (!payment) return { ok: false, error: "payment_not_found" as const };
+  if (!payment) return { ok: false as const, error: "payment_not_found" as const };
 
   const reference = String(payment.reference || "").trim();
   const classification = classifyReference(reference);
@@ -421,7 +421,7 @@ export async function enqueueShopifyForwardForPayment(args: { paymentId: string 
       ""
   ).toLowerCase();
   const isShopify = classification.kind === "shopify" || sourceRaw.includes("shopify");
-  if (!isShopify) return { ok: false, error: "not_shopify_payment" as const };
+  if (!isShopify) return { ok: false as const, error: "not_shopify_payment" as const };
 
   const events = await prisma.webhookEvent.findMany({
     where: { provider: "WOMPI", ...(payment.tenantId ? { tenantId: payment.tenantId } : {}) },
@@ -440,7 +440,7 @@ export async function enqueueShopifyForwardForPayment(args: { paymentId: string 
     return (txId && evTx === txId) || (linkId && evLink === linkId) || (reference && evRef === reference);
   });
 
-  if (!match) return { ok: false, error: "webhook_event_not_found" as const };
+  if (!match) return { ok: false as const, error: "webhook_event_not_found" as const };
 
   const existing = await prisma.retryJob.findFirst({
     where: {
