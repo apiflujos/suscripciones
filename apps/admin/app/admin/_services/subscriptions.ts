@@ -307,8 +307,7 @@ export async function listSubscriptions(args: {
       lastPaidAt!.getTime() >= periodStartAt!.getTime() &&
       lastPaidAt!.getTime() <= periodEndAt!.getTime();
     const dueByCutoff = periodEndAt;
-    const dueByLastPayment = lastPaidAt ? addIntervalUtc(lastPaidAt, s.plan.intervalUnit, s.plan.intervalCount) : null;
-    const dueAt = dueByCutoff || dueByLastPayment;
+    const dueAt = dueByCutoff;
     const chargeDue = dueAt ? dueAt.getTime() <= Date.now() + 5_000 : false;
     const isInactive =
       s.status === SubscriptionStatus.CANCELED || s.status === SubscriptionStatus.EXPIRED || s.status === SubscriptionStatus.SUSPENDED;
@@ -785,9 +784,7 @@ export async function recalcSubscriptionCutoff(args: { subscriptionId: string; t
   }
   if (!subscription.plan) return { ok: false, status: 409, error: "plan_not_found" as const };
 
-  const lastPayment = subscription.payments?.[0];
-  const lastApprovedAt = lastPayment?.paidAt || lastPayment?.updatedAt || lastPayment?.createdAt || null;
-  const baseStart = lastApprovedAt || subscription.currentPeriodStartAt || subscription.createdAt;
+  const baseStart = subscription.currentPeriodEndAt || subscription.currentPeriodStartAt || subscription.createdAt;
   const nextEnd = addIntervalUtc(baseStart, subscription.plan.intervalUnit, subscription.plan.intervalCount);
 
   const updated = await prisma.subscription.update({

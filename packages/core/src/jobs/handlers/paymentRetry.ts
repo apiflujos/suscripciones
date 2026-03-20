@@ -2,7 +2,6 @@ import { prisma } from "../../db/prisma";
 import { LogLevel } from "@prisma/client";
 import { createAutoDebitTransactionForSubscription, createPaymentLinkForSubscription } from "../../services/subscriptionBilling";
 import { systemLog, SystemActor } from "../../services/systemLog";
-import { addIntervalUtc } from "../../lib/dates";
 import { getAutoDebitConfig } from "../../services/runtimeConfig";
 import { resolveSubscriptionCollectionMode } from "../../services/subscriptionMode";
 import { publishRealtime } from "../../services/realtimePublisher";
@@ -125,20 +124,8 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
         };
       }
 
-      const latestApproved = await prisma.payment.findFirst({
-        where: { subscriptionId, status: "APPROVED" },
-        orderBy: [{ paidAt: "desc" }, { updatedAt: "desc" }, { createdAt: "desc" }],
-        select: { paidAt: true, updatedAt: true, createdAt: true }
-      });
-      const lastApprovedAt = latestApproved?.paidAt || latestApproved?.updatedAt || latestApproved?.createdAt || null;
-      const dueByLastPayment = lastApprovedAt
-        ? addIntervalUtc(lastApprovedAt, sub.plan.intervalUnit, sub.plan.intervalCount)
-        : null;
       const dueByCutoff = sub.currentPeriodEndAt ? new Date(sub.currentPeriodEndAt) : null;
-      const dueAt =
-        dueByCutoff && dueByLastPayment
-          ? (dueByCutoff.getTime() >= dueByLastPayment.getTime() ? dueByCutoff : dueByLastPayment)
-          : (dueByCutoff || dueByLastPayment);
+      const dueAt = dueByCutoff;
 
       if (dueAt && now.getTime() + 5_000 < dueAt.getTime()) {
         await systemLog(LogLevel.INFO, "jobs.payment_retry", "Cobro automático omitido: aún no es fecha de cobro", {
@@ -146,8 +133,7 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
           mode,
           dueAt: dueAt.toISOString(),
           now: now.toISOString(),
-          byCutoff: dueByCutoff ? dueByCutoff.toISOString() : null,
-          byLastPayment: dueByLastPayment ? dueByLastPayment.toISOString() : null
+          byCutoff: dueByCutoff ? dueByCutoff.toISOString() : null
         }, SystemActor.JOB_PAYMENT_RETRY).catch(() => {});
         void publishRealtime("payments", {
           type: "payment_retry_deferred_not_due",

@@ -319,16 +319,9 @@ export function NotificationsSimple({
     setPickerOpen(null);
   }
 
-  const pendingRealtime = REALTIME_TYPES.filter((rt) => {
-    const rule = rulesByKey.get(rt.key);
-    return !rule || Boolean(realtimeEdit[rt.key]);
-  });
-  const configuredRealtime = REALTIME_TYPES.filter((rt) => {
-    const rule = rulesByKey.get(rt.key);
-    return Boolean(rule) && !Boolean(realtimeEdit[rt.key]);
-  });
-  const dueConfigured = Boolean(reminderDue && isTemplateConfigured(reminderDueTemplate, dueKind) && !dueEdit);
-  const moraConfigured = Boolean(reminderMora && isTemplateConfigured(reminderMoraTemplate, moraKind) && !moraEdit);
+  const pendingRealtime = REALTIME_TYPES;
+  const dueConfigured = Boolean(reminderDue && isTemplateConfigured(reminderDueTemplate, dueKind));
+  const moraConfigured = Boolean(reminderMora && isTemplateConfigured(reminderMoraTemplate, moraKind));
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
@@ -386,7 +379,33 @@ export function NotificationsSimple({
               const waName = tpl?.chatwootTemplate?.name || "";
               const waLang = tpl?.chatwootTemplate?.language || "es";
               const waParams = tpl?.chatwootTemplate?.processed_params?.body || [];
-              const kind = realtimeKinds[rt.key] || (hasWa ? "WHATSAPP_TEMPLATE" : "TEXT");
+              const defaultKind = hasWa ? "WHATSAPP_TEMPLATE" : "TEXT";
+              const kind = realtimeKinds[rt.key] || defaultKind;
+              const expanded = Boolean(realtimeEdit[rt.key]);
+              const isConfigured = Boolean(rule);
+
+              if (!isConfigured) {
+                return (
+                  <div key={rt.key} className="saved-conn-card">
+                    <div className="saved-conn-header">
+                      <div>
+                        <strong style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                          <span>{rt.label}</span>
+                          <HelpTip text="Esta regla se ejecuta cuando ocurre este evento y envía la plantilla configurada." />
+                        </strong>
+                        <div className="saved-conn-sub">CentralCom</div>
+                      </div>
+                      <span className="pill pill-muted">No configurada</span>
+                    </div>
+                    <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
+                      <button className="primary btn-compact" type="button" onClick={() => setWizardOpen(true)} data-loader="off">
+                        Crear en modal
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+
               return (
                 <div key={rt.key} className="saved-conn-card">
                   <div className="saved-conn-header">
@@ -400,123 +419,118 @@ export function NotificationsSimple({
                     <span className={`pill ${rule?.enabled ? "pill-green" : "pill-muted"}`}>{rule?.enabled ? "Activa" : "Inactiva"}</span>
                   </div>
                   <form action={actions.saveRealtime} className="notification-form" style={{ display: "grid", gap: 6 }}>
-                      <input type="hidden" name="csrf" value={csrfToken} />
-                      <input type="hidden" name="environment" value={env} />
-                      <input type="hidden" name="key" value={rt.key} />
-                      <input type="hidden" name="chatwootType" value={rt.chatwootType || ""} />
-                      <input type="hidden" name="paymentType" value={rt.paymentType || ""} />
-                      <div className="field row" style={{ justifyContent: "space-between" }}>
-                        <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span>Activa</span>
-                          <HelpTip text="Enciende o apaga esta regla. Solo una notificación activa por tipo de evento." />
-                        </label>
-                        <input type="checkbox" name="enabled" defaultChecked={rule?.enabled ?? true} />
-                      </div>
-                      <div className="field">
-                        <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span>Tipo de mensaje</span>
-                          <HelpTip text="Texto: mensaje libre con variables. Plantilla WhatsApp: plantilla aprobada por Meta." />
-                        </label>
-                        <select
-                          className="select select-compact"
-                          name="templateKind"
-                          value={kind}
-                          onChange={(e) => setRealtimeKinds({ ...realtimeKinds, [rt.key]: e.target.value as any })}
-                        >
-                          <option value="TEXT">Texto</option>
-                          <option value="WHATSAPP_TEMPLATE">Plantilla WhatsApp</option>
-                        </select>
-                      </div>
-                      {kind === "TEXT" ? (
+                    <input type="hidden" name="csrf" value={csrfToken} />
+                    <input type="hidden" name="environment" value={env} />
+                    <input type="hidden" name="key" value={rt.key} />
+                    <input type="hidden" name="chatwootType" value={rt.chatwootType || ""} />
+                    <input type="hidden" name="paymentType" value={rt.paymentType || ""} />
+                    <div className="field row" style={{ justifyContent: "space-between" }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span>Activa</span>
+                        <HelpTip text="Enciende o apaga esta regla. Solo una notificación activa por tipo de evento." />
+                      </label>
+                      <input type="checkbox" name="enabled" defaultChecked={rule?.enabled ?? true} />
+                    </div>
+
+                    {expanded ? (
+                      <>
                         <div className="field">
                           <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <span>Mensaje</span>
-                            <HelpTip text="Puedes usar variables del sistema, por ejemplo: {{customer.name}}, {{customer.email}}, {{plan.name}}, {{payment.checkoutUrl}}, {{tokenization.url}}, {{catalog.url}}, {{subscription.currentPeriodEndAt}}." />
+                            <span>Tipo de mensaje</span>
+                            <HelpTip text="Texto: mensaje libre con variables. Plantilla WhatsApp: plantilla aprobada por Meta." />
                           </label>
-                          <textarea
-                            className="input input-compact"
-                            name="content"
-                            rows={1}
-                            defaultValue={content}
-                            placeholder="Escribe el mensaje..."
-                            onFocus={(e) => (lastFieldRef.current = e.target)}
-                            onInput={(e) => autoResizeTextarea(e.currentTarget)}
-                          />
-                          <div className="field-hint">Se reemplazan variables del sistema automáticamente.</div>
-                          <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-                            <button type="button" className="ghost btn-compact" data-modal="true" onClick={() => setPickerOpen("vars")} aria-label="Variables" data-loader="off">
-                              {`{ }`}
-                            </button>
-                            <button type="button" className="ghost btn-compact" data-modal="true" onClick={() => setPickerOpen("emoji")} aria-label="Emojis" data-loader="off">
-                              🙂
-                            </button>
+                          <select
+                            className="select select-compact"
+                            name="templateKind"
+                            value={kind}
+                            onChange={(e) => setRealtimeKinds({ ...realtimeKinds, [rt.key]: e.target.value as any })}
+                          >
+                            <option value="TEXT">Texto</option>
+                            <option value="WHATSAPP_TEMPLATE">Plantilla WhatsApp</option>
+                          </select>
+                        </div>
+                        {kind === "TEXT" ? (
+                          <div className="field">
+                            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <span>Mensaje</span>
+                              <HelpTip text="Puedes usar variables del sistema, por ejemplo: {{customer.name}}, {{customer.email}}, {{plan.name}}, {{payment.checkoutUrl}}, {{tokenization.url}}, {{catalog.url}}, {{subscription.currentPeriodEndAt}}." />
+                            </label>
+                            <textarea
+                              className="input input-compact"
+                              name="content"
+                              rows={1}
+                              defaultValue={content}
+                              placeholder="Escribe el mensaje..."
+                              onFocus={(e) => (lastFieldRef.current = e.target)}
+                              onInput={(e) => autoResizeTextarea(e.currentTarget)}
+                            />
+                            <div className="field-hint">Se reemplazan variables del sistema automáticamente.</div>
+                            <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                              <button type="button" className="ghost btn-compact" data-modal="true" onClick={() => setPickerOpen("vars")} aria-label="Variables" data-loader="off">
+                                {`{ }`}
+                              </button>
+                              <button type="button" className="ghost btn-compact" data-modal="true" onClick={() => setPickerOpen("emoji")} aria-label="Emojis" data-loader="off">
+                                🙂
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
+                        {kind === "WHATSAPP_TEMPLATE" ? (
+                          <>
+                            <WaTemplateFields
+                              templates={waTemplates}
+                              defaultName={waName}
+                              defaultLang={waLang}
+                              defaultParams={waParams.map((p) => p.value).join("|")}
+                            />
+                          </>
+                        ) : null}
+                      </>
+                    ) : (
+                      <>
+                        <input type="hidden" name="templateKind" value={kind} />
+                        {kind === "TEXT" ? (
+                          <input type="hidden" name="content" value={content} />
+                        ) : (
+                          <>
+                            <input type="hidden" name="waTemplateName" value={waName} />
+                            <input type="hidden" name="waLanguage" value={waLang} />
+                            <input type="hidden" name="waParams" value={waParams.map((p) => p.value).join("|")} />
+                          </>
+                        )}
+                        <div className="saved-conn-meta" style={{ borderBottom: "1px solid var(--stroke)", paddingBottom: 8 }}>
+                          <div className="saved-conn-meta-item" style={{ gridColumn: "1 / -1" }}>
+                            <span className="saved-conn-meta-label">{kind === "TEXT" ? "Mensaje" : "Plantilla"}</span>
+                            <span className="saved-conn-meta-value" style={CLAMP_STYLE}>
+                              {kind === "TEXT"
+                                ? (content || "—")
+                                : waName
+                                  ? `${waName} (${waLang})${waParams.length ? ` · ${waParams.map((p) => p.value).join(" | ")}` : ""}`
+                                  : "—"}
+                            </span>
                           </div>
                         </div>
-                      ) : null}
-                      {kind === "WHATSAPP_TEMPLATE" ? (
-                        <>
-                          <WaTemplateFields
-                            templates={waTemplates}
-                            defaultName={waName}
-                            defaultLang={waLang}
-                            defaultParams={waParams.map((p) => p.value).join("|")}
-                          />
-                        </>
-                      ) : null}
-                      <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
-                        {rule ? (
-                          <button className="ghost btn-compact btn-cancel" type="button" onClick={() => setRealtimeEdit((prev) => ({ ...prev, [rt.key]: false }))} data-loader="off">
-                            Cancelar
-                          </button>
-                        ) : null}
-                        <PendingButton className="primary btn-compact btn-save" type="submit" pendingText="Guardando...">
-                          Guardar
-                        </PendingButton>
-                      </div>
-                    </form>
+                      </>
+                    )}
+
+                    <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
+                      <button
+                        className="ghost btn-compact btn-edit"
+                        type="button"
+                        onClick={() => setRealtimeEdit((prev) => ({ ...prev, [rt.key]: !prev[rt.key] }))}
+                        data-loader="off"
+                      >
+                        {expanded ? "Ocultar" : "Editar"}
+                      </button>
+                      <PendingButton className="primary btn-compact btn-save" type="submit" pendingText="Guardando...">
+                        Guardar
+                      </PendingButton>
+                    </div>
+                  </form>
                 </div>
               );
             })}
           </div>
-          {configuredRealtime.length ? (
-            <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
-              <h4 style={{ margin: 0 }}>Notificaciones configuradas</h4>
-              <div className="module" style={{ display: "grid", gap: 6 }}>
-                {configuredRealtime.map((rt) => {
-                  const tpl = templateForKey(rt.key, rt.chatwootType, rt.label);
-                  const content = tpl?.content && tpl.content !== "(template)" ? String(tpl.content) : "";
-                  const waName = tpl?.chatwootTemplate?.name || "";
-                  const waLang = tpl?.chatwootTemplate?.language || "es";
-                  const waParams = tpl?.chatwootTemplate?.processed_params?.body || [];
-                  const kind = realtimeKinds[rt.key] || (waName ? "WHATSAPP_TEMPLATE" : "TEXT");
-                  return (
-                    <div key={`configured-${rt.key}`} className="saved-conn-meta" style={{ borderBottom: "1px solid var(--stroke)", paddingBottom: 8 }}>
-                    <div className="saved-conn-meta-item">
-                        <span className="saved-conn-meta-label">{rt.label}</span>
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                          <span className="pill pill-green">Configurada</span>
-                          <button
-                            className="ghost btn-compact btn-edit"
-                            type="button"
-                            onClick={() => setRealtimeEdit((prev) => ({ ...prev, [rt.key]: true }))}
-                            data-loader="off"
-                          >
-                            Editar
-                          </button>
-                        </span>
-                      </div>
-                      <div className="saved-conn-meta-item" style={{ gridColumn: "1 / -1" }}>
-                        <span className="saved-conn-meta-label">{kind === "TEXT" ? "Mensaje" : "Plantilla"}</span>
-                        <span className="saved-conn-meta-value" style={CLAMP_STYLE}>
-                          {kind === "TEXT" ? (content || "—") : waName ? `${waName} (${waLang})${waParams.length ? ` · ${waParams.map((p) => p.value).join(" | ")}` : ""}` : "—"}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ) : null}
         </div>
       </section>
 

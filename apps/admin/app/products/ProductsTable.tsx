@@ -585,6 +585,11 @@ export function ProductsTable({
               Crear suscripción
             </button>
           </div>
+          <div className="entity-card-actions-right">
+            <button className="ghost btn-compact btn-edit btn-noicon" type="button" data-modal="true" data-loader="off" onClick={() => openEditor(p)}>
+              Editar
+            </button>
+          </div>
         </div>
         <div className="entity-card-footer">
           <div className="field-hint">Suscripciones</div>

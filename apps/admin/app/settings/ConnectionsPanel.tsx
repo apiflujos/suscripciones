@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { HelpTip } from "../ui/HelpTip";
 import { PendingButton } from "../ui/PendingButton";
 import { DualActionButtons } from "../ui/DualActionButtons";
@@ -82,6 +82,9 @@ export function ConnectionsPanel({
     SANDBOX: null
   });
   const [centralTestStatus, setCentralTestStatus] = useState<"ok" | "fail" | null>(null);
+  const [shopifyTestStatus, setShopifyTestStatus] = useState<"idle" | "pending" | "ok" | "fail">("idle");
+  const [shopifyTestError, setShopifyTestError] = useState("");
+  const shopifyFormRef = useRef<HTMLFormElement | null>(null);
   const [templatesSync, setTemplatesSync] = useState<{ running: boolean; count: number; error: string }>({ running: false, count: 0, error: "" });
   
   const [syncState, setSyncState] = useState<{
@@ -99,6 +102,35 @@ export function ConnectionsPanel({
     startedAt?: string;
     lastAt?: string;
   }>({ running: false, synced: 0, failed: 0, skipped: 0, processed: 0, limit: 0, errors: [] });
+
+  const runShopifyTest = async () => {
+    if (!shopifyFormRef.current) return;
+    const formData = new FormData(shopifyFormRef.current);
+    const payload = {
+      forwardUrl: String(formData.get("forwardUrl") || "").trim(),
+      forwardOrigin: String(formData.get("forwardOrigin") || "").trim(),
+      forwardSecret: String(formData.get("forwardSecret") || "").trim()
+    };
+    setShopifyTestStatus("pending");
+    setShopifyTestError("");
+    try {
+      const res = await fetch("/admin/settings/shopify/test-forward", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        setShopifyTestStatus("fail");
+        setShopifyTestError(String(json?.error || json?.message || `http_${res.status}`));
+        return;
+      }
+      setShopifyTestStatus("ok");
+    } catch (err: any) {
+      setShopifyTestStatus("fail");
+      setShopifyTestError(String(err?.message || "request_failed"));
+    }
+  };
 
   return (
     <>
@@ -528,7 +560,7 @@ export function ConnectionsPanel({
             </div>
 
             <div className="modal-body">
-            <form action={actions.updateShopify} className="panel module" style={{ display: "grid", gap: 10 }}>
+            <form ref={shopifyFormRef} action={actions.updateShopify} className="panel module" style={{ display: "grid", gap: 10 }}>
               <input type="hidden" name="csrf" value={csrfToken} />
               {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
               <div className="field">
@@ -568,16 +600,19 @@ export function ConnectionsPanel({
                 </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   {inlineMsg("shopify_save", "Guardado.", "Error guardando", inlineState)}
-                  {inlineMsg("shopify_test", "Forward OK.", "Error probando", inlineState)}
-                  <DualActionButtons
-                    primaryLabel="Guardar"
-                    primaryPendingLabel="Guardando..."
-                    primaryClassName="primary"
-                    secondaryLabel="Probar forward"
-                    secondaryPendingLabel="Probando..."
-                    secondaryClassName="ghost"
-                    secondaryFormAction={actions.testShopifyForward}
-                  />
+                  {shopifyTestStatus === "ok" ? (
+                    <div className="field-hint is-success">Forward OK.</div>
+                  ) : shopifyTestStatus === "fail" ? (
+                    <div className="field-hint" style={{ color: "var(--danger)" }}>
+                      Error probando: {shopifyTestError || "unknown_error"}
+                    </div>
+                  ) : null}
+                  <button className="ghost btn-compact" type="button" onClick={runShopifyTest} disabled={shopifyTestStatus === "pending"}>
+                    {shopifyTestStatus === "pending" ? "Probando..." : "Probar forward"}
+                  </button>
+                  <PendingButton className="primary btn-compact" type="submit" pendingText="Guardando...">
+                    Guardar
+                  </PendingButton>
                 </div>
               </div>
             </form>

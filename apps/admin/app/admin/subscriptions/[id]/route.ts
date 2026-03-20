@@ -718,9 +718,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     }
     if (!subscription.plan) return Response.json({ error: "plan_not_found" }, { status: 409 });
 
-    const lastPayment = subscription.payments?.[0];
-    const lastApprovedAt = lastPayment?.paidAt || lastPayment?.updatedAt || lastPayment?.createdAt || null;
-    const baseStart = lastApprovedAt || subscription.currentPeriodStartAt || subscription.createdAt;
+    const baseStart = subscription.currentPeriodEndAt || subscription.currentPeriodStartAt || subscription.createdAt;
     const nextEnd = addIntervalUtc(baseStart, subscription.plan.intervalUnit, subscription.plan.intervalCount);
 
     const updated = await prisma.subscription.update({

@@ -32,12 +32,13 @@ export async function advanceSubscriptionCycle(params: {
     const useManualAnchor = Number.isFinite(manualCycle) && manualCycle === cycle && manualAt && !Number.isNaN(manualAt.getTime());
 
     // FIX: Normalizar fechas a UTC para evitar problemas de timezone
-    const paidAtUtc = paidAt ? toUtc(paidAt) : toUtc(sub.currentPeriodEndAt);
+    const cutoffUtc = sub.currentPeriodEndAt ? toUtc(sub.currentPeriodEndAt) : null;
+    const paidAtUtc = paidAt ? toUtc(paidAt) : null;
     const manualAtUtc = manualAt ? toUtc(manualAt) : null;
-    
+
     const nextStart = useManualAnchor
-      ? (manualAtUtc ?? paidAtUtc)
-      : paidAtUtc;
+      ? (manualAtUtc ?? cutoffUtc ?? paidAtUtc ?? toUtc(new Date()))
+      : (cutoffUtc ?? paidAtUtc ?? toUtc(new Date()));
     const nextEnd = addIntervalUtc(nextStart, sub.plan.intervalUnit, sub.plan.intervalCount);
 
     const nextMeta = useManualAnchor

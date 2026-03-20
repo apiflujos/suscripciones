@@ -1070,14 +1070,10 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
       const manualAt = manualAtRaw ? new Date(manualAtRaw) : null;
       const useManualAnchor = Number.isFinite(manualCycle) && manualCycle === cycle && manualAt && !Number.isNaN(manualAt.getTime());
 
-      // Always anchor next cutoff to the latest approved payment persisted in DB.
-      const latestApproved = await tx.payment.findFirst({
-        where: { subscriptionId: sub.id, status: PaymentStatus.APPROVED },
-        orderBy: [{ paidAt: "desc" }, { updatedAt: "desc" }, { createdAt: "desc" }],
-        select: { paidAt: true, updatedAt: true, createdAt: true }
-      });
-      const latestApprovedAt = latestApproved?.paidAt || latestApproved?.updatedAt || latestApproved?.createdAt || null;
-      const nextStart = useManualAnchor ? manualAt! : (latestApprovedAt || paidAt || sub.currentPeriodEndAt);
+      // Anchor next cutoff to the current cutoff (not last payment) unless manual override is set.
+      const nextStart = useManualAnchor
+        ? manualAt!
+        : (sub.currentPeriodEndAt || sub.currentPeriodStartAt || sub.createdAt || paidAt);
       const nextEnd = addIntervalUtc(nextStart, sub.plan.intervalUnit, sub.plan.intervalCount);
 
       const nextMeta = useManualAnchor

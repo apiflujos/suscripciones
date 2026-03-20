@@ -180,16 +180,21 @@ export function NotificationWizard({
     fd.set("trigger", trigger);
     fd.set("title", title);
     fd.set("templateKind", templateKind);
-    fd.set("message", message);
-    fd.set("waTemplateName", waTemplateName);
-    fd.set("waLanguage", waLanguage);
+    if (templateKind === "TEXT") {
+      fd.set("message", message);
+    } else {
+      fd.set("waTemplateName", waTemplateName);
+      fd.set("waLanguage", waLanguage);
+    }
     fd.set("ensurePaymentLink", ensurePaymentLink ? "1" : "0");
     fd.set("atTimeUtc", atTimeEnabled ? atTimeUtc : "");
     fd.set("paymentType", paymentType);
     if (!isRealtimeTrigger) {
       for (const s of computedOffsetsSeconds) fd.append("offsetSeconds", String(s));
     }
-    for (const p of waParams) fd.append("waParam", p);
+    if (templateKind === "WHATSAPP_TEMPLATE") {
+      for (const p of waParams) fd.append("waParam", p);
+    }
 
     const createdKind = notificationKind;
     startTransition(async () => {

@@ -127,6 +127,12 @@ export default async function SettingsPage({
     checkoutTemplates: Number(sp.tenantCheckoutTemplates || 0)
   };
   const inlineState = { action, status, errorText };
+  const renderInline = (actionKey: string, okText: string, failPrefix: string) => {
+    if (action !== actionKey) return null;
+    if (status === "ok") return <div className="field-hint is-success">{okText}</div>;
+    if (status === "fail") return <div className="field-hint" style={{ color: "var(--danger)" }}>{failPrefix}: {errorText || "unknown_error"}</div>;
+    return null;
+  };
   const returnTo = `/settings?${new URLSearchParams(
     Object.fromEntries(
       Object.entries({
@@ -316,12 +322,6 @@ export default async function SettingsPage({
                     </div>
                     <div className="saved-conn-actions">
                       <a className="ghost btn-compact btn-blue" href="/settings?tab=connections&open=wompi">Editar</a>
-                      <form action={testWompiConnection}>
-                        <input type="hidden" name="csrf" value={csrfToken} />
-                        <input type="hidden" name="environment" value={envKey} />
-                        <input type="hidden" name="returnTo" value={returnTo} />
-                        <button className="ghost btn-compact btn-amber" type="submit">Probar</button>
-                      </form>
                       <form action={deleteWompiConnection}>
                         <input type="hidden" name="csrf" value={csrfToken} />
                         <input type="hidden" name="environment" value={envKey} />
@@ -329,6 +329,7 @@ export default async function SettingsPage({
                         <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" aria-label="Eliminar conexión" title="Eliminar conexión" />
                       </form>
                     </div>
+                    <div className="field-hint">Prueba la conexión desde el modal de edición.</div>
                     <div className="saved-conn-meta">
                       <div className="saved-conn-meta-item">
                         <span className="saved-conn-meta-label">Llave pública</span>
@@ -366,16 +367,6 @@ export default async function SettingsPage({
                   </div>
                   <div className="saved-conn-actions">
                     <a className="ghost btn-compact btn-blue" href="/settings?tab=connections&open=central">Editar</a>
-                    <form action={testCentralConnection}>
-                      <input type="hidden" name="csrf" value={csrfToken} />
-                      <input type="hidden" name="baseUrl" value={commsProduction?.baseUrl || ""} />
-                      <input type="hidden" name="accountId" value={commsProduction?.accountId || ""} />
-                      <input type="hidden" name="inboxId" value={commsProduction?.inboxId || ""} />
-                      <input type="hidden" name="returnTo" value={returnTo} />
-                      <button className="ghost btn-compact btn-amber" type="submit" disabled={!commsProduction?.baseUrl || !commsProduction?.accountId || !commsProduction?.inboxId}>
-                        Probar
-                      </button>
-                    </form>
                     <form action={deleteCentralConnection}>
                       <input type="hidden" name="csrf" value={csrfToken} />
                       <input type="hidden" name="environment" value="PRODUCTION" />
@@ -383,6 +374,7 @@ export default async function SettingsPage({
                       <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" aria-label="Eliminar conexión" title="Eliminar conexión" />
                     </form>
                   </div>
+                  <div className="field-hint">Prueba la conexión desde el modal de edición.</div>
                   <div className="saved-conn-meta">
                     <div className="saved-conn-meta-item">
                       <span className="saved-conn-meta-label">Base URL</span>
@@ -412,19 +404,13 @@ export default async function SettingsPage({
                   </div>
                   <div className="saved-conn-actions">
                     <a className="ghost btn-compact btn-blue" href="/settings?tab=connections&open=shopify">Editar</a>
-                    <form action={testShopifyForward}>
-                      <input type="hidden" name="csrf" value={csrfToken} />
-                      <input type="hidden" name="forwardUrl" value={settings?.shopify?.forwardUrl || ""} />
-                      <input type="hidden" name="forwardOrigin" value={settings?.shopify?.forwardOrigin || "shopify"} />
-                      <input type="hidden" name="returnTo" value={returnTo} />
-                      <button className="ghost btn-compact btn-amber" type="submit" disabled={!settings?.shopify?.forwardUrl}>Probar</button>
-                    </form>
                     <form action={deleteShopifyConnection}>
                       <input type="hidden" name="csrf" value={csrfToken} />
                       <input type="hidden" name="returnTo" value={returnTo} />
                       <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" aria-label="Eliminar conexión" title="Eliminar conexión" />
                     </form>
                   </div>
+                  <div className="field-hint">Prueba el forward desde el modal de edición.</div>
                   <div className="saved-conn-meta">
                     <div className="saved-conn-meta-item">
                       <span className="saved-conn-meta-label">URL</span>

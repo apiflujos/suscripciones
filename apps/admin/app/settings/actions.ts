@@ -94,6 +94,7 @@ export async function testWompiConnection(formData: FormData) {
   const environment = String(formData.get("environment") || "").trim();
   const publicKey = String(formData.get("publicKey") || "").trim();
   const apiBaseUrl = String(formData.get("apiBaseUrl") || "").trim();
+  const redirectOnFinish = String(formData.get("redirectOnFinish") || "") === "1";
 
   try {
     const out = await testWompiConnectionAction({
@@ -102,9 +103,14 @@ export async function testWompiConnection(formData: FormData) {
       ...(apiBaseUrl ? { apiBaseUrl } : {})
     });
     assertOk(out as any);
-    // No redirect - el componente cliente maneja el estado
+    if (redirectOnFinish) {
+      redirectWith("wompi_test", "ok", undefined, returnTo);
+    }
   } catch (err) {
     if (isNextRedirect(err)) throw err;
+    if (redirectOnFinish) {
+      redirectWith("wompi_test", "fail", toShortErrorMessage(err), returnTo);
+    }
     throw new Error(toShortErrorMessage(err));
   }
 }
@@ -639,6 +645,7 @@ export async function testCentralConnection(formData: FormData) {
   const accountId = String(formData.get("accountId") || "").trim();
   const inboxId = String(formData.get("inboxId") || "").trim();
   const apiAccessToken = String(formData.get("apiAccessToken") || "").trim();
+  const redirectOnFinish = String(formData.get("redirectOnFinish") || "") === "1";
 
   try {
     const out = await testChatwootConnection({
@@ -648,9 +655,14 @@ export async function testCentralConnection(formData: FormData) {
       ...(inboxId ? { inboxId: Number(inboxId) } : {})
     });
     assertOk(out as any);
-    // No redirect - el componente cliente maneja el estado
+    if (redirectOnFinish) {
+      redirectWith("central_test", "ok", undefined, returnTo);
+    }
   } catch (err) {
     if (isNextRedirect(err)) throw err;
+    if (redirectOnFinish) {
+      redirectWith("central_test", "fail", toShortErrorMessage(err), returnTo);
+    }
     throw new Error(toShortErrorMessage(err));
   }
 }
