@@ -24,30 +24,11 @@ export async function advanceSubscriptionCycle(params: {
       return null;
     }
 
-    const meta: any = (sub.metadata ?? {}) as any;
-    const manualCharge = meta?.manualCharge;
-    const manualCycle = manualCharge && typeof manualCharge === "object" ? Number(manualCharge.cycle ?? NaN) : NaN;
-    const manualAtRaw = manualCharge && typeof manualCharge === "object" ? String(manualCharge.at || "") : "";
-    const manualAt = manualAtRaw ? new Date(manualAtRaw) : null;
-    const useManualAnchor = Number.isFinite(manualCycle) && manualCycle === cycle && manualAt && !Number.isNaN(manualAt.getTime());
-
     // FIX: Normalizar fechas a UTC para evitar problemas de timezone
     const cutoffUtc = sub.currentPeriodEndAt ? toUtc(sub.currentPeriodEndAt) : null;
     const paidAtUtc = paidAt ? toUtc(paidAt) : null;
-    const manualAtUtc = manualAt ? toUtc(manualAt) : null;
-
-    const nextStart = useManualAnchor
-      ? (manualAtUtc ?? cutoffUtc ?? paidAtUtc ?? toUtc(new Date()))
-      : (cutoffUtc ?? paidAtUtc ?? toUtc(new Date()));
+    const nextStart = cutoffUtc ?? paidAtUtc ?? toUtc(new Date());
     const nextEnd = addIntervalUtc(nextStart, sub.plan.intervalUnit, sub.plan.intervalCount);
-
-    const nextMeta = useManualAnchor
-      ? (() => {
-          const copy: any = meta && typeof meta === "object" ? { ...meta } : {};
-          delete copy.manualCharge;
-          return copy;
-        })()
-      : null;
 
     const updated = await tx.subscription.updateMany({
       where: { id: sub.id, currentCycle: sub.currentCycle },
@@ -56,8 +37,7 @@ export async function advanceSubscriptionCycle(params: {
         retryCount: 0,
         currentCycle: { increment: 1 },
         currentPeriodStartAt: nextStart,
-        currentPeriodEndAt: nextEnd,
-        ...(useManualAnchor ? { metadata: nextMeta as any } : {})
+        currentPeriodEndAt: nextEnd
       }
     });
 

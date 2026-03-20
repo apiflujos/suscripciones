@@ -652,26 +652,13 @@ export async function chargeSubscriptionNow(args: { subscriptionId: string; tena
     return { ok: false, status: 409, error: "customer_email_required", ...(paymentId ? { paymentId } : {}) };
   }
 
-  const manualChargeAt = new Date().toISOString();
-  const nextMeta = {
-    ...(subscription.metadata && typeof subscription.metadata === "object" ? subscription.metadata : {}),
-    manualCharge: {
-      at: manualChargeAt,
-      cycle: subscription.currentCycle ?? 1
-    }
-  };
-  await prisma.subscription.update({
-    where: { id: subscriptionId },
-    data: { metadata: nextMeta as any }
-  });
-
   try {
     const result = await createAutoDebitTransactionForSubscription({
       subscriptionId,
       amountInCentsOverride: args.amountInCents,
       forceNewTransaction: true
     });
-    return { ok: true, ...result, manualChargeAt };
+    return { ok: true, ...result };
   } catch (err: any) {
     const paymentId =
       (

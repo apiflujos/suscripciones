@@ -2,6 +2,7 @@ import { activateSubscription, cancelSubscription, deleteSubscription, mergeDupl
 import { DeleteSubscriptionButton } from "./DeleteSubscriptionButton";
 import { MergeDuplicateSubscriptionsButton } from "./MergeDuplicateSubscriptionsButton";
 import { changeSubscriptionPlan, chargeSubscriptionNow, createCustomerFromBilling, createPlanAndSubscription, scheduleCutoff, sendCentralComPaymentLink, sendCentralComTokenizationLink, updateSubscriptionTenants } from "./actions";
+import { ManualChargeButton } from "./ManualChargeButton";
 import { ChargeStatusModal } from "./ChargeStatusModal";
 import { BillingModals } from "./BillingModals";
 import { listSubscriptions } from "../admin/_services/subscriptions";
@@ -537,7 +538,6 @@ export default async function BillingPage({
     const tenantsUpdatedForRow = tenantsUpdated && actionSubscriptionId === r.id;
     const cutoffDueAt = r.vencimientoAt ? new Date(r.vencimientoAt) : null;
     const isCutoffOverdue = Boolean(cutoffDueAt && !Number.isNaN(cutoffDueAt.getTime()) && cutoffDueAt.getTime() <= Date.now());
-    const manualChargeEnabled = Boolean(autoDebitSettings?.allowManualCharge ?? true);
     const chargeDue = typeof r.chargeDue === "boolean" ? r.chargeDue : r.status === "PAST_DUE" || r.status === "EXPIRED" || isCutoffOverdue;
     const isCanceled = r.status === "CANCELED";
     const isSuspended = r.status === "SUSPENDED";
@@ -546,8 +546,8 @@ export default async function BillingPage({
     // Botón de cobrar: siempre visible para débito automático cuando hay pago vencido
     const showChargeButton =
       typeof r.canManualCharge === "boolean"
-        ? r.canManualCharge && !alreadyPaidCurrentPeriod
-        : isAutoDebit && !isInactive && r.customerTokenized && (chargeDue || r.status === "PAST_DUE") && (manualChargeEnabled || chargeDue) && !alreadyPaidCurrentPeriod;
+        ? r.canManualCharge
+        : isAutoDebit && !isInactive && r.customerTokenized;
     // Botón de enviar link de pago: visible para link de pago manual
     const showPaymentLinkButton = !isAutoDebit && !isInactive;
     // Botón de tokenización: siempre visible para débito automático (independiente del link de pago)
@@ -738,23 +738,15 @@ export default async function BillingPage({
               />
             ) : null}
             {showChargeButton ? (
-              <form action={chargeSubscriptionNow}>
-                <input type="hidden" name="csrf" value={csrfToken} />
-                <input type="hidden" name="subscriptionId" value={r.id} />
-                <input type="hidden" name="returnTo" value={returnTo} />
-                {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                <button
-                  className="ghost btn-compact btn-blue btn-pay"
-                  type="submit"
-                  title={
-                    isCutoffOverdue
-                      ? "Cobrar ahora (fecha de corte vencida)"
-                      : "Cobrar ahora"
-                  }
-                >
-                  Cobrar
-                </button>
-              </form>
+              <ManualChargeButton
+                action={chargeSubscriptionNow}
+                csrfToken={csrfToken}
+                subscriptionId={r.id}
+                tenantId={r.tenantId}
+                returnTo={returnTo}
+                warnNotDue={!chargeDue}
+                warnAlreadyPaid={alreadyPaidCurrentPeriod}
+              />
             ) : null}
           </div>
           <div className="billing-actions-right">

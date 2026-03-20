@@ -1063,26 +1063,9 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         return null;
       }
 
-      const meta: any = (sub.metadata ?? {}) as any;
-      const manualCharge = meta?.manualCharge;
-      const manualCycle = manualCharge && typeof manualCharge === "object" ? Number(manualCharge.cycle ?? NaN) : NaN;
-      const manualAtRaw = manualCharge && typeof manualCharge === "object" ? String(manualCharge.at || "") : "";
-      const manualAt = manualAtRaw ? new Date(manualAtRaw) : null;
-      const useManualAnchor = Number.isFinite(manualCycle) && manualCycle === cycle && manualAt && !Number.isNaN(manualAt.getTime());
-
-      // Anchor next cutoff to the current cutoff (not last payment) unless manual override is set.
-      const nextStart = useManualAnchor
-        ? manualAt!
-        : (sub.currentPeriodEndAt || sub.currentPeriodStartAt || sub.createdAt || paidAt);
+      // Anchor next cutoff to the current cutoff (not last payment).
+      const nextStart = sub.currentPeriodEndAt || sub.currentPeriodStartAt || sub.createdAt || paidAt;
       const nextEnd = addIntervalUtc(nextStart, sub.plan.intervalUnit, sub.plan.intervalCount);
-
-      const nextMeta = useManualAnchor
-        ? (() => {
-            const copy: any = meta && typeof meta === "object" ? { ...meta } : {};
-            delete copy.manualCharge;
-            return copy;
-          })()
-        : null;
 
       const updated = await tx.subscription.updateMany({
         where: { id: sub.id, currentCycle: sub.currentCycle },
@@ -1091,8 +1074,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
           retryCount: 0,
           currentCycle: { increment: 1 },
           currentPeriodStartAt: nextStart,
-          currentPeriodEndAt: nextEnd,
-          ...(useManualAnchor ? { metadata: nextMeta as Prisma.InputJsonValue } : {})
+          currentPeriodEndAt: nextEnd
         }
       });
 

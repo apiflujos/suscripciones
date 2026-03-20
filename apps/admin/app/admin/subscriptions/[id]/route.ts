@@ -433,18 +433,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       return Response.json({ error: "customer_email_required", ...(paymentId ? { paymentId } : {}) }, { status: 409 });
     }
 
-    const manualChargeAt = new Date().toISOString();
-    const nextMeta = {
-      ...(subscription.metadata && typeof subscription.metadata === "object" ? subscription.metadata : {}),
-      manualCharge: {
-        at: manualChargeAt,
-        cycle: subscription.currentCycle ?? 1
-      }
-    };
-    await prisma.subscription.update({
-      where: { id: subscriptionId },
-      data: { metadata: nextMeta as any }
-    });
     await systemLog(LogLevel.INFO, "subscriptions.charge_now", "Manual charge passed prechecks", {
       subscriptionId,
       tenantId: tenantId || null,
@@ -466,7 +454,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         paymentId: result.paymentId,
         wompiTransactionId: result.wompiTransactionId
       }).catch(() => {});
-      return Response.json({ ok: true, ...result, manualChargeAt }, { status: 201 });
+      return Response.json({ ok: true, ...result }, { status: 201 });
     } catch (err: any) {
       const paymentId =
         (
