@@ -39,6 +39,8 @@ type ChatwootTemplate = {
   language?: string;
   category?: string;
   status?: string;
+  components?: any[];
+  content?: any;
 };
 
 function unitToSeconds(unit: string, amount: number) {
