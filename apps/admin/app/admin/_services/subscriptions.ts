@@ -562,17 +562,20 @@ export async function chargeSubscriptionNow(args: { subscriptionId: string; tena
   const dueAt = dueByCutoff || dueByLastPayment;
   const periodStartAt = subscription.currentPeriodStartAt ? new Date(subscription.currentPeriodStartAt) : null;
   const periodEndAt = subscription.currentPeriodEndAt ? new Date(subscription.currentPeriodEndAt) : null;
+  const approvedAt = lastApprovedAt;
   const lastPaidInCurrentPeriod =
-    Boolean(lastApprovedAt && periodStartAt && periodEndAt) &&
-    new Date(lastApprovedAt).getTime() >= periodStartAt!.getTime() &&
-    new Date(lastApprovedAt).getTime() <= periodEndAt!.getTime();
+    approvedAt !== null &&
+    periodStartAt !== null &&
+    periodEndAt !== null &&
+    approvedAt.getTime() >= periodStartAt.getTime() &&
+    approvedAt.getTime() <= periodEndAt.getTime();
   if (lastPaidInCurrentPeriod) {
     const paymentId = await recordManualChargeFailure({
       subscription,
       amountInCentsOverride: args.amountInCents,
       errorCode: "payment_already_approved",
       details: {
-        paidAt: new Date(lastApprovedAt as any).toISOString(),
+        paidAt: approvedAt.toISOString(),
         currentPeriodStartAt: periodStartAt?.toISOString() || null,
         currentPeriodEndAt: periodEndAt?.toISOString() || null
       }
