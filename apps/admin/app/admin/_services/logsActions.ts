@@ -393,7 +393,17 @@ export async function recollectPayments(args: { days?: number; take?: number }) 
   };
 }
 
-export async function enqueueShopifyForwardForPayment(args: { paymentId: string }) {
+type ShopifyForwardError =
+  | "missing_payment_id"
+  | "payment_not_found"
+  | "not_shopify_payment"
+  | "webhook_event_not_found";
+
+type ShopifyForwardResult =
+  | { ok: false; error: ShopifyForwardError }
+  | { ok: true; queued: boolean; webhookEventId: string };
+
+export async function enqueueShopifyForwardForPayment(args: { paymentId: string }): Promise<ShopifyForwardResult> {
   const paymentId = String(args.paymentId || "").trim();
   if (!paymentId) return { ok: false as const, error: "missing_payment_id" as const };
 
@@ -448,10 +458,10 @@ export async function enqueueShopifyForwardForPayment(args: { paymentId: string 
       payload: { path: ["webhookEventId"], equals: match.id } as any
     }
   });
-  if (existing) return { ok: true, queued: false, webhookEventId: match.id };
+  if (existing) return { ok: true as const, queued: false, webhookEventId: match.id };
 
   await prisma.retryJob.create({
     data: { type: RetryJobType.FORWARD_WOMPI_TO_SHOPIFY, payload: { webhookEventId: match.id } }
   });
-  return { ok: true, queued: true, webhookEventId: match.id };
+  return { ok: true as const, queued: true, webhookEventId: match.id };
 }
