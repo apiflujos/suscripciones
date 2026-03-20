@@ -877,9 +877,9 @@ export default async function LogsPage({
                         : sourceRaw
                           ? sourceRaw.toUpperCase()
                           : "Sin identificar";
+                    const referenceText = String(p.reference || "").trim();
                     const isShopifyPayment = sourceRaw.includes("shopify") || (referenceText ? classifyReference(referenceText).kind === "shopify" : false);
                     const ignoredReason = String(p?.reconciliation?.reason || "").trim();
-                    const referenceText = String(p.reference || "").trim();
                     const wompiTxText = String(p.wompiTransactionId || "").trim();
                     const wompiLinkText = String(p.wompiPaymentLinkId || "").trim();
                     const isExternal = !p.subscriptionId;
