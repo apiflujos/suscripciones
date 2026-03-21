@@ -24,7 +24,7 @@ export function ManualChargeButton({
       action={action}
       onSubmit={(e) => {
         if (!warnNotDue && !warnAlreadyPaid) return;
-        const parts = [];
+        const parts: string[] = [];
         if (warnAlreadyPaid) {
           parts.push("Esta suscripción ya tiene un pago aprobado en el periodo actual.");
         }
