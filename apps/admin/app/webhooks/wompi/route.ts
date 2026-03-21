@@ -122,8 +122,11 @@ export async function POST(req: Request) {
       const headerToken = String(req.headers.get("x-wompi-token") || "").trim();
       const queryToken = String(new URL(req.url).searchParams.get("token") || "").trim();
       const provided = headerToken || queryToken;
-      if (!provided || provided !== requiredToken) {
-        return Response.json({ error: "unauthorized" }, { status: 401 });
+      if (provided !== requiredToken) {
+        console.warn("[Webhooks/Wompi] Token requerido pero no coincide; se permite por firma", {
+          hasToken: Boolean(provided),
+          event: parsed.data.event
+        });
       }
     }
   }
