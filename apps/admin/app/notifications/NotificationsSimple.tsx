@@ -265,6 +265,7 @@ export function NotificationsSimple({
   actions: {
     saveRealtime: (formData: FormData) => void;
     saveReminder: (formData: FormData) => void;
+    toggleRule: (formData: FormData) => void;
   };
 }) {
   const templateById = useMemo(() => {
@@ -404,6 +405,8 @@ export function NotificationsSimple({
         subtitle: kindLabel,
         statusLabel,
         statusPill,
+        ruleId: rule?.id || "",
+        enabled: Boolean(rule?.enabled),
         onClick: () => setActiveModal({ type: "realtime", key: rt.key })
       };
     }),
@@ -413,6 +416,8 @@ export function NotificationsSimple({
       subtitle: "Antes del vencimiento",
       statusLabel: dueConfigured ? (reminderDue?.enabled ? "Activa" : "Inactiva") : "No configurada",
       statusPill: dueConfigured && reminderDue?.enabled ? "pill-green" : "pill-muted",
+      ruleId: reminderDue?.id || "",
+      enabled: Boolean(reminderDue?.enabled),
       onClick: () => setActiveModal({ type: "reminder", kind: "DUE" })
     },
     {
@@ -421,6 +426,8 @@ export function NotificationsSimple({
       subtitle: "Después del vencimiento",
       statusLabel: moraConfigured ? (reminderMora?.enabled ? "Activa" : "Inactiva") : "No configurada",
       statusPill: moraConfigured && reminderMora?.enabled ? "pill-green" : "pill-muted",
+      ruleId: reminderMora?.id || "",
+      enabled: Boolean(reminderMora?.enabled),
       onClick: () => setActiveModal({ type: "reminder", kind: "MORA" })
     }
   ];
@@ -474,14 +481,25 @@ export function NotificationsSimple({
               <div
                 key={item.id}
                 className="card cardPad"
-                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}
+                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "8px 10px" }}
               >
                 <div>
                   <strong>{item.label}</strong>
-                  <div className="muted" style={{ fontSize: 12 }}>{item.subtitle}</div>
+                  <div className="muted" style={{ fontSize: 11 }}>{item.subtitle}</div>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span className={`pill ${item.statusPill}`}>{item.statusLabel}</span>
+                  {item.ruleId ? (
+                    <form action={actions.toggleRule}>
+                      <input type="hidden" name="csrf" value={csrfToken} />
+                      <input type="hidden" name="environment" value={env} />
+                      <input type="hidden" name="ruleId" value={item.ruleId} />
+                      <input type="hidden" name="enabled" value={item.enabled ? "0" : "1"} />
+                      <button className="ghost btn-compact" type="submit" data-loader="off">
+                        {item.enabled ? "Apagar" : "Prender"}
+                      </button>
+                    </form>
+                  ) : null}
                   <button className="primary btn-compact" type="button" onClick={item.onClick} data-loader="off">
                     Configurar
                   </button>

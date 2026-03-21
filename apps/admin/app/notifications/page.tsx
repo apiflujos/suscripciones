@@ -1,6 +1,6 @@
 import { getCsrfToken } from "../lib/csrf";
 import { NotificationsSimple } from "./NotificationsSimple";
-import { saveReminder, saveRealtime } from "./actions";
+import { saveReminder, saveRealtime, toggleRule } from "./actions";
 import { normalizeErrorParam } from "../lib/errorParam";
 import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
 
@@ -34,7 +34,7 @@ export default async function NotificationsPage({
         </div>
       ) : null}
 
-      <NotificationsSimple env={env} csrfToken={csrfToken} templates={templates} rules={rules} actions={{ saveRealtime, saveReminder }} />
+      <NotificationsSimple env={env} csrfToken={csrfToken} templates={templates} rules={rules} actions={{ saveRealtime, saveReminder, toggleRule }} />
     </main>
   );
 }
