@@ -74,15 +74,6 @@ async function resolveWebhookTenantId(payload: any): Promise<string | null> {
 }
 
 export async function POST(req: Request) {
-  const authHeader = req.headers.get("authorization") || "";
-  const tokenFromAuth = authHeader.toLowerCase().startsWith("bearer ") ? authHeader : "";
-  const tokenFromHeader = req.headers.get("x-auth-token") || "";
-  const token = normalizeBearer(tokenFromAuth || tokenFromHeader || "");
-  const claims: any = token ? await verifyJwt(token) : null;
-  if (!claims || !Array.isArray(claims.permissions) || !claims.permissions.includes("webhook:receive")) {
-    return Response.json({ error: "unauthorized" }, { status: 401 });
-  }
-
   const body = await req.json().catch(() => null);
   const parsed = wompiEventSchema.safeParse(body);
   if (!parsed.success) {
@@ -114,6 +105,27 @@ export async function POST(req: Request) {
       timestamp: parsed.data.timestamp
     });
     return Response.json({ error: "firma_invalida", razon: signature.reason }, { status: 400 });
+  }
+
+  const authHeader = req.headers.get("authorization") || "";
+  const tokenFromAuth = authHeader.toLowerCase().startsWith("bearer ") ? authHeader : "";
+  const tokenFromHeader = req.headers.get("x-auth-token") || "";
+  const token = normalizeBearer(tokenFromAuth || tokenFromHeader || "");
+  const claims: any = token ? await verifyJwt(token) : null;
+  const hasJwtPermission = Boolean(
+    claims && Array.isArray(claims.permissions) && claims.permissions.includes("webhook:receive")
+  );
+
+  if (!hasJwtPermission) {
+    const requiredToken = String(process.env.WOMPI_WEBHOOK_TOKEN || "").trim();
+    if (requiredToken) {
+      const headerToken = String(req.headers.get("x-wompi-token") || "").trim();
+      const queryToken = String(new URL(req.url).searchParams.get("token") || "").trim();
+      const provided = headerToken || queryToken;
+      if (!provided || provided !== requiredToken) {
+        return Response.json({ error: "unauthorized" }, { status: 401 });
+      }
+    }
   }
 
   const checksum = (getChecksumHeader(req.headers) || parsed.data.signature.checksum).trim();
@@ -152,8 +164,8 @@ export async function POST(req: Request) {
       {
         webhookEventId: webhookEvent.id,
         tenantId,
-        actor: claims.sub || null,
-        ...tokenMeta(token)
+        actor: claims?.sub || null,
+        ...(token ? tokenMeta(token) : {})
       },
       SystemActor.WEBHOOK_WOMPI
     ).catch(() => {});
