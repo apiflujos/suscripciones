@@ -1,8 +1,9 @@
 import { activateSubscription, cancelSubscription, deleteSubscription, mergeDuplicateSubscriptions, resumeSubscription, suspendSubscription } from "../subscriptions/actions";
 import { DeleteSubscriptionButton } from "./DeleteSubscriptionButton";
 import { MergeDuplicateSubscriptionsButton } from "./MergeDuplicateSubscriptionsButton";
-import { changeSubscriptionPlan, chargeSubscriptionNow, createCustomerFromBilling, createPlanAndSubscription, scheduleCutoff, sendCentralComPaymentLink, sendCentralComTokenizationLink, updateSubscriptionTenants } from "./actions";
+import { changeSubscriptionPlan, chargeSubscriptionNow, createCustomerFromBilling, createPlanAndSubscription, scheduleCutoff, sendCentralComPaymentLink, sendCentralComTokenizationLink, updateSubscriptionTenants, markSubscriptionPaidManual } from "./actions";
 import { ManualChargeButton } from "./ManualChargeButton";
+import { ManualMarkPaidButton } from "./ManualMarkPaidButton";
 import { ChargeStatusModal } from "./ChargeStatusModal";
 import { BillingModals } from "./BillingModals";
 import { listSubscriptions } from "../admin/_services/subscriptions";
@@ -237,6 +238,8 @@ export default async function BillingPage({
   const chargeStatus = typeof sp.chargeStatus === "string" ? sp.chargeStatus : "";
   const chargeError = typeof sp.chargeError === "string" ? sp.chargeError : "";
   const chargeErrorDetails = typeof sp.chargeErrorDetails === "string" ? sp.chargeErrorDetails : "";
+  const markPaidStatus = typeof sp.markPaidStatus === "string" ? sp.markPaidStatus : "";
+  const markPaidError = typeof sp.markPaidError === "string" ? sp.markPaidError : "";
   const paymentId = typeof sp.paymentId === "string" ? sp.paymentId : "";
   const actionSubscriptionId = typeof sp.subscriptionId === "string" ? sp.subscriptionId : "";
   const cutoffScheduled = typeof sp.cutoffScheduled === "string" ? sp.cutoffScheduled : "";
@@ -548,6 +551,7 @@ export default async function BillingPage({
       typeof r.canManualCharge === "boolean"
         ? r.canManualCharge
         : isAutoDebit && !isInactive && r.customerTokenized;
+    const showMarkPaidButton = r.status !== "CANCELED";
     // Botón de enviar link de pago: visible para link de pago manual
     const showPaymentLinkButton = !isAutoDebit && !isInactive;
     // Botón de tokenización: siempre visible para débito automático (independiente del link de pago)
@@ -748,6 +752,16 @@ export default async function BillingPage({
                 warnAlreadyPaid={alreadyPaidCurrentPeriod}
               />
             ) : null}
+            {showMarkPaidButton ? (
+              <ManualMarkPaidButton
+                action={markSubscriptionPaidManual}
+                csrfToken={csrfToken}
+                subscriptionId={r.id}
+                tenantId={r.tenantId}
+                returnTo={returnTo}
+                warnAlreadyPaid={alreadyPaidCurrentPeriod}
+              />
+            ) : null}
           </div>
           <div className="billing-actions-right">
             {showPaymentLinkButton ? (
@@ -844,6 +858,11 @@ export default async function BillingPage({
 
   return (
     <main className="page pageWide billing-page">
+      {markPaidStatus ? (
+        <div className="card cardPad" style={{ borderColor: markPaidStatus === "ok" ? "var(--success)" : "var(--danger)" }}>
+          {markPaidStatus === "ok" ? "Suscripción marcada como pagada manualmente." : `Error marcando pago manual: ${markPaidError || "unknown_error"}`}
+        </div>
+      ) : null}
       {chargeStatus ? (
         <ChargeStatusModal
           initialStatus={chargeStatus === "processing" ? "processing" : chargeStatus === "ok" ? "ok" : "fail"}

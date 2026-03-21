@@ -673,6 +673,126 @@ export async function chargeSubscriptionNow(args: { subscriptionId: string; tena
   }
 }
 
+export async function markSubscriptionPaidManual(args: {
+  subscriptionId: string;
+  tenantId?: string | null;
+  method: "TRANSFERENCIA" | "BREB" | "EFECTIVO";
+  actor?: string;
+}) {
+  const subscriptionId = String(args.subscriptionId || "").trim();
+  if (!subscriptionId) return { ok: false, status: 400, error: "invalid_subscription_id" as const };
+  const method = String(args.method || "").trim().toUpperCase();
+  if (!["TRANSFERENCIA", "BREB", "EFECTIVO"].includes(method)) {
+    return { ok: false, status: 400, error: "invalid_payment_method" as const };
+  }
+
+  const subscription = await prisma.subscription.findUnique({
+    where: { id: subscriptionId },
+    include: { plan: true, tenantLinks: true }
+  });
+  if (!subscription) return { ok: false, status: 404, error: "subscription_not_found" as const };
+  if (args.tenantId) {
+    const allowed =
+      subscription.tenantId === args.tenantId || (subscription.tenantLinks || []).some((t: any) => t.tenantId === args.tenantId);
+    if (!allowed) return { ok: false, status: 404, error: "subscription_not_found" as const };
+  }
+  if (!subscription.plan) return { ok: false, status: 409, error: "plan_not_found" as const };
+
+  const now = new Date();
+  const cycle = subscription.currentCycle ?? 1;
+  const subscriptionCycleKey = `${subscription.id}:${cycle}`;
+  const baseStart = subscription.currentPeriodEndAt || subscription.currentPeriodStartAt || subscription.createdAt || now;
+  const nextEnd = addIntervalUtc(baseStart, subscription.plan.intervalUnit, subscription.plan.intervalCount);
+
+  const existingByCycle = await prisma.payment.findUnique({
+    where: { subscriptionCycleKey },
+    select: { id: true, status: true }
+  });
+  if (existingByCycle?.status === PaymentStatus.APPROVED) {
+    return { ok: true, paymentId: existingByCycle.id, alreadyApproved: true as const };
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    let paymentId = "";
+    if (existingByCycle) {
+      const updated = await tx.payment.update({
+        where: { id: existingByCycle.id },
+        data: {
+          status: PaymentStatus.APPROVED,
+          paidAt: now,
+          failedAt: null,
+          providerResponse: {
+            manual: {
+              method,
+              actor: args.actor || null,
+              at: now.toISOString()
+            }
+          } as any
+        },
+        select: { id: true }
+      });
+      paymentId = updated.id;
+    } else {
+      const reference = `MANUAL_${subscription.id}_${cycle}_${Date.now()}`;
+      const created = await tx.payment.create({
+        data: {
+          tenantId: subscription.tenantId,
+          customerId: subscription.customerId,
+          subscriptionId: subscription.id,
+          amountInCents: readSubscriptionTotalInCents(subscription.metadata, subscription.plan.priceInCents),
+          currency: validateWompiCurrency(subscription.plan.currency),
+          cycleNumber: cycle,
+          reference,
+          status: PaymentStatus.APPROVED,
+          paidAt: now,
+          subscriptionCycleKey,
+          providerResponse: {
+            manual: {
+              method,
+              actor: args.actor || null,
+              at: now.toISOString()
+            }
+          } as any
+        },
+        select: { id: true }
+      });
+      paymentId = created.id;
+    }
+
+    await tx.subscription.update({
+      where: { id: subscription.id },
+      data: {
+        status: SubscriptionStatus.ACTIVE,
+        retryCount: 0,
+        currentCycle: { increment: 1 },
+        currentPeriodStartAt: baseStart,
+        currentPeriodEndAt: nextEnd,
+        suspendedAt: null,
+        canceledAt: null
+      }
+    });
+
+    return { paymentId };
+  });
+
+  await prisma.retryJob.deleteMany({
+    where: {
+      type: RetryJobType.PAYMENT_RETRY,
+      status: RetryJobStatus.PENDING,
+      payload: { path: ["subscriptionId"], equals: subscriptionId } as any
+    } as any
+  });
+
+  await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});
+  await systemLog(LogLevel.INFO, "subscriptions.manual_paid", "Subscription marked paid manually", {
+    subscriptionId,
+    method,
+    paymentId: result.paymentId
+  }, args.actor).catch(() => {});
+
+  return { ok: true, paymentId: result.paymentId };
+}
+
 export async function scheduleSubscriptionCutoff(args: { subscriptionId: string; cutoffAt: string; tenantId?: string | null }) {
   const subscriptionId = String(args.subscriptionId || "").trim();
   const cutoffAtRaw = String(args.cutoffAt || "").trim();

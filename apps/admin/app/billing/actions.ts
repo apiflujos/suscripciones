@@ -2,6 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { assertCsrfToken } from "../lib/csrf";
+import { cookies } from "next/headers";
+import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
 import { DEFAULT_CURRENCY, normalizeSupportedCurrency } from "../lib/currencies";
 import { createCustomer as createCustomerService, getCustomerById, updateCustomerProfile } from "../admin/_services/customers";
 import { prisma } from "@suscripciones/database";
@@ -15,7 +17,8 @@ import {
   recalcSubscriptionCutoff,
   updateSubscriptionTenants as updateSubscriptionTenantsService,
   changeSubscriptionPlan as changeSubscriptionPlanService,
-  deleteSubscription as deleteSubscriptionService
+  deleteSubscription as deleteSubscriptionService,
+  markSubscriptionPaidManual as markSubscriptionPaidManualService
 } from "../admin/_services/subscriptions";
 import { sendChatwootMessageForCustomer } from "../admin/_services/chatwoot";
 import { getAdminSettings } from "../admin/_services/settings";
@@ -435,6 +438,48 @@ export async function chargeSubscriptionNow(formData: FormData) {
         chargeError: humanizeChargeError(String(err?.message || "charge_now_failed")),
         ...(detailRaw ? { chargeErrorDetails: detailRaw } : {}),
         ...(err?.paymentId ? { paymentId: String(err.paymentId) } : {}),
+        subscriptionId,
+        ...(tenantId ? { tenantId } : {})
+      })
+    );
+  }
+}
+
+export async function markSubscriptionPaidManual(formData: FormData) {
+  await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
+  const subscriptionId = String(formData.get("subscriptionId") || "").trim();
+  const tenantIds = readTenantIds(formData);
+  const tenantId = tenantIds[0] || "";
+  const manualMethod = String(formData.get("manualMethod") || "").trim().toUpperCase();
+  if (!subscriptionId) return redirect(mergeQuery(returnTo, { error: "missing_subscription_id" }));
+
+  const c = await cookies();
+  const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
+  const session = await verifyAdminSessionToken(sessionToken);
+  const actor = session?.email ? `admin:${session.email}` : "admin:unknown";
+
+  try {
+    const res = await markSubscriptionPaidManualService({
+      subscriptionId,
+      tenantId: tenantId || null,
+      method: manualMethod as any,
+      actor
+    });
+    if (!res.ok) throw new Error(res.error);
+    redirect(
+      mergeQuery(returnTo, {
+        markPaidStatus: "ok",
+        subscriptionId,
+        ...(tenantId ? { tenantId } : {})
+      })
+    );
+  } catch (err: any) {
+    if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
+    redirect(
+      mergeQuery(returnTo, {
+        markPaidStatus: "fail",
+        markPaidError: String(err?.message || "manual_mark_failed"),
         subscriptionId,
         ...(tenantId ? { tenantId } : {})
       })
