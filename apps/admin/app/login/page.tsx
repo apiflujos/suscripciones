@@ -5,6 +5,7 @@ import { normalizeErrorParam } from "../lib/errorParam";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
+import { SA_COOKIE } from "../__sa/saApi";
 
 export default async function LoginPage({
   searchParams
@@ -14,16 +15,18 @@ export default async function LoginPage({
   const sessionToken = (await cookies()).get(ADMIN_SESSION_COOKIE)?.value || "";
   const session = sessionToken ? await verifyAdminSessionToken(sessionToken) : null;
 
-  if (session) {
-    const sp = (await searchParams) ?? {};
-    const next = String(sp.next || "").trim();
+  const sp = (await searchParams) ?? {};
+  const next = String(sp.next || "").trim();
+  const saToken = (await cookies()).get(SA_COOKIE)?.value || "";
+  const wantsSa = next.startsWith("/sa");
+  const missingSaSession = wantsSa && !saToken;
+
+  if (session && !missingSaSession) {
     redirect(next || "/");
   }
 
   const csrfToken = await getCsrfToken();
-  const sp = (await searchParams) ?? {};
   const error = normalizeErrorParam(sp.error);
-  const next = String(sp.next || "").trim();
   const loggedOut = String(sp.loggedOut || "").trim() === "1";
 
   const errorMessage =
@@ -62,6 +65,9 @@ export default async function LoginPage({
           </div>
 
           {loggedOut ? <div className="authAlert">Sesión cerrada.</div> : null}
+          {missingSaSession ? (
+            <div className="authAlert is-danger">Falta la sesión de Super Admin. Cierra sesión e inicia de nuevo.</div>
+          ) : null}
           {showError ? <div className="authAlert is-danger">Error: {errorMessage}</div> : null}
 
           <LoginForm action={adminLogin} next={next} csrfToken={csrfToken} />
