@@ -312,13 +312,17 @@ export function NotificationsSimple({
   const listItems = [
     ...pendingRealtime.map((rt) => {
       const rule = rulesByKey.get(rt.key);
+      const tpl = templateForKey(rt.key, rt.chatwootType, rt.label);
+      const hasWa = Boolean(tpl?.chatwootTemplate?.name);
+      const kind = realtimeKinds[rt.key] || (hasWa ? "WHATSAPP_TEMPLATE" : "TEXT");
+      const kindLabel = kind === "WHATSAPP_TEMPLATE" ? "Plantilla" : "Mensaje";
       const isConfigured = Boolean(rule);
       const statusLabel = isConfigured ? (rule?.enabled ? "Activa" : "Inactiva") : "No configurada";
       const statusPill = isConfigured ? (rule?.enabled ? "pill-green" : "pill-muted") : "pill-muted";
       return {
         id: `realtime:${rt.key}`,
         label: rt.label,
-        subtitle: "CentralCom",
+        subtitle: kindLabel,
         statusLabel,
         statusPill,
         onClick: () => setActiveModal({ type: "realtime", key: rt.key })
