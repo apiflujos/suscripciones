@@ -1,6 +1,6 @@
 import { prisma } from "../db/prisma";
 import { WompiClient } from "../providers/wompi/client";
-import { getWompiApiBaseUrl, getWompiCheckoutLinkBaseUrl, getWompiPrivateKey, getWompiPublicKey } from "../services/runtimeConfig";
+import { getShopifyForward, getWompiApiBaseUrl, getWompiCheckoutLinkBaseUrl, getWompiPrivateKey, getWompiPublicKey } from "../services/runtimeConfig";
 import { RetryJobType, WebhookProvider, WebhookProcessStatus } from "@prisma/client";
 import { randomUUID } from "crypto";
 import { processWompiEventLogic } from "../jobs/handlers/processWompiEvent";
@@ -99,6 +99,7 @@ export async function reconcileWompiTransaction(args: {
   });
 
   const processNow = args.processNow !== false;
+  const shopify = await getShopifyForward().catch(() => ({} as any));
   if (processNow) {
     await processWompiEventLogic(event.id, prisma).catch(async () => {
       await prisma.retryJob
@@ -115,6 +116,17 @@ export async function reconcileWompiTransaction(args: {
       .create({
         data: {
           type: RetryJobType.PROCESS_WOMPI_EVENT,
+          payload: { webhookEventId: event.id }
+        }
+      })
+      .catch(() => {});
+  }
+
+  if (shopify?.url) {
+    await prisma.retryJob
+      .create({
+        data: {
+          type: RetryJobType.FORWARD_WOMPI_TO_SHOPIFY,
           payload: { webhookEventId: event.id }
         }
       })
