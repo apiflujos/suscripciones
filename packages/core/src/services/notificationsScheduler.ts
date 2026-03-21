@@ -41,6 +41,18 @@ function applyAtTimeUtc(date: Date, hhmm: string) {
   return d;
 }
 
+const BOGOTA_UTC_OFFSET_MS = -5 * 60 * 60 * 1000;
+
+function applyAtTimeBogota(date: Date, hhmm: string) {
+  const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(hhmm || "").trim());
+  if (!m) return date;
+  const hours = Number(m[1]);
+  const minutes = Number(m[2]);
+  const bogota = new Date(date.getTime() + BOGOTA_UTC_OFFSET_MS);
+  bogota.setUTCHours(hours, minutes, 0, 0);
+  return new Date(bogota.getTime() - BOGOTA_UTC_OFFSET_MS);
+}
+
 export async function scheduleSubscriptionDueNotifications(args: { subscriptionId: string; forceNow?: boolean; actor?: string }) {
   const subscriptionId = String(args.subscriptionId || "").trim();
   if (!subscriptionId) return { scheduled: 0 };
@@ -72,8 +84,21 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
     const offsetsSeconds = args.forceNow ? [0] : offsetsSecondsBase;
     for (const offsetSeconds of offsetsSeconds) {
       const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
-      const runAtRaw = rule.atTimeUtc ? applyAtTimeUtc(runAtBase, String(rule.atTimeUtc)) : runAtBase;
+      const runAtRaw = rule.atTimeUtc ? applyAtTimeBogota(runAtBase, String(rule.atTimeUtc)) : runAtBase;
       const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
+      const existing = await prisma.retryJob.findFirst({
+        where: {
+          type: RetryJobType.SUBSCRIPTION_REMINDER,
+          payload: { path: ["subscriptionId"], equals: sub.id } as any,
+          AND: [
+            { payload: { path: ["ruleId"], equals: rule.id } as any },
+            { payload: { path: ["offsetSeconds"], equals: offsetSeconds } as any },
+            { payload: { path: ["cycleNumber"], equals: sub.currentCycle } as any },
+            { payload: { path: ["anchorAt"], equals: anchorIso } as any }
+          ]
+        } as any
+      });
+      if (existing) continue;
       await prisma.retryJob.create({
         data: {
           type: RetryJobType.SUBSCRIPTION_REMINDER,
@@ -152,7 +177,7 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
     const offsetsSeconds = args.forceNow ? [0] : offsetsSecondsBase;
     for (const offsetSeconds of offsetsSeconds) {
       const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
-      const runAtRaw = rule.atTimeUtc ? applyAtTimeUtc(runAtBase, String(rule.atTimeUtc)) : runAtBase;
+      const runAtRaw = rule.atTimeUtc ? applyAtTimeBogota(runAtBase, String(rule.atTimeUtc)) : runAtBase;
       const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
       const jobPayload = {
         trigger,
@@ -226,7 +251,7 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
     const offsetsSeconds = args.forceNow ? [0] : offsetsSecondsBase;
     for (const offsetSeconds of offsetsSeconds) {
       const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
-      const runAtRaw = rule.atTimeUtc ? applyAtTimeUtc(runAtBase, String(rule.atTimeUtc)) : runAtBase;
+      const runAtRaw = rule.atTimeUtc ? applyAtTimeBogota(runAtBase, String(rule.atTimeUtc)) : runAtBase;
       const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
       const jobPayload = {
         trigger: "PAYMENT_LINK_CREATED" satisfies NotificationTrigger,
@@ -295,7 +320,7 @@ export async function scheduleCatalogLinkNotifications(args: { customerId: strin
     const offsetsSeconds = resolveOffsetsSeconds(rule as NotificationRule);
     for (const offsetSeconds of offsetsSeconds) {
       const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
-      const runAtRaw = rule.atTimeUtc ? applyAtTimeUtc(runAtBase, String(rule.atTimeUtc)) : runAtBase;
+      const runAtRaw = rule.atTimeUtc ? applyAtTimeBogota(runAtBase, String(rule.atTimeUtc)) : runAtBase;
       const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
       const jobPayload = {
         trigger: "CATALOG_LINK_CREATED" satisfies NotificationTrigger,
@@ -364,7 +389,7 @@ export async function scheduleTokenizationLinkNotifications(args: { customerId: 
     const offsetsSeconds = args.forceNow ? [0] : offsetsSecondsBase;
     for (const offsetSeconds of offsetsSeconds) {
       const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
-      const runAtRaw = rule.atTimeUtc ? applyAtTimeUtc(runAtBase, String(rule.atTimeUtc)) : runAtBase;
+      const runAtRaw = rule.atTimeUtc ? applyAtTimeBogota(runAtBase, String(rule.atTimeUtc)) : runAtBase;
       const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
       const jobPayload = {
         trigger: "TOKENIZATION_LINK_CREATED" satisfies NotificationTrigger,
