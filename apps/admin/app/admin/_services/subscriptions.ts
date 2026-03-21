@@ -5,7 +5,7 @@ import { ensurePaymentRetryJob } from "@suscripciones/core/services/retryJobSche
 import { LogLevel, PaymentStatus, RetryJobStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
 import { resolveSubscriptionCollectionMode } from "@suscripciones/core/services/subscriptionMode";
 import { getAutoDebitConfig } from "@suscripciones/core/services/runtimeConfig";
-import { addIntervalUtc } from "@suscripciones/core/lib/dates";
+import { addIntervalUtc, toUtc } from "@suscripciones/core/lib/dates";
 import { systemLog } from "@suscripciones/core/services/systemLog";
 import {
   createAutoDebitTransactionForSubscription,
@@ -36,6 +36,42 @@ function hasUsablePaymentSource(metadata: any) {
     }
     return false;
   });
+}
+
+function daysInMonthUtc(year: number, month0: number) {
+  return new Date(Date.UTC(year, month0 + 1, 0)).getUTCDate();
+}
+
+function subtractIntervalUtc(date: Date, unit: any, count: number): Date {
+  const normalizedDate = toUtc(date);
+  const c = Math.max(0, Math.trunc(count || 0));
+  const d = new Date(normalizedDate.getTime());
+
+  if (unit === "DAY") {
+    d.setUTCDate(d.getUTCDate() - c);
+    return d;
+  }
+  if (unit === "WEEK") {
+    d.setUTCDate(d.getUTCDate() - c * 7);
+    return d;
+  }
+  if (unit === "MONTH") {
+    const y = d.getUTCFullYear();
+    const m = d.getUTCMonth();
+    const day = d.getUTCDate();
+    const targetMonth = m - c;
+    const targetYear = y + Math.floor(targetMonth / 12);
+    const month0 = ((targetMonth % 12) + 12) % 12;
+    const last = daysInMonthUtc(targetYear, month0);
+    d.setUTCFullYear(targetYear);
+    d.setUTCDate(1);
+    d.setUTCMonth(month0);
+    d.setUTCDate(Math.min(day, last));
+    return d;
+  }
+
+  d.setUTCDate(d.getUTCDate() - c);
+  return d;
 }
 
 function computePlanTotalInCents(args: {
@@ -787,10 +823,99 @@ export async function markSubscriptionPaidManual(args: {
   await systemLog(LogLevel.INFO, "subscriptions.manual_paid", "Subscription marked paid manually", {
     subscriptionId,
     method,
-    paymentId: result.paymentId
+    paymentId: result.paymentId,
+    actor: args.actor || null,
+    at: now.toISOString()
   }, args.actor).catch(() => {});
 
   return { ok: true, paymentId: result.paymentId };
+}
+
+export async function unmarkSubscriptionPaidManual(args: {
+  subscriptionId: string;
+  tenantId?: string | null;
+  actor?: string;
+}) {
+  const subscriptionId = String(args.subscriptionId || "").trim();
+  if (!subscriptionId) return { ok: false, status: 400, error: "invalid_subscription_id" as const };
+
+  const subscription = await prisma.subscription.findUnique({
+    where: { id: subscriptionId },
+    include: { plan: true, tenantLinks: true }
+  });
+  if (!subscription) return { ok: false, status: 404, error: "subscription_not_found" as const };
+  if (args.tenantId) {
+    const allowed =
+      subscription.tenantId === args.tenantId || (subscription.tenantLinks || []).some((t: any) => t.tenantId === args.tenantId);
+    if (!allowed) return { ok: false, status: 404, error: "subscription_not_found" as const };
+  }
+  if (!subscription.plan) return { ok: false, status: 409, error: "plan_not_found" as const };
+
+  const currentCycle = subscription.currentCycle ?? 1;
+  if (currentCycle <= 1) return { ok: false, status: 409, error: "cycle_cannot_decrement" as const };
+
+  const targetCycle = currentCycle - 1;
+  const payment = await prisma.payment.findFirst({
+    where: {
+      subscriptionId: subscription.id,
+      cycleNumber: targetCycle,
+      status: PaymentStatus.APPROVED
+    },
+    orderBy: { createdAt: "desc" }
+  });
+  if (!payment) return { ok: false, status: 404, error: "approved_payment_not_found" as const };
+
+  const providerResponse = payment.providerResponse && typeof payment.providerResponse === "object" ? (payment.providerResponse as any) : null;
+  const isManual = Boolean(providerResponse?.manual) || String(payment.reference || "").startsWith("MANUAL_");
+  if (!isManual) return { ok: false, status: 409, error: "payment_not_manual" as const };
+
+  const now = new Date();
+  const prevEnd = subscription.currentPeriodStartAt || subscription.currentPeriodEndAt || subscription.createdAt || now;
+  const prevStart = subtractIntervalUtc(prevEnd, subscription.plan.intervalUnit, subscription.plan.intervalCount);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.payment.update({
+      where: { id: payment.id },
+      data: {
+        status: PaymentStatus.PENDING,
+        paidAt: null,
+        failedAt: null,
+        providerResponse: {
+          ...(providerResponse || {}),
+          manualUndo: {
+            actor: args.actor || null,
+            at: now.toISOString()
+          }
+        } as any
+      }
+    });
+
+    await tx.subscription.update({
+      where: { id: subscription.id },
+      data: {
+        status: SubscriptionStatus.PAST_DUE,
+        currentCycle: { decrement: 1 },
+        currentPeriodStartAt: prevStart,
+        currentPeriodEndAt: prevEnd
+      }
+    });
+  });
+
+  const collectionMode = resolveSubscriptionCollectionMode(subscription);
+  if (collectionMode === "AUTO_DEBIT" || collectionMode === "AUTO_LINK") {
+    await ensurePaymentRetryJob({ subscriptionId: subscription.id, runAt: prevEnd, maxAttempts: 1 }).catch(() => {});
+  }
+
+  await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});
+  await systemLog(LogLevel.INFO, "subscriptions.manual_unpaid", "Subscription manual payment unmarked", {
+    subscriptionId,
+    paymentId: payment.id,
+    previousCycle: targetCycle,
+    actor: args.actor || null,
+    at: now.toISOString()
+  }, args.actor).catch(() => {});
+
+  return { ok: true, paymentId: payment.id };
 }
 
 export async function scheduleSubscriptionCutoff(args: { subscriptionId: string; cutoffAt: string; tenantId?: string | null }) {

@@ -18,7 +18,8 @@ import {
   updateSubscriptionTenants as updateSubscriptionTenantsService,
   changeSubscriptionPlan as changeSubscriptionPlanService,
   deleteSubscription as deleteSubscriptionService,
-  markSubscriptionPaidManual as markSubscriptionPaidManualService
+  markSubscriptionPaidManual as markSubscriptionPaidManualService,
+  unmarkSubscriptionPaidManual as unmarkSubscriptionPaidManualService
 } from "../admin/_services/subscriptions";
 import { sendChatwootMessageForCustomer } from "../admin/_services/chatwoot";
 import { getAdminSettings } from "../admin/_services/settings";
@@ -484,6 +485,35 @@ export async function markSubscriptionPaidManual(formData: FormData) {
         ...(tenantId ? { tenantId } : {})
       })
     );
+  }
+}
+
+export async function unmarkSubscriptionPaidManual(formData: FormData) {
+  assertCsrfToken(formData);
+  const subscriptionId = String(formData.get("subscriptionId") || "").trim();
+  const tenantId = String(formData.get("tenantId") || "").trim() || undefined;
+  const returnTo = safeReturnTo(formData);
+  const c = await cookies();
+  const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
+  const session = await verifyAdminSessionToken(sessionToken);
+  const actor = session?.email ? `admin:${session.email}` : "admin:unknown";
+
+  if (!subscriptionId) {
+    redirect(mergeQuery(returnTo, { unmarkPaidStatus: "error", unmarkPaidError: "missing_subscription_id" }));
+  }
+
+  try {
+    const res = await unmarkSubscriptionPaidManualService({
+      subscriptionId,
+      tenantId,
+      actor
+    });
+    if (!res.ok) {
+      redirect(mergeQuery(returnTo, { unmarkPaidStatus: "error", unmarkPaidError: res.error }));
+    }
+    redirect(mergeQuery(returnTo, { unmarkPaidStatus: "ok" }));
+  } catch (err: any) {
+    redirect(mergeQuery(returnTo, { unmarkPaidStatus: "error", unmarkPaidError: err?.message || "unknown_error" }));
   }
 }
 

@@ -1,9 +1,10 @@
 import { activateSubscription, cancelSubscription, deleteSubscription, mergeDuplicateSubscriptions, resumeSubscription, suspendSubscription } from "../subscriptions/actions";
 import { DeleteSubscriptionButton } from "./DeleteSubscriptionButton";
 import { MergeDuplicateSubscriptionsButton } from "./MergeDuplicateSubscriptionsButton";
-import { changeSubscriptionPlan, chargeSubscriptionNow, createCustomerFromBilling, createPlanAndSubscription, scheduleCutoff, sendCentralComPaymentLink, sendCentralComTokenizationLink, updateSubscriptionTenants, markSubscriptionPaidManual } from "./actions";
+import { changeSubscriptionPlan, chargeSubscriptionNow, createCustomerFromBilling, createPlanAndSubscription, scheduleCutoff, sendCentralComPaymentLink, sendCentralComTokenizationLink, updateSubscriptionTenants, markSubscriptionPaidManual, unmarkSubscriptionPaidManual } from "./actions";
 import { ManualChargeButton } from "./ManualChargeButton";
 import { ManualMarkPaidButton } from "./ManualMarkPaidButton";
+import { ManualUnmarkPaidButton } from "./ManualUnmarkPaidButton";
 import { ChargeStatusModal } from "./ChargeStatusModal";
 import { BillingModals } from "./BillingModals";
 import { listSubscriptions } from "../admin/_services/subscriptions";
@@ -240,6 +241,8 @@ export default async function BillingPage({
   const chargeErrorDetails = typeof sp.chargeErrorDetails === "string" ? sp.chargeErrorDetails : "";
   const markPaidStatus = typeof sp.markPaidStatus === "string" ? sp.markPaidStatus : "";
   const markPaidError = typeof sp.markPaidError === "string" ? sp.markPaidError : "";
+  const unmarkPaidStatus = typeof sp.unmarkPaidStatus === "string" ? sp.unmarkPaidStatus : "";
+  const unmarkPaidError = typeof sp.unmarkPaidError === "string" ? sp.unmarkPaidError : "";
   const paymentId = typeof sp.paymentId === "string" ? sp.paymentId : "";
   const actionSubscriptionId = typeof sp.subscriptionId === "string" ? sp.subscriptionId : "";
   const cutoffScheduled = typeof sp.cutoffScheduled === "string" ? sp.cutoffScheduled : "";
@@ -762,6 +765,15 @@ export default async function BillingPage({
                 warnAlreadyPaid={alreadyPaidCurrentPeriod}
               />
             ) : null}
+            {alreadyPaidCurrentPeriod ? (
+              <ManualUnmarkPaidButton
+                action={unmarkSubscriptionPaidManual}
+                csrfToken={csrfToken}
+                subscriptionId={r.id}
+                tenantId={r.tenantId}
+                returnTo={returnTo}
+              />
+            ) : null}
           </div>
           <div className="billing-actions-right">
             {showPaymentLinkButton ? (
@@ -861,6 +873,11 @@ export default async function BillingPage({
       {markPaidStatus ? (
         <div className="card cardPad" style={{ borderColor: markPaidStatus === "ok" ? "var(--success)" : "var(--danger)" }}>
           {markPaidStatus === "ok" ? "Suscripción marcada como pagada manualmente." : `Error marcando pago manual: ${markPaidError || "unknown_error"}`}
+        </div>
+      ) : null}
+      {unmarkPaidStatus ? (
+        <div className="card cardPad" style={{ borderColor: unmarkPaidStatus === "ok" ? "var(--success)" : "var(--danger)" }}>
+          {unmarkPaidStatus === "ok" ? "Pago manual desmarcado y ciclo revertido." : `Error desmarcando pago manual: ${unmarkPaidError || "unknown_error"}`}
         </div>
       ) : null}
       {chargeStatus ? (
