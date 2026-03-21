@@ -198,7 +198,7 @@ export async function getAdminSettings() {
     retryEveryMinutes: toInt(autoDebitConfigRaw?.retryEveryMinutes, 60, 1, 10080),
     retryEveryValue: deriveRetryUnitAndValue(toInt(autoDebitConfigRaw?.retryEveryMinutes, 60, 1, 10080)).retryEveryValue,
     retryEveryUnit: deriveRetryUnitAndValue(toInt(autoDebitConfigRaw?.retryEveryMinutes, 60, 1, 10080)).retryEveryUnit,
-    maxRetries: toInt(autoDebitConfigRaw?.maxRetries, 0, 0, 20)
+    maxRetries: toInt(autoDebitConfigRaw?.maxRetries, 0, 0, 1)
   };
 
   let paymentsConfigRaw: any = {};
