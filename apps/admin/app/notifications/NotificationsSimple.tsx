@@ -122,29 +122,67 @@ function WaTemplateFields({
   templates,
   defaultName,
   defaultLang,
-  defaultParams
+  defaultParams,
+  onSync,
+  syncing,
+  syncError
 }: {
   templates: ChatwootTemplate[];
   defaultName?: string;
   defaultLang?: string;
   defaultParams?: string;
+  onSync?: () => void;
+  syncing?: boolean;
+  syncError?: string;
 }) {
   const [name, setName] = useState(defaultName || "");
   const [lang, setLang] = useState(defaultLang || "es");
-  const [params, setParams] = useState(defaultParams || "");
+  const [params, setParams] = useState<string[]>(
+    defaultParams ? defaultParams.split("|").map((p) => p.trim()) : []
+  );
+
+  const selectedTemplate = useMemo(() => {
+    return templates.find((t) => t.name === name && String(t.language || "es") === String(lang || "es")) || null;
+  }, [templates, name, lang]);
+
+  const expectedParamCount = useMemo(() => {
+    const comps = selectedTemplate?.components || [];
+    let maxIndex = 0;
+    for (const c of comps) {
+      const text = String((c as any)?.text || "");
+      const matches = text.match(/\{\{\d+\}\}/g) || [];
+      for (const m of matches) {
+        const n = Number(String(m || "").replace(/\D+/g, ""));
+        if (Number.isFinite(n)) maxIndex = Math.max(maxIndex, n);
+      }
+    }
+    return Math.max(maxIndex, params.length);
+  }, [selectedTemplate, params.length]);
 
   const onSelect = (value: string) => {
     if (!value) return;
     const [tplName, tplLang] = value.split("::");
     setName(tplName || "");
     setLang(tplLang || "es");
+    const tpl = templates.find((t) => t.name === tplName && String(t.language || "es") === String(tplLang || "es"));
+    const processed = Array.isArray((tpl as any)?.processed_params?.body)
+      ? (tpl as any).processed_params.body.map((p: any) => String(p?.value || ""))
+      : [];
+    if (processed.length) setParams(processed);
   };
 
   return (
     <>
+      <div className="field" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+        <label style={{ margin: 0 }}>Plantillas disponibles</label>
+        {onSync ? (
+          <button className="ghost btn-compact" type="button" onClick={onSync} data-loader="off">
+            {syncing ? "Sincronizando..." : "Sincronizar"}
+          </button>
+        ) : null}
+      </div>
       {templates.length ? (
         <div className="field">
-          <label>Plantillas disponibles</label>
           <select className="select select-compact" defaultValue="" onChange={(e) => onSelect(e.target.value)}>
             <option value="">Selecciona una plantilla</option>
             {templates.map((t) => (
@@ -153,22 +191,45 @@ function WaTemplateFields({
               </option>
             ))}
           </select>
+          {syncError ? <div className="field-hint" style={{ color: "var(--danger)" }}>{syncError}</div> : null}
         </div>
-      ) : null}
+      ) : (
+        <div className="field-hint">No hay plantillas disponibles. Sincroniza para cargarlas.</div>
+      )}
       <div className="field">
         <label>Template WhatsApp</label>
         <input className="input input-compact" name="waTemplateName" value={name} onChange={(e) => setName(e.target.value)} placeholder="nombre_template" />
       </div>
       <div className="field">
         <label>Idioma</label>
-        <input className="input input-compact" name="waLanguage" value={lang} onChange={(e) => setLang(e.target.value)} placeholder="es" />
+        <input className="input input-compact" value={lang} readOnly />
+        <input type="hidden" name="waLanguage" value={lang} />
       </div>
       <div className="field">
         <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span>Parámetros (separados por |)</span>
-          <HelpTip text="Son los valores que reemplazan {{1}}, {{2}}, {{3}} en tu plantilla. Ej: 'Hola {{1}}, recibimos {{2}}' → Juan|$10.000" />
+          <span>Parámetros</span>
+          <HelpTip text="Se abren según la plantilla seleccionada. Valores para {{1}}, {{2}}, {{3}}..." />
         </label>
-        <input className="input input-compact" name="waParams" value={params} onChange={(e) => setParams(e.target.value)} placeholder="Juan|$10000" />
+        {expectedParamCount > 0 ? (
+          <div style={{ display: "grid", gap: 6 }}>
+            {Array.from({ length: expectedParamCount }).map((_, idx) => (
+              <input
+                key={`param-${idx}`}
+                className="input input-compact"
+                value={params[idx] || ""}
+                onChange={(e) => {
+                  const next = params.slice();
+                  next[idx] = e.target.value;
+                  setParams(next);
+                }}
+                placeholder={`{{${idx + 1}}}`}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="field-hint">Esta plantilla no requiere variables.</div>
+        )}
+        <input type="hidden" name="waParams" value={params.join("|")} />
       </div>
     </>
   );

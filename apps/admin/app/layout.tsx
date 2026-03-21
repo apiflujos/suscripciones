@@ -6,11 +6,8 @@ import { cookies } from "next/headers";
 import "./globals.css";
 import "./styles.css";
 import "leaflet/dist/leaflet.css";
-import { SideNav } from "./SideNav";
-import { TopBar } from "./TopBar";
-import { ThemeClient } from "./ThemeClient";
 import { ClientProviders } from "./ClientProviders";
-import { RealtimeNotifier } from "./ui/RealtimeNotifier";
+import { ShellGate } from "./ShellGate";
 import { listTenants } from "./admin/_services/tenants";
 import type { AdminSession } from "../lib/session";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../lib/session";
@@ -52,18 +49,6 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
-function isPublicRoutePath(pathname: string): boolean {
-  return (
-    pathname === "/login" ||
-    pathname === "/logout" ||
-    pathname.startsWith("/public/") ||
-    pathname === "/wompi/widget" ||
-    pathname === "/404" ||
-    pathname === "/500" ||
-    pathname === "/_error"
-  );
-}
-
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const h = await headers();
   const forwardedUri = h.get("x-forwarded-uri") || h.get("x-original-uri") || h.get("x-rewrite-url") || "";
@@ -80,8 +65,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     session = await verifyAdminSessionToken(sessionToken);
   }
 
-  const isPublicRoute = isPublicRoutePath(pathname);
-  const shouldShowShell = !isPublicRoute && session;
+  const isPublicRoute = pathname === "/login" || pathname === "/logout" || pathname.startsWith("/public/") || pathname === "/wompi/widget" || pathname === "/404" || pathname === "/500" || pathname === "/_error";
   const forceSystemTheme = isPublicRoute ? "1" : "0";
 
   return (
@@ -90,40 +74,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <link id="theme-favicon" rel="icon" type="image/svg+xml" href="/brand/isotipo_icono.svg" data-theme-favicon="true" />
         <script src="/theme-init.js" />
       </head>
-      <body className={isPublicRoute ? "authBody" : undefined}>
-        {isPublicRoute ? (
-          <div className="authShell">{children}</div>
-        ) : shouldShowShell ? (
-          <div className="app-shell">
-            <aside className="sidebar" aria-label="Sidebar">
-              <SideNav session={session} />
-            </aside>
-            <div className="sidebarOverlay" aria-hidden="true" />
-
-            <div className="content" style={{ alignContent: "start" }}>
-              <TopBar session={session} />
-              <RealtimeNotifier session={session ? { email: session.email } : null} />
-              {children}
-            </div>
-          </div>
-        ) : (
-          // Caso fallback: middleware debería haber redirigido, pero por seguridad mostramos login
-          <div className="authShell">
-            <div className="authCard loginCard">
-              <div className="authCardInner loginCardInner">
-                <div className="authHeader loginHeaderText">
-                  <h1 className="authTitle">Sesión expirada</h1>
-                  <div className="authSubtitle">Por favor, inicia sesión nuevamente.</div>
-                </div>
-                <div className="authAlert">
-                  Redirigiendo al login...
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+      <body>
+        <ShellGate session={session}>{children}</ShellGate>
         <ClientProviders />
-        {!isPublicRoute && <ThemeClient />}
       </body>
     </html>
   );
