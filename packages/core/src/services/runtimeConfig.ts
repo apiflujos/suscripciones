@@ -175,7 +175,7 @@ export async function getAutoDebitConfig(): Promise<AutoDebitConfig> {
     : retryEveryMinutesLegacy;
   const derived = deriveRetryUnitAndValue(retryEveryMinutes);
   const maxRetriesRaw = toInt(String(parsed?.maxRetries ?? ""), envMaxRetries, 0, 20);
-  const maxRetries = Math.min(maxRetriesRaw, 1);
+  const maxRetries = retryEnabled ? Math.max(1, maxRetriesRaw) : maxRetriesRaw;
 
   return {
     enabled,

@@ -284,7 +284,8 @@ export async function updateAutoDebitConfig(input: unknown) {
       ? toInt(parsed.data.retryEveryMinutes, 60, 1, 10080)
       : toInt(current?.retryEveryMinutes, 60, 1, 10080);
   const derived = deriveRetryUnitAndValue(retryEveryMinutes);
-  const maxRetries = parsed.data.maxRetries != null ? toInt(parsed.data.maxRetries, 0, 0, 1) : toInt(current?.maxRetries, 0, 0, 1);
+  const maxRetriesRaw = parsed.data.maxRetries != null ? toInt(parsed.data.maxRetries, 0, 0, 20) : toInt(current?.maxRetries, 0, 0, 20);
+  const maxRetries = retryEnabled ? Math.max(1, maxRetriesRaw) : maxRetriesRaw;
 
   await setCredential(
     CredentialProvider.WOMPI,
