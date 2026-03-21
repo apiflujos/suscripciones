@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties } from "react";
 import { PendingButton } from "../ui/PendingButton";
 import { HelpTip } from "../ui/HelpTip";
 
@@ -77,14 +76,6 @@ const REMINDER_TPL_DUE = "tpl_reminder_due";
 const REMINDER_TPL_MORA = "tpl_reminder_mora";
 
 type OffsetItem = { amount: string; unit: "minutes" | "hours" | "days" };
-const CLAMP_STYLE: CSSProperties = {
-  display: "-webkit-box",
-  WebkitLineClamp: 2,
-  WebkitBoxOrient: "vertical",
-  overflow: "hidden",
-  whiteSpace: "pre-wrap"
-};
-
 const MESSAGE_VARIABLES = [
   { label: "Nombre completo", value: "{{customer.name}}" },
   { label: "Email", value: "{{customer.email}}" },
@@ -318,6 +309,38 @@ export function NotificationsSimple({
   const pendingRealtime = REALTIME_TYPES;
   const dueConfigured = Boolean(reminderDue && isTemplateConfigured(reminderDueTemplate, dueKind));
   const moraConfigured = Boolean(reminderMora && isTemplateConfigured(reminderMoraTemplate, moraKind));
+  const listItems = [
+    ...pendingRealtime.map((rt) => {
+      const rule = rulesByKey.get(rt.key);
+      const isConfigured = Boolean(rule);
+      const statusLabel = isConfigured ? (rule?.enabled ? "Activa" : "Inactiva") : "No configurada";
+      const statusPill = isConfigured ? (rule?.enabled ? "pill-green" : "pill-muted") : "pill-muted";
+      return {
+        id: `realtime:${rt.key}`,
+        label: rt.label,
+        subtitle: "CentralCom",
+        statusLabel,
+        statusPill,
+        onClick: () => setActiveModal({ type: "realtime", key: rt.key })
+      };
+    }),
+    {
+      id: "reminder:due",
+      label: "Recordatorio de fecha de pago",
+      subtitle: "Antes del vencimiento",
+      statusLabel: dueConfigured ? (reminderDue?.enabled ? "Activa" : "Inactiva") : "No configurada",
+      statusPill: dueConfigured && reminderDue?.enabled ? "pill-green" : "pill-muted",
+      onClick: () => setActiveModal({ type: "reminder", kind: "DUE" })
+    },
+    {
+      id: "reminder:mora",
+      label: "Recordatorio en mora",
+      subtitle: "Después del vencimiento",
+      statusLabel: moraConfigured ? (reminderMora?.enabled ? "Activa" : "Inactiva") : "No configurada",
+      statusPill: moraConfigured && reminderMora?.enabled ? "pill-green" : "pill-muted",
+      onClick: () => setActiveModal({ type: "reminder", kind: "MORA" })
+    }
+  ];
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
@@ -352,8 +375,8 @@ export function NotificationsSimple({
       ) : null}
       <section className="settings-group notifications-templates-section">
         <div className="settings-group-header">
-          <div className="panelHeaderRow">
-            <h3>Notificaciones en tiempo real</h3>
+          <div className="panelHeaderRow" style={{ justifyContent: "space-between", gap: 8 }}>
+            <h3>Lista de notificaciones</h3>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <button className="ghost btn-compact" type="button" onClick={loadWaTemplates} data-loader="off">
                 {waLoading ? "Sincronizando..." : "Sincronizar plantillas WhatsApp"}
@@ -363,99 +386,25 @@ export function NotificationsSimple({
           </div>
         </div>
         <div className="settings-group-body">
-          <div className="saved-connections-grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
-            {pendingRealtime.map((rt) => {
-              const tpl = templateForKey(rt.key, rt.chatwootType, rt.label);
-              const rule = rulesByKey.get(rt.key);
-              const content = tpl?.content && tpl.content !== "(template)" ? String(tpl.content) : "";
-              const hasWa = Boolean(tpl?.chatwootTemplate?.name);
-              const waName = tpl?.chatwootTemplate?.name || "";
-              const waLang = tpl?.chatwootTemplate?.language || "es";
-              const waParams = tpl?.chatwootTemplate?.processed_params?.body || [];
-              const kind = realtimeKinds[rt.key] || (hasWa ? "WHATSAPP_TEMPLATE" : "TEXT");
-              const isConfigured = Boolean(rule);
-              const statusLabel = isConfigured ? (rule?.enabled ? "Activa" : "Inactiva") : "No configurada";
-              const statusPill = isConfigured ? (rule?.enabled ? "pill-green" : "pill-muted") : "pill-muted";
-
-              return (
-                <div key={rt.key} className="saved-conn-card">
-                  <div className="saved-conn-header">
-                    <div>
-                      <strong style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                        <span>{rt.label}</span>
-                        <HelpTip text="Esta regla se ejecuta cuando ocurre este evento y envía la plantilla configurada." />
-                      </strong>
-                      <div className="saved-conn-sub">CentralCom</div>
-                    </div>
-                    <span className={`pill ${statusPill}`}>{statusLabel}</span>
-                  </div>
-                  <div className="saved-conn-meta" style={{ borderBottom: "1px solid var(--stroke)", paddingBottom: 8 }}>
-                    <div className="saved-conn-meta-item" style={{ gridColumn: "1 / -1" }}>
-                      <span className="saved-conn-meta-label">{kind === "TEXT" ? "Mensaje" : "Plantilla"}</span>
-                      <span className="saved-conn-meta-value" style={CLAMP_STYLE}>
-                        {kind === "TEXT"
-                          ? (content || "—")
-                          : waName
-                            ? `${waName} (${waLang})${waParams.length ? ` · ${waParams.map((p) => p.value).join(" | ")}` : ""}`
-                            : "—"}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
-                    <button className="primary btn-compact" type="button" onClick={() => setActiveModal({ type: "realtime", key: rt.key })} data-loader="off">
-                      {isConfigured ? "Editar" : "Configurar"}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      <section className="settings-group notifications-reminders-section">
-        <div className="settings-group-header">
-          <div className="panelHeaderRow">
-            <h3>Recordatorios programados</h3>
-          </div>
-        </div>
-        <div className="settings-group-body">
-          <div className="saved-connections-grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
-            <div className="saved-conn-card">
-              <div className="saved-conn-header">
+          <div style={{ display: "grid", gap: 8 }}>
+            {listItems.map((item) => (
+              <div
+                key={item.id}
+                className="card cardPad"
+                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}
+              >
                 <div>
-                  <strong style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                    <span>Recordatorio de fecha de pago</span>
-                    <HelpTip text="Se envía antes del vencimiento para prevenir que la suscripción caiga en mora." />
-                  </strong>
-                  <div className="saved-conn-sub">Antes del vencimiento</div>
+                  <strong>{item.label}</strong>
+                  <div className="muted" style={{ fontSize: 12 }}>{item.subtitle}</div>
                 </div>
-                <span className={`pill ${dueConfigured && reminderDue?.enabled ? "pill-green" : "pill-muted"}`}>{dueConfigured ? (reminderDue?.enabled ? "Activa" : "Inactiva") : "No configurada"}</span>
-              </div>
-              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
-                <button className="primary btn-compact" type="button" onClick={() => setActiveModal({ type: "reminder", kind: "DUE" })} data-loader="off">
-                  {dueConfigured ? "Editar" : "Configurar"}
-                </button>
-              </div>
-            </div>
-
-            <div className="saved-conn-card">
-              <div className="saved-conn-header">
-                <div>
-                  <strong style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                    <span>Recordatorio en mora</span>
-                    <HelpTip text="Se envía después del vencimiento para recuperar pagos atrasados." />
-                  </strong>
-                  <div className="saved-conn-sub">Después del vencimiento</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span className={`pill ${item.statusPill}`}>{item.statusLabel}</span>
+                  <button className="primary btn-compact" type="button" onClick={item.onClick} data-loader="off">
+                    Configurar
+                  </button>
                 </div>
-                <span className={`pill ${moraConfigured && reminderMora?.enabled ? "pill-green" : "pill-muted"}`}>{moraConfigured ? (reminderMora?.enabled ? "Activa" : "Inactiva") : "No configurada"}</span>
               </div>
-              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
-                <button className="primary btn-compact" type="button" onClick={() => setActiveModal({ type: "reminder", kind: "MORA" })} data-loader="off">
-                  {moraConfigured ? "Editar" : "Configurar"}
-                </button>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
