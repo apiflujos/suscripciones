@@ -260,6 +260,8 @@ export function NotificationsSimple({
   const [activeModal, setActiveModal] = useState<
     null | { type: "realtime"; key: RealtimeKey } | { type: "reminder"; kind: "DUE" | "MORA" }
   >(null);
+  const [wizardStep, setWizardStep] = useState<1 | 2>(1);
+  const [wizardKind, setWizardKind] = useState<"TEXT" | "WHATSAPP_TEMPLATE">("TEXT");
 
   const [dueOffsets, setDueOffsets] = useState<OffsetItem[]>(offsetsToItems(reminderDue?.offsetsSeconds, -1));
   const [moraOffsets, setMoraOffsets] = useState<OffsetItem[]>(offsetsToItems(reminderMora?.offsetsSeconds, 1));
@@ -309,6 +311,22 @@ export function NotificationsSimple({
   const pendingRealtime = REALTIME_TYPES;
   const dueConfigured = Boolean(reminderDue && isTemplateConfigured(reminderDueTemplate, dueKind));
   const moraConfigured = Boolean(reminderMora && isTemplateConfigured(reminderMoraTemplate, moraKind));
+
+  useEffect(() => {
+    if (!activeModal) return;
+    setWizardStep(1);
+    if (activeModal.type === "realtime") {
+      const rt = REALTIME_TYPES.find((r) => r.key === activeModal.key);
+      if (!rt) return;
+      const tpl = templateForKey(rt.key, rt.chatwootType, rt.label);
+      const hasWa = Boolean(tpl?.chatwootTemplate?.name);
+      const kind = realtimeKinds[rt.key] || (hasWa ? "WHATSAPP_TEMPLATE" : "TEXT");
+      setWizardKind(kind);
+      return;
+    }
+    const kind = activeModal.kind === "DUE" ? dueKind : moraKind;
+    setWizardKind(kind);
+  }, [activeModal, realtimeKinds, dueKind, moraKind, templates]);
   const listItems = [
     ...pendingRealtime.map((rt) => {
       const rule = rulesByKey.get(rt.key);
@@ -439,7 +457,7 @@ export function NotificationsSimple({
                   const waName = tpl?.chatwootTemplate?.name || "";
                   const waLang = tpl?.chatwootTemplate?.language || "es";
                   const waParams = tpl?.chatwootTemplate?.processed_params?.body || [];
-                  const kind = realtimeKinds[rt.key] || (hasWa ? "WHATSAPP_TEMPLATE" : "TEXT");
+                  const kind = wizardKind;
                   return (
                     <form action={actions.saveRealtime} className="notification-form" style={{ display: "grid", gap: 10 }}>
                       <input type="hidden" name="csrf" value={csrfToken} />
@@ -447,6 +465,7 @@ export function NotificationsSimple({
                       <input type="hidden" name="key" value={rt.key} />
                       <input type="hidden" name="chatwootType" value={rt.chatwootType || ""} />
                       <input type="hidden" name="paymentType" value={rt.paymentType || ""} />
+                      <input type="hidden" name="templateKind" value={kind} />
                       <div className="field row" style={{ justifyContent: "space-between" }}>
                         <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           <span>Activa</span>
@@ -454,22 +473,48 @@ export function NotificationsSimple({
                         </label>
                         <input type="checkbox" name="enabled" defaultChecked={rule?.enabled ?? true} />
                       </div>
-                      <div className="field">
-                        <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span>Tipo de mensaje</span>
-                          <HelpTip text="Texto: mensaje libre con variables. Plantilla WhatsApp: plantilla aprobada por Meta." />
-                        </label>
-                        <select
-                          className="select select-compact"
-                          name="templateKind"
-                          value={kind}
-                          onChange={(e) => setRealtimeKinds({ ...realtimeKinds, [rt.key]: e.target.value as any })}
-                        >
-                          <option value="TEXT">Texto</option>
-                          <option value="WHATSAPP_TEMPLATE">Plantilla WhatsApp</option>
-                        </select>
-                      </div>
-                      {kind === "TEXT" ? (
+                      {wizardStep === 1 ? (
+                        <div className="field">
+                          <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span>Paso 1: tipo de mensaje</span>
+                            <HelpTip text="Selecciona si usarás un mensaje libre o una plantilla de WhatsApp." />
+                          </label>
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            <button
+                              className="ghost btn-compact"
+                              type="button"
+                              onClick={() => {
+                                setWizardKind("TEXT");
+                                setRealtimeKinds({ ...realtimeKinds, [rt.key]: "TEXT" });
+                                setWizardStep(2);
+                              }}
+                              data-loader="off"
+                            >
+                              Mensaje
+                            </button>
+                            <button
+                              className="ghost btn-compact"
+                              type="button"
+                              onClick={() => {
+                                setWizardKind("WHATSAPP_TEMPLATE");
+                                setRealtimeKinds({ ...realtimeKinds, [rt.key]: "WHATSAPP_TEMPLATE" });
+                                setWizardStep(2);
+                              }}
+                              data-loader="off"
+                            >
+                              Plantilla
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="field row" style={{ justifyContent: "space-between" }}>
+                          <div className="muted">Tipo: {kind === "WHATSAPP_TEMPLATE" ? "Plantilla" : "Mensaje"}</div>
+                          <button className="ghost btn-compact" type="button" onClick={() => setWizardStep(1)} data-loader="off">
+                            Cambiar tipo
+                          </button>
+                        </div>
+                      )}
+                      {wizardStep === 2 && kind === "TEXT" ? (
                         <div className="field">
                           <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
                             <span>Mensaje</span>
@@ -495,7 +540,7 @@ export function NotificationsSimple({
                           </div>
                         </div>
                       ) : null}
-                      {kind === "WHATSAPP_TEMPLATE" ? (
+                      {wizardStep === 2 && kind === "WHATSAPP_TEMPLATE" ? (
                         <WaTemplateFields
                           templates={waTemplates}
                           defaultName={waName}
@@ -503,11 +548,13 @@ export function NotificationsSimple({
                           defaultParams={waParams.map((p) => p.value).join("|")}
                         />
                       ) : null}
-                      <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
-                        <PendingButton className="primary btn-compact btn-save" type="submit" pendingText="Guardando...">
-                          Guardar
-                        </PendingButton>
-                      </div>
+                      {wizardStep === 2 ? (
+                        <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
+                          <PendingButton className="primary btn-compact btn-save" type="submit" pendingText="Guardando...">
+                            Guardar
+                          </PendingButton>
+                        </div>
+                      ) : null}
                     </form>
                   );
                 })()
@@ -518,6 +565,7 @@ export function NotificationsSimple({
                   <input type="hidden" name="environment" value={env} />
                   <input type="hidden" name="kind" value={activeModal.kind} />
                   <input type="hidden" name="templateId" value={activeModal.kind === "DUE" ? REMINDER_TPL_DUE : REMINDER_TPL_MORA} />
+                  <input type="hidden" name="templateKind" value={wizardKind} />
                   <div className="field row" style={{ justifyContent: "space-between" }}>
                     <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <span>Activa</span>
@@ -525,24 +573,48 @@ export function NotificationsSimple({
                     </label>
                     <input type="checkbox" name="enabled" defaultChecked={(activeModal.kind === "DUE" ? reminderDue : reminderMora)?.enabled ?? true} />
                   </div>
-                  <div className="field">
-                    <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span>Tipo de mensaje</span>
-                      <HelpTip text="Texto: mensaje libre con variables. Plantilla WhatsApp: usa plantilla aprobada por Meta." />
-                    </label>
-                    <select
-                      className="select select-compact"
-                      name="templateKind"
-                      value={activeModal.kind === "DUE" ? dueKind : moraKind}
-                      onChange={(e) =>
-                        activeModal.kind === "DUE" ? setDueKind(e.target.value as any) : setMoraKind(e.target.value as any)
-                      }
-                    >
-                      <option value="TEXT">Texto</option>
-                      <option value="WHATSAPP_TEMPLATE">Plantilla WhatsApp</option>
-                    </select>
-                  </div>
-                  {(activeModal.kind === "DUE" ? dueKind : moraKind) === "TEXT" ? (
+                  {wizardStep === 1 ? (
+                    <div className="field">
+                      <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span>Paso 1: tipo de mensaje</span>
+                        <HelpTip text="Selecciona si usarás un mensaje libre o una plantilla de WhatsApp." />
+                      </label>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button
+                          className="ghost btn-compact"
+                          type="button"
+                          onClick={() => {
+                            setWizardKind("TEXT");
+                            activeModal.kind === "DUE" ? setDueKind("TEXT") : setMoraKind("TEXT");
+                            setWizardStep(2);
+                          }}
+                          data-loader="off"
+                        >
+                          Mensaje
+                        </button>
+                        <button
+                          className="ghost btn-compact"
+                          type="button"
+                          onClick={() => {
+                            setWizardKind("WHATSAPP_TEMPLATE");
+                            activeModal.kind === "DUE" ? setDueKind("WHATSAPP_TEMPLATE") : setMoraKind("WHATSAPP_TEMPLATE");
+                            setWizardStep(2);
+                          }}
+                          data-loader="off"
+                        >
+                          Plantilla
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="field row" style={{ justifyContent: "space-between" }}>
+                      <div className="muted">Tipo: {wizardKind === "WHATSAPP_TEMPLATE" ? "Plantilla" : "Mensaje"}</div>
+                      <button className="ghost btn-compact" type="button" onClick={() => setWizardStep(1)} data-loader="off">
+                        Cambiar tipo
+                      </button>
+                    </div>
+                  )}
+                  {wizardStep === 2 && wizardKind === "TEXT" ? (
                     <div className="field">
                       <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <span>Mensaje</span>
@@ -570,7 +642,7 @@ export function NotificationsSimple({
                         </button>
                       </div>
                     </div>
-                  ) : (
+                  ) : wizardStep === 2 ? (
                     <WaTemplateFields
                       templates={waTemplates}
                       defaultName={activeModal.kind === "DUE" ? (reminderDueTemplate?.chatwootTemplate?.name || "") : (reminderMoraTemplate?.chatwootTemplate?.name || "")}
@@ -582,81 +654,85 @@ export function NotificationsSimple({
                       }
                     />
                   )}
-                  {(activeModal.kind === "DUE" ? dueOffsets : moraOffsets).map((item, idx) => (
-                    <div key={`${activeModal.kind}-${idx}`} style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 6, alignItems: "end" }}>
-                      <div className="field">
-                        <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span>Cada</span>
-                          <HelpTip text="Cantidad del recordatorio." />
-                        </label>
-                        <input
-                          className="input input-compact"
-                          value={item.amount}
-                          onChange={(e) => {
-                            const next = (activeModal.kind === "DUE" ? dueOffsets : moraOffsets).slice();
-                            next[idx] = { ...item, amount: e.target.value };
-                            activeModal.kind === "DUE" ? setDueOffsets(next) : setMoraOffsets(next);
-                          }}
-                          inputMode="numeric"
-                        />
-                      </div>
-                      <div className="field">
-                        <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span>Unidad</span>
-                          <HelpTip text="Unidad de tiempo del recordatorio." />
-                        </label>
-                        <select
-                          className="select select-compact"
-                          value={item.unit}
-                          onChange={(e) => {
-                            const next = (activeModal.kind === "DUE" ? dueOffsets : moraOffsets).slice();
-                            next[idx] = { ...item, unit: e.target.value as any };
-                            activeModal.kind === "DUE" ? setDueOffsets(next) : setMoraOffsets(next);
-                          }}
-                        >
-                          <option value="minutes">Minutos</option>
-                          <option value="hours">Horas</option>
-                          <option value="days">Días</option>
-                        </select>
-                      </div>
+                  {wizardStep === 2 ? (
+                    <>
+                      {(activeModal.kind === "DUE" ? dueOffsets : moraOffsets).map((item, idx) => (
+                        <div key={`${activeModal.kind}-${idx}`} style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 6, alignItems: "end" }}>
+                          <div className="field">
+                            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <span>Cada</span>
+                              <HelpTip text="Cantidad del recordatorio." />
+                            </label>
+                            <input
+                              className="input input-compact"
+                              value={item.amount}
+                              onChange={(e) => {
+                                const next = (activeModal.kind === "DUE" ? dueOffsets : moraOffsets).slice();
+                                next[idx] = { ...item, amount: e.target.value };
+                                activeModal.kind === "DUE" ? setDueOffsets(next) : setMoraOffsets(next);
+                              }}
+                              inputMode="numeric"
+                            />
+                          </div>
+                          <div className="field">
+                            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <span>Unidad</span>
+                              <HelpTip text="Unidad de tiempo del recordatorio." />
+                            </label>
+                            <select
+                              className="select select-compact"
+                              value={item.unit}
+                              onChange={(e) => {
+                                const next = (activeModal.kind === "DUE" ? dueOffsets : moraOffsets).slice();
+                                next[idx] = { ...item, unit: e.target.value as any };
+                                activeModal.kind === "DUE" ? setDueOffsets(next) : setMoraOffsets(next);
+                              }}
+                            >
+                              <option value="minutes">Minutos</option>
+                              <option value="hours">Horas</option>
+                              <option value="days">Días</option>
+                            </select>
+                          </div>
+                          <button
+                            className="ghost btn-compact"
+                            type="button"
+                            onClick={() => {
+                              const next = (activeModal.kind === "DUE" ? dueOffsets : moraOffsets).filter((_, i) => i !== idx);
+                              activeModal.kind === "DUE" ? setDueOffsets(next) : setMoraOffsets(next);
+                            }}
+                            aria-label="Eliminar"
+                            data-loader="off"
+                          >
+                            Quitar
+                          </button>
+                        </div>
+                      ))}
+                      <input
+                        type="hidden"
+                        name="offsetsSeconds"
+                        value={(activeModal.kind === "DUE" ? dueOffsets : moraOffsets)
+                          .map((o) => secondsFromOffset(o, activeModal.kind === "DUE" ? -1 : 1))
+                          .join(",")}
+                      />
                       <button
                         className="ghost btn-compact"
                         type="button"
-                        onClick={() => {
-                          const next = (activeModal.kind === "DUE" ? dueOffsets : moraOffsets).filter((_, i) => i !== idx);
-                          activeModal.kind === "DUE" ? setDueOffsets(next) : setMoraOffsets(next);
-                        }}
-                        aria-label="Eliminar"
+                        onClick={() =>
+                          activeModal.kind === "DUE"
+                            ? setDueOffsets([...dueOffsets, { amount: "1", unit: "days" }])
+                            : setMoraOffsets([...moraOffsets, { amount: "1", unit: "days" }])
+                        }
                         data-loader="off"
                       >
-                        Quitar
+                        + Agregar recordatorio
                       </button>
-                    </div>
-                  ))}
-                  <input
-                    type="hidden"
-                    name="offsetsSeconds"
-                    value={(activeModal.kind === "DUE" ? dueOffsets : moraOffsets)
-                      .map((o) => secondsFromOffset(o, activeModal.kind === "DUE" ? -1 : 1))
-                      .join(",")}
-                  />
-                  <button
-                    className="ghost btn-compact"
-                    type="button"
-                    onClick={() =>
-                      activeModal.kind === "DUE"
-                        ? setDueOffsets([...dueOffsets, { amount: "1", unit: "days" }])
-                        : setMoraOffsets([...moraOffsets, { amount: "1", unit: "days" }])
-                    }
-                    data-loader="off"
-                  >
-                    + Agregar recordatorio
-                  </button>
-                  <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-                    <PendingButton className="primary btn-compact btn-save" type="submit" pendingText="Guardando...">
-                      Guardar
-                    </PendingButton>
-                  </div>
+                      <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
+                        <PendingButton className="primary btn-compact btn-save" type="submit" pendingText="Guardando...">
+                          Guardar
+                        </PendingButton>
+                      </div>
+                    </>
+                  ) : null}
                 </form>
               ) : null}
             </div>
