@@ -335,23 +335,6 @@ export function ConnectionsPanel({
                       <div className="field-hint">Déjalo vacío para conservar el token actual.</div>
                     </div>
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 10 }}>
-                    <div className="field">
-                      <label>Plantilla WhatsApp (producto)</label>
-                      <input
-                        className="input"
-                        name="productTemplateName"
-                        placeholder="apiflujos_producto_link"
-                        defaultValue={commsProduction?.productTemplateName || ""}
-                      />
-                      <div className="field-hint">Recomendado: plantilla con 4 variables en body (cliente, producto, precio, link).</div>
-                    </div>
-                    <div className="field">
-                      <label>Idioma plantilla</label>
-                      <input className="input" name="productTemplateLang" placeholder="es" defaultValue={commsProduction?.productTemplateLang || ""} />
-                      <div className="field-hint">Ej: es, es_CO.</div>
-                    </div>
-                  </div>
                   <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                       {inlineMsg("central_delete", "Eliminado.", "Error eliminando", inlineState)}
