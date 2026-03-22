@@ -59,6 +59,7 @@ export async function GET(req: Request) {
   if (op === "whatsapp_templates") {
     try {
       const client = await getChatwootClient();
+      await client.syncWhatsappTemplates().catch(() => {});
       const templates = await client.listWhatsappTemplates();
       return Response.json({ ok: true, templates });
     } catch (err: any) {

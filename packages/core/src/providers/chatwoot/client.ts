@@ -266,54 +266,69 @@ export class ChatwootClient {
   }
 
   async listWhatsappTemplates() {
+    const normalizeList = (payload: any) => {
+      const list = Array.isArray(payload?.whatsapp_templates)
+        ? payload.whatsapp_templates
+        : Array.isArray(payload?.templates)
+          ? payload.templates
+          : Array.isArray(payload)
+            ? payload
+            : [];
+      return list
+        .map((tpl: any) => ({
+          id: tpl.id ?? tpl.template_id ?? tpl.uuid ?? tpl.name,
+          name: String(tpl.name || tpl.template_name || "").trim(),
+          language: String(tpl.language || tpl.locale || "es").trim(),
+          category: String(tpl.category || tpl.template_category || "").trim(),
+          status: String(tpl.status || "").trim(),
+          components: tpl.components ?? tpl.content ?? null
+        }))
+        .filter((tpl: any) => tpl.name);
+    };
+
     const primaryPath = `/api/v1/accounts/${this.opts.accountId}/whatsapp_templates`;
-    const res = await this.request(primaryPath, {
-      method: "GET"
-    });
-    if (!res.ok) {
-      // Some deployments expose templates under inbox path.
-      if (res.status === 404 && this.opts.inboxId) {
-        const fallback = await this.request(`/api/v1/accounts/${this.opts.accountId}/inboxes/${this.opts.inboxId}/whatsapp_templates`, {
-          method: "GET"
-        });
-        if (!fallback.ok) throw new Error(`Chatwoot list templates failed: ${fallback.status} ${JSON.stringify(fallback.json)}`);
-        const payload = (fallback.json && (fallback.json.payload ?? fallback.json.data ?? fallback.json)) || [];
-        const list = Array.isArray(payload?.whatsapp_templates)
-          ? payload.whatsapp_templates
-          : Array.isArray(payload?.templates)
-            ? payload.templates
-            : Array.isArray(payload)
-              ? payload
-              : [];
-        return list
-          .map((tpl: any) => ({
-            id: tpl.id ?? tpl.template_id ?? tpl.uuid ?? tpl.name,
-            name: String(tpl.name || tpl.template_name || "").trim(),
-            language: String(tpl.language || tpl.locale || "es").trim(),
-            category: String(tpl.category || tpl.template_category || "").trim(),
-            status: String(tpl.status || "").trim(),
-            components: tpl.components ?? tpl.content ?? null
-          }))
-          .filter((tpl: any) => tpl.name);
-      }
-      throw new Error(`Chatwoot list templates failed: ${res.status} ${JSON.stringify(res.json)}`);
+    const res = await this.request(primaryPath, { method: "GET" });
+    if (res.ok) {
+      const payload = (res.json && (res.json.payload ?? res.json.data ?? res.json)) || [];
+      return normalizeList(payload);
     }
-    const payload = (res.json && (res.json.payload ?? res.json.data ?? res.json)) || [];
-    const list = Array.isArray(payload?.whatsapp_templates)
-      ? payload.whatsapp_templates
-      : Array.isArray(payload?.templates)
-        ? payload.templates
-        : Array.isArray(payload)
-          ? payload
-          : [];
-    return list.map((tpl: any) => ({
-      id: tpl.id ?? tpl.template_id ?? tpl.uuid ?? tpl.name,
-      name: String(tpl.name || tpl.template_name || "").trim(),
-      language: String(tpl.language || tpl.locale || "es").trim(),
-      category: String(tpl.category || tpl.template_category || "").trim(),
-      status: String(tpl.status || "").trim(),
-      components: tpl.components ?? tpl.content ?? null
-    })).filter((tpl: any) => tpl.name);
+
+    if (this.opts.inboxId) {
+      const fallback = await this.request(`/api/v1/accounts/${this.opts.accountId}/inboxes/${this.opts.inboxId}/whatsapp_templates`, {
+        method: "GET"
+      });
+      if (fallback.ok) {
+        const payload = (fallback.json && (fallback.json.payload ?? fallback.json.data ?? fallback.json)) || [];
+        return normalizeList(payload);
+      }
+
+      // Final fallback: read templates from inbox details if exposed there.
+      const inboxRes = await this.request(`/api/v1/accounts/${this.opts.accountId}/inboxes/${this.opts.inboxId}`, { method: "GET" });
+      if (inboxRes.ok) {
+        const data = inboxRes.json?.payload ?? inboxRes.json?.data ?? inboxRes.json ?? {};
+        const inboxTemplates =
+          data?.message_templates ||
+          data?.channel?.message_templates ||
+          data?.channel?.whatsapp_templates ||
+          data?.channel?.templates ||
+          data?.whatsapp_templates ||
+          data?.templates ||
+          [];
+        const normalized = normalizeList(inboxTemplates);
+        if (normalized.length) return normalized;
+      }
+    }
+
+    throw new Error(`Chatwoot list templates failed: ${res.status} ${JSON.stringify(res.json)}`);
+  }
+
+  async syncWhatsappTemplates() {
+    if (!this.opts.inboxId) return { ok: false as const, error: "missing_inbox_id" as const };
+    const res = await this.request(`/api/v1/accounts/${this.opts.accountId}/inboxes/${this.opts.inboxId}/sync_templates`, {
+      method: "POST"
+    });
+    if (!res.ok) return { ok: false as const, status: res.status, error: "sync_failed" as const, details: res.json };
+    return { ok: true as const };
   }
 
   async createContact(input: { name?: string; email?: string; phoneNumber?: string }) {
