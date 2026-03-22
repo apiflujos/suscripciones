@@ -62,15 +62,15 @@ const REALTIME_TYPES: Array<{
   chatwootType: Template["chatwootType"];
   paymentType?: "PLAN" | "SUBSCRIPTION" | "LINK";
 }> = [
-  { key: "catalog_link_created_plan", label: "Catálogo enviado (plan)", trigger: "CATALOG_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "PLAN" },
+  { key: "catalog_link_created_plan", label: "Catálogo enviado (link de pago)", trigger: "CATALOG_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "PLAN" },
   { key: "catalog_link_created_subscription", label: "Catálogo enviado (suscripción · link de pago)", aliases: ["Catálogo enviado (suscripción)"], trigger: "CATALOG_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "SUBSCRIPTION" },
   { key: "tokenization_link_created", label: "Tokenización enviada (débito automático)", aliases: ["Tokenización enviada"], trigger: "TOKENIZATION_LINK_CREATED", chatwootType: "PAYMENT_LINK" },
   { key: "payment_link_created", label: "Link de pago creado", trigger: "PAYMENT_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "LINK" },
   { key: "payment_success_subscription", label: "Pago exitoso (débito automático)", aliases: ["Pago exitoso (suscripción)"], trigger: "PAYMENT_APPROVED", chatwootType: "PAYMENT_CONFIRMED", paymentType: "SUBSCRIPTION" },
-  { key: "payment_success_plan", label: "Pago exitoso (plan)", trigger: "PAYMENT_APPROVED", chatwootType: "PAYMENT_CONFIRMED", paymentType: "PLAN" },
+  { key: "payment_success_plan", label: "Pago exitoso (link de pago)", trigger: "PAYMENT_APPROVED", chatwootType: "PAYMENT_CONFIRMED", paymentType: "PLAN" },
   { key: "payment_success_link", label: "Pago recibido por link de pago", trigger: "PAYMENT_APPROVED", chatwootType: "PAYMENT_CONFIRMED", paymentType: "LINK" },
   { key: "payment_failed_subscription", label: "Pago fallido (débito automático)", aliases: ["Pago fallido (suscripción)"], trigger: "PAYMENT_DECLINED", chatwootType: "PAYMENT_FAILED", paymentType: "SUBSCRIPTION" },
-  { key: "payment_failed_plan", label: "Pago fallido (plan)", trigger: "PAYMENT_DECLINED", chatwootType: "PAYMENT_FAILED", paymentType: "PLAN" }
+  { key: "payment_failed_plan", label: "Pago fallido (link de pago)", trigger: "PAYMENT_DECLINED", chatwootType: "PAYMENT_FAILED", paymentType: "PLAN" }
 ];
 
 const REMINDER_TPL_DUE = "tpl_reminder_due";
@@ -82,7 +82,7 @@ const MESSAGE_VARIABLES = [
   { label: "Email", value: "{{customer.email}}" },
   { label: "Teléfono", value: "{{customer.phone}}" },
   { label: "Dirección", value: "{{customer.metadata.address}}" },
-  { label: "Plan", value: "{{plan.name}}" },
+  { label: "Link de pago", value: "{{plan.name}}" },
   { label: "Fecha corte", value: "{{subscription.currentPeriodEndAt}}" },
   { label: "Fecha pago", value: "{{payment.paidAt}}" },
   { label: "Referencia", value: "{{payment.reference}}" },

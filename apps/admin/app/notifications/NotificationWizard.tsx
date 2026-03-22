@@ -23,7 +23,7 @@ const VARIABLES = [
   { label: "Email", value: "{{customer.email}}" },
   { label: "Teléfono", value: "{{customer.phone}}" },
   { label: "Dirección", value: "{{customer.metadata.address}}" },
-  { label: "Plan", value: "{{plan.name}}" },
+  { label: "Link de pago", value: "{{plan.name}}" },
   { label: "Fecha corte", value: "{{subscription.currentPeriodEndAt}}" },
   { label: "Fecha pago", value: "{{payment.paidAt}}" },
   { label: "Referencia", value: "{{payment.reference}}" },
@@ -351,7 +351,7 @@ export function NotificationWizard({
                     {lastCreatedKind === "PAYMENT_APPROVED_SUBSCRIPTION" ? <span className="module-check">✓ Lista</span> : null}
                   </button>
                   <button type="button" className={`ghost module-choice ${notificationKind === "PAYMENT_APPROVED_PLAN" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_APPROVED_PLAN")}>
-                    <span>Pago exitoso (plan)</span>
+                    <span>Pago exitoso (link de pago)</span>
                     {lastCreatedKind === "PAYMENT_APPROVED_PLAN" ? <span className="module-check">✓ Lista</span> : null}
                   </button>
                   <button type="button" className={`ghost module-choice ${notificationKind === "PAYMENT_APPROVED_LINK" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_APPROVED_LINK")}>
@@ -363,7 +363,7 @@ export function NotificationWizard({
                     {lastCreatedKind === "PAYMENT_DECLINED_SUBSCRIPTION" ? <span className="module-check">✓ Lista</span> : null}
                   </button>
                   <button type="button" className={`ghost module-choice ${notificationKind === "PAYMENT_DECLINED_PLAN" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_DECLINED_PLAN")}>
-                    <span>Pago fallido (plan)</span>
+                    <span>Pago fallido (link de pago)</span>
                     {lastCreatedKind === "PAYMENT_DECLINED_PLAN" ? <span className="module-check">✓ Lista</span> : null}
                   </button>
                 </div>

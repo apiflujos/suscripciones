@@ -68,7 +68,7 @@ function triggerLabel(trigger: string) {
 function paymentTypeLabel(rule: Rule) {
   const types = rule?.conditions?.requirePaymentTypeIn;
   if (!Array.isArray(types) || !types.length) return "Todos";
-  return types.map((t) => (t === "PLAN" ? "Plan" : t === "SUBSCRIPTION" ? "Suscripción" : t === "LINK" ? "Link" : t)).join(", ");
+  return types.map((t) => (t === "PLAN" ? "Link de pago" : t === "SUBSCRIPTION" ? "Suscripción" : t === "LINK" ? "Link" : t)).join(", ");
 }
 
 function offsetsToList(offsets?: number[]): OffsetItem[] {
@@ -464,7 +464,7 @@ export function NotificationsManager({
                 <label>Aplica a</label>
                 <select className="select" value={rulePaymentType} onChange={(e) => setRulePaymentType(e.target.value as any)}>
                   <option value="ANY">Todos</option>
-                  <option value="PLAN">Plan</option>
+                  <option value="PLAN">Link de pago</option>
                   <option value="SUBSCRIPTION">Suscripción</option>
                   <option value="LINK">Link de pago</option>
                 </select>
