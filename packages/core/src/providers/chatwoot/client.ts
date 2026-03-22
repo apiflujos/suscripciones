@@ -229,7 +229,9 @@ export class ChatwootClient {
     const normalizedPath =
       base.endsWith("/api/v1") && path.startsWith("/api/v1/")
         ? path.replace(/^\/api\/v1/, "")
-        : path;
+        : base.endsWith("/api") && path.startsWith("/api/")
+          ? path.replace(/^\/api/, "")
+          : path;
     const url = `${base}${normalizedPath}`;
     const res = await fetch(url, {
       ...init,
@@ -248,7 +250,9 @@ export class ChatwootClient {
     const normalizedPath =
       base.endsWith("/api/v1") && path.startsWith("/api/v1/")
         ? path.replace(/^\/api\/v1/, "")
-        : path;
+        : base.endsWith("/api") && path.startsWith("/api/")
+          ? path.replace(/^\/api/, "")
+          : path;
     const url = `${base}${normalizedPath}`;
     const res = await fetch(url, {
       method: "POST",
@@ -262,10 +266,38 @@ export class ChatwootClient {
   }
 
   async listWhatsappTemplates() {
-    const res = await this.request(`/api/v1/accounts/${this.opts.accountId}/whatsapp_templates`, {
+    const primaryPath = `/api/v1/accounts/${this.opts.accountId}/whatsapp_templates`;
+    const res = await this.request(primaryPath, {
       method: "GET"
     });
-    if (!res.ok) throw new Error(`Chatwoot list templates failed: ${res.status} ${JSON.stringify(res.json)}`);
+    if (!res.ok) {
+      // Some deployments expose templates under inbox path.
+      if (res.status === 404 && this.opts.inboxId) {
+        const fallback = await this.request(`/api/v1/accounts/${this.opts.accountId}/inboxes/${this.opts.inboxId}/whatsapp_templates`, {
+          method: "GET"
+        });
+        if (!fallback.ok) throw new Error(`Chatwoot list templates failed: ${fallback.status} ${JSON.stringify(fallback.json)}`);
+        const payload = (fallback.json && (fallback.json.payload ?? fallback.json.data ?? fallback.json)) || [];
+        const list = Array.isArray(payload?.whatsapp_templates)
+          ? payload.whatsapp_templates
+          : Array.isArray(payload?.templates)
+            ? payload.templates
+            : Array.isArray(payload)
+              ? payload
+              : [];
+        return list
+          .map((tpl: any) => ({
+            id: tpl.id ?? tpl.template_id ?? tpl.uuid ?? tpl.name,
+            name: String(tpl.name || tpl.template_name || "").trim(),
+            language: String(tpl.language || tpl.locale || "es").trim(),
+            category: String(tpl.category || tpl.template_category || "").trim(),
+            status: String(tpl.status || "").trim(),
+            components: tpl.components ?? tpl.content ?? null
+          }))
+          .filter((tpl: any) => tpl.name);
+      }
+      throw new Error(`Chatwoot list templates failed: ${res.status} ${JSON.stringify(res.json)}`);
+    }
     const payload = (res.json && (res.json.payload ?? res.json.data ?? res.json)) || [];
     const list = Array.isArray(payload?.whatsapp_templates)
       ? payload.whatsapp_templates
