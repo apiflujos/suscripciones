@@ -732,7 +732,7 @@ export function NotificationsSimple({
                           : (reminderMoraTemplate?.chatwootTemplate?.processed_params?.body || []).map((p) => p.value).join("|")
                       }
                     />
-                  )}
+                  ) : null}
                   {wizardStep === 2 ? (
                     <>
                       {(activeModal.kind === "DUE" ? dueOffsets : moraOffsets).map((item, idx) => (
