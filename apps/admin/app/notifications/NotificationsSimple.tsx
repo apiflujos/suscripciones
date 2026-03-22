@@ -57,18 +57,19 @@ type RealtimeKey =
 const REALTIME_TYPES: Array<{
   key: RealtimeKey;
   label: string;
+  aliases?: string[];
   trigger: Rule["trigger"];
   chatwootType: Template["chatwootType"];
   paymentType?: "PLAN" | "SUBSCRIPTION" | "LINK";
 }> = [
   { key: "catalog_link_created_plan", label: "Catálogo enviado (plan)", trigger: "CATALOG_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "PLAN" },
-  { key: "catalog_link_created_subscription", label: "Catálogo enviado (suscripción)", trigger: "CATALOG_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "SUBSCRIPTION" },
-  { key: "tokenization_link_created", label: "Tokenización enviada", trigger: "TOKENIZATION_LINK_CREATED", chatwootType: "PAYMENT_LINK" },
+  { key: "catalog_link_created_subscription", label: "Catálogo enviado (suscripción · link de pago)", aliases: ["Catálogo enviado (suscripción)"], trigger: "CATALOG_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "SUBSCRIPTION" },
+  { key: "tokenization_link_created", label: "Tokenización enviada (débito automático)", aliases: ["Tokenización enviada"], trigger: "TOKENIZATION_LINK_CREATED", chatwootType: "PAYMENT_LINK" },
   { key: "payment_link_created", label: "Link de pago creado", trigger: "PAYMENT_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "LINK" },
-  { key: "payment_success_subscription", label: "Pago exitoso (suscripción)", trigger: "PAYMENT_APPROVED", chatwootType: "PAYMENT_CONFIRMED", paymentType: "SUBSCRIPTION" },
+  { key: "payment_success_subscription", label: "Pago exitoso (débito automático)", aliases: ["Pago exitoso (suscripción)"], trigger: "PAYMENT_APPROVED", chatwootType: "PAYMENT_CONFIRMED", paymentType: "SUBSCRIPTION" },
   { key: "payment_success_plan", label: "Pago exitoso (plan)", trigger: "PAYMENT_APPROVED", chatwootType: "PAYMENT_CONFIRMED", paymentType: "PLAN" },
   { key: "payment_success_link", label: "Pago recibido por link de pago", trigger: "PAYMENT_APPROVED", chatwootType: "PAYMENT_CONFIRMED", paymentType: "LINK" },
-  { key: "payment_failed_subscription", label: "Pago fallido (suscripción)", trigger: "PAYMENT_DECLINED", chatwootType: "PAYMENT_FAILED", paymentType: "SUBSCRIPTION" },
+  { key: "payment_failed_subscription", label: "Pago fallido (débito automático)", aliases: ["Pago fallido (suscripción)"], trigger: "PAYMENT_DECLINED", chatwootType: "PAYMENT_FAILED", paymentType: "SUBSCRIPTION" },
   { key: "payment_failed_plan", label: "Pago fallido (plan)", trigger: "PAYMENT_DECLINED", chatwootType: "PAYMENT_FAILED", paymentType: "PLAN" }
 ];
 
@@ -291,13 +292,14 @@ export function NotificationsSimple({
     return map;
   }, [rules]);
 
-  const templateForKey = (key: RealtimeKey, chatwootType?: Template["chatwootType"], label?: string) => {
+  const templateForKey = (key: RealtimeKey, chatwootType?: Template["chatwootType"], label?: string, aliases?: string[]) => {
     const rule = rulesByKey.get(key);
     if (rule) {
       const tpl = templateById.get(String(rule.templateId));
       if (tpl) return tpl;
     }
-    const found = templates.find((t) => t.chatwootType === chatwootType && t.name === label);
+    const candidateNames = [label, ...(aliases || [])].filter(Boolean) as string[];
+    const found = templates.find((t) => t.chatwootType === chatwootType && candidateNames.includes(t.name));
     return found || null;
   };
 
@@ -307,7 +309,7 @@ export function NotificationsSimple({
   const initialRealtimeKinds = useMemo(() => {
     const map: Record<string, "TEXT" | "WHATSAPP_TEMPLATE"> = {};
     for (const rt of REALTIME_TYPES) {
-      const tpl = templateForKey(rt.key, rt.chatwootType, rt.label);
+      const tpl = templateForKey(rt.key, rt.chatwootType, rt.label, rt.aliases);
       map[rt.key] = tpl?.chatwootTemplate?.name ? "WHATSAPP_TEMPLATE" : "TEXT";
     }
     return map;
@@ -380,7 +382,7 @@ export function NotificationsSimple({
     if (activeModal.type === "realtime") {
       const rt = REALTIME_TYPES.find((r) => r.key === activeModal.key);
       if (!rt) return;
-      const tpl = templateForKey(rt.key, rt.chatwootType, rt.label);
+      const tpl = templateForKey(rt.key, rt.chatwootType, rt.label, rt.aliases);
       const hasWa = Boolean(tpl?.chatwootTemplate?.name);
       const kind = realtimeKinds[rt.key] || (hasWa ? "WHATSAPP_TEMPLATE" : "TEXT");
       setWizardKind(kind);
@@ -392,7 +394,7 @@ export function NotificationsSimple({
   const listItems = [
     ...pendingRealtime.map((rt) => {
       const rule = rulesByKey.get(rt.key);
-      const tpl = templateForKey(rt.key, rt.chatwootType, rt.label);
+      const tpl = templateForKey(rt.key, rt.chatwootType, rt.label, rt.aliases);
       const hasWa = Boolean(tpl?.chatwootTemplate?.name);
       const kind = realtimeKinds[rt.key] || (hasWa ? "WHATSAPP_TEMPLATE" : "TEXT");
       const kindLabel = kind === "WHATSAPP_TEMPLATE" ? "Plantilla" : "Mensaje";
@@ -535,7 +537,7 @@ export function NotificationsSimple({
                 (() => {
                   const rt = REALTIME_TYPES.find((r) => r.key === activeModal.key);
                   if (!rt) return null;
-                  const tpl = templateForKey(rt.key, rt.chatwootType, rt.label);
+                  const tpl = templateForKey(rt.key, rt.chatwootType, rt.label, rt.aliases);
                   const rule = rulesByKey.get(rt.key);
                   const content = tpl?.content && tpl.content !== "(template)" ? String(tpl.content) : "";
                   const hasWa = Boolean(tpl?.chatwootTemplate?.name);
@@ -551,16 +553,7 @@ export function NotificationsSimple({
                       <input type="hidden" name="chatwootType" value={rt.chatwootType || ""} />
                       <input type="hidden" name="paymentType" value={rt.paymentType || ""} />
                       <input type="hidden" name="templateKind" value={kind} />
-                      <div className="field row toggleRow">
-                        <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span>Activa</span>
-                          <HelpTip text="Enciende o apaga esta regla. Solo una notificación activa por tipo de evento." />
-                        </label>
-                        <label className="toggleControl">
-                          <input className="toggleInput" type="checkbox" name="enabled" defaultChecked={rule?.enabled ?? true} />
-                          <span className="toggle" aria-hidden="true" />
-                        </label>
-                      </div>
+                      <input type="hidden" name="enabled" value={(rule?.enabled ?? true) ? "on" : ""} />
                       {wizardStep === 1 ? (
                         <div className="field">
                           <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -654,16 +647,11 @@ export function NotificationsSimple({
                   <input type="hidden" name="kind" value={activeModal.kind} />
                   <input type="hidden" name="templateId" value={activeModal.kind === "DUE" ? REMINDER_TPL_DUE : REMINDER_TPL_MORA} />
                   <input type="hidden" name="templateKind" value={wizardKind} />
-                  <div className="field row toggleRow">
-                    <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span>Activa</span>
-                      <HelpTip text="Si está apagada, no se enviará este recordatorio." />
-                    </label>
-                    <label className="toggleControl">
-                      <input className="toggleInput" type="checkbox" name="enabled" defaultChecked={(activeModal.kind === "DUE" ? reminderDue : reminderMora)?.enabled ?? true} />
-                      <span className="toggle" aria-hidden="true" />
-                    </label>
-                  </div>
+                  <input
+                    type="hidden"
+                    name="enabled"
+                    value={((activeModal.kind === "DUE" ? reminderDue : reminderMora)?.enabled ?? true) ? "on" : ""}
+                  />
                   {wizardStep === 1 ? (
                     <div className="field">
                       <label style={{ display: "flex", alignItems: "center", gap: 6 }}>

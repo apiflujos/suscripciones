@@ -14,20 +14,6 @@ function inlineMsg(actionKey: string, okText: string, failPrefix: string, props:
   return null;
 }
 
-function humanizeSyncError(raw: string) {
-  const msg = String(raw || "").trim();
-  if (!msg) return "Error de sincronización";
-  if (msg === "chatwoot_not_configured") return "Chatwoot no está configurado";
-  if (msg === "customer_phone_required") return "El contacto no tiene teléfono";
-  if (msg === "customer_not_found") return "El contacto no existe";
-  if (msg === "missing_customer_id") return "Falta el identificador del contacto";
-  if (msg === "create_or_search_failed") return "No se pudo crear o encontrar el contacto en Chatwoot";
-  if (msg === "create_failed") return "No se pudo crear el contacto en Chatwoot";
-  if (msg === "sync_failed") return "Falló la sincronización";
-  if (msg === "missing_admin_token") return "Falta el token del administrador";
-  return "Error de sincronización";
-}
-
 export function ConnectionsPanel({
   csrfToken,
   wompiActiveEnv,
@@ -86,22 +72,19 @@ export function ConnectionsPanel({
   const [shopifyTestError, setShopifyTestError] = useState("");
   const shopifyFormRef = useRef<HTMLFormElement | null>(null);
   const [templatesSync, setTemplatesSync] = useState<{ running: boolean; count: number; error: string }>({ running: false, count: 0, error: "" });
-  
-  const [syncState, setSyncState] = useState<{
-    running: boolean;
-    synced: number;
-    failed: number;
-    skipped: number;
-    processed: number;
-    limit: number;
-    errors: Array<{ customerId: string; error: string }>;
-    platform?: string;
-    sourceLabel?: string;
-    targetLabel?: string;
-    error?: string;
-    startedAt?: string;
-    lastAt?: string;
-  }>({ running: false, synced: 0, failed: 0, skipped: 0, processed: 0, limit: 0, errors: [] });
+
+  const syncWhatsappTemplates = async () => {
+    setTemplatesSync({ running: true, count: 0, error: "" });
+    try {
+      const res = await fetch("/admin/comms?op=whatsapp_templates", { cache: "no-store" });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.ok) throw new Error(json?.error || "sync_failed");
+      const count = Array.isArray(json?.templates) ? json.templates.length : 0;
+      setTemplatesSync({ running: false, count, error: "" });
+    } catch (err: any) {
+      setTemplatesSync({ running: false, count: 0, error: String(err?.message || "sync_failed") });
+    }
+  };
 
   const runShopifyTest = async () => {
     if (!shopifyFormRef.current) return;
@@ -215,6 +198,24 @@ export function ConnectionsPanel({
             ) : null}
           </div>
         </button>
+      </div>
+      <div className="panel module" style={{ marginTop: 12 }}>
+        <div className="panelHeaderRow" style={{ justifyContent: "space-between", gap: 8 }}>
+          <strong>CentralCom · Plantillas WhatsApp</strong>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button className="ghost btn-compact" type="button" onClick={syncWhatsappTemplates} disabled={templatesSync.running} data-loader="off">
+              {templatesSync.running ? "Sincronizando..." : "Sincronizar plantillas"}
+            </button>
+            <span className="field-hint">
+              {templatesSync.count ? `Sincronizadas: ${templatesSync.count}` : "Trae las plantillas activas desde Chatwoot."}
+            </span>
+          </div>
+        </div>
+        {templatesSync.error ? (
+          <div className="field-hint" style={{ color: "var(--danger)" }}>
+            Error: {templatesSync.error}
+          </div>
+        ) : null}
       </div>
 
       {open === "wompi_prod" || open === "wompi_sandbox" ? (
@@ -351,41 +352,6 @@ export function ConnectionsPanel({
                       <div className="field-hint">Ej: es, es_CO.</div>
                     </div>
                   </div>
-                  <div className="field">
-                    <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span>Plantillas WhatsApp</span>
-                      <HelpTip text="Sincroniza las plantillas aprobadas en Chatwoot para poder seleccionarlas en notificaciones." />
-                    </label>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                      <button
-                        className="ghost btn-compact"
-                        type="button"
-                        disabled={templatesSync.running}
-                        onClick={async () => {
-                          setTemplatesSync({ running: true, count: 0, error: "" });
-                          try {
-                            const res = await fetch("/admin/comms?op=whatsapp_templates", { cache: "no-store" });
-                            const json = await res.json().catch(() => null);
-                            if (!res.ok || !json?.ok) throw new Error(json?.error || "sync_failed");
-                            const count = Array.isArray(json?.templates) ? json.templates.length : 0;
-                            setTemplatesSync({ running: false, count, error: "" });
-                          } catch (err: any) {
-                            setTemplatesSync({ running: false, count: 0, error: String(err?.message || "sync_failed") });
-                          }
-                        }}
-                      >
-                        {templatesSync.running ? "Sincronizando..." : "Sincronizar plantillas"}
-                      </button>
-                      <span className="field-hint">
-                        {templatesSync.count ? `Sincronizadas: ${templatesSync.count}` : "Trae las plantillas activas desde Chatwoot."}
-                      </span>
-                    </div>
-                    {templatesSync.error ? (
-                      <div className="field-hint" style={{ color: "var(--danger)" }}>
-                        Error: {templatesSync.error}
-                      </div>
-                    ) : null}
-                  </div>
                   <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                       {inlineMsg("central_delete", "Eliminado.", "Error eliminando", inlineState)}
@@ -422,130 +388,6 @@ export function ConnectionsPanel({
                 </form>
               </div>
 
-            <div className="panel module" style={{ display: "grid", gap: 10 }}>
-              <div className="panelHeaderRow">
-                <strong>Acciones rápidas</strong>
-              </div>
-              <form action={actions.bootstrapCentralAttributes}>
-                <input type="hidden" name="csrf" value={csrfToken} />
-                {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
-                {inlineMsg("central_bootstrap", "Atributos creados.", "Error creando", inlineState)}
-                <PendingButton className="ghost" type="submit" pendingText="Creando...">
-                  Crear atributos de contacto
-                </PendingButton>
-              </form>
-              <div className="saved-conn-card" style={{ borderStyle: "dashed" }}>
-                <div className="saved-conn-header">
-                  <div>
-                    <strong>Sincronización masiva de contactos</strong>
-                    <div className="saved-conn-sub">Origen: ApiFlujos · Destino: Chatwoot</div>
-                  </div>
-                </div>
-                <div className="saved-conn-actions">
-                  <div className="field" style={{ flex: 1, minWidth: 140 }}>
-                    <label>Límite</label>
-                    <input className="input" id="centralSyncLimit" placeholder="200" defaultValue="200" />
-                  </div>
-                  <button
-                    className="ghost"
-                    type="button"
-                    disabled={syncState.running}
-                    onClick={async () => {
-                      const input = document.getElementById("centralSyncLimit") as HTMLInputElement | null;
-                      const limit = Number(input?.value || 200);
-                      setSyncState({
-                        running: true,
-                        synced: 0,
-                        failed: 0,
-                        skipped: 0,
-                        processed: 0,
-                        limit: Number.isFinite(limit) ? limit : 200,
-                        platform: "Chatwoot",
-                        sourceLabel: "Contactos de ApiFlujos",
-                        targetLabel: "Contactos y atributos personalizados en Chatwoot",
-                        errors: [],
-                        startedAt: new Date().toISOString()
-                      });
-                      try {
-                        const res = await fetch("/api/comms/sync-contacts", {
-                          method: "POST",
-                          headers: { "content-type": "application/json" },
-                          body: JSON.stringify({ limit: Number.isFinite(limit) ? limit : 200 })
-                        });
-                        const json = await res.json().catch(() => null);
-                        if (!res.ok) throw new Error(json?.error || "sync_failed");
-                        setSyncState({
-                          running: false,
-                          synced: Number(json?.synced || 0),
-                          failed: Number(json?.failed || 0),
-                          skipped: Number(json?.skipped || 0),
-                          processed: Number(json?.processed || 0),
-                          limit: Number(json?.limit || limit || 0),
-                          platform: String(json?.platform || "Chatwoot"),
-                          sourceLabel: String(json?.sourceLabel || "Contactos de ApiFlujos"),
-                          targetLabel: String(json?.targetLabel || "Contactos y atributos personalizados en Chatwoot"),
-                          errors: Array.isArray(json?.errors) ? json.errors : [],
-                          startedAt: String(json?.startedAt || ""),
-                          lastAt: String(json?.finishedAt || new Date().toISOString())
-                        });
-                      } catch (err: any) {
-                        setSyncState({
-                          running: false,
-                          synced: 0,
-                          failed: 0,
-                          skipped: 0,
-                          processed: 0,
-                          limit: Number.isFinite(limit) ? limit : 200,
-                          errors: [],
-                          platform: "Chatwoot",
-                          sourceLabel: "Contactos de ApiFlujos",
-                          targetLabel: "Contactos y atributos personalizados en Chatwoot",
-                          error: humanizeSyncError(String(err?.message || "sync_failed")),
-                          lastAt: new Date().toISOString()
-                        });
-                      }
-                    }}
-                  >
-                    {syncState.running ? "Sincronizando..." : "Sincronizar"}
-                  </button>
-                </div>
-                <div className="progress-row">
-                  <div className="progress-title-row">
-                    <strong>{syncState.platform || "Chatwoot"}</strong>
-                    <span>
-                      {syncState.sourceLabel || "Contactos de ApiFlujos"}
-                      {" -> "}
-                      {syncState.targetLabel || "Contactos y atributos personalizados en Chatwoot"}
-                    </span>
-                  </div>
-                  <div className="progress-bar">
-                    <span
-                      className="progress-fill"
-                      style={{
-                        width: syncState.limit ? `${Math.min(100, Math.round(((syncState.processed || 0) / syncState.limit) * 100))}%` : "0%"
-                      }}
-                    />
-                  </div>
-                  <div className="progress-meta">
-                    <span>
-                      {syncState.processed} procesados · {syncState.synced} sincronizados · {syncState.skipped} sin cambios · {syncState.failed} con error · {syncState.limit || 0} totales
-                    </span>
-                    {syncState.lastAt ? <span>Última ejecución: {new Date(syncState.lastAt).toLocaleString()}</span> : null}
-                  </div>
-                  {syncState.startedAt ? <div className="field-hint">Inicio: {new Date(syncState.startedAt).toLocaleString()}</div> : null}
-                  {syncState.errors.length ? (
-                    <div className="field-hint">
-                      Errores recientes: {syncState.errors.map((e) => `${e.customerId.slice(0, 6)}… (${humanizeSyncError(e.error)})`).join(", ")}
-                    </div>
-                  ) : null}
-                  {syncState.error ? (
-                    <div className="field-hint" style={{ color: "var(--danger)" }}>
-                      Error: {syncState.error}
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            </div>
             </div>
           </div>
         </div>
