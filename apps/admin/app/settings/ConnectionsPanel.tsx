@@ -332,13 +332,15 @@ export function ConnectionsPanel({
                     <div className="field">
                       <label>Token API</label>
                       <input className="input" name="apiAccessToken" type="password" placeholder="••••••••" />
-                      <div className="field-hint">Déjalo vacío para conservar el token actual.</div>
+                      <div className="field-hint">Requerido la primera vez. Luego puedes dejarlo vacío para conservar el token actual.</div>
                     </div>
                   </div>
                   <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                       {inlineMsg("central_delete", "Eliminado.", "Error eliminando", inlineState)}
-                      <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" formAction={actions.deleteCentralConnection} aria-label="Eliminar conexión CentralCom" title="Eliminar conexión CentralCom" />
+                      <button className="ghost btn-compact btn-red" type="submit" formAction={actions.deleteCentralConnection}>
+                        Eliminar conexión
+                      </button>
                     </div>
                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                       {inlineMsg("central_save", "Guardado.", "Error guardando", inlineState)}

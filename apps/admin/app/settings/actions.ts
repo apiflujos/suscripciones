@@ -287,13 +287,13 @@ export async function updateChatwoot(formData: FormData) {
       (await getCredential(CredentialProvider.CHATWOOT, `API_ACCESS_TOKEN_${env}`)) ||
       (await getCredential(CredentialProvider.CHATWOOT, "API_ACCESS_TOKEN")) ||
       "";
-    const missingRequired =
-      (!baseUrl && !existingBaseUrl) ||
-      (!accountId && !existingAccountId) ||
-      (!inboxId && !existingInboxId) ||
-      (!apiAccessToken && !existingToken);
-    if (missingRequired) {
-      throw new Error("missing_fields");
+    const missing: string[] = [];
+    if (!baseUrl && !existingBaseUrl) missing.push("baseUrl");
+    if (!accountId && !existingAccountId) missing.push("accountId");
+    if (!inboxId && !existingInboxId) missing.push("inboxId");
+    if (!apiAccessToken && !existingToken) missing.push("apiAccessToken");
+    if (missing.length) {
+      throw new Error(`missing_fields:${missing.join(",")}`);
     }
 
     const out = await updateChatwootSettings({
