@@ -388,7 +388,7 @@ export function NotificationsSimple({
     }
     const kind = activeModal.kind === "DUE" ? dueKind : moraKind;
     setWizardKind(kind);
-  }, [activeModal, realtimeKinds, dueKind, moraKind, templates]);
+  }, [activeModal]);
   const listItems = [
     ...pendingRealtime.map((rt) => {
       const rule = rulesByKey.get(rt.key);
@@ -490,14 +490,20 @@ export function NotificationsSimple({
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span className={`pill ${item.statusPill}`}>{item.statusLabel}</span>
                   {item.ruleId ? (
-                    <form action={actions.toggleRule}>
+                    <form
+                      action={actions.toggleRule}
+                      onChange={(e) => {
+                        const form = (e.currentTarget as HTMLFormElement) || null;
+                        form?.requestSubmit();
+                      }}
+                      className="toggleControl"
+                    >
                       <input type="hidden" name="csrf" value={csrfToken} />
                       <input type="hidden" name="environment" value={env} />
                       <input type="hidden" name="ruleId" value={item.ruleId} />
                       <input type="hidden" name="enabled" value={item.enabled ? "0" : "1"} />
-                      <button className="ghost btn-compact" type="submit" data-loader="off">
-                        {item.enabled ? "Apagar" : "Prender"}
-                      </button>
+                      <input className="toggleInput" type="checkbox" defaultChecked={item.enabled} aria-label={item.enabled ? "Apagar" : "Prender"} />
+                      <span className="toggle" aria-hidden="true" />
                     </form>
                   ) : null}
                   <button className="primary btn-compact" type="button" onClick={item.onClick} data-loader="off">
@@ -545,12 +551,15 @@ export function NotificationsSimple({
                       <input type="hidden" name="chatwootType" value={rt.chatwootType || ""} />
                       <input type="hidden" name="paymentType" value={rt.paymentType || ""} />
                       <input type="hidden" name="templateKind" value={kind} />
-                      <div className="field row" style={{ justifyContent: "space-between" }}>
+                      <div className="field row toggleRow">
                         <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           <span>Activa</span>
                           <HelpTip text="Enciende o apaga esta regla. Solo una notificación activa por tipo de evento." />
                         </label>
-                        <input type="checkbox" name="enabled" defaultChecked={rule?.enabled ?? true} />
+                        <label className="toggleControl">
+                          <input className="toggleInput" type="checkbox" name="enabled" defaultChecked={rule?.enabled ?? true} />
+                          <span className="toggle" aria-hidden="true" />
+                        </label>
                       </div>
                       {wizardStep === 1 ? (
                         <div className="field">
@@ -645,12 +654,15 @@ export function NotificationsSimple({
                   <input type="hidden" name="kind" value={activeModal.kind} />
                   <input type="hidden" name="templateId" value={activeModal.kind === "DUE" ? REMINDER_TPL_DUE : REMINDER_TPL_MORA} />
                   <input type="hidden" name="templateKind" value={wizardKind} />
-                  <div className="field row" style={{ justifyContent: "space-between" }}>
+                  <div className="field row toggleRow">
                     <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <span>Activa</span>
                       <HelpTip text="Si está apagada, no se enviará este recordatorio." />
                     </label>
-                    <input type="checkbox" name="enabled" defaultChecked={(activeModal.kind === "DUE" ? reminderDue : reminderMora)?.enabled ?? true} />
+                    <label className="toggleControl">
+                      <input className="toggleInput" type="checkbox" name="enabled" defaultChecked={(activeModal.kind === "DUE" ? reminderDue : reminderMora)?.enabled ?? true} />
+                      <span className="toggle" aria-hidden="true" />
+                    </label>
                   </div>
                   {wizardStep === 1 ? (
                     <div className="field">
