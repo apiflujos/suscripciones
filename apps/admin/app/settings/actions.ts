@@ -1,6 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { CredentialProvider } from "@prisma/client";
+import { getCredential } from "@suscripciones/core/services/credentials";
 import { assertCsrfToken } from "../lib/csrf";
 import {
   deleteAiProvider as deleteAiProviderAction,
@@ -275,18 +277,32 @@ export async function updateChatwoot(formData: FormData) {
   const accountId = String(formData.get("accountId") || "").trim();
   const apiAccessToken = String(formData.get("apiAccessToken") || "").trim();
   const inboxId = String(formData.get("inboxId") || "").trim();
-  const productTemplateName = String(formData.get("productTemplateName") || "").trim();
-  const productTemplateLang = String(formData.get("productTemplateLang") || "").trim();
 
   try {
+    const env = environment || "PRODUCTION";
+    const existingBaseUrl = (await getCredential(CredentialProvider.CHATWOOT, `BASE_URL_${env}`)) || (await getCredential(CredentialProvider.CHATWOOT, "BASE_URL")) || "";
+    const existingAccountId = (await getCredential(CredentialProvider.CHATWOOT, `ACCOUNT_ID_${env}`)) || (await getCredential(CredentialProvider.CHATWOOT, "ACCOUNT_ID")) || "";
+    const existingInboxId = (await getCredential(CredentialProvider.CHATWOOT, `INBOX_ID_${env}`)) || (await getCredential(CredentialProvider.CHATWOOT, "INBOX_ID")) || "";
+    const existingToken =
+      (await getCredential(CredentialProvider.CHATWOOT, `API_ACCESS_TOKEN_${env}`)) ||
+      (await getCredential(CredentialProvider.CHATWOOT, "API_ACCESS_TOKEN")) ||
+      "";
+    const missingRequired =
+      (!baseUrl && !existingBaseUrl) ||
+      (!accountId && !existingAccountId) ||
+      (!inboxId && !existingInboxId) ||
+      (!apiAccessToken && !existingToken);
+    if (missingRequired) {
+      throw new Error("missing_fields");
+    }
+
     const out = await updateChatwootSettings({
       ...(environment ? { environment } : {}),
+      ...(environment ? { activeEnv: environment } : {}),
       ...(baseUrl ? { baseUrl } : {}),
       ...(apiAccessToken ? { apiAccessToken } : {}),
       ...(accountId ? { accountId: Number(accountId) } : {}),
-      ...(inboxId ? { inboxId: Number(inboxId) } : {}),
-      ...(productTemplateName ? { productTemplateName } : {}),
-      ...(productTemplateLang ? { productTemplateLang } : {})
+      ...(inboxId ? { inboxId: Number(inboxId) } : {})
     });
     assertOk(out as any);
     redirectWith("central_save", "ok", undefined, returnTo);
