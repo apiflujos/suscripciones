@@ -17,16 +17,17 @@ export default async function LoginPage({
 
   const sp = (await searchParams) ?? {};
   const next = String(sp.next || "").trim();
+  const error = normalizeErrorParam(sp.error);
   const saToken = (await cookies()).get(SA_COOKIE)?.value || "";
   const wantsSa = next.startsWith("/sa");
-  const missingSaSession = wantsSa && !saToken;
+  const saError = error === "forbidden" || error === "missing_sa_token";
+  const missingSaSession = wantsSa && (!saToken || saError);
 
   if (session && !missingSaSession) {
     redirect(next || "/");
   }
 
   const csrfToken = await getCsrfToken();
-  const error = normalizeErrorParam(sp.error);
   const loggedOut = String(sp.loggedOut || "").trim() === "1";
 
   const errorMessage =
@@ -40,6 +41,8 @@ export default async function LoginPage({
             ? "Ese email ya existe. Inicia sesión o usa otro email."
             : error === "missing_sa_token"
               ? "No se pudo crear la sesión de Super Admin."
+              : error === "forbidden"
+                ? "Sesión de Super Admin inválida. Vuelve a iniciar sesión."
               : error === "unauthorized"
                 ? "Credenciales inválidas o usuario no existe."
                 : error;
