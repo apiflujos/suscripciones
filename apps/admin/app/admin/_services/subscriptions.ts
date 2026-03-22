@@ -241,7 +241,9 @@ export async function listSubscriptions(args: {
   const customerId = String(args.customerId ?? "").trim();
   const estado = String(args.estado ?? "").trim();
   const collectionMode = String(args.collectionMode ?? "").trim();
-  const ids = Array.isArray(args.ids) ? args.ids.map((v) => v.trim()).filter(Boolean) : [];
+  const rawIds = Array.isArray(args.ids) ? args.ids.map((v) => v.trim()).filter(Boolean) : [];
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const ids = rawIds.filter((id) => uuidRegex.test(id));
 
   const where: any = {};
   if (tenantId) {
@@ -272,6 +274,10 @@ export async function listSubscriptions(args: {
         { metadata: { path: ["document"], string_contains: q } } as any
       ]
     };
+  }
+
+  if (rawIds.length && !ids.length) {
+    return { items: [], total: 0 };
   }
 
   if (ids.length) {
