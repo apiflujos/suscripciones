@@ -214,17 +214,23 @@ function WaTemplateFields({
         {expectedParamCount > 0 ? (
           <div style={{ display: "grid", gap: 6 }}>
             {Array.from({ length: expectedParamCount }).map((_, idx) => (
-              <input
+              <select
                 key={`param-${idx}`}
-                className="input input-compact"
+                className="select select-compact"
                 value={params[idx] || ""}
                 onChange={(e) => {
                   const next = params.slice();
                   next[idx] = e.target.value;
                   setParams(next);
                 }}
-                placeholder={`{{${idx + 1}}}`}
-              />
+              >
+                <option value="">{`{{${idx + 1}}} · Selecciona variable`}</option>
+                {MESSAGE_VARIABLES.map((v) => (
+                  <option key={`${idx}-${v.value}`} value={v.value}>
+                    {v.label}
+                  </option>
+                ))}
+              </select>
             ))}
           </div>
         ) : (
