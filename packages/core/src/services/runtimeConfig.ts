@@ -216,15 +216,28 @@ export async function getChatwootConfig(): Promise<
   | { configured: false }
   | { configured: true; baseUrl: string; accountId: number; apiAccessToken: string; inboxId: number }
 > {
+  const readEnv = async (env: ActiveEnv) => {
+    const baseUrl = (await getCredentialForEnv(CredentialProvider.CHATWOOT, "BASE_URL", env)) || "";
+    const accessToken = (await getCredentialForEnv(CredentialProvider.CHATWOOT, "API_ACCESS_TOKEN", env)) || "";
+    const accountIdStr = (await getCredentialForEnv(CredentialProvider.CHATWOOT, "ACCOUNT_ID", env)) || "";
+    const inboxIdStr = (await getCredentialForEnv(CredentialProvider.CHATWOOT, "INBOX_ID", env)) || "";
+
+    const accountId = Number(accountIdStr);
+    const inboxId = Number(inboxIdStr);
+
+    if (!baseUrl.trim() || !accessToken.trim() || !Number.isFinite(accountId) || !Number.isFinite(inboxId)) return null;
+    return { configured: true as const, baseUrl: baseUrl.trim(), apiAccessToken: accessToken.trim(), accountId, inboxId };
+  };
+
   const activeEnv = await getActiveEnv(CredentialProvider.CHATWOOT);
-  const baseUrl = (await getCredentialForEnv(CredentialProvider.CHATWOOT, "BASE_URL", activeEnv)) || "";
-  const accessToken = (await getCredentialForEnv(CredentialProvider.CHATWOOT, "API_ACCESS_TOKEN", activeEnv)) || "";
-  const accountIdStr = (await getCredentialForEnv(CredentialProvider.CHATWOOT, "ACCOUNT_ID", activeEnv)) || "";
-  const inboxIdStr = (await getCredentialForEnv(CredentialProvider.CHATWOOT, "INBOX_ID", activeEnv)) || "";
+  const activeCfg = await readEnv(activeEnv);
+  if (activeCfg) return activeCfg;
 
-  const accountId = Number(accountIdStr);
-  const inboxId = Number(inboxIdStr);
+  const prodCfg = await readEnv("PRODUCTION");
+  if (prodCfg) return prodCfg;
 
-  if (!baseUrl.trim() || !accessToken.trim() || !Number.isFinite(accountId) || !Number.isFinite(inboxId)) return { configured: false };
-  return { configured: true, baseUrl: baseUrl.trim(), apiAccessToken: accessToken.trim(), accountId, inboxId };
+  const sandboxCfg = await readEnv("SANDBOX");
+  if (sandboxCfg) return sandboxCfg;
+
+  return { configured: false };
 }
