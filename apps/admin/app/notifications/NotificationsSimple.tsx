@@ -504,13 +504,14 @@ export function NotificationsSimple({
                         const form = (e.currentTarget as HTMLFormElement) || null;
                         form?.requestSubmit();
                       }}
+                      data-loader="off"
                     >
                       <input type="hidden" name="csrf" value={csrfToken} />
                       <input type="hidden" name="environment" value={env} />
                       <input type="hidden" name="ruleId" value={item.ruleId} />
                       <input type="hidden" name="enabled" value={item.enabled ? "0" : "1"} />
-                      <label className="toggleControl" aria-label={item.enabled ? "Apagar" : "Prender"}>
-                        <input className="toggleInput" type="checkbox" defaultChecked={item.enabled} />
+                      <label className="toggleControl" aria-label={item.enabled ? "Apagar" : "Prender"} data-loader="off">
+                        <input className="toggleInput" type="checkbox" defaultChecked={item.enabled} data-loader="off" />
                         <span className="toggle" aria-hidden="true" />
                       </label>
                     </form>
