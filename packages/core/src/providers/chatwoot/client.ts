@@ -225,7 +225,12 @@ export class ChatwootClient {
   }
 
   private async request(path: string, init: RequestInit) {
-    const url = `${this.opts.baseUrl.replace(/\/$/, "")}${path}`;
+    const base = this.opts.baseUrl.replace(/\/$/, "");
+    const normalizedPath =
+      base.endsWith("/api/v1") && path.startsWith("/api/v1/")
+        ? path.replace(/^\/api\/v1/, "")
+        : path;
+    const url = `${base}${normalizedPath}`;
     const res = await fetch(url, {
       ...init,
       headers: {
@@ -239,7 +244,12 @@ export class ChatwootClient {
   }
 
   private async requestMultipart(path: string, form: FormData) {
-    const url = `${this.opts.baseUrl.replace(/\/$/, "")}${path}`;
+    const base = this.opts.baseUrl.replace(/\/$/, "");
+    const normalizedPath =
+      base.endsWith("/api/v1") && path.startsWith("/api/v1/")
+        ? path.replace(/^\/api\/v1/, "")
+        : path;
+    const url = `${base}${normalizedPath}`;
     const res = await fetch(url, {
       method: "POST",
       headers: {
