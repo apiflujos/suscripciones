@@ -239,7 +239,7 @@ export default async function SettingsPage({
       ) : null}
 
       {tab === "notificaciones" ? (
-        <UserNotificationsPanel />
+        <UserNotificationsPanel isSuperAdmin={session?.role === "SUPER_ADMIN"} />
       ) : null}
 
       {tab === "connections" ? (

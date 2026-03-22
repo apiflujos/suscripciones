@@ -92,8 +92,6 @@ const MESSAGE_VARIABLES = [
   { label: "Tipo de pago", value: "{{paymentType}}" }
 ];
 
-const MESSAGE_EMOJIS = ["✅", "❌", "⏰", "💳", "⚠️", "📌", "📅", "🙏", "🔗", "🧾", "✨"];
-
 function insertAtCursor(el: HTMLInputElement | HTMLTextAreaElement, text: string) {
   const start = el.selectionStart ?? el.value.length;
   const end = el.selectionEnd ?? el.value.length;
@@ -326,7 +324,7 @@ export function NotificationsSimple({
     setRealtimeKinds(initialRealtimeKinds);
   }, [initialRealtimeKinds]);
   const lastFieldRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
-  const [pickerOpen, setPickerOpen] = useState<null | "vars" | "emoji">(null);
+  const [pickerOpen, setPickerOpen] = useState<null | "vars">(null);
   const [activeModal, setActiveModal] = useState<
     null | { type: "realtime"; key: RealtimeKey } | { type: "reminder"; kind: "DUE" | "MORA" }
   >(null);
@@ -457,7 +455,7 @@ export function NotificationsSimple({
             </div>
             <div className="panel module" style={{ display: "grid", gap: 6 }}>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {(pickerOpen === "vars" ? MESSAGE_VARIABLES : MESSAGE_EMOJIS).map((item) => {
+                {MESSAGE_VARIABLES.map((item) => {
                   const label = typeof item === "string" ? item : item.label;
                   const value = typeof item === "string" ? item : item.value;
                   return (
@@ -623,9 +621,6 @@ export function NotificationsSimple({
                             <button type="button" className="ghost btn-compact" data-modal="true" onClick={() => setPickerOpen("vars")} aria-label="Variables" data-loader="off">
                               {`{ }`}
                             </button>
-                            <button type="button" className="ghost btn-compact" data-modal="true" onClick={() => setPickerOpen("emoji")} aria-label="Emojis" data-loader="off">
-                              🙂
-                            </button>
                           </div>
                         </div>
                       ) : null}
@@ -723,9 +718,6 @@ export function NotificationsSimple({
                       <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
                         <button type="button" className="ghost btn-compact" data-modal="true" onClick={() => setPickerOpen("vars")} aria-label="Variables" data-loader="off">
                           {`{ }`}
-                        </button>
-                        <button type="button" className="ghost btn-compact" data-modal="true" onClick={() => setPickerOpen("emoji")} aria-label="Emojis" data-loader="off">
-                          🙂
                         </button>
                       </div>
                     </div>

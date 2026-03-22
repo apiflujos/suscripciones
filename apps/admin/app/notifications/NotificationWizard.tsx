@@ -527,20 +527,6 @@ export function NotificationWizard({
                 </div>
               </div>
 
-              <div className="panel module" style={{ display: "grid", gap: 10 }}>
-                <div className="field-hint" style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                  <span>Emojis</span>
-                  <HelpTip text="Clic para insertar un emoji en el campo activo." />
-                </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {["✅", "❌", "⏰", "💳", "⚠️", "📌", "📅", "🙏"].map((e) => (
-                    <button key={e} type="button" className="ghost" onClick={() => onVarClick(e)} style={{ minHeight: 30, minWidth: 42 }} data-loader="off">
-                      {e}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               {templateKind === "TEXT" ? (
                 <div className="field">
                   <label>Mensaje</label>
