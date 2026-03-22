@@ -12,10 +12,8 @@ import {
 } from "../admin/_services/products";
 import { getCustomerById } from "../admin/_services/customers";
 import { createManualOrderForAdmin } from "../admin/_services/orders";
-import { sendChatwootMessageForCustomer } from "../admin/_services/chatwoot";
-import { getAdminSettings } from "../admin/_services/settings";
 import { createPlan } from "../admin/_services/plans";
-import { signMediaToken } from "../../lib/mediaAuth";
+import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
 
 function pesosToCents(input: string): number {
   const digits = String(input || "").replace(/[^\d-]/g, "");
@@ -70,49 +68,6 @@ function computeTotalInCents(args: {
   return { subtotalInCents: subtotal, taxInCents: tax, totalInCents: subtotal + tax };
 }
 
-function formatCurrency(amountInCents: number, currency: string) {
-  const code = currency || "COP";
-  const amount = Math.trunc(Number(amountInCents || 0) / 100);
-  if (!Number.isFinite(amount)) return "";
-  return new Intl.NumberFormat("es-CO", { style: "currency", currency: code, maximumFractionDigits: 0 }).format(amount);
-}
-
-function normalizeMessage(input: string) {
-  const lines = String(input || "")
-    .replace(/\r\n?/g, "\n")
-    .split("\n")
-    .map((line) => line.replace(/[ \t]+/g, " "));
-  const out: string[] = [];
-  for (const line of lines) {
-    if (!line.trim()) {
-      if (out.length && out[out.length - 1] !== "") out.push("");
-      continue;
-    }
-    out.push(line.trimEnd());
-  }
-  return out.join("\n").trim();
-}
-
-function stripInlineImageLines(input: string, removeImageLabel: boolean) {
-  const lines = String(input || "").split(/\r?\n/);
-  const filtered = lines.filter((line) => {
-    const trimmed = line.trim();
-    if (!trimmed) return true;
-    if (removeImageLabel && /^imagen\s*:/i.test(trimmed)) return false;
-    if (/data:image\//i.test(trimmed)) return false;
-    return true;
-  });
-  return normalizeMessage(filtered.join("\n"));
-}
-
-function renderTemplate(template: string, data: Record<string, string>) {
-  let out = String(template || "");
-  for (const [key, value] of Object.entries(data)) {
-    out = out.replaceAll(`{{${key}}}`, value || "");
-  }
-  return normalizeMessage(out);
-}
-
 function buildOrderReference(product: { sku?: string | null; id: string }) {
   const sku = String(product.sku || "").replace(/[^a-zA-Z0-9_-]/g, "");
   const base = sku || String(product.id || "").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 8);
@@ -120,26 +75,21 @@ function buildOrderReference(product: { sku?: string | null; id: string }) {
   return `PROD_${base}_${stamp}`.slice(0, 50);
 }
 
-function normalizePublicUrl(input: string) {
-  const value = String(input || "").trim();
-  if (!value) return "";
-  if (/^https?:\/\//i.test(value)) return value;
-  return "";
-}
-
-async function withFreshMediaToken(input: string) {
-  const raw = String(input || "").trim();
-  if (!raw) return "";
-  try {
-    const parsed = new URL(raw);
-    if (!parsed.pathname.startsWith("/public/media/")) return raw;
-    const filename = decodeURIComponent(parsed.pathname.slice("/public/media/".length));
-    if (!filename || filename.includes("/")) return raw;
-    const token = await signMediaToken(filename, 60 * 60 * 24 * 30);
-    return `${parsed.origin}${parsed.pathname}?token=${encodeURIComponent(token)}`;
-  } catch {
-    return raw;
-  }
+function resolveNotificationTemplate(config: any, trigger: string, paymentType?: "PLAN" | "SUBSCRIPTION" | "LINK") {
+  const rules = Array.isArray(config?.rules) ? config.rules : [];
+  const templates = Array.isArray(config?.templates) ? config.templates : [];
+  const candidates = rules.filter((r: any) => r?.enabled && String(r?.trigger || "") === trigger);
+  const filtered = paymentType
+    ? candidates.filter((r: any) => {
+        const types = r?.conditions?.requirePaymentTypeIn;
+        if (!Array.isArray(types) || !types.length) return true;
+        return types.includes(paymentType);
+      })
+    : candidates;
+  const rule = filtered[0] || candidates[0] || null;
+  if (!rule) return null;
+  const template = templates.find((t: any) => String(t?.id || "") === String(rule?.templateId || ""));
+  return template || null;
 }
 
 export async function createProduct(formData: FormData) {
@@ -309,14 +259,19 @@ export async function sendProductToCustomer(formData: FormData) {
   const returnTo = safeReturnTo(formData);
   const productId = String(formData.get("productId") || "").trim();
   const customerId = String(formData.get("customerId") || "").trim();
-  const includePaymentLink = String(formData.get("includePaymentLink") || "") === "on";
-  const includeImage = String(formData.get("includeImage") || "") === "on";
-  const messageTemplate = String(formData.get("message") || "").trim();
-  const inboxIdRaw = String(formData.get("inboxId") || "").trim();
-  const inboxId = inboxIdRaw ? Number(inboxIdRaw) : NaN;
 
   if (!productId || !customerId) {
     return redirect(mergeQuery(returnTo, { error: "missing_product_or_customer" }));
+  }
+
+  const notificationsConfig = await getNotificationsConfigForEnv("PRODUCTION").catch(() => null);
+  const paymentTemplate = resolveNotificationTemplate(notificationsConfig, "PAYMENT_LINK_CREATED", "LINK");
+  if (!paymentTemplate) {
+    return redirect(
+      mergeQuery(returnTo, {
+        error: "No hay una notificación activa para link de pago. Configúrala en Notificaciones."
+      })
+    );
   }
 
   let product: any = null;
@@ -338,105 +293,34 @@ export async function sendProductToCustomer(formData: FormData) {
     return redirect(mergeQuery(returnTo, { error: "product_or_customer_not_found" }));
   }
 
-  const totals = computeTotalInCents({
-    basePriceInCents: Number(product.basePriceInCents || 0),
-    variantDeltaInCents: 0,
-    discountType: product.discountType,
-    discountValueInCents: Number(product.discountValueInCents || 0),
-    discountPercent: Number(product.discountPercent || 0),
-    taxPercent: Number(product.taxPercent || 0)
-  });
-
-  const customerName = String(customer?.name || customer?.email || customer?.phone || "Cliente").trim();
-
-  const imageUrlRaw = normalizePublicUrl(String(product.imageUrl || ""));
-  const imageUrl = includeImage ? await withFreshMediaToken(imageUrlRaw) : "";
-  const includeImageSafe = includeImage && Boolean(imageUrl);
-  let checkoutUrl = "";
-  let templateParams: any = null;
-  const attachmentUrl = includeImageSafe ? imageUrl : "";
-  if (includePaymentLink) {
-    try {
-      const orderRes = await createManualOrderForAdmin({
-        customerId,
-        reference: buildOrderReference(product),
-        currency: String(product.currency || "COP"),
-        discountType: product.discountType || "NONE",
-        discountValueInCents: Number(product.discountValueInCents || 0),
-        discountPercent: Number(product.discountPercent || 0),
-        taxPercent: Number(product.taxPercent || 0),
-        lineItems: [
-          {
-            sku: product.sku || undefined,
-            name: product.name || "Producto",
-            quantity: 1,
-            unitPriceInCents: Number(product.basePriceInCents || 0)
-          }
-        ],
-        sendChatwoot: false
-      });
-      if (!orderRes.ok) throw new Error(orderRes.error);
-      checkoutUrl = String((orderRes as any)?.checkoutUrl || "");
-    } catch (err: any) {
-      return redirect(mergeQuery(returnTo, { error: String(err?.message || "order_create_failed") }));
-    }
-
-    try {
-      const settingsRes = await getAdminSettings();
-      const comms = settingsRes?.communications || null;
-      const activeEnv = String(comms?.activeEnv || "PRODUCTION").toUpperCase() === "SANDBOX" ? "SANDBOX" : "PRODUCTION";
-      const envCfg = activeEnv === "SANDBOX" ? comms?.sandbox : comms?.production;
-      const templateName = String(envCfg?.productTemplateName || "").trim();
-      const templateLang = String(envCfg?.productTemplateLang || "es").trim() || "es";
-      if (templateName) {
-        templateParams = {
-          name: templateName,
-          language: templateLang,
-          category: "UTILITY",
-          processed_params: {
-            body: {
-              "1": customerName,
-              "2": String(product.name || "Producto"),
-              "3": formatCurrency(totals.totalInCents, String(product.currency || "COP")),
-              "4": checkoutUrl
-            }
-          }
-        };
-        if (includeImageSafe && imageUrl) {
-          templateParams.processed_params.header = {
-            media_url: imageUrl,
-            media_type: "image"
-          };
-        }
-      }
-    } catch {}
-  }
-
-  const description = String(product.description || "").trim();
-  let message = renderTemplate(messageTemplate, {
-    cliente: customerName,
-    producto: String(product.name || "Producto"),
-    precio: formatCurrency(totals.totalInCents, String(product.currency || "COP")),
-    descripcion: description,
-    imagen: includeImageSafe ? imageUrl : "",
-    link: includePaymentLink ? checkoutUrl : ""
-  });
-  message = stripInlineImageLines(message, true);
-
-  if (!message) return redirect(mergeQuery(returnTo, { error: "empty_message" }));
-
   try {
-    const sent = await sendChatwootMessageForCustomer({
+    const orderRes = await createManualOrderForAdmin({
       customerId,
-      content: message,
-      type: "PAYMENT_LINK",
-      ...(Number.isFinite(inboxId) ? { inboxId } : {}),
-      ...(templateParams ? { templateParams } : {}),
-      ...(attachmentUrl ? { attachmentUrl } : {})
+      reference: buildOrderReference(product),
+      currency: String(product.currency || "COP"),
+      discountType: product.discountType || "NONE",
+      discountValueInCents: Number(product.discountValueInCents || 0),
+      discountPercent: Number(product.discountPercent || 0),
+      taxPercent: Number(product.taxPercent || 0),
+      lineItems: [
+        {
+          sku: product.sku || undefined,
+          name: product.name || "Producto",
+          quantity: 1,
+          unitPriceInCents: Number(product.basePriceInCents || 0)
+        }
+      ]
     });
-    if (!sent.ok) throw new Error(sent.error);
+    if (!orderRes.ok) throw new Error(orderRes.error);
+    if (orderRes.notificationsRulesActive === false) {
+      return redirect(
+        mergeQuery(returnTo, {
+          error: "No hay reglas activas de notificación para link de pago. Configúralas en Notificaciones."
+        })
+      );
+    }
   } catch (err: any) {
-    return redirect(mergeQuery(returnTo, { error: String(err?.message || "chatwoot_send_failed") }));
+    return redirect(mergeQuery(returnTo, { error: String(err?.message || "order_create_failed") }));
   }
 
   redirect(mergeQuery(returnTo, { sent: "1" }));

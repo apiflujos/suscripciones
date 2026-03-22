@@ -12,7 +12,7 @@ import { listTenants } from "../admin/_services/tenants";
 import { listCustomers } from "../admin/_services/customers";
 import { listEmpresas } from "../admin/_services/companies";
 import { listCheckoutTemplates } from "../admin/_services/checkoutTemplates";
-import { listChatwootInboxes } from "../admin/_services/chatwoot";
+import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
 import { resolveSmartViewIds, parseFiltersParam } from "@suscripciones/core/services/smartViews";
@@ -79,12 +79,12 @@ export default async function ProductsPage({
     q: q.trim(),
     ids
   });
-  const [tenants, customersRes, templatesRes, empresasRes, chatwootInboxesRes] = await Promise.all([
+  const [tenants, customersRes, templatesRes, empresasRes, notificationsConfig] = await Promise.all([
     listTenants(),
     listCustomers({ take: 200, tenantId: effectiveTenantId }),
     listCheckoutTemplates({ tenantId: effectiveTenantId }),
     listEmpresas({ tenantId: effectiveTenantId, take: 200 }),
-    listChatwootInboxes()
+    getNotificationsConfigForEnv("PRODUCTION").catch(() => ({ templates: [], rules: [] }))
   ]);
 
   const productItems = (products.items ?? []) as any[];
@@ -94,7 +94,8 @@ export default async function ProductsPage({
   const tenantById = new Map(tenantList.map((t) => [String(t.id), String(t.name)]));
   const filteredCustomers = (customersRes.items ?? []) as any[];
   const empresas = (empresasRes?.items ?? []) as any[];
-  const chatwootInboxes = chatwootInboxesRes.ok ? (chatwootInboxesRes.items ?? []) : [];
+  const notificationsTemplates = Array.isArray((notificationsConfig as any)?.templates) ? (notificationsConfig as any).templates : [];
+  const notificationsRules = Array.isArray((notificationsConfig as any)?.rules) ? (notificationsConfig as any).rules : [];
 
   return (
     <main className="page pageWide">
@@ -202,8 +203,9 @@ export default async function ProductsPage({
               tenants={tenantsFiltered}
               customers={filteredCustomers}
               empresas={empresas}
-              inboxes={chatwootInboxes}
               checkoutTemplates={templatesRes ?? []}
+              notificationTemplates={notificationsTemplates}
+              notificationRules={notificationsRules}
               createCustomer={createCustomerFromBilling}
               createPlanAndSubscription={createPlanAndSubscription}
               returnTo={returnTo}

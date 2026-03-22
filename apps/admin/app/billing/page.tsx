@@ -25,8 +25,10 @@ import { AutoCutoffInlineForm } from "./AutoCutoffInlineForm";
 import { RetryDateField } from "./RetryDateField";
 import { PaymentHistoryButton } from "./PaymentHistoryButton";
 import { PaymentLinkModalButton } from "./PaymentLinkModalButton";
+import { TokenizationLinkModalButton } from "./TokenizationLinkModalButton";
 import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
+import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
 
 export const dynamic = "force-dynamic";
 
@@ -329,7 +331,7 @@ export default async function BillingPage({
     subParams.set("ids", "__none__");
   }
 
-  const [subs, customers, products, templates, empresasRes, tenantsRes, settings] = await Promise.all([
+  const [subs, customers, products, templates, empresasRes, tenantsRes, settings, notificationsConfig] = await Promise.all([
     listSubscriptions({
       tenantId: resolvedTenantId || undefined,
       take: Number(subParams.get("take") || 50),
@@ -345,7 +347,8 @@ export default async function BillingPage({
     listCheckoutTemplates({ tenantId: resolvedTenantId || undefined }),
     listEmpresas({ tenantId: resolvedTenantId || undefined, take: 200 }),
     listTenants(),
-    getAdminSettings()
+    getAdminSettings(),
+    getNotificationsConfigForEnv("PRODUCTION").catch(() => ({ templates: [], rules: [] }))
   ]);
 
   const subItems = (subs.items ?? []) as any[];
@@ -359,6 +362,8 @@ export default async function BillingPage({
   const tenantById = new Map(tenants.map((t) => [String(t.id), String(t.name)]));
   const autoDebitSettings = settings?.autoDebit || {};
   const checkoutConfig = settings?.checkoutConfig || {};
+  const notificationsTemplates = Array.isArray((notificationsConfig as any)?.templates) ? (notificationsConfig as any).templates : [];
+  const notificationsRules = Array.isArray((notificationsConfig as any)?.rules) ? (notificationsConfig as any).rules : [];
   const subscriptionBaseUrl = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
   const planOptions: PlanOption[] = productItems.map((p: any): PlanOption => {
     const kind = String(p?.kind || "").toUpperCase() === "SERVICE" ? "SERVICE" : "PRODUCT";
@@ -784,6 +789,8 @@ export default async function BillingPage({
                 csrfToken={csrfToken}
                 returnTo={returnTo}
                 defaultAmountPesos={Math.trunc(Number(r.totalInCents || r.montoInCents || 0) / 100)}
+                notificationTemplates={notificationsTemplates}
+                notificationRules={notificationsRules}
                 action={sendCentralComPaymentLink}
               />
             ) : null}
@@ -799,20 +806,16 @@ export default async function BillingPage({
                   Abrir link
                 </a>
               ) : (
-                <form action={sendCentralComTokenizationLink}>
-                  <input type="hidden" name="csrf" value={csrfToken} />
-                  <input type="hidden" name="customerId" value={r.customerId} />
-                  <input type="hidden" name="planId" value={r.planId} />
-                  <input type="hidden" name="returnTo" value={returnTo} />
-                  {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                  <button
-                    className="ghost btn-compact btn-send btn-highlight"
-                    type="submit"
-                    title="Enviar link para guardar tarjeta"
-                  >
-                    Enviar link
-                  </button>
-                </form>
+                <TokenizationLinkModalButton
+                  customerId={r.customerId}
+                  planId={r.planId}
+                  tenantId={r.tenantId}
+                  csrfToken={csrfToken}
+                  returnTo={returnTo}
+                  notificationTemplates={notificationsTemplates}
+                  notificationRules={notificationsRules}
+                  action={sendCentralComTokenizationLink}
+                />
               )
             ) : null}
             {r.status === "SUSPENDED" ? (

@@ -69,14 +69,6 @@ type ProductRow = {
   totalSubscriptions?: number;
 };
 
-type ChatwootInbox = {
-  id: number;
-  name: string;
-  channelType?: string;
-  medium?: string;
-  provider?: string;
-};
-
 export function ProductsTable({
   items,
   view = "cards",
@@ -85,8 +77,9 @@ export function ProductsTable({
   tenants,
   customers,
   empresas,
-  inboxes,
   checkoutTemplates,
+  notificationTemplates,
+  notificationRules,
   createCustomer,
   createPlanAndSubscription,
   returnTo
@@ -98,8 +91,9 @@ export function ProductsTable({
   tenants: Array<{ id: string; name: string }>;
   customers: any[];
   empresas: any[];
-  inboxes: ChatwootInbox[];
   checkoutTemplates: any[];
+  notificationTemplates?: any[];
+  notificationRules?: any[];
   createCustomer: (formData: FormData) => Promise<void>;
   createPlanAndSubscription: (formData: FormData) => void | Promise<void>;
   returnTo?: string;
@@ -113,13 +107,8 @@ export function ProductsTable({
   const [sendOpen, setSendOpen] = useState(false);
   const [sendProduct, setSendProduct] = useState<ProductRow | null>(null);
   const [sendCustomerId, setSendCustomerId] = useState("");
-  const [sendIncludeLink, setSendIncludeLink] = useState(true);
-  const [sendIncludeImage, setSendIncludeImage] = useState(true);
-  const [sendMessage, setSendMessage] = useState("");
   const [sendSearch, setSendSearch] = useState("");
   const [sendSearchDebounced, setSendSearchDebounced] = useState("");
-  const [messageDirty, setMessageDirty] = useState(false);
-  const [sendInboxId, setSendInboxId] = useState("");
   const [txError, setTxError] = useState("");
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [planModalProduct, setPlanModalProduct] = useState<ProductRow | null>(null);
@@ -349,25 +338,7 @@ export function ProductsTable({
     () => (Array.isArray(customers) ? customers.find((c: any) => String(c.id) === String(sendCustomerId)) : null),
     [customers, sendCustomerId]
   );
-  const sortedInboxes = useMemo(() => {
-    const list = Array.isArray(inboxes) ? inboxes.slice() : [];
-    return list.sort((a, b) => String(a?.name || "").localeCompare(String(b?.name || ""), "es"));
-  }, [inboxes]);
   const searchActive = normalizedQuery.length >= 2;
-  const selectedInbox = useMemo(
-    () => (sendInboxId ? sortedInboxes.find((i) => String(i.id) === String(sendInboxId)) : null),
-    [sendInboxId, sortedInboxes]
-  );
-  const selectedInboxChannel = useMemo(() => {
-    const raw = selectedInbox?.channelType || selectedInbox?.medium || selectedInbox?.provider || "";
-    return String(raw || "").trim();
-  }, [selectedInbox]);
-  const selectedInboxChannelLabel = useMemo(() => {
-    if (!selectedInboxChannel) return "";
-    return selectedInboxChannel.replace(/_/g, " ");
-  }, [selectedInboxChannel]);
-  const selectedInboxIsWhatsapp = selectedInboxChannel.toLowerCase().includes("whatsapp");
-  const sendImageReady = Boolean(sendProduct && sendIncludeImage && isPublicImage(sendProduct.imageUrl));
   const searchResults = useMemo(() => {
     if (!normalizedQuery || normalizedQuery.length < 2) return [];
     const tokens = normalizedQuery.split(/\s+/).filter(Boolean);
@@ -428,6 +399,8 @@ export function ProductsTable({
     return scored;
   }, [filteredCustomers, normalizedQuery]);
   const searchTotal = searchActive ? filteredCustomers.length : 0;
+  const paymentLinkTemplate = resolveNotificationTemplate("PAYMENT_LINK_CREATED", "LINK");
+  const canSendPaymentLink = Boolean(paymentLinkTemplate);
 
   function formatCustomerLabel(c: any) {
     return String(c?.name || c?.email || c?.phone || "Contacto").trim() || "Contacto";
@@ -446,47 +419,54 @@ export function ProductsTable({
     setSendSearch(label);
   }
 
+  const notificationsConfig = useMemo(
+    () => ({
+      templates: Array.isArray(notificationTemplates) ? notificationTemplates : [],
+      rules: Array.isArray(notificationRules) ? notificationRules : []
+    }),
+    [notificationTemplates, notificationRules]
+  );
+
+  function resolveNotificationTemplate(trigger: string, paymentType?: "PLAN" | "SUBSCRIPTION" | "LINK") {
+    const rules = Array.isArray(notificationsConfig?.rules) ? notificationsConfig.rules : [];
+    const templates = Array.isArray(notificationsConfig?.templates) ? notificationsConfig.templates : [];
+    const candidates = rules.filter((r: any) => r?.enabled && String(r?.trigger || "") === trigger);
+    const filtered = paymentType
+      ? candidates.filter((r: any) => {
+          const types = r?.conditions?.requirePaymentTypeIn;
+          if (!Array.isArray(types) || !types.length) return true;
+          return types.includes(paymentType);
+        })
+      : candidates;
+    const rule = filtered[0] || candidates[0] || null;
+    if (!rule) return null;
+    const template = templates.find((t: any) => String(t?.id || "") === String(rule?.templateId || ""));
+    return template || null;
+  }
+
+  function renderNotificationPreview(template: any) {
+    if (!template) return "No hay plantilla configurada en Notificaciones.";
+    if (template?.content && String(template.content || "").trim() && String(template.content || "") !== "(template)") {
+      return String(template.content || "").trim();
+    }
+    const name = String(template?.chatwootTemplate?.name || "").trim();
+    const lang = String(template?.chatwootTemplate?.language || "").trim();
+    const params = template?.chatwootTemplate?.processed_params?.body || [];
+    if (!name) return "Plantilla configurada en CentralCom.";
+    const paramText = Array.isArray(params) && params.length ? params.map((p: any) => String(p?.value || "")).join(" | ") : "—";
+    return `Plantilla WhatsApp: ${name}${lang ? ` (${lang})` : ""}\nParámetros: ${paramText}`;
+  }
+
   function isPublicImage(url?: string | null) {
     const value = String(url || "").trim();
     return /^https?:\/\//i.test(value);
   }
 
-  function buildSendTemplate(product: ProductRow, includeLink: boolean, includeImage: boolean) {
-    const lines: string[] = [];
-    lines.push("Hola {{cliente}} 👋");
-    lines.push("");
-    lines.push(`Te comparto ${product.kind === "SERVICE" ? "el servicio" : "el producto"} *{{producto}}*.`);
-    if (product.description) {
-      lines.push("");
-      lines.push("{{descripcion}}");
-    }
-    lines.push("");
-    lines.push("Precio: {{precio}}");
-    if (includeImage && isPublicImage(product.imageUrl)) {
-      lines.push("");
-      lines.push("Imagen: {{imagen}}");
-    }
-    if (includeLink) {
-      lines.push("");
-      lines.push("Puedes pagar de forma segura aquí:");
-      lines.push("{{link}}");
-    }
-    lines.push("");
-    lines.push("Quedo atento.");
-    return lines.join("\n");
-  }
-
   function openSendModal(item: ProductRow) {
     setSendProduct(item);
     setSendOpen(true);
-    const includeImg = isPublicImage(item.imageUrl);
-    setSendIncludeImage(includeImg);
-    setSendIncludeLink(true);
     setSendCustomerId("");
     setSendSearch("");
-    setMessageDirty(false);
-    setSendInboxId("");
-    setSendMessage(buildSendTemplate(item, true, includeImg));
   }
 
   function closeSendModal() {
@@ -494,9 +474,6 @@ export function ProductsTable({
     setSendProduct(null);
     setSendCustomerId("");
     setSendSearch("");
-    setSendMessage("");
-    setMessageDirty(false);
-    setSendInboxId("");
   }
 
   function onImageFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -525,12 +502,6 @@ export function ProductsTable({
       .finally(() => {
         setImageUploading(false);
       });
-  }
-
-  function formatInboxLabel(inbox: ChatwootInbox) {
-    const name = String(inbox?.name || `Inbox ${inbox?.id}`);
-    const channel = String(inbox?.channelType || inbox?.medium || inbox?.provider || "").trim();
-    return channel ? `${name} · ${channel}` : name;
   }
 
   const renderProductCard = (p: ProductRow) => (
@@ -886,118 +857,30 @@ export function ProductsTable({
                   ) : null}
                 </div>
 
-                <div className="field">
-                  <label style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-                    <span>Opciones</span>
-                    <label className="check-pill">
-                      <input
-                        type="checkbox"
-                        name="includePaymentLink"
-                        checked={sendIncludeLink}
-                        onChange={(e) => {
-                          const next = e.target.checked;
-                          setSendIncludeLink(next);
-                          if (!messageDirty && sendProduct) setSendMessage(buildSendTemplate(sendProduct, next, sendIncludeImage));
-                        }}
-                      />
-                      <span>Incluir link de pago</span>
-                    </label>
-                    <label className="check-pill">
-                      <input
-                        type="checkbox"
-                        name="includeImage"
-                        checked={sendIncludeImage}
-                        disabled={!isPublicImage(sendProduct.imageUrl)}
-                        onChange={(e) => {
-                          const next = e.target.checked;
-                          setSendIncludeImage(next);
-                          if (!messageDirty && sendProduct) setSendMessage(buildSendTemplate(sendProduct, sendIncludeLink, next));
-                        }}
-                      />
-                      <span>Agregar imagen</span>
-                    </label>
-                  </label>
-                  <div className="field-hint">
-                    {isPublicImage(sendProduct.imageUrl)
-                      ? "La imagen se envía como adjunto público al canal del cliente."
-                      : "La imagen debe ser una URL https pública para poder enviarse."}
-                  </div>
-                </div>
-                <div className="field">
-                  <label>Canal Chatwoot</label>
-                  <select
-                    className="select"
-                    name="inboxId"
-                    value={sendInboxId}
-                    onChange={(e) => setSendInboxId(e.target.value)}
-                  >
-                    <option value="">Automático según contacto</option>
-                    {sortedInboxes.length ? (
-                      sortedInboxes.map((inbox) => (
-                        <option key={inbox.id} value={inbox.id}>
-                          {formatInboxLabel(inbox)}
-                        </option>
-                      ))
-                    ) : (
-                      <option value="" disabled>
-                        No hay inboxes disponibles
-                      </option>
-                    )}
-                  </select>
-                  <div className="field-hint">
-                    {sendInboxId
-                      ? `Se usará el inbox seleccionado (${selectedInboxChannelLabel || "canal configurado"}).`
-                      : "Se selecciona el inbox configurado o el mejor canal disponible."}
-                    {selectedInboxIsWhatsapp ? (
-                      <span> · WhatsApp: se recomienda plantilla y adjunto público.</span>
-                    ) : null}
-                  </div>
-                </div>
               </div>
 
               <div className="send-product-right">
-                <div className="send-product-summary">
-                  <div className="send-summary-row">
-                    <span>Adjuntos</span>
-                    {sendImageReady ? <span className="pill pill-ok">Imagen lista</span> : <span className="pill pill-soft">Sin imagen</span>}
-                  </div>
-                  <div className="send-summary-row">
-                    <span>Link de pago</span>
-                    {sendIncludeLink ? <span className="pill pill-ok">Incluido</span> : <span className="pill pill-soft">No incluido</span>}
-                  </div>
-                  <div className="send-summary-row">
-                    <span>Inbox</span>
-                    <span className="send-summary-value">{selectedInbox ? formatInboxLabel(selectedInbox) : "Automático"}</span>
-                  </div>
-                  <div className="send-summary-row">
-                    <span>Canal</span>
-                    {selectedInboxChannelLabel ? (
-                      <span className="pill pill-soft">{selectedInboxChannelLabel}</span>
-                    ) : (
-                      <span className="send-summary-value">Automático</span>
-                    )}
-                  </div>
-                </div>
                 <div className="field">
-                  <label>Mensaje para el cliente</label>
+                  <label>Notificación configurada</label>
                   <textarea
                     className="input"
-                    name="message"
-                    rows={13}
-                    value={sendMessage}
-                    onChange={(e) => {
-                      setSendMessage(e.target.value);
-                      setMessageDirty(true);
-                    }}
+                    rows={12}
+                    readOnly
+                    value={renderNotificationPreview(paymentLinkTemplate)}
                   />
-                  <div className="field-hint">
-                    Variables disponibles: <strong>{"{{cliente}}"}</strong>, <strong>{"{{producto}}"}</strong>, <strong>{"{{precio}}"}</strong>, <strong>{"{{descripcion}}"}</strong>, <strong>{"{{imagen}}"}</strong>, <strong>{"{{link}}"}</strong>.
-                  </div>
+                  <div className="field-hint">Se enviará usando las reglas activas de Notificaciones (link de pago).</div>
                 </div>
                 <div className="send-product-actions">
-                  <button className="primary btn-send" type="submit" disabled={!sendCustomerId || !sendMessage.trim()}>
-                    Enviar mensaje
+                  <button
+                    className="primary btn-send"
+                    type="submit"
+                    disabled={!sendCustomerId || !canSendPaymentLink}
+                  >
+                    Enviar link de pago
                   </button>
+                  {!canSendPaymentLink ? (
+                    <div className="field-hint ui-alert-danger">No hay plantilla activa para link de pago en Notificaciones.</div>
+                  ) : null}
                 </div>
               </div>
             </form>
