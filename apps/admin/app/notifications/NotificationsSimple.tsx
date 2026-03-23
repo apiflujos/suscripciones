@@ -51,12 +51,8 @@ type RealtimeKey =
   | "catalog_link_created_subscription"
   | "tokenization_link_created"
   | "payment_link_created"
-  | "payment_success_subscription"
-  | "payment_success_plan"
-  | "payment_success_link"
-  | "payment_failed_subscription"
-  | "payment_failed_plan"
-  | "payment_failed_link";
+  | "payment_success"
+  | "payment_failed";
 
 const REALTIME_TYPES: Array<{
   key: RealtimeKey;
@@ -70,11 +66,8 @@ const REALTIME_TYPES: Array<{
   { key: "catalog_link_created_subscription", label: "Catálogo enviado (suscripción · link de pago)", aliases: ["Catálogo enviado (suscripción)"], trigger: "CATALOG_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "SUBSCRIPTION" },
   { key: "tokenization_link_created", label: "Tokenización enviada (débito automático)", aliases: ["Tokenización enviada"], trigger: "TOKENIZATION_LINK_CREATED", chatwootType: "PAYMENT_LINK" },
   { key: "payment_link_created", label: "Link de pago creado", trigger: "PAYMENT_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "LINK" },
-  { key: "payment_success_subscription", label: "Pago exitoso (débito automático)", aliases: ["Pago exitoso (suscripción)"], trigger: "PAYMENT_APPROVED", chatwootType: "PAYMENT_CONFIRMED", paymentType: "SUBSCRIPTION" },
-  { key: "payment_success_plan", label: "Pago exitoso (link de pago)", trigger: "PAYMENT_APPROVED", chatwootType: "PAYMENT_CONFIRMED", paymentType: "PLAN" },
-  { key: "payment_success_link", label: "Pago recibido por link de pago", trigger: "PAYMENT_APPROVED", chatwootType: "PAYMENT_CONFIRMED", paymentType: "LINK" },
-  { key: "payment_failed_subscription", label: "Pago fallido (débito automático)", aliases: ["Pago fallido (suscripción)"], trigger: "PAYMENT_DECLINED", chatwootType: "PAYMENT_FAILED", paymentType: "SUBSCRIPTION" },
-  { key: "payment_failed_plan", label: "Pago fallido (link de pago)", trigger: "PAYMENT_DECLINED", chatwootType: "PAYMENT_FAILED", paymentType: "PLAN" }
+  { key: "payment_success", label: "Pago exitoso", trigger: "PAYMENT_APPROVED", chatwootType: "PAYMENT_CONFIRMED" },
+  { key: "payment_failed", label: "Pago fallido", trigger: "PAYMENT_DECLINED", chatwootType: "PAYMENT_FAILED" }
 ];
 
 const REMINDER_TPL_DUE = "tpl_reminder_due";
@@ -82,37 +75,37 @@ const REMINDER_TPL_MORA = "tpl_reminder_mora";
 
 type OffsetItem = { amount: string; unit: "minutes" | "hours" | "days" };
 const MESSAGE_VARIABLES = [
-  { label: "Nombre completo", value: "{{customer.name}}" },
-  { label: "Correo electrónico", value: "{{customer.email}}" },
-  { label: "Teléfono", value: "{{customer.phone}}" },
-  { label: "Dirección", value: "{{customer.metadata.address}}" },
-  { label: "Nombre de la empresa", value: "{{company.name}}" },
+  { label: "Ciclo actual", value: "{{subscription.currentCycle}}" },
   { label: "Correo de la empresa", value: "{{company.email}}" },
-  { label: "Teléfono de la empresa", value: "{{company.phone}}" },
-  { label: "Nombre del contacto", value: "{{contact.name}}" },
   { label: "Correo del contacto", value: "{{contact.email}}" },
-  { label: "Teléfono del contacto", value: "{{contact.phone}}" },
-  { label: "Nombre del producto", value: "{{plan.name}}" },
-  { label: "Precio del producto (centavos)", value: "{{plan.priceInCents}}" },
-  { label: "Moneda del producto", value: "{{plan.currency}}" },
+  { label: "Correo electrónico", value: "{{customer.email}}" },
+  { label: "Dirección", value: "{{customer.metadata.address}}" },
+  { label: "Enlace de catálogo", value: "{{catalog.url}}" },
+  { label: "Enlace de débito automático", value: "{{tokenization.url}}" },
+  { label: "Enlace de pago", value: "{{payment.checkoutUrl}}" },
+  { label: "Estado de la suscripción", value: "{{subscription.status}}" },
+  { label: "Estado del pago", value: "{{payment.status}}" },
+  { label: "Fecha de corte", value: "{{subscription.currentPeriodEndAt}}" },
+  { label: "Fecha de creación del pago", value: "{{payment.createdAt}}" },
+  { label: "Fecha de fallo del pago", value: "{{payment.failedAt}}" },
+  { label: "Fecha de inicio del ciclo", value: "{{subscription.currentPeriodStartAt}}" },
+  { label: "Fecha de pago", value: "{{payment.paidAt}}" },
   { label: "Frecuencia (cantidad)", value: "{{plan.intervalCount}}" },
   { label: "Frecuencia (unidad)", value: "{{plan.intervalUnit}}" },
-  { label: "Estado de la suscripción", value: "{{subscription.status}}" },
-  { label: "Ciclo actual", value: "{{subscription.currentCycle}}" },
-  { label: "Fecha de inicio del ciclo", value: "{{subscription.currentPeriodStartAt}}" },
-  { label: "Fecha de corte", value: "{{subscription.currentPeriodEndAt}}" },
-  { label: "Estado del pago", value: "{{payment.status}}" },
-  { label: "Monto del pago (centavos)", value: "{{payment.amountInCents}}" },
   { label: "Moneda del pago", value: "{{payment.currency}}" },
-  { label: "Fecha de pago", value: "{{payment.paidAt}}" },
-  { label: "Fecha de fallo del pago", value: "{{payment.failedAt}}" },
-  { label: "Fecha de creación del pago", value: "{{payment.createdAt}}" },
+  { label: "Moneda del producto", value: "{{plan.currency}}" },
+  { label: "Monto del pago (pesos)", value: "{{payment.amountInPesos}}" },
+  { label: "Nombre completo", value: "{{customer.name}}" },
+  { label: "Nombre de la empresa", value: "{{company.name}}" },
+  { label: "Nombre del contacto", value: "{{contact.name}}" },
+  { label: "Nombre del producto", value: "{{plan.name}}" },
+  { label: "Precio del producto (pesos)", value: "{{plan.priceInPesos}}" },
   { label: "Referencia", value: "{{payment.reference}}" },
-  { label: "Enlace de pago", value: "{{payment.checkoutUrl}}" },
-  { label: "Enlace de débito automático", value: "{{tokenization.url}}" },
-  { label: "Enlace de catálogo", value: "{{catalog.url}}" },
+  { label: "Teléfono", value: "{{customer.phone}}" },
+  { label: "Teléfono de la empresa", value: "{{company.phone}}" },
+  { label: "Teléfono del contacto", value: "{{contact.phone}}" },
   { label: "Tipo de pago", value: "{{paymentType}}" }
-];
+].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
 function insertAtCursor(el: HTMLInputElement | HTMLTextAreaElement, text: string) {
   const start = el.selectionStart ?? el.value.length;

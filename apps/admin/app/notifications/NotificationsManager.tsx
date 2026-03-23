@@ -144,6 +144,11 @@ export function NotificationsManager({
   const [ruleEnsurePaymentLink, setRuleEnsurePaymentLink] = useState(true);
   const [ruleAtTimeUtc, setRuleAtTimeUtc] = useState("");
   const [ruleOffsets, setRuleOffsets] = useState<OffsetItem[]>([{ direction: "before", amount: "1", unit: "days" }]);
+  const paymentTypeEnabled = ruleTrigger === "PAYMENT_LINK_CREATED" || ruleTrigger === "CATALOG_LINK_CREATED";
+
+  useEffect(() => {
+    if (!paymentTypeEnabled) setRulePaymentType("ANY");
+  }, [paymentTypeEnabled]);
 
   function openTemplateModal(t: Template) {
     setEditingTemplate(t);
@@ -452,15 +457,17 @@ export function NotificationsManager({
                   ))}
                 </select>
               </div>
-              <div className="field">
-                <label>Aplica a</label>
-                <select className="select" value={rulePaymentType} onChange={(e) => setRulePaymentType(e.target.value as any)}>
-                  <option value="ANY">Todos</option>
-                  <option value="PLAN">Link de pago</option>
-                  <option value="SUBSCRIPTION">Suscripción</option>
-                  <option value="LINK">Link de pago</option>
-                </select>
-              </div>
+              {paymentTypeEnabled ? (
+                <div className="field">
+                  <label>Aplica a</label>
+                  <select className="select" value={rulePaymentType} onChange={(e) => setRulePaymentType(e.target.value as any)}>
+                    <option value="ANY">Todos</option>
+                    <option value="PLAN">Link de pago</option>
+                    <option value="SUBSCRIPTION">Suscripción</option>
+                    <option value="LINK">Link de pago</option>
+                  </select>
+                </div>
+              ) : null}
               <label className="field row">
                 <span>Regla activa</span>
                 <input type="checkbox" checked={ruleEnabled} onChange={(e) => setRuleEnabled(e.target.checked)} />

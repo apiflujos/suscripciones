@@ -122,7 +122,8 @@ export async function createNotification(formData: FormData): Promise<{ ok: true
   const templateKind = String(formData.get("templateKind") || "").trim();
   const message = String(formData.get("message") || "").trim();
   const ensurePaymentLink = String(formData.get("ensurePaymentLink") || "").trim() === "1";
-  const paymentType = String(formData.get("paymentType") || "ANY").trim().toUpperCase();
+  const paymentTypeRaw = String(formData.get("paymentType") || "ANY").trim().toUpperCase();
+  const paymentType = trigger === "PAYMENT_APPROVED" || trigger === "PAYMENT_DECLINED" ? "ANY" : paymentTypeRaw;
   const atTimeUtc = String(formData.get("atTimeUtc") || "").trim();
 
   const waTemplateName = String(formData.get("waTemplateName") || "").trim();
@@ -175,7 +176,7 @@ export async function createNotification(formData: FormData): Promise<{ ok: true
     const chatwootType = chatwootTypeForTrigger(trigger);
     const paymentSuffix = paymentType && paymentType !== "ANY" ? paymentTypeLabel(paymentType) : "Todos";
     const offsetName = formatOffsetName(offsetsSeconds, atTimeUtc);
-    const baseName = title || `${triggerLabel(trigger)} · ${offsetName} · ${paymentSuffix}`;
+    const baseName = title || `${triggerLabel(trigger)} · ${offsetName}${paymentType === "ANY" ? "" : ` · ${paymentSuffix}`}`;
 
     const base = slugifyId(baseName) || "notif";
     let templateId = `tpl_${base}`;
@@ -221,7 +222,7 @@ export async function createNotification(formData: FormData): Promise<{ ok: true
       rule.ensurePaymentLink = ensurePaymentLink;
       rule.conditions = { skipIfSubscriptionStatusIn: ["CANCELED"] };
     }
-    if (paymentType && paymentType !== "ANY") {
+    if (paymentType && paymentType !== "ANY" && trigger !== "PAYMENT_APPROVED" && trigger !== "PAYMENT_DECLINED") {
       rule.conditions = { ...(rule.conditions || {}), requirePaymentTypeIn: [paymentType] };
     }
     rules.push(rule);
@@ -259,12 +260,8 @@ const REALTIME_MAP: Record<string, { trigger: RuleTrigger; chatwootType: Chatwoo
   catalog_link_created_plan: { trigger: "CATALOG_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "PLAN", label: "Catálogo enviado (link de pago)" },
   catalog_link_created_subscription: { trigger: "CATALOG_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "SUBSCRIPTION", label: "Catálogo enviado (suscripción · link de pago)" },
   tokenization_link_created: { trigger: "TOKENIZATION_LINK_CREATED", chatwootType: "PAYMENT_LINK", label: "Tokenización enviada (débito automático)" },
-  payment_success_subscription: { trigger: "PAYMENT_APPROVED", chatwootType: "PAYMENT_CONFIRMED", paymentType: "SUBSCRIPTION", label: "Pago exitoso (débito automático)" },
-  payment_success_plan: { trigger: "PAYMENT_APPROVED", chatwootType: "PAYMENT_CONFIRMED", paymentType: "PLAN", label: "Pago exitoso (link de pago)" },
-  payment_success_link: { trigger: "PAYMENT_APPROVED", chatwootType: "PAYMENT_CONFIRMED", paymentType: "LINK", label: "Pago recibido por link de pago" },
-  payment_failed_subscription: { trigger: "PAYMENT_DECLINED", chatwootType: "PAYMENT_FAILED", paymentType: "SUBSCRIPTION", label: "Pago fallido (débito automático)" },
-  payment_failed_plan: { trigger: "PAYMENT_DECLINED", chatwootType: "PAYMENT_FAILED", paymentType: "PLAN", label: "Pago fallido (link de pago)" },
-  payment_failed_link: { trigger: "PAYMENT_DECLINED", chatwootType: "PAYMENT_FAILED", paymentType: "LINK", label: "Pago fallido (link de pago)" }
+  payment_success: { trigger: "PAYMENT_APPROVED", chatwootType: "PAYMENT_CONFIRMED", label: "Pago exitoso" },
+  payment_failed: { trigger: "PAYMENT_DECLINED", chatwootType: "PAYMENT_FAILED", label: "Pago fallido" }
 };
 
 function parseOffsetsCsv(raw: string, sign: 1 | -1) {
@@ -723,7 +720,8 @@ export async function updateRule(formData: FormData) {
   const trigger = String(formData.get("trigger") || "").trim();
   const templateId = String(formData.get("templateId") || "").trim();
   const enabled = String(formData.get("enabled") || "").trim() === "1";
-  const paymentType = String(formData.get("paymentType") || "ANY").trim().toUpperCase();
+  const paymentTypeRaw = String(formData.get("paymentType") || "ANY").trim().toUpperCase();
+  const paymentType = trigger === "PAYMENT_APPROVED" || trigger === "PAYMENT_DECLINED" ? "ANY" : paymentTypeRaw;
   const ensurePaymentLink = String(formData.get("ensurePaymentLink") || "").trim() === "1";
   const atTimeUtc = String(formData.get("atTimeUtc") || "").trim();
   const offsetsSeconds = toOffsetsSeconds(formData);
@@ -747,7 +745,7 @@ export async function updateRule(formData: FormData) {
       next.ensurePaymentLink = ensurePaymentLink;
       next.conditions = { ...(next.conditions || {}), skipIfSubscriptionStatusIn: ["CANCELED"] };
     }
-    if (paymentType && paymentType !== "ANY") {
+    if (paymentType && paymentType !== "ANY" && trigger !== "PAYMENT_APPROVED" && trigger !== "PAYMENT_DECLINED") {
       next.conditions = { ...(next.conditions || {}), requirePaymentTypeIn: [paymentType] };
     } else if (next.conditions) {
       const { requirePaymentTypeIn, ...rest } = next.conditions;

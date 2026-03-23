@@ -312,13 +312,20 @@ export async function subscriptionReminder(payload: any) {
   }
 
   const meta: any = customer?.metadata && typeof customer.metadata === "object" ? (customer.metadata as any) : {};
+  const centsToPesos = (value?: number | null) => Math.trunc(Number(value || 0) / 100);
   const tokenizationUrl = parsed.data.tokenUrl || meta?.tokenizationLink?.url || "";
   const catalogUrl = parsed.data.catalogUrl || meta?.cartLink?.url || "";
+  const planWithPesos = subscription?.plan
+    ? { ...subscription.plan, priceInPesos: centsToPesos(subscription.plan.priceInCents) }
+    : null;
+  const paymentWithPesos = effectivePayment
+    ? { ...effectivePayment, amountInPesos: centsToPesos(effectivePayment.amountInCents) }
+    : null;
   const ctx = {
     customer,
     subscription,
-    plan: subscription?.plan || null,
-    payment: effectivePayment,
+    plan: planWithPesos,
+    payment: paymentWithPesos,
     tokenization: tokenizationUrl ? { url: tokenizationUrl } : null,
     catalog: catalogUrl ? { url: catalogUrl } : null,
     paymentType

@@ -10,46 +10,43 @@ type TemplateKind = "TEXT" | "WHATSAPP_TEMPLATE";
 type PaymentType = "ANY" | "PLAN" | "SUBSCRIPTION" | "LINK";
 type NotificationKind =
   | "PAYMENT_LINK"
-  | "PAYMENT_APPROVED_SUBSCRIPTION"
-  | "PAYMENT_APPROVED_PLAN"
-  | "PAYMENT_APPROVED_LINK"
-  | "PAYMENT_DECLINED_SUBSCRIPTION"
-  | "PAYMENT_DECLINED_PLAN"
+  | "PAYMENT_APPROVED"
+  | "PAYMENT_DECLINED"
   | "REMINDER_DUE"
   | "REMINDER_MORA";
 
 const VARIABLES = [
-  { label: "Nombre completo", value: "{{customer.name}}" },
-  { label: "Correo electrónico", value: "{{customer.email}}" },
-  { label: "Teléfono", value: "{{customer.phone}}" },
-  { label: "Dirección", value: "{{customer.metadata.address}}" },
-  { label: "Nombre de la empresa", value: "{{company.name}}" },
+  { label: "Ciclo actual", value: "{{subscription.currentCycle}}" },
   { label: "Correo de la empresa", value: "{{company.email}}" },
-  { label: "Teléfono de la empresa", value: "{{company.phone}}" },
-  { label: "Nombre del contacto", value: "{{contact.name}}" },
   { label: "Correo del contacto", value: "{{contact.email}}" },
-  { label: "Teléfono del contacto", value: "{{contact.phone}}" },
-  { label: "Nombre del producto", value: "{{plan.name}}" },
-  { label: "Precio del producto (centavos)", value: "{{plan.priceInCents}}" },
-  { label: "Moneda del producto", value: "{{plan.currency}}" },
+  { label: "Correo electrónico", value: "{{customer.email}}" },
+  { label: "Dirección", value: "{{customer.metadata.address}}" },
+  { label: "Enlace de catálogo", value: "{{catalog.url}}" },
+  { label: "Enlace de débito automático", value: "{{tokenization.url}}" },
+  { label: "Enlace de pago", value: "{{payment.checkoutUrl}}" },
+  { label: "Estado de la suscripción", value: "{{subscription.status}}" },
+  { label: "Estado del pago", value: "{{payment.status}}" },
+  { label: "Fecha de corte", value: "{{subscription.currentPeriodEndAt}}" },
+  { label: "Fecha de creación del pago", value: "{{payment.createdAt}}" },
+  { label: "Fecha de fallo del pago", value: "{{payment.failedAt}}" },
+  { label: "Fecha de inicio del ciclo", value: "{{subscription.currentPeriodStartAt}}" },
+  { label: "Fecha de pago", value: "{{payment.paidAt}}" },
   { label: "Frecuencia (cantidad)", value: "{{plan.intervalCount}}" },
   { label: "Frecuencia (unidad)", value: "{{plan.intervalUnit}}" },
-  { label: "Estado de la suscripción", value: "{{subscription.status}}" },
-  { label: "Ciclo actual", value: "{{subscription.currentCycle}}" },
-  { label: "Fecha de inicio del ciclo", value: "{{subscription.currentPeriodStartAt}}" },
-  { label: "Fecha de corte", value: "{{subscription.currentPeriodEndAt}}" },
-  { label: "Estado del pago", value: "{{payment.status}}" },
-  { label: "Monto del pago (centavos)", value: "{{payment.amountInCents}}" },
   { label: "Moneda del pago", value: "{{payment.currency}}" },
-  { label: "Fecha de pago", value: "{{payment.paidAt}}" },
-  { label: "Fecha de fallo del pago", value: "{{payment.failedAt}}" },
-  { label: "Fecha de creación del pago", value: "{{payment.createdAt}}" },
+  { label: "Moneda del producto", value: "{{plan.currency}}" },
+  { label: "Monto del pago (pesos)", value: "{{payment.amountInPesos}}" },
+  { label: "Nombre completo", value: "{{customer.name}}" },
+  { label: "Nombre de la empresa", value: "{{company.name}}" },
+  { label: "Nombre del contacto", value: "{{contact.name}}" },
+  { label: "Nombre del producto", value: "{{plan.name}}" },
+  { label: "Precio del producto (pesos)", value: "{{plan.priceInPesos}}" },
   { label: "Referencia", value: "{{payment.reference}}" },
-  { label: "Enlace de pago", value: "{{payment.checkoutUrl}}" },
-  { label: "Enlace de débito automático", value: "{{tokenization.url}}" },
-  { label: "Enlace de catálogo", value: "{{catalog.url}}" },
+  { label: "Teléfono", value: "{{customer.phone}}" },
+  { label: "Teléfono de la empresa", value: "{{company.phone}}" },
+  { label: "Teléfono del contacto", value: "{{contact.phone}}" },
   { label: "Tipo de pago", value: "{{paymentType}}" }
-];
+].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
 type ChatwootTemplate = {
   id?: string | number;
@@ -293,33 +290,15 @@ export function NotificationWizard({
       setOffsets([{ direction: "after", amount: "0", unit: "minutes" }]);
       return;
     }
-    if (next === "PAYMENT_APPROVED_SUBSCRIPTION") {
+    if (next === "PAYMENT_APPROVED") {
       setTrigger("PAYMENT_APPROVED");
-      setPaymentType("SUBSCRIPTION");
+      setPaymentType("ANY");
       setOffsets([{ direction: "after", amount: "0", unit: "minutes" }]);
       return;
     }
-    if (next === "PAYMENT_APPROVED_PLAN") {
-      setTrigger("PAYMENT_APPROVED");
-      setPaymentType("PLAN");
-      setOffsets([{ direction: "after", amount: "0", unit: "minutes" }]);
-      return;
-    }
-    if (next === "PAYMENT_APPROVED_LINK") {
-      setTrigger("PAYMENT_APPROVED");
-      setPaymentType("LINK");
-      setOffsets([{ direction: "after", amount: "0", unit: "minutes" }]);
-      return;
-    }
-    if (next === "PAYMENT_DECLINED_SUBSCRIPTION") {
+    if (next === "PAYMENT_DECLINED") {
       setTrigger("PAYMENT_DECLINED");
-      setPaymentType("SUBSCRIPTION");
-      setOffsets([{ direction: "after", amount: "0", unit: "minutes" }]);
-      return;
-    }
-    if (next === "PAYMENT_DECLINED_PLAN") {
-      setTrigger("PAYMENT_DECLINED");
-      setPaymentType("PLAN");
+      setPaymentType("ANY");
       setOffsets([{ direction: "after", amount: "0", unit: "minutes" }]);
       return;
     }
@@ -383,25 +362,13 @@ export function NotificationWizard({
                     <span>Link de pago</span>
                     {lastCreatedKind === "PAYMENT_LINK" ? <span className="module-check">✓ Lista</span> : null}
                   </button>
-                  <button type="button" className={`ghost module-choice ${notificationKind === "PAYMENT_APPROVED_SUBSCRIPTION" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_APPROVED_SUBSCRIPTION")}>
-                    <span>Pago exitoso (suscripción)</span>
-                    {lastCreatedKind === "PAYMENT_APPROVED_SUBSCRIPTION" ? <span className="module-check">✓ Lista</span> : null}
+                  <button type="button" className={`ghost module-choice ${notificationKind === "PAYMENT_APPROVED" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_APPROVED")}>
+                    <span>Pago exitoso</span>
+                    {lastCreatedKind === "PAYMENT_APPROVED" ? <span className="module-check">✓ Lista</span> : null}
                   </button>
-                  <button type="button" className={`ghost module-choice ${notificationKind === "PAYMENT_APPROVED_PLAN" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_APPROVED_PLAN")}>
-                    <span>Pago exitoso (link de pago)</span>
-                    {lastCreatedKind === "PAYMENT_APPROVED_PLAN" ? <span className="module-check">✓ Lista</span> : null}
-                  </button>
-                  <button type="button" className={`ghost module-choice ${notificationKind === "PAYMENT_APPROVED_LINK" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_APPROVED_LINK")}>
-                    <span>Pago recibido por link de pago</span>
-                    {lastCreatedKind === "PAYMENT_APPROVED_LINK" ? <span className="module-check">✓ Lista</span> : null}
-                  </button>
-                  <button type="button" className={`ghost module-choice ${notificationKind === "PAYMENT_DECLINED_SUBSCRIPTION" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_DECLINED_SUBSCRIPTION")}>
-                    <span>Pago fallido (suscripción)</span>
-                    {lastCreatedKind === "PAYMENT_DECLINED_SUBSCRIPTION" ? <span className="module-check">✓ Lista</span> : null}
-                  </button>
-                  <button type="button" className={`ghost module-choice ${notificationKind === "PAYMENT_DECLINED_PLAN" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_DECLINED_PLAN")}>
-                    <span>Pago fallido (link de pago)</span>
-                    {lastCreatedKind === "PAYMENT_DECLINED_PLAN" ? <span className="module-check">✓ Lista</span> : null}
+                  <button type="button" className={`ghost module-choice ${notificationKind === "PAYMENT_DECLINED" ? "is-active" : ""}`} onClick={() => applyKind("PAYMENT_DECLINED")}>
+                    <span>Pago fallido</span>
+                    {lastCreatedKind === "PAYMENT_DECLINED" ? <span className="module-check">✓ Lista</span> : null}
                   </button>
                 </div>
               </div>
