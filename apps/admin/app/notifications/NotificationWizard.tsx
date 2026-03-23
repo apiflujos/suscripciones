@@ -338,7 +338,7 @@ export function NotificationWizard({
 
               <div className="panel module" style={{ display: "grid", gap: 10 }}>
                 <div style={{ display: "grid", gap: 4 }}>
-                  <strong>Notificaciones (tiempo real)</strong>
+                  <strong>Notificaciones WhatsApp (tiempo real)</strong>
                   <div className="field-hint">Se envían cuando ocurre el evento.</div>
                 </div>
                 <div style={{ display: "grid", gap: 6 }}>

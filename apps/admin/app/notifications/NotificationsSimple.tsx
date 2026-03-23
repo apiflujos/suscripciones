@@ -442,7 +442,7 @@ export function NotificationsSimple({
     <div style={{ display: "grid", gap: 16 }}>
       <div className="panelHeaderRow" style={{ justifyContent: "space-between", gap: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <h3 style={{ margin: 0 }}>Notificaciones</h3>
+          <h3 style={{ margin: 0 }}>Notificaciones WhatsApp</h3>
           <HelpTip text="Crea notificaciones personalizadas por evento y configura los recordatorios automáticos." />
         </div>
       </div>

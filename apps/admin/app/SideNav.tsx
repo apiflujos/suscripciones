@@ -380,7 +380,7 @@ export function SideNav({ session }: { session: AdminSession | null }) {
         tabIndex={isActivePath(pathname, "/notifications") ? -1 : undefined}
       >
         <NavIcon name="notifications" className="nav-icon" />
-        <span className="nav-label">Notificaciones</span>
+        <span className="nav-label">Notificaciones WhatsApp</span>
       </Link>
       <Link
         className={`nav-item ${isActivePath(pathname, "/smart-lists") ? "is-active" : ""}`}

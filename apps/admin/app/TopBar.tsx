@@ -23,7 +23,7 @@ function getHeader(pathname: string): Header {
   if (pathname.startsWith("/billing")) return { title: "Suscripciones", subtitle: "Cobranza recurrente y ciclos." };
   if (pathname.startsWith("/subscriptions")) return { title: "Suscripciones", subtitle: "Cobros, ciclos y links de pago." };
   if (pathname.startsWith("/plans")) return { title: "Planes", subtitle: "Tipos de suscripción: precio y periodicidad." };
-  if (pathname.startsWith("/notifications")) return { title: "Notificaciones", subtitle: "Reglas, recordatorios y plantillas." };
+  if (pathname.startsWith("/notifications")) return { title: "Notificaciones WhatsApp", subtitle: "Plantillas, reglas y recordatorios." };
   if (pathname.startsWith("/campaigns")) return { title: "Mensajes masivos", subtitle: "Envíos por audiencia con filtros inteligentes." };
   if (pathname.startsWith("/smart-lists")) return { title: "Gamificación", subtitle: "Segmentación dinámica de contactos." };
   if (pathname.startsWith("/webhooks")) return { title: "Webhooks", subtitle: "Eventos entrantes y su estado." };
