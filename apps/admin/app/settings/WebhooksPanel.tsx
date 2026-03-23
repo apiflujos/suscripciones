@@ -176,7 +176,7 @@ export function WebhooksPanel({
               </select>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
-              <PendingButton className="btn btn-primary" type="submit">Generar token</PendingButton>
+                  <PendingButton className="btn btn-primary" type="submit" pendingText="Generando...">Generar token</PendingButton>
             </div>
           </form>
 
@@ -207,7 +207,7 @@ export function WebhooksPanel({
                         <input type="hidden" name="csrf" value={csrfToken} />
                         <input type="hidden" name="returnTo" value={returnTo} />
                         <input type="hidden" name="id" value={t.id} />
-                        <PendingButton className="ghost btn-compact" type="submit">Revocar</PendingButton>
+                        <PendingButton className="ghost btn-compact" type="submit" pendingText="Revocando...">Revocar</PendingButton>
                       </form>
                     ) : null}
                   </div>
@@ -313,7 +313,7 @@ export function WebhooksPanel({
                   </label>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <PendingButton className="btn btn-primary" type="submit">Crear</PendingButton>
+                  <PendingButton className="btn btn-primary" type="submit" pendingText="Creando...">Crear</PendingButton>
                   <a className="ghost btn-compact" href="/settings?tab=integraciones">Cancelar</a>
                 </div>
               </form>
@@ -357,7 +357,7 @@ export function WebhooksPanel({
                   </label>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <PendingButton className="btn btn-primary" type="submit">Guardar</PendingButton>
+                  <PendingButton className="btn btn-primary" type="submit" pendingText="Guardando...">Guardar</PendingButton>
                   <a className="ghost btn-compact" href="/settings?tab=integraciones">Cancelar</a>
                 </div>
               </form>
@@ -365,7 +365,7 @@ export function WebhooksPanel({
                 <input type="hidden" name="csrf" value={csrfToken} />
                 <input type="hidden" name="returnTo" value={returnTo} />
                 <input type="hidden" name="id" value={openEndpoint.id} />
-                <PendingButton className="ghost btn-compact" type="submit">Eliminar</PendingButton>
+                <PendingButton className="ghost btn-compact" type="submit" pendingText="Eliminando...">Eliminar</PendingButton>
               </form>
             </div>
           </div>
