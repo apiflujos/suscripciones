@@ -236,12 +236,8 @@ function WaTemplateFields({
       <input type="hidden" name="waTemplateName" value={name} />
       <input type="hidden" name="waLanguage" value={lang} />
       <div className="field">
-        <label>Mensaje de plantilla</label>
-        <textarea className="input input-compact" rows={3} readOnly value={templateBody} />
-      </div>
-      <div className="field">
-        <label>Vista previa</label>
-        <textarea className="input input-compact" rows={3} readOnly value={templatePreview} />
+        <label>Mensaje</label>
+        <textarea className="input input-compact" rows={6} readOnly value={templatePreview || templateBody} />
       </div>
       <div className="field">
         <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
