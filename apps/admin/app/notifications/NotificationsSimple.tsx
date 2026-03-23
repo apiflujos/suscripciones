@@ -170,6 +170,15 @@ function WaTemplateFields({
     return fallback || "";
   }, [selectedTemplate]);
 
+  const templatePreview = useMemo(() => {
+    if (!templateBody) return "";
+    return templateBody.replace(/\{\{\s*(\d+)\s*\}\}/g, (_m, n) => {
+      const idx = Math.max(1, Number(n)) - 1;
+      const val = params[idx];
+      return val ? String(val) : `{{${n}}}`;
+    });
+  }, [templateBody, params]);
+
   const onSelect = (value: string) => {
     if (!value) return;
     const [tplName, tplLang] = value.split("::");
@@ -212,6 +221,10 @@ function WaTemplateFields({
       <div className="field">
         <label>Mensaje de plantilla</label>
         <textarea className="input input-compact" rows={3} readOnly value={templateBody} />
+      </div>
+      <div className="field">
+        <label>Vista previa</label>
+        <textarea className="input input-compact" rows={3} readOnly value={templatePreview} />
       </div>
       <div className="field">
         <label style={{ display: "flex", alignItems: "center", gap: 6 }}>

@@ -224,6 +224,19 @@ export function NotificationWizard({
       waTemplates.find((t) => t.name === waTemplateName) ||
       null
     : null;
+  const selectedTemplateBody = useMemo(() => {
+    const comps = (selectedTemplate as any)?.components || [];
+    const body = comps.find((c: any) => String(c?.type || "").toUpperCase() === "BODY") as any;
+    return String(body?.text || "");
+  }, [selectedTemplate]);
+  const selectedTemplatePreview = useMemo(() => {
+    if (!selectedTemplateBody) return "";
+    return selectedTemplateBody.replace(/\{\{\s*(\d+)\s*\}\}/g, (_m, n) => {
+      const idx = Math.max(1, Number(n)) - 1;
+      const val = waParams[idx];
+      return val ? String(val) : `{{${n}}}`;
+    });
+  }, [selectedTemplateBody, waParams]);
   const headerParamCount = useMemo(() => {
     const comps = selectedTemplate?.components;
     if (!Array.isArray(comps)) return 0;
@@ -577,12 +590,24 @@ export function NotificationWizard({
                       readOnly={Boolean(selectedTemplate)}
                     />
                   </div>
+                  <div className="field">
+                    <label>Mensaje de plantilla</label>
+                    <textarea
+                      className="input"
+                      rows={3}
+                      readOnly
+                      value={selectedTemplateBody}
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Vista previa</label>
+                    <textarea className="input" rows={3} readOnly value={selectedTemplatePreview} />
+                  </div>
                   <input type="hidden" name="waLanguage" value={waLanguage} />
 
                   <div className="field">
                     <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
                       <span>Variables de la plantilla</span>
-                      <HelpTip text="Completa los valores en el orden en que tu plantilla los requiere (body, header, botones URL)." />
                     </label>
                     <div style={{ display: "grid", gap: 6 }}>
                       {Array.from({ length: Math.max(bodyParamCount, 0) }).map((_, idx) => (
