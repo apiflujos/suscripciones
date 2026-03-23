@@ -158,6 +158,18 @@ function WaTemplateFields({
     return Math.max(maxIndex, params.length);
   }, [selectedTemplate, params.length]);
 
+  const templateBody = useMemo(() => {
+    const comps = selectedTemplate?.components || [];
+    const body = comps.find((c: any) => String(c?.type || "").toUpperCase() === "BODY") as any;
+    const text = String(body?.text || "");
+    if (text) return text;
+    const fallback = comps
+      .map((c: any) => String(c?.text || "").trim())
+      .filter(Boolean)
+      .join("\n");
+    return fallback || "";
+  }, [selectedTemplate]);
+
   const onSelect = (value: string) => {
     if (!value) return;
     const [tplName, tplLang] = value.split("::");
@@ -195,14 +207,11 @@ function WaTemplateFields({
       ) : (
         <div className="field-hint">No hay plantillas disponibles. Sincroniza para cargarlas.</div>
       )}
+      <input type="hidden" name="waTemplateName" value={name} />
+      <input type="hidden" name="waLanguage" value={lang} />
       <div className="field">
-        <label>Template WhatsApp</label>
-        <input className="input input-compact" name="waTemplateName" value={name} onChange={(e) => setName(e.target.value)} placeholder="nombre_template" />
-      </div>
-      <div className="field">
-        <label>Idioma</label>
-        <input className="input input-compact" value={lang} readOnly />
-        <input type="hidden" name="waLanguage" value={lang} />
+        <label>Mensaje de plantilla</label>
+        <textarea className="input input-compact" rows={3} readOnly value={templateBody} />
       </div>
       <div className="field">
         <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -528,11 +537,13 @@ export function NotificationsSimple({
           <div className="modal-panel" style={{ maxWidth: 900 }}>
             <div className="panel-header ui-panel-header">
               <strong>
-                {activeModal.type === "realtime"
-                  ? "Configurar notificación"
-                  : activeModal.kind === "DUE"
-                    ? "Configurar recordatorio de fecha de pago"
-                    : "Configurar recordatorio en mora"}
+                {(() => {
+                  if (activeModal.type === "realtime") {
+                    const rt = REALTIME_TYPES.find((r) => r.key === activeModal.key);
+                    return rt ? `Notificación: ${rt.label}` : "Configurar notificación";
+                  }
+                  return activeModal.kind === "DUE" ? "Recordatorio: Fecha de pago" : "Recordatorio: Mora";
+                })()}
               </strong>
               <button className="ghost modal-close" type="button" onClick={() => setActiveModal(null)} aria-label="Cerrar" data-modal-close="true" data-loader="off">
                 X
@@ -735,57 +746,6 @@ export function NotificationsSimple({
                   ) : null}
                   {wizardStep === 2 ? (
                     <>
-                      {(activeModal.kind === "DUE" ? dueOffsets : moraOffsets).map((item, idx) => (
-                        <div key={`${activeModal.kind}-${idx}`} style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 6, alignItems: "end" }}>
-                          <div className="field">
-                            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                              <span>Cada</span>
-                              <HelpTip text="Cantidad del recordatorio." />
-                            </label>
-                            <input
-                              className="input input-compact"
-                              value={item.amount}
-                              onChange={(e) => {
-                                const next = (activeModal.kind === "DUE" ? dueOffsets : moraOffsets).slice();
-                                next[idx] = { ...item, amount: e.target.value };
-                                activeModal.kind === "DUE" ? setDueOffsets(next) : setMoraOffsets(next);
-                              }}
-                              inputMode="numeric"
-                            />
-                          </div>
-                          <div className="field">
-                            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                              <span>Unidad</span>
-                              <HelpTip text="Unidad de tiempo del recordatorio." />
-                            </label>
-                            <select
-                              className="select select-compact"
-                              value={item.unit}
-                              onChange={(e) => {
-                                const next = (activeModal.kind === "DUE" ? dueOffsets : moraOffsets).slice();
-                                next[idx] = { ...item, unit: e.target.value as any };
-                                activeModal.kind === "DUE" ? setDueOffsets(next) : setMoraOffsets(next);
-                              }}
-                            >
-                              <option value="minutes">Minutos</option>
-                              <option value="hours">Horas</option>
-                              <option value="days">Días</option>
-                            </select>
-                          </div>
-                          <button
-                            className="ghost btn-compact"
-                            type="button"
-                            onClick={() => {
-                              const next = (activeModal.kind === "DUE" ? dueOffsets : moraOffsets).filter((_, i) => i !== idx);
-                              activeModal.kind === "DUE" ? setDueOffsets(next) : setMoraOffsets(next);
-                            }}
-                            aria-label="Eliminar"
-                            data-loader="off"
-                          >
-                            Quitar
-                          </button>
-                        </div>
-                      ))}
                       <input
                         type="hidden"
                         name="offsetsSeconds"
@@ -793,18 +753,6 @@ export function NotificationsSimple({
                           .map((o) => secondsFromOffset(o, activeModal.kind === "DUE" ? -1 : 1))
                           .join(",")}
                       />
-                      <button
-                        className="ghost btn-compact"
-                        type="button"
-                        onClick={() =>
-                          activeModal.kind === "DUE"
-                            ? setDueOffsets([...dueOffsets, { amount: "1", unit: "days" }])
-                            : setMoraOffsets([...moraOffsets, { amount: "1", unit: "days" }])
-                        }
-                        data-loader="off"
-                      >
-                        + Agregar recordatorio
-                      </button>
                       <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
                         <PendingButton className="primary btn-compact btn-save" type="submit" pendingText="Guardando...">
                           Guardar

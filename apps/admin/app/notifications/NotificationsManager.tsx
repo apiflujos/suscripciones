@@ -371,10 +371,6 @@ export function NotificationsManager({
                         <input className="input" value={tplWaName} onChange={(e) => setTplWaName(e.target.value)} />
                       </div>
                       <div className="field">
-                        <label>Idioma</label>
-                        <input className="input" value={tplWaLanguage} onChange={(e) => setTplWaLanguage(e.target.value)} />
-                      </div>
-                      <div className="field">
                         <label>Parámetros (body)</label>
                         <div style={{ display: "grid", gap: 6 }}>
                           {tplWaParams.map((v, idx) => (
@@ -394,10 +390,6 @@ export function NotificationsManager({
                   <div className="field">
                     <label>Template (Meta)</label>
                     <input className="input" value={tplMetaName} onChange={(e) => setTplMetaName(e.target.value)} />
-                  </div>
-                  <div className="field">
-                    <label>Idioma</label>
-                    <input className="input" value={tplMetaLang} onChange={(e) => setTplMetaLang(e.target.value)} />
                   </div>
                   <div className="field">
                     <label>Components (JSON)</label>

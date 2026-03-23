@@ -577,18 +577,7 @@ export function NotificationWizard({
                       readOnly={Boolean(selectedTemplate)}
                     />
                   </div>
-                  <div className="field">
-                    <label>Idioma</label>
-                    <input
-                      className="input"
-                      value={waLanguage}
-                      onChange={(e) => setWaLanguage(e.target.value)}
-                      onFocus={(e) => (lastFocusableRef.current = e.target)}
-                      placeholder="es"
-                      readOnly={Boolean(selectedTemplate)}
-                    />
-                    <div className="field-hint">Ej: es, es_CO.</div>
-                  </div>
+                  <input type="hidden" name="waLanguage" value={waLanguage} />
 
                   <div className="field">
                     <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
