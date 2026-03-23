@@ -823,6 +823,8 @@ a {
   background: var(--surface-brand);
   box-shadow: var(--shadow-card);
   backdrop-filter: blur(10px);
+  position: relative;
+  z-index: 30040;
 }
 
 .topbarLeft {
@@ -872,9 +874,10 @@ a {
 .topbarBellBackdrop {
   position: fixed;
   inset: 0;
-  background: rgba(10, 12, 20, 0.35);
-  backdrop-filter: blur(2px);
+  background: rgba(10, 12, 20, 0.55);
+  backdrop-filter: blur(4px);
   z-index: 30000;
+  pointer-events: auto;
 }
 
 .topbarBellBtn {
