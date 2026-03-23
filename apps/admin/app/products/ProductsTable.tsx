@@ -399,25 +399,6 @@ export function ProductsTable({
     return scored;
   }, [filteredCustomers, normalizedQuery]);
   const searchTotal = searchActive ? filteredCustomers.length : 0;
-  const paymentLinkTemplate = resolveNotificationTemplate("PAYMENT_LINK_CREATED", "LINK");
-  const canSendPaymentLink = Boolean(paymentLinkTemplate);
-
-  function formatCustomerLabel(c: any) {
-    return String(c?.name || c?.email || c?.phone || "Contacto").trim() || "Contacto";
-  }
-
-  function formatCustomerMeta(c: any) {
-    const email = String(c?.email || "").trim();
-    const phone = String(c?.phone || "").trim();
-    return [email, phone].filter(Boolean).join(" · ");
-  }
-
-  function pickCustomer(c: any) {
-    if (!c) return;
-    const label = formatCustomerLabel(c);
-    setSendCustomerId(String(c.id));
-    setSendSearch(label);
-  }
 
   const notificationsConfig = useMemo(
     () => ({
@@ -442,6 +423,26 @@ export function ProductsTable({
     if (!rule) return null;
     const template = templates.find((t: any) => String(t?.id || "") === String(rule?.templateId || ""));
     return template || null;
+  }
+
+  const paymentLinkTemplate = resolveNotificationTemplate("PAYMENT_LINK_CREATED", "LINK");
+  const canSendPaymentLink = Boolean(paymentLinkTemplate);
+
+  function formatCustomerLabel(c: any) {
+    return String(c?.name || c?.email || c?.phone || "Contacto").trim() || "Contacto";
+  }
+
+  function formatCustomerMeta(c: any) {
+    const email = String(c?.email || "").trim();
+    const phone = String(c?.phone || "").trim();
+    return [email, phone].filter(Boolean).join(" · ");
+  }
+
+  function pickCustomer(c: any) {
+    if (!c) return;
+    const label = formatCustomerLabel(c);
+    setSendCustomerId(String(c.id));
+    setSendSearch(label);
   }
 
   function renderNotificationPreview(template: any) {
