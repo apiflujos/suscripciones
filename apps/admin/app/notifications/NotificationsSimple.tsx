@@ -418,7 +418,9 @@ export function NotificationsSimple({
         if (!rt.paymentType) return !types || !types.length;
         return Array.isArray(types) && types.includes(rt.paymentType);
       });
+      const fallback = !match && !rt.paymentType ? rules.find((r) => r.trigger === rt.trigger) : null;
       if (match) map.set(rt.key, match);
+      else if (fallback) map.set(rt.key, fallback);
     }
     return map;
   }, [rules]);

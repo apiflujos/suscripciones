@@ -327,6 +327,18 @@ function samePaymentType(rule: any, paymentType?: string) {
   return Array.isArray(types) && types.includes(paymentType);
 }
 
+function isUnifiedPaymentTrigger(trigger: string) {
+  return trigger === "PAYMENT_APPROVED" || trigger === "PAYMENT_DECLINED";
+}
+
+function shouldDisableRule(trigger: string, paymentType: string | undefined, rule: any) {
+  if (isUnifiedPaymentTrigger(trigger)) return String(rule?.trigger || "") === trigger;
+  if (!paymentType || paymentType === "ANY") {
+    return String(rule?.trigger || "") === trigger && (!rule?.conditions?.requirePaymentTypeIn || !rule.conditions.requirePaymentTypeIn.length);
+  }
+  return String(rule?.trigger || "") === trigger && Array.isArray(rule?.conditions?.requirePaymentTypeIn) && rule.conditions.requirePaymentTypeIn.includes(paymentType);
+}
+
 export async function saveRealtime(formData: FormData) {
   const environment = normalizeEnv(formData.get("environment"));
   await requireCsrf(formData, environment);
@@ -357,6 +369,7 @@ export async function saveRealtime(formData: FormData) {
     const nextRules = rules.filter((r: any) => {
       if (String(r.id) === ruleId) return false;
       if (r.trigger !== meta.trigger) return true;
+      if (isUnifiedPaymentTrigger(meta.trigger) && !meta.paymentType) return false;
       return !samePaymentType(r, meta.paymentType);
     });
 
@@ -592,8 +605,9 @@ export async function toggleRule(formData: FormData) {
     if (idx === -1) return redirect(`/notifications?env=${environment}&error=rule_not_found`);
     const trigger = String(rules[idx]?.trigger || "");
     if (enabled && trigger) {
+      const paymentType = String(rules[idx]?.conditions?.requirePaymentTypeIn?.[0] || "ANY").trim().toUpperCase();
       for (let i = 0; i < rules.length; i++) {
-        if (i !== idx && String(rules[i]?.trigger || "") === trigger) {
+        if (i !== idx && shouldDisableRule(trigger, paymentType, rules[i])) {
           rules[i] = { ...rules[i], enabled: false };
         }
       }
@@ -754,7 +768,7 @@ export async function updateRule(formData: FormData) {
 
     if (enabled && trigger) {
       for (let i = 0; i < rules.length; i++) {
-        if (i !== idx && String(rules[i]?.trigger || "") === String(trigger)) {
+        if (i !== idx && shouldDisableRule(trigger, paymentType, rules[i])) {
           rules[i] = { ...rules[i], enabled: false };
         }
       }
