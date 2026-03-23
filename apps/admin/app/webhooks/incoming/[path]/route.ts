@@ -32,7 +32,8 @@ function normalizeProviderTs(payload: any): bigint | null {
   return BigInt(Math.trunc(n));
 }
 
-export async function POST(req: Request, { params }: { params: { path: string } }) {
+export async function POST(req: Request, ctx: { params: Promise<{ path: string }> }) {
+  const params = await ctx.params;
   const path = String(params?.path || "").trim();
   if (!path) return Response.json({ error: "not_found" }, { status: 404 });
 
