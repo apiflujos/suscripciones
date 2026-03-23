@@ -3,8 +3,8 @@ import "server-only";
 import crypto from "node:crypto";
 import { prisma } from "@suscripciones/database";
 import { sha256Hex } from "@suscripciones/core/lib/crypto";
-import { getRolePermissions, Permission } from "../../lib/rbac";
-import { signJwt } from "../../lib/jwt";
+import { getRolePermissions, Permission } from "../../../lib/rbac";
+import { signJwt } from "../../../lib/jwt";
 
 type TokenScope = "read" | "write";
 
