@@ -262,8 +262,7 @@ export function useNotificationsFeed(args: { isSuperAdmin: boolean }) {
     { key: "pagos" as const, label: "Pagos", icon: "card" },
     { key: "suscripciones" as const, label: "Suscripciones", icon: "refresh" },
     { key: "clientes" as const, label: "Clientes", icon: "users" },
-    { key: "sistema" as const, label: "Sistema", icon: "alert" },
-    { key: "all" as const, label: "Todas", icon: "list" }
+    { key: "sistema" as const, label: "Sistema", icon: "alert" }
   ], []);
 
   const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);

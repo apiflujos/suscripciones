@@ -309,14 +309,15 @@ export async function createApiTokenAction(formData: FormData) {
   const returnTo = safeReturnTo(formData);
   const name = String(formData.get("name") || "").trim();
   const scope = String(formData.get("scope") || "").trim().toLowerCase();
-  const ttlHours = Number(String(formData.get("ttlHours") || "").trim() || "0");
+  const ttlHoursRaw = Number(String(formData.get("ttlHours") || "").trim() || "0");
+  const ttlHours = Number.isFinite(ttlHoursRaw) && ttlHoursRaw > 0 ? ttlHoursRaw : 24 * 365 * 10;
   try {
     const tenantId = await requireTenantId();
     const out = await createApiToken({
       tenantId,
       name,
       scope: scope === "read" ? "read" : "write",
-      ttlHours: Number.isFinite(ttlHours) && ttlHours > 0 ? ttlHours : 24 * 30
+      ttlHours
     });
     const qp = new URLSearchParams({ a: "api_token_create", status: "ok", token: out.token });
     const url = new URL(returnTo || "/settings", "http://localhost");

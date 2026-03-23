@@ -20,12 +20,6 @@ export default async function NotificationsPage({
 
   return (
     <main className="page pageWide notificationsPage">
-      <div className="filtersRow">
-        <div className="filtersLeft">
-          <div className="filtersNote">Configura notificaciones en Producción (CentralCom no soporta sandbox).</div>
-        </div>
-      </div>
-
       {sp.saved ? <div className="card cardPad">Guardado.</div> : null}
       {typeof sp.scheduled === "string" ? <div className="card cardPad">Jobs programados: {sp.scheduled}.</div> : null}
       {normalizeErrorParam(sp.error) ? (

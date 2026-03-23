@@ -20,16 +20,34 @@ type NotificationKind =
 
 const VARIABLES = [
   { label: "Nombre completo", value: "{{customer.name}}" },
-  { label: "Email", value: "{{customer.email}}" },
+  { label: "Correo electrónico", value: "{{customer.email}}" },
   { label: "Teléfono", value: "{{customer.phone}}" },
   { label: "Dirección", value: "{{customer.metadata.address}}" },
-  { label: "Link de pago", value: "{{plan.name}}" },
-  { label: "Fecha corte", value: "{{subscription.currentPeriodEndAt}}" },
-  { label: "Fecha pago", value: "{{payment.paidAt}}" },
+  { label: "Nombre de la empresa", value: "{{company.name}}" },
+  { label: "Correo de la empresa", value: "{{company.email}}" },
+  { label: "Teléfono de la empresa", value: "{{company.phone}}" },
+  { label: "Nombre del contacto", value: "{{contact.name}}" },
+  { label: "Correo del contacto", value: "{{contact.email}}" },
+  { label: "Teléfono del contacto", value: "{{contact.phone}}" },
+  { label: "Nombre del producto", value: "{{plan.name}}" },
+  { label: "Precio del producto (centavos)", value: "{{plan.priceInCents}}" },
+  { label: "Moneda del producto", value: "{{plan.currency}}" },
+  { label: "Frecuencia (cantidad)", value: "{{plan.intervalCount}}" },
+  { label: "Frecuencia (unidad)", value: "{{plan.intervalUnit}}" },
+  { label: "Estado de la suscripción", value: "{{subscription.status}}" },
+  { label: "Ciclo actual", value: "{{subscription.currentCycle}}" },
+  { label: "Fecha de inicio del ciclo", value: "{{subscription.currentPeriodStartAt}}" },
+  { label: "Fecha de corte", value: "{{subscription.currentPeriodEndAt}}" },
+  { label: "Estado del pago", value: "{{payment.status}}" },
+  { label: "Monto del pago (centavos)", value: "{{payment.amountInCents}}" },
+  { label: "Moneda del pago", value: "{{payment.currency}}" },
+  { label: "Fecha de pago", value: "{{payment.paidAt}}" },
+  { label: "Fecha de fallo del pago", value: "{{payment.failedAt}}" },
+  { label: "Fecha de creación del pago", value: "{{payment.createdAt}}" },
   { label: "Referencia", value: "{{payment.reference}}" },
-  { label: "Link pago", value: "{{payment.checkoutUrl}}" },
-  { label: "Link débito automático", value: "{{tokenization.url}}" },
-  { label: "Link catálogo", value: "{{catalog.url}}" },
+  { label: "Enlace de pago", value: "{{payment.checkoutUrl}}" },
+  { label: "Enlace de débito automático", value: "{{tokenization.url}}" },
+  { label: "Enlace de catálogo", value: "{{catalog.url}}" },
   { label: "Tipo de pago", value: "{{paymentType}}" }
 ];
 
@@ -193,6 +211,12 @@ export function NotificationWizard({
       for (const s of computedOffsetsSeconds) fd.append("offsetSeconds", String(s));
     }
     if (templateKind === "WHATSAPP_TEMPLATE") {
+      const bodyParams = waParams.slice(0, bodyParamCount);
+      const headerParams = waParams.slice(bodyParamCount, bodyParamCount + headerParamCount);
+      const buttonParams = waParams.slice(bodyParamCount + headerParamCount, bodyParamCount + headerParamCount + buttonParamCount);
+      for (const p of bodyParams) fd.append("waBodyParam", p);
+      for (const p of headerParams) fd.append("waHeaderParam", p);
+      for (const p of buttonParams) fd.append("waButtonParam", p);
       for (const p of waParams) fd.append("waParam", p);
     }
 

@@ -520,8 +520,19 @@ export function ProductsTable({
               <span>{p.kind === "SERVICE" ? "Servicio" : "Producto"}</span>
             </div>
           </div>
-          <div className="product-price entity-card-price">
-            {formatMoneyFromCents(p.basePriceInCents, String(p.currency || DEFAULT_CURRENCY))}
+          <div className="entity-card-header-right">
+            <div className="product-price entity-card-price">
+              {formatMoneyFromCents(p.basePriceInCents, String(p.currency || DEFAULT_CURRENCY))}
+            </div>
+            <button
+              className="ghost btn-compact btn-icon-only btn-edit"
+              type="button"
+              data-modal="true"
+              data-loader="off"
+              onClick={() => openEditor(p)}
+              aria-label="Editar"
+              title="Editar"
+            />
           </div>
         </div>
 
@@ -557,11 +568,7 @@ export function ProductsTable({
               Crear suscripción
             </button>
           </div>
-          <div className="entity-card-actions-right">
-            <button className="ghost btn-compact btn-edit btn-noicon" type="button" data-modal="true" data-loader="off" onClick={() => openEditor(p)}>
-              Editar
-            </button>
-          </div>
+          <div className="entity-card-actions-right" />
         </div>
         <div className="entity-card-footer">
           <div className="field-hint">Suscripciones</div>

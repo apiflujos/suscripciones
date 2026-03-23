@@ -114,11 +114,25 @@ export default async function CampaignsPage({
                   {c.content}
                 </div>
               ) : null}
-              {c.templateParams ? (
-                <pre style={{ marginTop: 8, fontSize: 12, whiteSpace: "pre-wrap" }}>
-                  {JSON.stringify(c.templateParams, null, 2)}
-                </pre>
-              ) : null}
+              {c.templateParams ? (() => {
+                const tplName = String(c.templateParams?.name || "").trim();
+                const tplLang = String(c.templateParams?.language || "").trim();
+                const params = c.templateParams?.processed_params || null;
+                return (
+                  <div style={{ marginTop: 8, display: "grid", gap: 4 }}>
+                    <div className="muted" style={{ fontSize: 12 }}>
+                      Plantilla WhatsApp: {tplName || "—"}{tplLang ? ` (${tplLang})` : ""}
+                    </div>
+                    {params ? (
+                      <div className="muted" style={{ fontSize: 11 }}>
+                        {params.body?.length ? `Body: ${params.body.map((p: any) => p.value).join(" | ")}` : ""}
+                        {params.header?.length ? ` · Header: ${params.header.map((p: any) => p.value).join(" | ")}` : ""}
+                        {params.buttons?.length ? ` · Botones: ${params.buttons.map((p: any) => p.value).join(" | ")}` : ""}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })() : null}
             </div>
           ))}
         </div>

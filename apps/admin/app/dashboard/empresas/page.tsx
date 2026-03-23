@@ -141,39 +141,46 @@ export default async function EmpresasPage({
           ) : (
             <div className="company-grid" aria-label="Listado de empresas">
               {items.map((e) => (
-                <div className="company-card" key={e.id}>
-                  <div className="company-card-header">
+                <div className="company-card entity-card" key={e.id}>
+                  <div className="entity-card-header">
                     <div>
-                      <div className="company-name">{e.nombre}</div>
-                      <div className="company-meta">{e.email || "Sin email"}</div>
+                      <div className="company-name entity-card-title">{e.nombre}</div>
+                      <div className="company-meta entity-card-sub">{e.email || "Sin email"}</div>
                     </div>
-                    <span className="pill">{Number(e?._count?.contactos || 0)} contactos</span>
+                    <div className="entity-card-header-right">
+                      <a className="ghost btn-compact btn-icon-only btn-edit" href={`/dashboard/empresas/${e.id}`} aria-label="Editar" title="Editar" />
+                      <form action={deleteEmpresa}>
+                        <input type="hidden" name="csrf" value={csrfToken} />
+                        <input type="hidden" name="id" value={e.id} />
+                        <button className="ghost btn-compact btn-icon-only btn-danger" type="submit" aria-label="Eliminar" title="Eliminar" />
+                      </form>
+                    </div>
                   </div>
-                  <div className="company-card-body">
-                    <div className="company-field">
+                  <div className="entity-card-grid">
+                    <div>
                       <div className="field-hint">Teléfono</div>
                       <div>{e.telefono || "—"}</div>
                     </div>
-                    <div className="company-field">
+                    <div>
                       <div className="field-hint">Contacto principal</div>
                       <div>{formatContactLabel(e.contactoPrincipal)}</div>
                     </div>
-                    <div className="company-field">
+                    <div>
                       <div className="field-hint">Dirección</div>
                       <div>{e.direccion || "—"}</div>
                     </div>
-                    <div className="company-field">
+                    <div>
                       <div className="field-hint">Sitio web</div>
                       <div>{e.sitioWeb || "—"}</div>
                     </div>
                   </div>
-                  <div className="company-card-actions">
-                    <a className="ghost btn-compact btn-edit btn-noicon" href={`/dashboard/empresas/${e.id}`}>Editar</a>
-                    <form action={deleteEmpresa}>
-                      <input type="hidden" name="csrf" value={csrfToken} />
-                      <input type="hidden" name="id" value={e.id} />
-                      <button className="ghost btn-compact btn-danger btn-noicon" type="submit">Eliminar</button>
-                    </form>
+                  <div className="entity-card-footer">
+                    <div className="field-hint">Contactos</div>
+                    <div className="entity-card-counts">
+                      <span className="pill pill-sm pill-muted">
+                        {Number(e?._count?.contactos || 0)} contactos
+                      </span>
+                    </div>
                   </div>
                 </div>
               ))}

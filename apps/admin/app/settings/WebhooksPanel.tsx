@@ -28,6 +28,7 @@ export function WebhooksPanel({
   wompiUrl,
   wompiActiveEnv,
   wompiEventsSecretMasked,
+  wompiLastEventAt,
   endpoints,
   apiTokens,
   docsUrl,
@@ -43,6 +44,7 @@ export function WebhooksPanel({
   wompiUrl: string;
   wompiActiveEnv: "PRODUCTION" | "SANDBOX";
   wompiEventsSecretMasked: string;
+  wompiLastEventAt: Date | null;
   endpoints: WebhookEndpointRow[];
   apiTokens: ApiTokenRow[];
   docsUrl: string;
@@ -64,6 +66,21 @@ export function WebhooksPanel({
   const isNew = openId === "new";
   const tokenValue = String(createdToken || "").trim();
   const apiTokenScope = (perms: string[]) => (perms || []).some((p) => p.endsWith(":write")) ? "Lectura y escritura" : "Solo lectura";
+  const isNeverExpiry = (date: Date) => {
+    const tenYearsMs = 10 * 365 * 24 * 60 * 60 * 1000;
+    return date.getTime() - Date.now() >= tenYearsMs - 24 * 60 * 60 * 1000;
+  };
+  const lastWompiEventDate = wompiLastEventAt ? new Date(wompiLastEventAt) : null;
+  const hoursSinceWompi = lastWompiEventDate ? (Date.now() - lastWompiEventDate.getTime()) / (1000 * 60 * 60) : null;
+  const wompiRecent = hoursSinceWompi != null && hoursSinceWompi <= 48;
+  const wompiStatusLabel = !wompiUrl
+    ? "Sin URL"
+    : wompiRecent
+      ? "Activo"
+      : lastWompiEventDate
+        ? "Sin eventos recientes"
+        : "Sin eventos";
+  const wompiStatusPill = wompiRecent ? "pill-green" : "pill-muted";
 
   const inlineMsg = (actionKey: string, okText: string, failPrefix: string) => {
     if (inlineState.action !== actionKey) return null;
@@ -167,7 +184,8 @@ export function WebhooksPanel({
             </div>
             <div className="field">
               <label>Vigencia</label>
-              <select className="select" name="ttlHours" defaultValue="720">
+              <select className="select" name="ttlHours" defaultValue="0">
+                <option value="0">Nunca</option>
                 <option value="24">24 horas</option>
                 <option value="168">7 días</option>
                 <option value="720">30 días</option>
@@ -194,7 +212,9 @@ export function WebhooksPanel({
                   <div className="saved-conn-meta">
                     <div className="saved-conn-meta-item">
                       <div className="saved-conn-meta-label">Expira</div>
-                      <div className="saved-conn-meta-value">{new Date(t.expiresAt).toLocaleDateString("es-CO")}</div>
+                      <div className="saved-conn-meta-value">
+                        {isNeverExpiry(new Date(t.expiresAt)) ? "Nunca" : new Date(t.expiresAt).toLocaleDateString("es-CO")}
+                      </div>
                     </div>
                     <div className="saved-conn-meta-item">
                       <div className="saved-conn-meta-label">Último uso</div>
@@ -224,20 +244,50 @@ export function WebhooksPanel({
 
         <div className="panel module">
           <div className="panelHeaderRow" style={{ justifyContent: "space-between", gap: 8 }}>
-            <strong>Otros webhooks</strong>
+            <strong>Webhooks</strong>
             <a className="ghost btn-compact btn-blue" href="/settings?tab=integraciones&open=new">
               Nuevo webhook
             </a>
           </div>
           <div className="field-hint">
-            Crea endpoints adicionales para otras pasarelas. Estos webhooks solo registran eventos hasta que se integre su procesamiento.
+            Administra el webhook principal de Wompi y endpoints adicionales para otras pasarelas.
           </div>
           {inlineMsg("webhook_create", "Webhook creado.", "Error creando")}
           {inlineMsg("webhook_update", "Webhook actualizado.", "Error actualizando")}
           {inlineMsg("webhook_delete", "Webhook eliminado.", "Error eliminando")}
 
-          {endpoints.length ? (
+          {wompiUrl || endpoints.length ? (
             <div className="saved-connections-grid" style={{ marginTop: 10 }}>
+              {wompiUrl ? (
+                <div className="saved-conn-card" key="wompi-webhook">
+                  <div className="saved-conn-header">
+                    <div>
+                      <div className="saved-conn-title">Wompi</div>
+                      <div className="saved-conn-sub">Webhook principal</div>
+                    </div>
+                    <span className={`pill ${wompiStatusPill}`}>{wompiStatusLabel}</span>
+                  </div>
+                  <div className="saved-conn-meta">
+                    <div className="saved-conn-meta-item">
+                      <div className="saved-conn-meta-label">URL</div>
+                      <div className="saved-conn-meta-value">{wompiUrl}</div>
+                    </div>
+                    <div className="saved-conn-meta-item">
+                      <div className="saved-conn-meta-label">Secreto</div>
+                      <div className="saved-conn-meta-value">{wompiEventsSecretMasked || "—"}</div>
+                    </div>
+                    <div className="saved-conn-meta-item">
+                      <div className="saved-conn-meta-label">Último evento</div>
+                      <div className="saved-conn-meta-value">
+                        {lastWompiEventDate ? lastWompiEventDate.toLocaleString("es-CO") : "—"}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="saved-conn-actions">
+                    <CopyButton text={wompiUrl} label="Copiar URL" />
+                  </div>
+                </div>
+              ) : null}
               {endpoints.map((e) => {
                 const url = `${baseUrl}/webhooks/incoming/${e.path}`;
                 return (
@@ -296,6 +346,7 @@ export function WebhooksPanel({
                 <div className="field">
                   <label>Proveedor</label>
                   <select className="select" name="provider" defaultValue="MERCADOPAGO">
+                    <option value="WOMPI">Wompi</option>
                     <option value="CUSTOM">Custom</option>
                     <option value="MERCADOPAGO">MercadoPago</option>
                   </select>
@@ -341,6 +392,7 @@ export function WebhooksPanel({
                 <div className="field">
                   <label>Proveedor</label>
                   <select className="select" name="provider" defaultValue={openEndpoint.provider}>
+                    <option value="WOMPI">Wompi</option>
                     <option value="CUSTOM">Custom</option>
                     <option value="MERCADOPAGO">MercadoPago</option>
                   </select>

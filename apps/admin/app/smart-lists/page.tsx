@@ -74,9 +74,9 @@ export default async function SmartListsPage({
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
           <div>
             <h3 style={{ marginTop: 0, marginBottom: 4 }}>
-              Gamificación <HelpTip text="Listas dinámicas que se recalculan según reglas para campañas y segmentación." />
+              Listas inteligentes <HelpTip text="Listas dinámicas que se recalculan según reglas para campañas y segmentación." />
             </h3>
-            <div className="muted">Segmentos dinámicos de contactos para campañas.</div>
+            <div className="muted">Segmentos dinámicos de contactos para campañas y automatizaciones.</div>
           </div>
           <SmartListCreateModal
             action={createSmartList}

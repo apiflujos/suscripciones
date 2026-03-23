@@ -254,13 +254,41 @@ export function TopBar({ session }: { session: AdminSession | null }) {
                 onClick={() => setNotifOpen(false)}
               />
               <div className="topbarBellPopover" role="menu" aria-label="Notificaciones">
-              {/* Header con título, acciones y filtros en una sola fila */}
+              {/* Header con título arriba y filtros debajo (sin scroll horizontal) */}
               <div className="topbarBellHead">
-                <div className="topbarBellTitleGroup">
-                  <strong>Notificaciones</strong>
-                  {unreadCount > 0 && (
-                    <span className="topbarBellUnreadCount">{unreadCount}</span>
-                  )}
+                <div className="topbarBellHeadRow">
+                  <div className="topbarBellTitleGroup">
+                    <strong>Notificaciones</strong>
+                    {unreadCount > 0 && (
+                      <span className="topbarBellUnreadCount">{unreadCount}</span>
+                    )}
+                  </div>
+                  <div className="topbarBellActions">
+                    <button
+                      type="button"
+                      className="topbarBellActionBtn topbarBellActionBtnSmall topbarBellActionBtnIcon"
+                      onClick={() => markAll(true)}
+                      title="Marcar todo como leído"
+                      aria-label="Marcar todo como leído"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M5 13l4 4L19 7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      <span className="sr-only">Leer</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="topbarBellActionBtn topbarBellActionBtnSmall topbarBellActionBtnIcon"
+                      onClick={clearAll}
+                      title="Limpiar todas"
+                      aria-label="Limpiar todas"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M6 7h12M9 7V5h6v2m-8 0l1 12h6l1-12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      <span className="sr-only">Limpiar</span>
+                    </button>
+                  </div>
                 </div>
                 <div className="topbarBellFilters" role="tablist" aria-label="Filtros">
                   {filterOptions.map((opt) => (
@@ -277,32 +305,6 @@ export function TopBar({ session }: { session: AdminSession | null }) {
                       <span className="sr-only">{opt.label}</span>
                     </button>
                   ))}
-                </div>
-                <div className="topbarBellActions">
-                  <button
-                    type="button"
-                    className="topbarBellActionBtn topbarBellActionBtnSmall topbarBellActionBtnIcon"
-                    onClick={() => markAll(true)}
-                    title="Marcar todo como leído"
-                    aria-label="Marcar todo como leído"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M5 13l4 4L19 7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    <span className="sr-only">Leer</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="topbarBellActionBtn topbarBellActionBtnSmall topbarBellActionBtnIcon"
-                    onClick={clearAll}
-                    title="Limpiar todas"
-                    aria-label="Limpiar todas"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M6 7h12M9 7V5h6v2m-8 0l1 12h6l1-12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    <span className="sr-only">Limpiar</span>
-                  </button>
                 </div>
               </div>
               

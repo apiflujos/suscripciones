@@ -32,19 +32,19 @@ export function SmartListCreateModal({
         Nueva lista
       </button>
       {open ? (
-        <div className="smartListModal">
-          <div className="smartListModalCard">
-            <div className="smartListModalHeader">
+        <div className="modal-backdrop">
+          <div className="modal-panel" style={{ maxWidth: 1100, maxHeight: "86vh", overflow: "auto" }}>
+            <div className="panel-header">
               <div>
                 <strong>Crear lista inteligente</strong>
                 <div className="muted">Define reglas dinámicas para segmentar contactos.</div>
               </div>
-              <button className="ghost" type="button" onClick={() => setOpen(false)}>
-                Cerrar
+              <button className="ghost modal-close" type="button" onClick={() => setOpen(false)} aria-label="Cerrar" data-modal-close="true">
+                X
               </button>
             </div>
 
-            <form action={action} style={{ display: "grid", gap: 10 }}>
+            <form action={action} style={{ display: "grid", gap: 10 }} className="panel module">
               <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="returnTo" value={returnTo} />
               <div className="field">

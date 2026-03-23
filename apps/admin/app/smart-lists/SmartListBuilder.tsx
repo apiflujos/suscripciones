@@ -126,12 +126,30 @@ function randomId() {
   return Math.random().toString(36).slice(2);
 }
 
+function pad2(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+function toLocalInputValue(value?: string) {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+function toIsoValue(value?: string) {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toISOString();
+}
+
 function uid(ctx?: InitCtx) {
   return ctx?.idFactory ? ctx.idFactory() : randomId();
 }
 
 function defaultDateValue(ctx?: InitCtx) {
-  return ctx?.nowIso || new Date().toISOString();
+  return toLocalInputValue(ctx?.nowIso || new Date().toISOString());
 }
 
 function makeRule(field: string, op: RuleOp, value?: any, ctx?: InitCtx): RuleNode {
@@ -171,20 +189,35 @@ function serializeNode(node: Node): any {
   const f = fieldByValue(node.field);
   const op = node.op;
   if (op === "exists" || op === "isEmpty") return { field: node.field, op };
+  const toNumber = (value: any) => {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  };
 
   if (f.type === "enum" && (op === "in" || op === "notIn")) {
     const items = Array.isArray(node.value) ? node.value : String(node.value || "").split(",").map((s) => s.trim()).filter(Boolean);
     return { field: node.field, op, value: items };
   }
 
+  if (f.type === "number") {
+    if (op === "between") {
+      return { field: node.field, op, value: { from: toNumber(node.value?.from), to: toNumber(node.value?.to) } };
+    }
+    return { field: node.field, op, value: toNumber(node.value) };
+  }
+
   if (f.type === "date") {
     if (op === "between") {
-      return { field: node.field, op, value: { from: node.value?.from || "", to: node.value?.to || "" } };
+      return {
+        field: node.field,
+        op,
+        value: { from: toIsoValue(node.value?.from || ""), to: toIsoValue(node.value?.to || "") }
+      };
     }
     if (op === "within_last" || op === "within_next" || op === "older_than" || op === "newer_than") {
       return { field: node.field, op, value: { amount: Number(node.value?.amount || 0), unit: node.value?.unit || "days" } };
     }
-    return { field: node.field, op, value: node.value || "" };
+    return { field: node.field, op, value: toIsoValue(node.value || "") };
   }
 
   return { field: node.field, op, value: node.value };
@@ -252,8 +285,8 @@ function RuleEditor({ node, onChange, onRemove }: { node: RuleNode; onChange: (n
           ) : field.type === "date" ? (
             isBetweenDate ? (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                <input className="input" type="datetime-local" value={String(node.value?.from || "")} onChange={(e) => onChange({ ...node, value: { ...(node.value || {}), from: e.target.value } })} />
-                <input className="input" type="datetime-local" value={String(node.value?.to || "")} onChange={(e) => onChange({ ...node, value: { ...(node.value || {}), to: e.target.value } })} />
+                <input className="input" type="datetime-local" step="60" value={String(node.value?.from || "")} onChange={(e) => onChange({ ...node, value: { ...(node.value || {}), from: e.target.value } })} />
+                <input className="input" type="datetime-local" step="60" value={String(node.value?.to || "")} onChange={(e) => onChange({ ...node, value: { ...(node.value || {}), to: e.target.value } })} />
               </div>
             ) : isRelativeDate ? (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
@@ -265,7 +298,7 @@ function RuleEditor({ node, onChange, onRemove }: { node: RuleNode; onChange: (n
                 </select>
               </div>
             ) : (
-              <input className="input" type="datetime-local" value={String(node.value || "")} onChange={(e) => onChange({ ...node, value: e.target.value })} />
+              <input className="input" type="datetime-local" step="60" value={String(node.value || "")} onChange={(e) => onChange({ ...node, value: e.target.value })} />
             )
           ) : (
             <input className="input" value={String(node.value ?? "")} onChange={(e) => onChange({ ...node, value: e.target.value })} />
@@ -343,6 +376,29 @@ function coerceRoot(input?: any, ctx?: InitCtx): GroupNode | null {
   if (!input || typeof input !== "object") return null;
   if (input.op !== "and" && input.op !== "or") return null;
   if (!Array.isArray(input.rules)) return null;
+  const normalizeRuleValue = (field: string, op: RuleOp, value: any) => {
+    const f = fieldByValue(field);
+    if (f.type === "enum" && (op === "in" || op === "notIn")) {
+      if (Array.isArray(value)) return value.join(", ");
+      return String(value || "");
+    }
+    if (f.type === "date") {
+      if (op === "between") {
+        return {
+          from: toLocalInputValue(value?.from),
+          to: toLocalInputValue(value?.to)
+        };
+      }
+      if (op === "within_last" || op === "within_next" || op === "older_than" || op === "newer_than") {
+        return {
+          amount: String(value?.amount ?? value?.value ?? ""),
+          unit: String(value?.unit || "days")
+        };
+      }
+      return toLocalInputValue(value);
+    }
+    return value;
+  };
   return {
     id: uid(ctx),
     type: "group",
@@ -358,16 +414,18 @@ function coerceRoot(input?: any, ctx?: InitCtx): GroupNode | null {
             type: "rule",
             field: String(child?.field || "name"),
             op: (child?.op as RuleOp) || "equals",
-            value: child?.value
+            value: normalizeRuleValue(String(child?.field || "name"), (child?.op as RuleOp) || "equals", child?.value)
           }))
         };
       }
+      const field = String(r?.field || "name");
+      const op = (r?.op as RuleOp) || "equals";
       return {
         id: uid(ctx),
         type: "rule",
-        field: String(r?.field || "name"),
-        op: (r?.op as RuleOp) || "equals",
-        value: r?.value
+        field,
+        op,
+        value: normalizeRuleValue(field, op, r?.value)
       };
     })
   };
@@ -411,7 +469,7 @@ export function SmartListBuilder({
       <GroupEditor node={root} depth={0} onChange={setRoot} />
       <input type="hidden" name="rules" value={json} />
       <div className="field-hint">
-        Fechas relativas soportan segundos, minutos, horas, días. Para listas usa coma.
+        Fechas absolutas se guardan en UTC. Fechas relativas soportan segundos, minutos, horas, días. Para listas usa coma.
         <br />
         Nivel gamificación: usa `gamificationLevel` (1-10) o `gamificationLevelName` para los nuevos niveles. `tier` es legado.
       </div>

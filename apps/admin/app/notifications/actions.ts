@@ -131,6 +131,18 @@ export async function createNotification(formData: FormData): Promise<{ ok: true
     .getAll("waParam")
     .map((v) => String(v || "").trim())
     .filter(Boolean);
+  const waBodyParams = formData
+    .getAll("waBodyParam")
+    .map((v) => String(v || "").trim())
+    .filter(Boolean);
+  const waHeaderParams = formData
+    .getAll("waHeaderParam")
+    .map((v) => String(v || "").trim())
+    .filter(Boolean);
+  const waButtonParams = formData
+    .getAll("waButtonParam")
+    .map((v) => String(v || "").trim())
+    .filter(Boolean);
 
   const allowedTriggers = new Set([
     "SUBSCRIPTION_DUE",
@@ -181,10 +193,15 @@ export async function createNotification(formData: FormData): Promise<{ ok: true
       template.content = message;
     } else {
       template.content = "(template)";
+      const bodyParams = waBodyParams.length ? waBodyParams : waParams;
       template.chatwootTemplate = {
         name: waTemplateName,
         language: waLanguage,
-        processed_params: waParams.length ? { body: waParams.map((v, idx) => ({ key: String(idx + 1), value: v })) } : undefined
+        processed_params: buildProcessedParams({
+          bodyParams,
+          headerParams: waHeaderParams,
+          buttonParams: waButtonParams
+        })
       };
     }
 
@@ -259,13 +276,37 @@ function parseOffsetsCsv(raw: string, sign: 1 | -1) {
   return parts.map((n) => (sign === -1 ? -Math.abs(n) : Math.abs(n))).map((n) => Math.trunc(n));
 }
 
+function parsePipeParams(raw: string) {
+  return String(raw || "")
+    .split("|")
+    .map((v) => String(v || "").trim())
+    .filter(Boolean);
+}
+
+function buildProcessedParams(args: { bodyParams?: string[]; headerParams?: string[]; buttonParams?: string[] }) {
+  const bodyParams = args.bodyParams?.filter(Boolean) || [];
+  const headerParams = args.headerParams?.filter(Boolean) || [];
+  const buttonParams = args.buttonParams?.filter(Boolean) || [];
+  const out: Record<string, any> = {};
+  if (bodyParams.length) out.body = bodyParams.map((v, idx) => ({ key: String(idx + 1), value: v }));
+  if (headerParams.length) out.header = headerParams.map((v, idx) => ({ key: String(idx + 1), value: v }));
+  if (buttonParams.length) out.buttons = buttonParams.map((v, idx) => ({ index: String(idx), value: v }));
+  return Object.keys(out).length ? out : undefined;
+}
+
 function normalizeTemplatePayload(formData: FormData) {
   const templateKind = String(formData.get("templateKind") || "TEXT").trim().toUpperCase();
   const content = String(formData.get("content") || "").trim();
   const waTemplateName = String(formData.get("waTemplateName") || "").trim();
   const waLanguage = String(formData.get("waLanguage") || "es").trim();
   const waParamsRaw = String(formData.get("waParams") || "").trim();
-  const waParams = waParamsRaw ? waParamsRaw.split("|").map((v) => v.trim()).filter(Boolean) : [];
+  const waBodyParamsRaw = String(formData.get("waBodyParams") || "").trim();
+  const waHeaderParamsRaw = String(formData.get("waHeaderParams") || "").trim();
+  const waButtonParamsRaw = String(formData.get("waButtonParams") || "").trim();
+  const legacyBodyParams = waParamsRaw ? parsePipeParams(waParamsRaw) : [];
+  const bodyParams = waBodyParamsRaw ? parsePipeParams(waBodyParamsRaw) : legacyBodyParams;
+  const headerParams = waHeaderParamsRaw ? parsePipeParams(waHeaderParamsRaw) : [];
+  const buttonParams = waButtonParamsRaw ? parsePipeParams(waButtonParamsRaw) : [];
 
   if (templateKind === "TEXT") {
     if (!content) throw new Error("missing_message");
@@ -278,7 +319,7 @@ function normalizeTemplatePayload(formData: FormData) {
     chatwootTemplate: {
       name: waTemplateName,
       language: waLanguage,
-      processed_params: waParams.length ? { body: waParams.map((v, idx) => ({ key: String(idx + 1), value: v })) } : undefined
+      processed_params: buildProcessedParams({ bodyParams, headerParams, buttonParams })
     }
   };
 }
@@ -600,7 +641,13 @@ export async function updateTemplate(formData: FormData) {
   const waTemplateName = String(formData.get("waTemplateName") || "").trim();
   const waLanguage = String(formData.get("waLanguage") || "").trim();
   const waParamsRaw = String(formData.get("waParams") || "").trim();
-  const waParams = waParamsRaw ? waParamsRaw.split("|").map((v) => v.trim()).filter(Boolean) : [];
+  const waBodyParamsRaw = String(formData.get("waBodyParams") || "").trim();
+  const waHeaderParamsRaw = String(formData.get("waHeaderParams") || "").trim();
+  const waButtonParamsRaw = String(formData.get("waButtonParams") || "").trim();
+  const legacyBodyParams = waParamsRaw ? parsePipeParams(waParamsRaw) : [];
+  const bodyParams = waBodyParamsRaw ? parsePipeParams(waBodyParamsRaw) : legacyBodyParams;
+  const headerParams = waHeaderParamsRaw ? parsePipeParams(waHeaderParamsRaw) : [];
+  const buttonParams = waButtonParamsRaw ? parsePipeParams(waButtonParamsRaw) : [];
   const metaTemplateName = String(formData.get("metaTemplateName") || "").trim();
   const metaLanguage = String(formData.get("metaLanguage") || "").trim();
   const metaComponentsRaw = String(formData.get("metaComponents") || "").trim();
@@ -644,7 +691,7 @@ export async function updateTemplate(formData: FormData) {
         next.chatwootTemplate = {
           name: waTemplateName,
           language: waLanguage || "es",
-          processed_params: waParams.length ? { body: waParams.map((v, idx2) => ({ key: String(idx2 + 1), value: v })) } : undefined
+          processed_params: buildProcessedParams({ bodyParams, headerParams, buttonParams })
         };
       } else {
         if (!content) {

@@ -29,7 +29,9 @@ export async function createApiToken(input: {
 }) {
   const name = String(input.name || "").trim().slice(0, 120) || "API token";
   const scope = input.scope === "read" ? "read" : "write";
-  const ttlHours = Math.min(Math.max(Math.trunc(input.ttlHours || 0), 1), 24 * 365);
+  const maxHours = 24 * 365 * 10;
+  const rawTtl = Math.trunc(input.ttlHours || 0);
+  const ttlHours = rawTtl <= 0 ? maxHours : Math.min(rawTtl, maxHours);
 
   const tokenId = crypto.randomUUID();
   const permissions = buildPermissions(scope);

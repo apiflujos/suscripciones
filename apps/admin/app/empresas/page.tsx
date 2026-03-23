@@ -158,6 +158,14 @@ export default async function EmpresasPage({
                       <div className="company-name entity-card-title">{e.nombre}</div>
                       <div className="company-meta entity-card-sub">{e.email || "Sin email"}</div>
                     </div>
+                    <div className="entity-card-header-right">
+                      <a className="ghost btn-compact btn-icon-only btn-edit" href={`/empresas/${e.id}`} aria-label="Editar" title="Editar" />
+                      <form action={deleteEmpresa}>
+                        <input type="hidden" name="csrf" value={csrfToken} />
+                        <input type="hidden" name="id" value={e.id} />
+                        <button className="ghost btn-compact btn-icon-only btn-danger" type="submit" aria-label="Eliminar" title="Eliminar" />
+                      </form>
+                    </div>
                   </div>
                   <div className="entity-card-grid">
                     <div>
@@ -175,16 +183,6 @@ export default async function EmpresasPage({
                     <div>
                       <div className="field-hint">Sitio web</div>
                       <div>{e.sitioWeb || "—"}</div>
-                    </div>
-                  </div>
-                  <div className="entity-card-actions">
-                    <div className="entity-card-actions-left">
-                      <a className="ghost btn-compact btn-edit btn-noicon" href={`/empresas/${e.id}`}>Editar</a>
-                      <form action={deleteEmpresa}>
-                        <input type="hidden" name="csrf" value={csrfToken} />
-                        <input type="hidden" name="id" value={e.id} />
-                        <button className="ghost btn-compact btn-danger btn-noicon" type="submit">Eliminar</button>
-                      </form>
                     </div>
                   </div>
                   <div className="entity-card-footer">

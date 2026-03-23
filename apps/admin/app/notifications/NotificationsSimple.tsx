@@ -15,7 +15,11 @@ type Template = {
   chatwootTemplate?: {
     name: string;
     language: string;
-    processed_params?: { body?: Array<{ key: string; value: string }> };
+    processed_params?: {
+      body?: Array<{ key: string; value: string }>;
+      header?: Array<{ key: string; value: string }>;
+      buttons?: Array<{ index?: string | number; key?: string; value?: string }>;
+    };
   } | null;
 };
 
@@ -79,16 +83,34 @@ const REMINDER_TPL_MORA = "tpl_reminder_mora";
 type OffsetItem = { amount: string; unit: "minutes" | "hours" | "days" };
 const MESSAGE_VARIABLES = [
   { label: "Nombre completo", value: "{{customer.name}}" },
-  { label: "Email", value: "{{customer.email}}" },
+  { label: "Correo electrónico", value: "{{customer.email}}" },
   { label: "Teléfono", value: "{{customer.phone}}" },
   { label: "Dirección", value: "{{customer.metadata.address}}" },
-  { label: "Link de pago", value: "{{plan.name}}" },
-  { label: "Fecha corte", value: "{{subscription.currentPeriodEndAt}}" },
-  { label: "Fecha pago", value: "{{payment.paidAt}}" },
+  { label: "Nombre de la empresa", value: "{{company.name}}" },
+  { label: "Correo de la empresa", value: "{{company.email}}" },
+  { label: "Teléfono de la empresa", value: "{{company.phone}}" },
+  { label: "Nombre del contacto", value: "{{contact.name}}" },
+  { label: "Correo del contacto", value: "{{contact.email}}" },
+  { label: "Teléfono del contacto", value: "{{contact.phone}}" },
+  { label: "Nombre del producto", value: "{{plan.name}}" },
+  { label: "Precio del producto (centavos)", value: "{{plan.priceInCents}}" },
+  { label: "Moneda del producto", value: "{{plan.currency}}" },
+  { label: "Frecuencia (cantidad)", value: "{{plan.intervalCount}}" },
+  { label: "Frecuencia (unidad)", value: "{{plan.intervalUnit}}" },
+  { label: "Estado de la suscripción", value: "{{subscription.status}}" },
+  { label: "Ciclo actual", value: "{{subscription.currentCycle}}" },
+  { label: "Fecha de inicio del ciclo", value: "{{subscription.currentPeriodStartAt}}" },
+  { label: "Fecha de corte", value: "{{subscription.currentPeriodEndAt}}" },
+  { label: "Estado del pago", value: "{{payment.status}}" },
+  { label: "Monto del pago (centavos)", value: "{{payment.amountInCents}}" },
+  { label: "Moneda del pago", value: "{{payment.currency}}" },
+  { label: "Fecha de pago", value: "{{payment.paidAt}}" },
+  { label: "Fecha de fallo del pago", value: "{{payment.failedAt}}" },
+  { label: "Fecha de creación del pago", value: "{{payment.createdAt}}" },
   { label: "Referencia", value: "{{payment.reference}}" },
-  { label: "Link pago", value: "{{payment.checkoutUrl}}" },
-  { label: "Link débito automático", value: "{{tokenization.url}}" },
-  { label: "Link catálogo", value: "{{catalog.url}}" },
+  { label: "Enlace de pago", value: "{{payment.checkoutUrl}}" },
+  { label: "Enlace de débito automático", value: "{{tokenization.url}}" },
+  { label: "Enlace de catálogo", value: "{{catalog.url}}" },
   { label: "Tipo de pago", value: "{{paymentType}}" }
 ];
 
@@ -122,6 +144,8 @@ function WaTemplateFields({
   defaultName,
   defaultLang,
   defaultParams,
+  defaultHeaderParams,
+  defaultButtonParams,
   onSync,
   syncing,
   syncError
@@ -130,47 +154,59 @@ function WaTemplateFields({
   defaultName?: string;
   defaultLang?: string;
   defaultParams?: string;
+  defaultHeaderParams?: string;
+  defaultButtonParams?: string;
   onSync?: () => void;
   syncing?: boolean;
   syncError?: string;
 }) {
   const [name, setName] = useState(defaultName || "");
   const [lang, setLang] = useState(defaultLang || "es");
-  const [params, setParams] = useState<string[]>(
+  const [bodyParams, setBodyParams] = useState<string[]>(
     defaultParams ? defaultParams.split("|").map((p) => p.trim()) : []
+  );
+  const [headerParams, setHeaderParams] = useState<string[]>(
+    defaultHeaderParams ? defaultHeaderParams.split("|").map((p) => p.trim()) : []
+  );
+  const [buttonParams, setButtonParams] = useState<string[]>(
+    defaultButtonParams ? defaultButtonParams.split("|").map((p) => p.trim()) : []
   );
 
   const selectedTemplate = useMemo(() => {
     return templates.find((t) => t.name === name && String(t.language || "es") === String(lang || "es")) || null;
   }, [templates, name, lang]);
 
-  const expectedParamCount = useMemo(() => {
+  const bodyParamCount = useMemo(() => {
     const comps = selectedTemplate?.components || [];
-    let maxIndex = 0;
-    for (const c of comps) {
-      const text = String((c as any)?.text || "");
-      const matches = text.match(/\{\{\d+\}\}/g) || [];
-      for (const m of matches) {
-        const n = Number(String(m || "").replace(/\D+/g, ""));
-        if (Number.isFinite(n)) maxIndex = Math.max(maxIndex, n);
-      }
-    }
-    return Math.max(maxIndex, params.length);
-  }, [selectedTemplate, params.length]);
+    const body = comps.find((c: any) => String(c?.type || "").toUpperCase() === "BODY") as any;
+    if (!body) return 0;
+    const text = String(body?.text || "");
+    const matches = text.match(/\{\{\d+\}\}/g) || [];
+    const countByText = matches.length;
+    const countByExample = Array.isArray(body?.example?.body_text) ? (body.example.body_text[0]?.length || 0) : 0;
+    return Math.max(countByText, countByExample, bodyParams.length);
+  }, [selectedTemplate, bodyParams.length]);
 
-  const countParamsFromTemplate = (tpl: ChatwootTemplate | undefined | null) => {
-    const comps = tpl?.components || [];
-    let maxIndex = 0;
-    for (const c of comps) {
-      const text = String((c as any)?.text || "");
-      const matches = text.match(/\{\{\d+\}\}/g) || [];
-      for (const m of matches) {
-        const n = Number(String(m || "").replace(/\D+/g, ""));
-        if (Number.isFinite(n)) maxIndex = Math.max(maxIndex, n);
-      }
-    }
-    return Math.max(0, maxIndex);
-  };
+  const headerParamCount = useMemo(() => {
+    const comps = selectedTemplate?.components || [];
+    const header = comps.find((c: any) => String(c?.type || "").toUpperCase() === "HEADER") as any;
+    if (!header) return 0;
+    const fmt = String(header?.format || header?.format_type || "").toUpperCase();
+    if (fmt && fmt !== "TEXT") return 0;
+    const text = String(header?.text || "");
+    const matches = text.match(/\{\{\d+\}\}/g) || [];
+    const countByText = matches.length;
+    const countByExample = Array.isArray(header?.example?.header_text) ? header.example.header_text.length : 0;
+    return Math.max(countByText, countByExample, headerParams.length);
+  }, [selectedTemplate, headerParams.length]);
+
+  const buttonParamCount = useMemo(() => {
+    const comps = selectedTemplate?.components || [];
+    const buttons = comps.find((c: any) => String(c?.type || "").toUpperCase() === "BUTTONS") as any;
+    if (!buttons || !Array.isArray(buttons?.buttons)) return 0;
+    const urlButtons = buttons.buttons.filter((b: any) => String(b?.type || "").toUpperCase() === "URL");
+    return Math.max(urlButtons.length, buttonParams.length);
+  }, [selectedTemplate, buttonParams.length]);
 
   const templateBody = useMemo(() => {
     const comps = selectedTemplate?.components || [];
@@ -188,25 +224,32 @@ function WaTemplateFields({
     if (!templateBody) return "";
     return templateBody.replace(/\{\{\s*(\d+)\s*\}\}/g, (_m, n) => {
       const idx = Math.max(1, Number(n)) - 1;
-      const val = params[idx];
+      const val = bodyParams[idx];
       return val ? String(val) : `{{${n}}}`;
     });
-  }, [templateBody, params]);
+  }, [templateBody, bodyParams]);
+
+  const ensureLength = (values: string[], count: number) => {
+    if (!count) return [];
+    const next = values.slice(0, count);
+    while (next.length < count) next.push("");
+    return next;
+  };
 
   const onSelect = (value: string) => {
     if (!value) return;
     const [tplName, tplLang] = value.split("::");
     setName(tplName || "");
     setLang(tplLang || "es");
-    const tpl = templates.find((t) => t.name === tplName && String(t.language || "es") === String(tplLang || "es"));
-    const count = countParamsFromTemplate(tpl);
-    setParams((prev) => {
-      if (!count) return [];
-      const next = prev.slice(0, count);
-      while (next.length < count) next.push("");
-      return next;
-    });
   };
+
+  useEffect(() => {
+    if (!selectedTemplate) return;
+    setBodyParams((prev) => ensureLength(prev, bodyParamCount));
+    setHeaderParams((prev) => ensureLength(prev, headerParamCount));
+    setButtonParams((prev) => ensureLength(prev, buttonParamCount));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTemplate, bodyParamCount, headerParamCount, buttonParamCount]);
 
   return (
     <>
@@ -244,32 +287,88 @@ function WaTemplateFields({
           <span>Parámetros</span>
           <HelpTip text="Se abren según la plantilla seleccionada. Valores para {{1}}, {{2}}, {{3}}..." />
         </label>
-        {expectedParamCount > 0 ? (
-          <div style={{ display: "grid", gap: 6 }}>
-            {Array.from({ length: expectedParamCount }).map((_, idx) => (
-              <select
-                key={`param-${idx}`}
-                className="select select-compact"
-                value={params[idx] || ""}
-                onChange={(e) => {
-                  const next = params.slice();
-                  next[idx] = e.target.value;
-                  setParams(next);
-                }}
-              >
-                <option value="">{`{{${idx + 1}}} · Selecciona variable`}</option>
-                {MESSAGE_VARIABLES.map((v) => (
-                  <option key={`${idx}-${v.value}`} value={v.value}>
-                    {v.label}
-                  </option>
+        {bodyParamCount || headerParamCount || buttonParamCount ? (
+          <div style={{ display: "grid", gap: 10 }}>
+            {bodyParamCount ? (
+              <div style={{ display: "grid", gap: 6 }}>
+                <div className="muted">Body</div>
+                {Array.from({ length: bodyParamCount }).map((_, idx) => (
+                  <select
+                    key={`param-body-${idx}`}
+                    className="select select-compact"
+                    value={bodyParams[idx] || ""}
+                    onChange={(e) => {
+                      const next = bodyParams.slice();
+                      next[idx] = e.target.value;
+                      setBodyParams(next);
+                    }}
+                  >
+                    <option value="">{`{{${idx + 1}}} · Selecciona variable`}</option>
+                    {MESSAGE_VARIABLES.map((v) => (
+                      <option key={`${idx}-${v.value}`} value={v.value}>
+                        {v.label}
+                      </option>
+                    ))}
+                  </select>
                 ))}
-              </select>
-            ))}
+              </div>
+            ) : null}
+            {headerParamCount ? (
+              <div style={{ display: "grid", gap: 6 }}>
+                <div className="muted">Header</div>
+                {Array.from({ length: headerParamCount }).map((_, idx) => (
+                  <select
+                    key={`param-header-${idx}`}
+                    className="select select-compact"
+                    value={headerParams[idx] || ""}
+                    onChange={(e) => {
+                      const next = headerParams.slice();
+                      next[idx] = e.target.value;
+                      setHeaderParams(next);
+                    }}
+                  >
+                    <option value="">{`{{${idx + 1}}} · Selecciona variable`}</option>
+                    {MESSAGE_VARIABLES.map((v) => (
+                      <option key={`h-${idx}-${v.value}`} value={v.value}>
+                        {v.label}
+                      </option>
+                    ))}
+                  </select>
+                ))}
+              </div>
+            ) : null}
+            {buttonParamCount ? (
+              <div style={{ display: "grid", gap: 6 }}>
+                <div className="muted">Botones (URL)</div>
+                {Array.from({ length: buttonParamCount }).map((_, idx) => (
+                  <select
+                    key={`param-button-${idx}`}
+                    className="select select-compact"
+                    value={buttonParams[idx] || ""}
+                    onChange={(e) => {
+                      const next = buttonParams.slice();
+                      next[idx] = e.target.value;
+                      setButtonParams(next);
+                    }}
+                  >
+                    <option value="">{`Botón ${idx + 1} · Selecciona variable`}</option>
+                    {MESSAGE_VARIABLES.map((v) => (
+                      <option key={`b-${idx}-${v.value}`} value={v.value}>
+                        {v.label}
+                      </option>
+                    ))}
+                  </select>
+                ))}
+              </div>
+            ) : null}
           </div>
         ) : (
           <div className="field-hint">Esta plantilla no requiere variables.</div>
         )}
-        <input type="hidden" name="waParams" value={params.join("|")} />
+        <input type="hidden" name="waParams" value={bodyParams.join("|")} />
+        <input type="hidden" name="waBodyParams" value={bodyParams.join("|")} />
+        <input type="hidden" name="waHeaderParams" value={headerParams.join("|")} />
+        <input type="hidden" name="waButtonParams" value={buttonParams.join("|")} />
       </div>
     </>
   );
@@ -586,7 +685,9 @@ export function NotificationsSimple({
                   const hasWa = Boolean(tpl?.chatwootTemplate?.name);
                   const waName = tpl?.chatwootTemplate?.name || "";
                   const waLang = tpl?.chatwootTemplate?.language || "es";
-                  const waParams = tpl?.chatwootTemplate?.processed_params?.body || [];
+                  const waBodyParams = tpl?.chatwootTemplate?.processed_params?.body || [];
+                  const waHeaderParams = tpl?.chatwootTemplate?.processed_params?.header || [];
+                  const waButtonParams = tpl?.chatwootTemplate?.processed_params?.buttons || [];
                   const kind = wizardKind;
                   return (
                     <form action={actions.saveRealtime} className="notification-form" style={{ display: "grid", gap: 10 }}>
@@ -666,7 +767,9 @@ export function NotificationsSimple({
                           templates={waTemplates}
                           defaultName={waName}
                           defaultLang={waLang}
-                          defaultParams={waParams.map((p) => p.value).join("|")}
+                          defaultParams={waBodyParams.map((p) => p.value).join("|")}
+                          defaultHeaderParams={waHeaderParams.map((p) => p.value).join("|")}
+                          defaultButtonParams={waButtonParams.map((p) => p.value).join("|")}
                         />
                       ) : null}
                       {wizardStep === 2 ? (
@@ -767,6 +870,16 @@ export function NotificationsSimple({
                         activeModal.kind === "DUE"
                           ? (reminderDueTemplate?.chatwootTemplate?.processed_params?.body || []).map((p) => p.value).join("|")
                           : (reminderMoraTemplate?.chatwootTemplate?.processed_params?.body || []).map((p) => p.value).join("|")
+                      }
+                      defaultHeaderParams={
+                        activeModal.kind === "DUE"
+                          ? (reminderDueTemplate?.chatwootTemplate?.processed_params?.header || []).map((p) => p.value).join("|")
+                          : (reminderMoraTemplate?.chatwootTemplate?.processed_params?.header || []).map((p) => p.value).join("|")
+                      }
+                      defaultButtonParams={
+                        activeModal.kind === "DUE"
+                          ? (reminderDueTemplate?.chatwootTemplate?.processed_params?.buttons || []).map((p) => p.value).join("|")
+                          : (reminderMoraTemplate?.chatwootTemplate?.processed_params?.buttons || []).map((p) => p.value).join("|")
                       }
                     />
                   ) : null}

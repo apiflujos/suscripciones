@@ -874,7 +874,7 @@ a {
 .topbarBellBackdrop {
   position: fixed;
   inset: 0;
-  background: rgba(10, 12, 20, 0.2);
+  background: transparent;
   backdrop-filter: none;
   z-index: 30000;
   pointer-events: auto;
@@ -942,8 +942,16 @@ a {
   padding: 10px 12px;
   border-bottom: 1px solid var(--stroke);
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   gap: 8px;
+}
+
+.topbarBellHeadRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .topbarBellFilters {
@@ -951,9 +959,15 @@ a {
   align-items: center;
   gap: 6px;
   flex-wrap: nowrap;
-  overflow-x: auto;
-  padding-bottom: 2px;
-  flex: 1 1 auto;
+  overflow: hidden;
+  padding-bottom: 0;
+}
+
+.topbarBellFilters.topbarBellFiltersText {
+  flex-wrap: wrap;
+  overflow: visible;
+  gap: 6px;
+  align-items: stretch;
 }
 
 .topbarBellFilter {
@@ -961,13 +975,32 @@ a {
   background: var(--panel);
   color: var(--text);
   border-radius: 10px;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.topbarBellFiltersText .topbarBellFilter {
+  width: 74px;
+  height: 56px;
+  padding: 6px 6px;
+  gap: 4px;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.topbarBellFiltersText .filter-label {
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.1;
+  text-align: center;
+  white-space: nowrap;
+  display: block;
 }
 
 .topbarBellFilter.is-active {
@@ -7750,6 +7783,11 @@ textarea.input {
   min-height: 34px;
 }
 
+.metricsPage .filtersForm .select {
+  --field-icon: none;
+  --field-padding-left: var(--control-padding-x);
+}
+
 .metricsPage .filtersActions {
   display: flex;
   align-items: center;
@@ -10028,7 +10066,7 @@ body.is-global-loading {
 
 .company-card {
   background: var(--panel);
-  border-radius: 12px;
+  border-radius: 14px;
   border: 1px solid color-mix(in srgb, var(--stroke) 85%, transparent);
   box-shadow: var(--shadow);
   padding: 14px;
@@ -10058,6 +10096,13 @@ body.is-global-loading {
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
+}
+
+.entity-card-header-right {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
 }
 
 .entity-card-title {
@@ -10593,7 +10638,7 @@ body.is-global-loading {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10020;
+  z-index: 40050;
   padding: 16px;
   backdrop-filter: blur(var(--modal-backdrop-blur)) saturate(1.05);
   -webkit-backdrop-filter: blur(var(--modal-backdrop-blur)) saturate(1.05);
@@ -10609,7 +10654,7 @@ body.is-global-loading {
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.2);
   padding: 16px;
   position: relative;
-  z-index: 10030;
+  z-index: 40060;
 }
 
 .modal-panel-fixed {

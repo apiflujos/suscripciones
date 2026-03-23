@@ -1,6 +1,5 @@
 "use client";
 
-import { HelpTip } from "../ui/HelpTip";
 import {
   getFilterIcon,
   getNotificationColor,
@@ -27,17 +26,13 @@ export function UserNotificationsPanel({ isSuperAdmin }: { isSuperAdmin: boolean
         <div className="panelHeaderRow" style={{ justifyContent: "space-between", gap: 10 }}>
           <div style={{ display: "grid", gap: 4 }}>
             <h3>Notificaciones</h3>
-            <div className="field-hint">
-              Feed personal con eventos recientes. Los logs del sistema solo los ve el Super Admin.
-              <HelpTip text="Este feed se arma a partir de los eventos recientes y se actualiza en tiempo real." />
-            </div>
           </div>
           {unreadCount > 0 ? <span className="pill pill-blue">{unreadCount} no leidas</span> : null}
         </div>
       </div>
 
       <div className="settings-group-body">
-        <div className="topbarBellFilters" style={{ marginBottom: 12 }}>
+        <div className="topbarBellFilters topbarBellFiltersText" style={{ marginBottom: 12 }}>
           {filterOptions.map((opt) => (
             <button
               key={opt.key}

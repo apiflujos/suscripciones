@@ -50,6 +50,7 @@ import { listCatalogProducts } from "../admin/_services/products";
 import { listTenants } from "../admin/_services/tenants";
 import { getGamificationConfig, listGamificationTrending } from "../admin/_services/gamification";
 import { listAdminUsers } from "../admin/_services/adminUsers";
+import { listWebhookEvents } from "../admin/_services/logs";
 import { listWebhookEndpoints } from "../admin/_services/webhookEndpoints";
 import { listApiTokens } from "../admin/_services/apiTokens";
 
@@ -145,6 +146,9 @@ export default async function SettingsPage({
   const tenantId = String(session?.tenantId || "").trim() || String(tenants?.[0]?.id || "").trim();
   const webhookEndpoints = tenantId ? await listWebhookEndpoints(tenantId) : [];
   const apiTokens = tenantId ? await listApiTokens(tenantId) : [];
+  const webhookEvents = tenantId ? await listWebhookEvents({ tenantId, take: 25 }) : { items: [] as any[] };
+  const wompiLastEvent = (webhookEvents.items || []).find((e: any) => String(e?.provider || "") === "WOMPI") || null;
+  const wompiLastEventAt = wompiLastEvent?.receivedAt || null;
   const wompiEventsSecretMasked =
     wompiActiveEnv === "SANDBOX" ? String(wompiSandbox?.eventsSecret || "") : String(wompiProduction?.eventsSecret || "");
   const renderInline = (actionKey: string, okText: string, failPrefix: string) => {
@@ -272,6 +276,7 @@ export default async function SettingsPage({
           wompiUrl={webhookUrl}
           wompiActiveEnv={wompiActiveEnv}
           wompiEventsSecretMasked={wompiEventsSecretMasked}
+          wompiLastEventAt={wompiLastEventAt}
           endpoints={webhookEndpoints}
           apiTokens={apiTokens}
           docsUrl={docsUrl}
