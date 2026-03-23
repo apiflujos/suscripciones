@@ -767,6 +767,8 @@ model SaTenant {
   paymentLinks PaymentLink[]
   empresas Empresa[]
   webhookEvents WebhookEvent[]
+  webhookEndpoints WebhookEndpoint[]
+  apiTokens ApiToken[]
   chatwootMessages ChatwootMessage[]
   smartLists SmartList[]
   smartViews SmartView[]
