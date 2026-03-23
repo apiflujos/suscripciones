@@ -158,6 +158,20 @@ function WaTemplateFields({
     return Math.max(maxIndex, params.length);
   }, [selectedTemplate, params.length]);
 
+  const countParamsFromTemplate = (tpl: ChatwootTemplate | undefined | null) => {
+    const comps = tpl?.components || [];
+    let maxIndex = 0;
+    for (const c of comps) {
+      const text = String((c as any)?.text || "");
+      const matches = text.match(/\{\{\d+\}\}/g) || [];
+      for (const m of matches) {
+        const n = Number(String(m || "").replace(/\D+/g, ""));
+        if (Number.isFinite(n)) maxIndex = Math.max(maxIndex, n);
+      }
+    }
+    return Math.max(0, maxIndex);
+  };
+
   const templateBody = useMemo(() => {
     const comps = selectedTemplate?.components || [];
     const body = comps.find((c: any) => String(c?.type || "").toUpperCase() === "BODY") as any;
@@ -185,10 +199,13 @@ function WaTemplateFields({
     setName(tplName || "");
     setLang(tplLang || "es");
     const tpl = templates.find((t) => t.name === tplName && String(t.language || "es") === String(tplLang || "es"));
-    const processed = Array.isArray((tpl as any)?.processed_params?.body)
-      ? (tpl as any).processed_params.body.map((p: any) => String(p?.value || ""))
-      : [];
-    if (processed.length) setParams(processed);
+    const count = countParamsFromTemplate(tpl);
+    setParams((prev) => {
+      if (!count) return [];
+      const next = prev.slice(0, count);
+      while (next.length < count) next.push("");
+      return next;
+    });
   };
 
   return (
