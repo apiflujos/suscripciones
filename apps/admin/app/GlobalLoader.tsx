@@ -4,56 +4,15 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 const AUTO_HIDE_MS = 8000; // Reducido de 15000 a 8000ms
-const DELAY_MS = 300; // Nuevo: delay antes de mostrar loader
+const DELAY_MS = 600; // Más delay: menos ruido visual
 const MODAL_SELECTOR =
   ".modal-backdrop, .modal-panel, [role='dialog'][aria-modal='true'], [role='dialog']:not([aria-modal='false'])";
 
 function shouldTriggerLoader(target: EventTarget | null) {
   if (!(target instanceof Element)) return false;
-  
-  // EXCLUIR: Elementos con data-loader="off"
-  if (target.closest('[data-loader="off"]')) return false;
-  
-  // EXCLUIR: Cierres de modal
-  if (target.closest('[data-modal-close="true"], .modal-close')) return false;
-  
-  // EXCLUIR: Aperturas de modal
-  if (target.closest('[aria-haspopup="dialog"], [data-modal="true"], [data-modal-trigger="true"]')) return false;
-  
-  // EXCLUIR: Menús dropdown
-  if (target.closest('[aria-haspopup="menu"], [role="menu"], .userMenuPopover')) return false;
-  
-  // EXCLUIR: Botones de toggle/checkbox
-  if (target.closest('input[type="checkbox"], input[type="radio"], .toggleControl')) return false;
-  
-  // EXCLUIR: Enlaces de navegación activa
-  const anchor = target.closest("a[href]");
-  if (anchor) {
-    const href = anchor.getAttribute("href") || "";
-    if (!href || href.startsWith("#") || href.startsWith("javascript:")) return false;
-    if (anchor.getAttribute("aria-current") === "page") return false;
-    if (anchor.getAttribute("aria-disabled") === "true") return false;
-    if (anchor.classList.contains("is-active")) return false;
-    if (anchor.getAttribute("target") === "_blank") return false;
-    // EXCLUIR: Navegación dentro de la misma página
-    if (href.startsWith("?") || href.includes("&")) return false;
-    return true;
-  }
 
-  // EXCLUIR: Botones deshabilitados o de tipo especial
-  const button = target.closest("button, input[type='submit'], input[type='button']");
-  if (button) {
-    if ((button as HTMLButtonElement).disabled) return false;
-    // EXCLUIR: Botones tipo toggle, compact, icon-only
-    const btn = button as HTMLButtonElement;
-    if (btn.classList.contains("ghost")) return false;
-    if (btn.classList.contains("btn-compact")) return false;
-    if (btn.classList.contains("btn-icon-only")) return false;
-    if (btn.classList.contains("toggle")) return false;
-    if (btn.getAttribute("type") === "button") return false;
-    return true;
-  }
-
+  // Solo dispara loader si el elemento lo pide explícitamente
+  if (target.closest('[data-loader="on"]')) return true;
   return false;
 }
 
@@ -156,8 +115,12 @@ export function GlobalLoader() {
       scheduleShow();
     };
 
-    const onSubmit = () => {
+    const onSubmit = (event: SubmitEvent) => {
       if (pathname?.startsWith("/public")) return;
+      const form = event.target as Element | null;
+      const submitter = event.submitter as Element | null;
+      if (submitter?.closest('[data-loader="off"]')) return;
+      if (form?.closest('[data-loader="off"]')) return;
       show();
     };
 
