@@ -21,6 +21,9 @@ export function getActorFromReq(req: HeaderLike | any): string {
   if (path.startsWith("/webhooks/wompi")) {
     return SystemActor.WEBHOOK_WOMPI;
   }
+  if (path.startsWith("/webhooks/incoming")) {
+    return "webhook:incoming";
+  }
 
   return SystemActor.SYSTEM;
 }

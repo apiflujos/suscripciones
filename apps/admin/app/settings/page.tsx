@@ -15,7 +15,12 @@ import {
   deleteAiProvider,
   updateGamificationConfig,
   updateAutoDebitConfig,
-  updatePaymentsConfig
+  updatePaymentsConfig,
+  createWebhookEndpointAction,
+  updateWebhookEndpointAction,
+  deleteWebhookEndpointAction,
+  createApiTokenAction,
+  revokeApiTokenAction
 } from "./actions";
 import { normalizeErrorParam } from "../lib/errorParam";
 import { cookies } from "next/headers";
@@ -25,6 +30,7 @@ import { PendingButton } from "../ui/PendingButton";
 import { AppearanceSelector } from "../ui/AppearanceSelector";
 import { AutoSubmitOnChange } from "../ui/AutoSubmitOnChange";
 import { AutoSubmitToggle } from "../ui/AutoSubmitToggle";
+import { CopyButton } from "../ui/CopyButton";
 import { getCsrfToken } from "../lib/csrf";
 import { ConnectionsPanel } from "./ConnectionsPanel";
 import { LogoUploadField } from "./LogoUploadField";
@@ -37,12 +43,15 @@ import { DeleteTenantButton } from "./DeleteTenantButton";
 import { GamificationPanel } from "./GamificationPanel";
 import { UsersPanel } from "./UsersPanel";
 import { UserNotificationsPanel } from "./UserNotificationsPanel";
+import { WebhooksPanel } from "./WebhooksPanel";
 import { getAdminSettings } from "../admin/_services/settings";
 import { listCheckoutTemplates } from "../admin/_services/checkoutTemplates";
 import { listCatalogProducts } from "../admin/_services/products";
 import { listTenants } from "../admin/_services/tenants";
 import { getGamificationConfig, listGamificationTrending } from "../admin/_services/gamification";
 import { listAdminUsers } from "../admin/_services/adminUsers";
+import { listWebhookEndpoints } from "../admin/_services/webhookEndpoints";
+import { listApiTokens } from "../admin/_services/apiTokens";
 
 export const dynamic = "force-dynamic";
 
@@ -80,6 +89,11 @@ export default async function SettingsPage({
   const comms = (settings?.communications || null) as any;
   const commsProduction = (comms?.production || settings?.chatwoot || {}) as any;
   const appPublicBaseUrl = String(process.env.APP_PUBLIC_BASE_URL || "").trim();
+  const webhookBase = appPublicBaseUrl ? appPublicBaseUrl.replace(/\/$/, "") : "";
+  const webhookUrl = webhookBase ? `${webhookBase}/webhooks/wompi` : "";
+  const docsBase = String(process.env.API_DOCS_URL || "https://mdv.sus.apiflujos.com").trim();
+  const docsUrl = docsBase || (webhookBase ? `${webhookBase}/docs` : "");
+  const swaggerUrl = String(process.env.API_SWAGGER_URL || "").trim() || (docsBase ? `${docsBase.replace(/\/$/, "")}/swagger` : webhookBase ? `${webhookBase}/swagger` : "");
   const ai = (settings?.ai || {}) as any;
   const aiProviders = (ai?.providers || {}) as any;
   const aiOpenai = (aiProviders?.openai || {}) as any;
@@ -109,7 +123,8 @@ export default async function SettingsPage({
   const action = String(sp.a || "");
   const status = String(sp.status || "");
   const errorText = normalizeErrorParam(typeof sp.error === "string" ? sp.error : undefined);
-  const tab = String(sp.tab || "connections");
+  const rawTab = String(sp.tab || "connections");
+  const tab = rawTab === "webhooks" ? "integraciones" : rawTab;
   const gviewRaw = String(sp.gview || "compact");
   const gamificationView = gviewRaw === "full" ? "full" : "compact";
   const open = String(sp.open || "");
@@ -127,6 +142,11 @@ export default async function SettingsPage({
     checkoutTemplates: Number(sp.tenantCheckoutTemplates || 0)
   };
   const inlineState = { action, status, errorText };
+  const tenantId = String(session?.tenantId || "").trim() || String(tenants?.[0]?.id || "").trim();
+  const webhookEndpoints = tenantId ? await listWebhookEndpoints(tenantId) : [];
+  const apiTokens = tenantId ? await listApiTokens(tenantId) : [];
+  const wompiEventsSecretMasked =
+    wompiActiveEnv === "SANDBOX" ? String(wompiSandbox?.eventsSecret || "") : String(wompiProduction?.eventsSecret || "");
   const renderInline = (actionKey: string, okText: string, failPrefix: string) => {
     if (action !== actionKey) return null;
     if (status === "ok") return <div className="field-hint is-success">{okText}</div>;
@@ -178,6 +198,9 @@ export default async function SettingsPage({
         </a>
         <a className={`settings-tab ${tab === "apariencia" ? "is-active" : ""}`} href="/settings?tab=apariencia" title="Tema, logo y apariencia general">
           Apariencia
+        </a>
+        <a className={`settings-tab ${tab === "integraciones" ? "is-active" : ""}`} href="/settings?tab=integraciones" title="Integraciones, webhooks y API">
+          Integraciones
         </a>
       </div>
 
@@ -240,6 +263,31 @@ export default async function SettingsPage({
 
       {tab === "notificaciones" ? (
         <UserNotificationsPanel isSuperAdmin={session?.role === "SUPER_ADMIN"} />
+      ) : null}
+
+      {tab === "integraciones" ? (
+        <WebhooksPanel
+          csrfToken={csrfToken}
+          baseUrl={webhookBase}
+          wompiUrl={webhookUrl}
+          wompiActiveEnv={wompiActiveEnv}
+          wompiEventsSecretMasked={wompiEventsSecretMasked}
+          endpoints={webhookEndpoints}
+          apiTokens={apiTokens}
+          docsUrl={docsUrl}
+          swaggerUrl={swaggerUrl}
+          openId={open || null}
+          createdToken={String(sp.token || "")}
+          inlineState={inlineState}
+          returnTo={returnTo}
+          actions={{
+            createWebhookEndpointAction: createWebhookEndpointAction,
+            updateWebhookEndpointAction: updateWebhookEndpointAction,
+            deleteWebhookEndpointAction: deleteWebhookEndpointAction,
+            createApiTokenAction: createApiTokenAction,
+            revokeApiTokenAction: revokeApiTokenAction
+          }}
+        />
       ) : null}
 
       {tab === "connections" ? (

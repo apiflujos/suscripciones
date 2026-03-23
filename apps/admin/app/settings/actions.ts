@@ -21,6 +21,10 @@ import {
 } from "../admin/_services/settingsActions";
 import { bootstrapChatwootAttributes, syncContactsAttributes, testChatwootConnection } from "../admin/_services/comms";
 import { updateGamificationConfig as updateGamificationConfigAction } from "../admin/_services/gamification";
+import { createWebhookEndpoint, deleteWebhookEndpoint, updateWebhookEndpoint } from "../admin/_services/webhookEndpoints";
+import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
+import { cookies } from "next/headers";
+import { createApiToken, revokeApiToken } from "../admin/_services/apiTokens";
 
 function toShortErrorMessage(err: unknown) {
   const raw = err instanceof Error ? err.message : String(err);
@@ -44,6 +48,15 @@ function redirectWith(action: string, status: "ok" | "fail", error: string | und
   const url = new URL(base, "http://localhost");
   qp.forEach((v, k) => url.searchParams.set(k, v));
   redirect(`${url.pathname}?${url.searchParams.toString()}`);
+}
+
+async function requireTenantId() {
+  const c = await cookies();
+  const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
+  const session = await verifyAdminSessionToken(sessionToken);
+  const tenantId = String(session?.tenantId || "").trim();
+  if (!tenantId) throw new Error("tenant_required");
+  return tenantId;
 }
 
 function normalizeUrl(input: string) {
@@ -228,11 +241,105 @@ export async function updatePaymentsConfig(formData: FormData) {
   }
 }
 
+export async function createWebhookEndpointAction(formData: FormData) {
+  await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
+  const name = String(formData.get("name") || "").trim();
+  const provider = String(formData.get("provider") || "").trim();
+  const secret = String(formData.get("secret") || "").trim();
+  const active = getLastValue(formData, "active");
+  try {
+    const tenantId = await requireTenantId();
+    await createWebhookEndpoint({ tenantId, name, provider, secret, active });
+    redirectWith("webhook_create", "ok", undefined, returnTo);
+  } catch (err) {
+    if (isNextRedirect(err)) throw err;
+    redirectWith("webhook_create", "fail", toShortErrorMessage(err), returnTo);
+  }
+}
+
+export async function updateWebhookEndpointAction(formData: FormData) {
+  await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
+  const id = String(formData.get("id") || "").trim();
+  const name = String(formData.get("name") || "").trim();
+  const provider = String(formData.get("provider") || "").trim();
+  const secret = String(formData.get("secret") || "").trim();
+  const active = getLastValue(formData, "active");
+  try {
+    const tenantId = await requireTenantId();
+    await updateWebhookEndpoint({
+      tenantId,
+      id,
+      ...(name ? { name } : {}),
+      ...(provider ? { provider } : {}),
+      ...(active ? { active } : {}),
+      ...(secret ? { secret } : {})
+    });
+    redirectWith("webhook_update", "ok", undefined, returnTo);
+  } catch (err) {
+    if (isNextRedirect(err)) throw err;
+    redirectWith("webhook_update", "fail", toShortErrorMessage(err), returnTo);
+  }
+}
+
+export async function deleteWebhookEndpointAction(formData: FormData) {
+  await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
+  const id = String(formData.get("id") || "").trim();
+  try {
+    const tenantId = await requireTenantId();
+    await deleteWebhookEndpoint({ tenantId, id });
+    redirectWith("webhook_delete", "ok", undefined, returnTo);
+  } catch (err) {
+    if (isNextRedirect(err)) throw err;
+    redirectWith("webhook_delete", "fail", toShortErrorMessage(err), returnTo);
+  }
+}
+
 function getLastValue(formData: FormData, name: string) {
   const values = formData.getAll(name);
   if (!values.length) return "";
   const last = values[values.length - 1];
   return String(last ?? "").trim();
+}
+
+export async function createApiTokenAction(formData: FormData) {
+  await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
+  const name = String(formData.get("name") || "").trim();
+  const scope = String(formData.get("scope") || "").trim().toLowerCase();
+  const ttlHours = Number(String(formData.get("ttlHours") || "").trim() || "0");
+  try {
+    const tenantId = await requireTenantId();
+    const out = await createApiToken({
+      tenantId,
+      name,
+      scope: scope === "read" ? "read" : "write",
+      ttlHours: Number.isFinite(ttlHours) && ttlHours > 0 ? ttlHours : 24 * 30
+    });
+    const qp = new URLSearchParams({ a: "api_token_create", status: "ok", token: out.token });
+    const url = new URL(returnTo || "/settings", "http://localhost");
+    qp.forEach((v, k) => url.searchParams.set(k, v));
+    redirect(`${url.pathname}?${url.searchParams.toString()}`);
+  } catch (err) {
+    if (isNextRedirect(err)) throw err;
+    redirectWith("api_token_create", "fail", toShortErrorMessage(err), returnTo);
+  }
+}
+
+export async function revokeApiTokenAction(formData: FormData) {
+  await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
+  const id = String(formData.get("id") || "").trim();
+  try {
+    const tenantId = await requireTenantId();
+    await revokeApiToken({ tenantId, id });
+    redirectWith("api_token_revoke", "ok", undefined, returnTo);
+  } catch (err) {
+    if (isNextRedirect(err)) throw err;
+    redirectWith("api_token_revoke", "fail", toShortErrorMessage(err), returnTo);
+  }
 }
 
 export async function deleteShopifyConnection(formData: FormData) {

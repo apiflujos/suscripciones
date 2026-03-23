@@ -75,6 +75,8 @@ enum CampaignSendStatus {
 
 enum WebhookProvider {
   WOMPI
+  CUSTOM
+  MERCADOPAGO
 }
 
 enum WebhookProcessStatus {
@@ -397,6 +399,24 @@ model WebhookEvent {
   @@index([processStatus, receivedAt])
   @@index([receivedAt])
   @@index([tenantId])
+}
+
+model WebhookEndpoint {
+  id         String          @id @default(uuid()) @db.Uuid
+  tenantId   String          @db.Uuid
+  provider   WebhookProvider
+  name       String
+  path       String          @unique
+  secretHash String
+  secretSalt String
+  active     Boolean         @default(true)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  tenant SaTenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([provider])
 }
 
 model ChatwootMessage {
@@ -802,6 +822,24 @@ model SaSession {
 
   @@index([email, expiresAt])
   @@index([expiresAt])
+}
+
+model ApiToken {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @db.Uuid
+  name       String
+  tokenHash  String   @unique
+  permissions String[]
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  lastUsedAt DateTime?
+
+  tenant SaTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([expiresAt])
+  @@index([revokedAt])
 }
 
 model SaModuleDefinition {

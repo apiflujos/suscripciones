@@ -254,47 +254,56 @@ export function TopBar({ session }: { session: AdminSession | null }) {
                 onClick={() => setNotifOpen(false)}
               />
               <div className="topbarBellPopover" role="menu" aria-label="Notificaciones">
-              {/* Header con título y acciones */}
+              {/* Header con título, acciones y filtros en una sola fila */}
               <div className="topbarBellHead">
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div className="topbarBellTitleGroup">
                   <strong>Notificaciones</strong>
                   {unreadCount > 0 && (
                     <span className="topbarBellUnreadCount">{unreadCount}</span>
                   )}
                 </div>
+                <div className="topbarBellFilters" role="tablist" aria-label="Filtros">
+                  {filterOptions.map((opt) => (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      className={`topbarBellFilter ${filter === opt.key ? "is-active" : ""}`}
+                      onClick={() => setFilter(opt.key)}
+                      role="tab"
+                      aria-selected={filter === opt.key ? "true" : "false"}
+                      title={opt.label}
+                    >
+                      <span className="filter-icon" aria-hidden="true">{getFilterIcon(opt.icon)}</span>
+                      <span className="sr-only">{opt.label}</span>
+                    </button>
+                  ))}
+                </div>
                 <div className="topbarBellActions">
                   <button
                     type="button"
-                    className="topbarBellActionBtn topbarBellActionBtnSmall"
+                    className="topbarBellActionBtn topbarBellActionBtnSmall topbarBellActionBtnIcon"
                     onClick={() => markAll(true)}
                     title="Marcar todo como leído"
+                    aria-label="Marcar todo como leído"
                   >
-                    Leer
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M5 13l4 4L19 7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    <span className="sr-only">Leer</span>
                   </button>
                   <button
                     type="button"
-                    className="topbarBellActionBtn topbarBellActionBtnSmall"
+                    className="topbarBellActionBtn topbarBellActionBtnSmall topbarBellActionBtnIcon"
                     onClick={clearAll}
                     title="Limpiar todas"
+                    aria-label="Limpiar todas"
                   >
-                    Limpiar
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M6 7h12M9 7V5h6v2m-8 0l1 12h6l1-12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    <span className="sr-only">Limpiar</span>
                   </button>
                 </div>
-              </div>
-              
-              {/* Filtros SIMPLIFICADOS */}
-              <div className="topbarBellFilters">
-                {filterOptions.map((opt) => (
-                  <button
-                    key={opt.key}
-                    type="button"
-                    className={`topbarBellFilter ${filter === opt.key ? "is-active" : ""}`}
-                    onClick={() => setFilter(opt.key)}
-                  >
-                    <span className="filter-icon">{getFilterIcon(opt.icon)}</span>
-                    <span className="filter-label">{opt.label}</span>
-                  </button>
-                ))}
               </div>
               
               {/* Lista de notificaciones */}
