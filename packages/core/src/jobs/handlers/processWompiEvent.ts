@@ -1130,21 +1130,30 @@ export async function forwardWompiToShopify(webhookEventId: string) {
   const txRecord = transaction && typeof transaction === "object" ? (transaction as Record<string, unknown>) : null;
   const checksum = String(event.checksum || raw?.signature?.checksum || "").trim();
   const origin = cfg.origin === "shopify-native" ? "shopify-native" : "shopify";
+  const reference = String(txRecord?.reference || dataRecord?.reference || (raw as Record<string, unknown>)?.reference || "").trim();
+  const normalizedTx =
+    transaction && typeof transaction === "object"
+      ? {
+          ...txRecord,
+          origin: txRecord?.origin ?? origin,
+          ...(reference && !txRecord?.reference ? { reference } : {})
+        }
+      : transaction;
+  const normalizedData =
+    data && typeof data === "object"
+      ? {
+          ...dataRecord,
+          origin: dataRecord?.origin ?? origin,
+          ...(reference && !dataRecord?.reference ? { reference } : {}),
+          transaction: normalizedTx
+        }
+      : data;
   const payload = {
     ...(raw && typeof raw === "object" ? raw : {}),
     origin: (raw as Record<string, unknown>)?.origin ?? origin,
     sent_at: (raw as Record<string, unknown>)?.sent_at ?? new Date().toISOString(),
-    data:
-      data && typeof data === "object"
-        ? {
-            ...dataRecord,
-            origin: dataRecord?.origin ?? origin,
-            transaction:
-              transaction && typeof transaction === "object"
-                ? { ...txRecord, origin: txRecord?.origin ?? origin }
-                : transaction
-          }
-        : data
+    ...(reference && !(raw as Record<string, unknown>)?.reference ? { reference } : {}),
+    data: normalizedData
   };
 
   const res = await postJson(cfg.url, payload, {
