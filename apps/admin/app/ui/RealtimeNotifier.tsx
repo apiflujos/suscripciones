@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { FEED_STORAGE_KEY } from "./notificationsFeed";
 
 type ToastEvent = {
   id: string;
@@ -18,6 +19,9 @@ type RealtimeNotifierProps = {
 
 export function RealtimeNotifier({ children, session }: RealtimeNotifierProps) {
   const [toasts, setToasts] = useState<ToastEvent[]>([]);
+  const lastSeenRef = useRef<Set<string>>(new Set());
+  const soundReadyRef = useRef(false);
+  const cashierRef = useRef<HTMLAudioElement | null>(null);
 
   const addToast = useCallback((toast: ToastEvent) => {
     setToasts((prev) => {
@@ -30,12 +34,29 @@ export function RealtimeNotifier({ children, session }: RealtimeNotifierProps) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  // NOTA: El polling está DESACTIVADO para no consumir recursos innecesariamente
-  // Las notificaciones se pueden activar manualmente desde otros componentes
-  // usando window.dispatchEvent(new CustomEvent('notification', { detail: {...} }))
+  // Polling liviano para restaurar notificaciones y sonido
+  // (se había desactivado el realtime).
 
   useEffect(() => {
     if (!session?.email) return;
+
+    cashierRef.current = new Audio("/brand/cashier.mp3");
+    cashierRef.current.preload = "auto";
+
+    try {
+      const raw = window.localStorage.getItem(FEED_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(parsed)) {
+        const seed = new Set<string>();
+        for (const n of parsed) if (n?.id) seed.add(String(n.id));
+        lastSeenRef.current = seed;
+      }
+    } catch {}
+
+    const unlockSound = () => {
+      soundReadyRef.current = true;
+    };
+    window.addEventListener("pointerdown", unlockSound, { once: true });
 
     // Escuchar eventos de notificación personalizados desde otros componentes
     const handleNotification = (event: Event) => {
@@ -47,6 +68,81 @@ export function RealtimeNotifier({ children, session }: RealtimeNotifierProps) {
 
     return () => {
       window.removeEventListener("notification", handleNotification);
+      window.removeEventListener("pointerdown", unlockSound);
+    };
+  }, [session?.email, addToast]);
+
+  useEffect(() => {
+    if (!session?.email) return;
+
+    const playCashier = () => {
+      const audio = cashierRef.current;
+      if (!audio || !soundReadyRef.current) return;
+      try {
+        audio.currentTime = 0;
+        void audio.play();
+      } catch {
+        // ignore autoplay restrictions
+      }
+    };
+
+    const pushFeed = (items: any[]) => {
+      try {
+        window.localStorage.setItem(FEED_STORAGE_KEY, JSON.stringify(items));
+      } catch {}
+      window.dispatchEvent(new CustomEvent("apiflujos:notifications-updated", { detail: { items } }));
+    };
+
+    const handleItems = (items: any[]) => {
+      if (!Array.isArray(items)) return;
+      pushFeed(items);
+
+      const nextSeen = new Set(lastSeenRef.current);
+      const newItems = items.filter((n) => n?.id && !nextSeen.has(n.id));
+      for (const n of items) if (n?.id) nextSeen.add(n.id);
+      lastSeenRef.current = nextSeen;
+
+      if (!newItems.length) return;
+      for (const n of newItems.slice(0, 3)) {
+        const level = String(n.level || "info");
+        const category = String(n.category || "");
+        const title = String(n.title || "Notificación");
+        const message = String(n.message || "");
+        if (category === "pagos" && level === "success") {
+          playCashier();
+          window.dispatchEvent(new CustomEvent("apiflujos:payment-approved"));
+        }
+        addToast({
+          id: `toast:${n.id}`,
+          type: level === "error" ? "error" : level === "warning" ? "warning" : level === "success" ? "success" : "info",
+          title,
+          message,
+          timestamp: n.ts || new Date().toISOString(),
+          href: n.href || undefined
+        });
+      }
+    };
+
+    let running = true;
+    const fetchNotifications = async () => {
+      try {
+        const res = await fetch("/api/realtime/notifications?limit=40", { cache: "no-store" });
+        const json = await res.json().catch(() => null);
+        if (!running) return;
+        if (json?.notifications) {
+          handleItems(json.notifications);
+        }
+      } catch {
+        // ignore polling failures
+      }
+    };
+
+    fetchNotifications();
+    const timer = setInterval(fetchNotifications, 20000);
+
+    return () => {
+      running = false;
+      clearInterval(timer);
     };
   }, [session?.email, addToast]);
 

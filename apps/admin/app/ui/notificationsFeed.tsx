@@ -20,8 +20,8 @@ export type NotificationItem = {
   meta?: any;
 };
 
-const FEED_STORAGE_KEY = "apiflujos-notifications-feed";
-const READ_STORAGE_KEY = "apiflujos-notifications-read-ids";
+export const FEED_STORAGE_KEY = "apiflujos-notifications-feed";
+export const READ_STORAGE_KEY = "apiflujos-notifications-read-ids";
 
 export function categorizeNotification(title: string, message: string, source?: string): NotificationCategory {
   const text = `${title} ${message} ${source || ""}`.toLowerCase();
