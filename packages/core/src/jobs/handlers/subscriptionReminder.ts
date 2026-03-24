@@ -82,8 +82,9 @@ async function resolveAutoCheckoutTemplateId(args: {
   tenantId: string;
   trigger: string;
   paymentType: string;
+  planId?: string | null;
 }): Promise<string | null> {
-  const { tenantId, trigger, paymentType } = args;
+  const { tenantId, trigger, paymentType, planId } = args;
   if (!tenantId) return null;
   const templates = await prisma.publicCheckoutTemplate.findMany({
     where: { tenantId, active: true },
@@ -97,8 +98,14 @@ async function resolveAutoCheckoutTemplateId(args: {
   else desired = PublicCheckoutKind.PLAN;
 
   const byKind = templates.filter((t) => t.kind === desired);
-  const pick = byKind[0] || templates[0];
-  return pick?.id ? String(pick.id) : null;
+  if (desired === PublicCheckoutKind.CART) {
+    const pick = byKind[0] || null;
+    return pick?.id ? String(pick.id) : null;
+  }
+
+  if (!planId) return null;
+  const match = byKind.find((t) => Array.isArray(t.productIds) && t.productIds.length === 1 && String(t.productIds[0]) === String(planId));
+  return match?.id ? String(match.id) : null;
 }
 
 function renderAny(input: any, ctx: any): any {
@@ -363,12 +370,14 @@ export async function subscriptionReminder(payload: any) {
   const checkoutPublicName: Record<string, string> = {};
   if (checkoutIds.length) {
     for (const id of checkoutIds) {
+      const planId = subscription?.planId || payment?.subscription?.planId || null;
       const targetId =
         id === "AUTO"
           ? await resolveAutoCheckoutTemplateId({
               tenantId: subscription?.tenantId || payment?.tenantId || "",
               trigger: parsed.data.trigger,
-              paymentType
+              paymentType,
+              planId
             })
           : id;
       if (!targetId) {
