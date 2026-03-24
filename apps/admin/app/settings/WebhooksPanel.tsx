@@ -133,13 +133,24 @@ export function WebhooksPanel({
               </a>
             </div>
           </div>
-          <div className="field-hint">URL:</div>
+          <div className="field-hint">URL de eventos (Producción):</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <code className="mono" style={{ padding: "6px 8px", border: "1px solid var(--stroke)", borderRadius: 8, background: "var(--panel)" }}>
               {wompiUrl || "Configura APP_PUBLIC_BASE_URL"}
             </code>
+            {wompiUrl ? <CopyButton text={wompiUrl} label="Copiar" /> : null}
+          </div>
+          <div className="field-hint" style={{ marginTop: 8 }}>URL de eventos (Sandbox):</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <code className="mono" style={{ padding: "6px 8px", border: "1px solid var(--stroke)", borderRadius: 8, background: "var(--panel)" }}>
+              {wompiUrl || "Configura APP_PUBLIC_BASE_URL"}
+            </code>
+            {wompiUrl ? <CopyButton text={wompiUrl} label="Copiar" /> : null}
           </div>
           <div className="field-hint" style={{ marginTop: 8 }}>
+            Configura la URL en Wompi para <strong>cada ambiente</strong>. El endpoint es público y valida la firma SHA256 del evento.
+          </div>
+          <div className="field-hint" style={{ marginTop: 6 }}>
             Secreto de eventos ({wompiActiveEnv === "SANDBOX" ? "Sandbox" : "Producción"}): {wompiEventsSecretMasked || "—"}
           </div>
         </div>
