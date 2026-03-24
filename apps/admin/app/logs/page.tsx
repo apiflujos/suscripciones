@@ -83,6 +83,7 @@ async function reconcilePendingPayments(formData: FormData) {
   "use server";
   await assertCsrfToken(formData);
   if (!(await assertSuperAdminSession())) return;
+  const returnTo = safeReturnToLogs(formData);
   const tenantId = String(formData.get("tenantId") || "").trim();
   const daysRaw = Number(String(formData.get("days") || "7"));
   const minutesRaw = Number(String(formData.get("minutes") || "720"));
@@ -90,10 +91,20 @@ async function reconcilePendingPayments(formData: FormData) {
   const days = Number.isFinite(daysRaw) ? Math.min(Math.max(Math.trunc(daysRaw), 1), 30) : 7;
   const minutes = Number.isFinite(minutesRaw) ? Math.min(Math.max(Math.trunc(minutesRaw), 10), 60 * 24 * 30) : 720;
   const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 500) : 100;
-  await recollectPayments({ days, take: Math.max(200, take) });
-  await reconcilePendingPaymentsAction({ minutes, take, ...(tenantId ? { tenantId } : {}) });
-  revalidatePath("/logs");
-  revalidatePath("/payments");
+  try {
+    await recollectPayments({ days, take: Math.max(200, take) });
+    await reconcilePendingPaymentsAction({ minutes, take, ...(tenantId ? { tenantId } : {}) });
+    revalidatePath("/logs");
+    revalidatePath("/payments");
+    redirect(
+      `${returnTo}${returnTo.includes("?") ? "&" : "?"}recollect=ok&days=${days}&minutes=${minutes}&take=${take}`
+    );
+  } catch (err: any) {
+    const message = String(err?.message || err || "recollect_failed");
+    redirect(
+      `${returnTo}${returnTo.includes("?") ? "&" : "?"}recollect=fail&recollectError=${encodeURIComponent(message)}`
+    );
+  }
 }
 
 function safeReturnToLogs(formData: FormData) {
@@ -268,6 +279,8 @@ export default async function LogsPage({
   const tenantId = typeof sp.tenantId === "string" ? sp.tenantId : "";
   const shopifyResent = typeof sp.shopifyResent === "string" ? sp.shopifyResent : "";
   const shopifyError = typeof sp.shopifyError === "string" ? sp.shopifyError : "";
+  const recollectStatus = typeof sp.recollect === "string" ? sp.recollect : "";
+  const recollectError = typeof sp.recollectError === "string" ? sp.recollectError : "";
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
   const take = 20;
   const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
@@ -488,6 +501,14 @@ export default async function LogsPage({
           Error Shopify: {shopifyError}
         </div>
       ) : null}
+      {recollectStatus === "ok" ? (
+        <div className="card cardPad">Recolectar pagos ejecutado.</div>
+      ) : null}
+      {recollectStatus === "fail" ? (
+        <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>
+          Error recolectando pagos: {recollectError || "unknown_error"}
+        </div>
+      ) : null}
       <section className="settings-group">
         <div className="settings-group-header">
           <div className="panelHeaderRow">
@@ -614,6 +635,7 @@ export default async function LogsPage({
                       />
                       <div className="payments-buttons-wrap">
                         <form action={reconcilePendingPayments} className="filtersForm payments-action-form">
+                          <input type="hidden" name="returnTo" value={returnTo} />
                           <input type="hidden" name="csrf" value={csrfToken} />
                           <input type="hidden" name="days" value="7" />
                           <input type="hidden" name="minutes" value="720" />
