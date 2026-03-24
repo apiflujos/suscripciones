@@ -156,7 +156,8 @@ export async function middleware(req: NextRequest) {
       pathname === "/admin/sa/bootstrap";
     if (authBypass) {
       const bootstrapToken = String(process.env.BOOTSTRAP_TOKEN || "").trim();
-      if (bootstrapToken) {
+      const isWebhook = pathname === "/webhooks" || pathname.startsWith("/webhooks/");
+      if (bootstrapToken && !isWebhook) {
         const provided = req.headers.get("x-bootstrap-token") || "";
         if (provided !== bootstrapToken) {
           const res = new NextResponse(JSON.stringify({ error: "unauthorized" }), {

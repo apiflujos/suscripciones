@@ -112,7 +112,6 @@ const MESSAGE_VARIABLES = [
   { label: "Moneda del pago", value: "{{payment.currency}}" },
   { label: "Moneda del producto", value: "{{plan.currency}}" },
   { label: "Monto del pago (pesos)", value: "{{payment.amountInPesos}}" },
-  { label: "Nombre de la empresa", value: "{{company.name}}" },
   { label: "Nombre del producto", value: "{{plan.name}}" },
   { label: "Precio del producto (pesos)", value: "{{plan.priceInPesos}}" },
   { label: "Referencia", value: "{{payment.reference}}" },

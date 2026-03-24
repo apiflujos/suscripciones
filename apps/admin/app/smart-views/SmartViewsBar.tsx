@@ -621,6 +621,19 @@ export function SmartViewsBar({
                     <button className="ghost btn-compact" type="button" onClick={addRule}>
                       + Agregar condición
                     </button>
+                    {"rules" in root ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span className="muted">Operador</span>
+                        <select
+                          className="select select-compact"
+                          value={root.op}
+                          onChange={(e) => setRoot({ ...root, op: e.target.value as "and" | "or" })}
+                        >
+                          <option value="and">Y (todas)</option>
+                          <option value="or">O (cualquiera)</option>
+                        </select>
+                      </div>
+                    ) : null}
                   </div>
 
                   <div className="smartViewsSave">
