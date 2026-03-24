@@ -337,11 +337,22 @@ export async function subscriptionReminder(payload: any) {
     )
   );
   const checkoutPublic: Record<string, string> = {};
+  const checkoutPublicName: Record<string, string> = {};
   if (checkoutIds.length) {
     for (const id of checkoutIds) {
       const created = await createPublicCheckoutLink({ customerId: customer.id, templateId: id }).catch(() => null);
       if (created?.url) {
         checkoutPublic[id] = created.url;
+        checkoutPublicName[id] = created.templateName;
+      } else {
+        await systemLog(LogLevel.WARN, "notifications.dispatch", "Checkout público no disponible para plantilla", {
+          ruleId: rule.id,
+          templateId: template.id,
+          trigger: parsed.data.trigger,
+          customerId: customer.id,
+          checkoutTemplateId: id
+        }, "job:subscriptionReminder").catch(() => {});
+        return;
       }
     }
   }
@@ -360,6 +371,7 @@ export async function subscriptionReminder(payload: any) {
     plan: planWithPesos,
     payment: paymentWithPesos,
     checkoutPublic,
+    checkoutPublicName,
     paymentLink: meta?.paymentLink ?? null,
     tokenizationLink: meta?.tokenizationLink ?? null,
     cartLink: meta?.cartLink ?? null,

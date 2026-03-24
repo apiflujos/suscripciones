@@ -540,10 +540,10 @@ export function NotificationsSimple({
   const pendingRealtime = REALTIME_TYPES;
   const checkoutOptions = Array.isArray(checkoutTemplates) ? checkoutTemplates.filter((t) => t?.active !== false) : [];
   const checkoutVars = useMemo(() => {
-    return checkoutOptions.map((t) => ({
-      label: `Checkout público: ${t.name}`,
-      value: `{{checkoutPublic.${t.id}}}`
-    }));
+    return checkoutOptions.flatMap((t) => [
+      { label: `Checkout público: ${t.name} (URL)`, value: `{{checkoutPublic.${t.id}}}` },
+      { label: `Checkout público: ${t.name} (Nombre)`, value: `{{checkoutPublicName.${t.id}}}` }
+    ]);
   }, [checkoutOptions]);
 
   useEffect(() => {
