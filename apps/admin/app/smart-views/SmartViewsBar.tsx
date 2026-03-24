@@ -640,7 +640,15 @@ export function SmartViewsBar({
               {fields.length === 0 ? (
                 <div className="muted">Cargando campos...</div>
               ) : (
-                "rules" in root && root.rules.map((rule, index) => renderRule(rule, index))
+                <>
+                  <div className="smartRuleHeader">
+                    <span>Campo</span>
+                    <span>Condición</span>
+                    <span>Valor</span>
+                    <span />
+                  </div>
+                  {"rules" in root && root.rules.map((rule, index) => renderRule(rule, index))}
+                </>
               )}
 
               {fields.length ? (
