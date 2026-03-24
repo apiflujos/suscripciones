@@ -5,6 +5,7 @@ import { getNotificationsActiveEnv, getNotificationsConfig, NotificationTrigger 
 import { getPaymentsConfig } from "./runtimeConfig";
 import { systemLog, SystemActor } from "./systemLog";
 import { subscriptionReminder } from "../jobs/handlers/subscriptionReminder";
+import { classifyReference } from "../webhooks/wompi/classifyReference";
 
 type NotificationRule = {
   id: string;
@@ -145,7 +146,7 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
 
   const payment = await prisma.payment.findUnique({
     where: { id: paymentId },
-    select: { id: true, customerId: true, subscriptionId: true, status: true, providerResponse: true }
+    select: { id: true, customerId: true, subscriptionId: true, status: true, providerResponse: true, reference: true }
   });
   if (!payment) return { scheduled: 0 };
 
@@ -156,6 +157,12 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
   })();
   if (reconciliationStatus === "IGNORED_EXTERNAL") return { scheduled: 0 };
   if (!payment.subscriptionId && paymentsCfg && paymentsCfg.notifyWhatsappForUnlinkedPayments === false) return { scheduled: 0 };
+
+  const referenceInfo = classifyReference(payment.reference);
+  const isInternalRef = referenceInfo.kind === "subscription" || referenceInfo.kind === "order";
+  const isShopifyRef = referenceInfo.kind === "shopify";
+  if (!payment.subscriptionId && !isInternalRef) return { scheduled: 0 };
+  if (isShopifyRef) return { scheduled: 0 };
 
   const trigger: NotificationTrigger | null =
     payment.status === PaymentStatus.APPROVED ? "PAYMENT_APPROVED" : payment.status === PaymentStatus.DECLINED ? "PAYMENT_DECLINED" : null;
