@@ -498,7 +498,7 @@ export function NotificationsSimple({
     null | { type: "realtime"; key: RealtimeKey } | { type: "reminder"; kind: "DUE" | "MORA"; paymentType: "LINK" | "SUBSCRIPTION" }
   >(null);
   const [wizardStep, setWizardStep] = useState<1 | 2>(1);
-  const [wizardKind, setWizardKind] = useState<"TEXT" | "WHATSAPP_TEMPLATE">("TEXT");
+  const [wizardKind, setWizardKind] = useState<"TEXT" | "WHATSAPP_TEMPLATE">("WHATSAPP_TEMPLATE");
 
   const [reminderOffsets, setReminderOffsets] = useState<OffsetItem[]>([]);
 
@@ -568,10 +568,22 @@ export function NotificationsSimple({
     const tpl = getReminderTemplate(activeModal.kind, activeModal.paymentType);
     const isDue = activeModal.kind === "DUE";
     const offsets = offsetsToItems(rule?.offsetsSeconds, isDue ? -1 : 1);
-    const kind = tpl?.chatwootTemplate?.name ? "WHATSAPP_TEMPLATE" : "TEXT";
+    const kind = "WHATSAPP_TEMPLATE";
     setReminderOffsets(offsets);
     setWizardKind(kind);
+    setWizardStep(2);
   }, [activeModal]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const open = String(params.get("open") || "").trim();
+    if (!open) return;
+    const key = open as RealtimeKey;
+    const exists = REALTIME_TYPES.some((r) => r.key === key);
+    if (exists) {
+      setActiveModal({ type: "realtime", key });
+    }
+  }, []);
   const listItems = [
     ...pendingRealtime.map((rt) => {
       const rule = rulesByKey.get(rt.key);
@@ -754,86 +766,24 @@ export function NotificationsSimple({
                       <input type="hidden" name="key" value={rt.key} />
                       <input type="hidden" name="chatwootType" value={rt.chatwootType || ""} />
                       <input type="hidden" name="paymentType" value={rt.paymentType || ""} />
-                      <input type="hidden" name="templateKind" value={kind} />
+                      <input type="hidden" name="templateKind" value="WHATSAPP_TEMPLATE" />
                       <input type="hidden" name="enabled" value={(rule?.enabled ?? true) ? "on" : ""} />
-                      {wizardStep === 1 ? (
-                        <div className="field">
-                          <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <span>Paso 1: tipo de mensaje</span>
-                            <HelpTip text="Selecciona si usarás un mensaje libre o una plantilla de WhatsApp." />
-                          </label>
-                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                            <button
-                              className="ghost btn-compact"
-                              type="button"
-                              onClick={() => {
-                                setWizardKind("TEXT");
-                                setRealtimeKinds({ ...realtimeKinds, [rt.key]: "TEXT" });
-                                setWizardStep(2);
-                              }}
-                              data-loader="off"
-                            >
-                              Mensaje
-                            </button>
-                            <button
-                              className="ghost btn-compact"
-                              type="button"
-                              onClick={() => {
-                                setWizardKind("WHATSAPP_TEMPLATE");
-                                setRealtimeKinds({ ...realtimeKinds, [rt.key]: "WHATSAPP_TEMPLATE" });
-                                setWizardStep(2);
-                              }}
-                              data-loader="off"
-                            >
-                              Plantilla
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="field row" style={{ justifyContent: "space-between" }}>
-                          <div className="muted">Tipo: Plantilla (WhatsApp)</div>
-                        </div>
-                      )}
-                      {wizardStep === 2 && kind === "TEXT" ? (
-                        <div className="field">
-                          <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <span>Mensaje</span>
-                            <HelpTip text="Puedes usar variables del sistema, por ejemplo: {{customer.name}}, {{customer.email}}, {{plan.name}}, {{payment.checkoutUrl}}, {{tokenization.url}}, {{catalog.url}}, {{subscription.currentPeriodEndAt}}." />
-                          </label>
-                          <textarea
-                            className="input input-compact"
-                            name="content"
-                            rows={2}
-                            defaultValue={content}
-                            placeholder="Escribe el mensaje..."
-                            onFocus={(e) => (lastFieldRef.current = e.target)}
-                            onInput={(e) => autoResizeTextarea(e.currentTarget)}
-                          />
-                          <div className="field-hint">Se reemplazan variables del sistema automáticamente.</div>
-                          <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-                            <button type="button" className="ghost btn-compact" data-modal="true" onClick={() => setPickerOpen("vars")} aria-label="Variables" data-loader="off">
-                              {`{ }`}
-                            </button>
-                          </div>
-                        </div>
-                      ) : null}
-                      {wizardStep === 2 && kind === "WHATSAPP_TEMPLATE" ? (
-                        <WaTemplateFields
-                          templates={waTemplates}
-                          defaultName={waName}
-                          defaultLang={waLang}
-                          defaultParams={waBodyParams.map((p) => p.value).join("|")}
-                          defaultHeaderParams={waHeaderParams.map((p) => p.value).join("|")}
-                          defaultButtonParams={waButtonParams.map((p) => p.value).join("|")}
-                        />
-                      ) : null}
-                      {wizardStep === 2 ? (
-                        <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
-                          <PendingButton className="primary btn-compact btn-save" type="submit" pendingText="Guardando...">
-                            Guardar
-                          </PendingButton>
-                        </div>
-                      ) : null}
+                      <div className="field row" style={{ justifyContent: "space-between" }}>
+                        <div className="muted">Tipo: Plantilla (WhatsApp)</div>
+                      </div>
+                      <WaTemplateFields
+                        templates={waTemplates}
+                        defaultName={waName}
+                        defaultLang={waLang}
+                        defaultParams={waBodyParams.map((p) => p.value).join("|")}
+                        defaultHeaderParams={waHeaderParams.map((p) => p.value).join("|")}
+                        defaultButtonParams={waButtonParams.map((p) => p.value).join("|")}
+                      />
+                      <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
+                        <PendingButton className="primary btn-compact btn-save" type="submit" pendingText="Guardando...">
+                          Guardar
+                        </PendingButton>
+                      </div>
                     </form>
                   );
                 })()
@@ -845,91 +795,30 @@ export function NotificationsSimple({
                   <input type="hidden" name="kind" value={activeModal.kind} />
                   <input type="hidden" name="paymentType" value={activeModal.paymentType} />
                   <input type="hidden" name="templateId" value={activeReminder?.templateId || ""} />
-                  <input type="hidden" name="templateKind" value={wizardKind} />
+                  <input type="hidden" name="templateKind" value="WHATSAPP_TEMPLATE" />
                   <input
                     type="hidden"
                     name="enabled"
                     value={(activeReminder?.rule?.enabled ?? true) ? "on" : ""}
                   />
-                  {wizardStep === 1 ? (
-                    <div className="field">
-                      <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span>Paso 1: tipo de mensaje</span>
-                        <HelpTip text="Selecciona si usarás un mensaje libre o una plantilla de WhatsApp." />
-                      </label>
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        <button
-                          className="ghost btn-compact"
-                          type="button"
-                          onClick={() => {
-                            setWizardKind("TEXT");
-                            setWizardStep(2);
-                          }}
-                          data-loader="off"
-                        >
-                          Mensaje
-                        </button>
-                        <button
-                          className="ghost btn-compact"
-                          type="button"
-                          onClick={() => {
-                            setWizardKind("WHATSAPP_TEMPLATE");
-                            setWizardStep(2);
-                          }}
-                          data-loader="off"
-                        >
-                          Plantilla
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="field row" style={{ justifyContent: "space-between" }}>
-                      <div className="muted">Tipo: {wizardKind === "WHATSAPP_TEMPLATE" ? "Plantilla" : "Mensaje"}</div>
-                      <button className="ghost btn-compact" type="button" onClick={() => setWizardStep(1)} data-loader="off">
-                        Cambiar tipo
-                      </button>
-                    </div>
-                  )}
-                  {wizardStep === 2 && wizardKind === "TEXT" ? (
-                    <div className="field">
-                      <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span>Mensaje</span>
-                        <HelpTip text="Puedes usar variables del sistema, por ejemplo: {{customer.name}}, {{customer.email}}, {{plan.name}}, {{payment.checkoutUrl}}, {{tokenization.url}}, {{catalog.url}}, {{subscription.currentPeriodEndAt}}." />
-                      </label>
-                      <textarea
-                        className="input input-compact"
-                        name="content"
-                        rows={2}
-                        defaultValue={
-                          activeReminder?.template?.content && activeReminder.template.content !== "(template)" ? activeReminder.template.content : ""
-                        }
-                        onFocus={(e) => (lastFieldRef.current = e.target)}
-                        onInput={(e) => autoResizeTextarea(e.currentTarget)}
-                      />
-                      <div className="field-hint">Se reemplazan variables del sistema automáticamente.</div>
-                      <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-                        <button type="button" className="ghost btn-compact" data-modal="true" onClick={() => setPickerOpen("vars")} aria-label="Variables" data-loader="off">
-                          {`{ }`}
-                        </button>
-                      </div>
-                    </div>
-                  ) : wizardStep === 2 ? (
-                    <WaTemplateFields
-                      templates={waTemplates}
-                      defaultName={activeReminder?.template?.chatwootTemplate?.name || ""}
-                      defaultLang={activeReminder?.template?.chatwootTemplate?.language || "es"}
-                      defaultParams={
-                        (activeReminder?.template?.chatwootTemplate?.processed_params?.body || []).map((p) => p.value).join("|")
-                      }
-                      defaultHeaderParams={
-                        (activeReminder?.template?.chatwootTemplate?.processed_params?.header || []).map((p) => p.value).join("|")
-                      }
-                      defaultButtonParams={
-                        (activeReminder?.template?.chatwootTemplate?.processed_params?.buttons || []).map((p) => p.value).join("|")
-                      }
-                    />
-                  ) : null}
-                  {wizardStep === 2 ? (
+                  <div className="field row" style={{ justifyContent: "space-between" }}>
+                    <div className="muted">Tipo: Plantilla (WhatsApp)</div>
+                  </div>
+                  <WaTemplateFields
+                    templates={waTemplates}
+                    defaultName={activeReminder?.template?.chatwootTemplate?.name || ""}
+                    defaultLang={activeReminder?.template?.chatwootTemplate?.language || "es"}
+                    defaultParams={
+                      (activeReminder?.template?.chatwootTemplate?.processed_params?.body || []).map((p) => p.value).join("|")
+                    }
+                    defaultHeaderParams={
+                      (activeReminder?.template?.chatwootTemplate?.processed_params?.header || []).map((p) => p.value).join("|")
+                    }
+                    defaultButtonParams={
+                      (activeReminder?.template?.chatwootTemplate?.processed_params?.buttons || []).map((p) => p.value).join("|")
+                    }
+                  />
+                  <>
                     <>
                       <input
                         type="hidden"
@@ -944,7 +833,7 @@ export function NotificationsSimple({
                         </PendingButton>
                       </div>
                     </>
-                  ) : null}
+                  </>
                 </form>
               ) : null}
             </div>

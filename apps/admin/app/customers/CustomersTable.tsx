@@ -1026,7 +1026,18 @@ export function CustomersTable({
                 />
                 <div className="field-hint">Se usa la plantilla configurada en Notificaciones.</div>
               </div>
-              {sendError[payModalCustomer.id] ? <div className="paylink-error">{mapSendError(sendError[payModalCustomer.id])}</div> : null}
+              {sendError[payModalCustomer.id] ? (
+                <div className="paylink-error">
+                  {mapSendError(sendError[payModalCustomer.id])}
+                  {sendError[payModalCustomer.id] === "missing_template" ? (
+                    <div style={{ marginTop: 6 }}>
+                      <a className="ghost btn-compact" href="/notifications?env=PRODUCTION&open=payment_link_created">
+                        Configurar plantilla
+                      </a>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
               {sendOk[payModalCustomer.id] ? <div className="paylink-success">Mensaje enviado correctamente.</div> : null}
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
                 <button className="ghost btn-cancel" type="button" onClick={closePayModal} data-modal-close="true" data-loader="off">
@@ -1304,7 +1315,18 @@ export function CustomersTable({
                 />
                 <div className="field-hint">Se usa la plantilla configurada en Notificaciones.</div>
               </div>
-              {sendError[tokenModalCustomer.id] ? <div className="paylink-error">{mapSendError(sendError[tokenModalCustomer.id])}</div> : null}
+              {sendError[tokenModalCustomer.id] ? (
+                <div className="paylink-error">
+                  {mapSendError(sendError[tokenModalCustomer.id])}
+                  {sendError[tokenModalCustomer.id] === "missing_template" ? (
+                    <div style={{ marginTop: 6 }}>
+                      <a className="ghost btn-compact" href="/notifications?env=PRODUCTION&open=tokenization_link_created">
+                        Configurar plantilla
+                      </a>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
               {sendOk[tokenModalCustomer.id] ? <div className="paylink-success">Mensaje enviado correctamente.</div> : null}
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
                 <button className="ghost btn-cancel" type="button" onClick={closeTokenModal} data-modal-close="true" data-loader="off">
