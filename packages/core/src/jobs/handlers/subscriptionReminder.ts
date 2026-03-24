@@ -328,40 +328,20 @@ export async function subscriptionReminder(payload: any) {
 
   const meta: any = customer?.metadata && typeof customer.metadata === "object" ? (customer.metadata as any) : {};
   const templatePaths = extractTemplatePaths([template.content || "", template.chatwootTemplate || null]);
-  const needsPaymentLink = templatePaths.some((p) => p === "paymentLink" || p.startsWith("paymentLink."));
-  const desiredCheckoutTemplateId = String((rule as any)?.checkoutTemplateId || "").trim();
-  if (needsPaymentLink && !desiredCheckoutTemplateId) {
-    await systemLog(LogLevel.WARN, "notifications.dispatch", "Checkout público no configurado para plantilla", {
-      ruleId: rule.id,
-      templateId: template.id,
-      trigger: parsed.data.trigger,
-      customerId: customer.id
-    }, "job:subscriptionReminder").catch(() => {});
-    return;
-  }
-  if (needsPaymentLink && desiredCheckoutTemplateId) {
-    const currentTemplateId = String(meta?.paymentLink?.templateId || "").trim();
-    if (!meta?.paymentLink?.url || currentTemplateId !== desiredCheckoutTemplateId) {
-      const created = await createPublicCheckoutLink({
-        customerId: customer.id,
-        templateId: desiredCheckoutTemplateId,
-        scope: "payment"
-      }).catch(() => null);
+  const checkoutIds = Array.from(
+    new Set(
+      templatePaths
+        .filter((p) => p.startsWith("checkoutPublic."))
+        .map((p) => p.split(".")[1])
+        .filter(Boolean)
+    )
+  );
+  const checkoutPublic: Record<string, string> = {};
+  if (checkoutIds.length) {
+    for (const id of checkoutIds) {
+      const created = await createPublicCheckoutLink({ customerId: customer.id, templateId: id }).catch(() => null);
       if (created?.url) {
-        const nextMeta = {
-          ...(meta || {}),
-          paymentLink: {
-            url: created.url,
-            token: created.token,
-            templateId: created.templateId,
-            templateName: created.templateName,
-            utmParams: created.utmParams,
-            createdAt: new Date().toISOString(),
-            expiresAt: created.expiresAt
-          }
-        };
-        await prisma.customer.update({ where: { id: customer.id }, data: { metadata: nextMeta } }).catch(() => {});
-        meta.paymentLink = nextMeta.paymentLink;
+        checkoutPublic[id] = created.url;
       }
     }
   }
@@ -379,6 +359,7 @@ export async function subscriptionReminder(payload: any) {
     subscription,
     plan: planWithPesos,
     payment: paymentWithPesos,
+    checkoutPublic,
     paymentLink: meta?.paymentLink ?? null,
     tokenizationLink: meta?.tokenizationLink ?? null,
     cartLink: meta?.cartLink ?? null,

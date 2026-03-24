@@ -30,7 +30,6 @@ function normalizeBase(base: string, kind: PublicCheckoutKind) {
 export async function createPublicCheckoutLink(args: {
   customerId: string;
   templateId: string;
-  scope: "payment" | "tokenization";
 }): Promise<
   | {
       url: string;
@@ -70,7 +69,8 @@ export async function createPublicCheckoutLink(args: {
       ? Math.min(Math.max(Math.trunc(expiryFromCfg), 1), 168)
       : 24;
 
-  const token = await signPublicToken({ sub: customerId, scope: args.scope, ttlSeconds: hours * 60 * 60 });
+  const scope = template.kind === "SUBSCRIPTION" ? "tokenization" : "payment";
+  const token = await signPublicToken({ sub: customerId, scope, ttlSeconds: hours * 60 * 60 });
   const baseUrl = normalizeBase(base, template.kind);
   const rawUrl = `${baseUrl}/${token}`;
   const utm = String(template.utmParams || cfg.defaultUtmParams || "").trim();
