@@ -366,13 +366,45 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
       ).conversationId;
     } catch (err: any) {
       const message = err?.message ? String(err.message) : "chatwoot_create_conversation_failed";
-      const canRetryInbox =
-        !!selectedInboxId && selectedInboxId !== cfg.inboxId && /resource could not be found/i.test(message);
+      const isNotFound = /resource could not be found/i.test(message);
+      const canRetryInbox = !!selectedInboxId && selectedInboxId !== cfg.inboxId && isNotFound;
       if (canRetryInbox) {
         try {
           conversationId = (await client.createConversation({ contactId, sourceId, inboxId: cfg.inboxId, message: undefined })).conversationId;
-        } catch (retryErr: any) {
-          const retryMessage = retryErr?.message ? String(retryErr.message) : message;
+        } catch {
+          // fall through to re-create contact
+        }
+      }
+      if (!conversationId && isNotFound) {
+        try {
+          const name = String(msg.customer.name || "").trim();
+          const email = String(msg.customer.email || "").trim();
+          const phone = String(msg.customer.phone || "").trim();
+          if (!name || !email || !phone) {
+            throw new Error("missing_customer_fields");
+          }
+          const recreated = await client.createContact({ name, email, phoneNumber: phone });
+          contactId = recreated.contactId;
+          sourceId = recreated.sourceId;
+          const merged = {
+            ...(customerMeta && typeof customerMeta === "object" ? customerMeta : {}),
+            chatwoot: {
+              contactId,
+              sourceId,
+              contactSnapshot: { name: msg.customer.name ?? null, email: msg.customer.email ?? null, phone: msg.customer.phone ?? null }
+            }
+          };
+          await prisma.customer.update({
+            where: { id: msg.customerId },
+            data: { metadata: merged as Prisma.InputJsonValue }
+          }).catch((updateErr) => {
+            logger.warn({ err: updateErr, customerId: msg.customerId }, "chatwoot.send: failed to update customer metadata");
+          });
+          conversationId = (
+            await client.createConversation({ contactId, sourceId, inboxId: selectedInboxId ?? cfg.inboxId, message: undefined })
+          ).conversationId;
+        } catch (recreateErr: any) {
+          const retryMessage = recreateErr?.message ? String(recreateErr.message) : message;
           await prisma.chatwootMessage.update({
             where: { id: chatwootMessageId },
             data: { status: MessageStatus.FAILED, errorMessage: retryMessage }
