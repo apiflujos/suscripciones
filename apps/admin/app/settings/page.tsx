@@ -13,7 +13,6 @@ import {
   deleteWompiConnection,
   updateAiProvider,
   deleteAiProvider,
-  updateGamificationConfig,
   updateAutoDebitConfig,
   updatePaymentsConfig,
   createWebhookEndpointAction,
@@ -40,7 +39,6 @@ import { RedirectConfigPanel } from "./RedirectConfigPanel";
 import { createTenant, deleteTenant, updateTenant } from "../tenants/actions";
 import { updateCheckoutConfig } from "./actions";
 import { DeleteTenantButton } from "./DeleteTenantButton";
-import { GamificationPanel } from "./GamificationPanel";
 import { UsersPanel } from "./UsersPanel";
 import { UserNotificationsPanel } from "./UserNotificationsPanel";
 import { WebhooksPanel } from "./WebhooksPanel";
@@ -48,7 +46,6 @@ import { getAdminSettings } from "../admin/_services/settings";
 import { listCheckoutTemplates } from "../admin/_services/checkoutTemplates";
 import { listCatalogProducts } from "../admin/_services/products";
 import { listTenants } from "../admin/_services/tenants";
-import { getGamificationConfig, listGamificationTrending } from "../admin/_services/gamification";
 import { listAdminUsers } from "../admin/_services/adminUsers";
 import { listWebhookEvents } from "../admin/_services/logs";
 import { listWebhookEndpoints } from "../admin/_services/webhookEndpoints";
@@ -69,19 +66,8 @@ export default async function SettingsPage({
   const templates = await listCheckoutTemplates({ wantsAll: true });
   const productsRes = await listCatalogProducts({ take: 200, includeInactive: false });
   const tenants = (await listTenants()).filter((t: any) => t?.active !== false);
-  const gamificationRes = await getGamificationConfig();
-  const [trendCustomers24h, trendCustomers7d, trendCustomers30d, trendProducts24h, trendProducts7d, trendProducts30d] =
-    await Promise.all([
-      listGamificationTrending({ scope: "customers", hours: 24 }),
-      listGamificationTrending({ scope: "customers", hours: 168 }),
-      listGamificationTrending({ scope: "customers", hours: 720 }),
-      listGamificationTrending({ scope: "products", hours: 24 }),
-      listGamificationTrending({ scope: "products", hours: 168 }),
-      listGamificationTrending({ scope: "products", hours: 720 })
-    ]);
   const usersRes = await listAdminUsers(session);
   const users = usersRes.ok ? usersRes.items || [] : [];
-  const gamificationConfig = gamificationRes.ok ? gamificationRes.config : null;
   const products = productsRes.items || [];
   const wompiActiveEnv = (settings?.wompi?.activeEnv || "PRODUCTION") as "PRODUCTION" | "SANDBOX";
   const wompiProduction = (settings?.wompi?.production || settings?.wompi || {}) as any;
@@ -126,8 +112,6 @@ export default async function SettingsPage({
   const errorText = normalizeErrorParam(typeof sp.error === "string" ? sp.error : undefined);
   const rawTab = String(sp.tab || "connections");
   const tab = rawTab === "webhooks" ? "integraciones" : rawTab;
-  const gviewRaw = String(sp.gview || "compact");
-  const gamificationView = gviewRaw === "full" ? "full" : "compact";
   const open = String(sp.open || "");
   const openTenant = String(sp.openTenant || "").trim();
   const templateKind = String(sp.kind || "").toUpperCase();
@@ -166,7 +150,6 @@ export default async function SettingsPage({
     Object.fromEntries(
       Object.entries({
         tab,
-        ...(tab === "gamificacion" ? { gview: gamificationView } : {}),
         ...(open ? { open } : {}),
         ...(templateKind ? { kind: templateKind } : {}),
         ...(templateStep ? { step: templateStep } : {})
@@ -205,9 +188,6 @@ export default async function SettingsPage({
         <a className={`settings-tab ${tab === "notificaciones" ? "is-active" : ""}`} href="/settings?tab=notificaciones" title="Reglas y canales de notificación">
           Notificaciones
         </a>
-        <a className={`settings-tab ${tab === "gamificacion" ? "is-active" : ""}`} href="/settings?tab=gamificacion" title="Métricas y configuraciones de gamificación">
-          Gamificación
-        </a>
         <a className={`settings-tab ${tab === "apariencia" ? "is-active" : ""}`} href="/settings?tab=apariencia" title="Tema, logo y apariencia general">
           Apariencia
         </a>
@@ -226,23 +206,6 @@ export default async function SettingsPage({
         <div className="card cardPad">
           `CREDENTIALS_ENCRYPTION_KEY_B64` está configurada pero es inválida. Debe ser Base64 de <strong>32 bytes</strong> (no 32 caracteres).
         </div>
-      ) : null}
-
-      {tab === "gamificacion" ? (
-        <GamificationPanel
-          csrfToken={csrfToken}
-          config={gamificationConfig}
-          view={gamificationView}
-          trending={{
-            customers24h: trendCustomers24h.ok ? trendCustomers24h.items || [] : [],
-            customers7d: trendCustomers7d.ok ? trendCustomers7d.items || [] : [],
-            customers30d: trendCustomers30d.ok ? trendCustomers30d.items || [] : [],
-            products24h: trendProducts24h.ok ? trendProducts24h.items || [] : [],
-            products7d: trendProducts7d.ok ? trendProducts7d.items || [] : [],
-            products30d: trendProducts30d.ok ? trendProducts30d.items || [] : []
-          }}
-          actions={{ updateGamificationConfig }}
-        />
       ) : null}
 
       {tab === "apariencia" ? (
@@ -949,9 +912,6 @@ export default async function SettingsPage({
                               )}
                               <div>
                                 <strong>{tenant.name || "Canal"}</strong>
-                                <div className="field-hint">
-                                  Factor: {tenant?.metadata?.gamification?.factor ?? 1} · Bonus: {tenant?.metadata?.gamification?.bonus ?? 0}
-                                </div>
                               </div>
                             </div>
                           </div>
@@ -974,26 +934,6 @@ export default async function SettingsPage({
                             </div>
                             <div style={{ minWidth: 240, flex: 1 }}>
                               <LogoUploadField name="logoUrl" label="Logo del canal" defaultValue={tenantLogo} />
-                            </div>
-                            <div className="field" style={{ minWidth: 200 }}>
-                              <label>Factor gamificación</label>
-                              <input className="input" name="gamificationFactor" type="number" step="0.01" defaultValue={tenant?.metadata?.gamification?.factor ?? 1} />
-                            </div>
-                            <div className="field" style={{ minWidth: 200 }}>
-                              <label>Bonus gamificación</label>
-                              <input className="input" name="gamificationBonus" type="number" step="1" defaultValue={tenant?.metadata?.gamification?.bonus ?? 0} />
-                            </div>
-                            <div className="field" style={{ minWidth: 200 }}>
-                              <label>Follow-up (min)</label>
-                              <input className="input" name="followupMinutes" type="number" defaultValue={tenant?.metadata?.gamification?.followupMinutes ?? ""} />
-                            </div>
-                            <div className="field" style={{ minWidth: 200 }}>
-                              <label>Cooldown (min)</label>
-                              <input className="input" name="followupCooldownMinutes" type="number" defaultValue={tenant?.metadata?.gamification?.followupCooldownMinutes ?? ""} />
-                            </div>
-                            <div className="field" style={{ minWidth: 200 }}>
-                              <label>Máx. retomas</label>
-                              <input className="input" name="followupMaxAttempts" type="number" defaultValue={tenant?.metadata?.gamification?.followupMaxAttempts ?? ""} />
                             </div>
                             <PendingButton className="ghost" type="submit" pendingText="Guardando...">
                               Guardar

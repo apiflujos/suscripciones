@@ -268,12 +268,14 @@ export function NewMassMessageModal({
   returnTo,
   lists,
   checkoutTemplates,
+  tenantId,
   action
 }: {
   csrfToken: string;
   returnTo: string;
   lists: SmartList[];
   checkoutTemplates: PublicCheckoutTemplate[];
+  tenantId?: string | null;
   action: (formData: FormData) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -337,7 +339,8 @@ export function NewMassMessageModal({
     setAudienceError("");
     setAudienceApproved(false);
     try {
-      const res = await fetch(`/admin/comms/smart-lists/${trimmed}/preview`, { method: "POST" });
+      const qs = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
+      const res = await fetch(`/admin/comms/smart-lists/${trimmed}/preview${qs}`, { method: "POST" });
       const json = await res.json().catch(() => null);
       if (res.ok && json && typeof json.count === "number") {
         setAudienceCount(json.count);
@@ -354,7 +357,7 @@ export function NewMassMessageModal({
     } finally {
       setAudienceLoading(false);
     }
-  }, []);
+  }, [tenantId]);
 
   const checkoutOptions = useMemo(
     () => (Array.isArray(checkoutTemplates) ? checkoutTemplates.filter((t) => t?.active !== false) : []),

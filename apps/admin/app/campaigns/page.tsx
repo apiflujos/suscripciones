@@ -51,6 +51,7 @@ export default async function CampaignsPage({
             returnTo={returnTo}
             lists={lists.map((l: any) => ({ id: String(l.id), name: String(l.name) }))}
             checkoutTemplates={checkoutTemplates.map((t: any) => ({ id: String(t.id), name: String(t.name), active: t.active }))}
+            tenantId={session?.tenantId || null}
             action={createCampaign}
           />
         </div>

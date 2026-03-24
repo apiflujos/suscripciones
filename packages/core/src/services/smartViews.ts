@@ -1,6 +1,5 @@
 import { prisma } from "../db/prisma";
-import { GamificationEntityType, PaymentStatus, SubscriptionStatus, SmartViewVisibility as DbSmartViewVisibility } from "@prisma/client";
-import { formatLevelName } from "./gamification";
+import { PaymentStatus, SubscriptionStatus, SmartViewVisibility as DbSmartViewVisibility } from "@prisma/client";
 
 export type SmartViewRule =
   | {
@@ -339,11 +338,7 @@ export function getSmartViewFields(scope: SmartViewScope): SmartField[] {
       { key: "payments.lastAmountInCents", label: "Monto último pago (COP)", group: "Pagos", type: "money", operators: [] },
       { key: "payments.lastCurrency", label: "Moneda último pago", group: "Pagos", type: "enum", operators: [], options: ["COP", "USD", "MXN", "PEN", "CLP"].map((v) => ({ value: v, label: v })) },
       { key: "payments.totalCount", label: "Pagos totales", group: "Pagos", type: "number", operators: [] },
-      { key: "payments.approvedCount", label: "Pagos aprobados", group: "Pagos", type: "number", operators: [] },
-      { key: "gamification.level", label: "Nivel gamificación (1-10)", group: "Gamificación", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] },
-      { key: "gamification.levelName", label: "Nivel gamificación (nombre)", group: "Gamificación", type: "enum", operators: ["equals", "in"], options: ["Rookie", "Explorador", "Bronce", "Plata", "Oro", "Platino", "Diamante", "Elite", "Maestro", "Leyenda"].map((v) => ({ value: v, label: v })) },
-      { key: "gamification.statusScore", label: "Score gamificación", group: "Gamificación", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] },
-      { key: "gamification.lifetimePoints", label: "Puntos históricos", group: "Gamificación", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] }
+      { key: "payments.approvedCount", label: "Pagos aprobados", group: "Pagos", type: "number", operators: [] }
     ]);
   }
 
@@ -361,11 +356,7 @@ export function getSmartViewFields(scope: SmartViewScope): SmartField[] {
       { key: "product.requiresShipping", label: "Requiere envío", group: "Producto", type: "boolean", operators: [] },
       { key: "product.taxable", label: "Aplica impuestos", group: "Producto", type: "boolean", operators: [] },
       { key: "product.createdAt", label: "Fecha creación", group: "Producto", type: "date", operators: [] },
-      { key: "product.updatedAt", label: "Fecha actualización", group: "Producto", type: "date", operators: [] },
-      { key: "gamification.level", label: "Nivel gamificación (1-10)", group: "Gamificación", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] },
-      { key: "gamification.levelName", label: "Nivel gamificación (nombre)", group: "Gamificación", type: "enum", operators: ["equals", "in"], options: ["Rookie", "Explorador", "Bronce", "Plata", "Oro", "Platino", "Diamante", "Elite", "Maestro", "Leyenda"].map((v) => ({ value: v, label: v })) },
-      { key: "gamification.statusScore", label: "Score gamificación", group: "Gamificación", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] },
-      { key: "gamification.lifetimePoints", label: "Puntos históricos", group: "Gamificación", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] }
+      { key: "product.updatedAt", label: "Fecha actualización", group: "Producto", type: "date", operators: [] }
     ]);
   }
 
@@ -525,7 +516,7 @@ export async function getSmartViewOptions(scope: SmartViewScope, field: string, 
 
 export async function computeSmartViewIds(scope: SmartViewScope, tenantId: string | null, rules: SmartViewRule) {
   if (scope === "customers") {
-    const [customers, approvedCounts, paymentCounts, gamificationScores] = await Promise.all([
+    const [customers, approvedCounts, paymentCounts] = await Promise.all([
       prisma.customer.findMany({
         where: tenantId ? { OR: [{ tenantId }, { tenantLinks: { some: { tenantId } } }] } : {},
         include: {
@@ -545,12 +536,6 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
       prisma.payment.groupBy({
         by: ["customerId"],
         _count: { _all: true }
-      }),
-      prisma.gamificationScore.findMany({
-        where: {
-          entityType: GamificationEntityType.CUSTOMER,
-          ...(tenantId ? { OR: [{ tenantId }, { tenantId: null }] } : { tenantId: null })
-        }
       })
     ]);
 
@@ -558,12 +543,6 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
     approvedCounts.forEach((row) => approvedByCustomer.set(String(row.customerId), Number(row._count?._all || 0)));
     const paymentsByCustomer = new Map<string, number>();
     paymentCounts.forEach((row) => paymentsByCustomer.set(String(row.customerId), Number(row._count?._all || 0)));
-    const gamificationByKey = new Map<string, { level?: number | null; statusScore?: number | null; lifetimePoints?: number | null }>();
-    gamificationScores.forEach((row) => {
-      const key = `${row.tenantId || "global"}:${row.entityId}`;
-      gamificationByKey.set(key, row);
-    });
-
     const now = Date.now();
 
     return customers
@@ -581,12 +560,6 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
 
         const planMeta = asRecord(sub?.plan?.metadata);
         const collectionMode = (planMeta.collectionMode as string) || null;
-
-        const gKey = tenantId ? `${tenantId}:${customer.id}` : `global:${customer.id}`;
-        const gFallbackKey = `global:${customer.id}`;
-        const gamification = gamificationByKey.get(gKey) || gamificationByKey.get(gFallbackKey) || null;
-        const gamificationLevel = Number(gamification?.level || 1);
-        const gamificationLevelName = formatLevelName(gamificationLevel);
 
         const customerMeta = asRecord(customer.metadata);
         const addressMeta = asRecord(customerMeta.address);
@@ -635,12 +608,6 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
             lastCurrency: latestPayment?.currency ?? null,
             approvedCount,
             totalCount: totalPayments
-          },
-          gamification: {
-            level: gamificationLevel,
-            levelName: gamificationLevelName,
-            statusScore: Number(gamification?.statusScore || 0),
-            lifetimePoints: Number(gamification?.lifetimePoints || 0)
           }
         };
         return evalRule(rules, ctx);
@@ -655,24 +622,8 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
         ...(tenantId ? { OR: [{ tenantId }, { tenantLinks: { some: { tenantId } } }] } : {})
       }
     });
-    const gamificationScores = await prisma.gamificationScore.findMany({
-      where: {
-        entityType: GamificationEntityType.PRODUCT,
-        ...(tenantId ? { OR: [{ tenantId }, { tenantId: null }] } : { tenantId: null })
-      }
-    });
-    const gamificationByKey = new Map<string, { level?: number | null; statusScore?: number | null; lifetimePoints?: number | null }>();
-    gamificationScores.forEach((row) => {
-      const key = `${row.tenantId || "global"}:${row.entityId}`;
-      gamificationByKey.set(key, row);
-    });
     return items
       .filter((p: any) => {
-        const gKey = tenantId ? `${tenantId}:${p.id}` : `global:${p.id}`;
-        const gFallbackKey = `global:${p.id}`;
-        const gamification = gamificationByKey.get(gKey) || gamificationByKey.get(gFallbackKey) || null;
-        const gamificationLevel = Number(gamification?.level || 1);
-        const gamificationLevelName = formatLevelName(gamificationLevel);
         const productMeta = asRecord(p.metadata);
         const displayName = typeof productMeta.displayName === "string" ? productMeta.displayName : "";
         const sku = typeof productMeta.sku === "string" ? productMeta.sku : "";
@@ -696,12 +647,6 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
             taxable,
             createdAt: p.createdAt,
             updatedAt: p.updatedAt
-          },
-          gamification: {
-            level: gamificationLevel,
-            levelName: gamificationLevelName,
-            statusScore: Number(gamification?.statusScore || 0),
-            lifetimePoints: Number(gamification?.lifetimePoints || 0)
           }
         };
         return evalRule(rules, ctx);

@@ -98,11 +98,8 @@ const REMINDER_TYPES = [
 type OffsetItem = { amount: string; unit: "minutes" | "hours" | "days" };
 const MESSAGE_VARIABLES = [
   { label: "Ciclo actual", value: "{{subscription.currentCycle}}" },
-  { label: "Correo de la empresa", value: "{{company.email}}" },
-  { label: "Correo del contacto", value: "{{contact.email}}" },
   { label: "Correo electrónico", value: "{{customer.email}}" },
   { label: "Dirección", value: "{{customer.metadata.address}}" },
-  { label: "Enlace de catálogo", value: "{{catalog.url}}" },
   { label: "Estado de la suscripción", value: "{{subscription.status}}" },
   { label: "Estado del pago", value: "{{payment.status}}" },
   { label: "Fecha de corte", value: "{{subscription.currentPeriodEndAt}}" },
@@ -116,13 +113,10 @@ const MESSAGE_VARIABLES = [
   { label: "Moneda del producto", value: "{{plan.currency}}" },
   { label: "Monto del pago (pesos)", value: "{{payment.amountInPesos}}" },
   { label: "Nombre de la empresa", value: "{{company.name}}" },
-  { label: "Nombre del contacto", value: "{{contact.name}}" },
   { label: "Nombre del producto", value: "{{plan.name}}" },
   { label: "Precio del producto (pesos)", value: "{{plan.priceInPesos}}" },
   { label: "Referencia", value: "{{payment.reference}}" },
   { label: "Teléfono", value: "{{customer.phone}}" },
-  { label: "Teléfono de la empresa", value: "{{company.phone}}" },
-  { label: "Teléfono del contacto", value: "{{contact.phone}}" },
   { label: "Tipo de pago", value: "{{paymentType}}" }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
@@ -154,6 +148,8 @@ function WaTemplateFields({
   defaultParams,
   defaultHeaderParams,
   defaultButtonParams,
+  variables,
+  buttonVariables,
   onSync,
   syncing,
   syncError
@@ -164,6 +160,8 @@ function WaTemplateFields({
   defaultParams?: string;
   defaultHeaderParams?: string;
   defaultButtonParams?: string;
+  variables: Array<{ label: string; value: string }>;
+  buttonVariables: Array<{ label: string; value: string }>;
   onSync?: () => void;
   syncing?: boolean;
   syncError?: string;
@@ -312,7 +310,7 @@ function WaTemplateFields({
                     }}
                   >
                     <option value="">{`{{${idx + 1}}} · Selecciona variable`}</option>
-                    {MESSAGE_VARIABLES.map((v) => (
+                    {variables.map((v) => (
                       <option key={`${idx}-${v.value}`} value={v.value}>
                         {v.label}
                       </option>
@@ -336,7 +334,7 @@ function WaTemplateFields({
                     }}
                   >
                     <option value="">{`{{${idx + 1}}} · Selecciona variable`}</option>
-                    {MESSAGE_VARIABLES.map((v) => (
+                    {variables.map((v) => (
                       <option key={`h-${idx}-${v.value}`} value={v.value}>
                         {v.label}
                       </option>
@@ -360,7 +358,7 @@ function WaTemplateFields({
                     }}
                   >
                     <option value="">{`Botón ${idx + 1} · Selecciona variable`}</option>
-                    {MESSAGE_VARIABLES.map((v) => (
+                    {buttonVariables.map((v) => (
                       <option key={`b-${idx}-${v.value}`} value={v.value}>
                         {v.label}
                       </option>
@@ -547,6 +545,8 @@ export function NotificationsSimple({
       { label: `Checkout público: ${t.name} (Nombre)`, value: `{{checkoutPublicName.${t.id}}}` }
     ]);
   }, [checkoutOptions]);
+  const bodyVars = useMemo(() => [...MESSAGE_VARIABLES, ...checkoutVars], [checkoutVars]);
+  const buttonVars = useMemo(() => [...checkoutVars], [checkoutVars]);
 
   useEffect(() => {
     if (!activeModal) return;
@@ -764,6 +764,8 @@ export function NotificationsSimple({
                         defaultParams={waBodyParams.map((p) => p.value).join("|")}
                         defaultHeaderParams={waHeaderParams.map((p) => p.value).join("|")}
                         defaultButtonParams={waButtonParams.map((p) => p.value).join("|")}
+                        variables={bodyVars}
+                        buttonVariables={buttonVars}
                       />
                       <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
                         <PendingButton className="primary btn-compact btn-save" type="submit" pendingText="Guardando...">
@@ -803,6 +805,8 @@ export function NotificationsSimple({
                     defaultButtonParams={
                       (activeReminder?.template?.chatwootTemplate?.processed_params?.buttons || []).map((p) => p.value).join("|")
                     }
+                    variables={bodyVars}
+                    buttonVariables={buttonVars}
                   />
                   <input
                     type="hidden"
