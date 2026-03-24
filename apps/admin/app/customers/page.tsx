@@ -332,45 +332,6 @@ export default async function CustomersPage({
       ? `Mostrando ${startIndex}-${endIndex} de ${total} · ${take} por página`
       : "Sin resultados";
 
-  const iconForCategory = (category?: string) => {
-    const key = String(category || "").toLowerCase();
-    if (key.includes("gam")) {
-      return (
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M12 2l2.4 6.4L21 9l-5 4 1.8 6-5.8-3.6L6.2 19 8 13 3 9l6.6-.6z" />
-        </svg>
-      );
-    }
-    if (key.includes("rank")) {
-      return (
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M6 4h12v4a6 6 0 0 1-12 0V4zm3 9h6v7H9z" />
-        </svg>
-      );
-    }
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M9 12l2 2 4-4M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z" />
-      </svg>
-    );
-  };
-
-  const toneForCategory = (category?: string) => {
-    const key = String(category || "").toLowerCase();
-    if (key.includes("gam")) return "gamification";
-    if (key.includes("rank")) return "ranking";
-    if (key.includes("estado") || key.includes("status")) return "status";
-    return "default";
-  };
-
-  const buildListHref = (id: string) => {
-    const sp = new URLSearchParams({
-      ...(q ? { q } : {}),
-      ...(tenantId ? { tenantId } : {}),
-      list: id
-    });
-    return `/customers?${sp.toString()}`;
-  };
   const exportHref = `/api/list-csv?${new URLSearchParams({
     scope: "customers",
     ...(q ? { q } : {}),
@@ -379,8 +340,6 @@ export default async function CustomersPage({
     ...(viewId ? { viewId } : {}),
     ...(filters ? { filters } : {})
   }).toString()}`;
-
-  const quickLists = smartLists.filter((list: any) => !String(list?.category || "").toLowerCase().includes("gam"));
 
   return (
     <main className="page" style={{ maxWidth: "100%" }}>
@@ -399,29 +358,6 @@ export default async function CustomersPage({
           <div className="filtersRow">
             <div className="filtersLeft">
               <div className="filtersPanel">
-                {quickLists.length ? (
-                  <div className="filtersQuickRow">
-                    <div className="filter-label">
-                      Listas inteligentes
-                      <HelpTip text="Accesos rápidos a segmentos guardados (filtrados por comportamiento o atributos)." />
-                    </div>
-                    <div className="filtersQuick">
-                      {quickLists.map((list: any) => (
-                        <a
-                          key={list.id}
-                          className={`pill quick-pill ${listId === list.id ? "is-active" : ""}`}
-                          href={buildListHref(list.id)}
-                          data-tone={toneForCategory(list.category)}
-                        >
-                          <span className="quick-pill-icon" aria-hidden="true">
-                            {iconForCategory(list.category)}
-                          </span>
-                          {list.name}
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
                 <div className="contacts-search-row">
                   <form action="/customers" method="GET" className="filtersForm filtersSearch">
                     {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}

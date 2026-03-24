@@ -141,6 +141,11 @@ export function SmartViewsBar({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [pinnedIds, setPinnedIds] = useState<string[]>([]);
+  const [pinSelectIndex, setPinSelectIndex] = useState<number | null>(null);
+
+  const storageKey = `smartViewsPins:${scope}`;
+  const PIN_SLOTS = 4;
 
   const GROUP_ORDER = [
     "Datos personales",
@@ -182,6 +187,43 @@ export function SmartViewsBar({
     if (!presetViews.length) return views;
     return [...presetViews, ...views];
   }, [presetViews, views]);
+
+  useEffect(() => {
+    try {
+      const stored = typeof window !== "undefined" ? window.localStorage.getItem(storageKey) : null;
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setPinnedIds(parsed.map((id) => String(id)).filter(Boolean).slice(0, PIN_SLOTS));
+        }
+      }
+    } catch {
+      // ignore invalid storage
+    }
+  }, [storageKey]);
+
+  useEffect(() => {
+    if (!pinnedIds.length) return;
+    const valid = pinnedIds.filter((id) => mergedViews.some((v) => v.id === id)).slice(0, PIN_SLOTS);
+    if (valid.length !== pinnedIds.length) {
+      setPinnedIds(valid);
+      try {
+        if (typeof window !== "undefined") window.localStorage.setItem(storageKey, JSON.stringify(valid));
+      } catch {
+        // ignore storage failures
+      }
+    }
+  }, [mergedViews, pinnedIds, storageKey]);
+
+  const savePins = (next: string[]) => {
+    const trimmed = next.map((id) => String(id)).filter(Boolean).slice(0, PIN_SLOTS);
+    setPinnedIds(trimmed);
+    try {
+      if (typeof window !== "undefined") window.localStorage.setItem(storageKey, JSON.stringify(trimmed));
+    } catch {
+      // ignore storage failures
+    }
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -527,6 +569,72 @@ export function SmartViewsBar({
   return (
     <div className={`smartViewsBar ${compactInline ? "smartViewsBarInline" : ""}`} data-loader="off">
       <div className="smartViewsTop">
+        <div className="smartViewsPins">
+          {Array.from({ length: PIN_SLOTS }).map((_, idx) => {
+            const viewId = pinnedIds[idx] || "";
+            const view = viewId ? mergedViews.find((v) => v.id === viewId) : null;
+            return (
+              <div key={`pin-${idx}`} className={`smartViewsPinSlot ${view ? "is-filled" : ""}`}>
+                {view ? (
+                  <>
+                    <button
+                      type="button"
+                      className="pill smartViewsPinButton"
+                      onClick={() => applyView(view.id)}
+                      title={`Abrir ${view.name}`}
+                      data-loader="off"
+                    >
+                      {view.name}
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost smartViewsPinRemove"
+                      aria-label={`Quitar ${view.name}`}
+                      onClick={() => {
+                        const next = pinnedIds.slice();
+                        next[idx] = "";
+                        savePins(next);
+                      }}
+                      data-loader="off"
+                    >
+                      ×
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className="pill smartViewsPinAdd"
+                    onClick={() => setPinSelectIndex(idx)}
+                    data-loader="off"
+                  >
+                    + Lista
+                  </button>
+                )}
+              </div>
+            );
+          })}
+          {pinSelectIndex !== null ? (
+            <select
+              className="select smartViewsPinSelect"
+              value=""
+              onChange={(e) => {
+                const nextId = String(e.target.value || "");
+                if (!nextId) return;
+                const next = pinnedIds.slice();
+                next[pinSelectIndex] = nextId;
+                savePins(next);
+                setPinSelectIndex(null);
+              }}
+            >
+              <option value="">Selecciona una lista…</option>
+              {mergedViews.map((view) => (
+                <option key={`pin-opt-${view.id}`} value={view.id}>
+                  {view.name} {view.visibility === "PRIVATE" ? "(Privada)" : ""}
+                </option>
+              ))}
+            </select>
+          ) : null}
+        </div>
         {compactInline ? (
           <div className="smartViewsInlineRow">
             <div className="smartViewsActions">
