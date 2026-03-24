@@ -127,10 +127,44 @@ export async function getNotificationsConfigForEnv(env: ActiveEnv): Promise<Noti
   try {
     const parsed = JSON.parse(raw);
     const cfg = notificationsConfigSchema.parse(parsed);
-    return cfg;
+    return normalizeNotificationsConfig(cfg);
   } catch {
     return defaultConfig();
   }
+}
+
+function isTokenizationTemplate(template: NotificationsConfig["templates"][number] | undefined | null): boolean {
+  if (!template) return false;
+  const name = String(template.chatwootTemplate?.name || template.name || "").toLowerCase();
+  if (name.includes("tokeniz") || name.includes("tokenizaci") || name.includes("debito") || name.includes("débito")) return true;
+  const content = String(template.content || "").toLowerCase();
+  if (content.includes("tokeniz") || content.includes("tokenization") || content.includes("tokenizacion")) return true;
+  const params = template.chatwootTemplate?.processed_params || {};
+  const values: string[] = [];
+  if (Array.isArray((params as any).body)) values.push(...(params as any).body.map((p: any) => String(p?.value || "")));
+  if (Array.isArray((params as any).header)) values.push(...(params as any).header.map((p: any) => String(p?.value || "")));
+  if (Array.isArray((params as any).buttons)) values.push(...(params as any).buttons.map((p: any) => String(p?.value || "")));
+  return values.some((v) => v.toLowerCase().includes("tokeniz") || v.toLowerCase().includes("tokenizacion"));
+}
+
+function normalizeNotificationsConfig(cfg: NotificationsConfig): NotificationsConfig {
+  const templates = Array.isArray(cfg.templates) ? cfg.templates : [];
+  const templateById = new Map(templates.map((t) => [String(t.id), t]));
+  const rules = Array.isArray(cfg.rules) ? cfg.rules : [];
+  const nextRules = rules.map((rule) => {
+    const next = { ...rule, conditions: rule.conditions ? { ...rule.conditions } : undefined } as typeof rule;
+    if (next.trigger === "PAYMENT_LINK_CREATED") {
+      const tpl = templateById.get(String(next.templateId));
+      if (isTokenizationTemplate(tpl)) {
+        next.trigger = "TOKENIZATION_LINK_CREATED" as any;
+        if (next.conditions?.requirePaymentTypeIn) delete next.conditions.requirePaymentTypeIn;
+      } else if (!next.conditions?.requirePaymentTypeIn || next.conditions.requirePaymentTypeIn.length === 0) {
+        next.conditions = { ...(next.conditions || {}), requirePaymentTypeIn: ["LINK"] as any };
+      }
+    }
+    return next;
+  });
+  return { ...cfg, rules: nextRules };
 }
 
 export async function setNotificationsConfig(cfg: unknown, opts?: { environment?: ActiveEnv }) {

@@ -299,16 +299,14 @@ export async function subscriptionReminder(payload: any) {
 
   const paymentType = parsed.data.paymentType || getPaymentType({ subscription, payment: effectivePayment || payment });
 
-  if (parsed.data.trigger !== "PAYMENT_LINK_CREATED") {
-    if (rule.conditions?.requirePaymentTypeIn && !rule.conditions.requirePaymentTypeIn.includes(paymentType as any)) {
-      await systemLog(LogLevel.WARN, "notifications.dispatch", "Tipo de pago no permitido por la regla", {
-        ruleId: rule.id,
-        templateId: template.id,
-        trigger: parsed.data.trigger,
-        paymentType
-      }, "job:subscriptionReminder").catch(() => {});
-      return;
-    }
+  if (rule.conditions?.requirePaymentTypeIn && !rule.conditions.requirePaymentTypeIn.includes(paymentType as any)) {
+    await systemLog(LogLevel.WARN, "notifications.dispatch", "Tipo de pago no permitido por la regla", {
+      ruleId: rule.id,
+      templateId: template.id,
+      trigger: parsed.data.trigger,
+      paymentType
+    }, "job:subscriptionReminder").catch(() => {});
+    return;
   }
 
   const meta: any = customer?.metadata && typeof customer.metadata === "object" ? (customer.metadata as any) : {};
