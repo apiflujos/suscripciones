@@ -233,7 +233,7 @@ export default async function CustomersPage({
   const empresas = (empresasRes?.items ?? []) as any[];
   const checkoutConfig = settingsRes?.checkoutConfig || {};
   const notificationsConfig = notificationsRes?.config || null;
-  const smartListsRaw = smartListsRes?.ok ? smartListsRes.json?.items ?? [] : [];
+  const smartListsRaw = smartListsRes?.ok ? smartListsRes.items ?? [] : [];
   const smartListPreviews = smartListsRaw.length
     ? await Promise.all(smartListsRaw.map((list: any) => fetchSmartListPreview(String(list.id || ""), tenantId)))
     : [];

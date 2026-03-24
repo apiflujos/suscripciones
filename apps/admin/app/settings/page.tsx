@@ -156,9 +156,6 @@ export default async function SettingsPage({
   const webhookEvents = tenantId ? await listWebhookEvents({ tenantId, take: 25 }) : { items: [] as any[] };
   const wompiLastEvent = (webhookEvents.items || []).find((e: any) => String(e?.provider || "") === "WOMPI") || null;
   const wompiLastEventAt = wompiLastEvent?.receivedAt || null;
-  const wompiEventsSecretMasked = maskSecret(
-    wompiActiveEnv === "SANDBOX" ? String(wompiSandbox?.eventsSecret || "") : String(wompiProduction?.eventsSecret || "")
-  );
   const renderInline = (actionKey: string, okText: string, failPrefix: string) => {
     if (action !== actionKey) return null;
     if (status === "ok") return <div className="field-hint is-success">{okText}</div>;
@@ -183,6 +180,9 @@ export default async function SettingsPage({
     const last4 = raw.slice(-4);
     return `••••••••${last4}`;
   };
+  const wompiEventsSecretMasked = maskSecret(
+    wompiActiveEnv === "SANDBOX" ? String(wompiSandbox?.eventsSecret || "") : String(wompiProduction?.eventsSecret || "")
+  );
 
   return (
     <main className="page pageWide settingsPage">
