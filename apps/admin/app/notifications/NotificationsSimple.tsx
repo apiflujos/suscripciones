@@ -818,22 +818,18 @@ export function NotificationsSimple({
                       (activeReminder?.template?.chatwootTemplate?.processed_params?.buttons || []).map((p) => p.value).join("|")
                     }
                   />
-                  <>
-                    <>
-                      <input
-                        type="hidden"
-                        name="offsetsSeconds"
-                        value={reminderOffsets
-                          .map((o) => secondsFromOffset(o, activeModal.kind === "DUE" ? -1 : 1))
-                          .join(",")}
-                      />
-                      <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-                        <PendingButton className="primary btn-compact btn-save" type="submit" pendingText="Guardando...">
-                          Guardar
-                        </PendingButton>
-                      </div>
-                    </>
-                  </>
+                  <input
+                    type="hidden"
+                    name="offsetsSeconds"
+                    value={reminderOffsets
+                      .map((o) => secondsFromOffset(o, activeModal.kind === "DUE" ? -1 : 1))
+                      .join(",")}
+                  />
+                  <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
+                    <PendingButton className="primary btn-compact btn-save" type="submit" pendingText="Guardando...">
+                      Guardar
+                    </PendingButton>
+                  </div>
                 </form>
               ) : null}
             </div>

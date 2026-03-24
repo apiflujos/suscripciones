@@ -88,7 +88,14 @@ export function TokenizationLinkModalButton({
                 </PendingButton>
               </div>
               {!canSend ? (
-                <div className="field-hint ui-alert-danger">No hay plantilla activa para tokenización en Notificaciones.</div>
+                <div className="field-hint ui-alert-danger">
+                  No hay plantilla activa para tokenización en Notificaciones.
+                  <div style={{ marginTop: 6 }}>
+                    <a className="ghost btn-compact" href="/notifications?env=PRODUCTION&open=tokenization_link_created">
+                      Configurar plantilla
+                    </a>
+                  </div>
+                </div>
               ) : null}
             </form>
           </div>
