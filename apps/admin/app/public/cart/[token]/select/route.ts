@@ -109,6 +109,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
 
   const rawConfig = (await getCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG")) || "";
   const cfg = parseCheckoutConfig(rawConfig);
+  const templateExpiryHours = Number.isFinite(Number((template as any)?.expiryHours)) ? Number((template as any).expiryHours) : NaN;
+  const configExpiryHours = Number.isFinite(cfg.tokenExpiryHours) ? Number(cfg.tokenExpiryHours) : NaN;
+  const expiryHours =
+    Number.isFinite(templateExpiryHours) && templateExpiryHours > 0
+      ? Math.min(Math.max(Math.trunc(templateExpiryHours), 1), 168)
+      : Number.isFinite(configExpiryHours) && configExpiryHours > 0
+        ? Math.min(Math.max(Math.trunc(configExpiryHours), 1), 168)
+        : 24;
   const collectionMode = String((plan.metadata as PlanMetadata | null)?.collectionMode || "MANUAL_LINK");
 
   if (collectionMode === "AUTO_DEBIT") {
@@ -117,10 +125,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
     const linkToken = await signPublicToken({
       sub: customer.id,
       scope: "tokenization",
-      ttlSeconds: (Number.isFinite(cfg.tokenExpiryHours) && cfg.tokenExpiryHours > 0 ? Math.trunc(cfg.tokenExpiryHours) : 24) * 60 * 60
+      ttlSeconds: expiryHours * 60 * 60
     });
     const nextUrl = buildPublicUrl(base, `/public/suscripcion/${linkToken}`, cfg.defaultUtmParams);
-    const expiryHours = Number.isFinite(cfg.tokenExpiryHours) && cfg.tokenExpiryHours > 0 ? Math.min(Math.max(Math.trunc(cfg.tokenExpiryHours), 1), 168) : 24;
     const expiresAt = new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString();
     const nextMeta = {
       ...meta,
@@ -187,10 +194,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   const linkToken = await signPublicToken({
     sub: customer.id,
     scope: "payment",
-    ttlSeconds: (Number.isFinite(cfg.tokenExpiryHours) && cfg.tokenExpiryHours > 0 ? Math.trunc(cfg.tokenExpiryHours) : 24) * 60 * 60
+    ttlSeconds: expiryHours * 60 * 60
   });
   const publicUrl = buildPublicUrl(base, `/public/plan/${linkToken}`, cfg.defaultUtmParams);
-  const expiryHours = Number.isFinite(cfg.tokenExpiryHours) && cfg.tokenExpiryHours > 0 ? Math.min(Math.max(Math.trunc(cfg.tokenExpiryHours), 1), 168) : 24;
   const expiresAt = new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString();
 
   const nextMeta = {
