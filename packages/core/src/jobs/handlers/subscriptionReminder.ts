@@ -4,6 +4,7 @@ import { prisma } from "../../db/prisma";
 import { getNotificationsConfig, notificationTriggerSchema } from "../../services/notificationsConfig";
 import { createPaymentLinkForSubscription } from "../../services/subscriptionBilling";
 import { systemLog } from "../../services/systemLog";
+import { createPublicCheckoutLink } from "../../services/publicCheckoutLinks";
 import { sendChatwootMessage } from "./sendChatwootMessage";
 import { getDefaultTenantId } from "../../services/tenantContext";
 
@@ -326,6 +327,35 @@ export async function subscriptionReminder(payload: any) {
   }
 
   const meta: any = customer?.metadata && typeof customer.metadata === "object" ? (customer.metadata as any) : {};
+  const templatePaths = extractTemplatePaths([template.content || "", template.chatwootTemplate || null]);
+  const needsPaymentLink = templatePaths.some((p) => p === "paymentLink" || p.startsWith("paymentLink."));
+  const desiredCheckoutTemplateId = String((rule as any)?.checkoutTemplateId || "").trim();
+  if (needsPaymentLink && desiredCheckoutTemplateId) {
+    const currentTemplateId = String(meta?.paymentLink?.templateId || "").trim();
+    if (!meta?.paymentLink?.url || currentTemplateId !== desiredCheckoutTemplateId) {
+      const created = await createPublicCheckoutLink({
+        customerId: customer.id,
+        templateId: desiredCheckoutTemplateId,
+        scope: "payment"
+      }).catch(() => null);
+      if (created?.url) {
+        const nextMeta = {
+          ...(meta || {}),
+          paymentLink: {
+            url: created.url,
+            token: created.token,
+            templateId: created.templateId,
+            templateName: created.templateName,
+            utmParams: created.utmParams,
+            createdAt: new Date().toISOString(),
+            expiresAt: created.expiresAt
+          }
+        };
+        await prisma.customer.update({ where: { id: customer.id }, data: { metadata: nextMeta } }).catch(() => {});
+        meta.paymentLink = nextMeta.paymentLink;
+      }
+    }
+  }
   const centsToPesos = (value?: number | null) => Math.trunc(Number(value || 0) / 100);
   const tokenizationUrl = parsed.data.tokenUrl || meta?.tokenizationLink?.url || "";
   const catalogUrl = parsed.data.catalogUrl || meta?.cartLink?.url || "";
@@ -348,7 +378,7 @@ export async function subscriptionReminder(payload: any) {
     paymentType
   };
 
-  const missing = extractTemplatePaths([template.content || "", template.chatwootTemplate || null]).filter((p) => {
+  const missing = templatePaths.filter((p) => {
     const v = getPath(ctx, p);
     return v == null || v === "";
   });

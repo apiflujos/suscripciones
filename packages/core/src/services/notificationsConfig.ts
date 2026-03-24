@@ -73,6 +73,7 @@ const ruleSchema = z.object({
   enabled: z.boolean().default(true),
   trigger: notificationTriggerSchema,
   templateId: z.string().min(1),
+  checkoutTemplateId: z.string().min(1).optional(),
   offsetsSeconds: z.array(z.number().int()).optional(),
   offsetsMinutes: z.array(z.number().int()).optional(),
   atTimeUtc: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(),

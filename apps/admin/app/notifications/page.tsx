@@ -3,6 +3,7 @@ import { NotificationsSimple } from "./NotificationsSimple";
 import { saveReminder, saveRealtime, toggleRule } from "./actions";
 import { normalizeErrorParam } from "../lib/errorParam";
 import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
+import { listCheckoutTemplates } from "../admin/_services/checkoutTemplates";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,7 @@ export default async function NotificationsPage({
   const config = (await getNotificationsConfigForEnv(env)) || { templates: [], rules: [] };
   const templates = Array.isArray(config.templates) ? config.templates : [];
   const rules = Array.isArray(config.rules) ? config.rules : [];
+  const checkoutTemplates = (await listCheckoutTemplates({ wantsAll: true })).filter((t) => t.active !== false);
 
   return (
     <main className="page pageWide notificationsPage">
@@ -28,7 +30,14 @@ export default async function NotificationsPage({
         </div>
       ) : null}
 
-      <NotificationsSimple env={env} csrfToken={csrfToken} templates={templates} rules={rules} actions={{ saveRealtime, saveReminder, toggleRule }} />
+      <NotificationsSimple
+        env={env}
+        csrfToken={csrfToken}
+        templates={templates}
+        rules={rules}
+        checkoutTemplates={checkoutTemplates}
+        actions={{ saveRealtime, saveReminder, toggleRule }}
+      />
     </main>
   );
 }

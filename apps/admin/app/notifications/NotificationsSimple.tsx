@@ -32,6 +32,14 @@ type ChatwootTemplate = {
   components?: any[];
 };
 
+type PublicCheckoutTemplate = {
+  id: string;
+  name: string;
+  kind?: string | null;
+  active?: boolean | null;
+  expiryHours?: number | null;
+};
+
 type Rule = {
   id: string;
   name: string;
@@ -41,6 +49,7 @@ type Rule = {
   offsetsSeconds?: number[];
   atTimeUtc?: string | null;
   ensurePaymentLink?: boolean;
+  checkoutTemplateId?: string | null;
   conditions?: {
     requirePaymentTypeIn?: Array<"PLAN" | "SUBSCRIPTION" | "LINK">;
   };
@@ -397,12 +406,14 @@ export function NotificationsSimple({
   csrfToken,
   templates,
   rules,
+  checkoutTemplates,
   actions
 }: {
   env: Env;
   csrfToken: string;
   templates: Template[];
   rules: Rule[];
+  checkoutTemplates: PublicCheckoutTemplate[];
   actions: {
     saveRealtime: (formData: FormData) => void;
     saveReminder: (formData: FormData) => void;
@@ -532,6 +543,7 @@ export function NotificationsSimple({
   }
 
   const pendingRealtime = REALTIME_TYPES;
+  const checkoutOptions = Array.isArray(checkoutTemplates) ? checkoutTemplates.filter((t) => t?.active !== false) : [];
 
   useEffect(() => {
     if (!activeModal) return;
@@ -730,6 +742,8 @@ export function NotificationsSimple({
                   const waBodyParams = tpl?.chatwootTemplate?.processed_params?.body || [];
                   const waHeaderParams = tpl?.chatwootTemplate?.processed_params?.header || [];
                   const waButtonParams = tpl?.chatwootTemplate?.processed_params?.buttons || [];
+                  const checkoutTemplateId = String((rule as any)?.checkoutTemplateId || "");
+                  const showCheckoutSelect = rt.paymentType === "LINK";
                   return (
                     <form action={actions.saveRealtime} className="notification-form" style={{ display: "grid", gap: 10 }}>
                       <input type="hidden" name="csrf" value={csrfToken} />
@@ -742,6 +756,20 @@ export function NotificationsSimple({
                       <div className="field row" style={{ justifyContent: "space-between" }}>
                         <div className="muted">Tipo: Plantilla (WhatsApp)</div>
                       </div>
+                      {showCheckoutSelect ? (
+                        <div className="field">
+                          <label>Checkout público para el botón</label>
+                          <select className="select" name="checkoutTemplateId" defaultValue={checkoutTemplateId}>
+                            <option value="">Selecciona un checkout…</option>
+                            {checkoutOptions.map((t) => (
+                              <option key={t.id} value={t.id}>
+                                {t.name} · {String(t.kind || "").toUpperCase() === "SUBSCRIPTION" ? "Débito automático" : "Link de pago"}
+                              </option>
+                            ))}
+                          </select>
+                          <div className="field-hint">Se usará para {{paymentLink.url}} y {{paymentLink.templateName}}.</div>
+                        </div>
+                      ) : null}
                       <WaTemplateFields
                         templates={waTemplates}
                         defaultName={waName}
@@ -775,6 +803,24 @@ export function NotificationsSimple({
                   <div className="field row" style={{ justifyContent: "space-between" }}>
                     <div className="muted">Tipo: Plantilla (WhatsApp)</div>
                   </div>
+                  {activeModal.paymentType === "LINK" ? (
+                    <div className="field">
+                      <label>Checkout público para el botón</label>
+                      <select
+                        className="select"
+                        name="checkoutTemplateId"
+                        defaultValue={String((activeReminder?.rule as any)?.checkoutTemplateId || "")}
+                      >
+                        <option value="">Selecciona un checkout…</option>
+                        {checkoutOptions.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name} · {String(t.kind || "").toUpperCase() === "SUBSCRIPTION" ? "Débito automático" : "Link de pago"}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="field-hint">Se usará para {{paymentLink.url}} y {{paymentLink.templateName}}.</div>
+                    </div>
+                  ) : null}
                   <WaTemplateFields
                     templates={waTemplates}
                     defaultName={activeReminder?.template?.chatwootTemplate?.name || ""}

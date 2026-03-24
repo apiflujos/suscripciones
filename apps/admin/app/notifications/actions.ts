@@ -347,6 +347,7 @@ export async function saveRealtime(formData: FormData) {
   const meta = REALTIME_MAP[key];
   if (!meta) return redirect(`/notifications?env=${environment}&error=invalid_key`);
   const enabled = String(formData.get("enabled") || "") === "on";
+  const checkoutTemplateId = String(formData.get("checkoutTemplateId") || "").trim();
 
   try {
     const config = await getNotificationsConfig(environment);
@@ -380,7 +381,8 @@ export async function saveRealtime(formData: FormData) {
       enabled,
       trigger: meta.trigger,
       templateId,
-      offsetsSeconds: [0]
+      offsetsSeconds: [0],
+      ...(checkoutTemplateId ? { checkoutTemplateId } : {})
     };
     if (meta.paymentType) rule.conditions = { requirePaymentTypeIn: [meta.paymentType] };
     nextRules.push(rule);
@@ -401,6 +403,7 @@ export async function saveReminder(formData: FormData) {
   const paymentType = paymentTypeRaw === "SUBSCRIPTION" ? "SUBSCRIPTION" : "LINK";
   const enabled = String(formData.get("enabled") || "") === "on";
   const templateId = String(formData.get("templateId") || "").trim();
+  const checkoutTemplateId = String(formData.get("checkoutTemplateId") || "").trim();
   if (!templateId) return redirect(`/notifications?env=${environment}&error=invalid_template`);
   const offsetsRaw = String(formData.get("offsetsSeconds") || "");
   const offsetsSeconds = parseOffsetsCsv(offsetsRaw, kind === "MORA" ? 1 : -1);
@@ -440,7 +443,8 @@ export async function saveReminder(formData: FormData) {
       templateId,
       offsetsSeconds,
       ensurePaymentLink: paymentType === "LINK",
-      conditions: { skipIfSubscriptionStatusIn: ["CANCELED"], requirePaymentTypeIn: [paymentType] }
+      conditions: { skipIfSubscriptionStatusIn: ["CANCELED"], requirePaymentTypeIn: [paymentType] },
+      ...(checkoutTemplateId ? { checkoutTemplateId } : {})
     };
     nextRules.push(rule);
 
