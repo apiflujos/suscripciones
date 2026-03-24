@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 
 type Env = "PRODUCTION" | "SANDBOX";
 type Trigger = "SUBSCRIPTION_DUE" | "PAYMENT_LINK_CREATED" | "PAYMENT_APPROVED" | "PAYMENT_DECLINED";
-type TemplateKind = "TEXT" | "WHATSAPP_TEMPLATE";
 type PaymentType = "ANY" | "PLAN" | "SUBSCRIPTION" | "LINK";
 type NotificationKind =
   | "PAYMENT_LINK"
@@ -22,8 +21,10 @@ const VARIABLES = [
   { label: "Correo electrónico", value: "{{customer.email}}" },
   { label: "Dirección", value: "{{customer.metadata.address}}" },
   { label: "Enlace de catálogo", value: "{{catalog.url}}" },
+  { label: "Enlace de checkout público", value: "{{paymentLink.url}}" },
   { label: "Enlace de débito automático", value: "{{tokenization.url}}" },
   { label: "Enlace de pago", value: "{{payment.checkoutUrl}}" },
+  { label: "Nombre de checkout público", value: "{{paymentLink.templateName}}" },
   { label: "Estado de la suscripción", value: "{{subscription.status}}" },
   { label: "Estado del pago", value: "{{payment.status}}" },
   { label: "Fecha de corte", value: "{{subscription.currentPeriodEndAt}}" },
@@ -109,9 +110,6 @@ export function NotificationWizard({
   const [atTimeEnabled, setAtTimeEnabled] = useState(false);
   const [atTimeUtc, setAtTimeUtc] = useState("09:00");
 
-  const [templateKind, setTemplateKind] = useState<TemplateKind>("TEXT");
-  const [message, setMessage] = useState("");
-
   const [waTemplateName, setWaTemplateName] = useState("");
   const [waLanguage, setWaLanguage] = useState("es");
   const [waParams, setWaParams] = useState<string[]>([]);
@@ -122,7 +120,6 @@ export function NotificationWizard({
   const lastFocusableRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
-    if (templateKind !== "WHATSAPP_TEMPLATE") return;
     let mounted = true;
     setWaTemplatesLoading(true);
     setWaTemplatesError("");
@@ -149,7 +146,7 @@ export function NotificationWizard({
     return () => {
       mounted = false;
     };
-  }, [templateKind]);
+  }, []);
 
   const computedOffsetsSeconds = useMemo(() => {
     return offsets
@@ -180,7 +177,6 @@ export function NotificationWizard({
       return true;
     }
     if (step === 3) {
-      if (templateKind === "TEXT") return !!message.trim();
       return !!waTemplateName.trim() && !!waLanguage.trim();
     }
     return false;
@@ -194,28 +190,22 @@ export function NotificationWizard({
     fd.set("environment", env);
     fd.set("trigger", trigger);
     fd.set("title", title);
-    fd.set("templateKind", templateKind);
-    if (templateKind === "TEXT") {
-      fd.set("message", message);
-    } else {
-      fd.set("waTemplateName", waTemplateName);
-      fd.set("waLanguage", waLanguage);
-    }
+    fd.set("templateKind", "WHATSAPP_TEMPLATE");
+    fd.set("waTemplateName", waTemplateName);
+    fd.set("waLanguage", waLanguage);
     fd.set("ensurePaymentLink", ensurePaymentLink ? "1" : "0");
     fd.set("atTimeUtc", atTimeEnabled ? atTimeUtc : "");
     fd.set("paymentType", paymentType);
     if (!isRealtimeTrigger) {
       for (const s of computedOffsetsSeconds) fd.append("offsetSeconds", String(s));
     }
-    if (templateKind === "WHATSAPP_TEMPLATE") {
-      const bodyParams = waParams.slice(0, bodyParamCount);
-      const headerParams = waParams.slice(bodyParamCount, bodyParamCount + headerParamCount);
-      const buttonParams = waParams.slice(bodyParamCount + headerParamCount, bodyParamCount + headerParamCount + buttonParamCount);
-      for (const p of bodyParams) fd.append("waBodyParam", p);
-      for (const p of headerParams) fd.append("waHeaderParam", p);
-      for (const p of buttonParams) fd.append("waButtonParam", p);
-      for (const p of waParams) fd.append("waParam", p);
-    }
+    const bodyParams = waParams.slice(0, bodyParamCount);
+    const headerParams = waParams.slice(bodyParamCount, bodyParamCount + headerParamCount);
+    const buttonParams = waParams.slice(bodyParamCount + headerParamCount, bodyParamCount + headerParamCount + buttonParamCount);
+    for (const p of bodyParams) fd.append("waBodyParam", p);
+    for (const p of headerParams) fd.append("waHeaderParam", p);
+    for (const p of buttonParams) fd.append("waButtonParam", p);
+    for (const p of waParams) fd.append("waParam", p);
 
     const createdKind = notificationKind;
     startTransition(async () => {
@@ -228,8 +218,6 @@ export function NotificationWizard({
       setLastCreatedKind(createdKind);
       setStep(1);
       setTitle("");
-      setTemplateKind("TEXT");
-      setMessage("");
       setWaTemplateName("");
       setWaParams([""]);
       setEnsurePaymentLink(true);
@@ -527,17 +515,6 @@ export function NotificationWizard({
 
           {step === 3 ? (
             <>
-              <div className="field">
-                <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                  <span>Plantilla / mensaje</span>
-                  <HelpTip text="Mensaje normal: escribes el texto.\nTemplate WhatsApp: envías una plantilla aprobada por Meta (vía CentralCom)." />
-                </label>
-                <select className="select" value={templateKind} onChange={(e) => setTemplateKind(e.target.value as TemplateKind)}>
-                  <option value="TEXT">Mensaje normal</option>
-                  <option value="WHATSAPP_TEMPLATE">Template WhatsApp (Meta) vía CentralCom</option>
-                </select>
-              </div>
-
               <div className="panel module" style={{ display: "grid", gap: 10 }}>
                 <div className="field-hint" style={{ display: "flex", gap: 6, alignItems: "center" }}>
                   <span>Variables (clic para insertar):</span>
@@ -545,144 +522,122 @@ export function NotificationWizard({
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                   {VARIABLES.map((v) => (
-                      <button key={v.value} type="button" className="ghost" onClick={() => onVarClick(v.value)} style={{ minHeight: 30 }} data-loader="off">
-                        {v.label}
-                      </button>
+                    <button key={v.value} type="button" className="ghost" onClick={() => onVarClick(v.value)} style={{ minHeight: 30 }} data-loader="off">
+                      {v.label}
+                    </button>
                   ))}
                 </div>
               </div>
 
-              {templateKind === "TEXT" ? (
-                <div className="field">
-                  <label>Mensaje</label>
-                  <textarea
-                    className="input"
-                    rows={8}
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    onFocus={(e) => (lastFocusableRef.current = e.target)}
-                    placeholder="Ej: Hola {{customer.name}}, tu pago vence el {{subscription.currentPeriodEndAt}}. Link: {{payment.checkoutUrl}}"
-                    style={{ padding: 12 }}
-                  />
-                </div>
-              ) : (
-                <>
-                  <div className="field">
-                    <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                      <span>Plantillas disponibles</span>
-                      <HelpTip text="Se cargan desde Chatwoot. Selecciona una plantilla para autocompletar el nombre y el idioma." />
-                    </label>
-                    <select
-                      className="select"
-                      defaultValue=""
-                      onChange={(e) => {
-                        const [tplName, tplLang] = String(e.target.value || "").split("::");
-                        if (tplName) setWaTemplateName(tplName);
-                        if (tplLang) setWaLanguage(tplLang);
-                      }}
-                      disabled={waTemplatesLoading}
-                    >
-                      <option value="">{waTemplatesLoading ? "Cargando..." : "Selecciona una plantilla"}</option>
-                      {waTemplates.map((t) => (
-                        <option key={`${t.name}:${t.language || "es"}`} value={`${t.name}::${t.language || "es"}`}>
-                          {t.name} · {t.language || "es"}
-                        </option>
-                      ))}
-                    </select>
-                    {waTemplatesError ? <div className="field-hint" style={{ color: "var(--danger)" }}>Error: {waTemplatesError}</div> : null}
-                  </div>
-                  <div className="field">
-                    <label>ID de plantilla (Meta)</label>
-                    <input
-                      className="input"
-                      value={waTemplateName}
-                      onChange={(e) => setWaTemplateName(e.target.value)}
-                      onFocus={(e) => (lastFocusableRef.current = e.target)}
-                      placeholder="nombre_template"
-                      readOnly={Boolean(selectedTemplate)}
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Mensaje de plantilla</label>
-                    <textarea
-                      className="input"
-                      rows={3}
-                      readOnly
-                      value={selectedTemplateBody}
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Vista previa</label>
-                    <textarea className="input" rows={3} readOnly value={selectedTemplatePreview} />
-                  </div>
-                  <input type="hidden" name="waLanguage" value={waLanguage} />
+              <div className="field">
+                <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <span>Plantillas disponibles</span>
+                  <HelpTip text="Se cargan desde Chatwoot. Selecciona una plantilla para autocompletar el nombre y el idioma." />
+                </label>
+                <select
+                  className="select"
+                  defaultValue=""
+                  onChange={(e) => {
+                    const [tplName, tplLang] = String(e.target.value || "").split("::");
+                    if (tplName) setWaTemplateName(tplName);
+                    if (tplLang) setWaLanguage(tplLang);
+                  }}
+                  disabled={waTemplatesLoading}
+                >
+                  <option value="">{waTemplatesLoading ? "Cargando..." : "Selecciona una plantilla"}</option>
+                  {waTemplates.map((t) => (
+                    <option key={`${t.name}:${t.language || "es"}`} value={`${t.name}::${t.language || "es"}`}>
+                      {t.name} · {t.language || "es"}
+                    </option>
+                  ))}
+                </select>
+                {waTemplatesError ? <div className="field-hint" style={{ color: "var(--danger)" }}>Error: {waTemplatesError}</div> : null}
+              </div>
+              <div className="field">
+                <label>ID de plantilla (Meta)</label>
+                <input
+                  className="input"
+                  value={waTemplateName}
+                  onChange={(e) => setWaTemplateName(e.target.value)}
+                  onFocus={(e) => (lastFocusableRef.current = e.target)}
+                  placeholder="nombre_template"
+                  readOnly={Boolean(selectedTemplate)}
+                />
+              </div>
+              <div className="field">
+                <label>Mensaje de plantilla</label>
+                <textarea className="input" rows={3} readOnly value={selectedTemplateBody} />
+              </div>
+              <div className="field">
+                <label>Vista previa</label>
+                <textarea className="input" rows={3} readOnly value={selectedTemplatePreview} />
+              </div>
+              <input type="hidden" name="waLanguage" value={waLanguage} />
 
-                  <div className="field">
-                    <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                      <span>Variables de la plantilla</span>
-                    </label>
-                    <div style={{ display: "grid", gap: 6 }}>
-                      {Array.from({ length: Math.max(bodyParamCount, 0) }).map((_, idx) => (
-                        <div key={`body-${idx}`} style={{ display: "grid", gridTemplateColumns: "1fr", gap: 6 }}>
-                          <label>Body #{idx + 1}</label>
-                          <input
-                            className="input"
-                            value={waParams[idx] || ""}
-                            onChange={(e) => setWaParams((prev) => {
-                              const next = prev.slice();
-                              next[idx] = e.target.value;
-                              return next;
-                            })}
-                            onFocus={(e) => (lastFocusableRef.current = e.target)}
-                            placeholder="Ej: {{customer.name}}"
-                          />
-                        </div>
-                      ))}
-                      {Array.from({ length: Math.max(headerParamCount, 0) }).map((_, idx) => {
-                        const base = bodyParamCount + idx;
-                        return (
-                          <div key={`header-${idx}`} style={{ display: "grid", gridTemplateColumns: "1fr", gap: 6 }}>
-                            <label>Header #{idx + 1}</label>
-                            <input
-                              className="input"
-                              value={waParams[base] || ""}
-                              onChange={(e) => setWaParams((prev) => {
-                                const next = prev.slice();
-                                next[base] = e.target.value;
-                                return next;
-                              })}
-                              onFocus={(e) => (lastFocusableRef.current = e.target)}
-                              placeholder="Ej: {{subscription.currentPeriodEndAt}}"
-                            />
-                          </div>
-                        );
-                      })}
-                      {Array.from({ length: Math.max(buttonParamCount, 0) }).map((_, idx) => {
-                        const base = bodyParamCount + headerParamCount + idx;
-                        return (
-                          <div key={`button-${idx}`} style={{ display: "grid", gridTemplateColumns: "1fr", gap: 6 }}>
-                            <label>Botón URL #{idx + 1}</label>
-                            <input
-                              className="input"
-                              value={waParams[base] || ""}
-                              onChange={(e) => setWaParams((prev) => {
-                                const next = prev.slice();
-                                next[base] = e.target.value;
-                                return next;
-                              })}
-                              onFocus={(e) => (lastFocusableRef.current = e.target)}
-                              placeholder="Ej: {{payment.checkoutUrl}}"
-                            />
-                          </div>
-                        );
-                      })}
-                      {!bodyParamCount && !headerParamCount && !buttonParamCount ? (
-                        <div className="field-hint">Esta plantilla no requiere variables.</div>
-                      ) : null}
+              <div className="field">
+                <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <span>Variables de la plantilla</span>
+                </label>
+                <div style={{ display: "grid", gap: 6 }}>
+                  {Array.from({ length: Math.max(bodyParamCount, 0) }).map((_, idx) => (
+                    <div key={`body-${idx}`} style={{ display: "grid", gridTemplateColumns: "1fr", gap: 6 }}>
+                      <label>Body #{idx + 1}</label>
+                      <input
+                        className="input"
+                        value={waParams[idx] || ""}
+                        onChange={(e) => setWaParams((prev) => {
+                          const next = prev.slice();
+                          next[idx] = e.target.value;
+                          return next;
+                        })}
+                        onFocus={(e) => (lastFocusableRef.current = e.target)}
+                        placeholder="Ej: {{customer.name}}"
+                      />
                     </div>
-                  </div>
-                </>
-              )}
+                  ))}
+                  {Array.from({ length: Math.max(headerParamCount, 0) }).map((_, idx) => {
+                    const base = bodyParamCount + idx;
+                    return (
+                      <div key={`header-${idx}`} style={{ display: "grid", gridTemplateColumns: "1fr", gap: 6 }}>
+                        <label>Header #{idx + 1}</label>
+                        <input
+                          className="input"
+                          value={waParams[base] || ""}
+                          onChange={(e) => setWaParams((prev) => {
+                            const next = prev.slice();
+                            next[base] = e.target.value;
+                            return next;
+                          })}
+                          onFocus={(e) => (lastFocusableRef.current = e.target)}
+                          placeholder="Ej: {{subscription.currentPeriodEndAt}}"
+                        />
+                      </div>
+                    );
+                  })}
+                  {Array.from({ length: Math.max(buttonParamCount, 0) }).map((_, idx) => {
+                    const base = bodyParamCount + headerParamCount + idx;
+                    return (
+                      <div key={`button-${idx}`} style={{ display: "grid", gridTemplateColumns: "1fr", gap: 6 }}>
+                        <label>Botón URL #{idx + 1}</label>
+                        <input
+                          className="input"
+                          value={waParams[base] || ""}
+                          onChange={(e) => setWaParams((prev) => {
+                            const next = prev.slice();
+                            next[base] = e.target.value;
+                            return next;
+                          })}
+                          onFocus={(e) => (lastFocusableRef.current = e.target)}
+                          placeholder="Ej: {{payment.checkoutUrl}}"
+                        />
+                      </div>
+                    );
+                  })}
+                  {!bodyParamCount && !headerParamCount && !buttonParamCount ? (
+                    <div className="field-hint">Esta plantilla no requiere variables.</div>
+                  ) : null}
+                </div>
+              </div>
             </>
           ) : null}
 

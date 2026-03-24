@@ -148,6 +148,8 @@ export async function middleware(req: NextRequest) {
       pathname === "/healthz" ||
       pathname.startsWith("/health/") ||
       pathname.startsWith("/healthz/") ||
+      pathname === "/webhooks" ||
+      pathname.startsWith("/webhooks/") ||
       pathname === "/admin/auth/login" ||
       pathname === "/admin/sa/login" ||
       pathname === "/admin/sa/refresh" ||

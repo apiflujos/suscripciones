@@ -92,8 +92,10 @@ const MESSAGE_VARIABLES = [
   { label: "Correo electrónico", value: "{{customer.email}}" },
   { label: "Dirección", value: "{{customer.metadata.address}}" },
   { label: "Enlace de catálogo", value: "{{catalog.url}}" },
+  { label: "Enlace de checkout público", value: "{{paymentLink.url}}" },
   { label: "Enlace de débito automático", value: "{{tokenization.url}}" },
   { label: "Enlace de pago", value: "{{payment.checkoutUrl}}" },
+  { label: "Nombre de checkout público", value: "{{paymentLink.templateName}}" },
   { label: "Estado de la suscripción", value: "{{subscription.status}}" },
   { label: "Estado del pago", value: "{{payment.status}}" },
   { label: "Fecha de corte", value: "{{subscription.currentPeriodEndAt}}" },
@@ -135,12 +137,8 @@ function autoResizeTextarea(el: HTMLTextAreaElement) {
   el.style.height = `${el.scrollHeight}px`;
 }
 
-function isTemplateConfigured(template: Template | null | undefined, kind: "TEXT" | "WHATSAPP_TEMPLATE") {
-  if (kind === "WHATSAPP_TEMPLATE") {
-    return Boolean(String(template?.chatwootTemplate?.name || "").trim());
-  }
-  const content = String(template?.content || "").trim();
-  return Boolean(content && content !== "(template)");
+function isTemplateConfigured(template: Template | null | undefined) {
+  return Boolean(String(template?.chatwootTemplate?.name || "").trim());
 }
 
 function WaTemplateFields({
@@ -479,27 +477,12 @@ export function NotificationsSimple({
     };
   }, [rules]);
 
-  const initialRealtimeKinds = useMemo(() => {
-    const map: Record<string, "TEXT" | "WHATSAPP_TEMPLATE"> = {};
-    for (const rt of REALTIME_TYPES) {
-      const tpl = templateForKey(rt.key, rt.chatwootType, rt.label, rt.aliases);
-      map[rt.key] = tpl?.chatwootTemplate?.name ? "WHATSAPP_TEMPLATE" : "TEXT";
-    }
-    return map;
-  }, [templates, rules]);
-
-  const [realtimeKinds, setRealtimeKinds] = useState<Record<string, "TEXT" | "WHATSAPP_TEMPLATE">>(initialRealtimeKinds);
-  useEffect(() => {
-    setRealtimeKinds(initialRealtimeKinds);
-  }, [initialRealtimeKinds]);
   const lastFieldRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const [pickerOpen, setPickerOpen] = useState<null | "vars">(null);
   const [activeModal, setActiveModal] = useState<
     null | { type: "realtime"; key: RealtimeKey } | { type: "reminder"; kind: "DUE" | "MORA"; paymentType: "LINK" | "SUBSCRIPTION" }
   >(null);
   const [wizardStep, setWizardStep] = useState<1 | 2>(1);
-  const [wizardKind, setWizardKind] = useState<"TEXT" | "WHATSAPP_TEMPLATE">("WHATSAPP_TEMPLATE");
-
   const [reminderOffsets, setReminderOffsets] = useState<OffsetItem[]>([]);
 
   const [waTemplates, setWaTemplates] = useState<ChatwootTemplate[]>([]);
@@ -556,11 +539,7 @@ export function NotificationsSimple({
     if (activeModal.type === "realtime") {
       const rt = REALTIME_TYPES.find((r) => r.key === activeModal.key);
       if (!rt) return;
-      const tpl = templateForKey(rt.key, rt.chatwootType, rt.label, rt.aliases);
-      const hasWa = Boolean(tpl?.chatwootTemplate?.name);
-      const kind = "WHATSAPP_TEMPLATE";
-      setWizardKind(kind);
-      setRealtimeKinds({ ...realtimeKinds, [rt.key]: kind });
+      templateForKey(rt.key, rt.chatwootType, rt.label, rt.aliases);
       setWizardStep(2);
       return;
     }
@@ -568,9 +547,7 @@ export function NotificationsSimple({
     const tpl = getReminderTemplate(activeModal.kind, activeModal.paymentType);
     const isDue = activeModal.kind === "DUE";
     const offsets = offsetsToItems(rule?.offsetsSeconds, isDue ? -1 : 1);
-    const kind = "WHATSAPP_TEMPLATE";
     setReminderOffsets(offsets);
-    setWizardKind(kind);
     setWizardStep(2);
   }, [activeModal]);
 
@@ -588,10 +565,8 @@ export function NotificationsSimple({
     ...pendingRealtime.map((rt) => {
       const rule = rulesByKey.get(rt.key);
       const tpl = templateForKey(rt.key, rt.chatwootType, rt.label, rt.aliases);
-      const hasWa = Boolean(tpl?.chatwootTemplate?.name);
-      const kind = realtimeKinds[rt.key] || (hasWa ? "WHATSAPP_TEMPLATE" : "TEXT");
-      const kindLabel = kind === "WHATSAPP_TEMPLATE" ? "Plantilla" : "Mensaje";
-      const isConfigured = Boolean(rule);
+      const kindLabel = "Plantilla";
+      const isConfigured = Boolean(rule && tpl?.chatwootTemplate?.name);
       const statusLabel = isConfigured ? (rule?.enabled ? "Activa" : "Inactiva") : "No configurada";
       const statusPill = isConfigured ? (rule?.enabled ? "pill-green" : "pill-muted") : "pill-muted";
       return {
@@ -608,9 +583,8 @@ export function NotificationsSimple({
     ...REMINDER_TYPES.map((rt) => {
       const rule = getReminderRule(rt.kind, rt.paymentType);
       const tpl = getReminderTemplate(rt.kind, rt.paymentType);
-      const kind = tpl?.chatwootTemplate?.name ? "WHATSAPP_TEMPLATE" : "TEXT";
-      const kindLabel = kind === "WHATSAPP_TEMPLATE" ? "Plantilla" : "Mensaje";
-      const isConfigured = Boolean(rule && isTemplateConfigured(tpl, kind));
+      const kindLabel = "Plantilla";
+      const isConfigured = Boolean(rule && isTemplateConfigured(tpl));
       const statusLabel = isConfigured ? (rule?.enabled ? "Activa" : "Inactiva") : "No configurada";
       const statusPill = isConfigured && rule?.enabled ? "pill-green" : "pill-muted";
       return {
@@ -751,14 +725,11 @@ export function NotificationsSimple({
                   if (!rt) return null;
                   const tpl = templateForKey(rt.key, rt.chatwootType, rt.label, rt.aliases);
                   const rule = rulesByKey.get(rt.key);
-                  const content = tpl?.content && tpl.content !== "(template)" ? String(tpl.content) : "";
-                  const hasWa = Boolean(tpl?.chatwootTemplate?.name);
                   const waName = tpl?.chatwootTemplate?.name || "";
                   const waLang = tpl?.chatwootTemplate?.language || "es";
                   const waBodyParams = tpl?.chatwootTemplate?.processed_params?.body || [];
                   const waHeaderParams = tpl?.chatwootTemplate?.processed_params?.header || [];
                   const waButtonParams = tpl?.chatwootTemplate?.processed_params?.buttons || [];
-                  const kind = wizardKind;
                   return (
                     <form action={actions.saveRealtime} className="notification-form" style={{ display: "grid", gap: 10 }}>
                       <input type="hidden" name="csrf" value={csrfToken} />

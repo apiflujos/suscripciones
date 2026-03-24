@@ -3,17 +3,8 @@ import { requireApiSession } from "../../_lib/requireApiSession";
 import { getCheckoutConfig } from "../../../admin/_services/settings";
 import { getCustomerById, updateCustomerMetadata } from "../../../admin/_services/customers";
 import { scheduleTokenizationLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
-import { sendChatwootMessageForCustomer } from "../../../admin/_services/chatwoot";
 import { signPublicToken } from "../../../../lib/publicTokens";
 import { getNotificationsConfig } from "@suscripciones/core/services/notificationsConfig";
-
-function buildChatwootLinkMessage(args: { name?: string; lead: string; url: string }) {
-  const safeName = String(args.name || "Cliente").trim() || "Cliente";
-  const safeLead = String(args.lead || "").trim();
-  const safeUrl = String(args.url || "").trim();
-  const leadLine = safeLead ? `**${safeLead}**` : "";
-  return [`Hola ${safeName},`, "", leadLine, safeUrl].filter((line) => line !== "").join("\n");
-}
 
 export async function POST(req: Request) {
   const auth = await requireApiSession(req);
@@ -27,7 +18,6 @@ export async function POST(req: Request) {
   }
 
   const customerId = String(body?.customerId || "").trim();
-  const customerName = String(body?.customerName || "").trim() || "Cliente";
   const templateId = String(body?.templateId || "").trim();
   if (!customerId) return NextResponse.json({ ok: false, error: "missing_customer_id" }, { status: 400 });
 
@@ -94,33 +84,11 @@ export async function POST(req: Request) {
   });
   const rulesActive = Boolean(schedule?.rulesActive);
 
-  let chatwootError: string | null = null;
-  let fallbackSent = false;
-  if (!rulesActive) {
-    const msg = buildChatwootLinkMessage({
-      name: customerName || "Cliente",
-      lead: "Activa tu suscripción guardando tu método de pago aquí:",
-      url: link
-    });
-    try {
-        const chatRes = await sendChatwootMessageForCustomer({ customerId, content: msg, actor: auth.session.sub });
-        if (!chatRes.ok) {
-          chatwootError = String((chatRes as any)?.error || "chatwoot_error");
-        } else {
-          fallbackSent = true;
-        }
-      } catch (err: any) {
-        chatwootError = String(err?.message || "chatwoot_request_failed");
-      }
-  }
-
   return NextResponse.json({
     ok: true,
     link,
     notificationsScheduled: schedule?.scheduled ?? 0,
     notificationsSent: schedule?.sentNow ?? 0,
-    notificationsRulesActive: rulesActive,
-    chatwootError,
-    fallbackSent
+    notificationsRulesActive: rulesActive
   });
 }

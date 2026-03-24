@@ -340,6 +340,9 @@ export async function subscriptionReminder(payload: any) {
     subscription,
     plan: planWithPesos,
     payment: paymentWithPesos,
+    paymentLink: meta?.paymentLink ?? null,
+    tokenizationLink: meta?.tokenizationLink ?? null,
+    cartLink: meta?.cartLink ?? null,
     tokenization: tokenizationUrl ? { url: tokenizationUrl } : null,
     catalog: catalogUrl ? { url: catalogUrl } : null,
     paymentType

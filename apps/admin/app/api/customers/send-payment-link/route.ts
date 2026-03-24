@@ -4,17 +4,8 @@ import { createManualOrder } from "../../../admin/_services/orders";
 import { getCheckoutConfig } from "../../../admin/_services/settings";
 import { getActiveCheckoutTemplates } from "../../../admin/_services/checkoutTemplates";
 import { getCustomerById, updateCustomerMetadata } from "../../../admin/_services/customers";
-import { sendChatwootMessageForCustomer } from "../../../admin/_services/chatwoot";
 import { signPublicToken } from "../../../../lib/publicTokens";
 import { getNotificationsConfig } from "@suscripciones/core/services/notificationsConfig";
-
-function buildChatwootLinkMessage(args: { name?: string; lead: string; url: string }) {
-  const safeName = String(args.name || "Cliente").trim() || "Cliente";
-  const safeLead = String(args.lead || "").trim();
-  const safeUrl = String(args.url || "").trim();
-  const leadLine = safeLead ? `**${safeLead}**` : "";
-  return [`Hola ${safeName},`, "", leadLine, safeUrl].filter((line) => line !== "").join("\n");
-}
 
 function pesosToCents(input: string): number {
   const digits = String(input || "").replace(/[^\d-]/g, "");
@@ -81,18 +72,22 @@ export async function POST(req: Request) {
   const rulesActive = Boolean(orderResult.notificationsRulesActive);
   let publicUrl: string | null = null;
   let resolvedTemplateId = templateIdInput || "";
-  let chatwootError: string | null = null;
-  let fallbackSent = false;
   try {
     const checkoutConfig = await getCheckoutConfig();
     const expiryHours = Number(checkoutConfig?.tokenExpiryHours || 24);
     const hours = Number.isFinite(expiryHours) && expiryHours > 0 ? Math.min(Math.max(Math.trunc(expiryHours), 1), 168) : 24;
     const baseFromSettings = String(checkoutConfig?.planBaseUrl || "").trim();
     if (baseFromSettings) {
+      let templateName: string | null = null;
       if (!resolvedTemplateId) {
         const items = await getActiveCheckoutTemplates({ tenantId: tenantId || null, kind: "PLAN" as any });
         const selected = items?.[0] || null;
         resolvedTemplateId = selected ? String((selected as any).id || "") : "";
+        templateName = selected ? String((selected as any).name || "") : null;
+      } else {
+        const items = await getActiveCheckoutTemplates({ tenantId: tenantId || null, kind: "PLAN" as any });
+        const selected = items?.find((t: any) => String(t?.id || "") === String(resolvedTemplateId)) || null;
+        templateName = selected ? String((selected as any).name || "") : null;
       }
 
       const tokenValue = await signPublicToken({ sub: customerId, scope: "payment", ttlSeconds: hours * 60 * 60 });
@@ -114,6 +109,7 @@ export async function POST(req: Request) {
           checkoutUrl,
           kind: "PLAN",
           templateId: resolvedTemplateId || null,
+          templateName: templateName || null,
           utmParams: checkoutConfig?.defaultUtmParams || null,
           createdAt: new Date().toISOString(),
           expiresAt: new Date(Date.now() + hours * 60 * 60 * 1000).toISOString(),
@@ -126,31 +122,12 @@ export async function POST(req: Request) {
     // ignore best-effort public link
   }
 
-  if (!rulesActive) {
-    const url = publicUrl || checkoutUrl;
-    if (url) {
-      const msg = buildChatwootLinkMessage({
-        name: customerName || "Cliente",
-        lead: "Aquí está tu link de pago:",
-        url
-      });
-      const chatRes = await sendChatwootMessageForCustomer({ customerId, content: msg, actor: auth.session.sub });
-      if (!chatRes.ok) {
-        chatwootError = String((chatRes as any)?.error || "chatwoot_error");
-      } else {
-        fallbackSent = true;
-      }
-    }
-  }
-
   return NextResponse.json({
     ok: true,
     checkoutUrl: checkoutUrl || null,
     publicUrl,
     notificationsScheduled: typeof orderResult.notificationsScheduled === "number" ? orderResult.notificationsScheduled : null,
     notificationsSent: typeof orderResult.notificationsSent === "number" ? orderResult.notificationsSent : null,
-    notificationsRulesActive: rulesActive,
-    chatwootError,
-    fallbackSent
+    notificationsRulesActive: rulesActive
   });
 }
