@@ -21,7 +21,7 @@ const VARIABLES = [
   { label: "Correo electrónico", value: "{{customer.email}}" },
   { label: "Dirección", value: "{{customer.metadata.address}}" },
   { label: "Enlace de catálogo", value: "{{catalog.url}}" },
-  { label: "Checkout público (URL)", value: "{{checkoutPublic.ID}}" },
+  { label: "Checkout público (Token)", value: "{{checkoutPublicToken.ID}}" },
   { label: "Checkout público (Nombre)", value: "{{checkoutPublicName.ID}}" },
   { label: "Estado de la suscripción", value: "{{subscription.status}}" },
   { label: "Estado del pago", value: "{{payment.status}}" },

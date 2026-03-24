@@ -541,7 +541,7 @@ export function NotificationsSimple({
   const checkoutOptions = Array.isArray(checkoutTemplates) ? checkoutTemplates.filter((t) => t?.active !== false) : [];
   const checkoutVars = useMemo(() => {
     return checkoutOptions.flatMap((t) => [
-      { label: `Checkout público: ${t.name} (URL)`, value: `{{checkoutPublic.${t.id}}}` },
+      { label: `Checkout público: ${t.name} (Token)`, value: `{{checkoutPublicToken.${t.id}}}` },
       { label: `Checkout público: ${t.name} (Nombre)`, value: `{{checkoutPublicName.${t.id}}}` }
     ]);
   }, [checkoutOptions]);
