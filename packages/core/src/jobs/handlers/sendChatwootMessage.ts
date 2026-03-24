@@ -356,7 +356,7 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
   type SubscriptionMetadata = Record<string, unknown> & { chatwoot?: { conversationId?: number } };
   const meta = (msg.subscription?.metadata ?? {}) as SubscriptionMetadata;
   const existingConversationId = meta?.chatwoot?.conversationId;
-  let conversationId: number;
+  let conversationId: number | undefined;
   if (typeof existingConversationId === "number") {
     conversationId = existingConversationId;
   } else {
@@ -451,6 +451,23 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
         return;
       }
     }
+  }
+
+  if (typeof conversationId !== "number") {
+    await prisma.chatwootMessage.update({
+      where: { id: chatwootMessageId },
+      data: { status: MessageStatus.FAILED, errorMessage: "chatwoot_conversation_missing" }
+    }).catch((updateErr) => {
+      logger.warn({ err: updateErr, chatwootMessageId }, "chatwoot.send: failed to update message status");
+    });
+    await systemLog(LogLevel.ERROR, "chatwoot.send", "Conversación no disponible", {
+      actor: "job:sendChatwootMessage",
+      chatwootMessageId,
+      customerId: msg.customerId
+    }).catch((logErr) => {
+      logger.warn({ err: logErr, chatwootMessageId }, "chatwoot.send: failed to write system log");
+    });
+    return;
   }
 
   if (typeof existingConversationId !== "number" && msg.subscriptionId) {
