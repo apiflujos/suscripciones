@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { requireApiSession } from "../../_lib/requireApiSession";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../../lib/session";
-import { listPaymentLogs } from "../../../admin/_services/logs";
+import { listChatwootMessages, listPaymentLogs } from "../../../admin/_services/logs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,10 +19,15 @@ export async function GET(req: NextRequest) {
     const limitRaw = parseInt(searchParams.get("limit") || "20", 10);
     const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 5), 50) : 20;
 
-    const payments = await listPaymentLogs({ take: Math.max(10, limit * 2) });
-    const items = Array.isArray(payments?.items) ? payments.items : [];
+    const [payments, chatwoot] = await Promise.all([
+      listPaymentLogs({ take: Math.max(10, limit * 2) }),
+      listChatwootMessages({ take: Math.max(10, limit * 2) })
+    ]);
 
-    const notifications = items
+    const paymentItems = Array.isArray(payments?.items) ? payments.items : [];
+    const messageItems = Array.isArray(chatwoot?.items) ? chatwoot.items : [];
+
+    const paymentNotifications = paymentItems
       .filter((p: any) => ["APPROVED", "DECLINED", "ERROR", "VOIDED"].includes(String(p?.status || "").toUpperCase()))
       .map((p: any) => {
         const status = String(p?.status || "").toUpperCase();
@@ -56,7 +61,40 @@ export async function GET(req: NextRequest) {
             tenantId: p?.tenantId || null
           }
         };
-      })
+      });
+
+    const messageNotifications = messageItems
+      .filter((m: any) => ["SENT", "FAILED"].includes(String(m?.status || "").toUpperCase()))
+      .map((m: any) => {
+        const status = String(m?.status || "").toUpperCase();
+        const ok = status === "SENT";
+        const ts = m?.sentAt || m?.createdAt || new Date().toISOString();
+        const customerName = String(m?.customer?.name || "").trim();
+        const customerEmail = String(m?.customer?.email || "").trim();
+        const customerPhone = String(m?.customer?.phone || "").trim();
+        const title = ok ? "Mensaje enviado" : "Mensaje fallido";
+        const snippet = String(m?.content || "").trim().replace(/\s+/g, " ");
+        const message = customerName ? `${customerName} · ${snippet.slice(0, 80)}` : snippet.slice(0, 80) || title;
+        return {
+          id: m?.id || `${customerEmail}:${ts}`,
+          ts,
+          title,
+          message,
+          level: ok ? "success" : "error",
+          category: "clientes",
+          href: "/notifications",
+          read: false,
+          meta: {
+            customerName,
+            customerEmail,
+            customerPhone,
+            tenantId: m?.tenantId || null
+          }
+        };
+      });
+
+    const notifications = [...paymentNotifications, ...messageNotifications]
+      .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
       .slice(0, limit);
 
     return new Response(JSON.stringify({ notifications }), {

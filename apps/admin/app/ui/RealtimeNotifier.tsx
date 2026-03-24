@@ -22,6 +22,9 @@ export function RealtimeNotifier({ children, session }: RealtimeNotifierProps) {
   const lastSeenRef = useRef<Set<string>>(new Set());
   const soundReadyRef = useRef(false);
   const cashierRef = useRef<HTMLAudioElement | null>(null);
+  const paymentFailedRef = useRef<HTMLAudioElement | null>(null);
+  const messageSentRef = useRef<HTMLAudioElement | null>(null);
+  const messageFailedRef = useRef<HTMLAudioElement | null>(null);
 
   const addToast = useCallback((toast: ToastEvent) => {
     setToasts((prev) => {
@@ -42,6 +45,12 @@ export function RealtimeNotifier({ children, session }: RealtimeNotifierProps) {
 
     cashierRef.current = new Audio("/brand/cashier.mp3");
     cashierRef.current.preload = "auto";
+    paymentFailedRef.current = new Audio("/brand/payment_failed.wav");
+    paymentFailedRef.current.preload = "auto";
+    messageSentRef.current = new Audio("/brand/message_sent.wav");
+    messageSentRef.current.preload = "auto";
+    messageFailedRef.current = new Audio("/brand/message_failed.wav");
+    messageFailedRef.current.preload = "auto";
 
     try {
       const raw = window.localStorage.getItem(FEED_STORAGE_KEY);
@@ -75,8 +84,7 @@ export function RealtimeNotifier({ children, session }: RealtimeNotifierProps) {
   useEffect(() => {
     if (!session?.email) return;
 
-    const playCashier = () => {
-      const audio = cashierRef.current;
+    const playSound = (audio: HTMLAudioElement | null) => {
       if (!audio || !soundReadyRef.current) return;
       try {
         audio.currentTime = 0;
@@ -109,8 +117,14 @@ export function RealtimeNotifier({ children, session }: RealtimeNotifierProps) {
         const title = String(n.title || "Notificación");
         const message = String(n.message || "");
         if (category === "pagos" && level === "success") {
-          playCashier();
+          playSound(cashierRef.current);
           window.dispatchEvent(new CustomEvent("apiflujos:payment-approved"));
+        } else if (category === "pagos" && level === "error") {
+          playSound(paymentFailedRef.current);
+        } else if (title.toLowerCase().includes("mensaje") && level === "success") {
+          playSound(messageSentRef.current);
+        } else if (title.toLowerCase().includes("mensaje") && level === "error") {
+          playSound(messageFailedRef.current);
         }
         addToast({
           id: `toast:${n.id}`,
