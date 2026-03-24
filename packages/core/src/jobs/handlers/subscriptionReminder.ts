@@ -359,6 +359,33 @@ export async function subscriptionReminder(payload: any) {
     return;
   }
 
+  if (parsed.data.trigger === "PAYMENT_APPROVED") {
+    const approved = effectivePayment?.status === PaymentStatus.APPROVED && Boolean(effectivePayment?.paidAt);
+    if (!approved) {
+      await systemLog(LogLevel.WARN, "notifications.dispatch", "Pago aprobado omitido: estado no aprobado", {
+        ruleId: rule.id,
+        templateId: template.id,
+        trigger: parsed.data.trigger,
+        paymentId: effectivePayment?.id ?? parsed.data.paymentId ?? null,
+        paymentStatus: effectivePayment?.status ?? null
+      }, "job:subscriptionReminder").catch(() => {});
+      return;
+    }
+  }
+  if (parsed.data.trigger === "PAYMENT_DECLINED") {
+    const failed = effectivePayment && [PaymentStatus.DECLINED, PaymentStatus.ERROR, PaymentStatus.VOIDED].includes(effectivePayment.status);
+    if (!failed) {
+      await systemLog(LogLevel.WARN, "notifications.dispatch", "Pago fallido omitido: estado no fallido", {
+        ruleId: rule.id,
+        templateId: template.id,
+        trigger: parsed.data.trigger,
+        paymentId: effectivePayment?.id ?? parsed.data.paymentId ?? null,
+        paymentStatus: effectivePayment?.status ?? null
+      }, "job:subscriptionReminder").catch(() => {});
+      return;
+    }
+  }
+
   const meta: any = customer?.metadata && typeof customer.metadata === "object" ? (customer.metadata as any) : {};
   const templatePaths = extractTemplatePaths([template.content || "", template.chatwootTemplate || null]);
   const checkoutIds = Array.from(
