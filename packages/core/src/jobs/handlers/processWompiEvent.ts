@@ -1130,7 +1130,44 @@ export async function forwardWompiToShopify(webhookEventId: string) {
   const txRecord = transaction && typeof transaction === "object" ? (transaction as Record<string, unknown>) : null;
   const checksum = String(event.checksum || raw?.signature?.checksum || "").trim();
   const origin = cfg.origin === "shopify-native" ? "shopify-native" : "shopify";
-  const reference = String(txRecord?.reference || dataRecord?.reference || (raw as Record<string, unknown>)?.reference || "").trim();
+  const normalizeRef = (value: unknown) => (value == null ? "" : String(value).trim());
+  const transactionId = normalizeRef(txRecord?.id);
+  const paymentLinkId =
+    normalizeRef(txRecord?.payment_link_id) ||
+    normalizeRef((txRecord?.payment_link as Record<string, unknown> | undefined)?.id) ||
+    normalizeRef((dataRecord as Record<string, unknown> | null)?.payment_link_id);
+  let reference = normalizeRef(txRecord?.reference || dataRecord?.reference || (raw as Record<string, unknown>)?.reference);
+  if (!reference) {
+    if (transactionId) {
+      const payment = await prisma.payment.findFirst({
+        where: { wompiTransactionId: transactionId },
+        select: { reference: true }
+      });
+      reference = normalizeRef(payment?.reference);
+    }
+    if (!reference && paymentLinkId) {
+      const payment = await prisma.payment.findFirst({
+        where: { wompiPaymentLinkId: paymentLinkId },
+        select: { reference: true }
+      });
+      reference = normalizeRef(payment?.reference);
+    }
+  }
+  if (!reference) {
+    await systemLog(
+      LogLevel.ERROR,
+      "shopify.forward",
+      "Forward skipped (missing reference)",
+      {
+        webhookEventId,
+        transactionId: transactionId || null,
+        paymentLinkId: paymentLinkId || null,
+        url: cfg.url
+      },
+      "webhook:wompi"
+    ).catch(() => {});
+    return;
+  }
   const normalizedTx =
     transaction && typeof transaction === "object"
       ? {
