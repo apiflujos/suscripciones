@@ -3676,8 +3676,8 @@ textarea.input {
 }
 
 .input[type="number"] {
-  --field-icon: var(--icon-number);
-  --field-padding-left: 36px;
+  --field-icon: none;
+  --field-padding-left: var(--control-padding-x);
 }
 
 .input[type="datetime-local"] {
@@ -3686,8 +3686,8 @@ textarea.input {
 }
 
 .input[inputmode="numeric"] {
-  --field-icon: var(--icon-number);
-  --field-padding-left: 36px;
+  --field-icon: none;
+  --field-padding-left: var(--control-padding-x);
 }
 
 .input.shipping-currency-input {
