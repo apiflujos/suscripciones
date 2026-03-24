@@ -308,27 +308,38 @@ export async function resolveSmartViewIds(scope: SmartViewScope, tenantId: strin
 export function getSmartViewFields(scope: SmartViewScope): SmartField[] {
   if (scope === "customers") {
     return normalizeFieldOps([
-      { key: "customer.name", label: "Nombre", group: "Datos personales", type: "text", operators: ["equals", "contains", "startsWith", "endsWith", "exists", "isEmpty"] },
-      { key: "customer.email", label: "Email", group: "Datos personales", type: "text", operators: ["equals", "contains", "startsWith", "endsWith", "exists", "isEmpty"] },
-      { key: "customer.phone", label: "Teléfono", group: "Datos personales", type: "phone", operators: ["equals", "contains", "startsWith", "endsWith", "exists"] },
-      { key: "customer.createdAt", label: "Fecha creación", group: "Datos personales", type: "date", operators: ["before", "after", "between", "within_last", "within_next", "older_than", "newer_than"] },
+      { key: "customer.name", label: "Nombre", group: "Datos personales", type: "text", operators: [] },
+      { key: "customer.email", label: "Email", group: "Datos personales", type: "text", operators: [] },
+      { key: "customer.phone", label: "Teléfono", group: "Datos personales", type: "phone", operators: [] },
+      { key: "customer.id", label: "ID", group: "Sistema", type: "text", operators: [] },
+      { key: "customer.createdAt", label: "Fecha creación", group: "Datos personales", type: "date", operators: [] },
+      { key: "customer.updatedAt", label: "Fecha actualización", group: "Datos personales", type: "date", operators: [] },
       { key: "address.city", label: "Ciudad", group: "Dirección", type: "enum", operators: ["equals", "in", "notIn"], optionsSource: "customer_city" },
       { key: "address.dept", label: "Departamento", group: "Dirección", type: "enum", operators: ["equals", "in", "notIn"], optionsSource: "customer_dept" },
       { key: "address.line1", label: "Dirección", group: "Dirección", type: "text", operators: ["contains", "equals"] },
+      { key: "address.postalCode", label: "Código postal", group: "Dirección", type: "text", operators: [] },
       { key: "id.type", label: "Tipo identificación", group: "Identificación", type: "enum", operators: ["equals", "in"], optionsSource: "id_type" },
       { key: "id.number", label: "Número identificación", group: "Identificación", type: "text", operators: ["equals", "contains"] },
-      { key: "subscription.status", label: "Estado suscripción", group: "Plan/Suscripción", type: "enum", operators: ["equals", "in"], options: ["ACTIVE", "PAST_DUE", "EXPIRED", "CANCELED", "SUSPENDED"].map((v) => ({ value: v, label: v })) },
-      { key: "plan.name", label: "Plan", group: "Plan/Suscripción", type: "enum", operators: ["equals", "in"], optionsSource: "plan_names" },
-      { key: "plan.priceInCents", label: "Precio plan (COP)", group: "Plan/Suscripción", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] },
-      { key: "plan.intervalUnit", label: "Unidad periodicidad", group: "Plan/Suscripción", type: "enum", operators: ["equals", "in"], options: ["DAY", "WEEK", "MONTH"].map((v) => ({ value: v, label: v })) },
-      { key: "plan.intervalCount", label: "Cada (intervalo)", group: "Plan/Suscripción", type: "number", operators: ["equals", "gt", "gte", "lt", "lte"] },
-      { key: "subscription.nextBillingDate", label: "Próximo pago", group: "Plan/Suscripción", type: "date", operators: ["before", "after", "between", "within_last", "within_next", "older_than", "newer_than"] },
-      { key: "subscription.daysPastDue", label: "Días en mora", group: "Plan/Suscripción", type: "number", operators: ["equals", "gt", "gte", "lt", "lte"] },
-      { key: "subscription.inMora", label: "En mora", group: "Plan/Suscripción", type: "boolean", operators: ["equals"] },
-      { key: "payments.lastStatus", label: "Estado último pago", group: "Pagos", type: "enum", operators: ["equals", "in"], options: ["PENDING", "APPROVED", "DECLINED", "ERROR", "VOIDED"].map((v) => ({ value: v, label: v })) },
-      { key: "payments.lastPaidAt", label: "Fecha último pago", group: "Pagos", type: "date", operators: ["before", "after", "between", "within_last", "within_next", "older_than", "newer_than"] },
-      { key: "payments.approvedCount", label: "Pagos aprobados", group: "Pagos", type: "number", operators: ["equals", "gt", "gte", "lt", "lte"] },
-      { key: "payments.totalCount", label: "Pagos totales", group: "Pagos", type: "number", operators: ["equals", "gt", "gte", "lt", "lte"] },
+      { key: "subscription.status", label: "Estado suscripción", group: "Suscripción", type: "enum", operators: [], options: ["ACTIVE", "PAST_DUE", "EXPIRED", "CANCELED", "SUSPENDED"].map((v) => ({ value: v, label: v })) },
+      { key: "subscription.hasActive", label: "Tiene suscripción activa", group: "Suscripción", type: "boolean", operators: [] },
+      { key: "subscription.startAt", label: "Fecha inicio suscripción", group: "Suscripción", type: "date", operators: [] },
+      { key: "subscription.currentPeriodStartAt", label: "Inicio del ciclo", group: "Suscripción", type: "date", operators: [] },
+      { key: "subscription.currentPeriodEndAt", label: "Fin del ciclo", group: "Suscripción", type: "date", operators: [] },
+      { key: "subscription.nextBillingDate", label: "Próximo pago", group: "Suscripción", type: "date", operators: [] },
+      { key: "subscription.daysPastDue", label: "Días en mora", group: "Suscripción", type: "number", operators: [] },
+      { key: "subscription.inMora", label: "En mora", group: "Suscripción", type: "boolean", operators: [] },
+      { key: "plan.name", label: "Nombre plan", group: "Plan", type: "enum", operators: [], optionsSource: "plan_names" },
+      { key: "plan.priceInCents", label: "Precio plan (COP)", group: "Plan", type: "money", operators: [] },
+      { key: "plan.currency", label: "Moneda plan", group: "Plan", type: "enum", operators: [], options: ["COP", "USD", "MXN", "PEN", "CLP"].map((v) => ({ value: v, label: v })) },
+      { key: "plan.intervalUnit", label: "Unidad periodicidad", group: "Plan", type: "enum", operators: [], options: ["DAY", "WEEK", "MONTH"].map((v) => ({ value: v, label: v })) },
+      { key: "plan.intervalCount", label: "Cada (intervalo)", group: "Plan", type: "number", operators: [] },
+      { key: "plan.collectionMode", label: "Tipo de cobro", group: "Plan", type: "enum", operators: [], options: ["AUTO_LINK", "AUTO_DEBIT"].map((v) => ({ value: v, label: v })) },
+      { key: "payments.lastStatus", label: "Estado último pago", group: "Pagos", type: "enum", operators: [], options: ["PENDING", "APPROVED", "DECLINED", "ERROR", "VOIDED"].map((v) => ({ value: v, label: v })) },
+      { key: "payments.lastPaidAt", label: "Fecha último pago", group: "Pagos", type: "date", operators: [] },
+      { key: "payments.lastAmountInCents", label: "Monto último pago (COP)", group: "Pagos", type: "money", operators: [] },
+      { key: "payments.lastCurrency", label: "Moneda último pago", group: "Pagos", type: "enum", operators: [], options: ["COP", "USD", "MXN", "PEN", "CLP"].map((v) => ({ value: v, label: v })) },
+      { key: "payments.totalCount", label: "Pagos totales", group: "Pagos", type: "number", operators: [] },
+      { key: "payments.approvedCount", label: "Pagos aprobados", group: "Pagos", type: "number", operators: [] },
       { key: "gamification.level", label: "Nivel gamificación (1-10)", group: "Gamificación", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] },
       { key: "gamification.levelName", label: "Nivel gamificación (nombre)", group: "Gamificación", type: "enum", operators: ["equals", "in"], options: ["Rookie", "Explorador", "Bronce", "Plata", "Oro", "Platino", "Diamante", "Elite", "Maestro", "Leyenda"].map((v) => ({ value: v, label: v })) },
       { key: "gamification.statusScore", label: "Score gamificación", group: "Gamificación", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] },
@@ -338,17 +349,19 @@ export function getSmartViewFields(scope: SmartViewScope): SmartField[] {
 
   if (scope === "products") {
     return normalizeFieldOps([
-      { key: "product.name", label: "Nombre", group: "Producto", type: "text", operators: ["equals", "contains", "startsWith", "endsWith"] },
-      { key: "product.sku", label: "SKU", group: "Producto", type: "text", operators: ["equals", "contains", "startsWith", "endsWith"] },
-      { key: "product.priceInCents", label: "Precio (COP)", group: "Producto", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] },
-      { key: "product.currency", label: "Moneda", group: "Producto", type: "enum", operators: ["equals", "in"], options: ["COP"].map((v) => ({ value: v, label: v })) },
-      { key: "product.intervalUnit", label: "Unidad periodicidad", group: "Producto", type: "enum", operators: ["equals", "in"], options: ["DAY", "WEEK", "MONTH"].map((v) => ({ value: v, label: v })) },
-      { key: "product.intervalCount", label: "Cada (intervalo)", group: "Producto", type: "number", operators: ["equals", "gt", "gte", "lt", "lte"] },
-      { key: "product.kind", label: "Tipo", group: "Producto", type: "enum", operators: ["equals", "in"], options: ["PRODUCT", "SERVICE"].map((v) => ({ value: v, label: v })) },
-      { key: "product.productType", label: "Categoría", group: "Producto", type: "enum", operators: ["equals", "in"], optionsSource: "product_type" },
-      { key: "product.vendor", label: "Marca", group: "Producto", type: "enum", operators: ["equals", "in"], optionsSource: "product_vendor" },
-      { key: "product.requiresShipping", label: "Requiere envío", group: "Producto", type: "boolean", operators: ["equals"] },
-      { key: "product.taxable", label: "Aplica impuestos", group: "Producto", type: "boolean", operators: ["equals"] },
+      { key: "product.name", label: "Nombre", group: "Producto", type: "text", operators: [] },
+      { key: "product.sku", label: "SKU", group: "Producto", type: "text", operators: [] },
+      { key: "product.kind", label: "Tipo", group: "Producto", type: "enum", operators: [], options: ["PRODUCT", "SERVICE"].map((v) => ({ value: v, label: v })) },
+      { key: "product.productType", label: "Categoría", group: "Producto", type: "enum", operators: [], optionsSource: "product_type" },
+      { key: "product.vendor", label: "Marca", group: "Producto", type: "enum", operators: [], optionsSource: "product_vendor" },
+      { key: "product.priceInCents", label: "Precio (COP)", group: "Producto", type: "money", operators: [] },
+      { key: "product.currency", label: "Moneda", group: "Producto", type: "enum", operators: [], options: ["COP", "USD", "MXN", "PEN", "CLP"].map((v) => ({ value: v, label: v })) },
+      { key: "product.intervalUnit", label: "Unidad periodicidad", group: "Periodicidad", type: "enum", operators: [], options: ["DAY", "WEEK", "MONTH"].map((v) => ({ value: v, label: v })) },
+      { key: "product.intervalCount", label: "Cada (intervalo)", group: "Periodicidad", type: "number", operators: [] },
+      { key: "product.requiresShipping", label: "Requiere envío", group: "Producto", type: "boolean", operators: [] },
+      { key: "product.taxable", label: "Aplica impuestos", group: "Producto", type: "boolean", operators: [] },
+      { key: "product.createdAt", label: "Fecha creación", group: "Producto", type: "date", operators: [] },
+      { key: "product.updatedAt", label: "Fecha actualización", group: "Producto", type: "date", operators: [] },
       { key: "gamification.level", label: "Nivel gamificación (1-10)", group: "Gamificación", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] },
       { key: "gamification.levelName", label: "Nivel gamificación (nombre)", group: "Gamificación", type: "enum", operators: ["equals", "in"], options: ["Rookie", "Explorador", "Bronce", "Plata", "Oro", "Platino", "Diamante", "Elite", "Maestro", "Leyenda"].map((v) => ({ value: v, label: v })) },
       { key: "gamification.statusScore", label: "Score gamificación", group: "Gamificación", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] },
@@ -358,22 +371,29 @@ export function getSmartViewFields(scope: SmartViewScope): SmartField[] {
 
   if (scope === "billing") {
     return normalizeFieldOps([
-      { key: "customer.name", label: "Nombre cliente", group: "Cliente", type: "text", operators: ["equals", "contains", "startsWith", "endsWith"] },
-      { key: "customer.email", label: "Email cliente", group: "Cliente", type: "text", operators: ["equals", "contains"] },
-      { key: "customer.phone", label: "Teléfono cliente", group: "Cliente", type: "phone", operators: ["equals", "contains"] },
+      { key: "customer.name", label: "Nombre cliente", group: "Cliente", type: "text", operators: [] },
+      { key: "customer.email", label: "Email cliente", group: "Cliente", type: "text", operators: [] },
+      { key: "customer.phone", label: "Teléfono cliente", group: "Cliente", type: "phone", operators: [] },
       { key: "address.city", label: "Ciudad", group: "Cliente", type: "enum", operators: ["equals", "in"], optionsSource: "customer_city" },
       { key: "address.dept", label: "Departamento", group: "Cliente", type: "enum", operators: ["equals", "in"], optionsSource: "customer_dept" },
-      { key: "plan.name", label: "Plan", group: "Plan", type: "enum", operators: ["equals", "in"], optionsSource: "plan_names" },
-      { key: "plan.collectionMode", label: "Tipo de cobro", group: "Plan", type: "enum", operators: ["equals", "in"], options: ["AUTO_DEBIT", "AUTO_LINK"].map((v) => ({ value: v, label: v })) },
-      { key: "plan.priceInCents", label: "Precio plan (COP)", group: "Plan", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] },
-      { key: "plan.intervalUnit", label: "Unidad periodicidad", group: "Plan", type: "enum", operators: ["equals", "in"], options: ["DAY", "WEEK", "MONTH"].map((v) => ({ value: v, label: v })) },
-      { key: "plan.intervalCount", label: "Cada (intervalo)", group: "Plan", type: "number", operators: ["equals", "gt", "gte", "lt", "lte"] },
-      { key: "subscription.status", label: "Estado suscripción", group: "Suscripción", type: "enum", operators: ["equals", "in"], options: ["ACTIVE", "PAST_DUE", "EXPIRED", "CANCELED", "SUSPENDED"].map((v) => ({ value: v, label: v })) },
-      { key: "subscription.inMora", label: "En mora", group: "Suscripción", type: "boolean", operators: ["equals"] },
-      { key: "subscription.nextBillingDate", label: "Próximo pago", group: "Suscripción", type: "date", operators: ["before", "after", "between", "within_last", "within_next", "older_than", "newer_than"] },
-      { key: "subscription.daysPastDue", label: "Días en mora", group: "Suscripción", type: "number", operators: ["equals", "gt", "gte", "lt", "lte"] },
-      { key: "payments.lastStatus", label: "Estado último pago", group: "Pago", type: "enum", operators: ["equals", "in"], options: ["PENDING", "APPROVED", "DECLINED", "ERROR", "VOIDED"].map((v) => ({ value: v, label: v })) },
-      { key: "payments.lastPaidAt", label: "Fecha último pago", group: "Pago", type: "date", operators: ["before", "after", "between", "within_last", "within_next", "older_than", "newer_than"] }
+      { key: "plan.name", label: "Nombre plan", group: "Plan", type: "enum", operators: [], optionsSource: "plan_names" },
+      { key: "plan.collectionMode", label: "Tipo de cobro", group: "Plan", type: "enum", operators: [], options: ["AUTO_DEBIT", "AUTO_LINK"].map((v) => ({ value: v, label: v })) },
+      { key: "plan.priceInCents", label: "Precio plan (COP)", group: "Plan", type: "money", operators: [] },
+      { key: "plan.currency", label: "Moneda plan", group: "Plan", type: "enum", operators: [], options: ["COP", "USD", "MXN", "PEN", "CLP"].map((v) => ({ value: v, label: v })) },
+      { key: "plan.intervalUnit", label: "Unidad periodicidad", group: "Plan", type: "enum", operators: [], options: ["DAY", "WEEK", "MONTH"].map((v) => ({ value: v, label: v })) },
+      { key: "plan.intervalCount", label: "Cada (intervalo)", group: "Plan", type: "number", operators: [] },
+      { key: "subscription.status", label: "Estado suscripción", group: "Suscripción", type: "enum", operators: [], options: ["ACTIVE", "PAST_DUE", "EXPIRED", "CANCELED", "SUSPENDED"].map((v) => ({ value: v, label: v })) },
+      { key: "subscription.inMora", label: "En mora", group: "Suscripción", type: "boolean", operators: [] },
+      { key: "subscription.startAt", label: "Fecha inicio", group: "Suscripción", type: "date", operators: [] },
+      { key: "subscription.currentPeriodStartAt", label: "Inicio del ciclo", group: "Suscripción", type: "date", operators: [] },
+      { key: "subscription.currentPeriodEndAt", label: "Fin del ciclo", group: "Suscripción", type: "date", operators: [] },
+      { key: "subscription.nextBillingDate", label: "Próximo pago", group: "Suscripción", type: "date", operators: [] },
+      { key: "subscription.daysPastDue", label: "Días en mora", group: "Suscripción", type: "number", operators: [] },
+      { key: "subscription.currentCycle", label: "Ciclo actual", group: "Suscripción", type: "number", operators: [] },
+      { key: "payments.lastStatus", label: "Estado último pago", group: "Pago", type: "enum", operators: [], options: ["PENDING", "APPROVED", "DECLINED", "ERROR", "VOIDED"].map((v) => ({ value: v, label: v })) },
+      { key: "payments.lastPaidAt", label: "Fecha último pago", group: "Pago", type: "date", operators: [] },
+      { key: "payments.lastAmountInCents", label: "Monto último pago (COP)", group: "Pago", type: "money", operators: [] },
+      { key: "payments.lastCurrency", label: "Moneda último pago", group: "Pago", type: "enum", operators: [], options: ["COP", "USD", "MXN", "PEN", "CLP"].map((v) => ({ value: v, label: v })) }
     ]);
   }
 
@@ -388,16 +408,19 @@ export function getSmartViewFields(scope: SmartViewScope): SmartField[] {
 
   if (scope === "payments") {
     return normalizeFieldOps([
-      { key: "payment.status", label: "Estado", group: "Pago", type: "enum", operators: ["equals", "in"], options: ["PENDING", "APPROVED", "DECLINED", "ERROR", "VOIDED"].map((v) => ({ value: v, label: v })) },
-      { key: "payment.amountInCents", label: "Monto (COP)", group: "Pago", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] },
-      { key: "payment.createdAt", label: "Fecha creación", group: "Pago", type: "date", operators: ["before", "after", "between", "within_last", "within_next", "older_than", "newer_than"] },
-      { key: "payment.reference", label: "Referencia", group: "Pago", type: "text", operators: ["equals", "contains", "startsWith", "endsWith"] },
-      { key: "payment.wompiTransactionId", label: "Wompi Tx", group: "Pago", type: "text", operators: ["equals", "contains", "startsWith", "endsWith"] },
-      { key: "payment.wompiPaymentLinkId", label: "Wompi Link", group: "Pago", type: "text", operators: ["equals", "contains", "startsWith", "endsWith"] },
-      { key: "customer.name", label: "Cliente", group: "Cliente", type: "text", operators: ["equals", "contains", "startsWith", "endsWith"] },
-      { key: "customer.email", label: "Email", group: "Cliente", type: "text", operators: ["equals", "contains", "startsWith", "endsWith"] },
-      { key: "customer.phone", label: "Teléfono", group: "Cliente", type: "phone", operators: ["equals", "contains", "startsWith", "endsWith"] },
-      { key: "plan.name", label: "Plan", group: "Plan", type: "enum", operators: ["equals", "in"], optionsSource: "plan_names" }
+      { key: "payment.status", label: "Estado", group: "Pago", type: "enum", operators: [], options: ["PENDING", "APPROVED", "DECLINED", "ERROR", "VOIDED"].map((v) => ({ value: v, label: v })) },
+      { key: "payment.amountInCents", label: "Monto (COP)", group: "Pago", type: "money", operators: [] },
+      { key: "payment.currency", label: "Moneda", group: "Pago", type: "enum", operators: [], options: ["COP", "USD", "MXN", "PEN", "CLP"].map((v) => ({ value: v, label: v })) },
+      { key: "payment.createdAt", label: "Fecha creación", group: "Pago", type: "date", operators: [] },
+      { key: "payment.paidAt", label: "Fecha pago", group: "Pago", type: "date", operators: [] },
+      { key: "payment.reference", label: "Referencia", group: "Pago", type: "text", operators: [] },
+      { key: "payment.wompiTransactionId", label: "Wompi Tx", group: "Pago", type: "text", operators: [] },
+      { key: "payment.wompiPaymentLinkId", label: "Wompi Link", group: "Pago", type: "text", operators: [] },
+      { key: "customer.name", label: "Cliente", group: "Cliente", type: "text", operators: [] },
+      { key: "customer.email", label: "Email", group: "Cliente", type: "text", operators: [] },
+      { key: "customer.phone", label: "Teléfono", group: "Cliente", type: "phone", operators: [] },
+      { key: "plan.name", label: "Plan", group: "Plan", type: "enum", operators: [], optionsSource: "plan_names" },
+      { key: "subscription.status", label: "Estado suscripción", group: "Suscripción", type: "enum", operators: [], options: ["ACTIVE", "PAST_DUE", "EXPIRED", "CANCELED", "SUSPENDED"].map((v) => ({ value: v, label: v })) }
     ]);
   }
 
@@ -550,10 +573,14 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
         const approvedCount = approvedByCustomer.get(String(customer.id)) || 0;
         const totalPayments = paymentsByCustomer.get(String(customer.id)) || 0;
         const currentPeriodEndAt = sub?.currentPeriodEndAt ? new Date(sub.currentPeriodEndAt) : null;
+        const currentPeriodStartAt = sub?.currentPeriodStartAt ? new Date(sub.currentPeriodStartAt) : null;
         const daysPastDue =
           currentPeriodEndAt && currentPeriodEndAt.getTime() < now
             ? Math.floor((now - currentPeriodEndAt.getTime()) / 86_400_000)
             : 0;
+
+        const planMeta = asRecord(sub?.plan?.metadata);
+        const collectionMode = (planMeta.collectionMode as string) || null;
 
         const gKey = tenantId ? `${tenantId}:${customer.id}` : `global:${customer.id}`;
         const gFallbackKey = `global:${customer.id}`;
@@ -568,12 +595,15 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
             name: customer.name || "",
             email: customer.email || "",
             phone: customer.phone || "",
-            createdAt: customer.createdAt
+            id: customer.id,
+            createdAt: customer.createdAt,
+            updatedAt: customer.updatedAt
           },
           address: {
             city: (addressMeta.city as string) || (customerMeta.city as string) || null,
             dept: (addressMeta.dept as string) || (customerMeta.dept as string) || null,
-            line1: (addressMeta.line1 as string) || null
+            line1: (addressMeta.line1 as string) || null,
+            postalCode: (addressMeta.code5 as string) || (addressMeta.postalCode as string) || (customerMeta.postalCode as string) || null
           },
           id: {
             type: (customerMeta.identificacionTipo as string) || null,
@@ -581,6 +611,11 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
           },
           subscription: {
             status: sub?.status ?? null,
+            hasActive: sub?.status === SubscriptionStatus.ACTIVE,
+            startAt: sub?.startAt ?? null,
+            currentPeriodStartAt,
+            currentPeriodEndAt,
+            currentCycle: sub?.currentCycle ?? null,
             nextBillingDate: currentPeriodEndAt,
             daysPastDue,
             inMora: sub?.status === SubscriptionStatus.PAST_DUE || daysPastDue > 0
@@ -588,12 +623,16 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
           plan: {
             name: sub?.plan?.name ?? null,
             priceInCents: sub?.plan?.priceInCents ?? null,
+            currency: sub?.plan?.currency ?? null,
             intervalUnit: sub?.plan?.intervalUnit ?? null,
-            intervalCount: sub?.plan?.intervalCount ?? null
+            intervalCount: sub?.plan?.intervalCount ?? null,
+            collectionMode
           },
           payments: {
             lastStatus: latestPayment?.status ?? null,
             lastPaidAt: latestPayment?.paidAt ?? null,
+            lastAmountInCents: latestPayment?.amountInCents ?? null,
+            lastCurrency: latestPayment?.currency ?? null,
             approvedCount,
             totalCount: totalPayments
           },
@@ -654,7 +693,9 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
             productType,
             vendor,
             requiresShipping,
-            taxable
+            taxable,
+            createdAt: p.createdAt,
+            updatedAt: p.updatedAt
           },
           gamification: {
             level: gamificationLevel,
@@ -699,18 +740,25 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
             name: s.plan?.name ?? null,
             collectionMode,
             priceInCents: s.plan?.priceInCents ?? null,
+            currency: s.plan?.currency ?? null,
             intervalUnit: s.plan?.intervalUnit ?? null,
             intervalCount: s.plan?.intervalCount ?? null
           },
           subscription: {
             status: s.status,
+            startAt: s.startAt ?? null,
+            currentPeriodStartAt: s.currentPeriodStartAt ?? null,
+            currentPeriodEndAt: s.currentPeriodEndAt ?? null,
+            currentCycle: s.currentCycle ?? null,
             nextBillingDate: currentPeriodEndAt,
             daysPastDue,
             inMora: s.status === SubscriptionStatus.PAST_DUE || daysPastDue > 0
           },
           payments: {
             lastStatus: s.payments?.[0]?.status ?? null,
-            lastPaidAt: s.payments?.[0]?.paidAt ?? null
+            lastPaidAt: s.payments?.[0]?.paidAt ?? null,
+            lastAmountInCents: s.payments?.[0]?.amountInCents ?? null,
+            lastCurrency: s.payments?.[0]?.currency ?? null
           }
         };
         return evalRule(rules, ctx);
@@ -747,6 +795,8 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
             status: p.status,
             amountInCents: p.amountInCents,
             createdAt: p.createdAt,
+            paidAt: p.paidAt,
+            currency: p.currency,
             reference: p.reference,
             wompiTransactionId: p.wompiTransactionId,
             wompiPaymentLinkId: p.wompiPaymentLinkId
@@ -758,6 +808,9 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
           },
           plan: {
             name: p.subscription?.plan?.name || null
+          },
+          subscription: {
+            status: p.subscription?.status ?? null
           }
         };
         return evalRule(rules, ctx);

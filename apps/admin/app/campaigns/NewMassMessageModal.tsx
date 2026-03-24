@@ -306,6 +306,12 @@ export function NewMassMessageModal({
   const [waLoading, setWaLoading] = useState(false);
   const [waError, setWaError] = useState("");
   const [waState, setWaState] = useState({ name: "", lang: "es", bodyParams: [] as string[], headerParams: [] as string[], buttonParams: [] as string[] });
+  const [smartListId, setSmartListId] = useState("");
+  const [audienceCount, setAudienceCount] = useState<number | null>(null);
+  const [audienceSample, setAudienceSample] = useState<Array<{ id: string; name?: string; email?: string; phone?: string }>>([]);
+  const [audienceLoading, setAudienceLoading] = useState(false);
+  const [audienceError, setAudienceError] = useState("");
+  const [audienceApproved, setAudienceApproved] = useState(false);
   const lastFieldRef = useRef<HTMLTextAreaElement | null>(null);
 
   const presetOptions = useMemo(() => {
@@ -336,6 +342,10 @@ export function NewMassMessageModal({
   useEffect(() => {
     if (!open) return;
     setWizardStep(1);
+    setAudienceApproved(false);
+    setAudienceCount(null);
+    setAudienceSample([]);
+    setAudienceError("");
   }, [open]);
 
   useEffect(() => {
@@ -357,6 +367,37 @@ export function NewMassMessageModal({
     if (lastFieldRef.current) insertAtCursor(lastFieldRef.current, value);
     setPickerOpen(false);
   };
+
+  const loadAudiencePreview = useCallback(async (id: string) => {
+    const trimmed = String(id || "").trim();
+    if (!trimmed) {
+      setAudienceCount(null);
+      setAudienceSample([]);
+      setAudienceError("");
+      return;
+    }
+    setAudienceLoading(true);
+    setAudienceError("");
+    setAudienceApproved(false);
+    try {
+      const res = await fetch(`/admin/comms/smart-lists/${trimmed}/preview`, { method: "POST" });
+      const json = await res.json().catch(() => null);
+      if (res.ok && json && typeof json.count === "number") {
+        setAudienceCount(json.count);
+        setAudienceSample(Array.isArray(json.sample) ? json.sample : []);
+      } else {
+        setAudienceCount(null);
+        setAudienceSample([]);
+        setAudienceError(String(json?.error || "No se pudo cargar la audiencia"));
+      }
+    } catch (err: any) {
+      setAudienceCount(null);
+      setAudienceSample([]);
+      setAudienceError(String(err?.message || "No se pudo cargar la audiencia"));
+    } finally {
+      setAudienceLoading(false);
+    }
+  }, []);
 
   return (
     <>
@@ -393,7 +434,17 @@ export function NewMassMessageModal({
                     <span>Filtro inteligente (audiencia)</span>
                     <HelpTip text="Selecciona la lista inteligente de contactos a la que se enviará el mensaje." />
                   </label>
-                  <select className="select" name="smartListId" required>
+                  <select
+                    className="select"
+                    name="smartListId"
+                    required
+                    value={smartListId}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setSmartListId(next);
+                      loadAudiencePreview(next);
+                    }}
+                  >
                     <option value="">Selecciona una lista</option>
                     {lists.map((l) => (
                       <option key={l.id} value={l.id}>
@@ -401,6 +452,40 @@ export function NewMassMessageModal({
                       </option>
                     ))}
                   </select>
+                  {audienceLoading ? <div className="field-hint">Calculando audiencia...</div> : null}
+                  {audienceError ? <div className="field-hint" style={{ color: "var(--danger)" }}>{audienceError}</div> : null}
+                  {audienceCount !== null && !audienceLoading ? (
+                    <div className="card cardPad" style={{ marginTop: 8 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                        <strong>Resumen de audiencia</strong>
+                        <span className="pill pill-muted">{audienceCount} contactos</span>
+                      </div>
+                      {audienceSample.length ? (
+                        <div style={{ display: "grid", gap: 6, marginTop: 8 }}>
+                          {audienceSample.map((c) => (
+                            <div key={c.id} className="muted" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                              <span>{c.name || "Contacto"}</span>
+                              {c.email ? <span>· {c.email}</span> : null}
+                              {c.phone ? <span>· {c.phone}</span> : null}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="field-hint" style={{ marginTop: 6 }}>
+                          Esta lista no tiene contactos.
+                        </div>
+                      )}
+                      <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
+                        <input
+                          type="checkbox"
+                          checked={audienceApproved}
+                          onChange={(e) => setAudienceApproved(e.target.checked)}
+                          disabled={!audienceCount || audienceCount <= 0}
+                        />
+                        <span>Aprobar envío a esta audiencia</span>
+                      </label>
+                    </div>
+                  ) : null}
                 </div>
 
                 {wizardStep === 1 ? (
@@ -509,7 +594,7 @@ export function NewMassMessageModal({
                     <button className="ghost" type="button" onClick={() => setOpen(false)} data-loader="off">
                       Cancelar
                     </button>
-                    <PendingButton className="primary" type="submit" pendingText="Guardando...">
+                    <PendingButton className="primary" type="submit" pendingText="Guardando..." disabled={!audienceApproved}>
                       Guardar campaña
                     </PendingButton>
                   </div>
