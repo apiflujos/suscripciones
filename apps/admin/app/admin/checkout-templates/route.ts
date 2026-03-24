@@ -82,6 +82,11 @@ export async function POST(req: Request) {
   if (!data.allowProductSelect && !hasProducts) {
     return Response.json({ error: "product_required" }, { status: 400 });
   }
+  if (String(data.kind) !== "CART") {
+    if (!Array.isArray(data.productIds) || data.productIds.length !== 1) {
+      return Response.json({ error: "single_product_required" }, { status: 400 });
+    }
+  }
   if (String(data.kind) === "CART" && data.productIds?.length) {
     const plans = await prisma.subscriptionPlan.findMany({
       where: { id: { in: data.productIds } },
