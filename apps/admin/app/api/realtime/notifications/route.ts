@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { requireApiSession } from "../../_lib/requireApiSession";
-import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../../lib/session";
+import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../../../lib/session";
 import { listChatwootMessages, listPaymentLogs } from "../../../admin/_services/logs";
 
 export const runtime = "nodejs";
