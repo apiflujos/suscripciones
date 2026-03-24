@@ -655,7 +655,7 @@ export function NotificationsSimple({
             </div>
             <div className="panel module" style={{ display: "grid", gap: 6 }}>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {[...MESSAGE_VARIABLES, ...checkoutVars].map((item) => {
+                {[...MESSAGE_VARIABLES, ...autoCheckoutVars].map((item) => {
                   const label = typeof item === "string" ? item : item.label;
                   const value = typeof item === "string" ? item : item.value;
                   return (
