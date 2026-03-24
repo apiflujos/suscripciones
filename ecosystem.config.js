@@ -31,8 +31,6 @@ const clientSlug = process.env.CLIENT_SLUG || '';
 const enableAdmin = true;
 
 const nameFor = (role) => (clientSlug ? `${stackName}-${role}-${clientSlug}` : `${stackName}-${role}`);
-const logBaseFor = (role) => (clientSlug ? `${stackName}-${role}-${clientSlug}` : role);
-
 const apps = [
   {
     name: nameFor('jobs'),
@@ -51,8 +49,8 @@ const apps = [
       REALTIME_PUBLISH_URL: process.env.REALTIME_PUBLISH_URL,
       REALTIME_PUBLISH_TOKEN: process.env.REALTIME_PUBLISH_TOKEN,
     },
-    error_file: `../../logs/${logBaseFor('jobs')}-error.log`,
-    out_file: `../../logs/${logBaseFor('jobs')}-out.log`,
+    error_file: "/dev/stderr",
+    out_file: "/dev/stdout",
     log_date_format: 'YYYY-MM-DD HH:mm:ss',
     autorestart: true,
     watch: false,
@@ -80,8 +78,8 @@ if (enableAdmin) {
       REALTIME_PUBLISH_URL: process.env.REALTIME_PUBLISH_URL,
       REALTIME_PUBLISH_TOKEN: process.env.REALTIME_PUBLISH_TOKEN,
     },
-    error_file: `../../logs/${logBaseFor('admin')}-error.log`,
-    out_file: `../../logs/${logBaseFor('admin')}-out.log`,
+    error_file: "/dev/stderr",
+    out_file: "/dev/stdout",
     log_date_format: 'YYYY-MM-DD HH:mm:ss',
     autorestart: true,
     watch: false,
