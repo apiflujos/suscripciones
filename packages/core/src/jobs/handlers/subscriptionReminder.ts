@@ -1,4 +1,4 @@
-import { ChatwootMessageType, LogLevel, MessageStatus, PaymentStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
+import { ChatwootMessageType, LogLevel, MessageStatus, PaymentStatus, RetryJobType, SubscriptionStatus, PublicCheckoutKind } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../../db/prisma";
 import { getNotificationsConfig, notificationTriggerSchema } from "../../services/notificationsConfig";
@@ -76,6 +76,29 @@ function extractTemplatePaths(input: any): string[] {
   };
   walk(input);
   return Array.from(new Set(out));
+}
+
+async function resolveAutoCheckoutTemplateId(args: {
+  tenantId: string;
+  trigger: string;
+  paymentType: string;
+}): Promise<string | null> {
+  const { tenantId, trigger, paymentType } = args;
+  if (!tenantId) return null;
+  const templates = await prisma.publicCheckoutTemplate.findMany({
+    where: { tenantId, active: true },
+    orderBy: { updatedAt: "desc" }
+  });
+  if (!templates.length) return null;
+  let desired: PublicCheckoutKind = PublicCheckoutKind.PLAN;
+  if (trigger === "CATALOG_LINK_CREATED") desired = PublicCheckoutKind.CART;
+  else if (trigger === "TOKENIZATION_LINK_CREATED") desired = PublicCheckoutKind.SUBSCRIPTION;
+  else if (String(paymentType).toUpperCase() === "SUBSCRIPTION") desired = PublicCheckoutKind.SUBSCRIPTION;
+  else desired = PublicCheckoutKind.PLAN;
+
+  const byKind = templates.filter((t) => t.kind === desired);
+  const pick = byKind[0] || templates[0];
+  return pick?.id ? String(pick.id) : null;
 }
 
 function renderAny(input: any, ctx: any): any {
@@ -331,7 +354,7 @@ export async function subscriptionReminder(payload: any) {
   const checkoutIds = Array.from(
     new Set(
       templatePaths
-        .filter((p) => p.startsWith("checkoutPublic."))
+        .filter((p) => p.startsWith("checkoutPublicToken.") || p.startsWith("checkoutPublicName."))
         .map((p) => p.split(".")[1])
         .filter(Boolean)
     )
@@ -340,7 +363,24 @@ export async function subscriptionReminder(payload: any) {
   const checkoutPublicName: Record<string, string> = {};
   if (checkoutIds.length) {
     for (const id of checkoutIds) {
-      const created = await createPublicCheckoutLink({ customerId: customer.id, templateId: id }).catch(() => null);
+      const targetId =
+        id === "AUTO"
+          ? await resolveAutoCheckoutTemplateId({
+              tenantId: subscription?.tenantId || payment?.tenantId || "",
+              trigger: parsed.data.trigger,
+              paymentType
+            })
+          : id;
+      if (!targetId) {
+        await systemLog(LogLevel.WARN, "notifications.dispatch", "Checkout público automático no disponible", {
+          ruleId: rule.id,
+          templateId: template.id,
+          trigger: parsed.data.trigger,
+          customerId: customer.id
+        }, "job:subscriptionReminder").catch(() => {});
+        return;
+      }
+      const created = await createPublicCheckoutLink({ customerId: customer.id, templateId: targetId }).catch(() => null);
       if (created?.url) {
         checkoutPublicToken[id] = created.token;
         checkoutPublicName[id] = created.templateName;
@@ -350,7 +390,7 @@ export async function subscriptionReminder(payload: any) {
           templateId: template.id,
           trigger: parsed.data.trigger,
           customerId: customer.id,
-          checkoutTemplateId: id
+          checkoutTemplateId: targetId
         }, "job:subscriptionReminder").catch(() => {});
         return;
       }

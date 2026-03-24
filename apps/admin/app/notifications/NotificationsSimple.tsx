@@ -544,8 +544,18 @@ export function NotificationsSimple({
       { label: `Checkout público: ${t.name} (Nombre)`, value: `{{checkoutPublicName.${t.id}}}` }
     ]);
   }, [checkoutOptions]);
-  const bodyVars = useMemo(() => [...MESSAGE_VARIABLES, ...checkoutVars], [checkoutVars]);
-  const buttonVars = useMemo(() => [...checkoutVars], [checkoutVars]);
+  const autoCheckoutVars = useMemo(
+    () => [
+      { label: "Checkout público (Automático · Token)", value: "{{checkoutPublicToken.AUTO}}" },
+      { label: "Checkout público (Automático · Nombre)", value: "{{checkoutPublicName.AUTO}}" }
+    ],
+    []
+  );
+  const bodyVars = useMemo(() => [...MESSAGE_VARIABLES, ...autoCheckoutVars, ...checkoutVars], [checkoutVars, autoCheckoutVars]);
+  const buttonVars = useMemo(
+    () => [{ label: "Checkout público (Automático)", value: "{{checkoutPublicToken.AUTO}}" }, ...checkoutVars.filter((v) => v.value.includes("checkoutPublicToken."))],
+    [checkoutVars]
+  );
 
   useEffect(() => {
     if (!activeModal) return;

@@ -21,8 +21,12 @@ function normalizeBase(base: string, kind: PublicCheckoutKind) {
   const normalized = ensureHttps(base).replace(/\/$/, "");
   const planPath = /\/public\/plan$/i;
   const subPath = /\/public\/suscripcion$/i;
+  const cartPath = /\/public\/cart$/i;
   if (kind === "SUBSCRIPTION") {
     return subPath.test(normalized) ? normalized : `${normalized}/public/suscripcion`;
+  }
+  if (kind === "CART") {
+    return cartPath.test(normalized) ? normalized : `${normalized}/public/cart`;
   }
   return planPath.test(normalized) ? normalized : `${normalized}/public/plan`;
 }
@@ -58,7 +62,13 @@ export async function createPublicCheckoutLink(args: {
   const envBases = getCheckoutBaseUrlsFromEnv();
   const planBase = String(cfg.planBaseUrl || "").trim() || envBases.planBaseUrl || "";
   const subscriptionBase = String(cfg.subscriptionBaseUrl || "").trim() || envBases.subscriptionBaseUrl || "";
-  const base = template.kind === "SUBSCRIPTION" ? subscriptionBase : planBase;
+  const cartBase = String((cfg as any).cartBaseUrl || "").trim() || envBases.cartBaseUrl || "";
+  const base =
+    template.kind === "SUBSCRIPTION"
+      ? subscriptionBase
+      : template.kind === "CART"
+        ? cartBase
+        : planBase;
   if (!base) return null;
 
   const expiryFromTemplate = Number(template.expiryHours || 0);

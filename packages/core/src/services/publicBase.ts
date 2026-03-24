@@ -3,11 +3,12 @@ export function getPublicBaseUrlFromEnv(): string {
   return String(raw || "").trim().replace(/\/+$/g, "");
 }
 
-export function getCheckoutBaseUrlsFromEnv(): { planBaseUrl: string | null; subscriptionBaseUrl: string | null } {
+export function getCheckoutBaseUrlsFromEnv(): { planBaseUrl: string | null; subscriptionBaseUrl: string | null; cartBaseUrl: string | null } {
   const base = getPublicBaseUrlFromEnv();
-  if (!base) return { planBaseUrl: null, subscriptionBaseUrl: null };
+  if (!base) return { planBaseUrl: null, subscriptionBaseUrl: null, cartBaseUrl: null };
   return {
     planBaseUrl: `${base}/public/plan`,
-    subscriptionBaseUrl: `${base}/public/suscripcion`
+    subscriptionBaseUrl: `${base}/public/suscripcion`,
+    cartBaseUrl: `${base}/public/cart`
   };
 }

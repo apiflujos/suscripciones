@@ -16,13 +16,12 @@ type NotificationKind =
 
 const VARIABLES = [
   { label: "Ciclo actual", value: "{{subscription.currentCycle}}" },
-  { label: "Correo de la empresa", value: "{{company.email}}" },
-  { label: "Correo del contacto", value: "{{contact.email}}" },
   { label: "Correo electrónico", value: "{{customer.email}}" },
   { label: "Dirección", value: "{{customer.metadata.address}}" },
-  { label: "Enlace de catálogo", value: "{{catalog.url}}" },
   { label: "Checkout público (Token)", value: "{{checkoutPublicToken.ID}}" },
   { label: "Checkout público (Nombre)", value: "{{checkoutPublicName.ID}}" },
+  { label: "Checkout público (Automático · Token)", value: "{{checkoutPublicToken.AUTO}}" },
+  { label: "Checkout público (Automático · Nombre)", value: "{{checkoutPublicName.AUTO}}" },
   { label: "Estado de la suscripción", value: "{{subscription.status}}" },
   { label: "Estado del pago", value: "{{payment.status}}" },
   { label: "Fecha de corte", value: "{{subscription.currentPeriodEndAt}}" },
@@ -35,14 +34,10 @@ const VARIABLES = [
   { label: "Moneda del pago", value: "{{payment.currency}}" },
   { label: "Moneda del producto", value: "{{plan.currency}}" },
   { label: "Monto del pago (pesos)", value: "{{payment.amountInPesos}}" },
-  { label: "Nombre de la empresa", value: "{{company.name}}" },
-  { label: "Nombre del contacto", value: "{{contact.name}}" },
   { label: "Nombre del producto", value: "{{plan.name}}" },
   { label: "Precio del producto (pesos)", value: "{{plan.priceInPesos}}" },
   { label: "Referencia", value: "{{payment.reference}}" },
   { label: "Teléfono", value: "{{customer.phone}}" },
-  { label: "Teléfono de la empresa", value: "{{company.phone}}" },
-  { label: "Teléfono del contacto", value: "{{contact.phone}}" },
   { label: "Tipo de pago", value: "{{paymentType}}" }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
