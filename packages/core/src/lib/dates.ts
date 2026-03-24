@@ -55,3 +55,20 @@ export function addIntervalUtc(date: Date, unit: PlanIntervalUnit, count: number
   d.setUTCDate(d.getUTCDate() + c);
   return d;
 }
+
+export function formatDateTimeEs(date: Date, timeZone: string = "America/Bogota") {
+  try {
+    const fmt = new Intl.DateTimeFormat("es-CO", {
+      timeZone,
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true
+    });
+    return fmt.format(date).replace(",", "");
+  } catch {
+    return date.toISOString();
+  }
+}

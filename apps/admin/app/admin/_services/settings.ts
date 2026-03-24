@@ -18,12 +18,14 @@ export async function getCheckoutConfig() {
   const envBases = getCheckoutBaseUrlsFromEnv();
   const storedPlanBaseUrl = String(checkoutConfig?.planBaseUrl || "").trim();
   const storedSubscriptionBaseUrl = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
+  const timeZone = String(checkoutConfig?.timeZone || checkoutConfig?.timezone || "").trim();
 
   return {
     planBaseUrl: storedPlanBaseUrl || envBases.planBaseUrl,
     subscriptionBaseUrl: storedSubscriptionBaseUrl || envBases.subscriptionBaseUrl,
     defaultUtmParams: String(checkoutConfig?.defaultUtmParams || ""),
-    tokenExpiryHours: Number(checkoutConfig?.tokenExpiryHours || 24)
+    tokenExpiryHours: Number(checkoutConfig?.tokenExpiryHours || 24),
+    timeZone: timeZone || "America/Bogota"
   };
 }
 

@@ -693,6 +693,7 @@ export async function updateCheckoutConfig(formData: FormData) {
   setString("tokenizationSuccessMessage");
   setString("tokenizationErrorMessage");
   setString("tokenizationReturnUrl");
+  setString("timeZone");
 
   try {
     const out = await updateCheckoutConfigAction(payload);

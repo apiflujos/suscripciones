@@ -7,6 +7,7 @@ type CheckoutConfig = {
   planBaseUrl?: string | null;
   subscriptionBaseUrl?: string | null;
   tokenExpiryHours?: number | null;
+  timeZone?: string | null;
   logoUrl?: string | null;
   supportEmail?: string | null;
   supportUrl?: string | null;
@@ -50,6 +51,7 @@ export function CheckoutConfigPanel({
   const [logoData, setLogoData] = useState<string>(defaults.logoUrl || "");
   const [previewOpen, setPreviewOpen] = useState(false);
   const [tokenExpiryHours, setTokenExpiryHours] = useState<string>(String(defaults.tokenExpiryHours || 24));
+  const [timeZone, setTimeZone] = useState<string>(String(defaults.timeZone || "America/Bogota"));
   const [checkoutTitle, setCheckoutTitle] = useState<string>(String(defaults.planTitle || defaults.subscriptionTitle || "Checkout"));
   const [checkoutDescription, setCheckoutDescription] = useState<string>(String(defaults.planDescription || defaults.subscriptionDescription || ""));
   const [supportEmail, setSupportEmail] = useState<string>(String(defaults.supportEmail || ""));
@@ -103,6 +105,7 @@ export function CheckoutConfigPanel({
       <input type="hidden" name="tokenizationReturnUrl" value={tokenReturnUrl} />
       <input type="hidden" name="supportEmail" value={supportEmail} />
       <input type="hidden" name="supportUrl" value={supportUrl} />
+      <input type="hidden" name="timeZone" value={timeZone} />
 
       <div className="panelHeaderRow" style={{ justifyContent: "space-between" }}>
         <div>
@@ -129,6 +132,18 @@ export function CheckoutConfigPanel({
         <div className="field">
           <label>Expiración link (horas)</label>
           <input className="input" name="tokenExpiryHours" value={tokenExpiryHours} onChange={(e) => setTokenExpiryHours(e.target.value)} />
+        </div>
+        <div className="field">
+          <label>Zona horaria</label>
+          <input className="input" list="timezones" value={timeZone} onChange={(e) => setTimeZone(e.target.value)} placeholder="America/Bogota" />
+          <datalist id="timezones">
+            <option value="America/Bogota" />
+            <option value="America/Mexico_City" />
+            <option value="America/Lima" />
+            <option value="America/Santiago" />
+            <option value="America/Argentina/Buenos_Aires" />
+            <option value="UTC" />
+          </datalist>
         </div>
       </div>
 

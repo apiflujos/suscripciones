@@ -220,6 +220,20 @@ export async function getPaymentsConfig(): Promise<PaymentsConfig> {
   };
 }
 
+export async function getAppTimeZone(): Promise<string> {
+  const envTz = String(process.env.APP_TIMEZONE || "").trim();
+  if (envTz) return envTz;
+  const raw = (await getCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG")) || "";
+  let parsed: any = {};
+  try {
+    parsed = raw ? JSON.parse(raw) : {};
+  } catch {
+    parsed = {};
+  }
+  const tz = String(parsed?.timeZone || parsed?.timezone || "").trim();
+  return tz || "America/Bogota";
+}
+
 export async function getChatwootConfig(): Promise<
   | { configured: false }
   | { configured: true; baseUrl: string; accountId: number; apiAccessToken: string; inboxId: number }

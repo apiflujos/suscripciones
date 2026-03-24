@@ -7,6 +7,8 @@ import { systemLog } from "../../services/systemLog";
 import { createPublicCheckoutLink } from "../../services/publicCheckoutLinks";
 import { sendChatwootMessage } from "./sendChatwootMessage";
 import { getDefaultTenantId } from "../../services/tenantContext";
+import { formatDateTimeEs } from "../../lib/dates";
+import { getAppTimeZone } from "../../services/runtimeConfig";
 
 const payloadSchema = z.object({
   trigger: notificationTriggerSchema,
@@ -47,10 +49,11 @@ function getPath(obj: any, path: string) {
 }
 
 function renderTemplate(content: string, ctx: any) {
+  const tz = String(ctx?.__tz || "America/Bogota");
   return String(content || "").replace(/\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}/g, (_m, path) => {
     const v = getPath(ctx, String(path || ""));
     if (v == null) return "";
-    if (v instanceof Date) return v.toISOString();
+    if (v instanceof Date) return formatDateTimeEs(v, tz);
     return String(v);
   });
 }
@@ -422,7 +425,9 @@ export async function subscriptionReminder(payload: any) {
   const paymentWithPesos = effectivePayment
     ? { ...effectivePayment, amountInPesos: centsToPesos(effectivePayment.amountInCents) }
     : null;
+  const timeZone = await getAppTimeZone().catch(() => "America/Bogota");
   const ctx = {
+    __tz: timeZone,
     customer,
     subscription,
     plan: planWithPesos,
