@@ -277,6 +277,22 @@ export async function subscriptionReminder(payload: any) {
     return;
   }
 
+  const requiresWhatsappTemplate = [
+    "PAYMENT_LINK_CREATED",
+    "TOKENIZATION_LINK_CREATED",
+    "PAYMENT_APPROVED",
+    "PAYMENT_DECLINED",
+    "CATALOG_LINK_CREATED"
+  ].includes(parsed.data.trigger);
+  if (requiresWhatsappTemplate && !String(template.chatwootTemplate?.name || "").trim()) {
+    await systemLog(LogLevel.WARN, "notifications.dispatch", "Plantilla WhatsApp no configurada", {
+      ruleId: rule.id,
+      templateId: template.id,
+      trigger: parsed.data.trigger
+    }, "job:subscriptionReminder").catch(() => {});
+    return;
+  }
+
   let effectivePayment: any = payment;
   if (rule.ensurePaymentLink && subscription && parsed.data.trigger === "SUBSCRIPTION_DUE") {
     const cycle = parsed.data.cycleNumber ?? subscription.currentCycle;

@@ -558,8 +558,10 @@ export function NotificationsSimple({
       if (!rt) return;
       const tpl = templateForKey(rt.key, rt.chatwootType, rt.label, rt.aliases);
       const hasWa = Boolean(tpl?.chatwootTemplate?.name);
-      const kind = realtimeKinds[rt.key] || (hasWa ? "WHATSAPP_TEMPLATE" : "TEXT");
+      const kind = "WHATSAPP_TEMPLATE";
       setWizardKind(kind);
+      setRealtimeKinds({ ...realtimeKinds, [rt.key]: kind });
+      setWizardStep(2);
       return;
     }
     const rule = getReminderRule(activeModal.kind, activeModal.paymentType);
@@ -789,10 +791,7 @@ export function NotificationsSimple({
                         </div>
                       ) : (
                         <div className="field row" style={{ justifyContent: "space-between" }}>
-                          <div className="muted">Tipo: {kind === "WHATSAPP_TEMPLATE" ? "Plantilla" : "Mensaje"}</div>
-                          <button className="ghost btn-compact" type="button" onClick={() => setWizardStep(1)} data-loader="off">
-                            Cambiar tipo
-                          </button>
+                          <div className="muted">Tipo: Plantilla (WhatsApp)</div>
                         </div>
                       )}
                       {wizardStep === 2 && kind === "TEXT" ? (

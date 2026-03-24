@@ -5,6 +5,7 @@ import { getCustomerById, updateCustomerMetadata } from "../../../admin/_service
 import { scheduleTokenizationLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
 import { sendChatwootMessageForCustomer } from "../../../admin/_services/chatwoot";
 import { signPublicToken } from "../../../../lib/publicTokens";
+import { getNotificationsConfig } from "@suscripciones/core/services/notificationsConfig";
 
 function buildChatwootLinkMessage(args: { name?: string; lead: string; url: string }) {
   const safeName = String(args.name || "Cliente").trim() || "Cliente";
@@ -29,6 +30,18 @@ export async function POST(req: Request) {
   const customerName = String(body?.customerName || "").trim() || "Cliente";
   const templateId = String(body?.templateId || "").trim();
   if (!customerId) return NextResponse.json({ ok: false, error: "missing_customer_id" }, { status: 400 });
+
+  const notificationsConfig = await getNotificationsConfig().catch(() => null);
+  if (notificationsConfig) {
+    const rules = Array.isArray((notificationsConfig as any)?.rules) ? (notificationsConfig as any).rules : [];
+    const templates = Array.isArray((notificationsConfig as any)?.templates) ? (notificationsConfig as any).templates : [];
+    const candidates = rules.filter((r: any) => r?.enabled && String(r?.trigger || "") === "TOKENIZATION_LINK_CREATED");
+    const rule = candidates[0] || null;
+    const tpl = rule ? templates.find((t: any) => String(t?.id || "") === String(rule?.templateId || "")) : null;
+    if (!tpl || !String(tpl?.chatwootTemplate?.name || "").trim()) {
+      return NextResponse.json({ ok: false, error: "missing_template" }, { status: 400 });
+    }
+  }
 
   const checkoutConfig = await getCheckoutConfig();
   const baseFromSettings = String(checkoutConfig.subscriptionBaseUrl || "").trim();

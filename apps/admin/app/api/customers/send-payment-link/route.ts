@@ -6,6 +6,7 @@ import { getActiveCheckoutTemplates } from "../../../admin/_services/checkoutTem
 import { getCustomerById, updateCustomerMetadata } from "../../../admin/_services/customers";
 import { sendChatwootMessageForCustomer } from "../../../admin/_services/chatwoot";
 import { signPublicToken } from "../../../../lib/publicTokens";
+import { getNotificationsConfig } from "@suscripciones/core/services/notificationsConfig";
 
 function buildChatwootLinkMessage(args: { name?: string; lead: string; url: string }) {
   const safeName = String(args.name || "Cliente").trim() || "Cliente";
@@ -41,6 +42,22 @@ export async function POST(req: Request) {
   const amountInCents = pesosToCents(String(body?.amount || ""));
   if (!customerId || amountInCents <= 0) {
     return NextResponse.json({ ok: false, error: "monto_invalido" }, { status: 400 });
+  }
+
+  const notificationsConfig = await getNotificationsConfig().catch(() => null);
+  if (notificationsConfig) {
+    const rules = Array.isArray((notificationsConfig as any)?.rules) ? (notificationsConfig as any).rules : [];
+    const templates = Array.isArray((notificationsConfig as any)?.templates) ? (notificationsConfig as any).templates : [];
+    const candidates = rules.filter((r: any) => r?.enabled && String(r?.trigger || "") === "PAYMENT_LINK_CREATED");
+    const filtered = candidates.filter((r: any) => {
+      const types = r?.conditions?.requirePaymentTypeIn;
+      return Array.isArray(types) ? types.includes("LINK") : false;
+    });
+    const rule = filtered[0] || null;
+    const tpl = rule ? templates.find((t: any) => String(t?.id || "") === String(rule?.templateId || "")) : null;
+    if (!tpl || !String(tpl?.chatwootTemplate?.name || "").trim()) {
+      return NextResponse.json({ ok: false, error: "missing_template" }, { status: 400 });
+    }
   }
 
   const reference = `CONTACT_${customerId.slice(0, 6)}_${Date.now()}`;
