@@ -9,7 +9,9 @@ type SmartField = {
   type: "text" | "number" | "date" | "boolean" | "enum" | "phone" | "money";
   operators: Array<
     | "equals"
+    | "notEquals"
     | "contains"
+    | "notContains"
     | "startsWith"
     | "endsWith"
     | "in"
@@ -21,6 +23,7 @@ type SmartField = {
     | "before"
     | "after"
     | "between"
+    | "not_between"
     | "within_last"
     | "within_next"
     | "older_than"
@@ -49,7 +52,9 @@ type ViewMode = "list" | "filters";
 
 const FIELD_OP_LABELS: Record<string, string> = {
   equals: "Es igual",
+  notEquals: "No es",
   contains: "Contiene",
+  notContains: "No contiene",
   startsWith: "Empieza por",
   endsWith: "Termina en",
   in: "Está en",
@@ -61,12 +66,13 @@ const FIELD_OP_LABELS: Record<string, string> = {
   before: "Antes de",
   after: "Después de",
   between: "Entre",
+  not_between: "Fuera del intervalo",
   within_last: "En los últimos",
   within_next: "En los próximos",
   older_than: "Hace más de",
   newer_than: "Hace menos de",
-  exists: "Existe",
-  isEmpty: "Está vacío"
+  exists: "Tiene algún valor",
+  isEmpty: "No tiene valor"
 };
 
 const UNITS = [
@@ -145,67 +151,7 @@ export function SmartViewsBar({
     return Array.from(map.entries());
   }, [fields]);
 
-  const presetViews = useMemo<SmartView[]>(() => {
-    if (scope !== "billing") return [];
-    return [
-      {
-        id: "builtin:billing:auto_debit_ok",
-        name: "Débito automático · Al día",
-        visibility: "ORG",
-        type: "DYNAMIC",
-        builtin: true,
-        filters: {
-          op: "and",
-          rules: [
-            { field: "plan.collectionMode", op: "equals", value: "AUTO_DEBIT" },
-            { field: "subscription.status", op: "equals", value: "ACTIVE" }
-          ]
-        }
-      },
-      {
-        id: "builtin:billing:auto_debit_due",
-        name: "Débito automático · En mora",
-        visibility: "ORG",
-        type: "DYNAMIC",
-        builtin: true,
-        filters: {
-          op: "and",
-          rules: [
-            { field: "plan.collectionMode", op: "equals", value: "AUTO_DEBIT" },
-            { field: "subscription.status", op: "equals", value: "PAST_DUE" }
-          ]
-        }
-      },
-      {
-        id: "builtin:billing:auto_link_ok",
-        name: "Link de pago · Al día",
-        visibility: "ORG",
-        type: "DYNAMIC",
-        builtin: true,
-        filters: {
-          op: "and",
-          rules: [
-            { field: "plan.collectionMode", op: "equals", value: "AUTO_LINK" },
-            { field: "subscription.status", op: "equals", value: "ACTIVE" }
-          ]
-        }
-      },
-      {
-        id: "builtin:billing:auto_link_due",
-        name: "Link de pago · En mora",
-        visibility: "ORG",
-        type: "DYNAMIC",
-        builtin: true,
-        filters: {
-          op: "and",
-          rules: [
-            { field: "plan.collectionMode", op: "equals", value: "AUTO_LINK" },
-            { field: "subscription.status", op: "equals", value: "PAST_DUE" }
-          ]
-        }
-      }
-    ];
-  }, [scope]);
+  const presetViews = useMemo<SmartView[]>(() => [], []);
 
   const mergedViews = useMemo(() => {
     if (!presetViews.length) return views;
@@ -378,7 +324,7 @@ export function SmartViewsBar({
     const op = rule.op || ops[0];
     const needsValue = op !== "exists" && op !== "isEmpty";
     const isRelative = field.type === "date" && ["within_last", "within_next", "older_than", "newer_than"].includes(op);
-    const isBetween = field.type === "date" && op === "between";
+    const isBetween = (field.type === "date" || field.type === "number") && (op === "between" || op === "not_between");
     const isEnumList = field.type === "enum" && (op === "in" || op === "notIn");
 
     return (

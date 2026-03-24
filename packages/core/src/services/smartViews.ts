@@ -7,7 +7,9 @@ export type SmartViewRule =
       field: string;
       op:
         | "equals"
+        | "notEquals"
         | "contains"
+        | "notContains"
         | "startsWith"
         | "endsWith"
         | "in"
@@ -19,6 +21,7 @@ export type SmartViewRule =
         | "before"
         | "after"
         | "between"
+        | "not_between"
         | "within_last"
         | "within_next"
         | "older_than"
@@ -40,6 +43,20 @@ export type SmartField = {
   options?: Array<{ value: string; label: string }>;
   optionsSource?: string;
 };
+
+const OPS_BY_TYPE: Record<SmartField["type"], SmartViewRule["op"][]> = {
+  text: ["equals", "notEquals", "contains", "notContains", "startsWith", "endsWith", "exists", "isEmpty"],
+  phone: ["equals", "notEquals", "contains", "notContains", "startsWith", "endsWith", "exists", "isEmpty"],
+  enum: ["equals", "notEquals", "in", "notIn", "exists", "isEmpty"],
+  boolean: ["equals", "notEquals", "exists", "isEmpty"],
+  number: ["equals", "notEquals", "gt", "gte", "lt", "lte", "between", "not_between", "exists", "isEmpty"],
+  money: ["equals", "notEquals", "gt", "gte", "lt", "lte", "between", "not_between", "exists", "isEmpty"],
+  date: ["before", "after", "between", "not_between", "within_last", "within_next", "older_than", "newer_than", "exists", "isEmpty"]
+};
+
+function normalizeFieldOps(fields: SmartField[]) {
+  return fields.map((f) => ({ ...f, operators: OPS_BY_TYPE[f.type] || f.operators }));
+}
 
 export type SmartViewVisibility = "PRIVATE" | "ORG";
 export type SmartViewType = "DYNAMIC" | "STATIC";
@@ -162,7 +179,9 @@ function evalRule(rule: SmartViewRule, ctx: Record<string, unknown>): boolean {
   const target = toComparable(ruleValue);
 
   if (op === "equals") return cmpVal === target;
+  if (op === "notEquals") return cmpVal !== target;
   if (op === "contains") return normalizeString(cmpVal).includes(normalizeString(target));
+  if (op === "notContains") return !normalizeString(cmpVal).includes(normalizeString(target));
   if (op === "startsWith") return normalizeString(cmpVal).startsWith(normalizeString(target));
   if (op === "endsWith") return normalizeString(cmpVal).endsWith(normalizeString(target));
   if (op === "in") return Array.isArray(ruleValue) && ruleValue.map(toComparable).includes(cmpVal as any);
@@ -171,14 +190,15 @@ function evalRule(rule: SmartViewRule, ctx: Record<string, unknown>): boolean {
   if (op === "gte") return (cmpVal as any) >= (target as any);
   if (op === "lt") return (cmpVal as any) < (target as any);
   if (op === "lte") return (cmpVal as any) <= (target as any);
-  if (op === "between" && typeof cmpVal === "number") {
+  if ((op === "between" || op === "not_between") && typeof cmpVal === "number") {
     const ruleRecord = ruleValue as Record<string, unknown>;
     const from = Number(ruleRecord?.from ?? (Array.isArray(ruleValue) ? ruleValue[0] : null));
     const to = Number(ruleRecord?.to ?? (Array.isArray(ruleValue) ? ruleValue[1] : null));
     if (!Number.isFinite(from) || !Number.isFinite(to)) return false;
-    return cmpVal >= from && cmpVal <= to;
+    const inside = cmpVal >= from && cmpVal <= to;
+    return op === "between" ? inside : !inside;
   }
-  if (op === "before" || op === "after" || op === "between" || op === "within_last" || op === "within_next" || op === "older_than" || op === "newer_than") {
+  if (op === "before" || op === "after" || op === "between" || op === "not_between" || op === "within_last" || op === "within_next" || op === "older_than" || op === "newer_than") {
     const valMs = toDateMs(val);
     if (valMs == null) return false;
     const now = Date.now();
@@ -197,6 +217,13 @@ function evalRule(rule: SmartViewRule, ctx: Record<string, unknown>): boolean {
       const to = toDateMs(ruleValueObj?.to ?? (Array.isArray(rule.value) ? rule.value[1] : null));
       if (from == null || to == null) return false;
       return valMs >= from && valMs <= to;
+    }
+    if (op === "not_between") {
+      const ruleValueObj = rule.value as Record<string, unknown>;
+      const from = toDateMs(ruleValueObj?.from ?? (Array.isArray(rule.value) ? rule.value[0] : null));
+      const to = toDateMs(ruleValueObj?.to ?? (Array.isArray(rule.value) ? rule.value[1] : null));
+      if (from == null || to == null) return false;
+      return !(valMs >= from && valMs <= to);
     }
     const ruleValueObj = rule.value as Record<string, unknown>;
     const amount = Number(ruleValueObj?.amount ?? ruleValueObj?.value ?? 0);
@@ -280,7 +307,7 @@ export async function resolveSmartViewIds(scope: SmartViewScope, tenantId: strin
 
 export function getSmartViewFields(scope: SmartViewScope): SmartField[] {
   if (scope === "customers") {
-    return [
+    return normalizeFieldOps([
       { key: "customer.name", label: "Nombre", group: "Datos personales", type: "text", operators: ["equals", "contains", "startsWith", "endsWith", "exists", "isEmpty"] },
       { key: "customer.email", label: "Email", group: "Datos personales", type: "text", operators: ["equals", "contains", "startsWith", "endsWith", "exists", "isEmpty"] },
       { key: "customer.phone", label: "Teléfono", group: "Datos personales", type: "phone", operators: ["equals", "contains", "startsWith", "endsWith", "exists"] },
@@ -306,11 +333,11 @@ export function getSmartViewFields(scope: SmartViewScope): SmartField[] {
       { key: "gamification.levelName", label: "Nivel gamificación (nombre)", group: "Gamificación", type: "enum", operators: ["equals", "in"], options: ["Rookie", "Explorador", "Bronce", "Plata", "Oro", "Platino", "Diamante", "Elite", "Maestro", "Leyenda"].map((v) => ({ value: v, label: v })) },
       { key: "gamification.statusScore", label: "Score gamificación", group: "Gamificación", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] },
       { key: "gamification.lifetimePoints", label: "Puntos históricos", group: "Gamificación", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] }
-    ];
+    ]);
   }
 
   if (scope === "products") {
-    return [
+    return normalizeFieldOps([
       { key: "product.name", label: "Nombre", group: "Producto", type: "text", operators: ["equals", "contains", "startsWith", "endsWith"] },
       { key: "product.sku", label: "SKU", group: "Producto", type: "text", operators: ["equals", "contains", "startsWith", "endsWith"] },
       { key: "product.priceInCents", label: "Precio (COP)", group: "Producto", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] },
@@ -326,11 +353,11 @@ export function getSmartViewFields(scope: SmartViewScope): SmartField[] {
       { key: "gamification.levelName", label: "Nivel gamificación (nombre)", group: "Gamificación", type: "enum", operators: ["equals", "in"], options: ["Rookie", "Explorador", "Bronce", "Plata", "Oro", "Platino", "Diamante", "Elite", "Maestro", "Leyenda"].map((v) => ({ value: v, label: v })) },
       { key: "gamification.statusScore", label: "Score gamificación", group: "Gamificación", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] },
       { key: "gamification.lifetimePoints", label: "Puntos históricos", group: "Gamificación", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] }
-    ];
+    ]);
   }
 
   if (scope === "billing") {
-    return [
+    return normalizeFieldOps([
       { key: "customer.name", label: "Nombre cliente", group: "Cliente", type: "text", operators: ["equals", "contains", "startsWith", "endsWith"] },
       { key: "customer.email", label: "Email cliente", group: "Cliente", type: "text", operators: ["equals", "contains"] },
       { key: "customer.phone", label: "Teléfono cliente", group: "Cliente", type: "phone", operators: ["equals", "contains"] },
@@ -347,20 +374,20 @@ export function getSmartViewFields(scope: SmartViewScope): SmartField[] {
       { key: "subscription.daysPastDue", label: "Días en mora", group: "Suscripción", type: "number", operators: ["equals", "gt", "gte", "lt", "lte"] },
       { key: "payments.lastStatus", label: "Estado último pago", group: "Pago", type: "enum", operators: ["equals", "in"], options: ["PENDING", "APPROVED", "DECLINED", "ERROR", "VOIDED"].map((v) => ({ value: v, label: v })) },
       { key: "payments.lastPaidAt", label: "Fecha último pago", group: "Pago", type: "date", operators: ["before", "after", "between", "within_last", "within_next", "older_than", "newer_than"] }
-    ];
+    ]);
   }
 
   if (scope === "logs") {
-    return [
+    return normalizeFieldOps([
       { key: "log.level", label: "Nivel", group: "Log", type: "enum", operators: ["equals", "in"], options: ["INFO", "WARN", "ERROR"].map((v) => ({ value: v, label: v })) },
       { key: "log.source", label: "Fuente", group: "Log", type: "text", operators: ["equals", "contains", "startsWith"] },
       { key: "log.message", label: "Mensaje", group: "Log", type: "text", operators: ["contains"] },
       { key: "log.createdAt", label: "Fecha", group: "Log", type: "date", operators: ["before", "after", "between", "within_last", "within_next", "older_than", "newer_than"] }
-    ];
+    ]);
   }
 
   if (scope === "payments") {
-    return [
+    return normalizeFieldOps([
       { key: "payment.status", label: "Estado", group: "Pago", type: "enum", operators: ["equals", "in"], options: ["PENDING", "APPROVED", "DECLINED", "ERROR", "VOIDED"].map((v) => ({ value: v, label: v })) },
       { key: "payment.amountInCents", label: "Monto (COP)", group: "Pago", type: "number", operators: ["equals", "gt", "gte", "lt", "lte", "between"] },
       { key: "payment.createdAt", label: "Fecha creación", group: "Pago", type: "date", operators: ["before", "after", "between", "within_last", "within_next", "older_than", "newer_than"] },
@@ -371,16 +398,16 @@ export function getSmartViewFields(scope: SmartViewScope): SmartField[] {
       { key: "customer.email", label: "Email", group: "Cliente", type: "text", operators: ["equals", "contains", "startsWith", "endsWith"] },
       { key: "customer.phone", label: "Teléfono", group: "Cliente", type: "phone", operators: ["equals", "contains", "startsWith", "endsWith"] },
       { key: "plan.name", label: "Plan", group: "Plan", type: "enum", operators: ["equals", "in"], optionsSource: "plan_names" }
-    ];
+    ]);
   }
 
-  return [
+  return normalizeFieldOps([
     { key: "campaign.name", label: "Nombre", group: "Campaña", type: "text", operators: ["equals", "contains"] },
     { key: "campaign.status", label: "Estado", group: "Campaña", type: "enum", operators: ["equals", "in"], options: ["DRAFT", "RUNNING", "PAUSED", "COMPLETED", "FAILED"].map((v) => ({ value: v, label: v })) },
     { key: "campaign.createdAt", label: "Fecha creación", group: "Campaña", type: "date", operators: ["before", "after", "between", "within_last", "within_next", "older_than", "newer_than"] },
     { key: "campaign.sentCount", label: "Enviados", group: "Campaña", type: "number", operators: ["equals", "gt", "gte", "lt", "lte"] },
     { key: "campaign.failedCount", label: "Fallidos", group: "Campaña", type: "number", operators: ["equals", "gt", "gte", "lt", "lte"] }
-  ];
+  ]);
 }
 
 export async function getSmartViewOptions(scope: SmartViewScope, field: string, tenantId: string | null) {

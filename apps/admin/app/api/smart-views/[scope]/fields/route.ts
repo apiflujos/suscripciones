@@ -19,5 +19,5 @@ export async function GET(req: Request, ctx: RouteContext) {
   if (!normalizedScope) return NextResponse.json({ error: "invalid_scope" }, { status: 400 });
 
   const fields = getSmartViewFields(normalizedScope);
-  return NextResponse.json({ items: fields });
+  return NextResponse.json({ fields, items: fields });
 }
