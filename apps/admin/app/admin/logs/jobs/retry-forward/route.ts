@@ -11,7 +11,7 @@ export async function POST(req: Request) {
 
   const now = new Date();
   const result = await prisma.retryJob.updateMany({
-    where: { status: RetryJobStatus.FAILED, type: "FORWARD_WOMPI_TO_SHOPIFY" },
+    where: { status: RetryJobStatus.FAILED, type: "FORWARD_WOMPI_TO_SHOPIFY", attempts: { lt: 3 } },
     data: { status: RetryJobStatus.PENDING, runAt: now, lockedAt: null, lockedBy: null }
   });
   return Response.json({ ok: true, retried: result.count });

@@ -221,7 +221,8 @@ export async function POST(req: Request) {
       await prisma.retryJob.create({
         data: {
           type: RetryJobType.FORWARD_WOMPI_TO_SHOPIFY,
-          payload: { webhookEventId: webhookEvent.id }
+          payload: { webhookEventId: webhookEvent.id },
+          maxAttempts: 3
         }
       });
       console.log("[Webhooks/Wompi] Job de forward a Shopify creado", { webhookEventId: webhookEvent.id });

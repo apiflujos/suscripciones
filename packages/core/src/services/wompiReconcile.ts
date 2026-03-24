@@ -127,7 +127,8 @@ export async function reconcileWompiTransaction(args: {
       .create({
         data: {
           type: RetryJobType.FORWARD_WOMPI_TO_SHOPIFY,
-          payload: { webhookEventId: event.id }
+          payload: { webhookEventId: event.id },
+          maxAttempts: 3
         }
       })
       .catch(() => {});

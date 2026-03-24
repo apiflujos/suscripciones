@@ -385,7 +385,11 @@ async function ensureShopifyForwardRetries() {
 
   lastShopifyForwardRetryAt = now;
   const result = await prisma.retryJob.updateMany({
-    where: { status: RetryJobStatus.FAILED, type: RetryJobType.FORWARD_WOMPI_TO_SHOPIFY },
+    where: {
+      status: RetryJobStatus.FAILED,
+      type: RetryJobType.FORWARD_WOMPI_TO_SHOPIFY,
+      attempts: { lt: 3 }
+    },
     data: { status: RetryJobStatus.PENDING, runAt: new Date(), lockedAt: null, lockedBy: null }
   });
   if (result.count) {

@@ -315,7 +315,7 @@ export async function recollectPayments(args: { days?: number; take?: number }) 
       });
       if (!exists) {
         await prisma.retryJob.create({
-          data: { type: RetryJobType.FORWARD_WOMPI_TO_SHOPIFY, payload: { webhookEventId: event.id } }
+          data: { type: RetryJobType.FORWARD_WOMPI_TO_SHOPIFY, payload: { webhookEventId: event.id }, maxAttempts: 3 }
         });
         queuedForward += 1;
       } else {
@@ -482,7 +482,7 @@ export async function enqueueShopifyForwardForPayment(args: { paymentId: string 
   if (existing) return { ok: true as const, queued: false, webhookEventId: match.id };
 
   await prisma.retryJob.create({
-    data: { type: RetryJobType.FORWARD_WOMPI_TO_SHOPIFY, payload: { webhookEventId: match.id } }
+    data: { type: RetryJobType.FORWARD_WOMPI_TO_SHOPIFY, payload: { webhookEventId: match.id }, maxAttempts: 3 }
   });
   return { ok: true as const, queued: true, webhookEventId: match.id };
 }
