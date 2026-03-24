@@ -33,6 +33,14 @@ export async function getWompiEventsSecret(): Promise<string | undefined> {
   return undefined;
 }
 
+export async function getWompiEventsSecrets(): Promise<{ active?: string; production?: string; sandbox?: string }> {
+  const activeEnv = await getActiveEnv(CredentialProvider.WOMPI);
+  const active = await getCredentialForEnv(CredentialProvider.WOMPI, "EVENTS_SECRET", activeEnv);
+  const production = await getCredentialForEnv(CredentialProvider.WOMPI, "EVENTS_SECRET", "PRODUCTION");
+  const sandbox = await getCredentialForEnv(CredentialProvider.WOMPI, "EVENTS_SECRET", "SANDBOX");
+  return { active, production, sandbox };
+}
+
 export async function getWompiPublicKey(): Promise<string | undefined> {
   const activeEnv = await getActiveEnv(CredentialProvider.WOMPI);
   const fromDb = await getCredentialForEnv(CredentialProvider.WOMPI, "PUBLIC_KEY", activeEnv);

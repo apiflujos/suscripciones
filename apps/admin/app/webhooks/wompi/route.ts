@@ -2,7 +2,7 @@ import { wompiEventSchema } from "@suscripciones/core/webhooks/wompi/types";
 import { verifyWompiSignature } from "@suscripciones/core/webhooks/wompi/verifySignature";
 import { prisma } from "@suscripciones/database";
 import { RetryJobType, WebhookProvider, LogLevel } from "@prisma/client";
-import { getWompiEventsSecret, getShopifyForward } from "@suscripciones/core/services/runtimeConfig";
+import { getWompiEventsSecret, getWompiEventsSecrets, getShopifyForward } from "@suscripciones/core/services/runtimeConfig";
 import { systemLog, SystemActor } from "@suscripciones/core/services/systemLog";
 import { redactHeaders } from "@suscripciones/core/lib/redact";
 import { getDefaultTenantId } from "@suscripciones/core/services/tenantContext";
@@ -84,8 +84,13 @@ export async function POST(req: Request) {
     return Response.json({ error: "payload_invalido", detalles: parsed.error.flatten() }, { status: 400 });
   }
 
-  const eventsSecret = await getWompiEventsSecret();
-  if (!eventsSecret) {
+  const eventsSecrets = await getWompiEventsSecrets();
+  const candidates = Array.from(
+    new Set(
+      [eventsSecrets.active, eventsSecrets.production, eventsSecrets.sandbox].map((v) => (v || "").trim()).filter(Boolean)
+    )
+  );
+  if (!candidates.length) {
     console.error("[Webhooks/Wompi] Events secret no configurado");
     return Response.json(
       { error: "secreto_de_eventos_no_configurado", mensaje: "WOMPI_EVENTS_SECRET no está configurado" },
@@ -93,17 +98,46 @@ export async function POST(req: Request) {
     );
   }
 
-  const signature = verifyWompiSignature({
-    event: parsed.data,
-    eventsSecret,
-    checksumHeader: getChecksumHeader(req.headers)
-  });
+  let signature = { ok: false, reason: "no_secret" } as ReturnType<typeof verifyWompiSignature>;
+  for (const secret of candidates) {
+    const res = verifyWompiSignature({
+      event: parsed.data,
+      eventsSecret: secret,
+      checksumHeader: getChecksumHeader(req.headers)
+    });
+    if (res.ok) {
+      signature = res;
+      break;
+    }
+    signature = res;
+  }
   if (!signature.ok) {
     console.warn("[Webhooks/Wompi] Firma inválida", {
       reason: signature.reason,
       event: parsed.data.event,
       timestamp: parsed.data.timestamp
     });
+    try {
+      const tenantId = (await resolveWebhookTenantId(parsed.data)) || (await getDefaultTenantId());
+      if (tenantId) {
+        const headersObj = Object.fromEntries(req.headers.entries());
+        await prisma.webhookEvent.create({
+          data: {
+            tenantId,
+            provider: WebhookProvider.WOMPI,
+            checksum: (getChecksumHeader(req.headers) || parsed.data.signature.checksum).trim(),
+            eventName: parsed.data.event,
+            providerTs: parsed.data.timestamp != null ? BigInt(parsed.data.timestamp) : null,
+            headers: redactHeaders(headersObj as any) as any,
+            payload: parsed.data as any,
+            processStatus: "FAILED",
+            errorMessage: signature.reason || "firma_invalida"
+          }
+        });
+      }
+    } catch {
+      // ignore logging failures
+    }
     return Response.json({ error: "firma_invalida", razon: signature.reason }, { status: 400 });
   }
 
