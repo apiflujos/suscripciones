@@ -348,6 +348,12 @@ export async function saveRealtime(formData: FormData) {
   if (!meta) return redirect(`/notifications?env=${environment}&error=invalid_key`);
   const enabled = String(formData.get("enabled") || "") === "on";
   const checkoutTemplateId = String(formData.get("checkoutTemplateId") || "").trim();
+  const requiresCheckout =
+    meta.paymentType === "LINK" &&
+    (meta.trigger === "PAYMENT_LINK_CREATED" || meta.trigger === "PAYMENT_DECLINED");
+  if (requiresCheckout && !checkoutTemplateId) {
+    return redirect(`/notifications?env=${environment}&error=missing_checkout_template`);
+  }
 
   try {
     const config = await getNotificationsConfig(environment);
@@ -405,6 +411,9 @@ export async function saveReminder(formData: FormData) {
   const templateId = String(formData.get("templateId") || "").trim();
   const checkoutTemplateId = String(formData.get("checkoutTemplateId") || "").trim();
   if (!templateId) return redirect(`/notifications?env=${environment}&error=invalid_template`);
+  if (paymentType === "LINK" && !checkoutTemplateId) {
+    return redirect(`/notifications?env=${environment}&error=missing_checkout_template`);
+  }
   const offsetsRaw = String(formData.get("offsetsSeconds") || "");
   const offsetsSeconds = parseOffsetsCsv(offsetsRaw, kind === "MORA" ? 1 : -1);
 

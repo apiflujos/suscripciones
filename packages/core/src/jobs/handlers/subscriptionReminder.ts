@@ -330,6 +330,15 @@ export async function subscriptionReminder(payload: any) {
   const templatePaths = extractTemplatePaths([template.content || "", template.chatwootTemplate || null]);
   const needsPaymentLink = templatePaths.some((p) => p === "paymentLink" || p.startsWith("paymentLink."));
   const desiredCheckoutTemplateId = String((rule as any)?.checkoutTemplateId || "").trim();
+  if (needsPaymentLink && !desiredCheckoutTemplateId) {
+    await systemLog(LogLevel.WARN, "notifications.dispatch", "Checkout público no configurado para plantilla", {
+      ruleId: rule.id,
+      templateId: template.id,
+      trigger: parsed.data.trigger,
+      customerId: customer.id
+    }, "job:subscriptionReminder").catch(() => {});
+    return;
+  }
   if (needsPaymentLink && desiredCheckoutTemplateId) {
     const currentTemplateId = String(meta?.paymentLink?.templateId || "").trim();
     if (!meta?.paymentLink?.url || currentTemplateId !== desiredCheckoutTemplateId) {

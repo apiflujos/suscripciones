@@ -756,7 +756,7 @@ export function NotificationsSimple({
                       {showCheckoutSelect ? (
                         <div className="field">
                           <label>Checkout público para el botón</label>
-                          <select className="select" name="checkoutTemplateId" defaultValue={checkoutTemplateId}>
+                          <select className="select" name="checkoutTemplateId" defaultValue={checkoutTemplateId} required>
                             <option value="">Selecciona un checkout…</option>
                             {checkoutOptions.map((t) => (
                               <option key={t.id} value={t.id}>
@@ -807,6 +807,7 @@ export function NotificationsSimple({
                         className="select"
                         name="checkoutTemplateId"
                         defaultValue={String((activeReminder?.rule as any)?.checkoutTemplateId || "")}
+                        required
                       >
                         <option value="">Selecciona un checkout…</option>
                         {checkoutOptions.map((t) => (
