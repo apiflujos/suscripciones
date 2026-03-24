@@ -28,7 +28,7 @@ applyEnvFile(adminEnvFile);
 
 const stackName = process.env.PM2_APP_PREFIX || process.env.APP_STACK_NAME || 'crm-sus';
 const clientSlug = process.env.CLIENT_SLUG || '';
-const enableAdmin = process.env.PM2_ENABLE_ADMIN === '1' || process.env.PM2_ENABLE_ADMIN === 'true';
+const enableAdmin = true;
 
 const nameFor = (role) => (clientSlug ? `${stackName}-${role}-${clientSlug}` : `${stackName}-${role}`);
 const logBaseFor = (role) => (clientSlug ? `${stackName}-${role}-${clientSlug}` : role);
