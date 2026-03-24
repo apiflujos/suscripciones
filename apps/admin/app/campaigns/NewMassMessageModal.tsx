@@ -1,11 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { HelpTip } from "../ui/HelpTip";
 import { PendingButton } from "../ui/PendingButton";
 
 type SmartList = { id: string; name: string };
-type MessageOption = { key: string; label: string; content: string };
 
 type ChatwootTemplate = {
   name: string;
@@ -13,15 +12,16 @@ type ChatwootTemplate = {
   components?: any[];
 };
 
+type PublicCheckoutTemplate = {
+  id: string;
+  name: string;
+  active?: boolean | null;
+};
+
 const MESSAGE_VARIABLES = [
   { label: "Ciclo actual", value: "{{subscription.currentCycle}}" },
-  { label: "Correo de la empresa", value: "{{company.email}}" },
-  { label: "Correo del contacto", value: "{{contact.email}}" },
   { label: "Correo electrónico", value: "{{customer.email}}" },
   { label: "Dirección", value: "{{customer.metadata.address}}" },
-  { label: "Enlace de catálogo", value: "{{catalog.url}}" },
-  { label: "Enlace de débito automático", value: "{{tokenization.url}}" },
-  { label: "Enlace de pago", value: "{{payment.checkoutUrl}}" },
   { label: "Estado de la suscripción", value: "{{subscription.status}}" },
   { label: "Estado del pago", value: "{{payment.status}}" },
   { label: "Fecha de corte", value: "{{subscription.currentPeriodEndAt}}" },
@@ -35,42 +35,23 @@ const MESSAGE_VARIABLES = [
   { label: "Moneda del producto", value: "{{plan.currency}}" },
   { label: "Monto del pago (pesos)", value: "{{payment.amountInPesos}}" },
   { label: "Nombre completo", value: "{{customer.name}}" },
-  { label: "Nombre de la empresa", value: "{{company.name}}" },
-  { label: "Nombre del contacto", value: "{{contact.name}}" },
   { label: "Nombre del producto", value: "{{plan.name}}" },
   { label: "Precio del producto (pesos)", value: "{{plan.priceInPesos}}" },
   { label: "Referencia", value: "{{payment.reference}}" },
   { label: "Teléfono", value: "{{customer.phone}}" },
-  { label: "Teléfono de la empresa", value: "{{company.phone}}" },
-  { label: "Teléfono del contacto", value: "{{contact.phone}}" },
   { label: "Tipo de pago", value: "{{paymentType}}" }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
-function insertAtCursor(el: HTMLInputElement | HTMLTextAreaElement, text: string) {
-  const start = el.selectionStart ?? el.value.length;
-  const end = el.selectionEnd ?? el.value.length;
-  const before = el.value.slice(0, start);
-  const after = el.value.slice(end);
-  el.value = `${before}${text}${after}`;
-  const nextPos = start + text.length;
-  el.setSelectionRange(nextPos, nextPos);
-  el.dispatchEvent(new Event("input", { bubbles: true }));
-  el.focus();
-}
-
-function autoResizeTextarea(el: HTMLTextAreaElement) {
-  el.style.height = "auto";
-  el.style.height = `${el.scrollHeight}px`;
-}
-
 function WaTemplateFields({
   templates,
+  variables,
   onSync,
   syncing,
   syncError,
   onChange
 }: {
   templates: ChatwootTemplate[];
+  variables: Array<{ label: string; value: string }>;
   onSync?: () => void;
   syncing?: boolean;
   syncError?: string;
@@ -216,7 +197,7 @@ function WaTemplateFields({
                     }}
                   >
                     <option value="">{`{{${idx + 1}}} · Selecciona variable`}</option>
-                    {MESSAGE_VARIABLES.map((v) => (
+                    {variables.map((v) => (
                       <option key={`${idx}-${v.value}`} value={v.value}>
                         {v.label}
                       </option>
@@ -240,7 +221,7 @@ function WaTemplateFields({
                     }}
                   >
                     <option value="">{`{{${idx + 1}}} · Selecciona variable`}</option>
-                    {MESSAGE_VARIABLES.map((v) => (
+                    {variables.map((v) => (
                       <option key={`h-${idx}-${v.value}`} value={v.value}>
                         {v.label}
                       </option>
@@ -264,7 +245,7 @@ function WaTemplateFields({
                     }}
                   >
                     <option value="">{`Botón ${idx + 1} · Selecciona variable`}</option>
-                    {MESSAGE_VARIABLES.map((v) => (
+                    {variables.map((v) => (
                       <option key={`b-${idx}-${v.value}`} value={v.value}>
                         {v.label}
                       </option>
@@ -286,22 +267,17 @@ export function NewMassMessageModal({
   csrfToken,
   returnTo,
   lists,
-  messageOptions,
+  checkoutTemplates,
   action
 }: {
   csrfToken: string;
   returnTo: string;
   lists: SmartList[];
-  messageOptions: MessageOption[];
+  checkoutTemplates: PublicCheckoutTemplate[];
   action: (formData: FormData) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [wizardStep, setWizardStep] = useState<1 | 2>(1);
-  const [templateKind, setTemplateKind] = useState<"TEXT" | "WHATSAPP_TEMPLATE">("TEXT");
-  const [presetKey, setPresetKey] = useState<string>(messageOptions[0]?.key || "custom");
-  const [message, setMessage] = useState<string>(messageOptions[0]?.content || "");
   const [supportContent, setSupportContent] = useState<string>("");
-  const [pickerOpen, setPickerOpen] = useState(false);
   const [waTemplates, setWaTemplates] = useState<ChatwootTemplate[]>([]);
   const [waLoading, setWaLoading] = useState(false);
   const [waError, setWaError] = useState("");
@@ -312,12 +288,7 @@ export function NewMassMessageModal({
   const [audienceLoading, setAudienceLoading] = useState(false);
   const [audienceError, setAudienceError] = useState("");
   const [audienceApproved, setAudienceApproved] = useState(false);
-  const lastFieldRef = useRef<HTMLTextAreaElement | null>(null);
-
-  const presetOptions = useMemo(() => {
-    const base = messageOptions || [];
-    return [{ key: "custom", label: "Personalizado", content: "" }, ...base];
-  }, [messageOptions]);
+  const templateKind: "WHATSAPP_TEMPLATE" = "WHATSAPP_TEMPLATE";
 
   const loadWaTemplates = useCallback(async () => {
     setWaLoading(true);
@@ -341,7 +312,6 @@ export function NewMassMessageModal({
 
   useEffect(() => {
     if (!open) return;
-    setWizardStep(1);
     setAudienceApproved(false);
     setAudienceCount(null);
     setAudienceSample([]);
@@ -350,23 +320,10 @@ export function NewMassMessageModal({
 
   useEffect(() => {
     if (!open) return;
-    if (templateKind === "WHATSAPP_TEMPLATE" && !waTemplates.length) {
+    if (!waTemplates.length) {
       loadWaTemplates();
     }
-  }, [open, templateKind, waTemplates.length, loadWaTemplates]);
-
-  const handlePresetChange = (nextKey: string) => {
-    setPresetKey(nextKey);
-    const selected = presetOptions.find((p) => p.key === nextKey);
-    if (selected && selected.key !== "custom") {
-      setMessage(selected.content || "");
-    }
-  };
-
-  const onPickValue = (value: string) => {
-    if (lastFieldRef.current) insertAtCursor(lastFieldRef.current, value);
-    setPickerOpen(false);
-  };
+  }, [open, waTemplates.length, loadWaTemplates]);
 
   const loadAudiencePreview = useCallback(async (id: string) => {
     const trimmed = String(id || "").trim();
@@ -398,6 +355,18 @@ export function NewMassMessageModal({
       setAudienceLoading(false);
     }
   }, []);
+
+  const checkoutOptions = useMemo(
+    () => (Array.isArray(checkoutTemplates) ? checkoutTemplates.filter((t) => t?.active !== false) : []),
+    [checkoutTemplates]
+  );
+  const checkoutVars = useMemo(() => {
+    return checkoutOptions.flatMap((t) => [
+      { label: `Checkout público: ${t.name} (Token)`, value: `{{checkoutPublicToken.${t.id}}}` },
+      { label: `Checkout público: ${t.name} (Nombre)`, value: `{{checkoutPublicName.${t.id}}}` }
+    ]);
+  }, [checkoutOptions]);
+  const allVariables = useMemo(() => [...MESSAGE_VARIABLES, ...checkoutVars], [checkoutVars]);
 
   return (
     <>
@@ -488,140 +457,35 @@ export function NewMassMessageModal({
                   ) : null}
                 </div>
 
-                {wizardStep === 1 ? (
-                  <div className="field">
-                    <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span>Paso 1: tipo de envío</span>
-                      <HelpTip text="Selecciona si usarás un mensaje libre o una plantilla de WhatsApp." />
-                    </label>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <button
-                        type="button"
-                        className="ghost btn-compact"
-                        onClick={() => {
-                          setTemplateKind("TEXT");
-                          setWizardStep(2);
-                        }}
-                        data-loader="off"
-                      >
-                        Mensaje
-                      </button>
-                      <button
-                        type="button"
-                        className="ghost btn-compact"
-                        onClick={() => {
-                          setTemplateKind("WHATSAPP_TEMPLATE");
-                          setWizardStep(2);
-                        }}
-                        data-loader="off"
-                      >
-                        Plantilla WhatsApp
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="field row" style={{ justifyContent: "space-between" }}>
-                    <div className="muted">Tipo: {templateKind === "WHATSAPP_TEMPLATE" ? "Plantilla" : "Mensaje"}</div>
-                    <button className="ghost btn-compact" type="button" onClick={() => setWizardStep(1)} data-loader="off">
-                      Cambiar tipo
-                    </button>
-                  </div>
-                )}
+                <WaTemplateFields
+                  templates={waTemplates}
+                  variables={allVariables}
+                  onSync={loadWaTemplates}
+                  syncing={waLoading}
+                  syncError={waError}
+                  onChange={setWaState}
+                />
+                <div className="field">
+                  <label>Texto de apoyo (opcional)</label>
+                  <textarea
+                    className="input"
+                    name="content"
+                    rows={3}
+                    value={supportContent}
+                    onChange={(e) => setSupportContent(e.target.value)}
+                    placeholder="Mensaje visible junto a la plantilla (opcional)."
+                  />
+                </div>
 
-                {wizardStep === 2 && templateKind === "TEXT" ? (
-                  <>
-                    <div className="field">
-                      <label>Mensaje base</label>
-                      <select className="select" value={presetKey} onChange={(e) => handlePresetChange(e.target.value)}>
-                        {presetOptions.map((op) => (
-                          <option key={op.key} value={op.key}>
-                            {op.label}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="field-hint">Puedes iniciar con un mensaje de Notificaciones y personalizarlo.</div>
-                    </div>
-                    <div className="field">
-                      <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span>Mensaje</span>
-                        <HelpTip text="Usa variables del sistema como {{customer.name}}, {{payment.checkoutUrl}}." />
-                      </label>
-                      <textarea
-                        className="input"
-                        name="content"
-                        rows={4}
-                        value={message}
-                        onChange={(e) => setMessage(e.target.value)}
-                        onFocus={(e) => (lastFieldRef.current = e.target)}
-                        onInput={(e) => autoResizeTextarea(e.currentTarget)}
-                        placeholder="Escribe el mensaje..."
-                        required
-                      />
-                      <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-                        <button type="button" className="ghost btn-compact" onClick={() => setPickerOpen(true)} data-loader="off">
-                          Variables
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                ) : null}
-
-                {wizardStep === 2 && templateKind === "WHATSAPP_TEMPLATE" ? (
-                  <>
-                    <WaTemplateFields
-                      templates={waTemplates}
-                      onSync={loadWaTemplates}
-                      syncing={waLoading}
-                      syncError={waError}
-                      onChange={setWaState}
-                    />
-                    <div className="field">
-                      <label>Texto de apoyo (opcional)</label>
-                      <textarea
-                        className="input"
-                        name="content"
-                        rows={3}
-                        value={supportContent}
-                        onChange={(e) => setSupportContent(e.target.value)}
-                        placeholder="Mensaje visible junto a la plantilla (opcional)."
-                      />
-                    </div>
-                  </>
-                ) : null}
-
-                {wizardStep === 2 ? (
-                  <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                    <button className="ghost" type="button" onClick={() => setOpen(false)} data-loader="off">
-                      Cancelar
-                    </button>
-                    <PendingButton className="primary" type="submit" pendingText="Guardando..." disabled={!audienceApproved}>
-                      Guardar campaña
-                    </PendingButton>
-                  </div>
-                ) : null}
-              </form>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {pickerOpen ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel" style={{ maxWidth: 680 }}>
-            <div className="panel-header">
-              <h3 style={{ margin: 0 }}>Variables</h3>
-              <button type="button" className="ghost modal-close" onClick={() => setPickerOpen(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                X
-              </button>
-            </div>
-            <div className="panel module" style={{ display: "grid", gap: 6 }}>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {MESSAGE_VARIABLES.map((item) => (
-                  <button key={item.value} type="button" className="ghost" onClick={() => onPickValue(item.value)} style={{ minHeight: 32 }} data-loader="off">
-                    {item.label}
+                <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                  <button className="ghost" type="button" onClick={() => setOpen(false)} data-loader="off">
+                    Cancelar
                   </button>
-                ))}
-              </div>
+                  <PendingButton className="primary" type="submit" pendingText="Guardando..." disabled={!audienceApproved}>
+                    Guardar campaña
+                  </PendingButton>
+                </div>
+              </form>
             </div>
           </div>
         </div>

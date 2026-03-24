@@ -29,7 +29,7 @@ export async function createCampaign(formData: FormData) {
   const returnTo = String(formData.get("returnTo") || "/campaigns").trim() || "/campaigns";
   const name = String(formData.get("name") || "").trim();
   const smartListId = String(formData.get("smartListId") || "").trim();
-  const templateKind = String(formData.get("templateKind") || "TEXT").trim().toUpperCase();
+  const templateKind = String(formData.get("templateKind") || "WHATSAPP_TEMPLATE").trim().toUpperCase();
   const contentRaw = String(formData.get("content") || "").trim();
   const waTemplateName = String(formData.get("waTemplateName") || "").trim();
   const waLanguage = String(formData.get("waLanguage") || "es").trim();
@@ -59,11 +59,7 @@ export async function createCampaign(formData: FormData) {
     return Object.keys(out).length ? out : undefined;
   };
 
-  if (templateKind === "TEXT") {
-    if (!content) {
-      return redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=missing_message`);
-    }
-  } else if (templateKind === "WHATSAPP_TEMPLATE") {
+  if (templateKind === "WHATSAPP_TEMPLATE") {
     if (!waTemplateName || !waLanguage) {
       return redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=missing_template_fields`);
     }

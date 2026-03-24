@@ -5,40 +5,9 @@ import { RunCampaignButton } from "./RunCampaignButton";
 import { NewMassMessageModal } from "./NewMassMessageModal";
 import { listSmartLists } from "../admin/_services/smartLists";
 import { listCampaigns } from "../admin/_services/campaigns";
-import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
-
-function buildMessageOptions(templates: any[]) {
-  const findByName = (name: string) =>
-    templates.find((t) => String(t?.name || "").trim().toLowerCase() === name.trim().toLowerCase());
-  const contentOf = (name: string) => String(findByName(name)?.content || "").trim();
-  return [
-    {
-      key: "payment_link_created",
-      label: "Link de pago",
-      content: contentOf("Link de pago creado")
-    },
-    {
-      key: "tokenization_link_created",
-      label: "Guardar tarjeta (débito automático)",
-      content: contentOf("Tokenización enviada")
-    },
-    {
-      key: "reminder_due",
-      label: "Recordatorio de pago",
-      content: contentOf("Recordatorio de fecha de pago")
-    },
-    {
-      key: "reminder_mora",
-      label: "Recordatorio en mora",
-      content: contentOf("Recordatorio en mora")
-    }
-  ].map((item) => ({
-    ...item,
-    content: item.content || "Configura este mensaje en Notificaciones para usarlo aquí."
-  }));
-}
+import { listCheckoutTemplates } from "../admin/_services/checkoutTemplates";
 
 export default async function CampaignsPage({
   searchParams
@@ -51,9 +20,7 @@ export default async function CampaignsPage({
   const session = await verifyAdminSessionToken(sessionToken);
   const listsRes = await listSmartLists({ tenantId: session?.tenantId || null, take: 200, skip: 0 });
   const lists = listsRes.ok ? listsRes.items : [];
-  const notificationsConfig = await getNotificationsConfigForEnv("PRODUCTION");
-  const notificationsTemplates = Array.isArray((notificationsConfig as any)?.templates) ? (notificationsConfig as any).templates : [];
-  const messageOptions = buildMessageOptions(notificationsTemplates);
+  const checkoutTemplates = await listCheckoutTemplates({ tenantId: session?.tenantId || null });
   const sp = (await searchParams) ?? {};
   const returnTo = `/campaigns?${new URLSearchParams(
     Object.fromEntries(Object.entries(sp).filter(([, v]) => typeof v === "string")) as Record<string, string>
@@ -83,7 +50,7 @@ export default async function CampaignsPage({
             csrfToken={csrfToken}
             returnTo={returnTo}
             lists={lists.map((l: any) => ({ id: String(l.id), name: String(l.name) }))}
-            messageOptions={messageOptions}
+            checkoutTemplates={checkoutTemplates.map((t: any) => ({ id: String(t.id), name: String(t.name), active: t.active }))}
             action={createCampaign}
           />
         </div>
