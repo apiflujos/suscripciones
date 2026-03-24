@@ -9,7 +9,7 @@ import { listEmpresas } from "../admin/_services/companies";
 import { listTenants } from "../admin/_services/tenants";
 import { getAdminSettings } from "../admin/_services/settings";
 import { resolveTenantId } from "../admin/_services/tenantResolver";
-import { listSmartListMembers } from "../admin/_services/smartLists";
+import { listSmartListMembers, listSmartLists } from "../admin/_services/smartLists";
 import { getNotificationsConfig } from "@suscripciones/core/services/notificationsConfig";
 import { resolveSmartViewIds, parseFiltersParam } from "@suscripciones/core/services/smartViews";
 import { normalizeErrorParam } from "../lib/errorParam";
@@ -119,13 +119,14 @@ async function fetchCustomerSubscriptions(tenantId?: string) {
 }
 
 async function fetchSmartLists() {
-  // DESACTIVADO: Smart-lists causan lentitud extrema (50+ requests de 5-7s cada una)
-  return { ok: true, json: { items: [] } };
+  return listSmartLists({ take: 200 });
 }
 
 async function fetchSmartListPreview(id: string, tenantId?: string) {
-  // DESACTIVADO: Previews causan lentitud extrema
-  return { count: 0 };
+  if (!id) return { count: 0 };
+  const res = await listSmartListMembers({ id, take: 200, active: true, tenantId: tenantId || null });
+  if (!res.ok) return { count: 0 };
+  return { count: Array.isArray(res.items) ? res.items.length : 0 };
 }
 
 async function fetchSmartListMembers(id: string, tenantId?: string) {
@@ -203,14 +204,8 @@ export default async function CustomersPage({
   } else if (viewId) {
     resolvedIds = (await resolveSmartViewIds("customers", resolvedTenantId, null, viewId)) || [];
   } else if (filters) {
-    let parsed: any = null;
-    try {
-      parsed = JSON.parse(filters);
-    } catch {
-      parsed = null;
-    }
-    if (parsed) {
-      const rules = parseFiltersParam(parsed);
+    const rules = parseFiltersParam(filters);
+    if (rules) {
       resolvedIds = (await resolveSmartViewIds("customers", resolvedTenantId, null, undefined, rules)) || [];
     }
   }

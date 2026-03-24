@@ -144,13 +144,21 @@ export default async function SettingsPage({
   };
   const inlineState = { action, status, errorText };
   const tenantId = String(session?.tenantId || "").trim() || String(tenants?.[0]?.id || "").trim();
-  const webhookEndpoints = tenantId ? await listWebhookEndpoints(tenantId) : [];
+  let webhookEndpoints: any[] = [];
+  if (tenantId) {
+    try {
+      webhookEndpoints = await listWebhookEndpoints(tenantId);
+    } catch {
+      webhookEndpoints = [];
+    }
+  }
   const apiTokens = tenantId ? await listApiTokens(tenantId) : [];
   const webhookEvents = tenantId ? await listWebhookEvents({ tenantId, take: 25 }) : { items: [] as any[] };
   const wompiLastEvent = (webhookEvents.items || []).find((e: any) => String(e?.provider || "") === "WOMPI") || null;
   const wompiLastEventAt = wompiLastEvent?.receivedAt || null;
-  const wompiEventsSecretMasked =
-    wompiActiveEnv === "SANDBOX" ? String(wompiSandbox?.eventsSecret || "") : String(wompiProduction?.eventsSecret || "");
+  const wompiEventsSecretMasked = maskSecret(
+    wompiActiveEnv === "SANDBOX" ? String(wompiSandbox?.eventsSecret || "") : String(wompiProduction?.eventsSecret || "")
+  );
   const renderInline = (actionKey: string, okText: string, failPrefix: string) => {
     if (action !== actionKey) return null;
     if (status === "ok") return <div className="field-hint is-success">{okText}</div>;
