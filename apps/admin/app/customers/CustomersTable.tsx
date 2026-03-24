@@ -994,6 +994,7 @@ export function CustomersTable({
                   }
                   setSendOk((prev) => ({ ...prev, [customer.id]: "sent" }));
                   openNotify("ok", "El link de pago fue enviado correctamente.");
+                  closePayModal();
                 } catch (err: any) {
                   const msg = String(err?.message || "send_failed");
                   setSendError((prev) => ({ ...prev, [customer.id]: msg }));
@@ -1097,6 +1098,7 @@ export function CustomersTable({
                   }
                   setSendOk((prev) => ({ ...prev, [customer.id]: "sent" }));
                   openNotify("ok", "El catálogo fue enviado correctamente.");
+                  closeCartModal();
                 } finally {
                   setSendingCartId(null);
                 }
@@ -1245,6 +1247,7 @@ export function CustomersTable({
                   }
                   setSendOk((prev) => ({ ...prev, [customer.id]: "sent" }));
                   openNotify("ok", "El link de débito automático fue enviado correctamente.");
+                  closeTokenModal();
                 } finally {
                   setSendingTokenId(null);
                 }
