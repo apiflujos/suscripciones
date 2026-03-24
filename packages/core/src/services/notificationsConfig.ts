@@ -164,7 +164,11 @@ function normalizeNotificationsConfig(cfg: NotificationsConfig): NotificationsCo
     }
     return next;
   });
-  return { ...cfg, rules: nextRules };
+  const activeRuleIds = new Set(nextRules.map((r) => String(r.templateId)));
+  const filteredTemplates = templates.filter((t) => activeRuleIds.has(String(t.id)));
+  const filteredTemplateIds = new Set(filteredTemplates.map((t) => String(t.id)));
+  const filteredRules = nextRules.filter((r) => filteredTemplateIds.has(String(r.templateId)));
+  return { ...cfg, templates: filteredTemplates, rules: filteredRules };
 }
 
 export async function setNotificationsConfig(cfg: unknown, opts?: { environment?: ActiveEnv }) {
