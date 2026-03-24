@@ -8,8 +8,6 @@ import { redactHeaders } from "@suscripciones/core/lib/redact";
 import { getDefaultTenantId } from "@suscripciones/core/services/tenantContext";
 import { processWompiEventLogic } from "@suscripciones/core/jobs/handlers/processWompiEvent";
 import { classifyReference } from "@suscripciones/core/webhooks/wompi/classifyReference";
-import { tokenMeta } from "@suscripciones/core/lib/tokenMeta";
-import { normalizeBearer, verifyJwt } from "../../../lib/jwt";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -141,30 +139,6 @@ export async function POST(req: Request) {
     return Response.json({ error: "firma_invalida", razon: signature.reason }, { status: 400 });
   }
 
-  const authHeader = req.headers.get("authorization") || "";
-  const tokenFromAuth = authHeader.toLowerCase().startsWith("bearer ") ? authHeader : "";
-  const tokenFromHeader = req.headers.get("x-auth-token") || "";
-  const token = normalizeBearer(tokenFromAuth || tokenFromHeader || "");
-  const claims: any = token ? await verifyJwt(token) : null;
-  const hasJwtPermission = Boolean(
-    claims && Array.isArray(claims.permissions) && claims.permissions.includes("webhook:receive")
-  );
-
-  if (!hasJwtPermission) {
-    const requiredToken = String(process.env.WOMPI_WEBHOOK_TOKEN || "").trim();
-    if (requiredToken) {
-      const headerToken = String(req.headers.get("x-wompi-token") || "").trim();
-      const queryToken = String(new URL(req.url).searchParams.get("token") || "").trim();
-      const provided = headerToken || queryToken;
-      if (provided !== requiredToken) {
-        console.warn("[Webhooks/Wompi] Token requerido pero no coincide; se permite por firma", {
-          hasToken: Boolean(provided),
-          event: parsed.data.event
-        });
-      }
-    }
-  }
-
   const checksum = (getChecksumHeader(req.headers) || parsed.data.signature.checksum).trim();
 
   try {
@@ -201,8 +175,7 @@ export async function POST(req: Request) {
       {
         webhookEventId: webhookEvent.id,
         tenantId,
-        actor: claims?.sub || null,
-        ...(token ? tokenMeta(token) : {})
+        actor: "wompi"
       },
       SystemActor.WEBHOOK_WOMPI
     ).catch(() => {});
