@@ -257,6 +257,7 @@ type ChatwootType = "PAYMENT_LINK" | "PAYMENT_CONFIRMED" | "EXPIRY_WARNING" | "P
 
 const REALTIME_MAP: Record<string, { trigger: RuleTrigger; chatwootType: ChatwootType; paymentType?: "PLAN" | "SUBSCRIPTION" | "LINK"; label: string }> = {
   payment_link_created: { trigger: "PAYMENT_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "LINK", label: "Link de pago creado" },
+  payment_link_created_subscription: { trigger: "PAYMENT_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "SUBSCRIPTION", label: "Link de pago creado (suscripción)" },
   catalog_link_created_plan: { trigger: "CATALOG_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "PLAN", label: "Catálogo enviado (link de pago)" },
   catalog_link_created_subscription: { trigger: "CATALOG_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "SUBSCRIPTION", label: "Catálogo enviado (suscripción · link de pago)" },
   tokenization_link_created: { trigger: "TOKENIZATION_LINK_CREATED", chatwootType: "PAYMENT_LINK", label: "Tokenización enviada (débito automático)" },
