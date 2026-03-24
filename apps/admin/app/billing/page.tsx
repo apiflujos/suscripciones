@@ -29,6 +29,7 @@ import { TokenizationLinkModalButton } from "./TokenizationLinkModalButton";
 import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
+import { resolveSmartViewIds, parseFiltersParam } from "@suscripciones/core/services/smartViews";
 
 export const dynamic = "force-dynamic";
 
@@ -186,46 +187,6 @@ function formatPlanTitle(plan: any) {
   return sku ? `${name} (SKU ${sku})` : name;
 }
 
-function buildSmartListRules({
-  tipo,
-  estado,
-  q
-}: {
-  tipo: string;
-  estado: string;
-  q: string;
-}) {
-  const rules: any[] = [];
-
-  if (tipo === "planes") {
-    rules.push({ field: "hasSubscription", op: "equals", value: false });
-  } else if (tipo === "suscripciones") {
-    rules.push({ field: "hasSubscription", op: "equals", value: true });
-  }
-
-  if (estado === "mora") {
-    rules.push({ field: "subscriptionStatus", op: "equals", value: "PAST_DUE" });
-  } else if (estado === "si") {
-    rules.push({ field: "subscriptionStatus", op: "equals", value: "ACTIVE" });
-  } else if (estado === "no") {
-    rules.push({ field: "subscriptionStatus", op: "notIn", value: ["ACTIVE", "PAST_DUE"] });
-  }
-
-  if (q.trim()) {
-    rules.push({
-      op: "or",
-      rules: [
-        { field: "name", op: "contains", value: q },
-        { field: "email", op: "contains", value: q },
-        { field: "metadata.identificacion", op: "contains", value: q },
-        { field: "metadata.documentNumber", op: "contains", value: q }
-      ]
-    });
-  }
-
-  return { op: "and", rules };
-}
-
 export default async function BillingPage({
   searchParams
 }: {
@@ -300,36 +261,13 @@ export default async function BillingPage({
   if (tenantId) subParams.set("tenantId", tenantId);
   const usingSmartFilters = Boolean(viewId || filters);
 
-  if (viewId) {
-    const res = await fetch(`/api/smart-views/billing/resolve`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ viewId })
-    });
-    const json = await res.json().catch(() => ({}));
-    const ids = Array.isArray(json?.ids) ? json.ids : [];
-    if (ids.length) subParams.set("ids", ids.join(","));
-  } else if (filters) {
-    let parsed: any = null;
-    try {
-      parsed = JSON.parse(filters);
-    } catch {
-      parsed = null;
-    }
-    if (parsed) {
-      const res = await fetch(`/api/smart-views/billing/resolve`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ filters: parsed })
-      });
-      const json = await res.json().catch(() => ({}));
-      const ids = Array.isArray(json?.ids) ? json.ids : [];
-      if (ids.length) subParams.set("ids", ids.join(","));
-    }
+  let resolvedIds: string[] | null = null;
+  if (viewId || filters) {
+    const parsedFilters = filters ? parseFiltersParam(filters) : null;
+    resolvedIds = await resolveSmartViewIds("billing", resolvedTenantId, null, viewId || undefined, parsedFilters || undefined);
   }
-  if (usingSmartFilters && !subParams.get("ids")) {
-    subParams.set("ids", "__none__");
-  }
+  const ids = usingSmartFilters && resolvedIds && resolvedIds.length === 0 ? ["__none__"] : resolvedIds || [];
+  if (ids.length) subParams.set("ids", ids.join(","));
 
   const [subs, customers, products, templates, empresasRes, tenantsRes, settings, notificationsConfig] = await Promise.all([
     listSubscriptions({
