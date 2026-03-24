@@ -86,7 +86,7 @@ function defaultRule(fieldKey: string, fields: SmartField[]): Rule {
   const op = f?.operators?.[0] || "equals";
   let value: any = "";
   if (f?.type === "boolean") value = true;
-  if (f?.type === "number") value = 0;
+  if (f?.type === "number" || f?.type === "money") value = 0;
   if (f?.type === "date") value = new Date().toISOString().slice(0, 16);
   if (f?.type === "enum") value = f.options?.[0]?.value || "";
   return { field: f?.key || "", op, value } as Rule;
@@ -142,13 +142,38 @@ export function SmartViewsBar({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
+  const GROUP_ORDER = [
+    "Datos personales",
+    "Identificación",
+    "Dirección",
+    "Suscripción",
+    "Plan",
+    "Pagos",
+    "Pago",
+    "Producto",
+    "Periodicidad",
+    "Cliente",
+    "Campaña",
+    "Sistema"
+  ];
+
   const groupedFields = useMemo(() => {
     const map = new Map<string, SmartField[]>();
     fields.forEach((f) => {
       if (!map.has(f.group)) map.set(f.group, []);
       map.get(f.group)!.push(f);
     });
-    return Array.from(map.entries());
+    return Array.from(map.entries())
+      .map(([group, groupFields]) => [
+        group,
+        groupFields.slice().sort((a, b) => a.label.localeCompare(b.label, "es"))
+      ] as [string, SmartField[]])
+      .sort((a, b) => {
+        const ia = GROUP_ORDER.indexOf(a[0]);
+        const ib = GROUP_ORDER.indexOf(b[0]);
+        if (ia !== -1 || ib !== -1) return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+        return a[0].localeCompare(b[0], "es");
+      });
   }, [fields]);
 
   const presetViews = useMemo<SmartView[]>(() => [], []);
@@ -324,7 +349,7 @@ export function SmartViewsBar({
     const op = rule.op || ops[0];
     const needsValue = op !== "exists" && op !== "isEmpty";
     const isRelative = field.type === "date" && ["within_last", "within_next", "older_than", "newer_than"].includes(op);
-    const isBetween = (field.type === "date" || field.type === "number") && (op === "between" || op === "not_between");
+    const isBetween = (field.type === "date" || field.type === "number" || field.type === "money") && (op === "between" || op === "not_between");
     const isEnumList = field.type === "enum" && (op === "in" || op === "notIn");
 
     return (
@@ -392,12 +417,13 @@ export function SmartViewsBar({
                   ))}
                 </select>
               )
-            ) : field.type === "number" ? (
+            ) : field.type === "number" || field.type === "money" ? (
               op === "between" ? (
                 <div className="smartRange">
                   <input
                     className="input"
                     type="number"
+                    inputMode="numeric"
                     value={String(rule.value?.from || "")}
                     onChange={(e) => updateRule(index, { ...rule, value: { ...(rule.value || {}), from: e.target.value } })}
                     placeholder="Desde"
@@ -405,6 +431,7 @@ export function SmartViewsBar({
                   <input
                     className="input"
                     type="number"
+                    inputMode="numeric"
                     value={String(rule.value?.to || "")}
                     onChange={(e) => updateRule(index, { ...rule, value: { ...(rule.value || {}), to: e.target.value } })}
                     placeholder="Hasta"
@@ -414,6 +441,7 @@ export function SmartViewsBar({
                 <input
                   className="input"
                   type="number"
+                  inputMode="numeric"
                   value={String(rule.value ?? "")}
                   onChange={(e) => updateRule(index, { ...rule, value: e.target.value })}
                 />
