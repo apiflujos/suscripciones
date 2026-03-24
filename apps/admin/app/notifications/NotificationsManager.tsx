@@ -144,7 +144,8 @@ export function NotificationsManager({
   const [ruleEnsurePaymentLink, setRuleEnsurePaymentLink] = useState(true);
   const [ruleAtTimeUtc, setRuleAtTimeUtc] = useState("");
   const [ruleOffsets, setRuleOffsets] = useState<OffsetItem[]>([{ direction: "before", amount: "1", unit: "days" }]);
-  const paymentTypeEnabled = ruleTrigger === "PAYMENT_LINK_CREATED" || ruleTrigger === "CATALOG_LINK_CREATED";
+  const paymentTypeEnabled =
+    ruleTrigger === "PAYMENT_LINK_CREATED" || ruleTrigger === "CATALOG_LINK_CREATED" || ruleTrigger === "PAYMENT_DECLINED";
 
   useEffect(() => {
     if (!paymentTypeEnabled) setRulePaymentType("ANY");

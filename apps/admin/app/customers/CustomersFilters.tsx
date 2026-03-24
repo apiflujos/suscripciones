@@ -21,7 +21,10 @@ export function CustomersFilters({
   const listFormRef = useRef<HTMLFormElement | null>(null);
 
   const trimmed = useMemo(() => searchValue.trim(), [searchValue]);
-  const systemLists = useMemo(() => smartLists.filter((list) => Boolean(list.system)), [smartLists]);
+  const systemLists = useMemo(
+    () => smartLists.filter((list) => Boolean(list.system) && !String(list.category || "").toLowerCase().includes("gam")),
+    [smartLists]
+  );
   const buildListHref = (listId: string) => {
     const sp = new URLSearchParams();
     if (trimmed) sp.set("q", trimmed);

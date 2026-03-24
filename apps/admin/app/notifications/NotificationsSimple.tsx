@@ -52,7 +52,8 @@ type RealtimeKey =
   | "tokenization_link_created"
   | "payment_link_created"
   | "payment_success"
-  | "payment_failed";
+  | "payment_failed_link"
+  | "payment_failed_subscription";
 
 const REALTIME_TYPES: Array<{
   key: RealtimeKey;
@@ -67,11 +68,21 @@ const REALTIME_TYPES: Array<{
   { key: "tokenization_link_created", label: "Tokenización enviada (débito automático)", aliases: ["Tokenización enviada"], trigger: "TOKENIZATION_LINK_CREATED", chatwootType: "PAYMENT_LINK" },
   { key: "payment_link_created", label: "Link de pago creado", trigger: "PAYMENT_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "LINK" },
   { key: "payment_success", label: "Pago exitoso", trigger: "PAYMENT_APPROVED", chatwootType: "PAYMENT_CONFIRMED" },
-  { key: "payment_failed", label: "Pago fallido", trigger: "PAYMENT_DECLINED", chatwootType: "PAYMENT_FAILED" }
+  { key: "payment_failed_link", label: "Pago fallido (link de pago)", trigger: "PAYMENT_DECLINED", chatwootType: "PAYMENT_FAILED", paymentType: "LINK" },
+  { key: "payment_failed_subscription", label: "Pago fallido (débito automático)", trigger: "PAYMENT_DECLINED", chatwootType: "PAYMENT_FAILED", paymentType: "SUBSCRIPTION" }
 ];
 
-const REMINDER_TPL_DUE = "tpl_reminder_due";
-const REMINDER_TPL_MORA = "tpl_reminder_mora";
+const REMINDER_TPL_DUE_LINK = "tpl_reminder_due_link";
+const REMINDER_TPL_DUE_SUBSCRIPTION = "tpl_reminder_due_subscription";
+const REMINDER_TPL_MORA_LINK = "tpl_reminder_mora_link";
+const REMINDER_TPL_MORA_SUBSCRIPTION = "tpl_reminder_mora_subscription";
+
+const REMINDER_TYPES = [
+  { key: "reminder_due_link", kind: "DUE", paymentType: "LINK", label: "Recordatorio fecha de pago (link de pago)", templateId: REMINDER_TPL_DUE_LINK },
+  { key: "reminder_due_subscription", kind: "DUE", paymentType: "SUBSCRIPTION", label: "Recordatorio fecha de pago (débito automático)", templateId: REMINDER_TPL_DUE_SUBSCRIPTION },
+  { key: "reminder_mora_link", kind: "MORA", paymentType: "LINK", label: "Recordatorio en mora (link de pago)", templateId: REMINDER_TPL_MORA_LINK },
+  { key: "reminder_mora_subscription", kind: "MORA", paymentType: "SUBSCRIPTION", label: "Recordatorio en mora (débito automático)", templateId: REMINDER_TPL_MORA_SUBSCRIPTION }
+] as const;
 
 type OffsetItem = { amount: string; unit: "minutes" | "hours" | "days" };
 const MESSAGE_VARIABLES = [
@@ -406,8 +417,14 @@ export function NotificationsSimple({
     return map;
   }, [templates]);
 
-  const reminderDueTemplate = templateById.get(REMINDER_TPL_DUE) || null;
-  const reminderMoraTemplate = templateById.get(REMINDER_TPL_MORA) || null;
+  const reminderTemplateById = useMemo(() => {
+    return {
+      dueLink: templateById.get(REMINDER_TPL_DUE_LINK) || null,
+      dueSubscription: templateById.get(REMINDER_TPL_DUE_SUBSCRIPTION) || null,
+      moraLink: templateById.get(REMINDER_TPL_MORA_LINK) || null,
+      moraSubscription: templateById.get(REMINDER_TPL_MORA_SUBSCRIPTION) || null
+    };
+  }, [templateById]);
 
   const rulesByKey = useMemo(() => {
     const map = new Map<string, Rule>();
@@ -416,7 +433,9 @@ export function NotificationsSimple({
         if (r.trigger !== rt.trigger) return false;
         const types = r.conditions?.requirePaymentTypeIn;
         if (!rt.paymentType) return !types || !types.length;
-        return Array.isArray(types) && types.includes(rt.paymentType);
+        if (Array.isArray(types) && types.includes(rt.paymentType)) return true;
+        if (rt.trigger === "PAYMENT_DECLINED" && rt.paymentType === "LINK" && (!types || !types.length)) return true;
+        return false;
       });
       const fallback = !match && !rt.paymentType ? rules.find((r) => r.trigger === rt.trigger) : null;
       if (match) map.set(rt.key, match);
@@ -436,8 +455,29 @@ export function NotificationsSimple({
     return found || null;
   };
 
-  const reminderDue = rules.find((r) => r.trigger === "SUBSCRIPTION_DUE" && (!r.conditions?.requirePaymentTypeIn || !r.conditions?.requirePaymentTypeIn?.length) && (r.offsetsSeconds || []).some((s) => Number(s) <= 0));
-  const reminderMora = rules.find((r) => r.trigger === "SUBSCRIPTION_DUE" && (r.offsetsSeconds || []).some((s) => Number(s) > 0));
+  const findReminderRule = (kind: "DUE" | "MORA", paymentType: "LINK" | "SUBSCRIPTION") => {
+    return rules.find((r) => {
+      if (r.trigger !== "SUBSCRIPTION_DUE") return false;
+      const offsets = r.offsetsSeconds || [];
+      const isDue = offsets.some((s) => Number(s) <= 0);
+      const isMora = offsets.some((s) => Number(s) > 0);
+      if (kind === "DUE" && !isDue) return false;
+      if (kind === "MORA" && !isMora) return false;
+      const types = r.conditions?.requirePaymentTypeIn;
+      if (paymentType === "SUBSCRIPTION") return Array.isArray(types) && types.includes("SUBSCRIPTION");
+      if (!types || !types.length) return true;
+      return Array.isArray(types) && types.includes("LINK");
+    });
+  };
+
+  const reminderRuleByKey = useMemo(() => {
+    return {
+      dueLink: findReminderRule("DUE", "LINK"),
+      dueSubscription: findReminderRule("DUE", "SUBSCRIPTION"),
+      moraLink: findReminderRule("MORA", "LINK"),
+      moraSubscription: findReminderRule("MORA", "SUBSCRIPTION")
+    };
+  }, [rules]);
 
   const initialRealtimeKinds = useMemo(() => {
     const map: Record<string, "TEXT" | "WHATSAPP_TEMPLATE"> = {};
@@ -455,15 +495,12 @@ export function NotificationsSimple({
   const lastFieldRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const [pickerOpen, setPickerOpen] = useState<null | "vars">(null);
   const [activeModal, setActiveModal] = useState<
-    null | { type: "realtime"; key: RealtimeKey } | { type: "reminder"; kind: "DUE" | "MORA" }
+    null | { type: "realtime"; key: RealtimeKey } | { type: "reminder"; kind: "DUE" | "MORA"; paymentType: "LINK" | "SUBSCRIPTION" }
   >(null);
   const [wizardStep, setWizardStep] = useState<1 | 2>(1);
   const [wizardKind, setWizardKind] = useState<"TEXT" | "WHATSAPP_TEMPLATE">("TEXT");
 
-  const [dueOffsets, setDueOffsets] = useState<OffsetItem[]>(offsetsToItems(reminderDue?.offsetsSeconds, -1));
-  const [moraOffsets, setMoraOffsets] = useState<OffsetItem[]>(offsetsToItems(reminderMora?.offsetsSeconds, 1));
-  const [dueKind, setDueKind] = useState<"TEXT" | "WHATSAPP_TEMPLATE">(reminderDueTemplate?.chatwootTemplate?.name ? "WHATSAPP_TEMPLATE" : "TEXT");
-  const [moraKind, setMoraKind] = useState<"TEXT" | "WHATSAPP_TEMPLATE">(reminderMoraTemplate?.chatwootTemplate?.name ? "WHATSAPP_TEMPLATE" : "TEXT");
+  const [reminderOffsets, setReminderOffsets] = useState<OffsetItem[]>([]);
 
   const [waTemplates, setWaTemplates] = useState<ChatwootTemplate[]>([]);
   const [waLoading, setWaLoading] = useState(false);
@@ -492,13 +529,19 @@ export function NotificationsSimple({
     loadWaTemplates();
   }, [loadWaTemplates, env]);
 
-  useEffect(() => {
-    setDueKind(reminderDueTemplate?.chatwootTemplate?.name ? "WHATSAPP_TEMPLATE" : "TEXT");
-  }, [reminderDueTemplate?.chatwootTemplate?.name]);
+  const getReminderTemplate = (kind: "DUE" | "MORA", paymentType: "LINK" | "SUBSCRIPTION") => {
+    if (kind === "DUE" && paymentType === "LINK") return reminderTemplateById.dueLink;
+    if (kind === "DUE") return reminderTemplateById.dueSubscription;
+    if (kind === "MORA" && paymentType === "LINK") return reminderTemplateById.moraLink;
+    return reminderTemplateById.moraSubscription;
+  };
 
-  useEffect(() => {
-    setMoraKind(reminderMoraTemplate?.chatwootTemplate?.name ? "WHATSAPP_TEMPLATE" : "TEXT");
-  }, [reminderMoraTemplate?.chatwootTemplate?.name]);
+  const getReminderRule = (kind: "DUE" | "MORA", paymentType: "LINK" | "SUBSCRIPTION") => {
+    if (kind === "DUE" && paymentType === "LINK") return reminderRuleByKey.dueLink;
+    if (kind === "DUE") return reminderRuleByKey.dueSubscription;
+    if (kind === "MORA" && paymentType === "LINK") return reminderRuleByKey.moraLink;
+    return reminderRuleByKey.moraSubscription;
+  };
 
   function onPickValue(value: string) {
     if (lastFieldRef.current) insertAtCursor(lastFieldRef.current, value);
@@ -506,8 +549,6 @@ export function NotificationsSimple({
   }
 
   const pendingRealtime = REALTIME_TYPES;
-  const dueConfigured = Boolean(reminderDue && isTemplateConfigured(reminderDueTemplate, dueKind));
-  const moraConfigured = Boolean(reminderMora && isTemplateConfigured(reminderMoraTemplate, moraKind));
 
   useEffect(() => {
     if (!activeModal) return;
@@ -521,7 +562,12 @@ export function NotificationsSimple({
       setWizardKind(kind);
       return;
     }
-    const kind = activeModal.kind === "DUE" ? dueKind : moraKind;
+    const rule = getReminderRule(activeModal.kind, activeModal.paymentType);
+    const tpl = getReminderTemplate(activeModal.kind, activeModal.paymentType);
+    const isDue = activeModal.kind === "DUE";
+    const offsets = offsetsToItems(rule?.offsetsSeconds, isDue ? -1 : 1);
+    const kind = tpl?.chatwootTemplate?.name ? "WHATSAPP_TEMPLATE" : "TEXT";
+    setReminderOffsets(offsets);
     setWizardKind(kind);
   }, [activeModal]);
   const listItems = [
@@ -545,27 +591,42 @@ export function NotificationsSimple({
         onClick: () => setActiveModal({ type: "realtime", key: rt.key })
       };
     }),
-    {
-      id: "reminder:due",
-      label: "Recordatorio de fecha de pago",
-      subtitle: "Antes del vencimiento",
-      statusLabel: dueConfigured ? (reminderDue?.enabled ? "Activa" : "Inactiva") : "No configurada",
-      statusPill: dueConfigured && reminderDue?.enabled ? "pill-green" : "pill-muted",
-      ruleId: reminderDue?.id || "",
-      enabled: Boolean(reminderDue?.enabled),
-      onClick: () => setActiveModal({ type: "reminder", kind: "DUE" })
-    },
-    {
-      id: "reminder:mora",
-      label: "Recordatorio en mora",
-      subtitle: "Después del vencimiento",
-      statusLabel: moraConfigured ? (reminderMora?.enabled ? "Activa" : "Inactiva") : "No configurada",
-      statusPill: moraConfigured && reminderMora?.enabled ? "pill-green" : "pill-muted",
-      ruleId: reminderMora?.id || "",
-      enabled: Boolean(reminderMora?.enabled),
-      onClick: () => setActiveModal({ type: "reminder", kind: "MORA" })
-    }
+    ...REMINDER_TYPES.map((rt) => {
+      const rule = getReminderRule(rt.kind, rt.paymentType);
+      const tpl = getReminderTemplate(rt.kind, rt.paymentType);
+      const kind = tpl?.chatwootTemplate?.name ? "WHATSAPP_TEMPLATE" : "TEXT";
+      const kindLabel = kind === "WHATSAPP_TEMPLATE" ? "Plantilla" : "Mensaje";
+      const isConfigured = Boolean(rule && isTemplateConfigured(tpl, kind));
+      const statusLabel = isConfigured ? (rule?.enabled ? "Activa" : "Inactiva") : "No configurada";
+      const statusPill = isConfigured && rule?.enabled ? "pill-green" : "pill-muted";
+      return {
+        id: `reminder:${rt.key}`,
+        label: rt.label,
+        subtitle: rt.kind === "DUE" ? "Antes del vencimiento" : "Después del vencimiento",
+        statusLabel,
+        statusPill,
+        ruleId: rule?.id || "",
+        enabled: Boolean(rule?.enabled),
+        onClick: () => setActiveModal({ type: "reminder", kind: rt.kind, paymentType: rt.paymentType })
+      };
+    })
   ];
+
+  const getReminderTemplateId = (kind: "DUE" | "MORA", paymentType: "LINK" | "SUBSCRIPTION") => {
+    if (kind === "DUE" && paymentType === "LINK") return REMINDER_TPL_DUE_LINK;
+    if (kind === "DUE") return REMINDER_TPL_DUE_SUBSCRIPTION;
+    if (kind === "MORA" && paymentType === "LINK") return REMINDER_TPL_MORA_LINK;
+    return REMINDER_TPL_MORA_SUBSCRIPTION;
+  };
+
+  const activeReminder =
+    activeModal?.type === "reminder"
+      ? {
+          rule: getReminderRule(activeModal.kind, activeModal.paymentType),
+          template: getReminderTemplate(activeModal.kind, activeModal.paymentType),
+          templateId: getReminderTemplateId(activeModal.kind, activeModal.paymentType)
+        }
+      : null;
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
@@ -783,12 +844,13 @@ export function NotificationsSimple({
                   <input type="hidden" name="csrf" value={csrfToken} />
                   <input type="hidden" name="environment" value={env} />
                   <input type="hidden" name="kind" value={activeModal.kind} />
-                  <input type="hidden" name="templateId" value={activeModal.kind === "DUE" ? REMINDER_TPL_DUE : REMINDER_TPL_MORA} />
+                  <input type="hidden" name="paymentType" value={activeModal.paymentType} />
+                  <input type="hidden" name="templateId" value={activeReminder?.templateId || ""} />
                   <input type="hidden" name="templateKind" value={wizardKind} />
                   <input
                     type="hidden"
                     name="enabled"
-                    value={((activeModal.kind === "DUE" ? reminderDue : reminderMora)?.enabled ?? true) ? "on" : ""}
+                    value={(activeReminder?.rule?.enabled ?? true) ? "on" : ""}
                   />
                   {wizardStep === 1 ? (
                     <div className="field">
@@ -802,7 +864,6 @@ export function NotificationsSimple({
                           type="button"
                           onClick={() => {
                             setWizardKind("TEXT");
-                            activeModal.kind === "DUE" ? setDueKind("TEXT") : setMoraKind("TEXT");
                             setWizardStep(2);
                           }}
                           data-loader="off"
@@ -814,7 +875,6 @@ export function NotificationsSimple({
                           type="button"
                           onClick={() => {
                             setWizardKind("WHATSAPP_TEMPLATE");
-                            activeModal.kind === "DUE" ? setDueKind("WHATSAPP_TEMPLATE") : setMoraKind("WHATSAPP_TEMPLATE");
                             setWizardStep(2);
                           }}
                           data-loader="off"
@@ -842,9 +902,7 @@ export function NotificationsSimple({
                         name="content"
                         rows={2}
                         defaultValue={
-                          activeModal.kind === "DUE"
-                            ? (reminderDueTemplate?.content && reminderDueTemplate.content !== "(template)" ? reminderDueTemplate.content : "")
-                            : (reminderMoraTemplate?.content && reminderMoraTemplate.content !== "(template)" ? reminderMoraTemplate.content : "")
+                          activeReminder?.template?.content && activeReminder.template.content !== "(template)" ? activeReminder.template.content : ""
                         }
                         onFocus={(e) => (lastFieldRef.current = e.target)}
                         onInput={(e) => autoResizeTextarea(e.currentTarget)}
@@ -859,22 +917,16 @@ export function NotificationsSimple({
                   ) : wizardStep === 2 ? (
                     <WaTemplateFields
                       templates={waTemplates}
-                      defaultName={activeModal.kind === "DUE" ? (reminderDueTemplate?.chatwootTemplate?.name || "") : (reminderMoraTemplate?.chatwootTemplate?.name || "")}
-                      defaultLang={activeModal.kind === "DUE" ? (reminderDueTemplate?.chatwootTemplate?.language || "es") : (reminderMoraTemplate?.chatwootTemplate?.language || "es")}
+                      defaultName={activeReminder?.template?.chatwootTemplate?.name || ""}
+                      defaultLang={activeReminder?.template?.chatwootTemplate?.language || "es"}
                       defaultParams={
-                        activeModal.kind === "DUE"
-                          ? (reminderDueTemplate?.chatwootTemplate?.processed_params?.body || []).map((p) => p.value).join("|")
-                          : (reminderMoraTemplate?.chatwootTemplate?.processed_params?.body || []).map((p) => p.value).join("|")
+                        (activeReminder?.template?.chatwootTemplate?.processed_params?.body || []).map((p) => p.value).join("|")
                       }
                       defaultHeaderParams={
-                        activeModal.kind === "DUE"
-                          ? (reminderDueTemplate?.chatwootTemplate?.processed_params?.header || []).map((p) => p.value).join("|")
-                          : (reminderMoraTemplate?.chatwootTemplate?.processed_params?.header || []).map((p) => p.value).join("|")
+                        (activeReminder?.template?.chatwootTemplate?.processed_params?.header || []).map((p) => p.value).join("|")
                       }
                       defaultButtonParams={
-                        activeModal.kind === "DUE"
-                          ? (reminderDueTemplate?.chatwootTemplate?.processed_params?.buttons || []).map((p) => p.value).join("|")
-                          : (reminderMoraTemplate?.chatwootTemplate?.processed_params?.buttons || []).map((p) => p.value).join("|")
+                        (activeReminder?.template?.chatwootTemplate?.processed_params?.buttons || []).map((p) => p.value).join("|")
                       }
                     />
                   ) : null}
@@ -883,7 +935,7 @@ export function NotificationsSimple({
                       <input
                         type="hidden"
                         name="offsetsSeconds"
-                        value={(activeModal.kind === "DUE" ? dueOffsets : moraOffsets)
+                        value={reminderOffsets
                           .map((o) => secondsFromOffset(o, activeModal.kind === "DUE" ? -1 : 1))
                           .join(",")}
                       />

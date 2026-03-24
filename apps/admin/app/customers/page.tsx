@@ -380,6 +380,8 @@ export default async function CustomersPage({
     ...(filters ? { filters } : {})
   }).toString()}`;
 
+  const quickLists = smartLists.filter((list: any) => !String(list?.category || "").toLowerCase().includes("gam"));
+
   return (
     <main className="page" style={{ maxWidth: "100%" }}>
       {error ? (
@@ -397,14 +399,14 @@ export default async function CustomersPage({
           <div className="filtersRow">
             <div className="filtersLeft">
               <div className="filtersPanel">
-                {smartLists.length ? (
+                {quickLists.length ? (
                   <div className="filtersQuickRow">
                     <div className="filter-label">
                       Listas inteligentes
                       <HelpTip text="Accesos rápidos a segmentos guardados (filtrados por comportamiento o atributos)." />
                     </div>
                     <div className="filtersQuick">
-                      {smartLists.map((list: any) => (
+                      {quickLists.map((list: any) => (
                         <a
                           key={list.id}
                           className={`pill quick-pill ${listId === list.id ? "is-active" : ""}`}

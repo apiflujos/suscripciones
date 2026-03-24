@@ -298,19 +298,19 @@ export function NotificationWizard({
     }
     if (next === "PAYMENT_DECLINED") {
       setTrigger("PAYMENT_DECLINED");
-      setPaymentType("ANY");
+      setPaymentType("LINK");
       setOffsets([{ direction: "after", amount: "0", unit: "minutes" }]);
       return;
     }
     if (next === "REMINDER_MORA") {
       setTrigger("SUBSCRIPTION_DUE");
-      setPaymentType("ANY");
+      setPaymentType("LINK");
       setOffsets([{ direction: "after", amount: "1", unit: "days" }]);
       return;
     }
     // REMINDER_DUE (default)
     setTrigger("SUBSCRIPTION_DUE");
-    setPaymentType("ANY");
+    setPaymentType("LINK");
     setOffsets([{ direction: "before", amount: "1", unit: "days" }]);
   }
 
@@ -397,6 +397,27 @@ export function NotificationWizard({
                 </label>
                 <input className="input" value={paymentType === "ANY" ? "Todos" : paymentType === "PLAN" ? "Pago por link de pago" : paymentType === "SUBSCRIPTION" ? "Pago suscripción" : "Pago por link de pago"} readOnly />
               </div>
+              {notificationKind === "PAYMENT_DECLINED" || notificationKind === "REMINDER_DUE" || notificationKind === "REMINDER_MORA" ? (
+                <div className="panel module" style={{ display: "grid", gap: 6 }}>
+                  <strong>Tipo de cobro</strong>
+                  <div style={{ display: "grid", gap: 6 }}>
+                    <button
+                      type="button"
+                      className={`ghost module-choice ${paymentType === "LINK" ? "is-active" : ""}`}
+                      onClick={() => setPaymentType("LINK")}
+                    >
+                      <span>Link de pago</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`ghost module-choice ${paymentType === "SUBSCRIPTION" ? "is-active" : ""}`}
+                      onClick={() => setPaymentType("SUBSCRIPTION")}
+                    >
+                      <span>Débito automático</span>
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </>
           ) : null}
 
