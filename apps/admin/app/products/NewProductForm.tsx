@@ -176,16 +176,15 @@ export function NewProductForm({
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
         <div className="field">
-          <label>Recurrencia</label>
-          <select className="select" name="intervalUnit" value={intervalUnit} onChange={(e) => setIntervalUnit(e.target.value as any)}>
-            <option value="DAY">Día</option>
-            <option value="WEEK">Semana</option>
-            <option value="MONTH">Mes</option>
-            <option value="CUSTOM">Personalizado</option>
-          </select>
+        <label>Unidad de recurrencia</label>
+        <select className="select" name="intervalUnit" value={intervalUnit} onChange={(e) => setIntervalUnit(e.target.value as any)}>
+          <option value="DAY">Día</option>
+          <option value="WEEK">Semana</option>
+          <option value="MONTH">Mes</option>
+        </select>
         </div>
         <div className="field">
-          <label>Cada</label>
+        <label>Cada (cantidad)</label>
           <input className="input no-icon" name="intervalCount" value={intervalCount} onChange={(e) => setIntervalCount(e.target.value)} inputMode="numeric" />
         </div>
       </div>

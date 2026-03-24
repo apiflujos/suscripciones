@@ -368,6 +368,7 @@ export async function subscriptionReminder(payload: any) {
   );
   const checkoutPublicToken: Record<string, string> = {};
   const checkoutPublicName: Record<string, string> = {};
+  const checkoutPublicUrl: Record<string, string> = {};
   if (checkoutIds.length) {
     for (const id of checkoutIds) {
       const planId = subscription?.planId || payment?.subscription?.planId || null;
@@ -393,6 +394,13 @@ export async function subscriptionReminder(payload: any) {
       if (created?.url) {
         checkoutPublicToken[id] = created.token;
         checkoutPublicName[id] = created.templateName;
+        checkoutPublicUrl[id] = created.url;
+        if (id === "AUTO") {
+          const kind = created.kind;
+          if (kind === PublicCheckoutKind.PLAN) checkoutPublicUrl.AUTO_PLAN = created.url;
+          if (kind === PublicCheckoutKind.SUBSCRIPTION) checkoutPublicUrl.AUTO_SUBSCRIPTION = created.url;
+          if (kind === PublicCheckoutKind.CART) checkoutPublicUrl.AUTO_CART = created.url;
+        }
       } else {
         await systemLog(LogLevel.WARN, "notifications.dispatch", "Checkout público no disponible para plantilla", {
           ruleId: rule.id,
@@ -421,6 +429,7 @@ export async function subscriptionReminder(payload: any) {
     payment: paymentWithPesos,
     checkoutPublicToken,
     checkoutPublicName,
+    checkoutPublicUrl,
     paymentLink: meta?.paymentLink ?? null,
     tokenizationLink: meta?.tokenizationLink ?? null,
     cartLink: meta?.cartLink ?? null,

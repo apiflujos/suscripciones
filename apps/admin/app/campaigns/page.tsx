@@ -7,7 +7,6 @@ import { listSmartLists } from "../admin/_services/smartLists";
 import { listCampaigns } from "../admin/_services/campaigns";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
-import { listCheckoutTemplates } from "../admin/_services/checkoutTemplates";
 
 export default async function CampaignsPage({
   searchParams
@@ -20,7 +19,6 @@ export default async function CampaignsPage({
   const session = await verifyAdminSessionToken(sessionToken);
   const listsRes = await listSmartLists({ tenantId: session?.tenantId || null, take: 200, skip: 0 });
   const lists = listsRes.ok ? listsRes.items : [];
-  const checkoutTemplates = await listCheckoutTemplates({ tenantId: session?.tenantId || null });
   const sp = (await searchParams) ?? {};
   const returnTo = `/campaigns?${new URLSearchParams(
     Object.fromEntries(Object.entries(sp).filter(([, v]) => typeof v === "string")) as Record<string, string>
@@ -50,7 +48,6 @@ export default async function CampaignsPage({
             csrfToken={csrfToken}
             returnTo={returnTo}
             lists={lists.map((l: any) => ({ id: String(l.id), name: String(l.name) }))}
-            checkoutTemplates={checkoutTemplates.map((t: any) => ({ id: String(t.id), name: String(t.name), active: t.active }))}
             tenantId={session?.tenantId || null}
             action={createCampaign}
           />

@@ -3604,11 +3604,12 @@ textarea {
   background-color: color-mix(in srgb, var(--form-bg) 92%, white 8%);
   background-image: var(--field-icon, none);
   background-repeat: no-repeat;
-  background-position: 12px 50%;
+  background-position: calc(100% - 12px) 50%;
   background-size: 14px 14px;
   color: var(--text);
   outline: none;
   padding-left: var(--field-padding-left, var(--control-padding-x));
+  padding-right: calc(var(--control-padding-x) + 18px);
   font-size: 12.5px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease, transform 0.12s ease;

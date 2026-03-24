@@ -97,25 +97,25 @@ const REMINDER_TYPES = [
 
 type OffsetItem = { amount: string; unit: "minutes" | "hours" | "days" };
 const MESSAGE_VARIABLES = [
-  { label: "Ciclo actual", value: "{{subscription.currentCycle}}" },
+  { label: "Nombre completo", value: "{{customer.name}}" },
   { label: "Correo electrónico", value: "{{customer.email}}" },
-  { label: "Dirección", value: "{{customer.metadata.address}}" },
-  { label: "Estado de la suscripción", value: "{{subscription.status}}" },
-  { label: "Estado del pago", value: "{{payment.status}}" },
-  { label: "Fecha de corte", value: "{{subscription.currentPeriodEndAt}}" },
-  { label: "Fecha de creación del pago", value: "{{payment.createdAt}}" },
-  { label: "Fecha de fallo del pago", value: "{{payment.failedAt}}" },
-  { label: "Fecha de inicio del ciclo", value: "{{subscription.currentPeriodStartAt}}" },
-  { label: "Fecha de pago", value: "{{payment.paidAt}}" },
-  { label: "Frecuencia (cantidad)", value: "{{plan.intervalCount}}" },
-  { label: "Frecuencia (unidad)", value: "{{plan.intervalUnit}}" },
-  { label: "Moneda del pago", value: "{{payment.currency}}" },
-  { label: "Moneda del producto", value: "{{plan.currency}}" },
-  { label: "Monto del pago (pesos)", value: "{{payment.amountInPesos}}" },
+  { label: "Teléfono", value: "{{customer.phone}}" },
   { label: "Nombre del producto", value: "{{plan.name}}" },
   { label: "Precio del producto (pesos)", value: "{{plan.priceInPesos}}" },
+  { label: "Moneda del producto", value: "{{plan.currency}}" },
+  { label: "Monto del pago (pesos)", value: "{{payment.amountInPesos}}" },
+  { label: "Moneda del pago", value: "{{payment.currency}}" },
+  { label: "Estado del pago", value: "{{payment.status}}" },
   { label: "Referencia", value: "{{payment.reference}}" },
-  { label: "Teléfono", value: "{{customer.phone}}" },
+  { label: "Estado de la suscripción", value: "{{subscription.status}}" },
+  { label: "Ciclo actual", value: "{{subscription.currentCycle}}" },
+  { label: "Fecha de inicio del ciclo", value: "{{subscription.currentPeriodStartAt}}" },
+  { label: "Fecha de corte", value: "{{subscription.currentPeriodEndAt}}" },
+  { label: "Fecha de pago", value: "{{payment.paidAt}}" },
+  { label: "Fecha de creación del pago", value: "{{payment.createdAt}}" },
+  { label: "Fecha de fallo del pago", value: "{{payment.failedAt}}" },
+  { label: "Recurrencia · cada (cantidad)", value: "{{plan.intervalCount}}" },
+  { label: "Recurrencia · unidad", value: "{{plan.intervalUnit}}" },
   { label: "Tipo de pago", value: "{{paymentType}}" }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
@@ -537,24 +537,22 @@ export function NotificationsSimple({
   }
 
   const pendingRealtime = REALTIME_TYPES;
-  const checkoutOptions = Array.isArray(checkoutTemplates) ? checkoutTemplates.filter((t) => t?.active !== false) : [];
-  const checkoutVars = useMemo(() => {
-    return checkoutOptions.flatMap((t) => [
-      { label: `Checkout público: ${t.name} (Token)`, value: `{{checkoutPublicToken.${t.id}}}` },
-      { label: `Checkout público: ${t.name} (Nombre)`, value: `{{checkoutPublicName.${t.id}}}` }
-    ]);
-  }, [checkoutOptions]);
   const autoCheckoutVars = useMemo(
+    () => [{ label: "Checkout público (Automático)", value: "{{checkoutPublicToken.AUTO}}" }],
+    []
+  );
+  const autoUrlVars = useMemo(
     () => [
-      { label: "Checkout público (Automático · Token)", value: "{{checkoutPublicToken.AUTO}}" },
-      { label: "Checkout público (Automático · Nombre)", value: "{{checkoutPublicName.AUTO}}" }
+      { label: "Link público (Automático · Plan)", value: "{{checkoutPublicUrl.AUTO_PLAN}}" },
+      { label: "Link público (Automático · Suscripción)", value: "{{checkoutPublicUrl.AUTO_SUBSCRIPTION}}" },
+      { label: "Link público (Automático · Catálogo)", value: "{{checkoutPublicUrl.AUTO_CART}}" }
     ],
     []
   );
-  const bodyVars = useMemo(() => [...MESSAGE_VARIABLES, ...autoCheckoutVars, ...checkoutVars], [checkoutVars, autoCheckoutVars]);
+  const bodyVars = useMemo(() => [...MESSAGE_VARIABLES, ...autoUrlVars], [autoUrlVars]);
   const buttonVars = useMemo(
-    () => [{ label: "Checkout público (Automático)", value: "{{checkoutPublicToken.AUTO}}" }, ...checkoutVars.filter((v) => v.value.includes("checkoutPublicToken."))],
-    [checkoutVars]
+    () => [...autoCheckoutVars],
+    [autoCheckoutVars]
   );
 
   useEffect(() => {

@@ -12,39 +12,37 @@ type ChatwootTemplate = {
   components?: any[];
 };
 
-type PublicCheckoutTemplate = {
-  id: string;
-  name: string;
-  active?: boolean | null;
-};
 
 const MESSAGE_VARIABLES = [
-  { label: "Ciclo actual", value: "{{subscription.currentCycle}}" },
-  { label: "Correo electrónico", value: "{{customer.email}}" },
-  { label: "Dirección", value: "{{customer.metadata.address}}" },
-  { label: "Estado de la suscripción", value: "{{subscription.status}}" },
-  { label: "Estado del pago", value: "{{payment.status}}" },
-  { label: "Fecha de corte", value: "{{subscription.currentPeriodEndAt}}" },
-  { label: "Fecha de creación del pago", value: "{{payment.createdAt}}" },
-  { label: "Fecha de fallo del pago", value: "{{payment.failedAt}}" },
-  { label: "Fecha de inicio del ciclo", value: "{{subscription.currentPeriodStartAt}}" },
-  { label: "Fecha de pago", value: "{{payment.paidAt}}" },
-  { label: "Frecuencia (cantidad)", value: "{{plan.intervalCount}}" },
-  { label: "Frecuencia (unidad)", value: "{{plan.intervalUnit}}" },
-  { label: "Moneda del pago", value: "{{payment.currency}}" },
-  { label: "Moneda del producto", value: "{{plan.currency}}" },
-  { label: "Monto del pago (pesos)", value: "{{payment.amountInPesos}}" },
   { label: "Nombre completo", value: "{{customer.name}}" },
+  { label: "Correo electrónico", value: "{{customer.email}}" },
+  { label: "Teléfono", value: "{{customer.phone}}" },
   { label: "Nombre del producto", value: "{{plan.name}}" },
   { label: "Precio del producto (pesos)", value: "{{plan.priceInPesos}}" },
+  { label: "Moneda del producto", value: "{{plan.currency}}" },
+  { label: "Monto del pago (pesos)", value: "{{payment.amountInPesos}}" },
+  { label: "Moneda del pago", value: "{{payment.currency}}" },
+  { label: "Estado del pago", value: "{{payment.status}}" },
   { label: "Referencia", value: "{{payment.reference}}" },
-  { label: "Teléfono", value: "{{customer.phone}}" },
-  { label: "Tipo de pago", value: "{{paymentType}}" }
+  { label: "Estado de la suscripción", value: "{{subscription.status}}" },
+  { label: "Ciclo actual", value: "{{subscription.currentCycle}}" },
+  { label: "Fecha de inicio del ciclo", value: "{{subscription.currentPeriodStartAt}}" },
+  { label: "Fecha de corte", value: "{{subscription.currentPeriodEndAt}}" },
+  { label: "Fecha de pago", value: "{{payment.paidAt}}" },
+  { label: "Fecha de creación del pago", value: "{{payment.createdAt}}" },
+  { label: "Fecha de fallo del pago", value: "{{payment.failedAt}}" },
+  { label: "Recurrencia · cada (cantidad)", value: "{{plan.intervalCount}}" },
+  { label: "Recurrencia · unidad", value: "{{plan.intervalUnit}}" },
+  { label: "Tipo de pago", value: "{{paymentType}}" },
+  { label: "Link público (Automático · Plan)", value: "{{checkoutPublicUrl.AUTO_PLAN}}" },
+  { label: "Link público (Automático · Suscripción)", value: "{{checkoutPublicUrl.AUTO_SUBSCRIPTION}}" },
+  { label: "Link público (Automático · Catálogo)", value: "{{checkoutPublicUrl.AUTO_CART}}" }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
 function WaTemplateFields({
   templates,
   variables,
+  buttonVariables,
   onSync,
   syncing,
   syncError,
@@ -52,6 +50,7 @@ function WaTemplateFields({
 }: {
   templates: ChatwootTemplate[];
   variables: Array<{ label: string; value: string }>;
+  buttonVariables?: Array<{ label: string; value: string }>;
   onSync?: () => void;
   syncing?: boolean;
   syncError?: string;
@@ -245,7 +244,7 @@ function WaTemplateFields({
                     }}
                   >
                     <option value="">{`Botón ${idx + 1} · Selecciona variable`}</option>
-                    {variables.map((v) => (
+                    {(buttonVariables || variables).map((v) => (
                       <option key={`b-${idx}-${v.value}`} value={v.value}>
                         {v.label}
                       </option>
@@ -267,14 +266,12 @@ export function NewMassMessageModal({
   csrfToken,
   returnTo,
   lists,
-  checkoutTemplates,
   tenantId,
   action
 }: {
   csrfToken: string;
   returnTo: string;
   lists: SmartList[];
-  checkoutTemplates: PublicCheckoutTemplate[];
   tenantId?: string | null;
   action: (formData: FormData) => void;
 }) {
@@ -359,17 +356,11 @@ export function NewMassMessageModal({
     }
   }, [tenantId]);
 
-  const checkoutOptions = useMemo(
-    () => (Array.isArray(checkoutTemplates) ? checkoutTemplates.filter((t) => t?.active !== false) : []),
-    [checkoutTemplates]
+  const allVariables = useMemo(() => [...MESSAGE_VARIABLES], []);
+  const buttonVariables = useMemo(
+    () => [{ label: "Checkout público (Automático)", value: "{{checkoutPublicToken.AUTO}}" }],
+    []
   );
-  const checkoutVars = useMemo(() => {
-    return checkoutOptions.flatMap((t) => [
-      { label: `Checkout público: ${t.name} (Token)`, value: `{{checkoutPublicToken.${t.id}}}` },
-      { label: `Checkout público: ${t.name} (Nombre)`, value: `{{checkoutPublicName.${t.id}}}` }
-    ]);
-  }, [checkoutOptions]);
-  const allVariables = useMemo(() => [...MESSAGE_VARIABLES, ...checkoutVars], [checkoutVars]);
 
   return (
     <>
@@ -463,6 +454,7 @@ export function NewMassMessageModal({
                 <WaTemplateFields
                   templates={waTemplates}
                   variables={allVariables}
+                  buttonVariables={buttonVariables}
                   onSync={loadWaTemplates}
                   syncing={waLoading}
                   syncError={waError}

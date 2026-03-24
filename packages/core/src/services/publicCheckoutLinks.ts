@@ -40,6 +40,7 @@ export async function createPublicCheckoutLink(args: {
       token: string;
       templateId: string;
       templateName: string;
+      kind: PublicCheckoutKind;
       expiresAt: string;
       utmParams: string | null;
     }
@@ -91,6 +92,7 @@ export async function createPublicCheckoutLink(args: {
     token,
     templateId: template.id,
     templateName: template.name,
+    kind: template.kind,
     expiresAt: new Date(Date.now() + hours * 60 * 60 * 1000).toISOString(),
     utmParams: utm || null
   };

@@ -49,21 +49,20 @@ export function PlanRecurrenceEditor({
 
               <div className="field">
                 <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span>Unidad</span>
-                  <HelpTip text="Unidad del cobro recurrente." />
+                  <span>Unidad de recurrencia</span>
+                  <HelpTip text="Día, semana o mes." />
                 </label>
                 <select className="select" name="intervalUnit" value={unit} onChange={(e) => setUnit(e.target.value as any)}>
                   <option value="DAY">Día</option>
                   <option value="WEEK">Semana</option>
                   <option value="MONTH">Mes</option>
-                  <option value="CUSTOM">Personalizado</option>
                 </select>
               </div>
 
               <div className="field">
                 <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span>Cada</span>
-                  <HelpTip text="Cantidad de unidades entre cobros." />
+                  <span>Cada (cantidad)</span>
+                  <HelpTip text="Número de unidades entre cobros." />
                 </label>
                 <input
                   className="input"
