@@ -401,6 +401,7 @@ export function NotificationsSimple({
   templates,
   rules,
   checkoutTemplates,
+  paymentsConfig,
   actions
 }: {
   env: Env;
@@ -408,10 +409,12 @@ export function NotificationsSimple({
   templates: Template[];
   rules: Rule[];
   checkoutTemplates: PublicCheckoutTemplate[];
+  paymentsConfig?: { notifyWhatsappForUnlinkedPayments?: boolean | null } | null;
   actions: {
     saveRealtime: (formData: FormData) => void;
     saveReminder: (formData: FormData) => void;
     toggleRule: (formData: FormData) => void;
+    updatePaymentsConfig: (formData: FormData) => void;
   };
 }) {
   const templateById = useMemo(() => {
@@ -721,6 +724,52 @@ export function NotificationsSimple({
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section className="settings-group">
+        <div className="settings-group-header">
+          <div className="panelHeaderRow">
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <h3>Pagos externos</h3>
+              <HelpTip text="Controla si se notifican pagos sin suscripción asociada." />
+            </div>
+          </div>
+        </div>
+        <div className="settings-group-body">
+          <form
+            action={actions.updatePaymentsConfig}
+            className="panel module"
+            style={{ display: "grid", gap: 12 }}
+            onChange={(e) => {
+              const form = (e.currentTarget as HTMLFormElement) || null;
+              form?.requestSubmit();
+            }}
+            data-loader="off"
+          >
+            <input type="hidden" name="csrf" value={csrfToken} />
+            <input type="hidden" name="returnTo" value="/notifications" />
+            <div className="toggleRow">
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <strong>Notificar pagos externos</strong>
+                </div>
+                <div className="field-hint">Aplica a pagos sin suscripción activa o no asociados.</div>
+              </div>
+              <label className="toggleControl" aria-label="Notificar pagos externos">
+                <input type="hidden" name="notifyWhatsappForUnlinkedPayments" value="0" />
+                <input
+                  className="toggleInput"
+                  type="checkbox"
+                  name="notifyWhatsappForUnlinkedPayments"
+                  value="1"
+                  defaultChecked={Boolean(paymentsConfig?.notifyWhatsappForUnlinkedPayments ?? true)}
+                  data-loader="off"
+                />
+                <span className="toggle" aria-hidden="true" />
+              </label>
+            </div>
+          </form>
         </div>
       </section>
       {activeModal ? (

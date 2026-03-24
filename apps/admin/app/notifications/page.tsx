@@ -4,6 +4,8 @@ import { saveReminder, saveRealtime, toggleRule } from "./actions";
 import { normalizeErrorParam } from "../lib/errorParam";
 import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
 import { listCheckoutTemplates } from "../admin/_services/checkoutTemplates";
+import { getPaymentsConfig } from "@suscripciones/core/services/runtimeConfig";
+import { updatePaymentsConfig } from "../settings/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +21,7 @@ export default async function NotificationsPage({
   const templates = Array.isArray(config.templates) ? config.templates : [];
   const rules = Array.isArray(config.rules) ? config.rules : [];
   const checkoutTemplates = (await listCheckoutTemplates({ wantsAll: true })).filter((t) => t.active !== false);
+  const paymentsConfig = await getPaymentsConfig().catch(() => null);
 
   return (
     <main className="page pageWide notificationsPage">
@@ -36,7 +39,8 @@ export default async function NotificationsPage({
         templates={templates}
         rules={rules}
         checkoutTemplates={checkoutTemplates}
-        actions={{ saveRealtime, saveReminder, toggleRule }}
+        paymentsConfig={paymentsConfig}
+        actions={{ saveRealtime, saveReminder, toggleRule, updatePaymentsConfig }}
       />
     </main>
   );
