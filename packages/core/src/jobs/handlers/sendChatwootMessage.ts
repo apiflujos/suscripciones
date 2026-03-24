@@ -377,6 +377,18 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
       }
       if (!conversationId && isNotFound) {
         try {
+          const cleanedMeta =
+            customerMeta && typeof customerMeta === "object" ? ({ ...customerMeta, chatwoot: undefined } as Record<string, unknown>) : customerMeta;
+          if (cleanedMeta && typeof cleanedMeta === "object") {
+            await prisma.customer
+              .update({
+                where: { id: msg.customerId },
+                data: { metadata: cleanedMeta as Prisma.InputJsonValue }
+              })
+              .catch((updateErr) => {
+                logger.warn({ err: updateErr, customerId: msg.customerId }, "chatwoot.send: failed to clear customer metadata");
+              });
+          }
           const name = String(msg.customer.name || "").trim();
           const email = String(msg.customer.email || "").trim();
           const phone = String(msg.customer.phone || "").trim();
