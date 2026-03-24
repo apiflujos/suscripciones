@@ -196,13 +196,20 @@ export async function reconcilePendingPayments(args: { minutes?: number; take?: 
   const pending = await prisma.payment.findMany({
     where: {
       status: { in: [PaymentStatus.PENDING, PaymentStatus.ERROR] },
-      wompiTransactionId: { not: null },
       createdAt: { lte: before },
       ...(tenantId ? { tenantId } : {})
     },
     orderBy: { createdAt: "asc" },
     take,
-    select: { id: true, tenantId: true, wompiTransactionId: true }
+    select: {
+      id: true,
+      tenantId: true,
+      wompiTransactionId: true,
+      wompiPaymentLinkId: true,
+      reference: true,
+      amountInCents: true,
+      currency: true
+    }
   });
 
   let reconciled = 0;
@@ -211,26 +218,40 @@ export async function reconcilePendingPayments(args: { minutes?: number; take?: 
   const errors: Array<{ paymentId: string; tx: string; reason: string }> = [];
 
   for (const payment of pending) {
-    const tx = String(payment.wompiTransactionId || "").trim();
-    if (!tx) {
-      skipped += 1;
-      continue;
-    }
     try {
-      const out = await reconcileWompiTransaction({
-        wompiTransactionId: tx,
-        tenantId: payment.tenantId,
-        checksumPrefix: "manual-pending-reconcile"
-      });
+      const tx = String(payment.wompiTransactionId || "").trim();
+      const reference = String(payment.reference || "").trim();
+      const paymentLinkId = String(payment.wompiPaymentLinkId || "").trim();
+      let out: any = null;
+      if (tx) {
+        out = await reconcileWompiTransaction({
+          wompiTransactionId: tx,
+          tenantId: payment.tenantId,
+          checksumPrefix: "manual-pending-reconcile"
+        });
+      } else if (reference || paymentLinkId) {
+        out = await reconcileWompiByReference({
+          reference: reference || paymentLinkId,
+          tenantId: payment.tenantId,
+          paymentLinkId: paymentLinkId || undefined,
+          amountInCents: payment.amountInCents || undefined,
+          currency: payment.currency || undefined,
+          checksumPrefix: "manual-pending-reconcile-ref"
+        });
+      } else {
+        skipped += 1;
+        continue;
+      }
       if (out?.ok) reconciled += 1;
       else {
         skipped += 1;
         if (out?.reason && out.reason !== "status_not_final") {
-          errors.push({ paymentId: payment.id, tx, reason: String(out.reason) });
+          errors.push({ paymentId: payment.id, tx: tx || paymentLinkId || reference, reason: String(out.reason) });
         }
       }
     } catch (err: any) {
       failed += 1;
+      const tx = String(payment.wompiTransactionId || payment.wompiPaymentLinkId || payment.reference || "").trim();
       errors.push({ paymentId: payment.id, tx, reason: String(err?.message || "reconcile_failed") });
     }
   }
