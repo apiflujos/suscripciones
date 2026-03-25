@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
-    "@suscripciones/database": "*",
+    "@suscripciones/database": "file:../database",
     "pino": "^9.3.2",
     "zod": "^3.23.8"
   },

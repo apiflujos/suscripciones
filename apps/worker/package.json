@@ -6,8 +6,8 @@
     "dev": "tsx watch src/runner.ts"
   },
   "dependencies": {
-    "@suscripciones/core": "*",
-    "@suscripciones/database": "*",
+    "@suscripciones/core": "file:../../packages/core",
+    "@suscripciones/database": "file:../../packages/database",
     "tsx": "^4.16.2"
   },
   "devDependencies": {
