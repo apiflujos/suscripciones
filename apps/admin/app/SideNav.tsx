@@ -386,18 +386,6 @@ export function SideNav({ session }: { session: AdminSession | null }) {
         <span className="nav-label">Notificaciones WhatsApp</span>
       </Link>
       <Link
-        className={`nav-item ${isActivePath(pathname, "/smart-lists") ? "is-active" : ""}`}
-        href="/smart-lists"
-        prefetch={false}
-        aria-current={isActivePath(pathname, "/smart-lists") ? "page" : undefined}
-        aria-disabled={isActivePath(pathname, "/smart-lists") ? "true" : undefined}
-        data-loader={isActivePath(pathname, "/smart-lists") ? "off" : undefined}
-        tabIndex={isActivePath(pathname, "/smart-lists") ? -1 : undefined}
-      >
-        <NavIcon name="lists" className="nav-icon" />
-        <span className="nav-label">Gamificación</span>
-      </Link>
-      <Link
         className={`nav-item ${isActivePath(pathname, "/campaigns") ? "is-active" : ""}`}
         href="/campaigns"
         prefetch={false}
