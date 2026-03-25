@@ -2871,6 +2871,20 @@ html[data-theme="dark"] .payments-health-banner code {
   max-width: 100%;
 }
 
+.logs-table .log-notif-stack {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.logs-table .log-trace-badges {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
 .logs-table .log-type-cell {
   max-width: 120px;
   overflow: hidden;

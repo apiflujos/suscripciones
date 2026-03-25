@@ -1024,6 +1024,26 @@ export default async function LogsPage({
                     const originLabel = paymentOriginLabel(p.origin);
                     const associationLabel = paymentAssociationLabel(p.associationReason);
                     const traceLabel = [originLabel, associationLabel, p.associatedBy].filter(Boolean).join(" · ");
+                    const originKey = String(p.origin || "").toUpperCase();
+                    const assocKey = String(p.associationReason || "").toUpperCase();
+                    const originChipClass =
+                      originKey === "MANUAL_USER"
+                        ? "pill-warn"
+                        : originKey === "AUTO_DEBIT" || originKey === "AUTO_LINK"
+                          ? "pill-ok"
+                          : originKey === "MANUAL_LINK"
+                            ? "pill-warn"
+                            : originKey === "WEBHOOK"
+                              ? "pill-muted"
+                              : "pill-muted";
+                    const assocChipClass =
+                      assocKey === "UNLINKED"
+                        ? "pill-bad"
+                        : assocKey === "MANUAL_RECONCILE"
+                          ? "pill-warn"
+                          : assocKey
+                            ? "pill-ok"
+                            : "pill-muted";
                     const notif = p.notification;
                     const notifStatus = String(notif?.status || "").toUpperCase();
                     const notifType = String(notif?.type || "").toUpperCase();
@@ -1057,10 +1077,13 @@ export default async function LogsPage({
                         </td>
                         <td className="log-status-cell">
                           {notifChip ? (
-                            <span className={`status-chip ${notifChip.cls}`} title={notifLabel}>
-                              <span className={`status-led ${notifChip.cls === "is-success" ? "is-ok" : ""}`} />
-                              {notifLabel} · {notifChip.label}
-                            </span>
+                            <div className="log-notif-stack">
+                              <span className={`status-chip ${notifChip.cls}`} title={notifLabel}>
+                                <span className={`status-led ${notifChip.cls === "is-success" ? "is-ok" : ""}`} />
+                                {notifLabel} · {notifChip.label}
+                              </span>
+                              <span className="pill pill-sm pill-muted">WhatsApp</span>
+                            </div>
                           ) : (
                             "—"
                           )}
@@ -1079,6 +1102,13 @@ export default async function LogsPage({
                         <td className="log-payment-error-cell" title={detailText}>
                           {detailText}
                           {traceLabel ? <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>{traceLabel}</div> : null}
+                          {originLabel || associationLabel ? (
+                            <div className="log-trace-badges">
+                              {originLabel ? <span className={`pill pill-sm ${originChipClass}`}>Origen: {originLabel}</span> : null}
+                              {associationLabel ? <span className={`pill pill-sm ${assocChipClass}`}>Asociación: {associationLabel}</span> : null}
+                              {p.associatedBy ? <span className="pill pill-sm pill-muted">Por: {p.associatedBy}</span> : null}
+                            </div>
+                          ) : null}
                         </td>
                         <td className="log-payment-actions-cell">
                           <div className="log-payment-actions">
