@@ -2065,6 +2065,7 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  position: relative;
 }
 
 .smartViewsPinButton,
@@ -2093,6 +2094,31 @@ a {
 
 .smartViewsPinSelect {
   min-width: 220px;
+}
+
+.smartViewsPinPopover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  border-radius: 10px;
+  padding: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: var(--shadow);
+  z-index: 20;
+}
+
+.smartViewsPinClose {
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .smartViewsTopRight {

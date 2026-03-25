@@ -355,28 +355,27 @@ export default async function CustomersPage({
                       compactInline
                     />
                   </div>
-                  <div className="filtersHeaderActions">
-                    <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
-                  </div>
+                  <div className="filtersHeaderActions" />
                   </div>
                   {/* Fila 2: Vista + Botones Crear (derecha) */}
                   <div className="filtersHeaderRow filtersHeaderRowBottom">
                     <div className="filtersHeaderLeft">
                       <span className="field-hint" style={{ margin: 0 }}>
-                      Vista:
-                      <HelpTip text="Alterna entre tarjetas y lista para ver contactos." />
+                        Vista:
+                        <HelpTip text="Alterna entre tarjetas y lista para ver contactos." />
                       </span>
-                    <ViewModeToggles
-                      currentMode={vistaTyped}
-                      baseParams={{
-                        ...(q ? { q } : {}),
-                        ...(tenantId ? { tenantId } : {}),
-                        ...(viewId ? { viewId } : {}),
-                        ...(filters ? { filters } : {})
-                      }}
-                    />
+                      <ViewModeToggles
+                        currentMode={vistaTyped}
+                        baseParams={{
+                          ...(q ? { q } : {}),
+                          ...(tenantId ? { tenantId } : {}),
+                          ...(viewId ? { viewId } : {}),
+                          ...(filters ? { filters } : {})
+                        }}
+                      />
                     </div>
                     <div className="filtersHeaderRight">
+                      <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
                       <CustomersModals
                         customers={items}
                         empresas={empresas}

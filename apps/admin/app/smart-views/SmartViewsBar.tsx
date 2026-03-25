@@ -640,39 +640,51 @@ export function SmartViewsBar({
                     </button>
                   </>
                 ) : (
-                  <button
-                    type="button"
-                    className="pill smartViewsPinAdd"
-                    onClick={() => setPinSelectIndex(idx)}
-                    data-loader="off"
-                  >
-                    + Lista
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      className="pill smartViewsPinAdd"
+                      onClick={() => setPinSelectIndex(idx)}
+                      data-loader="off"
+                    >
+                      + Lista
+                    </button>
+                    {pinSelectIndex === idx ? (
+                      <div className="smartViewsPinPopover">
+                        <select
+                          className="select smartViewsPinSelect"
+                          value=""
+                          onChange={(e) => {
+                            const nextId = String(e.target.value || "");
+                            if (!nextId) return;
+                            const next = pinnedIds.slice();
+                            next[idx] = nextId;
+                            savePins(next);
+                            setPinSelectIndex(null);
+                          }}
+                        >
+                          <option value="">Selecciona una lista…</option>
+                          {mergedViews.map((view) => (
+                            <option key={`pin-opt-${view.id}`} value={view.id}>
+                              {view.name} {view.visibility === "PRIVATE" ? "(Privada)" : ""}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          className="ghost smartViewsPinClose"
+                          aria-label="Cerrar"
+                          onClick={() => setPinSelectIndex(null)}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ) : null}
+                  </>
                 )}
               </div>
             );
           })}
-          {pinSelectIndex !== null ? (
-            <select
-              className="select smartViewsPinSelect"
-              value=""
-              onChange={(e) => {
-                const nextId = String(e.target.value || "");
-                if (!nextId) return;
-                const next = pinnedIds.slice();
-                next[pinSelectIndex] = nextId;
-                savePins(next);
-                setPinSelectIndex(null);
-              }}
-            >
-              <option value="">Selecciona una lista…</option>
-              {mergedViews.map((view) => (
-                <option key={`pin-opt-${view.id}`} value={view.id}>
-                  {view.name} {view.visibility === "PRIVATE" ? "(Privada)" : ""}
-                </option>
-              ))}
-            </select>
-          ) : null}
         </div>
         {compactInline ? (
           <div className="smartViewsTopRight">
