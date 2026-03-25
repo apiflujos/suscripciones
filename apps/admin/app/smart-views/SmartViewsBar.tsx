@@ -8,6 +8,8 @@ type SmartField = {
   group: string;
   type: "text" | "number" | "date" | "boolean" | "enum" | "phone" | "money";
   operators: Array<
+    | "and"
+    | "or"
     | "equals"
     | "notEquals"
     | "contains"
