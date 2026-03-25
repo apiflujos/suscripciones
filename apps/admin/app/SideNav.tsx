@@ -197,6 +197,9 @@ export function SideNav({ session }: { session: AdminSession | null }) {
   const searchParams = useSearchParams();
   const logTab = searchParams?.get("tab") || "";
   const isPaymentsInLogs = pathname === "/logs" && logTab === "payments";
+  const isNotificationsList = isActivePath(pathname, "/notifications/list");
+  const settingsTab = searchParams?.get("tab") || "";
+  const isNotificationsConfig = pathname === "/settings" && settingsTab === "notificaciones";
   const isSuperAdminPath = pathname.startsWith("/sa") || pathname.startsWith("/__sa");
   const isSuperAdmin = session?.role === "SUPER_ADMIN";
   const [collapsed, setCollapsed] = useState(false);
@@ -371,13 +374,31 @@ export function SideNav({ session }: { session: AdminSession | null }) {
         <span className="nav-label">Suscripciones</span>
       </Link>
       <Link
-        className={`nav-item ${isActivePath(pathname, "/notifications") ? "is-active" : ""}`}
-        href="/notifications"
+        className={`nav-item ${isNotificationsList ? "is-active" : ""}`}
+        href="/notifications/list"
         prefetch={false}
-        aria-current={isActivePath(pathname, "/notifications") ? "page" : undefined}
-        aria-disabled={isActivePath(pathname, "/notifications") ? "true" : undefined}
-        data-loader={isActivePath(pathname, "/notifications") ? "off" : undefined}
-        tabIndex={isActivePath(pathname, "/notifications") ? -1 : undefined}
+        aria-current={isNotificationsList ? "page" : undefined}
+        aria-disabled={isNotificationsList ? "true" : undefined}
+        data-loader={isNotificationsList ? "off" : undefined}
+        tabIndex={isNotificationsList ? -1 : undefined}
+        title="Notificaciones WhatsApp (Lista)"
+        aria-label="Notificaciones WhatsApp (Lista)"
+      >
+        <NavIcon name="notifications" className="nav-icon" />
+        <span className="nav-label">Configuración Notificaciones WhatsApp</span>
+      </Link>
+      <Link
+        className={`nav-item ${isNotificationsConfig ? "is-active" : ""}`}
+        href="/settings?tab=notificaciones"
+        prefetch={false}
+        aria-current={isNotificationsConfig ? "page" : undefined}
+        aria-disabled={isNotificationsConfig ? "true" : undefined}
+        data-loader={isNotificationsConfig ? "off" : undefined}
+        tabIndex={isNotificationsConfig ? -1 : undefined}
+        title="Configuración Notificaciones WhatsApp"
+        aria-label="Configuración Notificaciones WhatsApp"
+        target="_blank"
+        rel="noopener noreferrer"
       >
         <NavIcon name="notifications" className="nav-icon" />
         <span className="nav-label">Notificaciones WhatsApp</span>

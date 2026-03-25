@@ -493,10 +493,24 @@ export async function listRetryJobs(args: { take?: number; skip?: number; from?:
   return { items: enriched, total };
 }
 
-export async function listChatwootMessages(args: { take?: number; skip?: number; from?: string; to?: string; withCount?: boolean }) {
+export async function listChatwootMessages(args: {
+  take?: number;
+  skip?: number;
+  from?: string;
+  to?: string;
+  withCount?: boolean;
+  status?: string;
+  type?: string;
+  q?: string;
+}) {
   const withCount = Boolean(args.withCount);
   const take = Math.min(200, Math.max(1, Number(args.take ?? 20)));
   const skip = Math.max(0, Number(args.skip ?? 0));
+  const q = String(args.q ?? "").trim();
+  const statusRaw = String(args.status ?? "").trim().toUpperCase();
+  const typeRaw = String(args.type ?? "").trim().toUpperCase();
+  const status = ["PENDING", "SENT", "FAILED"].includes(statusRaw) ? statusRaw : "";
+  const type = ["PAYMENT_LINK", "PAYMENT_CONFIRMED", "EXPIRY_WARNING", "PAYMENT_FAILED"].includes(typeRaw) ? typeRaw : "";
   const fromRaw = String(args.from ?? "").trim();
   const toRaw = String(args.to ?? "").trim();
   const fromDate = parseDate(fromRaw) ?? defaultFromDate();
@@ -507,6 +521,27 @@ export async function listChatwootMessages(args: { take?: number; skip?: number;
       ...(toDate ? { lt: toDate } : {})
     }
   };
+  if (status) where.status = status as any;
+  if (type) where.type = type as any;
+  if (q) {
+    where.OR = [
+      { content: { contains: q, mode: "insensitive" } },
+      { errorMessage: { contains: q, mode: "insensitive" } },
+      { to: { contains: q, mode: "insensitive" } },
+      { actor: { contains: q, mode: "insensitive" } },
+      {
+        customer: {
+          is: {
+            OR: [
+              { name: { contains: q, mode: "insensitive" } },
+              { email: { contains: q, mode: "insensitive" } },
+              { phone: { contains: q, mode: "insensitive" } }
+            ]
+          }
+        }
+      }
+    ];
+  }
   const [items, total] = await Promise.all([
     prisma.chatwootMessage.findMany({
       where,
