@@ -146,7 +146,8 @@ export async function listPaymentLogs(args: {
           type: true,
           status: true,
           sentAt: true,
-          createdAt: true
+          createdAt: true,
+          providerResp: true
         }
       })
     : [];

@@ -73,11 +73,14 @@ export async function GET(req: NextRequest) {
         const customerEmail = String(m?.customer?.email || "").trim();
         const customerPhone = String(m?.customer?.phone || "").trim();
         const type = String(m?.type || "").toUpperCase();
+        const offsetSeconds = Number(m?.providerResp?.meta?.offsetSeconds ?? 0);
         const label =
           type === "PAYMENT_LINK"
             ? "Notificación: link de pago"
             : type === "EXPIRY_WARNING"
-              ? "Notificación: recordatorio de pago"
+              ? offsetSeconds > 0
+                ? "Notificación: mora"
+                : "Notificación: recordatorio de pago"
               : type === "PAYMENT_FAILED"
                 ? "Notificación: pago fallido"
                 : type === "PAYMENT_CONFIRMED"

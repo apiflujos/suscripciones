@@ -994,11 +994,15 @@ export default async function LogsPage({
                       : failureReason;
                     const notif = p.notification;
                     const notifStatus = String(notif?.status || "").toUpperCase();
+                    const notifType = String(notif?.type || "").toUpperCase();
+                    const notifOffset = Number((notif as any)?.providerResp?.meta?.offsetSeconds ?? 0);
                     const notifLabel =
-                      String(notif?.type || "").toUpperCase() === "PAYMENT_LINK"
+                      notifType === "PAYMENT_LINK"
                         ? "Link de pago"
-                        : String(notif?.type || "").toUpperCase() === "EXPIRY_WARNING"
-                          ? "Recordatorio de pago"
+                        : notifType === "EXPIRY_WARNING"
+                          ? notifOffset > 0
+                            ? "Mora"
+                            : "Recordatorio de pago"
                           : "Notificación";
                     const notifChip =
                       notifStatus === "SENT"

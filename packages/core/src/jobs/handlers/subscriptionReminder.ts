@@ -536,7 +536,14 @@ export async function subscriptionReminder(payload: any) {
       content,
       actor: "Sistema",
       providerResp: template.chatwootTemplate
-        ? ({ template_params: renderAny(template.chatwootTemplate, ctx) } as any)
+        ? ({
+            template_params: renderAny(template.chatwootTemplate, ctx),
+            meta: {
+              trigger: parsed.data.trigger,
+              offsetSeconds: parsed.data.offsetSeconds ?? null,
+              ruleId: rule.id
+            }
+          } as any)
         : null
     }
   });
