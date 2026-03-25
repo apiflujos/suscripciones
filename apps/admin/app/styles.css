@@ -3023,6 +3023,18 @@ html[data-theme="dark"] .payments-health-banner code {
   margin: 0 !important;
 }
 
+.logs-table-payments .log-associate-form {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.logs-table-payments .log-associate-form .select,
+.logs-table-payments .log-associate-form .input {
+  min-width: 180px;
+}
+
 .logs-table-payments .log-payment-actions-cell {
   width: 220px;
   max-width: none;

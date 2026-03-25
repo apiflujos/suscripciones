@@ -17,6 +17,7 @@ import { getAdminSettings } from "../admin/_services/settings";
 import { resolveSmartViewIds, parseFiltersParam, getSmartViewFields } from "@suscripciones/core/services/smartViews";
 import {
   recollectPayments,
+  associatePaymentToSubscription,
   reconcilePayment as reconcilePaymentAction,
   reconcilePendingPayments as reconcilePendingPaymentsAction,
   enqueueShopifyForwardForPayment,
@@ -81,6 +82,32 @@ async function reconcilePayment(formData: FormData) {
   });
   revalidatePath("/logs");
   revalidatePath("/payments");
+}
+
+async function associatePayment(formData: FormData) {
+  "use server";
+  await assertCsrfToken(formData);
+  const session = await getSuperAdminSession();
+  if (!session) return;
+  const returnTo = safeReturnToLogs(formData);
+  const paymentId = String(formData.get("paymentId") || "").trim();
+  const subscriptionId = String(formData.get("subscriptionId") || "").trim();
+  const tenantId = String(formData.get("tenantId") || "").trim();
+  if (!paymentId || !subscriptionId) {
+    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}assoc=fail&assocError=missing_ids`);
+  }
+  const res = await associatePaymentToSubscription({
+    paymentId,
+    subscriptionId,
+    tenantId: tenantId || undefined,
+    actorEmail: session.email || undefined
+  });
+  if (!res.ok) {
+    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}assoc=fail&assocError=${encodeURIComponent(res.error || "failed")}`);
+  }
+  revalidatePath("/logs");
+  revalidatePath("/payments");
+  redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}assoc=ok`);
 }
 
 async function reconcilePendingPayments(formData: FormData) {
@@ -308,6 +335,8 @@ export default async function LogsPage({
   const shopifyError = typeof sp.shopifyError === "string" ? sp.shopifyError : "";
   const recollectStatus = typeof sp.recollect === "string" ? sp.recollect : "";
   const recollectError = typeof sp.recollectError === "string" ? sp.recollectError : "";
+  const assocStatus = typeof sp.assoc === "string" ? sp.assoc : "";
+  const assocError = typeof sp.assocError === "string" ? sp.assocError : "";
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
   const take = 20;
   const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
@@ -543,6 +572,14 @@ export default async function LogsPage({
       {recollectStatus === "fail" ? (
         <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>
           Error recolectando pagos: {recollectError || "unknown_error"}
+        </div>
+      ) : null}
+      {assocStatus === "ok" ? (
+        <div className="card cardPad">Pago asociado manualmente a la suscripción.</div>
+      ) : null}
+      {assocStatus === "fail" ? (
+        <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>
+          Error asociando pago: {assocError || "unknown_error"}
         </div>
       ) : null}
       <section className="settings-group">
@@ -1147,6 +1184,42 @@ export default async function LogsPage({
                               >
                                 Asociar suscripción
                               </Link>
+                            ) : null}
+                            {!p.subscriptionId ? (
+                              <form action={associatePayment} className="log-associate-form">
+                                <input type="hidden" name="csrf" value={csrfToken} />
+                                <input type="hidden" name="paymentId" value={String(p.id || "")} />
+                                <input type="hidden" name="tenantId" value={String(tenantId || p.tenantId || "")} />
+                                <input type="hidden" name="returnTo" value={returnTo} />
+                                {Array.isArray(p.candidateSubscriptions) && p.candidateSubscriptions.length ? (
+                                  <select className="select select-sm" name="subscriptionId" defaultValue="">
+                                    <option value="">Suscripción activa…</option>
+                                    {p.candidateSubscriptions.map((s: any) => {
+                                      const statusLabel =
+                                        String(s.status || "").toUpperCase() === "ACTIVE" ? "Activa" : "En mora";
+                                      const date = s.currentPeriodEndAt ? new Date(s.currentPeriodEndAt) : null;
+                                      const dateLabel = date
+                                        ? new Intl.DateTimeFormat("es-CO", { dateStyle: "medium" }).format(date)
+                                        : "—";
+                                      return (
+                                        <option key={s.id} value={s.id}>
+                                          {s.plan?.name || "Plan"} · {statusLabel} · vence {dateLabel}
+                                        </option>
+                                      );
+                                    })}
+                                  </select>
+                                ) : (
+                                  <input
+                                    className="input input-sm"
+                                    name="subscriptionId"
+                                    placeholder="ID suscripción"
+                                    aria-label="ID de suscripción"
+                                  />
+                                )}
+                                <PendingButton className="ghost btn-compact btn-noicon" type="submit" pendingText="Asociando...">
+                                  Asociar
+                                </PendingButton>
+                              </form>
                             ) : null}
                             {contactId ? (
                               <Link className="ghost btn-compact btn-view" href={`/customers/${encodeURIComponent(contactId)}`}>

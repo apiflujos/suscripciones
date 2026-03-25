@@ -129,6 +129,7 @@ export async function listPaymentLogs(args: {
 
   const paymentIds = items.map((item: any) => String(item.id || "")).filter(Boolean);
   const subscriptionIds = items.map((item: any) => String(item.subscriptionId || "")).filter(Boolean);
+  const customerIds = items.map((item: any) => String(item.customerId || "")).filter(Boolean);
   const chatwootMessages = paymentIds.length || subscriptionIds.length
     ? await prisma.chatwootMessage.findMany({
         where: {
@@ -152,6 +153,30 @@ export async function listPaymentLogs(args: {
       })
     : [];
 
+  const activeSubscriptions = customerIds.length
+    ? await prisma.subscription.findMany({
+        where: {
+          customerId: { in: Array.from(new Set(customerIds)) },
+          status: { in: ["ACTIVE", "PAST_DUE"] as any[] },
+          ...(tenantId ? { tenantId } : {})
+        },
+        select: {
+          id: true,
+          tenantId: true,
+          customerId: true,
+          status: true,
+          currentPeriodEndAt: true,
+          plan: { select: { name: true } }
+        }
+      })
+    : [];
+  const subsByCustomerTenant = new Map<string, typeof activeSubscriptions>();
+  for (const sub of activeSubscriptions) {
+    const key = `${sub.customerId}:${sub.tenantId}`;
+    if (!subsByCustomerTenant.has(key)) subsByCustomerTenant.set(key, []);
+    subsByCustomerTenant.get(key)!.push(sub);
+  }
+
   const notificationByPaymentId = new Map<string, any>();
   const notificationBySubscriptionId = new Map<string, any>();
   for (const msg of chatwootMessages) {
@@ -170,13 +195,15 @@ export async function listPaymentLogs(args: {
       (item.id && notificationByPaymentId.get(String(item.id))) ||
       (item.subscriptionId && notificationBySubscriptionId.get(String(item.subscriptionId))) ||
       null;
+    const candidateSubscriptions = subsByCustomerTenant.get(`${item.customerId}:${item.tenantId}`) || [];
     return {
       ...item,
       failureCode,
       failureReason,
       reconciliation,
       isIgnoredExternal,
-      notification
+      notification,
+      candidateSubscriptions
     };
   });
 

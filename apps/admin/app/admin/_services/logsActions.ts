@@ -194,6 +194,64 @@ export async function reconcilePayment(args: {
   return { ok: reconcile.ok, reconcile, payment: refreshed };
 }
 
+export async function associatePaymentToSubscription(args: {
+  paymentId?: string;
+  subscriptionId?: string;
+  tenantId?: string;
+  actorEmail?: string;
+}) {
+  const paymentId = String(args.paymentId || "").trim();
+  const subscriptionId = String(args.subscriptionId || "").trim();
+  const tenantIdFromBody = String(args.tenantId || "").trim();
+  if (!paymentId || !subscriptionId) return { ok: false as const, error: "missing_ids" as const };
+
+  const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
+  if (!payment) return { ok: false as const, error: "payment_not_found" as const };
+
+  const subscription = await prisma.subscription.findUnique({
+    where: { id: subscriptionId },
+    include: { plan: true, customer: true }
+  });
+  if (!subscription) return { ok: false as const, error: "subscription_not_found" as const };
+
+  const tenantId = tenantIdFromBody || String(payment.tenantId || "").trim();
+  if (tenantId && String(subscription.tenantId || "").trim() !== tenantId) {
+    return { ok: false as const, error: "tenant_mismatch" as const };
+  }
+  if (!["ACTIVE", "PAST_DUE"].includes(String(subscription.status || "").toUpperCase())) {
+    return { ok: false as const, error: "subscription_inactive" as const };
+  }
+
+  if (payment.subscriptionId === subscription.id) {
+    return { ok: true as const, updated: false as const };
+  }
+
+  await prisma.payment.update({
+    where: { id: payment.id },
+    data: {
+      subscriptionId: subscription.id,
+      customerId: subscription.customerId,
+      associationReason: "MANUAL_RECONCILE" as any,
+      associatedBy: args.actorEmail ? String(args.actorEmail) : "system"
+    }
+  });
+
+  await systemLog(
+    LogLevel.INFO,
+    "logs.payments",
+    "Pago asociado manualmente a suscripción",
+    {
+      paymentId: payment.id,
+      subscriptionId: subscription.id,
+      tenantId: payment.tenantId,
+      actor: args.actorEmail || "system"
+    },
+    args.actorEmail || "Sistema"
+  ).catch(() => {});
+
+  return { ok: true as const, updated: true as const };
+}
+
 export async function reconcilePendingPayments(args: { minutes?: number; take?: number; tenantId?: string }) {
   const minutesRaw = Number(args.minutes ?? 30);
   const minutes = Number.isFinite(minutesRaw) ? Math.min(Math.max(Math.trunc(minutesRaw), 1), 24 * 60) : 30;
