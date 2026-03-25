@@ -222,6 +222,25 @@ export async function associatePaymentToSubscription(args: {
     return { ok: false as const, error: "subscription_inactive" as const };
   }
 
+  const paymentAt = payment.paidAt || payment.createdAt;
+  const periodStart = subscription.currentPeriodStartAt;
+  const periodEnd = subscription.currentPeriodEndAt;
+  const toleranceDays = 7;
+  const toleranceMs = toleranceDays * 24 * 60 * 60 * 1000;
+  const windowStart = new Date(periodStart.getTime() - toleranceMs);
+  const windowEnd = new Date(periodEnd.getTime() + toleranceMs);
+  if (paymentAt < windowStart || paymentAt > windowEnd) {
+    return {
+      ok: false as const,
+      error: "out_of_cycle" as const,
+      details: {
+        paidAt: paymentAt,
+        periodStart,
+        periodEnd
+      }
+    };
+  }
+
   if (payment.subscriptionId === subscription.id) {
     return { ok: true as const, updated: false as const };
   }

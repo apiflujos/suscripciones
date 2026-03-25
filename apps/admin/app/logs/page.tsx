@@ -103,7 +103,21 @@ async function associatePayment(formData: FormData) {
     actorEmail: session.email || undefined
   });
   if (!res.ok) {
-    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}assoc=fail&assocError=${encodeURIComponent(res.error || "failed")}`);
+    const err = res.error || "failed";
+    if (err === "out_of_cycle" && (res as any).details) {
+      const details = (res as any).details;
+      const fmt = (value: any) =>
+        value ? new Intl.DateTimeFormat("es-CO", { dateStyle: "medium" }).format(new Date(value)) : "—";
+      const paidAt = fmt(details.paidAt);
+      const start = fmt(details.periodStart);
+      const end = fmt(details.periodEnd);
+      redirect(
+        `${returnTo}${returnTo.includes("?") ? "&" : "?"}assoc=fail&assocError=${encodeURIComponent(
+          `Fuera de ciclo: pago ${paidAt} · ciclo ${start} → ${end}`
+        )}`
+      );
+    }
+    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}assoc=fail&assocError=${encodeURIComponent(err)}`);
   }
   revalidatePath("/logs");
   revalidatePath("/payments");
