@@ -27,6 +27,22 @@ type PaymentItem = {
   attempts?: Attempt[];
 };
 
+type BillingCycleItem = {
+  id: string;
+  cycleNumber: number;
+  periodStartAt: string;
+  periodEndAt: string;
+  dueAt: string;
+  paidAt?: string | null;
+  status?: string | null;
+  paidOnTime?: boolean | null;
+  daysEarly?: number | null;
+  daysLate?: number | null;
+  origin?: string | null;
+  associatedBy?: string | null;
+  subscription?: { plan?: { name?: string | null } | null } | null;
+};
+
 type Props = {
   subscriptionId: string;
   tenantId?: string | null;
@@ -87,6 +103,7 @@ export function PaymentHistoryButton({ subscriptionId, tenantId }: Props) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<PaymentItem[]>([]);
+  const [cycles, setCycles] = useState<BillingCycleItem[]>([]);
   const [error, setError] = useState<string>("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -131,6 +148,28 @@ export function PaymentHistoryButton({ subscriptionId, tenantId }: Props) {
       active = false;
     };
   }, [open, url]);
+
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    fetch(`/api/billing/billing-cycles?subscriptionId=${encodeURIComponent(subscriptionId)}&take=24`, { cache: "no-store" })
+      .then((res) => res.json().then((json) => ({ ok: res.ok, json })))
+      .then(({ ok, json }) => {
+        if (!active) return;
+        if (!ok) {
+          setCycles([]);
+          return;
+        }
+        setCycles(Array.isArray(json?.items) ? json.items : []);
+      })
+      .catch(() => {
+        if (!active) return;
+        setCycles([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [open, subscriptionId]);
 
   useEffect(() => {
     if (!open) return;
@@ -244,6 +283,57 @@ export function PaymentHistoryButton({ subscriptionId, tenantId }: Props) {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              ) : null}
+              {!loading && !error ? (
+                <div className="billing-history" style={{ marginTop: 12 }}>
+                  <div className="billing-history-label">Ciclos de pago</div>
+                  {cycles.length === 0 ? (
+                    <div className="muted">Sin ciclos registrados.</div>
+                  ) : (
+                    <div className="billing-history-table-wrap">
+                      <table className="table billing-history-table" aria-label="Ciclos de pago">
+                        <thead>
+                          <tr>
+                            <th>Ciclo</th>
+                            <th>Periodo</th>
+                            <th>Vence</th>
+                            <th>Pago</th>
+                            <th>Puntualidad</th>
+                            <th>Origen</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {cycles.map((c) => {
+                            const status = String(c.status || "").toUpperCase();
+                            const punctual =
+                              c.paidOnTime == null
+                                ? "—"
+                                : c.paidOnTime
+                                  ? c.daysEarly && c.daysEarly > 0
+                                    ? `Temprano (${c.daysEarly}d)`
+                                    : "A tiempo"
+                                  : c.daysLate && c.daysLate > 0
+                                    ? `Tarde (${c.daysLate}d)`
+                                    : "Tarde";
+                            return (
+                              <tr key={c.id}>
+                                <td>Ciclo {c.cycleNumber}</td>
+                                <td>
+                                  <LocalDateTime value={c.periodStartAt} variant="short" /> ·{" "}
+                                  <LocalDateTime value={c.periodEndAt} variant="short" />
+                                </td>
+                                <td><LocalDateTime value={c.dueAt} variant="short" /></td>
+                                <td>{c.paidAt ? <LocalDateTime value={c.paidAt} variant="short" /> : "—"}</td>
+                                <td>{punctual}</td>
+                                <td>{originLabel(c.origin)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               ) : null}
             </div>

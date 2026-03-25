@@ -92,13 +92,15 @@ async function associatePayment(formData: FormData) {
   const returnTo = safeReturnToLogs(formData);
   const paymentId = String(formData.get("paymentId") || "").trim();
   const subscriptionId = String(formData.get("subscriptionId") || "").trim();
+  const cycleId = String(formData.get("cycleId") || "").trim();
   const tenantId = String(formData.get("tenantId") || "").trim();
-  if (!paymentId || !subscriptionId) {
+  if (!paymentId || (!subscriptionId && !cycleId)) {
     redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}assoc=fail&assocError=missing_ids`);
   }
   const res = await associatePaymentToSubscription({
     paymentId,
     subscriptionId,
+    cycleId,
     tenantId: tenantId || undefined,
     actorEmail: session.email || undefined
   });
@@ -161,7 +163,7 @@ function safeReturnToLogs(formData: FormData) {
 async function forwardShopifyPayment(formData: FormData) {
   "use server";
   await assertCsrfToken(formData);
-  if (!(await assertSuperAdminSession())) return;
+  if (!(await getSuperAdminSession())) return;
   const paymentId = String(formData.get("paymentId") || "").trim();
   const returnTo = safeReturnToLogs(formData);
   if (!paymentId) return;
@@ -1205,19 +1207,17 @@ export default async function LogsPage({
                                 <input type="hidden" name="paymentId" value={String(p.id || "")} />
                                 <input type="hidden" name="tenantId" value={String(tenantId || p.tenantId || "")} />
                                 <input type="hidden" name="returnTo" value={returnTo} />
-                                {Array.isArray(p.candidateSubscriptions) && p.candidateSubscriptions.length ? (
-                                  <select className="select select-sm" name="subscriptionId" defaultValue="">
-                                    <option value="">Suscripción activa…</option>
-                                    {p.candidateSubscriptions.map((s: any) => {
-                                      const statusLabel =
-                                        String(s.status || "").toUpperCase() === "ACTIVE" ? "Activa" : "En mora";
-                                      const date = s.currentPeriodEndAt ? new Date(s.currentPeriodEndAt) : null;
-                                      const dateLabel = date
-                                        ? new Intl.DateTimeFormat("es-CO", { dateStyle: "medium" }).format(date)
-                                        : "—";
+                                {Array.isArray(p.candidateCycles) && p.candidateCycles.length ? (
+                                  <select className="select select-sm" name="cycleId" defaultValue="">
+                                    <option value="">Ciclo a asociar…</option>
+                                    {p.candidateCycles.map((c: any) => {
+                                      const start = c.periodStartAt ? new Date(c.periodStartAt) : null;
+                                      const end = c.periodEndAt ? new Date(c.periodEndAt) : null;
+                                      const fmt = (d: Date | null) =>
+                                        d ? new Intl.DateTimeFormat("es-CO", { dateStyle: "medium" }).format(d) : "—";
                                       return (
-                                        <option key={s.id} value={s.id}>
-                                          {s.plan?.name || "Plan"} · {statusLabel} · vence {dateLabel}
+                                        <option key={c.id} value={c.id}>
+                                          {c.planName || "Plan"} · ciclo {c.cycleNumber} · {fmt(start)} → {fmt(end)}
                                         </option>
                                       );
                                     })}

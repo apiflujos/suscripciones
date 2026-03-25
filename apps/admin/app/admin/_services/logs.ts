@@ -4,6 +4,7 @@ import { prisma } from "@suscripciones/database";
 import { Prisma, RetryJobStatus, WebhookProcessStatus, WebhookProvider } from "@prisma/client";
 import { getDefaultTenantId } from "@suscripciones/core/services/tenantContext";
 import { getWompiEventsSecret } from "@suscripciones/core/services/runtimeConfig";
+import { ensureBillingCyclesForSubscriptions } from "@suscripciones/core/services/billingCycles";
 import { buildSystemLogWhere, defaultFromDate, parseDate, pickProviderFailureMessage, stringOrNull } from "../logs/_lib";
 
 export async function listPaymentLogs(args: {
@@ -166,15 +167,41 @@ export async function listPaymentLogs(args: {
           customerId: true,
           status: true,
           currentPeriodEndAt: true,
-          plan: { select: { name: true } }
+          currentPeriodStartAt: true,
+          currentCycle: true,
+          plan: { select: { name: true, intervalUnit: true, intervalCount: true } }
         }
       })
     : [];
+  if (activeSubscriptions.length) {
+    await ensureBillingCyclesForSubscriptions(
+      activeSubscriptions.map((s) => ({
+        id: s.id,
+        currentCycle: s.currentCycle,
+        currentPeriodStartAt: s.currentPeriodStartAt,
+        currentPeriodEndAt: s.currentPeriodEndAt,
+        plan: { intervalUnit: (s as any).plan?.intervalUnit, intervalCount: (s as any).plan?.intervalCount }
+      }))
+    ).catch(() => {});
+  }
+  const cycles = activeSubscriptions.length
+    ? await prisma.subscriptionBillingCycle.findMany({
+        where: { subscriptionId: { in: activeSubscriptions.map((s) => s.id) } },
+        orderBy: { periodStartAt: "desc" }
+      })
+    : [];
+  const cyclesBySubscription = new Map<string, typeof cycles>();
+  for (const c of cycles) {
+    if (!cyclesBySubscription.has(c.subscriptionId)) cyclesBySubscription.set(c.subscriptionId, []);
+    cyclesBySubscription.get(c.subscriptionId)!.push(c);
+  }
   const subsByCustomerTenant = new Map<string, typeof activeSubscriptions>();
+  const planBySubscription = new Map<string, string>();
   for (const sub of activeSubscriptions) {
     const key = `${sub.customerId}:${sub.tenantId}`;
     if (!subsByCustomerTenant.has(key)) subsByCustomerTenant.set(key, []);
     subsByCustomerTenant.get(key)!.push(sub);
+    planBySubscription.set(sub.id, String((sub as any).plan?.name || "Plan"));
   }
 
   const notificationByPaymentId = new Map<string, any>();
@@ -196,6 +223,12 @@ export async function listPaymentLogs(args: {
       (item.subscriptionId && notificationBySubscriptionId.get(String(item.subscriptionId))) ||
       null;
     const candidateSubscriptions = subsByCustomerTenant.get(`${item.customerId}:${item.tenantId}`) || [];
+    const candidateCycles = candidateSubscriptions.flatMap((s) =>
+      (cyclesBySubscription.get(s.id) || []).map((c) => ({
+        ...c,
+        planName: planBySubscription.get(s.id) || "Plan"
+      }))
+    );
     return {
       ...item,
       failureCode,
@@ -203,7 +236,8 @@ export async function listPaymentLogs(args: {
       reconciliation,
       isIgnoredExternal,
       notification,
-      candidateSubscriptions
+      candidateSubscriptions,
+      candidateCycles
     };
   });
 

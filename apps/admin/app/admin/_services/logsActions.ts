@@ -5,6 +5,7 @@ import { LogLevel, PaymentStatus, RetryJobStatus, RetryJobType, WebhookProcessSt
 import { classifyReference } from "@suscripciones/core/webhooks/wompi/classifyReference";
 import { reconcileWompiByReference, reconcileWompiTransaction } from "@suscripciones/core/services/wompiReconcile";
 import { systemLog } from "@suscripciones/core/services/systemLog";
+import { attachPaymentToCycle, ensureBillingCyclesForSubscriptions } from "@suscripciones/core/services/billingCycles";
 
 export async function retryJobById(id: string) {
   const jobId = String(id || "").trim();
@@ -197,21 +198,34 @@ export async function reconcilePayment(args: {
 export async function associatePaymentToSubscription(args: {
   paymentId?: string;
   subscriptionId?: string;
+  cycleId?: string;
   tenantId?: string;
   actorEmail?: string;
 }) {
   const paymentId = String(args.paymentId || "").trim();
   const subscriptionId = String(args.subscriptionId || "").trim();
+  const cycleId = String(args.cycleId || "").trim();
   const tenantIdFromBody = String(args.tenantId || "").trim();
-  if (!paymentId || !subscriptionId) return { ok: false as const, error: "missing_ids" as const };
+  if (!paymentId || (!subscriptionId && !cycleId)) return { ok: false as const, error: "missing_ids" as const };
 
   const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
   if (!payment) return { ok: false as const, error: "payment_not_found" as const };
 
-  const subscription = await prisma.subscription.findUnique({
-    where: { id: subscriptionId },
-    include: { plan: true, customer: true }
-  });
+  let subscription = null as any;
+  let cycle = null as any;
+  if (cycleId) {
+    cycle = await prisma.subscriptionBillingCycle.findUnique({ where: { id: cycleId } });
+    if (!cycle) return { ok: false as const, error: "cycle_not_found" as const };
+    subscription = await prisma.subscription.findUnique({
+      where: { id: cycle.subscriptionId },
+      include: { plan: true, customer: true }
+    });
+  } else {
+    subscription = await prisma.subscription.findUnique({
+      where: { id: subscriptionId },
+      include: { plan: true, customer: true }
+    });
+  }
   if (!subscription) return { ok: false as const, error: "subscription_not_found" as const };
 
   const tenantId = tenantIdFromBody || String(payment.tenantId || "").trim();
@@ -223,27 +237,56 @@ export async function associatePaymentToSubscription(args: {
   }
 
   const paymentAt = payment.paidAt || payment.createdAt;
-  const periodStart = subscription.currentPeriodStartAt;
-  const periodEnd = subscription.currentPeriodEndAt;
   const toleranceDays = 7;
   const toleranceMs = toleranceDays * 24 * 60 * 60 * 1000;
-  const windowStart = new Date(periodStart.getTime() - toleranceMs);
-  const windowEnd = new Date(periodEnd.getTime() + toleranceMs);
-  if (paymentAt < windowStart || paymentAt > windowEnd) {
-    return {
-      ok: false as const,
-      error: "out_of_cycle" as const,
-      details: {
-        paidAt: paymentAt,
-        periodStart,
-        periodEnd
-      }
-    };
+  if (!cycle) {
+    const periodStart = subscription.currentPeriodStartAt;
+    const periodEnd = subscription.currentPeriodEndAt;
+    const windowStart = new Date(periodStart.getTime() - toleranceMs);
+    const windowEnd = new Date(periodEnd.getTime() + toleranceMs);
+    if (paymentAt < windowStart || paymentAt > windowEnd) {
+      return {
+        ok: false as const,
+        error: "out_of_cycle" as const,
+        details: {
+          paidAt: paymentAt,
+          periodStart,
+          periodEnd
+        }
+      };
+    }
+  } else {
+    const windowStart = new Date(new Date(cycle.periodStartAt).getTime() - toleranceMs);
+    const windowEnd = new Date(new Date(cycle.periodEndAt).getTime() + toleranceMs);
+    if (paymentAt < windowStart || paymentAt > windowEnd) {
+      return {
+        ok: false as const,
+        error: "out_of_cycle" as const,
+        details: {
+          paidAt: paymentAt,
+          periodStart: cycle.periodStartAt,
+          periodEnd: cycle.periodEndAt
+        }
+      };
+    }
   }
 
   if (payment.subscriptionId === subscription.id) {
     return { ok: true as const, updated: false as const };
   }
+
+  await ensureBillingCyclesForSubscriptions([
+    {
+      id: subscription.id,
+      currentCycle: subscription.currentCycle,
+      currentPeriodStartAt: subscription.currentPeriodStartAt,
+      currentPeriodEndAt: subscription.currentPeriodEndAt,
+      plan: {
+        intervalUnit: subscription.plan.intervalUnit,
+        intervalCount: subscription.plan.intervalCount
+      }
+    }
+  ]).catch(() => {});
 
   await prisma.payment.update({
     where: { id: payment.id },
@@ -254,6 +297,24 @@ export async function associatePaymentToSubscription(args: {
       associatedBy: args.actorEmail ? String(args.actorEmail) : "system"
     }
   });
+
+  let cycleToAttach = cycle;
+  if (!cycleToAttach) {
+    cycleToAttach = await prisma.subscriptionBillingCycle.findUnique({
+      where: { subscriptionId_cycleNumber: { subscriptionId: subscription.id, cycleNumber: subscription.currentCycle } }
+    });
+  }
+  if (cycleToAttach) {
+    await attachPaymentToCycle({
+      paymentId: payment.id,
+      subscriptionId: subscription.id,
+      cycleId: cycleToAttach.id,
+      paymentAt,
+      origin: payment.origin,
+      associationReason: "MANUAL_RECONCILE",
+      associatedBy: args.actorEmail ? String(args.actorEmail) : "system"
+    }).catch(() => {});
+  }
 
   await systemLog(
     LogLevel.INFO,

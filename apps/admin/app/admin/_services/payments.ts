@@ -139,6 +139,32 @@ export async function getPaymentStatus(args: { paymentId: string; tenantId?: str
   };
 }
 
+export async function listSubscriptionBillingCycles(args: { subscriptionId: string; take?: number }) {
+  const subscriptionId = String(args.subscriptionId || "").trim();
+  if (!subscriptionId) return { ok: false as const, status: 400, error: "invalid_subscription_id" as const };
+  const take = Math.min(36, Math.max(1, Number(args.take ?? 18)));
+  const items = await prisma.subscriptionBillingCycle.findMany({
+    where: { subscriptionId },
+    orderBy: { periodStartAt: "desc" },
+    take,
+    include: { subscription: { select: { plan: { select: { name: true } } } } }
+  });
+  return { ok: true as const, items };
+}
+
+export async function listCustomerBillingCycles(args: { customerId: string; take?: number }) {
+  const customerId = String(args.customerId || "").trim();
+  if (!customerId) return { ok: false as const, status: 400, error: "invalid_customer_id" as const };
+  const take = Math.min(60, Math.max(1, Number(args.take ?? 24)));
+  const items = await prisma.subscriptionBillingCycle.findMany({
+    where: { subscription: { customerId } },
+    orderBy: { periodStartAt: "desc" },
+    take,
+    include: { subscription: { select: { id: true, plan: { select: { name: true } } } } }
+  });
+  return { ok: true as const, items };
+}
+
 export async function getProductPayments(args: { productId: string; tenantId?: string | null; take: number; skip: number }) {
   const id = String(args.productId || "").trim();
   if (!id) return { ok: false, status: 400, error: "invalid_id" as const };

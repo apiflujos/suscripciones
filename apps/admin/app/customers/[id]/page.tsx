@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getCustomerWithGamification } from "../../admin/_services/customers";
-import { getCustomerPayments } from "../../admin/_services/payments";
+import { getCustomerPayments, listCustomerBillingCycles } from "../../admin/_services/payments";
 import { listSubscriptions } from "../../admin/_services/subscriptions";
 import { listSystemLogs } from "../../admin/_services/logs";
 import { listTenants } from "../../admin/_services/tenants";
@@ -321,6 +321,10 @@ async function fetchSubscriptions(id: string, tenantId?: string | null) {
   return listSubscriptions({ customerId: id, tenantId: tenantId || null, take: 40 });
 }
 
+async function fetchBillingCycles(id: string) {
+  return listCustomerBillingCycles({ customerId: id, take: 30 });
+}
+
 async function fetchLogs(id: string, opts?: { take?: number; from?: string; to?: string }) {
   return listSystemLogs({
     customerId: id,
@@ -383,13 +387,14 @@ export default async function CustomerDetailPage({
   const logsFrom = new Date();
   logsFrom.setDate(logsFrom.getDate() - logsWindowDays * logsPage);
   const logsTake = 20;
-  const [customerRes, paymentsRes, subscriptionsRes, logsRes, tenantsRes, settingsRes] = await Promise.all([
+  const [customerRes, paymentsRes, subscriptionsRes, logsRes, tenantsRes, settingsRes, cyclesRes] = await Promise.all([
     fetchCustomer(id, resolvedTenantId),
     fetchPayments(id, resolvedTenantId),
     fetchSubscriptions(id, resolvedTenantId),
     fetchLogs(id, { take: logsTake, from: logsFrom.toISOString(), to: logsTo.toISOString() }),
     fetchTenants(),
-    fetchSettings()
+    fetchSettings(),
+    fetchBillingCycles(id)
   ]);
 
   if (!customerRes.ok) {
@@ -416,6 +421,7 @@ export default async function CustomerDetailPage({
   const logsRaw = (logsRes.items ?? []) as any[];
   const logs = compactCustomerLogs(logsRaw.filter(isRelevantCustomerLog));
   const tenants = (tenantsRes ?? []) as Array<{ id: string; name: string }>;
+  const billingCycles = (cyclesRes && (cyclesRes as any).ok ? (cyclesRes as any).items : []) as any[];
   const aiConfig = settingsRes?.ai || null;
   const aiProviders = aiConfig?.providers || null;
   const aiEnabled = Boolean(aiConfig?.enabled && (aiProviders?.openai?.configured || aiProviders?.deepseek?.configured));
@@ -626,6 +632,61 @@ export default async function CustomerDetailPage({
             <Link className="ghost btn-compact btn-amber" href={`/customers/${customer.id}/payment-method`}>Método de pago</Link>
           </div>
         </div>
+      </section>
+
+      <section className="card cardPad customer-section">
+        <div className="contact-section-title">Puntualidad de pagos (ciclos)</div>
+        {billingCycles.length ? (
+          <div className="table-scroll">
+            <table className="table table-fixed">
+              <colgroup>
+                <col style={{ width: "12%" }} />
+                <col style={{ width: "28%" }} />
+                <col style={{ width: "18%" }} />
+                <col style={{ width: "18%" }} />
+                <col style={{ width: "24%" }} />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>Ciclo</th>
+                  <th>Periodo</th>
+                  <th>Pago</th>
+                  <th>Puntualidad</th>
+                  <th>Suscripción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {billingCycles.map((c: any) => {
+                  const punctual =
+                    c.paidOnTime == null
+                      ? "—"
+                      : c.paidOnTime
+                        ? c.daysEarly && c.daysEarly > 0
+                          ? `Temprano (${c.daysEarly}d)`
+                          : "A tiempo"
+                        : c.daysLate && c.daysLate > 0
+                          ? `Tarde (${c.daysLate}d)`
+                          : "Tarde";
+                  return (
+                    <tr key={c.id}>
+                      <td>Ciclo {c.cycleNumber}</td>
+                      <td>
+                        <LocalDateTime value={c.periodStartAt} /> · <LocalDateTime value={c.periodEndAt} />
+                      </td>
+                      <td>{c.paidAt ? <LocalDateTime value={c.paidAt} /> : "—"}</td>
+                      <td>{punctual}</td>
+                      <td className="cell-truncate" title={formatPlanTitle({ name: c.subscription?.plan?.name })}>
+                        {formatPlanTitle({ name: c.subscription?.plan?.name })}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="muted">Sin ciclos registrados.</div>
+        )}
       </section>
 
       <section className="grid3">

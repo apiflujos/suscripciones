@@ -67,6 +67,13 @@ enum PaymentAssociationReason {
   UNKNOWN
 }
 
+enum BillingCycleStatus {
+  PENDING
+  PAID
+  FAILED
+  SKIPPED
+}
+
 enum SmartViewVisibility {
   PRIVATE
   ORG
@@ -313,6 +320,7 @@ model Subscription {
   contacto      Contacto?        @relation(fields: [contactoId], references: [id])
   plan          SubscriptionPlan @relation(fields: [planId], references: [id])
   payments      Payment[]
+  billingCycles SubscriptionBillingCycle[]
   chatwootMsgs  ChatwootMessage[]
   paymentLinks  PaymentLink[]
 
@@ -353,12 +361,40 @@ model Payment {
   subscription Subscription? @relation(fields: [subscriptionId], references: [id])
   attempts     PaymentAttempt[]
   chatwootMsgs ChatwootMessage[]
+  billingCycle SubscriptionBillingCycle?
 
   @@unique([wompiTransactionId])
   @@index([reference])
   @@index([subscriptionId, status])
   @@index([status, createdAt])
   @@index([tenantId])
+}
+
+model SubscriptionBillingCycle {
+  id                String              @id @default(uuid()) @db.Uuid
+  subscriptionId    String              @db.Uuid
+  cycleNumber       Int
+  periodStartAt     DateTime
+  periodEndAt       DateTime
+  dueAt             DateTime
+  status            BillingCycleStatus  @default(PENDING)
+  paidAt            DateTime?
+  paymentId         String?             @db.Uuid
+  paidOnTime        Boolean?
+  daysEarly         Int?
+  daysLate          Int?
+  origin            PaymentOrigin?
+  associationReason PaymentAssociationReason?
+  associatedBy      String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id])
+  payment      Payment?     @relation(fields: [paymentId], references: [id])
+
+  @@unique([subscriptionId, cycleNumber])
+  @@index([subscriptionId, periodStartAt])
+  @@index([subscriptionId, paymentId])
 }
 
 model PaymentLink {

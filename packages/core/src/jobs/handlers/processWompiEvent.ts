@@ -16,6 +16,7 @@ import { GAMIFICATION_WEIGHTS, moneyToPoints } from "../../services/gamification
 import { resolveSubscriptionCollectionMode } from "../../services/subscriptionMode";
 import { publishRealtime } from "../../services/realtimePublisher";
 import { ensurePaymentRetryJob } from "../../services/retryJobScheduler";
+import { attachPaymentToMatchingCycle } from "../../services/billingCycles";
 import { getSubscriptionPricingTotal, getPlanCollectionMode } from "../../lib/metadataSchemas";
 
 type WompiCustomerData = {
@@ -932,6 +933,17 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
           wompiPaymentLinkId: paymentLinkId ?? undefined
         }
       });
+
+  if (paymentRecord.subscriptionId && paymentRecord.paidAt) {
+    await attachPaymentToMatchingCycle({
+      subscriptionId: paymentRecord.subscriptionId,
+      paymentId: paymentRecord.id,
+      paymentAt: paymentRecord.paidAt,
+      origin: paymentRecord.origin,
+      associationReason: paymentRecord.associationReason as any,
+      associatedBy: paymentRecord.associatedBy || "system"
+    }).catch(() => {});
+  }
 
   if (paymentRecord.subscriptionId && paymentRecord.wompiPaymentLinkId && paymentRecord.checkoutUrl) {
     const planId =
