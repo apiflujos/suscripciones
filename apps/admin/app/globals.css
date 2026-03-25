@@ -222,7 +222,8 @@
   border-radius: 8px;
   margin-bottom: 8px;
   background: var(--bg);
-  border: 1px solid var(--stroke);
+  border: 1px solid transparent;
+  box-shadow: var(--shadow-soft);
   transition: all 0.2s;
   text-decoration: none;
   color: inherit;
@@ -248,12 +249,20 @@
   background: rgba(34, 197, 94, 0.05);
 }
 
+.topbarBellItem.notification-success .topbarBellItemTitle {
+  color: var(--success);
+}
+
 .topbarBellItem.notification-error {
   border-left-color: var(--danger);
 }
 
 .topbarBellItem.notification-error.is-unread {
   background: rgba(239, 68, 68, 0.05);
+}
+
+.topbarBellItem.notification-error .topbarBellItemTitle {
+  color: var(--danger);
 }
 
 .topbarBellItem.notification-warning {
@@ -264,8 +273,16 @@
   background: rgba(245, 158, 11, 0.05);
 }
 
+.topbarBellItem.notification-warning .topbarBellItemTitle {
+  color: var(--warning);
+}
+
 .topbarBellItem.notification-info {
   border-left-color: var(--primary);
+}
+
+.topbarBellItem.notification-info .topbarBellItemTitle {
+  color: var(--primary);
 }
 
 /* Icono de notificación */

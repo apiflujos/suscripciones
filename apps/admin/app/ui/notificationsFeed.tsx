@@ -22,6 +22,7 @@ export type NotificationItem = {
 
 export const FEED_STORAGE_KEY = "apiflujos-notifications-feed";
 export const READ_STORAGE_KEY = "apiflujos-notifications-read-ids";
+export const DISMISSED_STORAGE_KEY = "apiflujos-notifications-dismissed-ids";
 
 export function categorizeNotification(title: string, message: string, source?: string): NotificationCategory {
   const text = `${title} ${message} ${source || ""}`.toLowerCase();
@@ -255,6 +256,7 @@ export function useNotificationsFeed(args: { isSuperAdmin: boolean }) {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [filter, setFilter] = useState<NotificationFilter>("unread");
   const readIdsRef = useRef<Set<string>>(new Set());
+  const dismissedIdsRef = useRef<Set<string>>(new Set());
 
   const filterOptions = useMemo(() => [
     { key: "unread" as const, label: "No leidas", icon: "bell" },
@@ -290,12 +292,23 @@ export function useNotificationsFeed(args: { isSuperAdmin: boolean }) {
         readIdsRef.current = new Set();
       }
     };
+    const loadDismissed = () => {
+      try {
+        const raw = window.localStorage.getItem(DISMISSED_STORAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        dismissedIdsRef.current = new Set(parsed.map((v: string) => String(v || "")));
+      } catch {
+        dismissedIdsRef.current = new Set();
+      }
+    };
 
     const load = () => {
       try {
         const raw = window.localStorage.getItem(FEED_STORAGE_KEY);
         const parsed = raw ? JSON.parse(raw) : [];
-        const next = buildNotifications(parsed, isSuperAdmin, readIdsRef.current);
+        const next = buildNotifications(parsed, isSuperAdmin, readIdsRef.current).filter(
+          (n) => !dismissedIdsRef.current.has(n.id)
+        );
         setNotifications(next);
       } catch {
         setNotifications([]);
@@ -303,12 +316,17 @@ export function useNotificationsFeed(args: { isSuperAdmin: boolean }) {
     };
 
     loadRead();
+    loadDismissed();
     load();
 
     const onUpdated = (event: Event) => {
       const detail = (event as CustomEvent)?.detail;
       if (detail && Array.isArray(detail.items)) {
-        setNotifications(buildNotifications(detail.items, isSuperAdmin, readIdsRef.current));
+        setNotifications(
+          buildNotifications(detail.items, isSuperAdmin, readIdsRef.current).filter(
+            (n) => !dismissedIdsRef.current.has(n.id)
+          )
+        );
         return;
       }
       load();
@@ -340,9 +358,12 @@ export function useNotificationsFeed(args: { isSuperAdmin: boolean }) {
 
   const clearAll = () => {
     try {
-      window.localStorage.removeItem(FEED_STORAGE_KEY);
-      window.localStorage.removeItem(READ_STORAGE_KEY);
-      readIdsRef.current = new Set();
+      const dismissed = new Set(dismissedIdsRef.current);
+      for (const n of notifications) {
+        if (n?.id) dismissed.add(n.id);
+      }
+      dismissedIdsRef.current = dismissed;
+      window.localStorage.setItem(DISMISSED_STORAGE_KEY, JSON.stringify(Array.from(dismissed)));
       setNotifications([]);
     } catch {}
   };

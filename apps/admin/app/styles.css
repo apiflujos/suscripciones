@@ -3650,8 +3650,8 @@ textarea {
   background-size: 14px 14px;
   color: var(--text);
   outline: none;
-  padding-left: var(--field-padding-left, var(--control-padding-x));
-  padding-right: calc(var(--control-padding-x) + 18px);
+  padding-left: var(--control-padding-x);
+  padding-right: var(--field-padding-right, calc(var(--control-padding-x) + 18px));
   font-size: 12.5px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease, transform 0.12s ease;
@@ -3702,28 +3702,28 @@ textarea.input {
 
 .input[type="search"] {
   --field-icon: var(--icon-search);
-  --field-padding-left: 36px;
+  --field-padding-right: 36px;
 }
 
 .input[name="q"],
 .input[name*="search"] {
   --field-icon: var(--icon-search);
-  --field-padding-left: 36px;
+  --field-padding-right: 36px;
 }
 
 .input[type="email"] {
   --field-icon: var(--icon-email);
-  --field-padding-left: 36px;
+  --field-padding-right: 36px;
 }
 
 .input[type="tel"] {
   --field-icon: var(--icon-phone);
-  --field-padding-left: 36px;
+  --field-padding-right: 36px;
 }
 
 .input[type="url"] {
   --field-icon: var(--icon-url);
-  --field-padding-left: 36px;
+  --field-padding-right: 36px;
 }
 
 .input[type="date"] {
@@ -3760,14 +3760,14 @@ textarea.input {
 
 .input[type="password"] {
   --field-icon: var(--icon-lock);
-  --field-padding-left: 36px;
+  --field-padding-right: 36px;
 }
 
 .select {
   --field-icon: var(--icon-select);
-  --field-padding-left: 36px;
   appearance: none;
-  background-position: 12px 50%;
+  background-position: calc(100% - 12px) 50%;
+  --field-padding-right: 36px;
 }
 
 .is-error .input,
