@@ -33,6 +33,9 @@ CREATE INDEX "SubscriptionBillingCycle_subscriptionId_periodStartAt_idx" ON "Sub
 -- CreateIndex
 CREATE INDEX "SubscriptionBillingCycle_subscriptionId_paymentId_idx" ON "SubscriptionBillingCycle"("subscriptionId", "paymentId");
 
+-- CreateIndex
+CREATE UNIQUE INDEX "SubscriptionBillingCycle_paymentId_key" ON "SubscriptionBillingCycle"("paymentId");
+
 -- AddForeignKey
 ALTER TABLE "SubscriptionBillingCycle" ADD CONSTRAINT "SubscriptionBillingCycle_subscriptionId_fkey" FOREIGN KEY ("subscriptionId") REFERENCES "Subscription"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
