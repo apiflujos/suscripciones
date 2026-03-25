@@ -1806,17 +1806,18 @@ a {
   color: var(--muted);
   background: var(--surface-2);
   border: 1px solid var(--stroke);
-  padding: 6px 10px;
+  padding: 4px 8px;
   border-radius: 999px;
   white-space: nowrap;
 }
 
 .filtersPanel {
   display: flex;
+  flex-direction: column;
   flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-  padding: 10px;
+  gap: 6px;
+  align-items: stretch;
+  padding: 8px;
   border-radius: 12px;
   border: 1px solid var(--stroke);
   background: color-mix(in srgb, var(--primary-soft) 28%, transparent);
@@ -1880,7 +1881,8 @@ a {
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;
-  width: 100%;
+  flex: 1 1 240px;
+  min-width: 0;
 }
 
 .smartViewsPinSlot {
@@ -1891,9 +1893,9 @@ a {
 
 .smartViewsPinButton,
 .smartViewsPinAdd {
-  padding: 4px 10px;
+  padding: 3px 8px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 10.5px;
   line-height: 1.2;
 }
 
@@ -1905,34 +1907,34 @@ a {
 
 .smartViewsPinRemove {
   border-radius: 999px;
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 12px;
 }
 
 .smartViewsPinSelect {
   min-width: 220px;
 }
 
-.smartViewsInlineRow {
-  width: 100%;
-  display: flex;
+.smartViewsTopRight {
+  margin-left: auto;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
+  flex: 0 0 auto;
   flex-wrap: wrap;
 }
 
 .smartViewsQuickSelect {
-  flex: 1 1 220px;
-  min-width: 200px;
+  min-width: 180px;
 }
 
 .smartViewsQuickSelect .select {
-  width: 100%;
-  min-height: 36px;
+  width: 200px;
+  min-height: 28px;
   border-radius: 12px;
   background: var(--panel);
 }
@@ -2212,6 +2214,17 @@ a {
   width: 100%;
 }
 
+.contacts-search-row .filtersForm .input {
+  min-height: 28px;
+  font-size: 11px;
+  padding: 4px 8px;
+}
+
+.contacts-search-row .filtersForm .ghost.btn-icon-only {
+  width: 28px;
+  height: 28px;
+}
+
 .products-search-right {
   display: flex;
   align-items: center;
@@ -2382,11 +2395,11 @@ html[data-theme="dark"] .payments-health-banner code {
 }
 
 .payments-views-wrap .smartViewsBarInline,
-.payments-views-wrap .smartViewsInlineRow {
+.payments-views-wrap .smartViewsTopRight {
   width: 100%;
 }
 
-.payments-views-wrap .smartViewsInlineRow {
+.payments-views-wrap .smartViewsTopRight {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -2395,10 +2408,6 @@ html[data-theme="dark"] .payments-health-banner code {
 
 .payments-views-wrap .smartViewsActions {
   flex: 0 0 auto;
-}
-
-.payments-views-wrap .smartViewsPills {
-  flex: 1 1 260px;
 }
 
 .payments-actions-row .btn-compact {
@@ -3417,16 +3426,16 @@ html[data-contrast="high"] .filtersPanel {
 .panel {
   width: 100%;
   border-radius: 10px;
-  padding: 10px;
+  padding: 8px;
   border: 1px solid color-mix(in srgb, var(--stroke-strong) 82%, transparent);
   background: color-mix(in srgb, var(--panel) 94%, var(--primary-soft) 6%);
   box-shadow: var(--shadow-card);
 }
 
 .panel.module {
-  padding: 9px;
+  padding: 7px;
   display: grid;
-  gap: 6px;
+  gap: 4px;
   border-color: rgba(15, 23, 42, 0.16);
 }
 
@@ -3437,10 +3446,10 @@ html[data-contrast="high"] .filtersPanel {
 .contact-card,
 .product-card,
 .company-card {
-  font-size: 0.75em;
-  --btn-height: 28px;
-  --btn-padding-x: 10px;
-  --btn-font: 9.5px;
+  font-size: 0.6em;
+  --btn-height: 22px;
+  --btn-padding-x: 6px;
+  --btn-font: 8px;
 }
 
 .panel[data-provider] {
@@ -3450,13 +3459,13 @@ html[data-contrast="high"] .filtersPanel {
 /* Etiquetas, ayudas, filtros */
 .field {
   display: grid;
-  gap: 5px;
+  gap: 4px;
   color: var(--text-soft);
-  font-size: 12.5px;
+  font-size: 11.5px;
 }
 
 .field label {
-  font-size: 12.5px;
+  font-size: 11.5px;
   font-weight: 700;
   color: var(--form-label);
   display: inline-flex;
@@ -4563,9 +4572,9 @@ textarea.input {
 
 .btn-compact {
   min-width: 0 !important;
-  min-height: 30px;
-  padding: 0 8px;
-  font-size: 11.5px;
+  min-height: 26px;
+  padding: 0 6px;
+  font-size: 10.5px;
   border-radius: var(--radius-md);
 }
 
@@ -4574,16 +4583,16 @@ textarea.input {
 }
 
 .btn-delete-icon {
-  width: 30px;
-  min-width: 30px !important;
+  width: 26px;
+  min-width: 26px !important;
   padding: 0 !important;
   font-size: 0 !important;
   gap: 0 !important;
 }
 
 .btn-icon-only {
-  width: 30px;
-  min-width: 30px !important;
+  width: 26px;
+  min-width: 26px !important;
   padding: 0 !important;
   font-size: 0 !important;
   gap: 0 !important;
@@ -4592,10 +4601,10 @@ textarea.input {
 .btn-icon-only::before,
 .btn-delete-icon::before {
   content: "";
-  width: var(--btn-icon-size);
-  height: var(--btn-icon-size);
+  width: 14px;
+  height: 14px;
   display: inline-block;
-  flex: 0 0 var(--btn-icon-size);
+  flex: 0 0 14px;
   background-color: currentColor;
   -webkit-mask: var(--btn-icon) no-repeat center / contain;
   mask: var(--btn-icon) no-repeat center / contain;
@@ -8601,12 +8610,12 @@ textarea.input {
 .card {
   background: var(--surface-brand);
   border: 1px solid color-mix(in srgb, var(--stroke-strong) 82%, transparent);
-  border-radius: 16px;
+  border-radius: 12px;
   box-shadow: var(--shadow-card);
 }
 
 .cardPad {
-  padding: 16px;
+  padding: 12px;
 }
 
 .toolbar {
@@ -8614,9 +8623,9 @@ textarea.input {
   gap: 8px 10px;
   flex-wrap: wrap;
   align-items: center;
-  padding: 10px 12px;
+  padding: 8px 10px;
   border: 1px solid color-mix(in srgb, var(--stroke) 78%, transparent);
-  border-radius: 16px;
+  border-radius: 12px;
   background: color-mix(in srgb, var(--panel) 90%, var(--primary-soft) 10%);
   box-shadow: var(--shadow-card);
 }
@@ -8631,10 +8640,10 @@ textarea.input {
 .pill {
   display: inline-flex;
   align-items: center;
-  min-height: 24px;
-  padding: 0 11px;
+  min-height: 20px;
+  padding: 0 8px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   border: 1px solid color-mix(in srgb, var(--stroke-strong) 84%, transparent);
   color: var(--primary);
@@ -9165,11 +9174,11 @@ html[data-contrast="high"] .payment-point-provider img {
 
 .template-shell {
   display: grid;
-  gap: 18px;
+  gap: 10px;
 }
 .checkout-panel {
   display: grid;
-  gap: 16px;
+  gap: 10px;
 }
 .section-label {
   font-size: 11px;
@@ -9181,12 +9190,12 @@ html[data-contrast="high"] .payment-point-provider img {
 .checkout-panel-grid {
   display: grid;
   grid-template-columns: minmax(0, 0.55fr) minmax(0, 0.45fr);
-  gap: 18px;
+  gap: 10px;
   align-items: flex-start;
 }
 .checkout-section {
   display: grid;
-  gap: 12px;
+  gap: 8px;
 }
 @media (max-width: 980px) {
   .checkout-panel-grid {
@@ -10157,10 +10166,10 @@ body.is-global-loading {
   border-radius: 14px;
   border: 1px solid color-mix(in srgb, var(--stroke) 85%, transparent);
   box-shadow: var(--shadow);
-  padding: 14px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .entity-card {
@@ -10168,43 +10177,43 @@ body.is-global-loading {
   border-radius: 14px;
   border: 1px solid color-mix(in srgb, var(--stroke) 85%, transparent);
   box-shadow: var(--shadow);
-  padding: 14px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .company-card.entity-card {
-  padding: 12px;
-  gap: 10px;
+  padding: 9px;
+  gap: 7px;
 }
 
 .entity-card-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 10px;
+  gap: 6px;
 }
 
 .entity-card-header-right {
   display: inline-flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 6px;
+  gap: 4px;
 }
 
 .entity-card-title {
   font-weight: 700;
-  font-size: 13px;
+  font-size: 11.5px;
 }
 
 .entity-card-sub {
   color: var(--text-faint);
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .entity-card-price {
-  font-size: 13px;
+  font-size: 11.5px;
   font-weight: 700;
   color: var(--primary);
   text-align: right;
@@ -10212,14 +10221,14 @@ body.is-global-loading {
 
 .entity-card-grid {
   display: grid;
-  gap: 10px 16px;
+  gap: 6px 10px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .entity-card-counts {
   display: flex;
   flex-wrap: nowrap;
-  gap: 6px;
+  gap: 4px;
   align-items: center;
   min-width: 0;
   max-width: 100%;
@@ -10232,8 +10241,8 @@ body.is-global-loading {
 
 .entity-card-counts .pill {
   white-space: nowrap;
-  padding: 2px 6px;
-  font-size: 11px;
+  padding: 1px 5px;
+  font-size: 9.5px;
 }
 
 .entity-card-span {
@@ -10243,22 +10252,22 @@ body.is-global-loading {
 .entity-card-actions {
   display: flex;
   justify-content: flex-start;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
 .entity-card-footer {
   border-top: 1px solid color-mix(in srgb, var(--stroke) 65%, transparent);
-  padding-top: 8px;
+  padding-top: 6px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .entity-card-actions-left,
 .entity-card-actions-right {
   display: inline-flex;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
   align-items: center;
 }
@@ -10267,39 +10276,39 @@ body.is-global-loading {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 10px;
+  gap: 6px;
 }
 
 .company-card-body {
   display: grid;
-  gap: 10px;
+  gap: 6px;
 }
 
 .company-card-actions {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
 .company-name {
   font-weight: 700;
-  font-size: 14px;
+  font-size: 12px;
 }
 
 .company-meta {
   color: var(--text-faint);
-  font-size: 12px;
+  font-size: 10.5px;
 }
 
 .company-contact {
-  font-size: 12px;
+  font-size: 10.5px;
   color: var(--text-faint);
 }
 
 .company-field {
   display: grid;
-  gap: 4px;
-  font-size: 13px;
+  gap: 3px;
+  font-size: 11px;
 }
 
 .company-count-pill {
@@ -10332,8 +10341,8 @@ body.is-global-loading {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 12px;
-  gap: 10px;
+  padding: 9px;
+  gap: 7px;
 }
 
 .product-card:hover {
@@ -10342,7 +10351,7 @@ body.is-global-loading {
 }
 
 .product-img {
-  height: 120px;
+  height: 90px;
   background: var(--surface-2);
   display: flex;
   align-items: center;
@@ -10350,7 +10359,7 @@ body.is-global-loading {
   color: var(--text-faint);
   flex-shrink: 0;
   overflow: hidden;
-  border-radius: 12px;
+  border-radius: 10px;
 }
 
 .product-img img {
@@ -10362,57 +10371,57 @@ body.is-global-loading {
 .product-body {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 7px;
   flex-grow: 1;
 }
 
 .product-name {
   display: inline-flex;
   align-items: center;
-  min-height: 24px;
-  font-size: 12px;
+  min-height: 20px;
+  font-size: 10.5px;
   font-weight: 700;
   color: var(--text-strong);
   line-height: 1.4;
 }
 
 .product-meta {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-soft);
   display: inline-flex;
-  gap: 6px;
+  gap: 4px;
   align-items: center;
   flex-wrap: wrap;
 }
 
 .product-sku {
   font-family: inherit;
-  font-size: 9px;
+  font-size: 8px;
   color: var(--text-soft);
   font-weight: 500;
 }
 
 .product-price {
-  font-size: 13px;
+  font-size: 11.5px;
   font-weight: 700;
   color: var(--primary);
 }
 
 .product-stock {
-  font-size: 10.5px;
+  font-size: 9.5px;
   color: var(--text-faint);
 }
 
 .product-actions {
   margin-top: auto;
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .product-actions-left,
 .product-actions-right {
   display: inline-flex;
-  gap: 6px;
+  gap: 4px;
   flex-wrap: wrap;
   align-items: center;
 }
@@ -10999,14 +11008,14 @@ html[data-contrast="high"] .module-footer .ghost {
   border: 1px solid var(--stroke);
   border-radius: 14px;
   box-shadow: var(--shadow);
-  padding: 10px 12px;
+  padding: 6px 10px;
   display: grid;
-  gap: 10px;
+  gap: 6px;
 }
 
 .settingsPage .saved-conn-card {
-  padding: 12px 14px;
-  gap: 12px;
+  padding: 8px 10px;
+  gap: 8px;
   background: linear-gradient(180deg, var(--primary-soft), rgba(0, 0, 0, 0) 65%), var(--panel);
 }
 
@@ -11020,44 +11029,44 @@ html[data-contrast="high"] .module-footer .ghost {
 .saved-conn-title-row {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
 }
 
 .saved-conn-icon {
-  width: 28px;
-  height: 30px;
-  border-radius: 10px;
+  width: 22px;
+  height: 22px;
+  border-radius: 8px;
   background: var(--surface-2);
   border: 1px solid var(--stroke);
-  padding: 4px;
+  padding: 2px;
   object-fit: contain;
 }
 
 .provider-badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
+  gap: 4px;
+  padding: 2px 6px;
   border-radius: 999px;
   border: 1px solid var(--stroke);
   background: var(--surface-2);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
   color: var(--text);
 }
 
 .provider-badge img {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   border-radius: 6px;
   background: var(--panel);
   border: 1px solid var(--stroke);
-  padding: 2px;
+  padding: 1px;
   object-fit: contain;
 }
 
 .saved-conn-sub {
-  font-size: 11.5px;
+  font-size: 10.5px;
   color: var(--text-faint);
   margin-top: 2px;
 }
@@ -11065,12 +11074,12 @@ html[data-contrast="high"] .module-footer .ghost {
 .saved-conn-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
 }
 
 .saved-conn-actions .btn-compact {
-  min-height: 34px;
-  border-radius: 10px;
+  min-height: 28px;
+  border-radius: 9px;
 }
 
 .saved-conn-actions .btn-compact::before {
@@ -11095,12 +11104,12 @@ html[data-contrast="high"] .module-footer .ghost {
 
 .saved-conn-meta {
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
 .settingsPage .saved-conn-meta {
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 8px 16px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 4px 12px;
 }
 
 .saved-conn-meta-item {
@@ -11109,12 +11118,12 @@ html[data-contrast="high"] .module-footer .ghost {
 }
 
 .saved-conn-meta-label {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-faint);
 }
 
 .saved-conn-meta-value {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text);
   font-family: inherit;
   overflow-wrap: anywhere;
@@ -11123,7 +11132,7 @@ html[data-contrast="high"] .module-footer .ghost {
 
 .settingsPage .saved-conn-meta-value {
   font-weight: 600;
-  font-size: 12.5px;
+  font-size: 11.5px;
 }
 
 /* Notifications density */
@@ -12396,27 +12405,27 @@ html[data-contrast="high"] .toggle::after {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 10px;
 }
 .template-inline-builder {
   border: 1px solid rgba(15, 23, 42, 0.12);
   border-radius: 18px;
-  padding: 18px;
+  padding: 10px;
   background: #fff;
-  margin: 14px 0;
+  margin: 8px 0;
   display: grid;
-  gap: 16px;
+  gap: 10px;
 }
 
 .template-grid {
   display: grid;
-  gap: 16px;
+  gap: 10px;
   grid-template-columns: 1fr;
 }
 .template-modal-body {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
-  gap: 20px;
+  gap: 12px;
   align-items: flex-start;
 }
 .template-modal-left {

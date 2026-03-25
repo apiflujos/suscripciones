@@ -18,9 +18,14 @@ export default async function CampaignsPage({
   const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
   const session = await verifyAdminSessionToken(sessionToken);
   const tenantId = session?.tenantId || null;
-  const lists = tenantId
-    ? await listSmartViews("customers", tenantId, session?.email || null)
-    : [];
+  let lists: any[] = [];
+  if (tenantId) {
+    try {
+      lists = await listSmartViews("customers", tenantId, session?.email || null);
+    } catch {
+      lists = [];
+    }
+  }
   const sp = (await searchParams) ?? {};
   const returnTo = `/campaigns?${new URLSearchParams(
     Object.fromEntries(Object.entries(sp).filter(([, v]) => typeof v === "string")) as Record<string, string>
@@ -29,7 +34,12 @@ export default async function CampaignsPage({
   const take = 20;
   const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
   const params = new URLSearchParams({ take: String(take), skip: String(skip) });
-  const campaignsRes = await listCampaigns({ take, skip });
+  let campaignsRes: any = { ok: false };
+  try {
+    campaignsRes = await listCampaigns({ take, skip });
+  } catch {
+    campaignsRes = { ok: false, items: [], total: 0 };
+  }
   const items = campaignsRes.ok ? campaignsRes.items : [];
   const total = campaignsRes.ok ? Number(campaignsRes.total ?? items.length) : items.length;
 
@@ -49,13 +59,20 @@ export default async function CampaignsPage({
           <NewMassMessageModal
             csrfToken={csrfToken}
             returnTo={returnTo}
-            views={lists.map((v: any) => ({
-              id: String(v.id),
-              name: String(v.name),
-              visibility: v.visibility,
-              type: v.type,
-              filters: v.filters
-            }))}
+            views={lists
+              .filter((v: any) => {
+                const name = String(v?.name || "").toLowerCase();
+                if (name.startsWith("gamificación")) return false;
+                if (name.startsWith("ranking")) return false;
+                if (name.startsWith("estado")) return false;
+                return true;
+              })
+              .map((v: any) => ({
+                id: String(v.id),
+                name: String(v.name),
+                visibility: v.visibility,
+                type: v.type
+              }))}
             tenantId={tenantId}
             action={createCampaign}
           />

@@ -675,7 +675,19 @@ export function SmartViewsBar({
           ) : null}
         </div>
         {compactInline ? (
-          <div className="smartViewsInlineRow">
+          <div className="smartViewsTopRight">
+            {pinSelectIndex === null ? (
+              <div className="smartViewsQuickSelect">
+                <select className="select" value={activeViewId} onChange={(e) => applyView(e.target.value)}>
+                  <option value="">Todas</option>
+                  {mergedViews.map((view) => (
+                    <option key={view.id} value={view.id}>
+                      {view.name} {view.visibility === "PRIVATE" ? "(Privada)" : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
             <div className="smartViewsActions">
               <button
                 className="ghost btn-compact btn-icon-only btn-filter"
@@ -694,18 +706,6 @@ export function SmartViewsBar({
                 }}
               />
             </div>
-            {pinSelectIndex === null ? (
-              <div className="smartViewsQuickSelect">
-                <select className="select" value={activeViewId} onChange={(e) => applyView(e.target.value)}>
-                  <option value="">Todas</option>
-                  {mergedViews.map((view) => (
-                    <option key={view.id} value={view.id}>
-                      {view.name} {view.visibility === "PRIVATE" ? "(Privada)" : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : null}
           </div>
         ) : (
           <div className="field smartViewsField">

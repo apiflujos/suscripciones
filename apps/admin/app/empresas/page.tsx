@@ -142,7 +142,7 @@ export default async function EmpresasPage({
                     <form action={deleteEmpresa}>
                       <input type="hidden" name="csrf" value={csrfToken} />
                       <input type="hidden" name="id" value={e.id} />
-                      <button className="ghost btn-compact btn-icon-only btn-danger" type="submit" aria-label="Eliminar" title="Eliminar" />
+                      <button className="ghost btn-compact btn-delete-icon btn-red" type="submit" aria-label="Eliminar" title="Eliminar" />
                     </form>
                   </div>
                 </div>
@@ -188,7 +188,7 @@ export default async function EmpresasPage({
                       <form action={deleteEmpresa}>
                         <input type="hidden" name="csrf" value={csrfToken} />
                         <input type="hidden" name="id" value={e.id} />
-                        <button className="ghost btn-compact btn-icon-only btn-danger" type="submit" aria-label="Eliminar" title="Eliminar" />
+                        <button className="ghost btn-compact btn-delete-icon btn-red" type="submit" aria-label="Eliminar" title="Eliminar" />
                       </form>
                     </div>
                   </div>

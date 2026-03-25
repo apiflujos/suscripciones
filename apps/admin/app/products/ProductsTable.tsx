@@ -561,10 +561,10 @@ export function ProductsTable({
 
         <div className="entity-card-actions">
           <div className="entity-card-actions-left">
-            <button className="ghost btn-compact btn-send btn-noicon" type="button" data-modal="true" data-loader="off" onClick={() => openSendModal(p)}>
+            <button className="ghost btn-compact btn-send btn-open btn-noicon" type="button" data-modal="true" data-loader="off" onClick={() => openSendModal(p)}>
               Enviar
             </button>
-            <button className="ghost btn-compact btn-green btn-create btn-noicon" type="button" data-modal="true" data-loader="off" onClick={() => openPlanModal(p)}>
+            <button className="ghost btn-compact btn-blue btn-create btn-noicon" type="button" data-modal="true" data-loader="off" onClick={() => openPlanModal(p)}>
               Crear suscripción
             </button>
           </div>

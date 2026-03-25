@@ -130,11 +130,16 @@ export function ConnectionsPanel({
             <span>{wompiActiveEnv === "PRODUCTION" ? "Activo" : "Inactivo"}</span>
             {(() => {
               const ready = Boolean(wompiProduction?.publicKey && wompiProduction?.privateKey && wompiProduction?.integritySecret && wompiProduction?.eventsSecret);
-              return ready && wompiActiveEnv === "PRODUCTION" ? (
-                <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" style={{ color: "var(--success)" }}>
-                  <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
-                </svg>
-              ) : null;
+              return ready ? (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "var(--status-success)" }}>
+                  <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" style={{ color: "var(--status-success)" }}>
+                    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
+                  </svg>
+                  Conectado
+                </span>
+              ) : (
+                <span className="muted">Sin configurar</span>
+              );
             })()}
           </div>
         </button>
@@ -151,11 +156,16 @@ export function ConnectionsPanel({
             <span>{wompiActiveEnv === "SANDBOX" ? "Activo" : "Inactivo"}</span>
             {(() => {
               const ready = Boolean(wompiSandbox?.publicKey && wompiSandbox?.privateKey && wompiSandbox?.integritySecret && wompiSandbox?.eventsSecret);
-              return ready && wompiActiveEnv === "SANDBOX" ? (
-                <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" style={{ color: "var(--success)" }}>
-                  <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
-                </svg>
-              ) : null;
+              return ready ? (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "var(--status-success)" }}>
+                  <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" style={{ color: "var(--status-success)" }}>
+                    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
+                  </svg>
+                  Conectado
+                </span>
+              ) : (
+                <span className="muted">Sin configurar</span>
+              );
             })()}
           </div>
         </button>
@@ -173,10 +183,15 @@ export function ConnectionsPanel({
             {(() => {
               const ready = Boolean(commsProduction?.baseUrl && commsProduction?.accountId && commsProduction?.inboxId);
               return ready ? (
-                <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" style={{ color: "var(--success)" }}>
-                  <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
-                </svg>
-              ) : null;
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "var(--status-success)" }}>
+                  <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" style={{ color: "var(--status-success)" }}>
+                    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
+                  </svg>
+                  Conectado
+                </span>
+              ) : (
+                <span className="muted">Sin configurar</span>
+              );
             })()}
           </div>
         </button>

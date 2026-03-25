@@ -6,7 +6,6 @@ import { listSystemLogs } from "../../admin/_services/logs";
 import { listTenants } from "../../admin/_services/tenants";
 import { getAdminSettings } from "../../admin/_services/settings";
 import { listChatwootContactConversations } from "../../admin/_services/chatwoot";
-import { listCustomerGamificationEvents, getCustomerRewards } from "../../admin/_services/gamification";
 import { resolveTenantId } from "../../admin/_services/tenantResolver";
 import { AiAssistant } from "../../logs/AiAssistant";
 import { LocalDateTime } from "../../ui/LocalDateTime";
@@ -37,58 +36,6 @@ function statusPillClass(status: string) {
   if (status === "PAST_DUE" || status === "DECLINED" || status === "ERROR" || status === "VOIDED") return "pill-bad";
   if (status === "PENDING") return "pill-muted";
   return "pill-muted";
-}
-
-function tierForCustomer(approvedCount: number, gamification?: { level?: number; levelName?: string | null }) {
-  const level = Number(gamification?.level || 0);
-  const levelName = String(gamification?.levelName || "").trim();
-  if (level > 0) {
-    const label = levelName || `Nivel ${level}`;
-    if (level >= 9) return { label, cls: "tier-gold", icon: "crown" };
-    if (level >= 6) return { label, cls: "tier-silver", icon: "medal" };
-    if (level >= 3) return { label, cls: "tier-bronze", icon: "badge" };
-    return { label, cls: "tier-rookie", icon: "spark" };
-  }
-  if (approvedCount >= 6) return { label: "Oro", cls: "tier-gold", icon: "crown" };
-  if (approvedCount >= 3) return { label: "Plata", cls: "tier-silver", icon: "medal" };
-  if (approvedCount >= 1) return { label: "Bronce", cls: "tier-bronze", icon: "badge" };
-  return { label: "Rookie", cls: "tier-rookie", icon: "spark" };
-}
-
-function tierIcon(type: string) {
-  if (type === "crown") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M3 18h18v3H3zM5 6l4 4 3-6 3 6 4-4 2 10H3z" />
-      </svg>
-    );
-  }
-  if (type === "medal") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M7 2h4l1 4-4 7-3-6zM13 2h4l2 5-3 6-4-7zM12 11a5 5 0 1 0 0 10 5 5 0 0 0 0-10z" />
-      </svg>
-    );
-  }
-  if (type === "badge") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M12 2l3 4 5 1-3 4 1 5-6-2-6 2 1-5-3-4 5-1z" />
-      </svg>
-    );
-  }
-  if (type === "link") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M10.5 13.5l3-3M7 17a4 4 0 0 1 0-6l3-3a4 4 0 0 1 6 6l-1 1" />
-      </svg>
-    );
-  }
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 2l2.4 6.4L21 9l-5 4 1.8 6-5.8-3.6L6.2 19 8 13 3 9l6.6-.6z" />
-    </svg>
-  );
 }
 
 function logLevelLabel(level: string) {
@@ -395,19 +342,6 @@ async function fetchChatwootConversations(contactId: number) {
   return listChatwootContactConversations(contactId);
 }
 
-async function fetchGamificationEvents(id: string, opts?: { take?: number; tenantId?: string; includeGlobal?: boolean }) {
-  return listCustomerGamificationEvents({
-    customerId: id,
-    take: opts?.take,
-    tenantId: opts?.tenantId || null,
-    includeGlobal: opts?.includeGlobal
-  });
-}
-
-async function fetchGamificationRewards(id: string) {
-  return getCustomerRewards({ customerId: id });
-}
-
 async function geocodeAddress(address: string) {
   if (!address) return null;
   try {
@@ -449,15 +383,13 @@ export default async function CustomerDetailPage({
   const logsFrom = new Date();
   logsFrom.setDate(logsFrom.getDate() - logsWindowDays * logsPage);
   const logsTake = 20;
-  const [customerRes, paymentsRes, subscriptionsRes, logsRes, tenantsRes, settingsRes, gamificationEventsRes, gamificationRewardsRes] = await Promise.all([
+  const [customerRes, paymentsRes, subscriptionsRes, logsRes, tenantsRes, settingsRes] = await Promise.all([
     fetchCustomer(id, resolvedTenantId),
     fetchPayments(id, resolvedTenantId),
     fetchSubscriptions(id, resolvedTenantId),
     fetchLogs(id, { take: logsTake, from: logsFrom.toISOString(), to: logsTo.toISOString() }),
     fetchTenants(),
-    fetchSettings(),
-    fetchGamificationEvents(id, { take: 25, tenantId: resolvedTenantId || undefined }),
-    fetchGamificationRewards(id)
+    fetchSettings()
   ]);
 
   if (!customerRes.ok) {
@@ -470,10 +402,6 @@ export default async function CustomerDetailPage({
   }
 
   const customer = customerRes.ok ? customerRes.customer : null;
-  const gamification = customerRes.ok ? customerRes.gamification : null;
-  const gamificationGlobal = gamification?.global || null;
-  const gamificationEvents = gamificationEventsRes?.ok ? gamificationEventsRes.items ?? [] : [];
-  const rewards = gamificationRewardsRes?.ok ? { global: gamificationRewardsRes.global, byTenant: gamificationRewardsRes.byTenant } : {};
   if (!customer) {
     return (
       <main className="page">
@@ -590,25 +518,6 @@ export default async function CustomerDetailPage({
   const formatWindowLabel = (fromDate: Date, toDate: Date) =>
     `${fromDate.toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" })} - ${toDate.toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" })}`;
 
-  const tier = tierForCustomer(approvedPayments.length, gamificationGlobal || undefined);
-
-  const kindLabel = (raw: string) => {
-    const key = String(raw || "").toLowerCase();
-    if (!key) return "Evento";
-    if (key.includes("payment") && key.includes("approved")) return "Pago aprobado";
-    if (key.includes("payment") && (key.includes("failed") || key.includes("declined"))) return "Pago fallido";
-    if (key.includes("subscription") && key.includes("started")) return "Suscripción iniciada";
-    if (key.includes("subscription") && key.includes("renew")) return "Renovación";
-    if (key.includes("subscription") && key.includes("cancel")) return "Cancelación";
-    if (key.includes("past_due")) return "En mora";
-    if (key.includes("chatwoot") && key.includes("message")) return "Mensaje cliente";
-    if (key.includes("data") && key.includes("email")) return "Email agregado";
-    if (key.includes("data") && key.includes("phone")) return "Teléfono agregado";
-    if (key.includes("data") && key.includes("id")) return "Documento agregado";
-    if (key.includes("no_response")) return "Sin respuesta";
-    return key.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
-  };
-
   const monthLabels = Array.from({ length: 6 }).map((_, idx) => {
     const d = new Date();
     d.setMonth(d.getMonth() - (5 - idx));
@@ -707,15 +616,6 @@ export default async function CustomerDetailPage({
                   <span className="hero-id-value mono">{meta?.identificacion || meta?.identificationNumber || meta?.documentNumber || "—"}</span>
                   <span className="hero-id-sub">{tenantName || customer.tenantId || "—"}</span>
                 </div>
-                <div className={`tier-badge tier-badge-hero ${tier.cls}`}>
-                  <span className="tier-icon" aria-hidden="true">
-                    {tierIcon(tier.icon)}
-                  </span>
-                  <div className="tier-text">
-                    <span className="tier-label">Nivel</span>
-                    <span className="tier-value">{tier.label}</span>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -759,112 +659,6 @@ export default async function CustomerDetailPage({
           <div className="metric-label">Suscripciones</div>
           <div className="metric-value">{subscriptions.length}</div>
           <div className="metric-sub">{activeSub ? activePlanLabel : "Sin suscripción activa"}</div>
-        </div>
-      </section>
-
-      <section className="grid2">
-        <div className="card cardPad customer-section">
-          <div className="contact-section-title">Gamificación y reputación</div>
-          <div className="summary-grid compact">
-            <div className="summary-item">
-              <span className="summary-label">Nivel global</span>
-              <span className="summary-value">{gamificationGlobal?.levelName || (gamificationGlobal?.level ? `Nivel ${gamificationGlobal.level}` : "—")}</span>
-            </div>
-            <div className="summary-item">
-              <span className="summary-label">Score actual</span>
-              <span className="summary-value">{gamificationGlobal ? Number(gamificationGlobal?.statusScore ?? 0) : "—"}</span>
-            </div>
-            <div className="summary-item">
-              <span className="summary-label">Puntos históricos</span>
-              <span className="summary-value">{gamificationGlobal ? Number(gamificationGlobal?.lifetimePoints ?? 0) : "—"}</span>
-            </div>
-            <div className="summary-item">
-              <span className="summary-label">Actividad</span>
-              <span className="summary-value">{gamificationGlobal ? Number(gamificationGlobal?.activityScore ?? 0) : "—"}</span>
-            </div>
-            <div className="summary-item">
-              <span className="summary-label">Monetario</span>
-              <span className="summary-value">{gamificationGlobal ? Number(gamificationGlobal?.monetaryScore ?? 0) : "—"}</span>
-            </div>
-            <div className="summary-item">
-              <span className="summary-label">Calidad datos</span>
-              <span className="summary-value">{gamificationGlobal ? Number(gamificationGlobal?.dataQualityScore ?? 0) : "—"}</span>
-            </div>
-          </div>
-
-          <div className="field-divider" />
-
-          <div className="gamification-inline">
-            <div className="gamification-block">
-              <div className="muted">Recompensas globales</div>
-              <div className="gamification-points">{rewards?.global?.balance ?? 0} pts</div>
-              {rewards?.global?.lastAt ? (
-                <div className="muted"><LocalDateTime value={rewards.global.lastAt} /></div>
-              ) : (
-                <div className="muted">Sin movimientos</div>
-              )}
-            </div>
-            <div className="gamification-block">
-              <div className="muted">Recompensas por canal</div>
-              {Array.isArray(rewards?.byTenant) && rewards.byTenant.length ? (
-                <ul className="mini-list mini-list-tight">
-                  {rewards.byTenant.map((row: any) => (
-                    <li key={`reward-${row.tenantId}`}>
-                      <span>{tenantNameById.get(String(row.tenantId)) || row.tenantId || "Canal"}</span>
-                      <span className="trend-score">{row.balance ?? 0} pts</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div className="muted">Sin recompensas por canal</div>
-              )}
-            </div>
-          </div>
-
-          {Array.isArray(gamification?.byTenant) && gamification.byTenant.length ? (
-            <>
-              <div className="field-divider" />
-              <div className="muted">Niveles por canal</div>
-              <ul className="mini-list mini-list-tight">
-                {gamification.byTenant.map((row: any) => (
-                  <li key={`gam-tenant-${row.tenantId}`}>
-                    <span>{tenantNameById.get(String(row.tenantId)) || row.tenantId || "Canal"}</span>
-                    <span className="trend-score">{row.levelName || `Nivel ${row.level}`}</span>
-                  </li>
-                ))}
-              </ul>
-            </>
-          ) : null}
-        </div>
-
-        <div className="card cardPad customer-section">
-          <div className="contact-section-title">Eventos recientes de gamificación</div>
-          {gamificationEvents.length ? (
-            <div className="gamification-event-list">
-              {gamificationEvents.map((evt: any) => {
-                const delta = Number(evt.statusDelta || 0);
-                const sign = delta >= 0 ? "+" : "";
-                const reward = Number(evt.rewardDelta || 0);
-                const label = kindLabel(String(evt.kind || ""));
-                const tenantLabel = evt.tenantId ? tenantNameById.get(String(evt.tenantId)) || evt.tenantId : "Global";
-                return (
-                  <div key={evt.id} className={`gamification-event ${delta >= 0 ? "is-positive" : "is-negative"}`}>
-                    <div className="gamification-event-head">
-                      <span className="gamification-event-title">{label}</span>
-                      <span className="gamification-event-delta">{sign}{delta}</span>
-                    </div>
-                    <div className="gamification-event-meta">
-                      <span>{tenantLabel}</span>
-                      {reward ? <span>Recompensa {reward > 0 ? `+${reward}` : reward} pts</span> : null}
-                      <span><LocalDateTime value={evt.createdAt} /></span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="muted">Sin eventos recientes.</div>
-          )}
         </div>
       </section>
 

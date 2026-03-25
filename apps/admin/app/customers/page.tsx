@@ -9,7 +9,6 @@ import { listEmpresas } from "../admin/_services/companies";
 import { listTenants } from "../admin/_services/tenants";
 import { getAdminSettings } from "../admin/_services/settings";
 import { resolveTenantId } from "../admin/_services/tenantResolver";
-import { listSmartListMembers, listSmartLists } from "../admin/_services/smartLists";
 import { getNotificationsConfig } from "@suscripciones/core/services/notificationsConfig";
 import { resolveSmartViewIds, parseFiltersParam, getSmartViewFields } from "@suscripciones/core/services/smartViews";
 import { normalizeErrorParam } from "../lib/errorParam";
@@ -118,24 +117,6 @@ async function fetchCustomerSubscriptions(tenantId?: string) {
   return map;
 }
 
-async function fetchSmartLists() {
-  return listSmartLists({ take: 200 });
-}
-
-async function fetchSmartListPreview(id: string, tenantId?: string) {
-  if (!id) return { count: 0 };
-  const res = await listSmartListMembers({ id, take: 200, active: true, tenantId: tenantId || null });
-  if (!res.ok) return { count: 0 };
-  return { count: Array.isArray(res.items) ? res.items.length : 0 };
-}
-
-async function fetchSmartListMembers(id: string, tenantId?: string) {
-  if (!id) return { items: [] as any[] };
-  const res = await listSmartListMembers({ id, take: 200, active: true, tenantId: tenantId || null });
-  if (!res.ok) return { items: [] as any[] };
-  return { items: res.items || [] };
-}
-
 async function fetchCartTemplates(tenantId?: string) {
   const items = await listCheckoutTemplates({ tenantId: tenantId || null });
   return items
@@ -180,7 +161,6 @@ export default async function CustomersPage({
   const vistaRaw = typeof sp.vista === "string" ? sp.vista : "cards";
   const vista = ["cards", "lista"].includes(vistaRaw) ? vistaRaw : "cards";
   const vistaTyped = vista as "cards" | "lista" | "kanban";
-  const listId = typeof sp.list === "string" ? sp.list : "";
   const viewId = typeof sp.viewId === "string" ? sp.viewId : "";
   const filters = typeof sp.filters === "string" ? sp.filters : "";
   const resolvedTenantId = tenantId ? await resolveTenantId(tenantId) : null;
@@ -189,19 +169,14 @@ export default async function CustomersPage({
     ...(tenantId ? { tenantId } : {}),
     ...(vista ? { vista } : {}),
     ...(txCustomerId ? { tx: txCustomerId } : {}),
-    ...(listId ? { list: listId } : {}),
     ...(viewId ? { viewId } : {}),
     ...(filters ? { filters } : {}),
     ...(Number.isFinite(page) && page > 1 ? { page: String(page) } : {})
   }).toString()}`;
   const take = 10;
   let resolvedIds: string[] = [];
-  const usingSmartFilters = Boolean(listId || viewId || filters);
-  if (listId) {
-    const res = await fetchSmartListMembers(listId, tenantId);
-    const rows = Array.isArray(res?.items) ? res.items : [];
-    resolvedIds = rows.map((row: any) => String(row?.customer?.id || row?.customerId || row?.id || "")).filter(Boolean);
-  } else if (viewId) {
+  const usingSmartFilters = Boolean(viewId || filters);
+  if (viewId) {
     resolvedIds = (await resolveSmartViewIds("customers", resolvedTenantId, null, viewId)) || [];
   } else if (filters) {
     const rules = parseFiltersParam(filters);
@@ -213,7 +188,7 @@ export default async function CustomersPage({
     resolvedIds = ["__none__"];
   }
 
-  const [data, tenantsRes, txCustomer, productsRes, templatesRes, empresasRes, settingsRes, notificationsRes, smartListsRes] = await Promise.all([
+  const [data, tenantsRes, txCustomer, productsRes, templatesRes, empresasRes, settingsRes, notificationsRes] = await Promise.all([
     fetchCustomers({ q, take, page, tenantId: resolvedTenantId || "", ids: resolvedIds }),
     listTenants(),
     txCustomerId ? fetchCustomerById(txCustomerId) : Promise.resolve(null),
@@ -221,8 +196,7 @@ export default async function CustomersPage({
     fetchCheckoutTemplates(resolvedTenantId || ""),
     listEmpresas({ tenantId: resolvedTenantId || "", take: 200 }),
     fetchSettings(),
-    fetchNotificationsConfig(),
-    fetchSmartLists()
+    fetchNotificationsConfig()
   ]);
   const items = (data.items ?? []) as any[];
   const total = Number.isFinite(Number((data as any)?.total)) ? Number((data as any).total) : items.length;
@@ -233,14 +207,6 @@ export default async function CustomersPage({
   const empresas = (empresasRes?.items ?? []) as any[];
   const checkoutConfig = settingsRes?.checkoutConfig || {};
   const notificationsConfig = notificationsRes?.config || null;
-  const smartListsRaw = smartListsRes?.ok ? smartListsRes.items ?? [] : [];
-  const smartListPreviews = smartListsRaw.length
-    ? await Promise.all(smartListsRaw.map((list: any) => fetchSmartListPreview(String(list.id || ""), tenantId)))
-    : [];
-  const smartLists = smartListsRaw.filter((_list: any, idx: number) => {
-    const preview = smartListPreviews[idx];
-    return Number(preview?.count || 0) > 0;
-  });
   const tenantById = new Map(tenants.map((t) => [String(t.id), String(t.name)]));
   const [latestLinks, subscriptionsByCustomer, cartTemplates] = await Promise.all([
     fetchPaymentLinks(q, resolvedTenantId || "", items.map((c) => String(c.id))),
@@ -336,7 +302,6 @@ export default async function CustomersPage({
     scope: "customers",
     ...(q ? { q } : {}),
     ...(tenantId ? { tenantId } : {}),
-    ...(listId ? { list: listId } : {}),
     ...(viewId ? { viewId } : {}),
     ...(filters ? { filters } : {})
   }).toString()}`;
@@ -374,7 +339,6 @@ export default async function CustomersPage({
                     <form action="/customers" method="GET" className="filtersForm filtersSearch">
                       {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
                       {vista ? <input type="hidden" name="vista" value={vista} /> : null}
-                      {listId ? <input type="hidden" name="list" value={listId} /> : null}
                       {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
                       {filters ? <input type="hidden" name="filters" value={filters} /> : null}
                       <input
@@ -403,7 +367,6 @@ export default async function CustomersPage({
                     baseParams={{
                       ...(q ? { q } : {}),
                       ...(tenantId ? { tenantId } : {}),
-                      ...(listId ? { list: listId } : {}),
                       ...(viewId ? { viewId } : {}),
                       ...(filters ? { filters } : {})
                     }}

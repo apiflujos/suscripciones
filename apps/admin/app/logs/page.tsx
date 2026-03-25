@@ -158,7 +158,6 @@ function normalizeJobType(type: any) {
   if (v === "SEND_CAMPAIGN") return "Enviar campaña";
   if (v === "SYNC_SMART_LISTS") return "Sincronizar listas";
   if (v === "AI_ASSIST") return "Asistente IA";
-  if (v === "GAMIFICATION_RECALC") return "Recalcular gamificación";
   if (v === "DATA_TRAINER") return "Entrenador de datos";
   return v || "—";
 }
@@ -291,7 +290,6 @@ export default async function LogsPage({
     const parsedFilters = filters ? parseFiltersParam(filters) : null;
     resolvedIds = await resolveSmartViewIds(scope, tenantId || null, null, viewId || undefined, parsedFilters || undefined);
   }
-
   const systemIds = tab === "system" && resolvedIds && resolvedIds.length ? resolvedIds : undefined;
   const paymentIds = tab === "payments" && resolvedIds && resolvedIds.length ? resolvedIds : undefined;
 
@@ -438,8 +436,6 @@ export default async function LogsPage({
       ...(from ? { from } : {}),
       ...(to ? { to } : {}),
       ...(tenantId ? { tenantId } : {}),
-      ...(viewId ? { viewId } : {}),
-      ...(filters ? { filters } : {})
     };
     const startIndex = countOnPage ? (currentPage - 1) * take + 1 : 0;
     const endIndex = countOnPage ? (currentPage - 1) * take + countOnPage : 0;
@@ -640,6 +636,8 @@ export default async function LogsPage({
                         {from ? <input type="hidden" name="from" value={from} /> : null}
                         {to ? <input type="hidden" name="to" value={to} /> : null}
                         {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+                        {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
+                        {filters ? <input type="hidden" name="filters" value={filters} /> : null}
                         <input
                           className="input"
                           name="q"
@@ -680,7 +678,7 @@ export default async function LogsPage({
                           ...(to ? { to } : {}),
                           ...(tenantId ? { tenantId } : {}),
                           ...(viewId ? { viewId } : {}),
-                          ...(filters ? { filters } : {})
+                          ...(filters ? { filters } : {}),
                         }).toString()}`}
                       >
                         Todos
@@ -694,7 +692,7 @@ export default async function LogsPage({
                           ...(to ? { to } : {}),
                           ...(tenantId ? { tenantId } : {}),
                           ...(viewId ? { viewId } : {}),
-                          ...(filters ? { filters } : {})
+                          ...(filters ? { filters } : {}),
                         }).toString()}`}
                       >
                         Pagos recibidos
@@ -708,7 +706,7 @@ export default async function LogsPage({
                           ...(to ? { to } : {}),
                           ...(tenantId ? { tenantId } : {}),
                           ...(viewId ? { viewId } : {}),
-                          ...(filters ? { filters } : {})
+                          ...(filters ? { filters } : {}),
                         }).toString()}`}
                       >
                         Pagos solicitados
