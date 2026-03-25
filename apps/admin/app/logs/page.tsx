@@ -859,6 +859,7 @@ export default async function LogsPage({
                   <col style={{ width: "190px" }} />
                   <col style={{ width: "180px" }} />
                   <col style={{ width: "110px" }} />
+                  <col style={{ width: "160px" }} />
                   <col style={{ width: "120px" }} />
                   <col style={{ width: "260px" }} />
                   <col style={{ width: "220px" }} />
@@ -870,6 +871,7 @@ export default async function LogsPage({
                     <th>Cliente</th>
                     <th>Suscripción</th>
                     <th>Estado</th>
+                    <th>Notificación</th>
                     <th>Total</th>
                     <th>Referencia e IDs</th>
                     <th>Detalle</th>
@@ -930,6 +932,22 @@ export default async function LogsPage({
                     const detailText = isIgnoredExternal
                       ? `Pago externo (${externalSourceLabel})${ignoredReason ? ` · ${ignoredReason}` : ""}`
                       : failureReason;
+                    const notif = p.notification;
+                    const notifStatus = String(notif?.status || "").toUpperCase();
+                    const notifLabel =
+                      String(notif?.type || "").toUpperCase() === "PAYMENT_LINK"
+                        ? "Link de pago"
+                        : String(notif?.type || "").toUpperCase() === "EXPIRY_WARNING"
+                          ? "Recordatorio de pago"
+                          : "Notificación";
+                    const notifChip =
+                      notifStatus === "SENT"
+                        ? { cls: "is-success", label: "Enviado" }
+                        : notifStatus === "FAILED"
+                          ? { cls: "is-error", label: "Fallido" }
+                          : notifStatus
+                            ? { cls: "is-warning", label: "Pendiente" }
+                            : null;
                     return (
                       <tr key={p.id}>
                         <td className="log-date-cell"><LocalDateTime value={p.paidAt || p.createdAt} variant="stacked" /></td>
@@ -940,6 +958,16 @@ export default async function LogsPage({
                             <span className={`status-led ${chip.cls === "is-success" ? "is-ok" : ""}`} />
                             {chip.label}
                           </span>
+                        </td>
+                        <td className="log-status-cell">
+                          {notifChip ? (
+                            <span className={`status-chip ${notifChip.cls}`} title={notifLabel}>
+                              <span className={`status-led ${notifChip.cls === "is-success" ? "is-ok" : ""}`} />
+                              {notifLabel} · {notifChip.label}
+                            </span>
+                          ) : (
+                            "—"
+                          )}
                         </td>
                         <td>{formatAmount(p.amountInCents, p.currency)}</td>
                         <td
@@ -1009,7 +1037,7 @@ export default async function LogsPage({
                   })}
                   {paymentItems.length === 0 ? (
                     <tr>
-                      <td colSpan={8} style={{ color: "var(--muted)" }}>
+                      <td colSpan={9} style={{ color: "var(--muted)" }}>
                         Sin pagos.
                       </td>
                     </tr>

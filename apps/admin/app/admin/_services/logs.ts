@@ -113,6 +113,37 @@ export async function listPaymentLogs(args: {
   items = found;
   total = counted;
 
+  const paymentIds = items.map((item: any) => String(item.id || "")).filter(Boolean);
+  const subscriptionIds = items.map((item: any) => String(item.subscriptionId || "")).filter(Boolean);
+  const chatwootMessages = paymentIds.length || subscriptionIds.length
+    ? await prisma.chatwootMessage.findMany({
+        where: {
+          OR: [
+            paymentIds.length ? { paymentId: { in: paymentIds } } : undefined,
+            subscriptionIds.length ? { subscriptionId: { in: subscriptionIds } } : undefined
+          ].filter(Boolean) as Prisma.ChatwootMessageWhereInput[],
+          type: { in: ["PAYMENT_LINK", "EXPIRY_WARNING"] }
+        },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          paymentId: true,
+          subscriptionId: true,
+          type: true,
+          status: true,
+          sentAt: true,
+          createdAt: true
+        }
+      })
+    : [];
+
+  const notificationByPaymentId = new Map<string, any>();
+  const notificationBySubscriptionId = new Map<string, any>();
+  for (const msg of chatwootMessages) {
+    if (msg.paymentId && !notificationByPaymentId.has(msg.paymentId)) notificationByPaymentId.set(msg.paymentId, msg);
+    if (msg.subscriptionId && !notificationBySubscriptionId.has(msg.subscriptionId)) notificationBySubscriptionId.set(msg.subscriptionId, msg);
+  }
+
   const mappedItems = items.map((item: any) => {
     const lastAttempt = Array.isArray(item.attempts) ? item.attempts[0] : null;
     const failureCode = stringOrNull(lastAttempt?.errorCode) || stringOrNull(lastAttempt?.status) || null;
@@ -120,12 +151,17 @@ export async function listPaymentLogs(args: {
     const reconciliation =
       (item?.providerResponse && typeof item.providerResponse === "object" ? (item.providerResponse as any).reconciliation : null) || null;
     const isIgnoredExternal = String(reconciliation?.status || "").toUpperCase() === "IGNORED_EXTERNAL";
+    const notification =
+      (item.id && notificationByPaymentId.get(String(item.id))) ||
+      (item.subscriptionId && notificationBySubscriptionId.get(String(item.subscriptionId))) ||
+      null;
     return {
       ...item,
       failureCode,
       failureReason,
       reconciliation,
-      isIgnoredExternal
+      isIgnoredExternal,
+      notification
     };
   });
 

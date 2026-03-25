@@ -72,7 +72,18 @@ export async function GET(req: NextRequest) {
         const customerName = String(m?.customer?.name || "").trim();
         const customerEmail = String(m?.customer?.email || "").trim();
         const customerPhone = String(m?.customer?.phone || "").trim();
-        const title = ok ? "Mensaje enviado" : "Mensaje fallido";
+        const type = String(m?.type || "").toUpperCase();
+        const label =
+          type === "PAYMENT_LINK"
+            ? "Notificación: link de pago"
+            : type === "EXPIRY_WARNING"
+              ? "Notificación: recordatorio de pago"
+              : type === "PAYMENT_FAILED"
+                ? "Notificación: pago fallido"
+                : type === "PAYMENT_CONFIRMED"
+                  ? "Notificación: pago exitoso"
+                  : "Mensaje";
+        const title = ok ? label : `${label} (fallida)`;
         const snippet = String(m?.content || "").trim().replace(/\s+/g, " ");
         const message = customerName ? `${customerName} · ${snippet.slice(0, 80)}` : snippet.slice(0, 80) || title;
         return {
@@ -81,7 +92,7 @@ export async function GET(req: NextRequest) {
           title,
           message,
           level: ok ? "success" : "error",
-          category: "clientes",
+          category: type === "PAYMENT_LINK" || type === "EXPIRY_WARNING" ? "pagos" : "clientes",
           href: "/notifications",
           read: false,
           meta: {
