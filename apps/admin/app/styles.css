@@ -4791,8 +4791,8 @@ textarea.input {
 }
 
 .contact-grid-compact {
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 12px;
+  grid-template-columns: 1fr;
+  gap: 10px;
   width: 100%;
 }
 
@@ -10843,9 +10843,27 @@ body.is-global-loading {
 
 .company-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 12px;
+  grid-template-columns: 1fr;
+  gap: 10px;
   width: 100%;
+}
+
+/* Unificar tamaño de botones en cards de contactos/empresas/suscripciones */
+.contact-card-top-actions .btn-compact,
+.entity-card-actions .btn-compact,
+.billing-actions .btn-compact {
+  min-height: 28px;
+  height: 28px;
+  font-size: 11.5px;
+  padding: 4px 10px;
+}
+
+.contact-card-top-actions .btn-icon-only,
+.entity-card-actions .btn-icon-only,
+.billing-actions .btn-icon-only {
+  width: 28px;
+  height: 28px;
+  padding: 0;
 }
 
 .product-list {
