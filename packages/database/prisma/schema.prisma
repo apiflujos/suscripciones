@@ -502,6 +502,7 @@ model SmartView {
 
   tenant SaTenant      @relation(fields: [tenantId], references: [id])
   items  SmartViewItem[]
+  campaigns Campaign[]
 
   @@index([tenantId, scope, visibility])
   @@index([tenantId, scope])
