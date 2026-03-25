@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
-import { MapContainer, TileLayer, Marker, Popup, ZoomControl } from "react-leaflet";
+import { useEffect, useRef } from "react";
 import L from "leaflet";
 
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
@@ -14,27 +13,64 @@ type LeafletMapProps = {
   label?: string;
 };
 
+const defaultMarkerIcon = L.icon({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  tooltipAnchor: [16, -28],
+  shadowSize: [41, 41]
+});
+
 export function LeafletMap({ lat, lon, label }: LeafletMapProps) {
+  const mapNodeRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const markerRef = useRef<L.Marker | null>(null);
+
   useEffect(() => {
-    L.Icon.Default.mergeOptions({
-      iconRetinaUrl: (markerIcon2x as any).src || markerIcon2x,
-      iconUrl: (markerIcon as any).src || markerIcon,
-      shadowUrl: (markerShadow as any).src || markerShadow
+    if (!mapNodeRef.current || mapRef.current) return;
+
+    const center: L.LatLngExpression = [lat, lon];
+    const map = L.map(mapNodeRef.current, {
+      center,
+      zoom: 15,
+      scrollWheelZoom: false,
+      zoomControl: false
     });
-  }, []);
 
-  const center = useMemo<[number, number]>(() => [lat, lon], [lat, lon]);
+    L.control.zoom({ position: "bottomright" }).addTo(map);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
 
-  return (
-    <MapContainer center={center} zoom={15} scrollWheelZoom={false} className="leaflet-map" zoomControl={false}>
-      <ZoomControl position="bottomright" />
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      <Marker position={center}>
-        {label ? <Popup>{label}</Popup> : null}
-      </Marker>
-    </MapContainer>
-  );
+    const marker = L.marker(center, { icon: defaultMarkerIcon }).addTo(map);
+    if (label) marker.bindPopup(label);
+
+    mapRef.current = map;
+    markerRef.current = marker;
+
+    return () => {
+      markerRef.current = null;
+      map.remove();
+      mapRef.current = null;
+    };
+  }, [lat, lon, label]);
+
+  useEffect(() => {
+    if (!mapRef.current || !markerRef.current) return;
+
+    const center: L.LatLngExpression = [lat, lon];
+    mapRef.current.setView(center, mapRef.current.getZoom(), { animate: false });
+    markerRef.current.setLatLng(center);
+
+    if (label) {
+      markerRef.current.bindPopup(label);
+    } else {
+      markerRef.current.unbindPopup();
+    }
+  }, [lat, lon, label]);
+
+  return <div ref={mapNodeRef} className="leaflet-map" />;
 }
