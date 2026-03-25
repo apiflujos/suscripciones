@@ -112,16 +112,19 @@ export function SmartViewsBar({
   initialViewId,
   initialFilters,
   baseParams,
+  initialFields,
   compactInline = false
 }: {
   scope: string;
   initialViewId: string;
   initialFilters: string;
   baseParams: Record<string, string>;
+  initialFields?: SmartField[];
   compactInline?: boolean;
 }) {
   const [views, setViews] = useState<SmartView[]>([]);
-  const [fields, setFields] = useState<SmartField[]>([]);
+  const [fields, setFields] = useState<SmartField[]>(() => (Array.isArray(initialFields) ? initialFields : []));
+  const [fieldsError, setFieldsError] = useState<string | null>(null);
   const [activeViewId, setActiveViewId] = useState(initialViewId);
   const [mode, setMode] = useState<ViewMode>("list");
   const [editingId, setEditingId] = useState<string>("");
@@ -227,19 +230,39 @@ export function SmartViewsBar({
 
   useEffect(() => {
     const load = async () => {
-      const viewsRes = await fetch(`/api/smart-views/${encodeURIComponent(scope)}`);
-      const viewsJson = await viewsRes.json().catch(() => ({}));
-      setViews(Array.isArray(viewsJson.items) ? viewsJson.items : []);
+      try {
+        const viewsRes = await fetch(`/api/smart-views/${encodeURIComponent(scope)}`, { cache: "no-store" });
+        const viewsJson = await viewsRes.json().catch(() => ({}));
+        setViews(Array.isArray(viewsJson.items) ? viewsJson.items : []);
+      } catch {
+        setViews([]);
+      }
     };
     load().catch(() => null);
   }, [scope]);
 
   async function ensureFieldsLoaded() {
     if (fields.length) return;
-    const fieldsRes = await fetch(`/api/smart-views/${encodeURIComponent(scope)}/fields`);
-    const fieldsJson = await fieldsRes.json().catch(() => ({}));
-    const loadedFields = Array.isArray(fieldsJson.fields) ? fieldsJson.fields : [];
-    setFields(loadedFields);
+    setFieldsError(null);
+    let loadedFields: SmartField[] = [];
+    try {
+      const fieldsRes = await fetch(`/api/smart-views/${encodeURIComponent(scope)}/fields`, { cache: "no-store" });
+      if (!fieldsRes.ok) {
+        const errJson = await fieldsRes.json().catch(() => ({}));
+        setFieldsError(String(errJson?.error || "No se pudieron cargar los campos."));
+        return;
+      }
+      const fieldsJson = await fieldsRes.json().catch(() => ({}));
+      loadedFields = Array.isArray(fieldsJson.fields) ? fieldsJson.fields : [];
+      if (!loadedFields.length) {
+        setFieldsError("No hay campos disponibles para este filtro.");
+        return;
+      }
+      setFields(loadedFields);
+      setFieldsError(null);
+    } catch (err: any) {
+      setFieldsError(String(err?.message || "No se pudieron cargar los campos."));
+    }
     if ("rules" in root && root.rules.length === 0 && loadedFields.length) {
       setRoot({ op: "and", rules: [defaultRule(loadedFields[0].key, loadedFields)] });
     }
@@ -746,7 +769,20 @@ export function SmartViewsBar({
             </div>
             <div className="modal-body smartViewsModalBody">
               {fields.length === 0 ? (
-                <div className="muted">Cargando campos...</div>
+                fieldsError ? (
+                  <div className="smartViewsError">
+                    <div className="muted">{fieldsError}</div>
+                    <button
+                      className="ghost btn-compact"
+                      type="button"
+                      onClick={() => ensureFieldsLoaded().catch(() => null)}
+                    >
+                      Reintentar
+                    </button>
+                  </div>
+                ) : (
+                  <div className="muted">Cargando campos...</div>
+                )
               ) : (
                 <>
                   <div className="smartRuleHeader">

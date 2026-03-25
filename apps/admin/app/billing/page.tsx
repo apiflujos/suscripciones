@@ -29,7 +29,7 @@ import { TokenizationLinkModalButton } from "./TokenizationLinkModalButton";
 import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
-import { resolveSmartViewIds, parseFiltersParam } from "@suscripciones/core/services/smartViews";
+import { resolveSmartViewIds, parseFiltersParam, getSmartViewFields } from "@suscripciones/core/services/smartViews";
 
 export const dynamic = "force-dynamic";
 
@@ -871,6 +871,7 @@ export default async function BillingPage({
                         ...(estado ? { estado } : {}),
                         ...(ordenar ? { ordenar } : {})
                       }}
+                      initialFields={getSmartViewFields("billing")}
                       compactInline
                     />
                     <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />

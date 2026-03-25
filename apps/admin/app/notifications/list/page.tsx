@@ -60,7 +60,12 @@ export default async function WhatsappNotificationsListPage({
           <h3 style={{ margin: 0 }}>Notificaciones WhatsApp</h3>
           <div className="muted" style={{ fontSize: 12 }}>Lista de mensajes enviados y su estado.</div>
         </div>
-        {typeof total === "number" ? <span className="pill">Total {total}</span> : null}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <a className="ghost btn-compact" href="/settings?tab=notificaciones-whatsapp">
+            Configurar WhatsApp
+          </a>
+          {typeof total === "number" ? <span className="pill">Total {total}</span> : null}
+        </div>
       </div>
 
       <div className="filtersRow" style={{ marginTop: 12 }}>

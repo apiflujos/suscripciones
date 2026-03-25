@@ -11,7 +11,7 @@ import { getAdminSettings } from "../admin/_services/settings";
 import { resolveTenantId } from "../admin/_services/tenantResolver";
 import { listSmartListMembers, listSmartLists } from "../admin/_services/smartLists";
 import { getNotificationsConfig } from "@suscripciones/core/services/notificationsConfig";
-import { resolveSmartViewIds, parseFiltersParam } from "@suscripciones/core/services/smartViews";
+import { resolveSmartViewIds, parseFiltersParam, getSmartViewFields } from "@suscripciones/core/services/smartViews";
 import { normalizeErrorParam } from "../lib/errorParam";
 import { CustomersTable } from "./CustomersTable";
 import { getCsrfToken } from "../lib/csrf";
@@ -385,6 +385,7 @@ export default async function CustomersPage({
                         ...(q ? { q } : {}),
                         ...(tenantId ? { tenantId } : {})
                       }}
+                      initialFields={getSmartViewFields("customers")}
                       compactInline
                     />
                     <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />

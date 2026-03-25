@@ -25,7 +25,7 @@ export function UserNotificationsPanel({ isSuperAdmin }: { isSuperAdmin: boolean
       <div className="settings-group-header">
         <div className="panelHeaderRow" style={{ justifyContent: "space-between", gap: 10 }}>
           <div style={{ display: "grid", gap: 4 }}>
-            <h3>Notificaciones</h3>
+            <h3>Notificaciones del sistema</h3>
           </div>
           {unreadCount > 0 ? <span className="pill pill-blue">{unreadCount} no leidas</span> : null}
         </div>

@@ -1993,6 +1993,13 @@ a {
   gap: 12px;
 }
 
+.smartViewsError {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .smartListModal {
   position: fixed;
   inset: 0;

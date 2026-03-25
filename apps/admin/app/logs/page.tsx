@@ -14,7 +14,7 @@ import { HelpTip } from "../ui/HelpTip";
 import { ReconcilePaymentModal } from "./ReconcilePaymentModal";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
 import { getAdminSettings } from "../admin/_services/settings";
-import { resolveSmartViewIds, parseFiltersParam } from "@suscripciones/core/services/smartViews";
+import { resolveSmartViewIds, parseFiltersParam, getSmartViewFields } from "@suscripciones/core/services/smartViews";
 import {
   recollectPayments,
   reconcilePayment as reconcilePaymentAction,
@@ -612,6 +612,7 @@ export default async function LogsPage({
                       ...(from ? { from } : {}),
                       ...(to ? { to } : {})
                     }}
+                    initialFields={getSmartViewFields("logs")}
                   />
                 </div>
               </div>
@@ -647,6 +648,7 @@ export default async function LogsPage({
                           ...(q ? { q } : {}),
                           ...(paymentsView ? { paymentsView } : {})
                         }}
+                        initialFields={getSmartViewFields("payments")}
                       />
                       <div className="payments-buttons-wrap">
                         <form action={reconcilePendingPayments} className="filtersForm payments-action-form">

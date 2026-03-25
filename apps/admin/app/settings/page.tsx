@@ -41,6 +41,7 @@ import { updateCheckoutConfig } from "./actions";
 import { DeleteTenantButton } from "./DeleteTenantButton";
 import { UsersPanel } from "./UsersPanel";
 import { UserNotificationsPanel } from "./UserNotificationsPanel";
+import { WhatsappNotificationsPanel } from "./WhatsappNotificationsPanel";
 import { WebhooksPanel } from "./WebhooksPanel";
 import { getAdminSettings } from "../admin/_services/settings";
 import { listCheckoutTemplates } from "../admin/_services/checkoutTemplates";
@@ -113,6 +114,11 @@ export default async function SettingsPage({
   const rawTab = String(sp.tab || "connections");
   const tab = rawTab === "webhooks" ? "integraciones" : rawTab;
   const open = String(sp.open || "");
+  const envRaw = String(sp.env || "");
+  const env = envRaw.toUpperCase() === "SANDBOX" ? "SANDBOX" : "PRODUCTION";
+  const notifSaved = typeof sp.saved === "string" ? sp.saved : "";
+  const notifScheduled = typeof sp.scheduled === "string" ? sp.scheduled : "";
+  const notifError = typeof sp.error === "string" ? sp.error : "";
   const openTenant = String(sp.openTenant || "").trim();
   const templateKind = String(sp.kind || "").toUpperCase();
   const templateStep = String(sp.step || "choose");
@@ -185,8 +191,11 @@ export default async function SettingsPage({
         <a className={`settings-tab ${tab === "usuarios" ? "is-active" : ""}`} href="/settings?tab=usuarios" title="Gestión de usuarios y roles">
           Usuarios
         </a>
-        <a className={`settings-tab ${tab === "notificaciones" ? "is-active" : ""}`} href="/settings?tab=notificaciones" title="Reglas y canales de notificación">
-          Notificaciones
+        <a className={`settings-tab ${tab === "notificaciones" ? "is-active" : ""}`} href="/settings?tab=notificaciones" title="Notificaciones del sistema">
+          Notificaciones del sistema
+        </a>
+        <a className={`settings-tab ${tab === "notificaciones-whatsapp" ? "is-active" : ""}`} href="/settings?tab=notificaciones-whatsapp" title="Configuración de notificaciones WhatsApp">
+          Notificaciones WhatsApp
         </a>
         <a className={`settings-tab ${tab === "apariencia" ? "is-active" : ""}`} href="/settings?tab=apariencia" title="Tema, logo y apariencia general">
           Apariencia
@@ -238,6 +247,15 @@ export default async function SettingsPage({
 
       {tab === "notificaciones" ? (
         <UserNotificationsPanel isSuperAdmin={session?.role === "SUPER_ADMIN"} />
+      ) : null}
+
+      {tab === "notificaciones-whatsapp" ? (
+        <WhatsappNotificationsPanel
+          env={env}
+          saved={notifSaved}
+          scheduled={notifScheduled}
+          error={notifError}
+        />
       ) : null}
 
       {tab === "integraciones" ? (

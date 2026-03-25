@@ -15,7 +15,7 @@ import { listCheckoutTemplates } from "../admin/_services/checkoutTemplates";
 import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
-import { resolveSmartViewIds, parseFiltersParam } from "@suscripciones/core/services/smartViews";
+import { resolveSmartViewIds, parseFiltersParam, getSmartViewFields } from "@suscripciones/core/services/smartViews";
 
 export const dynamic = "force-dynamic";
 
@@ -142,6 +142,7 @@ export default async function ProductsPage({
                         ...(tenantId ? { tenantId } : {}),
                         ...(q ? { q } : {})
                       }}
+                      initialFields={getSmartViewFields("products")}
                       compactInline
                     />
                     <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="products" />
