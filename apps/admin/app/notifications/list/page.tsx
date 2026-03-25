@@ -26,7 +26,7 @@ export const dynamic = "force-dynamic";
 export default async function WhatsappNotificationsListPage({
   searchParams
 }: {
-  searchParams?: Promise<{ page?: string; q?: string; status?: string; type?: string; from?: string; to?: string }>;
+  searchParams?: Promise<Record<string, string | undefined>>;
 }) {
   const sp = (await searchParams) ?? {};
   const q = typeof sp.q === "string" ? sp.q : "";
