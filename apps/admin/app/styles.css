@@ -3430,6 +3430,19 @@ html[data-contrast="high"] .filtersPanel {
   border-color: rgba(15, 23, 42, 0.16);
 }
 
+/* Compactar tarjetas/botones dentro de módulos */
+.panel.module,
+.card,
+.entity-card,
+.contact-card,
+.product-card,
+.company-card {
+  font-size: 0.75em;
+  --btn-height: 28px;
+  --btn-padding-x: 10px;
+  --btn-font: 9.5px;
+}
+
 .panel[data-provider] {
   overflow: visible;
 }
