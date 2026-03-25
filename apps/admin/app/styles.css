@@ -7428,6 +7428,19 @@ textarea.input {
   min-width: 0;
 }
 
+.billing-cycle-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  align-items: flex-end;
+  margin-top: 6px;
+}
+
+.billing-cycle-form .field-inline {
+  display: grid;
+  gap: 2px;
+}
+
 .billing-body-side {
   display: grid;
   gap: 10px;

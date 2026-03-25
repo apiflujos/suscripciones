@@ -213,7 +213,11 @@ export async function getAdminSettings() {
     autoReconcileUnlinkedPayments: toBool(paymentsConfigRaw?.autoReconcileUnlinkedPayments, true),
     acceptUnlinkedPayments: toBool(paymentsConfigRaw?.acceptUnlinkedPayments, true),
     notifyWhatsappForUnlinkedPayments: toBool(paymentsConfigRaw?.notifyWhatsappForUnlinkedPayments, true),
-    includeUnlinkedPaymentsInMetrics: toBool(paymentsConfigRaw?.includeUnlinkedPaymentsInMetrics, true)
+    includeUnlinkedPaymentsInMetrics: toBool(paymentsConfigRaw?.includeUnlinkedPaymentsInMetrics, true),
+    defaultCycleStartDay: toInt(paymentsConfigRaw?.defaultCycleStartDay, 1, 1, 31),
+    defaultPaymentDay: toInt(paymentsConfigRaw?.defaultPaymentDay, 1, 1, 31),
+    defaultPaymentTiming: String(paymentsConfigRaw?.defaultPaymentTiming || "EN_CURSO").toUpperCase() === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO",
+    defaultGraceDays: toInt(paymentsConfigRaw?.defaultGraceDays, 1, 1, 5)
   };
 
   return {

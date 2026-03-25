@@ -169,6 +169,10 @@ export async function listPaymentLogs(args: {
           currentPeriodEndAt: true,
           currentPeriodStartAt: true,
           currentCycle: true,
+          cycleStartDay: true,
+          paymentDay: true,
+          paymentTiming: true,
+          graceDays: true,
           plan: { select: { name: true, intervalUnit: true, intervalCount: true } }
         }
       })
@@ -180,6 +184,10 @@ export async function listPaymentLogs(args: {
         currentCycle: s.currentCycle,
         currentPeriodStartAt: s.currentPeriodStartAt,
         currentPeriodEndAt: s.currentPeriodEndAt,
+        cycleStartDay: (s as any).cycleStartDay ?? 1,
+        paymentDay: (s as any).paymentDay ?? 1,
+        paymentTiming: String((s as any).paymentTiming || "EN_CURSO").toUpperCase() === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO",
+        graceDays: (s as any).graceDays ?? 1,
         plan: { intervalUnit: (s as any).plan?.intervalUnit, intervalCount: (s as any).plan?.intervalCount }
       }))
     ).catch(() => {});

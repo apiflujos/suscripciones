@@ -4,7 +4,7 @@ import { prisma } from "@suscripciones/database";
 import { ensurePaymentRetryJob } from "@suscripciones/core/services/retryJobScheduler";
 import { LogLevel, PaymentStatus, RetryJobStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
 import { resolveSubscriptionCollectionMode } from "@suscripciones/core/services/subscriptionMode";
-import { getAutoDebitConfig } from "@suscripciones/core/services/runtimeConfig";
+import { getAutoDebitConfig, getPaymentsConfig } from "@suscripciones/core/services/runtimeConfig";
 import { addIntervalUtc, toUtc } from "@suscripciones/core/lib/dates";
 import { systemLog } from "@suscripciones/core/services/systemLog";
 import {
@@ -449,6 +449,11 @@ export async function createSubscription(args: {
   if (periodEnd < startAt) return { ok: false, status: 400, error: "first_period_end_anterior_a_start" as const };
 
   const subscriptionMetaBase = args.metadata && typeof args.metadata === "object" ? (args.metadata as any) : {};
+  const paymentsCfg = await getPaymentsConfig().catch(() => null);
+  const defaultCycleStartDay = Number(paymentsCfg?.defaultCycleStartDay || 1);
+  const defaultPaymentDay = Number(paymentsCfg?.defaultPaymentDay || 1);
+  const defaultPaymentTiming = String(paymentsCfg?.defaultPaymentTiming || "EN_CURSO").toUpperCase() === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO";
+  const defaultGraceDays = Number(paymentsCfg?.defaultGraceDays || 1);
 
   const subscription = await prisma.subscription.create({
     data: {
@@ -462,6 +467,10 @@ export async function createSubscription(args: {
       currentPeriodStartAt: startAt,
       currentPeriodEndAt: periodEnd,
       currentCycle: 1,
+      cycleStartDay: Number.isFinite(defaultCycleStartDay) ? Math.max(1, Math.min(31, Math.trunc(defaultCycleStartDay))) : 1,
+      paymentDay: Number.isFinite(defaultPaymentDay) ? Math.max(1, Math.min(31, Math.trunc(defaultPaymentDay))) : 1,
+      paymentTiming: defaultPaymentTiming === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO",
+      graceDays: Number.isFinite(defaultGraceDays) ? Math.max(1, Math.min(5, Math.trunc(defaultGraceDays))) : 1,
       metadata: {
         ...subscriptionMetaBase,
         collectionMode
@@ -1115,6 +1124,50 @@ export async function updateSubscriptionTenants(args: {
   });
 
   return { ok: true, subscription: updated };
+}
+
+export async function updateSubscriptionBillingSettings(args: {
+  subscriptionId: string;
+  tenantId?: string | null;
+  cycleStartDay?: number | string;
+  paymentDay?: number | string;
+  paymentTiming?: string;
+  graceDays?: number | string;
+  actor?: string;
+}) {
+  const subscriptionId = String(args.subscriptionId || "").trim();
+  if (!subscriptionId) return { ok: false as const, status: 400, error: "invalid_subscription_id" as const };
+  const subscription = await prisma.subscription.findUnique({ where: { id: subscriptionId } });
+  if (!subscription) return { ok: false as const, status: 404, error: "subscription_not_found" as const };
+  if (args.tenantId && String(subscription.tenantId || "") !== String(args.tenantId || "")) {
+    return { ok: false as const, status: 404, error: "subscription_not_found" as const };
+  }
+
+  const cycleStartDay = Number(args.cycleStartDay ?? subscription.cycleStartDay ?? 1);
+  const paymentDay = Number(args.paymentDay ?? subscription.paymentDay ?? 1);
+  const graceDays = Number(args.graceDays ?? subscription.graceDays ?? 1);
+  const timingRaw = String(args.paymentTiming ?? subscription.paymentTiming ?? "EN_CURSO").toUpperCase();
+  const paymentTiming = timingRaw === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO";
+
+  const updated = await prisma.subscription.update({
+    where: { id: subscriptionId },
+    data: {
+      cycleStartDay: Math.max(1, Math.min(31, Math.trunc(cycleStartDay))),
+      paymentDay: Math.max(1, Math.min(31, Math.trunc(paymentDay))),
+      graceDays: Math.max(1, Math.min(5, Math.trunc(graceDays))),
+      paymentTiming
+    }
+  });
+
+  await systemLog(LogLevel.INFO, "subscriptions.billing_rules", "Reglas de ciclo actualizadas", {
+    subscriptionId,
+    cycleStartDay: updated.cycleStartDay,
+    paymentDay: updated.paymentDay,
+    paymentTiming: updated.paymentTiming,
+    graceDays: updated.graceDays
+  }, args.actor || "Sistema").catch(() => {});
+
+  return { ok: true as const };
 }
 
 export async function changeSubscriptionPlan(args: {

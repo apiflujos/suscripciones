@@ -16,6 +16,7 @@ import {
   scheduleSubscriptionCutoff,
   recalcSubscriptionCutoff,
   updateSubscriptionTenants as updateSubscriptionTenantsService,
+  updateSubscriptionBillingSettings as updateSubscriptionBillingSettingsService,
   changeSubscriptionPlan as changeSubscriptionPlanService,
   deleteSubscription as deleteSubscriptionService,
   markSubscriptionPaidManual as markSubscriptionPaidManualService,
@@ -590,6 +591,37 @@ export async function updateSubscriptionTenants(formData: FormData) {
         ...(scopeTenantId ? { tenantId: scopeTenantId } : {})
       })
     );
+  }
+}
+
+export async function updateSubscriptionBillingSettings(formData: FormData) {
+  await assertCsrfToken(formData);
+  const returnTo = mergeQuery(String(formData.get("returnTo") || "/billing"), {});
+  const subscriptionId = String(formData.get("subscriptionId") || "").trim();
+  const tenantId = String(formData.get("tenantId") || "").trim();
+  const cycleStartDay = String(formData.get("cycleStartDay") || "").trim();
+  const paymentDay = String(formData.get("paymentDay") || "").trim();
+  const paymentTiming = String(formData.get("paymentTiming") || "").trim();
+  const graceDays = String(formData.get("graceDays") || "").trim();
+
+  if (!subscriptionId) {
+    return redirect(mergeQuery(returnTo, { error: "missing_subscription_id", ...(tenantId ? { tenantId } : {}) }));
+  }
+  try {
+    const res = await updateSubscriptionBillingSettingsService({
+      subscriptionId,
+      tenantId: tenantId || null,
+      cycleStartDay,
+      paymentDay,
+      paymentTiming,
+      graceDays,
+      actor: "Sistema"
+    });
+    if (!res.ok) return redirect(mergeQuery(returnTo, { error: res.error || "update_failed", ...(tenantId ? { tenantId } : {}) }));
+    redirect(mergeQuery(returnTo, { billingRulesUpdated: "1", subscriptionId, ...(tenantId ? { tenantId } : {}) }));
+  } catch (err: any) {
+    const msg = String(err?.message || err || "update_failed");
+    redirect(mergeQuery(returnTo, { error: msg, ...(tenantId ? { tenantId } : {}) }));
   }
 }
 

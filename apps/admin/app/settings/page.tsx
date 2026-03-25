@@ -686,6 +686,48 @@ export default async function SettingsPage({
                     <span className="toggle" aria-hidden="true" />
                   </label>
                 </div>
+
+                <div className="settings-submodule-header" style={{ marginTop: 8 }}>
+                  <div className="settings-submodule-title">Ciclos y mora (por defecto)</div>
+                  <div className="field-hint">Días del mes para inicio de ciclo, pago y días de gracia.</div>
+                </div>
+
+                <div className="grid2" style={{ gap: 12 }}>
+                  <label className="field">
+                    <span>Día inicio de ciclo</span>
+                    <select className="select" name="defaultCycleStartDay" defaultValue={String(paymentsConfig?.defaultCycleStartDay ?? 1)}>
+                      {Array.from({ length: 31 }).map((_, i) => (
+                        <option key={`cycle-start-${i + 1}`} value={String(i + 1)}>{i + 1}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>Día de pago</span>
+                    <select className="select" name="defaultPaymentDay" defaultValue={String(paymentsConfig?.defaultPaymentDay ?? 1)}>
+                      {Array.from({ length: 31 }).map((_, i) => (
+                        <option key={`pay-day-${i + 1}`} value={String(i + 1)}>{i + 1}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                <div className="grid2" style={{ gap: 12 }}>
+                  <label className="field">
+                    <span>Tipo de pago</span>
+                    <select className="select" name="defaultPaymentTiming" defaultValue={String(paymentsConfig?.defaultPaymentTiming || "EN_CURSO")}>
+                      <option value="EN_CURSO">En curso</option>
+                      <option value="ANTICIPADO">Anticipado</option>
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>Días de gracia</span>
+                    <select className="select" name="defaultGraceDays" defaultValue={String(paymentsConfig?.defaultGraceDays ?? 1)}>
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <option key={`grace-${i + 1}`} value={String(i + 1)}>{i + 1}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
               </form>
             </div>
           </section>

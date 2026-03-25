@@ -1,7 +1,7 @@
 import { activateSubscription, cancelSubscription, deleteSubscription, mergeDuplicateSubscriptions, resumeSubscription, suspendSubscription } from "../subscriptions/actions";
 import { DeleteSubscriptionButton } from "./DeleteSubscriptionButton";
 import { MergeDuplicateSubscriptionsButton } from "./MergeDuplicateSubscriptionsButton";
-import { changeSubscriptionPlan, chargeSubscriptionNow, createCustomerFromBilling, createPlanAndSubscription, scheduleCutoff, sendCentralComPaymentLink, sendCentralComTokenizationLink, updateSubscriptionTenants, markSubscriptionPaidManual, unmarkSubscriptionPaidManual } from "./actions";
+import { changeSubscriptionPlan, chargeSubscriptionNow, createCustomerFromBilling, createPlanAndSubscription, scheduleCutoff, sendCentralComPaymentLink, sendCentralComTokenizationLink, updateSubscriptionTenants, updateSubscriptionBillingSettings, markSubscriptionPaidManual, unmarkSubscriptionPaidManual } from "./actions";
 import { ManualChargeButton } from "./ManualChargeButton";
 import { ManualMarkPaidButton } from "./ManualMarkPaidButton";
 import { ManualUnmarkPaidButton } from "./ManualUnmarkPaidButton";
@@ -378,6 +378,10 @@ export default async function BillingPage({
         vencimientoAt: s.currentPeriodEndAt || null,
         periodoInicioAt: s.currentPeriodStartAt || null,
         periodoFinAt: s.currentPeriodEndAt || null,
+        cycleStartDay: Number(s.cycleStartDay || 1),
+        paymentDay: Number(s.paymentDay || 1),
+        paymentTiming: String(s.paymentTiming || "EN_CURSO"),
+        graceDays: Number(s.graceDays || 1),
         nextRetryAt: s.nextRetryJob?.runAt || (s.metadata as any)?.manualRetry?.nextRetryAt || null,
         mode: collectionMode,
         canManualCharge: typeof s?.canManualCharge === "boolean" ? s.canManualCharge : undefined,
@@ -647,6 +651,44 @@ export default async function BillingPage({
                   />
                 </div>
               </div>
+              <form action={updateSubscriptionBillingSettings} className="billing-cycle-form">
+                <input type="hidden" name="csrf" value={csrfToken} />
+                <input type="hidden" name="subscriptionId" value={r.id} />
+                <input type="hidden" name="tenantId" value={r.tenantId} />
+                <input type="hidden" name="returnTo" value={returnTo} />
+                <label className="field field-inline">
+                  <span className="field-hint">Inicio ciclo</span>
+                  <select className="select select-sm" name="cycleStartDay" defaultValue={String(r.cycleStartDay || 1)}>
+                    {Array.from({ length: 31 }).map((_, i) => (
+                      <option key={`cycle-start-${r.id}-${i + 1}`} value={String(i + 1)}>{i + 1}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field field-inline">
+                  <span className="field-hint">Día pago</span>
+                  <select className="select select-sm" name="paymentDay" defaultValue={String(r.paymentDay || 1)}>
+                    {Array.from({ length: 31 }).map((_, i) => (
+                      <option key={`pay-day-${r.id}-${i + 1}`} value={String(i + 1)}>{i + 1}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field field-inline">
+                  <span className="field-hint">Tipo</span>
+                  <select className="select select-sm" name="paymentTiming" defaultValue={String(r.paymentTiming || "EN_CURSO")}>
+                    <option value="EN_CURSO">En curso</option>
+                    <option value="ANTICIPADO">Anticipado</option>
+                  </select>
+                </label>
+                <label className="field field-inline">
+                  <span className="field-hint">Gracia</span>
+                  <select className="select select-sm" name="graceDays" defaultValue={String(r.graceDays || 1)}>
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <option key={`grace-${r.id}-${i + 1}`} value={String(i + 1)}>{i + 1}</option>
+                    ))}
+                  </select>
+                </label>
+                <button className="ghost btn-compact btn-noicon" type="submit">Guardar</button>
+              </form>
             </div>
           </div>
           <div className="billing-body-side">

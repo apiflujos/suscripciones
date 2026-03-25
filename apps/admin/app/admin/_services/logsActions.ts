@@ -281,6 +281,10 @@ export async function associatePaymentToSubscription(args: {
       currentCycle: subscription.currentCycle,
       currentPeriodStartAt: subscription.currentPeriodStartAt,
       currentPeriodEndAt: subscription.currentPeriodEndAt,
+      cycleStartDay: subscription.cycleStartDay,
+      paymentDay: subscription.paymentDay,
+      paymentTiming: subscription.paymentTiming as any,
+      graceDays: subscription.graceDays,
       plan: {
         intervalUnit: subscription.plan.intervalUnit,
         intervalCount: subscription.plan.intervalCount

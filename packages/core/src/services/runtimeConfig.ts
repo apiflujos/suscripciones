@@ -117,6 +117,10 @@ export type PaymentsConfig = {
   acceptUnlinkedPayments: boolean;
   notifyWhatsappForUnlinkedPayments: boolean;
   includeUnlinkedPaymentsInMetrics: boolean;
+  defaultCycleStartDay: number;
+  defaultPaymentDay: number;
+  defaultPaymentTiming: "EN_CURSO" | "ANTICIPADO";
+  defaultGraceDays: number;
 };
 
 function toBool(raw: string | undefined, fallback: boolean) {
@@ -211,12 +215,21 @@ export async function getPaymentsConfig(): Promise<PaymentsConfig> {
   const acceptUnlinkedPayments = toBool(String(parsed?.acceptUnlinkedPayments ?? ""), true);
   const notifyWhatsappForUnlinkedPayments = toBool(String(parsed?.notifyWhatsappForUnlinkedPayments ?? ""), true);
   const includeUnlinkedPaymentsInMetrics = toBool(String(parsed?.includeUnlinkedPaymentsInMetrics ?? ""), true);
+  const defaultCycleStartDay = toInt(String(parsed?.defaultCycleStartDay ?? ""), 1, 1, 31);
+  const defaultPaymentDay = toInt(String(parsed?.defaultPaymentDay ?? ""), 1, 1, 31);
+  const defaultPaymentTimingRaw = String(parsed?.defaultPaymentTiming ?? "EN_CURSO").toUpperCase();
+  const defaultPaymentTiming = defaultPaymentTimingRaw === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO";
+  const defaultGraceDays = toInt(String(parsed?.defaultGraceDays ?? ""), 1, 1, 5);
 
   return {
     autoReconcileUnlinkedPayments,
     acceptUnlinkedPayments,
     notifyWhatsappForUnlinkedPayments,
-    includeUnlinkedPaymentsInMetrics
+    includeUnlinkedPaymentsInMetrics,
+    defaultCycleStartDay,
+    defaultPaymentDay,
+    defaultPaymentTiming,
+    defaultGraceDays
   };
 }
 

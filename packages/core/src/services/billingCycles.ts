@@ -6,6 +6,10 @@ type SubscriptionSeed = {
   currentCycle: number;
   currentPeriodStartAt: Date;
   currentPeriodEndAt: Date;
+  cycleStartDay: number;
+  paymentDay: number;
+  paymentTiming: "EN_CURSO" | "ANTICIPADO";
+  graceDays: number;
   plan: { intervalUnit: PlanIntervalUnit; intervalCount: number };
 };
 
@@ -43,9 +47,69 @@ function shiftIntervalUtc(date: Date, unit: PlanIntervalUnit, count: number): Da
   return d;
 }
 
+function clampDay(year: number, month0: number, day: number) {
+  const last = daysInMonth(year, month0);
+  return Math.max(1, Math.min(day, last));
+}
+
+function setDayInMonth(base: Date, day: number): Date {
+  const y = base.getUTCFullYear();
+  const m = base.getUTCMonth();
+  const d = clampDay(y, m, day);
+  return new Date(Date.UTC(y, m, d, 0, 0, 0, 0));
+}
+
+function monthShift(date: Date, delta: number) {
+  const y = date.getUTCFullYear();
+  const m = date.getUTCMonth();
+  const targetMonth = m + delta;
+  const targetYear = y + Math.floor(targetMonth / 12);
+  const month0 = ((targetMonth % 12) + 12) % 12;
+  return { year: targetYear, month0 };
+}
+
+function dateForDayInMonth(year: number, month0: number, day: number) {
+  const d = clampDay(year, month0, day);
+  return new Date(Date.UTC(year, month0, d, 0, 0, 0, 0));
+}
+
+function resolveCycleStartAnchor(sub: SubscriptionSeed) {
+  const base = new Date(sub.currentPeriodStartAt);
+  const day = Math.max(1, Math.min(31, Math.trunc(sub.cycleStartDay || 1)));
+  const candidate = setDayInMonth(base, day);
+  if (candidate.getTime() <= base.getTime()) return candidate;
+  const prev = shiftIntervalUtc(candidate, PlanIntervalUnit.MONTH, -1);
+  return prev;
+}
+
+function computeDueAt(params: {
+  periodStartAt: Date;
+  periodEndAt: Date;
+  cycleStartDay: number;
+  paymentDay: number;
+  paymentTiming: "EN_CURSO" | "ANTICIPADO";
+}) {
+  const cycleStartDay = Math.max(1, Math.min(31, Math.trunc(params.cycleStartDay || 1)));
+  const paymentDay = Math.max(1, Math.min(31, Math.trunc(params.paymentDay || 1)));
+  const timing = params.paymentTiming === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO";
+  const start = params.periodStartAt;
+  if (timing === "ANTICIPADO") {
+    const { year, month0 } = monthShift(start, -1);
+    return dateForDayInMonth(year, month0, paymentDay);
+  }
+  const startMonth = start.getUTCMonth();
+  const startYear = start.getUTCFullYear();
+  if (paymentDay >= cycleStartDay) {
+    return dateForDayInMonth(startYear, startMonth, paymentDay);
+  }
+  const { year, month0 } = monthShift(start, 1);
+  return dateForDayInMonth(year, month0, paymentDay);
+}
+
 export function buildBillingCyclesForSubscription(sub: SubscriptionSeed, cyclesBack = 12, cyclesForward = 2) {
   const unit = sub.plan.intervalUnit;
   const count = Math.max(1, Math.trunc(sub.plan.intervalCount || 1));
+  const anchorStart = unit === PlanIntervalUnit.MONTH ? resolveCycleStartAnchor(sub) : new Date(sub.currentPeriodStartAt);
   const cycles: Array<{
     subscriptionId: string;
     cycleNumber: number;
@@ -58,14 +122,24 @@ export function buildBillingCyclesForSubscription(sub: SubscriptionSeed, cyclesB
     const cycleNumber = sub.currentCycle + offset;
     if (cycleNumber <= 0) continue;
     const shift = offset * count;
-    const periodStartAt = shiftIntervalUtc(sub.currentPeriodStartAt, unit, shift);
-    const periodEndAt = shiftIntervalUtc(sub.currentPeriodEndAt, unit, shift);
+    const periodStartAt = shiftIntervalUtc(anchorStart, unit, shift);
+    const periodEndAt = shiftIntervalUtc(periodStartAt, unit, count);
+    const dueAt =
+      unit === PlanIntervalUnit.MONTH
+        ? computeDueAt({
+            periodStartAt,
+            periodEndAt,
+            cycleStartDay: sub.cycleStartDay,
+            paymentDay: sub.paymentDay,
+            paymentTiming: sub.paymentTiming
+          })
+        : periodEndAt;
     cycles.push({
       subscriptionId: sub.id,
       cycleNumber,
       periodStartAt,
       periodEndAt,
-      dueAt: periodEndAt,
+      dueAt,
       status: BillingCycleStatus.PENDING
     });
   }
@@ -111,11 +185,16 @@ export async function attachPaymentToCycle(args: {
   associatedBy?: string | null;
 }) {
   const paymentAt = args.paymentAt;
-  const cycle = await prisma.subscriptionBillingCycle.findUnique({ where: { id: args.cycleId } });
+  const cycle = await prisma.subscriptionBillingCycle.findUnique({
+    where: { id: args.cycleId },
+    include: { subscription: { select: { graceDays: true } } }
+  });
   if (!cycle) return { ok: false as const, error: "cycle_not_found" as const };
   if (cycle.subscriptionId !== args.subscriptionId) return { ok: false as const, error: "cycle_mismatch" as const };
   const dueAt = cycle.dueAt || cycle.periodEndAt;
-  const msDiff = paymentAt.getTime() - dueAt.getTime();
+  const graceDays = Number.isFinite(cycle.subscription?.graceDays as any) ? Math.max(0, Number(cycle.subscription?.graceDays || 0)) : 0;
+  const dueWithGrace = new Date(dueAt.getTime() + graceDays * 24 * 60 * 60 * 1000);
+  const msDiff = paymentAt.getTime() - dueWithGrace.getTime();
   const daysLate = msDiff > 0 ? Math.ceil(msDiff / (24 * 60 * 60 * 1000)) : 0;
   const daysEarly = msDiff < 0 ? Math.ceil(Math.abs(msDiff) / (24 * 60 * 60 * 1000)) : 0;
   const paidOnTime = msDiff <= 0;
@@ -158,6 +237,10 @@ export async function attachPaymentToMatchingCycle(args: {
       currentCycle: subscription.currentCycle,
       currentPeriodStartAt: subscription.currentPeriodStartAt,
       currentPeriodEndAt: subscription.currentPeriodEndAt,
+      cycleStartDay: subscription.cycleStartDay,
+      paymentDay: subscription.paymentDay,
+      paymentTiming: (subscription.paymentTiming as any) || "EN_CURSO",
+      graceDays: subscription.graceDays,
       plan: { intervalUnit: subscription.plan.intervalUnit, intervalCount: subscription.plan.intervalCount }
     }
   ]).catch(() => {});

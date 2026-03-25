@@ -1,6 +1,16 @@
 -- CreateEnum
 CREATE TYPE "BillingCycleStatus" AS ENUM ('PENDING', 'PAID', 'FAILED', 'SKIPPED');
 
+-- CreateEnum
+CREATE TYPE "PaymentTiming" AS ENUM ('EN_CURSO', 'ANTICIPADO');
+
+-- AlterTable
+ALTER TABLE "Subscription"
+ADD COLUMN     "cycleStartDay" INTEGER NOT NULL DEFAULT 1,
+ADD COLUMN     "paymentDay" INTEGER NOT NULL DEFAULT 1,
+ADD COLUMN     "paymentTiming" "PaymentTiming" NOT NULL DEFAULT 'EN_CURSO',
+ADD COLUMN     "graceDays" INTEGER NOT NULL DEFAULT 1;
+
 -- CreateTable
 CREATE TABLE "SubscriptionBillingCycle" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),

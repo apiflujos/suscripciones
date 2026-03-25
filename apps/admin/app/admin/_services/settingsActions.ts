@@ -340,6 +340,16 @@ export async function updatePaymentsConfig(input: unknown) {
     parsed.data.includeUnlinkedPaymentsInMetrics != null
       ? toBool(parsed.data.includeUnlinkedPaymentsInMetrics, true)
       : toBool(current?.includeUnlinkedPaymentsInMetrics, true);
+  const defaultCycleStartDay =
+    parsed.data.defaultCycleStartDay != null ? toInt(parsed.data.defaultCycleStartDay, 1, 1, 31) : toInt(current?.defaultCycleStartDay, 1, 1, 31);
+  const defaultPaymentDay =
+    parsed.data.defaultPaymentDay != null ? toInt(parsed.data.defaultPaymentDay, 1, 1, 31) : toInt(current?.defaultPaymentDay, 1, 1, 31);
+  const defaultPaymentTiming =
+    parsed.data.defaultPaymentTiming != null
+      ? String(parsed.data.defaultPaymentTiming || "EN_CURSO")
+      : String(current?.defaultPaymentTiming || "EN_CURSO");
+  const defaultGraceDays =
+    parsed.data.defaultGraceDays != null ? toInt(parsed.data.defaultGraceDays, 1, 1, 5) : toInt(current?.defaultGraceDays, 1, 1, 5);
 
   await setCredential(
     CredentialProvider.WOMPI,
@@ -348,14 +358,22 @@ export async function updatePaymentsConfig(input: unknown) {
       autoReconcileUnlinkedPayments,
       acceptUnlinkedPayments,
       notifyWhatsappForUnlinkedPayments,
-      includeUnlinkedPaymentsInMetrics
+      includeUnlinkedPaymentsInMetrics,
+      defaultCycleStartDay,
+      defaultPaymentDay,
+      defaultPaymentTiming: defaultPaymentTiming.toUpperCase() === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO",
+      defaultGraceDays
     })
   );
   await systemLog(LogLevel.INFO, "configuracion.pagos", "Configuración de pagos actualizada", {
     autoReconcileUnlinkedPayments,
     acceptUnlinkedPayments,
     notifyWhatsappForUnlinkedPayments,
-    includeUnlinkedPaymentsInMetrics
+    includeUnlinkedPaymentsInMetrics,
+    defaultCycleStartDay,
+    defaultPaymentDay,
+    defaultPaymentTiming,
+    defaultGraceDays
   }).catch(() => {});
   return { ok: true as const };
 }

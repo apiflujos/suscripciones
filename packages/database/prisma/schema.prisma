@@ -67,6 +67,11 @@ enum PaymentAssociationReason {
   UNKNOWN
 }
 
+enum PaymentTiming {
+  EN_CURSO
+  ANTICIPADO
+}
+
 enum BillingCycleStatus {
   PENDING
   PAID
@@ -305,6 +310,10 @@ model Subscription {
   currentPeriodStartAt DateTime           @default(now())
   currentPeriodEndAt   DateTime
   currentCycle         Int                @default(1)
+  cycleStartDay         Int               @default(1)
+  paymentDay            Int               @default(1)
+  paymentTiming         PaymentTiming     @default(EN_CURSO)
+  graceDays             Int               @default(1)
   retryCount           Int                @default(0)
   maxRetries           Int                @default(3)
   canceledAt           DateTime?
@@ -379,7 +388,7 @@ model SubscriptionBillingCycle {
   dueAt             DateTime
   status            BillingCycleStatus  @default(PENDING)
   paidAt            DateTime?
-  paymentId         String?             @db.Uuid
+  paymentId         String?             @unique @db.Uuid
   paidOnTime        Boolean?
   daysEarly         Int?
   daysLate          Int?
