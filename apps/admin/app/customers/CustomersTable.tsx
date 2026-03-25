@@ -1029,7 +1029,7 @@ export function CustomersTable({
               {sendError[payModalCustomer.id] ? (
                 <div className="paylink-error">
                   {mapSendError(sendError[payModalCustomer.id])}
-                  {sendError[payModalCustomer.id] === "missing_template" ? (
+                  {sendError[payModalCustomer.id] === "missing_template" || sendError[payModalCustomer.id] === "no_rules" ? (
                     <div style={{ marginTop: 6 }}>
                       <a className="ghost btn-compact" href="/notifications?env=PRODUCTION&open=payment_link_created">
                         Configurar plantilla

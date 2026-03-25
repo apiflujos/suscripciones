@@ -42,7 +42,8 @@ export async function POST(req: Request) {
     const candidates = rules.filter((r: any) => r?.enabled && String(r?.trigger || "") === "PAYMENT_LINK_CREATED");
     const filtered = candidates.filter((r: any) => {
       const types = r?.conditions?.requirePaymentTypeIn;
-      return Array.isArray(types) ? types.includes("LINK") : false;
+      if (!Array.isArray(types) || !types.length) return true;
+      return types.includes("LINK");
     });
     const rule = filtered[0] || null;
     const tpl = rule ? templates.find((t: any) => String(t?.id || "") === String(rule?.templateId || "")) : null;
@@ -60,7 +61,7 @@ export async function POST(req: Request) {
       currency: "COP",
       lineItems: [{ name: `Pago de ${customerName}`, quantity: 1, unitPriceInCents: amountInCents }],
       ...(tenantId ? { tenantId } : {}),
-      sendChatwoot: false,
+      sendChatwoot: true,
       source: "MANUAL"
     }
   });
