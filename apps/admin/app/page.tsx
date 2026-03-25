@@ -478,23 +478,6 @@ export default async function Home({
   const unlinkedPaymentsTotal = unlinkedPaymentsApproved + unlinkedPaymentsOther;
   const unlinkedRevenue = Number(metricsData?.totals?.unlinked?.revenueInCents || 0);
 
-  const paymentsByPlanType = metricsData?.totals?.byPlanType || {};
-  const paymentsAuto = paymentsByPlanType?.auto_subscription || {};
-  const paymentsLink = paymentsByPlanType?.manual_link || {};
-  const paymentsAutoOk = Number(paymentsAuto?.paymentsSuccess || 0);
-  const paymentsAutoFail = Number(paymentsAuto?.paymentsFailed || 0);
-  const paymentsAutoRevenue = Number(paymentsAuto?.revenueInCents || 0);
-  const paymentsLinkOk = Number(paymentsLink?.paymentsSuccess || 0);
-  const paymentsLinkFail = Number(paymentsLink?.paymentsFailed || 0);
-  const paymentsLinkRevenue = Number(paymentsLink?.revenueInCents || 0);
-
-  // DESGLOSE POR PLATAFORMA
-  const platformData = metricsData?.totals?.byPlatform || [];
-  const totalPlatformRevenue = platformData.reduce((sum: number, p: any) => sum + (p.revenueInCents || 0), 0);
-  const totalPlatformPayments = platformData.reduce((sum: number, p: any) => sum + (p.paymentsSuccess || 0), 0);
-  const shopifyPlatform = platformData.find((p: any) => String(p?.source || "").toUpperCase() === "SHOPIFY");
-  const shopifyRevenue = Number(shopifyPlatform?.revenueInCents || 0);
-  const shopifyPayments = Number(shopifyPlatform?.paymentsSuccess || 0);
   
   const recentPayments = paymentsRes.items || [];
   const overdueSubs = overdueSubsRes.items || [];
@@ -640,24 +623,21 @@ export default async function Home({
                       maxDate={maxDate}
                     />
                   </div>
-                  <div className="filtersHeaderRow filtersHeaderRowBottom">
-                    <div className="filtersHeaderLeft">
-                      <div className="metricsTabs">
-                        {viewTabs.map((tab) => (
-                          <Link
-                            key={tab.id}
-                            href={viewHref(tab.id)}
-                            className={`metricsTab ${view === tab.id ? "is-active" : ""}`}
-                            prefetch={false}
-                          >
-                            {tab.label}
-                          </Link>
-                        ))}
-                      </div>
+                  <div className="filtersHeaderRow filtersHeaderRowBottom metricsTabsRowCentered">
+                    <div />
+                    <div className="metricsTabs metricsTabsCentered">
+                      {viewTabs.map((tab) => (
+                        <Link
+                          key={tab.id}
+                          href={viewHref(tab.id)}
+                          className={`metricsTab ${view === tab.id ? "is-active" : ""}`}
+                          prefetch={false}
+                        >
+                          {tab.label}
+                        </Link>
+                      ))}
                     </div>
-                    <div className="filtersHeaderRight">
-                      <div className="metricsTabsMeta">{rangeLabel} · {periodLabel} · {tenantLabel}</div>
-                    </div>
+                    <div className="metricsTabsMeta metricsTabsMetaRight">{rangeLabel} · {periodLabel} · {tenantLabel}</div>
                   </div>
                 </div>
               </div>
@@ -701,7 +681,7 @@ export default async function Home({
                         </span>
                       </div>
                     </div>
-                    <div className="card cardPad metric-card metric-card-lg tone-success">
+                    <div className="card cardPad metric-card metric-card-lg metric-card-highlight tone-success">
                       <span className="metric-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <circle cx="12" cy="12" r="9" />
@@ -726,7 +706,7 @@ export default async function Home({
                         </span>
                       </div>
                     </div>
-                    <div className="card cardPad metric-card metric-card-lg tone-warning">
+                    <div className="card cardPad metric-card metric-card-lg metric-card-highlight tone-warning">
                       <span className="metric-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M10 13a5 5 0 0 0 7.1 0l2.1-2.1a5 5 0 0 0-7.1-7.1L10 5" />
@@ -773,39 +753,7 @@ export default async function Home({
                       <div className="metric-value">{totalActiveSubscriptions}</div>
                       <div className="metric-sub">Δ {activeDelta >= 0 ? "+" : ""}{activeDelta} ({fmtPct(activeDeltaPct)})</div>
                     </div>
-                    <div className="card cardPad metric-card metric-card-sm tone-primary">
-                      <span className="metric-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M4 21V7a2 2 0 0 1 2-2h6v16" />
-                          <path d="M14 21V3h4a2 2 0 0 1 2 2v16" />
-                          <path d="M8 11h2" />
-                          <path d="M8 15h2" />
-                          <path d="M16 11h2" />
-                          <path d="M16 15h2" />
-                        </svg>
-                      </span>
-                      <div className="metric-label">
-                        Empresas activas
-                        <HelpTip text="Total de empresas registradas en el canal seleccionado." />
-                      </div>
-                      <div className="metric-value">{totalEmpresas}</div>
-                      <div className="metric-sub">Contactos asociados: {totalContactos}</div>
-                    </div>
-                    <div className="card cardPad metric-card metric-card-sm tone-info">
-                      <span className="metric-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                          <circle cx="12" cy="7" r="4" />
-                        </svg>
-                      </span>
-                      <div className="metric-label">
-                        Contactos registrados
-                        <HelpTip text="Número total de contactos asociados a empresas en el canal seleccionado." />
-                      </div>
-                      <div className="metric-value">{totalContactos}</div>
-                      <div className="metric-sub">Empresas: {totalEmpresas}</div>
-                    </div>
-                    <div className="card cardPad metric-card metric-card-sm tone-primary">
+                    <div className="card cardPad metric-card metric-card-sm metric-card-highlight tone-primary">
                       <span className="metric-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M21 12a9 9 0 1 1-2.64-6.36" />
@@ -849,165 +797,6 @@ export default async function Home({
                     </div>
                   </div>
 
-                  <div className="card cardPad metrics-detail-card" style={{ marginBottom: 16 }}>
-                    <h3 style={{ marginTop: 0, marginBottom: 12 }}>Ingresos por tipo de cobro</h3>
-                    <div className="grid3 metricsDetailGrid">
-                      <div className="card cardPad metric-card metric-card-sm metric-card-secondary" style={{ background: "var(--surface-2)" }}>
-                        <div className="metric-label">
-                          Débito automático
-                          <HelpTip text="Pagos provenientes de suscripciones con débito automático." />
-                        </div>
-                        <div className="metric-value">${fmtMoneyCop(paymentsAutoRevenue)} COP</div>
-                        <div className="metric-sub">
-                          OK: {paymentsAutoOk} · Fallidos: {paymentsAutoFail}
-                        </div>
-                      </div>
-                      <div className="card cardPad metric-card metric-card-sm metric-card-secondary" style={{ background: "var(--surface-2)" }}>
-                        <div className="metric-label">
-                          Link de pago
-                          <HelpTip text="Pagos de suscripciones con link de pago (manual_link)." />
-                        </div>
-                        <div className="metric-value">${fmtMoneyCop(paymentsLinkRevenue)} COP</div>
-                        <div className="metric-sub">
-                          OK: {paymentsLinkOk} · Fallidos: {paymentsLinkFail}
-                        </div>
-                      </div>
-                      <div className="card cardPad metric-card metric-card-sm metric-card-secondary" style={{ background: "var(--surface-2)" }}>
-                        <div className="metric-label">
-                          Externos sin suscripción
-                          <HelpTip text="Pagos sin suscripción asociada (one-time o externos)." />
-                        </div>
-                        <div className="metric-value">${fmtMoneyCop(unlinkedRevenue)} COP</div>
-                        <div className="metric-sub">
-                          Total: {unlinkedPaymentsTotal} · OK: {unlinkedPaymentsApproved}
-                        </div>
-                      </div>
-                    </div>
-                    <div style={{ marginTop: 10, color: "var(--text-faint)", fontSize: 12 }}>
-                      Shopify: ${fmtMoneyCop(shopifyRevenue)} COP · Pagos OK: {shopifyPayments}
-                    </div>
-                  </div>
-
-                  {/* DESGLOSE POR PLATAFORMA */}
-                  {platformData.length > 0 ? (
-                    <>
-                      <div className="card cardPad metrics-detail-card" style={{ marginBottom: 16 }}>
-                        <h3 style={{ marginTop: 0, marginBottom: 12 }}>Pagos por Plataforma</h3>
-                        <div className="grid3 metricsDetailGrid">
-                          {platformData.map((platform: any, idx: number) => {
-                            const source = platform.source || "DIRECT";
-                            const paymentsSuccess = platform.paymentsSuccess || 0;
-                            const paymentsFailed = platform.paymentsFailed || 0;
-                            const revenue = platform.revenueInCents || 0;
-                            const revenuePct = totalPlatformRevenue > 0 ? (revenue / totalPlatformRevenue) * 100 : 0;
-                            const paymentsPct = totalPlatformPayments > 0 ? (paymentsSuccess / totalPlatformPayments) * 100 : 0;
-                            const sourceIcon =
-                              source === "SHOPIFY"
-                                ? "🛍️"
-                                : source === "ALEGRA"
-                                  ? "📦"
-                                  : source === "MANUAL"
-                                    ? "✋"
-                                    : "🌐";
-
-                            return (
-                              <div key={`platform-${idx}`} className="card cardPad metric-card metric-card-sm metric-card-secondary" style={{ background: "var(--surface-2)" }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                                  <span style={{ fontSize: 24 }}>{sourceIcon}</span>
-                                  <div>
-                                    <div style={{ fontWeight: 600, fontSize: 14 }}>{source}</div>
-                                    <div style={{ fontSize: 11, color: "var(--text-faint)" }}>
-                                      {fmtPct(revenuePct)} del revenue · {fmtPct(paymentsPct)} de los pagos
-                                    </div>
-                                  </div>
-                                </div>
-                                <div style={{ display: "grid", gap: 6, fontSize: 13 }}>
-                                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                                    <span style={{ color: "var(--text-faint)" }}>Ingresos:</span>
-                                    <strong>${fmtMoneyCop(revenue)} COP</strong>
-                                  </div>
-                                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                                    <span style={{ color: "var(--text-faint)" }}>Pagos OK:</span>
-                                    <span style={{ color: "var(--status-success)" }}>{paymentsSuccess}</span>
-                                  </div>
-                                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                                    <span style={{ color: "var(--text-faint)" }}>Pagos fallidos:</span>
-                                    <span style={{ color: "var(--status-danger)" }}>{paymentsFailed}</span>
-                                  </div>
-                                </div>
-                                {/* Barra de progreso de revenue */}
-                                <div style={{ marginTop: 10, height: 6, background: "var(--stroke)", borderRadius: 3, overflow: "hidden" }}>
-                                  <div
-                                    style={{
-                                      width: `${Math.min(100, revenuePct)}%`,
-                                      height: "100%",
-                                      background: idx === 0 ? "var(--status-success)" : idx === 1 ? "var(--chart-a)" : "var(--chart-b)"
-                                    }}
-                                  />
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Gráfico de barras comparativo por plataforma */}
-                      <div className="card cardPad" style={{ marginBottom: 16 }}>
-                        <h3 style={{ marginTop: 0, marginBottom: 12 }}>Comparativo de Plataformas</h3>
-                        <div style={{ overflowX: "auto" }}>
-                          <table className="table" style={{ fontSize: 13 }}>
-                            <thead>
-                              <tr>
-                                <th>Plataforma</th>
-                                <th style={{ textAlign: "right" }}>Ingresos</th>
-                                <th style={{ textAlign: "right" }}>% Revenue</th>
-                                <th style={{ textAlign: "right" }}>Pagos OK</th>
-                                <th style={{ textAlign: "right" }}>% Pagos</th>
-                                <th style={{ textAlign: "right" }}>Fallidos</th>
-                                <th style={{ textAlign: "right" }}>Tasa OK</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {platformData.map((platform: any, idx: number) => {
-                                const source = platform.source || "DIRECT";
-                                const revenue = platform.revenueInCents || 0;
-                                const revenuePct = totalPlatformRevenue > 0 ? (revenue / totalPlatformRevenue) * 100 : 0;
-                                const paymentsSuccess = platform.paymentsSuccess || 0;
-                                const paymentsFailed = platform.paymentsFailed || 0;
-                                const paymentsTotal = paymentsSuccess + paymentsFailed;
-                                const paymentsPct = totalPlatformPayments > 0 ? (paymentsSuccess / totalPlatformPayments) * 100 : 0;
-                                const approvalRate = paymentsTotal > 0 ? (paymentsSuccess / paymentsTotal) * 100 : 0;
-
-                                return (
-                                  <tr key={`platform-table-${idx}`}>
-                                    <td>
-                                      <strong>{source}</strong>
-                                    </td>
-                                    <td style={{ textAlign: "right" }}>${fmtMoneyCop(revenue)} COP</td>
-                                    <td style={{ textAlign: "right" }}>
-                                      <span className="pill pill-sm">{fmtPct(revenuePct)}</span>
-                                    </td>
-                                    <td style={{ textAlign: "right" }}>{paymentsSuccess}</td>
-                                    <td style={{ textAlign: "right" }}>
-                                      <span className="pill pill-sm">{fmtPct(paymentsPct)}</span>
-                                    </td>
-                                    <td style={{ textAlign: "right" }}>
-                                      <span style={{ color: "var(--status-danger)" }}>{paymentsFailed}</span>
-                                    </td>
-                                    <td style={{ textAlign: "right" }}>
-                                      <span className={`pill pill-sm ${approvalRate >= 90 ? "pill-ok" : approvalRate >= 70 ? "pill-warn" : "pill-bad"}`}>
-                                        {fmtPct(approvalRate)}
-                                      </span>
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    </>
-                  ) : null}
 
                   <div className="grid2">
                     <div className="card cardPad chart-card">

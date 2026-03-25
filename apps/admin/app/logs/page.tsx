@@ -27,17 +27,19 @@ import { classifyReference } from "@suscripciones/core/webhooks/wompi/classifyRe
 
 export const dynamic = "force-dynamic";
 
-async function assertSuperAdminSession() {
+async function getSuperAdminSession() {
   const c = await cookies();
   const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
   const session = await verifyAdminSessionToken(sessionToken);
-  return session?.role === "SUPER_ADMIN";
+  if (!session || session.role !== "SUPER_ADMIN") return null;
+  return session;
 }
 
 async function retryWebhook(formData: FormData) {
   "use server";
   await assertCsrfToken(formData);
-  if (!(await assertSuperAdminSession())) return;
+  const session = await getSuperAdminSession();
+  if (!session) return;
   const id = String(formData.get("id") || "").trim();
   if (!id) return;
   await retryWebhookById(id);
@@ -47,7 +49,7 @@ async function retryWebhook(formData: FormData) {
 async function retryFailedWebhooks(formData: FormData) {
   "use server";
   await assertCsrfToken(formData);
-  if (!(await assertSuperAdminSession())) return;
+  if (!(await getSuperAdminSession())) return;
   await retryFailedWebhooksAction();
   revalidatePath("/logs");
   revalidatePath("/payments");
@@ -56,7 +58,8 @@ async function retryFailedWebhooks(formData: FormData) {
 async function reconcilePayment(formData: FormData) {
   "use server";
   await assertCsrfToken(formData);
-  if (!(await assertSuperAdminSession())) return;
+  const session = await getSuperAdminSession();
+  if (!session) return;
   const wompiTransactionId = String(formData.get("wompiTransactionId") || "").trim();
   const reference = String(formData.get("reference") || "").trim();
   const paymentId = String(formData.get("paymentId") || "").trim();
@@ -73,7 +76,8 @@ async function reconcilePayment(formData: FormData) {
     wompiPaymentLinkId: wompiPaymentLinkId || undefined,
     tenantId: tenantId || undefined,
     amountInCents: amountInCents > 0 ? amountInCents : undefined,
-    currency: currency || undefined
+    currency: currency || undefined,
+    actorEmail: session.email || undefined
   });
   revalidatePath("/logs");
   revalidatePath("/payments");
@@ -82,7 +86,7 @@ async function reconcilePayment(formData: FormData) {
 async function reconcilePendingPayments(formData: FormData) {
   "use server";
   await assertCsrfToken(formData);
-  if (!(await assertSuperAdminSession())) return;
+  if (!(await getSuperAdminSession())) return;
   const returnTo = safeReturnToLogs(formData);
   const tenantId = String(formData.get("tenantId") || "").trim();
   const daysRaw = Number(String(formData.get("days") || "7"));
@@ -243,6 +247,29 @@ function processStatusChip(raw: any) {
   if (status === "SKIPPED") return { cls: "is-warning", label: "Omitido" };
   if (status === "RECEIVED") return { cls: "is-warning", label: "Recibido" };
   return { cls: "is-warning", label: status || "—" };
+}
+
+function paymentOriginLabel(origin?: string | null) {
+  const s = String(origin || "").toUpperCase();
+  if (s === "AUTO_DEBIT") return "Auto débito";
+  if (s === "AUTO_LINK") return "Auto link";
+  if (s === "MANUAL_LINK") return "Link manual";
+  if (s === "MANUAL_USER") return "Manual (usuario)";
+  if (s === "WEBHOOK") return "Webhook";
+  return s || "—";
+}
+
+function paymentAssociationLabel(reason?: string | null) {
+  const s = String(reason || "").toUpperCase();
+  if (s === "LINK_MATCH") return "Link";
+  if (s === "TX_MATCH") return "Transacción";
+  if (s === "REF_MATCH") return "Referencia";
+  if (s === "SUB_REF") return "Ref suscripción";
+  if (s === "IDENTITY_MATCH") return "Identidad";
+  if (s === "MANUAL_RECONCILE") return "Reconciliación manual";
+  if (s === "UNLINKED") return "Sin suscripción";
+  if (s === "UNKNOWN") return "Desconocido";
+  return s || "—";
 }
 
 export default async function LogsPage({
@@ -994,6 +1021,9 @@ export default async function LogsPage({
                     const detailText = isIgnoredExternal
                       ? `Pago externo (${externalSourceLabel})${ignoredReason ? ` · ${ignoredReason}` : ""}`
                       : failureReason;
+                    const originLabel = paymentOriginLabel(p.origin);
+                    const associationLabel = paymentAssociationLabel(p.associationReason);
+                    const traceLabel = [originLabel, associationLabel, p.associatedBy].filter(Boolean).join(" · ");
                     const notif = p.notification;
                     const notifStatus = String(notif?.status || "").toUpperCase();
                     const notifType = String(notif?.type || "").toUpperCase();
@@ -1048,6 +1078,7 @@ export default async function LogsPage({
                         </td>
                         <td className="log-payment-error-cell" title={detailText}>
                           {detailText}
+                          {traceLabel ? <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>{traceLabel}</div> : null}
                         </td>
                         <td className="log-payment-actions-cell">
                           <div className="log-payment-actions">

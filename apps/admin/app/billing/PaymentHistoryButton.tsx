@@ -21,6 +21,9 @@ type PaymentItem = {
   createdAt?: string | null;
   wompiTransactionId?: string | null;
   reference?: string | null;
+  origin?: string | null;
+  associationReason?: string | null;
+  associatedBy?: string | null;
   attempts?: Attempt[];
 };
 
@@ -55,6 +58,29 @@ function fmtMoney(cents?: number | null, currency?: string | null) {
     currency: cur,
     maximumFractionDigits: 0
   });
+}
+
+function originLabel(origin?: string | null) {
+  const s = String(origin || "").toUpperCase();
+  if (s === "AUTO_DEBIT") return "Auto débito";
+  if (s === "AUTO_LINK") return "Auto link";
+  if (s === "MANUAL_LINK") return "Link manual";
+  if (s === "MANUAL_USER") return "Manual (usuario)";
+  if (s === "WEBHOOK") return "Webhook";
+  return s || "—";
+}
+
+function associationLabel(reason?: string | null) {
+  const s = String(reason || "").toUpperCase();
+  if (s === "LINK_MATCH") return "Link";
+  if (s === "TX_MATCH") return "Transacción";
+  if (s === "REF_MATCH") return "Referencia";
+  if (s === "SUB_REF") return "Ref suscripción";
+  if (s === "IDENTITY_MATCH") return "Identidad";
+  if (s === "MANUAL_RECONCILE") return "Reconciliación manual";
+  if (s === "UNLINKED") return "Sin suscripción";
+  if (s === "UNKNOWN") return "Desconocido";
+  return s || "—";
 }
 
 export function PaymentHistoryButton({ subscriptionId, tenantId }: Props) {
@@ -180,9 +206,17 @@ export function PaymentHistoryButton({ subscriptionId, tenantId }: Props) {
                             <td className="billing-history-ref">{p.reference || "—"}</td>
                             <td className="billing-history-wompi">{p.wompiTransactionId || "—"}</td>
                             <td className="billing-history-detail">
-                              {Array.isArray(p.attempts) && p.attempts.length
-                                ? `${p.attempts.length} intento${p.attempts.length > 1 ? "s" : ""}`
-                                : "—"}
+                              <div style={{ display: "grid", gap: 4 }}>
+                                <div>
+                                  {Array.isArray(p.attempts) && p.attempts.length
+                                    ? `${p.attempts.length} intento${p.attempts.length > 1 ? "s" : ""}`
+                                    : "—"}
+                                </div>
+                                <div className="muted" style={{ fontSize: 11 }}>
+                                  {originLabel(p.origin)} · {associationLabel(p.associationReason)}
+                                  {p.associatedBy ? ` · ${p.associatedBy}` : ""}
+                                </div>
+                              </div>
                             </td>
                           </tr>
                           {Array.isArray(p.attempts) && p.attempts.length ? (

@@ -55,7 +55,7 @@ export default async function EmpresasPage({
   const pageHref = (p: number) => `/dashboard/empresas?${new URLSearchParams({ ...baseParams, page: String(p) })}`;
 
   return (
-    <main className="page pageWide">
+    <main className="page pageWide empresasPage">
       {error ? (
         <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
           Error: {error}
@@ -70,8 +70,9 @@ export default async function EmpresasPage({
           <div className="filtersRow">
             <div className="filtersLeft">
               <div className="filtersPanel">
-                <div className="contacts-search-row">
-                  <form action="/dashboard/empresas" method="GET" className="filtersForm filtersSearch">
+                {/* Fila 1: Búsqueda */}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", flexWrap: "wrap" }}>
+                  <form action="/dashboard/empresas" method="GET" className="filtersForm filtersSearch" style={{ flex: "0 0 280px" }}>
                     {vista ? <input type="hidden" name="vista" value={vista} /> : null}
                     <input
                       className="input"
@@ -83,18 +84,16 @@ export default async function EmpresasPage({
                     />
                     <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
                   </form>
-                  <div className="products-search-right">
-                    <div className="view-mode-row" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span className="field-hint" style={{ margin: 0 }}>Vista:</span>
-                      <ViewModeToggles currentMode={vistaTyped} baseParams={baseParams} />
-                    </div>
-                  </div>
                 </div>
-                <div className="page-actions">
-                  <a className="primary btn-create" href="/dashboard/empresas/new">
+                {/* Fila 2: Vista + Botones Crear (derecha) */}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", marginTop: 6 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span className="field-hint" style={{ margin: 0 }}>Vista:</span>
+                    <ViewModeToggles currentMode={vistaTyped} baseParams={baseParams} />
+                  </div>
+                  <a className="primary btn-create" href="/dashboard/empresas/new" style={{ marginLeft: "auto" }}>
                     Crear empresa
                   </a>
-                  <div className="page-actions-summary">{items.length} resultados</div>
                 </div>
               </div>
             </div>

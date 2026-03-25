@@ -206,6 +206,9 @@ export async function getCustomerPayments(args: { customerId: string; tenantId?:
       createdAt: p.createdAt,
       paidAt: p.paidAt,
       reference: p.reference,
+      origin: p.origin || null,
+      associationReason: p.associationReason || null,
+      associatedBy: p.associatedBy || null,
       planId: p.subscription?.planId || null,
       planName: p.subscription?.plan?.name || null,
       lastAttempt: p.attempts?.[0]
@@ -280,6 +283,9 @@ export async function getSubscriptionPaymentHistory(args: {
       createdAt: p.createdAt,
       wompiTransactionId: p.wompiTransactionId,
       reference: p.reference,
+      origin: p.origin || null,
+      associationReason: p.associationReason || null,
+      associatedBy: p.associatedBy || null,
       attempts: (p.attempts || []).map((a: any) => ({
         id: a.id,
         status: a.status,

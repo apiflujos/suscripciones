@@ -763,6 +763,9 @@ export async function markSubscriptionPaidManual(args: {
           status: PaymentStatus.APPROVED,
           paidAt: now,
           failedAt: null,
+          origin: "MANUAL_USER" as any,
+          associationReason: "MANUAL_RECONCILE" as any,
+          associatedBy: args.actor || "system",
           providerResponse: {
             manual: {
               method,
@@ -788,6 +791,9 @@ export async function markSubscriptionPaidManual(args: {
           status: PaymentStatus.APPROVED,
           paidAt: now,
           subscriptionCycleKey,
+          origin: "MANUAL_USER" as any,
+          associationReason: "MANUAL_RECONCILE" as any,
+          associatedBy: args.actor || "system",
           providerResponse: {
             manual: {
               method,

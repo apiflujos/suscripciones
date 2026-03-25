@@ -57,7 +57,7 @@ export default async function EmpresasPage({
   const pageHref = (p: number) => `/empresas?${new URLSearchParams({ ...baseParams, page: String(p) })}`;
 
   return (
-    <main className="page pageWide">
+    <main className="page pageWide empresasPage">
       {error ? (
         <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
           Error: {error}
@@ -72,8 +72,9 @@ export default async function EmpresasPage({
           <div className="filtersRow">
             <div className="filtersLeft">
               <div className="filtersPanel">
-                <div className="contacts-search-row">
-                  <form action="/empresas" method="GET" className="filtersForm filtersSearch">
+                {/* Fila 1: Búsqueda */}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", flexWrap: "wrap" }}>
+                  <form action="/empresas" method="GET" className="filtersForm filtersSearch" style={{ flex: "0 0 280px" }}>
                     {vista ? <input type="hidden" name="vista" value={vista} /> : null}
                     <input
                       className="input"
@@ -86,17 +87,16 @@ export default async function EmpresasPage({
                     />
                     <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
                   </form>
-                  <div className="products-search-right">
-                    <div className="view-mode-row" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span className="field-hint" style={{ margin: 0 }}>
-                        Vista:
-                        <HelpTip text="Alterna entre tarjetas y lista para ver empresas." />
-                      </span>
-                      <ViewModeToggles currentMode={vistaTyped} baseParams={baseParams} />
-                    </div>
-                  </div>
                 </div>
-                <div className="page-actions">
+                {/* Fila 2: Vista + Botones Crear (derecha) */}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", marginTop: 6 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span className="field-hint" style={{ margin: 0 }}>
+                      Vista:
+                      <HelpTip text="Alterna entre tarjetas y lista para ver empresas." />
+                    </span>
+                    <ViewModeToggles currentMode={vistaTyped} baseParams={baseParams} />
+                  </div>
                   <EmpresaCreateModal
                     csrfToken={csrfToken}
                     createEmpresa={createEmpresa}
@@ -105,7 +105,6 @@ export default async function EmpresasPage({
                     returnTo={`/empresas?${new URLSearchParams(baseParams).toString()}`}
                     tenantId={session?.tenantId || null}
                   />
-                  <div className="page-actions-summary">{items.length} resultados</div>
                 </div>
               </div>
             </div>

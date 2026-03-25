@@ -365,6 +365,17 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   const paymentMatched = paymentByLink ?? paymentByTxId ?? paymentByReference ?? null;
   const referenceClassification = classifyReference(reference);
 
+  const matchReason =
+    paymentByLink || paymentLinkRecord?.paymentId
+      ? "LINK_MATCH"
+      : paymentByTxId
+        ? "TX_MATCH"
+        : paymentByReference
+          ? "REF_MATCH"
+          : referenceClassification.kind === "subscription" && referenceClassification.subscriptionId
+            ? "SUB_REF"
+            : null;
+
   const paymentSource = getPaymentSourceFromProviderResponse(paymentMatched?.providerResponse);
   const isShopifyPayment =
     referenceClassification.kind === "shopify" ||
@@ -494,12 +505,14 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   // La inferencia por identidad SOLO debe usarse para referencias desconocidas
   const hasStructuredReference = referenceClassification.kind === "subscription" && referenceClassification.subscriptionId;
   
+  let identityMatchReason: string | null = null;
   if (paymentsCfg.autoReconcileUnlinkedPayments && !paymentMatched && !inferredSubscriptionId) {
     // Solo intentar inferir por identidad si NO hay una referencia estructurada
     if (!hasStructuredReference) {
       const inferred = await inferSubscriptionByCustomerIdentity();
       if (inferred.subscriptionId) {
         inferredSubscriptionId = inferred.subscriptionId;
+        identityMatchReason = "IDENTITY_MATCH";
         await systemLog(LogLevel.INFO, "processWompiEvent", "subscription_inferred_by_customer_identity", {
           reference,
           subscriptionId: inferred.subscriptionId,
@@ -569,6 +582,20 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   const reconciliationForUnlinked = shouldIgnoreUnlinked
     ? { status: "IGNORED_EXTERNAL", reason: "unlinked_payment", at: new Date().toISOString() }
     : null;
+
+  const associationReason =
+    (paymentMatched?.associationReason as any) ||
+    (matchReason as any) ||
+    (identityMatchReason as any) ||
+    (shouldIgnoreUnlinked ? "UNLINKED" : null) ||
+    "UNKNOWN";
+
+  const origin =
+    (paymentMatched as any)?.origin ||
+    (paymentByLink as any)?.origin ||
+    (paymentByTxId as any)?.origin ||
+    (paymentByReference as any)?.origin ||
+    "WEBHOOK";
 
   let paymentResolved = paymentMatched;
   if (!paymentResolved && !subscription) {
@@ -691,6 +718,9 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
               ? null
               : computedFailedAt,
           subscriptionId: fallbackSubscriptionId,
+          origin,
+          associationReason: associationReason as any,
+          associatedBy: "system",
           providerResponse: { webhook: payload, ...(reconciliationForUnlinked ? { reconciliation: reconciliationForUnlinked } : {}) } as Prisma.InputJsonValue
         },
         update: {
@@ -709,6 +739,9 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
                 ? undefined
                 : computedFailedAt,
           subscriptionId: fallbackSubscriptionId ?? undefined,
+          origin: (paymentResolved as any)?.origin ?? origin,
+          associationReason: (paymentResolved as any)?.associationReason ?? (associationReason as any),
+          associatedBy: (paymentResolved as any)?.associatedBy ?? "system",
           providerResponse: { webhook: payload, ...(reconciliationForUnlinked ? { reconciliation: reconciliationForUnlinked } : {}) } as Prisma.InputJsonValue
         }
       });
@@ -729,6 +762,9 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
               ? null
               : computedFailedAt,
           subscriptionId: fallbackSubscriptionId,
+          origin,
+          associationReason: associationReason as any,
+          associatedBy: "system",
           providerResponse: { webhook: payload, ...(reconciliationForUnlinked ? { reconciliation: reconciliationForUnlinked } : {}) } as Prisma.InputJsonValue
         },
         update: {
@@ -746,6 +782,9 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
                 ? undefined
                 : computedFailedAt,
           subscriptionId: fallbackSubscriptionId ?? undefined,
+          origin: (paymentResolved as any)?.origin ?? origin,
+          associationReason: (paymentResolved as any)?.associationReason ?? (associationReason as any),
+          associatedBy: (paymentResolved as any)?.associatedBy ?? "system",
           providerResponse: { webhook: payload, ...(reconciliationForUnlinked ? { reconciliation: reconciliationForUnlinked } : {}) } as Prisma.InputJsonValue
         }
       });
@@ -764,6 +803,9 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
               ? null
               : computedFailedAt,
           subscriptionId: fallbackSubscriptionId,
+          origin,
+          associationReason: associationReason as any,
+          associatedBy: "system",
           providerResponse: { webhook: payload, ...(reconciliationForUnlinked ? { reconciliation: reconciliationForUnlinked } : {}) } as Prisma.InputJsonValue
         }
       });
@@ -809,7 +851,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
 	  const paymentRecord = paymentResolved
 	    ? await db.payment.update({
 	        where: { id: paymentResolved.id },
-	        data: {
+        data: {
           ...(tenantIdForPayment ? { tenantId: tenantIdForPayment } : {}),
           ...wompiTransactionUpdate,
           ...(nextStatus ? { status: nextStatus } : {}),
@@ -820,11 +862,14 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
               : nextStatus === PaymentStatus.PENDING
                 ? paymentResolved.failedAt ?? null
                 : paymentResolved.failedAt ?? computedFailedAt,
-	          providerResponse:
-	            paymentResolved.providerResponse && typeof paymentResolved.providerResponse === "object"
-	              ? ({
-	                  ...(paymentResolved.providerResponse as Record<string, unknown>),
-	                  webhook: payload,
+          origin: (paymentResolved as any)?.origin ?? origin,
+          associationReason: (paymentResolved as any)?.associationReason ?? (associationReason as any),
+          associatedBy: (paymentResolved as any)?.associatedBy ?? "system",
+          providerResponse:
+            paymentResolved.providerResponse && typeof paymentResolved.providerResponse === "object"
+              ? ({
+                  ...(paymentResolved.providerResponse as Record<string, unknown>),
+                  webhook: payload,
 	                  ...(reconciliationForUnlinked ? { reconciliation: reconciliationForUnlinked } : {})
 	                } as Prisma.InputJsonValue)
 	              : ({ webhook: payload, ...(reconciliationForUnlinked ? { reconciliation: reconciliationForUnlinked } : {}) } as Prisma.InputJsonValue),
@@ -861,6 +906,9 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
           ...(nextStatus ? { status: nextStatus } : {}),
           paidAt,
           failedAt: computedFailedAt,
+          origin,
+          associationReason: associationReason as any,
+          associatedBy: "system",
           providerResponse: { webhook: payload } as Prisma.InputJsonValue,
           subscriptionCycleKey: subscriptionCycleKey as string
         },
@@ -875,6 +923,9 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
               : nextStatus === PaymentStatus.PENDING
                 ? prevByTx?.failedAt ?? null
                 : prevByTx?.failedAt ?? computedFailedAt,
+          origin: (prevByTx as any)?.origin ?? origin,
+          associationReason: (prevByTx as any)?.associationReason ?? (associationReason as any),
+          associatedBy: (prevByTx as any)?.associatedBy ?? "system",
           providerResponse: { webhook: payload } as Prisma.InputJsonValue,
           reference: reference ?? undefined,
           ...(resolvedCheckoutUrl ? { checkoutUrl: resolvedCheckoutUrl } : {}),

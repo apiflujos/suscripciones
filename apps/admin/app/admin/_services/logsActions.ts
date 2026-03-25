@@ -87,6 +87,7 @@ export async function reconcilePayment(args: {
   tenantId?: string;
   amountInCents?: number;
   currency?: string;
+  actorEmail?: string;
 }) {
   const paymentId = String(args.paymentId || "").trim();
   const reference = String(args.reference || "").trim();
@@ -182,6 +183,14 @@ export async function reconcilePayment(args: {
     }
   });
 
+  await prisma.payment.update({
+    where: { id: payment.id },
+    data: {
+      associationReason: "MANUAL_RECONCILE" as any,
+      associatedBy: args.actorEmail ? String(args.actorEmail) : "system"
+    }
+  }).catch(() => {});
+
   return { ok: reconcile.ok, reconcile, payment: refreshed };
 }
 
@@ -242,7 +251,16 @@ export async function reconcilePendingPayments(args: { minutes?: number; take?: 
         skipped += 1;
         continue;
       }
-      if (out?.ok) reconciled += 1;
+      if (out?.ok) {
+        reconciled += 1;
+        await prisma.payment.update({
+          where: { id: payment.id },
+          data: {
+            associationReason: "MANUAL_RECONCILE" as any,
+            associatedBy: "system"
+          }
+        }).catch(() => {});
+      }
       else {
         skipped += 1;
         if (out?.reason && out.reason !== "status_not_final") {

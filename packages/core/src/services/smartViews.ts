@@ -31,7 +31,7 @@ export type SmartViewRule =
     }
   | { op: "and" | "or"; rules: SmartViewRule[] };
 
-export type SmartViewScope = "customers" | "products" | "billing" | "logs" | "payments" | "campaigns";
+export type SmartViewScope = "customers" | "products" | "billing" | "companies" | "logs" | "payments" | "campaigns";
 
 export type SmartField = {
   key: string;
@@ -65,6 +65,7 @@ export function normalizeSmartViewScope(value: string): SmartViewScope | null {
   if (v === "customers") return "customers";
   if (v === "products") return "products";
   if (v === "billing") return "billing";
+  if (v === "companies" || v === "empresas") return "companies";
   if (v === "logs") return "logs";
   if (v === "payments") return "payments";
   if (v === "campaigns") return "campaigns";
@@ -385,6 +386,23 @@ export function getSmartViewFields(scope: SmartViewScope): SmartField[] {
       { key: "payments.lastPaidAt", label: "Fecha último pago", group: "Pago", type: "date", operators: [] },
       { key: "payments.lastAmountInCents", label: "Monto último pago (COP)", group: "Pago", type: "money", operators: [] },
       { key: "payments.lastCurrency", label: "Moneda último pago", group: "Pago", type: "enum", operators: [], options: ["COP", "USD", "MXN", "PEN", "CLP"].map((v) => ({ value: v, label: v })) }
+    ]);
+  }
+
+  if (scope === "companies") {
+    return normalizeFieldOps([
+      { key: "company.name", label: "Nombre", group: "Empresa", type: "text", operators: [] },
+      { key: "company.email", label: "Email", group: "Empresa", type: "text", operators: [] },
+      { key: "company.phone", label: "Teléfono", group: "Empresa", type: "phone", operators: [] },
+      { key: "company.address", label: "Dirección", group: "Empresa", type: "text", operators: [] },
+      { key: "company.website", label: "Sitio web", group: "Empresa", type: "text", operators: [] },
+      { key: "company.createdAt", label: "Fecha creación", group: "Empresa", type: "date", operators: [] },
+      { key: "company.updatedAt", label: "Fecha actualización", group: "Empresa", type: "date", operators: [] },
+      { key: "company.contactsCount", label: "Contactos", group: "Empresa", type: "number", operators: [] },
+      { key: "primaryContact.name", label: "Nombre", group: "Contacto principal", type: "text", operators: [] },
+      { key: "primaryContact.email", label: "Email", group: "Contacto principal", type: "text", operators: [] },
+      { key: "primaryContact.phone", label: "Teléfono", group: "Contacto principal", type: "phone", operators: [] },
+      { key: "primaryContact.role", label: "Cargo", group: "Contacto principal", type: "text", operators: [] }
     ]);
   }
 
@@ -709,6 +727,40 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
         return evalRule(rules, ctx);
       })
       .map((s: any) => String(s.id));
+  }
+
+  if (scope === "companies") {
+    const empresas = await prisma.empresa.findMany({
+      where: tenantId ? { tenantId } : {},
+      include: {
+        contactoPrincipal: true,
+        _count: { select: { contactos: true } }
+      }
+    });
+
+    return empresas
+      .filter((empresa: any) => {
+        const ctx: Record<string, unknown> = {
+          company: {
+            name: empresa.nombre || "",
+            email: empresa.email || "",
+            phone: empresa.telefono || "",
+            address: empresa.direccion || "",
+            website: empresa.sitioWeb || "",
+            contactsCount: Number(empresa?._count?.contactos || 0),
+            createdAt: empresa.createdAt,
+            updatedAt: empresa.updatedAt
+          },
+          primaryContact: {
+            name: empresa.contactoPrincipal?.nombre || "",
+            email: empresa.contactoPrincipal?.email || "",
+            phone: empresa.contactoPrincipal?.telefono || "",
+            role: empresa.contactoPrincipal?.cargo || ""
+          }
+        };
+        return evalRule(rules, ctx);
+      })
+      .map((row: any) => String(row.id));
   }
 
   if (scope === "logs") {

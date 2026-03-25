@@ -3038,8 +3038,8 @@ html[data-theme="dark"] .payments-health-banner code {
 .company-card,
 .entity-card,
 .billing-card {
-  padding: var(--space-4);
-  gap: var(--space-2);
+  padding: var(--space-3);
+  gap: var(--space-1);
   border-radius: var(--radius-md);
 }
 
@@ -3056,11 +3056,11 @@ html[data-theme="dark"] .payments-health-banner code {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
   border-bottom: 1px solid var(--stroke);
-  margin-bottom: var(--space-2);
-  min-height: 36px;
+  margin-bottom: var(--space-1);
+  min-height: 28px;
 }
 
 /* Titulos en headers - UNIFIED */
@@ -4330,15 +4330,16 @@ textarea.input {
 }
 
 .contact-card {
-  background: var(--panel);
-  border-radius: 14px;
-  border: 1px solid var(--stroke);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--panel) 96%, var(--primary-soft) 4%) 0%, var(--panel) 100%);
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--stroke-strong) 78%, transparent);
   box-shadow: var(--shadow);
-  padding: 4px 6px;
+  padding: var(--space-3);
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
-  gap: 4px;
+  gap: var(--space-1);
   align-items: stretch;
 }
 
@@ -4709,9 +4710,9 @@ textarea.input {
   background: rgba(15, 23, 42, 0.02);
   border: 1px solid var(--stroke);
   border-radius: 12px;
-  padding: 6px 8px;
+  padding: 5px 6px;
   display: grid;
-  gap: 6px;
+  gap: 4px;
   height: 100%;
   align-content: start;
 }
@@ -4728,8 +4729,8 @@ textarea.input {
 .contact-plan-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 6px 10px;
-  font-size: 13.5px;
+  gap: 4px 8px;
+  font-size: 12px;
   color: var(--text);
 }
 
@@ -6772,19 +6773,19 @@ textarea.input {
   border-radius: var(--radius-md);
   border: 1px solid color-mix(in srgb, var(--stroke-strong) 78%, transparent);
   box-shadow: var(--shadow);
-  padding: var(--space-4);
+  padding: var(--space-3);
   display: grid;
-  gap: var(--space-2);
+  gap: var(--space-1);
   width: 100%;
 }
 
 .billing-card .billing-header {
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
-  padding-bottom: var(--space-2);
+  gap: var(--space-1);
+  padding-bottom: var(--space-1);
   border-bottom: 1px solid var(--stroke);
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--space-1);
 }
 
 .billing-card .billing-badges,
@@ -6814,7 +6815,7 @@ textarea.input {
 
 .billing-card .billing-actions {
   align-items: center;
-  gap: var(--space-1) var(--space-3);
+  gap: var(--space-1) var(--space-2);
 }
 
 .billing-card .billing-actions-right {
@@ -7138,7 +7139,7 @@ textarea.input {
 
 .billing-grid-info.billing-grid-subscription {
   grid-template-columns: minmax(0, 1fr) minmax(240px, 0.55fr);
-  gap: 14px 16px;
+  gap: 10px 12px;
   align-items: flex-start;
 }
 
@@ -7257,11 +7258,11 @@ textarea.input {
 
 .billing-actions {
   display: flex;
-  gap: 8px 10px;
+  gap: 6px 8px;
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: flex-start;
-  padding-top: 10px;
+  padding-top: 6px;
   border-top: 1px solid color-mix(in srgb, var(--stroke) 86%, transparent);
 }
 
@@ -8264,6 +8265,22 @@ textarea.input {
   align-items: center;
 }
 
+.metricsTabsRowCentered {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+.metricsTabsCentered {
+  justify-content: center;
+}
+
+.metricsTabsMetaRight {
+  justify-self: end;
+  text-align: right;
+}
+
 /* Pagos - encabezado compacto sin doble caja */
 .paymentsPage .settings-group-header {
   padding: 6px 8px;
@@ -8545,6 +8562,21 @@ textarea.input {
 
 .metricsPage .metric-card.metric-card-sm .metric-sub {
   font-size: 8px;
+}
+
+/* Métricas destacadas */
+.metricsPage .metric-card.metric-card-highlight {
+  border-left-width: 4px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.10);
+  background:
+    radial-gradient(140% 140% at 100% 0%, color-mix(in srgb, var(--metric-accent) 18%, transparent) 0%, transparent 60%),
+    linear-gradient(135deg, color-mix(in srgb, var(--metric-accent-soft) 80%, transparent) 0%, rgba(0,0,0,0) 70%),
+    var(--panel);
+}
+
+.metricsPage .metric-card.metric-card-highlight .metric-value {
+  font-size: 20px;
+  letter-spacing: 0.01em;
 }
 
 /* Detalle y KPIs secundarios */
@@ -10822,30 +10854,32 @@ body.is-global-loading {
 }
 
 .company-card {
-  background: var(--panel);
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--stroke) 85%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--panel) 96%, var(--primary-soft) 4%) 0%, var(--panel) 100%);
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--stroke-strong) 78%, transparent);
   box-shadow: var(--shadow);
-  padding: 10px;
+  padding: var(--space-3);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-1);
 }
 
 .entity-card {
-  background: var(--panel);
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--stroke) 85%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--panel) 96%, var(--primary-soft) 4%) 0%, var(--panel) 100%);
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--stroke-strong) 78%, transparent);
   box-shadow: var(--shadow);
-  padding: 10px;
+  padding: var(--space-3);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-1);
 }
 
 .company-card.entity-card {
-  padding: 9px;
-  gap: 7px;
+  padding: var(--space-3);
+  gap: var(--space-1);
 }
 
 .entity-card-header {
@@ -10930,7 +10964,7 @@ body.is-global-loading {
 
 .entity-card-grid {
   display: grid;
-  gap: 6px 8px;
+  gap: 4px 6px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
@@ -10961,11 +10995,11 @@ body.is-global-loading {
 
 .entity-card-footer {
   border-top: 1px solid color-mix(in srgb, var(--stroke) 65%, transparent);
-  padding-top: 8px;
-  margin-top: 8px;
+  padding-top: 6px;
+  margin-top: 6px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .entity-card-actions-left,

@@ -191,7 +191,10 @@ export async function createPaymentLinkForSubscription(args: {
       cycleNumber: cycle,
       reference,
       status: PaymentStatus.PENDING,
-      subscriptionCycleKey
+      subscriptionCycleKey,
+      origin: "AUTO_LINK",
+      associationReason: "SUB_REF",
+      associatedBy: "system"
     },
     update: {
       tenantId,
@@ -559,7 +562,10 @@ export async function createAutoDebitTransactionForSubscription(args: {
         cycleNumber: cycle,
         reference,
         status: PaymentStatus.PENDING,
-        subscriptionCycleKey: null
+        subscriptionCycleKey: null,
+        origin: "AUTO_DEBIT",
+        associationReason: "SUB_REF",
+        associatedBy: "system"
       },
       select: { id: true, wompiTransactionId: true, status: true, reference: true }
     });
@@ -575,7 +581,10 @@ export async function createAutoDebitTransactionForSubscription(args: {
         cycleNumber: cycle,
         reference,
         status: PaymentStatus.PENDING,
-        subscriptionCycleKey
+        subscriptionCycleKey,
+        origin: "AUTO_DEBIT",
+        associationReason: "SUB_REF",
+        associatedBy: "system"
       },
       update: {
         tenantId,

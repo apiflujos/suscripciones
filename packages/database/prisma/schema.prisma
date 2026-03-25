@@ -48,6 +48,25 @@ enum PaymentLinkStatus {
   FAILED
 }
 
+enum PaymentOrigin {
+  AUTO_DEBIT
+  AUTO_LINK
+  MANUAL_LINK
+  MANUAL_USER
+  WEBHOOK
+}
+
+enum PaymentAssociationReason {
+  LINK_MATCH
+  TX_MATCH
+  REF_MATCH
+  SUB_REF
+  IDENTITY_MATCH
+  MANUAL_RECONCILE
+  UNLINKED
+  UNKNOWN
+}
+
 enum SmartViewVisibility {
   PRIVATE
   ORG
@@ -322,6 +341,9 @@ model Payment {
   status             PaymentStatus @default(PENDING)
   paidAt             DateTime?
   failedAt           DateTime?
+  origin             PaymentOrigin @default(WEBHOOK)
+  associationReason  PaymentAssociationReason?
+  associatedBy       String?
   providerResponse   Json?
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt

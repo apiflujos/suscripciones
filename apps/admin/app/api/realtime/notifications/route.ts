@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
                 ? "Notificación: pago fallido"
                 : type === "PAYMENT_CONFIRMED"
                   ? "Notificación: pago exitoso"
-                  : "Mensaje";
+                  : "Mensaje enviado";
         const title = ok ? label : `${label} (fallida)`;
         const snippet = String(m?.content || "").trim().replace(/\s+/g, " ");
         const message = customerName ? `${customerName} · ${snippet.slice(0, 80)}` : snippet.slice(0, 80) || title;
@@ -102,7 +102,8 @@ export async function GET(req: NextRequest) {
             customerName,
             customerEmail,
             customerPhone,
-            tenantId: m?.tenantId || null
+            tenantId: m?.tenantId || null,
+            messageId: m?.id
           }
         };
       });

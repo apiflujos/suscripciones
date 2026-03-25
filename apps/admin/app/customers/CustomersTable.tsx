@@ -433,6 +433,20 @@ export function CustomersTable({
       message,
       status
     });
+    
+    // Disparar evento de notificación en tiempo real
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("notification", {
+        detail: {
+          id: `msg:${Date.now()}`,
+          type: status === "ok" ? "success" : "error",
+          title: status === "ok" ? "Mensaje enviado" : "Mensaje fallido",
+          message,
+          timestamp: new Date().toISOString(),
+          href: "/notifications"
+        }
+      }));
+    }
   }
 
   function mapSendError(code: string) {

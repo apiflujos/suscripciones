@@ -84,6 +84,9 @@ export async function createManualOrder(args: { req: Request; body: any }) {
       currency: parsed.data.currency,
       reference: `ORDER_${parsed.data.reference}`,
       status: PaymentStatus.PENDING,
+      origin: "MANUAL_USER",
+      associationReason: "UNLINKED",
+      associatedBy: "system",
       providerResponse: {
         order: {
           source: parsed.data.source,
@@ -241,6 +244,9 @@ export async function createManualOrderForAdmin(args: {
       currency: parsed.data.currency,
       reference: `ORDER_${parsed.data.reference}`,
       status: PaymentStatus.PENDING,
+      origin: "MANUAL_USER",
+      associationReason: "UNLINKED",
+      associatedBy: "system",
       providerResponse: {
         order: {
           source: parsed.data.source,
