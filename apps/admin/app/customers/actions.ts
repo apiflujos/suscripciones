@@ -15,7 +15,11 @@ function pesosToCents(input: string): number {
 
 function safeReturnTo(formData: FormData) {
   const raw = String(formData.get("returnTo") || "").trim();
-  return raw.startsWith("/customers") ? raw : "/customers";
+  if (raw.startsWith("/customers")) return raw;
+  if (raw.startsWith("/billing")) return raw;
+  if (raw.startsWith("/empresas")) return raw;
+  if (raw.startsWith("/dashboard/empresas")) return raw;
+  return "/customers";
 }
 
 function mergeQuery(path: string, extra: Record<string, string | undefined>) {
