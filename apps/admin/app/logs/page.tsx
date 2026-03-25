@@ -268,6 +268,7 @@ export default async function LogsPage({
   const routeBase = tab === "payments" ? "/payments" : "/logs";
   const q = typeof sp.q === "string" ? sp.q : "";
   const status = typeof sp.status === "string" ? sp.status : "";
+  const paymentsView = typeof sp.paymentsView === "string" ? sp.paymentsView : "";
   const level = typeof sp.level === "string" ? sp.level : "";
   const processStatus = typeof sp.processStatus === "string" ? sp.processStatus : "";
   const viewId = typeof sp.viewId === "string" ? sp.viewId : "";
@@ -303,7 +304,17 @@ export default async function LogsPage({
   const messages = tab === "messages" ? await listChatwootMessages({ take, skip, from, to, withCount: true }) : emptyList;
   const payments =
     tab === "payments"
-      ? await listPaymentLogs({ take, skip, q, status, from, to, tenantId, ids: paymentIds, withCount: true })
+      ? await listPaymentLogs({
+          take,
+          skip,
+          q,
+          status: paymentsView ? paymentsView : status,
+          from,
+          to,
+          tenantId,
+          ids: paymentIds,
+          withCount: true
+        })
       : emptyList;
   const paymentsHealth = tab === "payments" ? await getPaymentsHealth() : null;
   const settingsRes = await getAdminSettings();
@@ -315,6 +326,7 @@ export default async function LogsPage({
     tab,
     ...(q ? { q } : {}),
     ...(status ? { status } : {}),
+    ...(paymentsView ? { paymentsView } : {}),
     ...(level ? { level } : {}),
     ...(processStatus ? { processStatus } : {}),
     ...(viewId ? { viewId } : {}),
@@ -421,6 +433,7 @@ export default async function LogsPage({
       ...(q ? { q } : {}),
       ...(tab === "system" && level ? { level } : {}),
       ...(tab === "payments" && status ? { status } : {}),
+      ...(tab === "payments" && paymentsView ? { paymentsView } : {}),
       ...(tab === "webhooks" && processStatus ? { processStatus } : {}),
       ...(from ? { from } : {}),
       ...(to ? { to } : {}),
@@ -610,6 +623,7 @@ export default async function LogsPage({
                   <div className="contacts-search-row payments-search-row">
                     <form action="/payments" method="GET" className="filtersForm filtersSearch payments-search-form" data-debounce-form="true">
                       {status ? <input type="hidden" name="status" value={status} /> : null}
+                      {paymentsView ? <input type="hidden" name="paymentsView" value={paymentsView} /> : null}
                       {from ? <input type="hidden" name="from" value={from} /> : null}
                       {to ? <input type="hidden" name="to" value={to} /> : null}
                       {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
@@ -630,7 +644,8 @@ export default async function LogsPage({
                         initialFilters={filters}
                         compactInline
                         baseParams={{
-                          ...(q ? { q } : {})
+                          ...(q ? { q } : {}),
+                          ...(paymentsView ? { paymentsView } : {})
                         }}
                       />
                       <div className="payments-buttons-wrap">
@@ -651,11 +666,56 @@ export default async function LogsPage({
                       </div>
                     </div>
                   </div>
-                  <div className="payments-totals-row">
-                    <span className="pill">Total {totals.payments ?? paymentsSummary.total}</span>
-                    <span className="pill pill-ok">Pagados {paymentsSummary.approved}</span>
-                    <span className="pill pill-warn">Pendientes {paymentsSummary.pending}</span>
-                    <span className="pill pill-bad">Fallidos {paymentsSummary.failed}</span>
+                  <div className="payments-totals-row" style={{ justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <a
+                        className={`pill ${!paymentsView ? "is-active" : ""}`}
+                        href={`/payments?${new URLSearchParams({
+                          ...(q ? { q } : {}),
+                          ...(from ? { from } : {}),
+                          ...(to ? { to } : {}),
+                          ...(tenantId ? { tenantId } : {}),
+                          ...(viewId ? { viewId } : {}),
+                          ...(filters ? { filters } : {})
+                        }).toString()}`}
+                      >
+                        Todos
+                      </a>
+                      <a
+                        className={`pill ${paymentsView === "RECEIVED" ? "is-active" : ""}`}
+                        href={`/payments?${new URLSearchParams({
+                          paymentsView: "RECEIVED",
+                          ...(q ? { q } : {}),
+                          ...(from ? { from } : {}),
+                          ...(to ? { to } : {}),
+                          ...(tenantId ? { tenantId } : {}),
+                          ...(viewId ? { viewId } : {}),
+                          ...(filters ? { filters } : {})
+                        }).toString()}`}
+                      >
+                        Pagos recibidos
+                      </a>
+                      <a
+                        className={`pill ${paymentsView === "REQUESTED" ? "is-active" : ""}`}
+                        href={`/payments?${new URLSearchParams({
+                          paymentsView: "REQUESTED",
+                          ...(q ? { q } : {}),
+                          ...(from ? { from } : {}),
+                          ...(to ? { to } : {}),
+                          ...(tenantId ? { tenantId } : {}),
+                          ...(viewId ? { viewId } : {}),
+                          ...(filters ? { filters } : {})
+                        }).toString()}`}
+                      >
+                        Pagos solicitados
+                      </a>
+                    </div>
+                    <div className="payments-summary-row" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <span className="pill">Total {totals.payments ?? paymentsSummary.total}</span>
+                      <span className="pill pill-ok">Pagados {paymentsSummary.approved}</span>
+                      <span className="pill pill-warn">Pendientes {paymentsSummary.pending}</span>
+                      <span className="pill pill-bad">Fallidos {paymentsSummary.failed}</span>
+                    </div>
                   </div>
                   {(() => {
                     if (tab === "payments") return null;

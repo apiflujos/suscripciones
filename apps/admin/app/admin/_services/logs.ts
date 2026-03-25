@@ -34,10 +34,14 @@ export async function listPaymentLogs(args: {
     statusRaw === "APPROVED"
       ? ["APPROVED"]
       : statusRaw === "PENDING"
-        ? ["PENDING"]
+        ? ["PENDING", "PROCESSING"]
         : statusRaw === "FAILED"
           ? ["DECLINED", "ERROR", "VOIDED"]
-          : null;
+          : statusRaw === "RECEIVED"
+            ? ["APPROVED", "DECLINED", "ERROR", "VOIDED"]
+            : statusRaw === "REQUESTED"
+              ? ["PENDING", "PROCESSING"]
+              : null;
 
   const fromDate = parseDate(fromRaw) ?? defaultFromDate();
   const toDate = parseDate(toRaw, { end: true });
@@ -67,9 +71,19 @@ export async function listPaymentLogs(args: {
               }
             ]
           }
-        : {
-            OR: [{ createdAt: dateRange }, { paidAt: dateRange }, { failedAt: dateRange }]
-          };
+        : statusRaw === "RECEIVED"
+          ? {
+              OR: [
+                { paidAt: dateRange },
+                { failedAt: dateRange },
+                { createdAt: dateRange }
+              ]
+            }
+          : statusRaw === "REQUESTED"
+            ? { createdAt: dateRange }
+      : {
+          OR: [{ createdAt: dateRange }, { paidAt: dateRange }, { failedAt: dateRange }]
+        };
 
   const whereBase: Prisma.PaymentWhereInput = {
     ...(statusFilter ? { status: { in: statusFilter as any } } : {}),

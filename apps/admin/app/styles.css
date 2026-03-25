@@ -2163,6 +2163,12 @@ a {
   pointer-events: none;
 }
 
+.pill.is-active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
 .filtersForm {
   display: flex;
   gap: 8px;
