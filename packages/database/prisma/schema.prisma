@@ -540,6 +540,8 @@ model Campaign {
   tenantId      String           @db.Uuid
   name          String
   smartListId   String?          @db.Uuid
+  smartViewId   String?          @db.Uuid
+  smartViewFilters Json?
   status        CampaignStatus   @default(DRAFT)
   content       String
   templateParams Json?
@@ -553,10 +555,12 @@ model Campaign {
 
   tenant     SaTenant      @relation(fields: [tenantId], references: [id])
   smartList  SmartList?     @relation(fields: [smartListId], references: [id])
+  smartView  SmartView?     @relation(fields: [smartViewId], references: [id])
   recipients CampaignSend[]
 
   @@index([status, createdAt])
   @@index([smartListId])
+  @@index([smartViewId])
   @@index([tenantId])
 }
 

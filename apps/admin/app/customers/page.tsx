@@ -358,37 +358,39 @@ export default async function CustomersPage({
           <div className="filtersRow">
             <div className="filtersLeft">
               <div className="filtersPanel">
-                <div className="contacts-search-row">
-                  <form action="/customers" method="GET" className="filtersForm filtersSearch">
-                    {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-                    {vista ? <input type="hidden" name="vista" value={vista} /> : null}
-                    {listId ? <input type="hidden" name="list" value={listId} /> : null}
-                    {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
-                    {filters ? <input type="hidden" name="filters" value={filters} /> : null}
-                    <input
-                      className="input"
-                      type="search"
-                      name="q"
-                      defaultValue={q}
-                      placeholder="Buscar por nombre, email, teléfono o identificación..."
-                      aria-label="Buscar contactos"
-                      title="Busca por nombre, email, teléfono o identificación"
-                    />
-                    <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
-                  </form>
-                  <div className="module-search-right">
-                    <SmartViewsBar
-                      scope="customers"
-                      initialViewId={viewId}
-                      initialFilters={filters}
-                      baseParams={{
-                        ...(q ? { q } : {}),
-                        ...(tenantId ? { tenantId } : {})
-                      }}
-                      initialFields={getSmartViewFields("customers")}
-                      compactInline
-                    />
-                    <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
+                <div style={{ display: "grid", gap: 8, width: "100%" }}>
+                  <SmartViewsBar
+                    scope="customers"
+                    initialViewId={viewId}
+                    initialFilters={filters}
+                    baseParams={{
+                      ...(q ? { q } : {}),
+                      ...(tenantId ? { tenantId } : {})
+                    }}
+                    initialFields={getSmartViewFields("customers")}
+                    compactInline
+                  />
+                  <div className="contacts-search-row">
+                    <form action="/customers" method="GET" className="filtersForm filtersSearch">
+                      {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+                      {vista ? <input type="hidden" name="vista" value={vista} /> : null}
+                      {listId ? <input type="hidden" name="list" value={listId} /> : null}
+                      {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
+                      {filters ? <input type="hidden" name="filters" value={filters} /> : null}
+                      <input
+                        className="input"
+                        type="search"
+                        name="q"
+                        defaultValue={q}
+                        placeholder="Buscar por nombre, email, teléfono o identificación..."
+                        aria-label="Buscar contactos"
+                        title="Busca por nombre, email, teléfono o identificación"
+                      />
+                      <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
+                    </form>
+                    <div className="module-search-right">
+                      <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
+                    </div>
                   </div>
                 </div>
                 <div className="view-mode-row" style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>

@@ -621,49 +621,51 @@ export default async function LogsPage({
             <div className="filtersRow">
               <div className="filtersLeft">
                 <div className="filtersPanel">
-                  <div className="contacts-search-row payments-search-row">
-                    <form action="/payments" method="GET" className="filtersForm filtersSearch payments-search-form" data-debounce-form="true">
-                      {status ? <input type="hidden" name="status" value={status} /> : null}
-                      {paymentsView ? <input type="hidden" name="paymentsView" value={paymentsView} /> : null}
-                      {from ? <input type="hidden" name="from" value={from} /> : null}
-                      {to ? <input type="hidden" name="to" value={to} /> : null}
-                      {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-                      <input
-                        className="input"
-                        name="q"
-                        defaultValue={q}
-                        placeholder="Buscar cliente, referencia o transacción..."
-                        aria-label="Buscar pagos"
-                        title="Busca por cliente, referencia o transacción"
-                      />
-                      <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
-                    </form>
-                    <div className="module-search-right payments-module-search-right">
-                      <SmartViewsBar
-                        scope="payments"
-                        initialViewId={viewId}
-                        initialFilters={filters}
-                        compactInline
-                        baseParams={{
-                          ...(q ? { q } : {}),
-                          ...(paymentsView ? { paymentsView } : {})
-                        }}
-                        initialFields={getSmartViewFields("payments")}
-                      />
-                      <div className="payments-buttons-wrap">
-                        <form action={reconcilePendingPayments} className="filtersForm payments-action-form">
-                          <input type="hidden" name="returnTo" value={returnTo} />
-                          <input type="hidden" name="csrf" value={csrfToken} />
-                          <input type="hidden" name="days" value="7" />
-                          <input type="hidden" name="minutes" value="720" />
-                          <input type="hidden" name="take" value="150" />
-                          {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-                          <PendingButton className="ghost btn-compact btn-noicon" type="submit" pendingText="Conciliando..." title="Reintenta conciliación de pagos pendientes">
-                            Recolectar pagos
-                          </PendingButton>
-                        </form>
-                        <div className="payments-action-form" title="Reconciliación manual de una transacción Wompi">
-                          <ReconcilePaymentModal csrfToken={csrfToken} action={reconcilePayment} />
+                  <div style={{ display: "grid", gap: 8, width: "100%" }}>
+                    <SmartViewsBar
+                      scope="payments"
+                      initialViewId={viewId}
+                      initialFilters={filters}
+                      compactInline
+                      baseParams={{
+                        ...(q ? { q } : {}),
+                        ...(paymentsView ? { paymentsView } : {})
+                      }}
+                      initialFields={getSmartViewFields("payments")}
+                    />
+                    <div className="contacts-search-row payments-search-row">
+                      <form action="/payments" method="GET" className="filtersForm filtersSearch payments-search-form" data-debounce-form="true">
+                        {status ? <input type="hidden" name="status" value={status} /> : null}
+                        {paymentsView ? <input type="hidden" name="paymentsView" value={paymentsView} /> : null}
+                        {from ? <input type="hidden" name="from" value={from} /> : null}
+                        {to ? <input type="hidden" name="to" value={to} /> : null}
+                        {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+                        <input
+                          className="input"
+                          name="q"
+                          defaultValue={q}
+                          placeholder="Buscar cliente, referencia o transacción..."
+                          aria-label="Buscar pagos"
+                          title="Busca por cliente, referencia o transacción"
+                        />
+                        <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
+                      </form>
+                      <div className="module-search-right payments-module-search-right">
+                        <div className="payments-buttons-wrap">
+                          <form action={reconcilePendingPayments} className="filtersForm payments-action-form">
+                            <input type="hidden" name="returnTo" value={returnTo} />
+                            <input type="hidden" name="csrf" value={csrfToken} />
+                            <input type="hidden" name="days" value="7" />
+                            <input type="hidden" name="minutes" value="720" />
+                            <input type="hidden" name="take" value="150" />
+                            {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+                            <PendingButton className="ghost btn-compact btn-noicon" type="submit" pendingText="Conciliando..." title="Reintenta conciliación de pagos pendientes">
+                              Recolectar pagos
+                            </PendingButton>
+                          </form>
+                          <div className="payments-action-form" title="Reconciliación manual de una transacción Wompi">
+                            <ReconcilePaymentModal csrfToken={csrfToken} action={reconcilePayment} />
+                          </div>
                         </div>
                       </div>
                     </div>

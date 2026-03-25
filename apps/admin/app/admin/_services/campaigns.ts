@@ -5,7 +5,8 @@ import { prisma } from "@suscripciones/database";
 
 const campaignCreateSchema = z.object({
   name: z.string().min(1),
-  smartListId: z.string().min(1).optional(),
+  smartViewId: z.string().min(1).optional(),
+  smartViewFilters: z.any().optional(),
   content: z.string().min(1),
   templateParams: z.record(z.any()).optional()
 });
@@ -15,6 +16,8 @@ const campaignUpdateSchema = z.object({
   content: z.string().min(1).optional(),
   templateParams: z.record(z.any()).optional(),
   smartListId: z.string().min(1).nullable().optional(),
+  smartViewId: z.string().min(1).nullable().optional(),
+  smartViewFilters: z.any().optional(),
   status: z.enum(["DRAFT", "RUNNING", "PAUSED", "COMPLETED", "FAILED"]).optional()
 });
 
@@ -40,11 +43,23 @@ export async function createCampaign(args: { tenantId?: string | null; input: un
   const parsed = campaignCreateSchema.safeParse(args.input ?? {});
   if (!parsed.success) return { ok: false as const, status: 400, error: "invalid_body" as const, details: parsed.error.flatten() };
 
+  const smartViewId = String(parsed.data.smartViewId || "").trim();
+  let smartViewFilters: any = parsed.data.smartViewFilters ?? null;
+  if (smartViewId) {
+    const view = await prisma.smartView.findFirst({ where: { id: smartViewId, tenantId } });
+    if (!view) return { ok: false as const, status: 404, error: "smart_view_not_found" as const };
+    smartViewFilters = view.filters ?? null;
+  }
+  if (!smartViewFilters) {
+    return { ok: false as const, status: 400, error: "smart_view_required" as const };
+  }
+
   const created = await prisma.campaign.create({
     data: {
       tenant: { connect: { id: tenantId } },
       name: parsed.data.name,
-      ...(parsed.data.smartListId ? { smartList: { connect: { id: parsed.data.smartListId } } } : {}),
+      ...(smartViewId ? { smartView: { connect: { id: smartViewId } } } : {}),
+      smartViewFilters: smartViewFilters ?? undefined,
       content: parsed.data.content,
       templateParams: parsed.data.templateParams ?? undefined
     }
@@ -74,6 +89,8 @@ export async function updateCampaign(args: { id: string; input: unknown }) {
       content: parsed.data.content,
       templateParams: parsed.data.templateParams ?? undefined,
       smartListId: parsed.data.smartListId === null ? null : parsed.data.smartListId,
+      smartViewId: parsed.data.smartViewId === null ? null : parsed.data.smartViewId,
+      smartViewFilters: parsed.data.smartViewFilters ?? undefined,
       status: parsed.data.status as any
     }
   });

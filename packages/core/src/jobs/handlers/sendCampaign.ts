@@ -2,6 +2,7 @@ import { prisma } from "../../db/prisma";
 import { ChatwootClient } from "../../providers/chatwoot/client";
 import { getChatwootConfig } from "../../services/runtimeConfig";
 import { computeSmartListRecipients } from "../../services/smartList";
+import { computeSmartViewIds } from "../../services/smartViews";
 import { ensureChatwootContactForCustomer } from "../../services/chatwootSync";
 
 const BATCH_SIZE = 25;
@@ -23,17 +24,22 @@ export async function sendCampaign(payload: { campaignId: string }) {
 
   const campaign = await prisma.campaign.findUnique({ where: { id: campaignId }, include: { smartList: true } });
   if (!campaign) return;
-  if (!campaign.smartListId || !campaign.smartList) {
-    await prisma.campaign.update({
-      where: { id: campaign.id },
-      data: { status: "FAILED", lastError: "missing_smart_list" }
-    });
-    return;
-  }
 
   const client = await getClient();
 
-  const recipients = await computeSmartListRecipients(campaign.smartList.rules as any);
+  let recipients: Array<{ id: string }> = [];
+  if (campaign.smartViewFilters) {
+    const ids = await computeSmartViewIds("customers", campaign.tenantId, campaign.smartViewFilters as any);
+    recipients = ids.map((id) => ({ id }));
+  } else if (campaign.smartListId && campaign.smartList) {
+    recipients = await computeSmartListRecipients(campaign.smartList.rules as any);
+  } else {
+    await prisma.campaign.update({
+      where: { id: campaign.id },
+      data: { status: "FAILED", lastError: "missing_audience" }
+    });
+    return;
+  }
   if (recipients.length > 0) {
     await prisma.campaignSend.createMany({
       data: recipients.map((c: any) => ({

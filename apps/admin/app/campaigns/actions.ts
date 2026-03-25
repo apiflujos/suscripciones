@@ -28,7 +28,7 @@ export async function createCampaign(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = String(formData.get("returnTo") || "/campaigns").trim() || "/campaigns";
   const name = String(formData.get("name") || "").trim();
-  const smartListId = String(formData.get("smartListId") || "").trim();
+  const smartViewId = String(formData.get("smartViewId") || "").trim();
   const templateKind = String(formData.get("templateKind") || "WHATSAPP_TEMPLATE").trim().toUpperCase();
   const contentRaw = String(formData.get("content") || "").trim();
   const waTemplateName = String(formData.get("waTemplateName") || "").trim();
@@ -36,7 +36,7 @@ export async function createCampaign(formData: FormData) {
   const waBodyParamsRaw = String(formData.get("waBodyParams") || "").trim();
   const waHeaderParamsRaw = String(formData.get("waHeaderParams") || "").trim();
   const waButtonParamsRaw = String(formData.get("waButtonParams") || "").trim();
-  if (!name || !smartListId) {
+  if (!name || !smartViewId) {
     return redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=missing_required_fields`);
   }
   let content = contentRaw;
@@ -83,7 +83,7 @@ export async function createCampaign(formData: FormData) {
       tenantId,
       input: {
         name,
-        smartListId: smartListId || undefined,
+        smartViewId: smartViewId || undefined,
         content,
         templateParams
       }

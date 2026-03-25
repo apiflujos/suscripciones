@@ -840,41 +840,43 @@ export default async function BillingPage({
           <div className="filtersRow">
             <div className="filtersLeft">
               <div className="filtersPanel">
-                <div className="contacts-search-row">
-                  <form action="/billing" method="GET" className="filtersForm filtersSearch">
-                    {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-                    {tipo ? <input type="hidden" name="tipo" value={tipo} /> : null}
-                    {estado ? <input type="hidden" name="estado" value={estado} /> : null}
-                    {ordenar ? <input type="hidden" name="ordenar" value={ordenar} /> : null}
-                    {vista ? <input type="hidden" name="vista" value={vista} /> : null}
-                    {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
-                    {filters ? <input type="hidden" name="filters" value={filters} /> : null}
-                    <input
-                      className="input"
-                      type="search"
-                      name="q"
-                      defaultValue={q}
-                      placeholder="Buscar por contacto, email o identificación..."
-                      aria-label="Buscar suscripciones"
-                    />
-                    <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
-                  </form>
-                  <div className="module-search-right">
-                    <SmartViewsBar
-                      scope="billing"
-                      initialViewId={viewId}
-                      initialFilters={filters}
-                      baseParams={{
-                        ...(tenantId ? { tenantId } : {}),
-                        ...(q ? { q } : {}),
-                        ...(tipo ? { tipo } : {}),
-                        ...(estado ? { estado } : {}),
-                        ...(ordenar ? { ordenar } : {})
-                      }}
-                      initialFields={getSmartViewFields("billing")}
-                      compactInline
-                    />
-                    <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
+                <div style={{ display: "grid", gap: 8, width: "100%" }}>
+                  <SmartViewsBar
+                    scope="billing"
+                    initialViewId={viewId}
+                    initialFilters={filters}
+                    baseParams={{
+                      ...(tenantId ? { tenantId } : {}),
+                      ...(q ? { q } : {}),
+                      ...(tipo ? { tipo } : {}),
+                      ...(estado ? { estado } : {}),
+                      ...(ordenar ? { ordenar } : {})
+                    }}
+                    initialFields={getSmartViewFields("billing")}
+                    compactInline
+                  />
+                  <div className="contacts-search-row">
+                    <form action="/billing" method="GET" className="filtersForm filtersSearch">
+                      {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+                      {tipo ? <input type="hidden" name="tipo" value={tipo} /> : null}
+                      {estado ? <input type="hidden" name="estado" value={estado} /> : null}
+                      {ordenar ? <input type="hidden" name="ordenar" value={ordenar} /> : null}
+                      {vista ? <input type="hidden" name="vista" value={vista} /> : null}
+                      {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
+                      {filters ? <input type="hidden" name="filters" value={filters} /> : null}
+                      <input
+                        className="input"
+                        type="search"
+                        name="q"
+                        defaultValue={q}
+                        placeholder="Buscar por contacto, email o identificación..."
+                        aria-label="Buscar suscripciones"
+                      />
+                      <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
+                    </form>
+                    <div className="module-search-right">
+                      <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
+                    </div>
                   </div>
                 </div>
                 <div className="view-mode-row" style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>

@@ -3,7 +3,7 @@ import { getCsrfToken } from "../lib/csrf";
 import { createCampaign, runCampaign } from "./actions";
 import { RunCampaignButton } from "./RunCampaignButton";
 import { NewMassMessageModal } from "./NewMassMessageModal";
-import { listSmartLists } from "../admin/_services/smartLists";
+import { listSmartViews } from "@suscripciones/core/services/smartViews";
 import { listCampaigns } from "../admin/_services/campaigns";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
@@ -17,8 +17,10 @@ export default async function CampaignsPage({
   const c = await cookies();
   const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
   const session = await verifyAdminSessionToken(sessionToken);
-  const listsRes = await listSmartLists({ tenantId: session?.tenantId || null, take: 200, skip: 0 });
-  const lists = listsRes.ok ? listsRes.items : [];
+  const tenantId = session?.tenantId || null;
+  const lists = tenantId
+    ? await listSmartViews("customers", tenantId, session?.email || null)
+    : [];
   const sp = (await searchParams) ?? {};
   const returnTo = `/campaigns?${new URLSearchParams(
     Object.fromEntries(Object.entries(sp).filter(([, v]) => typeof v === "string")) as Record<string, string>
@@ -47,8 +49,14 @@ export default async function CampaignsPage({
           <NewMassMessageModal
             csrfToken={csrfToken}
             returnTo={returnTo}
-            lists={lists.map((l: any) => ({ id: String(l.id), name: String(l.name) }))}
-            tenantId={session?.tenantId || null}
+            views={lists.map((v: any) => ({
+              id: String(v.id),
+              name: String(v.name),
+              visibility: v.visibility,
+              type: v.type,
+              filters: v.filters
+            }))}
+            tenantId={tenantId}
             action={createCampaign}
           />
         </div>

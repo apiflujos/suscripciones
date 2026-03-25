@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { HelpTip } from "../ui/HelpTip";
 import { PendingButton } from "../ui/PendingButton";
 
-type SmartList = { id: string; name: string };
+type SmartView = { id: string; name: string; visibility: "ORG" | "PRIVATE"; type: "DYNAMIC" | "STATIC"; filters?: any };
 
 type ChatwootTemplate = {
   name: string;
@@ -265,13 +265,13 @@ function WaTemplateFields({
 export function NewMassMessageModal({
   csrfToken,
   returnTo,
-  lists,
+  views,
   tenantId,
   action
 }: {
   csrfToken: string;
   returnTo: string;
-  lists: SmartList[];
+  views: SmartView[];
   tenantId?: string | null;
   action: (formData: FormData) => void;
 }) {
@@ -281,9 +281,8 @@ export function NewMassMessageModal({
   const [waLoading, setWaLoading] = useState(false);
   const [waError, setWaError] = useState("");
   const [waState, setWaState] = useState({ name: "", lang: "es", bodyParams: [] as string[], headerParams: [] as string[], buttonParams: [] as string[] });
-  const [smartListId, setSmartListId] = useState("");
+  const [smartViewId, setSmartViewId] = useState("");
   const [audienceCount, setAudienceCount] = useState<number | null>(null);
-  const [audienceSample, setAudienceSample] = useState<Array<{ id: string; name?: string; email?: string; phone?: string }>>([]);
   const [audienceLoading, setAudienceLoading] = useState(false);
   const [audienceError, setAudienceError] = useState("");
   const [audienceApproved, setAudienceApproved] = useState(false);
@@ -313,7 +312,6 @@ export function NewMassMessageModal({
     if (!open) return;
     setAudienceApproved(false);
     setAudienceCount(null);
-    setAudienceSample([]);
     setAudienceError("");
   }, [open]);
 
@@ -328,7 +326,6 @@ export function NewMassMessageModal({
     const trimmed = String(id || "").trim();
     if (!trimmed) {
       setAudienceCount(null);
-      setAudienceSample([]);
       setAudienceError("");
       return;
     }
@@ -336,20 +333,20 @@ export function NewMassMessageModal({
     setAudienceError("");
     setAudienceApproved(false);
     try {
-      const qs = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
-      const res = await fetch(`/admin/comms/smart-lists/${trimmed}/preview${qs}`, { method: "POST" });
+      const res = await fetch(`/admin/smart-views/customers/resolve`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ viewId: trimmed })
+      });
       const json = await res.json().catch(() => null);
       if (res.ok && json && typeof json.count === "number") {
         setAudienceCount(json.count);
-        setAudienceSample(Array.isArray(json.sample) ? json.sample : []);
       } else {
         setAudienceCount(null);
-        setAudienceSample([]);
         setAudienceError(String(json?.error || "No se pudo cargar la audiencia"));
       }
     } catch (err: any) {
       setAudienceCount(null);
-      setAudienceSample([]);
       setAudienceError(String(err?.message || "No se pudo cargar la audiencia"));
     } finally {
       setAudienceLoading(false);
@@ -395,23 +392,23 @@ export function NewMassMessageModal({
                 <div className="field">
                   <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span>Filtro inteligente (audiencia)</span>
-                    <HelpTip text="Selecciona la lista inteligente de contactos a la que se enviará el mensaje." />
+                    <HelpTip text="Selecciona una vista inteligente para definir la audiencia." />
                   </label>
                   <select
                     className="select"
-                    name="smartListId"
+                    name="smartViewId"
                     required
-                    value={smartListId}
+                    value={smartViewId}
                     onChange={(e) => {
                       const next = e.target.value;
-                      setSmartListId(next);
+                      setSmartViewId(next);
                       loadAudiencePreview(next);
                     }}
                   >
                     <option value="">Selecciona una lista</option>
-                    {lists.map((l) => (
-                      <option key={l.id} value={l.id}>
-                        {l.name}
+                    {views.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.name} {v.visibility === "PRIVATE" ? "(Privada)" : ""}
                       </option>
                     ))}
                   </select>
@@ -423,21 +420,11 @@ export function NewMassMessageModal({
                         <strong>Resumen de audiencia</strong>
                         <span className="pill pill-muted">{audienceCount} contactos</span>
                       </div>
-                      {audienceSample.length ? (
-                        <div style={{ display: "grid", gap: 6, marginTop: 8 }}>
-                          {audienceSample.map((c) => (
-                            <div key={c.id} className="muted" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                              <span>{c.name || "Contacto"}</span>
-                              {c.email ? <span>· {c.email}</span> : null}
-                              {c.phone ? <span>· {c.phone}</span> : null}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
+                      {audienceCount <= 0 ? (
                         <div className="field-hint" style={{ marginTop: 6 }}>
                           Esta lista no tiene contactos.
                         </div>
-                      )}
+                      ) : null}
                       <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
                         <input
                           type="checkbox"

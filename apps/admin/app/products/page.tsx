@@ -116,36 +116,38 @@ export default async function ProductsPage({
           <div className="filtersRow">
             <div className="filtersLeft">
               <div className="filtersPanel">
-                <div className="contacts-search-row">
-                  <form action="/products" method="GET" className="filtersForm filtersSearch">
-                    {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-                    {vista ? <input type="hidden" name="vista" value={vista} /> : null}
-                    {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
-                    {filters ? <input type="hidden" name="filters" value={filters} /> : null}
-                    <input
-                      className="input"
-                      type="search"
-                      name="q"
-                      defaultValue={q}
-                      placeholder="Buscar producto o servicio..."
-                      aria-label="Buscar productos"
-                      title="Busca por nombre, SKU o tipo de producto"
-                    />
-                    <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
-                  </form>
-                  <div className="products-search-right">
-                    <SmartViewsBar
-                      scope="products"
-                      initialViewId={viewId}
-                      initialFilters={filters}
-                      baseParams={{
-                        ...(tenantId ? { tenantId } : {}),
-                        ...(q ? { q } : {})
-                      }}
-                      initialFields={getSmartViewFields("products")}
-                      compactInline
-                    />
-                    <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="products" />
+                <div style={{ display: "grid", gap: 8, width: "100%" }}>
+                  <SmartViewsBar
+                    scope="products"
+                    initialViewId={viewId}
+                    initialFilters={filters}
+                    baseParams={{
+                      ...(tenantId ? { tenantId } : {}),
+                      ...(q ? { q } : {})
+                    }}
+                    initialFields={getSmartViewFields("products")}
+                    compactInline
+                  />
+                  <div className="contacts-search-row">
+                    <form action="/products" method="GET" className="filtersForm filtersSearch">
+                      {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+                      {vista ? <input type="hidden" name="vista" value={vista} /> : null}
+                      {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
+                      {filters ? <input type="hidden" name="filters" value={filters} /> : null}
+                      <input
+                        className="input"
+                        type="search"
+                        name="q"
+                        defaultValue={q}
+                        placeholder="Buscar producto o servicio..."
+                        aria-label="Buscar productos"
+                        title="Busca por nombre, SKU o tipo de producto"
+                      />
+                      <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
+                    </form>
+                    <div className="products-search-right">
+                      <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="products" />
+                    </div>
                   </div>
                 </div>
                 <div className="view-mode-row" style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>

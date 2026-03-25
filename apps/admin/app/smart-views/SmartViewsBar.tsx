@@ -244,11 +244,22 @@ export function SmartViewsBar({
   }, [scope]);
 
   async function ensureFieldsLoaded() {
-    if (fields.length) return;
+    if (fields.length) {
+      if ("rules" in root && root.rules.length === 0) {
+        setRoot({ op: "and", rules: [defaultRule(fields[0].key, fields)] });
+      }
+      return;
+    }
     setFieldsError(null);
     let loadedFields: SmartField[] = [];
     try {
-      const fieldsRes = await fetch(`/api/smart-views/${encodeURIComponent(scope)}/fields`, { cache: "no-store" });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const fieldsRes = await fetch(`/api/smart-views/${encodeURIComponent(scope)}/fields`, {
+        cache: "no-store",
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
       if (!fieldsRes.ok) {
         const errJson = await fieldsRes.json().catch(() => ({}));
         setFieldsError(String(errJson?.error || "No se pudieron cargar los campos."));
@@ -263,7 +274,10 @@ export function SmartViewsBar({
       setFields(loadedFields);
       setFieldsError(null);
     } catch (err: any) {
-      setFieldsError(String(err?.message || "No se pudieron cargar los campos."));
+      const msg = String(err?.name || "").toLowerCase().includes("abort")
+        ? "La carga tardó demasiado. Reintenta."
+        : String(err?.message || "No se pudieron cargar los campos.");
+      setFieldsError(msg);
     }
     if ("rules" in root && root.rules.length === 0 && loadedFields.length) {
       setRoot({ op: "and", rules: [defaultRule(loadedFields[0].key, loadedFields)] });
@@ -680,16 +694,18 @@ export function SmartViewsBar({
                 }}
               />
             </div>
-            <div className="smartViewsQuickSelect">
-              <select className="select" value={activeViewId} onChange={(e) => applyView(e.target.value)}>
-                <option value="">Todas</option>
-                {mergedViews.map((view) => (
-                  <option key={view.id} value={view.id}>
-                    {view.name} {view.visibility === "PRIVATE" ? "(Privada)" : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {pinSelectIndex === null ? (
+              <div className="smartViewsQuickSelect">
+                <select className="select" value={activeViewId} onChange={(e) => applyView(e.target.value)}>
+                  <option value="">Todas</option>
+                  {mergedViews.map((view) => (
+                    <option key={view.id} value={view.id}>
+                      {view.name} {view.visibility === "PRIVATE" ? "(Privada)" : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
           </div>
         ) : (
           <div className="field smartViewsField">
