@@ -500,7 +500,7 @@ export default async function LogsPage({
   );
 
   return (
-    <main className="page">
+    <main className={`page${tab === "payments" ? " paymentsPage" : ""}`}>
       <LogsFiltersAutoSubmit />
       {shopifyResent ? (
         <div className="card cardPad">Reenvío a Shopify encolado.</div>
@@ -614,23 +614,12 @@ export default async function LogsPage({
               </div>
             </div>
           ) : tab === "payments" ? (
-            <div className="filtersRow">
-              <div className="filtersLeft">
-                <div className="filtersPanel">
-                  <div style={{ display: "grid", gap: 8, width: "100%" }}>
-                    <SmartViewsBar
-                      scope="payments"
-                      initialViewId={viewId}
-                      initialFilters={filters}
-                      compactInline
-                      baseParams={{
-                        ...(q ? { q } : {}),
-                        ...(paymentsView ? { paymentsView } : {})
-                      }}
-                      initialFields={getSmartViewFields("payments")}
-                    />
-                    <div className="contacts-search-row payments-search-row">
-                      <form action="/payments" method="GET" className="filtersForm filtersSearch payments-search-form" data-debounce-form="true">
+            <div className="filtersRow" style={{ width: "100%" }}>
+              <div className="filtersLeft" style={{ width: "100%", maxWidth: "100%" }}>
+                <div className="filtersPanel" style={{ width: "100%" }}>
+                  <div className="filtersHeader">
+                    <div className="filtersHeaderRow filtersHeaderRowTop">
+                      <form action="/payments" method="GET" className="filtersForm filtersSearch" data-debounce-form="true">
                         {status ? <input type="hidden" name="status" value={status} /> : null}
                         {paymentsView ? <input type="hidden" name="paymentsView" value={paymentsView} /> : null}
                         {from ? <input type="hidden" name="from" value={from} /> : null}
@@ -648,75 +637,86 @@ export default async function LogsPage({
                         />
                         <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
                       </form>
-                      <div className="module-search-right payments-module-search-right">
-                        <div className="payments-buttons-wrap">
-                          <form action={reconcilePendingPayments} className="filtersForm payments-action-form">
-                            <input type="hidden" name="returnTo" value={returnTo} />
-                            <input type="hidden" name="csrf" value={csrfToken} />
-                            <input type="hidden" name="days" value="7" />
-                            <input type="hidden" name="minutes" value="720" />
-                            <input type="hidden" name="take" value="150" />
-                            {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-                            <PendingButton className="ghost btn-compact btn-noicon" type="submit" pendingText="Conciliando..." title="Reintenta conciliación de pagos pendientes">
-                              Recolectar pagos
-                            </PendingButton>
-                          </form>
-                          <div className="payments-action-form" title="Reconciliación manual de una transacción Wompi">
-                            <ReconcilePaymentModal csrfToken={csrfToken} action={reconcilePayment} />
-                          </div>
+                      <div className="filtersHeaderSmart">
+                        <SmartViewsBar
+                          scope="payments"
+                          initialViewId={viewId}
+                          initialFilters={filters}
+                          compactInline
+                          baseParams={{
+                            ...(q ? { q } : {}),
+                            ...(paymentsView ? { paymentsView } : {})
+                          }}
+                          initialFields={getSmartViewFields("payments")}
+                        />
+                      </div>
+                      <div className="filtersHeaderActions">
+                        <form action={reconcilePendingPayments} className="filtersForm payments-action-form">
+                          <input type="hidden" name="returnTo" value={returnTo} />
+                          <input type="hidden" name="csrf" value={csrfToken} />
+                          <input type="hidden" name="days" value="7" />
+                          <input type="hidden" name="minutes" value="720" />
+                          <input type="hidden" name="take" value="150" />
+                          {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+                          <PendingButton className="ghost btn-compact btn-noicon" type="submit" pendingText="Conciliando..." title="Reintenta conciliación de pagos pendientes">
+                            Recolectar pagos
+                          </PendingButton>
+                        </form>
+                        <div className="payments-action-form" title="Reconciliación manual de una transacción Wompi">
+                          <ReconcilePaymentModal csrfToken={csrfToken} action={reconcilePayment} />
                         </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="payments-totals-row" style={{ justifyContent: "space-between" }}>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <a
-                        className={`pill ${!paymentsView ? "is-active" : ""}`}
-                        href={`/payments?${new URLSearchParams({
-                          ...(q ? { q } : {}),
-                          ...(from ? { from } : {}),
-                          ...(to ? { to } : {}),
-                          ...(tenantId ? { tenantId } : {}),
-                          ...(viewId ? { viewId } : {}),
-                          ...(filters ? { filters } : {}),
-                        }).toString()}`}
-                      >
-                        Todos
-                      </a>
-                      <a
-                        className={`pill ${paymentsView === "RECEIVED" ? "is-active" : ""}`}
-                        href={`/payments?${new URLSearchParams({
-                          paymentsView: "RECEIVED",
-                          ...(q ? { q } : {}),
-                          ...(from ? { from } : {}),
-                          ...(to ? { to } : {}),
-                          ...(tenantId ? { tenantId } : {}),
-                          ...(viewId ? { viewId } : {}),
-                          ...(filters ? { filters } : {}),
-                        }).toString()}`}
-                      >
-                        Pagos recibidos
-                      </a>
-                      <a
-                        className={`pill ${paymentsView === "REQUESTED" ? "is-active" : ""}`}
-                        href={`/payments?${new URLSearchParams({
-                          paymentsView: "REQUESTED",
-                          ...(q ? { q } : {}),
-                          ...(from ? { from } : {}),
-                          ...(to ? { to } : {}),
-                          ...(tenantId ? { tenantId } : {}),
-                          ...(viewId ? { viewId } : {}),
-                          ...(filters ? { filters } : {}),
-                        }).toString()}`}
-                      >
-                        Pagos solicitados
-                      </a>
-                    </div>
-                    <div className="payments-summary-row" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <span className="pill">Total {totals.payments ?? paymentsSummary.total}</span>
-                      <span className="pill pill-ok">Pagados {paymentsSummary.approved}</span>
-                      <span className="pill pill-warn">Pendientes {paymentsSummary.pending}</span>
-                      <span className="pill pill-bad">Fallidos {paymentsSummary.failed}</span>
+                    <div className="filtersHeaderRow filtersHeaderRowBottom">
+                      <div className="filtersHeaderLeft">
+                        <a
+                          className={`pill ${!paymentsView ? "is-active" : ""}`}
+                          href={`/payments?${new URLSearchParams({
+                            ...(q ? { q } : {}),
+                            ...(from ? { from } : {}),
+                            ...(to ? { to } : {}),
+                            ...(tenantId ? { tenantId } : {}),
+                            ...(viewId ? { viewId } : {}),
+                            ...(filters ? { filters } : {}),
+                          }).toString()}`}
+                        >
+                          Todos
+                        </a>
+                        <a
+                          className={`pill ${paymentsView === "RECEIVED" ? "is-active" : ""}`}
+                          href={`/payments?${new URLSearchParams({
+                            paymentsView: "RECEIVED",
+                            ...(q ? { q } : {}),
+                            ...(from ? { from } : {}),
+                            ...(to ? { to } : {}),
+                            ...(tenantId ? { tenantId } : {}),
+                            ...(viewId ? { viewId } : {}),
+                            ...(filters ? { filters } : {}),
+                          }).toString()}`}
+                        >
+                          Pagos recibidos
+                        </a>
+                        <a
+                          className={`pill ${paymentsView === "REQUESTED" ? "is-active" : ""}`}
+                          href={`/payments?${new URLSearchParams({
+                            paymentsView: "REQUESTED",
+                            ...(q ? { q } : {}),
+                            ...(from ? { from } : {}),
+                            ...(to ? { to } : {}),
+                            ...(tenantId ? { tenantId } : {}),
+                            ...(viewId ? { viewId } : {}),
+                            ...(filters ? { filters } : {}),
+                          }).toString()}`}
+                        >
+                          Pagos solicitados
+                        </a>
+                      </div>
+                      <div className="filtersHeaderRight payments-summary-row">
+                        <span className="pill">Total {totals.payments ?? paymentsSummary.total}</span>
+                        <span className="pill pill-ok">Pagados {paymentsSummary.approved}</span>
+                        <span className="pill pill-warn">Pendientes {paymentsSummary.pending}</span>
+                        <span className="pill pill-bad">Fallidos {paymentsSummary.failed}</span>
+                      </div>
                     </div>
                   </div>
                   {(() => {

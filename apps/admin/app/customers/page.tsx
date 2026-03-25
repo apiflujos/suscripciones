@@ -307,7 +307,7 @@ export default async function CustomersPage({
   }).toString()}`;
 
   return (
-    <main className="page" style={{ maxWidth: "100%" }}>
+    <main className="page customersPage" style={{ maxWidth: "100%" }}>
       {error ? (
         <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
           Error: {error}
@@ -323,70 +323,75 @@ export default async function CustomersPage({
           <div className="filtersRow">
             <div className="filtersLeft">
               <div className="filtersPanel">
-                <div style={{ display: "grid", gap: 8, width: "100%" }}>
-                  <SmartViewsBar
-                    scope="customers"
-                    initialViewId={viewId}
-                    initialFilters={filters}
-                    baseParams={{
-                      ...(q ? { q } : {}),
-                      ...(tenantId ? { tenantId } : {})
-                    }}
-                    initialFields={getSmartViewFields("customers")}
-                    compactInline
-                  />
-                  <div className="contacts-search-row">
+                <div className="filtersHeader">
+                  {/* Fila 1: Búsqueda + Smart Lists + Importar/Exportar */}
+                  <div className="filtersHeaderRow filtersHeaderRowTop">
                     <form action="/customers" method="GET" className="filtersForm filtersSearch">
-                      {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-                      {vista ? <input type="hidden" name="vista" value={vista} /> : null}
-                      {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
-                      {filters ? <input type="hidden" name="filters" value={filters} /> : null}
-                      <input
-                        className="input"
-                        type="search"
-                        name="q"
-                        defaultValue={q}
-                        placeholder="Buscar por nombre, email, teléfono o identificación..."
-                        aria-label="Buscar contactos"
-                        title="Busca por nombre, email, teléfono o identificación"
+                    {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+                    {vista ? <input type="hidden" name="vista" value={vista} /> : null}
+                    {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
+                    {filters ? <input type="hidden" name="filters" value={filters} /> : null}
+                    <input
+                      className="input"
+                      type="search"
+                      name="q"
+                      defaultValue={q}
+                      placeholder="Buscar por nombre, email, teléfono o identificación..."
+                      aria-label="Buscar contactos"
+                      title="Busca por nombre, email, teléfono o identificación"
+                    />
+                    <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
+                  </form>
+                  <div className="filtersHeaderSmart">
+                    <SmartViewsBar
+                      scope="customers"
+                      initialViewId={viewId}
+                      initialFilters={filters}
+                      baseParams={{
+                        ...(q ? { q } : {}),
+                        ...(tenantId ? { tenantId } : {})
+                      }}
+                      initialFields={getSmartViewFields("customers")}
+                      compactInline
+                    />
+                  </div>
+                  <div className="filtersHeaderActions">
+                    <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
+                  </div>
+                  </div>
+                  {/* Fila 2: Vista + Botones Crear (derecha) */}
+                  <div className="filtersHeaderRow filtersHeaderRowBottom">
+                    <div className="filtersHeaderLeft">
+                      <span className="field-hint" style={{ margin: 0 }}>
+                      Vista:
+                      <HelpTip text="Alterna entre tarjetas y lista para ver contactos." />
+                      </span>
+                    <ViewModeToggles
+                      currentMode={vistaTyped}
+                      baseParams={{
+                        ...(q ? { q } : {}),
+                        ...(tenantId ? { tenantId } : {}),
+                        ...(viewId ? { viewId } : {}),
+                        ...(filters ? { filters } : {})
+                      }}
+                    />
+                    </div>
+                    <div className="filtersHeaderRight">
+                      <CustomersModals
+                        customers={items}
+                        empresas={empresas}
+                        products={productsRes?.items ?? []}
+                        checkoutTemplates={templatesRes?.items ?? []}
+                        csrfToken={csrfToken}
+                        tenants={tenants}
+                        tenantId={tenantId}
+                        createCustomer={createCustomer}
+                        createPlanAndSubscription={createPlanAndSubscription}
+                        returnTo={returnTo}
+                        actionsClassName="customer-actions"
                       />
-                      <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
-                    </form>
-                    <div className="module-search-right">
-                      <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
                     </div>
                   </div>
-                </div>
-                <div className="view-mode-row" style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
-                  <span className="field-hint" style={{ margin: 0 }}>
-                    Vista:
-                    <HelpTip text="Alterna entre tarjetas y lista para ver contactos." />
-                  </span>
-                  <ViewModeToggles
-                    currentMode={vistaTyped}
-                    baseParams={{
-                      ...(q ? { q } : {}),
-                      ...(tenantId ? { tenantId } : {}),
-                      ...(viewId ? { viewId } : {}),
-                      ...(filters ? { filters } : {})
-                    }}
-                  />
-                </div>
-                <div className="page-actions">
-                  <CustomersModals
-                    customers={items}
-                    empresas={empresas}
-                    products={productsRes?.items ?? []}
-                    checkoutTemplates={templatesRes?.items ?? []}
-                    csrfToken={csrfToken}
-                    tenants={tenants}
-                    tenantId={tenantId}
-                    createCustomer={createCustomer}
-                    createPlanAndSubscription={createPlanAndSubscription}
-                    returnTo={returnTo}
-                    actionsClassName="customer-actions"
-                  />
-                  <div className="page-actions-summary">{summaryLabel}</div>
                 </div>
               </div>
             </div>

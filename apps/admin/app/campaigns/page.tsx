@@ -44,7 +44,7 @@ export default async function CampaignsPage({
   const total = campaignsRes.ok ? Number(campaignsRes.total ?? items.length) : items.length;
 
   return (
-    <div className="page pageWide">
+    <div className="page pageWide campaignsPage">
 
       {normalizeErrorParam(sp.error) ? <div className="panel module">Error: {normalizeErrorParam(sp.error)}</div> : null}
       {sp.created ? <div className="panel module">Campaña guardada.</div> : null}

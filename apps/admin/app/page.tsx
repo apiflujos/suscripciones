@@ -627,33 +627,41 @@ export default async function Home({
           <div className="filtersRow">
             <div className="filtersLeft">
               <div className="filtersPanel">
-                <MetricsFilters
-                  from={fromDate}
-                  to={toDate}
-                  g={g}
-                  tenantId={tenantId}
-                  view={view}
-                  tenants={tenants}
-                  minDate={firstDataAt || undefined}
-                  maxDate={maxDate}
-                />
+                <div className="filtersHeader">
+                  <div className="filtersHeaderRow filtersHeaderRowTop">
+                    <MetricsFilters
+                      from={fromDate}
+                      to={toDate}
+                      g={g}
+                      tenantId={tenantId}
+                      view={view}
+                      tenants={tenants}
+                      minDate={firstDataAt || undefined}
+                      maxDate={maxDate}
+                    />
+                  </div>
+                  <div className="filtersHeaderRow filtersHeaderRowBottom">
+                    <div className="filtersHeaderLeft">
+                      <div className="metricsTabs">
+                        {viewTabs.map((tab) => (
+                          <Link
+                            key={tab.id}
+                            href={viewHref(tab.id)}
+                            className={`metricsTab ${view === tab.id ? "is-active" : ""}`}
+                            prefetch={false}
+                          >
+                            {tab.label}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="filtersHeaderRight">
+                      <div className="metricsTabsMeta">{rangeLabel} · {periodLabel} · {tenantLabel}</div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-          <div className="metricsTabsRow">
-            <div className="metricsTabs">
-              {viewTabs.map((tab) => (
-                <Link
-                  key={tab.id}
-                  href={viewHref(tab.id)}
-                  className={`metricsTab ${view === tab.id ? "is-active" : ""}`}
-                  prefetch={false}
-                >
-                  {tab.label}
-                </Link>
-              ))}
-            </div>
-            <div className="metricsTabsMeta">{rangeLabel} · {periodLabel} · {tenantLabel}</div>
           </div>
         </div>
 
@@ -667,7 +675,7 @@ export default async function Home({
               {view === "overview" ? (
                 <>
                   <div className="grid3">
-                    <div className="card cardPad metric-card tone-primary">
+                    <div className="card cardPad metric-card metric-card-lg tone-primary">
                       <span className="metric-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <rect x="2" y="5" width="20" height="14" rx="3" />
@@ -693,7 +701,7 @@ export default async function Home({
                         </span>
                       </div>
                     </div>
-                    <div className="card cardPad metric-card tone-success">
+                    <div className="card cardPad metric-card metric-card-lg tone-success">
                       <span className="metric-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <circle cx="12" cy="12" r="9" />
@@ -718,7 +726,7 @@ export default async function Home({
                         </span>
                       </div>
                     </div>
-                    <div className="card cardPad metric-card tone-warning">
+                    <div className="card cardPad metric-card metric-card-lg tone-warning">
                       <span className="metric-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M10 13a5 5 0 0 0 7.1 0l2.1-2.1a5 5 0 0 0-7.1-7.1L10 5" />
@@ -749,7 +757,7 @@ export default async function Home({
                         )}
                       </div>
                     </div>
-                    <div className="card cardPad metric-card tone-info">
+                    <div className="card cardPad metric-card metric-card-sm tone-info">
                       <span className="metric-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
@@ -765,7 +773,7 @@ export default async function Home({
                       <div className="metric-value">{totalActiveSubscriptions}</div>
                       <div className="metric-sub">Δ {activeDelta >= 0 ? "+" : ""}{activeDelta} ({fmtPct(activeDeltaPct)})</div>
                     </div>
-                    <div className="card cardPad metric-card tone-primary">
+                    <div className="card cardPad metric-card metric-card-sm tone-primary">
                       <span className="metric-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M4 21V7a2 2 0 0 1 2-2h6v16" />
@@ -783,7 +791,7 @@ export default async function Home({
                       <div className="metric-value">{totalEmpresas}</div>
                       <div className="metric-sub">Contactos asociados: {totalContactos}</div>
                     </div>
-                    <div className="card cardPad metric-card tone-info">
+                    <div className="card cardPad metric-card metric-card-sm tone-info">
                       <span className="metric-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -797,7 +805,7 @@ export default async function Home({
                       <div className="metric-value">{totalContactos}</div>
                       <div className="metric-sub">Empresas: {totalEmpresas}</div>
                     </div>
-                    <div className="card cardPad metric-card tone-primary">
+                    <div className="card cardPad metric-card metric-card-sm tone-primary">
                       <span className="metric-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M21 12a9 9 0 1 1-2.64-6.36" />
@@ -819,7 +827,7 @@ export default async function Home({
                         )}
                       </div>
                     </div>
-                    <div className="card cardPad metric-card tone-warning">
+                    <div className="card cardPad metric-card metric-card-sm tone-warning">
                       <span className="metric-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
@@ -841,10 +849,10 @@ export default async function Home({
                     </div>
                   </div>
 
-                  <div className="card cardPad" style={{ marginBottom: 16 }}>
+                  <div className="card cardPad metrics-detail-card" style={{ marginBottom: 16 }}>
                     <h3 style={{ marginTop: 0, marginBottom: 12 }}>Ingresos por tipo de cobro</h3>
-                    <div className="grid3">
-                      <div className="card cardPad" style={{ background: "var(--surface-2)" }}>
+                    <div className="grid3 metricsDetailGrid">
+                      <div className="card cardPad metric-card metric-card-sm metric-card-secondary" style={{ background: "var(--surface-2)" }}>
                         <div className="metric-label">
                           Débito automático
                           <HelpTip text="Pagos provenientes de suscripciones con débito automático." />
@@ -854,7 +862,7 @@ export default async function Home({
                           OK: {paymentsAutoOk} · Fallidos: {paymentsAutoFail}
                         </div>
                       </div>
-                      <div className="card cardPad" style={{ background: "var(--surface-2)" }}>
+                      <div className="card cardPad metric-card metric-card-sm metric-card-secondary" style={{ background: "var(--surface-2)" }}>
                         <div className="metric-label">
                           Link de pago
                           <HelpTip text="Pagos de suscripciones con link de pago (manual_link)." />
@@ -864,7 +872,7 @@ export default async function Home({
                           OK: {paymentsLinkOk} · Fallidos: {paymentsLinkFail}
                         </div>
                       </div>
-                      <div className="card cardPad" style={{ background: "var(--surface-2)" }}>
+                      <div className="card cardPad metric-card metric-card-sm metric-card-secondary" style={{ background: "var(--surface-2)" }}>
                         <div className="metric-label">
                           Externos sin suscripción
                           <HelpTip text="Pagos sin suscripción asociada (one-time o externos)." />
@@ -883,9 +891,9 @@ export default async function Home({
                   {/* DESGLOSE POR PLATAFORMA */}
                   {platformData.length > 0 ? (
                     <>
-                      <div className="card cardPad" style={{ marginBottom: 16 }}>
+                      <div className="card cardPad metrics-detail-card" style={{ marginBottom: 16 }}>
                         <h3 style={{ marginTop: 0, marginBottom: 12 }}>Pagos por Plataforma</h3>
-                        <div className="grid3">
+                        <div className="grid3 metricsDetailGrid">
                           {platformData.map((platform: any, idx: number) => {
                             const source = platform.source || "DIRECT";
                             const paymentsSuccess = platform.paymentsSuccess || 0;
@@ -903,7 +911,7 @@ export default async function Home({
                                     : "🌐";
 
                             return (
-                              <div key={`platform-${idx}`} className="card cardPad" style={{ background: "var(--surface-2)" }}>
+                              <div key={`platform-${idx}`} className="card cardPad metric-card metric-card-sm metric-card-secondary" style={{ background: "var(--surface-2)" }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                                   <span style={{ fontSize: 24 }}>{sourceIcon}</span>
                                   <div>

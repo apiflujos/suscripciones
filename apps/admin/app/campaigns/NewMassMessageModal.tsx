@@ -336,7 +336,7 @@ export function NewMassMessageModal({
       const res = await fetch(`/admin/smart-views/customers/resolve`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ viewId: trimmed })
+        body: JSON.stringify({ viewId: trimmed, ...(tenantId ? { tenantId } : {}) })
       });
       const json = await res.json().catch(() => null);
       if (res.ok && json && typeof json.count === "number") {
@@ -366,7 +366,7 @@ export function NewMassMessageModal({
       </button>
       {open ? (
         <div className="modal-backdrop">
-          <div className="modal-panel" style={{ maxWidth: 900 }}>
+          <div className="modal-panel campaignsModal" style={{ maxWidth: 900 }}>
             <div className="panel-header">
               <strong>Nueva campaña</strong>
               <button className="ghost modal-close" type="button" onClick={() => setOpen(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">

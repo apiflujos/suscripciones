@@ -1,7 +1,7 @@
-/* 
- * APIFLUJOS STYLES - v2.1 COMPACT METRICS UPDATE
- * Generated: 2026-03-12T20:45:00
- * Changes: Compact metrics layout, smaller fonts, better spacing
+/*
+ * APIFLUJOS STYLES - v3.0 UNIFIED DESIGN SYSTEM
+ * Generated: 2026-03-25
+ * Changes: Unified font sizes, consistent spacing, standardized components
  */
 
 /* Base real del módulo "Productos e inventarios" (guía de estilos) */
@@ -11,6 +11,38 @@
 :root {
   --font-primary: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-secondary: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+  /* ============================================
+     TYPOGRAPHY SCALE - UNIFIED
+     ============================================ */
+  --text-xs: 10px;      /* Metadatos, hints */
+  --text-sm: 11px;      /* Labels secundarios */
+  --text-base: 12px;    /* Texto base (body, inputs) */
+  --text-md: 13px;      /* Títulos pequeños, labels principales */
+  --text-lg: 14px;      /* Títulos de sección */
+  --text-xl: 16px;      /* Títulos grandes */
+  --text-2xl: 18px;     /* Títulos de página */
+
+  /* ============================================
+     SPACING SCALE - UNIFIED
+     ============================================ */
+  --space-1: 4px;
+  --space-2: 6px;
+  --space-3: 8px;
+  --space-4: 10px;
+  --space-5: 12px;
+  --space-6: 16px;
+  --space-8: 20px;
+  --space-10: 24px;
+
+  /* ============================================
+     COMPONENT SIZES - UNIFIED
+     ============================================ */
+  --input-height: 32px;
+  --button-height: 32px;
+  --button-height-sm: 28px;
+  --icon-size: 20px;
+  --icon-size-sm: 18px;
 
   /* Tokens base (documentación de diseño) */
   --royal-purple-50: #f9f7fd;
@@ -97,12 +129,14 @@
   --row-hover: var(--royal-purple-50);
   --radius-md: 10px;
   --radius-lg: 12px;
-  --control-height: 38px;
-  --control-padding-x: 12px;
-  --btn-height: 38px;
-  --btn-padding-x: 14px;
-  --btn-font: 12.5px;
-  --btn-icon-size: 16px;
+  --control-height: 28px;
+  --control-padding-x: 10px;
+  --btn-height: 28px;
+  --btn-padding-x: 12px;
+  --btn-font: 11px;
+  --btn-icon-size: 14px;
+  --btn-height-sm: 24px;
+  --btn-font-sm: 10px;
   --btn-shadow: 0 10px 20px rgba(106, 84, 161, 0.1);
   --btn-shadow-soft: 0 8px 16px rgba(27, 16, 34, 0.1);
   --topbar-title: var(--royal-purple-800);
@@ -840,21 +874,21 @@ a {
 }
 
 .topbarLogo {
-  height: 38px;
-  max-width: 200px;
+  height: 24px;
+  max-width: 160px;
   width: auto;
   display: block;
   object-fit: contain;
 }
 
 .logoStatusDot {
-  width: 8px;
-  height: 8px;
+  width: 5px;
+  height: 5px;
   border-radius: 999px;
   background: var(--status-success);
   position: absolute;
-  left: 2px;
-  top: 2px;
+  left: 1px;
+  top: 1px;
   box-shadow: 0 0 0 2px var(--panel);
 }
 
@@ -862,7 +896,7 @@ a {
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   flex-wrap: nowrap;
 }
 
@@ -871,13 +905,29 @@ a {
   z-index: 30020;
 }
 
-.topbarBellBackdrop {
-  position: fixed;
-  inset: 0;
+.topbarBellBtn {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
-  backdrop-filter: none;
-  z-index: 30000;
-  pointer-events: auto;
+  border: 0.5px solid var(--stroke);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  color: var(--text-muted);
+}
+
+.topbarBellBtn:hover {
+  background: var(--gray-50);
+  border-color: var(--gray-400);
+}
+
+.topbarBellIcon {
+  width: 16px;
+  height: 16px;
 }
 
 .topbarBellBtn {
@@ -899,11 +949,6 @@ a {
   background: var(--primary-soft);
   border-color: var(--primary);
   color: var(--primary);
-}
-
-.topbarBellIcon {
-  width: 18px;
-  height: 18px;
 }
 
 .topbarBellBadge {
@@ -936,6 +981,21 @@ a {
   border-radius: 12px;
   box-shadow: var(--shadow);
   z-index: 30010;
+}
+
+.topbarBellBackdrop {
+  position: fixed;
+  inset: 0;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: default;
+  z-index: 30005;
+}
+
+.topbarBellBackdrop:focus {
+  outline: none;
 }
 
 .topbarBellHead {
@@ -1210,26 +1270,32 @@ a {
 }
 
 :is(.contact-card-top, .product-header, .billing-header) {
-  padding-bottom: 6px;
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--stroke);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 :is(.contact-card-top-actions, .product-header-actions, .billing-header-actions) {
   display: inline-flex;
+  flex-direction: row;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
 }
 
 :is(.contact-card-top-actions, .product-header-actions, .billing-header-actions) .btn-icon-only {
-  width: 34px;
-  height: 34px;
-  min-width: 34px !important;
-  border-radius: 10px;
+  width: 20px;
+  height: 20px;
+  min-width: 20px !important;
+  border-radius: 8px;
 }
 
 :is(.contact-footer, .product-footer-actions, .billing-actions, .module-footer) .btn-compact {
-  min-height: 32px;
-  border-radius: 10px;
+  min-height: 24px;
+  border-radius: 8px;
+  font-size: 10px;
 }
 
 :is(.module-footer, .product-footer-actions, .billing-actions, .wizard-footer, .drawer-footer, .modal-footer, .send-product-actions) {
@@ -1619,7 +1685,7 @@ a {
   border: 1px solid transparent;
   color: var(--text-faint);
   background: transparent;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   opacity: 0;
   transform: translateY(-2px);
@@ -1628,8 +1694,8 @@ a {
 }
 
 .topbarPulseDot {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 999px;
   background: var(--status-success);
   box-shadow: 0 0 0 rgba(34, 197, 94, 0.45);
@@ -1658,7 +1724,7 @@ a {
 .topbarTitle {
   margin: 0;
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--topbar-title);
   white-space: nowrap;
   overflow: hidden;
@@ -1666,7 +1732,7 @@ a {
 }
 
 .topbarSubtitle {
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--text-faint);
   white-space: nowrap;
   overflow: hidden;
@@ -1697,24 +1763,51 @@ a {
 }
 
 .userAvatar {
-  width: 34px;
-  height: 34px;
-  border-radius: 12px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
   border: 1px solid var(--stroke);
   background: var(--panel);
   object-fit: cover;
 }
 
+.userMenu {
+  position: relative;
+  z-index: 30010;
+}
+
+.userMenuBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: transparent;
+  border: 0.5px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.userMenuBtn:hover {
+  background: var(--gray-50);
+}
+
+.userMenuIcon {
+  width: 14px;
+  height: 14px;
+  color: var(--text-faint);
+}
+
 .topbar h1 {
   font-size: 18px;
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: -0.02em;
   margin: 0;
   color: var(--topbar-title);
 }
 
 .topbar .subtitle {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-faint);
   margin: 3px 0 0;
   line-height: 1.35;
@@ -1724,32 +1817,45 @@ a {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   width: 100%;
 }
 
 .panelHeaderPills {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   flex-wrap: wrap;
   justify-content: flex-end;
 }
 
+.panelHeaderPills .pill,
+.panelHeaderPills .pill-sm,
+.entity-card-counts .pill,
+.product-badges .pill,
+.contact-tags .pill {
+  white-space: nowrap;
+  padding: 2px var(--space-3);
+  font-size: var(--text-sm);
+  min-height: 24px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
 .filtersRow {
   display: flex;
-  gap: 12px;
+  gap: 6px;
   align-items: stretch;
   justify-content: space-between;
-  margin-top: 10px;
+  margin-top: 4px;
   flex-wrap: wrap;
   width: 100%;
 }
 
 .filtersLeft {
-  flex: 1 1 520px;
+  flex: 1 1 auto;
   display: grid;
-  gap: 8px;
+  gap: 4px;
 }
 
 .filtersTop {
@@ -1772,6 +1878,16 @@ a {
 
 .list-csv-actions {
   align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.list-csv-actions .btn-icon-only {
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  min-height: 26px;
 }
 
 .import-modal-grid {
@@ -1814,14 +1930,74 @@ a {
 .filtersPanel {
   display: flex;
   flex-direction: column;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
   align-items: stretch;
-  padding: 8px;
-  border-radius: 12px;
+  padding: 6px;
+  border-radius: 10px;
   border: 1px solid var(--stroke);
   background: color-mix(in srgb, var(--primary-soft) 28%, transparent);
   width: 100%;
+}
+
+.filtersHeader {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+}
+
+.filtersHeaderRow {
+  width: 100%;
+}
+
+.filtersHeaderRowTop {
+  display: grid;
+  grid-template-columns: minmax(190px, 260px) minmax(240px, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.filtersHeaderRowBottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.filtersHeaderSmart {
+  min-width: 0;
+}
+
+.filtersHeaderActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.filtersHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filtersHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.filtersPanel > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.customersPage .filtersPanel,
+.productsPage .filtersPanel,
+.empresasPage .filtersPanel {
+  flex-direction: column;
 }
 
 .products-view-switch,
@@ -2207,29 +2383,29 @@ a {
 }
 
 .contacts-search-row {
-  display: grid;
-  grid-template-columns: minmax(300px, 1fr) minmax(320px, 1fr);
-  gap: 10px;
+  display: flex;
+  gap: 8px;
   align-items: center;
   width: 100%;
+  flex-wrap: wrap;
 }
 
 .contacts-search-row .filtersForm .input {
-  min-height: 28px;
+  min-height: 26px;
   font-size: 11px;
-  padding: 4px 8px;
+  padding: 0 6px;
 }
 
 .contacts-search-row .filtersForm .ghost.btn-icon-only {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
 }
 
 .products-search-right {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -2241,7 +2417,7 @@ a {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -2250,9 +2426,9 @@ a {
 }
 
 .payments-totals-row {
-  margin-top: 8px;
+  margin-top: 6px;
   display: flex;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
@@ -2376,7 +2552,7 @@ html[data-theme="dark"] .payments-health-banner code {
 .payments-buttons-wrap {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
@@ -2428,15 +2604,17 @@ html[data-theme="dark"] .payments-health-banner code {
 }
 
 .payments-search-row {
-  grid-template-columns: minmax(360px, 1fr) auto;
+  display: flex;
   align-items: center;
+  gap: 8px;
+  width: 100%;
 }
 
 .payments-module-search-right {
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 4px;
   flex-wrap: nowrap;
   min-width: 0;
 }
@@ -2583,17 +2761,25 @@ html[data-theme="dark"] .payments-health-banner code {
 .logs-table {
   width: 100%;
   table-layout: fixed;
-  font-size: 12px;
+  font-size: var(--text-base);
 }
 
 .logs-table th,
 .logs-table td {
-  padding: 8px 10px;
+  padding: var(--space-4) var(--space-5);
   overflow: hidden;
   min-width: 0;
   max-width: 0;
   word-break: break-word;
   overflow-wrap: anywhere;
+}
+
+.logs-table th {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-faint);
 }
 
 .payments-table-wrap {
@@ -2608,8 +2794,8 @@ html[data-theme="dark"] .payments-health-banner code {
 .logs-table .log-date-cell {
   white-space: normal;
   color: var(--text);
-  max-width: 76px;
-  line-height: 1.05;
+  max-width: 90px;
+  line-height: 1.2;
 }
 
 .logs-table .log-date-cell .date-stack {
@@ -2617,22 +2803,23 @@ html[data-theme="dark"] .payments-health-banner code {
 }
 
 .logs-table .log-date-cell .date-stack-top {
-  font-size: 10px;
+  font-size: var(--text-base);
+  font-weight: 600;
 }
 
 .logs-table .log-date-cell .date-stack-middle,
 .logs-table .log-date-cell .date-stack-bottom {
-  font-size: 8.5px;
+  font-size: var(--text-sm);
 }
 
 .logs-table .log-ref-cell {
-  max-width: 72px;
+  max-width: 100px;
   min-width: 0;
 }
 
 .logs-table .log-ref {
   display: grid;
-  gap: 2px;
+  gap: var(--space-2);
   min-width: 0;
 }
 
@@ -2642,10 +2829,12 @@ html[data-theme="dark"] .payments-health-banner code {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: var(--text-base);
+  font-weight: 500;
 }
 
 .logs-table .log-ref-meta {
-  font-size: 10px;
+  font-size: var(--text-sm);
   color: var(--text-faint);
   max-width: 100%;
   overflow: hidden;
@@ -2654,13 +2843,13 @@ html[data-theme="dark"] .payments-health-banner code {
 }
 
 .logs-table .log-contact-cell {
-  max-width: 250px;
+  max-width: 280px;
   min-width: 0;
 }
 
 .logs-table .log-contact {
   display: grid;
-  gap: 2px;
+  gap: var(--space-2);
   min-width: 0;
 }
 
@@ -2671,8 +2860,14 @@ html[data-theme="dark"] .payments-health-banner code {
   white-space: nowrap;
 }
 
+.logs-table .log-contact-name {
+  font-size: var(--text-base);
+  font-weight: 500;
+}
+
 .logs-table .log-contact-meta {
-  font-size: 9px;
+  font-size: var(--text-sm);
+  color: var(--text-faint);
   max-width: 100%;
 }
 
@@ -2837,16 +3032,89 @@ html[data-theme="dark"] .payments-health-banner code {
   overflow: hidden;
 }
 
-/* ===== Estandar visual de Suscripciones aplicado a Contactos y Productos ===== */
+/* ===== Estandar visual UNIFICADO para TODOS los cards ===== */
 .contact-card,
-.product-card {
-  padding: 4px 6px;
-  gap: 2px;
+.product-card,
+.company-card,
+.entity-card,
+.billing-card {
+  padding: var(--space-4);
+  gap: var(--space-2);
+  border-radius: var(--radius-md);
 }
 
+/* Headers UNIFICADOS - Todo el mismo tamaño */
 .contact-card-top,
-.product-header {
-  padding: 0 2px 6px;
+.product-header,
+.company-card-header,
+.entity-card-header,
+.billing-header,
+.panel-header,
+.settings-group-header,
+.card-header,
+.modal-panel .panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--stroke);
+  margin-bottom: var(--space-2);
+  min-height: 36px;
+}
+
+/* Titulos en headers - UNIFIED */
+.contact-card-top .contact-name,
+.product-header .product-name,
+.company-card-header .company-name,
+.entity-card-header .entity-card-title,
+.billing-header .billing-title {
+  font-size: var(--card-title-size);
+  font-weight: 600;
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.panel-header h3,
+.settings-group-header h3,
+.card-header h3 {
+  font-size: var(--text-base);
+  font-weight: 600;
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Header actions - iconos UNIFIED */
+.contact-card-top-actions,
+.product-header-actions,
+.company-card-header .entity-card-header-right,
+.entity-card-header-right,
+.billing-header-actions,
+.panel-header-actions,
+.settings-group-header-actions {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+/* Iconos - UNIFIED */
+.contact-card-top-actions .btn-icon-only,
+.product-header-actions .btn-icon-only,
+.company-card-header .btn-icon-only,
+.entity-card-header .btn-icon-only,
+.billing-header-actions .btn-icon-only,
+.panel-header .btn-icon-only,
+.settings-group-header .btn-icon-only {
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  min-width: var(--icon-size) !important;
+  min-height: var(--icon-size) !important;
+  padding: 0 !important;
+  border-radius: 6px;
 }
 
 .contact-tags,
@@ -2863,13 +3131,13 @@ html[data-theme="dark"] .payments-health-banner code {
   border: 1px solid color-mix(in srgb, var(--stroke) 84%, transparent);
   border-radius: 10px;
   background: color-mix(in srgb, var(--panel) 93%, var(--primary-soft) 7%);
-  padding: 6px 8px;
+  padding: 8px 10px;
 }
 
 .product-info {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 8px;
 }
 
 .product-info-compact .field-hint {
@@ -2881,11 +3149,8 @@ html[data-theme="dark"] .payments-health-banner code {
 .contact-footer,
 .product-footer-actions {
   border-top: 1px solid var(--stroke);
-  padding-top: 6px;
-  margin-top: 2px;
-}
-
-.product-footer-actions {
+  padding-top: 8px;
+  margin-top: 8px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -3219,13 +3484,13 @@ html[data-theme="dark"] .payments-health-banner code {
 .page-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
-  margin-top: 10px;
+  margin-top: 6px;
 }
 
 .page-actions-summary {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-faint);
 }
 
@@ -3376,23 +3641,18 @@ html[data-contrast="high"] .filtersPanel {
 }
 
 .settings-group-header {
-  padding: 12px 14px;
+  padding: 4px 8px;
   background: color-mix(in srgb, var(--primary-soft) 28%, transparent);
   border-bottom: 1px solid var(--stroke);
+  min-height: 28px;
 }
 
 .settings-group-header h3,
 .settings-group-header h4,
 .panel-header h3,
 .ui-panel-header {
-  color: var(--brand-primary);
-}
-
-.settings-group-header h3,
-.settings-group-header h4,
-.panel-header h3 {
-  font-size: 12.5px;
-  font-weight: 800;
+  font-size: 12px;
+  font-weight: 600;
   margin: 0;
   color: var(--text-strong);
 }
@@ -3400,25 +3660,25 @@ html[data-contrast="high"] .filtersPanel {
 .settings-group-body {
   display: grid;
   gap: 8px;
-  padding: 10px;
+  padding: 8px;
 }
 
 .settings-submodule-header {
   display: grid;
-  gap: 2px;
-  padding-bottom: 6px;
+  gap: 4px;
+  padding-bottom: 8px;
   border-bottom: 1px dashed color-mix(in srgb, var(--stroke) 70%, transparent);
 }
 
 .settings-submodule-title {
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
   color: var(--text-strong);
 }
 
 .settings-group-title {
-  font-size: 9px;
-  letter-spacing: 0.1em;
+  font-size: 11px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-faint);
 }
@@ -3459,25 +3719,38 @@ html[data-contrast="high"] .filtersPanel {
 /* Etiquetas, ayudas, filtros */
 .field {
   display: grid;
-  gap: 4px;
+  gap: var(--space-2);
   color: var(--text-soft);
-  font-size: 11.5px;
+  font-size: var(--text-base);
 }
 
 .field label {
-  font-size: 11.5px;
-  font-weight: 700;
+  font-size: var(--text-base);
+  font-weight: 600;
   color: var(--form-label);
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   flex-wrap: wrap;
-  line-height: 1.2;
+  line-height: 1.3;
 }
 
 .field-hint {
-  font-size: 10.5px;
+  font-size: var(--text-sm);
   color: var(--form-hint);
+}
+
+.input, .select {
+  font-size: var(--text-base);
+  height: var(--input-height);
+  min-height: var(--input-height);
+  padding: 0 var(--space-3);
+}
+
+textarea.input {
+  font-size: var(--text-base);
+  line-height: 1.5;
+  min-height: 80px;
 }
 
 .ui-stack-lg {
@@ -3529,7 +3802,7 @@ html[data-contrast="high"] .filtersPanel {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 6px;
 }
 
 .ui-panel-header-left {
@@ -3540,7 +3813,7 @@ html[data-contrast="high"] .filtersPanel {
 .ui-panel-title {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
 }
 
 .ui-title-reset {
@@ -4071,11 +4344,11 @@ textarea.input {
 
 .contact-card-top {
   grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: flex-start;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  padding: 4px 6px 0;
+  padding: 0;
 }
 
 .contact-head {
@@ -4098,25 +4371,19 @@ textarea.input {
 
 .contact-card-top-actions {
   display: inline-flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-self: end;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
 .customer-actions {
   display: flex;
-  justify-content: flex-start;
-  gap: 10px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.contact-card-top-actions {
-  display: inline-flex;
   justify-content: flex-end;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 4px;
+  flex-wrap: nowrap;
   align-items: center;
+  margin-left: auto;
 }
 
 .contact-left {
@@ -4127,15 +4394,15 @@ textarea.input {
 .contact-title {
   display: inline-flex;
   align-items: center;
-  min-height: 24px;
-  font-size: 11px;
-  font-weight: 700;
+  min-height: 20px;
+  font-size: var(--card-title-size);
+  font-weight: 600;
   color: var(--text-strong);
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .contact-subline {
-  font-size: 11.5px;
+  font-size: var(--card-sub-size);
   color: var(--text-soft);
 }
 
@@ -4198,23 +4465,23 @@ textarea.input {
 
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 6px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin-top: var(--space-1);
 }
 
 .summary-grid.compact {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--space-1);
 }
 
 .summary-grid.compact .summary-item {
-  padding: 5px 6px;
+  padding: 3px 4px;
 }
 
 .summary-grid.plain {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-1) var(--space-2);
 }
 
 .summary-grid.plain .summary-item {
@@ -4224,12 +4491,12 @@ textarea.input {
 }
 
 .summary-item {
-  padding: 5px 6px;
-  border-radius: 10px;
+  padding: 3px 4px;
+  border-radius: 8px;
   border: 1px solid var(--stroke);
   background: var(--surface-2);
   display: grid;
-  gap: 2px;
+  gap: 1px;
 }
 
 .summary-span-2 {
@@ -4245,7 +4512,7 @@ textarea.input {
 }
 
 .summary-label {
-  font-size: 9px;
+  font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-faint);
@@ -4253,7 +4520,7 @@ textarea.input {
 }
 
 .summary-value {
-  font-size: 12px;
+  font-size: var(--text-base);
   font-weight: 600;
   color: var(--text);
   overflow-wrap: anywhere;
@@ -4471,7 +4738,9 @@ textarea.input {
 }
 
 .contact-grid-compact {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+  width: 100%;
 }
 
 .contact-person-grid > div,
@@ -4515,11 +4784,11 @@ textarea.input {
 .pill-sm {
   display: inline-flex !important;
   align-items: center !important;
-  min-height: 24px !important;
-  font-size: 11px !important;
+  min-height: 22px !important;
+  font-size: var(--text-sm) !important;
   font-weight: 700 !important;
-  line-height: 1.5 !important;
-  padding: 0 11px !important;
+  line-height: 1.4 !important;
+  padding: 0 var(--space-3) !important;
   border-radius: 999px !important;
 }
 
@@ -4591,8 +4860,10 @@ textarea.input {
 }
 
 .btn-icon-only {
-  width: 26px;
-  min-width: 26px !important;
+  width: 20px;
+  min-width: 20px !important;
+  height: 20px;
+  min-height: 20px !important;
   padding: 0 !important;
   font-size: 0 !important;
   gap: 0 !important;
@@ -4601,10 +4872,10 @@ textarea.input {
 .btn-icon-only::before,
 .btn-delete-icon::before {
   content: "";
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   display: inline-block;
-  flex: 0 0 14px;
+  flex: 0 0 12px;
   background-color: currentColor;
   -webkit-mask: var(--btn-icon) no-repeat center / contain;
   mask: var(--btn-icon) no-repeat center / contain;
@@ -4632,16 +4903,16 @@ textarea.input {
 }
 
 .select-compact {
-  min-height: 30px;
-  padding: 5px 9px;
-  font-size: 12px;
+  min-height: var(--button-height-sm);
+  padding: 0 var(--space-3);
+  font-size: var(--text-base);
   border-radius: var(--radius-md);
 }
 
 .input-compact {
-  min-height: 30px;
-  padding: 5px 9px;
-  font-size: 12px;
+  min-height: var(--button-height-sm);
+  padding: 0 var(--space-3);
+  font-size: var(--text-base);
   border-radius: var(--radius-md);
 }
 
@@ -4657,11 +4928,12 @@ textarea.input {
 
 .notification-form .field.row {
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--space-3);
 }
 
 .notification-form textarea.input-compact {
-  min-height: 72px;
+  min-height: 80px;
+  font-size: var(--text-base);
 }
 
 .tenant-list {
@@ -4716,11 +4988,11 @@ textarea.input {
 }
 
 .billing-header-actions .btn-compact {
-  width: 34px;
-  height: 34px;
-  min-width: 34px;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  min-width: var(--icon-size);
   padding: 0;
-  border-radius: 10px;
+  border-radius: 6px;
 }
 
 .billing-header-actions .ghost {
@@ -6268,6 +6540,7 @@ textarea.input {
   grid-template-columns: 1fr;
   gap: 10px;
   width: 100%;
+  max-width: 100%;
 }
 
 .billing-view-switch {
@@ -6496,19 +6769,22 @@ textarea.input {
 .billing-card {
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--panel) 94%, var(--primary-soft) 6%) 0%, var(--panel) 100%);
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   border: 1px solid color-mix(in srgb, var(--stroke-strong) 78%, transparent);
-  box-shadow: 0 10px 24px rgba(30, 18, 52, 0.08);
-  padding: 12px 14px;
+  box-shadow: var(--shadow);
+  padding: var(--space-4);
   display: grid;
-  gap: 10px;
+  gap: var(--space-2);
   width: 100%;
 }
 
 .billing-card .billing-header {
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 12px;
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--stroke);
+  margin-bottom: var(--space-2);
 }
 
 .billing-card .billing-badges,
@@ -6517,33 +6793,33 @@ textarea.input {
 }
 
 .billing-card .billing-retry-field {
-  gap: 2px;
+  gap: var(--space-1);
 }
 
 .billing-card .billing-retry-label {
-  font-size: 9px;
+  font-size: var(--text-xs);
 }
 
 .billing-card .billing-retry-header {
-  gap: 6px;
+  gap: var(--space-2);
 }
 
 .billing-card .billing-cost-box {
-  padding: 6px 8px;
+  padding: var(--space-1) var(--space-2);
 }
 
 .billing-card .billing-cost-total {
-  font-size: 14px;
+  font-size: var(--text-base);
 }
 
 .billing-card .billing-actions {
   align-items: center;
-  gap: 6px 10px;
+  gap: var(--space-1) var(--space-3);
 }
 
 .billing-card .billing-actions-right {
   flex-wrap: wrap;
-  row-gap: 6px;
+  row-gap: var(--space-1);
 }
 
 .billing-history {
@@ -6720,43 +6996,43 @@ textarea.input {
 }
 
 .billing-header {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px 14px;
-  align-items: flex-start;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
 }
 
 .billing-header-middle {
   display: grid;
-  gap: 2px;
+  gap: var(--space-1);
   justify-items: flex-start;
   align-content: start;
-  min-width: 170px;
+  min-width: 150px;
 }
 
 .billing-header-label {
-  font-size: 9px;
+  font-size: var(--text-xs);
   color: var(--text-faint);
   letter-spacing: 0.02em;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-1);
   line-height: 1.2;
 }
 
 
 .billing-header-right {
   display: grid;
-  gap: 6px;
+  gap: var(--space-1);
   justify-items: end;
 }
 
 .billing-header-actions {
   display: inline-flex;
+  flex-direction: row;
   align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  gap: var(--space-1);
+  flex-shrink: 0;
 }
 
 .billing-title {
@@ -6767,22 +7043,22 @@ textarea.input {
 .billing-name {
   display: inline-flex;
   align-items: center;
-  min-height: 24px;
-  font-size: 11px;
-  font-weight: 700;
+  min-height: 20px;
+  font-size: var(--card-title-size);
+  font-weight: 600;
   color: var(--text-strong);
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .billing-sub {
-  font-size: 9px;
+  font-size: var(--card-sub-size);
   color: var(--text-soft);
   line-height: 1.2;
 }
 
 .billing-badges {
   display: flex;
-  gap: 6px;
+  gap: var(--space-1);
   flex-wrap: nowrap;
   justify-content: flex-start;
   align-items: center;
@@ -6801,7 +7077,7 @@ textarea.input {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
   align-items: flex-start;
-  gap: 10px 14px;
+  gap: var(--space-2) var(--space-4);
   flex-wrap: nowrap;
   width: 100%;
   min-width: 0;
@@ -6809,7 +7085,7 @@ textarea.input {
 
 .billing-header-meta-item {
   display: grid;
-  gap: 4px;
+  gap: var(--space-1);
   align-items: flex-start;
   min-width: 0;
   flex: 0 0 auto;
@@ -6818,7 +7094,7 @@ textarea.input {
 .billing-header-status-strip {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   min-width: 0;
   flex: 1 1 auto;
   overflow: hidden;
@@ -6828,7 +7104,7 @@ textarea.input {
   margin: 0;
   white-space: nowrap;
   flex: 0 0 auto;
-  font-size: 9px;
+  font-size: var(--text-xs);
   font-weight: 600;
   color: var(--text-faint);
   text-transform: uppercase;
@@ -6838,7 +7114,7 @@ textarea.input {
 .billing-status-line {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   min-width: 0;
   flex-wrap: nowrap;
 }
@@ -6846,7 +7122,7 @@ textarea.input {
 .billing-status-line .pill,
 .billing-status-line .pill-sm {
   flex: 0 0 auto;
-  max-width: 120px;
+  max-width: 100px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -7672,6 +7948,8 @@ textarea.input {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
+  width: 100%;
+  max-width: 100%;
 }
 
 @media (max-width: 720px) {
@@ -7700,9 +7978,17 @@ textarea.input {
   gap: 4px 12px;
   align-items: center;
   border-left: 3px solid var(--metric-accent, var(--primary));
-  background: linear-gradient(135deg, var(--metric-accent-soft) 0%, rgba(0, 0, 0, 0) 85%), var(--panel);
+  background:
+    radial-gradient(120% 120% at 0% 0%, color-mix(in srgb, var(--metric-accent) 12%, transparent) 0%, transparent 55%),
+    linear-gradient(135deg, var(--metric-accent-soft) 0%, rgba(0, 0, 0, 0) 85%),
+    var(--panel);
   box-shadow: var(--shadow);
   border: 1px solid var(--stroke-strong);
+  width: 100%;
+  max-width: 100%;
+  position: relative;
+  overflow: hidden;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
 }
 
 .metric-icon {
@@ -7716,6 +8002,7 @@ textarea.input {
   background: var(--metric-accent-soft);
   color: var(--metric-accent);
   border: 1px solid var(--stroke);
+  position: relative;
 }
 
 .metric-icon svg {
@@ -7752,6 +8039,63 @@ textarea.input {
 .metric-card.tone-warning { --metric-accent: var(--status-warning); --metric-accent-soft: var(--status-warning-bg); }
 .metric-card.tone-danger { --metric-accent: var(--status-danger); --metric-accent-soft: var(--status-danger-bg); }
 .metric-card.tone-info { --metric-accent: var(--status-info); --metric-accent-soft: var(--status-info-bg); }
+
+.metric-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.06) 35%, transparent 70%);
+  opacity: 0;
+  transition: opacity 200ms ease;
+  pointer-events: none;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+  border-color: color-mix(in srgb, var(--metric-accent) 40%, var(--stroke-strong));
+}
+
+.metric-card:hover::after {
+  opacity: 1;
+}
+
+.metric-icon::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--metric-accent) 35%, transparent);
+  opacity: 0.25;
+}
+
+@keyframes metric-float {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes metric-pop {
+  0% { transform: scale(0.98); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.metricsPage .metric-card {
+  animation: metric-pop 220ms ease both;
+}
+
+.metricsPage .metric-card:nth-child(1) { animation-delay: 0ms; }
+.metricsPage .metric-card:nth-child(2) { animation-delay: 40ms; }
+.metricsPage .metric-card:nth-child(3) { animation-delay: 80ms; }
+.metricsPage .metric-card:nth-child(4) { animation-delay: 120ms; }
+.metricsPage .metric-card:nth-child(5) { animation-delay: 160ms; }
+.metricsPage .metric-card:nth-child(6) { animation-delay: 200ms; }
+.metricsPage .metric-card:nth-child(7) { animation-delay: 240ms; }
+.metricsPage .metric-card:nth-child(8) { animation-delay: 280ms; }
+
+.metricsPage .metric-card.metric-card-lg .metric-icon {
+  animation: metric-float 2.4s ease-in-out infinite;
+}
 
 .chart-card {
   display: grid;
@@ -7819,7 +8163,7 @@ textarea.input {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-top: 10px;
+  margin-top: 6px;
   flex-wrap: wrap;
 }
 
@@ -7858,26 +8202,43 @@ textarea.input {
    METRICS PAGE - LAYOUT COMPACTO
    ============================================ */
 
-/* Filtros más compactos */
+/* Filtros más COMPACTOS - MÉTRICAS */
+.metricsPage .settings-group-header {
+  padding: 6px 8px;
+  background: transparent;
+  border-bottom: 0;
+}
+
 .metricsPage .filtersForm {
   gap: 6px;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: nowrap;
 }
 
 .metricsPage .field {
-  gap: 3px;
-  font-size: 11px;
+  gap: 2px;
+  font-size: 9px;
+  flex: 0 0 auto;
 }
 
 .metricsPage .field label {
-  font-size: 10.5px;
-  font-weight: 700;
+  font-size: 9px;
+  font-weight: 600;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .metricsPage .filtersForm .input,
 .metricsPage .filtersForm .select {
-  font-size: 11.5px;
-  padding: 0 10px;
-  min-height: 34px;
+  font-size: 11px;
+  padding: 0 6px;
+  min-height: 26px;
+  height: 26px;
 }
 
 .metricsPage .filtersForm .select {
@@ -7885,16 +8246,213 @@ textarea.input {
   --field-padding-left: var(--control-padding-x);
 }
 
-.metricsPage .filtersActions {
-  display: flex;
+/* Limitar ancho de filtros en métricas - MAX 50% pantalla */
+.metricsPage .filtersPanel {
+  max-width: 100%;
+}
+
+.metricsPage .filtersRow {
+  justify-content: flex-start;
+  margin-top: 0;
+}
+
+.metricsPage .filtersHeaderRowTop {
+  grid-template-columns: 1fr;
+}
+
+.metricsPage .filtersHeaderRowBottom {
   align-items: center;
+}
+
+/* Pagos - encabezado compacto sin doble caja */
+.paymentsPage .settings-group-header {
+  padding: 6px 8px;
+  background: transparent;
+  border-bottom: 0;
+}
+
+.paymentsPage .filtersPanel {
+  max-width: 100%;
+}
+
+.paymentsPage .filtersRow {
+  margin-top: 0;
+}
+
+.paymentsPage .filtersSearch {
+  max-width: 300px;
+}
+
+.paymentsPage .filtersSearch .input {
+  font-size: 12px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0 8px;
+}
+
+.paymentsPage .filtersSearch .btn-search {
+  width: 28px;
+  height: 28px;
+}
+
+.paymentsPage .smartViewsBar {
   gap: 6px;
 }
 
-.metricsPage .filtersNote {
-  font-size: 11px;
+/* Campañas - tipografía y controles más legibles */
+.campaignsPage .panel.module h3 {
+  font-size: 15px;
+  color: var(--text-strong);
+}
+
+.campaignsPage .muted {
+  font-size: 13px;
   color: var(--text-soft);
   font-weight: 500;
+}
+
+.campaignsPage .primary,
+.campaignsPage .ghost,
+.campaignsPage .btn {
+  min-height: 34px;
+  font-size: 13px;
+  padding: 6px 12px;
+}
+
+.campaignsModal .panel-header strong {
+  font-size: 15px;
+  color: var(--text-strong);
+}
+
+.campaignsModal .input,
+.campaignsModal .select,
+.campaignsModal .input.input-compact,
+.campaignsModal .select.select-compact {
+  min-height: 34px;
+  height: 34px;
+  font-size: 13px;
+}
+
+.campaignsModal textarea.input,
+.campaignsModal textarea.input-compact {
+  font-size: 13px;
+}
+
+.campaignsModal .field-hint {
+  color: var(--text-soft);
+  font-size: 12.5px;
+}
+
+.campaignsModal label {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.campaignsModal .primary,
+.campaignsModal .ghost,
+.campaignsModal .btn {
+  min-height: 34px;
+  font-size: 13px;
+  padding: 6px 12px;
+}
+
+/* Customers y Products - Filtros 100% ancho */
+.customersPage .filtersPanel,
+.productsPage .filtersPanel,
+.empresasPage .filtersPanel {
+  max-width: 100%;
+}
+
+.customersPage .filtersSearch {
+  max-width: 260px;
+}
+
+.customersPage .filtersSearch .input {
+  font-size: 12px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0 8px;
+}
+
+.customersPage .filtersSearch .btn-search {
+  width: 28px;
+  height: 28px;
+}
+
+.customersPage .smartViewsBar {
+  gap: 6px;
+}
+
+.customersPage .smartViewsTop {
+  gap: 6px;
+}
+
+.customersPage .smartViewsPinButton,
+.customersPage .smartViewsPinAdd {
+  font-size: 10px;
+  padding: 2px 8px;
+}
+
+.customersPage .smartViewsPinSelect,
+.customersPage .smartViewsQuickSelect .select {
+  min-height: 26px;
+  height: 26px;
+  font-size: 11.5px;
+}
+
+.customersPage .customer-actions .primary {
+  min-height: 30px;
+  height: 30px;
+  font-size: 12px;
+  padding: 4px 10px;
+}
+
+.customersPage .list-csv-actions .btn-icon-only {
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+}
+
+.customersPage .filtersRow,
+.productsPage .filtersRow,
+.empresasPage .filtersRow {
+  justify-content: stretch;
+}
+
+/* Grid de métricas - COMPACTO */
+.metricsPage .grid3 {
+  width: 100%;
+  max-width: 100%;
+  gap: 8px;
+}
+
+.metricsPage .metric-card {
+  width: 100%;
+  max-width: 100%;
+  padding: 6px 8px;
+  min-height: 60px;
+}
+
+.metricsPage .metric-icon {
+  width: 32px;
+  height: 32px;
+}
+
+.metricsPage .metric-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.metricsPage .metric-label {
+  font-size: 9px;
+}
+
+.metricsPage .metric-value {
+  font-size: 16px;
+}
+
+.metricsPage .metric-sub {
+  font-size: 8.5px;
 }
 
 /* Tabs de métricas */
@@ -7928,6 +8486,106 @@ textarea.input {
   width: 16px;
   height: 16px;
 }
+
+/* Variantes por importancia */
+.metricsPage .metric-card.metric-card-lg {
+  padding: 10px 12px;
+  min-height: 78px;
+  grid-template-columns: 40px 1fr;
+}
+
+.metricsPage .metric-card.metric-card-lg .metric-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+}
+
+.metricsPage .metric-card.metric-card-lg .metric-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.metricsPage .metric-card.metric-card-lg .metric-label {
+  font-size: 10px;
+}
+
+.metricsPage .metric-card.metric-card-lg .metric-value {
+  font-size: 19px;
+}
+
+.metricsPage .metric-card.metric-card-lg .metric-sub {
+  font-size: 9px;
+}
+
+.metricsPage .metric-card.metric-card-sm {
+  padding: 5px 8px;
+  min-height: 54px;
+  grid-template-columns: 30px 1fr;
+  gap: 2px 8px;
+}
+
+.metricsPage .metric-card.metric-card-sm .metric-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+}
+
+.metricsPage .metric-card.metric-card-sm .metric-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.metricsPage .metric-card.metric-card-sm .metric-label {
+  font-size: 8.5px;
+}
+
+.metricsPage .metric-card.metric-card-sm .metric-value {
+  font-size: 15px;
+}
+
+.metricsPage .metric-card.metric-card-sm .metric-sub {
+  font-size: 8px;
+}
+
+/* Detalle y KPIs secundarios */
+.metricsDetailGrid .metric-card.metric-card-secondary {
+  border-left-width: 2px;
+  background:
+    radial-gradient(120% 120% at 100% 0%, color-mix(in srgb, var(--metric-accent) 10%, transparent) 0%, transparent 60%),
+    linear-gradient(135deg, color-mix(in srgb, var(--metric-accent-soft) 65%, transparent) 0%, rgba(0,0,0,0) 75%),
+    var(--panel);
+  box-shadow: var(--shadow-soft);
+}
+
+.metricsDetailGrid .metric-card.metric-card-secondary::after {
+  opacity: 0.35;
+}
+
+.metricsDetailGrid .metric-card.metric-card-secondary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+}
+
+.metricsDetailGrid .metric-card.metric-card-secondary .metric-value {
+  font-weight: 800;
+}
+
+.metrics-detail-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.metrics-detail-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(90% 90% at 0% 0%, rgba(255,255,255,0.06), transparent 60%);
+  pointer-events: none;
+}
+
+.metricsDetailGrid .metric-card:nth-child(1) { animation-delay: 0ms; }
+.metricsDetailGrid .metric-card:nth-child(2) { animation-delay: 60ms; }
+.metricsDetailGrid .metric-card:nth-child(3) { animation-delay: 120ms; }
 
 .metricsPage .metric-label {
   font-size: 10px;
@@ -8037,7 +8695,7 @@ textarea.input {
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
+  gap: var(--space-2);
   margin-bottom: 0;
   flex-wrap: nowrap;
   min-height: 24px;
@@ -8047,7 +8705,7 @@ textarea.input {
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   flex-wrap: nowrap;
 }
 
@@ -8055,7 +8713,7 @@ textarea.input {
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   flex-wrap: nowrap;
 }
 
@@ -8063,18 +8721,18 @@ textarea.input {
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 3px;
+  gap: var(--space-1);
   white-space: nowrap;
 }
 
 .billing-page .billing-header-label {
-  font-size: 8.5px;
+  font-size: var(--text-xs);
   font-weight: 600;
   color: var(--text-faint);
   white-space: nowrap;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-1);
   line-height: 1.2;
 }
 
@@ -8084,7 +8742,7 @@ textarea.input {
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-4);
 }
 
 /* Cada submódulo - MISMO TAMAÑO */
@@ -8120,8 +8778,8 @@ textarea.input {
 }
 
 .billing-page .billing-name {
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--card-title-size);
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -8129,7 +8787,7 @@ textarea.input {
 }
 
 .billing-page .billing-sub {
-  font-size: 9px;
+  font-size: var(--card-sub-size);
   color: var(--text-soft);
   white-space: nowrap;
   overflow: hidden;
@@ -10081,14 +10739,16 @@ body.is-global-loading {
 
 .product-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  width: 100%;
 }
 
 .company-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 12px;
+  width: 100%;
 }
 
 .product-list {
@@ -10163,7 +10823,7 @@ body.is-global-loading {
 
 .company-card {
   background: var(--panel);
-  border-radius: 14px;
+  border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--stroke) 85%, transparent);
   box-shadow: var(--shadow);
   padding: 10px;
@@ -10174,7 +10834,7 @@ body.is-global-loading {
 
 .entity-card {
   background: var(--panel);
-  border-radius: 14px;
+  border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--stroke) 85%, transparent);
   box-shadow: var(--shadow);
   padding: 10px;
@@ -10190,38 +10850,87 @@ body.is-global-loading {
 
 .entity-card-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 6px;
+  gap: 8px;
 }
 
 .entity-card-header-right {
   display: inline-flex;
-  flex-direction: column;
-  align-items: flex-end;
+  flex-direction: row;
+  align-items: center;
   gap: 4px;
 }
 
-.entity-card-title {
-  font-weight: 700;
-  font-size: 11.5px;
+/* Tamaños de texto UNIFICADOS en TODA la app */
+.app-shell {
+  --card-title-size: 13px;
+  --card-sub-size: 11.5px;
+  --card-meta-size: 11px;
 }
 
-.entity-card-sub {
-  color: var(--text-faint);
-  font-size: 10px;
+.company-name,
+.entity-card-title,
+.product-name,
+.contact-name,
+.billing-title,
+.billing-name,
+.contact-title {
+  font-weight: 600;
+  font-size: var(--card-title-size);
+  line-height: 1.3;
+  color: var(--text-strong);
 }
 
-.entity-card-price {
-  font-size: 11.5px;
+.company-meta,
+.entity-card-sub,
+.product-meta,
+.contact-email,
+.billing-subtitle,
+.billing-sub,
+.contact-subline {
+  font-size: var(--card-sub-size);
+  color: var(--text-soft);
+  line-height: 1.3;
+}
+
+.company-contact,
+.product-sku,
+.contact-phone {
+  font-size: var(--card-meta-size);
+  color: var(--text-soft);
+}
+
+/* Precios y valores importantes */
+.entity-card-price,
+.product-price,
+.billing-price {
+  font-size: 14px;
   font-weight: 700;
   color: var(--primary);
-  text-align: right;
+}
+
+/* Field labels */
+.field-hint,
+.entity-card-meta-key,
+.subscription-field-key {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+}
+
+/* Field values */
+.entity-card-meta-value,
+.subscription-field-value {
+  font-size: 12px;
+  color: var(--text);
 }
 
 .entity-card-grid {
   display: grid;
-  gap: 6px 10px;
+  gap: 6px 8px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
@@ -10239,12 +10948,6 @@ body.is-global-loading {
   min-width: 0;
 }
 
-.entity-card-counts .pill {
-  white-space: nowrap;
-  padding: 1px 5px;
-  font-size: 9.5px;
-}
-
 .entity-card-span {
   grid-column: 1 / -1;
 }
@@ -10258,10 +10961,11 @@ body.is-global-loading {
 
 .entity-card-footer {
   border-top: 1px solid color-mix(in srgb, var(--stroke) 65%, transparent);
-  padding-top: 6px;
+  padding-top: 8px;
+  margin-top: 8px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .entity-card-actions-left,
@@ -10274,9 +10978,16 @@ body.is-global-loading {
 
 .company-card-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 6px;
+  gap: 8px;
+}
+
+.company-card-header .entity-card-header-right {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
 }
 
 .company-card-body {
@@ -10286,22 +10997,26 @@ body.is-global-loading {
 
 .company-card-actions {
   display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
+  gap: 4px;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 .company-name {
-  font-weight: 700;
-  font-size: 12px;
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--text-strong);
 }
 
 .company-meta {
   color: var(--text-faint);
-  font-size: 10.5px;
+  font-size: 11px;
 }
 
 .company-contact {
-  font-size: 10.5px;
+  font-size: 10px;
   color: var(--text-faint);
 }
 
@@ -10333,7 +11048,7 @@ body.is-global-loading {
 
 .product-card {
   background: var(--panel);
-  border-radius: 14px;
+  border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--stroke) 85%, transparent);
   box-shadow: var(--shadow);
   overflow: hidden;
@@ -10341,8 +11056,9 @@ body.is-global-loading {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 9px;
-  gap: 7px;
+  padding: 10px;
+  gap: 8px;
+  min-height: 280px;
 }
 
 .product-card:hover {
@@ -10351,7 +11067,8 @@ body.is-global-loading {
 }
 
 .product-img {
-  height: 90px;
+  height: 200px;
+  aspect-ratio: 1 / 1;
   background: var(--surface-2);
   display: flex;
   align-items: center;
@@ -10360,6 +11077,7 @@ body.is-global-loading {
   flex-shrink: 0;
   overflow: hidden;
   border-radius: 10px;
+  width: 100%;
 }
 
 .product-img img {
@@ -10379,14 +11097,14 @@ body.is-global-loading {
   display: inline-flex;
   align-items: center;
   min-height: 20px;
-  font-size: 10.5px;
-  font-weight: 700;
+  font-weight: 600;
+  font-size: 14px;
   color: var(--text-strong);
-  line-height: 1.4;
+  line-height: 1.3;
 }
 
 .product-meta {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-soft);
   display: inline-flex;
   gap: 4px;
@@ -10395,20 +11113,19 @@ body.is-global-loading {
 }
 
 .product-sku {
-  font-family: inherit;
-  font-size: 8px;
+  font-size: 11px;
   color: var(--text-soft);
   font-weight: 500;
 }
 
 .product-price {
-  font-size: 11.5px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--primary);
 }
 
 .product-stock {
-  font-size: 9.5px;
+  font-size: 11px;
   color: var(--text-faint);
 }
 
@@ -11211,9 +11928,9 @@ html[data-contrast="high"] .module-footer .ghost {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding-bottom: 8px;
-  margin-bottom: 8px;
+  gap: var(--space-3);
+  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-2);
   border-bottom: 1px solid var(--stroke);
 }
 
@@ -11222,19 +11939,43 @@ html[data-contrast="high"] .module-footer .ghost {
 }
 
 .panel-title {
-  font-size: 14px;
+  font-size: var(--text-lg);
   font-weight: 700;
   color: var(--text);
 }
 
 .panel-sub {
-  font-size: 12px;
+  font-size: var(--text-base);
   color: var(--text-faint);
 }
 
 .modal-body {
   display: grid;
-  gap: 12px;
+  gap: var(--space-5);
+}
+
+/* Modal - Textos uniformes */
+.modal-body .field {
+  font-size: var(--text-base);
+}
+
+.modal-body .field label {
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.modal-body .select,
+.modal-body .input {
+  font-size: var(--text-base);
+}
+
+.modal-body textarea {
+  font-size: var(--text-base);
+  line-height: 1.5;
+}
+
+.modal-body .field-hint {
+  font-size: var(--text-sm);
 }
 
 .modal-close {
