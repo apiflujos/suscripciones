@@ -149,51 +149,63 @@ export default async function EmpresasPage({
               {items.length === 0 ? <div className="contact-empty">Sin empresas.</div> : null}
             </div>
           ) : (
-            <div className="company-grid" aria-label="Listado de empresas">
+            <div className="billing-grid" aria-label="Listado de empresas">
               {items.map((e) => (
-                <div className="company-card entity-card" key={e.id}>
-                  <div className="entity-card-header">
-                    <div>
-                      <div className="company-name entity-card-title">{e.nombre}</div>
-                      <div className="company-meta entity-card-sub">{e.email || "Sin email"}</div>
+                <div className="billing-card" key={e.id}>
+                  <div className="billing-header">
+                    <div className="billing-badges billing-badges-header">
+                      <div className="billing-header-meta-grid">
+                        <div className="billing-header-meta-item">
+                          <span className="billing-header-label">
+                            Empresa
+                          </span>
+                          <div className="billing-value">{e.nombre}</div>
+                        </div>
+                        <div className="billing-header-meta-item billing-header-status-strip">
+                          <span className="billing-header-label">
+                            Contacto
+                          </span>
+                          <div className="billing-status-line" role="group" aria-label="Contacto">
+                            <span className={`pill pill-sm ${e.contactoPrincipal ? "pill-ok" : "pill-muted"}`} title={formatContactLabel(e.contactoPrincipal)}>
+                              {formatContactLabel(e.contactoPrincipal)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="billing-header-right">
+                      <div className="billing-header-actions">
+                        <a className="ghost btn-compact btn-icon-only btn-edit" href={`/empresas/${e.id}`} aria-label="Editar" title="Editar" />
+                        <form action={deleteEmpresa}>
+                          <input type="hidden" name="csrf" value={csrfToken} />
+                          <input type="hidden" name="id" value={e.id} />
+                          <button className="ghost btn-compact btn-delete-icon btn-red" type="submit" aria-label="Eliminar" title="Eliminar" />
+                        </form>
+                      </div>
                     </div>
                   </div>
-                  <div className="entity-card-grid">
-                    <div>
-                      <div className="field-hint">Teléfono</div>
-                      <div>{e.telefono || "—"}</div>
+
+                  <div className="billing-body-main">
+                    <div className="billing-body-section">
+                      <div className="billing-section-title">Información</div>
+                      <div className="billing-title">
+                        <div className="billing-name billing-value">{e.nombre}</div>
+                        <div className="billing-sub">{e.email || "Sin email"} {e.telefono ? `· ${e.telefono}` : ""}</div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="field-hint">Contacto principal</div>
-                      <div>{formatContactLabel(e.contactoPrincipal)}</div>
+                    <div className="billing-body-section">
+                      <div className="billing-section-title">Dirección</div>
+                      <div className="billing-value">{e.direccion || "—"}</div>
                     </div>
-                    <div>
-                      <div className="field-hint">Dirección</div>
-                      <div>{e.direccion || "—"}</div>
-                    </div>
-                    <div>
-                      <div className="field-hint">Sitio web</div>
-                      <div>{e.sitioWeb || "—"}</div>
-                    </div>
-                  </div>
-                  <div className="entity-card-actions">
-                    <div className="entity-card-actions-left">
-                      <a className="ghost btn-compact btn-noicon" href={`/empresas/${e.id}`} aria-label="Ver detalle" title="Ver detalle">
-                        Ver detalle
-                      </a>
-                    </div>
-                    <div className="entity-card-actions-right">
-                      <a className="ghost btn-compact btn-icon-only btn-edit" href={`/empresas/${e.id}`} aria-label="Editar" title="Editar" />
-                      <form action={deleteEmpresa}>
-                        <input type="hidden" name="csrf" value={csrfToken} />
-                        <input type="hidden" name="id" value={e.id} />
-                        <button className="ghost btn-compact btn-delete-icon btn-red" type="submit" aria-label="Eliminar" title="Eliminar" />
-                      </form>
+                    <div className="billing-body-section">
+                      <div className="billing-section-title">Sitio web</div>
+                      <div className="billing-value">{e.sitioWeb || "—"}</div>
                     </div>
                   </div>
-                  <div className="entity-card-footer">
-                    <div className="field-hint">Contactos</div>
-                    <div className="entity-card-counts">
+
+                  <div className="billing-footer">
+                    <div className="billing-footer-section">
+                      <span className="billing-footer-label">Contactos</span>
                       <span className="pill pill-sm pill-muted">
                         {Number(e?._count?.contactos || 0)} contactos
                       </span>
