@@ -113,6 +113,8 @@ export function NewBillingAssignmentForm({
   const [productHits, setProductHits] = useState<CatalogItem[]>([]);
   const [productSearching, setProductSearching] = useState(false);
   const [productSearchError, setProductSearchError] = useState("");
+  const [productBootstrap, setProductBootstrap] = useState<CatalogItem[]>([]);
+  const [productBootstrapLoaded, setProductBootstrapLoaded] = useState(false);
 
   const [customerQ, setCustomerQ] = useState("");
   const [customerId, setCustomerId] = useState(defaultSelectedCustomerId || "");
@@ -213,12 +215,47 @@ export function NewBillingAssignmentForm({
       const list = productHits.slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "es"));
       return list.slice(0, 200);
     }
-    const list = catalogItems.slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "es"));
+    const base = catalogItems.length ? catalogItems : productBootstrap;
+    const list = base.slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "es"));
     if (!q) return list.slice(0, 200);
     return list
       .filter((p) => `${p.sku || ""} ${p.name || ""} ${p.id}`.toLowerCase().includes(q))
       .slice(0, 200);
-  }, [catalogItems, productHits, productQ]);
+  }, [catalogItems, productBootstrap, productHits, productQ]);
+
+  useEffect(() => {
+    if (productBootstrapLoaded) return;
+    if (catalogItems.length) {
+      setProductBootstrapLoaded(true);
+      return;
+    }
+    const ac = new AbortController();
+    setProductSearching(true);
+    setProductSearchError("");
+    fetch(`/api/search/products?${new URLSearchParams({ take: "120", ...(tenantId ? { tenantId } : {}) }).toString()}`, {
+      cache: "no-store",
+      signal: ac.signal
+    })
+      .then(async (r) => ({ ok: r.ok, status: r.status, json: await r.json().catch(() => null) }))
+      .then(({ ok, status, json }) => {
+        if (!ok) {
+          setProductBootstrap([]);
+          setProductSearchError(status === 401 ? "No autorizado (revisa el token del Admin)." : `Error cargando productos (${status}).`);
+          return;
+        }
+        const items = Array.isArray(json?.items) ? (json.items as CatalogItem[]) : [];
+        setProductBootstrap(items);
+      })
+      .catch((err) => {
+        if (String(err?.name || "") === "AbortError") return;
+        setProductSearchError("No se pudieron cargar productos.");
+      })
+      .finally(() => {
+        setProductSearching(false);
+        setProductBootstrapLoaded(true);
+      });
+    return () => ac.abort();
+  }, [catalogItems.length, productBootstrapLoaded, tenantId]);
 
   const filteredCustomers = useMemo(() => {
     const q = customerQ.trim().toLowerCase();

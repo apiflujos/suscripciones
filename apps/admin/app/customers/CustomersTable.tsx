@@ -869,34 +869,6 @@ export function CustomersTable({
                     <button className="ghost btn-compact btn-send btn-pay contact-action-btn" type="button" data-modal="true" data-loader="off" onClick={() => openPayModal(c)}>
                       Enviar link de pago
                     </button>
-                    <button className="ghost btn-compact btn-send btn-token contact-action-btn" type="button" data-modal="true" data-loader="off" onClick={() => openTokenModal(c)}>
-                      Enviar débito automático
-                    </button>
-                    <button className="ghost btn-compact btn-send btn-open contact-action-btn" type="button" data-modal="true" data-loader="off" onClick={() => openCartModal(c)}>
-                      Enviar catálogo
-                    </button>
-                    <button className="ghost btn-compact btn-noicon btn-blue btn-create contact-action-btn" type="button" data-modal="true" data-loader="off" onClick={() => openPlanModal(c)}>
-                      Crear suscripción
-                    </button>
-                    {(() => {
-                      const override = linkOverrides[c.id] || {};
-                      const tokenLink = override.token || getTokenLink(c);
-                      const cartLink = override.cart || getCartLink(c);
-                      return (
-                        <>
-                          {tokenLink ? (
-                            <a className="ghost btn-compact btn-noicon btn-amber btn-token" href={tokenLink} target="_blank" rel="noreferrer" title={maskUrl(tokenLink)}>
-                              Link de débito automático
-                            </a>
-                          ) : null}
-                          {cartLink ? (
-                            <a className="ghost btn-compact btn-noicon btn-green btn-open" href={cartLink} target="_blank" rel="noreferrer" title={maskUrl(cartLink)}>
-                              Link de catálogo
-                            </a>
-                          ) : null}
-                        </>
-                      );
-                    })()}
                   </div>
                   {sendError[c.id] === "auth_required" ? (
                     <div className="paylink-error">Sesión vencida. Vuelve a iniciar sesión.</div>
