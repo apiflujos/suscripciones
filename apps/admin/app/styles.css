@@ -14143,3 +14143,37 @@ html[data-contrast="high"] .toggle::after {
 .billing-token-badge {
   margin-left: 6px !important;
 }
+
+/* ==================================
+   HEADER FIX - Botones al lado del título
+   ================================== */
+
+.page-header-simple .page-header-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+
+.page-header-simple .page-title-simple {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.page-header-simple .page-actions-simple {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* En móvil sí允许 wrap */
+@media (max-width: 768px) {
+  .page-header-simple .page-header-title-row {
+    flex-wrap: wrap;
+  }
+  
+  .page-header-simple .page-actions-simple {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
