@@ -44,7 +44,7 @@ export function ManualChargeButton({
         type="submit"
         title="Cobrar suscripción ahora (débito automático)"
       >
-        💳 Cobrar
+        Cobrar
       </button>
     </form>
   );
