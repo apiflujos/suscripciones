@@ -343,6 +343,7 @@ export async function scheduleCatalogLinkNotifications(args: { customerId: strin
         customerId,
         catalogUrl,
         anchorAt: anchorIso,
+        immediateSend: args.forceNow,
         ...(args.paymentType ? { paymentType: args.paymentType } : {})
       };
       if (!args.forceNow && runAt.getTime() > now.getTime()) {
@@ -411,7 +412,8 @@ export async function scheduleTokenizationLinkNotifications(args: { customerId: 
         offsetSeconds,
         customerId,
         tokenUrl,
-        anchorAt: anchorIso
+        anchorAt: anchorIso,
+        immediateSend: args.forceNow
       };
       if (!args.forceNow && runAt.getTime() > now.getTime()) {
         await prisma.retryJob.create({
