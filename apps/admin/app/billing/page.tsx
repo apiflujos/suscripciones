@@ -1,12 +1,13 @@
 import { activateSubscription, cancelSubscription, deleteSubscription, mergeDuplicateSubscriptions, resumeSubscription, suspendSubscription } from "../subscriptions/actions";
 import { DeleteSubscriptionButton } from "./DeleteSubscriptionButton";
 import { MergeDuplicateSubscriptionsButton } from "./MergeDuplicateSubscriptionsButton";
-import { changeSubscriptionPlan, chargeSubscriptionNow, createCustomerFromBilling, createPlanAndSubscription, scheduleCutoff, sendCentralComPaymentLink, sendCentralComTokenizationLink, updateSubscriptionTenants, updateSubscriptionBillingSettings, markSubscriptionPaidManual, unmarkSubscriptionPaidManual } from "./actions";
+import { changeSubscriptionPlan, chargeSubscriptionNow, createCustomerFromBilling, createPlanAndSubscription, scheduleCutoff, sendCentralComPaymentLink, sendCentralComTokenizationLink, updateSubscriptionTenants, updateSubscriptionBillingSettings, markSubscriptionPaidManual, unmarkSubscriptionPaidManual, setBillingChargeDate } from "./actions";
 import { ManualChargeButton } from "./ManualChargeButton";
 import { ManualMarkPaidButton } from "./ManualMarkPaidButton";
 import { ManualUnmarkPaidButton } from "./ManualUnmarkPaidButton";
 import { ChargeStatusModal } from "./ChargeStatusModal";
 import { BillingModals } from "./BillingModals";
+import { EditBillingDateModal } from "./EditBillingDateModal";
 import { listSubscriptions } from "../admin/_services/subscriptions";
 import { listCustomers } from "../admin/_services/customers";
 import { listCatalogProducts } from "../admin/_services/products";
@@ -21,15 +22,13 @@ import { getCsrfToken } from "../lib/csrf";
 import { ChangePlanButton, type PlanOption } from "./ChangePlanButton";
 import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { BillingTenantModalButton } from "./BillingTenantModalButton";
-import { AutoCutoffInlineForm } from "./AutoCutoffInlineForm";
-import { RetryDateField } from "./RetryDateField";
-import { PaymentHistoryButton } from "./PaymentHistoryButton";
 import { BillingCyclesButton } from "./BillingCyclesButton";
 import { BillingCycleSettingsButton } from "./BillingCycleSettingsButton";
 import { PaymentLinkModalButton } from "./PaymentLinkModalButton";
 import { TokenizationLinkModalButton } from "./TokenizationLinkModalButton";
 import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
+import { PaymentHistoryButton } from "./PaymentHistoryButton";
 import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
 import { resolveSmartViewIds, parseFiltersParam, getSmartViewFields } from "@suscripciones/core/services/smartViews";
 
@@ -361,6 +360,8 @@ export default async function BillingPage({
         planId: String(plan?.id || ""),
         intervalUnit: String(plan?.intervalUnit || "MONTH"),
         intervalCount: Number(plan?.intervalCount || 1),
+        planIntervalUnit: String(plan?.intervalUnit || "MONTH"),
+        planIntervalCount: Number(plan?.intervalCount || 1),
         tenantId: String(s.tenantId || plan?.tenantId || ""),
         tenantIds,
         customerId: String(s.customerId || ""),
@@ -393,7 +394,7 @@ export default async function BillingPage({
         daysLate,
         inGrace,
         inArrears,
-        nextRetryAt: s.nextRetryJob?.runAt || (s.metadata as any)?.manualRetry?.nextRetryAt || null,
+        nextRetryAt: s.nextRetryJob?.runAt || (s.metadata as any)?.manualRetry?.nextRetryAt || (s.metadata as any)?.autoRetry?.nextRetryAt || null,
         mode: collectionMode,
         canManualCharge: typeof s?.canManualCharge === "boolean" ? s.canManualCharge : undefined,
         chargeDue: typeof s?.chargeDue === "boolean" ? s.chargeDue : undefined,
@@ -589,6 +590,16 @@ export default async function BillingPage({
           </div>
           <div className="billing-header-right">
             <div className="billing-header-actions">
+              <EditBillingDateModal
+                subscriptionId={r.id}
+                currentChargeAt={r.vencimientoAt}
+                periodStartAt={r.periodoInicioAt}
+                intervalUnit={r.planIntervalUnit}
+                intervalCount={r.planIntervalCount}
+                csrfToken={csrfToken}
+                returnTo={returnTo}
+                action={setBillingChargeDate}
+              />
               {r.planId ? (
                 <ChangePlanButton
                   subscriptionId={r.id}
@@ -658,38 +669,22 @@ export default async function BillingPage({
               </div>
             </div>
             
-            {/* Fechas - EN LÍNEA HORIZONTAL */}
+            {/* Fecha de cobro - READ ONLY */}
             <div className="billing-body-section billing-section-dates">
               <div className="billing-section-title">
-                Próximo cobro
-                <HelpTip text="Corte define el final del ciclo. Próximo indica el siguiente intento de cobro." />
+                Fecha de cobro
+                <HelpTip text="Fecha cuando se realiza el cobro de la suscripción. El ciclo se calcula automáticamente según la periodicidad del plan." />
               </div>
-              <div className="billing-date-row">
-                <div className="date-item">
-                  <span className="date-label">Corte:</span>
-                  <AutoCutoffInlineForm
-                    subscriptionId={r.id}
-                    csrfToken={csrfToken}
-                    returnTo={returnTo}
-                    tenantId={r.tenantId}
-                    currentEndAt={r.vencimientoAt}
-                    action={scheduleCutoff}
-                  />
-                </div>
-                <div className="date-item">
-                  <span className="date-label">Próximo:</span>
-                  <RetryDateField
-                    subscriptionId={r.id}
-                    currentPeriodEndAt={r.vencimientoAt}
-                    nextRetryAt={r.nextRetryAt}
-                    csrfToken={csrfToken}
-                    returnTo={returnTo}
-                  />
-                </div>
+              <div className="billing-date-display">
+                <LocalDateTime value={r.vencimientoAt} variant="stacked" />
               </div>
-              <div className="billing-cycle-readonly">
-                <span className="field-hint">Inicio ciclo</span>
-                <strong>Día {r.cycleStartDay}</strong>
+              {r.periodoInicioAt && r.vencimientoAt ? (
+                <div className="billing-cycle-info" style={{ marginTop: "8px", fontSize: "13px", color: "var(--muted)" }}>
+                  Ciclo actual: <strong>{new Date(r.periodoInicioAt).toLocaleDateString("es-CO")} → {new Date(r.vencimientoAt).toLocaleDateString("es-CO")}</strong>
+                </div>
+              ) : null}
+              <div className="billing-cycle-info" style={{ marginTop: "4px", fontSize: "13px", color: "var(--muted)" }}>
+                Inicio ciclo: <strong>Día {r.cycleStartDay}</strong>
               </div>
             </div>
           </div>

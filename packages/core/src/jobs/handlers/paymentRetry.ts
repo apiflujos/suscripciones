@@ -201,7 +201,8 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
       } catch (err: any) {
         const msg = err?.message ? String(err.message) : "unknown error";
         const isMissingSource = msg === "customer_payment_source_missing";
-        
+
+        // Log detallado del fallo para debug
         await systemLog(
           isMissingSource ? LogLevel.WARN : LogLevel.ERROR,
           "jobs.payment_retry",
@@ -212,8 +213,16 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
             error: msg,
             stack: err?.stack,
             email: sub.customer?.email,
-            hasPaymentSource: Boolean((sub.customer.metadata as any)?.wompi?.paymentSourceId)
+            hasPaymentSource: Boolean((sub.customer.metadata as any)?.wompi?.paymentSourceId),
+            collectionMode: mode,
+            subscriptionStatus: sub.status,
+            currentCycle: sub.currentCycle,
+            currentPeriodEndAt: sub.currentPeriodEndAt?.toISOString(),
+            errorDetails: err?.details || err?.cause || null,
+            wompiTransactionId: err?.wompiTransactionId || null,
+            reference: err?.reference || null
           }, SystemActor.JOB_PAYMENT_RETRY).catch(() => {});
+        
         void publishRealtime("payments", {
           type: isMissingSource ? "payment_retry_missing_token" : "payment_retry_failed",
           subscriptionId,
@@ -221,8 +230,23 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
           error: msg,
           updatedAt: new Date().toISOString()
         });
-        
-        await createPaymentLinkForSubscription({ subscriptionId }).catch(() => {});
+
+        // Crear link de pago como fallback
+        await createPaymentLinkForSubscription({ subscriptionId }).catch((linkErr: any) => {
+          // Log secundario si falla el fallback
+          systemLog(
+            LogLevel.ERROR,
+            "jobs.payment_retry",
+            "Fallo al crear link de pago de emergencia",
+            {
+              subscriptionId,
+              customerId: sub.customerId,
+              originalError: msg,
+              fallbackError: linkErr?.message || "unknown"
+            }, SystemActor.JOB_PAYMENT_RETRY
+          ).catch(() => {});
+        });
+
         if (!isMissingSource) throw err;
         return {
           status: "processed",

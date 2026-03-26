@@ -356,7 +356,7 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
       trigger: parsed.data.trigger,
       paymentType
     }, "job:subscriptionReminder").catch(() => {});
-    return;
+    return { ok: false, skipped: true, error: "payment_type_not_allowed" };
   }
 
   if (parsed.data.trigger === "PAYMENT_APPROVED") {
@@ -369,7 +369,7 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
         paymentId: effectivePayment?.id ?? parsed.data.paymentId ?? null,
         paymentStatus: effectivePayment?.status ?? null
       }, "job:subscriptionReminder").catch(() => {});
-      return;
+      return { ok: false, skipped: true, error: "payment_not_approved" };
     }
   }
   if (parsed.data.trigger === "PAYMENT_DECLINED") {
@@ -382,7 +382,7 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
         paymentId: effectivePayment?.id ?? parsed.data.paymentId ?? null,
         paymentStatus: effectivePayment?.status ?? null
       }, "job:subscriptionReminder").catch(() => {});
-      return;
+      return { ok: false, skipped: true, error: "payment_not_declined" };
     }
   }
 
@@ -590,7 +590,7 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
     return { ok: true, queued: true };
   }
 
-  if (parsed.data.trigger === "PAYMENT_DECLINED" && subscription) {
+  if (parsed?.data?.trigger === "PAYMENT_DECLINED" && subscription) {
     // Optional: mark past-due for visibility (best-effort).
     if (subscription.status !== SubscriptionStatus.CANCELED && subscription.status !== SubscriptionStatus.EXPIRED) {
       await prisma.subscription.update({

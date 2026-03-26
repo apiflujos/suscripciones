@@ -1258,3 +1258,89 @@ export async function deletePlanAndSubscription(formData: FormData) {
   const qs = new URLSearchParams({ deletedPlan: "1", ...(tenantId ? { tenantId } : {}) }).toString();
   redirect(`/billing?${qs}`);
 }
+
+export async function setBillingChargeDate(formData: FormData) {
+  await assertCsrfToken(formData);
+  const subscriptionId = String(formData.get("subscriptionId") || "").trim();
+  const chargeDate = String(formData.get("chargeDate") || "").trim();
+  const chargeTime = String(formData.get("chargeTime") || "").trim();
+  const returnTo = String(formData.get("returnTo") || "/billing").trim();
+
+  if (!subscriptionId || !chargeDate) {
+    redirect(`${returnTo}?error=missing_charge_date`);
+  }
+
+  try {
+    const sub = await prisma.subscription.findUnique({
+      where: { id: subscriptionId },
+      select: {
+        id: true,
+        currentPeriodEndAt: true,
+        currentPeriodStartAt: true,
+        plan: { select: { intervalUnit: true, intervalCount: true } }
+      }
+    });
+
+    if (!sub) {
+      redirect(`${returnTo}?error=subscription_not_found`);
+    }
+
+    // Combinar fecha y hora
+    const newChargeAt = new Date(`${chargeDate}T${chargeTime || "10:00"}`);
+    if (Number.isNaN(newChargeAt.getTime())) {
+      redirect(`${returnTo}?error=invalid_datetime`);
+    }
+
+    // Calcular inicio del ciclo basado en la periodicidad
+    const intervalUnit = sub.plan.intervalUnit;
+    const intervalCount = sub.plan.intervalCount || 1;
+
+    // Calcular nuevo period start basado en la nueva fecha de cobro
+    const newPeriodStart = (() => {
+      const d = new Date(newChargeAt.getTime());
+      if (intervalUnit === "MONTH") {
+        d.setUTCMonth(d.getUTCMonth() - intervalCount);
+      } else if (intervalUnit === "WEEK") {
+        d.setUTCDate(d.getUTCDate() - (7 * intervalCount));
+      } else if (intervalUnit === "DAY") {
+        d.setUTCDate(d.getUTCDate() - intervalCount);
+      }
+      return d;
+    })();
+
+    // Actualizar suscripción
+    await prisma.subscription.update({
+      where: { id: subscriptionId },
+      data: {
+        currentPeriodEndAt: newChargeAt,
+        currentPeriodStartAt: newPeriodStart,
+        metadata: {
+          ...(sub as any).metadata,
+          billing: {
+            ...((sub as any).metadata?.billing || {}),
+            lastChargeDateChange: new Date().toISOString(),
+            chargeDateManuallySet: true
+          }
+        }
+      }
+    });
+
+    // Actualizar job de reintento si existe
+    await prisma.retryJob.updateMany({
+      where: {
+        type: "PAYMENT_RETRY",
+        status: "PENDING",
+        payload: { path: ["subscriptionId"], equals: subscriptionId }
+      },
+      data: {
+        runAt: newChargeAt
+      }
+    });
+
+    redirect(`${returnTo}?charge_date_updated=1`);
+  } catch (err: any) {
+    if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
+    const msg = String(err?.message || "set_charge_date_failed");
+    redirect(`${returnTo}?error=${encodeURIComponent(msg)}`);
+  }
+}

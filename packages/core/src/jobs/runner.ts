@@ -339,7 +339,7 @@ async function ensureDueCutoffRetries() {
   for (const sub of subs) {
     const mode = resolveSubscriptionCollectionMode(sub);
     if (mode !== "AUTO_DEBIT" && mode !== "AUTO_LINK") continue;
-    
+
     // Si es AUTO_DEBIT y el cobro en corte está apagado, omitir creación de Job.
     if (mode === "AUTO_DEBIT" && !chargeAtCutoffEnabled) continue;
 
@@ -347,9 +347,31 @@ async function ensureDueCutoffRetries() {
     const runAt = cutoffMs > now + futureToleranceMs ? new Date(cutoffMs) : nowDate;
 
     // ensurePaymentRetryJob internamente revisa si ya existe uno pendiente.
-    await ensurePaymentRetryJob({ subscriptionId: sub.id, runAt, maxAttempts: 1 }).catch((err) => {
+    const job = await ensurePaymentRetryJob({ subscriptionId: sub.id, runAt, maxAttempts: 1 }).catch((err) => {
       logger.warn({ err, subscriptionId: sub.id }, '[Jobs/SafetySync] Fallo en sincronización de seguridad');
+      return null;
     });
+
+    // Actualizar metadata para que sea visible en el UI
+    if (job) {
+      const currentMetadata = (sub.metadata as Record<string, any>) || {};
+      const newMetadata = {
+        ...currentMetadata,
+        autoRetry: {
+          nextRetryAt: runAt.toISOString(),
+          scheduledAt: new Date().toISOString(),
+          source: "ensureDueCutoffRetries",
+          runAt: runAt.toISOString()
+        }
+      };
+
+      await prisma.subscription.update({
+        where: { id: sub.id },
+        data: { metadata: newMetadata }
+      }).catch((err) => {
+        logger.warn({ err, subscriptionId: sub.id }, '[Jobs/SafetySync] Fallo al actualizar metadata de reintento');
+      });
+    }
   }
 }
 

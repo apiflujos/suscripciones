@@ -750,45 +750,51 @@ export default async function LogsPage({
               </div>
             </div>
           </div>
-                        </a>
-                        <a
-                          className={`pill ${paymentsView === "RECEIVED" ? "is-active" : ""}`}
-                          href={`/payments?${new URLSearchParams({
-                            paymentsView: "RECEIVED",
-                            ...(q ? { q } : {}),
-                            ...(from ? { from } : {}),
-                            ...(to ? { to } : {}),
-                            ...(tenantId ? { tenantId } : {}),
-                            ...(viewId ? { viewId } : {}),
-                            ...(filters ? { filters } : {}),
-                          }).toString()}`}
-                        >
-                          Pagos recibidos
-                        </a>
-                        <a
-                          className={`pill ${paymentsView === "REQUESTED" ? "is-active" : ""}`}
-                          href={`/payments?${new URLSearchParams({
-                            paymentsView: "REQUESTED",
-                            ...(q ? { q } : {}),
-                            ...(from ? { from } : {}),
-                            ...(to ? { to } : {}),
-                            ...(tenantId ? { tenantId } : {}),
-                            ...(viewId ? { viewId } : {}),
-                            ...(filters ? { filters } : {}),
-                          }).toString()}`}
-                        >
-                          Pagos solicitados
-                        </a>
-                      </div>
-                      <div className="filtersHeaderRight payments-summary-row">
-                        <span className="pill">Total {totals.payments ?? paymentsSummary.total}</span>
-                        <span className="pill pill-ok">Pagados {paymentsSummary.approved}</span>
-                        <span className="pill pill-warn">Pendientes {paymentsSummary.pending}</span>
-                        <span className="pill pill-bad">Fallidos {paymentsSummary.failed}</span>
-                      </div>
-                    </div>
-                  </div>
-                  {(() => {
+          {tab === "payments" && (
+            <div className="filtersPanel payments-filters-panel">
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <div className="filtersHeaderLeft payments-view-toggles">
+                  <a
+                    className={`pill ${paymentsView === "RECEIVED" ? "is-active" : ""}`}
+                    href={`/payments?${new URLSearchParams({
+                      paymentsView: "RECEIVED",
+                      ...(q ? { q } : {}),
+                      ...(from ? { from } : {}),
+                      ...(to ? { to } : {}),
+                      ...(tenantId ? { tenantId } : {}),
+                      ...(viewId ? { viewId } : {}),
+                      ...(filters ? { filters } : {}),
+                    }).toString()}`}
+                  >
+                    Pagos recibidos
+                  </a>
+                  <a
+                    className={`pill ${paymentsView === "REQUESTED" ? "is-active" : ""}`}
+                    href={`/payments?${new URLSearchParams({
+                      paymentsView: "REQUESTED",
+                      ...(q ? { q } : {}),
+                      ...(from ? { from } : {}),
+                      ...(to ? { to } : {}),
+                      ...(tenantId ? { tenantId } : {}),
+                      ...(viewId ? { viewId } : {}),
+                      ...(filters ? { filters } : {}),
+                    }).toString()}`}
+                  >
+                    Pagos solicitados
+                  </a>
+                </div>
+                <div className="filtersHeaderRight payments-summary-row">
+                  <span className="pill">Total {totals.payments ?? paymentsSummary.total}</span>
+                  <span className="pill pill-ok">Pagados {paymentsSummary.approved}</span>
+                  <span className="pill pill-warn">Pendientes {paymentsSummary.pending}</span>
+                  <span className="pill pill-bad">Fallidos {paymentsSummary.failed}</span>
+                </div>
+              </div>
+            </div>
+          )}
+          {tab !== "payments" && (
+            <div className="filtersPanel payments-health-panel">
+              {(() => {
                     if (tab === "payments") return null;
                     const banners: Array<{ tone: "warn" | "danger" | "info"; text: React.ReactNode; action?: React.ReactNode }> = [];
 
@@ -909,10 +915,8 @@ export default async function LogsPage({
                       </div>
                     ) : null;
                   })()}
-                </div>
-              </div>
             </div>
-          ) : null}
+          )}
         </div>
 
         <div className="settings-group-body">

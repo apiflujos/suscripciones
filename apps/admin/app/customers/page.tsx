@@ -20,6 +20,7 @@ import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { HelpTip } from "../ui/HelpTip";
+import { PageHeader } from "../ui/PageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -318,80 +319,42 @@ export default async function CustomersPage({
       {deleted ? <div className="card cardPad">Contacto eliminado.</div> : null}
       {paymentSource ? <div className="card cardPad">Método de pago guardado.</div> : null}
       {paymentLink ? <div className="card cardPad">Link de pago enviado.</div> : null}
-      <section className="settings-group">
-        <div className="settings-group-header">
-          <div className="filtersRow">
-            <div className="filtersLeft">
-              <div className="filtersPanel">
-                <div className="filtersHeader">
-                  {/* Fila 1: Búsqueda + Smart Lists + Importar/Exportar */}
-                  <div className="filtersHeaderRow filtersHeaderRowTop">
-                    <form action="/customers" method="GET" className="filtersForm filtersSearch">
-                    {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-                    {vista ? <input type="hidden" name="vista" value={vista} /> : null}
-                    {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
-                    {filters ? <input type="hidden" name="filters" value={filters} /> : null}
-                    <input
-                      className="input"
-                      type="search"
-                      name="q"
-                      defaultValue={q}
-                      placeholder="Buscar por nombre, email, teléfono o identificación..."
-                      aria-label="Buscar contactos"
-                      title="Busca por nombre, email, teléfono o identificación"
-                    />
-                    <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
-                  </form>
-                  <div className="filtersHeaderSmart">
-                    <SmartViewsBar
-                      scope="customers"
-                      initialViewId={viewId}
-                      initialFilters={filters}
-                      baseParams={{
-                        ...(q ? { q } : {}),
-                        ...(tenantId ? { tenantId } : {})
-                      }}
-                      initialFields={getSmartViewFields("customers")}
-                      compactInline
-                    />
-                  </div>
-                  <div className="filtersHeaderActions" />
-                  </div>
-                  {/* Fila 2: Vista + Botones Crear (derecha) */}
-                  <div className="filtersHeaderRow filtersHeaderRowBottom">
-                    <div className="filtersHeaderRight">
-                      <ViewModeToggles
-                        currentMode={vistaTyped}
-                        baseParams={{
-                          ...(q ? { q } : {}),
-                          ...(tenantId ? { tenantId } : {}),
-                          ...(viewId ? { viewId } : {}),
-                          ...(filters ? { filters } : {})
-                        }}
-                      />
-                      <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
-                      <CustomersModals
-                        customers={items}
-                        empresas={empresas}
-                        products={productsRes?.items ?? []}
-                        checkoutTemplates={templatesRes?.items ?? []}
-                        csrfToken={csrfToken}
-                        tenants={tenants}
-                        tenantId={tenantId}
-                        createCustomer={createCustomer}
-                        createPlanAndSubscription={createPlanAndSubscription}
-                        returnTo={returnTo}
-                        actionsClassName="customer-actions"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+      
+      <PageHeader
+        title="Clientes"
+        subtitle={`${items.length} clientes`}
+        actions={
+          <>
+            <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
+            <CustomersModals
+              customers={items}
+              empresas={empresas}
+              products={productsRes?.items ?? []}
+              checkoutTemplates={templatesRes?.items ?? []}
+              csrfToken={csrfToken}
+              tenants={tenants}
+              tenantId={tenantId}
+              createCustomer={createCustomer}
+              createPlanAndSubscription={createPlanAndSubscription}
+              returnTo={returnTo}
+            />
+          </>
+        }
+        searchPlaceholder="Buscar por nombre, email, teléfono o identificación..."
+        smartViewScope="customers"
+        baseParams={{
+          ...(q ? { q } : {}),
+          ...(tenantId ? { tenantId } : {}),
+          ...(vista ? { vista } : {}),
+          ...(viewId ? { viewId } : {}),
+          ...(filters ? { filters } : {})
+        }}
+        viewModes={[vistaTyped]}
+        initialViewId={viewId}
+        initialFilters={filters}
+      />
 
-        <div className="settings-group-body">
+      <div className="settings-group-body">
 
           <CustomersTable
             items={items.map((c) => ({ ...c, tenantName: tenantById.get(String(c.tenantId || "")) || "—" }))}
@@ -414,7 +377,6 @@ export default async function CustomersPage({
 
           {renderPagination(total)}
         </div>
-      </section>
     </main>
   );
 }

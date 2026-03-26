@@ -14,6 +14,7 @@ import {
   getWompiPrivateKey,
   getWompiPublicKey
 } from "@suscripciones/core/services/runtimeConfig";
+import { getDefaultTenantId } from "@suscripciones/core/services/tenantContext";
 
 export const createCustomerSchema = z.object({
   name: z.string().min(1).optional(),

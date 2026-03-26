@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(rm *)",
+      "Bash(timeout *)",
+      "Bash(mkdir *)",
+      "Bash(git add *)"
+    ]
+  }
+}
