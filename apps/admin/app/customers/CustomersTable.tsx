@@ -716,8 +716,8 @@ export function CustomersTable({
             status === "ACTIVE" ? "Activa" : status === "PAST_DUE" ? "En mora" : status ? "Inactiva" : "";
           const statusPillClass = status === "ACTIVE" ? "pill-ok" : status === "PAST_DUE" ? "pill-bad" : status ? "pill-muted" : "";
           return (
-            <div className="contact-card" key={c.id}>
-              <div className="contact-card-top">
+            <div className="billing-card" key={c.id}>
+              <div className="billing-header">
                 <div className="contact-head">
                   <div className="contact-title">{c.name || "—"}</div>
                   <div className="contact-tags">
