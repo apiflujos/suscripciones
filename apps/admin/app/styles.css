@@ -14260,3 +14260,133 @@ html[data-contrast="high"] .toggle::after {
   padding: 2px 6px;
   height: auto;
 }
+
+/* ==================================
+   HEADER UNIFICATION - TODOS LOS ENCABEZADOS IGUALES
+   ================================== */
+
+/* Page header simple - usado en products, customers, empresas */
+.page-header-simple {
+  padding: 8px 12px;
+  background: #fff;
+  border-bottom: 1px solid #e0e0e0;
+  margin-bottom: 16px;
+}
+
+.page-header-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.page-title-simple {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.page-actions-simple {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-left: auto;
+}
+
+.page-filters-simple {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding-top: 6px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.page-filters-simple .filtersForm {
+  flex: 0 0 180px;
+}
+
+.page-filters-simple .input {
+  padding: 4px 8px;
+  font-size: 12px;
+  height: 32px;
+}
+
+.page-filters-simple .btn-icon-only {
+  height: 32px;
+  width: 32px;
+}
+
+/* Logs/Payments header - panel-tabs */
+.panel-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.panel-tab {
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted, #666);
+  text-decoration: none;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.panel-tab:hover {
+  background: var(--bg-hover, #f5f5f5);
+  color: var(--text-primary, #1a1a1a);
+}
+
+.panel-tab.is-active {
+  background: var(--bg-active, #e8f4fd);
+  color: var(--brand, #6B4FE0);
+  font-weight: 600;
+}
+
+.panelHeaderPills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* Settings group header - unificar */
+.settings-group-header {
+  padding: 8px 12px;
+  background: #fff;
+  border-bottom: 1px solid #e0e0e0;
+  margin-bottom: 16px;
+}
+
+/* Unificar todos los títulos de página */
+.page-title,
+.page-title-simple,
+.settings-group-header h1,
+.settings-group-header h2,
+.settings-group-header h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+/* Unificar botones en todos los headers */
+.page-actions-simple button,
+.page-actions-simple a,
+.billing-header-actions button,
+.billing-header-actions a {
+  height: 32px;
+  font-size: 12px;
+  padding: 0 8px;
+}
+
+/* Unificar inputs en todos los filtros */
+.page-filters-simple .input,
+.page-filters-simple .select,
+.filtersForm .input,
+.filtersForm .select {
+  height: 32px;
+  font-size: 12px;
+  padding: 4px 8px;
+}
