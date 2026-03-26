@@ -1,34 +1,34 @@
 /* PageHeader - Contenedor Principal */
 .page-header {
-  padding: 20px 24px;
+  padding: 16px 20px;
   background: var(--bg-page-header, #fff);
   border-bottom: 1px solid var(--border, #e0e0e0);
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 /* Fila 1: Título + Acciones */
 .page-header-row-1 {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 16px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .page-title-group {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .page-title {
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 600;
   color: var(--text-primary, #1a1a1a);
   margin: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .page-subtitle {
@@ -43,63 +43,15 @@
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  justify-content: flex-end;
 }
 
-/* Fila 2: Tabs + Resumen + Filtros */
+/* Fila 2: Resumen + Filtros */
 .page-header-row-2 {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding-top: 16px;
+  padding-top: 12px;
   border-top: 1px solid var(--border-light, #f0f0f0);
-}
-
-/* Tabs */
-.page-tabs {
-  display: flex;
-  gap: 4px;
-  border-bottom: 2px solid var(--border-light, #f0f0f0);
-  padding-bottom: 8px;
-}
-
-.page-tab {
-  padding: 8px 16px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--muted, #666);
-  text-decoration: none;
-  border-radius: 6px 6px 0 0;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.page-tab:hover {
-  background: var(--bg-hover, #f5f5f5);
-  color: var(--text-primary, #1a1a1a);
-}
-
-.page-tab.is-active {
-  background: var(--bg-active, #e8f4fd);
-  color: var(--brand, #6B4FE0);
-  font-weight: 600;
-}
-
-.page-tab-count {
-  background: var(--muted, #666);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 6px;
-  border-radius: 10px;
-  min-width: 20px;
-  text-align: center;
-}
-
-.page-tab.is-active .page-tab-count {
-  background: var(--brand, #6B4FE0);
 }
 
 /* Resumen (Pills) */
@@ -143,6 +95,10 @@
   flex-wrap: wrap;
 }
 
+.page-filters-left .filtersForm {
+  flex: 0 0 280px !important;
+}
+
 .page-filters-right {
   display: flex;
   align-items: center;
@@ -152,7 +108,7 @@
 /* Responsive */
 @media (max-width: 768px) {
   .page-header {
-    padding: 16px;
+    padding: 12px 16px;
   }
   
   .page-header-row-1 {
@@ -161,7 +117,7 @@
   }
   
   .page-title {
-    font-size: 18px;
+    font-size: 16px;
   }
   
   .page-actions {
@@ -183,6 +139,7 @@
   
   .page-filters-left {
     flex-direction: column;
+    width: 100%;
   }
   
   .page-filters-left .filtersForm {

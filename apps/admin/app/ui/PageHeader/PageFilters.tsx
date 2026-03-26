@@ -1,6 +1,5 @@
 import { SmartViewsBar } from "../../smart-views/SmartViewsBar";
 import { ViewModeToggles } from "../ViewModeToggles";
-import { HelpTip } from "../HelpTip";
 
 interface PageFiltersProps {
   searchPlaceholder?: string;
@@ -29,7 +28,6 @@ export function PageFilters({
             action={`/${smartViewScope}`}
             method="GET"
             className="filtersForm filtersSearch"
-            style={{ flex: "0 0 280px" }}
             data-debounce-form="true"
           >
             {Object.entries(baseParams).map(([key, value]) => (

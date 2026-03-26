@@ -67,32 +67,32 @@ export function PageHeader({
         </div>
         
         {actions && (
-          <PageActions>
+          <div className="page-actions">
             {actions}
-          </PageActions>
+          </div>
         )}
       </div>
       
-      {/* FILA 2: Tabs + Resumen + Filtros */}
-      <div className="page-header-row-2">
-        {tabs && tabs.length > 0 && (
-          <PageTabs tabs={tabs} />
-        )}
-        
-        {summary && summary.length > 0 && (
-          <PageSummary items={summary} />
-        )}
-        
-        <PageFilters
-          searchPlaceholder={searchPlaceholder}
-          smartViewScope={smartViewScope}
-          baseParams={baseParams}
-          viewModes={viewModes}
-          filters={filters}
-          initialViewId={initialViewId}
-          initialFilters={initialFilters}
-        />
-      </div>
+      {/* FILA 2: Resumen + Filtros */}
+      {(summary || searchPlaceholder) && (
+        <div className="page-header-row-2">
+          {summary && summary.length > 0 && (
+            <PageSummary items={summary} />
+          )}
+          
+          {searchPlaceholder && (
+            <PageFilters
+              searchPlaceholder={searchPlaceholder}
+              smartViewScope={smartViewScope}
+              baseParams={baseParams}
+              viewModes={viewModes}
+              filters={filters}
+              initialViewId={initialViewId}
+              initialFilters={initialFilters}
+            />
+          )}
+        </div>
+      )}
     </header>
   );
 }
