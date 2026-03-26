@@ -5,7 +5,10 @@
       "Bash(rm *)",
       "Bash(timeout *)",
       "Bash(mkdir *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(chmod *)"
     ]
   }
 }
