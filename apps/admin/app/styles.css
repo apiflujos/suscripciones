@@ -14177,3 +14177,93 @@ html[data-contrast="high"] .toggle::after {
     justify-content: flex-end;
   }
 }
+
+/* ==================================
+   ALL HEADERS - Botones al lado del título
+   ================================== */
+
+/* Billing header */
+.billing-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.billing-header-meta-grid {
+  flex: 1;
+}
+
+.billing-header-right {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* Settings group header */
+.settings-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-group-header > div:first-child {
+  flex: 1;
+}
+
+.settings-group-header > div:last-child {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* Panel header row (logs, payments, notifications, campaigns) */
+.panelHeaderRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.panelHeaderRow > div:first-child {
+  flex: 1;
+}
+
+.panelHeaderRow > div:last-child {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* Filters row */
+.filtersRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.filtersLeft {
+  flex: 1;
+}
+
+.filtersRight {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* Responsive - en móvil允许 wrap */
+@media (max-width: 768px) {
+  .billing-header,
+  .settings-group-header,
+  .panelHeaderRow,
+  .filtersRow {
+    flex-wrap: wrap;
+  }
+  
+  .billing-header-right,
+  .settings-group-header > div:last-child,
+  .panelHeaderRow > div:last-child,
+  .filtersRight {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
