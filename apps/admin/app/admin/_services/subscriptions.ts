@@ -13,7 +13,7 @@ import {
   readSubscriptionTotalInCents
 } from "@suscripciones/core/services/subscriptionBilling";
 import { reconcileWompiTransaction } from "@suscripciones/core/services/wompiReconcile";
-import { scheduleSubscriptionDueNotifications } from "@suscripciones/core/services/notificationsScheduler";
+import { scheduleSubscriptionDueNotifications, schedulePaymentLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
 import { consumeApp } from "@suscripciones/core/services/superAdminApp";
 import { validateWompiCurrency } from "@suscripciones/core/lib/wompiSignature";
 
@@ -554,6 +554,16 @@ export async function createSubscriptionPaymentLink(args: { subscriptionId: stri
       subscriptionId,
       amountInCentsOverride: args.amountInCents
     });
+    
+    // Programar notificaciones automáticas para el link de pago
+    await schedulePaymentLinkNotifications({
+      paymentId: link.paymentId,
+      forceNow: false,
+      actor: "system"
+    }).catch((err) => {
+      console.error("[subscriptions.payment_link] Fallo al programar notificaciones", err);
+    });
+    
     return { ok: true, ...link };
   } catch (err: any) {
     await systemLog(LogLevel.ERROR, "subscriptions.payment_link", "Payment link create failed", {
