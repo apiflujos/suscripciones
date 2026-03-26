@@ -751,6 +751,7 @@ export default async function BillingPage({
                 tenantId={r.tenantId}
                 returnTo={returnTo}
                 warnAlreadyPaid={alreadyPaidCurrentPeriod}
+                manualMarkPaidEnabled={r.canManualCharge}
               />
             ) : null}
             {alreadyPaidCurrentPeriod ? (
