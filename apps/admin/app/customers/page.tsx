@@ -20,7 +20,7 @@ import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { HelpTip } from "../ui/HelpTip";
-import { PageHeader } from "../ui/PageHeader";
+import "./page-header.css";
 
 export const dynamic = "force-dynamic";
 
@@ -319,12 +319,11 @@ export default async function CustomersPage({
       {deleted ? <div className="card cardPad">Contacto eliminado.</div> : null}
       {paymentSource ? <div className="card cardPad">Método de pago guardado.</div> : null}
       {paymentLink ? <div className="card cardPad">Link de pago enviado.</div> : null}
-      
-      <PageHeader
-        title="Clientes"
-        subtitle={`${items.length} clientes`}
-        actions={
-          <>
+
+      <div className="page-header-simple">
+        <div className="page-header-title-row">
+          <h1 className="page-title-simple">Clientes</h1>
+          <div className="page-actions-simple">
             <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
             <CustomersModals
               customers={items}
@@ -338,21 +337,47 @@ export default async function CustomersPage({
               createPlanAndSubscription={createPlanAndSubscription}
               returnTo={returnTo}
             />
-          </>
-        }
-        searchPlaceholder="Buscar por nombre, email, teléfono o identificación..."
-        smartViewScope="customers"
-        baseParams={{
-          ...(q ? { q } : {}),
-          ...(tenantId ? { tenantId } : {}),
-          ...(vista ? { vista } : {}),
-          ...(viewId ? { viewId } : {}),
-          ...(filters ? { filters } : {})
-        }}
-        viewModes={[vistaTyped]}
-        initialViewId={viewId}
-        initialFilters={filters}
-      />
+          </div>
+        </div>
+        <div className="page-filters-simple">
+          <form action="/customers" method="GET" className="filtersForm filtersSearch">
+            {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+            {vista ? <input type="hidden" name="vista" value={vista} /> : null}
+            {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
+            {filters ? <input type="hidden" name="filters" value={filters} /> : null}
+            <input
+              className="input"
+              type="search"
+              name="q"
+              defaultValue={q}
+              placeholder="Buscar por nombre, email, teléfono o identificación..."
+              aria-label="Buscar contactos"
+              title="Busca por nombre, email, teléfono o identificación"
+            />
+            <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
+          </form>
+          <SmartViewsBar
+            scope="customers"
+            initialViewId={viewId}
+            initialFilters={filters}
+            baseParams={{
+              ...(q ? { q } : {}),
+              ...(tenantId ? { tenantId } : {})
+            }}
+            initialFields={getSmartViewFields("customers")}
+            compactInline
+          />
+          <ViewModeToggles
+            currentMode={vistaTyped}
+            baseParams={{
+              ...(q ? { q } : {}),
+              ...(tenantId ? { tenantId } : {}),
+              ...(viewId ? { viewId } : {}),
+              ...(filters ? { filters } : {})
+            }}
+          />
+        </div>
+      </div>
 
       <div className="settings-group-body">
 

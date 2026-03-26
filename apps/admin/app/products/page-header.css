@@ -1,0 +1,41 @@
+/* Page Header Simple - Para usar directamente en páginas */
+.page-header-simple {
+  padding: 16px 20px;
+  background: #fff;
+  border-bottom: 1px solid #e0e0e0;
+  margin-bottom: 16px;
+}
+
+.page-header-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.page-title-simple {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.page-actions-simple {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.page-filters-simple {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.page-filters-simple .filtersForm {
+  flex: 0 0 280px;
+}

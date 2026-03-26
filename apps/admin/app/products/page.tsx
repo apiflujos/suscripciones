@@ -7,8 +7,8 @@ import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { HelpTip } from "../ui/HelpTip";
-import { PageHeader } from "../ui/PageHeader";
 import { listCatalogProducts } from "../admin/_services/products";
+import "./page-header.css";
 import { listTenants } from "../admin/_services/tenants";
 import { listCustomers } from "../admin/_services/customers";
 import { listEmpresas } from "../admin/_services/companies";
@@ -112,39 +112,75 @@ export default async function ProductsPage({
       {tenantCreated ? <div className="card cardPad">Canal creado.</div> : null}
       {sent ? <div className="card cardPad">Mensaje enviado.</div> : null}
 
-      <PageHeader
-        title="Productos"
-        subtitle={`${productItems.length} productos`}
-        actions={
-          <>
+      <div className="page-header-simple">
+        <div className="page-header-title-row">
+          <h1 className="page-title-simple">Productos</h1>
+          <div className="page-actions-simple">
             <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="products" />
-            <ProductsModals
-              customers={filteredCustomers}
-              empresas={empresas}
-              products={productItems}
-              checkoutTemplates={templatesRes ?? []}
-              csrfToken={csrfToken}
-              tenants={tenantsFiltered}
-              tenantId={tenantId}
-              createProduct={createProduct}
-              createCustomer={createCustomerFromBilling}
-              createPlanAndSubscription={createPlanAndSubscription}
-              returnTo={returnTo}
+            <button
+              className="primary"
+              type="button"
+              onClick={() => {
+                const modal = document.getElementById('products-modal-trigger');
+                if (modal) modal.click();
+              }}
+            >
+              Crear producto
+            </button>
+          </div>
+        </div>
+        <div className="page-filters-simple">
+          <form action="/products" method="GET" className="filtersForm filtersSearch">
+            {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+            {vista ? <input type="hidden" name="vista" value={vista} /> : null}
+            {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
+            {filters ? <input type="hidden" name="filters" value={filters} /> : null}
+            <input
+              className="input"
+              type="search"
+              name="q"
+              defaultValue={q}
+              placeholder="Buscar producto o servicio..."
+              aria-label="Buscar productos"
+              title="Busca por nombre, SKU o tipo de producto"
             />
-          </>
-        }
-        searchPlaceholder="Buscar producto o servicio..."
-        smartViewScope="products"
-        baseParams={{
-          ...(tenantId ? { tenantId } : {}),
-          ...(q ? { q } : {}),
-          ...(vista ? { vista } : {}),
-          ...(viewId ? { viewId } : {}),
-          ...(filters ? { filters } : {})
-        }}
-        viewModes={[vistaTyped]}
-        initialViewId={viewId}
-        initialFilters={filters}
+            <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
+          </form>
+          <SmartViewsBar
+            scope="products"
+            initialViewId={viewId}
+            initialFilters={filters}
+            baseParams={{
+              ...(tenantId ? { tenantId } : {}),
+              ...(q ? { q } : {})
+            }}
+            initialFields={getSmartViewFields("products")}
+            compactInline
+          />
+          <ViewModeToggles
+            currentMode={vistaTyped}
+            baseParams={{
+              ...(tenantId ? { tenantId } : {}),
+              ...(q ? { q } : {}),
+              ...(viewId ? { viewId } : {}),
+              ...(filters ? { filters } : {})
+            }}
+          />
+        </div>
+      </div>
+
+      <ProductsModals
+        customers={filteredCustomers}
+        empresas={empresas}
+        products={productItems}
+        checkoutTemplates={templatesRes ?? []}
+        csrfToken={csrfToken}
+        tenants={tenantsFiltered}
+        tenantId={tenantId}
+        createProduct={createProduct}
+        createCustomer={createCustomerFromBilling}
+        createPlanAndSubscription={createPlanAndSubscription}
+        returnTo={returnTo}
       />
 
       <div className="settings-group-body">
