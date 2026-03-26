@@ -637,7 +637,7 @@ export default async function Home({
                         </Link>
                       ))}
                     </div>
-                    <div className="metricsTabsMeta metricsTabsMetaRight">{rangeLabel} · {periodLabel} · {tenantLabel}</div>
+                    <div className="metricsTabsMeta metricsTabsMetaRight"><span>{rangeLabel} · {periodLabel} · {tenantLabel}</span></div>
                   </div>
                 </div>
               </div>

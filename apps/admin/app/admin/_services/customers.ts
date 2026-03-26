@@ -243,19 +243,10 @@ export async function createCustomer(args: {
   tenantIds: string[];
 }): Promise<CreateCustomerOk | CreateCustomerFail> {
   const emailNormalizado = args.data.email.toLowerCase().trim();
-  const existingEmail = await prisma.customer.findUnique({
-    where: { email: emailNormalizado }
-  });
-  if (existingEmail) {
-    return {
-      ok: false,
-      status: 409,
-      error: "email_ya_existe",
-      message: `El email ${emailNormalizado} ya está registrado en el sistema`,
-      customerId: existingEmail.id
-    };
-  }
-
+  
+  // Solo verificar si el email está vacío cuando es requerido
+  // Permitir emails duplicados - el sistema maneja múltiples contactos con mismo email
+  
   const phoneNormalizado = args.data.phone.replace(/[^\d+]/g, "").trim();
   if (phoneNormalizado.length >= 10) {
     const existingPhone = await prisma.customer.findFirst({

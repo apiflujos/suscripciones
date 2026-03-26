@@ -359,11 +359,7 @@ export default async function CustomersPage({
                   </div>
                   {/* Fila 2: Vista + Botones Crear (derecha) */}
                   <div className="filtersHeaderRow filtersHeaderRowBottom">
-                    <div className="filtersHeaderLeft">
-                      <span className="field-hint" style={{ margin: 0 }}>
-                        Vista:
-                        <HelpTip text="Alterna entre tarjetas y lista para ver contactos." />
-                      </span>
+                    <div className="filtersHeaderRight">
                       <ViewModeToggles
                         currentMode={vistaTyped}
                         baseParams={{
@@ -373,8 +369,6 @@ export default async function CustomersPage({
                           ...(filters ? { filters } : {})
                         }}
                       />
-                    </div>
-                    <div className="filtersHeaderRight">
                       <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
                       <CustomersModals
                         customers={items}
