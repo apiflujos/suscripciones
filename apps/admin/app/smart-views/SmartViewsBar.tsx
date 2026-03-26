@@ -689,25 +689,13 @@ export function SmartViewsBar({
         </div>
         {compactInline ? (
           <div className="smartViewsTopRight">
-            {pinSelectIndex === null ? (
-              <div className="smartViewsQuickSelect">
-                <select className="select" value={activeViewId} onChange={(e) => applyView(e.target.value)}>
-                  <option value="">Todas</option>
-                  {mergedViews.map((view) => (
-                    <option key={view.id} value={view.id}>
-                      {view.name} {view.visibility === "PRIVATE" ? "(Privada)" : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : null}
             <div className="smartViewsActions">
               <button
-                className="ghost btn-compact btn-icon-only btn-filter"
+                className="primary btn-compact btn-noicon"
                 type="button"
                 data-loader="off"
-                aria-label="Filtros avanzados"
-                title="Filtros avanzados"
+                aria-label="Filtros y listas inteligentes"
+                title="Filtros y listas inteligentes"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -717,7 +705,9 @@ export function SmartViewsBar({
                   setNotice(null);
                   ensureFieldsLoaded().catch(() => null);
                 }}
-              />
+              >
+                Filtros
+              </button>
             </div>
           </div>
         ) : (
