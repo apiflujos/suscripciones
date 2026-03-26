@@ -274,14 +274,14 @@ export function NewPlanOrSubscriptionForm({
           <input type="hidden" name="csrf" value={csrfToken} />
           <div className="field">
             <label>Canales de ventas</label>
-            <select className="select" name="tenantIds" multiple defaultValue={tenantId ? [tenantId] : []} required>
+            <select className="select" name="tenantIds" multiple defaultValue={tenantId ? [tenantId] : (tenants.length === 1 ? [tenants[0].id] : [])}>
               {tenants.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
                 </option>
               ))}
             </select>
-            <div className="field-hint">Puedes seleccionar varios canales.</div>
+            <div className="field-hint">Puedes seleccionar varios canales. Si hay un solo canal, se selecciona automáticamente.</div>
           </div>
           <div className="field">
             <label>Nombre</label>

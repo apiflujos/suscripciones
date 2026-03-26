@@ -262,7 +262,12 @@ export async function createCustomer(args: {
   }
 
   if (!args.tenantIds.length) {
-    return { ok: false, status: 400, error: "tenant_requerido", message: "Debe pertenecer al menos a un tenant" };
+    // Si no hay tenants seleccionados, usar el tenant por defecto
+    const defaultTenant = await getDefaultTenantId();
+    if (!defaultTenant) {
+      return { ok: false, status: 400, error: "tenant_requerido", message: "No hay canales configurados. Configura al menos un canal en Configuración." };
+    }
+    args.tenantIds = [defaultTenant];
   }
   const primaryTenantId = args.tenantIds[0];
 
