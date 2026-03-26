@@ -184,6 +184,7 @@ export function WompiTokenizeWidget({
           Guardar método de pago
         </button>
       ) : null}
+      {/* Hidden inputs deben estar dentro del formulario */}
       <input type="hidden" name="accept_terms" value={acceptedTerms ? "1" : "0"} />
       <input type="hidden" name="accept_personal_data" value={acceptedPersonal ? "1" : "0"} />
       <div ref={hostRef} />
