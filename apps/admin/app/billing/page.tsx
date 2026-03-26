@@ -740,6 +740,7 @@ export default async function BillingPage({
                 returnTo={returnTo}
                 warnNotDue={!chargeDue}
                 warnAlreadyPaid={alreadyPaidCurrentPeriod}
+                manualChargeEnabled={r.canManualCharge}
               />
             ) : null}
             {showMarkPaidButton ? (
