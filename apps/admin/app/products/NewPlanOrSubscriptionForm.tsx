@@ -49,9 +49,7 @@ export function NewPlanOrSubscriptionForm({
   tenants: Array<{ id: string; name: string }>;
 }) {
   const [open, setOpen] = useState(false);
-  const tipoRef = useRef<HTMLSelectElement | null>(null);
 
-  const [tipo, setTipo] = useState<"PLAN" | "SUBSCRIPCION">("SUBSCRIPCION");
   const [name, setName] = useState("");
   const [intervalUnit, setIntervalUnit] = useState<"DAY" | "WEEK" | "MONTH" | "CUSTOM">("MONTH");
   const [intervalCount, setIntervalCount] = useState("1");
@@ -195,7 +193,7 @@ export function NewPlanOrSubscriptionForm({
 
   useEffect(() => {
     if (!open) return;
-    const t = setTimeout(() => tipoRef.current?.focus(), 0);
+    const t = setTimeout(() => {}, 0);
     return () => clearTimeout(t);
   }, [open]);
 
@@ -285,21 +283,9 @@ export function NewPlanOrSubscriptionForm({
             </select>
             <div className="field-hint">Puedes seleccionar varios canales.</div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <div className="field">
-              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span>Tipo</span>
-                <HelpTip text="Plan = link de pago. Suscripción = cobro automático." />
-              </label>
-              <select ref={tipoRef} className="select" name="billingType" value={tipo} onChange={(e) => setTipo(e.target.value as any)}>
-                <option value="PLAN">Link de pago</option>
-                <option value="SUBSCRIPCION">Suscripción (cobro automático)</option>
-              </select>
-            </div>
-            <div className="field">
-              <label>Nombre</label>
-              <input className="input" name="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Suscripción mensual" required />
-            </div>
+          <div className="field">
+            <label>Nombre</label>
+            <input className="input" name="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Suscripción mensual" required />
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>

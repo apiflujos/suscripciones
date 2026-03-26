@@ -360,8 +360,6 @@ export async function createPlanTemplate(formData: FormData) {
   await assertCsrfToken(formData);
   const tenantIds = readTenantIds(formData);
   const tenantId = tenantIds[0] || "";
-  const billingTypeRaw = String(formData.get("billingType") || "SUBSCRIPCION").trim().toUpperCase();
-  const billingType = billingTypeRaw === "PLAN" ? "PLAN" : "SUBSCRIPCION";
   const name = String(formData.get("name") || "").trim();
   const intervalUnit = String(formData.get("intervalUnit") || "MONTH").trim();
   const intervalCountRaw = Number(String(formData.get("intervalCount") || "1"));
@@ -413,7 +411,6 @@ export async function createPlanTemplate(formData: FormData) {
         taxable: true,
         requiresShipping: itemKind === "PRODUCT",
         metadata: {
-          collectionMode: billingType === "PLAN" ? "AUTO_LINK" : "AUTO_DEBIT",
           option1Name: option1Name || null,
           option2Name: option2Name || null,
           variants: variants || null,
@@ -463,11 +460,12 @@ export async function createPlanTemplate(formData: FormData) {
 
     if (!totals.totalInCents || totals.totalInCents <= 0) throw new Error("monto_invalido");
 
-    const collectionMode = billingType === "PLAN" ? "AUTO_LINK" : "AUTO_DEBIT";
+    // Siempre crear como SUSCRIPCION (débito automático)
+    const collectionMode = "AUTO_DEBIT";
 
     const createdPlan = await createPlan({
       tenantIds,
-      name: name || `${billingType === "PLAN" ? "Plan" : "Suscripción"} - ${item.name}`,
+      name: name || `Suscripción - ${item.name}`,
       priceInCents: totals.totalInCents,
       currency: item.currency || "COP",
       intervalUnit: intervalUnit as any,
