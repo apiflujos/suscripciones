@@ -174,11 +174,12 @@ export async function createManualOrder(args: { req: Request; body: any }) {
 
   const scheduledInfo =
     parsed.data.sendChatwoot === false
-      ? { scheduled: 0, sentNow: 0, rulesActive: false }
+      ? { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] }
       : await schedulePaymentLinkNotifications({ paymentId: updated.id, forceNow: true }).catch(() => ({
           scheduled: 0,
           sentNow: 0,
-          rulesActive: false
+          rulesActive: false,
+          errors: [] as string[]
         }));
 
   return {
@@ -188,7 +189,8 @@ export async function createManualOrder(args: { req: Request; body: any }) {
     checkoutUrl: updated.checkoutUrl,
     notificationsScheduled: scheduledInfo?.scheduled ?? 0,
     notificationsSent: scheduledInfo?.sentNow ?? 0,
-    notificationsRulesActive: scheduledInfo?.rulesActive ?? false
+    notificationsRulesActive: scheduledInfo?.rulesActive ?? false,
+    chatwootError: scheduledInfo?.errors?.[0] || null
   };
 }
 
@@ -336,11 +338,12 @@ export async function createManualOrderForAdmin(args: {
 
   const scheduledInfo =
     parsed.data.sendChatwoot === false
-      ? { scheduled: 0, sentNow: 0, rulesActive: false }
+      ? { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] }
       : await schedulePaymentLinkNotifications({ paymentId: updated.id, forceNow: true }).catch(() => ({
           scheduled: 0,
           sentNow: 0,
-          rulesActive: false
+          rulesActive: false,
+          errors: [] as string[]
         }));
 
   return {
@@ -350,7 +353,8 @@ export async function createManualOrderForAdmin(args: {
     checkoutUrl: updated.checkoutUrl,
     notificationsScheduled: scheduledInfo?.scheduled ?? 0,
     notificationsSent: scheduledInfo?.sentNow ?? 0,
-    notificationsRulesActive: scheduledInfo?.rulesActive ?? false
+    notificationsRulesActive: scheduledInfo?.rulesActive ?? false,
+    chatwootError: scheduledInfo?.errors?.[0] || null
   };
 }
 

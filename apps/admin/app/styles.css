@@ -3789,8 +3789,9 @@ html[data-contrast="high"] .filtersPanel {
 }
 
 .field-hint {
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
   color: var(--form-hint);
+  line-height: 1.4;
 }
 
 .input, .select {
@@ -11067,9 +11068,9 @@ body.is-global-loading {
 
 /* Tamaños de texto UNIFICADOS en TODA la app */
 .app-shell {
-  --card-title-size: 13px;
-  --card-sub-size: 11.5px;
-  --card-meta-size: 11px;
+  --card-title-size: 14px;
+  --card-sub-size: 12px;
+  --card-meta-size: 12px;
 }
 
 .company-name,
@@ -12178,7 +12179,7 @@ html[data-contrast="high"] .module-footer .ghost {
 }
 
 .modal-body .field-hint {
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
 }
 
 .modal-close {

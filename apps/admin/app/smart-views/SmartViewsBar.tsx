@@ -641,14 +641,6 @@ export function SmartViewsBar({
                   </>
                 ) : (
                   <>
-                    <button
-                      type="button"
-                      className="pill smartViewsPinAdd"
-                      onClick={() => setPinSelectIndex(idx)}
-                      data-loader="off"
-                    >
-                      + Lista
-                    </button>
                     {pinSelectIndex === idx ? (
                       <div className="smartViewsPinPopover">
                         <select
@@ -679,7 +671,16 @@ export function SmartViewsBar({
                           ×
                         </button>
                       </div>
-                    ) : null}
+                    ) : (
+                      <button
+                        type="button"
+                        className="pill smartViewsPinAdd"
+                        onClick={() => setPinSelectIndex(idx)}
+                        data-loader="off"
+                      >
+                        + Lista
+                      </button>
+                    )}
                   </>
                 )}
               </div>

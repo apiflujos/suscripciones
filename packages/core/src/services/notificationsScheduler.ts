@@ -233,18 +233,18 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
 
 export async function schedulePaymentLinkNotifications(args: { paymentId: string; forceNow?: boolean; actor?: string }) {
   const paymentId = String(args.paymentId || "").trim();
-  if (!paymentId) return { scheduled: 0, sentNow: 0, rulesActive: false };
+  if (!paymentId) return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] };
 
   const payment = await prisma.payment.findUnique({
     where: { id: paymentId },
     select: { id: true, customerId: true, subscriptionId: true }
   });
-  if (!payment) return { scheduled: 0, sentNow: 0, rulesActive: false };
+  if (!payment) return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] };
 
   const cfg = await getNotificationsConfig();
   const rules = cfg.rules.filter((r) => r.enabled && r.trigger === "PAYMENT_LINK_CREATED");
   if (!rules.length) {
-    return { scheduled: 0, sentNow: 0, rulesActive: false };
+    return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] };
   }
 
   const now = new Date();
@@ -253,6 +253,7 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
 
   let scheduled = 0;
   let sentNow = 0;
+  const errors: string[] = [];
   for (const rule of rules) {
     const offsetsSecondsBase = resolveOffsetsSeconds(rule as NotificationRule);
     const offsetsSeconds = args.forceNow ? [0] : offsetsSecondsBase;
@@ -267,7 +268,8 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
         paymentId: payment.id,
         customerId: payment.customerId,
         ...(payment.subscriptionId ? { subscriptionId: payment.subscriptionId } : {}),
-        anchorAt: anchorIso
+        anchorAt: anchorIso,
+        ...(args.forceNow ? { immediateSend: true } : {})
       };
       if (!args.forceNow && runAt.getTime() > now.getTime()) {
         await prisma.retryJob.create({
@@ -279,10 +281,15 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
         });
         scheduled++;
       } else {
-        await subscriptionReminder(jobPayload).catch((err) => {
+        const result = await subscriptionReminder(jobPayload).catch((err) => {
           logger.warn({ err, paymentId }, '[Notifications/Schedule] Fallo en envío inline de payment link');
+          return { ok: false, error: err?.message ? String(err.message) : "unknown_error" } as const;
         });
-        sentNow++;
+        if (result && "ok" in result && !result.ok) {
+          errors.push((result as any).error || "chatwoot_send_failed");
+        } else {
+          sentNow++;
+        }
       }
     }
   }
@@ -303,7 +310,7 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
     logger.warn({ err, paymentId }, '[Notifications/Schedule] Fallo creando systemLog');
   });
 
-  return { scheduled, sentNow, rulesActive: true };
+  return { scheduled, sentNow, rulesActive: true, errors };
 }
 
 export async function scheduleCatalogLinkNotifications(args: { customerId: string; catalogUrl: string; forceNow?: boolean; paymentType?: "PLAN" | "SUBSCRIPTION" | "LINK" | ""; actor?: string }) {

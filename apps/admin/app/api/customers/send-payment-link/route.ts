@@ -129,6 +129,7 @@ export async function POST(req: Request) {
     publicUrl,
     notificationsScheduled: typeof orderResult.notificationsScheduled === "number" ? orderResult.notificationsScheduled : null,
     notificationsSent: typeof orderResult.notificationsSent === "number" ? orderResult.notificationsSent : null,
-    notificationsRulesActive: rulesActive
+    notificationsRulesActive: rulesActive,
+    chatwootError: (orderResult as any)?.chatwootError || null
   });
 }

@@ -143,14 +143,14 @@ function getPaymentType(args: { subscription?: any | null; payment?: any | null 
   return "LINK";
 }
 
-export async function subscriptionReminder(payload: any) {
+export async function subscriptionReminder(payload: any): Promise<{ ok: boolean; sent?: boolean; queued?: boolean; skipped?: boolean; error?: string }> {
   const parsed = payloadSchema.safeParse(payload);
   if (!parsed.success) {
     await systemLog(LogLevel.WARN, "notifications.dispatch", "Payload inválido para notificación", {
       errors: parsed.error.flatten(),
       rawPayload: payload
     }, "job:subscriptionReminder").catch(() => {});
-    return;
+    return { ok: false, skipped: true, error: "invalid_payload" };
   }
 
   const cfg = await getNotificationsConfig();
@@ -161,7 +161,7 @@ export async function subscriptionReminder(payload: any) {
       trigger: parsed.data.trigger,
       jobId: (payload as any)?.jobId || null
     }, "job:subscriptionReminder").catch(() => {});
-    return;
+    return { ok: false, skipped: true, error: "rule_inactive" };
   }
   const template = cfg.templates.find((t) => t.id === rule.templateId);
   if (!template) {
@@ -170,7 +170,7 @@ export async function subscriptionReminder(payload: any) {
       templateId: rule.templateId,
       trigger: parsed.data.trigger
     }, "job:subscriptionReminder").catch(() => {});
-    return;
+    return { ok: false, skipped: true, error: "template_missing" };
   }
 
   await systemLog(LogLevel.INFO, "notifications.dispatch", "Procesando notificacion", {
@@ -209,7 +209,7 @@ export async function subscriptionReminder(payload: any) {
       subscriptionId: parsed.data.subscriptionId || null,
       paymentId: parsed.data.paymentId || null
     }, "job:subscriptionReminder").catch(() => {});
-    return;
+    return { ok: false, skipped: true, error: "customer_missing" };
   }
 
   if (subscription && rule.conditions?.skipIfSubscriptionStatusIn?.includes(subscription.status as any)) {
@@ -220,7 +220,7 @@ export async function subscriptionReminder(payload: any) {
       subscriptionId: subscription.id,
       status: subscription.status
     }, "job:subscriptionReminder").catch(() => {});
-    return;
+    return { ok: false, skipped: true, error: "subscription_status_skipped" };
   }
 
   if (payment) {
@@ -232,7 +232,7 @@ export async function subscriptionReminder(payload: any) {
         paymentId: payment.id,
         status: payment.status
       }, "job:subscriptionReminder").catch(() => {});
-      return;
+      return { ok: false, skipped: true, error: "payment_status_skipped" };
     }
     if (rule.conditions?.requirePaymentStatusIn && !rule.conditions.requirePaymentStatusIn.includes(payment.status as any)) {
       await systemLog(LogLevel.WARN, "notifications.dispatch", "Pago no cumple estado requerido", {
@@ -243,7 +243,7 @@ export async function subscriptionReminder(payload: any) {
         status: payment.status,
         required: rule.conditions.requirePaymentStatusIn
       }, "job:subscriptionReminder").catch(() => {});
-      return;
+      return { ok: false, skipped: true, error: "payment_status_not_allowed" };
     }
   }
 
@@ -258,7 +258,7 @@ export async function subscriptionReminder(payload: any) {
         currentCycle: subscription.currentCycle,
         payloadCycle: parsed.data.cycleNumber
       }, "job:subscriptionReminder").catch(() => {});
-      return;
+      return { ok: false, skipped: true, error: "cycle_mismatch" };
     }
     if (parsed.data.anchorAt) {
       const anchorIso = new Date(parsed.data.anchorAt).toISOString();
@@ -271,7 +271,7 @@ export async function subscriptionReminder(payload: any) {
           currentAnchor: subscription.currentPeriodEndAt.toISOString(),
           payloadAnchor: anchorIso
         }, "job:subscriptionReminder").catch(() => {});
-        return;
+        return { ok: false, skipped: true, error: "anchor_mismatch" };
       }
     }
 
@@ -289,7 +289,7 @@ export async function subscriptionReminder(payload: any) {
         subscriptionId: subscription.id,
         paymentStatus: approved.status
       }, "job:subscriptionReminder").catch(() => {});
-      return;
+      return { ok: false, skipped: true, error: "already_paid" };
     }
   }
 
@@ -299,7 +299,7 @@ export async function subscriptionReminder(payload: any) {
       templateId: template.id,
       trigger: parsed.data.trigger
     }, "job:subscriptionReminder").catch(() => {});
-    return;
+    return { ok: false, skipped: true, error: "meta_not_supported" };
   }
 
   if (!template.chatwootType) {
@@ -308,7 +308,7 @@ export async function subscriptionReminder(payload: any) {
       templateId: template.id,
       trigger: parsed.data.trigger
     }, "job:subscriptionReminder").catch(() => {});
-    return;
+    return { ok: false, skipped: true, error: "chatwoot_type_missing" };
   }
 
   const requiresWhatsappTemplate = [
@@ -324,7 +324,7 @@ export async function subscriptionReminder(payload: any) {
       templateId: template.id,
       trigger: parsed.data.trigger
     }, "job:subscriptionReminder").catch(() => {});
-    return;
+    return { ok: false, skipped: true, error: "whatsapp_template_missing" };
   }
 
   let effectivePayment: any = payment;
@@ -418,7 +418,7 @@ export async function subscriptionReminder(payload: any) {
           trigger: parsed.data.trigger,
           customerId: customer.id
         }, "job:subscriptionReminder").catch(() => {});
-        return;
+        return { ok: false, skipped: true, error: "checkout_auto_missing" };
       }
       const created = await createPublicCheckoutLink({ customerId: customer.id, templateId: targetId }).catch(() => null);
       if (created?.url) {
@@ -439,7 +439,7 @@ export async function subscriptionReminder(payload: any) {
           customerId: customer.id,
           checkoutTemplateId: targetId
         }, "job:subscriptionReminder").catch(() => {});
-        return;
+        return { ok: false, skipped: true, error: "checkout_missing" };
       }
     }
   }
@@ -518,7 +518,7 @@ export async function subscriptionReminder(payload: any) {
       subscriptionId: subscription?.id ?? null,
       paymentId: effectivePayment?.id ?? null
     }, "job:subscriptionReminder").catch(() => {});
-    return;
+    return { ok: false, skipped: true, error: "duplicate" };
   }
 
   const resolvedTenantId =
@@ -551,16 +551,35 @@ export async function subscriptionReminder(payload: any) {
   if (parsed.data.immediateSend) {
     try {
       await sendChatwootMessage(created.id);
+      const refreshed = await prisma.chatwootMessage.findUnique({
+        where: { id: created.id },
+        select: { status: true, errorMessage: true }
+      });
+      if (refreshed?.status !== MessageStatus.SENT) {
+        const errorMessage = String(refreshed?.errorMessage || "chatwoot_send_failed");
+        await systemLog(LogLevel.WARN, "notifications.dispatch", "Mensaje fallido", {
+          trigger: parsed.data.trigger,
+          ruleId: parsed.data.ruleId,
+          chatwootMessageId: created.id,
+          customerId: customer.id,
+          paymentId: effectivePayment?.id ?? null,
+          err: errorMessage
+        }, "job:subscriptionReminder").catch(() => {});
+        return { ok: false, error: errorMessage };
+      }
     } catch (err: any) {
+      const errorMessage = err?.message ? String(err.message) : "unknown_error";
       await systemLog(LogLevel.WARN, "notifications.dispatch", "Mensaje fallido", {
         trigger: parsed.data.trigger,
         ruleId: parsed.data.ruleId,
         chatwootMessageId: created.id,
         customerId: customer.id,
         paymentId: effectivePayment?.id ?? null,
-        err: err?.message ? String(err.message) : "unknown_error"
+        err: errorMessage
       }, "job:subscriptionReminder").catch(() => {});
+      return { ok: false, error: errorMessage };
     }
+    return { ok: true, sent: true };
   } else {
     await prisma.retryJob.create({
       data: {
@@ -568,6 +587,7 @@ export async function subscriptionReminder(payload: any) {
         payload: { chatwootMessageId: created.id }
       }
     });
+    return { ok: true, queued: true };
   }
 
   if (parsed.data.trigger === "PAYMENT_DECLINED" && subscription) {
@@ -579,4 +599,5 @@ export async function subscriptionReminder(payload: any) {
       }).catch(() => {});
     }
   }
+  return { ok: true };
 }

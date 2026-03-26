@@ -1049,11 +1049,19 @@ export default async function LogsPage({
                     const wompiTxText = String(p.wompiTransactionId || "").trim();
                     const wompiLinkText = String(p.wompiPaymentLinkId || "").trim();
                     const isExternal = !p.subscriptionId;
+                    const isRequestedLink =
+                      isExternal &&
+                      (Boolean(p.wompiPaymentLinkId) ||
+                        Boolean(p.checkoutUrl) ||
+                        referenceText.startsWith("ORDER_") ||
+                        ["MANUAL_LINK", "AUTO_LINK"].includes(String(p.origin || "").toUpperCase()));
                     const planName = p.subscription?.plan?.name
                       ? p.subscription.plan.name
-                      : isExternal
-                        ? `Pago externo (${externalSourceLabel})`
-                        : "Falta asociar suscripción";
+                      : isRequestedLink
+                        ? "Pago solicitado (link de pago)"
+                        : isExternal
+                          ? `Pago externo (${externalSourceLabel})`
+                          : "Falta asociar suscripción";
                     const contactQuery =
                       p.customer?.email ||
                       p.customer?.phone ||
