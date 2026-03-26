@@ -507,15 +507,18 @@ export default async function BillingPage({
     const isSuspended = r.status === "SUSPENDED";
     const isInactive = isCanceled || isSuspended;
     const alreadyPaidCurrentPeriod = Boolean(r.lastPaidInCurrentPeriod);
-    // Botón de cobrar: siempre visible para débito automático cuando hay pago vencido
-    const showChargeButton =
-      typeof r.canManualCharge === "boolean"
-        ? r.canManualCharge
-        : isAutoDebit && !isInactive && r.customerTokenized;
+    
+    // Botón de cobrar: SIEMPRE visible para débito automático (activo)
+    // Es el botón más importante - poder cobrar!
+    const showChargeButton = isAutoDebit && !isInactive;
+    
+    // Botón de marcar pagada: solo si no está cancelada
     const showMarkPaidButton = r.status !== "CANCELED";
+    
     // Botón de enviar link de pago: visible para link de pago manual
     const showPaymentLinkButton = !isAutoDebit && !isInactive;
-    // Botón de tokenización: siempre visible para débito automático (independiente del link de pago)
+    
+    // Botón de tokenización: siempre visible para débito automático si no está tokenizado
     const needsTokenization = isAutoDebit && !r.customerTokenized;
     const showTokenizationLink = needsTokenization && !isInactive;
     const duplicateKey = `${r.customerId}:${r.planId}`;
