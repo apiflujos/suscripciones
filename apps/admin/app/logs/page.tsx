@@ -600,7 +600,8 @@ export default async function LogsPage({
       ) : null}
       <section className="settings-group">
         <div className="settings-group-header">
-          <div className="panelHeaderRow">
+          {/* Fila 1: Tabs + Pills */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, width: "100%" }}>
             {tab !== "payments" ? (
               <div className="panel-tabs">
                 <Link
@@ -608,9 +609,6 @@ export default async function LogsPage({
                   href={`/logs?${new URLSearchParams({ tab: "system" })}`}
                   title="Eventos internos y auditoría"
                   prefetch={false}
-                  data-loader={tab === "system" ? "off" : undefined}
-                  aria-disabled={tab === "system" ? "true" : undefined}
-                  tabIndex={tab === "system" ? -1 : undefined}
                 >
                   Sistema
                 </Link>
@@ -619,9 +617,6 @@ export default async function LogsPage({
                   href={`/logs?${new URLSearchParams({ tab: "webhooks" })}`}
                   title="Entradas y reintentos de webhooks"
                   prefetch={false}
-                  data-loader={tab === "webhooks" ? "off" : undefined}
-                  aria-disabled={tab === "webhooks" ? "true" : undefined}
-                  tabIndex={tab === "webhooks" ? -1 : undefined}
                 >
                   Webhooks
                 </Link>
@@ -630,14 +625,13 @@ export default async function LogsPage({
                   href={`/logs?${new URLSearchParams({ tab: "messages" })}`}
                   title="Mensajes enviados por integraciones"
                   prefetch={false}
-                  data-loader={tab === "messages" ? "off" : undefined}
-                  aria-disabled={tab === "messages" ? "true" : undefined}
-                  tabIndex={tab === "messages" ? -1 : undefined}
                 >
                   Mensajes
                 </Link>
               </div>
-            ) : null}
+            ) : (
+              <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>Pagos</h3>
+            )}
             <div className="panelHeaderPills">
               {tab === "system" ? (
                 <>
@@ -663,43 +657,26 @@ export default async function LogsPage({
                   <span className="pill pill-bad">Fallidos {messageSummary.failed}</span>
                 </>
               ) : null}
+              {tab === "payments" ? (
+                <>
+                  <span className="pill">Total {totals.payments ?? paymentsSummary.total}</span>
+                  <span className="pill pill-ok">Pagados {paymentsSummary.approved}</span>
+                  <span className="pill pill-warn">Pendientes {paymentsSummary.pending}</span>
+                  <span className="pill pill-bad">Fallidos {paymentsSummary.failed}</span>
+                </>
+              ) : null}
             </div>
           </div>
 
-          {tab === "system" ? (
-            <div className="filtersRow">
-              <div className="filtersLeft">
-                <div className="filtersTop">
-                  <div className="filtersNote">
-                    Busca por evento o fuente (por defecto últimos 30 días). <span className="muted">Vistas = filtros guardados.</span>
-                    <HelpTip text="Filtra por fecha, nivel y texto. Smart Views aplica reglas avanzadas." />
-                  </div>
-                  <div className="filtersSummary">{paginationSummary}</div>
-                </div>
-                <div className="filtersPanel">
-                  <SmartViewsBar
-                    scope="logs"
-                    initialViewId={viewId}
-                    initialFilters={filters}
-                    baseParams={{
-                      tab: "system",
-                      ...(q ? { q } : {}),
-                      ...(level ? { level } : {}),
-                      ...(from ? { from } : {}),
-                      ...(to ? { to } : {})
-                    }}
-                    initialFields={getSmartViewFields("logs")}
-                  />
-                </div>
-              </div>
-            </div>
-          ) : tab === "payments" ? (
-            <div className="filtersRow" style={{ width: "100%" }}>
-              <div className="filtersLeft" style={{ width: "100%", maxWidth: "100%" }}>
-                <div className="filtersPanel" style={{ width: "100%" }}>
-                  <div className="filtersHeader">
-                    <div className="filtersHeaderRow filtersHeaderRowTop">
-                      <form action="/payments" method="GET" className="filtersForm filtersSearch" data-debounce-form="true">
+          {/* Fila 2: Filtros y búsquedas */}
+          <div className="filtersRow">
+            <div className="filtersLeft">
+              <div className="filtersPanel">
+                {tab === "payments" ? (
+                  <>
+                    {/* Filtros de pagos en una sola fila */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", flexWrap: "wrap" }}>
+                      <form action="/payments" method="GET" className="filtersForm filtersSearch" style={{ flex: "0 0 280px" }} data-debounce-form="true">
                         {status ? <input type="hidden" name="status" value={status} /> : null}
                         {paymentsView ? <input type="hidden" name="paymentsView" value={paymentsView} /> : null}
                         {from ? <input type="hidden" name="from" value={from} /> : null}
@@ -717,7 +694,7 @@ export default async function LogsPage({
                         />
                         <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
                       </form>
-                      <div className="filtersHeaderSmart">
+                      <div style={{ flex: "1 1 auto", minWidth: 200 }}>
                         <SmartViewsBar
                           scope="payments"
                           initialViewId={viewId}
@@ -730,7 +707,7 @@ export default async function LogsPage({
                           initialFields={getSmartViewFields("payments")}
                         />
                       </div>
-                      <div className="filtersHeaderActions">
+                      <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: "auto" }}>
                         <form action={reconcilePendingPayments} className="filtersForm payments-action-form">
                           <input type="hidden" name="returnTo" value={returnTo} />
                           <input type="hidden" name="csrf" value={csrfToken} />
@@ -739,28 +716,40 @@ export default async function LogsPage({
                           <input type="hidden" name="take" value="150" />
                           {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
                           <PendingButton className="ghost btn-compact btn-noicon" type="submit" pendingText="Conciliando..." title="Reintenta conciliación de pagos pendientes">
-                            Recolectar pagos
+                            Recolectar
                           </PendingButton>
                         </form>
-                        <div className="payments-action-form" title="Reconciliación manual de una transacción Wompi">
-                          <ReconcilePaymentModal csrfToken={csrfToken} action={reconcilePayment} />
-                        </div>
+                        <ReconcilePaymentModal csrfToken={csrfToken} action={reconcilePayment} />
                       </div>
                     </div>
-                    <div className="filtersHeaderRow filtersHeaderRowBottom">
-                      <div className="filtersHeaderLeft">
-                        <a
-                          className={`pill ${!paymentsView ? "is-active" : ""}`}
-                          href={`/payments?${new URLSearchParams({
-                            ...(q ? { q } : {}),
-                            ...(from ? { from } : {}),
-                            ...(to ? { to } : {}),
-                            ...(tenantId ? { tenantId } : {}),
-                            ...(viewId ? { viewId } : {}),
-                            ...(filters ? { filters } : {}),
-                          }).toString()}`}
-                        >
-                          Todos
+                  </>
+                ) : (
+                  <>
+                    {/* Filtros de logs del sistema */}
+                    <div className="filtersTop">
+                      <div className="filtersNote">
+                        Busca por evento o fuente (últimos 30 días).
+                      </div>
+                      <div className="filtersSummary">{paginationSummary}</div>
+                    </div>
+                    <SmartViewsBar
+                      scope="logs"
+                      initialViewId={viewId}
+                      initialFilters={filters}
+                      baseParams={{
+                        tab: "system",
+                        ...(q ? { q } : {}),
+                        ...(level ? { level } : {}),
+                        ...(from ? { from } : {}),
+                        ...(to ? { to } : {})
+                      }}
+                      initialFields={getSmartViewFields("logs")}
+                    />
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
                         </a>
                         <a
                           className={`pill ${paymentsView === "RECEIVED" ? "is-active" : ""}`}
