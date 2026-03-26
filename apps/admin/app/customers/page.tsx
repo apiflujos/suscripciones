@@ -325,18 +325,14 @@ export default async function CustomersPage({
           <h1 className="page-title-simple">Clientes</h1>
           <div className="page-actions-simple">
             <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
-            <CustomersModals
-              customers={items}
-              empresas={empresas}
-              products={productsRes?.items ?? []}
-              checkoutTemplates={templatesRes?.items ?? []}
-              csrfToken={csrfToken}
-              tenants={tenants}
-              tenantId={tenantId}
-              createCustomer={createCustomer}
-              createPlanAndSubscription={createPlanAndSubscription}
-              returnTo={returnTo}
-            />
+            <button
+              className="primary btn-compact"
+              type="button"
+              id="customers-modal-trigger"
+              onClick={() => document.getElementById('customers-modals-container')?.querySelector('button')?.click()}
+            >
+              Crear contacto
+            </button>
           </div>
         </div>
         <div className="page-filters-simple">
@@ -377,6 +373,21 @@ export default async function CustomersPage({
             }}
           />
         </div>
+      </div>
+
+      <div id="customers-modals-container" style={{ display: 'none' }}>
+        <CustomersModals
+          customers={items}
+          empresas={empresas}
+          products={productsRes?.items ?? []}
+          checkoutTemplates={templatesRes?.items ?? []}
+          csrfToken={csrfToken}
+          tenants={tenants}
+          tenantId={tenantId}
+          createCustomer={createCustomer}
+          createPlanAndSubscription={createPlanAndSubscription}
+          returnTo={returnTo}
+        />
       </div>
 
       <div className="settings-group-body">
