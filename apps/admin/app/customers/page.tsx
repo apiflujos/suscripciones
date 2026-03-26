@@ -340,7 +340,6 @@ export default async function CustomersPage({
           </div>
         </div>
         <div className="page-filters-simple">
-          <form action="/customers" method="GET" className="filtersForm filtersSearch">
             {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
             {vista ? <input type="hidden" name="vista" value={vista} /> : null}
             {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}

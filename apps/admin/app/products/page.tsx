@@ -117,16 +117,19 @@ export default async function ProductsPage({
           <h1 className="page-title-simple">Productos</h1>
           <div className="page-actions-simple">
             <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="products" />
-            <button
-              className="primary"
-              type="button"
-              onClick={() => {
-                const modal = document.getElementById('products-modal-trigger');
-                if (modal) modal.click();
-              }}
-            >
-              Crear producto
-            </button>
+            <ProductsModals
+              customers={filteredCustomers}
+              empresas={empresas}
+              products={productItems}
+              checkoutTemplates={templatesRes ?? []}
+              csrfToken={csrfToken}
+              tenants={tenantsFiltered}
+              tenantId={tenantId}
+              createProduct={createProduct}
+              createCustomer={createCustomerFromBilling}
+              createPlanAndSubscription={createPlanAndSubscription}
+              returnTo={returnTo}
+            />
           </div>
         </div>
         <div className="page-filters-simple">
@@ -168,20 +171,6 @@ export default async function ProductsPage({
           />
         </div>
       </div>
-
-      <ProductsModals
-        customers={filteredCustomers}
-        empresas={empresas}
-        products={productItems}
-        checkoutTemplates={templatesRes ?? []}
-        csrfToken={csrfToken}
-        tenants={tenantsFiltered}
-        tenantId={tenantId}
-        createProduct={createProduct}
-        createCustomer={createCustomerFromBilling}
-        createPlanAndSubscription={createPlanAndSubscription}
-        returnTo={returnTo}
-      />
 
       <div className="settings-group-body">
           <div style={{ display: "grid", gap: 14 }}>
