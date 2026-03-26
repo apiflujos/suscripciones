@@ -24,6 +24,8 @@ import { BillingTenantModalButton } from "./BillingTenantModalButton";
 import { AutoCutoffInlineForm } from "./AutoCutoffInlineForm";
 import { RetryDateField } from "./RetryDateField";
 import { PaymentHistoryButton } from "./PaymentHistoryButton";
+import { BillingCyclesButton } from "./BillingCyclesButton";
+import { BillingCycleSettingsButton } from "./BillingCycleSettingsButton";
 import { PaymentLinkModalButton } from "./PaymentLinkModalButton";
 import { TokenizationLinkModalButton } from "./TokenizationLinkModalButton";
 import { ListCsvActions } from "../ui/ListCsvActions";
@@ -348,6 +350,12 @@ export default async function BillingPage({
       const requiresShipping = String((plan?.metadata as any)?.catalog?.kind || "").toUpperCase() !== "SERVICE";
       const shippingAppliedInCents = requiresShipping ? Math.max(0, shippingInCents) : 0;
       const baseValueInCents = Math.max(0, totalInCents - shippingAppliedInCents);
+      const dueAt = s.currentPeriodEndAt ? new Date(s.currentPeriodEndAt).getTime() : null;
+      const nowTs = Date.now();
+      const daysLate = dueAt && nowTs > dueAt ? Math.ceil((nowTs - dueAt) / (24 * 60 * 60 * 1000)) : 0;
+      const graceDays = Number(s.graceDays || 1);
+      const inGrace = String(s.status || "") === "PAST_DUE" && daysLate > 0 && daysLate <= graceDays;
+      const inArrears = String(s.status || "") === "PAST_DUE" && daysLate > graceDays;
       return {
         id: String(s.id),
         planId: String(plan?.id || ""),
@@ -382,6 +390,9 @@ export default async function BillingPage({
         paymentDay: Number(s.paymentDay || 1),
         paymentTiming: String(s.paymentTiming || "EN_CURSO"),
         graceDays: Number(s.graceDays || 1),
+        daysLate,
+        inGrace,
+        inArrears,
         nextRetryAt: s.nextRetryJob?.runAt || (s.metadata as any)?.manualRetry?.nextRetryAt || null,
         mode: collectionMode,
         canManualCharge: typeof s?.canManualCharge === "boolean" ? s.canManualCharge : undefined,
@@ -550,6 +561,16 @@ export default async function BillingPage({
                   <span className={`pill pill-sm ${estadoSimple.class}`} title={`Estado: ${estadoSimple.label}`}>
                     {estadoSimple.label}
                   </span>
+                  {r.inGrace ? (
+                    <span className="pill pill-sm pill-warn" title={`En gracia · ${r.daysLate} días`}>
+                      En gracia · {r.daysLate}d
+                    </span>
+                  ) : null}
+                  {r.inArrears ? (
+                    <span className="pill pill-sm pill-bad" title={`En mora · ${r.daysLate} días`}>
+                      En mora · {r.daysLate}d
+                    </span>
+                  ) : null}
                   {r.customerTokenized ? (
                     <span className="pill pill-sm pill-ok" title="Tarjeta tokenizada">
                       Tarjeta guardada
@@ -583,6 +604,18 @@ export default async function BillingPage({
                 />
               ) : null}
               <PaymentHistoryButton subscriptionId={r.id} tenantId={r.tenantId} />
+              <BillingCyclesButton subscriptionId={r.id} />
+              <BillingCycleSettingsButton
+                subscriptionId={r.id}
+                tenantId={r.tenantId}
+                csrfToken={csrfToken}
+                returnTo={returnTo}
+                cycleStartDay={r.cycleStartDay}
+                paymentDay={r.paymentDay}
+                paymentTiming={r.paymentTiming}
+                graceDays={r.graceDays}
+                action={updateSubscriptionBillingSettings}
+              />
               <DeleteSubscriptionButton action={deleteSubscription} csrfToken={csrfToken} subscriptionId={r.id} tenantId={r.tenantId} returnTo={returnTo} />
             </div>
           </div>
@@ -651,44 +684,10 @@ export default async function BillingPage({
                   />
                 </div>
               </div>
-              <form action={updateSubscriptionBillingSettings} className="billing-cycle-form">
-                <input type="hidden" name="csrf" value={csrfToken} />
-                <input type="hidden" name="subscriptionId" value={r.id} />
-                <input type="hidden" name="tenantId" value={r.tenantId} />
-                <input type="hidden" name="returnTo" value={returnTo} />
-                <label className="field field-inline">
-                  <span className="field-hint">Inicio ciclo</span>
-                  <select className="select select-sm" name="cycleStartDay" defaultValue={String(r.cycleStartDay || 1)}>
-                    {Array.from({ length: 31 }).map((_, i) => (
-                      <option key={`cycle-start-${r.id}-${i + 1}`} value={String(i + 1)}>{i + 1}</option>
-                    ))}
-                  </select>
-                </label>
-                <label className="field field-inline">
-                  <span className="field-hint">Día pago</span>
-                  <select className="select select-sm" name="paymentDay" defaultValue={String(r.paymentDay || 1)}>
-                    {Array.from({ length: 31 }).map((_, i) => (
-                      <option key={`pay-day-${r.id}-${i + 1}`} value={String(i + 1)}>{i + 1}</option>
-                    ))}
-                  </select>
-                </label>
-                <label className="field field-inline">
-                  <span className="field-hint">Tipo</span>
-                  <select className="select select-sm" name="paymentTiming" defaultValue={String(r.paymentTiming || "EN_CURSO")}>
-                    <option value="EN_CURSO">En curso</option>
-                    <option value="ANTICIPADO">Anticipado</option>
-                  </select>
-                </label>
-                <label className="field field-inline">
-                  <span className="field-hint">Gracia</span>
-                  <select className="select select-sm" name="graceDays" defaultValue={String(r.graceDays || 1)}>
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <option key={`grace-${r.id}-${i + 1}`} value={String(i + 1)}>{i + 1}</option>
-                    ))}
-                  </select>
-                </label>
-                <button className="ghost btn-compact btn-noicon" type="submit">Guardar</button>
-              </form>
+              <div className="billing-cycle-readonly">
+                <span className="field-hint">Inicio ciclo</span>
+                <strong>Día {r.cycleStartDay}</strong>
+              </div>
             </div>
           </div>
           <div className="billing-body-side">

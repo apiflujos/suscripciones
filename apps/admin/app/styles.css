@@ -175,6 +175,7 @@
   --icon-phone: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b6070' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M22 16.9v3a2 2 0 0 1-2.2 2c-8-.8-14.2-7-15-15A2 2 0 0 1 6.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .8 3a2 2 0 0 1-.5 2.1l-1.3 1.3a16 16 0 0 0 6.5 6.5l1.3-1.3a2 2 0 0 1 2.1-.5c1 .4 2 .7 3 .8a2 2 0 0 1 1.7 2z'/></svg>");
   --icon-url: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b6070' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M10 13a5 5 0 0 0 7.1 0l2.1-2.1a5 5 0 0 0-7.1-7.1L10 5'/><path d='M14 11a5 5 0 0 0-7.1 0L4.8 13.1a5 5 0 0 0 7.1 7.1L14 19'/></svg>");
   --icon-date: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b6070' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='4' width='18' height='18' rx='2'/><path d='M8 2v4'/><path d='M16 2v4'/><path d='M3 10h18'/></svg>");
+  --icon-gear: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b6070' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='3'/><path d='M19.4 15a7.8 7.8 0 0 0 .1-2l2-1.5-2-3.5-2.4.5a7.9 7.9 0 0 0-1.7-1l-.3-2.4h-4l-.3 2.4a7.9 7.9 0 0 0-1.7 1l-2.4-.5-2 3.5 2 1.5a7.8 7.8 0 0 0 .1 2l-2 1.5 2 3.5 2.4-.5a7.9 7.9 0 0 0 1.7 1l.3 2.4h4l.3-2.4a7.9 7.9 0 0 0 1.7-1l2.4.5 2-3.5-2-1.5z'/></svg>");
   --icon-time: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b6070' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M12 7v5l3 3'/></svg>");
   --icon-history: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b6070' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 12a9 9 0 1 0 3-6.7'/><path d='M3 4v5h5'/><path d='M12 7v5l3 2'/></svg>");
   --icon-number: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b6070' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 9h16'/><path d='M4 15h16'/><path d='M10 3L8 21'/><path d='M16 3l-2 18'/></svg>");
@@ -4291,6 +4292,14 @@ textarea.input {
   --btn-icon: var(--icon-time);
 }
 
+.btn-calendar {
+  --btn-icon: var(--icon-date);
+}
+
+.btn-gear {
+  --btn-icon: var(--icon-gear);
+}
+
 .btn-cancel {
   --btn-icon: var(--icon-close);
 }
@@ -7452,6 +7461,52 @@ textarea.input {
 .billing-section-dates .billing-inline-cutoff .input {
   width: 100%;
   min-width: 0;
+}
+
+.billing-cycle-readonly {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text);
+  margin-top: 6px;
+}
+
+.billing-cycle-detail {
+  position: relative;
+}
+
+.billing-cycle-detail[open] > summary {
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+}
+
+.billing-cycle-detail-body {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 360px;
+  z-index: 30;
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  padding: 10px;
+  box-shadow: var(--shadow);
+}
+
+.billing-cycle-form-inline {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 10px;
+}
+
+.billing-cycle-form-inline .field-inline {
+  display: grid;
+  gap: 2px;
+}
+
+.billing-cycle-form-inline .btn-compact {
+  grid-column: 1 / -1;
+  justify-self: flex-end;
 }
 
 .billing-cycle-form {
