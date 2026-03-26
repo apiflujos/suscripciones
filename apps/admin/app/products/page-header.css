@@ -1,21 +1,21 @@
 /* Page Header Simple - Para usar directamente en páginas */
 .page-header-simple {
-  padding: 12px 16px;
+  padding: 8px 12px;
   background: #fff;
   border-bottom: 1px solid #e0e0e0;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .page-header-title-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: 8px;
+  margin-bottom: 6px;
 }
 
 .page-title-simple {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: #1a1a1a;
   margin: 0;
@@ -25,6 +25,7 @@
   display: flex;
   gap: 6px;
   align-items: center;
+  margin-left: auto;
 }
 
 .page-filters-simple {
@@ -32,15 +33,21 @@
   gap: 6px;
   align-items: center;
   flex-wrap: wrap;
-  padding-top: 8px;
+  padding-top: 6px;
   border-top: 1px solid #f0f0f0;
 }
 
 .page-filters-simple .filtersForm {
-  flex: 0 0 200px;
+  flex: 0 0 180px;
 }
 
 .page-filters-simple .input {
   padding: 4px 8px;
-  font-size: 13px;
+  font-size: 12px;
+  height: 32px;
+}
+
+.page-filters-simple .btn-icon-only {
+  height: 32px;
+  width: 32px;
 }
