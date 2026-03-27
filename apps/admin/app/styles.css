@@ -7154,9 +7154,34 @@ textarea.input {
 }
 
 .subscription-edit-modal {
-  width: min(980px, 96vw);
+  width: min(900px, 96vw);
   max-height: 90vh;
   overflow: auto;
+}
+
+.subscription-edit-modal .panel-header {
+  justify-content: space-between !important;
+}
+
+.subscription-edit-modal .btn-compact {
+  font-size: 12px;
+  padding: 4px 10px;
+  white-space: nowrap;
+}
+
+.subscription-edit-modal .primary.btn-compact {
+  min-width: 100px;
+  justify-content: center;
+}
+
+.subscription-edit-modal .ghost.btn-compact {
+  min-width: 80px;
+  justify-content: center;
+}
+
+.subscription-edit-modal .module-footer {
+  padding-top: 16px;
+  border-top: 1px solid var(--stroke);
 }
 
 .subscription-edit-grid {
@@ -12170,11 +12195,20 @@ html[data-contrast="high"] .icon-btn.danger:hover {
   }
 }
 
+.module-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 16px;
+  margin-top: 16px;
+  border-top: 1px solid var(--stroke);
+}
+
 .module-footer button {
-  min-height: 30px;
-  padding: 0 10px;
-  font-size: 12px;
-  min-width: 92px;
+  min-height: 32px;
+  padding: 0 12px;
+  font-size: 13px;
+  min-width: 100px;
 }
 
 .module-footer .btn-compact::before,

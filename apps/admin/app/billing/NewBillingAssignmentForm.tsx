@@ -804,29 +804,37 @@ export function NewBillingAssignmentForm({
                 <div className="field-hint">Validando duplicados…</div>
               ) : null}
 
-              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-start", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                {!canSubmit ? (
-                  <span className="field-hint">
-                    Selecciona producto, contacto{mustPickTenant ? " y canal" : ""} para continuar.
-                  </span>
-                ) : null}
+              <div className="module-footer">
                 <button
-                  className="ghost btn-create"
+                  className="ghost btn-compact btn-cancel"
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  title="Cerrar sin crear"
+                  aria-label="Cancelar"
+                >
+                  Cancelar
+                </button>
+                <button
+                  className="ghost btn-compact"
                   type="submit"
                   name="submitAction"
                   value="CREATE"
                   disabled={!canSubmit}
+                  title="Crear sin enviar link"
+                  aria-label="Crear"
                 >
                   {billingType === "PLAN" ? "Crear plan" : "Crear suscripción"}
                 </button>
                 <button
-                  className="primary btn-send"
+                  className="primary btn-compact btn-send"
                   type="submit"
                   name="submitAction"
                   value="LINK_NOW"
                   disabled={!canSubmit}
+                  title="Crear y enviar link inmediatamente"
+                  aria-label="Crear y enviar"
                 >
-                  {billingType === "PLAN" ? "Crear y enviar link de pago" : "Crear y enviar link de débito automático"}
+                  {billingType === "PLAN" ? "Crear y enviar link" : "Crear y enviar débito"}
                 </button>
               </div>
             </form>

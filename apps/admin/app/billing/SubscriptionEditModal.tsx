@@ -79,6 +79,10 @@ export function SubscriptionEditModal({
   const [localCancelDays, setLocalCancelDays] = useState(cancelDays || 30);
   const [shippingCop, setShippingCop] = useState("");
   const [freeShipping, setFreeShipping] = useState(!currentRequiresShipping || currentShippingInCents <= 0);
+  const [productSearchOpen, setProductSearchOpen] = useState(false);
+  const [productSearchQuery, setProductSearchQuery] = useState("");
+  const [productSearchResults, setProductSearchResults] = useState<PlanOption[]>([]);
+  const [productSearchLoading, setProductSearchLoading] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -114,8 +118,54 @@ export function SubscriptionEditModal({
     formData.set("shippingPesos", freeShipping ? "0" : shippingCop);
     formData.set("freeShipping", freeShipping ? "1" : "0");
     if (returnTo) formData.set("returnTo", returnTo);
-    
+
     await updateSubscriptionBillingSettings(formData);
+  };
+
+  const searchProducts = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setProductSearchResults([]);
+      return;
+    }
+    setProductSearchLoading(true);
+    try {
+      const res = await fetch(`/api/search/products?q=${encodeURIComponent(query)}&take=10`);
+      const json = await res.json().catch(() => ({ items: [] }));
+      setProductSearchResults(Array.isArray(json.items) ? json.items : []);
+    } catch {
+      setProductSearchResults([]);
+    } finally {
+      setProductSearchLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (productSearchQuery) {
+        searchProducts(productSearchQuery);
+      } else {
+        setProductSearchResults([]);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [productSearchQuery, searchProducts]);
+
+  const addProduct = (product: PlanOption) => {
+    setProducts((prev) => [...prev, {
+      id: `prod-${Date.now()}`,
+      productId: String(product.id),
+      name: String(product.name),
+      priceInCents: Number(product.priceInCents || 0),
+      currency: String(product.currency || "COP"),
+      requiresShipping: Boolean(product.requiresShipping),
+      quantity: 1
+    }]);
+    setProductSearchOpen(false);
+    setProductSearchQuery("");
+  };
+
+  const removeProduct = (productId: string) => {
+    setProducts((prev) => prev.filter((p) => p.productId !== productId));
   };
 
   return (
@@ -131,9 +181,9 @@ export function SubscriptionEditModal({
       {open ? (
         <div className="modal-backdrop">
           <div className="modal-panel subscription-edit-modal" style={{ width: "min(900px, 96vw)" }}>
-            <div className="panel-header" style={{ justifyContent: "center" }}>
+            <div className="panel-header" style={{ justifyContent: "space-between" }}>
               <h3 style={{ margin: 0 }}>Editar suscripción</h3>
-              <button type="button" className="ghost modal-close" onClick={() => setOpen(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off" style={{ position: "absolute", right: 12 }}>X</button>
+              <button type="button" className="ghost modal-close" onClick={() => setOpen(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">X</button>
             </div>
 
             <div className="modal-body" style={{ display: "grid", gap: 16 }}>
@@ -160,31 +210,79 @@ export function SubscriptionEditModal({
                   </label>
                 </div>
                 <div className="field-hint" style={{ marginTop: 8 }}>
-                  ℹ️ Débito automático requiere tarjeta tokenizada
+                  Débito automático requiere tarjeta tokenizada
                 </div>
               </section>
 
               {/* 2. Productos */}
               <section className="card cardPad" style={{ padding: "12px" }}>
                 <div style={{ display: "grid", gap: 8, marginBottom: 12 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px", border: "1px solid var(--stroke)", borderRadius: 8 }}>
-                    <div>
-                      <strong>{currentPlanName}</strong>
-                      <div className="muted" style={{ fontSize: 11 }}>{fmtMoney(currentPlanCurrency)}</div>
+                  {products.map((product) => (
+                    <div key={product.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px", border: "1px solid var(--stroke)", borderRadius: 8 }}>
+                      <div>
+                        <strong>{product.name}</strong>
+                        <div className="muted" style={{ fontSize: 11 }}>{new Intl.NumberFormat("es-CO", { style: "currency", currency: product.currency, maximumFractionDigits: 0 }).format(product.priceInCents / 100)}</div>
+                      </div>
+                      <button className="ghost btn-compact btn-icon-only btn-red" type="button" title="Quitar" onClick={() => removeProduct(product.productId)}>
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+                          <path d="M14 1.41L12.59 0 7 5.59 1.41 0 0 1.41 5.59 7 0 12.59 1.41 14 7 8.41 12.59 14 14 12.59 8.41 7z"/>
+                        </svg>
+                      </button>
                     </div>
-                    <button className="ghost btn-compact btn-red" type="button" title="Quitar">🗑️</button>
-                  </div>
+                  ))}
+                  {products.length === 0 && (
+                    <div className="muted" style={{ fontSize: 12, padding: "8px" }}>No hay productos adicionales</div>
+                  )}
                 </div>
-                <button className="ghost btn-compact" type="button">+ Agregar producto</button>
+                
+                {productSearchOpen ? (
+                  <div style={{ display: "grid", gap: 8 }}>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <input
+                        className="input"
+                        type="search"
+                        placeholder="Buscar producto..."
+                        value={productSearchQuery}
+                        onChange={(e) => setProductSearchQuery(e.target.value)}
+                        autoFocus
+                        style={{ flex: 1 }}
+                      />
+                      <button className="ghost btn-compact" type="button" onClick={() => setProductSearchOpen(false)}>
+                        Cerrar
+                      </button>
+                    </div>
+                    {productSearchLoading && <div className="muted">Buscando...</div>}
+                    {productSearchResults.length > 0 && (
+                      <div style={{ display: "grid", gap: 4, maxHeight: 200, overflow: "auto" }}>
+                        {productSearchResults.map((product) => (
+                          <button
+                            key={product.id}
+                            className="ghost btn-compact"
+                            type="button"
+                            onClick={() => addProduct(product)}
+                            style={{ justifyContent: "space-between", textAlign: "left" }}
+                          >
+                            <span>{product.name}</span>
+                            <span className="muted">{new Intl.NumberFormat("es-CO", { style: "currency", currency: product.currency || "COP", maximumFractionDigits: 0 }).format(Number(product.priceInCents || 0) / 100)}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <button className="primary btn-compact" type="button" onClick={() => setProductSearchOpen(true)}>
+                    Agregar producto
+                  </button>
+                )}
               </section>
 
               {/* 3. Periodicidad */}
               <section className="card cardPad" style={{ padding: "12px" }}>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   <span>Cobrar cada:</span>
-                  <select 
-                    className="select select-compact" 
-                    value={intervalCount} 
+                  <select
+                    className="select select-compact"
+                    value={intervalCount}
                     onChange={(e) => setIntervalCount(Number(e.target.value))}
                     style={{ width: 80 }}
                   >
@@ -194,9 +292,9 @@ export function SubscriptionEditModal({
                     <option value="6">6</option>
                     <option value="12">12</option>
                   </select>
-                  <select 
-                    className="select select-compact" 
-                    value={intervalUnit} 
+                  <select
+                    className="select select-compact"
+                    value={intervalUnit}
                     onChange={(e) => setIntervalUnit(e.target.value)}
                     style={{ width: 100 }}
                   >
@@ -214,9 +312,9 @@ export function SubscriptionEditModal({
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                     <div className="field">
                       <label className="field-label">Día inicio ciclo</label>
-                      <select 
-                        className="select" 
-                        value={localCycleStartDay} 
+                      <select
+                        className="select"
+                        value={localCycleStartDay}
                         onChange={(e) => setLocalCycleStartDay(Number(e.target.value))}
                       >
                         {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
@@ -226,9 +324,9 @@ export function SubscriptionEditModal({
                     </div>
                     <div className="field">
                       <label className="field-label">Día de cobro</label>
-                      <select 
-                        className="select" 
-                        value={localPaymentDay} 
+                      <select
+                        className="select"
+                        value={localPaymentDay}
                         onChange={(e) => setLocalPaymentDay(Number(e.target.value))}
                       >
                         {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
@@ -251,9 +349,9 @@ export function SubscriptionEditModal({
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, padding: 12, background: "var(--panel-soft)", borderRadius: 8 }}>
                       <div className="field">
                         <label className="field-label">Días de gracia</label>
-                        <select 
-                          className="select" 
-                          value={localGraceDays} 
+                        <select
+                          className="select"
+                          value={localGraceDays}
                           onChange={(e) => setLocalGraceDays(Number(e.target.value))}
                         >
                           {Array.from({ length: 16 }, (_, i) => i).map((days) => (
@@ -263,9 +361,9 @@ export function SubscriptionEditModal({
                       </div>
                       <div className="field">
                         <label className="field-label">Suspender después de</label>
-                        <select 
-                          className="select" 
-                          value={localSuspendDays} 
+                        <select
+                          className="select"
+                          value={localSuspendDays}
                           onChange={(e) => setLocalSuspendDays(Number(e.target.value))}
                         >
                           {Array.from({ length: 31 }, (_, i) => i + 15).map((days) => (
@@ -275,9 +373,9 @@ export function SubscriptionEditModal({
                       </div>
                       <div className="field">
                         <label className="field-label">Cancelar después de</label>
-                        <select 
-                          className="select" 
-                          value={localCancelDays} 
+                        <select
+                          className="select"
+                          value={localCancelDays}
                           onChange={(e) => setLocalCancelDays(Number(e.target.value))}
                         >
                           {Array.from({ length: 31 }, (_, i) => i + 30).map((days) => (
@@ -303,21 +401,26 @@ export function SubscriptionEditModal({
               </section>
 
               {/* Acciones */}
-              <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <form action={deleteSubscription} onSubmit={(e) => { if (!confirm("¿Eliminar esta suscripción?")) e.preventDefault(); }}>
-                  <input type="hidden" name="csrf" value={csrfToken} />
-                  <input type="hidden" name="subscriptionId" value={subscriptionId} />
-                  {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-                  <button className="ghost btn-compact btn-red" type="submit">
-                    🗑️ Eliminar suscripción
-                  </button>
-                </form>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button className="ghost" type="button" onClick={() => setOpen(false)}>Cancelar</button>
-                  <PendingButton className="primary" type="button" pendingText="Guardando..." onClick={handleSave}>
-                    💾 Guardar cambios
-                  </PendingButton>
-                </div>
+              <div className="module-footer">
+                <button 
+                  className="ghost btn-compact btn-cancel" 
+                  type="button" 
+                  onClick={() => setOpen(false)}
+                  title="Cerrar sin guardar"
+                  aria-label="Cancelar"
+                >
+                  Cancelar
+                </button>
+                <PendingButton 
+                  className="primary btn-compact btn-save" 
+                  type="button" 
+                  pendingText="Guardando..." 
+                  onClick={handleSave}
+                  title="Guardar cambios en la suscripción"
+                  aria-label="Guardar cambios"
+                >
+                  Guardar
+                </PendingButton>
               </div>
             </div>
           </div>
