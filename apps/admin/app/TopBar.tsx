@@ -167,14 +167,14 @@ export function TopBar({ session }: { session: AdminSession | null }) {
             <img src="/brand/logo_horizontal.svg" alt="Logo" className="topbarLogo" data-theme-logo="horizontal" />
             <span className="logoStatusDot" aria-hidden="true" />
           </Link>
-          <div className="topbarTitleGroup">
-            <h1 className="topbarTitle">{header.title}</h1>
-            <div className="topbarSubtitle">{header.subtitle}</div>
-          </div>
-          <div className={`topbarPulse ${paymentPulse ? "is-active" : ""}`} aria-live="polite">
-            <span className="topbarPulseDot" aria-hidden="true" />
-            <span className="topbarPulseText">Pago recibido</span>
-          </div>
+        </div>
+        <div className="topbarTitleCentered">
+          <h1 className="topbarTitle">{header.title}</h1>
+          <div className="topbarSubtitle">{header.subtitle}</div>
+        </div>
+        <div className={`topbarPulse ${paymentPulse ? "is-active" : ""}`} aria-live="polite">
+          <span className="topbarPulseDot" aria-hidden="true" />
+          <span className="topbarPulseText">Pago recibido</span>
         </div>
       </div>
 

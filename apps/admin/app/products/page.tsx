@@ -116,8 +116,6 @@ export default async function ProductsPage({
       {sent ? <div className="card cardPad">Mensaje enviado.</div> : null}
 
       <PageHeaderStandard
-        title="Productos y Servicios"
-        subtitle="Catálogo, precios y disponibilidad por canal."
         actions={(
           <ProductsModalTrigger />
         )}

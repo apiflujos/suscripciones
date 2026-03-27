@@ -62,8 +62,6 @@ export default async function CampaignsPage({
       {sp.running ? <div className="panel module">Campaña en cola.</div> : null}
 
       <PageHeaderStandard
-        title="Mensajes masivos"
-        subtitle="Campañas y envíos programados por listas inteligentes."
         actions={(
           <NewMassMessageModal
             csrfToken={csrfToken}

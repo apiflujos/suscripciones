@@ -575,23 +575,6 @@ export default async function LogsPage({
     { info: 0, warn: 0, error: 0 }
   );
 
-  const headerTitle =
-    tab === "payments"
-      ? "Pagos"
-      : tab === "webhooks"
-        ? "Webhooks"
-        : tab === "messages"
-          ? "Mensajes"
-          : "Logs de API";
-  const headerSubtitle =
-    tab === "payments"
-      ? "Seguimiento de pagos, estados y conciliación."
-      : tab === "webhooks"
-        ? "Entradas y reintentos de webhooks."
-        : tab === "messages"
-          ? "Mensajes enviados por integraciones."
-          : "Eventos internos y auditoría.";
-
   const headerSummary =
     tab === "system" ? (
       <div className="panelHeaderPills">
@@ -792,8 +775,6 @@ export default async function LogsPage({
       <section className="settings-group">
         <div className="settings-group-header">
           <PageHeaderStandard
-            title={headerTitle}
-            subtitle={headerSubtitle}
             actions={tab === "payments" ? (
               <>
                 <ReconcilePaymentModal csrfToken={csrfToken} action={reconcilePayment} />

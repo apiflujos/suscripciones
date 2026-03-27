@@ -872,8 +872,6 @@ export default async function BillingPage({
       <section className="settings-group">
         <div className="settings-group-header">
           <PageHeaderStandard
-            title="Suscripciones"
-            subtitle="Cobranza recurrente, ciclos y estado de pago."
             actions={(
               <>
                 <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />

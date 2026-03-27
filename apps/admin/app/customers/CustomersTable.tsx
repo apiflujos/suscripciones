@@ -726,39 +726,29 @@ export function CustomersTable({
                     {statusLabel && statusPillClass ? <span className={`pill ${statusPillClass} pill-sm`}>{statusLabel}</span> : null}
                   </div>
                 </div>
-                  <div className="contact-card-top-actions">
-                    <Link
-                      className="ghost btn-compact btn-search btn-icon-only"
-                      href={`/customers/${c.id}`}
-                      aria-label="Abrir ficha"
-                      title="Abrir ficha"
-                    />
-                    <button
-                      className="ghost btn-compact btn-blue btn-icon-only"
-                      type="button"
-                      onClick={() => openViewLinks(c)}
-                      aria-label="Ver links"
-                      title="Ver links generados"
-                    >
-                      🔗
-                    </button>
-                    <button
-                      className="ghost btn-compact btn-history btn-icon-only"
-                      type="button"
-                      onClick={() => openTransactions(c)}
-                      aria-label="Historial de pagos"
-                      title="Historial de pagos"
-                    />
-                    <button
-                      className="ghost btn-compact btn-edit btn-icon-only"
-                      type="button"
-                      onClick={() => openEditor(c)}
-                      aria-label="Editar"
-                      title="Editar"
-                    />
+                <div className="billing-header-actions">
+                  <button
+                    className="ghost btn-compact btn-edit btn-icon-only"
+                    type="button"
+                    onClick={() => openEditor(c)}
+                    aria-label="Editar contacto"
+                    title="Editar contacto"
+                  />
+                  <button
+                    className="ghost btn-compact btn-history btn-icon-only"
+                    type="button"
+                    onClick={() => openTransactions(c)}
+                    aria-label="Historial de pagos"
+                    title="Historial de pagos"
+                  />
+                  <Link
+                    className="ghost btn-compact btn-search btn-icon-only"
+                    href={`/customers/${c.id}`}
+                    aria-label="Abrir ficha"
+                    title="Abrir ficha"
+                  />
                   <form
                     action={deleteCustomer}
-                    className="delete-row"
                     onSubmit={(e) => {
                       if (!confirm("¿Eliminar contacto?")) e.preventDefault();
                     }}

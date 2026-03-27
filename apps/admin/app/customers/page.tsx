@@ -324,8 +324,6 @@ export default async function CustomersPage({
       {paymentLink ? <div className="card cardPad">Link de pago enviado.</div> : null}
 
       <PageHeaderStandard
-        title="Contactos"
-        subtitle="Gestión de clientes, pagos y acciones rápidas."
         actions={(
           <CustomersModalTrigger />
         )}

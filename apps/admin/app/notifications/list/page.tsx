@@ -60,8 +60,6 @@ export default async function WhatsappNotificationsListPage({
   return (
     <main className="page notificationsPage">
       <PageHeaderStandard
-        title="Notificaciones WhatsApp"
-        subtitle="Mensajes enviados, estado y trazabilidad."
         actions={(
           <>
             <a className="ghost btn-compact" href="/settings?tab=notificaciones-whatsapp">

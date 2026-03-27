@@ -1,8 +1,6 @@
 import type { ReactNode } from "react";
 
 export function PageHeaderStandard({
-  title,
-  subtitle,
   actions,
   search,
   smartViews,
@@ -10,8 +8,6 @@ export function PageHeaderStandard({
   views,
   summary
 }: {
-  title: string;
-  subtitle?: string;
   actions?: ReactNode;
   search: ReactNode;
   smartViews?: ReactNode;
@@ -21,13 +17,6 @@ export function PageHeaderStandard({
 }) {
   return (
     <div className="page-header-standard">
-      <div className="page-header-standard-top">
-        <div className="page-header-standard-title">
-          <h1 className="page-title-standard">{title}</h1>
-          {subtitle ? <div className="page-subtitle-standard">{subtitle}</div> : null}
-        </div>
-        {actions ? <div className="page-header-standard-actions">{actions}</div> : null}
-      </div>
       <div className="page-header-standard-controls">
         <div className="page-header-standard-search">{search}</div>
         <div className="page-header-standard-left">

@@ -91,8 +91,6 @@ export default async function EmpresasPage({
       <section className="settings-group">
         <div className="settings-group-header">
           <PageHeaderStandard
-            title="Empresas"
-            subtitle="Gestión de empresas y contactos asociados."
             actions={(
               <>
                 <ListCsvActions exportHref={exportHref} tenantId={session?.tenantId || undefined} defaultEntity="companies" />
