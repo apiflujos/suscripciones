@@ -2802,6 +2802,14 @@ html[data-theme="dark"] .payments-health-banner code {
   flex-wrap: wrap;
 }
 
+.panel-tabs-top {
+  display: flex;
+  gap: 8px;
+  padding: 0 0 12px 0;
+  border-bottom: 1px solid var(--stroke);
+  margin-bottom: 12px;
+}
+
 .panel-tab {
   border: none;
   border-bottom: 2px solid transparent;
@@ -2815,6 +2823,23 @@ html[data-theme="dark"] .payments-health-banner code {
 .panel-tab.is-active {
   color: var(--primary);
   border-bottom-color: var(--primary);
+}
+
+.panel-tabs-top .panel-tab {
+  padding: 8px 12px;
+  border-radius: 8px 8px 0 0;
+  border-bottom: none;
+  background: var(--surface-2);
+  transition: all 0.15s ease;
+}
+
+.panel-tabs-top .panel-tab:hover {
+  background: var(--row-hover);
+}
+
+.panel-tabs-top .panel-tab.is-active {
+  background: var(--primary-soft);
+  color: var(--primary);
 }
 
 .pagination {

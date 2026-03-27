@@ -131,15 +131,14 @@ export function SubscriptionEditModal({
       {open ? (
         <div className="modal-backdrop">
           <div className="modal-panel subscription-edit-modal" style={{ width: "min(900px, 96vw)" }}>
-            <div className="panel-header">
-              <h3>Editar suscripción</h3>
-              <button type="button" className="ghost modal-close" onClick={() => setOpen(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">X</button>
+            <div className="panel-header" style={{ justifyContent: "center" }}>
+              <h3 style={{ margin: 0 }}>Editar suscripción</h3>
+              <button type="button" className="ghost modal-close" onClick={() => setOpen(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off" style={{ position: "absolute", right: 12 }}>X</button>
             </div>
 
             <div className="modal-body" style={{ display: "grid", gap: 16 }}>
               {/* 1. Tipo de suscripción */}
               <section className="card cardPad" style={{ padding: "12px" }}>
-                <h4 style={{ margin: "0 0 12px 0", fontSize: 13 }}>Tipo de suscripción</h4>
                 <div style={{ display: "flex", gap: 16 }}>
                   <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
                     <input
@@ -167,7 +166,6 @@ export function SubscriptionEditModal({
 
               {/* 2. Productos */}
               <section className="card cardPad" style={{ padding: "12px" }}>
-                <h4 style={{ margin: "0 0 12px 0", fontSize: 13 }}>Productos</h4>
                 <div style={{ display: "grid", gap: 8, marginBottom: 12 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px", border: "1px solid var(--stroke)", borderRadius: 8 }}>
                     <div>
@@ -182,7 +180,6 @@ export function SubscriptionEditModal({
 
               {/* 3. Periodicidad */}
               <section className="card cardPad" style={{ padding: "12px" }}>
-                <h4 style={{ margin: "0 0 12px 0", fontSize: 13 }}>Periodicidad</h4>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   <span>Cobrar cada:</span>
                   <select 
@@ -213,7 +210,6 @@ export function SubscriptionEditModal({
 
               {/* 4. Configuración de ciclo */}
               <section className="card cardPad" style={{ padding: "12px" }}>
-                <h4 style={{ margin: "0 0 12px 0", fontSize: 13 }}>Configuración de ciclo</h4>
                 <div style={{ display: "grid", gap: 12 }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                     <div className="field">

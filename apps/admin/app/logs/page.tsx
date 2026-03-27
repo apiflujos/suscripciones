@@ -759,6 +759,36 @@ export default async function LogsPage({
           Error asociando pago: {assocError || "unknown_error"}
         </div>
       ) : null}
+
+      {tab !== "payments" && (
+        <div className="panel-tabs panel-tabs-top">
+          <Link
+            className={`ghost no-icon panel-tab ${tab === "system" ? "is-active" : ""}`}
+            href={`/logs?${new URLSearchParams({ tab: "system" })}`}
+            title="Eventos internos y auditoría"
+            prefetch={false}
+          >
+            Sistema
+          </Link>
+          <Link
+            className={`ghost no-icon panel-tab ${tab === "webhooks" ? "is-active" : ""}`}
+            href={`/logs?${new URLSearchParams({ tab: "webhooks" })}`}
+            title="Entradas y reintentos de webhooks"
+            prefetch={false}
+          >
+            Webhooks
+          </Link>
+          <Link
+            className={`ghost no-icon panel-tab ${tab === "messages" ? "is-active" : ""}`}
+            href={`/logs?${new URLSearchParams({ tab: "messages" })}`}
+            title="Mensajes enviados por integraciones"
+            prefetch={false}
+          >
+            Mensajes
+          </Link>
+        </div>
+      )}
+
       <section className="settings-group">
         <div className="settings-group-header">
           <PageHeaderStandard
@@ -832,38 +862,12 @@ export default async function LogsPage({
                   <>
                     <FilterButton />
                     <ViewModeToggles currentMode="lista" baseParams={{ ...(q ? { q } : {}), ...(viewId ? { viewId } : {}), ...(filters ? { filters } : {}) }} />
-                    {headerFilters}
                   </>
                 )}
               </div>
             )}
             views={tab === "payments" ? null : (
-              <div className="panel-tabs">
-                <Link
-                  className={`ghost no-icon panel-tab ${tab === "system" ? "is-active" : ""}`}
-                  href={`/logs?${new URLSearchParams({ tab: "system" })}`}
-                  title="Eventos internos y auditoría"
-                  prefetch={false}
-                >
-                  Sistema
-                </Link>
-                <Link
-                  className={`ghost no-icon panel-tab ${tab === "webhooks" ? "is-active" : ""}`}
-                  href={`/logs?${new URLSearchParams({ tab: "webhooks" })}`}
-                  title="Entradas y reintentos de webhooks"
-                  prefetch={false}
-                >
-                  Webhooks
-                </Link>
-                <Link
-                  className={`ghost no-icon panel-tab ${tab === "messages" ? "is-active" : ""}`}
-                  href={`/logs?${new URLSearchParams({ tab: "messages" })}`}
-                  title="Mensajes enviados por integraciones"
-                  prefetch={false}
-                >
-                  Mensajes
-                </Link>
-              </div>
+              <span className="muted">{tab === "system" ? paginationSummary : "Filtros por fecha, estado y tipo."}</span>
             )}
             summary={tab === "payments" ? headerSummary : null}
           />
