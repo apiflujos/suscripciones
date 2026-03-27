@@ -1254,7 +1254,6 @@ export function CustomersTable({
             aria-labelledby="customer-tx-title"
             className="modal-panel"
             style={{ width: "min(900px, 96vw)", maxHeight: "90vh", overflow: "auto" }}
-            onKeyDown={onModalKeyDown}
           >
             <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h3 id="customer-tx-title" style={{ margin: 0 }}>
