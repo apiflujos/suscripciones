@@ -827,7 +827,7 @@ export function NotificationsSimple({
                         <button 
                           className="ghost btn-compact btn-cancel" 
                           type="button"
-                          onClick={closeModals}
+                          onClick={() => setActiveModal(null)}
                           data-modal-close="true"
                           data-loader="off"
                           title="Cerrar sin guardar"
@@ -889,10 +889,10 @@ export function NotificationsSimple({
                       .join(",")}
                   />
                   <div className="module-footer">
-                    <button 
-                      className="ghost btn-compact btn-cancel" 
+                    <button
+                      className="ghost btn-compact btn-cancel"
                       type="button"
-                      onClick={closeModals}
+                      onClick={() => setActiveModal(null)}
                       data-modal-close="true"
                       data-loader="off"
                       title="Cerrar sin guardar"
@@ -900,9 +900,9 @@ export function NotificationsSimple({
                     >
                       Cancelar
                     </button>
-                    <PendingButton 
-                      className="primary btn-compact btn-save" 
-                      type="submit" 
+                    <PendingButton
+                      className="primary btn-compact btn-save"
+                      type="submit"
                       pendingText="Guardando..."
                       title="Guardar configuración de recordatorio"
                       aria-label="Guardar cambios"
