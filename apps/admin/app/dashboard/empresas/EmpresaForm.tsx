@@ -337,13 +337,33 @@ export function EmpresaForm({
           </div>
         </div>
 
-        <div className="grid-span-2" style={{ display: "flex", gap: 10 }}>
-          <button className="primary btn-create" type="submit">
-            {empresa ? "Guardar cambios" : "Crear empresa"}
+        <div className="module-footer">
+          <button 
+            className="ghost btn-compact btn-cancel" 
+            type="button"
+            onClick={() => window.history.back()}
+            title="Cancelar y volver"
+            aria-label="Cancelar"
+          >
+            Cancelar
+          </button>
+          <button 
+            className="primary btn-compact btn-save" 
+            type="submit"
+            title={empresa ? "Guardar cambios de la empresa" : "Crear nueva empresa"}
+            aria-label={empresa ? "Guardar cambios" : "Crear empresa"}
+          >
+            {empresa ? "Guardar" : "Crear empresa"}
           </button>
           {empresa ? (
-            <button className="ghost btn-compact btn-danger btn-noicon" type="submit" formAction={deleteEmpresa}>
-              Eliminar empresa
+            <button 
+              className="ghost btn-compact btn-red" 
+              type="submit" 
+              formAction={deleteEmpresa}
+              title="Eliminar empresa permanentemente"
+              aria-label="Eliminar empresa"
+            >
+              Eliminar
             </button>
           ) : null}
         </div>

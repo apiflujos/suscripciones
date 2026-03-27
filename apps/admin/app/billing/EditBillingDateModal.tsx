@@ -186,23 +186,24 @@ export function EditBillingDateModal({
               )}
             </div>
 
-            <div
-              className="module-footer"
-              style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}
-            >
+            <div className="module-footer">
               <button
-                className="ghost btn-cancel"
+                className="ghost btn-compact btn-cancel"
                 type="button"
                 onClick={handleClose}
                 disabled={pending}
+                title="Cerrar sin guardar"
+                aria-label="Cancelar"
               >
                 Cancelar
               </button>
               <button
-                className="primary btn-save"
+                className="primary btn-compact btn-save"
                 type="button"
                 onClick={handleSave}
                 disabled={pending}
+                title="Guardar fecha de cobro"
+                aria-label="Guardar cambios"
               >
                 {pending ? "Guardando..." : "Guardar"}
               </button>

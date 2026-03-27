@@ -73,11 +73,24 @@ export function PlanRecurrenceEditor({
                 />
               </div>
 
-              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                <button className="ghost btn-cancel" type="button" data-loader="off" onClick={() => setOpen(false)}>
+              <div className="module-footer">
+                <button 
+                  className="ghost btn-compact btn-cancel" 
+                  type="button" 
+                  data-loader="off" 
+                  onClick={() => setOpen(false)}
+                  title="Cerrar sin guardar"
+                  aria-label="Cancelar"
+                >
                   Cancelar
                 </button>
-                <PendingButton className="primary btn-save" type="submit" pendingText="Guardando...">
+                <PendingButton 
+                  className="primary btn-compact btn-save" 
+                  type="submit" 
+                  pendingText="Guardando..."
+                  title="Guardar recurrencia del plan"
+                  aria-label="Guardar cambios"
+                >
                   Guardar
                 </PendingButton>
               </div>
