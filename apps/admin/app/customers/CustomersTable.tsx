@@ -510,14 +510,6 @@ export function CustomersTable({
   }
 
   useEffect(() => {
-    if (!open) return;
-    const el = modalRef.current;
-    if (!el) return;
-    const first = el.querySelector<HTMLElement>("input, select, textarea, button");
-    first?.focus();
-  }, [open]);
-
-  useEffect(() => {
     if (!initialTxCustomerId || txOpen) return;
     const found = items.find((c) => String(c.id) === String(initialTxCustomerId));
     if (found) openTransactions(found);
