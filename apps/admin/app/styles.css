@@ -7184,6 +7184,47 @@ textarea.input {
   border-top: 1px solid var(--stroke);
 }
 
+.customer-edit-modal {
+  width: min(900px, 96vw);
+  max-height: 90vh;
+  overflow: auto;
+}
+
+.customer-edit-modal .panel-header {
+  justify-content: space-between !important;
+}
+
+.customer-edit-modal .btn-compact {
+  font-size: 12px;
+  padding: 4px 10px;
+  white-space: nowrap;
+}
+
+.customer-edit-modal .primary.btn-compact {
+  min-width: 100px;
+  justify-content: center;
+}
+
+.customer-edit-modal .ghost.btn-compact {
+  min-width: 80px;
+  justify-content: center;
+}
+
+.customer-edit-modal .module-footer {
+  padding-top: 16px;
+  border-top: 1px solid var(--stroke);
+}
+
+.customer-edit-modal .pill.is-active {
+  background: var(--primary-soft);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.customer-edit-modal .pill-primary {
+  border: 2px solid var(--primary);
+}
+
 .subscription-edit-grid {
   display: grid;
   gap: 16px;

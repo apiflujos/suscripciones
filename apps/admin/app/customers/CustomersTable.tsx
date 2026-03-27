@@ -6,6 +6,7 @@ import { deleteCustomer, updateCustomer } from "./actions";
 import { LocalDateTime } from "../ui/LocalDateTime";
 import { NewBillingAssignmentForm } from "../billing/NewBillingAssignmentForm";
 import { ViewLinksModal } from "../ui/ViewLinksModal";
+import { CustomerEditModal } from "./CustomerEditModal";
 
 function formatCopFromCents(cents: number) {
   const pesos = Math.trunc(Number(cents || 0) / 100);

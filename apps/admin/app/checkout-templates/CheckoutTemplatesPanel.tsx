@@ -726,30 +726,35 @@ export function CheckoutTemplatesPanel({
               </div>
             ) : null}
 
-            <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>{inlineMsg(editing ? "checkout_template_update" : "checkout_template_create")}</div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button className="ghost btn-back" type="button" data-loader="off" onClick={() => setStepIndex(Math.max(0, stepIndex - 1))}>
-                  Atrás
-                </button>
-                {stepIndex < STEPS.length - 1 ? (
-                  <button
-                    className="primary btn-next"
-                    type="button"
-                    data-loader="off"
-                    onClick={() => {
-                      if (stepIndex === 0 && !kind) {
-                        setLocalError("Selecciona el tipo de plantilla.");
-                        return;
-                      }
-                      if (stepIndex === 1 && !name.trim()) {
-                        setLocalError("Debes ingresar el nombre interno.");
-                        return;
-                      }
-                      if (stepIndex === 1 && missingTenant) {
-                        setLocalError("Selecciona el canal de ventas.");
-                        return;
-                      }
+            <div className="module-footer">
+              <button 
+                className="ghost btn-compact btn-back" 
+                type="button" 
+                data-loader="off" 
+                onClick={() => setStepIndex(Math.max(0, stepIndex - 1))}
+                title="Volver al paso anterior"
+                aria-label="Atrás"
+              >
+                Atrás
+              </button>
+              {stepIndex < STEPS.length - 1 ? (
+                <button
+                  className="primary btn-compact btn-next"
+                  type="button"
+                  data-loader="off"
+                  onClick={() => {
+                    if (stepIndex === 0 && !kind) {
+                      setLocalError("Selecciona el tipo de plantilla.");
+                      return;
+                    }
+                    if (stepIndex === 1 && !name.trim()) {
+                      setLocalError("Debes ingresar el nombre interno.");
+                      return;
+                    }
+                    if (stepIndex === 1 && missingTenant) {
+                      setLocalError("Selecciona el canal de ventas.");
+                      return;
+                    }
                     if (stepIndex === 3 && missingCatalogMode) {
                       setLocalError("Selecciona si el catálogo es Link de pago o Débito automático.");
                       return;
@@ -758,24 +763,27 @@ export function CheckoutTemplatesPanel({
                       setLocalError("Debes seleccionar productos o permitir el selector.");
                       return;
                     }
-                      setLocalError("");
-                      setStepIndex(Math.min(STEPS.length - 1, stepIndex + 1));
-                    }}
-                    disabled={(stepIndex === 0 && !kind) || (stepIndex === 1 && (!name.trim() || missingTenant)) || (stepIndex === 3 && (!isProductsValid || missingCatalogMode))}
-                  >
-                    Siguiente
-                  </button>
-                ) : (
-                  <PendingButton
-                    className="primary btn-save"
-                    type="submit"
-                    pendingText="Guardando..."
-                    disabled={!selectedKind || !name || missingTenant || !isProductsValid || missingCatalogMode}
-                  >
-                    {editing ? "Guardar cambios" : "Guardar plantilla"}
-                  </PendingButton>
-                )}
-              </div>
+                    setLocalError("");
+                    setStepIndex(Math.min(STEPS.length - 1, stepIndex + 1));
+                  }}
+                  disabled={(stepIndex === 0 && !kind) || (stepIndex === 1 && (!name.trim() || missingTenant)) || (stepIndex === 3 && (!isProductsValid || missingCatalogMode))}
+                  title="Ir al siguiente paso"
+                  aria-label="Siguiente"
+                >
+                  Siguiente
+                </button>
+              ) : (
+                <PendingButton
+                  className="primary btn-compact btn-save"
+                  type="submit"
+                  pendingText="Guardando..."
+                  disabled={!selectedKind || !name || missingTenant || !isProductsValid || missingCatalogMode}
+                  title="Guardar plantilla de checkout"
+                  aria-label="Guardar cambios"
+                >
+                  {editing ? "Guardar" : "Guardar plantilla"}
+                </PendingButton>
+              )}
             </div>
         </form>
       </div>
