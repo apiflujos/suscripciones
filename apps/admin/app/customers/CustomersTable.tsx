@@ -168,22 +168,7 @@ export function CustomersTable({
     return `${normalizedBase}${normalizedPath}/${cleanToken}`;
   }
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [idType, setIdType] = useState("");
-  const [idNumber, setIdNumber] = useState("");
-  const [addressLine1, setAddressLine1] = useState("");
-  const [dept, setDept] = useState("");
-  const [city, setCity] = useState("");
-  const [code5, setCode5] = useState("");
-  const [dane8, setDane8] = useState("");
-  const [editTenantIds, setEditTenantIds] = useState<string[]>([]);
-  const [editPrimaryTenantId, setEditPrimaryTenantId] = useState("");
-  const modalRef = useRef<HTMLDivElement | null>(null);
   const lastActiveRef = useRef<HTMLElement | null>(null);
-
-  const modalTitle = useMemo(() => (editing ? `Editar: ${editing.name || editing.email || "Contacto"}` : "Editar contacto"), [editing]);
 
   function hasToken(customer: CustomerRow) {
     const localState = tokenStateByCustomer[String(customer.id)];
@@ -305,49 +290,13 @@ export function CustomersTable({
     lastActiveRef.current = document.activeElement as HTMLElement | null;
     setEditing(item);
     setOpen(true);
-    setName(item.name || "");
-    setEmail(item.email || "");
-    setPhone(item.phone || "");
-    setIdType(String(item.metadata?.identificacionTipo || ""));
-    setIdNumber(String(item.metadata?.identificacionNumero || item.metadata?.identificacion || ""));
-    setAddressLine1(String(item.metadata?.address?.line1 || ""));
-    setDept(String(item.metadata?.address?.dept || ""));
-    setCity(String(item.metadata?.address?.city || ""));
-    setCode5(String(item.metadata?.address?.code5 || ""));
-    setDane8(String(item.metadata?.address?.dane8 || ""));
-    const uniqueTenantIds = Array.from(
-      new Set(
-        [...(Array.isArray(item.tenantIds) ? item.tenantIds : []), String(item.tenantId || "")]
-          .map((v) => String(v || "").trim())
-          .filter(Boolean)
-      )
-    );
-    setEditTenantIds(uniqueTenantIds);
-    setEditPrimaryTenantId(uniqueTenantIds.includes(String(item.tenantId || "")) ? String(item.tenantId || "") : uniqueTenantIds[0] || "");
   }
 
   function closeEditor() {
     setOpen(false);
     setEditing(null);
-    setEditTenantIds([]);
-    setEditPrimaryTenantId("");
     setTimeout(() => lastActiveRef.current?.focus(), 0);
   }
-
-  function toggleEditTenant(tenantId: string, checked: boolean) {
-    const id = String(tenantId || "").trim();
-    if (!id) return;
-    setEditTenantIds((prev) => {
-      const next = checked ? Array.from(new Set([...prev, id])) : prev.filter((v) => v !== id);
-      if (!next.length) {
-        setEditPrimaryTenantId("");
-      } else if (!next.includes(editPrimaryTenantId)) {
-        setEditPrimaryTenantId(next[0] || "");
-      }
-      return next;
-    });
-  }
-
 
   function openPlanModal(customer: CustomerRow) {
     lastActiveRef.current = document.activeElement as HTMLElement | null;
@@ -573,29 +522,6 @@ export function CustomersTable({
     const found = items.find((c) => String(c.id) === String(initialTxCustomerId));
     if (found) openTransactions(found);
   }, [initialTxCustomerId, items]);
-
-  function onModalKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Escape") {
-      e.preventDefault();
-      if (txOpen) closeTransactions();
-      else closeEditor();
-      return;
-    }
-    if (e.key !== "Tab") return;
-    const root = e.currentTarget as HTMLElement;
-    const focusables = Array.from(root.querySelectorAll<HTMLElement>("input, select, textarea, button, [tabindex]"))
-      .filter((el) => !el.hasAttribute("disabled") && el.tabIndex >= 0);
-    if (!focusables.length) return;
-    const first = focusables[0];
-    const last = focusables[focusables.length - 1];
-    if (e.shiftKey && document.activeElement === first) {
-      e.preventDefault();
-      last.focus();
-    } else if (!e.shiftKey && document.activeElement === last) {
-      e.preventDefault();
-      first.focus();
-    }
-  }
 
   return (
     <>
@@ -1328,141 +1254,6 @@ export function CustomersTable({
       ) : null}
 
 
-      {open && editing ? (
-        <div className="modal-backdrop">
-          <div
-            ref={modalRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="customer-edit-title"
-            className="modal-panel contact-edit-modal"
-            style={{ width: "min(860px, 96vw)", maxHeight: "90vh", overflowY: "auto", overflowX: "hidden" }}
-            onKeyDown={onModalKeyDown}
-          >
-            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 id="customer-edit-title" style={{ margin: 0 }}>{modalTitle}</h3>
-              <button type="button" className="ghost modal-close" onClick={closeEditor} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                X
-              </button>
-            </div>
-
-            <form
-              action={updateCustomer}
-              onSubmit={(e) => {
-                e.currentTarget.classList.add("was-validated");
-              }}
-              className="contact-edit-form"
-            >
-              <input type="hidden" name="csrf" value={csrfToken} />
-              <input type="hidden" name="id" value={editing.id} />
-              <input type="hidden" name="scopeTenantId" value={editing.tenantId || ""} />
-              {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
-              {editTenantIds.map((id) => (
-                <input key={id} type="hidden" name="tenantIds" value={id} />
-              ))}
-
-              <div className="contact-edit-grid-2">
-                <div className="field">
-                  <label>Nombre</label>
-                  <input className="input" name="name" value={name} onChange={(e) => setName(e.target.value)} />
-                </div>
-                <div className="field">
-                  <label>Email</label>
-                  <input className="input" type="email" name="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-                </div>
-              </div>
-
-              <div className="contact-edit-grid-2">
-                <div className="field">
-                  <label>Teléfono</label>
-                  <input className="input" name="phone" value={phone} onChange={(e) => setPhone(e.target.value)} required />
-                </div>
-                <div className="field">
-                  <label>Identificación</label>
-                  <div className="contact-edit-id-grid">
-                    <input className="input" name="idType" value={idType} onChange={(e) => setIdType(e.target.value)} placeholder="CC" />
-                    <input className="input" name="idNumber" value={idNumber} onChange={(e) => setIdNumber(e.target.value)} />
-                  </div>
-                </div>
-              </div>
-
-              <div className="field">
-                <label>Canal de ventas</label>
-                <div style={{ display: "grid", gap: 8 }}>
-                  {(tenants || []).map((tenant) => {
-                    const tenantId = String(tenant.id || "");
-                    const checked = editTenantIds.includes(tenantId);
-                    return (
-                      <label key={tenantId} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={(e) => toggleEditTenant(tenantId, e.target.checked)}
-                        />
-                        <span>{tenant.name}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-                <div className="field" style={{ marginTop: 10 }}>
-                  <label>Canal principal</label>
-                  <select
-                    className="select"
-                    name="primaryTenantId"
-                    value={editPrimaryTenantId}
-                    onChange={(e) => setEditPrimaryTenantId(String(e.target.value || ""))}
-                    disabled={!editTenantIds.length}
-                  >
-                    <option value="">Sin canal principal</option>
-                    {editTenantIds.map((id) => {
-                      const found = (tenants || []).find((t) => String(t.id) === id);
-                      return (
-                        <option key={id} value={id}>
-                          {found?.name || id}
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
-              </div>
-
-              <div className="field">
-                <label>Dirección</label>
-                <input className="input" name="addressLine1" value={addressLine1} onChange={(e) => setAddressLine1(e.target.value)} />
-              </div>
-
-              <div className="contact-edit-grid-4">
-                <div className="field">
-                  <label>Departamento</label>
-                  <input className="input" name="dept" value={dept} onChange={(e) => setDept(e.target.value)} />
-                </div>
-                <div className="field">
-                  <label>Ciudad</label>
-                  <input className="input" name="city" value={city} onChange={(e) => setCity(e.target.value)} />
-                </div>
-                <div className="field">
-                  <label>Código 5</label>
-                  <input className="input" name="code5" value={code5} onChange={(e) => setCode5(e.target.value)} />
-                </div>
-                <div className="field">
-                  <label>DANE 8</label>
-                  <input className="input" name="dane8" value={dane8} onChange={(e) => setDane8(e.target.value)} />
-                </div>
-              </div>
-
-              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-                <button className="ghost" type="button" onClick={closeEditor} data-modal-close="true" data-loader="off">
-                  Cancelar
-                </button>
-                <button className="primary btn-save" type="submit">
-                  Guardar
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      ) : null}
-
       {txOpen && txCustomer ? (
         <div className="modal-backdrop">
           <div
@@ -1540,6 +1331,16 @@ export function CustomersTable({
       {viewLinksOpen ? (
         <ViewLinksModal links={viewLinksItems} onClose={closeViewLinks} />
       ) : null}
+
+      <CustomerEditModal
+        customer={editing}
+        tenants={tenants}
+        csrfToken={csrfToken}
+        returnTo={returnTo || "/customers"}
+        updateCustomer={updateCustomer}
+        open={open}
+        onClose={closeEditor}
+      />
     </>
   );
 }
