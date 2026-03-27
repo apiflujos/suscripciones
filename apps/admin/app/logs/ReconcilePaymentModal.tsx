@@ -59,11 +59,24 @@ export function ReconcilePaymentModal({
                 <input className="input" name="wompiPaymentLinkId" placeholder="izuz78" />
               </div>
 
-              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                <button className="ghost btn-cancel" type="button" data-loader="off" onClick={() => setOpen(false)}>
+              <div className="module-footer">
+                <button 
+                  className="ghost btn-compact btn-cancel" 
+                  type="button" 
+                  data-loader="off" 
+                  onClick={() => setOpen(false)}
+                  title="Cerrar sin reconciliar"
+                  aria-label="Cancelar"
+                >
                   Cancelar
                 </button>
-                <PendingButton className="primary btn-save" type="submit" pendingText="Reconciliando...">
+                <PendingButton 
+                  className="primary btn-compact btn-save" 
+                  type="submit" 
+                  pendingText="Reconciliando..."
+                  title="Reconciliar pago con Wompi"
+                  aria-label="Reconciliar pago"
+                >
                   Reconciliar
                 </PendingButton>
               </div>
