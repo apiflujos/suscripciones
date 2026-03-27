@@ -839,17 +839,47 @@ export default async function LogsPage({
                       </a>
                     </div>
                   </>
-                ) : (
+                ) : tab === "system" ? (
                   <>
                     <FilterButton />
                     <ViewModeToggles currentMode="lista" baseParams={{ ...(q ? { q } : {}), ...(viewId ? { viewId } : {}), ...(filters ? { filters } : {}) }} />
                   </>
-                )}
+                ) : tab === "webhooks" ? (
+                  <>
+                    <FilterButton />
+                    <select className="select" name="processStatus" defaultValue={processStatus} style={{ minWidth: 110, fontSize: 11 }} title="Estado de procesamiento">
+                      <option value="">Estado: Todos</option>
+                      <option value="PROCESSED">Procesados</option>
+                      <option value="FAILED">Fallidos</option>
+                      <option value="SKIPPED">Omitidos</option>
+                    </select>
+                  </>
+                ) : tab === "messages" ? (
+                  <>
+                    <FilterButton />
+                    <select className="select" name="status" defaultValue={status} style={{ minWidth: 110, fontSize: 11 }} title="Estado">
+                      <option value="">Estado: Todos</option>
+                      <option value="SENT">Enviados</option>
+                      <option value="PENDING">Pendientes</option>
+                      <option value="FAILED">Fallidos</option>
+                    </select>
+                  </>
+                ) : null}
               </div>
             )}
-            views={tab === "payments" ? null : (
-              <span className="muted">{tab === "system" ? paginationSummary : "Filtros por fecha, estado y tipo."}</span>
-            )}
+            views={tab === "payments" ? null : tab === "system" ? (
+              <span className="muted">{paginationSummary}</span>
+            ) : tab === "webhooks" ? (
+              <div className="page-header-standard-filters-group">
+                <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" title="Desde" style={{ width: 120, fontSize: 11 }} />
+                <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" title="Hasta" style={{ width: 120, fontSize: 11 }} />
+              </div>
+            ) : tab === "messages" ? (
+              <div className="page-header-standard-filters-group">
+                <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" title="Desde" style={{ width: 120, fontSize: 11 }} />
+                <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" title="Hasta" style={{ width: 120, fontSize: 11 }} />
+              </div>
+            ) : null}
             summary={tab === "payments" ? headerSummary : null}
           />
           {tab !== "payments" && (

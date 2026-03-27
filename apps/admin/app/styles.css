@@ -14563,13 +14563,13 @@ html[data-contrast="high"] .toggle::after {
 .page-header-standard-controls {
   display: flex;
   align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+  gap: 10px;
+  flex-wrap: nowrap;
 }
 
 .page-header-standard-search {
-  flex: 1 1 280px;
-  min-width: 200px;
+  flex: 0 0 280px;
+  max-width: 320px;
 }
 
 .page-header-standard-search .filtersForm {
@@ -14581,31 +14581,38 @@ html[data-contrast="high"] .toggle::after {
 
 .page-header-standard-search .filtersForm .input {
   flex: 1;
-  min-width: 180px;
+  min-width: 150px;
 }
 
 .page-header-standard-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-shrink: 0;
 }
 
 .page-header-standard-left > div {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 .page-header-standard-filters-group {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-wrap: nowrap;
+}
+
+.page-header-standard-filters-group .select {
+  min-width: 120px;
+  font-size: 11px;
 }
 
 .page-header-standard-smartviews {
-  flex: 1 1 300px;
-  min-width: 200px;
+  flex: 1 1 auto;
+  min-width: 150px;
+  max-width: 400px;
 }
 
 .page-header-standard-smartviews.is-empty {
