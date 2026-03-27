@@ -113,11 +113,25 @@ export function PaymentLinkModalButton({
                 <input type="checkbox" name="sendNow" value="1" defaultChecked disabled={!canSendPayment} />
                 <span>Enviar por WhatsApp al crear (Notificaciones)</span>
               </label>
-              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                <button className="ghost btn-compact" type="button" onClick={() => setOpen(false)} data-loader="off">
+              <div className="module-footer">
+                <button 
+                  className="ghost btn-compact btn-cancel" 
+                  type="button" 
+                  onClick={() => setOpen(false)} 
+                  data-loader="off"
+                  title="Cerrar sin crear"
+                  aria-label="Cancelar"
+                >
                   Cancelar
                 </button>
-                <PendingButton className="primary btn-compact btn-save" type="submit" pendingText="Creando..." disabled={!canSendPayment}>
+                <PendingButton 
+                  className="primary btn-compact btn-save" 
+                  type="submit" 
+                  pendingText="Creando..." 
+                  disabled={!canSendPayment}
+                  title="Crear link de pago"
+                  aria-label="Crear link"
+                >
                   Crear link
                 </PendingButton>
               </div>

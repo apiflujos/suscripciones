@@ -537,9 +537,23 @@ export function NewPlanTemplateForm({
           </div>
         ) : null}
 
-        <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-          <button className="primary btn-save" type="submit">
-            Guardar plan
+        <div className="module-footer">
+          <button 
+            className="ghost btn-compact btn-cancel" 
+            type="button"
+            onClick={() => window.history.back()}
+            title="Cancelar y volver"
+            aria-label="Cancelar"
+          >
+            Cancelar
+          </button>
+          <button 
+            className="primary btn-compact btn-save" 
+            type="submit"
+            title="Guardar plan o plantilla"
+            aria-label="Guardar plan"
+          >
+            Guardar
           </button>
         </div>
       </div>

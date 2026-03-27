@@ -79,11 +79,25 @@ export function TokenizationLinkModalButton({
                 <textarea className="input" rows={6} readOnly value={renderNotificationPreview(tokenTemplate)} />
                 <div className="field-hint">Se enviará usando las reglas activas de Notificaciones (tokenización).</div>
               </div>
-              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                <button className="ghost btn-compact" type="button" onClick={() => setOpen(false)} data-loader="off">
+              <div className="module-footer">
+                <button 
+                  className="ghost btn-compact btn-cancel" 
+                  type="button" 
+                  onClick={() => setOpen(false)} 
+                  data-loader="off"
+                  title="Cerrar sin enviar"
+                  aria-label="Cancelar"
+                >
                   Cancelar
                 </button>
-                <PendingButton className="primary btn-compact btn-save" type="submit" pendingText="Enviando..." disabled={!canSend}>
+                <PendingButton 
+                  className="primary btn-compact btn-save" 
+                  type="submit" 
+                  pendingText="Enviando..." 
+                  disabled={!canSend}
+                  title="Enviar link de tokenización"
+                  aria-label="Enviar link"
+                >
                   Enviar link
                 </PendingButton>
               </div>
