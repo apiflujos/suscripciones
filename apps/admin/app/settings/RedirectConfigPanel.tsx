@@ -157,11 +157,24 @@ export function RedirectConfigPanel({
                 <label>Mensaje error</label>
                 <textarea className="input" rows={3} name="tokenizationErrorMessage" value={tokenErrorMessage} onChange={(e) => setTokenErrorMessage(e.target.value)} />
               </div>
-              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                <button className="ghost btn-cancel" type="button" data-loader="off" onClick={() => setOpen(false)}>
+              <div className="module-footer">
+                <button 
+                  className="ghost btn-compact btn-cancel" 
+                  type="button" 
+                  data-loader="off" 
+                  onClick={() => setOpen(false)}
+                  title="Cerrar sin guardar"
+                  aria-label="Cancelar"
+                >
                   Cancelar
                 </button>
-                <PendingButton className="primary btn-save" type="submit" pendingText="Guardando...">
+                <PendingButton 
+                  className="primary btn-compact btn-save" 
+                  type="submit" 
+                  pendingText="Guardando..."
+                  title="Guardar configuración de redirección"
+                  aria-label="Guardar cambios"
+                >
                   Guardar
                 </PendingButton>
               </div>

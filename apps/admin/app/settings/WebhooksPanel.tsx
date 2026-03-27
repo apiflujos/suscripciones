@@ -419,9 +419,24 @@ export function WebhooksPanel({
                     Activo
                   </label>
                 </div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <PendingButton className="btn btn-primary" type="submit" pendingText="Guardando...">Guardar</PendingButton>
-                  <a className="ghost btn-compact" href="/settings?tab=integraciones">Cancelar</a>
+                <div className="module-footer">
+                  <PendingButton 
+                    className="primary btn-compact btn-save" 
+                    type="submit" 
+                    pendingText="Guardando..."
+                    title="Guardar configuración del webhook"
+                    aria-label="Guardar cambios"
+                  >
+                    Guardar
+                  </PendingButton>
+                  <a 
+                    className="ghost btn-compact btn-cancel" 
+                    href="/settings?tab=integraciones"
+                    title="Cerrar sin guardar"
+                    aria-label="Cancelar"
+                  >
+                    Cancelar
+                  </a>
                 </div>
               </form>
               <form action={actions.deleteWebhookEndpointAction} style={{ marginTop: 8 }}>
