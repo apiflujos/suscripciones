@@ -7,6 +7,7 @@ export async function listEmpresas(args: {
   take?: number;
   skip?: number;
   q?: string;
+  ids?: string[] | null;
 }) {
   const tenantId = args.tenantId || null;
   const takeRaw = Number(args.take ?? 20);
@@ -15,6 +16,7 @@ export async function listEmpresas(args: {
   const skip = Number.isFinite(skipRaw) ? Math.max(Math.trunc(skipRaw), 0) : 0;
   const q = String(args.q || "").trim();
 
+  const ids = Array.isArray(args.ids) ? args.ids.filter((v) => String(v || "").trim()) : [];
   const where: any = {};
   if (tenantId) where.tenantId = tenantId;
   if (q) {
@@ -33,6 +35,7 @@ export async function listEmpresas(args: {
     }
     where.OR = or;
   }
+  if (ids.length) where.id = { in: ids };
 
   const [items, total] = await prisma.$transaction([
     prisma.empresa.findMany({

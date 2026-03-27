@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireApiSession } from "../../_lib/requireApiSession";
 import { createCustomer, createCustomerSchema } from "../../../admin/_services/customers";
 import { createCatalogProduct } from "../../../admin/_services/products";
+import { prisma } from "@suscripciones/database";
 
 function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
@@ -84,6 +85,7 @@ export async function POST(req: Request) {
     let imported = 0;
     let failed = 0;
     const errors: string[] = [];
+    const seenTxIds = new Set<string>();
 
     for (let i = 0; i < dataRows.length; i += 1) {
       const line = dataRows[i];
@@ -164,6 +166,73 @@ export async function POST(req: Request) {
             description: description || null
           });
           if (!res.ok) throw new Error(res.error || "create_failed");
+        } else if (entity === "companies") {
+          const name = String(line[idx.get("name") ?? -1] || "").trim();
+          const email = String(line[idx.get("email") ?? -1] || "").trim();
+          const phone = String(line[idx.get("phone") ?? -1] || "").trim();
+          const address = String(line[idx.get("address") ?? -1] || "").trim();
+          const website = String(line[idx.get("website") ?? -1] || "").trim();
+          if (!name) throw new Error("nombre_requerido");
+
+          await prisma.empresa.create({
+            data: {
+              tenantId: tenantId || auth.session.tenantId || null,
+              nombre: name,
+              ...(email ? { email } : {}),
+              ...(phone ? { telefono: phone } : {}),
+              ...(address ? { direccion: address } : {}),
+              ...(website ? { sitioWeb: website } : {})
+            }
+          });
+        } else if (entity === "payments") {
+          const reference = String(line[idx.get("reference") ?? -1] || "").trim();
+          const wompiTransactionId = String(line[idx.get("wompiTransactionId") ?? -1] || "").trim();
+          const customerEmail = String(line[idx.get("customerEmail") ?? -1] || "").trim();
+          const amountCop = toNumber(String(line[idx.get("amount_cop") ?? -1] || "0"), 0);
+          const currency = String(line[idx.get("currency") ?? -1] || "COP").trim().toUpperCase() || "COP";
+          const statusRaw = String(line[idx.get("status") ?? -1] || "PENDING").trim().toUpperCase();
+          const paidAtRaw = String(line[idx.get("paidAt") ?? -1] || "").trim();
+          const status = ["APPROVED", "PENDING", "DECLINED", "ERROR", "VOIDED"].includes(statusRaw) ? statusRaw : "PENDING";
+
+          if (!reference || !wompiTransactionId || !customerEmail || amountCop <= 0) {
+            throw new Error("reference_tx_email_amount_requeridos");
+          }
+          if (seenTxIds.has(wompiTransactionId)) {
+            throw new Error("tx_duplicada_en_csv");
+          }
+          seenTxIds.add(wompiTransactionId);
+
+          const existing = await prisma.payment.findUnique({
+            where: { wompiTransactionId }
+          });
+          if (existing) throw new Error("tx_duplicada_en_db");
+
+          const customer = await prisma.customer.findFirst({
+            where: {
+              email: { equals: customerEmail, mode: "insensitive" }
+            }
+          });
+          if (!customer) throw new Error("cliente_no_encontrado");
+
+          const paidAt = paidAtRaw ? new Date(paidAtRaw) : null;
+          const paidAtValid = paidAt && !Number.isNaN(paidAt.getTime()) ? paidAt : null;
+          const failedAt =
+            paidAtValid && ["DECLINED", "ERROR", "VOIDED"].includes(status) ? paidAtValid : null;
+
+          await prisma.payment.create({
+            data: {
+              tenantId: customer.tenantId,
+              customerId: customer.id,
+              amountInCents: Math.trunc(amountCop) * 100,
+              currency,
+              reference,
+              wompiTransactionId,
+              status: status as any,
+              paidAt: status === "APPROVED" ? paidAtValid : null,
+              failedAt,
+              origin: "MANUAL_USER"
+            }
+          });
         } else {
           throw new Error("entity_invalida");
         }

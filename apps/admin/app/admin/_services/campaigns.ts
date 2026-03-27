@@ -21,17 +21,25 @@ const campaignUpdateSchema = z.object({
   status: z.enum(["DRAFT", "RUNNING", "PAUSED", "COMPLETED", "FAILED"]).optional()
 });
 
-export async function listCampaigns(args: { take?: number; skip?: number; ids?: string[] }) {
+export async function listCampaigns(args: { take?: number; skip?: number; ids?: string[]; q?: string }) {
   const takeRaw = Number(args.take ?? 100);
   const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 500) : 100;
   const skipRaw = Number(args.skip ?? 0);
   const skip = Number.isFinite(skipRaw) ? Math.max(Math.trunc(skipRaw), 0) : 0;
   const ids = Array.isArray(args.ids) ? args.ids.map((v) => String(v).trim()).filter(Boolean) : [];
+  const q = String(args.q ?? "").trim();
 
-  const where = ids.length ? { id: { in: ids } } : undefined;
+  const where: any = ids.length ? { id: { in: ids } } : {};
+  if (q) {
+    where.OR = [
+      { name: { contains: q, mode: "insensitive" } },
+      { content: { contains: q, mode: "insensitive" } }
+    ];
+  }
+  const finalWhere = Object.keys(where).length ? where : undefined;
   const [items, total] = await Promise.all([
-    prisma.campaign.findMany({ where, orderBy: { createdAt: "desc" }, take, skip }),
-    prisma.campaign.count({ where })
+    prisma.campaign.findMany({ where: finalWhere, orderBy: { createdAt: "desc" }, take, skip }),
+    prisma.campaign.count({ where: finalWhere })
   ]);
   return { ok: true as const, items, total };
 }

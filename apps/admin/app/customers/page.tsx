@@ -20,6 +20,8 @@ import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { HelpTip } from "../ui/HelpTip";
+import { CustomersModalTrigger } from "./CustomersModalTrigger";
+import { PageHeaderStandard } from "../ui/PageHeaderStandard";
 import "./page-header.css";
 
 export const dynamic = "force-dynamic";
@@ -320,22 +322,16 @@ export default async function CustomersPage({
       {paymentSource ? <div className="card cardPad">Método de pago guardado.</div> : null}
       {paymentLink ? <div className="card cardPad">Link de pago enviado.</div> : null}
 
-      <div className="page-header-simple">
-        <div className="page-header-title-row">
-          <h1 className="page-title-simple">Clientes</h1>
-          <div className="page-actions-simple">
+      <PageHeaderStandard
+        title="Contactos"
+        subtitle="Gestión de clientes, pagos y acciones rápidas."
+        actions={(
+          <>
             <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
-            <button
-              className="primary btn-compact"
-              type="button"
-              id="customers-modal-trigger"
-              onClick={() => document.getElementById('customers-modals-container')?.querySelector('button')?.click()}
-            >
-              Crear contacto
-            </button>
-          </div>
-        </div>
-        <div className="page-filters-simple">
+            <CustomersModalTrigger />
+          </>
+        )}
+        search={(
           <form action="/customers" method="GET" className="filtersForm filtersSearch">
             {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
             {vista ? <input type="hidden" name="vista" value={vista} /> : null}
@@ -352,6 +348,8 @@ export default async function CustomersPage({
             />
             <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
           </form>
+        )}
+        smartViews={(
           <SmartViewsBar
             scope="customers"
             initialViewId={viewId}
@@ -363,6 +361,9 @@ export default async function CustomersPage({
             initialFields={getSmartViewFields("customers")}
             compactInline
           />
+        )}
+        filters={<HelpTip text="Filtros inteligentes por cliente, plan o estado." />}
+        views={(
           <ViewModeToggles
             currentMode={vistaTyped}
             baseParams={{
@@ -372,8 +373,8 @@ export default async function CustomersPage({
               ...(filters ? { filters } : {})
             }}
           />
-        </div>
-      </div>
+        )}
+      />
 
       <div id="customers-modals-container" style={{ display: 'none' }}>
         <CustomersModals

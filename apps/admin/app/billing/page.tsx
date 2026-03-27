@@ -1,5 +1,4 @@
 import { activateSubscription, cancelSubscription, deleteSubscription, mergeDuplicateSubscriptions, resumeSubscription, suspendSubscription } from "../subscriptions/actions";
-import { DeleteSubscriptionButton } from "./DeleteSubscriptionButton";
 import { MergeDuplicateSubscriptionsButton } from "./MergeDuplicateSubscriptionsButton";
 import { changeSubscriptionPlan, chargeSubscriptionNow, createCustomerFromBilling, createPlanAndSubscription, scheduleCutoff, sendCentralComPaymentLink, sendCentralComTokenizationLink, updateSubscriptionTenants, updateSubscriptionBillingSettings, markSubscriptionPaidManual, unmarkSubscriptionPaidManual, setBillingChargeDate } from "./actions";
 import { ManualChargeButton } from "./ManualChargeButton";
@@ -7,7 +6,6 @@ import { ManualMarkPaidButton } from "./ManualMarkPaidButton";
 import { ManualUnmarkPaidButton } from "./ManualUnmarkPaidButton";
 import { ChargeStatusModal } from "./ChargeStatusModal";
 import { BillingModals } from "./BillingModals";
-import { EditBillingDateModal } from "./EditBillingDateModal";
 import { listSubscriptions } from "../admin/_services/subscriptions";
 import { listCustomers } from "../admin/_services/customers";
 import { listCatalogProducts } from "../admin/_services/products";
@@ -19,18 +17,20 @@ import { resolveTenantId } from "../admin/_services/tenantResolver";
 import { LocalDateTime } from "../ui/LocalDateTime";
 import { HelpTip } from "../ui/HelpTip";
 import { getCsrfToken } from "../lib/csrf";
-import { ChangePlanButton, type PlanOption } from "./ChangePlanButton";
+import { type PlanOption } from "./ChangePlanButton";
+import { SubscriptionEditModal } from "./SubscriptionEditModal";
+import { PaymentHistoryButton } from "./PaymentHistoryButton";
+import { PaymentCyclesModal } from "./PaymentCyclesModal";
+import { DeleteSubscriptionButton } from "./DeleteSubscriptionButton";
 import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { BillingTenantModalButton } from "./BillingTenantModalButton";
-import { BillingCyclesButton } from "./BillingCyclesButton";
-import { BillingCycleSettingsButton } from "./BillingCycleSettingsButton";
 import { PaymentLinkModalButton } from "./PaymentLinkModalButton";
 import { TokenizationLinkModalButton } from "./TokenizationLinkModalButton";
 import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
-import { PaymentHistoryButton } from "./PaymentHistoryButton";
 import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
 import { resolveSmartViewIds, parseFiltersParam, getSmartViewFields } from "@suscripciones/core/services/smartViews";
+import { PageHeaderStandard } from "../ui/PageHeaderStandard";
 
 export const dynamic = "force-dynamic";
 
@@ -590,47 +590,40 @@ export default async function BillingPage({
           </div>
           <div className="billing-header-right">
             <div className="billing-header-actions">
-              <EditBillingDateModal
-                subscriptionId={r.id}
-                currentChargeAt={r.vencimientoAt}
-                periodStartAt={r.periodoInicioAt}
-                intervalUnit={r.planIntervalUnit}
-                intervalCount={r.planIntervalCount}
-                csrfToken={csrfToken}
-                returnTo={returnTo}
-                action={setBillingChargeDate}
-              />
-              {r.planId ? (
-                <ChangePlanButton
-                  subscriptionId={r.id}
-                  currentPlanId={r.planId}
-                  currentEndAt={r.vencimientoAt}
-                  currentShippingInCents={r.currentShippingInCents}
-                  currentRequiresShipping={r.currentRequiresShipping}
-                  currentPlanName={r.planName}
-                  currentPlanCurrency={r.moneda}
-                  plans={planOptions}
-                  csrfToken={csrfToken}
-                  returnTo={returnTo}
-                  tenantId={r.tenantId}
-                  action={changeSubscriptionPlan}
-                  iconOnly
-                />
-              ) : null}
-              <PaymentHistoryButton subscriptionId={r.id} tenantId={r.tenantId} />
-              <BillingCyclesButton subscriptionId={r.id} />
-              <BillingCycleSettingsButton
+              <SubscriptionEditModal
                 subscriptionId={r.id}
                 tenantId={r.tenantId}
                 csrfToken={csrfToken}
                 returnTo={returnTo}
+                currentChargeAt={r.vencimientoAt}
+                periodStartAt={r.periodoInicioAt}
+                intervalUnit={r.planIntervalUnit}
+                intervalCount={r.planIntervalCount}
+                setBillingChargeDate={setBillingChargeDate}
+                currentPlanId={r.planId}
+                currentPlanName={r.planName}
+                currentPlanCurrency={r.moneda}
+                currentShippingInCents={r.currentShippingInCents}
+                currentRequiresShipping={r.currentRequiresShipping}
+                currentEndAt={r.vencimientoAt}
+                plans={planOptions}
+                changeSubscriptionPlan={changeSubscriptionPlan}
                 cycleStartDay={r.cycleStartDay}
                 paymentDay={r.paymentDay}
                 paymentTiming={r.paymentTiming}
                 graceDays={r.graceDays}
-                action={updateSubscriptionBillingSettings}
+                updateSubscriptionBillingSettings={updateSubscriptionBillingSettings}
+                deleteSubscription={deleteSubscription}
               />
-              <DeleteSubscriptionButton action={deleteSubscription} csrfToken={csrfToken} subscriptionId={r.id} tenantId={r.tenantId} returnTo={returnTo} />
+              <PaymentHistoryButton subscriptionId={r.id} tenantId={r.tenantId} />
+              <PaymentCyclesModal subscriptionId={r.id} />
+              <DeleteSubscriptionButton
+                action={deleteSubscription}
+                csrfToken={csrfToken}
+                subscriptionId={r.id}
+                tenantId={r.tenantId}
+                returnTo={returnTo}
+              />
             </div>
           </div>
         </div>
@@ -679,11 +672,11 @@ export default async function BillingPage({
                 <LocalDateTime value={r.vencimientoAt} variant="stacked" />
               </div>
               {r.periodoInicioAt && r.vencimientoAt ? (
-                <div className="billing-cycle-info" style={{ marginTop: "8px", fontSize: "13px", color: "var(--muted)" }}>
+                <div className="billing-cycle-info" style={{ marginTop: "4px", fontSize: "12px", color: "var(--muted)" }}>
                   Ciclo actual: <strong>{new Date(r.periodoInicioAt).toLocaleDateString("es-CO")} → {new Date(r.vencimientoAt).toLocaleDateString("es-CO")}</strong>
                 </div>
               ) : null}
-              <div className="billing-cycle-info" style={{ marginTop: "4px", fontSize: "13px", color: "var(--muted)" }}>
+              <div className="billing-cycle-info" style={{ marginTop: "2px", fontSize: "12px", color: "var(--muted)" }}>
                 Inicio ciclo: <strong>Día {r.cycleStartDay}</strong>
               </div>
             </div>
@@ -878,82 +871,80 @@ export default async function BillingPage({
 
       <section className="settings-group">
         <div className="settings-group-header">
-          <div className="filtersRow">
-            <div className="filtersLeft">
-              <div className="filtersPanel">
-                <div style={{ display: "grid", gap: 8, width: "100%" }}>
-                  <SmartViewsBar
-                    scope="billing"
-                    initialViewId={viewId}
-                    initialFilters={filters}
-                    baseParams={{
-                      ...(tenantId ? { tenantId } : {}),
-                      ...(q ? { q } : {}),
-                      ...(tipo ? { tipo } : {}),
-                      ...(estado ? { estado } : {}),
-                      ...(ordenar ? { ordenar } : {})
-                    }}
-                    initialFields={getSmartViewFields("billing")}
-                    compactInline
-                  />
-                  <div className="contacts-search-row">
-                    <form action="/billing" method="GET" className="filtersForm filtersSearch">
-                      {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-                      {tipo ? <input type="hidden" name="tipo" value={tipo} /> : null}
-                      {estado ? <input type="hidden" name="estado" value={estado} /> : null}
-                      {ordenar ? <input type="hidden" name="ordenar" value={ordenar} /> : null}
-                      {vista ? <input type="hidden" name="vista" value={vista} /> : null}
-                      {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
-                      {filters ? <input type="hidden" name="filters" value={filters} /> : null}
-                      <input
-                        className="input"
-                        type="search"
-                        name="q"
-                        defaultValue={q}
-                        placeholder="Buscar por contacto, email o identificación..."
-                        aria-label="Buscar suscripciones"
-                      />
-                      <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
-                    </form>
-                    <div className="module-search-right">
-                      <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
-                    </div>
-                  </div>
-                </div>
-                <div className="view-mode-row" style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
-                  <span className="field-hint" style={{ margin: 0 }}>Vista:</span>
-                  <ViewModeToggles
-                    currentMode={vistaTyped}
-                    baseParams={{
-                      ...(tenantId ? { tenantId } : {}),
-                      ...(q ? { q } : {}),
-                      ...(tipo ? { tipo } : {}),
-                      ...(estado ? { estado } : {}),
-                      ...(ordenar ? { ordenar } : {})
-                    }}
-                    showKanban
-                  />
-                </div>
-                <div className="page-actions">
-                  <BillingModals
-                    customers={customerItems}
-                    empresas={empresas}
-                    catalogItems={productItems}
-                    checkoutTemplates={checkoutTemplates}
-                    csrfToken={csrfToken}
-                    tenantId={tenantId}
-                    tenants={tenants}
-                    returnTo={returnTo}
-                    defaultOpen={Boolean(crear) || Boolean(selectCustomerId)}
-                    defaultSelectedCustomerId={selectCustomerId}
-                    createCustomer={createCustomerFromBilling}
-                    createPlanAndSubscription={createPlanAndSubscription}
-                  />
-                  <div className="page-actions-summary">{rows.length} resultados</div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <PageHeaderStandard
+            title="Suscripciones"
+            subtitle="Cobranza recurrente, ciclos y estado de pago."
+            actions={(
+              <>
+                <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
+                <BillingModals
+                  customers={customerItems}
+                  empresas={empresas}
+                  catalogItems={productItems}
+                  checkoutTemplates={checkoutTemplates}
+                  csrfToken={csrfToken}
+                  tenantId={tenantId}
+                  tenants={tenants}
+                  returnTo={returnTo}
+                  defaultOpen={Boolean(crear) || Boolean(selectCustomerId)}
+                  defaultSelectedCustomerId={selectCustomerId}
+                  createCustomer={createCustomerFromBilling}
+                  createPlanAndSubscription={createPlanAndSubscription}
+                />
+              </>
+            )}
+            search={(
+              <form action="/billing" method="GET" className="filtersForm filtersSearch">
+                {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+                {tipo ? <input type="hidden" name="tipo" value={tipo} /> : null}
+                {estado ? <input type="hidden" name="estado" value={estado} /> : null}
+                {ordenar ? <input type="hidden" name="ordenar" value={ordenar} /> : null}
+                {vista ? <input type="hidden" name="vista" value={vista} /> : null}
+                {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
+                {filters ? <input type="hidden" name="filters" value={filters} /> : null}
+                <input
+                  className="input"
+                  type="search"
+                  name="q"
+                  defaultValue={q}
+                  placeholder="Buscar por contacto, email o identificación..."
+                  aria-label="Buscar suscripciones"
+                />
+                <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
+              </form>
+            )}
+            smartViews={(
+              <SmartViewsBar
+                scope="billing"
+                initialViewId={viewId}
+                initialFilters={filters}
+                baseParams={{
+                  ...(tenantId ? { tenantId } : {}),
+                  ...(q ? { q } : {}),
+                  ...(tipo ? { tipo } : {}),
+                  ...(estado ? { estado } : {}),
+                  ...(ordenar ? { ordenar } : {})
+                }}
+                initialFields={getSmartViewFields("billing")}
+                compactInline
+              />
+            )}
+            filters={<HelpTip text="Filtra por tipo de cobro, estado y orden." />}
+            views={(
+              <ViewModeToggles
+                currentMode={vistaTyped}
+                baseParams={{
+                  ...(tenantId ? { tenantId } : {}),
+                  ...(q ? { q } : {}),
+                  ...(tipo ? { tipo } : {}),
+                  ...(estado ? { estado } : {}),
+                  ...(ordenar ? { ordenar } : {})
+                }}
+                showKanban
+              />
+            )}
+            summary={<span className="muted">{rows.length} resultados</span>}
+          />
         </div>
 
         <div className="settings-group-body">

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@suscripciones/database";
+import { listChatwootMessages } from "../../admin/_services/logs";
 import { requireApiSession } from "../_lib/requireApiSession";
 
 function escapeCsv(value: unknown) {
@@ -114,6 +115,54 @@ export async function GET(req: Request) {
       });
     }
 
+    if (scope === "companies") {
+      const where: any = {};
+      if (effectiveTenantId) {
+        where.tenantId = effectiveTenantId;
+      }
+      if (q) {
+        const digits = q.replace(/[^\d]/g, "");
+        const or: any[] = [
+          { nombre: { contains: q, mode: "insensitive" } },
+          { email: { contains: q, mode: "insensitive" } },
+          { direccion: { contains: q, mode: "insensitive" } },
+          { sitioWeb: { contains: q, mode: "insensitive" } }
+        ];
+        if (digits.length >= 4) {
+          or.push({ telefono: { contains: digits } });
+          or.push({ telefono: { contains: q } });
+        } else {
+          or.push({ telefono: { contains: q, mode: "insensitive" } });
+        }
+        where.OR = or;
+      }
+      const items = await prisma.empresa.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take: 5000,
+        include: { _count: { select: { contactos: true } } }
+      });
+      const csv = toCsv(
+        ["id", "nombre", "email", "telefono", "direccion", "sitioWeb", "contactos", "createdAt"],
+        items.map((e: any) => ({
+          id: e?.id,
+          nombre: e?.nombre,
+          email: e?.email,
+          telefono: e?.telefono,
+          direccion: e?.direccion,
+          sitioWeb: e?.sitioWeb,
+          contactos: Number(e?._count?.contactos || 0),
+          createdAt: e?.createdAt || ""
+        }))
+      );
+      return new NextResponse(csv, {
+        headers: {
+          "content-type": "text/csv; charset=utf-8",
+          "content-disposition": `attachment; filename="empresas.csv"`
+        }
+      });
+    }
+
     if (scope === "billing") {
       const where: any = {};
       if (effectiveTenantId) {
@@ -160,6 +209,85 @@ export async function GET(req: Request) {
         headers: {
           "content-type": "text/csv; charset=utf-8",
           "content-disposition": `attachment; filename="suscripciones.csv"`
+        }
+      });
+    }
+
+    if (scope === "payments") {
+      const status = String(searchParams.get("status") || "").trim().toUpperCase();
+      const where: any = {};
+      if (effectiveTenantId) where.tenantId = effectiveTenantId;
+      if (status) where.status = status;
+      if (q) {
+        where.OR = [
+          { reference: { contains: q, mode: "insensitive" } },
+          { wompiTransactionId: { contains: q, mode: "insensitive" } },
+          { wompiPaymentLinkId: { contains: q, mode: "insensitive" } },
+          { customer: { name: { contains: q, mode: "insensitive" } } },
+          { customer: { email: { contains: q, mode: "insensitive" } } },
+          { customer: { phone: { contains: q, mode: "insensitive" } } }
+        ];
+      }
+      const items = await prisma.payment.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take: 5000,
+        include: { customer: true, subscription: { include: { plan: true } } }
+      });
+      const csv = toCsv(
+        ["id", "status", "amount_cents", "currency", "reference", "wompiTransactionId", "customer", "plan", "createdAt", "paidAt"],
+        items.map((p: any) => ({
+          id: p?.id,
+          status: p?.status,
+          amount_cents: p?.amountInCents ?? 0,
+          currency: p?.currency || "COP",
+          reference: p?.reference || "",
+          wompiTransactionId: p?.wompiTransactionId || "",
+          customer: p?.customer?.name || p?.customer?.email || "",
+          plan: p?.subscription?.plan?.name || "",
+          createdAt: p?.createdAt || "",
+          paidAt: p?.paidAt || ""
+        }))
+      );
+      return new NextResponse(csv, {
+        headers: {
+          "content-type": "text/csv; charset=utf-8",
+          "content-disposition": `attachment; filename="pagos.csv"`
+        }
+      });
+    }
+
+    if (scope === "notifications") {
+      const status = String(searchParams.get("status") || "").trim();
+      const type = String(searchParams.get("type") || "").trim();
+      const from = String(searchParams.get("from") || "").trim();
+      const to = String(searchParams.get("to") || "").trim();
+      const { items } = await listChatwootMessages({
+        take: 5000,
+        skip: 0,
+        q,
+        status,
+        type,
+        from,
+        to,
+        withCount: false
+      });
+      const csv = toCsv(
+        ["id", "status", "type", "to", "customer", "error", "createdAt"],
+        items.map((m: any) => ({
+          id: m?.id,
+          status: m?.status,
+          type: m?.type,
+          to: m?.to || "",
+          customer: m?.customer?.name || m?.customer?.email || m?.customer?.phone || "",
+          error: m?.errorMessage || "",
+          createdAt: m?.createdAt || ""
+        }))
+      );
+      return new NextResponse(csv, {
+        headers: {
+          "content-type": "text/csv; charset=utf-8",
+          "content-disposition": `attachment; filename="notificaciones_whatsapp.csv"`
         }
       });
     }

@@ -147,7 +147,14 @@ export async function listSubscriptionBillingCycles(args: { subscriptionId: stri
     where: { subscriptionId },
     orderBy: { periodStartAt: "desc" },
     take,
-    include: { subscription: { select: { plan: { select: { name: true } } } } }
+    include: { 
+      subscription: { 
+        select: { 
+          id: true,
+          plan: { select: { name: true, id: true } } 
+        } 
+      } 
+    }
   });
   return { ok: true as const, items };
 }

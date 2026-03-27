@@ -3,10 +3,13 @@ import { getCsrfToken } from "../lib/csrf";
 import { createCampaign, runCampaign } from "./actions";
 import { RunCampaignButton } from "./RunCampaignButton";
 import { NewMassMessageModal } from "./NewMassMessageModal";
-import { listSmartViews } from "@suscripciones/core/services/smartViews";
+import { listSmartViews, resolveSmartViewIds, parseFiltersParam, getSmartViewFields } from "@suscripciones/core/services/smartViews";
 import { listCampaigns } from "../admin/_services/campaigns";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
+import { PageHeaderStandard } from "../ui/PageHeaderStandard";
+import { SmartViewsBar } from "../smart-views/SmartViewsBar";
+import { ViewModeToggles } from "../ui/ViewModeToggles";
 
 export default async function CampaignsPage({
   searchParams
@@ -27,16 +30,24 @@ export default async function CampaignsPage({
     }
   }
   const sp = (await searchParams) ?? {};
+  const q = typeof sp.q === "string" ? sp.q : "";
+  const viewId = typeof sp.viewId === "string" ? sp.viewId : "";
+  const filters = typeof sp.filters === "string" ? sp.filters : "";
   const returnTo = `/campaigns?${new URLSearchParams(
     Object.fromEntries(Object.entries(sp).filter(([, v]) => typeof v === "string")) as Record<string, string>
   ).toString()}`;
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
   const take = 20;
   const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
-  const params = new URLSearchParams({ take: String(take), skip: String(skip) });
+  let resolvedIds: string[] | null = null;
+  if (viewId || filters) {
+    const parsedFilters = filters ? parseFiltersParam(filters) : null;
+    resolvedIds = await resolveSmartViewIds("campaigns", tenantId, null, viewId || undefined, parsedFilters || undefined);
+  }
+  const ids = (viewId || filters) && resolvedIds && resolvedIds.length === 0 ? ["__none__"] : resolvedIds || undefined;
   let campaignsRes: any = { ok: false };
   try {
-    campaignsRes = await listCampaigns({ take, skip });
+    campaignsRes = await listCampaigns({ take, skip, ids, q });
   } catch {
     campaignsRes = { ok: false, items: [], total: 0 };
   }
@@ -50,12 +61,10 @@ export default async function CampaignsPage({
       {sp.created ? <div className="panel module">Campaña guardada.</div> : null}
       {sp.running ? <div className="panel module">Campaña en cola.</div> : null}
 
-      <div className="panel module" style={{ marginBottom: 16 }}>
-        <div className="panelHeaderRow" style={{ justifyContent: "space-between" }}>
-          <div>
-            <h3 style={{ marginTop: 0, marginBottom: 4 }}>Mensajes masivos</h3>
-            <div className="muted">Crea campañas usando filtros inteligentes y plantillas configuradas.</div>
-          </div>
+      <PageHeaderStandard
+        title="Mensajes masivos"
+        subtitle="Campañas y envíos programados por listas inteligentes."
+        actions={(
           <NewMassMessageModal
             csrfToken={csrfToken}
             returnTo={returnTo}
@@ -76,8 +85,38 @@ export default async function CampaignsPage({
             tenantId={tenantId}
             action={createCampaign}
           />
-        </div>
-      </div>
+        )}
+        search={(
+          <form action="/campaigns" method="GET" className="filtersForm filtersSearch">
+            {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
+            {filters ? <input type="hidden" name="filters" value={filters} /> : null}
+            <input
+              className="input"
+              type="search"
+              name="q"
+              defaultValue={q}
+              placeholder="Buscar por nombre o contenido..."
+              aria-label="Buscar campañas"
+            />
+            <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
+          </form>
+        )}
+        smartViews={(
+          <SmartViewsBar
+            scope="campaigns"
+            initialViewId={viewId}
+            initialFilters={filters}
+            baseParams={{
+              ...(q ? { q } : {})
+            }}
+            initialFields={getSmartViewFields("campaigns")}
+            compactInline
+          />
+        )}
+        filters={<span className="muted">Filtra por estado y rendimiento.</span>}
+        views={<ViewModeToggles currentMode="lista" baseParams={{ ...(q ? { q } : {}), ...(viewId ? { viewId } : {}), ...(filters ? { filters } : {}) }} />}
+        summary={<span className="muted">Total {total}</span>}
+      />
 
       <div className="panel module">
         <h3 style={{ marginTop: 0 }}>Campañas guardadas</h3>

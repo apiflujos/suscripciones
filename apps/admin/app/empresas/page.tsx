@@ -6,6 +6,10 @@ import { deleteEmpresa, createEmpresa, updateEmpresa } from "./actions";
 import { EmpresaCreateModal } from "./EmpresaCreateModal";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
+import { PageHeaderStandard } from "../ui/PageHeaderStandard";
+import { ListCsvActions } from "../ui/ListCsvActions";
+import { SmartViewsBar } from "../smart-views/SmartViewsBar";
+import { resolveSmartViewIds, parseFiltersParam, getSmartViewFields } from "@suscripciones/core/services/smartViews";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +36,8 @@ export default async function EmpresasPage({
   const vistaRaw = typeof spParams.vista === "string" ? spParams.vista : "cards";
   const vista = ["cards", "lista"].includes(vistaRaw) ? vistaRaw : "cards";
   const vistaTyped = vista as "cards" | "lista" | "kanban";
+  const viewId = typeof spParams.viewId === "string" ? spParams.viewId : "";
+  const filters = typeof spParams.filters === "string" ? spParams.filters : "";
 
   const c = await cookies();
   const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
@@ -39,11 +45,18 @@ export default async function EmpresasPage({
 
   const take = 20;
   const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
+  let resolvedIds: string[] | null = null;
+  if (viewId || filters) {
+    const parsedFilters = filters ? parseFiltersParam(filters) : null;
+    resolvedIds = await resolveSmartViewIds("companies", session?.tenantId || null, null, viewId || undefined, parsedFilters || undefined);
+  }
+  const ids = (viewId || filters) && resolvedIds && resolvedIds.length === 0 ? ["__none__"] : resolvedIds || undefined;
   const data = await listEmpresas({
     tenantId: session?.tenantId || null,
     take,
     skip,
-    q: q.trim()
+    q: q.trim(),
+    ids
   });
   const items = (data.items ?? []) as any[];
   const total = Number.isFinite(Number(data.total)) ? Number(data.total) : items.length;
@@ -52,9 +65,17 @@ export default async function EmpresasPage({
 
   const baseParams = {
     ...(q ? { q } : {}),
-    ...(vista ? { vista } : {})
+    ...(vista ? { vista } : {}),
+    ...(viewId ? { viewId } : {}),
+    ...(filters ? { filters } : {})
   };
   const pageHref = (p: number) => `/empresas?${new URLSearchParams({ ...baseParams, page: String(p) })}`;
+  const exportHref = `/api/list-csv?${new URLSearchParams({
+    scope: "companies",
+    ...(q ? { q } : {}),
+    ...(viewId ? { viewId } : {}),
+    ...(filters ? { filters } : {})
+  }).toString()}`;
 
   return (
     <main className="page pageWide empresasPage">
@@ -69,46 +90,54 @@ export default async function EmpresasPage({
 
       <section className="settings-group">
         <div className="settings-group-header">
-          <div className="filtersRow">
-            <div className="filtersLeft">
-              <div className="filtersPanel">
-                {/* Fila 1: Búsqueda */}
-                <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", flexWrap: "wrap" }}>
-                  <form action="/empresas" method="GET" className="filtersForm filtersSearch" style={{ flex: "0 0 280px" }}>
-                    {vista ? <input type="hidden" name="vista" value={vista} /> : null}
-                    <input
-                      className="input"
-                      type="search"
-                      name="q"
-                      defaultValue={q}
-                      placeholder="Buscar empresa por nombre, email o teléfono..."
-                      aria-label="Buscar empresas"
-                      title="Busca por nombre, email o teléfono"
-                    />
-                    <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
-                  </form>
-                </div>
-                {/* Fila 2: Vista + Botones Crear (derecha) */}
-                <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", marginTop: 6 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span className="field-hint" style={{ margin: 0 }}>
-                      Vista:
-                      <HelpTip text="Alterna entre tarjetas y lista para ver empresas." />
-                    </span>
-                    <ViewModeToggles currentMode={vistaTyped} baseParams={baseParams} />
-                  </div>
-                  <EmpresaCreateModal
-                    csrfToken={csrfToken}
-                    createEmpresa={createEmpresa}
-                    updateEmpresa={updateEmpresa}
-                    deleteEmpresa={deleteEmpresa}
-                    returnTo={`/empresas?${new URLSearchParams(baseParams).toString()}`}
-                    tenantId={session?.tenantId || null}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
+          <PageHeaderStandard
+            title="Empresas"
+            subtitle="Gestión de empresas y contactos asociados."
+            actions={(
+              <>
+                <ListCsvActions exportHref={exportHref} tenantId={session?.tenantId || undefined} defaultEntity="companies" />
+                <EmpresaCreateModal
+                  csrfToken={csrfToken}
+                  createEmpresa={createEmpresa}
+                  updateEmpresa={updateEmpresa}
+                  deleteEmpresa={deleteEmpresa}
+                  returnTo={`/empresas?${new URLSearchParams(baseParams).toString()}`}
+                  tenantId={session?.tenantId || null}
+                />
+              </>
+            )}
+            search={(
+              <form action="/empresas" method="GET" className="filtersForm filtersSearch">
+                {vista ? <input type="hidden" name="vista" value={vista} /> : null}
+                {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
+                {filters ? <input type="hidden" name="filters" value={filters} /> : null}
+                <input
+                  className="input"
+                  type="search"
+                  name="q"
+                  defaultValue={q}
+                  placeholder="Buscar empresa por nombre, email o teléfono..."
+                  aria-label="Buscar empresas"
+                  title="Busca por nombre, email o teléfono"
+                />
+                <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
+              </form>
+            )}
+            smartViews={(
+              <SmartViewsBar
+                scope="companies"
+                initialViewId={viewId}
+                initialFilters={filters}
+                baseParams={{
+                  ...(q ? { q } : {})
+                }}
+                initialFields={getSmartViewFields("companies")}
+                compactInline
+              />
+            )}
+            filters={<HelpTip text="Filtra por nombre, email, dirección y contactos." />}
+            views={<ViewModeToggles currentMode={vistaTyped} baseParams={baseParams} />}
+          />
         </div>
 
         <div className="settings-group-body">

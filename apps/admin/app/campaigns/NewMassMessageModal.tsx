@@ -288,6 +288,10 @@ export function NewMassMessageModal({
   const [audienceApproved, setAudienceApproved] = useState(false);
   const templateKind: "WHATSAPP_TEMPLATE" = "WHATSAPP_TEMPLATE";
 
+  const isFormValid = useMemo(() => {
+    return audienceApproved && audienceCount !== null && audienceCount > 0 && waState.name !== "";
+  }, [audienceApproved, audienceCount, waState.name]);
+
   const loadWaTemplates = useCallback(async () => {
     setWaLoading(true);
     setWaError("");
@@ -447,8 +451,16 @@ export function NewMassMessageModal({
                   syncError={waError}
                   onChange={setWaState}
                 />
+                {!waState.name ? (
+                  <div className="field-hint" style={{ color: "var(--danger)" }}>
+                    Debes seleccionar una plantilla de WhatsApp.
+                  </div>
+                ) : null}
                 <div className="field">
-                  <label>Texto de apoyo (opcional)</label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span>Texto de apoyo (opcional)</span>
+                    <HelpTip text="Mensaje adicional que se muestra junto a la plantilla de WhatsApp. Puede usarse para contexto extra o enlaces." />
+                  </label>
                   <textarea
                     className="input"
                     name="content"
@@ -463,7 +475,7 @@ export function NewMassMessageModal({
                   <button className="ghost" type="button" onClick={() => setOpen(false)} data-loader="off">
                     Cancelar
                   </button>
-                  <PendingButton className="primary" type="submit" pendingText="Guardando..." disabled={!audienceApproved}>
+                  <PendingButton className="primary" type="submit" pendingText="Guardando..." disabled={!isFormValid}>
                     Guardar campaña
                   </PendingButton>
                 </div>

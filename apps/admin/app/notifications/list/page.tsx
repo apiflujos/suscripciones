@@ -1,5 +1,8 @@
 import { LocalDateTime } from "../../ui/LocalDateTime";
 import { listChatwootMessages } from "../../admin/_services/logs";
+import { PageHeaderStandard } from "../../ui/PageHeaderStandard";
+import { ListCsvActions } from "../../ui/ListCsvActions";
+import { ViewModeToggles } from "../../ui/ViewModeToggles";
 
 function renderContactBlock(item: any) {
   const name =
@@ -55,58 +58,53 @@ export default async function WhatsappNotificationsListPage({
 
   return (
     <main className="page">
-      <div className="panelHeaderRow" style={{ justifyContent: "space-between", gap: 12 }}>
-        <div style={{ display: "grid", gap: 4 }}>
-          <h3 style={{ margin: 0 }}>Notificaciones WhatsApp</h3>
-          <div className="muted" style={{ fontSize: 12 }}>Lista de mensajes enviados y su estado.</div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <a className="ghost btn-compact" href="/settings?tab=notificaciones-whatsapp">
-            Configurar WhatsApp
-          </a>
-          {typeof total === "number" ? <span className="pill">Total {total}</span> : null}
-        </div>
-      </div>
-
-      <div className="filtersRow" style={{ marginTop: 12 }}>
-        <div className="filtersLeft">
-          <div className="filtersTop">
-            <div className="filtersNote">
-              Filtra por fecha, estado, tipo y texto.
-            </div>
-            <div className="filtersSummary">{summaryText}</div>
-          </div>
-          <div className="filtersPanel">
-            <form action="/notifications/list" method="GET" className="filtersForm filtersSearch" data-debounce-form="true">
-              <input
-                className="input"
-                name="q"
-                defaultValue={q}
-                placeholder="Buscar contacto, teléfono o contenido..."
-                aria-label="Buscar notificaciones"
-                title="Buscar por contacto, teléfono o contenido"
-              />
-              <select className="select" name="status" defaultValue={status}>
-                <option value="">Estado: Todos</option>
-                <option value="SENT">Estado: Enviado</option>
-                <option value="PENDING">Estado: Pendiente</option>
-                <option value="FAILED">Estado: Fallido</option>
-              </select>
-              <select className="select" name="type" defaultValue={type}>
-                <option value="">Tipo: Todos</option>
-                <option value="PAYMENT_LINK">Tipo: Link de pago</option>
-                <option value="PAYMENT_CONFIRMED">Tipo: Pago confirmado</option>
-                <option value="EXPIRY_WARNING">Tipo: Vencimiento</option>
-                <option value="PAYMENT_FAILED">Tipo: Pago fallido</option>
-              </select>
-              <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" title="Desde" />
-              <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" title="Hasta" />
-              <button className="ghost btn-compact" type="submit">Filtrar</button>
-              <a className="ghost btn-compact" href="/notifications/list">Limpiar</a>
-            </form>
-          </div>
-        </div>
-      </div>
+      <PageHeaderStandard
+        title="Notificaciones WhatsApp"
+        subtitle="Mensajes enviados, estado y trazabilidad."
+        actions={(
+          <>
+            <ListCsvActions
+              exportHref={`/api/list-csv?${new URLSearchParams({ scope: "notifications", ...baseParams }).toString()}`}
+              allowImport={false}
+            />
+            <a className="ghost btn-compact" href="/settings?tab=notificaciones-whatsapp">
+              Configurar WhatsApp
+            </a>
+          </>
+        )}
+        search={(
+          <form action="/notifications/list" method="GET" className="filtersForm filtersSearch" data-debounce-form="true">
+            <input
+              className="input"
+              name="q"
+              defaultValue={q}
+              placeholder="Buscar contacto, teléfono o contenido..."
+              aria-label="Buscar notificaciones"
+              title="Buscar por contacto, teléfono o contenido"
+            />
+            <select className="select" name="status" defaultValue={status}>
+              <option value="">Estado: Todos</option>
+              <option value="SENT">Estado: Enviado</option>
+              <option value="PENDING">Estado: Pendiente</option>
+              <option value="FAILED">Estado: Fallido</option>
+            </select>
+            <select className="select" name="type" defaultValue={type}>
+              <option value="">Tipo: Todos</option>
+              <option value="PAYMENT_LINK">Tipo: Link de pago</option>
+              <option value="PAYMENT_CONFIRMED">Tipo: Pago confirmado</option>
+              <option value="EXPIRY_WARNING">Tipo: Vencimiento</option>
+              <option value="PAYMENT_FAILED">Tipo: Pago fallido</option>
+            </select>
+            <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" title="Desde" />
+            <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" title="Hasta" />
+            <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
+            <a className="ghost btn-compact" href="/notifications/list">Limpiar</a>
+          </form>
+        )}
+        filters={<span className="muted">Filtros por estado, tipo y fecha.</span>}
+        views={<ViewModeToggles currentMode="lista" baseParams={{}} />}
+        summary={<span className="muted">{summaryText}</span>}
+      />
 
       <div className="settings-group-body" style={{ marginTop: 12 }}>
         <div className="pagination pagination-indicator" style={{ marginBottom: 12 }}>

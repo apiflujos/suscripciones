@@ -3683,7 +3683,7 @@ html[data-contrast="high"] .filtersPanel {
   display: none !important;
 }
 
-/* “Grupos” / Paneles */
+/* "Grupos" / Paneles */
 .settings-group {
   width: 100%;
   border: 1px solid color-mix(in srgb, var(--stroke-strong) 82%, transparent);
@@ -3704,7 +3704,7 @@ html[data-contrast="high"] .filtersPanel {
 .settings-group-header h4,
 .panel-header h3,
 .ui-panel-header {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   margin: 0;
   color: var(--text-strong);
@@ -3798,7 +3798,7 @@ html[data-contrast="high"] .filtersPanel {
   font-size: var(--text-base);
   height: var(--input-height);
   min-height: var(--input-height);
-  padding: 0 var(--space-3);
+  padding: 0 8px;
 }
 
 textarea.input {
@@ -3856,7 +3856,7 @@ textarea.input {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
+  gap: 4px;
 }
 
 .ui-panel-header-left {
@@ -3867,7 +3867,7 @@ textarea.input {
 .ui-panel-title {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 .ui-title-reset {
@@ -4186,6 +4186,10 @@ textarea.input {
   --btn-icon: var(--icon-edit);
 }
 
+.btn-calendar {
+  --btn-icon: var(--icon-calendar);
+}
+
 .btn-link {
   --btn-icon: var(--icon-link);
 }
@@ -4336,6 +4340,11 @@ textarea.input {
 :is(.ghost, .btn, .primary, .btnLink).btn-history,
 .btn-history {
   --btn-icon: var(--icon-time);
+}
+
+:is(.ghost, .btn, .primary, .btnLink).btn-calendar,
+.btn-calendar {
+  --btn-icon: var(--icon-calendar);
 }
 
 .btn-retry {
@@ -4915,8 +4924,8 @@ textarea.input {
 }
 
 .btn-delete-icon {
-  width: 26px;
-  min-width: 26px !important;
+  width: 24px;
+  min-width: 24px !important;
   padding: 0 !important;
   font-size: 0 !important;
   gap: 0 !important;
@@ -4930,6 +4939,7 @@ textarea.input {
   padding: 0 !important;
   font-size: 0 !important;
   gap: 0 !important;
+  border-radius: 6px;
 }
 
 .btn-icon-only::before,
@@ -5051,9 +5061,9 @@ textarea.input {
 }
 
 .billing-header-actions .btn-compact {
-  width: var(--icon-size);
-  height: var(--icon-size);
-  min-width: var(--icon-size);
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
   padding: 0;
   border-radius: 6px;
 }
@@ -6616,6 +6626,7 @@ textarea.input {
 .billing-list {
   display: grid;
   gap: 8px;
+  border-radius: 12px;
 }
 
 .billing-list-header {
@@ -6649,6 +6660,7 @@ textarea.input {
 
 .billing-list-name,
 .billing-list-link {
+  font-size: var(--text-sm);
   font-weight: 700;
   color: var(--text-strong);
   text-decoration: none;
@@ -6664,7 +6676,7 @@ textarea.input {
 }
 
 .billing-list-sub {
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--text-faint);
   max-width: 100%;
   white-space: nowrap;
@@ -6872,7 +6884,7 @@ textarea.input {
 }
 
 .billing-card .billing-cost-total {
-  font-size: var(--text-base);
+  font-size: 12px;
 }
 
 .billing-card .billing-actions {
@@ -6923,12 +6935,15 @@ textarea.input {
   border-radius: 12px;
   overflow: hidden;
   background: var(--panel);
+  max-height: 400px;
+  overflow-y: auto;
 }
 
 .billing-history-table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
+  font-size: 9px;
 }
 
 .billing-history-table th,
@@ -6955,18 +6970,19 @@ textarea.input {
 .billing-history-ref,
 .billing-history-wompi,
 .billing-history-detail {
-  font-size: 11px;
+  font-size: 8px;
   color: var(--text-faint);
 }
 
 .billing-history-attempts-row td {
   background: color-mix(in srgb, var(--panel) 90%, white);
+  padding: 2px 4px !important;
 }
 
 .billing-history-attempts {
   display: grid;
   gap: 6px;
-  margin-top: 2px;
+  margin-top: 4px;
 }
 
 .billing-history-attempt {
@@ -6988,8 +7004,134 @@ textarea.input {
   color: var(--status-danger);
 }
 
-.billing-history-page-info {
+.subscription-edit-modal {
+  width: min(980px, 96vw);
+  max-height: 90vh;
+  overflow: auto;
+}
+
+.subscription-edit-grid {
+  display: grid;
+  gap: 16px;
+  padding: 16px 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.subscription-edit-section {
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--panel);
+  display: grid;
+  gap: 10px;
+}
+
+.subscription-edit-section header {
+  display: grid;
+  gap: 4px;
+}
+
+.subscription-edit-section h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.subscription-edit-section .muted {
   font-size: 11px;
+  color: var(--text-faint);
+}
+
+.subscription-edit-form {
+  display: grid;
+  gap: 10px;
+}
+
+.subscription-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.subscription-edit-inline {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.subscription-edit-muted {
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--panel-soft);
+  font-size: 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.subscription-edit-muted-title {
+  font-weight: 600;
+}
+
+.subscription-edit-muted-grid {
+  display: grid;
+  gap: 6px;
+}
+
+.subscription-edit-error {
+  color: var(--status-danger);
+  font-size: 12px;
+  background: color-mix(in srgb, var(--status-danger) 12%, transparent);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.subscription-edit-wide {
+  grid-column: 1 / -1;
+}
+
+.subscription-edit-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.subscription-edit-collapsible {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.subscription-edit-collapsible-body {
+  border: 1px solid var(--stroke);
+  border-radius: 10px;
+  padding: 10px;
+  background: var(--panel);
+}
+
+.subscription-edit-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+@media (max-width: 900px) {
+  .subscription-edit-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .subscription-edit-inline {
+    grid-template-columns: 1fr;
+  }
+
+  .subscription-edit-collapsible {
+    grid-template-columns: 1fr;
+  }
+}
+
+.billing-history-page-info {
+  font-size: var(--text-sm);
   color: var(--text-faint);
 }
 
@@ -7018,10 +7160,11 @@ textarea.input {
 .billing-history-amount {
   font-weight: 700;
   color: var(--text);
+  font-size: var(--text-sm);
 }
 
 .billing-history-date {
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--text-faint);
 }
 
@@ -7054,7 +7197,7 @@ textarea.input {
 }
 
 .billing-history-attempt-error {
-  font-size: 10.5px;
+  font-size: 9px;
   color: var(--status-danger);
 }
 
@@ -7062,12 +7205,12 @@ textarea.input {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-2);
+  gap: 8px;
 }
 
 .billing-header-middle {
   display: grid;
-  gap: var(--space-1);
+  gap: 4px;
   justify-items: flex-start;
   align-content: start;
   min-width: 150px;
@@ -7100,7 +7243,7 @@ textarea.input {
 
 .billing-title {
   display: grid;
-  gap: 1px;
+  gap: var(--space-1);
 }
 
 .billing-name {
@@ -7221,6 +7364,7 @@ textarea.input {
 .billing-grid-info > .billing-body-main,
 .billing-grid-info > .billing-body-side {
   align-items: stretch;
+  gap: 10px;
 }
 
 .billing-grid-info > .billing-body-left,
@@ -7237,7 +7381,7 @@ textarea.input {
 .billing-grid-info span {
   display: inline;
   color: var(--text-faint);
-  font-size: 9px;
+  font-size: var(--text-xs);
 }
 
 .billing-cost-panel {
@@ -7251,7 +7395,7 @@ textarea.input {
 
 .billing-cost-title {
   color: var(--text-faint);
-  font-size: 9px;
+  font-size: var(--text-xs);
 }
 
 .billing-cost-box {
@@ -7274,7 +7418,7 @@ textarea.input {
 
 .billing-cost-total {
   color: var(--primary);
-  font-size: 15px;
+  font-size: var(--text-base);
   font-weight: 800;
   line-height: 1.1;
   text-align: left;
@@ -7324,7 +7468,7 @@ textarea.input {
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: flex-start;
-  padding-top: 6px;
+  padding-top: var(--space-2);
   border-top: 1px solid color-mix(in srgb, var(--stroke) 86%, transparent);
 }
 
@@ -7377,7 +7521,7 @@ textarea.input {
 }
 
 .billing-product-meta strong {
-  font-size: 12px;
+  font-size: var(--text-sm);
   line-height: 1.15;
 }
 
@@ -7428,11 +7572,11 @@ textarea.input {
 
 .billing-body-section {
   display: grid;
-  gap: 4px;
+  gap: var(--space-1);
   align-content: start;
   padding: 8px 10px;
   border: 1px solid color-mix(in srgb, var(--stroke) 86%, transparent);
-  border-radius: 10px;
+  border-radius: 12px;
   background: color-mix(in srgb, var(--panel) 88%, var(--surface-2) 12%);
 }
 
@@ -7450,13 +7594,13 @@ textarea.input {
 
 .billing-section-dates .field-hint {
   display: block;
-  font-size: 10px;
+  font-size: var(--text-sm);
   margin-bottom: 6px;
 }
 
 .billing-section-dates .billing-inline-cutoff {
   width: 100%;
-  gap: 6px;
+  gap: var(--space-2);
 }
 
 .billing-section-dates .billing-inline-cutoff .input {
@@ -7502,7 +7646,7 @@ textarea.input {
 
 .billing-cycle-form-inline .field-inline {
   display: grid;
-  gap: 2px;
+  gap: var(--space-1);
 }
 
 .billing-cycle-form-inline .btn-compact {
@@ -7520,12 +7664,12 @@ textarea.input {
 
 .billing-cycle-form .field-inline {
   display: grid;
-  gap: 2px;
+  gap: var(--space-1);
 }
 
 .billing-body-side {
   display: grid;
-  gap: 10px;
+  gap: var(--space-3);
   align-content: start;
   justify-items: stretch;
   text-align: left;
@@ -7597,7 +7741,7 @@ textarea.input {
 }
 
 .billing-section-title {
-  font-size: 9px;
+  font-size: var(--text-xs);
   color: var(--text-faint);
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -7699,11 +7843,12 @@ textarea.input {
 }
 
 .billing-actions .btn-compact {
-  height: 28px;
-  min-width: 96px;
+  height: 22px;
+  min-width: 60px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  font-size: 10px;
 }
 
 .billing-action-feedback {
@@ -12143,13 +12288,13 @@ html[data-contrast="high"] .module-footer .ghost {
 }
 
 .panel-title {
-  font-size: var(--text-lg);
+  font-size: 14px;
   font-weight: 700;
   color: var(--text);
 }
 
 .panel-sub {
-  font-size: var(--text-base);
+  font-size: 11px;
   color: var(--text-faint);
 }
 
@@ -14175,6 +14320,102 @@ html[data-contrast="high"] .toggle::after {
   .page-header-simple .page-actions-simple {
     width: 100%;
     justify-content: flex-end;
+  }
+}
+
+/* ==================================
+   STANDARDIZED LIST HEADERS
+   ================================== */
+
+.page-header-standard {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.page-header-standard-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.page-header-standard-title {
+  display: grid;
+  gap: 2px;
+}
+
+.page-title-standard {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.page-subtitle-standard {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.page-header-standard-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.page-header-standard-controls {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) minmax(200px, 1fr) minmax(120px, 0.7fr) minmax(120px, 0.7fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.page-header-standard-controls > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.page-header-standard-search .filtersForm {
+  width: 100%;
+}
+
+.page-header-standard-smartviews.is-empty,
+.page-header-standard-filters.is-empty,
+.page-header-standard-views.is-empty {
+  justify-content: center;
+  min-height: 36px;
+  border: 1px dashed var(--panel-border);
+  border-radius: 10px;
+  padding: 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.page-header-standard-summary {
+  justify-content: flex-end;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+@media (max-width: 1100px) {
+  .page-header-standard-controls {
+    grid-template-columns: minmax(220px, 1fr) minmax(200px, 1fr);
+  }
+  .page-header-standard-summary {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 768px) {
+  .page-header-standard-controls {
+    grid-template-columns: 1fr;
   }
 }
 

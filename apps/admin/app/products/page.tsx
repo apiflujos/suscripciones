@@ -8,6 +8,8 @@ import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { HelpTip } from "../ui/HelpTip";
 import { listCatalogProducts } from "../admin/_services/products";
+import { ProductsModalTrigger } from "./ProductsModalTrigger";
+import { PageHeaderStandard } from "../ui/PageHeaderStandard";
 import "./page-header.css";
 import { listTenants } from "../admin/_services/tenants";
 import { listCustomers } from "../admin/_services/customers";
@@ -112,22 +114,16 @@ export default async function ProductsPage({
       {tenantCreated ? <div className="card cardPad">Canal creado.</div> : null}
       {sent ? <div className="card cardPad">Mensaje enviado.</div> : null}
 
-      <div className="page-header-simple">
-        <div className="page-header-title-row">
-          <h1 className="page-title-simple">Productos</h1>
-          <div className="page-actions-simple">
+      <PageHeaderStandard
+        title="Productos y Servicios"
+        subtitle="Catálogo, precios y disponibilidad por canal."
+        actions={(
+          <>
             <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="products" />
-            <button
-              className="primary btn-compact"
-              type="button"
-              id="products-modal-trigger"
-              onClick={() => document.getElementById('products-modals-container')?.querySelector('button')?.click()}
-            >
-              Crear producto
-            </button>
-          </div>
-        </div>
-        <div className="page-filters-simple">
+            <ProductsModalTrigger />
+          </>
+        )}
+        search={(
           <form action="/products" method="GET" className="filtersForm filtersSearch">
             {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
             {vista ? <input type="hidden" name="vista" value={vista} /> : null}
@@ -144,6 +140,8 @@ export default async function ProductsPage({
             />
             <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
           </form>
+        )}
+        smartViews={(
           <SmartViewsBar
             scope="products"
             initialViewId={viewId}
@@ -155,6 +153,9 @@ export default async function ProductsPage({
             initialFields={getSmartViewFields("products")}
             compactInline
           />
+        )}
+        filters={<HelpTip text="Filtra por tipo, precio, periodicidad y estado." />}
+        views={(
           <ViewModeToggles
             currentMode={vistaTyped}
             baseParams={{
@@ -164,8 +165,8 @@ export default async function ProductsPage({
               ...(filters ? { filters } : {})
             }}
           />
-        </div>
-      </div>
+        )}
+      />
 
       <div id="products-modals-container" style={{ display: 'none' }}>
         <ProductsModals

@@ -2,16 +2,18 @@
 
 import { useMemo, useState } from "react";
 
-type EntityType = "customers" | "products";
+type EntityType = "customers" | "products" | "companies" | "payments";
 
 export function ListCsvActions({
   exportHref,
   tenantId,
-  defaultEntity = "customers"
+  defaultEntity = "customers",
+  allowImport = true
 }: {
   exportHref: string;
   tenantId?: string;
   defaultEntity?: EntityType;
+  allowImport?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [entity, setEntity] = useState<EntityType>(defaultEntity);
@@ -63,7 +65,14 @@ export function ListCsvActions({
   return (
     <>
       <div className="filtersRight list-csv-actions">
-        <button className="ghost btn-compact btn-icon-only btn-noicon btn-import" type="button" onClick={() => setOpen(true)} aria-label="Importar CSV" title="Importar CSV">
+        <button
+          className={`ghost btn-compact btn-icon-only btn-noicon btn-import${allowImport ? "" : " is-disabled"}`}
+          type="button"
+          onClick={() => allowImport && setOpen(true)}
+          aria-label={allowImport ? "Importar CSV" : "Importación no disponible"}
+          title={allowImport ? "Importar CSV" : "Importación no disponible"}
+          disabled={!allowImport}
+        >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
             <path d="M8 2a.75.75 0 0 1 .75.75v6.19l2.22-2.22a.75.75 0 1 1 1.06 1.06l-3.5 3.5a.75.75 0 0 1-1.06 0l-3.5-3.5a.75.75 0 1 1 1.06-1.06l2.22 2.22V2.75A.75.75 0 0 1 8 2z"/>
             <path d="M2 10.75A2.75 2.75 0 0 1 4.75 8h6.5A2.75 2.75 0 0 1 14 10.75v2.5A2.75 2.75 0 0 1 11.25 16h-6.5A2.75 2.75 0 0 1 2 13.25v-2.5zm2.75-1.25A1.25 1.25 0 0 0 3.5 10.75v2.5A1.25 1.25 0 0 0 4.75 14.5h6.5a1.25 1.25 0 0 0 1.25-1.25v-2.5a1.25 1.25 0 0 0-1.25-1.25h-6.5z"/>
