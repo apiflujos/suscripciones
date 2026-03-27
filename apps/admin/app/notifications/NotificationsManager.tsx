@@ -415,9 +415,26 @@ export function NotificationsManager({
               <input type="hidden" name="metaLanguage" value={tplMetaLang} />
               <input type="hidden" name="metaComponents" value={tplMetaComponents} />
 
-              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
-                <button className="ghost btn-cancel" type="button" onClick={closeModals} data-modal-close="true" data-loader="off">Cancelar</button>
-                <button className="primary btn-save" type="submit">Guardar cambios</button>
+              <div className="module-footer">
+                <button 
+                  className="ghost btn-compact btn-cancel" 
+                  type="button" 
+                  onClick={closeModals} 
+                  data-modal-close="true" 
+                  data-loader="off"
+                  title="Cerrar sin guardar"
+                  aria-label="Cancelar"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  className="primary btn-compact btn-save" 
+                  type="submit"
+                  title="Guardar plantilla de notificación"
+                  aria-label="Guardar cambios"
+                >
+                  Guardar
+                </button>
               </div>
             </form>
           </div>
@@ -528,9 +545,26 @@ export function NotificationsManager({
                 <input key={idx} type="hidden" name="offsetSeconds" value={String(offsetItemToSeconds(o))} />
               ))}
 
-              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
-                <button className="ghost btn-cancel" type="button" onClick={closeModals} data-modal-close="true" data-loader="off">Cancelar</button>
-                <button className="primary btn-save" type="submit">Guardar cambios</button>
+              <div className="module-footer">
+                <button 
+                  className="ghost btn-compact btn-cancel" 
+                  type="button" 
+                  onClick={closeModals} 
+                  data-modal-close="true" 
+                  data-loader="off"
+                  title="Cerrar sin guardar"
+                  aria-label="Cancelar"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  className="primary btn-compact btn-save" 
+                  type="submit"
+                  title="Guardar plantilla de notificación"
+                  aria-label="Guardar cambios"
+                >
+                  Guardar
+                </button>
               </div>
             </form>
           </div>

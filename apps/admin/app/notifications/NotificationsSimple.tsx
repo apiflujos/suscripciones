@@ -823,8 +823,25 @@ export function NotificationsSimple({
                         variables={bodyVars}
                         buttonVariables={buttonVars}
                       />
-                      <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
-                        <PendingButton className="primary btn-compact btn-save" type="submit" pendingText="Guardando...">
+                      <div className="module-footer">
+                        <button 
+                          className="ghost btn-compact btn-cancel" 
+                          type="button"
+                          onClick={closeModals}
+                          data-modal-close="true"
+                          data-loader="off"
+                          title="Cerrar sin guardar"
+                          aria-label="Cancelar"
+                        >
+                          Cancelar
+                        </button>
+                        <PendingButton 
+                          className="primary btn-compact btn-save" 
+                          type="submit" 
+                          pendingText="Guardando..."
+                          title="Guardar plantilla de recordatorio"
+                          aria-label="Guardar cambios"
+                        >
                           Guardar
                         </PendingButton>
                       </div>
@@ -871,8 +888,25 @@ export function NotificationsSimple({
                       .map((o) => secondsFromOffset(o, activeModal.kind === "DUE" ? -1 : 1))
                       .join(",")}
                   />
-                  <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-                    <PendingButton className="primary btn-compact btn-save" type="submit" pendingText="Guardando...">
+                  <div className="module-footer">
+                    <button 
+                      className="ghost btn-compact btn-cancel" 
+                      type="button"
+                      onClick={closeModals}
+                      data-modal-close="true"
+                      data-loader="off"
+                      title="Cerrar sin guardar"
+                      aria-label="Cancelar"
+                    >
+                      Cancelar
+                    </button>
+                    <PendingButton 
+                      className="primary btn-compact btn-save" 
+                      type="submit" 
+                      pendingText="Guardando..."
+                      title="Guardar configuración de recordatorio"
+                      aria-label="Guardar cambios"
+                    >
                       Guardar
                     </PendingButton>
                   </div>
