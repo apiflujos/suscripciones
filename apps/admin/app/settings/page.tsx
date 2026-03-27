@@ -19,7 +19,8 @@ import {
   updateWebhookEndpointAction,
   deleteWebhookEndpointAction,
   createApiTokenAction,
-  revokeApiTokenAction
+  revokeApiTokenAction,
+  updateSubscriptionConfig
 } from "./actions";
 import { normalizeErrorParam } from "../lib/errorParam";
 import { cookies } from "next/headers";
@@ -181,6 +182,9 @@ export default async function SettingsPage({
         </a>
         <a className={`settings-tab ${tab === "cobros" ? "is-active" : ""}`} href="/settings?tab=cobros" title="Configuración de cobros y pagos">
           Cobros
+        </a>
+        <a className={`settings-tab ${tab === "suscripciones" ? "is-active" : ""}`} href="/settings?tab=suscripciones" title="Configuración de suscripciones">
+          Suscripciones
         </a>
         <a className={`settings-tab ${tab === "checkout-publico" ? "is-active" : ""}`} href="/settings?tab=checkout-publico" title="Plantillas y configuración del checkout público">
           Checkout público
@@ -857,6 +861,72 @@ export default async function SettingsPage({
             </div>
           </section>
         </>
+      ) : null}
+
+      {tab === "suscripciones" ? (
+        <section className="settings-group">
+          <div className="settings-group-header">
+            <h3>Configuración de Suscripciones</h3>
+          </div>
+          <div className="settings-group-body">
+            <form action={updateSubscriptionConfig} className="panel module" style={{ display: "grid", gap: 16 }}>
+              <input type="hidden" name="csrf" value={csrfToken} />
+              <input type="hidden" name="returnTo" value={`/settings?${new URLSearchParams({ tab: "suscripciones" }).toString()}`} />
+              
+              <div style={{ display: "grid", gap: 12 }}>
+                <h4 style={{ margin: 0, fontSize: 14 }}>Tiempos de mora y suspensión</h4>
+                <p className="field-hint" style={{ margin: 0 }}>Estos valores aplican para TODAS las suscripciones (se pueden sobrescribir por suscripción individual)</p>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+                <div className="field">
+                  <label className="field-label">
+                    Días de gracia
+                    <HelpTip text="Días después del vencimiento donde la suscripción está en gracia (no en mora)" />
+                  </label>
+                  <select className="select" name="graceDays" defaultValue={String(autoDebit?.graceDays ?? 5)}>
+                    {Array.from({ length: 16 }, (_, i) => i).map((days) => (
+                      <option key={days} value={days}>{days} días</option>
+                    ))}
+                  </select>
+                  <div className="field-hint">Durante este período el badge es NARANJA "En gracia"</div>
+                </div>
+
+                <div className="field">
+                  <label className="field-label">
+                    Suspender después de
+                    <HelpTip text="Días después del vencimiento cuando se suspende la suscripción" />
+                  </label>
+                  <select className="select" name="suspendDays" defaultValue={String(autoDebit?.suspendDays ?? 15)}>
+                    {Array.from({ length: 31 }, (_, i) => i + 10).map((days) => (
+                      <option key={days} value={days}>{days} días</option>
+                    ))}
+                  </select>
+                  <div className="field-hint">Después de los días de gracia,badge ROJO "En mora"</div>
+                </div>
+
+                <div className="field">
+                  <label className="field-label">
+                    Cancelar después de
+                    <HelpTip text="Días después de suspendido cuando se cancela la suscripción" />
+                  </label>
+                  <select className="select" name="cancelDays" defaultValue={String(autoDebit?.cancelDays ?? 30)}>
+                    {Array.from({ length: 31 }, (_, i) => i + 20).map((days) => (
+                      <option key={days} value={days}>{days} días</option>
+                    ))}
+                  </select>
+                  <div className="field-hint">Badge GRIS "Cancelada"</div>
+                </div>
+              </div>
+
+              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
+                <PendingButton className="primary" type="submit" pendingText="Guardando...">
+                  Guardar configuración
+                </PendingButton>
+              </div>
+            </form>
+          </div>
+        </section>
       ) : null}
 
       {tab === "checkout-publico" ? (

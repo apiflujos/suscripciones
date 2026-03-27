@@ -2,6 +2,7 @@ import { LocalDateTime } from "../../ui/LocalDateTime";
 import { listChatwootMessages } from "../../admin/_services/logs";
 import { PageHeaderStandard } from "../../ui/PageHeaderStandard";
 import { ListCsvActions } from "../../ui/ListCsvActions";
+import { FilterButton } from "../../ui/FilterButton";
 import { ViewModeToggles } from "../../ui/ViewModeToggles";
 
 function renderContactBlock(item: any) {
@@ -57,16 +58,12 @@ export default async function WhatsappNotificationsListPage({
     : `Mostrando ${countOnPage || 0} · ${take} por página`;
 
   return (
-    <main className="page">
+    <main className="page notificationsPage">
       <PageHeaderStandard
         title="Notificaciones WhatsApp"
         subtitle="Mensajes enviados, estado y trazabilidad."
         actions={(
           <>
-            <ListCsvActions
-              exportHref={`/api/list-csv?${new URLSearchParams({ scope: "notifications", ...baseParams }).toString()}`}
-              allowImport={false}
-            />
             <a className="ghost btn-compact" href="/settings?tab=notificaciones-whatsapp">
               Configurar WhatsApp
             </a>
@@ -82,28 +79,40 @@ export default async function WhatsappNotificationsListPage({
               aria-label="Buscar notificaciones"
               title="Buscar por contacto, teléfono o contenido"
             />
-            <select className="select" name="status" defaultValue={status}>
-              <option value="">Estado: Todos</option>
-              <option value="SENT">Estado: Enviado</option>
-              <option value="PENDING">Estado: Pendiente</option>
-              <option value="FAILED">Estado: Fallido</option>
-            </select>
-            <select className="select" name="type" defaultValue={type}>
-              <option value="">Tipo: Todos</option>
-              <option value="PAYMENT_LINK">Tipo: Link de pago</option>
-              <option value="PAYMENT_CONFIRMED">Tipo: Pago confirmado</option>
-              <option value="EXPIRY_WARNING">Tipo: Vencimiento</option>
-              <option value="PAYMENT_FAILED">Tipo: Pago fallido</option>
-            </select>
-            <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" title="Desde" />
-            <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" title="Hasta" />
             <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
             <a className="ghost btn-compact" href="/notifications/list">Limpiar</a>
           </form>
         )}
-        filters={<span className="muted">Filtros por estado, tipo y fecha.</span>}
-        views={<ViewModeToggles currentMode="lista" baseParams={{}} />}
-        summary={<span className="muted">{summaryText}</span>}
+        filters={(
+          <div className="page-header-standard-filters-group">
+            <FilterButton />
+            <select className="select" name="status" defaultValue={status} style={{ minWidth: 140 }}>
+              <option value="">Estado: Todos</option>
+              <option value="SENT">Enviado</option>
+              <option value="PENDING">Pendiente</option>
+              <option value="FAILED">Fallido</option>
+            </select>
+            <select className="select" name="type" defaultValue={type} style={{ minWidth: 140 }}>
+              <option value="">Tipo: Todos</option>
+              <option value="PAYMENT_LINK">Link de pago</option>
+              <option value="PAYMENT_CONFIRMED">Pago confirmado</option>
+              <option value="EXPIRY_WARNING">Vencimiento</option>
+              <option value="PAYMENT_FAILED">Pago fallido</option>
+            </select>
+          </div>
+        )}
+        views={(
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" title="Desde" style={{ width: 130 }} />
+            <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" title="Hasta" style={{ width: 130 }} />
+          </div>
+        )}
+        summary={(
+          <ListCsvActions
+            exportHref={`/api/list-csv?${new URLSearchParams({ scope: "notifications", ...baseParams }).toString()}`}
+            allowImport={false}
+          />
+        )}
       />
 
       <div className="settings-group-body" style={{ marginTop: 12 }}>
@@ -134,11 +143,11 @@ export default async function WhatsappNotificationsListPage({
         <div className="panel module" style={{ padding: 0 }}>
           <table className="table logs-table logs-table-messages" aria-label="Tabla de mensajes">
             <colgroup>
-              <col style={{ width: "8%" }} />
-              <col style={{ width: "18%" }} />
-              <col style={{ width: "8%" }} />
+              <col style={{ width: "12%" }} />
+              <col style={{ width: "22%" }} />
               <col style={{ width: "14%" }} />
-              <col style={{ width: "52%" }} />
+              <col style={{ width: "12%" }} />
+              <col style={{ width: "40%" }} />
             </colgroup>
             <thead>
               <tr>
@@ -146,7 +155,7 @@ export default async function WhatsappNotificationsListPage({
                 <th>Contacto</th>
                 <th>Tipo</th>
                 <th>Estado</th>
-                <th>Detalle</th>
+                <th>Mensaje</th>
               </tr>
             </thead>
             <tbody>
@@ -159,7 +168,7 @@ export default async function WhatsappNotificationsListPage({
                       ? { cls: "is-error", label: "Fallido" }
                       : { cls: "is-warning", label: "Pendiente" };
                 const detailRaw = String(m.errorMessage || m.content || "—");
-                const detailText = detailRaw.length > 300 ? `${detailRaw.slice(0, 300)}…` : detailRaw;
+                const detailText = detailRaw.length > 200 ? `${detailRaw.slice(0, 200)}…` : detailRaw;
                 return (
                   <tr key={m.id}>
                     <td className="log-date-cell"><LocalDateTime value={m.createdAt} variant="stacked" /></td>

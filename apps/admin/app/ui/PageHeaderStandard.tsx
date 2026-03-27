@@ -30,16 +30,20 @@ export function PageHeaderStandard({
       </div>
       <div className="page-header-standard-controls">
         <div className="page-header-standard-search">{search}</div>
+        <div className="page-header-standard-left">
+          <div className={`page-header-standard-filters${filters ? "" : " is-empty"}`}>
+            {filters ?? <span className="muted">Filtros</span>}
+          </div>
+          <div className={`page-header-standard-views${views ? "" : " is-empty"}`}>
+            {views ?? <span className="muted">Vista</span>}
+          </div>
+        </div>
         <div className={`page-header-standard-smartviews${smartViews ? "" : " is-empty"}`}>
           {smartViews ?? <span className="muted">Listas inteligentes</span>}
         </div>
-        <div className={`page-header-standard-filters${filters ? "" : " is-empty"}`}>
-          {filters ?? <span className="muted">Filtros</span>}
+        <div className="page-header-standard-right">
+          {summary ? <div className="page-header-standard-summary">{summary}</div> : null}
         </div>
-        <div className={`page-header-standard-views${views ? "" : " is-empty"}`}>
-          {views ?? <span className="muted">Vista</span>}
-        </div>
-        {summary ? <div className="page-header-standard-summary">{summary}</div> : null}
       </div>
     </div>
   );

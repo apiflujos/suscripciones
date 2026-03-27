@@ -1,6 +1,6 @@
 import { activateSubscription, cancelSubscription, deleteSubscription, mergeDuplicateSubscriptions, resumeSubscription, suspendSubscription } from "../subscriptions/actions";
 import { MergeDuplicateSubscriptionsButton } from "./MergeDuplicateSubscriptionsButton";
-import { changeSubscriptionPlan, chargeSubscriptionNow, createCustomerFromBilling, createPlanAndSubscription, scheduleCutoff, sendCentralComPaymentLink, sendCentralComTokenizationLink, updateSubscriptionTenants, updateSubscriptionBillingSettings, markSubscriptionPaidManual, unmarkSubscriptionPaidManual, setBillingChargeDate } from "./actions";
+import { changeSubscriptionPlan, chargeSubscriptionNow, createCustomerFromBilling, createPlanAndSubscription, sendCentralComPaymentLink, sendCentralComTokenizationLink, updateSubscriptionTenants, updateSubscriptionBillingSettings, markSubscriptionPaidManual, unmarkSubscriptionPaidManual, setBillingChargeDate } from "./actions";
 import { ManualChargeButton } from "./ManualChargeButton";
 import { ManualMarkPaidButton } from "./ManualMarkPaidButton";
 import { ManualUnmarkPaidButton } from "./ManualUnmarkPaidButton";
@@ -209,7 +209,7 @@ export default async function BillingPage({
   const unmarkPaidError = typeof sp.unmarkPaidError === "string" ? sp.unmarkPaidError : "";
   const paymentId = typeof sp.paymentId === "string" ? sp.paymentId : "";
   const actionSubscriptionId = typeof sp.subscriptionId === "string" ? sp.subscriptionId : "";
-  const cutoffScheduled = typeof sp.cutoffScheduled === "string" ? sp.cutoffScheduled : "";
+  const chargeDateScheduled = typeof sp.chargeDateScheduled === "string" ? sp.chargeDateScheduled : "";
   const tenantsUpdated = typeof sp.tenantsUpdated === "string" ? sp.tenantsUpdated : "";
   const central = typeof sp.central === "string" ? sp.central : "";
   const centralMode = typeof sp.centralMode === "string" ? sp.centralMode : "";
@@ -499,11 +499,12 @@ export default async function BillingPage({
     const sentTokenForRow = Boolean(sentForRow && rowTokenUrl);
     const sentPaymentForRow = Boolean(sentForRow && !rowTokenUrl);
     const chargedForRow = chargeStatus === "ok" && actionSubscriptionId === r.id;
-    const cutoffForRow = cutoffScheduled && actionSubscriptionId === r.id;
+    const chargeDateScheduledForRow = chargeDateScheduled && actionSubscriptionId === r.id;
     const tenantsUpdatedForRow = tenantsUpdated && actionSubscriptionId === r.id;
-    const cutoffDueAt = r.vencimientoAt ? new Date(r.vencimientoAt) : null;
-    const isCutoffOverdue = Boolean(cutoffDueAt && !Number.isNaN(cutoffDueAt.getTime()) && cutoffDueAt.getTime() <= Date.now());
-    const chargeDue = typeof r.chargeDue === "boolean" ? r.chargeDue : r.status === "PAST_DUE" || r.status === "EXPIRED" || isCutoffOverdue;
+    // La fecha de pago (vencimientoAt) define si se debe cobrar
+    const chargeDueAt = r.vencimientoAt ? new Date(r.vencimientoAt) : null;
+    const isChargeDue = Boolean(chargeDueAt && !Number.isNaN(chargeDueAt.getTime()) && chargeDueAt.getTime() <= Date.now());
+    const chargeDue = typeof r.chargeDue === "boolean" ? r.chargeDue : r.status === "PAST_DUE" || r.status === "EXPIRED" || isChargeDue;
     const isCanceled = r.status === "CANCELED";
     const isSuspended = r.status === "SUSPENDED";
     const isInactive = isCanceled || isSuspended;
@@ -597,23 +598,22 @@ export default async function BillingPage({
                 returnTo={returnTo}
                 currentChargeAt={r.vencimientoAt}
                 periodStartAt={r.periodoInicioAt}
-                intervalUnit={r.planIntervalUnit}
-                intervalCount={r.planIntervalCount}
-                setBillingChargeDate={setBillingChargeDate}
                 currentPlanId={r.planId}
                 currentPlanName={r.planName}
                 currentPlanCurrency={r.moneda}
                 currentShippingInCents={r.currentShippingInCents}
                 currentRequiresShipping={r.currentRequiresShipping}
-                currentEndAt={r.vencimientoAt}
                 plans={planOptions}
                 changeSubscriptionPlan={changeSubscriptionPlan}
                 cycleStartDay={r.cycleStartDay}
                 paymentDay={r.paymentDay}
                 paymentTiming={r.paymentTiming}
                 graceDays={r.graceDays}
+                suspendDays={r.suspendDays || 15}
+                cancelDays={r.cancelDays || 30}
                 updateSubscriptionBillingSettings={updateSubscriptionBillingSettings}
                 deleteSubscription={deleteSubscription}
+                globalConfig={{ graceDays: 5, suspendDays: 15, cancelDays: 30 }}
               />
               <PaymentHistoryButton subscriptionId={r.id} tenantId={r.tenantId} />
               <PaymentCyclesModal subscriptionId={r.id} />
@@ -829,12 +829,12 @@ export default async function BillingPage({
               </>
             )}
           </div>
-          {(sentForRow || chargedForRow || cutoffForRow) ? (
+          {(sentForRow || chargedForRow || chargeDateScheduledForRow) ? (
             <div className="field-hint billing-action-feedback">
               {sentTokenForRow ? <span>Link de tarjeta enviado.</span> : null}
               {sentPaymentForRow ? <span>Link de pago enviado.</span> : null}
               {chargedForRow ? <span>Cobro manual enviado.</span> : null}
-              {cutoffForRow ? <span>Fecha de corte actualizada.</span> : null}
+              {chargeDateScheduledForRow ? <span>Fecha de pago actualizada.</span> : null}
             </div>
           ) : null}
           {tenantsUpdatedForRow ? <div className="field-hint">Canales actualizados.</div> : null}

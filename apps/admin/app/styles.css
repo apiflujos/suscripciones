@@ -1869,7 +1869,7 @@ a {
 
 .filtersRight {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
   justify-content: flex-end;
   flex: 0 0 auto;
@@ -1878,17 +1878,16 @@ a {
 }
 
 .list-csv-actions {
-  align-self: center;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .list-csv-actions .btn-icon-only {
-  width: 26px;
-  height: 26px;
-  min-width: 26px;
-  min-height: 26px;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
 }
 
 .import-modal-grid {
@@ -2037,6 +2036,63 @@ a {
   background: var(--primary-soft);
   color: var(--primary);
   font-weight: 600;
+}
+
+/* Filter Button */
+.filterButtonWrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.filter-button {
+  background: var(--surface-2);
+  border: 1px solid var(--stroke);
+}
+
+.filter-button:hover {
+  background: var(--row-hover);
+  border-color: var(--primary);
+}
+
+.filter-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 6px;
+  min-width: 240px;
+  background: var(--panel);
+  border: 1px solid var(--stroke-strong);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.filter-dropdown-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--stroke);
+  font-size: 13px;
+}
+
+.filter-dropdown-body {
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.filter-dropdown-hint {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.filter-dropdown .primary.btn-compact {
+  width: 100%;
+  justify-content: center;
 }
 
 .smartViewsBar {
@@ -2946,6 +3002,46 @@ html[data-theme="dark"] .payments-health-banner code {
 .logs-table-messages th,
 .logs-table-messages td {
   vertical-align: top;
+  padding: 10px 12px;
+}
+
+.logs-table-messages th {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.logs-table-messages .log-date-cell {
+  font-size: 11px;
+}
+
+.logs-table-messages .log-contact-cell {
+  min-width: 180px;
+}
+
+.logs-table-messages .log-contact-name {
+  font-size: 12px;
+  font-weight: 500;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.logs-table-messages .log-contact-meta {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.logs-table-messages .log-type-cell {
+  font-size: 11px;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.logs-table-messages .log-status-cell {
+  min-width: 100px;
 }
 
 .logs-table-messages .log-message-cell {
@@ -2957,6 +3053,7 @@ html[data-theme="dark"] .payments-health-banner code {
   overflow: hidden;
   min-width: 0;
   line-height: 1.35;
+  font-size: 12px;
 }
 
 .logs-table-messages .log-message-text {
@@ -2964,6 +3061,7 @@ html[data-theme="dark"] .payments-health-banner code {
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  color: var(--text-soft);
 }
 
 .logs-table-jobs,
@@ -14347,6 +14445,8 @@ html[data-contrast="high"] .toggle::after {
 .page-header-standard-title {
   display: grid;
   gap: 2px;
+  flex: 1;
+  text-align: center;
 }
 
 .page-title-standard {
@@ -14368,25 +14468,54 @@ html[data-contrast="high"] .toggle::after {
 }
 
 .page-header-standard-controls {
-  display: grid;
-  grid-template-columns: minmax(220px, 1.4fr) minmax(200px, 1fr) minmax(120px, 0.7fr) minmax(120px, 0.7fr) auto;
-  gap: 8px;
-  align-items: center;
-}
-
-.page-header-standard-controls > div {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.page-header-standard-search {
+  flex: 1 1 280px;
+  min-width: 200px;
 }
 
 .page-header-standard-search .filtersForm {
   width: 100%;
+  display: flex;
+  gap: 6px;
+  align-items: center;
 }
 
-.page-header-standard-smartviews.is-empty,
-.page-header-standard-filters.is-empty,
-.page-header-standard-views.is-empty {
+.page-header-standard-search .filtersForm .input {
+  flex: 1;
+  min-width: 180px;
+}
+
+.page-header-standard-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.page-header-standard-left > div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.page-header-standard-filters-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.page-header-standard-smartviews {
+  flex: 1 1 300px;
+  min-width: 200px;
+}
+
+.page-header-standard-smartviews.is-empty {
   justify-content: center;
   min-height: 36px;
   border: 1px dashed var(--panel-border);
@@ -14396,7 +14525,16 @@ html[data-contrast="high"] .toggle::after {
   font-size: 12px;
 }
 
+.page-header-standard-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 .page-header-standard-summary {
+  display: flex;
+  align-items: center;
   justify-content: flex-end;
   font-size: 12px;
   color: var(--muted);
@@ -14405,17 +14543,32 @@ html[data-contrast="high"] .toggle::after {
 
 @media (max-width: 1100px) {
   .page-header-standard-controls {
-    grid-template-columns: minmax(220px, 1fr) minmax(200px, 1fr);
+    flex-wrap: wrap;
+    gap: 10px;
   }
-  .page-header-standard-summary {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
+  .page-header-standard-search {
+    flex: 1 1 100%;
+    min-width: 100%;
+    order: -1;
+  }
+  .page-header-standard-left,
+  .page-header-standard-smartviews,
+  .page-header-standard-right {
+    flex: 1 1 auto;
   }
 }
 
 @media (max-width: 768px) {
   .page-header-standard-controls {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .page-header-standard-search,
+  .page-header-standard-left,
+  .page-header-standard-smartviews,
+  .page-header-standard-right {
+    width: 100%;
+    min-width: 100%;
   }
 }
 

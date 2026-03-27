@@ -518,23 +518,23 @@ export async function unmarkSubscriptionPaidManual(formData: FormData) {
   }
 }
 
+// DEPRECATED: scheduleCutoff ahora redirige a usar chargeDate en lugar de cutoffAt
+// La fecha de corte AHORA es la misma que la fecha de pago
 export async function scheduleCutoff(formData: FormData) {
-  await assertCsrfToken(formData);
-  const returnTo = safeReturnTo(formData);
-  const subscriptionId = String(formData.get("subscriptionId") || "").trim();
   const cutoffAt = String(formData.get("cutoffAt") || "").trim();
-  const tenantIds = readTenantIds(formData);
-  const tenantId = tenantIds[0] || "";
-  if (!subscriptionId || !cutoffAt) return redirect(mergeQuery(returnTo, { error: "missing_cutoff_date", ...(tenantId ? { tenantId } : {}) }));
-
-  try {
-    const res = await scheduleSubscriptionCutoff({ subscriptionId, cutoffAt, tenantId: tenantId || null });
-    if (!res.ok) throw new Error(res.error);
-    redirect(mergeQuery(returnTo, { cutoffScheduled: "1", subscriptionId, ...(tenantId ? { tenantId } : {}) }));
-  } catch (err: any) {
-    if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
-    redirect(mergeQuery(returnTo, { error: String(err?.message || "schedule_cutoff_failed"), ...(tenantId ? { tenantId } : {}) }));
+  const returnTo = String(formData.get("returnTo") || "/billing").trim();
+  const subscriptionId = String(formData.get("subscriptionId") || "").trim();
+  
+  // Redirigir con los parámetros correctos para setBillingChargeDate
+  const qs = new URLSearchParams();
+  if (subscriptionId) qs.set("subscriptionId", subscriptionId);
+  if (cutoffAt) {
+    qs.set("chargeDate", cutoffAt.split("T")[0] || cutoffAt);
+    qs.set("chargeTime", cutoffAt.split("T")[1] || "10:00");
   }
+  qs.set("returnTo", returnTo);
+  
+  redirect(`/billing?${qs.toString()}`);
 }
 
 export async function recalcCutoff(formData: FormData) {

@@ -14,6 +14,7 @@ import { HelpTip } from "../ui/HelpTip";
 import { ReconcilePaymentModal } from "./ReconcilePaymentModal";
 import { PageHeaderStandard } from "../ui/PageHeaderStandard";
 import { ListCsvActions } from "../ui/ListCsvActions";
+import { FilterButton } from "../ui/FilterButton";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
 import { getAdminSettings } from "../admin/_services/settings";
@@ -622,62 +623,6 @@ export default async function LogsPage({
       </div>
     );
 
-  const headerActions =
-    tab === "payments" ? (
-      <>
-        <ListCsvActions
-          exportHref={`/api/list-csv?${new URLSearchParams({
-            scope: "payments",
-            ...(q ? { q } : {}),
-            ...(status ? { status } : {}),
-            ...(from ? { from } : {}),
-            ...(to ? { to } : {}),
-            ...(tenantId ? { tenantId } : {})
-          }).toString()}`}
-          defaultEntity="payments"
-        />
-        <form action={reconcilePendingPayments} className="filtersForm payments-action-form">
-          <input type="hidden" name="returnTo" value={returnTo} />
-          <input type="hidden" name="csrf" value={csrfToken} />
-          <input type="hidden" name="days" value="7" />
-          <input type="hidden" name="minutes" value="720" />
-          <input type="hidden" name="take" value="150" />
-          {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-          <PendingButton className="ghost btn-compact btn-noicon" type="submit" pendingText="Conciliando..." title="Reintenta conciliación de pagos pendientes">
-            Recolectar
-          </PendingButton>
-        </form>
-        <ReconcilePaymentModal csrfToken={csrfToken} action={reconcilePayment} />
-      </>
-    ) : (
-      <div className="panel-tabs">
-        <Link
-          className={`ghost no-icon panel-tab ${tab === "system" ? "is-active" : ""}`}
-          href={`/logs?${new URLSearchParams({ tab: "system" })}`}
-          title="Eventos internos y auditoría"
-          prefetch={false}
-        >
-          Sistema
-        </Link>
-        <Link
-          className={`ghost no-icon panel-tab ${tab === "webhooks" ? "is-active" : ""}`}
-          href={`/logs?${new URLSearchParams({ tab: "webhooks" })}`}
-          title="Entradas y reintentos de webhooks"
-          prefetch={false}
-        >
-          Webhooks
-        </Link>
-        <Link
-          className={`ghost no-icon panel-tab ${tab === "messages" ? "is-active" : ""}`}
-          href={`/logs?${new URLSearchParams({ tab: "messages" })}`}
-          title="Mensajes enviados por integraciones"
-          prefetch={false}
-        >
-          Mensajes
-        </Link>
-      </div>
-    );
-
   const headerSearch =
     tab === "payments" ? (
       <form action="/payments" method="GET" className="filtersForm filtersSearch" data-debounce-form="true">
@@ -782,7 +727,9 @@ export default async function LogsPage({
         </a>
       </div>
     ) : (
-      <span className="muted">{tab === "system" ? paginationSummary : "Filtros por fecha, estado y tipo."}</span>
+      <div className="page-header-standard-filters-group">
+        <span className="muted">{tab === "system" ? paginationSummary : "Filtros por fecha, estado y tipo."}</span>
+      </div>
     );
 
   return (
@@ -817,12 +764,108 @@ export default async function LogsPage({
           <PageHeaderStandard
             title={headerTitle}
             subtitle={headerSubtitle}
-            actions={headerActions}
+            actions={tab === "payments" ? (
+              <>
+                <ReconcilePaymentModal csrfToken={csrfToken} action={reconcilePayment} />
+              </>
+            ) : null}
             search={headerSearch}
             smartViews={headerSmartViews || undefined}
-            filters={headerFilters}
-            views={<ViewModeToggles currentMode="lista" baseParams={{ ...(q ? { q } : {}), ...(viewId ? { viewId } : {}), ...(filters ? { filters } : {}) }} />}
-            summary={headerSummary}
+            filters={(
+              <div className="page-header-standard-filters-group">
+                {tab === "payments" ? (
+                  <>
+                    <ListCsvActions
+                      exportHref={`/api/list-csv?${new URLSearchParams({
+                        scope: "payments",
+                        ...(q ? { q } : {}),
+                        ...(status ? { status } : {}),
+                        ...(from ? { from } : {}),
+                        ...(to ? { to } : {}),
+                        ...(tenantId ? { tenantId } : {})
+                      }).toString()}`}
+                      defaultEntity="payments"
+                    />
+                    <form action={reconcilePendingPayments} className="filtersForm">
+                      <input type="hidden" name="returnTo" value={returnTo} />
+                      <input type="hidden" name="csrf" value={csrfToken} />
+                      <input type="hidden" name="days" value="7" />
+                      <input type="hidden" name="minutes" value="720" />
+                      <input type="hidden" name="take" value="150" />
+                      {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+                      <PendingButton className="ghost btn-compact btn-noicon" type="submit" pendingText="Conciliando..." title="Reintenta conciliación de pagos pendientes">
+                        Recolectar
+                      </PendingButton>
+                    </form>
+                    <div className="payments-view-toggles">
+                      <a
+                        className={`pill ${paymentsView === "RECEIVED" ? "is-active" : ""}`}
+                        href={`/payments?${new URLSearchParams({
+                          paymentsView: "RECEIVED",
+                          ...(q ? { q } : {}),
+                          ...(from ? { from } : {}),
+                          ...(to ? { to } : {}),
+                          ...(tenantId ? { tenantId } : {}),
+                          ...(viewId ? { viewId } : {}),
+                          ...(filters ? { filters } : {})
+                        }).toString()}`}
+                      >
+                        Recibidos
+                      </a>
+                      <a
+                        className={`pill ${paymentsView === "REQUESTED" ? "is-active" : ""}`}
+                        href={`/payments?${new URLSearchParams({
+                          paymentsView: "REQUESTED",
+                          ...(q ? { q } : {}),
+                          ...(from ? { from } : {}),
+                          ...(to ? { to } : {}),
+                          ...(tenantId ? { tenantId } : {}),
+                          ...(viewId ? { viewId } : {}),
+                          ...(filters ? { filters } : {})
+                        }).toString()}`}
+                      >
+                        Solicitados
+                      </a>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <FilterButton />
+                    <ViewModeToggles currentMode="lista" baseParams={{ ...(q ? { q } : {}), ...(viewId ? { viewId } : {}), ...(filters ? { filters } : {}) }} />
+                    {headerFilters}
+                  </>
+                )}
+              </div>
+            )}
+            views={tab === "payments" ? null : (
+              <div className="panel-tabs">
+                <Link
+                  className={`ghost no-icon panel-tab ${tab === "system" ? "is-active" : ""}`}
+                  href={`/logs?${new URLSearchParams({ tab: "system" })}`}
+                  title="Eventos internos y auditoría"
+                  prefetch={false}
+                >
+                  Sistema
+                </Link>
+                <Link
+                  className={`ghost no-icon panel-tab ${tab === "webhooks" ? "is-active" : ""}`}
+                  href={`/logs?${new URLSearchParams({ tab: "webhooks" })}`}
+                  title="Entradas y reintentos de webhooks"
+                  prefetch={false}
+                >
+                  Webhooks
+                </Link>
+                <Link
+                  className={`ghost no-icon panel-tab ${tab === "messages" ? "is-active" : ""}`}
+                  href={`/logs?${new URLSearchParams({ tab: "messages" })}`}
+                  title="Mensajes enviados por integraciones"
+                  prefetch={false}
+                >
+                  Mensajes
+                </Link>
+              </div>
+            )}
+            summary={tab === "payments" ? headerSummary : null}
           />
           {tab !== "payments" && (
             <div className="filtersPanel payments-health-panel">

@@ -1,54 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { PendingButton } from "../ui/PendingButton";
 import { HelpTip } from "../ui/HelpTip";
+import { PendingButton } from "../ui/PendingButton";
 
 export type PlanOption = {
   id: string;
   name: string;
-  sku?: string;
-  searchText?: string;
-  collectionMode?: string | null;
-  priceInCents?: number | null;
-  currency?: string | null;
-  kind?: "PRODUCT" | "SERVICE" | null;
-  requiresShipping?: boolean;
-  shippingInCents?: number | null;
+  sku: string;
+  searchText: string;
+  collectionMode: string;
+  priceInCents: number;
+  currency: string;
+  kind: "PRODUCT" | "SERVICE";
+  requiresShipping: boolean;
+  shippingInCents: number;
 };
-
-function readPlanPricing(meta: any) {
-  if (!meta || typeof meta !== "object") return {};
-  const root = meta?.pricing;
-  const legacy = meta?.catalog?.pricing;
-  if (root && typeof root === "object") return root;
-  if (legacy && typeof legacy === "object") return legacy;
-  return {};
-}
-
-function mapPlanFromApi(p: any): PlanOption {
-  const metadata = p?.metadata && typeof p.metadata === "object" ? p.metadata : {};
-  const catalog = metadata?.catalog && typeof metadata.catalog === "object" ? metadata.catalog : {};
-  const pricing = readPlanPricing(metadata);
-  const kindRaw = String(p?.kind || catalog?.kind || "").toUpperCase();
-  const kind = kindRaw === "SERVICE" ? "SERVICE" : "PRODUCT";
-  const requiresShippingRaw = p?.requiresShipping ?? catalog?.requiresShipping;
-  return {
-    id: String(p?.id || ""),
-    name: String(metadata?.displayName || p?.name || "Plan"),
-    sku: String(p?.sku || metadata?.sku || ""),
-    searchText: [metadata?.displayName, p?.name, p?.sku, metadata?.sku, catalog?.name, p?.id]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase(),
-    collectionMode: String(p?.collectionMode || metadata?.collectionMode || ""),
-    priceInCents: Number(p?.priceInCents || p?.basePriceInCents || 0),
-    currency: String(p?.currency || "COP"),
-    kind,
-    requiresShipping: kind === "PRODUCT" && (requiresShippingRaw === true || requiresShippingRaw == null),
-    shippingInCents: Number(p?.shippingInCents || pricing?.shippingInCents || 0)
-  };
-}
 
 function toLocalInput(value?: string | null) {
   if (!value) return "";
@@ -91,10 +58,43 @@ function planRequiresShipping(plan: PlanOption | null | undefined) {
   return kind !== "SERVICE";
 }
 
+function readPlanPricing(meta: any) {
+  if (!meta || typeof meta !== "object") return {};
+  const root = meta?.pricing;
+  const legacy = meta?.catalog?.pricing;
+  if (root && typeof root === "object") return root;
+  if (legacy && typeof legacy === "object") return legacy;
+  return {};
+}
+
+function mapPlanFromApi(p: any): PlanOption {
+  const metadata = p?.metadata && typeof p.metadata === "object" ? p.metadata : {};
+  const catalog = metadata?.catalog && typeof metadata.catalog === "object" ? metadata.catalog : {};
+  const pricing = readPlanPricing(metadata);
+  const kindRaw = String(p?.kind || catalog?.kind || "").toUpperCase();
+  const kind = kindRaw === "SERVICE" ? "SERVICE" : "PRODUCT";
+  const requiresShippingRaw = p?.requiresShipping ?? catalog?.requiresShipping;
+  return {
+    id: String(p?.id || ""),
+    name: String(metadata?.displayName || p?.name || "Plan"),
+    sku: String(p?.sku || metadata?.sku || ""),
+    searchText: [metadata?.displayName, p?.name, p?.sku, metadata?.sku, catalog?.name, p?.id]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase(),
+    collectionMode: String(p?.collectionMode || metadata?.collectionMode || ""),
+    priceInCents: Number(p?.priceInCents || p?.basePriceInCents || 0),
+    currency: String(p?.currency || "COP"),
+    kind,
+    requiresShipping: kind === "PRODUCT" && (requiresShippingRaw === true || requiresShippingRaw == null),
+    shippingInCents: Number(p?.shippingInCents || pricing?.shippingInCents || 0)
+  };
+}
+
 export function ChangePlanButton({
   subscriptionId,
   currentPlanId,
-  currentEndAt,
+  currentChargeAt,
   currentShippingInCents = 0,
   currentRequiresShipping = false,
   currentPlanName = "Plan actual",
@@ -108,7 +108,7 @@ export function ChangePlanButton({
 }: {
   subscriptionId: string;
   currentPlanId: string;
-  currentEndAt?: string | null;
+  currentChargeAt?: string | null;
   currentShippingInCents?: number;
   currentRequiresShipping?: boolean;
   currentPlanName?: string;
@@ -121,9 +121,9 @@ export function ChangePlanButton({
   iconOnly?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const initialCutoff = useMemo(() => toLocalInput(currentEndAt), [currentEndAt]);
+  const initialChargeDate = useMemo(() => toLocalInput(currentChargeAt), [currentChargeAt]);
   const [planId, setPlanId] = useState(currentPlanId);
-  const [cutoffAt, setCutoffAt] = useState(initialCutoff);
+  const [chargeDate, setChargeDate] = useState(initialChargeDate);
   const [query, setQuery] = useState("");
   const [shippingCop, setShippingCop] = useState(centsToCurrencyInput(currentShippingInCents || 0, "COP"));
   const [freeShipping, setFreeShipping] = useState(Boolean(currentRequiresShipping) && Number(currentShippingInCents || 0) <= 0);
@@ -134,6 +134,10 @@ export function ChangePlanButton({
     () => ({
       id: currentPlanId,
       name: currentPlanName || "Plan actual",
+      sku: "",
+      searchText: "",
+      collectionMode: "",
+      priceInCents: 0,
       currency: currentPlanCurrency || "COP",
       kind: currentRequiresShipping ? "PRODUCT" : "SERVICE",
       requiresShipping: currentRequiresShipping,
@@ -145,12 +149,12 @@ export function ChangePlanButton({
   useEffect(() => {
     if (!open) return;
     setPlanId(currentPlanId);
-    setCutoffAt(initialCutoff);
+    setChargeDate(initialChargeDate);
     setQuery("");
     setShippingCop(centsToCurrencyInput(currentShippingInCents || 0, currentPlanCurrency || "COP"));
     setFreeShipping(Boolean(currentRequiresShipping) && Number(currentShippingInCents || 0) <= 0);
     appliedDefaultsPlanIdRef.current = String(currentPlanId || "");
-  }, [open, currentPlanId, initialCutoff, currentShippingInCents, currentRequiresShipping, currentPlanCurrency]);
+  }, [open, currentPlanId, initialChargeDate, currentShippingInCents, currentRequiresShipping, currentPlanCurrency]);
 
   const localFilteredPlans = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -252,7 +256,7 @@ export function ChangePlanButton({
   const shippingChanged = selectedRequiresShipping && selectedShippingInCents !== currentShippingComparable;
   const hasChange = Boolean(
     planId &&
-      (planId !== currentPlanId || cutoffAt !== initialCutoff || shippingChanged)
+      (planId !== currentPlanId || chargeDate !== initialChargeDate || shippingChanged)
   );
 
   useEffect(() => {
@@ -279,8 +283,8 @@ export function ChangePlanButton({
         type="button"
         data-loader="off"
         onClick={() => setOpen(true)}
-        aria-label={iconOnly ? "Editar producto, flete y fecha de corte" : undefined}
-        title={iconOnly ? "Editar producto, flete y fecha de corte" : undefined}
+        aria-label={iconOnly ? "Editar producto, flete y fecha de pago" : undefined}
+        title={iconOnly ? "Editar producto, flete y fecha de pago" : undefined}
       >
         {iconOnly ? null : "Cambiar producto"}
       </button>
@@ -347,15 +351,15 @@ export function ChangePlanButton({
 
               <div className="field">
                 <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span>Nueva fecha de corte</span>
-                  <HelpTip text="Se recalcula el ciclo y se programa el cobro o link de pago según el plan." />
+                  <span>Nueva fecha de pago</span>
+                  <HelpTip text="Esta fecha define el próximo cobro y el ciclo de facturación." />
                 </label>
                 <input
                   className="input"
                   type="datetime-local"
-                  name="cutoffAt"
-                  value={cutoffAt}
-                  onChange={(e) => setCutoffAt(e.target.value)}
+                  name="chargeDate"
+                  value={chargeDate}
+                  onChange={(e) => setChargeDate(e.target.value)}
                   required
                 />
               </div>
@@ -402,7 +406,7 @@ export function ChangePlanButton({
                 <button className="ghost btn-cancel" type="button" data-loader="off" onClick={() => setOpen(false)}>
                   Cancelar
                 </button>
-                <PendingButton className="primary btn-save" type="submit" pendingText="Guardando..." disabled={!hasChange || !cutoffAt}>
+                <PendingButton className="primary btn-save" type="submit" pendingText="Guardando..." disabled={!hasChange || !chargeDate}>
                   Guardar
                 </PendingButton>
               </div>

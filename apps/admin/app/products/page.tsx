@@ -6,6 +6,7 @@ import { createCustomerFromBilling, createPlanAndSubscription } from "../billing
 import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
+import { FilterButton } from "../ui/FilterButton";
 import { HelpTip } from "../ui/HelpTip";
 import { listCatalogProducts } from "../admin/_services/products";
 import { ProductsModalTrigger } from "./ProductsModalTrigger";
@@ -118,10 +119,7 @@ export default async function ProductsPage({
         title="Productos y Servicios"
         subtitle="Catálogo, precios y disponibilidad por canal."
         actions={(
-          <>
-            <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="products" />
-            <ProductsModalTrigger />
-          </>
+          <ProductsModalTrigger />
         )}
         search={(
           <form action="/products" method="GET" className="filtersForm filtersSearch">
@@ -141,6 +139,23 @@ export default async function ProductsPage({
             <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
           </form>
         )}
+        filters={(
+          <div className="page-header-standard-filters-group">
+            <FilterButton />
+            <ViewModeToggles
+              currentMode={vistaTyped}
+              baseParams={{
+                ...(tenantId ? { tenantId } : {}),
+                ...(q ? { q } : {}),
+                ...(viewId ? { viewId } : {}),
+                ...(filters ? { filters } : {})
+              }}
+            />
+          </div>
+        )}
+        views={(
+          <HelpTip text="Cambia entre vista de cards y lista." />
+        )}
         smartViews={(
           <SmartViewsBar
             scope="products"
@@ -154,17 +169,8 @@ export default async function ProductsPage({
             compactInline
           />
         )}
-        filters={<HelpTip text="Filtra por tipo, precio, periodicidad y estado." />}
-        views={(
-          <ViewModeToggles
-            currentMode={vistaTyped}
-            baseParams={{
-              ...(tenantId ? { tenantId } : {}),
-              ...(q ? { q } : {}),
-              ...(viewId ? { viewId } : {}),
-              ...(filters ? { filters } : {})
-            }}
-          />
+        summary={(
+          <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="products" />
         )}
       />
 

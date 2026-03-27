@@ -19,6 +19,7 @@ import { prisma } from "@suscripciones/database";
 import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
+import { FilterButton } from "../ui/FilterButton";
 import { HelpTip } from "../ui/HelpTip";
 import { CustomersModalTrigger } from "./CustomersModalTrigger";
 import { PageHeaderStandard } from "../ui/PageHeaderStandard";
@@ -326,10 +327,7 @@ export default async function CustomersPage({
         title="Contactos"
         subtitle="Gestión de clientes, pagos y acciones rápidas."
         actions={(
-          <>
-            <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
-            <CustomersModalTrigger />
-          </>
+          <CustomersModalTrigger />
         )}
         search={(
           <form action="/customers" method="GET" className="filtersForm filtersSearch">
@@ -349,6 +347,23 @@ export default async function CustomersPage({
             <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
           </form>
         )}
+        filters={(
+          <div className="page-header-standard-filters-group">
+            <FilterButton />
+            <ViewModeToggles
+              currentMode={vistaTyped}
+              baseParams={{
+                ...(q ? { q } : {}),
+                ...(tenantId ? { tenantId } : {}),
+                ...(viewId ? { viewId } : {}),
+                ...(filters ? { filters } : {})
+              }}
+            />
+          </div>
+        )}
+        views={(
+          <HelpTip text="Cambia entre vista de cards y lista." />
+        )}
         smartViews={(
           <SmartViewsBar
             scope="customers"
@@ -362,17 +377,8 @@ export default async function CustomersPage({
             compactInline
           />
         )}
-        filters={<HelpTip text="Filtros inteligentes por cliente, plan o estado." />}
-        views={(
-          <ViewModeToggles
-            currentMode={vistaTyped}
-            baseParams={{
-              ...(q ? { q } : {}),
-              ...(tenantId ? { tenantId } : {}),
-              ...(viewId ? { viewId } : {}),
-              ...(filters ? { filters } : {})
-            }}
-          />
+        summary={(
+          <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
         )}
       />
 
