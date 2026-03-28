@@ -718,33 +718,10 @@ export default async function LogsPage({
   return (
     <main className={`page${tab === "payments" ? " paymentsPage" : ""}`}>
       <LogsFiltersAutoSubmit />
-      {shopifyResent ? (
-        <div className="card cardPad">Reenvío a Shopify encolado.</div>
-      ) : null}
-      {shopifyError ? (
-        <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>
-          Error Shopify: {shopifyError}
-        </div>
-      ) : null}
-      {recollectStatus === "ok" ? (
-        <div className="card cardPad">Recolectar pagos ejecutado.</div>
-      ) : null}
-      {recollectStatus === "fail" ? (
-        <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>
-          Error recolectando pagos: {recollectError || "unknown_error"}
-        </div>
-      ) : null}
-      {assocStatus === "ok" ? (
-        <div className="card cardPad">Pago asociado manualmente a la suscripción.</div>
-      ) : null}
-      {assocStatus === "fail" ? (
-        <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>
-          Error asociando pago: {assocError || "unknown_error"}
-        </div>
-      ) : null}
 
+      {/* Tabs de navegación superiores */}
       {tab !== "payments" && (
-        <div className="panel-tabs panel-tabs-top">
+        <div className="panel-tabs panel-tabs-top" style={{ marginBottom: 0, borderBottom: "1px solid var(--stroke)" }}>
           <Link
             className={`ghost no-icon panel-tab ${tab === "system" ? "is-active" : ""}`}
             href={`/logs?${new URLSearchParams({ tab: "system" })}`}
@@ -772,118 +749,78 @@ export default async function LogsPage({
         </div>
       )}
 
-      <section className="settings-group">
-        <div className="settings-group-header">
-          <PageHeaderStandard
-            actions={tab === "payments" ? (
-              <>
-                <ReconcilePaymentModal csrfToken={csrfToken} action={reconcilePayment} />
-              </>
-            ) : null}
-            search={headerSearch}
-            smartViews={headerSmartViews || undefined}
-            filters={(
-              <div className="page-header-standard-filters-group">
-                {tab === "payments" ? (
-                  <>
-                    <ListCsvActions
-                      exportHref={`/api/list-csv?${new URLSearchParams({
-                        scope: "payments",
-                        ...(q ? { q } : {}),
-                        ...(status ? { status } : {}),
-                        ...(from ? { from } : {}),
-                        ...(to ? { to } : {}),
-                        ...(tenantId ? { tenantId } : {})
-                      }).toString()}`}
-                      defaultEntity="payments"
-                    />
-                    <form action={reconcilePendingPayments} className="filtersForm">
-                      <input type="hidden" name="returnTo" value={returnTo} />
-                      <input type="hidden" name="csrf" value={csrfToken} />
-                      <input type="hidden" name="days" value="7" />
-                      <input type="hidden" name="minutes" value="720" />
-                      <input type="hidden" name="take" value="150" />
-                      {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-                      <PendingButton className="ghost btn-compact btn-noicon" type="submit" pendingText="Conciliando..." title="Reintenta conciliación de pagos pendientes">
-                        Recolectar
-                      </PendingButton>
-                    </form>
-                    <div className="payments-view-toggles">
-                      <a
-                        className={`pill ${paymentsView === "RECEIVED" ? "is-active" : ""}`}
-                        href={`/payments?${new URLSearchParams({
-                          paymentsView: "RECEIVED",
-                          ...(q ? { q } : {}),
-                          ...(from ? { from } : {}),
-                          ...(to ? { to } : {}),
-                          ...(tenantId ? { tenantId } : {}),
-                          ...(viewId ? { viewId } : {}),
-                          ...(filters ? { filters } : {})
-                        }).toString()}`}
-                      >
-                        Recibidos
-                      </a>
-                      <a
-                        className={`pill ${paymentsView === "REQUESTED" ? "is-active" : ""}`}
-                        href={`/payments?${new URLSearchParams({
-                          paymentsView: "REQUESTED",
-                          ...(q ? { q } : {}),
-                          ...(from ? { from } : {}),
-                          ...(to ? { to } : {}),
-                          ...(tenantId ? { tenantId } : {}),
-                          ...(viewId ? { viewId } : {}),
-                          ...(filters ? { filters } : {})
-                        }).toString()}`}
-                      >
-                        Solicitados
-                      </a>
-                    </div>
-                  </>
-                ) : tab === "system" ? (
-                  <>
-                    <FilterButton />
-                    <ViewModeToggles currentMode="lista" baseParams={{ ...(q ? { q } : {}), ...(viewId ? { viewId } : {}), ...(filters ? { filters } : {}) }} />
-                  </>
-                ) : tab === "webhooks" ? (
-                  <>
-                    <FilterButton />
-                    <select className="select" name="processStatus" defaultValue={processStatus} style={{ minWidth: 110, fontSize: 11 }} title="Estado de procesamiento">
-                      <option value="">Estado: Todos</option>
-                      <option value="PROCESSED">Procesados</option>
-                      <option value="FAILED">Fallidos</option>
-                      <option value="SKIPPED">Omitidos</option>
-                    </select>
-                  </>
-                ) : tab === "messages" ? (
-                  <>
-                    <FilterButton />
-                    <select className="select" name="status" defaultValue={status} style={{ minWidth: 110, fontSize: 11 }} title="Estado">
-                      <option value="">Estado: Todos</option>
-                      <option value="SENT">Enviados</option>
-                      <option value="PENDING">Pendientes</option>
-                      <option value="FAILED">Fallidos</option>
-                    </select>
-                  </>
-                ) : null}
-              </div>
-            )}
-            views={tab === "payments" ? null : tab === "system" ? (
-              <span className="muted">{paginationSummary}</span>
-            ) : tab === "webhooks" ? (
-              <div className="page-header-standard-filters-group">
-                <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" title="Desde" style={{ width: 120, fontSize: 11 }} />
-                <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" title="Hasta" style={{ width: 120, fontSize: 11 }} />
-              </div>
-            ) : tab === "messages" ? (
-              <div className="page-header-standard-filters-group">
-                <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" title="Desde" style={{ width: 120, fontSize: 11 }} />
-                <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" title="Hasta" style={{ width: 120, fontSize: 11 }} />
-              </div>
-            ) : null}
-            summary={tab === "payments" ? headerSummary : null}
-          />
+      {/* Mensajes de notificación */}
+      {shopifyResent ? <div className="card cardPad">Reenvío a Shopify encolado.</div> : null}
+      {shopifyError ? <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>Error Shopify: {shopifyError}</div> : null}
+      {recollectStatus === "ok" ? <div className="card cardPad">Recolectar pagos ejecutado.</div> : null}
+      {recollectStatus === "fail" ? <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>Error recolectando pagos: {recollectError || "unknown_error"}</div> : null}
+      {assocStatus === "ok" ? <div className="card cardPad">Pago asociado manualmente a la suscripción.</div> : null}
+      {assocStatus === "fail" ? <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>Error asociando pago: {assocError || "unknown_error"}</div> : null}
+
+      {/* Header simplificado */}
+      <div className="logs-header-simple" style={{ display: "grid", gap: 12, marginBottom: 16 }}>
+        {/* Fila 1: Búsqueda + Filtros rápidos */}
+        <div style={{ display: "flex", gap: 8, alignItems: center, flexWrap: "wrap" }}>
+          <div style={{ flex: "1 1 300px" }}>
+            {headerSearch}
+          </div>
+          {tab === "webhooks" && (
+            <select className="select" name="processStatus" defaultValue={processStatus} style={{ minWidth: 140 }}>
+              <option value="">Estado: Todos</option>
+              <option value="PROCESSED">Procesados</option>
+              <option value="FAILED">Fallidos</option>
+              <option value="SKIPPED">Omitidos</option>
+            </select>
+          )}
+          {tab === "messages" && (
+            <select className="select" name="status" defaultValue={status} style={{ minWidth: 140 }}>
+              <option value="">Estado: Todos</option>
+              <option value="SENT">Enviados</option>
+              <option value="PENDING">Pendientes</option>
+              <option value="FAILED">Fallidos</option>
+            </select>
+          )}
+          {tab === "payments" && (
+            <div className="payments-view-toggles">
+              <a className={`pill ${paymentsView === "RECEIVED" ? "is-active" : ""}`} href={`/payments?${new URLSearchParams({ paymentsView: "RECEIVED", ...(q ? { q } : {}), ...(from ? { from } : {}), ...(to ? { to } : {}), ...(tenantId ? { tenantId } : {}), ...(viewId ? { viewId } : {}), ...(filters ? { filters } : {}) }).toString()}`}>Recibidos</a>
+              <a className={`pill ${paymentsView === "REQUESTED" ? "is-active" : ""}`} href={`/payments?${new URLSearchParams({ paymentsView: "REQUESTED", ...(q ? { q } : {}), ...(from ? { from } : {}), ...(to ? { to } : {}), ...(tenantId ? { tenantId } : {}), ...(viewId ? { viewId } : {}), ...(filters ? { filters } : {}) }).toString()}`}>Solicitados</a>
+            </div>
+          )}
+        </div>
+
+        {/* Fila 2: Fechas + SmartLists */}
+        <div style={{ display: "flex", gap: 8, alignItems: center, flexWrap: "wrap" }}>
           {tab !== "payments" && (
-            <div className="filtersPanel payments-health-panel">
+            <>
+              <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" title="Desde" style={{ width: 130 }} />
+              <span className="muted" style={{ fontSize: 12 }}>hasta</span>
+              <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" title="Hasta" style={{ width: 130 }} />
+            </>
+          )}
+          {headerSmartViews}
+        </div>
+
+        {/* Fila 3: Acciones (solo payments) */}
+        {tab === "payments" && (
+          <div style={{ display: "flex", gap: 8, alignItems: center, flexWrap: "wrap" }}>
+            <ListCsvActions exportHref={`/api/list-csv?${new URLSearchParams({ scope: "payments", ...(q ? { q } : {}), ...(status ? { status } : {}), ...(from ? { from } : {}), ...(to ? { to } : {}), ...(tenantId ? { tenantId } : {}) }).toString()}`} defaultEntity="payments" />
+            <form action={reconcilePendingPayments} className="filtersForm">
+              <input type="hidden" name="returnTo" value={returnTo} />
+              <input type="hidden" name="csrf" value={csrfToken} />
+              <input type="hidden" name="days" value="7" />
+              <input type="hidden" name="minutes" value="720" />
+              <input type="hidden" name="take" value="150" />
+              {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+              <PendingButton className="ghost btn-compact btn-noicon" type="submit" pendingText="Conciliando..." title="Reintenta conciliación de pagos pendientes">Recolectar</PendingButton>
+            </form>
+            <ReconcilePaymentModal csrfToken={csrfToken} action={reconcilePayment} />
+          </div>
+        )}
+      </div>
+
+      {/* Panel de salud del sistema (solo non-payments) */}
+      {tab !== "payments" && (
+        <div className="filtersPanel payments-health-panel" style={{ marginBottom: 16 }}>
               {(() => {
                     if (tab === "payments") return null;
                     const banners: Array<{ tone: "warn" | "danger" | "info"; text: React.ReactNode; action?: React.ReactNode }> = [];
@@ -1470,7 +1407,6 @@ export default async function LogsPage({
 
           {pagination}
         </div>
-      </section>
     </main>
   );
 }

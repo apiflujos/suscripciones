@@ -7291,6 +7291,32 @@ textarea.input {
   justify-content: center;
 }
 
+/* Logs Header Simplificado */
+.logs-header-simple {
+  padding: 12px 14px;
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+}
+
+.logs-header-simple .filtersForm {
+  margin: 0;
+}
+
+.logs-header-simple .select {
+  font-size: 12px;
+}
+
+.logs-header-simple .input[type="date"] {
+  font-size: 12px;
+  padding: 6px 8px;
+}
+
+.logs-header-simple .payments-view-toggles {
+  display: flex;
+  gap: 6px;
+}
+
 .subscription-edit-grid {
   display: grid;
   gap: 16px;
