@@ -466,12 +466,6 @@ export function CustomersTable({
     setTimeout(() => lastActiveRef.current?.focus(), 0);
   }
 
-  useEffect(() => {
-    if (!initialTxCustomerId || txOpen) return;
-    const found = items.find((c) => String(c.id) === String(initialTxCustomerId));
-    if (found) openTransactions(found);
-  }, [initialTxCustomerId, items]);
-
   return (
     <>
       {view === "list" ? (
@@ -1196,79 +1190,6 @@ export function CustomersTable({
         </div>
       ) : null}
 
-
-      {txOpen && txCustomer ? (
-        <div className="modal-backdrop">
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="customer-tx-title"
-            className="modal-panel"
-            style={{ width: "min(900px, 96vw)", maxHeight: "90vh", overflow: "auto" }}
-          >
-            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 id="customer-tx-title" style={{ margin: 0 }}>
-                Transacciones: {txCustomer.name || txCustomer.email || txCustomer.id}
-              </h3>
-              <button type="button" className="ghost modal-close" onClick={closeTransactions} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                X
-              </button>
-            </div>
-            {txLoading ? <div className="field-hint">Cargando transacciones…</div> : null}
-            {txError ? <div className="field-hint" style={{ color: "var(--danger)" }}>Error: {txError}</div> : null}
-            {!txLoading && !txError && txItems.length === 0 ? <div className="field-hint">No hay transacciones.</div> : null}
-            {!txLoading && !txError && txItems.length ? (
-              <div className="table-scroll">
-                <table className="table table-fixed">
-                  <colgroup>
-                    <col style={{ width: "14%" }} />
-                    <col style={{ width: "12%" }} />
-                    <col style={{ width: "16%" }} />
-                    <col style={{ width: "24%" }} />
-                    <col style={{ width: "18%" }} />
-                    <col style={{ width: "16%" }} />
-                  </colgroup>
-                  <thead>
-                    <tr>
-                      <th>Fecha</th>
-                      <th>Monto</th>
-                      <th>Estado</th>
-                      <th>Último intento</th>
-                      <th>Producto/Suscripción</th>
-                      <th>Referencia</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {txItems.map((t) => (
-                      <tr key={t.id}>
-                        <td><LocalDateTime value={t.createdAt} /></td>
-                        <td>{formatCopFromCents(t.amountInCents)}</td>
-                        <td className="cell-truncate" title={t.status || "—"}>{t.status || "—"}</td>
-                        <td>
-                          {t.lastAttempt ? (
-                            <div style={{ display: "grid", gap: 2 }}>
-                              <span className="cell-truncate" title={t.lastAttempt.status || "—"}>{t.lastAttempt.status || "—"}</span>
-                              {t.lastAttempt.errorMessage ? (
-                                <span className="field-hint cell-wrap" style={{ color: "var(--danger)" }}>
-                                  {t.lastAttempt.errorMessage}
-                                </span>
-                              ) : null}
-                            </div>
-                          ) : (
-                            "—"
-                          )}
-                        </td>
-                        <td className="cell-truncate" title={formatPlanLabel(t.planName || "")}>{formatPlanLabel(t.planName || "")}</td>
-                        <td className="cell-truncate mono" title={t.reference || "—"}>{t.reference || "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
 
       {viewLinksOpen ? (
         <ViewLinksModal links={viewLinksItems} onClose={closeViewLinks} />
