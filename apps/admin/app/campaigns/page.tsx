@@ -62,28 +62,6 @@ export default async function CampaignsPage({
       {sp.running ? <div className="panel module">Campaña en cola.</div> : null}
 
       <PageHeaderStandard
-        actions={(
-          <NewMassMessageModal
-            csrfToken={csrfToken}
-            returnTo={returnTo}
-            views={lists
-              .filter((v: any) => {
-                const name = String(v?.name || "").toLowerCase();
-                if (name.startsWith("gamificación")) return false;
-                if (name.startsWith("ranking")) return false;
-                if (name.startsWith("estado")) return false;
-                return true;
-              })
-              .map((v: any) => ({
-                id: String(v.id),
-                name: String(v.name),
-                visibility: v.visibility,
-                type: v.type
-              }))}
-            tenantId={tenantId}
-            action={createCampaign}
-          />
-        )}
         search={(
           <form action="/campaigns" method="GET" className="filtersForm filtersSearch">
             {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
@@ -99,6 +77,31 @@ export default async function CampaignsPage({
             <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
           </form>
         )}
+        filters={(
+          <div className="page-header-standard-filters-group">
+            <NewMassMessageModal
+              csrfToken={csrfToken}
+              returnTo={returnTo}
+              views={lists
+                .filter((v: any) => {
+                  const name = String(v?.name || "").toLowerCase();
+                  if (name.startsWith("gamificación")) return false;
+                  if (name.startsWith("ranking")) return false;
+                  if (name.startsWith("estado")) return false;
+                  return true;
+                })
+                .map((v: any) => ({
+                  id: String(v.id),
+                  name: String(v.name),
+                  visibility: v.visibility,
+                  type: v.type
+                }))}
+              tenantId={tenantId}
+              action={createCampaign}
+            />
+            <ViewModeToggles currentMode="lista" baseParams={{ ...(q ? { q } : {}), ...(viewId ? { viewId } : {}), ...(filters ? { filters } : {}) }} />
+          </div>
+        )}
         smartViews={(
           <SmartViewsBar
             scope="campaigns"
@@ -111,8 +114,6 @@ export default async function CampaignsPage({
             compactInline
           />
         )}
-        filters={<span className="muted">Filtra por estado y rendimiento.</span>}
-        views={<ViewModeToggles currentMode="lista" baseParams={{ ...(q ? { q } : {}), ...(viewId ? { viewId } : {}), ...(filters ? { filters } : {}) }} />}
         summary={<span className="muted">Total {total}</span>}
       />
 
