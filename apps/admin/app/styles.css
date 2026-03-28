@@ -7225,6 +7225,37 @@ textarea.input {
   border: 2px solid var(--primary);
 }
 
+.customer-view-ficha-modal {
+  width: min(700px, 96vw);
+  max-height: 90vh;
+  overflow: auto;
+}
+
+.customer-view-ficha-modal .panel-header {
+  justify-content: space-between !important;
+}
+
+.customer-view-ficha-modal .modal-body {
+  padding: 0;
+}
+
+.customer-view-ficha-modal .card.cardPad {
+  background: var(--surface-2);
+  border: 1px solid var(--stroke);
+}
+
+.customer-view-ficha-modal .module-footer {
+  border-top: 1px solid var(--stroke);
+}
+
+.customer-view-ficha-modal h4 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 .subscription-edit-grid {
   display: grid;
   gap: 16px;

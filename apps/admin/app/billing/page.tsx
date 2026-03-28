@@ -23,6 +23,7 @@ import { PaymentHistoryButton } from "./PaymentHistoryButton";
 import { PaymentCyclesModal } from "./PaymentCyclesModal";
 import { DeleteSubscriptionButton } from "./DeleteSubscriptionButton";
 import { SmartViewsBar } from "../smart-views/SmartViewsBar";
+import { FilterButton } from "../ui/FilterButton";
 import { BillingTenantModalButton } from "./BillingTenantModalButton";
 import { PaymentLinkModalButton } from "./PaymentLinkModalButton";
 import { TokenizationLinkModalButton } from "./TokenizationLinkModalButton";
@@ -927,7 +928,12 @@ export default async function BillingPage({
                 compactInline
               />
             )}
-            filters={<HelpTip text="Filtra por tipo de cobro, estado y orden." />}
+            filters={(
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <FilterButton />
+                <HelpTip text="Filtra por tipo de cobro, estado y orden." />
+              </div>
+            )}
             views={(
               <ViewModeToggles
                 currentMode={vistaTyped}

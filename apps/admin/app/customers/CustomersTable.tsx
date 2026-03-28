@@ -104,6 +104,8 @@ export function CustomersTable({
   const [payModalCustomer, setPayModalCustomer] = useState<CustomerRow | null>(null);
   const [viewLinksOpen, setViewLinksOpen] = useState(false);
   const [viewLinksItems, setViewLinksItems] = useState<any[]>([]);
+  const [viewFichaOpen, setViewFichaOpen] = useState(false);
+  const [viewFichaCustomer, setViewFichaCustomer] = useState<CustomerRow | null>(null);
   const [payAmount, setPayAmount] = useState("");
   const [tokenModalOpen, setTokenModalOpen] = useState(false);
   const [tokenModalCustomer, setTokenModalCustomer] = useState<CustomerRow | null>(null);
@@ -413,7 +415,7 @@ export function CustomersTable({
       usedAt?: string;
       isValid: boolean;
     }> = [];
-    
+
     // Payment link from latestLinks
     const latestLink = latestLinks[String(customer.id)];
     if (latestLink?.checkoutUrl) {
@@ -424,7 +426,7 @@ export function CustomersTable({
         isValid: latestLink.chatwootStatus !== "failed"
       });
     }
-    
+
     // Tokenization link from metadata
     const tokenMeta = (customer.metadata?.tokenizationLink as any) || {};
     if (tokenMeta?.url) {
@@ -441,7 +443,7 @@ export function CustomersTable({
         isValid
       });
     }
-    
+
     setViewLinksItems(links);
     setViewLinksOpen(true);
   }
@@ -449,6 +451,18 @@ export function CustomersTable({
   function closeViewLinks() {
     setViewLinksOpen(false);
     setViewLinksItems([]);
+    setTimeout(() => lastActiveRef.current?.focus(), 0);
+  }
+
+  function openViewFicha(customer: CustomerRow) {
+    lastActiveRef.current = document.activeElement as HTMLElement | null;
+    setViewFichaCustomer(customer);
+    setViewFichaOpen(true);
+  }
+
+  function closeViewFicha() {
+    setViewFichaOpen(false);
+    setViewFichaCustomer(null);
     setTimeout(() => lastActiveRef.current?.focus(), 0);
   }
 
@@ -1258,6 +1272,98 @@ export function CustomersTable({
 
       {viewLinksOpen ? (
         <ViewLinksModal links={viewLinksItems} onClose={closeViewLinks} />
+      ) : null}
+
+      {viewFichaOpen && viewFichaCustomer ? (
+        <div className="modal-backdrop">
+          <div className="modal-panel customer-view-ficha-modal" style={{ width: "min(700px, 96vw)" }}>
+            <div className="panel-header" style={{ justifyContent: "space-between" }}>
+              <h3 style={{ margin: 0 }}>Ficha: {viewFichaCustomer.name || viewFichaCustomer.email || "Contacto"}</h3>
+              <button type="button" className="ghost modal-close" onClick={closeViewFicha} aria-label="Cerrar" data-modal-close="true" data-loader="off">X</button>
+            </div>
+
+            <div className="modal-body" style={{ display: "grid", gap: 16 }}>
+              {/* Información personal */}
+              <section className="card cardPad" style={{ padding: "12px" }}>
+                <h4 style={{ margin: "0 0 12px 0", fontSize: 13, fontWeight: 600, color: "var(--primary)" }}>Información personal</h4>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, fontSize: 12 }}>
+                  <div>
+                    <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Email</div>
+                    <div style={{ fontSize: 12 }}>{viewFichaCustomer.email || "—"}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Teléfono</div>
+                    <div style={{ fontSize: 12 }}>{viewFichaCustomer.phone || "—"}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Canal</div>
+                    <div style={{ fontSize: 12 }}>{viewFichaCustomer.tenantName || "—"}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Identificación</div>
+                    <div style={{ fontSize: 12 }}>
+                      {viewFichaCustomer.metadata?.identificacionNumero || viewFichaCustomer.metadata?.identificacion || "—"}
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Suscripción */}
+              <section className="card cardPad" style={{ padding: "12px" }}>
+                <h4 style={{ margin: "0 0 12px 0", fontSize: 13, fontWeight: 600, color: "var(--primary)" }}>Suscripción</h4>
+                {(() => {
+                  const subInfo = subscriptionsByCustomer[String(viewFichaCustomer.id)];
+                  const hasPlan = subInfo?.hasPlan ?? false;
+                  const planName = formatPlanLabel(subInfo?.planName || "");
+                  const status = String(subInfo?.status || "");
+                  const statusLabel = status === "ACTIVE" ? "Activa" : status === "PAST_DUE" ? "En mora" : status ? "Inactiva" : "";
+                  return (
+                    <div style={{ fontSize: 12 }}>
+                      {hasPlan ? (
+                        <>
+                          <div style={{ marginBottom: 6 }}>
+                            <span style={{ fontSize: 11, color: "var(--muted)" }}>Plan: </span>
+                            <strong>{planName}</strong>
+                          </div>
+                          <div>
+                            <span style={{ fontSize: 11, color: "var(--muted)" }}>Estado: </span>
+                            <span className={`pill pill-sm ${status === "ACTIVE" ? "pill-ok" : status === "PAST_DUE" ? "pill-bad" : "pill-muted"}`}>
+                              {statusLabel || "—"}
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{ color: "var(--muted)" }}>Sin suscripción activa</div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </section>
+
+              {/* Tokens y links */}
+              <section className="card cardPad" style={{ padding: "12px" }}>
+                <h4 style={{ margin: "0 0 12px 0", fontSize: 13, fontWeight: 600, color: "var(--primary)" }}>Métodos y links</h4>
+                <div style={{ display: "grid", gap: 8, fontSize: 12 }}>
+                  {hasToken(viewFichaCustomer) ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span className="pill pill-ok pill-sm">Tarjeta tokenizada</span>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span className="pill pill-bad pill-sm">Sin tarjeta guardada</span>
+                    </div>
+                  )}
+                </div>
+              </section>
+            </div>
+
+            {/* Footer con botones */}
+            <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "12px 16px" }}>
+              <button className="ghost btn-compact" type="button" onClick={closeViewFicha}>Cerrar</button>
+              <button className="primary btn-compact" type="button" onClick={() => { closeViewFicha(); openEditor(viewFichaCustomer); }}>Editar</button>
+            </div>
+          </div>
+        </div>
       ) : null}
 
       <CustomerEditModal
