@@ -66,7 +66,8 @@ export function FilterButton({
     if (fields.length === 0) return;
     const firstField = fields[0];
     const firstOp = firstField.operators?.[0] || "equals";
-    setRoot({ op: "and", rules: [...root.rules, { field: firstField.key, op: firstOp, value: "" }] });
+    const currentRules = "rules" in root ? root.rules : [];
+    setRoot({ op: "and", rules: [...currentRules, { field: firstField.key, op: firstOp, value: "" }] });
   };
 
   const updateRule = (index: number, next: Rule) => {
