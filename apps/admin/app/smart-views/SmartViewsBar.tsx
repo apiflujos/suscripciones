@@ -691,7 +691,7 @@ export function SmartViewsBar({
           <div className="smartViewsTopRight">
             <div className="smartViewsActions">
               <button
-                className="primary btn-compact btn-noicon"
+                className="ghost btn-compact btn-icon-only btn-filter"
                 type="button"
                 data-loader="off"
                 aria-label="Filtros y listas inteligentes"
@@ -705,9 +705,7 @@ export function SmartViewsBar({
                   setNotice(null);
                   ensureFieldsLoaded().catch(() => null);
                 }}
-              >
-                Filtros
-              </button>
+              />
             </div>
           </div>
         ) : (
