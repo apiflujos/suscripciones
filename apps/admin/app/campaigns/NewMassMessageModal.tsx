@@ -397,73 +397,69 @@ export function NewMassMessageModal({
                 <div className="field">
                   <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span>Filtro inteligente (audiencia)</span>
-                    <HelpTip text="Crea o selecciona un filtro para definir la audiencia de la campaña." />
+                    <HelpTip text="Selecciona un filtro para definir a quiénes llegará esta campaña." />
                   </label>
                   
-                  {/* Botón para abrir modal de filtros */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                    <a
-                      href={`/customers?${new URLSearchParams({
-                        open: "filters"
-                      }).toString()}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="primary btn-compact"
-                      style={{ minWidth: 200, justifyContent: "center" }}
-                    >
-                      Abrir filtros inteligentes
-                    </a>
-                    {smartViewId ? (
-                      <span className="pill pill-ok">Filtro seleccionado</span>
-                    ) : (
-                      <span className="pill pill-muted">Sin filtro</span>
-                    )}
-                  </div>
+                  {/* Selector de filtros inteligentes */}
+                  <select
+                    className="select"
+                    name="smartViewId"
+                    required
+                    value={smartViewId}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setSmartViewId(next);
+                      loadAudiencePreview(next);
+                    }}
+                    style={{ marginBottom: 8 }}
+                  >
+                    <option value="">Selecciona un filtro...</option>
+                    {views.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.name} {v.visibility === "PRIVATE" ? "(Privada)" : ""}
+                      </option>
+                    ))}
+                  </select>
                   
-                  {/* Mostrar filtro seleccionado */}
-                  {smartViewId && views.length > 0 ? (
-                    <div className="card cardPad" style={{ marginBottom: 8, padding: 10 }}>
-                      <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Filtro actual:</div>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                        <strong style={{ fontSize: 13 }}>
-                          {views.find((v) => v.id === smartViewId)?.name || "Desconocido"}
-                        </strong>
-                        <button
-                          type="button"
-                          className="ghost btn-compact btn-red"
-                          onClick={() => {
-                            setSmartViewId("");
-                            setAudienceCount(null);
-                          }}
-                        >
-                          Quitar
-                        </button>
-                      </div>
-                    </div>
-                  ) : null}
+                  {/* Botón para crear nuevo filtro */}
+                  <a
+                    href={`/customers?${new URLSearchParams({
+                      open: "filters"
+                    }).toString()}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ghost btn-compact"
+                    style={{ width: "100%", justifyContent: "center", marginBottom: 8 }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" style={{ marginRight: 4 }}>
+                      <path d="M14 7a7 7 0 1 1-14 0 7 7 0 0 1 14 0ZM7 4a.75.75 0 0 0-1.5 0v2.25H3.25a.75.75 0 0 0 0 1.5H5.5V10a.75.75 0 0 0 1.5 0V7.75h2.25a.75.75 0 0 0 0-1.5H7V4Z"/>
+                    </svg>
+                    Crear nuevo filtro (abre en nueva pestaña)
+                  </a>
                   
                   {audienceLoading ? <div className="field-hint">Calculando audiencia...</div> : null}
                   {audienceError ? <div className="field-hint" style={{ color: "var(--danger)" }}>{audienceError}</div> : null}
                   {audienceCount !== null && !audienceLoading ? (
                     <div className="card cardPad" style={{ marginTop: 8 }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                        <strong>Resumen de audiencia</strong>
-                        <span className="pill pill-muted">{audienceCount} contactos</span>
+                        <strong>Audiencia seleccionada</strong>
+                        <span className="pill pill-ok">{audienceCount} contactos</span>
                       </div>
                       {audienceCount <= 0 ? (
-                        <div className="field-hint" style={{ marginTop: 6 }}>
-                          Esta lista no tiene contactos.
+                        <div className="field-hint" style={{ marginTop: 6, color: "var(--danger)" }}>
+                          ⚠️ Esta audiencia no tiene contactos. Selecciona otro filtro.
                         </div>
-                      ) : null}
-                      <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
-                        <input
-                          type="checkbox"
-                          checked={audienceApproved}
-                          onChange={(e) => setAudienceApproved(e.target.checked)}
-                          disabled={!audienceCount || audienceCount <= 0}
-                        />
-                        <span>Aprobar envío a esta audiencia</span>
-                      </label>
+                      ) : (
+                        <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
+                          <input
+                            type="checkbox"
+                            checked={audienceApproved}
+                            onChange={(e) => setAudienceApproved(e.target.checked)}
+                            disabled={!audienceCount || audienceCount <= 0}
+                          />
+                          <span>✓ Confirmo que esta es la audiencia correcta para la campaña</span>
+                        </label>
+                      )}
                     </div>
                   ) : null}
                 </div>
