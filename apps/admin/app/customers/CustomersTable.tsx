@@ -30,6 +30,13 @@ function formatPlanLabel(rawName: unknown, skuRaw?: unknown) {
   return sku ? `SKU ${sku} · ${name}` : name;
 }
 
+type LatestLink = {
+  checkoutUrl: string;
+  createdAt: string;
+  chatwootStatus: string;
+  chatwootError?: string;
+};
+
 type CustomerRow = {
   id: string;
   tenantId?: string | null;
