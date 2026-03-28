@@ -760,7 +760,7 @@ export default async function LogsPage({
       {/* Header simplificado */}
       <div className="logs-header-simple" style={{ display: "grid", gap: 12, marginBottom: 16 }}>
         {/* Fila 1: Búsqueda + Filtros rápidos */}
-        <div style={{ display: "flex", gap: 8, alignItems: center, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <div style={{ flex: "1 1 300px" }}>
             {headerSearch}
           </div>
@@ -789,7 +789,7 @@ export default async function LogsPage({
         </div>
 
         {/* Fila 2: Fechas + SmartLists */}
-        <div style={{ display: "flex", gap: 8, alignItems: center, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           {tab !== "payments" && (
             <>
               <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" title="Desde" style={{ width: 130 }} />
@@ -802,7 +802,7 @@ export default async function LogsPage({
 
         {/* Fila 3: Acciones (solo payments) */}
         {tab === "payments" && (
-          <div style={{ display: "flex", gap: 8, alignItems: center, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <ListCsvActions exportHref={`/api/list-csv?${new URLSearchParams({ scope: "payments", ...(q ? { q } : {}), ...(status ? { status } : {}), ...(from ? { from } : {}), ...(to ? { to } : {}), ...(tenantId ? { tenantId } : {}) }).toString()}`} defaultEntity="payments" />
             <form action={reconcilePendingPayments} className="filtersForm">
               <input type="hidden" name="returnTo" value={returnTo} />
