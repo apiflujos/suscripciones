@@ -12259,8 +12259,8 @@ html[data-contrast="high"] .icon-btn.danger:hover {
   content: none !important;
 }
 
-/* Estandar global: botones de acción en footers sin icono */
-:is(.module-footer, .billing-actions, .contact-footer, .wizard-footer, .drawer-footer, .modal-footer) :is(.btn, .ghost, .primary, .btn-compact)::before {
+/* Estandar global: botones de acción en footers sin icono (EXCEPTO btn-icon-only) */
+:is(.module-footer, .billing-actions, .contact-footer, .wizard-footer, .drawer-footer, .modal-footer) :is(.btn, .ghost, .primary, .btn-compact):not(.btn-icon-only)::before {
   content: none !important;
 }
 
