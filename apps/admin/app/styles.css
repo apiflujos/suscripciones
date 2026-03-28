@@ -7317,6 +7317,34 @@ textarea.input {
   gap: 6px;
 }
 
+/* Header Actions Estandarizado - Botones a la derecha */
+.page-actions-right {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  margin-bottom: 12px;
+  padding: 0;
+}
+
+.page-actions-right .primary,
+.page-actions-right .btn-contact,
+.page-actions-right .btn-subscription,
+.page-actions-right .btn-compact {
+  min-width: 160px;
+  height: 32px;
+  justify-content: center;
+  text-align: center;
+}
+
+.page-actions-right .btn-icon-only {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+}
+
 /* Filter Button - Solo ícono */
 .btn-filter {
   width: 28px;
