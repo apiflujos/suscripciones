@@ -873,25 +873,6 @@ export default async function BillingPage({
       <section className="settings-group">
         <div className="settings-group-header">
           <PageHeaderStandard
-            actions={(
-              <>
-                <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
-                <BillingModals
-                  customers={customerItems}
-                  empresas={empresas}
-                  catalogItems={productItems}
-                  checkoutTemplates={checkoutTemplates}
-                  csrfToken={csrfToken}
-                  tenantId={tenantId}
-                  tenants={tenants}
-                  returnTo={returnTo}
-                  defaultOpen={Boolean(crear) || Boolean(selectCustomerId)}
-                  defaultSelectedCustomerId={selectCustomerId}
-                  createCustomer={createCustomerFromBilling}
-                  createPlanAndSubscription={createPlanAndSubscription}
-                />
-              </>
-            )}
             search={(
               <form action="/billing" method="GET" className="filtersForm filtersSearch">
                 {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
@@ -968,6 +949,23 @@ export default async function BillingPage({
               />
             )}
             summary={<span className="muted">{rows.length} resultados</span>}
+          />
+        </div>
+
+        <div className="page-actions-right">
+          <BillingModals
+            customers={customerItems}
+            empresas={empresas}
+            catalogItems={productItems}
+            checkoutTemplates={checkoutTemplates}
+            csrfToken={csrfToken}
+            tenantId={tenantId}
+            tenants={tenants}
+            returnTo={returnTo}
+            defaultOpen={Boolean(crear) || Boolean(selectCustomerId)}
+            defaultSelectedCustomerId={selectCustomerId}
+            createCustomer={createCustomerFromBilling}
+            createPlanAndSubscription={createPlanAndSubscription}
           />
         </div>
 

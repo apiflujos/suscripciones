@@ -15021,7 +15021,7 @@ html[data-contrast="high"] .toggle::after {
   .filtersRow {
     flex-wrap: wrap;
   }
-  
+
   .billing-header-right,
   .settings-group-header > div:last-child,
   .panelHeaderRow > div:last-child,
@@ -15029,4 +15029,86 @@ html[data-contrast="high"] .toggle::after {
     width: 100%;
     justify-content: flex-end;
   }
+}
+
+/* ==================================
+   ESTANDARIZACIÓN COMPLETA - 2026-03-27
+   ================================== */
+
+/* Forzar altura uniforme en todos los inputs del header */
+.page-header-standard .input,
+.page-header-standard .select {
+  height: 32px;
+  font-size: 12px;
+}
+
+/* Forzar altura uniforme en botones del header */
+.page-header-standard .btn-compact,
+.page-header-standard .btn-icon-only {
+  height: 32px;
+  min-height: 32px;
+}
+
+/* Gap consistente en filters-group */
+.page-header-standard-filters-group {
+  gap: 6px;
+}
+
+/* SmartViewsBar inline - padding uniforme */
+.smartViewsBar.smartViewsBarInline {
+  padding: 0;
+}
+
+/* Asegurar que todos los headers tengan el mismo margen inferior */
+.settings-group-header {
+  margin-bottom: 0;
+}
+
+.settings-group-body {
+  margin-top: 12px;
+}
+
+/* Page padding consistente */
+.page {
+  padding: 0;
+}
+
+.page.pageWide {
+  max-width: 100%;
+}
+
+/* Cards de notificación - tamaño uniforme */
+.page > .card.cardPad {
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  font-size: 12px;
+}
+
+/* Pagination - margen superior consistente */
+.pagination {
+  margin-top: 12px;
+  margin-bottom: 0;
+}
+
+/* Panel module - padding uniforme */
+.panel.module {
+  padding: 12px;
+}
+
+/* Tablas - font-size uniforme */
+.table {
+  font-size: 12px;
+}
+
+.table th {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding: 8px 12px;
+}
+
+.table td {
+  padding: 8px 12px;
+  font-size: 12px;
 }
