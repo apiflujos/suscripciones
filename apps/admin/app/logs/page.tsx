@@ -941,7 +941,7 @@ export default async function LogsPage({
                         ))}
                       </div>
                     ) : null;
-                  })()}
+                  }))
             </div>
           )}
         </div>
