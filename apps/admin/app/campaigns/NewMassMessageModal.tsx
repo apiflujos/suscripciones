@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { HelpTip } from "../ui/HelpTip";
 import { PendingButton } from "../ui/PendingButton";
+import { FilterButton } from "../ui/FilterButton";
 
 type SmartView = { id: string; name: string; visibility: "ORG" | "PRIVATE"; type: "DYNAMIC" | "STATIC"; filters?: any };
 
@@ -396,26 +397,51 @@ export function NewMassMessageModal({
                 <div className="field">
                   <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span>Filtro inteligente (audiencia)</span>
-                    <HelpTip text="Selecciona una vista inteligente para definir la audiencia." />
+                    <HelpTip text="Crea o selecciona un filtro para definir la audiencia de la campaña." />
                   </label>
-                  <select
-                    className="select"
-                    name="smartViewId"
-                    required
-                    value={smartViewId}
-                    onChange={(e) => {
-                      const next = e.target.value;
-                      setSmartViewId(next);
-                      loadAudiencePreview(next);
-                    }}
-                  >
-                    <option value="">Selecciona una lista</option>
-                    {views.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.name} {v.visibility === "PRIVATE" ? "(Privada)" : ""}
-                      </option>
-                    ))}
-                  </select>
+                  
+                  {/* Botón para abrir modal de filtros */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    <a
+                      href={`/customers?${new URLSearchParams({
+                        open: "filters"
+                      }).toString()}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="primary btn-compact"
+                      style={{ minWidth: 200, justifyContent: "center" }}
+                    >
+                      Abrir filtros inteligentes
+                    </a>
+                    {smartViewId ? (
+                      <span className="pill pill-ok">Filtro seleccionado</span>
+                    ) : (
+                      <span className="pill pill-muted">Sin filtro</span>
+                    )}
+                  </div>
+                  
+                  {/* Mostrar filtro seleccionado */}
+                  {smartViewId && views.length > 0 ? (
+                    <div className="card cardPad" style={{ marginBottom: 8, padding: 10 }}>
+                      <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Filtro actual:</div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                        <strong style={{ fontSize: 13 }}>
+                          {views.find((v) => v.id === smartViewId)?.name || "Desconocido"}
+                        </strong>
+                        <button
+                          type="button"
+                          className="ghost btn-compact btn-red"
+                          onClick={() => {
+                            setSmartViewId("");
+                            setAudienceCount(null);
+                          }}
+                        >
+                          Quitar
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                  
                   {audienceLoading ? <div className="field-hint">Calculando audiencia...</div> : null}
                   {audienceError ? <div className="field-hint" style={{ color: "var(--danger)" }}>{audienceError}</div> : null}
                   {audienceCount !== null && !audienceLoading ? (
