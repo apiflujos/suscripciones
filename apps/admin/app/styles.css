@@ -12290,8 +12290,8 @@ html[data-contrast="high"] .icon-btn.danger:hover {
   content: none !important;
 }
 
-/* Estandar global: botones de acción en footers sin icono (EXCEPTO btn-icon-only) */
-:is(.module-footer, .billing-actions, .contact-footer, .wizard-footer, .drawer-footer, .modal-footer) :is(.btn, .ghost, .primary, .btn-compact):not(.btn-icon-only)::before {
+/* Estandar global: botones de acción en footers sin icono (EXCEPTO icon-only y navegación) */
+:is(.module-footer, .billing-actions, .contact-footer, .wizard-footer, .drawer-footer, .modal-footer) :is(.btn, .ghost, .primary, .btn-compact):not(.btn-icon-only):not(.btn-back):not(.btn-next):not(.btn-view):not(.btn-export)::before {
   content: none !important;
 }
 
