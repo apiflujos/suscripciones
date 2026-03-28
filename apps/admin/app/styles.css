@@ -4221,14 +4221,14 @@ textarea.input {
 }
 
 .input[type="search"] {
-  --field-icon: var(--icon-search);
-  --field-padding-right: 36px;
+  --field-icon: none;
+  --field-padding-right: 12px;
 }
 
 .input[name="q"],
 .input[name*="search"] {
-  --field-icon: var(--icon-search);
-  --field-padding-right: 36px;
+  --field-icon: none;
+  --field-padding-right: 12px;
 }
 
 .input[type="email"] {
