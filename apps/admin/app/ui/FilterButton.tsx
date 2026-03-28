@@ -3,60 +3,91 @@
 import { useState } from "react";
 
 export function FilterButton({
-  onClick,
-  label = "Filtros"
+  scope,
+  baseParams,
+  initialFields,
+  compactInline
 }: {
-  onClick?: () => void;
-  label?: string;
+  scope?: string;
+  baseParams?: Record<string, string>;
+  initialFields?: any[];
+  compactInline?: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
-  return (
-    <div className="filterButtonWrapper" style={{ position: "relative" }}>
+  // Si no hay scope, solo es un botón placeholder
+  if (!scope) {
+    return (
       <button
         className="ghost btn-compact btn-icon-only btn-filter"
         type="button"
-        onClick={() => {
-          setOpen(!open);
-          onClick?.();
-        }}
-        aria-label={label}
-        title={label}
-        aria-expanded={open}
+        aria-label="Filtros"
+        title="Filtros"
+        disabled
       />
-      
+    );
+  }
+
+  return (
+    <>
+      <button
+        className="ghost btn-compact btn-icon-only btn-filter"
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label="Crear filtro inteligente"
+        title="Crear filtro inteligente"
+      />
+
       {open && (
-        <div className="filter-dropdown">
-          <div className="filter-dropdown-header">
-            <strong>Filtros inteligentes</strong>
-            <button
-              className="ghost btn-compact btn-icon-only btn-noicon"
-              type="button"
-              onClick={() => setOpen(false)}
-              aria-label="Cerrar"
-            >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
-                <path d="M14 1.41L12.59 0 7 5.59 1.41 0 0 1.41 5.59 7 0 12.59 1.41 14 7 8.41 12.59 14 14 12.59 8.41 7z"/>
-              </svg>
-            </button>
-          </div>
-          <div className="filter-dropdown-body">
-            <p className="filter-dropdown-hint">
-              Crea filtros personalizados para mostrar solo los registros que necesitas.
-            </p>
-            <button
-              className="primary btn-compact btn-noicon"
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                onClick?.();
-              }}
-            >
-              Crear filtro
-            </button>
+        <div className="modal-backdrop">
+          <div className="modal-panel modal-panel-fixed smartViewsModalPanel" style={{ width: "min(900px, 96vw)", maxHeight: "90vh" }}>
+            <div className="panel-header">
+              <strong>Crear filtro inteligente</strong>
+              <button
+                className="ghost modal-close"
+                type="button"
+                onClick={() => setOpen(false)}
+                aria-label="Cerrar"
+                data-modal-close="true"
+                data-loader="off"
+              >
+                X
+              </button>
+            </div>
+            <div className="modal-body smartViewsModalBody">
+              <p className="muted" style={{ marginBottom: 16 }}>
+                Crea reglas personalizadas para filtrar los registros. Una vez guardado, el filtro aparecerá en la barra de vistas inteligentes.
+              </p>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                <button
+                  className="ghost btn-compact btn-cancel"
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  title="Cancelar"
+                  aria-label="Cancelar"
+                >
+                  Cancelar
+                </button>
+                <button
+                  className="primary btn-compact btn-save"
+                  type="button"
+                  onClick={() => {
+                    // Aquí iría la lógica para guardar el filtro
+                    // Por ahora solo cerramos el modal
+                    setOpen(false);
+                    // Disparar evento para que SmartViewsBar recargue
+                    window.dispatchEvent(new CustomEvent("smartview-created"));
+                  }}
+                  title="Guardar filtro"
+                  aria-label="Guardar"
+                >
+                  Guardar
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

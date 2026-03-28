@@ -2,6 +2,7 @@ import { listEmpresas } from "../admin/_services/companies";
 import { getCsrfToken } from "../lib/csrf";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { HelpTip } from "../ui/HelpTip";
+import { FilterButton } from "../ui/FilterButton";
 import { deleteEmpresa, createEmpresa, updateEmpresa } from "./actions";
 import { EmpresaCreateModal } from "./EmpresaCreateModal";
 import { cookies } from "next/headers";
@@ -133,7 +134,20 @@ export default async function EmpresasPage({
                 compactInline
               />
             )}
-            filters={<HelpTip text="Filtra por nombre, email, dirección y contactos." />}
+            filters={(
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <FilterButton
+                  scope="companies"
+                  baseParams={{
+                    ...(q ? { q } : {}),
+                    ...(viewId ? { viewId } : {}),
+                    ...(filters ? { filters } : {})
+                  }}
+                  initialFields={getSmartViewFields("companies")}
+                />
+                <HelpTip text="Filtra por nombre, email, dirección y contactos. Crea listas inteligentes personalizadas." />
+              </div>
+            )}
             views={<ViewModeToggles currentMode={vistaTyped} baseParams={baseParams} />}
           />
         </div>

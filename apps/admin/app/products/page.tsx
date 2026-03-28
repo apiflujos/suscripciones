@@ -139,7 +139,16 @@ export default async function ProductsPage({
         )}
         filters={(
           <div className="page-header-standard-filters-group">
-            <FilterButton />
+            <FilterButton
+              scope="products"
+              baseParams={{
+                ...(tenantId ? { tenantId } : {}),
+                ...(q ? { q } : {}),
+                ...(viewId ? { viewId } : {}),
+                ...(filters ? { filters } : {})
+              }}
+              initialFields={getSmartViewFields("products")}
+            />
             <ViewModeToggles
               currentMode={vistaTyped}
               baseParams={{
@@ -149,6 +158,7 @@ export default async function ProductsPage({
                 ...(filters ? { filters } : {})
               }}
             />
+            <HelpTip text="Crea filtros personalizados para mostrar solo los productos que necesitas." />
           </div>
         )}
         views={(
