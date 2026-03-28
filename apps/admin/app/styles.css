@@ -3053,7 +3053,7 @@ html[data-theme="dark"] .payments-health-banner code {
 .logs-table-messages th,
 .logs-table-messages td {
   vertical-align: top;
-  padding: 10px 12px;
+  padding: 8px 10px;
 }
 
 .logs-table-messages th {
@@ -3109,7 +3109,7 @@ html[data-theme="dark"] .payments-health-banner code {
 
 .logs-table-messages .log-message-text {
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   color: var(--text-soft);

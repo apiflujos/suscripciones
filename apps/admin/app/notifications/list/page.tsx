@@ -113,8 +113,8 @@ export default async function WhatsappNotificationsListPage({
         )}
       />
 
-      <div className="settings-group-body" style={{ marginTop: 12 }}>
-        <div className="pagination pagination-indicator" style={{ marginBottom: 12 }}>
+      <div className="settings-group-body" style={{ marginTop: 8 }}>
+        <div className="pagination pagination-indicator" style={{ marginBottom: 8 }}>
           <div className="pagination-summary">{summaryText}</div>
           <a
             className="page-link page-nav"
