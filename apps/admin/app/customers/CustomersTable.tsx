@@ -644,62 +644,79 @@ export function CustomersTable({
                   </form>
                 </div>
               </div>
-              <div className="contact-left contact-block">
-                <div className="contact-block-title">Información personal</div>
-                <div className="contact-person-grid">
-                  <div>
-                    <span>Email</span>
-                    <div className="contact-value">{c.email || "—"}</div>
-                  </div>
-                  <div>
-                    <span>Teléfono</span>
-                    <div className="contact-value">{c.phone || "—"}</div>
-                  </div>
-                  <div>
-                    <span>Canal</span>
-                    <div className="contact-value">{c.tenantName || "—"}</div>
-                  </div>
-                  <div>
-                    <span>Identificación</span>
-                    <div className="contact-value">{ident || "—"}</div>
+              <div className="contact-body" style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 16, alignItems: "start" }}>
+                <div className="contact-left contact-block">
+                  <div className="contact-block-title">Información personal</div>
+                  <div className="contact-person-grid">
+                    <div>
+                      <span>Email</span>
+                      <div className="contact-value">{c.email || "—"}</div>
+                    </div>
+                    <div>
+                      <span>Teléfono</span>
+                      <div className="contact-value">{c.phone || "—"}</div>
+                    </div>
+                    <div>
+                      <span>Canal</span>
+                      <div className="contact-value">{c.tenantName || "—"}</div>
+                    </div>
+                    <div>
+                      <span>Identificación</span>
+                      <div className="contact-value">{ident || "—"}</div>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="contact-right contact-block">
-                <div className="contact-block-title">Suscripción</div>
-                <div className="contact-plan-grid">
-                  <div>
-                    <span>Estado</span>
-                    <div className="contact-plan-row">
-                      {hasPlan ? (
-                        <>
-                          {subInfo?.subscriptionId ? (
-                            <Link
-                              href={`/billing?subscriptionId=${subInfo.subscriptionId}`}
-                              className="contact-value contact-value-strong"
-                              style={{ fontSize: 13, color: 'var(--primary)', textDecoration: 'underline' }}
-                              title="Ir a la suscripción"
-                            >
-                              {planName ? `${planName}${statusLabel ? ` · ${statusLabel}` : ""}` : statusLabel || "Activa"}
-                            </Link>
-                          ) : (
-                            <span className="contact-value contact-value-strong" style={{ fontSize: 13 }}>
-                              {planName ? `${planName}${statusLabel ? ` · ${statusLabel}` : ""}` : statusLabel || "Activa"}
-                            </span>
-                          )}
-                        </>
-                      ) : (
-                        <span className="contact-value contact-value-strong" style={{ fontSize: 13 }}>—</span>
-                      )}
-                    </div>
-                  </div>
-                  {!hasToken(c) ? (
+                <div className="contact-right contact-block" style={{ minWidth: 280 }}>
+                  <div className="contact-block-title">Suscripción</div>
+                  <div className="contact-plan-grid">
                     <div>
-                      <span>Método de pago</span>
-                      <div className="field-hint">Envía el link de débito automático para que el cliente guarde su tarjeta.</div>
+                      <span>Plan</span>
+                      <div className="contact-plan-row">
+                        {hasPlan ? (
+                          <>
+                            {subInfo?.subscriptionId ? (
+                              <Link
+                                href={`/billing?subscriptionId=${subInfo.subscriptionId}`}
+                                className="contact-value contact-value-strong"
+                                style={{ fontSize: 13, color: 'var(--primary)', textDecoration: 'underline' }}
+                                title="Ir a la suscripción"
+                              >
+                                {planName}
+                              </Link>
+                            ) : (
+                              <span className="contact-value contact-value-strong" style={{ fontSize: 13 }}>
+                                {planName}
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="contact-value contact-value-strong" style={{ fontSize: 13 }}>—</span>
+                        )}
+                      </div>
                     </div>
-                  ) : null}
+                    <div>
+                      <span>Estado</span>
+                      <div className="contact-plan-row">
+                        {statusLabel && statusPillClass ? (
+                          <span className={`pill ${statusPillClass} pill-sm`}>{statusLabel}</span>
+                        ) : (
+                          <span className="pill pill-muted pill-sm">—</span>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <span>Tipo</span>
+                      <div className="contact-plan-row">
+                        <span className={`pill pill-sm ${kindPillClass}`}>{kindLabel}</span>
+                      </div>
+                    </div>
+                    {!hasToken(c) ? (
+                      <div>
+                        <span className="field-hint">Envía link de débito automático para guardar tarjeta.</span>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               </div>
               <div className="contact-paylink contact-footer">
