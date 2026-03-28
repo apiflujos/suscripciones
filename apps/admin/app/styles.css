@@ -12983,6 +12983,17 @@ html[data-contrast="high"] .toggle::after {
   right: 0;
 }
 
+.helpTipBubble.pos-center {
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.helpTipBubble.pos-center::before {
+  left: 50%;
+  margin-left: -5px;
+}
+
 /* Toggle */
 .toggle {
   width: 44px;

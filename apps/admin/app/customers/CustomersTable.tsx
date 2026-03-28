@@ -42,30 +42,6 @@ type CustomerRow = {
   metadata?: any;
 };
 
-type LatestLink = {
-  checkoutUrl: string;
-  createdAt: string;
-  chatwootStatus: string;
-  chatwootError?: string;
-};
-
-type TransactionRow = {
-  id: string;
-  amountInCents: number;
-  currency: string;
-  status: string;
-  createdAt: string;
-  paidAt?: string | null;
-  reference?: string | null;
-  planName?: string | null;
-  lastAttempt?: {
-    status?: string | null;
-    errorMessage?: string | null;
-    provider?: string | null;
-    createdAt?: string | null;
-  } | null;
-};
-
 export function CustomersTable({
   items,
   view = "cards",
@@ -105,9 +81,6 @@ export function CustomersTable({
   const [editing, setEditing] = useState<CustomerRow | null>(null);
   const [txOpen, setTxOpen] = useState(false);
   const [txCustomer, setTxCustomer] = useState<CustomerRow | null>(null);
-  const [txItems, setTxItems] = useState<TransactionRow[]>([]);
-  const [txLoading, setTxLoading] = useState(false);
-  const [txError, setTxError] = useState("");
   const [sendingPaymentId, setSendingPaymentId] = useState<string | null>(null);
   const [sendingTokenId, setSendingTokenId] = useState<string | null>(null);
   const [sendingCartId, setSendingCartId] = useState<string | null>(null);
@@ -430,36 +403,6 @@ export function CustomersTable({
     }
   }
 
-  async function openTransactions(item: CustomerRow) {
-    lastActiveRef.current = document.activeElement as HTMLElement | null;
-    setTxCustomer(item);
-    setTxOpen(true);
-    setTxLoading(true);
-    setTxError("");
-    setTxItems([]);
-    try {
-      const res = await fetch(`/api/customers/${encodeURIComponent(String(item.id))}/transactions`, { cache: "no-store" });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setTxError(json?.error || `Error ${res.status}`);
-        return;
-      }
-      setTxItems(Array.isArray(json?.items) ? json.items : []);
-    } catch (err: any) {
-      setTxError(String(err?.message || "request_failed"));
-    } finally {
-      setTxLoading(false);
-    }
-  }
-
-  function closeTransactions() {
-    setTxOpen(false);
-    setTxCustomer(null);
-    setTxItems([]);
-    setTxError("");
-    setTimeout(() => lastActiveRef.current?.focus(), 0);
-  }
-
   function openViewLinks(customer: CustomerRow) {
     lastActiveRef.current = document.activeElement as HTMLElement | null;
     const links: Array<{
@@ -654,17 +597,11 @@ export function CustomersTable({
                     title="Editar contacto"
                   />
                   <button
-                    className="ghost btn-compact btn-history btn-icon-only"
+                    className="ghost btn-compact btn-view btn-icon-only"
                     type="button"
-                    onClick={() => openTransactions(c)}
-                    aria-label="Historial de pagos"
-                    title="Historial de pagos"
-                  />
-                  <Link
-                    className="ghost btn-compact btn-search btn-icon-only"
-                    href={`/customers/${c.id}`}
-                    aria-label="Abrir ficha"
-                    title="Abrir ficha"
+                    onClick={() => openViewFicha(c)}
+                    aria-label="Ver ficha completa"
+                    title="Ver ficha completa"
                   />
                   <form
                     action={deleteCustomer}
