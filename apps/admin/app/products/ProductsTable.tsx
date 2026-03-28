@@ -524,15 +524,33 @@ export function ProductsTable({
             <div className="product-price entity-card-price">
               {formatMoneyFromCents(p.basePriceInCents, String(p.currency || DEFAULT_CURRENCY))}
             </div>
-            <button
-              className="ghost btn-compact btn-icon-only btn-edit"
-              type="button"
-              data-modal="true"
-              data-loader="off"
-              onClick={() => openEditor(p)}
-              aria-label="Editar"
-              title="Editar"
-            />
+            <div style={{ display: "flex", gap: 4 }}>
+              <button
+                className="ghost btn-compact btn-icon-only btn-edit"
+                type="button"
+                data-modal="true"
+                data-loader="off"
+                onClick={() => openEditor(p)}
+                aria-label="Editar"
+                title="Editar"
+              />
+              <form
+                action={deleteProductAction}
+                onSubmit={(e) => {
+                  if (!confirm("¿Eliminar producto? Esta acción no se puede deshacer.")) e.preventDefault();
+                }}
+              >
+                <input type="hidden" name="csrf" value={csrfToken} />
+                <input type="hidden" name="id" value={p.id} />
+                <input type="hidden" name="returnTo" value={returnTo} />
+                <button
+                  className="ghost btn-compact btn-icon-only btn-delete-icon btn-red"
+                  type="submit"
+                  aria-label="Eliminar producto"
+                  title="Eliminar producto"
+                />
+              </form>
+            </div>
           </div>
         </div>
 
