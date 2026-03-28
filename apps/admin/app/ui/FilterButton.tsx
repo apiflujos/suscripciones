@@ -233,13 +233,13 @@ export function FilterButton({
                   <div className="muted" style={{ fontSize: 12, padding: 12, background: "var(--surface-2)", borderRadius: 8 }}>
                     Cargando campos...
                   </div>
-                ) : root.rules.length === 0 ? (
+                ) : !("rules" in root) || root.rules.length === 0 ? (
                   <div className="muted" style={{ fontSize: 12, padding: 12, background: "var(--surface-2)", borderRadius: 8 }}>
                     No hay condiciones. Haz clic en "Agregar condición" para comenzar.
                   </div>
                 ) : (
                   <div style={{ display: "grid", gap: 8 }}>
-                    {root.rules.map((rule, idx) => {
+                    {("rules" in root ? root.rules : []).map((rule, idx) => {
                       if ("rules" in rule) return null;
                       const field = fields.find((f) => f.key === rule.field) || fields[0];
                       const ops = field?.operators || [];
