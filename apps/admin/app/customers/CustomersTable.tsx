@@ -274,6 +274,18 @@ export function CustomersTable({
     setOpen(true);
   }
 
+  function openTransactions(customer: CustomerRow) {
+    lastActiveRef.current = document.activeElement as HTMLElement | null;
+    setTxCustomer(customer);
+    setTxOpen(true);
+  }
+
+  function closeTransactions() {
+    setTxOpen(false);
+    setTxCustomer(null);
+    setTimeout(() => lastActiveRef.current?.focus(), 0);
+  }
+
   function closeEditor() {
     setOpen(false);
     setEditing(null);
