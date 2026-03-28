@@ -363,7 +363,6 @@ export default async function CustomersPage({
                 ...(filters ? { filters } : {})
               }}
             />
-            <HelpTip text="Crea filtros personalizados para mostrar solo los contactos que necesitas." />
           </div>
         )}
         views={(

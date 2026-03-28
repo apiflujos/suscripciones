@@ -122,7 +122,7 @@ export default async function EmpresasPage({
               />
             )}
             filters={(
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div className="page-header-standard-filters-group">
                 <FilterButton
                   scope="companies"
                   baseParams={{
@@ -132,7 +132,7 @@ export default async function EmpresasPage({
                   }}
                   initialFields={getSmartViewFields("companies")}
                 />
-                <HelpTip text="Filtra por nombre, email, dirección y contactos. Crea listas inteligentes personalizadas." />
+                <ViewModeToggles currentMode={vistaTyped} baseParams={baseParams} />
               </div>
             )}
             views={<ViewModeToggles currentMode={vistaTyped} baseParams={baseParams} />}

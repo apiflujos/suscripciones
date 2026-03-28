@@ -155,7 +155,6 @@ export default async function ProductsPage({
                 ...(filters ? { filters } : {})
               }}
             />
-            <HelpTip text="Crea filtros personalizados para mostrar solo los productos que necesitas." />
           </div>
         )}
         views={(

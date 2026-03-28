@@ -929,7 +929,7 @@ export default async function BillingPage({
               />
             )}
             filters={(
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div className="page-header-standard-filters-group">
                 <FilterButton
                   scope="billing"
                   baseParams={{
@@ -941,7 +941,17 @@ export default async function BillingPage({
                   }}
                   initialFields={getSmartViewFields("billing")}
                 />
-                <HelpTip text="Filtra por tipo de cobro, estado y orden. Crea listas inteligentes personalizadas." />
+                <ViewModeToggles
+                  currentMode={vistaTyped}
+                  baseParams={{
+                    ...(tenantId ? { tenantId } : {}),
+                    ...(q ? { q } : {}),
+                    ...(tipo ? { tipo } : {}),
+                    ...(estado ? { estado } : {}),
+                    ...(ordenar ? { ordenar } : {})
+                  }}
+                  showKanban
+                />
               </div>
             )}
             views={(

@@ -7449,7 +7449,7 @@ textarea.input {
   align-items: center;
 }
 
-/* Filter Button - Solo ícono */
+/* Filter Button - Solo ícono (mismo color que otros íconos) */
 .btn-filter {
   width: 28px;
   min-width: 28px;
@@ -7459,16 +7459,20 @@ textarea.input {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  color: var(--text-faint);
+  border-color: var(--stroke);
 }
 
 .btn-filter svg {
   width: 16px;
   height: 16px;
+  fill: currentColor;
 }
 
 .btn-filter:hover {
   background: var(--row-hover);
   border-color: var(--primary);
+  color: var(--primary);
 }
 
 .subscription-edit-grid {
