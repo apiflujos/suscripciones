@@ -7167,6 +7167,15 @@ textarea.input {
   overflow: auto;
 }
 
+.subscription-detail-modal .modal-body {
+  display: grid;
+  gap: 16px;
+}
+
+.subscription-detail-modal .card {
+  background: color-mix(in srgb, var(--panel) 94%, var(--primary-soft) 6%);
+}
+
 .subscription-edit-modal .panel-header {
   justify-content: space-between !important;
 }

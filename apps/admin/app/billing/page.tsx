@@ -22,6 +22,8 @@ import { SubscriptionEditModal } from "./SubscriptionEditModal";
 import { PaymentHistoryButton } from "./PaymentHistoryButton";
 import { PaymentCyclesModal } from "./PaymentCyclesModal";
 import { DeleteSubscriptionButton } from "./DeleteSubscriptionButton";
+import { SubscriptionDetailModal } from "./SubscriptionDetailModal";
+import { SubscriptionDetailModalWrapper } from "./SubscriptionDetailModalWrapper";
 import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { FilterButton } from "../ui/FilterButton";
 import { BillingTenantModalButton } from "./BillingTenantModalButton";
@@ -1024,12 +1026,30 @@ export default async function BillingPage({
                       </span>
                     </div>
                     <div className="billing-list-cell billing-list-more">
-                      <details className="inline-detail billing-pop">
-                        <summary className="ghost btn-compact btn-icon-only btn-open" aria-label="Ver más" title="Ver más" />
-                        <div className="inline-detail-body billing-pop-body">
-                          {renderBillingCard(r)}
-                        </div>
-                      </details>
+                      <SubscriptionDetailModalWrapper
+                        subscription={{
+                          ...r,
+                          inGrace: r.inGrace,
+                          inArrears: r.inArrears,
+                          daysLate: r.daysLate
+                        }}
+                        csrfToken={csrfToken}
+                        returnTo={returnTo}
+                        tenants={tenants}
+                        planOptions={planOptions}
+                        notificationsTemplates={notificationsTemplates}
+                        notificationsRules={notificationsRules}
+                        chargeSubscriptionNow={chargeSubscriptionNow}
+                        markSubscriptionPaidManual={markSubscriptionPaidManual}
+                        unmarkSubscriptionPaidManual={unmarkSubscriptionPaidManual}
+                        mergeDuplicateSubscriptions={mergeDuplicateSubscriptions}
+                        sendCentralComPaymentLink={sendCentralComPaymentLink}
+                        sendCentralComTokenizationLink={sendCentralComTokenizationLink}
+                        updateSubscriptionTenants={updateSubscriptionTenants}
+                        changeSubscriptionPlan={changeSubscriptionPlan}
+                        updateSubscriptionBillingSettings={updateSubscriptionBillingSettings}
+                        deleteSubscription={deleteSubscription}
+                      />
                     </div>
                   </div>
                 );
@@ -1061,8 +1081,20 @@ export default async function BillingPage({
                       </div>
                       <div className="billing-kanban-list">
                         {(grouped.get(col) || []).map((r) => (
-                          <details className="inline-detail billing-kanban-card" key={`kanban-item-${r.id}`}>
-                            <summary className="billing-kanban-summary" title={`Suscripción: ${getEstadoSimple(r.status).label}`}>
+                          <div className="billing-kanban-card" key={`kanban-item-${r.id}`}>
+                            <div
+                              className="billing-kanban-summary"
+                              title={`Suscripción: ${getEstadoSimple(r.status).label}`}
+                              style={{ cursor: "pointer" }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const wrapper = document.createElement("div");
+                                wrapper.setAttribute("data-kanban-detail", r.id);
+                                document.body.appendChild(wrapper);
+                                const event = new CustomEvent("open-kanban-subscription-detail", { detail: r });
+                                wrapper.dispatchEvent(event);
+                              }}
+                            >
                               <div className="billing-kanban-name">{r.customerName}</div>
                               <div className="billing-kanban-sub">{r.planName || "—"}</div>
                               <div className="billing-kanban-meta">
@@ -1075,11 +1107,34 @@ export default async function BillingPage({
                                   {getEstadoSimple(r.status).label}
                                 </span>
                               </div>
-                            </summary>
-                            <div className="inline-detail-body billing-pop-body">
-                              {renderBillingCard(r)}
                             </div>
-                          </details>
+                            <div style={{ marginTop: 8, textAlign: "right" }}>
+                              <SubscriptionDetailModalWrapper
+                                subscription={{
+                                  ...r,
+                                  inGrace: r.inGrace,
+                                  inArrears: r.inArrears,
+                                  daysLate: r.daysLate
+                                }}
+                                csrfToken={csrfToken}
+                                returnTo={returnTo}
+                                tenants={tenants}
+                                planOptions={planOptions}
+                                notificationsTemplates={notificationsTemplates}
+                                notificationsRules={notificationsRules}
+                                chargeSubscriptionNow={chargeSubscriptionNow}
+                                markSubscriptionPaidManual={markSubscriptionPaidManual}
+                                unmarkSubscriptionPaidManual={unmarkSubscriptionPaidManual}
+                                mergeDuplicateSubscriptions={mergeDuplicateSubscriptions}
+                                sendCentralComPaymentLink={sendCentralComPaymentLink}
+                                sendCentralComTokenizationLink={sendCentralComTokenizationLink}
+                                updateSubscriptionTenants={updateSubscriptionTenants}
+                                changeSubscriptionPlan={changeSubscriptionPlan}
+                                updateSubscriptionBillingSettings={updateSubscriptionBillingSettings}
+                                deleteSubscription={deleteSubscription}
+                              />
+                            </div>
+                          </div>
                         ))}
                         {(grouped.get(col) || []).length === 0 ? <div className="billing-kanban-empty">Sin registros</div> : null}
                       </div>
