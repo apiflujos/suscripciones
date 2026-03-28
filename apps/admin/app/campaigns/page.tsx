@@ -84,13 +84,13 @@ export default async function CampaignsPage({
         )}
         smartViews={(
           <SmartViewsBar
-            scope="campaigns"
+            scope="customers"
             initialViewId={viewId}
             initialFilters={filters}
             baseParams={{
               ...(q ? { q } : {})
             }}
-            initialFields={getSmartViewFields("campaigns")}
+            initialFields={getSmartViewFields("customers")}
             compactInline
           />
         )}
