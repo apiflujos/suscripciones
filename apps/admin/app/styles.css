@@ -3843,26 +3843,26 @@ html[data-contrast="high"] .filtersPanel {
 }
 
 .settings-group-header {
-  padding: 4px 8px;
+  padding: 12px 16px;
   background: color-mix(in srgb, var(--primary-soft) 28%, transparent);
   border-bottom: 1px solid var(--stroke);
-  min-height: 28px;
+  min-height: auto;
 }
 
 .settings-group-header h3,
 .settings-group-header h4,
 .panel-header h3,
 .ui-panel-header {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
   margin: 0;
   color: var(--text-strong);
 }
 
 .settings-group-body {
   display: grid;
-  gap: 8px;
-  padding: 8px;
+  gap: 12px;
+  padding: 12px;
 }
 
 .settings-submodule-header {
@@ -3879,10 +3879,18 @@ html[data-contrast="high"] .filtersPanel {
 }
 
 .settings-group-title {
-  font-size: 11px;
+  font-size: 13px;
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-faint);
+  margin: 0;
+}
+
+.settings-group-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-strong);
 }
 
 .panel {
