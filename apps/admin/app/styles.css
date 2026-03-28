@@ -7317,6 +7317,28 @@ textarea.input {
   gap: 6px;
 }
 
+/* Filter Button - Solo ícono */
+.btn-filter {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-filter svg {
+  width: 16px;
+  height: 16px;
+}
+
+.btn-filter:hover {
+  background: var(--row-hover);
+  border-color: var(--primary);
+}
+
 .subscription-edit-grid {
   display: grid;
   gap: 16px;
