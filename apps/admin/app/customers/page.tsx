@@ -324,9 +324,6 @@ export default async function CustomersPage({
       {paymentLink ? <div className="card cardPad">Link de pago enviado.</div> : null}
 
       <PageHeaderStandard
-        actions={(
-          <CustomersModalTrigger />
-        )}
         search={(
           <form action="/customers" method="GET" className="filtersForm filtersSearch">
             {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
@@ -389,6 +386,10 @@ export default async function CustomersPage({
           <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
         )}
       />
+
+      <div className="customers-actions-right" style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8, marginBottom: 12 }}>
+        <CustomersModalTrigger />
+      </div>
 
       <div id="customers-modals-container" style={{ display: 'none' }}>
         <CustomersModals

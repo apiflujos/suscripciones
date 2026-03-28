@@ -116,9 +116,6 @@ export default async function ProductsPage({
       {sent ? <div className="card cardPad">Mensaje enviado.</div> : null}
 
       <PageHeaderStandard
-        actions={(
-          <ProductsModalTrigger />
-        )}
         search={(
           <form action="/products" method="GET" className="filtersForm filtersSearch">
             {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
@@ -181,6 +178,10 @@ export default async function ProductsPage({
           <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="products" />
         )}
       />
+
+      <div className="customers-actions-right" style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8, marginBottom: 12 }}>
+        <ProductsModalTrigger />
+      </div>
 
       <div id="products-modals-container" style={{ display: 'none' }}>
         <ProductsModals

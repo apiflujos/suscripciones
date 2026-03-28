@@ -7276,6 +7276,21 @@ textarea.input {
   justify-content: center;
 }
 
+.customers-actions-right {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+  margin-bottom: 12px;
+  gap: 8px;
+}
+
+.customers-actions-right .primary,
+.customers-actions-right .btn-contact,
+.customers-actions-right .btn-subscription {
+  min-width: 160px;
+  justify-content: center;
+}
+
 .subscription-edit-grid {
   display: grid;
   gap: 16px;

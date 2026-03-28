@@ -92,19 +92,6 @@ export default async function EmpresasPage({
       <section className="settings-group">
         <div className="settings-group-header">
           <PageHeaderStandard
-            actions={(
-              <>
-                <ListCsvActions exportHref={exportHref} tenantId={session?.tenantId || undefined} defaultEntity="companies" />
-                <EmpresaCreateModal
-                  csrfToken={csrfToken}
-                  createEmpresa={createEmpresa}
-                  updateEmpresa={updateEmpresa}
-                  deleteEmpresa={deleteEmpresa}
-                  returnTo={`/empresas?${new URLSearchParams(baseParams).toString()}`}
-                  tenantId={session?.tenantId || null}
-                />
-              </>
-            )}
             search={(
               <form action="/empresas" method="GET" className="filtersForm filtersSearch">
                 {vista ? <input type="hidden" name="vista" value={vista} /> : null}
@@ -149,6 +136,17 @@ export default async function EmpresasPage({
               </div>
             )}
             views={<ViewModeToggles currentMode={vistaTyped} baseParams={baseParams} />}
+          />
+        </div>
+
+        <div className="customers-actions-right" style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8, marginBottom: 12 }}>
+          <EmpresaCreateModal
+            csrfToken={csrfToken}
+            createEmpresa={createEmpresa}
+            updateEmpresa={updateEmpresa}
+            deleteEmpresa={deleteEmpresa}
+            returnTo={`/empresas?${new URLSearchParams(baseParams).toString()}`}
+            tenantId={session?.tenantId || null}
           />
         </div>
 
