@@ -79,26 +79,6 @@ export default async function CampaignsPage({
         )}
         filters={(
           <div className="page-header-standard-filters-group">
-            <NewMassMessageModal
-              csrfToken={csrfToken}
-              returnTo={returnTo}
-              views={lists
-                .filter((v: any) => {
-                  const name = String(v?.name || "").toLowerCase();
-                  if (name.startsWith("gamificación")) return false;
-                  if (name.startsWith("ranking")) return false;
-                  if (name.startsWith("estado")) return false;
-                  return true;
-                })
-                .map((v: any) => ({
-                  id: String(v.id),
-                  name: String(v.name),
-                  visibility: v.visibility,
-                  type: v.type
-                }))}
-              tenantId={tenantId}
-              action={createCampaign}
-            />
             <ViewModeToggles currentMode="lista" baseParams={{ ...(q ? { q } : {}), ...(viewId ? { viewId } : {}), ...(filters ? { filters } : {}) }} />
           </div>
         )}
@@ -116,6 +96,29 @@ export default async function CampaignsPage({
         )}
         summary={<span className="muted">Total {total}</span>}
       />
+
+      <div className="campaigns-actions-right" style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+        <NewMassMessageModal
+          csrfToken={csrfToken}
+          returnTo={returnTo}
+          views={lists
+            .filter((v: any) => {
+              const name = String(v?.name || "").toLowerCase();
+              if (name.startsWith("gamificación")) return false;
+              if (name.startsWith("ranking")) return false;
+              if (name.startsWith("estado")) return false;
+              return true;
+            })
+            .map((v: any) => ({
+              id: String(v.id),
+              name: String(v.name),
+              visibility: v.visibility,
+              type: v.type
+            }))}
+          tenantId={tenantId}
+          action={createCampaign}
+        />
+      </div>
 
       <div className="panel module">
         <h3 style={{ marginTop: 0 }}>Campañas guardadas</h3>

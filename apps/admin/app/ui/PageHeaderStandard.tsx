@@ -19,6 +19,7 @@ export function PageHeaderStandard({
     <div className="page-header-standard">
       <div className="page-header-standard-controls">
         <div className="page-header-standard-search">{search}</div>
+        <div className="page-header-standard-actions">{actions}</div>
         <div className="page-header-standard-left">
           <div className={`page-header-standard-filters${filters ? "" : " is-empty"}`}>
             {filters ?? <span className="muted">Filtros</span>}

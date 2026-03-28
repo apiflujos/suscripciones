@@ -7264,6 +7264,18 @@ textarea.input {
   letter-spacing: 0.5px;
 }
 
+.campaigns-actions-right {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+  margin-bottom: 12px;
+}
+
+.campaigns-actions-right .primary {
+  min-width: 180px;
+  justify-content: center;
+}
+
 .subscription-edit-grid {
   display: grid;
   gap: 16px;
@@ -14632,6 +14644,14 @@ html[data-contrast="high"] .toggle::after {
 .page-header-standard-search .filtersForm .input {
   flex: 1;
   min-width: 150px;
+}
+
+.page-header-standard-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 .page-header-standard-left {
