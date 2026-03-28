@@ -49,7 +49,7 @@ export function FilterButton({
         setFields(json.fields);
         setFieldsLoaded(true);
         // Agregar regla inicial si está vacío
-        if (root.rules.length === 0 && json.fields.length > 0) {
+        if (!("rules" in root) || (root.rules.length === 0 && json.fields.length > 0)) {
           const firstField = json.fields[0];
           const firstOp = firstField.operators?.[0] || "equals";
           setRoot({ op: "and", rules: [{ field: firstField.key, op: firstOp, value: "" }] });
