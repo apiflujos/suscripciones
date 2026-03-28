@@ -821,132 +821,131 @@ export default async function LogsPage({
       {/* Panel de salud del sistema (solo non-payments) */}
       {tab !== "payments" && (
         <div className="filtersPanel payments-health-panel" style={{ marginBottom: 16 }}>
-              {(() => {
-                    if (tab === "payments") return null;
-                    const banners: Array<{ tone: "warn" | "danger" | "info"; text: React.ReactNode; action?: React.ReactNode }> = [];
+          {(() => {
+            if (tab === "payments") return null;
+            const banners: Array<{ tone: "warn" | "danger" | "info"; text: React.ReactNode; action?: React.ReactNode }> = [];
 
-                    // Configuración crítica
-                    if (paymentsHealthInfo && !paymentsHealthInfo.wompiEventsSecretConfigured) {
-                      banners.push({
-                        tone: "danger",
-                        text: "Wompi Events Secret no configurado. Los webhooks serán rechazados.",
-                        action: (
-                          <a className="ghost btn-compact btn-noicon" href="/settings?tab=cobros">
-                            Configurar
-                          </a>
-                        )
-                      });
-                    }
-                    if (paymentsHealthInfo && !paymentsHealthInfo.defaultTenantConfigured) {
-                      banners.push({
-                        tone: "danger",
-                        text: "No hay tenant por defecto. Los pagos entrantes pueden fallar.",
-                        action: (
-                          <a className="ghost btn-compact btn-noicon" href="/settings?tab=cobros">
-                            Configurar
-                          </a>
-                        )
-                      });
-                    }
+            // Configuración crítica
+            if (paymentsHealthInfo && !paymentsHealthInfo.wompiEventsSecretConfigured) {
+              banners.push({
+                tone: "danger",
+                text: "Wompi Events Secret no configurado. Los webhooks serán rechazados.",
+                action: (
+                  <a className="ghost btn-compact btn-noicon" href="/settings?tab=cobros">
+                    Configurar
+                  </a>
+                )
+              });
+            }
+            if (paymentsHealthInfo && !paymentsHealthInfo.defaultTenantConfigured) {
+              banners.push({
+                tone: "danger",
+                text: "No hay tenant por defecto. Los pagos entrantes pueden fallar.",
+                action: (
+                  <a className="ghost btn-compact btn-noicon" href="/settings?tab=cobros">
+                    Configurar
+                  </a>
+                )
+              });
+            }
 
-                    // Webhooks recientes
-                    if (paymentsHealthInfo?.latestWebhookAt) {
-                      const ageLabel = formatElapsedLabel(paymentsHealthInfo.latestWebhookAt);
-                      const eventName = paymentsHealthInfo.latestWebhookEventName || "Evento";
-                      const status = paymentsHealthInfo.latestWebhookStatus || "RECEIVED";
-                      const statusLabel = status === "PROCESSED" ? "OK" : status === "FAILED" ? "Fallido" : "Pendiente";
-                      const statusCls = status === "PROCESSED" ? "is-success" : status === "FAILED" ? "is-error" : "is-warning";
+            // Webhooks recientes
+            if (paymentsHealthInfo?.latestWebhookAt) {
+              const ageLabel = formatElapsedLabel(paymentsHealthInfo.latestWebhookAt);
+              const eventName = paymentsHealthInfo.latestWebhookEventName || "Evento";
+              const status = paymentsHealthInfo.latestWebhookStatus || "RECEIVED";
+              const statusLabel = status === "PROCESSED" ? "OK" : status === "FAILED" ? "Fallido" : "Pendiente";
+              const statusCls = status === "PROCESSED" ? "is-success" : status === "FAILED" ? "is-error" : "is-warning";
 
-                      banners.push({
-                        tone: "info",
-                        text: (
-                          <>
-                            Último webhook: <strong>{eventName}</strong>{" "}
-                            <span className={`pill pill-sm pill-${statusCls}`}>{statusLabel}</span>{" "}
-                            <LocalDateTime value={paymentsHealthInfo.latestWebhookAt} variant="short" />
-                            {ageLabel && <span className="muted"> · {ageLabel}</span>}
-                          </>
-                        )
-                      });
-                    }
-                    if (paymentsHealthInfo?.latestProcessedAt) {
-                      const ageLabel = formatElapsedLabel(paymentsHealthInfo.latestProcessedAt);
-                      const eventName = paymentsHealthInfo.latestProcessedEventName || "Evento";
-                      banners.push({
-                        tone: "info",
-                        text: (
-                          <>
-                            Último procesado: <strong>{eventName}</strong>{" "}
-                            <LocalDateTime value={paymentsHealthInfo.latestProcessedAt} variant="short" />
-                            {ageLabel && <span className="muted"> · {ageLabel}</span>}
-                          </>
-                        )
-                      });
-                    }
+              banners.push({
+                tone: "info",
+                text: (
+                  <>
+                    Último webhook: <strong>{eventName}</strong>{" "}
+                    <span className={`pill pill-sm pill-${statusCls}`}>{statusLabel}</span>{" "}
+                    <LocalDateTime value={paymentsHealthInfo.latestWebhookAt} variant="short" />
+                    {ageLabel && <span className="muted"> · {ageLabel}</span>}
+                  </>
+                )
+              });
+            }
+            if (paymentsHealthInfo?.latestProcessedAt) {
+              const ageLabel = formatElapsedLabel(paymentsHealthInfo.latestProcessedAt);
+              const eventName = paymentsHealthInfo.latestProcessedEventName || "Evento";
+              banners.push({
+                tone: "info",
+                text: (
+                  <>
+                    Último procesado: <strong>{eventName}</strong>{" "}
+                    <LocalDateTime value={paymentsHealthInfo.latestProcessedAt} variant="short" />
+                    {ageLabel && <span className="muted"> · {ageLabel}</span>}
+                  </>
+                )
+              });
+            }
 
-                    // Cola de webhooks
-                    if (paymentsHealthInfo && paymentsHealthInfo.pendingWebhookEvents > 0) {
-                      banners.push({
-                        tone: "warn",
-                        text: `${paymentsHealthInfo.pendingWebhookEvents} webhooks pendientes`
-                      });
-                    }
-                    if (paymentsHealthInfo && paymentsHealthInfo.failedWebhookEvents > 0) {
-                      banners.push({
-                        tone: "warn",
-                        text: `${paymentsHealthInfo.failedWebhookEvents} webhooks fallidos`,
-                        action: (
-                          <form action={retryFailedWebhooks} className="payments-health-action">
-                            <input type="hidden" name="csrf" value={csrfToken} />
-                            <PendingButton className="ghost btn-compact btn-noicon" type="submit" pendingText="Reintentando...">
-                              Reintentar
-                            </PendingButton>
-                          </form>
-                        )
-                      });
-                    }
+            // Cola de webhooks
+            if (paymentsHealthInfo && paymentsHealthInfo.pendingWebhookEvents > 0) {
+              banners.push({
+                tone: "warn",
+                text: `${paymentsHealthInfo.pendingWebhookEvents} webhooks pendientes`
+              });
+            }
+            if (paymentsHealthInfo && paymentsHealthInfo.failedWebhookEvents > 0) {
+              banners.push({
+                tone: "warn",
+                text: `${paymentsHealthInfo.failedWebhookEvents} webhooks fallidos`,
+                action: (
+                  <form action={retryFailedWebhooks} className="payments-health-action">
+                    <input type="hidden" name="csrf" value={csrfToken} />
+                    <PendingButton className="ghost btn-compact btn-noicon" type="submit" pendingText="Reintentando...">
+                      Reintentar
+                    </PendingButton>
+                  </form>
+                )
+              });
+            }
 
-                    // Configuración de pagos
-                    if (paymentsConfig) {
-                      const accept = paymentsConfig.acceptUnlinkedPayments !== false;
-                      const include = paymentsConfig.includeUnlinkedPaymentsInMetrics !== false;
-                      const notifyWhatsapp = paymentsConfig.notifyWhatsappForUnlinkedPayments !== false;
+            // Configuración de pagos
+            if (paymentsConfig) {
+              const accept = paymentsConfig.acceptUnlinkedPayments !== false;
+              const include = paymentsConfig.includeUnlinkedPaymentsInMetrics !== false;
+              const notifyWhatsapp = paymentsConfig.notifyWhatsappForUnlinkedPayments !== false;
 
-                      if (!include) {
-                        banners.push({
-                          tone: "info",
-                          text: <><strong>Métricas:</strong> Pagos sin suscripción no se incluyen.</>,
-                          action: (
-                            <a className="ghost btn-compact btn-noicon" href="/settings?tab=cobros">
-                              Configurar
-                            </a>
-                          )
-                        });
-                      }
-                      if (!notifyWhatsapp && !accept) {
-                        banners.push({
-                          tone: "info",
-                          text: <><strong>WhatsApp:</strong> No se notifican pagos no asociados.</>
-                        });
-                      }
-                    }
+              if (!include) {
+                banners.push({
+                  tone: "info",
+                  text: <><strong>Métricas:</strong> Pagos sin suscripción no se incluyen.</>,
+                  action: (
+                    <a className="ghost btn-compact btn-noicon" href="/settings?tab=cobros">
+                      Configurar
+                    </a>
+                  )
+                });
+              }
+              if (!notifyWhatsapp && !accept) {
+                banners.push({
+                  tone: "info",
+                  text: <><strong>WhatsApp:</strong> No se notifican pagos no asociados.</>
+                });
+              }
+            }
 
-                    return banners.length ? (
-                      <div className="payments-health-stack">
-                        {banners.map((b, idx) => (
-                          <div key={`pay-banner-${idx}`} className={`payments-health-banner is-${b.tone}`}>
-                            <span>{b.text}</span>
-                            {b.action ?? null}
-                          </div>
-                        ))}
-                      </div>
-                    ) : null;
-                  })()}
-            </div>
-          )}
+            return banners.length ? (
+              <div className="payments-health-stack">
+                {banners.map((b, idx) => (
+                  <div key={`pay-banner-${idx}`} className={`payments-health-banner is-${b.tone}`}>
+                    <span>{b.text}</span>
+                    {b.action ?? null}
+                  </div>
+                ))}
+              </div>
+            ) : null;
+          })()}
         </div>
+      )}
 
-        <div className="settings-group-body">
+      <div className="settings-group-body">
           {aiEnabled ? (
             <div className="logs-ai-wrapper">
               <AiAssistant from={from} to={to} tenantId={tenantId || undefined} scope="logs" />
