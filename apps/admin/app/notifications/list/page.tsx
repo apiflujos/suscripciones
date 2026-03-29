@@ -60,13 +60,6 @@ export default async function WhatsappNotificationsListPage({
   return (
     <main className="page notificationsPage">
       <PageHeaderStandard
-        actions={(
-          <>
-            <a className="ghost btn-compact" href="/settings?tab=notificaciones-whatsapp">
-              Configurar WhatsApp
-            </a>
-          </>
-        )}
         search={(
           <form action="/notifications/list" method="GET" className="filtersForm filtersSearch" data-debounce-form="true">
             <input
@@ -81,9 +74,11 @@ export default async function WhatsappNotificationsListPage({
             <a className="ghost btn-compact" href="/notifications/list">Limpiar</a>
           </form>
         )}
+        searchActions={(
+          <FilterButton />
+        )}
         filters={(
           <div className="page-header-standard-filters-group">
-            <FilterButton />
             <select className="select" name="status" defaultValue={status} style={{ minWidth: 140 }}>
               <option value="">Estado: Todos</option>
               <option value="SENT">Enviado</option>
@@ -105,6 +100,7 @@ export default async function WhatsappNotificationsListPage({
             <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" title="Hasta" style={{ width: 130 }} />
           </div>
         )}
+        configHref="http://localhost:3002/settings?tab=notificaciones-whatsapp"
         summary={(
           <ListCsvActions
             exportHref={`/api/list-csv?${new URLSearchParams({ scope: "notifications", ...baseParams }).toString()}`}
@@ -114,30 +110,6 @@ export default async function WhatsappNotificationsListPage({
       />
 
       <div className="settings-group-body" style={{ marginTop: 8 }}>
-        <div className="pagination pagination-indicator" style={{ marginBottom: 8 }}>
-          <div className="pagination-summary">{summaryText}</div>
-          <a
-            className="page-link page-nav"
-            href={`/notifications/list?${new URLSearchParams({
-              ...baseParams,
-              page: String(Math.max(1, currentPage - 1))
-            })}`}
-            aria-disabled={!hasPrev}
-          >
-            Anterior
-          </a>
-          <a
-            className="page-link page-nav"
-            href={`/notifications/list?${new URLSearchParams({
-              ...baseParams,
-              page: String(currentPage + 1)
-            })}`}
-            aria-disabled={!hasNext}
-          >
-            Siguiente
-          </a>
-        </div>
-
         <div className="panel module" style={{ padding: 0 }}>
           <table className="table logs-table logs-table-messages" aria-label="Tabla de mensajes">
             <colgroup>
@@ -193,6 +165,30 @@ export default async function WhatsappNotificationsListPage({
               ) : null}
             </tbody>
           </table>
+        </div>
+
+        <div className="pagination pagination-indicator" style={{ marginTop: 8 }}>
+          <div className="pagination-summary">{summaryText}</div>
+          <a
+            className="page-link page-nav"
+            href={`/notifications/list?${new URLSearchParams({
+              ...baseParams,
+              page: String(Math.max(1, currentPage - 1))
+            })}`}
+            aria-disabled={!hasPrev}
+          >
+            Anterior
+          </a>
+          <a
+            className="page-link page-nav"
+            href={`/notifications/list?${new URLSearchParams({
+              ...baseParams,
+              page: String(currentPage + 1)
+            })}`}
+            aria-disabled={!hasNext}
+          >
+            Siguiente
+          </a>
         </div>
       </div>
     </main>

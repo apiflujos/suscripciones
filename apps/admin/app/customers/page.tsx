@@ -342,18 +342,20 @@ export default async function CustomersPage({
             <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
           </form>
         )}
+        searchActions={(
+          <FilterButton
+            scope="customers"
+            baseParams={{
+              ...(q ? { q } : {}),
+              ...(tenantId ? { tenantId } : {}),
+              ...(viewId ? { viewId } : {}),
+              ...(filters ? { filters } : {})
+            }}
+            initialFields={getSmartViewFields("customers")}
+          />
+        )}
         filters={(
           <div className="page-header-standard-filters-group">
-            <FilterButton
-              scope="customers"
-              baseParams={{
-                ...(q ? { q } : {}),
-                ...(tenantId ? { tenantId } : {}),
-                ...(viewId ? { viewId } : {}),
-                ...(filters ? { filters } : {})
-              }}
-              initialFields={getSmartViewFields("customers")}
-            />
             <ViewModeToggles
               currentMode={vistaTyped}
               baseParams={{

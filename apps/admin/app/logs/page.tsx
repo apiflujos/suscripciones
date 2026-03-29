@@ -951,7 +951,6 @@ export default async function LogsPage({
               <AiAssistant from={from} to={to} tenantId={tenantId || undefined} scope="logs" />
             </div>
           ) : null}
-          {pagination}
           {tab === "system" ? (
             <LogsSystemTable items={normalized} />
           ) : tab === "messages" ? (

@@ -895,6 +895,19 @@ export default async function BillingPage({
                 <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
               </form>
             )}
+            searchActions={(
+              <FilterButton
+                scope="billing"
+                baseParams={{
+                  ...(tenantId ? { tenantId } : {}),
+                  ...(q ? { q } : {}),
+                  ...(tipo ? { tipo } : {}),
+                  ...(estado ? { estado } : {}),
+                  ...(ordenar ? { ordenar } : {})
+                }}
+                initialFields={getSmartViewFields("billing")}
+              />
+            )}
             smartViews={(
               <SmartViewsBar
                 scope="billing"
@@ -913,28 +926,6 @@ export default async function BillingPage({
             )}
             filters={(
               <div className="page-header-standard-filters-group">
-                <FilterButton
-                  scope="billing"
-                  baseParams={{
-                    ...(tenantId ? { tenantId } : {}),
-                    ...(q ? { q } : {}),
-                    ...(tipo ? { tipo } : {}),
-                    ...(estado ? { estado } : {}),
-                    ...(ordenar ? { ordenar } : {})
-                  }}
-                  initialFields={getSmartViewFields("billing")}
-                />
-                <ViewModeToggles
-                  currentMode={vistaTyped}
-                  baseParams={{
-                    ...(tenantId ? { tenantId } : {}),
-                    ...(q ? { q } : {}),
-                    ...(tipo ? { tipo } : {}),
-                    ...(estado ? { estado } : {}),
-                    ...(ordenar ? { ordenar } : {})
-                  }}
-                  showKanban
-                />
               </div>
             )}
             views={(
@@ -950,6 +941,7 @@ export default async function BillingPage({
                 showKanban
               />
             )}
+            configHref="http://localhost:3002/settings?tab=cobros"
             summary={<span className="muted">{rows.length} resultados</span>}
           />
         </div>
@@ -1085,15 +1077,6 @@ export default async function BillingPage({
                             <div
                               className="billing-kanban-summary"
                               title={`Suscripción: ${getEstadoSimple(r.status).label}`}
-                              style={{ cursor: "pointer" }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const wrapper = document.createElement("div");
-                                wrapper.setAttribute("data-kanban-detail", r.id);
-                                document.body.appendChild(wrapper);
-                                const event = new CustomEvent("open-kanban-subscription-detail", { detail: r });
-                                wrapper.dispatchEvent(event);
-                              }}
                             >
                               <div className="billing-kanban-name">{r.customerName}</div>
                               <div className="billing-kanban-sub">{r.planName || "—"}</div>

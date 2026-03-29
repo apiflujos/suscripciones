@@ -1909,6 +1909,18 @@ a {
   gap: 6px;
 }
 
+/* Pagos (logs) - acciones a la derecha */
+.logs-header-simple .list-csv-actions {
+  margin-left: auto;
+}
+
+/* Pagos (logs) - iconos morados */
+.logs-header-simple .btn-icon-only {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+
 .list-csv-actions .btn-icon-only {
   width: 28px;
   height: 28px;
@@ -14842,11 +14854,29 @@ html[data-contrast="high"] .toggle::after {
   max-width: 320px;
 }
 
+.page-header-standard-search-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.page-header-standard-search-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .page-header-standard-search .filtersForm {
   width: 100%;
   display: flex;
   gap: 6px;
   align-items: center;
+}
+
+.page-header-standard-search-row .filtersForm {
+  flex: 1 1 auto;
+  width: auto;
 }
 
 .page-header-standard-search .filtersForm .input {
@@ -15056,6 +15086,19 @@ html[data-contrast="high"] .toggle::after {
 .page-header-standard .btn-icon-only {
   height: 32px;
   min-height: 32px;
+}
+
+/* Iconos morados en headers estándar */
+.page-header-standard .btn-icon-only {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.page-header-standard .btn-filter {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-soft);
 }
 
 /* Gap consistente en filters-group */

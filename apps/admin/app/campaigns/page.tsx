@@ -10,6 +10,7 @@ import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session
 import { PageHeaderStandard } from "../ui/PageHeaderStandard";
 import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
+import { FilterButton } from "../ui/FilterButton";
 
 export default async function CampaignsPage({
   searchParams
@@ -76,6 +77,13 @@ export default async function CampaignsPage({
             />
             <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
           </form>
+        )}
+        searchActions={(
+          <FilterButton
+            scope="customers"
+            baseParams={{ ...(q ? { q } : {}), ...(viewId ? { viewId } : {}), ...(filters ? { filters } : {}) }}
+            initialFields={getSmartViewFields("customers")}
+          />
         )}
         filters={(
           <div className="page-header-standard-filters-group">

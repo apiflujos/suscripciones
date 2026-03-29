@@ -109,6 +109,17 @@ export default async function EmpresasPage({
                 <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
               </form>
             )}
+            searchActions={(
+              <FilterButton
+                scope="companies"
+                baseParams={{
+                  ...(q ? { q } : {}),
+                  ...(viewId ? { viewId } : {}),
+                  ...(filters ? { filters } : {})
+                }}
+                initialFields={getSmartViewFields("companies")}
+              />
+            )}
             smartViews={(
               <SmartViewsBar
                 scope="companies"
@@ -123,15 +134,6 @@ export default async function EmpresasPage({
             )}
             filters={(
               <div className="page-header-standard-filters-group">
-                <FilterButton
-                  scope="companies"
-                  baseParams={{
-                    ...(q ? { q } : {}),
-                    ...(viewId ? { viewId } : {}),
-                    ...(filters ? { filters } : {})
-                  }}
-                  initialFields={getSmartViewFields("companies")}
-                />
                 <ViewModeToggles currentMode={vistaTyped} baseParams={baseParams} />
               </div>
             )}
