@@ -14995,6 +14995,30 @@ html[data-contrast="high"] .toggle::after {
   gap: 6px;
 }
 
+/* Compactar headers en Customers y Products para igualar el estándar */
+.customersPage .page-header-standard .input,
+.customersPage .page-header-standard .select,
+.productsPage .page-header-standard .input,
+.productsPage .page-header-standard .select {
+  height: 28px;
+  font-size: 12px;
+}
+
+.customersPage .page-header-standard .btn-compact,
+.customersPage .page-header-standard .btn-icon-only,
+.productsPage .page-header-standard .btn-compact,
+.productsPage .page-header-standard .btn-icon-only {
+  height: 28px;
+  min-height: 28px;
+  width: 28px;
+  min-width: 28px;
+}
+
+.customersPage .page-header-standard .filtersSearch,
+.productsPage .page-header-standard .filtersSearch {
+  padding: 4px;
+}
+
 .page-header-standard-controls {
   display: grid;
   gap: 10px;
