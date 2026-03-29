@@ -392,7 +392,7 @@ export function FilterButton({
 
               {/* Acciones */}
               <div style={{ display: "grid", gap: 12 }}>
-                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <div className="smartFilterActions">
                   <button
                     className="primary btn-compact"
                     type="button"

@@ -2346,14 +2346,27 @@ a {
 .smartFilterModalPanel .btn-compact,
 .smartFilterModalPanel .btn,
 .smartFilterModalPanel .primary {
-  min-height: 32px;
-  height: 32px;
-  font-size: 12px;
-  padding: 6px 12px;
+  min-height: 32px !important;
+  height: 32px !important;
+  font-size: 12px !important;
+  padding: 6px 12px !important;
 }
 
 .smartFilterModalPanel .modal-body {
   gap: 12px;
+}
+
+.smartFilterActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.smartFilterActions .btn-compact:not(.btn-icon-only) {
+  width: auto !important;
+  min-width: 0 !important;
+  white-space: nowrap;
 }
 
 .smartViewsError {
