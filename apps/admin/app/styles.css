@@ -1961,6 +1961,10 @@ a {
   grid-area: filters;
 }
 
+.paymentsPage .page-header-standard-filters .filtersForm {
+  flex-wrap: nowrap;
+}
+
 .paymentsPage .page-header-standard-views {
   grid-area: views;
 }

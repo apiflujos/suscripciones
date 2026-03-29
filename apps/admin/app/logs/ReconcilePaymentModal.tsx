@@ -5,16 +5,18 @@ import { PendingButton } from "../ui/PendingButton";
 
 export function ReconcilePaymentModal({
   csrfToken,
-  action
+  action,
+  className
 }: {
   csrfToken: string;
   action: (formData: FormData) => void | Promise<void>;
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
 
   return (
     <>
-      <button className="ghost btn-compact btn-blue" type="button" data-loader="off" onClick={() => setOpen(true)}>
+      <button className={className || "ghost btn-compact btn-blue"} type="button" data-loader="off" onClick={() => setOpen(true)}>
         Reconciliar pago
       </button>
 

@@ -763,38 +763,7 @@ export default async function LogsPage({
     </form>
   );
 
-  const headerViews = tab === "payments" ? (
-    <div className="page-header-standard-filters-group payments-view-toggles">
-      <a
-        className={`pill ${paymentsView === "RECEIVED" ? "is-active" : ""}`}
-        href={`/payments?${new URLSearchParams({
-          paymentsView: "RECEIVED",
-          ...(q ? { q } : {}),
-          ...(from ? { from } : {}),
-          ...(to ? { to } : {}),
-          ...(tenantId ? { tenantId } : {}),
-          ...(viewId ? { viewId } : {}),
-          ...(filters ? { filters } : {})
-        }).toString()}`}
-      >
-        Pagos recibidos
-      </a>
-      <a
-        className={`pill ${paymentsView === "REQUESTED" ? "is-active" : ""}`}
-        href={`/payments?${new URLSearchParams({
-          paymentsView: "REQUESTED",
-          ...(q ? { q } : {}),
-          ...(from ? { from } : {}),
-          ...(to ? { to } : {}),
-          ...(tenantId ? { tenantId } : {}),
-          ...(viewId ? { viewId } : {}),
-          ...(filters ? { filters } : {})
-        }).toString()}`}
-      >
-        Pagos solicitados
-      </a>
-    </div>
-  ) : (
+  const headerViews = (
     <div className="page-header-standard-filters-group" />
   );
 
@@ -832,6 +801,41 @@ export default async function LogsPage({
         </div>
       )}
 
+      {tab === "payments" && (
+        <div className="panel-tabs panel-tabs-top" style={{ marginBottom: 0, borderBottom: "1px solid var(--stroke)" }}>
+          <Link
+            className={`ghost no-icon panel-tab ${paymentsView === "RECEIVED" ? "is-active" : ""}`}
+            href={`/payments?${new URLSearchParams({
+              paymentsView: "RECEIVED",
+              ...(q ? { q } : {}),
+              ...(from ? { from } : {}),
+              ...(to ? { to } : {}),
+              ...(tenantId ? { tenantId } : {}),
+              ...(viewId ? { viewId } : {}),
+              ...(filters ? { filters } : {})
+            }).toString()}`}
+            prefetch={false}
+          >
+            Pagos recibidos
+          </Link>
+          <Link
+            className={`ghost no-icon panel-tab ${paymentsView === "REQUESTED" ? "is-active" : ""}`}
+            href={`/payments?${new URLSearchParams({
+              paymentsView: "REQUESTED",
+              ...(q ? { q } : {}),
+              ...(from ? { from } : {}),
+              ...(to ? { to } : {}),
+              ...(tenantId ? { tenantId } : {}),
+              ...(viewId ? { viewId } : {}),
+              ...(filters ? { filters } : {})
+            }).toString()}`}
+            prefetch={false}
+          >
+            Pagos solicitados
+          </Link>
+        </div>
+      )}
+
       {/* Mensajes de notificación */}
       {shopifyResent ? <div className="card cardPad">Reenvío a Shopify encolado.</div> : null}
       {shopifyError ? <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>Error Shopify: {shopifyError}</div> : null}
@@ -858,9 +862,9 @@ export default async function LogsPage({
                 <input type="hidden" name="minutes" value="720" />
                 <input type="hidden" name="take" value="150" />
                 {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-                <PendingButton className="ghost btn-compact btn-noicon" type="submit" pendingText="Conciliando..." title="Reintenta conciliación de pagos pendientes">Recolectar</PendingButton>
+                <PendingButton className="primary btn-compact" type="submit" pendingText="Conciliando..." title="Reintenta conciliación de pagos pendientes">Recolectar</PendingButton>
               </form>
-              <ReconcilePaymentModal csrfToken={csrfToken} action={reconcilePayment} />
+              <ReconcilePaymentModal csrfToken={csrfToken} action={reconcilePayment} className="primary btn-compact" />
             </div>
           )
           : headerSummary}

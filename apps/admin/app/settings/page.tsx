@@ -197,35 +197,35 @@ export default async function SettingsPage({
 
   return (
     <main className="page pageWide settingsPage">
-      <div className="settings-tabs">
-        <a className={`settings-tab ${tab === "connections" ? "is-active" : ""}`} href="/settings?tab=connections" title="Integraciones y conexiones externas">
+      <div className="panel-tabs panel-tabs-top settings-tabs" style={{ marginBottom: 12 }}>
+        <a className={`ghost no-icon panel-tab ${tab === "connections" ? "is-active" : ""}`} href="/settings?tab=connections" title="Integraciones y conexiones externas">
           Conexiones
         </a>
-        <a className={`settings-tab ${tab === "cobros" ? "is-active" : ""}`} href="/settings?tab=cobros" title="Configuración de cobros y pagos">
+        <a className={`ghost no-icon panel-tab ${tab === "cobros" ? "is-active" : ""}`} href="/settings?tab=cobros" title="Configuración de cobros y pagos">
           Cobros
         </a>
-        <a className={`settings-tab ${tab === "suscripciones" ? "is-active" : ""}`} href="/settings?tab=suscripciones" title="Configuración de suscripciones">
+        <a className={`ghost no-icon panel-tab ${tab === "suscripciones" ? "is-active" : ""}`} href="/settings?tab=suscripciones" title="Configuración de suscripciones">
           Suscripciones
         </a>
-        <a className={`settings-tab ${tab === "checkout-publico" ? "is-active" : ""}`} href="/settings?tab=checkout-publico" title="Plantillas y configuración del checkout público">
+        <a className={`ghost no-icon panel-tab ${tab === "checkout-publico" ? "is-active" : ""}`} href="/settings?tab=checkout-publico" title="Plantillas y configuración del checkout público">
           Checkout público
         </a>
-        <a className={`settings-tab ${tab === "canales" ? "is-active" : ""}`} href="/settings?tab=canales" title="Canales de venta y asignación de tenants">
+        <a className={`ghost no-icon panel-tab ${tab === "canales" ? "is-active" : ""}`} href="/settings?tab=canales" title="Canales de venta y asignación de tenants">
           Canales de venta
         </a>
-        <a className={`settings-tab ${tab === "usuarios" ? "is-active" : ""}`} href="/settings?tab=usuarios" title="Gestión de usuarios y roles">
+        <a className={`ghost no-icon panel-tab ${tab === "usuarios" ? "is-active" : ""}`} href="/settings?tab=usuarios" title="Gestión de usuarios y roles">
           Usuarios
         </a>
-        <a className={`settings-tab ${tab === "notificaciones" ? "is-active" : ""}`} href="/settings?tab=notificaciones" title="Notificaciones del sistema">
+        <a className={`ghost no-icon panel-tab ${tab === "notificaciones" ? "is-active" : ""}`} href="/settings?tab=notificaciones" title="Notificaciones del sistema">
           Notificaciones del sistema
         </a>
-        <a className={`settings-tab ${tab === "notificaciones-whatsapp" ? "is-active" : ""}`} href="/settings?tab=notificaciones-whatsapp" title="Configuración de notificaciones WhatsApp">
+        <a className={`ghost no-icon panel-tab ${tab === "notificaciones-whatsapp" ? "is-active" : ""}`} href="/settings?tab=notificaciones-whatsapp" title="Configuración de notificaciones WhatsApp">
           Notificaciones WhatsApp
         </a>
-        <a className={`settings-tab ${tab === "apariencia" ? "is-active" : ""}`} href="/settings?tab=apariencia" title="Tema, logo y apariencia general">
+        <a className={`ghost no-icon panel-tab ${tab === "apariencia" ? "is-active" : ""}`} href="/settings?tab=apariencia" title="Tema, logo y apariencia general">
           Apariencia
         </a>
-        <a className={`settings-tab ${tab === "integraciones" ? "is-active" : ""}`} href="/settings?tab=integraciones" title="Integraciones, webhooks y API">
+        <a className={`ghost no-icon panel-tab ${tab === "integraciones" ? "is-active" : ""}`} href="/settings?tab=integraciones" title="Integraciones, webhooks y API">
           Integraciones
         </a>
       </div>
