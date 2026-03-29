@@ -790,13 +790,30 @@ export function SmartViewsBar({
                 )
               ) : (
                 <>
-                  <div className="smartRuleHeader">
-                    <span>Campo</span>
-                    <span>Condición</span>
-                    <span>Valor</span>
-                    <span />
-                  </div>
-                  {"rules" in root && root.rules.map((rule, index) => renderRule(rule, index))}
+      <div className="smartRuleHeader">
+        <span>Campo</span>
+        <span>Condición</span>
+        <span>Valor</span>
+        <span />
+      </div>
+      {"rules" in root && root.rules.map((rule, index) => (
+        <div key={`rule-wrap-${index}`} style={{ display: "grid", gap: 6 }}>
+          {renderRule(rule, index)}
+          {index === 0 && root.rules.length > 1 ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: 6 }}>
+              <span className="muted">Condición entre reglas</span>
+              <select
+                className="select select-compact"
+                value={root.op}
+                onChange={(e) => setRoot({ ...root, op: e.target.value as "and" | "or" })}
+              >
+                <option value="and">Y (todas)</option>
+                <option value="or">O (cualquiera)</option>
+              </select>
+            </div>
+          ) : null}
+        </div>
+      ))}
                 </>
               )}
 
@@ -806,19 +823,6 @@ export function SmartViewsBar({
                     <button className="ghost btn-compact" type="button" onClick={addRule}>
                       + Agregar condición
                     </button>
-                    {"rules" in root ? (
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span className="muted">Operador</span>
-                        <select
-                          className="select select-compact"
-                          value={root.op}
-                          onChange={(e) => setRoot({ ...root, op: e.target.value as "and" | "or" })}
-                        >
-                          <option value="and">Y (todas)</option>
-                          <option value="or">O (cualquiera)</option>
-                        </select>
-                      </div>
-                    ) : null}
                   </div>
 
                   <div className="smartViewsSave">

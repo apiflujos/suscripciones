@@ -294,7 +294,7 @@ export function FilterButton({
                   </div>
                 ) : (
                   <div style={{ display: "grid", gap: 8 }}>
-                    {("rules" in root ? root.rules : []).map((rule, idx) => {
+                    {("rules" in root ? root.rules : []).map((rule, idx, arr) => {
                       if ("rules" in rule) return null;
                       const field = fields.find((f) => f.key === rule.field) || fields[0];
                       const ops = field?.operators || [];
@@ -302,80 +302,81 @@ export function FilterButton({
                       const needsValue = op !== "exists" && op !== "isEmpty";
 
                       return (
-                        <div key={idx} style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                          <span className="muted" style={{ fontSize: 11, minWidth: 20 }}>{idx + 1}.</span>
-                          <select
-                            className="select select-compact"
-                            value={rule.field}
-                            onChange={(e) => {
-                              const nextField = fields.find((f) => f.key === e.target.value) || fields[0];
-                              const nextOp = nextField.operators?.[0] || "equals";
-                              updateRule(idx, { field: nextField.key, op: nextOp, value: "" });
-                            }}
-                            style={{ minWidth: 180, fontSize: 12 }}
-                          >
-                            {Array.from(new Set(fields.map((f) => f.group))).map((group) => (
-                              <optgroup key={group} label={group}>
-                                {fields.filter((f) => f.group === group).map((f) => (
-                                  <option key={f.key} value={f.key}>{f.label}</option>
-                                ))}
-                              </optgroup>
-                            ))}
-                          </select>
-                          <select
-                            className="select select-compact"
-                            value={op}
-                            onChange={(e) => updateRule(idx, { ...rule, op: e.target.value })}
-                            style={{ minWidth: 140, fontSize: 12 }}
-                          >
-                            {ops.map((o) => (
-                              <option key={o} value={o}>{OP_LABELS[o] || o}</option>
-                            ))}
-                          </select>
-                          {needsValue && (
-                            <input
-                              className="input input-compact"
-                              type="text"
-                              value={String(rule.value || "")}
-                              onChange={(e) => updateRule(idx, { ...rule, value: e.target.value })}
-                              placeholder="Valor"
-                              style={{ flex: 1, fontSize: 12 }}
-                            />
-                          )}
-                          {idx > 0 ? (
-                            <button
-                              className="ghost btn-compact btn-icon-only"
-                              type="button"
-                              onClick={() => removeRule(idx)}
-                              aria-label="Eliminar"
-                              title="Eliminar condición"
+                        <div key={idx} style={{ display: "grid", gap: 6 }}>
+                          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                            <span className="muted" style={{ fontSize: 11, minWidth: 20 }}>{idx + 1}.</span>
+                            <select
+                              className="select select-compact"
+                              value={rule.field}
+                              onChange={(e) => {
+                                const nextField = fields.find((f) => f.key === e.target.value) || fields[0];
+                                const nextOp = nextField.operators?.[0] || "equals";
+                                updateRule(idx, { field: nextField.key, op: nextOp, value: "" });
+                              }}
+                              style={{ minWidth: 180, fontSize: 12 }}
                             >
-                              <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
-                                <path d="M14 1.41L12.59 0 7 5.59 1.41 0 0 1.41 5.59 7 0 12.59 1.41 14 7 8.41 12.59 14 14 12.59 8.41 7z"/>
-                              </svg>
-                            </button>
-                          ) : (
-                            <div style={{ width: 32, height: 32 }} />
-                          )}
+                              {Array.from(new Set(fields.map((f) => f.group))).map((group) => (
+                                <optgroup key={group} label={group}>
+                                  {fields.filter((f) => f.group === group).map((f) => (
+                                    <option key={f.key} value={f.key}>{f.label}</option>
+                                  ))}
+                                </optgroup>
+                              ))}
+                            </select>
+                            <select
+                              className="select select-compact"
+                              value={op}
+                              onChange={(e) => updateRule(idx, { ...rule, op: e.target.value })}
+                              style={{ minWidth: 140, fontSize: 12 }}
+                            >
+                              {ops.map((o) => (
+                                <option key={o} value={o}>{OP_LABELS[o] || o}</option>
+                              ))}
+                            </select>
+                            {needsValue && (
+                              <input
+                                className="input input-compact"
+                                type="text"
+                                value={String(rule.value || "")}
+                                onChange={(e) => updateRule(idx, { ...rule, value: e.target.value })}
+                                placeholder="Valor"
+                                style={{ flex: 1, fontSize: 12 }}
+                              />
+                            )}
+                            {idx > 0 ? (
+                              <button
+                                className="ghost btn-compact btn-icon-only"
+                                type="button"
+                                onClick={() => removeRule(idx)}
+                                aria-label="Eliminar"
+                                title="Eliminar condición"
+                              >
+                                <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+                                  <path d="M14 1.41L12.59 0 7 5.59 1.41 0 0 1.41 5.59 7 0 12.59 1.41 14 7 8.41 12.59 14 14 12.59 8.41 7z"/>
+                                </svg>
+                              </button>
+                            ) : (
+                              <div style={{ width: 32, height: 32 }} />
+                            )}
+                          </div>
+                          {idx === 0 && arr.length > 1 ? (
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: 26 }}>
+                              <span className="muted" style={{ fontSize: 12 }}>Condición entre reglas</span>
+                              <select
+                                className="select select-compact"
+                                value={root.op}
+                                onChange={(e) => setRoot({ ...root, op: e.target.value as "and" | "or" })}
+                              >
+                                <option value="and">Y (todas)</option>
+                                <option value="or">O (cualquiera)</option>
+                              </select>
+                            </div>
+                          ) : null}
                         </div>
                       );
                     })}
                   </div>
                 )}
-
-                {"rules" in root && root.rules.length > 1 ? (
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span className="muted" style={{ fontSize: 12 }}>Condición entre reglas</span>
-                    <select
-                      className="select select-compact"
-                      value={root.op}
-                      onChange={(e) => setRoot({ ...root, op: e.target.value as "and" | "or" })}
-                    >
-                      <option value="and">Y (todas)</option>
-                      <option value="or">O (cualquiera)</option>
-                    </select>
-                  </div>
-                ) : null}
 
                 <div style={{ display: "flex", justifyContent: "flex-start" }}>
                   <button
