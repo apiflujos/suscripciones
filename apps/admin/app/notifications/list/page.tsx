@@ -60,6 +60,7 @@ export default async function WhatsappNotificationsListPage({
   return (
     <main className="page notificationsPage">
       <PageHeaderStandard
+        className="compact"
         search={(
           <form action="/notifications/list" method="GET" className="filtersForm filtersSearch" data-debounce-form="true">
             <input

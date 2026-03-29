@@ -14950,6 +14950,11 @@ html[data-contrast="high"] .toggle::after {
   background: var(--panel);
 }
 
+.page-header-standard.compact {
+  padding: 8px 10px;
+  gap: 6px;
+}
+
 .page-header-standard-controls {
   display: grid;
   gap: 10px;
@@ -15006,6 +15011,10 @@ html[data-contrast="high"] .toggle::after {
   min-width: 150px;
 }
 
+.page-header-standard.compact .page-header-standard-search .filtersForm .input {
+  min-width: 120px;
+}
+
 .page-header-standard-actions {
   display: flex;
   align-items: center;
@@ -15024,6 +15033,10 @@ html[data-contrast="high"] .toggle::after {
   flex: 1 1 420px;
   flex-wrap: wrap;
   min-width: 220px;
+}
+
+.page-header-standard.compact .page-header-standard-left {
+  flex-wrap: nowrap;
 }
 
 .page-header-standard-left > div {
@@ -15050,6 +15063,11 @@ html[data-contrast="high"] .toggle::after {
   max-width: none;
 }
 
+.page-header-standard.compact .page-header-standard-smartviews {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
 .page-header-standard-smartviews.is-empty {
   justify-content: center;
   min-height: 36px;
@@ -15067,6 +15085,27 @@ html[data-contrast="high"] .toggle::after {
   flex-shrink: 0;
   margin-left: auto;
   flex-wrap: wrap;
+}
+
+.page-header-standard.compact .page-header-standard-right {
+  flex-wrap: nowrap;
+}
+
+.page-header-standard.compact .page-header-standard-row-bottom {
+  display: contents;
+}
+
+.page-header-standard.compact .page-header-standard-row-top {
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+
+.page-header-standard.compact .page-header-standard-filters,
+.page-header-standard.compact .page-header-standard-views,
+.page-header-standard.compact .page-header-standard-smartviews {
+  border: 0;
+  padding: 0;
+  min-height: auto;
 }
 
 .page-header-standard-right:empty {

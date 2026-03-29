@@ -92,6 +92,7 @@ export default async function EmpresasPage({
       <section className="settings-group">
         <div className="settings-group-header">
           <PageHeaderStandard
+            className="compact"
             search={(
               <form action="/empresas" method="GET" className="filtersForm filtersSearch">
                 {vista ? <input type="hidden" name="vista" value={vista} /> : null}

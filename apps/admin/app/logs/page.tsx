@@ -841,6 +841,7 @@ export default async function LogsPage({
       {assocStatus === "fail" ? <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>Error asociando pago: {assocError || "unknown_error"}</div> : null}
 
       <PageHeaderStandard
+        className="compact"
         search={headerSearch}
         searchActions={headerFilterButton || undefined}
         filters={headerFilters}

@@ -8,7 +8,8 @@ export function PageHeaderStandard({
   filters,
   views,
   summary,
-  configHref
+  configHref,
+  className
 }: {
   actions?: ReactNode;
   search: ReactNode;
@@ -18,9 +19,10 @@ export function PageHeaderStandard({
   views?: ReactNode;
   summary?: ReactNode;
   configHref?: string;
+  className?: string;
 }) {
   return (
-    <div className="page-header-standard">
+    <div className={`page-header-standard${className ? ` ${className}` : ""}`}>
       <div className="page-header-standard-controls">
         <div className="page-header-standard-row page-header-standard-row-top">
           <div className="page-header-standard-search">
