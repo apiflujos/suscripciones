@@ -29,7 +29,9 @@ export default async function SaModulesPage({
 
       <section className="settings-group">
         <div className="settings-group-header">
-          <h3>Módulos</h3>
+          <div className="settings-group-header-main">
+            <h3>Módulos</h3>
+          </div>
         </div>
         <div className="settings-group-body">
           <form action={upsertModule} className="panel module" style={{ display: "grid", gap: 10 }}>

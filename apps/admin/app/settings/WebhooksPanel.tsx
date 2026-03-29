@@ -92,11 +92,9 @@ export function WebhooksPanel({
   return (
     <section className="settings-group">
       <div className="settings-group-header">
-        <div className="panelHeaderRow">
-          <div style={{ display: "grid", gap: 4 }}>
-            <h3>Integraciones</h3>
-            <div className="field-hint">Webhooks, tokens y documentación para integrar pasarelas y sistemas externos.</div>
-          </div>
+        <div className="settings-group-header-main">
+          <h3>Integraciones</h3>
+          <div className="field-hint">Webhooks, tokens y documentación para integrar pasarelas y sistemas externos.</div>
         </div>
       </div>
       <div className="settings-group-body" style={{ display: "grid", gap: 12 }}>

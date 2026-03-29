@@ -31,8 +31,10 @@ export function UsersPanel({
 
       <section className="settings-group">
         <div className="settings-group-header">
-          <h3>Nuevo Usuario</h3>
-          <p className="field-hint">Los administradores tienen acceso total. Los asesores solo pueden ver datos y gestionar cobros.</p>
+          <div className="settings-group-header-main">
+            <h3>Nuevo Usuario</h3>
+            <p className="field-hint">Los administradores tienen acceso total. Los asesores solo pueden ver datos y gestionar cobros.</p>
+          </div>
         </div>
         <div className="settings-group-body">
           <form action={createUser} className="panel module ui-form-grid-lg">
@@ -105,7 +107,9 @@ export function UsersPanel({
 
       <section className="settings-group">
         <div className="settings-group-header">
-          <h3>Usuarios Registrados</h3>
+          <div className="settings-group-header-main">
+            <h3>Usuarios Registrados</h3>
+          </div>
         </div>
         <div className="settings-group-body">
           <div className="stack">

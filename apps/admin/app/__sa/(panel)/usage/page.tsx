@@ -45,7 +45,9 @@ export default async function SaUsagePage({
 
       <section className="settings-group">
         <div className="settings-group-header">
-          <h3>Consumos</h3>
+          <div className="settings-group-header-main">
+            <h3>Consumos</h3>
+          </div>
         </div>
         <div className="settings-group-body">
           <form method="get" className="panel module" style={{ display: "flex", gap: 10, alignItems: "end", flexWrap: "wrap" }}>

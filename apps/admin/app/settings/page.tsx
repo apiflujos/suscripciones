@@ -245,7 +245,7 @@ export default async function SettingsPage({
       {tab === "apariencia" ? (
         <section className="settings-group">
           <div className="settings-group-header">
-            <div className="panelHeaderRow">
+            <div className="settings-group-header-main">
               <SettingsSectionHeader title="Apariencia" hint="Tema, visión y contraste." />
             </div>
           </div>
@@ -310,7 +310,7 @@ export default async function SettingsPage({
         <>
           <section className="settings-group">
             <div className="settings-group-header">
-              <div className="panelHeaderRow">
+              <div className="settings-group-header-main">
                 <SettingsSectionHeader
                   title="Conexiones"
                   help={<HelpTip text="Abre cada conexión para configurar sus credenciales." />}
@@ -348,7 +348,7 @@ export default async function SettingsPage({
 
           <section className="settings-group">
             <div className="settings-group-header">
-              <div className="panelHeaderRow">
+              <div className="settings-group-header-main">
                 <SettingsSectionHeader
                   title="Conexiones guardadas"
                   help={<HelpTip text="Resumen de las conexiones actuales." />}
@@ -495,7 +495,7 @@ export default async function SettingsPage({
           {aiEnabled ? (
             <section className="settings-group">
               <div className="settings-group-header">
-                <div className="panelHeaderRow">
+                <div className="settings-group-header-main">
                   <SettingsSectionHeader
                     title="Inteligencia artificial"
                     help={<HelpTip text="Configura una o ambas llaves. Si una falla, usamos la otra automáticamente." />}
@@ -581,7 +581,7 @@ export default async function SettingsPage({
           ) : (
             <section className="settings-group">
               <div className="settings-group-header">
-                <div className="panelHeaderRow">
+                <div className="settings-group-header-main">
                   <SettingsSectionHeader
                     title="Inteligencia artificial"
                     help={<HelpTip text="Esta sección requiere habilitación del super admin." />}
@@ -605,7 +605,7 @@ export default async function SettingsPage({
           <AutoSubmitOnChange />
           <section className="settings-group">
             <div className="settings-group-header">
-              <div className="panelHeaderRow">
+              <div className="settings-group-header-main">
                 <SettingsSectionHeader
                   title="Reglas de cobro"
                   help={<HelpTip text="Configura las reglas de cobro automático, corte, cobro manual y reintentos." />}
@@ -756,7 +756,7 @@ export default async function SettingsPage({
 
           <section className="settings-group">
             <div className="settings-group-header">
-              <div className="panelHeaderRow">
+              <div className="settings-group-header-main">
                 <SettingsSectionHeader
                   title="Débito automático"
                   help={<HelpTip text="Cobros automáticos, corte, botón manual y reintentos." />}
@@ -884,7 +884,7 @@ export default async function SettingsPage({
       {tab === "suscripciones" ? (
         <section className="settings-group">
           <div className="settings-group-header">
-            <div className="panelHeaderRow">
+            <div className="settings-group-header-main">
               <SettingsSectionHeader title="Configuración de Suscripciones" />
             </div>
           </div>
@@ -952,7 +952,7 @@ export default async function SettingsPage({
       {tab === "checkout-publico" ? (
         <section className="settings-group">
           <div className="settings-group-header">
-            <div className="panelHeaderRow">
+            <div className="settings-group-header-main">
               <SettingsSectionHeader
                 title="Checkout público"
                 help={<HelpTip text="Crea plantillas de checkout para planes y suscripciones." />}
@@ -990,7 +990,7 @@ export default async function SettingsPage({
       {tab === "canales" ? (
         <section className="settings-group">
           <div className="settings-group-header">
-            <div className="panelHeaderRow">
+            <div className="settings-group-header-main">
               <SettingsSectionHeader
                 title="Canales de venta"
                 help={<HelpTip text="Gestiona los canales (tenants) disponibles en la app." />}

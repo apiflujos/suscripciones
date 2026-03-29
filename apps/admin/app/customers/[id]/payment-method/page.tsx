@@ -64,7 +64,7 @@ export default async function CustomerPaymentMethodPage({
 
       <section className="settings-group">
         <div className="settings-group-header">
-          <div className="panelHeaderRow">
+          <div className="settings-group-header-main">
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <h3>Método de pago (débito automático)</h3>
               <HelpTip text="Guarda un método de pago para poder cobrar suscripciones automáticamente." />

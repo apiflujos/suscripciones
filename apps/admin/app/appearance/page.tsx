@@ -7,11 +7,9 @@ export default function AppearancePage() {
     <main className="page pageWide">
       <section className="settings-group">
         <div className="settings-group-header">
-          <div className="panelHeaderRow">
-            <div style={{ display: "grid", gap: 4 }}>
-              <h3>Apariencia</h3>
-              <div className="field-hint">Claro, oscuro, alto contraste y accesibilidad.</div>
-            </div>
+          <div className="settings-group-header-main">
+            <h3>Apariencia</h3>
+            <div className="field-hint">Claro, oscuro, alto contraste y accesibilidad.</div>
           </div>
         </div>
         <div className="settings-group-body">

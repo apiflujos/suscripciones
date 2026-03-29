@@ -3320,6 +3320,7 @@ html[data-theme="dark"] .payments-health-banner code {
   align-items: center;
   gap: var(--space-1);
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 /* Iconos - UNIFIED */
@@ -15130,6 +15131,28 @@ html[data-contrast="high"] .toggle::after {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
+}
+
+.settings-group-header-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.settings-group-header-main h3,
+.settings-group-header-main h4,
+.settings-group-header-main p,
+.settings-group-header-main .subtitle,
+.settings-group-header-main .field-hint {
+  margin: 0;
+}
+
+.settings-group-header-main .subtitle,
+.settings-group-header-main .field-hint,
+.settings-group-header-main p {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .settings-group-header > div:first-child {

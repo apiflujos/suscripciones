@@ -201,7 +201,7 @@ export function NotificationsManager({
     <>
       <section className="settings-group">
         <div className="settings-group-header">
-          <div className="panelHeaderRow">
+          <div className="settings-group-header-main">
             <h3>Resumen</h3>
           </div>
         </div>
@@ -221,7 +221,7 @@ export function NotificationsManager({
 
       <section className="settings-group">
         <div className="settings-group-header">
-          <div className="panelHeaderRow">
+          <div className="settings-group-header-main">
             <h3>Reglas configuradas</h3>
           </div>
         </div>
@@ -285,7 +285,7 @@ export function NotificationsManager({
 
       <section className="settings-group">
         <div className="settings-group-header">
-          <div className="panelHeaderRow">
+          <div className="settings-group-header-main">
             <h3>Plantillas guardadas</h3>
           </div>
         </div>

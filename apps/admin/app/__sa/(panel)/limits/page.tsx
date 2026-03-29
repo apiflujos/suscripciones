@@ -27,10 +27,12 @@ export default async function SaLimitsPage({
 
       <section className="settings-group">
         <div className="settings-group-header">
-          <h3 style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            Catálogo de servicios
-            <span className="pill">{items.length}</span>
-          </h3>
+          <div className="settings-group-header-main">
+            <h3 style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              Catálogo de servicios
+              <span className="pill">{items.length}</span>
+            </h3>
+          </div>
         </div>
         <div className="settings-group-body">
           <form action={upsertLimit} className="panel module" style={{ display: "grid", gap: 10 }}>

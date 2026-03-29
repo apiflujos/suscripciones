@@ -48,7 +48,7 @@ export function SqlConsoleClient() {
   return (
     <section className="settings-group">
       <div className="settings-group-header">
-        <div className="panelHeaderRow">
+        <div className="settings-group-header-main">
           <h3>SQL Console</h3>
         </div>
       </div>
@@ -88,4 +88,3 @@ export function SqlConsoleClient() {
     </section>
   );
 }
-

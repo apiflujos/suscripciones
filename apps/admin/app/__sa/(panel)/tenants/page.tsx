@@ -29,10 +29,12 @@ export default async function SaTenantsPage({
 
       <section className="settings-group">
         <div className="settings-group-header">
-          <h3 style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            Tenants
-            <span className="pill">{tenants.length}</span>
-          </h3>
+          <div className="settings-group-header-main">
+            <h3 style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              Tenants
+              <span className="pill">{tenants.length}</span>
+            </h3>
+          </div>
         </div>
         <div className="settings-group-body">
           <form action={createTenant} className="panel module" style={{ display: "flex", gap: 10, alignItems: "end", flexWrap: "wrap" }}>

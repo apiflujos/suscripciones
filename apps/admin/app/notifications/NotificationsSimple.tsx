@@ -643,10 +643,12 @@ export function NotificationsSimple({
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
-      <div className="panelHeaderRow" style={{ justifyContent: "space-between", gap: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <h3 style={{ margin: 0 }}>Notificaciones WhatsApp</h3>
-          <HelpTip text="Crea notificaciones personalizadas por evento y configura los recordatorios automáticos." />
+      <div className="settings-group-header">
+        <div className="settings-group-header-main">
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <h3>Notificaciones WhatsApp</h3>
+            <HelpTip text="Crea notificaciones personalizadas por evento y configura los recordatorios automáticos." />
+          </div>
         </div>
       </div>
       {pickerOpen ? (
@@ -674,14 +676,14 @@ export function NotificationsSimple({
       ) : null}
       <section className="settings-group notifications-templates-section">
         <div className="settings-group-header">
-          <div className="panelHeaderRow" style={{ justifyContent: "space-between", gap: 8 }}>
+          <div className="settings-group-header-main">
             <h3>Lista de notificaciones</h3>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <button className="ghost btn-compact" type="button" onClick={loadWaTemplates} data-loader="off">
-                {waLoading ? "Sincronizando..." : "Sincronizar plantillas WhatsApp"}
-              </button>
-              {waError ? <span className="muted" style={{ fontSize: 12 }}>{waError}</span> : null}
-            </div>
+          </div>
+          <div className="settings-group-header-actions">
+            <button className="ghost btn-compact" type="button" onClick={loadWaTemplates} data-loader="off">
+              {waLoading ? "Sincronizando..." : "Sincronizar plantillas WhatsApp"}
+            </button>
+            {waError ? <span className="muted" style={{ fontSize: 12 }}>{waError}</span> : null}
           </div>
         </div>
         <div className="settings-group-body">
@@ -729,7 +731,7 @@ export function NotificationsSimple({
 
       <section className="settings-group">
         <div className="settings-group-header">
-          <div className="panelHeaderRow">
+          <div className="settings-group-header-main">
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <h3>Pagos externos</h3>
               <HelpTip text="Controla si se notifican pagos sin suscripción asociada." />

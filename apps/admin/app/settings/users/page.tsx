@@ -36,11 +36,13 @@ export default async function SettingsUsersPage({
 
       <section className="settings-group">
         <div className="settings-group-header">
-          <h3 style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            Gestión de Usuarios
-            <span className="pill">{users.length}</span>
-          </h3>
-          <p className="subtitle">Crea y administra los accesos para tu empresa.</p>
+          <div className="settings-group-header-main">
+            <h3 style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              Gestión de Usuarios
+              <span className="pill">{users.length}</span>
+            </h3>
+            <p className="subtitle">Crea y administra los accesos para tu empresa.</p>
+          </div>
         </div>
         
         <div className="settings-group-body">

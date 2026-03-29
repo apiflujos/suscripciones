@@ -296,19 +296,19 @@ export function NotificationWizard({
   return (
     <section className="settings-group">
       <div className="settings-group-header">
-        <div className="panelHeaderRow">
+        <div className="settings-group-header-main">
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <h3>Crear notificación / recordatorio</h3>
             <span className="pill">Paso {step}/3</span>
           </div>
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <div className="field" style={{ margin: 0, minWidth: 220 }}>
-              <label>Entorno</label>
-              <select className="select" value={env} onChange={(e) => setEnv((e.target.value as Env) || "PRODUCTION")}>
-                <option value="PRODUCTION">Producción</option>
-                <option value="SANDBOX">Sandbox</option>
-              </select>
-            </div>
+        </div>
+        <div className="settings-group-header-actions">
+          <div className="field" style={{ margin: 0, minWidth: 220 }}>
+            <label>Entorno</label>
+            <select className="select" value={env} onChange={(e) => setEnv((e.target.value as Env) || "PRODUCTION")}>
+              <option value="PRODUCTION">Producción</option>
+              <option value="SANDBOX">Sandbox</option>
+            </select>
           </div>
         </div>
       </div>
