@@ -2352,6 +2352,17 @@ a {
   padding: 6px 12px !important;
 }
 
+.smartViewsModalPanel .btn-compact:not(.btn-icon-only),
+.smartViewsModalPanel .btn:not(.btn-icon-only),
+.smartViewsModalPanel .primary:not(.btn-icon-only),
+.smartFilterModalPanel .btn-compact:not(.btn-icon-only),
+.smartFilterModalPanel .btn:not(.btn-icon-only),
+.smartFilterModalPanel .primary:not(.btn-icon-only) {
+  width: auto !important;
+  min-width: 0 !important;
+  white-space: nowrap;
+}
+
 .smartFilterModalPanel .modal-body {
   gap: 12px;
 }
