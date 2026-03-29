@@ -283,6 +283,7 @@ export function NewMassMessageModal({
   const [waError, setWaError] = useState("");
   const [waState, setWaState] = useState({ name: "", lang: "es", bodyParams: [] as string[], headerParams: [] as string[], buttonParams: [] as string[] });
   const [smartViewId, setSmartViewId] = useState("");
+  const [availableViews, setAvailableViews] = useState<SmartView[]>(views);
   const [audienceCount, setAudienceCount] = useState<number | null>(null);
   const [audienceLoading, setAudienceLoading] = useState(false);
   const [audienceError, setAudienceError] = useState("");
@@ -321,11 +322,38 @@ export function NewMassMessageModal({
   }, [open]);
 
   useEffect(() => {
+    setAvailableViews(views);
+  }, [views]);
+
+  useEffect(() => {
     if (!open) return;
     if (!waTemplates.length) {
       loadWaTemplates();
     }
   }, [open, waTemplates.length, loadWaTemplates]);
+
+  const loadViews = useCallback(async () => {
+    try {
+      const res = await fetch("/api/smart-views/customers", { cache: "no-store" });
+      const json = await res.json().catch(() => null);
+      if (res.ok && Array.isArray(json?.views)) {
+        setAvailableViews(json.views);
+        return json.views as SmartView[];
+      }
+      if (res.ok && Array.isArray(json)) {
+        setAvailableViews(json as SmartView[]);
+        return json as SmartView[];
+      }
+    } catch {
+      // ignore, keep current list
+    }
+    return availableViews;
+  }, [availableViews]);
+
+  useEffect(() => {
+    if (!open) return;
+    loadViews();
+  }, [open, loadViews]);
 
   const loadAudiencePreview = useCallback(async (id: string) => {
     const trimmed = String(id || "").trim();
@@ -414,7 +442,7 @@ export function NewMassMessageModal({
                     style={{ marginBottom: 8 }}
                   >
                     <option value="">Selecciona un filtro...</option>
-                    {views.map((v) => (
+                    {availableViews.map((v) => (
                       <option key={v.id} value={v.id}>
                         {v.name} {v.visibility === "PRIVATE" ? "(Privada)" : ""}
                       </option>
@@ -422,7 +450,20 @@ export function NewMassMessageModal({
                   </select>
                   
                   <div style={{ marginBottom: 8 }}>
-                    <FilterButton scope="customers" label="Crear nuevo filtro" fullWidth />
+                    <FilterButton
+                      scope="customers"
+                      label="Crear nuevo filtro"
+                      fullWidth
+                      reloadOnSave={false}
+                      onSaved={async (created) => {
+                        const nextViews = await loadViews();
+                        const nextId = String(created?.id || "");
+                        if (nextId && nextViews.some((v) => String(v.id) === nextId)) {
+                          setSmartViewId(nextId);
+                          loadAudiencePreview(nextId);
+                        }
+                      }}
+                    />
                   </div>
                   
                   {audienceLoading ? <div className="field-hint">Calculando audiencia...</div> : null}

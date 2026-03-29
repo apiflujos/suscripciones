@@ -21,7 +21,9 @@ export function FilterButton({
   initialFields,
   compactInline,
   label,
-  fullWidth
+  fullWidth,
+  onSaved,
+  reloadOnSave = true
 }: {
   scope?: string;
   baseParams?: Record<string, string>;
@@ -29,6 +31,8 @@ export function FilterButton({
   compactInline?: boolean;
   label?: string;
   fullWidth?: boolean;
+  onSaved?: (created?: { id?: string; name?: string }) => void;
+  reloadOnSave?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [root, setRoot] = useState<Rule>({ op: "and", rules: [] });
@@ -112,10 +116,15 @@ export function FilterButton({
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || "Error al guardar");
-      
-      // Cerrar modal y recargar
+      const createdId = String(json?.id || json?.view?.id || "");
+      const createdName = String(json?.name || json?.view?.name || name.trim());
       setOpen(false);
-      window.location.reload();
+      if (onSaved) {
+        onSaved({ id: createdId || undefined, name: createdName || undefined });
+      }
+      if (reloadOnSave) {
+        window.location.reload();
+      }
     } catch (err: any) {
       setError(String(err?.message || "Error al guardar"));
     } finally {
