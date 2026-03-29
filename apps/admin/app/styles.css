@@ -15034,6 +15034,36 @@ html[data-contrast="high"] .toggle::after {
   gap: 6px;
 }
 
+/* Header estándar: tamaños unificados en todas las pantallas */
+.page-header-standard.compact .input,
+.page-header-standard.compact .select {
+  height: 28px;
+  font-size: 12px;
+}
+
+.page-header-standard.compact .btn-compact,
+.page-header-standard.compact .btn-icon-only {
+  height: 28px;
+  min-height: 28px;
+  width: 28px;
+  min-width: 28px;
+}
+
+.page-header-standard.compact .page-header-standard-search {
+  flex: 1 1 360px;
+  max-width: 360px;
+}
+
+.page-header-standard.compact .filtersSearch .input {
+  min-width: 0;
+  width: 100%;
+}
+
+.page-header-standard.compact .filtersSearch {
+  max-width: 100%;
+  width: 100%;
+}
+
 /* Compactar headers en Customers y Products para igualar el estándar */
 .customersPage .page-header-standard .input,
 .customersPage .page-header-standard .select,
