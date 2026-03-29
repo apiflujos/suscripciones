@@ -15314,6 +15314,11 @@ html[data-contrast="high"] .toggle::after {
   min-height: 32px;
 }
 
+.page-header-standard .btn-icon-only {
+  width: 32px;
+  min-width: 32px;
+}
+
 /* Iconos morados en headers estándar */
 .page-header-standard .btn-icon-only {
   border-color: var(--primary);
