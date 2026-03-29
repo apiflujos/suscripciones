@@ -616,7 +616,7 @@ export function SmartViewsBar({
   const filledPins = pinnedIds.filter(Boolean);
   const displaySlots = Math.min(Math.max(filledPins.length + 1, 1), PIN_SLOTS);
   const nextPinIndex = Math.min(filledPins.length, PIN_SLOTS - 1);
-  const canAddAt = (idx: number) => mergedViews.length > 0 && idx === nextPinIndex;
+  const canAddAt = (idx: number) => idx === nextPinIndex;
 
   return (
     <div className={`smartViewsBar ${compactInline ? "smartViewsBarInline" : ""}`} data-loader="off">
@@ -658,6 +658,14 @@ export function SmartViewsBar({
                     className={`pill smartViewsPinAdd${canAddAt(idx) ? "" : " is-disabled"}`}
                     onClick={() => {
                       if (!canAddAt(idx)) return;
+                      if (mergedViews.length === 0) {
+                        setMode("filters");
+                        setActiveViewId("");
+                        setEditingId("");
+                        setNotice(null);
+                        ensureFieldsLoaded().catch(() => null);
+                        return;
+                      }
                       setPinSelectValue("");
                       setPinModalIndex(idx);
                     }}
@@ -690,7 +698,9 @@ export function SmartViewsBar({
                     setNotice(null);
                     ensureFieldsLoaded().catch(() => null);
                   }}
-                />
+                >
+                  <span className="filter-emoji" aria-hidden="true">🧹</span>
+                </button>
               )}
             </div>
           </div>
@@ -932,6 +942,20 @@ export function SmartViewsBar({
                 </select>
               )}
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                <button
+                  className="ghost btn-compact"
+                  type="button"
+                  onClick={() => {
+                    setPinModalIndex(null);
+                    setMode("filters");
+                    setActiveViewId("");
+                    setEditingId("");
+                    setNotice(null);
+                    ensureFieldsLoaded().catch(() => null);
+                  }}
+                >
+                  Crear nueva
+                </button>
                 <button className="ghost btn-compact" type="button" onClick={() => setPinModalIndex(null)}>
                   Cancelar
                 </button>

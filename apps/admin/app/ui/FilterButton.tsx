@@ -252,9 +252,7 @@ export function FilterButton({
           aria-label="Crear filtro inteligente"
           title="Crear filtro inteligente"
         >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M.5 2a.75.75 0 0 1 .75-.75h13.5a.75.75 0 0 1 .56 1.247l-5.06 5.62v4.633a.75.75 0 0 1-1.083.67l-3-1.5a.75.75 0 0 1-.417-.67V8.117l-5.06-5.62A.75.75 0 0 1 .5 2z"/>
-          </svg>
+          <span className="filter-emoji" aria-hidden="true">🧹</span>
         </button>
       )}
 

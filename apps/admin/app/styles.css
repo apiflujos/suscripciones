@@ -15441,6 +15441,15 @@ html[data-contrast="high"] .toggle::after {
   background: var(--primary-soft);
 }
 
+.btn-filter.btn-icon-only::before {
+  content: none !important;
+}
+
+.filter-emoji {
+  font-size: 14px;
+  line-height: 1;
+}
+
 .page-header-standard .btn-filter:disabled,
 .page-header-standard .btn-filter[disabled] {
   opacity: 1 !important;
