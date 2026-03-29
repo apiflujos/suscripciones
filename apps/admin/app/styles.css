@@ -15045,6 +15045,9 @@ html[data-contrast="high"] .toggle::after {
 .page-header-standard.compact .btn-icon-only {
   height: 28px;
   min-height: 28px;
+}
+
+.page-header-standard.compact .btn-icon-only {
   width: 28px;
   min-width: 28px;
 }
@@ -15075,6 +15078,9 @@ html[data-contrast="high"] .toggle::after {
 :is(.panelHeaderRow, .filtersRow, .billing-header, .settings-group-header, .panel-header, .ui-panel-header, .tableHeader, .cardHead) .btn-icon-only {
   height: 28px;
   min-height: 28px;
+}
+
+:is(.panelHeaderRow, .filtersRow, .billing-header, .settings-group-header, .panel-header, .ui-panel-header, .tableHeader, .cardHead) .btn-icon-only {
   width: 28px;
   min-width: 28px;
 }
@@ -15483,8 +15489,8 @@ html[data-contrast="high"] .toggle::after {
   display: grid !important;
   grid-template-columns: minmax(240px, 1fr) minmax(260px, 1fr) auto;
   grid-template-areas:
-    "search filters filters"
-    "views smartviews right";
+    "search filters right"
+    "views smartviews smartviews";
   align-items: center;
   row-gap: 8px;
 }
@@ -15509,6 +15515,10 @@ html[data-contrast="high"] .toggle::after {
 .paymentsPage .page-header-standard-right {
   grid-area: right;
   justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
 }
 
 /* SmartViewsBar inline - padding uniforme */
