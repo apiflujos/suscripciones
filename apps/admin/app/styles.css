@@ -5471,24 +5471,24 @@ textarea.input {
 
 /* Compactar cards de contactos (igual altura que billing) */
 .customersPage .billing-card {
-  padding: 8px;
-  gap: 4px;
+  padding: 6px;
+  gap: 3px;
 }
 
 .customersPage .billing-card .billing-header {
-  padding-bottom: 4px;
-  margin-bottom: 4px;
+  padding-bottom: 2px;
+  margin-bottom: 2px;
 }
 
 .customersPage .billing-card .contact-body {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 220px);
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 200px);
+  gap: 6px;
   align-items: start;
 }
 
 .customersPage .billing-card .contact-block {
-  padding: 4px;
+  padding: 3px;
   gap: 2px;
 }
 
@@ -5505,22 +5505,32 @@ textarea.input {
 }
 
 .customersPage .billing-card .contact-paylink {
-  padding: 4px 5px;
+  padding: 3px 4px;
   gap: 2px;
 }
 
 .customersPage .billing-card .paylink-actions {
-  gap: 6px;
+  gap: 4px;
 }
 
 .customersPage .billing-card .contact-paylink .btn-compact,
 .customersPage .billing-card .contact-action-btn {
-  height: 28px;
-  min-width: 110px !important;
+  height: 26px;
+  min-width: 96px !important;
+  font-size: 11px;
 }
 
 .customersPage .billing-card .contact-right {
-  min-width: 220px;
+  min-width: 200px;
+}
+
+.customersPage .billing-card .contact-block-title {
+  font-size: 10px;
+  letter-spacing: 0.3px;
+}
+
+.customersPage .billing-card .paylink-title {
+  font-size: 10px;
 }
 
 .contact-footer {
