@@ -15445,11 +15445,6 @@ html[data-contrast="high"] .toggle::after {
   content: none !important;
 }
 
-.filter-emoji {
-  font-size: 14px;
-  line-height: 1;
-}
-
 .page-header-standard .btn-filter:disabled,
 .page-header-standard .btn-filter[disabled] {
   opacity: 1 !important;
